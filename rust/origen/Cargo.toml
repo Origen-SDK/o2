@@ -4,10 +4,12 @@ version = "0.1.0"
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 edition = "2018"
 
+# Library used by the CLI and the Python interface
 [lib]
 name = "origen"
 path = "src/lib.rs"
 
+# The Origen command line interface (CLI) executable, i.e. the 'origen' command
 [[bin]]
 name = "origen"
 path = "src/bin.rs"
