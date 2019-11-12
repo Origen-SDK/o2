@@ -1,24 +1,22 @@
-extern crate clap; 
+extern crate clap;
 
-use clap::{Arg, App, SubCommand}; 
+use clap::{App, Arg, SubCommand};
 
 // This is the entry point for the Origen CLI tool
-fn main() { 
-
-    if !false { //origen::Env.is_app_present {
+fn main() {
+    if !false {
+        //origen::Env.is_app_present {
         let matches = App::new("Origen")
-           //.version("1.0")
-           .about("The Semiconductor Developer's Kit")
-           .arg(Arg::with_name("version")
-                .short("v")
-                .long("version")
-                .help("Display the Origen version")
-           )
-
-           .get_matches(); 
-
+            //.version("1.0")
+            .about("The Semiconductor Developer's Kit")
+            .arg(
+                Arg::with_name("version")
+                    .short("v")
+                    .long("version")
+                    .help("Display the Origen version"),
+            )
+            .get_matches();
     } else {
-
         let matches = App::new("Origen")
            //.version("1.0")
            .about("The Semiconductor Developer's Kit")
@@ -148,7 +146,6 @@ fn main() {
                 )
            )
 
-           .get_matches(); 
-
+           .get_matches();
     }
 }
