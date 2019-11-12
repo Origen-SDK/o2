@@ -1,0 +1,6 @@
+/rust/origen/target
+
+# Editor cruft
+*.swp
+*.swo
+*~
