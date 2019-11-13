@@ -1,14 +1,14 @@
 use std::env;
 use std::path::PathBuf;
 
-// Global configuration singleton
+// Global configuration singleton available as origen::CONFIG
 pub struct Config {
     pub is_app_present: bool,
     pub root: PathBuf,
 }
 
 impl Default for Config {
-    fn default () -> Config {
+    fn default() -> Config {
         let (p, r) = search_for_app_root();
         Config {
             is_app_present: p,
