@@ -1,10 +1,13 @@
 extern crate clap;
 
+mod workspace;
+
 use clap::{App, Arg, SubCommand};
+use origen::{Config};
 
 // This is the entry point for the Origen CLI tool
 fn main() {
-    if !false {
+    if !Config.is_app_present {
         //origen::Env.is_app_present {
         let matches = App::new("Origen")
             //.version("1.0")

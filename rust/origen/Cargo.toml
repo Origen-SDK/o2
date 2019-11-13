@@ -18,3 +18,4 @@ path = "src/bin.rs"
 
 [dependencies]
 clap = "2.33.0"
+lazy_static = "1.4.0"
