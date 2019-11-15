@@ -1,0 +1,25 @@
+[package]
+name = "pyapi"
+version = "0.0.0"  # Runtime version defined by libcore/Cargo.toml
+authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "_origen"
+path = "lib.rs"
+crate-type = "cdylib"
+
+## See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+#[dependencies]
+#clap = "2.33.0"
+#lazy_static = "1.4.0"
+#semver = "0.9.0"
+#built = "0.3"
+#
+#[build-dependencies]
+#built = "0.3"
+
+[dependencies.pyo3]
+version = "0.8.2"
+features = ["extension-module"]

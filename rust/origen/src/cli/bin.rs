@@ -1,15 +1,14 @@
 extern crate clap;
 
-mod workspace;
+mod commands;
 
 use clap::{App, Arg, SubCommand};
-use origen::CONFIG;
+use core::CONFIG;
 
 // This is the entry point for the Origen CLI tool
 fn main() {
     if !CONFIG.is_app_present {
-        //origen::Env.is_app_present {
-        let matches = App::new("Origen")
+        let matches = App::new("Origen CLI v2.0.0.pre0")
             //.version("1.0")
             .about("The Semiconductor Developer's Kit")
             .arg(
@@ -20,9 +19,9 @@ fn main() {
             )
             .get_matches();
     } else {
-        let matches = App::new("Origen")
-           //.version("1.0")
-           .about("The Semiconductor Developer's Kit")
+        let matches = App::new("Origen, The Semiconductor Developer's Kit")
+           .about("fuck you")
+           //.about(format!("CLI v{}", CONFIG.origen_version))
            .arg(Arg::with_name("version")
                 .short("v")
                 .long("version")
@@ -156,5 +155,16 @@ fn main() {
            )
 
            .get_matches();
+
+        if matches.is_present("version") {
+            commands::version::main();
+        } else {
+           // You can also match on a subcommand's name
+            match matches.subcommand_name() {
+                Some("version") => commands::version::main(),
+                None => println!("No subcommand was used"),
+                _ => println!("Some other subcommand was used"),
+            }
+        }
     }
 }
