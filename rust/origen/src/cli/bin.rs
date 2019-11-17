@@ -20,10 +20,28 @@ fn main() {
                     .long("version")
                     .help("Display the Origen version"),
             )
+            /************************************************************************************/
+            .subcommand(
+                SubCommand::with_name("interactive")
+                    .about("Start an Origen console")
+                    .visible_alias("i"),
+            )
+            /************************************************************************************/
+            .subcommand(
+                SubCommand::with_name("ping")
+                    .about("Check if your environment is setup correctly to run Origen"),
+            )
             .get_matches();
 
         if matches.is_present("version") {
             commands::version::main();
+        } else {
+            match matches.subcommand_name() {
+                Some("ping") => commands::ping::main(),
+                Some("interactive") => commands::interactive::main(),
+                None => println!("No subcommand was used"),
+                _ => println!("Some other subcommand was used"),
+            }
         }
 
     /************************************************************************************/
@@ -164,14 +182,20 @@ fn main() {
                 )
            )
 
+           /************************************************************************************/
+           .subcommand(
+                SubCommand::with_name("ping")
+                    .about("Check if your environment is setup correctly to run Origen"),
+           )
+
            .get_matches();
 
         if matches.is_present("version") {
             commands::version::main();
         } else {
-            // You can also match on a subcommand's name
             match matches.subcommand_name() {
-                Some("version") => commands::version::main(),
+                Some("ping") => commands::ping::main(),
+                Some("interactive") => commands::interactive::main(),
                 None => println!("No subcommand was used"),
                 _ => println!("Some other subcommand was used"),
             }

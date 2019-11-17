@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
-extern crate semver;
+
+pub mod python;
 
 use semver::Version;
 use std::env;
@@ -12,8 +13,8 @@ lazy_static! {
 
 // Use of a mod or pub mod is not actually necessary.
 pub mod built_info {
-   // The file has been placed there by the build script.
-   include!(concat!(env!("OUT_DIR"), "/built.rs"));
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
 // Global configuration singleton available as _origen::CONFIG
