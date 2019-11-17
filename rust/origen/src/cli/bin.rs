@@ -7,54 +7,31 @@ use core::CONFIG;
 
 // This is the entry point for the Origen CLI tool
 fn main() {
-    if !CONFIG.is_app_present {
-        /************************************************************************************/
-        /******************** Global commands ***********************************************/
-        /************************************************************************************/
+    let about = format!("CLI {}", CONFIG.origen_version);
+    let mut app = App::new("Origen, The Semiconductor Developer's Kit")
+        .about(&*about)
+        .arg(
+            Arg::with_name("version")
+                .short("v")
+                .long("version")
+                .help("Display the Origen and application version"),
+        );
 
-        let matches = App::new("Origen, The Semiconductor Developer's Kit")
-            .about(&*format!("CLI {}", CONFIG.origen_version))
-            .arg(
-                Arg::with_name("version")
-                    .short("v")
-                    .long("version")
-                    .help("Display the Origen version"),
-            )
-            /************************************************************************************/
-            .subcommand(
-                SubCommand::with_name("interactive")
-                    .about("Start an Origen console")
-                    .visible_alias("i"),
-            )
-            /************************************************************************************/
-            .subcommand(
-                SubCommand::with_name("ping")
-                    .about("Check if your environment is setup correctly to run Origen"),
-            )
-            .get_matches();
-
-        if matches.is_present("version") {
-            commands::version::main();
-        } else {
-            match matches.subcommand_name() {
-                Some("ping") => commands::ping::main(),
-                Some("interactive") => commands::interactive::main(),
-                None => println!("No subcommand was used"),
-                _ => println!("Some other subcommand was used"),
-            }
-        }
+    /************************************************************************************/
+    /******************** Global commands ***********************************************/
+    /************************************************************************************/
+    app = app
+        /************************************************************************************/
+        .subcommand(
+            SubCommand::with_name("check")
+                .about("Check if your environment is setup correctly to run Origen"),
+        );
 
     /************************************************************************************/
     /******************** In application commands ***************************************/
     /************************************************************************************/
-    } else {
-        let matches = App::new("Origen, The Semiconductor Developer's Kit")
-           .about(&*format!("CLI {}", CONFIG.origen_version))
-           .arg(Arg::with_name("version")
-                .short("v")
-                .long("version")
-                .help("Display the Origen and application version")
-           )
+    if CONFIG.is_app_present {
+        app = app
 
            /************************************************************************************/
            .subcommand(SubCommand::with_name("interactive")
@@ -181,24 +158,18 @@ fn main() {
                     .value_name("MODE")
                 )
            )
+    }
 
-           /************************************************************************************/
-           .subcommand(
-                SubCommand::with_name("ping")
-                    .about("Check if your environment is setup correctly to run Origen"),
-           )
+    let matches = app.get_matches();
 
-           .get_matches();
-
-        if matches.is_present("version") {
-            commands::version::main();
-        } else {
-            match matches.subcommand_name() {
-                Some("ping") => commands::ping::main(),
-                Some("interactive") => commands::interactive::main(),
-                None => println!("No subcommand was used"),
-                _ => println!("Some other subcommand was used"),
-            }
+    if matches.is_present("version") {
+        commands::version::main();
+    } else {
+        match matches.subcommand_name() {
+            Some("check") => commands::check::main(),
+            Some("interactive") => commands::interactive::main(),
+            None => {}
+            _ => {}
         }
     }
 }

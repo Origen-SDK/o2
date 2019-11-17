@@ -1,9 +1,16 @@
 // Responsible for managing Python execution
 
-use std::process::{Command};
 use semver::Version;
+use std::process::Command;
 
-const PYTHONS: &[&str] = &["python", "python3", "python3.8", "python3.7", "python3.6", "python3.5"];
+const PYTHONS: &[&str] = &[
+    "python",
+    "python3",
+    "python3.8",
+    "python3.7",
+    "python3.6",
+    "python3.5",
+];
 const MIN_PYTHON_VERSION: &str = "3.5.0";
 
 lazy_static! {
@@ -24,16 +31,16 @@ impl Default for Config {
             match get_version(cmd) {
                 Some(version) => {
                     available = true;
-                    if version >=  Version::parse(MIN_PYTHON_VERSION).unwrap() {
+                    if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         return Config {
                             available: true,
                             command: cmd.to_string(),
                             version: version,
                             error: "".to_string(),
-                        }
+                        };
                     }
-                },
-                None => {},
+                }
+                None => {}
             }
         }
         let mut msg = format!("Your environment does not have Python installed/available");
@@ -65,17 +72,16 @@ fn extract_version(text: &str) -> Option<Version> {
             let c = x.get(1).unwrap().as_str();
             let v = Version::parse(c).unwrap();
             return Some(v);
-        },
-        None => { return None; },
+        }
+        None => {
+            return None;
+        }
     };
 }
 
 /// Execute the given Python code
 pub fn run(code: &str) {
-    Command::new(&CONFIG.command)
-        .arg("-c")
-        .arg(code)
-        .status();
+    let _status = Command::new(&CONFIG.command).arg("-c").arg(code).status();
 }
 
 #[cfg(test)]
@@ -84,7 +90,13 @@ mod tests {
 
     #[test]
     fn extract_version_works() {
-        assert_eq!(Version::parse("2.7.15").unwrap(), extract_version("Python 2.7.15+a\n").unwrap());
-        assert_eq!(Version::parse("3.6.8").unwrap(), extract_version("Python 3.6.8 \n").unwrap());
+        assert_eq!(
+            Version::parse("2.7.15").unwrap(),
+            extract_version("Python 2.7.15+a\n").unwrap()
+        );
+        assert_eq!(
+            Version::parse("3.6.8").unwrap(),
+            extract_version("Python 3.6.8 \n").unwrap()
+        );
     }
 }

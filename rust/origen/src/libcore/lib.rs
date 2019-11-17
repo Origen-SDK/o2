@@ -2,6 +2,8 @@
 extern crate lazy_static;
 
 pub mod python;
+pub mod term;
+pub mod config;
 
 use semver::Version;
 use std::env;
