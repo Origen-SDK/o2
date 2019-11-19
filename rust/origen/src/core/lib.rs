@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde;
 
 pub mod python;
 pub mod term;
@@ -51,7 +53,7 @@ fn search_for_app_root() -> (bool, PathBuf) {
         }
     };
 
-    while !path.join("config").join("application.toml").is_file() && !aborted {
+    while !path.join("config").join("origen.toml").is_file() && !aborted {
         if !path.pop() {
             aborted = true;
         }

@@ -1,15 +1,13 @@
 [package]
-name = "cli"
+name = "app_generators"
 version = "0.0.0"  # Runtime version defined by libcore/Cargo.toml
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 edition = "2018"
 
-[[bin]]
-name = "origen"
-path = "bin.rs"
+[lib]
+name = "app_generators"
+path = "lib.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2.33.0"
-core = { path = "../core" }
