@@ -20,5 +20,9 @@ termcolor = "1"
 config = "0.9"
 serde = "1.0"
 
+[dependencies.pyo3]
+version = "0.8.2"
+features = ["extension-module"]
+
 [build-dependencies]
 built = "0.3"

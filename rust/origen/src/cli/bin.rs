@@ -3,11 +3,11 @@ extern crate clap;
 mod commands;
 
 use clap::{App, Arg, SubCommand};
-use core::CONFIG;
+use core::STATUS;
 
 // This is the entry point for the Origen CLI tool
 fn main() {
-    let about = format!("CLI {}", CONFIG.origen_version);
+    let about = format!("CLI {}", STATUS.origen_version);
     let mut app = App::new("Origen, The Semiconductor Developer's Kit")
         .about(&*about)
         .arg(
@@ -30,7 +30,7 @@ fn main() {
     /************************************************************************************/
     /******************** In application commands ***************************************/
     /************************************************************************************/
-    if CONFIG.is_app_present {
+    if STATUS.is_app_present {
         app = app
 
            /************************************************************************************/

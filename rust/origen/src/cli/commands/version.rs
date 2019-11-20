@@ -1,5 +1,5 @@
-use crate::CONFIG;
+use core::STATUS;
 
 pub fn main() {
-    println!("Origen: {}", CONFIG.origen_version);
+    println!("Origen: {}", STATUS.origen_version);
 }

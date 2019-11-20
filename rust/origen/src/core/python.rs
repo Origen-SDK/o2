@@ -81,7 +81,12 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) {
-    let _status = Command::new("poetry").arg("run").arg(&CONFIG.command).arg("-c").arg(code).status();
+    let _status = Command::new("poetry")
+        .arg("run")
+        .arg(&CONFIG.command)
+        .arg("-c")
+        .arg(code)
+        .status();
 }
 
 #[cfg(test)]

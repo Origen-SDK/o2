@@ -1,31 +1,32 @@
-use core::CONFIG;
+use core::{CONFIG, STATUS};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-/// This module is a python module implemented in Rust.
+/// This is a python module implemented in Rust.
 #[pymodule]
 fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(version))?;
-    m.add_wrapped(wrap_pyfunction!(root))?;
+    m.add_wrapped(wrap_pyfunction!(status))?;
+    m.add_wrapped(wrap_pyfunction!(config))?;
+    m.add_wrapped(wrap_pyfunction!(app_config))?;
 
     Ok(())
 }
 
-/// Returns the application root directory when invoked within an Origen application
-/// workspace, if not in an application returns an empty string
+/// Returns the Origen status which informs whether an app is present, the Origen version,
+/// etc.
 #[pyfunction]
-fn root() -> PyResult<String> {
-    if CONFIG.is_app_present {
-        let path = CONFIG.root.clone().into_os_string().into_string().unwrap();
-        Ok(path)
-    } else {
-        Ok("".to_string())
-    }
+fn status(py: Python) -> PyResult<PyObject> {
+    Ok(STATUS.to_py_dict(&py).into())
 }
 
-/// Returns the Origen version
+/// Returns the Origen configuration (as defined in origen.toml files)
 #[pyfunction]
-fn version() -> PyResult<String> {
-    let v = CONFIG.origen_version.to_string();
-    Ok(v)
+fn config(py: Python) -> PyResult<PyObject> {
+    Ok(CONFIG.to_py_dict(&py).into())
+}
+
+/// Returns the Origen application configuration (as defined in application.toml)
+#[pyfunction]
+fn app_config(py: Python) -> PyResult<PyObject> {
+    Ok(core::application::CONFIG.to_py_dict(&py).into())
 }
