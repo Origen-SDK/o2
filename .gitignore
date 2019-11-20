@@ -1,5 +1,4 @@
 *.egg-info
-*.so
 __pycache__
 /rust/origen/target
 
