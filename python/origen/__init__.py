@@ -12,16 +12,11 @@ if status["is_app_present"]:
     # Add app's lib directory to the load path
     app_lib = root.joinpath("app").joinpath("lib")
     sys.path.insert(0, str(app_lib))
-    print(sys.path)
 
     import importlib
-    #app_module = importlib.import_module(_origen.app_config()["name"], package=None)
-    = importlib.import_module("application2", package="example")
-    #app = c.Application()
-    import example.application2
-    app = example.application2.Application()
+    a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
+    app = a.Application()
 
-    #import example
 else:
     app = None
 
