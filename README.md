@@ -7,5 +7,3 @@
 # Origen
 
 The Origen Semiconductor Developer's Kit
-
-https://please.build
