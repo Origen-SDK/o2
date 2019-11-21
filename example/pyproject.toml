@@ -6,7 +6,7 @@ authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-origen = { path = "/home/stephen/Code/github/reboot/python" }
+origen = { path = "../python" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
