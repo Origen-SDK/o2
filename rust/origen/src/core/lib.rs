@@ -17,7 +17,7 @@ lazy_static! {
     pub static ref STATUS: Status = Status::default();
     /// Provides configuration information derived from origen.toml files found in the Origen
     /// installation and application file system paths
-    pub static ref CONFIG: Config = Config::default();
+    pub static ref ORIGEN_CONFIG: Config = Config::default();
 }
 
 // Use of a mod or pub mod is not actually necessary.

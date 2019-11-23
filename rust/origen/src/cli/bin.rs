@@ -172,18 +172,18 @@ fn main() {
                 let matches = matches.subcommand_matches("target").unwrap();
                 if matches.is_present("target") {
                     let name = matches.value_of("target").unwrap();
-                    commands::target::main(name);
+                    commands::target::main(Some(name));
                 } else {
-                    commands::target::main("__none__");
+                    commands::target::main(None);
                 }
             }
             Some("environment") => {
                 let matches = matches.subcommand_matches("environment").unwrap();
                 if matches.is_present("environment") {
                     let name = matches.value_of("environment").unwrap();
-                    commands::environment::main(name);
+                    commands::environment::main(Some(name));
                 } else {
-                    commands::environment::main("__none__");
+                    commands::environment::main(None);
                 }
             }
             None => {}

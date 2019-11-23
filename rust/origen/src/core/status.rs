@@ -22,8 +22,7 @@ impl Status {
         let ret = pyo3::types::PyDict::new(*py);
         // Don't think an error can really happen here, so not handled
         let _ = ret.set_item("is_app_present", &STATUS.is_app_present);
-        let path = STATUS.root.clone().into_os_string().into_string().unwrap();
-        let _ = ret.set_item("root", path);
+        let _ = ret.set_item("root", format!("{}", STATUS.root.display()));
         let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
         ret
     }

@@ -2,12 +2,17 @@ use core::application::target;
 use pathdiff::diff_paths;
 use core::STATUS;
 
-pub fn main(name: &str) {
+pub fn main(tname: Option<&str>) {
 
-    if name == "__none__" {
-
+    if tname.is_none() {
+        if target::CURRENT_TARGET.target_name.is_some() {
+        } else {
+            println!("No default target is currently enabled in this workspace");
+        }
     } else {
+        let name = tname.unwrap();
         if name == "default" {
+            target::delete_val("target");
         } else {
             let matches = target::matches(name, "targets");
 

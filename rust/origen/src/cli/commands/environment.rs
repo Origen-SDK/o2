@@ -1,8 +1,9 @@
-pub fn main(name: &str) {
+pub fn main(tname: Option<&str>) {
 
-    if name == "__none__" {
+    if tname.is_none() {
 
     } else {
+        let name = tname.unwrap();
 
         println!("Environment is: {}", name);
 
