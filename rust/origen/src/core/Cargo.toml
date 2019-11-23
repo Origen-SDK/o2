@@ -19,6 +19,9 @@ regex = "1"
 termcolor = "1"
 config = "0.9"
 serde = "1.0"
+walkdir = "2"
+path-clean = "0.1.0"
+pathdiff = "0.1"
 
 [dependencies.pyo3]
 version = "0.8.2"

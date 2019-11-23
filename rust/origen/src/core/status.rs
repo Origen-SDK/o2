@@ -1,10 +1,9 @@
-/// Exposes the some status information about the runtime environment, e.g. whether an
-/// application workspace is present
-
-use std::path::PathBuf;
+use crate::{built_info, STATUS};
 use semver::Version;
 use std::env;
-use crate::{STATUS, built_info};
+/// Exposes the some status information about the runtime environment, e.g. whether an
+/// application workspace is present
+use std::path::PathBuf;
 
 // If you add an attribute to this you must also update:
 // * to_py_dict function below to convert it to Python

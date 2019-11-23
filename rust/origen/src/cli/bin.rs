@@ -168,6 +168,24 @@ fn main() {
         match matches.subcommand_name() {
             Some("check") => commands::check::main(),
             Some("interactive") => commands::interactive::main(),
+            Some("target") => {
+                let matches = matches.subcommand_matches("target").unwrap();
+                if matches.is_present("target") {
+                    let name = matches.value_of("target").unwrap();
+                    commands::target::main(name);
+                } else {
+                    commands::target::main("__none__");
+                }
+            }
+            Some("environment") => {
+                let matches = matches.subcommand_matches("environment").unwrap();
+                if matches.is_present("environment") {
+                    let name = matches.value_of("environment").unwrap();
+                    commands::environment::main(name);
+                } else {
+                    commands::environment::main("__none__");
+                }
+            }
             None => {}
             _ => {}
         }

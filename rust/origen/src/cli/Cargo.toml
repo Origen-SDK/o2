@@ -13,3 +13,4 @@ path = "bin.rs"
 [dependencies]
 clap = "2.33.0"
 core = { path = "../core" }
+pathdiff = "0.1"

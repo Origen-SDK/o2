@@ -3,11 +3,11 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde;
 
+pub mod application;
 pub mod config;
 pub mod python;
-pub mod term;
-pub mod application;
 pub mod status;
+pub mod term;
 
 use crate::config::Config;
 use crate::status::Status;

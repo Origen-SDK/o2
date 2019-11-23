@@ -1,4 +1,4 @@
-import _origen;
+import _origen
 from pathlib import Path
 import sys
 from pathlib import Path

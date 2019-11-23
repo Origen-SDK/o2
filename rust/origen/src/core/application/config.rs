@@ -1,10 +1,10 @@
+use crate::application::CONFIG;
+use crate::term;
 /// Exposes the application configuration options from config/application.toml
 /// which will include the currently selected target/environment settings form the workspace
 use crate::STATUS;
-use config::{File};
+use config::File;
 use std::path::PathBuf;
-use crate::term;
-use crate::application::CONFIG;
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -14,7 +14,9 @@ use crate::application::CONFIG;
 pub struct Config {
     pub name: String,
     pub target: String,
+    //pub target_file: PathBuf,
     pub environment: String,
+    //pub environment_file: PathBuf,
 }
 
 impl Config {
@@ -42,17 +44,25 @@ impl Default for Config {
             // Find all the application.toml files
             let mut files: Vec<PathBuf> = Vec::new();
 
-            let f = STATUS.root.join("config").join("application.toml");
-            if f.exists() {  files.push(f); }
-            let f = STATUS.root.join("config").join(".origen").join("application.toml");
-            if f.exists() { files.push(f); }
+            let file = STATUS.root.join("config").join("application.toml");
+            if file.exists() {
+                files.push(file);
+            }
+            let file = STATUS
+                .root
+                .join("config")
+                .join(".origen")
+                .join("application.toml");
+            if file.exists() {
+                files.push(file);
+            }
 
             // Now add in the files, with the last one found taking lowest priority
-            for f in files.iter().rev() {
-                match s.merge(File::with_name(&format!("{}", f.display()))) {
+            for file in files.iter().rev() {
+                match s.merge(File::with_name(&format!("{}", file.display()))) {
                     Ok(_) => {}
                     Err(error) => {
-                        term::redln(&format!("Malformed config file: {}", f.display()));
+                        term::redln(&format!("Malformed config file: {}", file.display()));
                         term::redln(&format!("{}", error));
                         std::process::exit(1);
                     }
