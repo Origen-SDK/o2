@@ -1,17 +1,3 @@
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Origen-SDK/users?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/Origen-SDK/origen.svg)](https://travis-ci.org/Origen-SDK/origen)
-[![Coverage Status](https://coveralls.io/repos/Origen-SDK/origen/badge.svg?branch=master&service=github)](https://coveralls.io/github/Origen-SDK/origen?branch=master)
-[![Inline docs](http://inch-ci.org/github/Origen-SDK/origen.svg)](http://inch-ci.org/github/Origen-SDK/origen)
-
-
-# Origen
-
-The Origen Semiconductor Developer's Kit
-
-NOTE - These instructions are not complete and not working yet, will be available asap
-
-
-
 ## Development Environment Setup
 
 1) [Install Rust](https://www.rust-lang.org/tools/install) 
@@ -56,23 +42,15 @@ Origen: 2.0.0-pre0
 
 7) Make sure your system has at least Python 3.5 available
 
-
-
-4) [Install Poetry](https://poetry.eustace.io/docs/) (equivalent to Ruby's Bundler), this way:
-
-  * Download [this file](https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py)
-  
-
-
-5) Make sure your $PATH contains the following directories:
+8) Now that you have the Origen CLI available and Python, you can try booting the example app:
 
 ~~~
-export PATH="$HOME/.cargo/bin:$PATH"
-export PATH="$HOME/.poetry/bin:$PATH"
+cd o2/example
+origen setup
+origen i
 ~~~
 
-6) Currently we need a pre-release version of Poetry, to install it:
-~~~
-poetry self:update --preview
-~~~
+All being well, you now have a booted Origen console and an app instance available. e.g. `origen.app.config` should return a DICT from the values defined in `config/application.toml`.
+
+
 
