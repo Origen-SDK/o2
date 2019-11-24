@@ -3,9 +3,12 @@ use crate::term;
 /// found in the application and Origen installation file system paths
 ///
 /// # Examples
-/// use core::CONFIG;
 ///
-/// CONFIG.pkg_server;  // => "https://pkgs.company.net:9292"
+/// ```
+/// use core::ORIGEN_CONFIG;
+///
+/// println!("Server: {}", &ORIGEN_CONFIG.pkg_server);  // => "Server: https://pkgs.company.net:9292"
+/// ```
 use crate::STATUS;
 use config::{Environment, File};
 use std::env;
@@ -107,10 +110,10 @@ impl Default for Config {
 
 #[cfg(test)]
 mod tests {
-    use crate::CONFIG;
+    use crate::ORIGEN_CONFIG;
 
     #[test]
     fn struct_is_created() {
-        assert_eq!(CONFIG.python_cmd, "");
+        assert_eq!(ORIGEN_CONFIG.python_cmd, "");
     }
 }

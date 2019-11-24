@@ -47,18 +47,21 @@ pub fn main() {
             println!("");
             attempts = attempts + 1;
 
-            let tmp_dir = PathBuf::from("/tmp").join(format!("origen-{}", time::now().to_timespec().nsec));
+            let tmp_dir =
+                PathBuf::from("/tmp").join(format!("origen-{}", time::now().to_timespec().nsec));
             fs::create_dir(format!("{}", tmp_dir.display())).expect("Couldn't create tmp dir");
 
             // Get the Poetry installer script
             let get_poetry_file = tmp_dir.join("get-poetry.py");
-            let mut resp = reqwest::get(POETRY_INSTALLER).expect("Failed to fetch Poetry install file");
+            let mut resp =
+                reqwest::get(POETRY_INSTALLER).expect("Failed to fetch Poetry install file");
             let mut out = fs::File::create(format!("{}", get_poetry_file.display()))
                 .expect("Failed to create Poetry install file");
             io::copy(&mut resp, &mut out).expect("Failed to copy content to Poetry install file");
 
             // Modify the script to handle the case where the python command is not 'python'
-            let data = fs::read_to_string(&get_poetry_file).expect("Unable to read Poetry install file");
+            let data =
+                fs::read_to_string(&get_poetry_file).expect("Unable to read Poetry install file");
             let new_data = data.replace(
                 "/bin/env python",
                 &format!("/bin/env {}", PYTHON_CONFIG.command),
@@ -69,7 +72,8 @@ pub fn main() {
             Command::new(&PYTHON_CONFIG.command)
                 .arg(format!("{}", get_poetry_file.display()))
                 .arg("--yes")
-                .status().expect("Something wend wrong install Poetry");
+                .status()
+                .expect("Something wend wrong install Poetry");
 
             if poetry_version().unwrap().major != 1 {
                 // Have to use --preview here to get a 1.0.0 pre version, can only use versions for
@@ -77,7 +81,8 @@ pub fn main() {
                 Command::new(&PYTHON_CONFIG.poetry_command)
                     .arg("self:update")
                     .arg("--preview")
-                    .status().expect("Something wend wrong updating Poetry");
+                    .status()
+                    .expect("Something wend wrong updating Poetry");
             }
             println!("");
         }
