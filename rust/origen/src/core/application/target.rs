@@ -108,6 +108,36 @@ impl Default for Target {
                 t.target_file = Some(files[0].clone());
             }
         }
+        if APPLICATION_CONFIG.environment.is_some() {
+            t.env_name = APPLICATION_CONFIG.environment.clone();
+            let name = APPLICATION_CONFIG.environment.as_ref().unwrap();
+            let files = matches(name, "environments");
+            if files.len() == 0 {
+                println!(
+                    "Something has gone wrong, the application has requested an environment \
+                     named {}, but none can be found with that name.",
+                    name
+                );
+                println!(
+                    "Please review any -e option given to the current command, or change \
+                     the environment via the 'origen e' command as required."
+                );
+                std::process::exit(1);
+            } else if files.len() > 1 {
+                println!(
+                    "Something has gone wrong, the application has requested an environment \
+                     named {}, but multiple environments matching that name have been found.",
+                    name
+                );
+                println!(
+                    "Please review any -e option given to the current command, or change \
+                     the environment via the 'origen e' command as required."
+                );
+                std::process::exit(1);
+            } else {
+                t.env_file = Some(files[0].clone());
+            }
+        }
         t
     }
 }
@@ -125,6 +155,13 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
             );
             if path_str.contains(name) {
                 files.push(path);
+            // Try again without the leading dir in case the user has supplied a path
+            } else {
+                let re = Regex::new(format!(r#".*{}(\\|/)"#, dir).as_str()).unwrap();
+                let new_name: String = re.replace_all(&name, "").into();
+                if path_str.contains(&new_name) {
+                    files.push(path);
+                }
             }
         }
     }

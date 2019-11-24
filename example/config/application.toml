@@ -1,5 +1,5 @@
 name = "example"
 # Define a default target that will be used by a new workspace
-#target = "dut"
+target = "dut"
 # Define a default environment that will be used by a new workspace
-environment = "v93k"
+#environment = "v93k"

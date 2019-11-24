@@ -5,6 +5,8 @@ use pathdiff::diff_paths;
 pub fn main(tname: Option<&str>) {
     if tname.is_none() {
         if target::CURRENT_TARGET.target_name.is_some() {
+            let name = target::CURRENT_TARGET.target_name.clone().unwrap();
+            println!("{}", name);
         } else {
             println!("No default target is currently enabled in this workspace");
         }
