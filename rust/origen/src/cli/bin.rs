@@ -20,12 +20,12 @@ fn main() {
     /************************************************************************************/
     /******************** Global commands ***********************************************/
     /************************************************************************************/
-    app = app
-        /************************************************************************************/
-        .subcommand(
-            SubCommand::with_name("check")
-                .about("Check if your environment is setup correctly to run Origen"),
-        );
+    //app = app
+    //    //************************************************************************************/
+    //    .subcommand(
+    //        SubCommand::with_name("check")
+    //            .about("Check if your environment is setup correctly to run Origen"),
+    //    );
 
     /************************************************************************************/
     /******************** In application commands ***************************************/
@@ -158,6 +158,11 @@ fn main() {
                     .value_name("MODE")
                 )
            )
+
+           /************************************************************************************/
+           .subcommand(SubCommand::with_name("setup")
+                .about("Setup your application's Python environment"),
+           )
     }
 
     let matches = app.get_matches();
@@ -166,7 +171,7 @@ fn main() {
         commands::version::main();
     } else {
         match matches.subcommand_name() {
-            Some("check") => commands::check::main(),
+            Some("setup") => commands::setup::main(),
             Some("interactive") => commands::interactive::main(),
             Some("target") => {
                 let matches = matches.subcommand_matches("target").unwrap();

@@ -1,3 +1,4 @@
+use crate::STATUS;
 /// Responsible for managing the target and environment selection and loading.
 ///
 /// A default target/env for an application can be set by config/application.toml, this can
@@ -8,16 +9,14 @@
 ///
 /// Finally, the target can be further overridden for a particular origen command invocation via
 /// the -t and -e options, or programmatically within the application code.
-
 use std::path::PathBuf;
-use crate::STATUS;
 use walkdir::WalkDir;
 // Can be used to turn a relative path in an absolute
 //use path_clean::{PathClean};
 use pathdiff::diff_paths;
+use regex::{escape, Regex};
 use std::fs;
-use regex::{Regex, escape};
-use std::sync::Mutex;
+//use std::sync::Mutex;
 use crate::application::APPLICATION_CONFIG;
 
 lazy_static! {
@@ -49,13 +48,19 @@ impl Target {
         // Don't think an error can really happen here, so not handled
         let _ = ret.set_item("target_name", &CURRENT_TARGET.target_name);
         if CURRENT_TARGET.target_file.is_some() {
-            let _ = ret.set_item("target_file", format!("{}", CURRENT_TARGET.target_file.as_ref().unwrap().display()));
+            let _ = ret.set_item(
+                "target_file",
+                format!("{}", CURRENT_TARGET.target_file.as_ref().unwrap().display()),
+            );
         } else {
             let _ = ret.set_item("target_file", None::<String>);
         }
         let _ = ret.set_item("env_name", &CURRENT_TARGET.env_name);
         if CURRENT_TARGET.env_file.is_some() {
-            let _ = ret.set_item("env_file", format!("{}", CURRENT_TARGET.env_file.as_ref().unwrap().display()));
+            let _ = ret.set_item(
+                "env_file",
+                format!("{}", CURRENT_TARGET.env_file.as_ref().unwrap().display()),
+            );
         } else {
             let _ = ret.set_item("env_file", None::<String>);
         }
@@ -78,17 +83,26 @@ impl Default for Target {
             let name = APPLICATION_CONFIG.target.as_ref().unwrap();
             let files = matches(name, "targets");
             if files.len() == 0 {
-                println!("Something has gone wrong, the application has requested a target \
-                    named {}, but none can be found with that name.", name);
-                println!("Please review any -t option given to the current command, or change \
-                    the target via the 'origen t' command as required.");
+                println!(
+                    "Something has gone wrong, the application has requested a target \
+                     named {}, but none can be found with that name.",
+                    name
+                );
+                println!(
+                    "Please review any -t option given to the current command, or change \
+                     the target via the 'origen t' command as required."
+                );
                 std::process::exit(1);
-
             } else if files.len() > 1 {
-                println!("Something has gone wrong, the application has requested a target \
-                    named {}, but multiple targets matching that name have been found.", name);
-                println!("Please review any -t option given to the current command, or change \
-                    the target via the 'origen t' command as required.");
+                println!(
+                    "Something has gone wrong, the application has requested a target \
+                     named {}, but multiple targets matching that name have been found.",
+                    name
+                );
+                println!(
+                    "Please review any -t option given to the current command, or change \
+                     the target via the 'origen t' command as required."
+                );
                 std::process::exit(1);
             } else {
                 t.target_file = Some(files[0].clone());
@@ -105,7 +119,10 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
     for file in WalkDir::new(format!("{}", STATUS.root.join(dir).display())) {
         let path = file.unwrap().into_path();
         if path.is_file() {
-            let path_str = format!("{}", diff_paths(&path, &STATUS.root.join(dir)).unwrap().display());
+            let path_str = format!(
+                "{}",
+                diff_paths(&path, &STATUS.root.join(dir)).unwrap().display()
+            );
             if path_str.contains(name) {
                 files.push(path);
             }
@@ -141,7 +158,11 @@ pub fn delete_val(key: &str) {
     let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
     let re = Regex::new(format!(r#"{}\s?=.*(\r\n|\n)?"#, escape(key)).as_str()).unwrap();
     let new_data: String = re.replace_all(&data, "").into();
-    fs::write(STATUS.root.join(".origen").join("application.toml"), new_data).expect("Unable to write file .origen/application.toml!");
+    fs::write(
+        STATUS.root.join(".origen").join("application.toml"),
+        new_data,
+    )
+    .expect("Unable to write file .origen/application.toml!");
 }
 
 /// Appends the given key/val pair to the end of .origen/application.toml
@@ -149,7 +170,11 @@ fn add_val(key: &str, val: &str) {
     let path = STATUS.root.join(".origen").join("application.toml");
     let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
     let new_data = format!("{}\n{} = \"{}\"", data.trim(), key, val);
-    fs::write(STATUS.root.join(".origen").join("application.toml"), new_data).expect("Unable to write file .origen/application.toml!");
+    fs::write(
+        STATUS.root.join(".origen").join("application.toml"),
+        new_data,
+    )
+    .expect("Unable to write file .origen/application.toml!");
 }
 
 /// Verifies that .origen/application.toml exists and if not creates one
@@ -160,7 +185,9 @@ fn ensure_app_dot_toml() {
     }
     let path = path.join("application.toml");
     if !path.exists() {
-        let data = "# This file is generated by Origen and should not be checked into revision control";
-        fs::write(STATUS.root.join(".origen").join("application.toml"), data).expect("Unable to write file .origen/application.toml!");
+        let data =
+            "# This file is generated by Origen and should not be checked into revision control";
+        fs::write(STATUS.root.join(".origen").join("application.toml"), data)
+            .expect("Unable to write file .origen/application.toml!");
     }
 }

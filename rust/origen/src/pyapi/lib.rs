@@ -1,8 +1,8 @@
+use core::application::pyapi::PyInit_app;
+use core::application::APPLICATION_CONFIG;
 use core::{ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use core::application::APPLICATION_CONFIG;
-use core::application::pyapi::PyInit_app;
 
 #[pymodule]
 /// This is a python module implemented in Rust.

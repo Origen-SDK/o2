@@ -1,6 +1,6 @@
 pub mod config;
-pub mod target;
 pub mod pyapi;
+pub mod target;
 
 use crate::application::config::Config;
 

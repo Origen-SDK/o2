@@ -46,10 +46,7 @@ impl Default for Config {
             if file.exists() {
                 files.push(file);
             }
-            let file = STATUS
-                .root
-                .join(".origen")
-                .join("application.toml");
+            let file = STATUS.root.join(".origen").join("application.toml");
             if file.exists() {
                 files.push(file);
             }

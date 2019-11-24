@@ -1,6 +1,5 @@
-import _origen
-from pathlib import Path
 import sys
+import _origen
 from pathlib import Path
 
 config = _origen.config()

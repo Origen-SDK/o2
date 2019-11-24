@@ -11,10 +11,10 @@ const PYTHONS: &[&str] = &[
     "python3.6",
     "python3.5",
 ];
-const MIN_PYTHON_VERSION: &str = "3.5.0";
+pub const MIN_PYTHON_VERSION: &str = "3.5.0";
 
 lazy_static! {
-    pub static ref CONFIG: Config = Config::default();
+    pub static ref PYTHON_CONFIG: Config = Config::default();
 }
 
 pub struct Config {
@@ -22,6 +22,7 @@ pub struct Config {
     pub command: String,
     pub version: Version,
     pub error: String,
+    pub poetry_command: String,
 }
 
 impl Default for Config {
@@ -31,12 +32,17 @@ impl Default for Config {
             match get_version(cmd) {
                 Some(version) => {
                     available = true;
+                    let poetry_cmd = format!(
+                        "{}/.poetry/bin/poetry",
+                        std::env::var("HOME").expect("$HOME is not defined")
+                    );
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         return Config {
                             available: true,
                             command: cmd.to_string(),
                             version: version,
                             error: "".to_string(),
+                            poetry_command: poetry_cmd,
                         };
                     }
                 }
@@ -52,6 +58,7 @@ impl Default for Config {
             command: "".to_string(),
             version: Version::parse("0.0.0").unwrap(),
             error: msg,
+            poetry_command: "".to_string(),
         }
     }
 }
@@ -64,8 +71,19 @@ fn get_version(command: &str) -> Option<Version> {
     }
 }
 
+/// Returns the version of poetry (obtained from running "poetry --version")
+pub fn poetry_version() -> Option<Version> {
+    match Command::new(&PYTHON_CONFIG.poetry_command)
+        .arg("--version")
+        .output()
+    {
+        Ok(output) => return extract_version(std::str::from_utf8(&output.stdout).unwrap()),
+        Err(_e) => return None,
+    }
+}
+
 fn extract_version(text: &str) -> Option<Version> {
-    let re = regex::Regex::new(r".*(\d+\.\d+.\d+)").unwrap();
+    let re = regex::Regex::new(r".*(\d+\.\d+\.\d+[\s]*)").unwrap();
 
     match re.captures(text) {
         Some(x) => {
@@ -81,9 +99,9 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) {
-    let _status = Command::new("poetry")
+    let _status = Command::new(&PYTHON_CONFIG.poetry_command)
         .arg("run")
-        .arg(&CONFIG.command)
+        .arg(&PYTHON_CONFIG.command)
         .arg("-c")
         .arg(code)
         .status();

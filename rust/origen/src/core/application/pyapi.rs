@@ -1,6 +1,6 @@
+use super::target::CURRENT_TARGET;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use super::target::CURRENT_TARGET;
 
 #[pymodule]
 /// Implements the module _origen.app in Python
