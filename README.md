@@ -22,14 +22,49 @@ rustup install nightly
 cd path/to/o2
 rustup override set nightly
 ~~~
-3) Make sure your system has at least Python 3.5 available
+
+3) By this point make sure your $PATH contains the following to make the `cargo` command available:
+
+~~~
+export PATH="$HOME/.cargo/bin:$PATH"
+~~~
+
+4) Compile the Rust code (you will repeat this step everytime you change it):
+~~~
+cd o2/rust/origen
+cargo build
+~~~
+
+On Ubuntu, the following packages may need to be installed if you get errors:
+
+~~~
+sudo apt install libssl-dev
+sudo apt install pkg-config
+~~~
+
+5) Add this dir to your $PATH, ahead of any other dir that provides an `origen` command:
+~~~
+export PATH="</path/to/your>/o2/rust/origen/target/debug:$PATH"
+~~~
+
+6) Verify that you now have the new `origen` command available:
+
+~~~
+$ origen -v
+Origen: 2.0.0-pre0
+~~~
+
+7) Make sure your system has at least Python 3.5 available
+
+
+
 4) [Install Poetry](https://poetry.eustace.io/docs/) (equivalent to Ruby's Bundler), this way:
 
   * Download [this file](https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py)
   
 
 
-5) By this point make sure your $PATH contains the following directories:
+5) Make sure your $PATH contains the following directories:
 
 ~~~
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -41,17 +76,3 @@ export PATH="$HOME/.poetry/bin:$PATH"
 poetry self:update --preview
 ~~~
 
-7) Add this dir to your $PATH, ahead of any other dir that provides an 'origen' command:
-~~~
-export PATH="</path/to/your>/o2/rust/origen/target/debug:$PATH"
-~~~
-
-8) Compile the Rust code (repeat this step everytime you change it), `origen -v` should work afterwards if successful:
-~~~
-cd o2/rust/origen
-cargo build
-~~~
-
-9) Install the example app's Python dependencies:
-~~~
-cd o2/example
