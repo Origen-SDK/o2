@@ -1,13 +1,3 @@
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Origen-SDK/users?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/Origen-SDK/origen.svg)](https://travis-ci.org/Origen-SDK/origen)
-[![Coverage Status](https://coveralls.io/repos/Origen-SDK/origen/badge.svg?branch=master&service=github)](https://coveralls.io/github/Origen-SDK/origen?branch=master)
-[![Inline docs](http://inch-ci.org/github/Origen-SDK/origen.svg)](http://inch-ci.org/github/Origen-SDK/origen)
-
-
-# Origen
-
-The Origen Semiconductor Developer's Kit
-
 ## Development Environment Setup
 
 1) [Install Rust](https://www.rust-lang.org/tools/install) 
@@ -52,7 +42,7 @@ Origen: 2.0.0-pre0
 
 7) Make sure your system has at least Python 3.5 available
 
-8) Now that you have the Origen 2 CLI available and Python, you can try booting the example app:
+8) Now that you have the Origen CLI available and Python, you can try booting the example app:
 
 ~~~
 cd o2/example
