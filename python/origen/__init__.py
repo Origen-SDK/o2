@@ -7,10 +7,12 @@ status = _origen.status()
 root = Path(status["root"])
 version = status["origen_version"]
 
+app = None
+dut = None
+tester = None
+
 if status["is_app_present"]:
-    # Add app's lib directory to the load path
-    app_lib = root.joinpath("app").joinpath("lib")
-    sys.path.insert(0, str(app_lib))
+    sys.path.insert(0, str(root))
 
     import importlib
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
@@ -22,12 +24,5 @@ if status["is_app_present"]:
         global_vars = {}
         local_vars = {}
         with open(app.current_target["target_file"]) as f:
-            code = compile(f.read(), "/home/stephen/Code/github/reboot/example/app/lib/p2.py", 'exec')
+            code = compile(f.read(), app.current_target["target_file"], 'exec')
             exec(code, global_vars, local_vars)
-        
-
-else:
-    app = None
-
-dut = None
-tester = None
