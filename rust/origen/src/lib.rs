@@ -3,21 +3,20 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde;
 
-pub mod application;
-pub mod config;
-pub mod python;
-pub mod status;
-pub mod term;
+pub mod core;
 
-use crate::config::Config;
-use crate::status::Status;
+use crate::core::application::config::Config as AppConfig;
+use crate::core::config::Config as OrigenConfig;
+use crate::core::status::Status;
 
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present
     pub static ref STATUS: Status = Status::default();
     /// Provides configuration information derived from origen.toml files found in the Origen
     /// installation and application file system paths
-    pub static ref ORIGEN_CONFIG: Config = Config::default();
+    pub static ref ORIGEN_CONFIG: OrigenConfig = OrigenConfig::default();
+    /// Provides configuration information from application.toml
+    pub static ref APPLICATION_CONFIG: AppConfig = AppConfig::default();
 }
 
 // Use of a mod or pub mod is not actually necessary.

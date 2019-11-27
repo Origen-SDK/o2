@@ -1,5 +1,5 @@
-use core::application::target;
-use core::STATUS;
+use origen::core::application::target;
+use origen::STATUS;
 use pathdiff::diff_paths;
 
 pub fn main(tname: Option<&str>) {

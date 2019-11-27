@@ -1,5 +1,4 @@
-use crate::application::APPLICATION_CONFIG;
-use crate::term;
+use crate::core::term;
 /// Exposes the application configuration options from config/application.toml
 /// which will include the currently selected target/environment settings form the workspace
 use crate::STATUS;
@@ -8,24 +7,13 @@ use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
-// * to_py_dict function below to convert it to Python
+// * pyapi/src/lib.rs to convert it to Python
 // * default function below to define the default value
 // * add an example of it to src/app_generators/templates/app/config/application.toml
 pub struct Config {
     pub name: String,
     pub target: Option<String>,
     pub environment: Option<String>,
-}
-
-impl Config {
-    pub fn to_py_dict<'a>(self: &Self, py: &'a pyo3::Python) -> &'a pyo3::types::PyDict {
-        let ret = pyo3::types::PyDict::new(*py);
-        // Don't think an error can really happen here, so not handled
-        let _ = ret.set_item("name", &APPLICATION_CONFIG.name);
-        let _ = ret.set_item("target", &APPLICATION_CONFIG.target);
-        let _ = ret.set_item("environment", &APPLICATION_CONFIG.environment);
-        ret
-    }
 }
 
 impl Default for Config {

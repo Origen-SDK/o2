@@ -17,7 +17,7 @@ use pathdiff::diff_paths;
 use regex::{escape, Regex};
 use std::fs;
 //use std::sync::Mutex;
-use crate::application::APPLICATION_CONFIG;
+use crate::APPLICATION_CONFIG;
 
 lazy_static! {
     /// Stores the current target/environment selection and load state. Note that similar
@@ -40,33 +40,6 @@ pub struct Target {
     pub env_name: Option<String>,
     pub env_file: Option<PathBuf>,
     pub is_loaded: bool,
-}
-
-impl Target {
-    pub fn to_py_dict<'a>(self: &Self, py: &'a pyo3::Python) -> &'a pyo3::types::PyDict {
-        let ret = pyo3::types::PyDict::new(*py);
-        // Don't think an error can really happen here, so not handled
-        let _ = ret.set_item("target_name", &CURRENT_TARGET.target_name);
-        if CURRENT_TARGET.target_file.is_some() {
-            let _ = ret.set_item(
-                "target_file",
-                format!("{}", CURRENT_TARGET.target_file.as_ref().unwrap().display()),
-            );
-        } else {
-            let _ = ret.set_item("target_file", None::<String>);
-        }
-        let _ = ret.set_item("env_name", &CURRENT_TARGET.env_name);
-        if CURRENT_TARGET.env_file.is_some() {
-            let _ = ret.set_item(
-                "env_file",
-                format!("{}", CURRENT_TARGET.env_file.as_ref().unwrap().display()),
-            );
-        } else {
-            let _ = ret.set_item("env_file", None::<String>);
-        }
-        let _ = ret.set_item("is_loaded", &CURRENT_TARGET.is_loaded);
-        ret
-    }
 }
 
 impl Default for Target {

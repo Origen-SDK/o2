@@ -3,16 +3,17 @@ name = "pyapi"
 version = "0.0.0"  # Runtime version defined by libcore/Cargo.toml
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 edition = "2018"
+workspace = ".."
 
 [lib]
 name = "_origen"
-path = "lib.rs"
+path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 ## See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-core = { path = "../core" }
+origen = { path = ".." }
 
 [dependencies.pyo3]
 version = "0.8.2"

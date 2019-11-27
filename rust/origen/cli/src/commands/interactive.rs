@@ -1,4 +1,4 @@
-use core::python;
+use crate::python;
 
 pub fn main() {
     python::run(

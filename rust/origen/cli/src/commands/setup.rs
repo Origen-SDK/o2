@@ -1,7 +1,7 @@
 extern crate time;
 
-use core::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
-use core::term::*;
+use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
+use origen::core::term::*;
 use online::online;
 use std::fs;
 use std::io;

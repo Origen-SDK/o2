@@ -1,4 +1,4 @@
-use crate::{built_info, STATUS};
+use crate::built_info;
 use semver::Version;
 use std::env;
 /// Exposes the some status information about the runtime environment, e.g. whether an
@@ -6,7 +6,7 @@ use std::env;
 use std::path::PathBuf;
 
 // If you add an attribute to this you must also update:
-// * to_py_dict function below to convert it to Python
+// * pyapi/src/lib.rs to convert it to Python
 // * default function below to define the default value (no nils in Rust)
 pub struct Status {
     /// When true, Origen is executing within an application workspace
@@ -15,17 +15,6 @@ pub struct Status {
     pub root: PathBuf,
     /// The Origen version in a Semver object
     pub origen_version: Version,
-}
-
-impl Status {
-    pub fn to_py_dict<'a>(self: &Self, py: &'a pyo3::Python) -> &'a pyo3::types::PyDict {
-        let ret = pyo3::types::PyDict::new(*py);
-        // Don't think an error can really happen here, so not handled
-        let _ = ret.set_item("is_app_present", &STATUS.is_app_present);
-        let _ = ret.set_item("root", format!("{}", STATUS.root.display()));
-        let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
-        ret
-    }
 }
 
 impl Default for Status {

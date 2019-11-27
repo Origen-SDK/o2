@@ -1,4 +1,4 @@
-use crate::term;
+use super::term;
 /// Collects the main Origen configuration options from all origen.toml files
 /// found in the application and Origen installation file system paths
 ///
@@ -20,7 +20,7 @@ lazy_static! {
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
-// * to_py_dict function below to convert it to Python
+// * pyapi/src/lib.rs to convert it to Python
 // * default function below to define the default value (no nil in Rust)
 // * add an example of it to src/app_generators/templates/app/config/origen.toml
 pub struct Config {
@@ -29,19 +29,6 @@ pub struct Config {
     pub pkg_server_push: String,
     pub pkg_server_pull: String,
     pub some_val: u32,
-}
-
-impl Config {
-    pub fn to_py_dict<'a>(self: &Self, py: &'a pyo3::Python) -> &'a pyo3::types::PyDict {
-        let ret = pyo3::types::PyDict::new(*py);
-        // Don't think an error can really happen here, so not handled
-        let _ = ret.set_item("python_cmd", &CONFIG.python_cmd);
-        let _ = ret.set_item("pkg_server", &CONFIG.pkg_server);
-        let _ = ret.set_item("pkg_server_push", &CONFIG.pkg_server_push);
-        let _ = ret.set_item("pkg_server_pull", &CONFIG.pkg_server_pull);
-        let _ = ret.set_item("some_val", &CONFIG.some_val);
-        ret
-    }
 }
 
 impl Default for Config {

@@ -1,9 +1,11 @@
-extern crate clap;
+#[macro_use]
+extern crate lazy_static;
 
 mod commands;
+mod python;
 
 use clap::{App, Arg, SubCommand};
-use core::STATUS;
+use origen::STATUS;
 
 // This is the entry point for the Origen CLI tool
 fn main() {
