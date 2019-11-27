@@ -19,7 +19,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 4) Compile the Rust code (you will repeat this step everytime you change it):
 ~~~
 cd o2/rust/origen
-cargo build --workspace
+cd pyapi && cargo build && cd ../ && cargo build --workspace --bins
 ~~~
 
 On Ubuntu, the following packages may need to be installed if you get errors:

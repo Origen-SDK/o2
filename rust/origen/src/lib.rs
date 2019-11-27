@@ -5,9 +5,9 @@ extern crate serde;
 
 pub mod core;
 
-use crate::core::application::config::Config as AppConfig;
-use crate::core::config::Config as OrigenConfig;
-use crate::core::status::Status;
+use self::core::application::config::Config as AppConfig;
+use self::core::config::Config as OrigenConfig;
+use self::core::status::Status;
 
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present

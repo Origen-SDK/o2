@@ -4,7 +4,7 @@ version = "2.0.0-pre0"
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 license = "MIT"
 edition = "2018"
-exclude = []
+#exclude = []
 build = "build.rs"
 
 [workspace]

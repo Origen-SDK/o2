@@ -1,12 +1,9 @@
-pub mod pyapi;
 pub mod registers;
 pub mod pins;
 
 use registers::Reg;
 use std::collections::HashMap;
-//use pyo3::prelude::*;
 
-//#[pyclass]
 #[derive(Debug)]
 pub struct Model {
     name: String,
@@ -14,28 +11,20 @@ pub struct Model {
     registers: HashMap<String, Reg>,
 }
 
+impl Model {
+    pub fn new(name: String) -> Model {
+        Model {
+            name: name,
+            registers: HashMap::new(),
+        }
+    }
 
-////#[cfg(feature = "python")]
-//#[pymethods]
-//impl Model {
-//    #[new]
-//    fn new(obj: &PyRawObject, name: String) {
-//        obj.init({
-//            Model {
-//                name: name,
-//                registers: HashMap::new(),
-//            }
-//        });
-//    }
-//}
+    pub fn add_reg(&mut self, name: &str, offset: u32) {
+        let r = Reg{ name: name.to_string(), offset: offset };
+        self.registers.insert(name.to_string(), r);
+    }
 
-//impl Model {
-//    fn add_reg(&mut self, name: String, offset: u32) {
-//        let r = Reg{ name: name.clone(), offset: offset };
-//        self.registers.insert(name, r);
-//    }
-//
-//    fn number_of_regs(&self) -> u32 {
-//        self.registers.len() as u32
-//    }
-//}
+    pub fn number_of_regs(&self) -> u32 {
+        self.registers.len() as u32
+    }
+}

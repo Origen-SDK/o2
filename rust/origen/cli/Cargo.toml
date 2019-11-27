@@ -1,6 +1,6 @@
 [package]
 name = "cli"
-version = "0.0.0"  # Runtime version defined by libcore/Cargo.toml
+version = "0.0.0"  # Runtime version defined by top-level Cargo.toml
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 edition = "2018"
 workspace = ".."

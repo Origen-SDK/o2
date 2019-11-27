@@ -1,11 +1,12 @@
 mod application;
+mod model;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 // Imported pyapi modules
 use application::PyInit_app;
-//use core::model::pyapi::PyInit_model;
+use model::PyInit_model;
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -15,8 +16,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(app_config))?;
 
     m.add_wrapped(wrap_pymodule!(app))?;
-    // From core/model/pyapi.rs
-    //m.add_wrapped(wrap_pymodule!(model))?;
+    m.add_wrapped(wrap_pymodule!(model))?;
     Ok(())
 }
 
