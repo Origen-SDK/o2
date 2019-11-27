@@ -1,5 +1,5 @@
-pub mod registers;
 pub mod pins;
+pub mod registers;
 
 use registers::Reg;
 use std::collections::HashMap;
@@ -20,7 +20,10 @@ impl Model {
     }
 
     pub fn add_reg(&mut self, name: &str, offset: u32) {
-        let r = Reg{ name: name.to_string(), offset: offset };
+        let r = Reg {
+            name: name.to_string(),
+            offset: offset,
+        };
         self.registers.insert(name.to_string(), r);
     }
 

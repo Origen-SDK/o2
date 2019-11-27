@@ -4,13 +4,14 @@ extern crate lazy_static;
 mod commands;
 mod python;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, SubCommand, AppSettings};
 use origen::STATUS;
 
 // This is the entry point for the Origen CLI tool
 fn main() {
     let about = format!("CLI {}", STATUS.origen_version);
     let mut app = App::new("Origen, The Semiconductor Developer's Kit")
+        .setting(AppSettings::ArgRequiredElseHelp)
         .about(&*about)
         .arg(
             Arg::with_name("version")
@@ -170,29 +171,32 @@ fn main() {
     let matches = app.get_matches();
 
     if matches.is_present("version") {
-        commands::version::main();
+        commands::version::run();
     } else {
         match matches.subcommand_name() {
-            Some("setup") => commands::setup::main(),
-            Some("interactive") => commands::interactive::main(),
+            Some("setup") => commands::setup::run(),
+            Some("interactive") => commands::interactive::run(),
+            Some("generate") => commands::launch("generate"),
+            Some("compile") => commands::launch("compile"),
             Some("target") => {
                 let matches = matches.subcommand_matches("target").unwrap();
                 if matches.is_present("target") {
                     let name = matches.value_of("target").unwrap();
-                    commands::target::main(Some(name));
+                    commands::target::run(Some(name));
                 } else {
-                    commands::target::main(None);
+                    commands::target::run(None);
                 }
             }
             Some("environment") => {
                 let matches = matches.subcommand_matches("environment").unwrap();
                 if matches.is_present("environment") {
                     let name = matches.value_of("environment").unwrap();
-                    commands::environment::main(Some(name));
+                    commands::environment::run(Some(name));
                 } else {
-                    commands::environment::main(None);
+                    commands::environment::run(None);
                 }
             }
+            // Should never hit these
             None => {}
             _ => {}
         }

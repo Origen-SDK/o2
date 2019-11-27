@@ -1,14 +1,15 @@
+//! Collects the main Origen configuration options from all origen.toml files
+//! found in the application and Origen installation file system paths
+//!
+//! # Examples
+//!
+//! ```
+//! use core::ORIGEN_CONFIG;
+//!
+//! println!("Server: {}", &ORIGEN_CONFIG.pkg_server);  // => "Server: https://pkgs.company.net:9292"
+//! ```
+
 use super::term;
-/// Collects the main Origen configuration options from all origen.toml files
-/// found in the application and Origen installation file system paths
-///
-/// # Examples
-///
-/// ```
-/// use core::ORIGEN_CONFIG;
-///
-/// println!("Server: {}", &ORIGEN_CONFIG.pkg_server);  // => "Server: https://pkgs.company.net:9292"
-/// ```
 use crate::STATUS;
 use config::{Environment, File};
 use std::env;

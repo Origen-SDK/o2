@@ -2,7 +2,7 @@ use origen::core::application::target;
 use origen::STATUS;
 use pathdiff::diff_paths;
 
-pub fn main(tname: Option<&str>) {
+pub fn run(tname: Option<&str>) {
     if tname.is_none() {
         if target::CURRENT_TARGET.target_name.is_some() {
             let name = target::CURRENT_TARGET.target_name.clone().unwrap();

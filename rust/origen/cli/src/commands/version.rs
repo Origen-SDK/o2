@@ -1,5 +1,5 @@
 use origen::STATUS;
 
-pub fn main() {
+pub fn run() {
     println!("Origen: {}", STATUS.origen_version);
 }
