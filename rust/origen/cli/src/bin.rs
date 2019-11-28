@@ -12,6 +12,7 @@ fn main() {
     let about = format!("CLI {}", STATUS.origen_version);
     let mut app = App::new("Origen, The Semiconductor Developer's Kit")
         .setting(AppSettings::ArgRequiredElseHelp)
+        .after_help("See 'origen <command> -h' for more information on a specific command.")
         .about(&*about)
         .arg(
             Arg::with_name("version")
@@ -174,27 +175,33 @@ fn main() {
         commands::version::run();
     } else {
         match matches.subcommand_name() {
-            Some("setup") => commands::setup::run(),
-            Some("interactive") => commands::interactive::run(),
-            Some("generate") => commands::launch("generate"),
-            Some("compile") => commands::launch("compile"),
+            Some("setup") => {
+                commands::setup::run()
+            }
+            Some("interactive") => {
+                let m = matches.subcommand_matches("interactive").unwrap();
+                commands::interactive::run(&m.value_of("target"), &m.value_of("environment"), &m.value_of("mode"));
+            }
+            Some("generate") => {
+                let m = matches.subcommand_matches("generate").unwrap();
+                commands::launch("generate", &m.value_of("target"), &m.value_of("environment"), &m.value_of("mode"));
+            }
+            Some("compile") => {
+                let m = matches.subcommand_matches("compile").unwrap();
+                commands::launch("compile", &m.value_of("target"), &m.value_of("environment"), &m.value_of("mode"));
+                   
+            }
             Some("target") => {
                 let matches = matches.subcommand_matches("target").unwrap();
-                if matches.is_present("target") {
-                    let name = matches.value_of("target").unwrap();
-                    commands::target::run(Some(name));
-                } else {
-                    commands::target::run(None);
-                }
+                commands::target::run(matches.value_of("target"));
             }
             Some("environment") => {
                 let matches = matches.subcommand_matches("environment").unwrap();
-                if matches.is_present("environment") {
-                    let name = matches.value_of("environment").unwrap();
-                    commands::environment::run(Some(name));
-                } else {
-                    commands::environment::run(None);
-                }
+                commands::environment::run(matches.value_of("environment"));
+            }
+            Some("mode") => {
+                let matches = matches.subcommand_matches("mode").unwrap();
+                commands::mode::run(matches.value_of("mode"));
             }
             // Should never hit these
             None => {}

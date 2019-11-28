@@ -14,6 +14,7 @@ pub struct Config {
     pub name: String,
     pub target: Option<String>,
     pub environment: Option<String>,
+    pub mode: String,
 }
 
 impl Default for Config {
@@ -25,6 +26,7 @@ impl Default for Config {
         //let _ = s.set_default("name", "");
         //let _ = s.set_default("target", None::<String>);
         //let _ = s.set_default("environment", None::<String>);
+        let _ = s.set_default("mode", "development".to_string());
 
         if STATUS.is_app_present {
             // Find all the application.toml files

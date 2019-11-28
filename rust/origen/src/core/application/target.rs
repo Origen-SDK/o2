@@ -1,14 +1,13 @@
+//! A default target/env for an application can be set by config/application.toml, this can
+//! then be overridden by the user by setting a temporary workspace default via the "origen t"
+//! and "origen e" commands.
+//! These commands store the user's selections in .origen/application.toml and this file should
+//! NOT be checked into revision control.
+//!
+//! The target can be further overridden for a particular origen command invocation via
+//! the -t and -e options, or programmatically within the application code, however that is all
+//! handled on the front end in Python code.
 use crate::STATUS;
-/// Responsible for managing the target and environment selection and loading.
-///
-/// A default target/env for an application can be set by config/application.toml, this can
-/// then be overridden by the user by setting a temporary workspace default via the "origen t"
-/// and "origen e" commands.
-/// These commands stores the user's selection in .origen/application.toml and this file should
-/// not be checked into revision control.
-///
-/// Finally, the target can be further overridden for a particular origen command invocation via
-/// the -t and -e options, or programmatically within the application code.
 use std::path::PathBuf;
 use walkdir::WalkDir;
 // Can be used to turn a relative path in an absolute
@@ -16,103 +15,48 @@ use walkdir::WalkDir;
 use pathdiff::diff_paths;
 use regex::{escape, Regex};
 use std::fs;
-//use std::sync::Mutex;
-use crate::APPLICATION_CONFIG;
 
-lazy_static! {
-    /// Stores the current target/environment selection and load state. Note that similar
-    /// values from APPLICATION_CONFIG differ in the following respect:
-    /// The values in APPLICATION_CONFIG refer only to the values derived from
-    /// config/application.toml and .origen/application.toml (set by origen t and e commands).
-    /// The value here also takes account of further overriding by -t or -e options or changes
-    /// to the target that have been applied programmatically during application execution.
-    /// In short, this is the authority on what the current target actually is at any given time.
-    // The Mutex here is required to make this mutable, i.e. to change targets at runtime
-    // See: https://github.com/rust-lang-nursery/lazy-static.rs/issues/39
-    //pub static ref CURRENT_TARGET: Mutex<Target> = Mutex::new(Target::default());
-    pub static ref CURRENT_TARGET: Target = Target::default();
-}
+/// Sanitizes the given target/env name and returns it, but will exit the process if it does
+/// not uniquely identify a single target/env file.
+/// Set the last arg to true to return the path to the matching target instead.
+pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
+    let matches = matches(name, dir);
+    let t = dir.trim_end_matches("s");
 
-#[derive(Debug)]
-pub struct Target {
-    pub target_name: Option<String>,
-    pub target_file: Option<PathBuf>,
-    pub env_name: Option<String>,
-    pub env_file: Option<PathBuf>,
-    pub is_loaded: bool,
-}
-
-impl Default for Target {
-    fn default() -> Target {
-        let mut t = Target {
-            target_name: None,
-            target_file: None,
-            env_name: None,
-            env_file: None,
-            is_loaded: false,
-        };
-        if APPLICATION_CONFIG.target.is_some() {
-            t.target_name = APPLICATION_CONFIG.target.clone();
-            let name = APPLICATION_CONFIG.target.as_ref().unwrap();
-            let files = matches(name, "targets");
-            if files.len() == 0 {
-                println!(
-                    "Something has gone wrong, the application has requested a target \
-                     named {}, but none can be found with that name.",
-                    name
-                );
-                println!(
-                    "Please review any -t option given to the current command, or change \
-                     the target via the 'origen t' command as required."
-                );
-                std::process::exit(1);
-            } else if files.len() > 1 {
-                println!(
-                    "Something has gone wrong, the application has requested a target \
-                     named {}, but multiple targets matching that name have been found.",
-                    name
-                );
-                println!(
-                    "Please review any -t option given to the current command, or change \
-                     the target via the 'origen t' command as required."
-                );
-                std::process::exit(1);
-            } else {
-                t.target_file = Some(files[0].clone());
-            }
+    if matches.len() == 0 {
+        println!("No matching {} found, here are the available {}s:", t, t);
+        for file in all(dir).iter() {
+            println!(
+                "    {}",
+                diff_paths(&file, &STATUS.root.join(dir))
+                    .unwrap()
+                    .display()
+            );
         }
-        if APPLICATION_CONFIG.environment.is_some() {
-            t.env_name = APPLICATION_CONFIG.environment.clone();
-            let name = APPLICATION_CONFIG.environment.as_ref().unwrap();
-            let files = matches(name, "environments");
-            if files.len() == 0 {
-                println!(
-                    "Something has gone wrong, the application has requested an environment \
-                     named {}, but none can be found with that name.",
-                    name
-                );
-                println!(
-                    "Please review any -e option given to the current command, or change \
-                     the environment via the 'origen e' command as required."
-                );
-                std::process::exit(1);
-            } else if files.len() > 1 {
-                println!(
-                    "Something has gone wrong, the application has requested an environment \
-                     named {}, but multiple environments matching that name have been found.",
-                    name
-                );
-                println!(
-                    "Please review any -e option given to the current command, or change \
-                     the environment via the 'origen e' command as required."
-                );
-                std::process::exit(1);
-            } else {
-                t.env_file = Some(files[0].clone());
-            }
+    } else if matches.len() > 1 {
+        println!("That {} name is ambiguous, please try again to narrow it down to one of these:", t);
+        for file in matches.iter() {
+            println!(
+                "    {}",
+                diff_paths(&file, &STATUS.root.join(dir))
+                    .unwrap()
+                    .display()
+            );
         }
-        t
+    } else {
+        if return_file {
+            return format!("{}", matches[0].display());
+        } else {
+            let clean = format!(
+                "{}",
+                diff_paths(&matches[0], &STATUS.root.join(dir))
+                    .unwrap()
+                    .display()
+            );
+            return clean;
+        }
     }
+    std::process::exit(1);
 }
 
 /// Returns an array of possible target/environment files that match the given name/snippet

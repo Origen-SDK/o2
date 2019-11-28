@@ -1,9 +1,23 @@
+# Called by the Origen CLI to boot the Origen Python env, not for application use
+# Any target/env overrides given to the command line will be passed in here
 def __origen__(command, target=None, environment=None, mode=None):
+    import origen
+    import origen.application
+    import origen.target
+
+    origen.application.load()
+
+    if mode == None:
+        origen.set_mode(origen.app.config["mode"])
+    else:
+        origen.set_mode(mode)
+
+    origen.target.load(target=target, environment=environment)
+
     if command == "generate":
         print("Generate command called!")
 
     elif command == "interactive":
-        import origen
         import atexit
         import os
         import readline
@@ -21,8 +35,8 @@ def __origen__(command, target=None, environment=None, mode=None):
         atexit.register(save_history)
         del os, atexit, readline, rlcompleter, save_history, historyPath
 
-        import code;
-        from origen import dut, tester;
+        import code
+        from origen import dut, tester
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
 
     else:

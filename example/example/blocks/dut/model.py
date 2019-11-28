@@ -1,4 +1,4 @@
-from origen.model.top_level import TopLevel
+from origen.controller import TopLevel
 
 class Model(TopLevel):
     pass

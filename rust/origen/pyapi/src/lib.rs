@@ -1,11 +1,9 @@
-mod application;
 mod model;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 // Imported pyapi modules
-use application::PyInit_app;
 use model::PyInit_model;
 
 #[pymodule]
@@ -14,8 +12,9 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(status))?;
     m.add_wrapped(wrap_pyfunction!(config))?;
     m.add_wrapped(wrap_pyfunction!(app_config))?;
+    m.add_wrapped(wrap_pyfunction!(clean_mode))?;
+    m.add_wrapped(wrap_pyfunction!(target_file))?;
 
-    m.add_wrapped(wrap_pymodule!(app))?;
     m.add_wrapped(wrap_pymodule!(model))?;
     Ok(())
 }
@@ -53,5 +52,21 @@ fn app_config(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("name", &APPLICATION_CONFIG.name);
     let _ = ret.set_item("target", &APPLICATION_CONFIG.target);
     let _ = ret.set_item("environment", &APPLICATION_CONFIG.environment);
+    let _ = ret.set_item("mode", &APPLICATION_CONFIG.mode);
     Ok(ret.into())
+}
+
+/// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
+#[pyfunction]
+fn clean_mode(name: &str) -> PyResult<String> {
+    let c = origen::clean_mode(name);
+    Ok(c)
+}
+
+#[pyfunction]
+/// Sanitizes the given target/env name and returns the matching file, but will exit the process
+/// if it does not uniquely identify a single target/env file.
+fn target_file(name: &str, dir: &str) -> PyResult<String> {
+    let c = origen::core::application::target::clean_name(name, dir, true);
+    Ok(c)
 }
