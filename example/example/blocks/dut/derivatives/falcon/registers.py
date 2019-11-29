@@ -1,1 +1,1 @@
-model.add_reg("reg3", 0x20)
+block.add_reg("reg3", 0x20)

@@ -6,8 +6,6 @@ def __origen__(command, target=None, environment=None, mode=None):
     import origen.application
     import origen.target
 
-    origen.application.load()
-
     if mode == None:
         origen.set_mode(_origen.app_config()["mode"])
     else:

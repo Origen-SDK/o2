@@ -1,6 +1,7 @@
 import sys
 import _origen
 from pathlib import Path
+import importlib
 
 config = _origen.config()
 status = _origen.status()
@@ -14,6 +15,8 @@ mode = "development"
 
 if status["is_app_present"]:
     sys.path.insert(0, status["root"])
+    a = importlib.import_module(f'{_origen.app_config()["id"]}.application')
+    app = a.Application()
 
 def set_mode(val):
     global mode

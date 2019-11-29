@@ -30,7 +30,7 @@ class Base:
         # If no controller class is defined then look up the nearest available parent
         while not self.block_path_to_filepath(path).joinpath('controller.py').exists() and not done:
             p = path
-            path = re.sub('\.[^\.]+$', "", path)
+            path = re.sub(r'\.[^\.]+$', "", path)
             done = p == path
 
         # If no controller was found in the app, fall back to the Origen Base controller
@@ -63,17 +63,10 @@ class Base:
                 filepath = filepath.joinpath("derivatives").joinpath(fields[i])
             p = filepath.joinpath(filename)
             if p.exists():
-                model = controller.model
+                block = controller.model
                 origen.load_file(p, locals=locals())
 
         return controller
 
     #def __repr__(self):
     #    return "<an app>"
-
-# Load the application
-def load():
-    a = importlib.import_module(f'{_origen.app_config()["id"]}.application')
-    app = a.Application()
-    origen.app = app
-
