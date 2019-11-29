@@ -5,26 +5,12 @@ import _origen
 def load(target=None, environment=None):
     app = origen.app
     if target == None:
-        target = app.config["target"]
+        target = _origen.app_config()["target"]
     if environment == None:
-        environment = app.config["environment"]
+        environment = _origen.app_config()["environment"]
 
     if target != None:
-        # Also see:
-        #https://docs.python.org/2/library/imp.html#imp.load_source
-        tfile = _origen.target_file(target, "targets")
-        global_vars = {}
-        local_vars = {}
-        with open(tfile) as f:
-            code = compile(f.read(), tfile, 'exec')
-            exec(code, global_vars, local_vars)
+        origen.load_file(_origen.target_file(target, "targets"))
 
     if environment != None:
-        # Also see:
-        #https://docs.python.org/2/library/imp.html#imp.load_source
-        tfile = _origen.target_file(environment, "environments")
-        global_vars = {}
-        local_vars = {}
-        with open(tfile) as f:
-            code = compile(f.read(), tfile, 'exec')
-            exec(code, global_vars, local_vars)
+        origen.load_file(_origen.target_file(target, "environments"))

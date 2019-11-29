@@ -19,3 +19,8 @@ def set_mode(val):
     global mode
     if val:
         mode = _origen.clean_mode(val)
+
+def load_file(path, globals={}, locals={}):
+    with open(path) as f:
+        code = compile(f.read(), path, 'exec')
+        exec(code, globals, locals)

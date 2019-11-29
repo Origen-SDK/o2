@@ -7,9 +7,8 @@ import pdb
 
 # The base class of all application classes
 class Base:
-    config = _origen.app_config()
     # Returns the unique ID (name) of the app/plugin
-    id =  config["id"]
+    id =  _origen.app_config()["id"]
 
     # Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon
     def block_path_to_filepath(self, path):
@@ -21,6 +20,10 @@ class Base:
             filepath = filepath.joinpath(field)
         return filepath
 
+    # Instantiate the given block and return it
+    #
+    #   origen.app.instantiate_block("dut.falcon")
+    #   origen.app.instantiate_block("nvm.flash.f2mb")
     def instantiate_block(self, path):
         orig_path = path
         done = False
@@ -43,7 +46,27 @@ class Base:
             controller = self.id + ".blocks." + controller + ".controller"
             m = importlib.import_module(controller)
             block = m.Controller()
+
+        block.app = self
+        block.block_path = orig_path
+
         return block
+
+    # Load the given block filetype to the given controller
+    #   origen.app.load_block_files(dut.flash, "registers.py")
+    def load_block_files(self, controller, filename):
+        fields = controller.block_path.split(".")
+        for i, field in enumerate(fields):
+            if i == 0:
+                filepath = origen.root.joinpath(self.id).joinpath("blocks").joinpath(fields[i])
+            else:
+                filepath = filepath.joinpath("derivatives").joinpath(fields[i])
+            p = filepath.joinpath(filename)
+            if p.exists():
+                model = controller.model
+                origen.load_file(p, locals=locals())
+
+        return controller
 
     #def __repr__(self):
     #    return "<an app>"

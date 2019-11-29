@@ -2,13 +2,14 @@
 # Any target/env overrides given to the command line will be passed in here
 def __origen__(command, target=None, environment=None, mode=None):
     import origen
+    import _origen
     import origen.application
     import origen.target
 
     origen.application.load()
 
     if mode == None:
-        origen.set_mode(origen.app.config["mode"])
+        origen.set_mode(_origen.app_config()["mode"])
     else:
         origen.set_mode(mode)
 
