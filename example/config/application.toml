@@ -1,4 +1,4 @@
-name = "example"
+id = "example"
 # Define a default target that will be used by a new workspace
 #target = "eagle"
 # Define a default environment that will be used by a new workspace

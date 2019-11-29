@@ -11,7 +11,7 @@ use std::path::PathBuf;
 // * default function below to define the default value
 // * add an example of it to src/app_generators/templates/app/config/application.toml
 pub struct Config {
-    pub name: String,
+    pub id: String,
     pub target: Option<String>,
     pub environment: Option<String>,
     pub mode: String,
@@ -23,7 +23,7 @@ impl Default for Config {
 
         // Start off by specifying the default values for all attributes, seems fine
         // not to handle these errors
-        //let _ = s.set_default("name", "");
+        //let _ = s.set_default("id", "");
         //let _ = s.set_default("target", None::<String>);
         //let _ = s.set_default("environment", None::<String>);
         let _ = s.set_default("mode", "development".to_string());
