@@ -1,7 +1,7 @@
 // Responsible for managing Python execution
 
 use semver::Version;
-use std::process::Command;
+use origen::core::os;
 
 const PYTHONS: &[&str] = &[
     "python",
@@ -65,7 +65,7 @@ impl Default for Config {
 
 /// Get the Python version from the given command
 fn get_version(command: &str) -> Option<Version> {
-    match Command::new(command).arg("--version").output() {
+    match os::cmd(command).arg("--version").output() {
         Ok(output) => return extract_version(std::str::from_utf8(&output.stdout).unwrap()),
         Err(_e) => return None,
     }
@@ -73,7 +73,7 @@ fn get_version(command: &str) -> Option<Version> {
 
 /// Returns the version of poetry (obtained from running "poetry --version")
 pub fn poetry_version() -> Option<Version> {
-    match Command::new(&PYTHON_CONFIG.poetry_command)
+    match os::cmd(&PYTHON_CONFIG.poetry_command)
         .arg("--version")
         .output()
     {
@@ -99,11 +99,11 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) {
-    let _status = Command::new(&PYTHON_CONFIG.poetry_command)
+    let _status = os::cmd(&PYTHON_CONFIG.poetry_command)
         .arg("run")
         .arg(&PYTHON_CONFIG.command)
         .arg("-c")
-        .arg(code)
+        .arg(&code)
         .status();
 }
 
