@@ -1,6 +1,8 @@
 *.egg-info
 __pycache__
 /rust/origen/target
+pip-wheel-metadata/
+_origen.pyd
 
 # Editor cruft
 *.swp

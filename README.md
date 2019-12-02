@@ -1,5 +1,14 @@
 ## Development Environment Setup
 
+0) Windows-Specific Setup
+
+If using Windows, ensure that the `HOME` environment variable is set. For example, using Powershell:
+
+~~~
+# In this instance, $HOME is NOT an environment variable, but a shortcut. Set it to the similarly-named environment variable.
+$env:HOME = $HOME
+~~~
+
 1) [Install Rust](https://www.rust-lang.org/tools/install)
 
 2) Enable Rust nightly version (this must be done for every o2 workspace):
@@ -22,11 +31,28 @@ cd o2/rust/origen
 cd pyapi && cargo build && cd ../ && cargo build --workspace --bins
 ~~~
 
+Or, using powershell:
+
+~~~
+cd o2\rust\origen
+cd pyapi ; cargo build ; cd .. ; cargo build --workspace --bins
+~~~
+
+4a) Missing Ubuntu Packages
+
 On Ubuntu, the following packages may need to be installed if you get errors:
 
 ~~~
 sudo apt install libssl-dev
 sudo apt install pkg-config
+~~~
+
+4b) Windows Compiled Libary
+
+On Windows, in addition to `4)`, the resulting `_origen.dll` must be moved and renamed to a `.pyd`:
+
+~~~
+cp .\target\debug\_origen.dll ..\..\python\_origen.pyd
 ~~~
 
 5) Add this dir to your $PATH, ahead of any other dir that provides an `origen` command:
@@ -41,7 +67,6 @@ Origen: 2.0.0-pre0
 ~~~
 
 7) Make sure your system has at least Python 3.5 available
-
 
 8) Now that you have the Origen CLI available and Python, you can try booting the example app:
 

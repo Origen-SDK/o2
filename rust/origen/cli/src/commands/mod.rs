@@ -10,10 +10,7 @@ use origen::clean_mode;
 
 /// Launch the given command in Python
 pub fn launch(command: &str, target: &Option<&str>, environment: &Option<&str>, mode: &Option<&str>) {
-    let mut cmd = format!("
-from origen.boot import __origen__;
-
-__origen__('{}'", command);
+    let mut cmd = format!("from origen.boot import __origen__; __origen__('{}'", command);
     
     if target.is_some() {
         cmd += &format!(", target='{}'", target.unwrap()).to_string(); 
