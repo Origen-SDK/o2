@@ -28,12 +28,12 @@ impl ModelDB {
         });
     }
 
-    fn add_reg(&mut self, name: &str, offset: u32) -> PyResult<()> {
-        self.model.add_reg(name, offset);
-        Ok(())
-    }
+    //fn add_reg(&mut self, name: &str, offset: u32) -> PyResult<()> {
+    //    self.model.add_reg(name, offset);
+    //    Ok(())
+    //}
 
-    fn number_of_regs(&self) -> PyResult<u32> {
+    fn number_of_regs(&self) -> PyResult<usize> {
         Ok(self.model.number_of_regs())
     }
 }

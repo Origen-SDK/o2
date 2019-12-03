@@ -63,8 +63,18 @@ class Base:
                 filepath = filepath.joinpath("derivatives").joinpath(fields[i])
             p = filepath.joinpath(filename)
             if p.exists():
-                block = controller.model
-                origen.load_file(p, locals=locals())
+                if filename == "registers.py":
+                    from origen.registers import Loader
+                    context = Loader(controller.model).api()
+                    
+                elif filename == "sub_blocks.py":
+                    from origen.sub_blocks import Loader
+                    context = Loader(controller.model).api()
+
+                else:
+                    block = controller
+                    context = locals()
+                origen.load_file(p, locals=context)
 
         return controller
 
