@@ -46,11 +46,11 @@ impl Logger {
   }
 
   pub fn log(&self, message: &str) {
-    self._log("INFO", message, &term::standardln);
+    self._log("LOG", message, &term::standardln);
   }
 
   pub fn log_block(&self, messages: &Vec<&str>) {
-    self._log_block("INFO", messages, &(term::standardln));
+    self._log_block("LOG", messages, &(term::standardln));
   }
 
   pub fn success(&self, message: &str) {
@@ -89,7 +89,7 @@ impl Logger {
 
   fn _out(&self, s: &str, print_func: &dyn Fn(&str)) {
     print_func(&s);
-    write!(&self.file_handler, "{}", s).expect("Could not write log file!");
+    write!(&self.file_handler, "{}\n", s).expect("Could not write log file!");
   }
 
   fn _prefix(&self, prefix: &str) -> String {
