@@ -27,6 +27,19 @@ pub fn yellowln(msg: &str) {
     println(msg, Color::Yellow);
 }
 
+pub fn cyan(msg: &str) {
+    print(msg, Color::Cyan);
+}
+
+pub fn cyanln(msg: &str) {
+    println(msg, Color::Cyan);
+}
+
+// Prints a standard line without any colorizing, but retains a the same prototype as the other <x>ln functions.
+pub fn standardln(msg: &str) {
+    println!("{}", msg);
+}
+
 fn println(msg: &str, color: Color) {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     let status = stdout.set_color(ColorSpec::new().set_fg(Some(color)));

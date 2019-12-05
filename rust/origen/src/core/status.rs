@@ -1,9 +1,11 @@
+extern crate time;
 use crate::built_info;
 use semver::Version;
 use std::env;
 /// Exposes the some status information about the runtime environment, e.g. whether an
 /// application workspace is present
 use std::path::PathBuf;
+
 
 // If you add an attribute to this you must also update:
 // * pyapi/src/lib.rs to convert it to Python
@@ -15,6 +17,7 @@ pub struct Status {
     pub root: PathBuf,
     /// The Origen version in a Semver object
     pub origen_version: Version,
+    pub start_time: time::Tm,
 }
 
 impl Default for Status {
@@ -28,6 +31,7 @@ impl Default for Status {
             is_app_present: p,
             root: r,
             origen_version: version,
+            start_time: time::now(),
         }
     }
 }

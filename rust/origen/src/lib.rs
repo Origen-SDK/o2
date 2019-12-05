@@ -2,12 +2,12 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate serde;
-
 pub mod core;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 use self::core::status::Status;
+use self::core::utility::logger::Logger;
 
 /// The available Origen runtime modes
 pub const MODES: &'static [&'static str] = &["production", "development"];
@@ -21,6 +21,7 @@ lazy_static! {
     /// Provides configuration information derived from application.toml and any workspace
     /// overrides e.g. from running origen t command to set a default target
     pub static ref APPLICATION_CONFIG: AppConfig = AppConfig::default();
+    pub static ref LOGGER: Logger = Logger::default();
 }
 
 // Use of a mod or pub mod is not actually necessary.

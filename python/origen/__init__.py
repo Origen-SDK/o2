@@ -7,6 +7,7 @@ config = _origen.config()
 status = _origen.status()
 root = Path(status["root"])
 version = status["origen_version"]
+logger = _origen.logger
 
 app = None
 dut = None
