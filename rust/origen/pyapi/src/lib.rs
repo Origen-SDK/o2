@@ -1,8 +1,9 @@
 mod model;
 
-use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
+use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS, LOGGER};
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::types::{PyDict, PyTuple};
 // Imported pyapi modules
 use model::PyInit_model;
 
@@ -14,9 +15,77 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(app_config))?;
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
     m.add_wrapped(wrap_pyfunction!(target_file))?;
+    m.add_wrapped(wrap_pymodule!(logger))?;
 
     m.add_wrapped(wrap_pymodule!(model))?;
     Ok(())
+}
+
+#[pymodule]
+fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(debug))?;
+    m.add_wrapped(wrap_pyfunction!(deprecated))?;
+    m.add_wrapped(wrap_pyfunction!(error))?;
+    m.add_wrapped(wrap_pyfunction!(info))?;
+    m.add_wrapped(wrap_pyfunction!(log))?;
+    m.add_wrapped(wrap_pyfunction!(success))?;
+    m.add_wrapped(wrap_pyfunction!(warning))?;
+    m.add_wrapped(wrap_pyfunction!(output_file))?;
+    Ok(())
+}
+
+macro_rules! pytuple_to_vector_str {
+    ($strs:expr) => {
+        // There's probably a better way to do this, but hell if I can find it.
+        $strs.iter().map( |s| s.to_string()).collect::<Vec<_>>().iter().map( |s| s.as_str()).collect::<Vec<_>>()
+    };
+}
+
+#[pyfunction(messages="*", _kwargs="**")]
+fn debug(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.debug_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages="*", _kwargs="**")]
+fn deprecated(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.deprecated_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages="*", _kwargs="**")]
+fn error(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.error_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages="*", _kwargs="**")]
+fn info(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.info_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages="*", _kwargs="**")]
+fn log(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.log_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages="*", _kwargs="**")]
+fn success(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.success_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages="*", _kwargs="**")]
+fn warning(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.warning_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction]
+fn output_file(_py: Python) -> PyResult<String> {
+    Ok(LOGGER.output_file.to_string_lossy().to_string())
 }
 
 /// Returns the Origen status which informs whether an app is present, the Origen version,
