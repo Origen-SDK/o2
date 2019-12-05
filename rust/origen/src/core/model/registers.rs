@@ -22,7 +22,7 @@ pub enum Usage {
 
 #[derive(Debug)]
 pub struct MemoryMap {
-    pub name: String,
+    pub id: String,
     /// Represents the number of bits of an address increment between two
     /// consecutive addressable units in the memory map.
     /// Its value defaults to 8 indicating a byte addressable memory map.
@@ -30,10 +30,20 @@ pub struct MemoryMap {
     pub address_blocks: HashMap<String, AddressBlock>,
 }
 
+impl Default for MemoryMap {
+    fn default() -> MemoryMap {
+        MemoryMap {
+            id: "Default".to_string(),
+            address_unit_bits: 8,
+            address_blocks: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Represents a single, contiguous block of memory in a memory map.
 pub struct AddressBlock {
-    pub name: String,
+    pub id: String,
     /// The starting address of the address block expressed in address_unit_bits
     /// from the parent memory map.
     pub base_address: u64,
@@ -46,17 +56,30 @@ pub struct AddressBlock {
     pub registers: HashMap<String, Register>,
 }
 
+impl Default for AddressBlock {
+    fn default() -> AddressBlock {
+        AddressBlock {
+            id: "Default".to_string(),
+            base_address: 0,
+            range: 0,
+            width: 0,
+            access: AccessType::ReadWrite,
+            registers: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Register {
-    pub name: String,
+    pub id: String,
     pub description: String,
     // TODO: What is this?!
     /// The dimension of the register, defaults to 1.
-    pub dim: u16,
+    pub dim: u32,
     /// Address offset from the start of the parent address block in address_unit_bits.
-    pub offset: u16,
+    pub offset: u32,
     /// The size of the register in bits.
-    pub size: u16,
+    pub size: u32,
     pub access: AccessType,
     pub fields: HashMap<String, Field>,
     /// Contains all bits implemented by the register, bits[i] will return None if
@@ -64,15 +87,30 @@ pub struct Register {
     pub bits: Vec<Bit>,
 }
 
+impl Default for Register {
+    fn default() -> Register {
+        Register {
+            id: "Default".to_string(),
+            description: "".to_string(),
+            dim: 1,
+            offset: 0,
+            size: 32,
+            access: AccessType::ReadWrite,
+            fields: HashMap::new(),
+            bits: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Named collections of bits within a register
 pub struct Field {
-    pub name: String,
+    pub id: String,
     pub description: String,
     /// Offset from the start of the register in bits.
-    pub offset: u16,
+    pub offset: u32,
     /// Width of the field in bits.
-    pub width: u16,
+    pub width: u32,
     /// Contains any reset values defined for this field.
     pub resets: Vec<Reset>,
     pub enumerated_values: HashMap<String, EnumeratedValue>,
@@ -93,7 +131,7 @@ pub struct Reset {
 
 #[derive(Debug)]
 pub struct EnumeratedValue {
-    pub name: String,
+    pub id: String,
     pub description: String,
     pub usage: Usage,
     /// The size of this vector corresponds to the size of the parent field.

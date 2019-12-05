@@ -1,5 +1,3 @@
-from origen import dut, tester, Pattern;
-
-with Pattern() as pattern:
+with Pattern() as pat:
     dut.do_something()
     tester.wait()

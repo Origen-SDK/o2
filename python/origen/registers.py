@@ -4,28 +4,43 @@ from contextlib import contextmanager
 # which implements the application/user API for working with registers.
 # An instance of this class is returned by <my_controller>.regs
 class Proxy:
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, controller):
+        self.controller = controller
+        self.model = controller.model
+
+    # Returns the number of contained registers
+    def len(self):
+        return self.model.number_of_regs();
+
+    #def __repr__(self):
+    #    return f"Registers in {self.controller.block_path}:\n0  : Reg 1\n4  : Reg 2"
 
 # This defines the methods for defining registers in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
 class Loader:
     def __init__(self, model):
         self.model = model
+        self.memory_map = None
+        self.address_block = None
 
     @contextmanager
-    def reg(self, name, address_offset, size=32):
+    def Reg(self, id, address_offset, size=32):
+        self.model.add_reg(self.memory_map, self.address_block, id, address_offset, size);
         try:
             yield self
         finally:
             pass
 
-    def bit(self, number, name, access="rw", reset=0):
+    def reg(self, id, address_offset, size=32):
+        self.model.add_reg(self.memory_map, self.address_block, id, address_offset, size);
+
+    def bit(self, number, id, access="rw", reset=0):
         pass
 
     # Defines the methods that are accessible within blocks/<block>/registers.py
     def api(self):
         return {
+            "Reg": self.Reg, 
             "reg": self.reg, 
             "bit": self.bit
         }

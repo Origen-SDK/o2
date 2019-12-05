@@ -2,8 +2,8 @@ extern crate time;
 
 use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
 use online::online;
-use origen::core::term::*;
 use origen::core::os;
+use origen::core::term::*;
 use std::fs;
 use std::io;
 use std::path::PathBuf;

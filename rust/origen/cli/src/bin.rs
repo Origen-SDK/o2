@@ -4,7 +4,7 @@ extern crate lazy_static;
 mod commands;
 mod python;
 
-use clap::{App, Arg, SubCommand, AppSettings};
+use clap::{App, AppSettings, Arg, SubCommand};
 use origen::STATUS;
 
 // This is the entry point for the Origen CLI tool
@@ -175,21 +175,32 @@ fn main() {
         commands::version::run();
     } else {
         match matches.subcommand_name() {
-            Some("setup") => {
-                commands::setup::run()
-            }
+            Some("setup") => commands::setup::run(),
             Some("interactive") => {
                 let m = matches.subcommand_matches("interactive").unwrap();
-                commands::interactive::run(&m.value_of("target"), &m.value_of("environment"), &m.value_of("mode"));
+                commands::interactive::run(
+                    &m.value_of("target"),
+                    &m.value_of("environment"),
+                    &m.value_of("mode"),
+                );
             }
             Some("generate") => {
                 let m = matches.subcommand_matches("generate").unwrap();
-                commands::launch("generate", &m.value_of("target"), &m.value_of("environment"), &m.value_of("mode"));
+                commands::launch(
+                    "generate",
+                    &m.value_of("target"),
+                    &m.value_of("environment"),
+                    &m.value_of("mode"),
+                );
             }
             Some("compile") => {
                 let m = matches.subcommand_matches("compile").unwrap();
-                commands::launch("compile", &m.value_of("target"), &m.value_of("environment"), &m.value_of("mode"));
-                   
+                commands::launch(
+                    "compile",
+                    &m.value_of("target"),
+                    &m.value_of("environment"),
+                    &m.value_of("mode"),
+                );
             }
             Some("target") => {
                 let matches = matches.subcommand_matches("target").unwrap();

@@ -69,7 +69,7 @@ class Base:
                     
                 elif filename == "sub_blocks.py":
                     from origen.sub_blocks import Loader
-                    context = Loader(controller.model).api()
+                    context = Loader(controller).api()
 
                 else:
                     block = controller
@@ -77,6 +77,3 @@ class Base:
                 origen.load_file(p, locals=context)
 
         return controller
-
-    #def __repr__(self):
-    #    return "<an app>"

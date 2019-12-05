@@ -28,19 +28,18 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
         for file in all(dir).iter() {
             println!(
                 "    {}",
-                diff_paths(&file, &STATUS.root.join(dir))
-                    .unwrap()
-                    .display()
+                diff_paths(&file, &STATUS.root.join(dir)).unwrap().display()
             );
         }
     } else if matches.len() > 1 {
-        println!("That {} name is ambiguous, please try again to narrow it down to one of these:", t);
+        println!(
+            "That {} name is ambiguous, please try again to narrow it down to one of these:",
+            t
+        );
         for file in matches.iter() {
             println!(
                 "    {}",
-                diff_paths(&file, &STATUS.root.join(dir))
-                    .unwrap()
-                    .display()
+                diff_paths(&file, &STATUS.root.join(dir)).unwrap().display()
             );
         }
     } else {

@@ -40,12 +40,18 @@ pub fn clean_mode(name: &str) -> String {
     }
 
     if matches.len() == 0 {
-        println!("No mode found matching '{}', here are the available modes:", name);
+        println!(
+            "No mode found matching '{}', here are the available modes:",
+            name
+        );
         for i in 0..MODES.len() {
             println!("    {}", MODES[i].to_string());
         }
     } else if matches.len() > 1 {
-        println!("'{}' is an ambiguous mode name, please try again to narrow it down to one of these:", name);
+        println!(
+            "'{}' is an ambiguous mode name, please try again to narrow it down to one of these:",
+            name
+        );
         for m in matches.iter() {
             println!("    {}", m.to_string());
         }
