@@ -4,3 +4,4 @@ pub mod model;
 pub mod os;
 pub mod status;
 pub mod term;
+pub mod utility;

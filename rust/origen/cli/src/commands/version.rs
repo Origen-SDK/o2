@@ -1,5 +1,6 @@
 use origen::STATUS;
+use origen::LOGGER;
 
 pub fn run() {
-    println!("Origen: {}", STATUS.origen_version);
+    LOGGER.info(&format!("{}", STATUS.origen_version));
 }
