@@ -1,6 +1,7 @@
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
-//use pyo3::wrap_pyfunction;
+use pyo3::wrap_pyfunction;
+use origen::LOGGER;
 
 use origen::core::model::Model;
 
@@ -10,29 +11,33 @@ pub fn model(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ModelDB>()?;
     m.add_class::<MemoryMaps>()?;
 
+    m.add_wrapped(wrap_pyfunction!(memory_maps))?;
+
     Ok(())
 }
 
+#[pyfunction]
+fn memory_maps() -> PyResult<Py<MemoryMaps>> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Py::new(py, MemoryMaps {})
+}
+
+/// Implements the user API to work with a model's collection of memory maps, an instance
+/// of this is returned by my_model.memory_maps
 #[pyclass]
 #[derive(Debug)]
 pub struct MemoryMaps {}
 
 #[pymethods]
 impl MemoryMaps {
-    #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init({ MemoryMaps {} });
-    }
-
-    fn __getattr__(&self, name: String) {
-        println!("Yo, you called reg: {}", name);
-    }
 }
 
 #[pyproto]
 impl PyObjectProtocol for MemoryMaps {
     fn __repr__(&self) -> PyResult<String> {
-        Ok("Yo dawg".to_string())
+        LOGGER.error("Memory map not found!");
+        Ok("Here should be a nice graphic of the memory maps".to_string())
     }
 }
 
