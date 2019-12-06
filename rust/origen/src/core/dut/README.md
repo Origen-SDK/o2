@@ -1,3 +1,5 @@
+# The DUT Data Model
+
 The DUT is the central data store for a device in Origen.
 
 One instance of a DUT is created per target load in Origen and it contains all metadata and
