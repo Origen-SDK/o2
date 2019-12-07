@@ -35,7 +35,7 @@ class Base:
             return self.sub_blocks
 
         else:
-            raise AttributeError(f"The controller for block '{self.block_path}' has no attribute '{name}'")
+            raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

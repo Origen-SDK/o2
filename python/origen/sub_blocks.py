@@ -23,14 +23,14 @@ class Loader:
     def sub_block(self, id, block_path=None):
         b = self.controller.app.instantiate_block(block_path)
         b.id = id
-        b.parent = f"{self.controller.parent}.{self.controller.id}"
-        # If a direct child of the top-level
-        if b.parent == ".":
-            b.parent = ''
+        if self.controller.parent == '':
+            b.parent = self.controller.id
+        else:
+            b.parent = f"{self.controller.parent}.{self.controller.id}"
         # Add the python representation of this block to its parent
         self.controller.sub_blocks.__add_block__(id, b)
         # Create a new representation of it in the internal store
-        dut.store.create_model(b.parent, b.id)
+        dut.store.create_sub_block(b.parent, b.id)
         pass
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py

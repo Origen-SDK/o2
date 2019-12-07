@@ -1,3 +1,4 @@
-sub_block("adc0", block_path="adc.16_bit")
-sub_block("adc0", block_path="adc.16_bit")
-sub_block("adc1", block_path="adc.8_bit")
+sub_block("core0", block_path="core")
+sub_block("core1", block_path="core")
+sub_block("core2", block_path="core")
+sub_block("core3", block_path="core")
