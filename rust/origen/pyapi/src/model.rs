@@ -1,7 +1,7 @@
+use origen::LOGGER;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use origen::LOGGER;
 
 use origen::core::model::Model;
 
@@ -30,8 +30,7 @@ fn memory_maps() -> PyResult<Py<MemoryMaps>> {
 pub struct MemoryMaps {}
 
 #[pymethods]
-impl MemoryMaps {
-}
+impl MemoryMaps {}
 
 #[pyproto]
 impl PyObjectProtocol for MemoryMaps {
@@ -53,7 +52,7 @@ impl ModelDB {
     fn new(obj: &PyRawObject, name: String) {
         obj.init({
             ModelDB {
-                model: Model::new(name),
+                model: Model::new(name, "".to_string()),
             }
         });
     }

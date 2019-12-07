@@ -4,11 +4,14 @@ import importlib
 import os.path
 import re
 import pdb
+from origen.controller import TopLevel
 
 # The base class of all application classes
 class Base:
     # Returns the unique ID (name) of the app/plugin
     id =  _origen.app_config()["id"]
+
+    __instantiate_dut_called = False
 
     # Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon
     def block_path_to_filepath(self, path):
@@ -20,11 +23,23 @@ class Base:
             filepath = filepath.joinpath(field)
         return filepath
 
+    # Instantiate the given DUT and return it, this must be called first before any
+    # sub-blocks can be instantiated
+    def instantiate_dut(self, path):
+        self.__instantiate_dut_called = True
+        dut = self.instantiate_block(path)
+        if not isinstance(dut, TopLevel):
+            raise RuntimeError("The DUT object is not an instance of origen.application::TopLevel")
+        return dut
+
     # Instantiate the given block and return it
     #
     #   origen.app.instantiate_block("dut.falcon")
     #   origen.app.instantiate_block("nvm.flash.f2mb")
     def instantiate_block(self, path):
+        if not self.__instantiate_dut_called:
+            raise RuntimeError(f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{path}\")' instead?")
+
         orig_path = path
         done = False
         # If no controller class is defined then look up the nearest available parent

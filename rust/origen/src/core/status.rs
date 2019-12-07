@@ -6,7 +6,6 @@ use std::env;
 /// application workspace is present
 use std::path::PathBuf;
 
-
 // If you add an attribute to this you must also update:
 // * pyapi/src/lib.rs to convert it to Python
 // * default function below to define the default value (no nils in Rust)

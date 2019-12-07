@@ -25,6 +25,16 @@ def set_mode(val):
         mode = _origen.clean_mode(val)
 
 def load_file(path, globals={}, locals={}):
+    context = {**standard_context(), **locals}
     with open(path) as f:
         code = compile(f.read(), path, 'exec')
-        exec(code, globals, locals)
+        exec(code, globals, context)
+
+# Returns the context (locals) that are available by default within files
+# loaded by Origen, e.g. dut, tester, origen, etc.
+def standard_context():
+    return {
+        "origen": sys.modules[__name__],
+        "dut": dut, 
+        "tester": tester, 
+    }

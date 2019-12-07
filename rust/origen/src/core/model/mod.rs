@@ -6,14 +6,31 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Model {
-    pub id: String,
+    id: String,
+    /// Store a hierarchical reference to the parent model minus the leading 'dut',
+    /// e.g. if the given sub-block associated with this model was instantiated as
+    /// "dut.core0.ana.adc0" then the id would be "adc0" and the parent would be
+    /// "core0.ana".
+    /// This means that the model can be identified as the top-level if parent == "" and
+    /// also a model's parent can be found by fetching if from the DUT.
+    /// Other approaches by trying to store a direct reference to the parent object just
+    /// seem too scary in Rust, albeit a bit more efficient.
+    pub parent: String,
+    ///
+    pub sub_blocks: HashMap<String, Model>,
+    /// All registers owned by this model are arranged within memory maps
     pub memory_maps: HashMap<String, MemoryMap>,
+    // Pins
+    // Levels
+    // Timing
 }
 
 impl Model {
-    pub fn new(id: String) -> Model {
+    pub fn new(id: String, parent: String) -> Model {
         Model {
             id: id,
+            parent: parent,
+            sub_blocks: HashMap::new(),
             memory_maps: HashMap::new(),
         }
     }

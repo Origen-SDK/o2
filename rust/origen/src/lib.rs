@@ -2,12 +2,17 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate serde;
+
 pub mod core;
+pub mod error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
+use crate::error::Error;
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// The available Origen runtime modes
 pub const MODES: &'static [&'static str] = &["production", "development"];

@@ -1,10 +1,15 @@
+mod dut;
+mod logger;
 mod model;
 
-use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS, LOGGER};
+use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use pyo3::types::{PyDict, PyTuple};
+
 // Imported pyapi modules
+use dut::PyInit_dut;
+use logger::PyInit_logger;
 use model::PyInit_model;
 
 #[pymodule]
@@ -18,81 +23,15 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(model))?;
+    m.add_wrapped(wrap_pymodule!(dut))?;
     Ok(())
-}
-
-#[pymodule]
-fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(debug))?;
-    m.add_wrapped(wrap_pyfunction!(deprecated))?;
-    m.add_wrapped(wrap_pyfunction!(error))?;
-    m.add_wrapped(wrap_pyfunction!(info))?;
-    m.add_wrapped(wrap_pyfunction!(log))?;
-    m.add_wrapped(wrap_pyfunction!(success))?;
-    m.add_wrapped(wrap_pyfunction!(warning))?;
-    m.add_wrapped(wrap_pyfunction!(output_file))?;
-    Ok(())
-}
-
-macro_rules! pytuple_to_vector_str {
-    ($strs:expr) => {
-        // There's probably a better way to do this, but hell if I can find it.
-        $strs.iter().map( |s| s.to_string()).collect::<Vec<_>>().iter().map( |s| s.as_str()).collect::<Vec<_>>()
-    };
-}
-
-#[pyfunction(messages="*", _kwargs="**")]
-fn debug(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.debug_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction(messages="*", _kwargs="**")]
-fn deprecated(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.deprecated_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction(messages="*", _kwargs="**")]
-fn error(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.error_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction(messages="*", _kwargs="**")]
-fn info(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.info_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction(messages="*", _kwargs="**")]
-fn log(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.log_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction(messages="*", _kwargs="**")]
-fn success(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.success_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction(messages="*", _kwargs="**")]
-fn warning(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.warning_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction]
-fn output_file(_py: Python) -> PyResult<String> {
-    Ok(LOGGER.output_file.to_string_lossy().to_string())
 }
 
 /// Returns the Origen status which informs whether an app is present, the Origen version,
 /// etc.
 #[pyfunction]
 fn status(py: Python) -> PyResult<PyObject> {
-    let ret = pyo3::types::PyDict::new(py);
+    let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
     let _ = ret.set_item("is_app_present", &STATUS.is_app_present);
     let _ = ret.set_item("root", format!("{}", STATUS.root.display()));
@@ -103,7 +42,7 @@ fn status(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen configuration (as defined in origen.toml files)
 #[pyfunction]
 fn config(py: Python) -> PyResult<PyObject> {
-    let ret = pyo3::types::PyDict::new(py);
+    let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
     let _ = ret.set_item("python_cmd", &ORIGEN_CONFIG.python_cmd);
     let _ = ret.set_item("pkg_server", &ORIGEN_CONFIG.pkg_server);
@@ -116,7 +55,7 @@ fn config(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen application configuration (as defined in application.toml)
 #[pyfunction]
 fn app_config(py: Python) -> PyResult<PyObject> {
-    let ret = pyo3::types::PyDict::new(py);
+    let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
     let _ = ret.set_item("id", &APPLICATION_CONFIG.id);
     let _ = ret.set_item("target", &APPLICATION_CONFIG.target);
