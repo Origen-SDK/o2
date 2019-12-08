@@ -1,7 +1,7 @@
 // Responsible for managing Python execution
 
-use semver::Version;
 use origen::core::os;
+use semver::Version;
 
 const PYTHONS: &[&str] = &[
     "python",

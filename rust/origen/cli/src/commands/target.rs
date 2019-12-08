@@ -1,5 +1,5 @@
 use origen::core::application::target;
-use origen::{APPLICATION_CONFIG};
+use origen::APPLICATION_CONFIG;
 
 pub fn run(tname: Option<&str>) {
     if tname.is_none() {

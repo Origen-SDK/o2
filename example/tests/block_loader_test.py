@@ -1,12 +1,12 @@
 import origen
 
-def test_files_get_loaded():
+def test_registers_are_loaded():
     origen.app.instantiate_block("dut.falcon")
-    dut = origen.dut
-    dut.load_regs()
-    assert dut.model.number_of_regs() == 3
+    assert origen.dut.regs.len() == 3
 
     origen.app.instantiate_block("dut.eagle")
-    dut = origen.dut
-    dut.load_regs()
-    assert dut.model.number_of_regs() == 2
+    assert origen.dut.regs.len() == 2
+
+def test_sub_blocks_are_loaded():
+    origen.app.instantiate_block("dut.falcon")
+    assert origen.dut.sub_blocks["adc0"].regs.len() == 1
