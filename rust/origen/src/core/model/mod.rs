@@ -1,12 +1,14 @@
 pub mod pins;
 pub mod registers;
+use crate::error::Error;
+use crate::Result;
 
 use registers::{AccessType, AddressBlock, MemoryMap, Register};
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Model {
-    id: String,
+    pub id: String,
     /// Store a hierarchical reference to the parent model minus the leading 'dut',
     /// e.g. if the given sub-block associated with this model was instantiated as
     /// "dut.core0.ana.adc0" then the id would be "adc0" and the parent would be
@@ -15,21 +17,32 @@ pub struct Model {
     /// also a model's parent can be found by fetching if from the DUT.
     /// Other approaches by trying to store a direct reference to the parent object just
     /// seem too scary in Rust, albeit a bit more efficient.
-    pub parent: String,
-    ///
+    pub parent_path: String,
+    /// Returns the path to this model for displaying to a user, e.g. in error messages.
+    pub display_path: String,
+    /// All children of this block/model, which are themselves models
     pub sub_blocks: HashMap<String, Model>,
     /// All registers owned by this model are arranged within memory maps
     pub memory_maps: HashMap<String, MemoryMap>,
     // Pins
     // Levels
     // Timing
+    // Specs
 }
 
 impl Model {
-    pub fn new(id: String, parent: String) -> Model {
+    pub fn new(id: String, parent_path: String) -> Model {
+        let mut p = "dut".to_string();
+        if parent_path != "" {
+            p = format!("{}.{}", p, parent_path);
+        }
+        if id != "" {  
+            p = format!("{}.{}", p, id);
+        }
         Model {
             id: id,
-            parent: parent,
+            parent_path: parent_path,
+            display_path: p,
             sub_blocks: HashMap::new(),
             memory_maps: HashMap::new(),
         }
@@ -89,14 +102,14 @@ impl Model {
         }
     }
 
-    pub fn add_reg(
+    pub fn create_reg(
         &mut self,
         memory_map: Option<&str>,
         address_block: Option<&str>,
         id: &str,
         offset: u32,
         size: Option<u32>,
-    ) {
+    ) -> Result<()>  {
         let map_id = memory_map.unwrap_or("Default");
         let ab_id = address_block.unwrap_or("Default");
 
@@ -127,14 +140,23 @@ impl Model {
 
         let map = self.memory_maps.get_mut(map_id).unwrap();
         let ab = map.address_blocks.get_mut(ab_id).unwrap();
-        ab.registers.insert(
-            id.to_string(),
-            Register {
-                id: id.to_string(),
-                offset: offset,
-                ..defaults
-            },
-        );
+
+        if ab.registers.contains_key(id) {
+            return Err(Error::new(&format!(
+                "The block '{}' already contains a register called '{}' in address block {}.{}",
+                self.display_path, id, map_id, ab_id
+            )));
+        } else {
+            ab.registers.insert(
+                id.to_string(),
+                Register {
+                    id: id.to_string(),
+                    offset: offset,
+                    ..defaults
+                },
+            );
+        }
+        Ok(())
     }
 
     pub fn number_of_regs(&self) -> usize {

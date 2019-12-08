@@ -80,7 +80,7 @@ class Base:
             if p.exists():
                 if filename == "registers.py":
                     from origen.registers import Loader
-                    context = Loader(controller.model).api()
+                    context = Loader(controller).api()
                     
                 elif filename == "sub_blocks.py":
                     from origen.sub_blocks import Loader

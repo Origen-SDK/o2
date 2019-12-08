@@ -1,3 +1,5 @@
+// This module may be removed soon, replaced by the top-level DUT APIs
+
 use origen::LOGGER;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
@@ -55,22 +57,5 @@ impl ModelDB {
                 model: Model::new(name, "".to_string()),
             }
         });
-    }
-
-    fn add_reg(
-        &mut self,
-        memory_map: Option<&str>,
-        address_block: Option<&str>,
-        id: &str,
-        offset: u32,
-        size: Option<u32>,
-    ) -> PyResult<()> {
-        self.model
-            .add_reg(memory_map, address_block, id, offset, size);
-        Ok(())
-    }
-
-    fn number_of_regs(&self) -> PyResult<usize> {
-        Ok(self.model.number_of_regs())
     }
 }

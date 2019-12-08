@@ -33,6 +33,40 @@ impl PyDUT {
     fn create_sub_block(&mut self, path: &str, id: &str) -> PyResult<()> {
         self.store
             .create_sub_block(path, id)
+            // Can't get the Origen errors to cast properly to a PyErr For some reason,
+            // so have to do this
             .map_err(|e| exceptions::OSError::py_err(e.msg))
     }
+
+    fn create_reg(
+        &mut self,
+        path: &str,
+        memory_map: Option<&str>,
+        address_block: Option<&str>,
+        id: &str,
+        offset: u32,
+        size: Option<u32>,
+    ) -> PyResult<()> {
+        // Can't get the Origen errors to cast properly to a PyErr For some reason,
+        // so have to do this
+        let model = match self.store.get_mut_model(path) {
+            Ok(m) => m,
+            Err(e) => return Err(exceptions::OSError::py_err(e.msg))
+        };
+        model.create_reg(memory_map, address_block, id, offset, size)
+            // Can't get the Origen errors to cast properly to a PyErr For some reason,
+            // so have to do this
+            .map_err(|e| exceptions::OSError::py_err(e.msg))
+    }
+
+    fn number_of_regs(&self, path: &str) -> PyResult<usize> {
+        // Can't get the Origen errors to cast properly to a PyErr For some reason,
+        // so have to do this
+        let model = match self.store.get_model(path) {
+            Ok(m) => m,
+            Err(e) => return Err(exceptions::OSError::py_err(e.msg))
+        };
+        Ok(model.number_of_regs())
+    }
+
 }

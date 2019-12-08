@@ -7,15 +7,19 @@ class Base:
     # This is the ID given to this block instance by its parent. For example, if this
     # block was globally available as "dut.ana.adc0", then its id attribute would be "adc0"
     id = None
-    # Returns the path to this block instance relative to the top-level DUT. For example
+    # Returns the path to this block's parent relative to the top-level DUT. For example,
     # if this block was globally available as "dut.core0.ana.adc0", then its parent attribute
     # would return "core0.ana"
-    parent = None
+    parent_path = None
+    # Returns the path to this block relative to the top-level DUT, essentially the
+    # concatenation of parent_path and id
+    path = None
     # Returns the application instance that defines this block
     app = None
-    # Returns the block path that was used to load this block
-    # e.g. "dut.falcon"
+    # Returns the block path that was used to load this block, e.g. "dut.falcon"
     block_path = None
+
+    is_top = False
 
     def __init__(self):
         pass
@@ -37,16 +41,30 @@ class Base:
         else:
             raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
+    def tree(self):
+        print(self.tree_as_str())
+
+    def tree_as_str(self):
+        if self.is_top:
+            t = "dut"
+        elif self.parent == '':
+            t = f"dut.{self.id}"
+        else:
+            t = f"dut.{self.parent}.{self.id}"
+        return t
+
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
 class TopLevel(Base):
-    # Returns the internal Origen data store for this DUT
-    store = None
+    # Returns the internal Origen data base for this DUT
+    db = None
+    is_top = True
 
     def __init__(self):
         self.id = ""
-        self.parent = ""
+        self.parent_path = ""
+        self.path = ""
         origen.dut = self
         # TODO: Probably pass the name of the target in here to act as the DUT name/ID
-        self.store = _origen.dut.PyDUT("tbd")
+        self.db = _origen.dut.PyDUT("tbd")
         Base.__init__(self)

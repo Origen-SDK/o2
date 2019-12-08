@@ -1,3 +1,4 @@
+from origen import dut
 from contextlib import contextmanager
 
 # A middleman between the Python controller and the associated Rust model and
@@ -6,11 +7,10 @@ from contextlib import contextmanager
 class Proxy:
     def __init__(self, controller):
         self.controller = controller
-        self.model = controller.model
 
     # Returns the number of contained registers
     def len(self):
-        return self.model.number_of_regs();
+        return dut.db.number_of_regs(self.controller.path);
 
     #def __repr__(self):
     #    return f"Registers in {self.controller.block_path}:\n0  : Reg 1\n4  : Reg 2"
@@ -18,21 +18,21 @@ class Proxy:
 # This defines the methods for defining registers in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
 class Loader:
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, controller):
+        self.controller = controller
         self.memory_map = None
         self.address_block = None
 
     @contextmanager
     def Reg(self, id, address_offset, size=32):
-        self.model.add_reg(self.memory_map, self.address_block, id, address_offset, size);
+        dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
         try:
             yield self
         finally:
             pass
 
     def reg(self, id, address_offset, size=32):
-        self.model.add_reg(self.memory_map, self.address_block, id, address_offset, size);
+        dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
 
     def bit(self, number, id, access="rw", reset=0):
         pass
@@ -44,4 +44,3 @@ class Loader:
             "reg": self.reg, 
             "bit": self.bit
         }
-                
