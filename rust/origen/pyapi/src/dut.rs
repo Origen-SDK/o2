@@ -15,7 +15,7 @@ pub fn dut(_py: Python, m: &PyModule) -> PyResult<()> {
 #[pyclass]
 #[derive(Debug)]
 pub struct PyDUT {
-    store: DUT,
+    dut: DUT,
 }
 
 #[pymethods]
@@ -24,14 +24,14 @@ impl PyDUT {
     fn new(obj: &PyRawObject, id: String) {
         obj.init({
             PyDUT {
-                store: DUT::new(id),
+                dut: DUT::new(id),
             }
         });
     }
 
     /// Creates a new model at the given path
     fn create_sub_block(&mut self, path: &str, id: &str) -> PyResult<()> {
-        self.store
+        self.dut
             .create_sub_block(path, id)
             // Can't get the Origen errors to cast properly to a PyErr For some reason,
             // so have to do this
@@ -49,7 +49,7 @@ impl PyDUT {
     ) -> PyResult<()> {
         // Can't get the Origen errors to cast properly to a PyErr For some reason,
         // so have to do this
-        let model = match self.store.get_mut_model(path) {
+        let model = match self.dut.get_mut_model(path) {
             Ok(m) => m,
             Err(e) => return Err(exceptions::OSError::py_err(e.msg))
         };
@@ -62,7 +62,7 @@ impl PyDUT {
     fn number_of_regs(&self, path: &str) -> PyResult<usize> {
         // Can't get the Origen errors to cast properly to a PyErr For some reason,
         // so have to do this
-        let model = match self.store.get_model(path) {
+        let model = match self.dut.get_model(path) {
             Ok(m) => m,
             Err(e) => return Err(exceptions::OSError::py_err(e.msg))
         };
