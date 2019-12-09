@@ -1,4 +1,4 @@
-from origen import dut
+import origen
 
 # A middleman between the Python controller and the associated Rust model and
 # which implements the application/user API for working with (sub-)blocks.
@@ -36,7 +36,7 @@ class Loader:
         # Add the python representation of this block to its parent
         self.controller.sub_blocks.__add_block__(id, b)
         # Create a new representation of it in the internal database
-        dut.db.create_sub_block(b.parent_path, b.id)
+        origen.dut.db.create_sub_block(b.parent_path, b.id)
         pass
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py

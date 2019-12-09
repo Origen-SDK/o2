@@ -1,4 +1,4 @@
-from origen import dut
+import origen
 from contextlib import contextmanager
 
 # A middleman between the Python controller and the associated Rust model and
@@ -10,7 +10,7 @@ class Proxy:
 
     # Returns the number of contained registers
     def len(self):
-        return dut.db.number_of_regs(self.controller.path);
+        return origen.dut.db.number_of_regs(self.controller.path);
 
     #def __repr__(self):
     #    return f"Registers in {self.controller.block_path}:\n0  : Reg 1\n4  : Reg 2"
@@ -25,14 +25,14 @@ class Loader:
 
     @contextmanager
     def Reg(self, id, address_offset, size=32):
-        dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
+        origen.dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
         try:
             yield self
         finally:
             pass
 
     def reg(self, id, address_offset, size=32):
-        dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
+        origen.dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
 
     def bit(self, number, id, access="rw", reset=0):
         pass

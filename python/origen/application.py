@@ -26,10 +26,12 @@ class Base:
     # Instantiate the given DUT and return it, this must be called first before any
     # sub-blocks can be instantiated
     def instantiate_dut(self, path):
+        #pdb.set_trace()
         self.__instantiate_dut_called = True
         dut = self.instantiate_block(path)
         if not isinstance(dut, TopLevel):
             raise RuntimeError("The DUT object is not an instance of origen.application::TopLevel")
+        origen.dut = dut
         return dut
 
     # Instantiate the given block and return it
