@@ -4,7 +4,7 @@
 //! # Examples
 //!
 //! ```
-//! use core::ORIGEN_CONFIG;
+//! use origen::ORIGEN_CONFIG;
 //!
 //! println!("Server: {}", &ORIGEN_CONFIG.pkg_server);  // => "Server: https://pkgs.company.net:9292"
 //! ```

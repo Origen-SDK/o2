@@ -26,10 +26,12 @@ impl DUT {
             for field in path.split(".") {
                 m = match m.sub_blocks.get_mut(field) {
                     Some(x) => x,
-                    None => return Err(Error::new(&format!(
-                        "The block '{}' does not contain a sub-block called '{}'",
-                        m.display_path, field
-                    )))
+                    None => {
+                        return Err(Error::new(&format!(
+                            "The block '{}' does not contain a sub-block called '{}'",
+                            m.display_path, field
+                        )))
+                    }
                 }
             }
             return Ok(m);
@@ -47,10 +49,12 @@ impl DUT {
             for field in path.split(".") {
                 m = match m.sub_blocks.get(field) {
                     Some(x) => x,
-                    None => return Err(Error::new(&format!(
-                        "The block '{}' does not contain a sub-block called '{}'",
-                        m.display_path, field
-                    )))
+                    None => {
+                        return Err(Error::new(&format!(
+                            "The block '{}' does not contain a sub-block called '{}'",
+                            m.display_path, field
+                        )))
+                    }
                 }
             }
             return Ok(m);
