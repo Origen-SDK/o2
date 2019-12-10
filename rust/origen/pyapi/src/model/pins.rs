@@ -1,6 +1,6 @@
+use origen::core::model::pins::pin::PinActions;
 use pyo3::prelude::*;
-use origen::core::model::pins::pin::{PinActions};
-use pyo3::types::{PyList, PyDict};
+use pyo3::types::{PyDict, PyList};
 
 #[pymodule]
 /// Implements the module _origen.model in Python
@@ -42,16 +42,16 @@ impl PinContainer {
 
     #[args(_kwargs = "**")]
     fn update_pin_fields_for(&mut self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<()> {
-      let pin = self.pin_container.get_pin(name);
-      if let Some(kwargs) = _kwargs {
-        if let Some(f) = kwargs.get_item("postured_state") {
-          pin.postured_state = f.extract()?;
+        let pin = self.pin_container.get_pin(name);
+        if let Some(kwargs) = _kwargs {
+            if let Some(f) = kwargs.get_item("postured_state") {
+                pin.postured_state = f.extract()?;
+            }
+            if let Some(f) = kwargs.get_item("action") {
+                pin.action = PinActions::from_str(f.extract()?).unwrap();
+            }
         }
-        if let Some(f) = kwargs.get_item("action") {
-          pin.action = PinActions::from_str(f.extract()?).unwrap();
-        }
-      }
-      Ok(())
+        Ok(())
     }
 
     fn unique_pins(&self) -> PyResult<PyObject> {
