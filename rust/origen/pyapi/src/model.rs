@@ -1,9 +1,11 @@
 // This module may be removed soon, replaced by the top-level DUT APIs
+pub mod pins;
+use pins::PyInit_pins;
 
 use origen::LOGGER;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
+use pyo3::{wrap_pyfunction, wrap_pymodule};
 
 use origen::core::model::Model;
 
@@ -12,6 +14,7 @@ use origen::core::model::Model;
 pub fn model(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ModelDB>()?;
     m.add_class::<MemoryMaps>()?;
+    m.add_wrapped(wrap_pymodule!(pins))?;
 
     m.add_wrapped(wrap_pyfunction!(memory_maps))?;
 
