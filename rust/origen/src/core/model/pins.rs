@@ -1,6 +1,6 @@
 
 pub mod pin;
-pub mod pin_collection;
+//pub mod pin_collection;
 
 use std::collections::HashMap;
 

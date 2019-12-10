@@ -2,14 +2,15 @@ use std::collections::HashMap;
 
 /// List of supported pin actions.
 pub enum PinActions {
-  Drive, Assert, HighZ
+  Drive, Verify, Capture, HighZ
 }
 
 impl PinActions {
   pub fn from_str(s: &str) -> Option<PinActions> {
     match s {
         "Drive" => Some(PinActions::Drive),
-        "Assert" => Some(PinActions::Assert),
+        "Verify" => Some(PinActions::Verify),
+        "Capture" => Some(PinActions::Capture),
         "HighZ" => Some(PinActions::HighZ),
         _ => None,
     }
@@ -18,7 +19,8 @@ impl PinActions {
   pub fn as_str(&self) -> &'static str {
     match self {
       PinActions::Drive => "Drive",
-      PinActions::Assert => "Assert",
+      PinActions::Verify => "Verify",
+      PinActions::Capture => "Capture",
       PinActions::HighZ => "HighZ",
     }
   }

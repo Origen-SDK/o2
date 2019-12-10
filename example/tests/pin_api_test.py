@@ -1,4 +1,4 @@
-import origen
+import origen # pylint: disable=import-error
 
 def test_pin_api():
   origen.app.instantiate_dut("dut.falcon")
@@ -35,3 +35,30 @@ def test_pin_api():
   assert p == origen.dut.pins()['other_pin']
   assert p == origen.dut.pin('other_pin')
   assert origen.dut.has_pin('other_pin')
+
+  # Attempt to posture the pin.
+  assert p.postured_state == False
+  assert p.data == 0
+  p.posture(True)
+  assert p.postured_state == True
+  assert p.data == 1
+  p.posture(False)
+  assert p.postured_state == False
+  assert p.data == 0
+  p.posture(1)
+  assert p.postured_state == True
+  assert p.data == 1
+  p.posture(0)
+  assert p.postured_state == False
+  assert p.data == 0
+
+  # Drive/Verify/Capture Pins
+  assert p.action == "HighZ"
+  p.drive()
+  assert p.action == "Drive"
+  p.verify()
+  assert p.action == "Verify"
+  p.capture()
+  assert p.action == "Capture"
+  p.highz()
+  assert p.action == "HighZ"

@@ -21,6 +21,9 @@ class Proxy:
   def __pin__(self, name):
     return self.__pin_container__.pin_fields_for(name)
 
+  def __update_pin__(self, name, **updates):
+    return self.__pin_container__.update_pin_fields_for(name, **updates)
+
   # Return a dictionary of all pin names and their respective Pin object.
   #def pins(self, *filters): <- eventually include some ways to filter the result pins,
   # such as by role, type, or regex matching the pin name/alias.
@@ -64,12 +67,10 @@ class Pin:
     self.__name = name
 
   def __pin_field(self, field):
-    print(self.__pin_container.__pin__(self.__name))
     return self.__pin_container.__pin__(self.__name)[field]
 
   def __set_pin_field(self, field, value):
-    m = f"self.__pin_container.pin.set_field({field}, {value})"
-    return eval(m)
+    return self.__pin_container.__update_pin__(self.__name, **{field: value})
 
   @property
   def name(self):
@@ -81,7 +82,7 @@ class Pin:
 
   @property
   def data(self):
-    return self.__pin_field("postured_state")
+    return int(self.__pin_field("postured_state"))
 
   @property
   def action(self):
@@ -100,14 +101,24 @@ class Pin:
     return self.__pin_field("meta")
 
   def posture(self, value):
-    return self.__set_pin_field("state", value)
+    value = bool(value) # Cast an integer input to a boolean to send back to the backend
+    return self.__set_pin_field("postured_state", value)
   
   def drive(self, value=None):
-    return self.__set_pin_field("action", "drive")
+    if value:
+      self.posture(value)
+    return self.__set_pin_field("action", "Drive")
 
   def verify(self, value=None):
-    return self.__set_pin_field("action", "verify")
+    if value:
+      self.posture(value)
+    return self.__set_pin_field("action", "Verify")
 
   def capture(self, value=None):
-    return self.__set_pin_field("action", "capture")
+    if value:
+      self.posture(value)
+    return self.__set_pin_field("action", "Capture")
+  
+  def highz(self):
+    return self.__set_pin_field("action", "HighZ")
   

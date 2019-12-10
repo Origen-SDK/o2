@@ -1,4 +1,4 @@
-import origen
+import origen # pylint: disable=import-error
 
 def test_registers_are_loaded():
     origen.app.instantiate_dut("dut.falcon")
