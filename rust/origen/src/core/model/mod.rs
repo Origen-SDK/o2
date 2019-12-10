@@ -36,7 +36,7 @@ impl Model {
         if parent_path != "" {
             p = format!("{}.{}", p, parent_path);
         }
-        if id != "" {  
+        if id != "" {
             p = format!("{}.{}", p, id);
         }
         Model {
@@ -109,7 +109,7 @@ impl Model {
         id: &str,
         offset: u32,
         size: Option<u32>,
-    ) -> Result<()>  {
+    ) -> Result<()> {
         let map_id = memory_map.unwrap_or("Default");
         let ab_id = address_block.unwrap_or("Default");
 

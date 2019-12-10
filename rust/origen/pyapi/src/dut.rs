@@ -22,11 +22,7 @@ pub struct PyDUT {
 impl PyDUT {
     #[new]
     fn new(obj: &PyRawObject, id: String) {
-        obj.init({
-            PyDUT {
-                dut: DUT::new(id),
-            }
-        });
+        obj.init({ PyDUT { dut: DUT::new(id) } });
     }
 
     /// Creates a new model at the given path
@@ -51,9 +47,10 @@ impl PyDUT {
         // so have to do this
         let model = match self.dut.get_mut_model(path) {
             Ok(m) => m,
-            Err(e) => return Err(exceptions::OSError::py_err(e.msg))
+            Err(e) => return Err(exceptions::OSError::py_err(e.msg)),
         };
-        model.create_reg(memory_map, address_block, id, offset, size)
+        model
+            .create_reg(memory_map, address_block, id, offset, size)
             // Can't get the Origen errors to cast properly to a PyErr For some reason,
             // so have to do this
             .map_err(|e| exceptions::OSError::py_err(e.msg))
@@ -64,9 +61,8 @@ impl PyDUT {
         // so have to do this
         let model = match self.dut.get_model(path) {
             Ok(m) => m,
-            Err(e) => return Err(exceptions::OSError::py_err(e.msg))
+            Err(e) => return Err(exceptions::OSError::py_err(e.msg)),
         };
         Ok(model.number_of_regs())
     }
-
 }
