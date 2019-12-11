@@ -1,3 +1,4 @@
+use origen::error::Error;
 use origen::core::model::pins::pin::PinActions;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -44,11 +45,15 @@ impl PinContainer {
     fn update_pin_fields_for(&mut self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<()> {
         let pin = self.pin_container.get_pin(name)?;
         if let Some(kwargs) = _kwargs {
-            if let Some(f) = kwargs.get_item("postured_state") {
-                pin.postured_state = f.extract()?;
-            }
-            if let Some(f) = kwargs.get_item("action") {
-                pin.action = PinActions::from_str(f.extract()?).unwrap();
+            for(field, val) in kwargs {
+              let f: String = field.extract()?;
+              if f == "postured_state" {
+                pin.postured_state = val.extract()?;
+              } else if f == "action" {
+                pin.action = PinActions::from_str(val.extract()?).unwrap();
+              } else {
+                return Err(PyErr::from(Error::new(&format!("Unknown pin field '{}'", f))));
+              }
             }
         }
         Ok(())

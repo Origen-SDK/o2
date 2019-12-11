@@ -76,8 +76,8 @@ def test_pin_api():
     origen.dut.__proxies__["pins"].__pin__("blah")
   with pytest.raises(OSError):
     origen.dut.__proxies__["pins"].__update_pin__("blah", blah="blah")
-  #with pytest.raises(KeyError):
-  #  origen.dut.__proxies__["pins"].__update_pin__("test_pin", blah="blah")
+  with pytest.raises(OSError):
+    origen.dut.__proxies__["pins"].__update_pin__("test_pin", blah="blah")
 
   # Check that pins are available on subblocks
   assert len(origen.dut.pins) == 2
