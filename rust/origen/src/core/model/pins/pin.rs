@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::error::Error;
 
 /// List of supported pin actions.
 pub enum PinActions {
@@ -9,13 +10,13 @@ pub enum PinActions {
 }
 
 impl PinActions {
-    pub fn from_str(s: &str) -> Option<PinActions> {
+    pub fn from_str(s: &str) -> Result<PinActions, Error> {
         match s {
-            "Drive" => Some(PinActions::Drive),
-            "Verify" => Some(PinActions::Verify),
-            "Capture" => Some(PinActions::Capture),
-            "HighZ" => Some(PinActions::HighZ),
-            _ => None,
+            "Drive" => Ok(PinActions::Drive),
+            "Verify" => Ok(PinActions::Verify),
+            "Capture" => Ok(PinActions::Capture),
+            "HighZ" => Ok(PinActions::HighZ),
+            _ => Err(Error::new(&format!("Action {} is not available for pins!", s))),
         }
     }
 

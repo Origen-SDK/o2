@@ -40,14 +40,14 @@ pub fn raises_error(yes: bool) -> Result<()> {
 
 use pyo3::{exceptions, PyErr};
 
-impl std::convert::Into<PyErr> for Error {
-    fn into(self) -> PyErr {
-        exceptions::OSError::py_err(self.msg)
-    }
-}
-
-//impl std::convert::From<Error> for PyErr {
-//    fn from(err: Error) -> Self {
-//        exceptions::OSError::py_err(err.msg)
+//impl std::convert::Into<PyErr> for Error {
+//    fn into(self) -> PyErr {
+//        exceptions::OSError::py_err(self.msg)
 //    }
 //}
+
+impl std::convert::From<Error> for PyErr {
+    fn from(err: Error) -> Self {
+        exceptions::OSError::py_err(err.msg)
+    }
+}

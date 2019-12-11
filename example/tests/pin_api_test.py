@@ -1,4 +1,5 @@
 import origen # pylint: disable=import-error
+import pytest
 
 def test_pin_api():
   origen.app.instantiate_dut("dut.falcon")
@@ -62,3 +63,18 @@ def test_pin_api():
   assert p.action == "Capture"
   p.highz()
   assert p.action == "HighZ"
+
+  # Some cases to ensure errors and bad input are handled.
+  # Access an unknown pin
+  assert origen.dut.has_pin('blah') == False
+  assert origen.dut.pin('blah') == None
+  with pytest.raises(KeyError):
+    origen.dut.pins()['blah']
+
+  # Some developer-side errors that should return Python exceptions instead of Rust panicking
+  with pytest.raises(OSError):
+    origen.dut.__proxies__["pins"].__pin__("blah")
+  with pytest.raises(OSError):
+    origen.dut.__proxies__["pins"].__update_pin__("blah", blah="blah")
+  with pytest.raises(KeyError):
+    origen.dut.__proxies__["pins"].__update_pin__("test_pin", blah="blah")

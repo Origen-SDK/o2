@@ -1,5 +1,5 @@
 pub mod pin;
-//pub mod pin_collection;
+use crate::error::Error;
 
 use std::collections::HashMap;
 
@@ -23,7 +23,11 @@ impl PinContainer {
         self.pins.insert(n, p);
     }
 
-    pub fn get_pin(&mut self, pin: &str) -> &mut pin::Pin {
-        return self.pins.get_mut(pin).unwrap();
+    pub fn get_pin(&mut self, pin: &str) -> Result<&mut pin::Pin, Error> {
+        if let Some(p) = self.pins.get_mut(pin) {
+          Ok(p)
+        } else {
+          Err(Error::new(&format!("No pin {} available!", pin)))
+        }
     }
 }

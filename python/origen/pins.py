@@ -15,7 +15,10 @@ class Proxy:
   # Retrieve a pin, returning a origen.pins.Pin object.
   def pin(self, name):
     if name not in self.__cache__:
-      self.__cache__[name] = self.__pin_container__.pin_fields_for(name)
+      try:
+        self.__cache__[name] = self.__pin_container__.pin_fields_for(name)
+      except OSError:
+        return None
     return self.__cache__[name]
   
   def __pin__(self, name):

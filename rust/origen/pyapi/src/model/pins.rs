@@ -34,7 +34,7 @@ impl PinContainer {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let ret = pyo3::types::PyDict::new(py);
-        let p = self.pin_container.get_pin(name);
+        let p = self.pin_container.get_pin(name)?;
         let _ = ret.set_item("postured_state", p.postured_state);
         let _ = ret.set_item("action", p.action.as_str());
         Ok(ret.into())
@@ -42,7 +42,7 @@ impl PinContainer {
 
     #[args(_kwargs = "**")]
     fn update_pin_fields_for(&mut self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<()> {
-        let pin = self.pin_container.get_pin(name);
+        let pin = self.pin_container.get_pin(name)?;
         if let Some(kwargs) = _kwargs {
             if let Some(f) = kwargs.get_item("postured_state") {
                 pin.postured_state = f.extract()?;
