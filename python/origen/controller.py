@@ -38,6 +38,10 @@ class Base:
             self.app.load_block_files(self, "sub_blocks.py")
             return self.sub_blocks
 
+        elif name == "memory_maps":
+            self.regs  # Ensure the memory maps for this block have been loaded
+            return origen.dut.db.memory_maps(self.path)
+
         else:
             raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
@@ -52,6 +56,11 @@ class Base:
         else:
             t = f"dut.{self.parent}.{self.id}"
         return t
+
+    def memory_map(self, id):
+        self.regs  # Ensure the memory maps for this block have been loaded
+        return origen.dut.db.memory_map(self.path, id)
+
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

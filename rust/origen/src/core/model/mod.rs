@@ -36,7 +36,7 @@ impl Model {
         if parent_path != "" {
             p = format!("{}.{}", p, parent_path);
         }
-        if id != "" {  
+        if id != "" {
             p = format!("{}.{}", p, id);
         }
         Model {
@@ -102,6 +102,47 @@ impl Model {
         }
     }
 
+    /// Get a read-only reference to the model at the given path, use get_mut_model if
+    /// you need to modify the returned model
+    /// Note that the path is relative to the DUT, i.e. it should not include 'dut.'
+    pub fn get_reg(
+        &self,
+        memory_map: Option<&str>,
+        address_block: Option<&str>,
+        id: &str,
+    ) -> Result<&Register> {
+        let map_id = memory_map.unwrap_or("default");
+        let ab_id = address_block.unwrap_or("default");
+        // TODO: bubble the errors here
+        let map = match self.memory_maps.get(map_id) {
+            Some(x) => x,
+            None => {
+                return Err(Error::new(&format!(
+                    "The block '{}' does not contain a memory-map called '{}'",
+                    self.display_path, map_id
+                )))
+            }
+        };
+        let ab = match map.address_blocks.get(ab_id) {
+            Some(x) => x,
+            None => {
+                return Err(Error::new(&format!(
+                "The block '{}' does not contain an address-block called '{}' in memory-map '{}'",
+                self.display_path, ab_id, map_id
+            )))
+            }
+        };
+        match ab.registers.get(id) {
+            Some(x) => return Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                "The block '{}' does not contain a register called '{}' in address-block '{}.{}'",
+                self.display_path, id, map_id, ab_id
+            )))
+            }
+        };
+    }
+
     pub fn create_reg(
         &mut self,
         memory_map: Option<&str>,
@@ -109,9 +150,9 @@ impl Model {
         id: &str,
         offset: u32,
         size: Option<u32>,
-    ) -> Result<()>  {
-        let map_id = memory_map.unwrap_or("Default");
-        let ab_id = address_block.unwrap_or("Default");
+    ) -> Result<()> {
+        let map_id = memory_map.unwrap_or("default");
+        let ab_id = address_block.unwrap_or("default");
 
         // Create the memory map if it doesn't exist
         if !self.memory_maps.contains_key(map_id) {
@@ -147,14 +188,15 @@ impl Model {
                 self.display_path, id, map_id, ab_id
             )));
         } else {
-            ab.registers.insert(
-                id.to_string(),
-                Register {
-                    id: id.to_string(),
-                    offset: offset,
-                    ..defaults
-                },
-            );
+            let mut reg = Register {
+                id: id.to_string(),
+                offset: offset,
+                ..defaults
+            };
+
+            reg.create_bits();
+
+            ab.registers.insert(id.to_string(), reg);
         }
         Ok(())
     }
