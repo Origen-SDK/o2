@@ -30,6 +30,7 @@ class Proxy:
   # Return a dictionary of all pin names and their respective Pin object.
   #def pins(self, *filters): <- eventually include some ways to filter the result pins,
   # such as by role, type, or regex matching the pin name/alias.
+  @property
   def pins(self):
     #_pins = self.__pin_container__.unique_pins()
     #return dict([(_name, Pin(_name, self)) for _name in self.__pin_container__.unique_pins()])
