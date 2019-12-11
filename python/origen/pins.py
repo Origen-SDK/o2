@@ -126,3 +126,6 @@ class Pin:
   def highz(self):
     return self.__set_pin_field("action", "HighZ")
   
+  def add_alias(self, alias):
+    self.__pin_container.__cache__[alias] = self
+    return self.__set_pin_field("add_alias", alias)

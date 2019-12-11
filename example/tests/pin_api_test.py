@@ -86,3 +86,10 @@ def test_pin_api():
   assert origen.dut.sub_blocks["core1"].add_pin("test_pin_core1")
   assert len(origen.dut.sub_blocks["core1"].pins) == 1
   assert len(origen.dut.pins) == 2
+
+  # Add a pin alias
+  p = origen.dut.pin('test_pin')
+  p.add_alias('test_alias')
+  assert origen.dut.has_pin('test_alias')
+  assert p == origen.dut.pin('test_alias')
+  assert len(origen.dut.pins) == 3

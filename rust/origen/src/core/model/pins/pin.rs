@@ -81,6 +81,9 @@ impl Pin {
     }
     pub fn drive(&self) {}
     pub fn assert(&self) {}
+    pub fn add_alias(&mut self, alias: String) {
+      self.aliases.push(alias);
+    }
 
     pub fn new(name: String) -> Pin {
         return Pin {

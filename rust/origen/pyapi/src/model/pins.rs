@@ -51,6 +51,8 @@ impl PinContainer {
                 pin.postured_state = val.extract()?;
               } else if f == "action" {
                 pin.action = PinActions::from_str(val.extract()?).unwrap();
+              } else if f == "add_alias" {
+                pin.add_alias(field.extract()?);
               } else {
                 return Err(PyErr::from(Error::new(&format!("Unknown pin field '{}'", f))));
               }
