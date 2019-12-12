@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 //use pyo3::wrap_pyfunction;
-use origen::core::dut::DUT;
-use pyo3::exceptions;
+use crate::register::BitCollection;
+use origen::DUT;
 
 /// Implements the module _origen.dut in Python which exposes all
 /// DUT-related APIs
@@ -14,28 +14,24 @@ pub fn dut(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyclass]
 #[derive(Debug)]
-pub struct PyDUT {
-    dut: DUT,
-}
+pub struct PyDUT {}
 
 #[pymethods]
 impl PyDUT {
     #[new]
-    fn new(obj: &PyRawObject, id: String) {
-        obj.init({ PyDUT { dut: DUT::new(id) } });
+    /// Instantiating a new instance of PyDUT means re-loading the target
+    fn new(obj: &PyRawObject, id: &str) {
+        DUT.lock().unwrap().change(id);
+        obj.init({ PyDUT {} });
     }
 
     /// Creates a new model at the given path
-    fn create_sub_block(&mut self, path: &str, id: &str) -> PyResult<()> {
-        self.dut
-            .create_sub_block(path, id)
-            // Can't get the Origen errors to cast properly to a PyErr For some reason,
-            // so have to do this
-            .map_err(|e| exceptions::OSError::py_err(e.msg))
+    fn create_sub_block(&self, path: &str, id: &str) -> PyResult<()> {
+        Ok(DUT.lock().unwrap().create_sub_block(path, id)?)
     }
 
     fn create_reg(
-        &mut self,
+        &self,
         path: &str,
         memory_map: Option<&str>,
         address_block: Option<&str>,
@@ -43,26 +39,34 @@ impl PyDUT {
         offset: u32,
         size: Option<u32>,
     ) -> PyResult<()> {
-        // Can't get the Origen errors to cast properly to a PyErr For some reason,
-        // so have to do this
-        let model = match self.dut.get_mut_model(path) {
-            Ok(m) => m,
-            Err(e) => return Err(exceptions::OSError::py_err(e.msg)),
-        };
-        model
-            .create_reg(memory_map, address_block, id, offset, size)
-            // Can't get the Origen errors to cast properly to a PyErr For some reason,
-            // so have to do this
-            .map_err(|e| exceptions::OSError::py_err(e.msg))
+        let mut dut = DUT.lock().unwrap();
+        Ok(dut
+            .get_mut_model(path)?
+            .create_reg(memory_map, address_block, id, offset, size)?)
     }
 
     fn number_of_regs(&self, path: &str) -> PyResult<usize> {
-        // Can't get the Origen errors to cast properly to a PyErr For some reason,
-        // so have to do this
-        let model = match self.dut.get_model(path) {
-            Ok(m) => m,
-            Err(e) => return Err(exceptions::OSError::py_err(e.msg)),
-        };
+        let dut = DUT.lock().unwrap();
+        let model = dut.get_model(path)?;
         Ok(model.number_of_regs())
+    }
+
+    fn get_reg(
+        &self,
+        path: &str,
+        memory_map: Option<&str>,
+        address_block: Option<&str>,
+        id: &str,
+    ) -> PyResult<BitCollection> {
+        let dut = DUT.lock().unwrap();
+        let model = dut.get_model(path)?;
+        let reg = model.get_reg(memory_map, address_block, id)?;
+
+        Ok(BitCollection::from_reg(
+            path,
+            memory_map,
+            address_block,
+            reg,
+        ))
     }
 }

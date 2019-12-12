@@ -102,6 +102,14 @@ impl Default for Register {
     }
 }
 
+impl Register {
+    pub fn create_bits(&mut self) {
+        for _i in 0..self.size {
+            self.bits.push(Bit::default());
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Named collections of bits within a register
 pub struct Field {
@@ -154,4 +162,18 @@ pub struct Bit {
     pub compare: bool,
     /// When set the bit should be captured during a read transaction
     pub capture: bool,
+}
+
+impl Default for Bit {
+    fn default() -> Bit {
+        Bit {
+            set: false,
+            x: false,
+            z: false,
+            overlay: false,
+            overlay_str: "".to_string(),
+            compare: false,
+            capture: false,
+        }
+    }
 }
