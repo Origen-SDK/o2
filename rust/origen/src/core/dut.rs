@@ -3,17 +3,25 @@ use crate::error::Error;
 use crate::Result;
 
 #[derive(Debug)]
-pub struct DUT {
+pub struct Dut {
     pub id: String,
     pub model: Model,
 }
 
-impl DUT {
-    pub fn new(id: String) -> DUT {
-        DUT {
-            id: id.clone(),
+impl Dut {
+    pub fn new(id: &str) -> Dut {
+        Dut {
+            id: id.to_string(),
             model: Model::new("".to_string(), "".to_string()),
         }
+    }
+
+    /// Change the DUT, this replaces the existing mode with a fresh one (i.e.
+    /// deletes all current DUT metadata and state, and updates the name/ID field
+    /// with the given value
+    pub fn change(&mut self, id: &str) {
+        self.id = id.to_string();
+        self.model = Model::new("".to_string(), "".to_string());
     }
 
     /// Get a mutable reference to the model at the given path

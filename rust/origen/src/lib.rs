@@ -8,9 +8,11 @@ pub mod error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
+use self::core::dut::Dut;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
 use crate::error::Error;
+use std::sync::Mutex;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -27,6 +29,10 @@ lazy_static! {
     /// overrides e.g. from running origen t command to set a default target
     pub static ref APPLICATION_CONFIG: AppConfig = AppConfig::default();
     pub static ref LOGGER: Logger = Logger::default();
+    /// The current device model, containing all metadata about hierarchy, regs, pins, specs,
+    /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
+    /// etc.)
+    pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
 }
 
 // Use of a mod or pub mod is not actually necessary.
