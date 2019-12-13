@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::error::Error;
 
 /// List of supported pin actions.
+#[derive(Debug)]
 pub enum PinActions {
     Drive,
     Verify,
@@ -31,12 +32,14 @@ impl PinActions {
 }
 
 /// The following types are allowed as metadata
+#[derive(Debug)]
 pub enum MetaAble {
     Text(String),
     Int(i32),
 }
 
 /// Available Pin Roles
+#[derive(Debug)]
 pub enum PinRoles {
     Standard,
     Power,
@@ -46,6 +49,7 @@ pub enum PinRoles {
 }
 
 /// Model for single pin.
+#[derive(Debug)]
 pub struct Pin {
     // Since pins will be added from the add_pin function of Pins,
     // just reuse that String instance instead of creating a new one.

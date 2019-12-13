@@ -1,18 +1,20 @@
 use super::PinContainer;
 
 /// Endianness for PinCollections
+#[derive(Debug)]
 pub enum Endianness {
   LittleEndian, BigEndian
 }
 
 /// Model for a collection (or group) of pins
+#[derive(Debug)]
 pub struct PinCollection {
   pub pins: Vec<String>,
   pub endianness: Endianness,
 }
 
 impl PinCollection {
-  pub fn new(pin_container: &mut PinContainer, pin_names: Vec<&str>, endianness: Option<Endianness>) -> PinCollection {
+  pub fn new(pin_container: &mut PinContainer, pin_names: &Vec<&str>, endianness: Option<Endianness>) -> PinCollection {
     PinCollection {
       pins: pin_names.iter().map( |&p| String::from(p)).collect(),
       endianness: Endianness::LittleEndian
@@ -24,9 +26,9 @@ impl PinCollection {
     for (i, n) in self.pins.iter_mut().enumerate() {
       let mut _p = pin_container.get_pin(n);
       if d & 1 == 1 {
-        _p.posture(true);
+        //_p.posture(true);
       } else {
-        _p.posture(false);
+        //_p.posture(false);
       }
       d = d >> 1;
     }

@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 //use pyo3::wrap_pyfunction;
 use origen::core::dut::DUT;
 use pyo3::exceptions;
+use pyo3::types::{PyDict, PyList};
 
 /// Implements the module _origen.dut in Python which exposes all
 /// DUT-related APIs
@@ -65,4 +66,30 @@ impl PyDUT {
         };
         Ok(model.number_of_regs())
     }
+
+    fn add_pin(&mut self, path: &str, name: &str) -> PyResult<()> {
+        let model = match self.dut.get_mut_model(path) {
+            Ok(m) => m,
+            Err(e) => return Err(exceptions::OSError::py_err(e.msg)),
+        };
+
+        model.pin_container.add_pin(name);
+        Ok(())
+    }
+
+    // fn unique_pins(&self, path: &str) -> PyResult<PyObject> {
+    //     let gil = Python::acquire_gil();
+    //     let py = gil.python();
+    //     let mut v: Vec<String> = Vec::new();
+
+    //     let model = match self.dut.get_model(path) {
+    //         Ok(m) => m,
+    //         Err(e) => return Err(exceptions::OSError::py_err(e.msg)),
+    //     };
+    //     for (n, _p) in &model.pin_container.pins {
+    //         v.push(n.clone());
+    //     }
+    //     let l = PyList::new(py, &v);
+    //     Ok(l.into())
+    // }
 }

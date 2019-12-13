@@ -93,3 +93,40 @@ def test_pin_api():
   assert origen.dut.has_pin('test_alias')
   assert p == origen.dut.pin('test_alias')
   assert len(origen.dut.pins) == 3
+
+  ### In Progress ###
+
+  # Check initial state of pin groups
+  # assert origen.dut.pin_groups == {}
+  # assert len(origen.dut.pin_groups) == 0
+  # assert origen.dut.has_pin_group('grp') == False
+  # assert origen.dut.pin_group('grp') == None
+
+  # Add a pin group.
+  # p = origen.dut.pin('test_pin')
+  # grp = origen.dut.group_pins("grp", "test_pin", "other_pin")
+  # assert len(p.groups) == 0
+  # assert len(origen.dut.pin_groups) == 1
+  # assert origen.dut.has_pin_group('grp') == True
+  # assert isinstance(origen.dut.pin_group('grp')) == origen.pins.PinCollection
+  # assert len(p.groups) == 1
+  # assert p.groups['grp'] == grp
+  # assert p.group('grp') == grp
+  # assert p.group('grp2') == None
+
+  # Check the initial state of the pin collection.
+  # This should match the pins current state.
+
+  #grp2 = origen.dut.group_pins("grp2", "test_alias", "other_pin")
+  #assert len(origen.dut.pin_groups) == 2
+  #assert origen.dut.has_pin_group('grp2') == True
+  #assert isinstance(origen.dut.pin_group('grp2')) == origen.pins.PinCollection
+
+  # Error: Pin group with missing pin
+  # Error: Pin group where an alias is used.
+
+  # Add pin group. This should add porta0 - porta7
+  #porta = origen.dut.add_pins("porta", 8)
+  
+  # Add pin group, with an offset. This should add portb1 - portb5
+  #portb = origen.dut.add_pins("portb", 4, offset=1)

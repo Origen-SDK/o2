@@ -26,6 +26,34 @@ class Proxy:
 
   def __update_pin__(self, name, **updates):
     return self.__pin_container__.update_pin_fields_for(name, **updates)
+  
+  def __pin_group__(self, name):
+    ...
+  
+  '''
+    Retrieves a pin group, or None if the group is not present.
+  '''
+  def pin_group(self, name):
+    ...
+
+  '''
+    Returns a dictionary of available pin groups.
+  '''
+  @property
+  def pin_groups(self, name):
+    ...
+  
+  '''
+    Groups all given pins under 'name'.
+  '''
+  def group_pins(self, name, *pins, **kwargs):
+    ...
+  
+  '''
+    Queries if the given pin group is present.
+  '''
+  def has_pin_group(self, name):
+    ...
 
   # Return a dictionary of all pin names and their respective Pin object.
   #def pins(self, *filters): <- eventually include some ways to filter the result pins,
