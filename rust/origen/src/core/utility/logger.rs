@@ -156,21 +156,21 @@ impl Logger {
         if STATUS.is_app_present {
             return (STATUS.root).to_path_buf().join("log");
         } else {
-			// at least 2 things to consider here
-			// 1) The env var holding the appropriate base path depends on the OS
-			// 2) on a machine or account that has never run origen the .origen dir will not exist yet
-			let mut pb;
-			if cfg!(windows) {
-				pb = PathBuf::from(env::var("USERPROFILE").expect("No environment variable for USERPROFILE"));
-			}
-			else {
-				pb = PathBuf::from(env::var("HOME").expect("No environment variable for HOME"));
-			}
-			
-			// create the .origen and log directory if missing
-			pb = pb.join(".origen").join("log");
-			fs::create_dir_all(pb.as_path()).expect("Could not create the log directory");
-			pb
+            // at least 2 things to consider here
+            // 1) The env var holding the appropriate base path depends on the OS
+            // 2) on a machine or account that has never run origen the .origen dir will not exist yet
+            let mut pb;
+            if cfg!(windows) {
+                pb = PathBuf::from(env::var("USERPROFILE").expect("No environment variable for USERPROFILE"));
+            }
+            else {
+                pb = PathBuf::from(env::var("HOME").expect("No environment variable for HOME"));
+            }
+
+            // create the .origen and log directory if missing
+            pb = pb.join(".origen").join("log");
+            fs::create_dir_all(pb.as_path()).expect("Could not create the log directory");
+            pb
         }
     }
 
@@ -180,12 +180,11 @@ impl Logger {
 
     pub fn default() -> Logger {
         let ref f = Logger::default_output_file();
-		
         let l = Logger {
             output_file: f.to_path_buf(),
             file_handler: match fs::File::create(f) {
                 Ok(f) => f,
-				// This directory creation code is no longer needed (I think) -- handled in pub fn default_output_dir
+                // This directory creation code is no longer needed (I think) -- handled in pub fn default_output_dir
                 Err(_e) => match fs::create_dir(f.parent().unwrap()) {
                     Ok(_d) => match fs::File::create(f) {
                         Ok(f) => f,
