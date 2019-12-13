@@ -42,19 +42,40 @@ class Base:
             self.regs  # Ensure the memory maps for this block have been loaded
             return origen.dut.db.memory_maps(self.path)
 
+        elif name in self.sub_blocks:
+            return self.sub_blocks[name]
+
         else:
             raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
         print(self.tree_as_str())
 
-    def tree_as_str(self):
-        if self.is_top:
-            t = "dut"
-        elif self.parent == '':
-            t = f"dut.{self.id}"
+    def tree_as_str(self, leader='', include_header=True):
+        if include_header:
+            if self.is_top:
+                t = "'dut'"
+            elif self.parent_path == '':
+                t = f"'dut.{self.id}'"
+            else:
+                t = f"'dut.{self.parent_path}.{self.id}'"
+            names = t.split('.')
+            names.pop()
+            leader = ' ' * (2 + len('.'.join(names)))
         else:
-            t = f"dut.{self.parent}.{self.id}"
+            t = ''
+        last = len(self.sub_blocks) - 1
+        for i, key in enumerate(sorted(self.sub_blocks.keys())):
+            if i != last:
+                t += "\n" + leader + f"├── {key}"
+            else:
+                t += "\n" + leader + f"└── {key}"
+            if self.sub_blocks[key].sub_blocks.len() > 0:
+                if i != last:
+                    l = leader + '│     '
+                else:
+                    l = leader + '      '
+                t += self.sub_blocks[key].tree_as_str(l, False)
         return t
 
     def memory_map(self, id):
