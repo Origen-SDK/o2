@@ -1,6 +1,8 @@
+mod address_block;
 mod dut;
 mod logger;
-mod model;
+mod memory_map;
+mod register;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
@@ -10,7 +12,6 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 // Imported pyapi modules
 use dut::PyInit_dut;
 use logger::PyInit_logger;
-use model::PyInit_model;
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -22,7 +23,6 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(target_file))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
-    m.add_wrapped(wrap_pymodule!(model))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
     Ok(())
 }
