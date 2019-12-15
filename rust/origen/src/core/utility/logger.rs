@@ -117,21 +117,6 @@ impl Logger {
         );
     }
 
-    fn _filename(&self) -> PathBuf {
-        return self._output_dir().join("out.log");
-    }
-
-    fn _output_dir(&self) -> PathBuf {
-        if STATUS.is_app_present {
-            return (STATUS.root).to_path_buf().join("log");
-        } else {
-            match env::var("HOME") {
-                Ok(var) => PathBuf::from(var).join(".origen").join("log"),
-                Err(_e) => panic!("No environment variable for HOME!"),
-            }
-        }
-    }
-
     fn _write_header(&self) {
         let mut out = String::from("### Origen Log File\n");
         out += &format!("### Version: {}\n", STATUS.origen_version);
@@ -153,25 +138,21 @@ impl Logger {
     }
 
     pub fn default_output_dir() -> PathBuf {
+        let mut pb;
         if STATUS.is_app_present {
-            return (STATUS.root).to_path_buf().join("log");
+            pb = (STATUS.root).to_path_buf().join("log");
         } else {
-            // at least 2 things to consider here
-            // 1) The env var holding the appropriate base path depends on the OS
-            // 2) on a machine or account that has never run origen the .origen dir will not exist yet
-            let mut pb;
             if cfg!(windows) {
                 pb = PathBuf::from(env::var("USERPROFILE").expect("No environment variable for USERPROFILE"));
             }
             else {
                 pb = PathBuf::from(env::var("HOME").expect("No environment variable for HOME"));
             }
-
-            // create the .origen and log directory if missing
             pb = pb.join(".origen").join("log");
-            fs::create_dir_all(pb.as_path()).expect("Could not create the log directory");
-            pb
         }
+        // create all missing directories to avoid panics
+        fs::create_dir_all(pb.as_path()).expect("Could not create the log directory");
+        pb
     }
 
     pub fn default_output_file() -> PathBuf {
@@ -184,20 +165,10 @@ impl Logger {
             output_file: f.to_path_buf(),
             file_handler: match fs::File::create(f) {
                 Ok(f) => f,
-                // This directory creation code is no longer needed (I think) -- handled in pub fn default_output_dir
-                Err(_e) => match fs::create_dir(f.parent().unwrap()) {
-                    Ok(_d) => match fs::File::create(f) {
-                        Ok(f) => f,
-                        Err(_e) => panic!(
-                            "Could not open log file at {}",
-                            format!("{}", f.to_string_lossy())
-                        ),
-                    },
-                    Err(_e) => panic!(
-                        "Could not open log file at {}",
-                        format!("{}", f.to_string_lossy())
-                    ),
-                },
+                Err(_e) => panic!(
+                    "Could not open log file at {}",
+                    format!("{}", f.to_string_lossy())
+                ),
             },
         };
         l._write_header();
