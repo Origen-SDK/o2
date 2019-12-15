@@ -3,17 +3,7 @@ pub mod pin_collection;
 use crate::error::Error;
 
 use std::collections::HashMap;
-use pin_collection::{PinCollection, Endianness};
-
-/*
-The most efficient way to store pins, pin groups, and their aliases, would be a single HashMap that holds Pins, PinGroups,
-and aliases to each. When an alias is given, it will lookup the actual value and return that. The first part could be done using an enum, 
-but the second angers the borrower checker and requires unsafe code to work around.
-
-The above would work because we know the portion that contains the aliases are separate from the portion that contains the actual pins/groups.
-Unfortanutely, Rust's HashMap doesn't have a way to tell it that, like it does for vector slicing, so we'll need to maintain two HashMaps:
-one for the actual values, and one for aliases. 
-*/
+use pin_collection::{PinCollection};
 
 #[derive(Debug)]
 pub enum Types {
@@ -30,8 +20,8 @@ pub enum AliasTypes {
 pub struct PinContainer {
     pub pins: HashMap<String, pin::Pin>,
     pub pin_aliases: HashMap<String, String>,
-    pub groups: HashMap<String, PinCollection>,
-    pub group_aliases: HashMap<String, String>,
+    pub pin_groups: HashMap<String, pin::PinGroup>,
+    pub pin_group_aliases: HashMap<String, String>,
 
     // The aliases will be String that points to a the aliased pin/group's name (as a String)
     // e.g.: alias('test', 'alias') -> pin_aliases['test'] == 'alias'
@@ -46,14 +36,17 @@ impl PinContainer {
         PinContainer {
             pins: HashMap::new(),
             pin_aliases: HashMap::new(),
-            groups: HashMap::new(),
-            group_aliases: HashMap::new(),
+            pin_groups: HashMap::new(),
+            pin_group_aliases: HashMap::new(),
         }
     }
 
-    pub fn add_pin(&mut self, name: &str) -> Result<&mut pin::Pin, Error> {
+    pub fn add_pin(&mut self, name: &str, path: &str) -> Result<&mut pin::Pin, Error> {
         let n = name;
-        let p = pin::Pin::new(String::from(n));
+        if self.pin(name).is_some() {
+            return Err(Error::new(&format!("Can not add pin {} because it conflicts with a current pin or alias name!", name)))
+        }
+        let p = pin::Pin::new(String::from(n), String::from(path));
         self.pins.insert(String::from(n), p);
         Ok(self.pins.get_mut(n).unwrap())
     }
@@ -62,10 +55,10 @@ impl PinContainer {
     /// Implementation note: based on anecdotal evidence, physical pins generally have hardware-oriented pins, e.g.: PTA0, GPIO_A, etc.
     ///   The app will alias those to friendlier names like swd_io, swdclk, which patterns and drivers will use.
     ///   So, I'd expect a hit in the alias HashMap more often than the in actual Pins', so check the alias first, then fall back to the pins.
-    pub fn get_pin(&mut self, pin: &str) -> Option<&mut pin::Pin> {
-        let _p = pin;
-        if let Some(p) = self.pin_aliases.get(pin) {
-            let _p = p;
+    pub fn pin(&mut self, pin: &str) -> Option<&mut pin::Pin> {
+        let mut _p = pin;
+        if let Some(p) = self.pin_aliases.get(_p) {
+            _p = p;
         }
         if let Some(_pin) = self.pins.get_mut(_p) {
             Option::Some(_pin)
@@ -107,66 +100,55 @@ impl PinContainer {
         return retn;
     }
 
-/*
-    // / Resolve the pin or pin group given either a pin/group name, or pin/group alias.
-    // / Note the enumerable here allowing us to return either Pin or a PinCollection.
-    // / Also note, this function assumes proper PinContainer usage, that is, it's not going to check that
-    // /     one and only return value is possible.
-    // pub fn resolve(&mut self, query: &str) -> Result<&mut PinOrGroup, Error> {
-    //     // Lookup order here is based on anecdotal evidence -> pin names are usually hardware oriented (e.g, PTA0, PTA1) but referenced to friendly names,
-    //     //   such as TCLK, or TDO. Start with lookups in the alias
-    //     // The alternative here is to have a single structure of all names which carry an enumerabe of what its name is and what it points to, which
-    //     //   resolves from a if-else block and results in.. another lookup! Easiest to just brute force it and check each Hash table for the key in turn.
-
-    // }
-
-    // /// Aliases one pin to another pin, returning Ok if the alias occurred, or an error, if not.
-    // /// Error conditions could be:
-    // ///     * Pin doesn't exists.
-    // ///     * Alias already exists as either a pin, alias to pin, group, or alias to a group.
-    // pub fn add_pin_alias(&mut self, pin: &str, alias: &str) -> Result<())> {
-    //     if let Some(p) = self.pins.get_mut(pin) {
-    //         // Pin exists. Add the alias.
-    //         ...
-    //     } else {
-    //         // Pin doesn't exists. Complain about this.
-    //         Err(Error::new(&format("Could not alias pin {} to {}, as pin {} doesn't exists!", alias, pin)))
-    //     }
-    // }
-
-    pub fn group_pins(&mut self, name: &str, pins: Vec<&str>, endianness: Endianness) -> Result<(), Error> {
-        let p = PinCollection::new(self, &pins, Option::Some(endianness));
-        self.contents.insert(String::from(name), Types::PinGroup(p));
-        Ok(())
+    pub fn has_pin(&mut self, name_or_alias: &str) -> bool {
+        return self.pin(name_or_alias).is_some();
     }
 
-    pub fn pin_group(&mut self, name: &str) -> Option<&mut PinCollection> {
-        if let Some(a) = self.aliases.get(name) {
-            match (a) {
-                AliasTypes::PinAlias(_a) => Option::None, //Err(Error::new(&format!("No pin {} available!", name))),
-                AliasTypes::PinGroupAlias(_a) => {
-                    if let Some(_n) = self.contents.get_mut(name) {
-                        match(_n) {
-                            Types::Pin(_p) => None, // Err(Error::new(&format!("No pin {} available!", name))),
-                            Types::PinGroup(_p) => Option::Some(_p)
-                        }
-                    } else {
-                        Option::None // Err(Error::new(&format!("No pin {} available!", name)))
-                    }
-                },
-                _ => Option::None // Err(Error::new(&format!("No pin {} available!", name))),
-            }
+    pub fn number_of_pins(&mut self) -> usize {
+        return self.pins.len();
+    }
+
+    pub fn add_pin_alias(&mut self, name: &str, alias: &str) -> Result<(), Error> {
+        // First, check that the pin exists.
+        if !self.pins.contains_key(name) {
+            return Err(Error::new(&format!("Could not alias pin {} to {}, as pin {} doesn't exists!", name, alias, name)))
+        }
+        if self.pins.contains_key(alias) {
+            return Err(Error::new(&format!("Could not alias pin {} to {}, as alias {} already exists as a pin!", name, alias, alias)))
+        }
+
+        // Check if the alias already exists. If so, raise an exception, otherwise add the alias.
+        if let Some(_name) = self.pin_aliases.get(alias) {
+            return Err(Error::new(&format!("Could not alias pin {} to {}, as pin {} is already aliased to {}", name, alias, _name, alias)))
         } else {
-            // Not an alias. Try the contents directly.
-            if let Some(_n) = self.contents.get_mut(name) {
-                match(_n) {
-                    Types::Pin(_p) => Option::None, // Err(Error::new(&format!("No pin {} available!", name))),
-                    Types::PinGroup(_p) => Option::Some(_p)
-                }
-            } else {
-                Option::None // Err(Error::new(&format!("No pin {} available!", name)))
-            }
+            self.pin_aliases.insert(String::from(alias), String::from(name));
+            Ok(())
         }
     }
-*/
+
+    pub fn group_pins(&mut self, name: &str, path: &str, pins: Vec<String>) -> Result<&mut pin::PinGroup, Error> {
+        let n = name;
+        if self.pin_group(name).is_some() {
+            return Err(Error::new(&format!("Can not add pin group {} because it conflicts with a current pin group or alias name!", name)))
+        }
+        let p = pin::PinGroup::new(String::from(n), String::from(path), pins);
+        self.pin_groups.insert(String::from(n), p);
+        Ok(self.pin_groups.get_mut(n).unwrap())
+    }
+
+    pub fn pin_group(&mut self, name: &str) -> Option<&mut pin::PinGroup> {
+        let mut _n = name;
+        if let Some(n) = self.pin_group_aliases.get(_n) {
+            _n = n;
+        }
+        if let Some(_pin_group) = self.pin_groups.get_mut(_n) {
+            Option::Some(_pin_group)
+        } else {
+            Option::None
+        }
+    }
+
+    pub fn number_of_pin_groups(&mut self) -> usize {
+        return self.pin_groups.len();
+    }
 }

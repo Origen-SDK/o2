@@ -1,5 +1,5 @@
 // This module may be removed soon, replaced by the top-level DUT APIs
-pub mod pins;
+pub mod pinsss;
 use pins::PyInit_pins;
 
 use origen::LOGGER;
