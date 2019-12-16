@@ -138,17 +138,11 @@ impl Logger {
     }
 
     pub fn default_output_dir() -> PathBuf {
-        let mut pb;
+        let pb;
         if STATUS.is_app_present {
             pb = (STATUS.root).to_path_buf().join("log");
         } else {
-            if cfg!(windows) {
-                pb = PathBuf::from(env::var("USERPROFILE").expect("No environment variable for USERPROFILE"));
-            }
-            else {
-                pb = PathBuf::from(env::var("HOME").expect("No environment variable for HOME"));
-            }
-            pb = pb.join(".origen").join("log");
+            pb = (STATUS.home).to_path_buf().join(".origen").join("log");
         }
         // create all missing directories to avoid panics
         fs::create_dir_all(pb.as_path()).expect("Could not create the log directory");
