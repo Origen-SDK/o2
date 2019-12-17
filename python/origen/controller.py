@@ -46,7 +46,12 @@ class Base:
             return self.sub_blocks[name]
 
         else:
-            raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
+            self.regs  # Ensure the memory maps for this block have been loaded
+            if name in self.memory_maps:
+                return self.sub_blocks[name]
+
+            else:
+                raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
         print(self.tree_as_str())
@@ -54,14 +59,17 @@ class Base:
     def tree_as_str(self, leader='', include_header=True):
         if include_header:
             if self.is_top:
-                t = "'dut'"
+                t = "dut"
             elif self.parent_path == '':
-                t = f"'dut.{self.id}'"
+                t = f"dut.{self.id}"
             else:
-                t = f"'dut.{self.parent_path}.{self.id}'"
+                t = f"dut.{self.parent_path}.{self.id}"
             names = t.split('.')
             names.pop()
-            leader = ' ' * (2 + len('.'.join(names)))
+            if not names:
+                leader = ' '
+            else:
+                leader = ' ' * (2 + len('.'.join(names)))
         else:
             t = ''
         last = len(self.sub_blocks) - 1
@@ -72,9 +80,9 @@ class Base:
                 t += "\n" + leader + f"└── {key}"
             if self.sub_blocks[key].sub_blocks.len() > 0:
                 if i != last:
-                    l = leader + '│     '
+                    l = leader + '│    '
                 else:
-                    l = leader + '      '
+                    l = leader + '     '
                 t += self.sub_blocks[key].tree_as_str(l, False)
         return t
 
