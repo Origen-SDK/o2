@@ -1,5 +1,3 @@
-use super::PinContainer;
-
 /// Endianness for PinCollections
 #[derive(Debug)]
 pub enum Endianness {
@@ -21,5 +19,5 @@ impl PinCollection {
     }
   }
 
-  pub fn drive(&self, _pin_container: &mut PinContainer, _data: Option<usize>) {}
+  pub fn drive(&self, _data: Option<usize>) {}
 }

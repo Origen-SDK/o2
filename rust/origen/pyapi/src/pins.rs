@@ -1,9 +1,14 @@
 use crate::dut::PyDUT;
 use origen::DUT;
-use origen::error::Error;
+//use origen::error::Error;
 use pyo3::prelude::*;
-use pyo3::{exceptions, PyErr};
+use pyo3::{exceptions}; //, PyErr};
 use pyo3::class::mapping::*;
+
+mod pin;
+mod pin_group;
+use pin::Pin;
+use pin_group::PinGroup;
 
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
@@ -24,11 +29,11 @@ impl PyDUT {
     fn add_pin(&self, path: &str, name: &str) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(path)?;
-        model.pin_container.add_pin(name, path)?;
+        model.add_pin(name, path)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin_container.pin(name);
+        let p = model.pin(name);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, Pin {
@@ -46,7 +51,7 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin_container.pin(name);
+        let p = model.pin(name);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, Pin {
@@ -65,7 +70,7 @@ impl PyDUT {
 
         for alias in aliases {
             let _alias: String = alias.extract()?;
-            model.pin_container.add_pin_alias(name, &_alias)?;
+            model.add_pin_alias(name, &_alias)?;
         }
         Ok(())
     }
@@ -85,11 +90,11 @@ impl PyDUT {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(path)?;
 
-        model.pin_container.group_pins(name, path, pins.extract()?)?;
+        model.group_pins(name, path, pins.extract()?)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin_container.pin_group(name);
+        let p = model.pin_group(name);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -107,7 +112,7 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin_container.pin_group(name);
+        let p = model.pin_group(name);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -145,7 +150,7 @@ impl PinContainer {
     fn keys(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let names = &model.pin_container.pins;
+        let names = &model.pins;
 
         let mut v: Vec<String> = Vec::new();
         for (n, _p) in names {
@@ -157,7 +162,7 @@ impl PinContainer {
     fn values(&self) -> PyResult<Vec<Py<Pin>>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let pins = &model.pin_container.pins;
+        let pins = &model.pins;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -174,7 +179,7 @@ impl PinContainer {
     fn items(&self) -> PyResult<Vec<(String, Py<Pin>)>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let pins = &model.pin_container.pins;
+        let pins = &model.pins;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -200,7 +205,7 @@ impl PyMappingProtocol for PinContainer {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin_container.pin(name);
+        let p = model.pin(name);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, Pin {
@@ -216,7 +221,7 @@ impl PyMappingProtocol for PinContainer {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        Ok(model.pin_container.number_of_pins())
+        Ok(model.number_of_pins())
     }
 }
 
@@ -225,9 +230,8 @@ impl pyo3::class::iter::PyIterProtocol for PinContainer {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinContainerIter> {
         let dut = DUT.lock().unwrap();
         let model = dut.get_model(&slf.path)?;
-        let pin_container = &model.pin_container;
         Ok(PinContainerIter {
-            keys: pin_container.pins.iter().map(|(s, _)| s.clone()).collect(),
+            keys: model.pins.iter().map(|(s, _)| s.clone()).collect(),
             i: 0,
         })
     }
@@ -238,7 +242,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinContainer {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        Ok(model.pin_container.has_pin(item))
+        Ok(model.has_pin(item))
     }
 }
 
@@ -273,170 +277,6 @@ impl pyo3::class::iter::PyIterProtocol for PinContainerIter {
 }
 
 #[pyclass]
-struct Pin {
-    name: String,
-    path: String,
-}
-
-#[pymethods]
-impl Pin {
-
-    // Even though we're storing the name in this instance, we're going to go back to the core anyway.
-    #[getter]
-    fn get_name(&self) -> PyResult<String> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-        match pin {
-            Some(_pin) => {
-                Ok(_pin.name.clone())
-            },
-            Option::None => {
-                // This is problem, since we should only have a Pin instance if the pin exists. This would be a stale instance.
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-
-    #[getter]
-    fn get_data(&self) -> PyResult<u8> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-
-        match pin {
-            Some(_pin) => {
-                Ok(_pin.data)
-            },
-            Option::None => {
-                // This is problem, since we should only have a Pin instance if the pin exists. This would be a stale instance.
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-
-    #[setter]
-    fn set_data(&self, data: u8) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-        match pin {
-            Some(_pin) => {
-                _pin.set_data(data)?;
-                Ok(())
-            }
-            Option::None => {
-                // This is problem, since we should only have a Pin instance if the pin exists. This would be a stale instance.
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-
-    fn set(&self, data: u8) -> PyResult<()> {
-        self.set_data(data)
-    }
-
-    #[getter]
-    fn get_action(&self) -> PyResult<String> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-        match pin {
-            Some(_pin) => {
-                Ok(String::from(_pin.action.as_str()))
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-
-    // #[getter]
-    // fn state(&self, path: &str) -> PyResult<PyString> {}
-
-    fn drive(&mut self, data: Option<u8>) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-        //let pin = pin!();
-        //let mut pin = pin!(self)?;
-        match pin {
-            Some(_pin) => {
-                _pin.drive(data)?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-
-    fn verify(&self, data: Option<u8>) -> PyResult<()>  { 
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-        //let pin = pin!();
-        //let mut pin = pin!(self)?;
-        match pin {
-            Some(_pin) => {
-                _pin.verify(data)?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-    
-    fn capture(&self) -> PyResult<()>  {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-        //let pin = pin!();
-        //let mut pin = pin!(self)?;
-        match pin {
-            Some(_pin) => {
-                _pin.capture()?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-    
-    fn highz(&self) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin_container.pin(&self.name);
-        match pin {
-            Some(_pin) => {
-                _pin.highz()?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.name))))
-            }
-        }
-    }
-
-
-    // Debug helper: Get the name held by this instance.
-    #[allow(non_snake_case)]
-    #[getter]
-    fn get__name(&self) -> PyResult<String> {
-        Ok(self.name.clone())
-    }
-
-    // Debug helper: Get the name held by this instance.
-    #[allow(non_snake_case)]
-    #[getter]
-    fn get__path(&self) -> PyResult<String> {
-        Ok(self.path.clone())
-    }
-}
-
-#[pyclass]
 struct PinGroupContainer {
     path: String,
 }
@@ -449,7 +289,7 @@ impl PyMappingProtocol for PinGroupContainer {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin_container.pin_group(name);
+        let p = model.pin_group(name);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -465,34 +305,46 @@ impl PyMappingProtocol for PinGroupContainer {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        Ok(model.pin_container.number_of_pin_groups())
+        Ok(model.number_of_pin_groups())
+    }
+}
+
+#[pyproto]
+impl pyo3::class::sequence::PySequenceProtocol for PinGroupContainer {
+    fn __contains__(&self, item: &str) -> PyResult<bool> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(&self.path)?;
+        Ok(model.contains_pin_group(item))
     }
 }
 
 #[pyclass]
-struct PinGroup {
-    name: String,
-    path: String,
-}
-
-#[pymethods]
-impl PinGroup {
-    //fn drive(&self, path: &str) {}
+struct PinGroupContainerIter {
+    keys: Vec<String>,
+    i: usize,
 }
 
 #[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for PinGroup {
-    fn __len__(&self) -> PyResult<usize> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let grp = model.pin_container.pin_group(&self.name);
-        match grp {
-            Some(_grp) => {
-                Ok(_grp.len())
-            },
-            // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
-            None => Err(exceptions::KeyError::py_err(format!("No pin group or pin group alias found for {}", self.name)))
+impl pyo3::class::iter::PyIterProtocol for PinGroupContainerIter {
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(slf.to_object(py))
+    }
+
+    /// The Iterator will be created with an index starting at 0 and the pin names at the time of its creation.
+    /// For each call to 'next', we'll create a pin object with the next value in the list, or None, if no more keys are available.
+    /// Note: this means that the iterator can become stale if the PinContainer is changed. This can happen if the iterator is stored from Python code
+    ///  directly. E.g.: i = dut.pins.__iter__() => iterator with the pin names at the time of creation,
+    /// Todo: Fix the above using iterators. My Rust skills aren't there yet though... - Coreyeng
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
+        if slf.i >= slf.keys.len() {
+            return Ok(None)
         }
+        let name = slf.keys[slf.i].clone();
+        slf.i += 1;
+        Ok(Some(name))
     }
 }
 

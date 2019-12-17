@@ -146,9 +146,6 @@ def test_pin_api():
   for n, p in origen.dut.pins.items():
     assert isinstance(n, str)
     assert isinstance(p, _origen.dut.pins.Pin)
-  #for (n, )
-
-  ### In Progress ###
 
   # Check initial state of pin groups
   assert isinstance(origen.dut.pin_groups, _origen.dut.pins.PinGroupContainer)
@@ -160,22 +157,49 @@ def test_pin_api():
   # Add a pin group.
   grp = origen.dut.group_pins("test_grp", "test_pin", "other_pin")
   assert isinstance(grp, _origen.dut.pins.PinGroup)
-  assert len(grp) == 2
 
   assert len(origen.dut.pin_groups) == 1
-  # assert origen.dut.has_pin_group('grp') == True
+  assert 'test_grp' in origen.dut.pin_groups
   assert isinstance(origen.dut.pin_group('test_grp'), _origen.dut.pins.PinGroup)
   assert isinstance(origen.dut.pin_groups['test_grp'], _origen.dut.pins.PinGroup)
 
-  # Check the initial state of the pin collection.
-  # This should match the pins current state.
+  origen.dut.group_pins("test_grp2", "test_alias", "other_pin")
+  assert len(origen.dut.pin_groups) == 2
+  assert 'test_grp' in origen.dut.pin_groups
+  assert isinstance(origen.dut.pin_group('test_grp2'), _origen.dut.pins.PinGroup)
 
-  #grp2 = origen.dut.group_pins("grp2", "test_alias", "other_pin")
-  #assert len(origen.dut.pin_groups) == 2
-  #assert origen.dut.has_pin_group('grp2') == True
-  #assert isinstance(origen.dut.pin_group('grp2')) == origen.pins.PinCollection
+  # Add a pin group alias
+  # origen.dut.add_pin_group_alias("test_grp", "alias")
+  # assert len(origen.dut.pin_groups) == 2
+  # assert 'alias' in origen.dut.pin_groups
+  # assert isinstance(origen.dut.pin_group('alias'), _origen.dut.pins.PinGroup)
+  # assert isinstance(origen.dut.pin_groups['alias'], _origen.dut.pins.PinGroup)
 
-  # Error: Pin group with missing pin
+  # Check the pin group
+  assert grp.name == "test_grp"
+  assert grp._path == ""
+  assert len(grp) == 2
+  assert grp.pin_names == ['test_pin', 'other_pin']
+  assert grp.big_endian == False
+  assert grp.little_endian == True
+  assert 'test_pin' in grp
+  assert 'blah' not in grp
+  names = ['test_pin', 'other_pin']
+  # for i, pin in enumerate(grp):
+  #   assert isinstance(pin, _origen.dut.pins.Pin)
+  #   assert pin.name == names[i]
+  assert grp.data == 0
+  grp.data = 1
+  assert grp.data == 1
+  assert grp.pin_actions == "ZZ"
+
+  # with pytest.raises(OSError):
+  #   # Pin group with missing pin
+  #   origen.dut.group_pins['error', 'test_pin', 'blah']
+  # with pytest.raises(OSError):
+  #   # Pin group where a pin and its alias are used.
+  #   origen.dut.group_pins['error', 'test_alias1', 'test_alias2']
+
   # Error: Pin group where an alias is used.
 
   # Add pin group. This should add porta0 - porta7

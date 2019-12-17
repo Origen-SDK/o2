@@ -5,7 +5,8 @@ use crate::Result;
 
 use registers::{AccessType, AddressBlock, MemoryMap, Register};
 use std::collections::HashMap;
-use pins::{PinContainer};
+use pins::pin::Pin;
+use pins::pin_group::PinGroup;
 
 #[derive(Debug)]
 pub struct Model {
@@ -26,7 +27,10 @@ pub struct Model {
     /// All registers owned by this model are arranged within memory maps
     pub memory_maps: HashMap<String, MemoryMap>,
     // Pins
-    pub pin_container: PinContainer,
+    pub pins: HashMap<String, Pin>,
+    pub pin_groups: HashMap<String, PinGroup>,
+    pub pin_aliases: HashMap<String, String>,
+    pub pin_group_aliases: HashMap<String, String>,
     // Levels
     // Timing
     // Specs
@@ -47,7 +51,10 @@ impl Model {
             display_path: p,
             sub_blocks: HashMap::new(),
             memory_maps: HashMap::new(),
-            pin_container: PinContainer::new(),
+            pins: HashMap::new(),
+            pin_groups: HashMap::new(),
+            pin_aliases: HashMap::new(),
+            pin_group_aliases: HashMap::new(),
         }
     }
 

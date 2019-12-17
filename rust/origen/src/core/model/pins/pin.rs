@@ -29,6 +29,15 @@ impl PinActions {
             PinActions::HighZ => "HighZ",
         }
     }
+
+    pub fn as_char(&self) -> char {
+        match self {
+            PinActions::Drive => 'D',
+            PinActions::Verify => 'V',
+            PinActions::Capture => 'C',
+            PinActions::HighZ => 'Z',
+        }
+    }
 }
 
 /// The following types are allowed as metadata
@@ -55,11 +64,7 @@ pub struct Pin {
     // just reuse that String instance instead of creating a new one.
     pub name: String,
     pub path: String,
-
-    /// The postured_state is the state the pin *would* be in, *if* it were driving/asserting
-    /// a value. This allows for the bit values to be set without an action being applied as well.
-    /// This can only be a 1 or 0, so use a bool to represent this.
-    pub postured_state: bool,
+    pub data: u8,
 
     /// The pin's current action. If no action is desired, the pin will be HighZ.
     pub action: PinActions,
@@ -67,13 +72,12 @@ pub struct Pin {
     /// The pin's initial action and state. This will be applied during creation and whenever the
     /// 'reset' function is called.
     pub initial: (PinActions, bool),
-    //pub size: i32,
+
     ///--- Meta Data ---///
     /// Any aliases this Pin has.
     pub aliases: Vec<String>,
     pub role: PinRoles,
     pub meta: HashMap<String, MetaAble>,
-    pub data: u8,
 
     // Taking the speed over size here: this'll allow for quick lookups and indexing from pins into the pin group, but will
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
@@ -82,9 +86,6 @@ pub struct Pin {
 }
 
 impl Pin {
-    pub fn posture(&mut self, data: bool) {
-        self.postured_state = data;
-    }
     pub fn drive(&mut self, data: Option<u8>) -> Result<(), Error> {
         if let Some(d) = data {
             self.set_data(d)?;
@@ -111,21 +112,6 @@ impl Pin {
         Ok(())
     }
 
-    pub fn new(name: String, path: String) -> Pin {
-        return Pin {
-            name: name,
-            action: PinActions::HighZ,
-            postured_state: false,
-            initial: (PinActions::HighZ, false),
-            aliases: Vec::new(),
-            memberships: HashMap::new(),
-            role: PinRoles::Standard,
-            meta: HashMap::new(),
-            data: 0,
-            path: path,
-        };
-    }
-
     pub fn set_data(&mut self, data: u8) -> Result<(), Error> {
         if data == 0 || data == 1 {
             self.data = data;
@@ -134,42 +120,34 @@ impl Pin {
             Err(Error::new(&format!("Pin data must be either 0 or 1 - got {}", data)))
         }
     }
+
+    pub fn new(name: String, path: String) -> Pin {
+        return Pin {
+            name: name,
+            path: path,
+            data: 0,
+            action: PinActions::HighZ,
+            initial: (PinActions::HighZ, false),
+            aliases: Vec::new(),
+            memberships: HashMap::new(),
+            role: PinRoles::Standard,
+            meta: HashMap::new(),
+        };
+    }
 }
 
 impl Default for Pin {
     fn default() -> Pin {
         return Pin {
             name: String::from("default"),
+            path: String::from(""),
+            data: 0,
             action: PinActions::HighZ,
-            postured_state: false,
             initial: (PinActions::HighZ, false),
             aliases: Vec::new(),
             memberships: HashMap::new(),
             role: PinRoles::Standard,
             meta: HashMap::new(),
-            data: 0,
-            path: String::from(""),
         };
-    }
-}
-
-#[derive(Debug)]
-pub struct PinGroup {
-    name: String,
-    path: String,
-    pin_names: Vec<String>
-}
-
-impl PinGroup {
-    pub fn new(name: String, path: String, pins: Vec<String>) -> PinGroup {
-        return PinGroup {
-            name: String::from(name),
-            path: String::from(path),
-            pin_names: pins,
-        };
-    }
-
-    pub fn len(&self) -> usize {
-        return self.pin_names.len();
     }
 }
