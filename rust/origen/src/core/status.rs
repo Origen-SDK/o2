@@ -17,6 +17,8 @@ pub struct Status {
     /// The Origen version in a Semver object
     pub origen_version: Version,
     pub start_time: time::Tm,
+    /// The full file system path to the user's home directory
+    pub home: PathBuf,
 }
 
 impl Default for Status {
@@ -31,6 +33,7 @@ impl Default for Status {
             root: r,
             origen_version: version,
             start_time: time::now(),
+            home: get_home_dir(),
         }
     }
 }
@@ -55,5 +58,14 @@ fn search_for_app_root() -> (bool, PathBuf) {
         (false, PathBuf::new())
     } else {
         (true, path)
+    }
+}
+
+fn get_home_dir() -> PathBuf {
+    if cfg!(windows) {
+        PathBuf::from(env::var("USERPROFILE").expect("Please set environment variable USERPROFILE to point to your home directory, then try again"))
+    }
+    else {
+        PathBuf::from(env::var("HOME").expect("Please set environment variable HOME to point to your home directory, then try again"))
     }
 }
