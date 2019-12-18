@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::error::Error;
 
 /// List of supported pin actions.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum PinActions {
     Drive,
     Verify,
@@ -62,7 +62,7 @@ pub enum PinRoles {
 pub struct Pin {
     // Since pins will be added from the add_pin function of Pins,
     // just reuse that String instance instead of creating a new one.
-    pub name: String,
+    pub id: String,
     pub path: String,
     pub data: u8,
 
@@ -121,9 +121,9 @@ impl Pin {
         }
     }
 
-    pub fn new(name: String, path: String) -> Pin {
+    pub fn new(id: String, path: String) -> Pin {
         return Pin {
-            name: name,
+            id: id,
             path: path,
             data: 0,
             action: PinActions::HighZ,
@@ -139,7 +139,7 @@ impl Pin {
 impl Default for Pin {
     fn default() -> Pin {
         return Pin {
-            name: String::from("default"),
+            id: String::from("default"),
             path: String::from(""),
             data: 0,
             action: PinActions::HighZ,

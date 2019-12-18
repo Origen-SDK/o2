@@ -7,24 +7,24 @@ use super::pin_collection::{Endianness};
 
 #[derive(Debug)]
 pub struct PinGroup {
-    pub name: String,
+    pub id: String,
     pub path: String,
-    pub pin_names: Vec<String>,
+    pub pin_ids: Vec<String>,
     pub endianness: Endianness,
 }
 
 impl PinGroup {
-    pub fn new(name: String, path: String, pins: Vec<String>) -> PinGroup {
+    pub fn new(id: String, path: String, pins: Vec<String>) -> PinGroup {
         return PinGroup {
-            name: String::from(name),
+            id: String::from(id),
             path: String::from(path),
-            pin_names: pins,
+            pin_ids: pins,
             endianness: Endianness::LittleEndian,
         };
     }
 
     pub fn len(&self) -> usize {
-        return self.pin_names.len();
+        return self.pin_ids.len();
     }
 
     pub fn is_little_endian(&self) -> bool {
