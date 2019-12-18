@@ -35,7 +35,7 @@ impl Default for Config {
                     available = true;
                     let poetry_cmd = format!(
                         "{}/.poetry/bin/poetry",
-                        format!("{}", STATUS.home.to_string_lossy())
+                        format!("{}", STATUS.home.display())
                     );
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         return Config {
