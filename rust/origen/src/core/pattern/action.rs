@@ -13,6 +13,9 @@ pub enum Action {
     Timeset{name: String},
     Cycle{repeat: u32},
     // likely need a larger storage type for address and data, or maybe generics to provide options
+    // These are place holders of action types as I think of them
     // Register{name: String, address: u32, data: u32, operation: Operation, start_stop: Operation},
     // Driver{name: String, operation: Operation, data: u32, size: u32, target: String, start_stop: Operation},
+    // Comment(String),
+    // Instrument{name: String, data: String, operation: Operation},
 }
