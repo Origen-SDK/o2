@@ -1,14 +1,5 @@
 ## Development Environment Setup
 
-0) Windows-Specific Setup
-
-If using Windows, ensure that the `HOME` environment variable is set. For example, using Powershell:
-
-~~~
-# In this instance, $HOME is NOT an environment variable, but a shortcut. Set it to the similarly-named environment variable.
-$env:HOME = $HOME
-~~~
-
 1) [Install Rust](https://www.rust-lang.org/tools/install)
 
 2) Enable Rust nightly version (this must be done for every o2 workspace):
