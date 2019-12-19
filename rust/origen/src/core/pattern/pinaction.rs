@@ -3,9 +3,9 @@
 pub use super::operation::Operation;
 
 pub struct PinAction {
-    name: String,
-    data: String,
-    operation: Operation,
+    pub name: String,
+    pub data: String,
+    pub operation: Operation,
 }
 
 impl PinAction {
