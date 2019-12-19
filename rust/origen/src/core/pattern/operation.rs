@@ -2,6 +2,7 @@
 //  This enum will be used by all action types
 
 // May need to be more of these and more precise names
+// TODO: The operation/action type enum should come from the module that models the object (pins, regs, protocol, etc.)
 pub enum Operation {
     Read,
     Write,

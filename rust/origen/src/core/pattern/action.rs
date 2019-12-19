@@ -5,6 +5,7 @@
 // I envision the internal pattern storage type being a vector of type Pattern::Action
 // Code processing the Pattern will use match with arms to process the type of Actions that are supported for the given output
 
+// TODO: The operation/action type enum should come from the module that models the object (pins, regs, protocol, etc.)
 use super::operation::Operation;
 use super::pinaction::PinAction;
 

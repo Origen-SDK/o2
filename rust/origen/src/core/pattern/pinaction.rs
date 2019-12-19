@@ -1,4 +1,5 @@
 //! Defines the set of actions associated with a pattern pin action
+// TODO: The operation/action type enum should come from the module that models the object (pins, regs, protocol, etc.)
 pub use super::operation::Operation;
 
 pub struct PinAction {
@@ -8,7 +9,7 @@ pub struct PinAction {
 }
 
 impl PinAction {
-    // This exists to add window dressing to the data string. Default expected will be.
+    // This exists to add window dressing to the data string. Default expected will be hex.
     // TODO: "0x" will be added if no format designator is present.
     pub fn new(name: &str, data: &str, operation: Operation) -> PinAction {
         PinAction {
