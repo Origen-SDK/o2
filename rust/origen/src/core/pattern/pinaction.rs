@@ -3,7 +3,7 @@ pub use super::operation::Operation;
 
 pub struct PinAction {
     name: String,
-    data: u32,
+    data: String,
     operation: Operation,
 }
 
@@ -13,9 +13,9 @@ mod tests {
 
     #[test]
     fn pinaction_readable() {
-        let pa = pinaction::PinAction { name: "porta_01".to_string(), data: 0, operation: pinaction::Operation::Read, };
+        let pa = pinaction::PinAction { name: "porta_01".to_string(), data: "0".to_string(), operation: pinaction::Operation::Read, };
         assert_eq!(pa.name, "porta_01");
-        assert_eq!(pa.data, 0);
+        assert_eq!(pa.data, "0");
         assert_eq!(pa.operation.to_string(), "read");
     }
 }
