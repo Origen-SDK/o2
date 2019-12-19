@@ -11,7 +11,8 @@ use super::pinaction::PinAction;
 
 pub enum Action {
     Pin(PinAction),
-    Timeset{name: String},
+    // Below this line are just test types for now
+    Timeset(String),
     Cycle{repeat: u32},
     // likely need a larger storage type for address and data, or maybe generics to provide options
     // These are place holders of action types as I think of them
@@ -19,4 +20,14 @@ pub enum Action {
     // Driver{name: String, operation: Operation, data: u32, size: u32, target: String, start_stop: Operation},
     // Comment(String),
     // Instrument{name: String, data: String, operation: Operation},
+}
+
+impl Action {
+    pub fn to_string(&self) -> String {
+        match self {
+            Action::Pin(p) => format!("PinAction -> {}", p.to_string()),
+            Action::Timeset(s) => format!("Timeset -> {}", s.to_string()),
+            Action::Cycle{repeat: r} => format!("Cycle -> repeat: {}", r.to_string()),
+        }
+    }
 }

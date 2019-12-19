@@ -18,6 +18,10 @@ impl PinAction {
             operation: operation,
         }
     }
+    
+    pub fn to_string(&self) -> String {
+        format!("pin: {}, data: {}, operation: {}", self.name, self.data, self.operation.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -38,5 +42,11 @@ mod tests {
         assert_eq!(pa.name, "pingroup_name");
         assert_eq!(pa.data, "0x55");
         assert_eq!(pa.operation.to_string(), Operation::DriveMem.to_string());
+    }
+    
+    #[test]
+    fn converts_to_string() {
+        let pa = PinAction::new("pingroup_name", "0x55", Operation::DriveMem);
+        assert_eq!(pa.to_string(), "pin: pingroup_name, data: 0x55, operation: drive_mem");
     }
 }
