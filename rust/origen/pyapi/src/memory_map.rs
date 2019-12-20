@@ -1,10 +1,10 @@
 // This module may be removed soon, replaced by the top-level DUT APIs
 use crate::dut::PyDUT;
 use origen::DUT;
-use pyo3::class::basic::PyObjectProtocol;
+use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;
+use pyo3::exceptions::{AttributeError, KeyError, TypeError};
 use pyo3::prelude::*;
-use pyo3::exceptions::{KeyError, AttributeError};
 
 /// Implements the user APIs dut[.sub_block].memory_map() and
 /// dut[.sub_block].memory_maps
@@ -15,6 +15,7 @@ impl PyDUT {
         DUT.lock().unwrap().get_model(path)?;
         Ok(MemoryMaps {
             model_path: path.to_string(),
+            i: 0,
         })
     }
 
@@ -31,10 +32,12 @@ impl PyDUT {
 /// Implements the user API to work with a model's collection of memory maps, an instance
 /// of this is returned by dut[.sub_block].memory_maps
 #[pyclass]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemoryMaps {
     /// The path to the model which owns the contained memory maps
     model_path: String,
+    /// Iterator index
+    i: usize,
 }
 
 /// User API methods, available to both Rust and Python
@@ -45,11 +48,50 @@ impl MemoryMaps {
         let model = dut.get_model(&self.model_path)?;
         Ok(model.memory_maps.len())
     }
+
+    fn keys(&self) -> PyResult<Vec<String>> {
+        let dut = DUT.lock().unwrap();
+        let model = dut.get_model(&self.model_path)?;
+        let keys: Vec<String> = model.memory_maps.keys().map(|x| x.clone()).collect();
+        Ok(keys)
+    }
+
+    fn values(&self) -> PyResult<Vec<MemoryMap>> {
+        let dut = DUT.lock().unwrap();
+        let model = dut.get_model(&self.model_path)?;
+        let values: Vec<MemoryMap> = model
+            .memory_maps
+            .keys()
+            .map(|x| MemoryMap {
+                model_path: self.model_path.to_string(),
+                id: x.to_string(),
+            })
+            .collect();
+        Ok(values)
+    }
+
+    fn items(&self) -> PyResult<Vec<(String, MemoryMap)>> {
+        let dut = DUT.lock().unwrap();
+        let model = dut.get_model(&self.model_path)?;
+        let items: Vec<(String, MemoryMap)> = model
+            .memory_maps
+            .keys()
+            .map(|x| {
+                (
+                    x.to_string(),
+                    MemoryMap {
+                        model_path: self.model_path.to_string(),
+                        id: x.to_string(),
+                    },
+                )
+            })
+            .collect();
+        Ok(items)
+    }
 }
 
 /// Internal, Rust-only methods
-impl MemoryMaps {
-}
+impl MemoryMaps {}
 
 #[pyproto]
 impl PyMappingProtocol for MemoryMaps {
@@ -67,7 +109,10 @@ impl PyMappingProtocol for MemoryMaps {
                 id: query.to_string(),
             })
         } else {
-            Err(KeyError::py_err(format!("'{}' does not have a memory map called '{}'", model.display_path, query)))
+            Err(KeyError::py_err(format!(
+                "'{}' does not have a memory map called '{}'",
+                model.display_path, query
+            )))
         }
     }
 }
@@ -84,7 +129,10 @@ impl PyObjectProtocol for MemoryMaps {
                 id: query.to_string(),
             })
         } else {
-            Err(AttributeError::py_err(format!("'MemoryMaps' object has no attribute '{}'", query)))
+            Err(AttributeError::py_err(format!(
+                "'MemoryMaps' object has no attribute '{}'",
+                query
+            )))
         }
     }
 
@@ -112,29 +160,37 @@ impl PyObjectProtocol for MemoryMaps {
     }
 }
 
-//#[pyproto]
-//impl PyIterProtocol for MemoryMaps {
-//    fn __iter__(slf: PyRefMut<Self>) -> PyResult<MemoryMap> {
-//        let py = unsafe { Python::assume_gil_acquired() };
-//        Ok(slf.to_object(py))
-//    }
-//    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
-//        let py = unsafe { Python::assume_gil_acquired() };
-//        match slf.keys.as_ref(py).as_bytes().get(slf.idx) {
-//            Some(&b) => {
-//                let res = slf
-//                    .reader
-//                    .as_ref(py)
-//                    .inner
-//                    .get(&b)
-//                    .map(|s| PyString::new(py, s).into());
-//                slf.idx += 1;
-//                Ok(res)
-//            }
-//            None => Ok(None),
-//        }
-//    }
-//}
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for MemoryMaps {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<MemoryMaps> {
+        let mut m = slf.clone();
+        m.i = 0;
+        Ok(m)
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
+        let dut = DUT.lock().unwrap();
+        let model = dut.get_model(&slf.model_path).unwrap();
+        let keys: Vec<&String> = model.memory_maps.keys().collect();
+
+        if slf.i >= keys.len() {
+            return Ok(None);
+        }
+
+        let id = keys[slf.i];
+        slf.i += 1;
+        Ok(Some(id.to_string()))
+    }
+}
+
+#[pyproto]
+impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
+    fn __contains__(&self, item: &str) -> PyResult<bool> {
+        let dut = DUT.lock().unwrap();
+        let model = dut.get_model(&self.model_path)?;
+        Ok(model.memory_maps.contains_key(item))
+    }
+}
 
 /// Implements the user API to work with a single memory map, an instance
 /// of this is returned by dut[.sub_block].memory_maps["my_map"]
@@ -143,19 +199,38 @@ impl PyObjectProtocol for MemoryMaps {
 pub struct MemoryMap {
     /// The path to the model which owns the contained memory maps
     model_path: String,
+    #[pyo3(get)]
     id: String,
 }
 
 /// User API methods, available to both Rust and Python
 #[pymethods]
-impl MemoryMap {
-}
+impl MemoryMap {}
 
 /// Internal, Rust-only methods
 impl MemoryMap {}
 
 #[pyproto]
 impl PyObjectProtocol for MemoryMap {
+    fn __richcmp__(&self, other: &MemoryMap, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Eq => Ok(self.model_path == other.model_path && self.id == other.id),
+            CompareOp::Ne => Ok(self.model_path != other.model_path || self.id != other.id),
+            CompareOp::Lt => Err(TypeError::py_err(
+                "'<' not supported between instances of 'MemoryMap'",
+            )),
+            CompareOp::Le => Err(TypeError::py_err(
+                "'<=' not supported between instances of 'MemoryMap'",
+            )),
+            CompareOp::Gt => Err(TypeError::py_err(
+                "'>' not supported between instances of 'MemoryMap'",
+            )),
+            CompareOp::Ge => Err(TypeError::py_err(
+                "'>=' not supported between instances of 'MemoryMap'",
+            )),
+        }
+    }
+
     fn __repr__(&self) -> PyResult<String> {
         Ok("Here should be a nice graphic of the memory map".to_string())
     }

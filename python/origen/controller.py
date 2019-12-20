@@ -48,7 +48,7 @@ class Base:
         else:
             self.regs  # Ensure the memory maps for this block have been loaded
             if name in self.memory_maps:
-                return self.sub_blocks[name]
+                return self.memory_maps[name]
 
             else:
                 raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
