@@ -15,7 +15,7 @@ class Proxy:
     #def __repr__(self):
     #    return f"Registers in {self.controller.block_path}:\n0  : Reg 1\n4  : Reg 2"
 
-# This defines the methods for defining registers in Python and then handles serializing
+# This defines the API for defining registers in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
 class Loader:
     def __init__(self, controller):
@@ -36,7 +36,9 @@ class Loader:
 
     @contextmanager
     def MemoryMap(self, id):
+        self.memory_map = id
         yield self
+        self.memory_map = None
 
     # Defines the methods that are accessible within blocks/<block>/registers.py
     def api(self):

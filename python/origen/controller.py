@@ -24,15 +24,15 @@ class Base:
     is_top = False
 
     def __init__(self):
-        pass
+        self.regs_loaded = False
 
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
+        # regs called directly on the controller means only the regs in the default
+        # memory map and address block
         if name == "regs":
-            self.app.load_block_files(self, "registers.py")
-            from origen.registers import Proxy
-            self.regs = Proxy(self)
-            return self.regs
+            self._load_regs()
+            return origen.dut.db.regs(self.path, None, None)
 
         elif name == "sub_blocks":
             from origen.sub_blocks import Proxy
@@ -41,14 +41,15 @@ class Base:
             return self.sub_blocks
 
         elif name == "memory_maps":
-            self.regs  # Ensure the memory maps for this block have been loaded
+            self._load_regs()
             return origen.dut.db.memory_maps(self.path)
 
         elif name in self.sub_blocks:
             return self.sub_blocks[name]
 
         else:
-            self.regs  # Ensure the memory maps for this block have been loaded
+            self._load_regs()
+
             if name in self.memory_maps:
                 return self.memory_maps[name]
 
@@ -99,6 +100,11 @@ class Base:
     def add_reg(self, *args, **kwargs):
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
+
+    def _load_regs(self):
+        if not self.regs_loaded:
+            self.app.load_block_files(self, "registers.py")
+            self.regs_loaded = True
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

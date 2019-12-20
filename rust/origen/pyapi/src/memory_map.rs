@@ -1,5 +1,5 @@
-// This module may be removed soon, replaced by the top-level DUT APIs
 use crate::dut::PyDUT;
+use crate::register::Registers;
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;
@@ -212,6 +212,33 @@ impl MemoryMap {}
 
 #[pyproto]
 impl PyObjectProtocol for MemoryMap {
+    fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
+        //let dut = DUT.lock().unwrap();
+        //let model = dut.get_model(&self.model_path)?;
+
+        // Calling .regs on an individual memory map returns the regs in its default
+        // address block (the one named 'default')
+        if query == "regs" {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            let pyref = PyRef::new(
+                py,
+                Registers {
+                    model_path: self.model_path.to_string(),
+                    memory_map: self.id.to_string(),
+                    address_block: "default".to_string(),
+                    i: 0,
+                },
+            )?;
+            Ok(pyref.to_object(py))
+        } else {
+            Err(AttributeError::py_err(format!(
+                "'MemoryMap' object has no attribute '{}'",
+                query
+            )))
+        }
+    }
+
     fn __richcmp__(&self, other: &MemoryMap, op: CompareOp) -> PyResult<bool> {
         match op {
             CompareOp::Eq => Ok(self.model_path == other.model_path && self.id == other.id),
