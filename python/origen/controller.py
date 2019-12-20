@@ -1,5 +1,7 @@
 import origen
 import _origen
+from origen.registers import Loader as RegLoader
+from contextlib import contextmanager
 
 # The base class of all Origen controller objects
 class Base:
@@ -90,6 +92,13 @@ class Base:
         self.regs  # Ensure the memory maps for this block have been loaded
         return origen.dut.db.memory_map(self.path, id)
 
+    def add_simple_reg(self, *args, **kwargs):
+        RegLoader(self).SimpleReg(*args, **kwargs)
+
+    @contextmanager
+    def add_reg(self, *args, **kwargs):
+        with RegLoader(self).Reg(*args, **kwargs) as reg:
+            yield reg
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
