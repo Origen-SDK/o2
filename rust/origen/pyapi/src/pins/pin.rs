@@ -1,7 +1,5 @@
 use origen::DUT;
-use origen::error::Error;
 use pyo3::prelude::*;
-use pyo3::{PyErr};
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
 
@@ -29,140 +27,33 @@ impl Pin {
     fn get_id(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-        match pin {
-            Some(_pin) => {
-                Ok(_pin.id.clone())
-            },
-            Option::None => {
-                // This is problem, since we should only have a Pin instance if the pin exists. This would be a stale instance.
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
+        let pin = model._pin(&self.id)?;
+        Ok(pin.id.clone())
     }
 
     #[getter]
     fn get_data(&self) -> PyResult<u8> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-
-        match pin {
-            Some(_pin) => {
-                Ok(_pin.data)
-            },
-            Option::None => {
-                // This is problem, since we should only have a Pin instance if the pin exists. This would be a stale instance.
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
-    }
-
-    #[setter]
-    fn set_data(&self, data: u8) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-        match pin {
-            Some(_pin) => {
-                _pin.set_data(data)?;
-                Ok(())
-            }
-            Option::None => {
-                // This is problem, since we should only have a Pin instance if the pin exists. This would be a stale instance.
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
-    }
-
-    fn set(&self, data: u8) -> PyResult<()> {
-        self.set_data(data)
+        let pin = model._pin(&self.id)?;
+        Ok(pin.data)
     }
 
     #[getter]
     fn get_action(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-        match pin {
-            Some(_pin) => {
-                Ok(String::from(_pin.action.as_str()))
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
+        let pin = model._pin(&self.id)?;
+        Ok(String::from(pin.action.as_str()))
     }
 
-    // #[getter]
-    // fn state(&self, path: &str) -> PyResult<PyString> {}
-
-    fn drive(&mut self, data: Option<u8>) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-        //let pin = pin!();
-        //let mut pin = pin!(self)?;
-        match pin {
-            Some(_pin) => {
-                _pin.drive(data)?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
+    #[getter]
+    fn get_aliases(&self) -> PyResult<Vec<String>> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      let pin = model._pin(&self.id)?;
+      Ok(pin.aliases.clone())
     }
-
-    fn verify(&self, data: Option<u8>) -> PyResult<()>  { 
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-        //let pin = pin!();
-        //let mut pin = pin!(self)?;
-        match pin {
-            Some(_pin) => {
-                _pin.verify(data)?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
-    }
-    
-    fn capture(&self) -> PyResult<()>  {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-        //let pin = pin!();
-        //let mut pin = pin!(self)?;
-        match pin {
-            Some(_pin) => {
-                _pin.capture()?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
-    }
-    
-    fn highz(&self) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
-        let pin = model.pin(&self.id);
-        match pin {
-            Some(_pin) => {
-                _pin.highz()?;
-                Ok(())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin {}", self.id))))
-            }
-        }
-    }
-
 
     // Debug helper: Get the id held by this instance.
     #[allow(non_snake_case)]

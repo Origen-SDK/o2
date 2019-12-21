@@ -3,223 +3,235 @@ pub mod pin_group;
 pub mod pin_collection;
 use crate::error::Error;
 
-use std::collections::HashMap;
-//use pin_collection::{PinCollection};
+use pin_collection::{PinCollection, Endianness};
 use pin::{Pin, PinActions};
 use pin_group::PinGroup;
 use super::Model;
 
 impl Model {
-    pub fn add_pin(&mut self, id: &str, path: &str) -> Result<&mut Pin, Error> {
+
+    //** Functions for adding, aliasing, grouping, and collecting pins **
+
+    pub fn add_pin(&mut self, id: &str, path: &str) -> Result<&mut PinGroup, Error> {
         let n = id;
         if self.pin(id).is_some() {
             return Err(Error::new(&format!("Can not add pin {} because it conflicts with a current pin or alias id!", id)))
         }
         let p = Pin::new(String::from(n), String::from(path));
-        self.pins.insert(String::from(n), p);
+        let grp = PinGroup::new(String::from(n), String::from(path), vec!(String::from(n)));
+        self.pins.insert(String::from(n), grp);
+        self.physical_pins.insert(String::from(n), p);
         Ok(self.pins.get_mut(n).unwrap())
-    }
-
-    /// Returns the phyiscal pin, or None, if the pin doesn't exist.
-    /// Implementation note: based on anecdotal evidence, physical pins generally have hardware-oriented pins, e.g.: PTA0, GPIO_A, etc.
-    ///   The app will alias those to friendlier ids like swd_io, swdclk, which patterns and drivers will use.
-    ///   So, I'd expect a hit in the alias HashMap more often than the in actual Pins', so check the alias first, then fall back to the pins.
-    pub fn pin(&mut self, pin: &str) -> Option<&mut Pin> {
-        let mut _p = pin;
-        if let Some(p) = self.pin_aliases.get(_p) {
-            _p = p;
-        }
-        if let Some(_pin) = self.pins.get_mut(_p) {
-            Option::Some(_pin)
-        } else {
-            Option::None
-        }
-        //if let Some(p) = self.pins.get_mut(pin) {
-        //  Ok(p)
-        //} else {
-        //  Err(Error::new(&format!("No pin {} available!", pin)))
-        //}
-    }
-
-    pub fn get_pin(&self, pin: &str) -> Option<&Pin> {
-        let mut _p = pin;
-        if let Some(p) = self.pin_aliases.get(_p) {
-            _p = p;
-        }
-        if let Some(_pin) = self.pins.get(_p) {
-            Option::Some(_pin)
-        } else {
-            Option::None
-        }
-        //if let Some(p) = self.pins.get_mut(pin) {
-        //  Ok(p)
-        //} else {
-        //  Err(Error::new(&format!("No pin {} available!", pin)))
-        //}
-    }
-
-    //pub fn ids_for(&mut self, pin:)
-    
-    /// Returns a HashMap with all pin ids and, in the event of an alias,the pin id its aliased to.
-    /// Todo: There's probably a more optimized way to do this since we're essentially just taking the pin alias hashmap
-    ///       and merge it with pins, after mapping the value to the same key.
-    pub fn pins(&mut self) -> HashMap<String, String> {
-        let mut retn = HashMap::new();
-        for (n, a) in self.pin_aliases.iter() {
-            retn.insert(n.clone(), a.clone());
-        }
-        for (n, _p) in self.pins.iter() {
-            retn.insert(n.clone(), n.clone());
-        }
-        return retn;
-    }
-
-    pub fn has_pin(&mut self, id_or_alias: &str) -> bool {
-        return self.pin(id_or_alias).is_some();
-    }
-
-    pub fn number_of_pins(&mut self) -> usize {
-        return self.pins.len();
     }
 
     pub fn add_pin_alias(&mut self, id: &str, alias: &str) -> Result<(), Error> {
         // First, check that the pin exists.
-        if !self.pins.contains_key(id) {
-            return Err(Error::new(&format!("Could not alias pin {} to {}, as pin {} doesn't exists!", id, alias, id)))
-        }
         if self.pins.contains_key(alias) {
-            return Err(Error::new(&format!("Could not alias pin {} to {}, as alias {} already exists as a pin!", id, alias, alias)))
+            return Err(Error::new(&format!("Could not alias pin {} to {}, as {} already exists!", id, alias, alias)))
         }
 
-        // Check if the alias already exists. If so, raise an exception, otherwise add the alias.
-        if let Some(_id) = self.pin_aliases.get(alias) {
-            return Err(Error::new(&format!("Could not alias pin {} to {}, as pin {} is already aliased to {}", id, alias, _id, alias)))
+        let grp;
+        if let Some(p) = self.mut_physical_pin(id) {
+            grp = PinGroup::new (
+                String::from(alias),
+                String::from(&p.path),
+                vec!(String::from(&p.id)),
+            );
+            p.aliases.push(String::from(alias));
         } else {
-            self.pin_aliases.insert(String::from(alias), String::from(id));
-            Ok(())
+            return Err(Error::new(&format!("Could not alias pin {} to {}, as pin {} doesn't exists!", id, alias, id)))
         }
+        self.pins.insert(String::from(alias), grp);
+        Ok(())
     }
 
     pub fn group_pins(&mut self, id: &str, path: &str, pins: Vec<String>) -> Result<&mut PinGroup, Error> {
         let n = id;
-        if self.pin_group(id).is_some() {
+        if self.pin(id).is_some() {
             return Err(Error::new(&format!("Can not add pin group {} because it conflicts with a current pin group or alias id!", id)))
         }
-        let p = PinGroup::new(String::from(n), String::from(path), pins);
-        self.pin_groups.insert(String::from(n), p);
-        Ok(self.pin_groups.get_mut(n).unwrap())
+        let grp = PinGroup::new(String::from(n), String::from(path), pins);
+        let mut seen_physical_ids: Vec<String> = vec!();
+        for (i, pin_id) in grp.pin_ids.iter().enumerate() {
+            if let Some(p) = self.mut_physical_pin(pin_id) {
+                if seen_physical_ids.contains(&p.id) {
+                    return Err(Error::new(&format!("Can not group pins under {} because pin (or an alias of) {} has already been added to the group!", id, p.id)));
+                } else {
+                    seen_physical_ids.push(String::from(&p.id));
+                    p.groups.insert(String::from(n), i);
+                }
+            } else {
+                return Err(Error::new(&format!("Can not group pins under {} because pin {} does not exist!", id, pin_id)));
+            }
+        }
+        self.pins.insert(String::from(n), grp);
+        Ok(self.pins.get_mut(n).unwrap())
     }
 
-    pub fn pin_group(&mut self, id: &str) -> Option<&mut PinGroup> {
-        let mut _n = id;
-        if let Some(n) = self.pin_group_aliases.get(_n) {
-            _n = n;
-        }
-        if let Some(_pin_group) = self.pin_groups.get_mut(_n) {
-            Option::Some(_pin_group)
+    // ** Functions for retrieving pins from ids and aliases **
+
+    pub fn pin(&mut self, id: &str) -> Option<&mut PinGroup> {
+        if let Some(pin) = self.pins.get_mut(id) {
+            Option::Some(pin)
         } else {
             Option::None
         }
     }
 
-    pub fn get_pin_group(&self, id: &str) -> Option<&PinGroup> {
-        let mut _n = id;
-        if let Some(n) = self.pin_group_aliases.get(_n) {
-            _n = n;
-        }
-        if let Some(_pin_group) = self.pin_groups.get(_n) {
-            Option::Some(_pin_group)
-        } else {
-            Option::None
+    pub fn _pin(&mut self, id: &str) -> Result<&mut Pin, Error> {
+        match self.physical_pins.get_mut(id) {
+            Some(p) => Ok(p),
+            None => Err(Error::new(&format!("Cannot find phyiscal pin {}! This signals either a bug in Origen or the backend model has been changed unexpectedly and this reference is stale.", id))),
         }
     }
 
-    pub fn contains_pin_group(&mut self, id_or_alias: &str) -> bool {
-        return self.pin_group(id_or_alias).is_some();
+    pub fn physical_pin(&self, id: &str) -> Option<&Pin> {
+        if let Some(grp) = self.pins.get(id) {
+            if let Some(physical_pin) = self.physical_pins.get(&grp.pin_ids[0]) {
+                return Option::Some(physical_pin);
+            }
+        }
+        Option::None
     }
 
-    pub fn number_of_pin_groups(&mut self) -> usize {
-        return self.pin_groups.len();
+    pub fn mut_physical_pin(&mut self, id: &str) -> Option<&mut Pin> {
+        if let Some(grp) = self.pins.get(id) {
+            if let Some(physical_pin) = self.physical_pins.get_mut(&grp.pin_ids[0]) {
+                return Option::Some(physical_pin);
+            }
+        }
+        Option::None
+    }
+
+    pub fn contains(&mut self, id: &str) -> bool {
+        return self.pin(id).is_some();
+    }
+
+    pub fn _contains(&mut self, id: &str) -> bool {
+        return self.physical_pin(id).is_some();
+    }
+
+    pub fn number_of_physical_pins(&mut self) -> usize {
+        return self.physical_pins.len();
+    }
+
+    pub fn number_of_ids(&mut self) -> usize {
+        return self.pins.len();
+    }
+
+    /// Given a group/collection of pin IDs, verify:
+    ///     * Each pin exist
+    ///     * Each pin is unique (no duplicate pins) AND it points to a unique physical pin. That is, each pin is unique after resolving aliases.
+    /// If all the above is met, we can group/collect these IDs.
+    pub fn verify_ids(&self, ids: &Vec<String>) -> Result<(), Error> {
+        let mut seen_physical_ids: Vec<String> = vec!();
+        for (_i, pin_id) in ids.iter().enumerate() {
+            if let Some(p) = self.physical_pin(pin_id) {
+                if seen_physical_ids.contains(&p.id) {
+                    return Err(Error::new(&format!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", pin_id, p.id)));
+                } else {
+                    seen_physical_ids.push(String::from(&p.id));
+                }
+            } else {
+                return Err(Error::new(&format!("Can not collect pin '{}' because it does not exist!", pin_id)));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn collect(&mut self, path: &str, ids: Vec<String>) -> Result<PinCollection, Error> {
+        self.verify_ids(&ids)?;
+        Ok(PinCollection {
+            path: String::from(path),
+            ids: ids,
+            endianness: Endianness::LittleEndian,
+        })
     }
 
     /// Given a pin id, check if the pin or any of its aliases are present in pin group.
-    pub fn pin_group_contains_pin(&mut self, group_id: &str, pin_id: &str) -> bool {
-        // Since we also need to check each pin's aliases, just brute force search it through the pins/aliases.
-        return self.index_of(group_id, pin_id).is_some();
-      }
+    pub fn pin_group_contains(&mut self, id: &str, query_id: &str) -> Result<bool, Error> {
+        let result = self.index_of(id, query_id)?.is_some();
+        Ok(result)
+    }
   
-      /// Given a pin or alias id, finds either its id or alias in the group.
-      pub fn index_of(&mut self, group_id: &str, pin_id: &str) -> Option<usize> {
-        let grp = self.get_pin_group(group_id).unwrap().pin_ids.clone();
-        for (i, n) in grp.iter().enumerate() {
-          let p = self.pin(n).unwrap();
-          if pin_id == &(p.id) || p.aliases.contains(&pin_id.to_string()) {
-            return Option::Some(i);
-          }
+    /// Given a pin or alias id, finds either its id or alias in the group.
+    pub fn index_of(&mut self, id: &str, query_id: &str) -> Result<Option<usize>, Error> {
+        if !self.pins.contains_key(id) {
+            // Pin group doesn't exists. Raise an error.
+            return Err(Error::new(&format!("Group {} does not exists! Cannot lookup index for {} in this group!", id, query_id)));
         }
-        Option::None
-      }
-    
-      pub fn get_pin_group_data(&mut self, group_id: &str) -> u32 {
-        let mut data = 0;
-        let pin_ids = self.get_pin_group(group_id).unwrap().pin_ids.clone();
-        for n in pin_ids.iter().rev() {
-          let p = self.pin(n).unwrap();
-          data = (data << 1) + p.data;
+
+        if let Some(p) = self.physical_pin(query_id) {
+            if let Some(idx) = p.groups.get(id) {
+                Ok(Option::Some(*idx))
+            } else {
+                // Group ID wasn't found in this pin's groups.
+                // Pin doesn't belong to that group.
+                Ok(Option::None)
+            }
+        } else {
+            // The query ID doesn't exists. Raise an error.
+            Err(Error::new(&format!("The query ID {} does not exists! Cannot check this query's groups!", query_id)))
         }
-        data as u32
-      }
-  
-    pub fn verify_pin_group_data(&mut self, group_id: &str, data: u32) -> Result<(), Error> {
-      let two: u32 = 2;
-      let grp = self.get_pin_group(group_id).unwrap();
-      if data > (two.pow(grp.len() as u32) - 1) {
-        Err(Error::new(&format!("Data {} does not fit in Pin collection of size {} - Cannot set data!", data, grp.len())))
-      } else {
-        Ok(())
-      }
     }
 
-    pub fn set_pin_group_data(&mut self, group_id: &str, data: u32) -> Result<(), Error> {
-      self.verify_pin_group_data(group_id, data)?;
+    pub fn pin_ids_contain(&mut self, ids: &Vec<String>, query_id: &str) -> Result<bool, Error> {
+        let result = self.find_in_ids(ids, query_id)?.is_some();
+        Ok(result)
+    }
 
-      let mut d = data;
-      let pin_ids = self.get_pin_group(group_id).unwrap().pin_ids.clone();
-      for n in pin_ids.iter() {
-        let p = self.pin(n).unwrap();
-        p.set_data((d & 0x1) as u8)?;
-        d = d >> 1;
-      }
-      Ok(())
+    pub fn find_in_ids(&mut self, ids: &Vec<String>, query_id: &str) -> Result<Option<usize>, Error> {
+        if let Some(p) = self.physical_pin(query_id) {
+            let idx = ids.iter().position( |id| p.id == *id || p.aliases.contains(id));
+            if let Some(_idx) = idx {
+                Ok(Option::Some(_idx))
+            } else {
+                // Group ID wasn't found in this pin's groups.
+                // Pin doesn't belong to that group.
+                Ok(Option::None)
+            }
+        } else {
+            // The query ID doesn't exists. Raise an error.
+            Err(Error::new(&format!("The query ID {} does not exists! Cannot check this query's groups!", query_id)))
+        }
+    }
+
+    pub fn data_fits_in_pins(&mut self, pins: &Vec<String>, data: u32) -> Result<(), Error> {
+        let two: u32 = 2;
+        if data > (two.pow(pins.len() as u32) - 1) {
+            Err(Error::new(&format!("Data {} does not fit in Pin collection of size {} - Cannot set data!", data, pins.len())))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn get_pin_group_data(&mut self, id: &str) -> u32 {
+        let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+        self.get_pin_data(&pin_ids)
+    }
+
+    pub fn set_pin_group_data(&mut self, id: &str, data: u32) -> Result<(), Error> {
+        let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+        self.set_pin_data(&pin_ids, data)
+    }
+
+    pub fn resolve_pin_group_ids(&mut self, id: &str) -> Result<Vec<String>, Error> {
+        let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+        self.resolve_pin_ids(&pin_ids)
     }
 
     /// Returns the pin actions as a string.
     /// E.g.: for an 8-pin bus where the two MSBits are driving, the next two are capturing, then next wo are verifying, and the 
     ///   two LSBits are HighZ, the return value will be "DDCCVVZZ"
-    pub fn get_pin_actions_for_group(&mut self, group_id: &str) -> String {
-      let pin_ids = self.get_pin_group(group_id).unwrap().pin_ids.clone();
-      let mut s = String::from("");
-      for n in pin_ids.iter() {
-        let p = self.pin(n).unwrap();
-        s += &(p.action.as_char()).to_string();
-      }
-      s
+    pub fn get_pin_actions_for_group(&mut self, id: &str) -> Result<String, Error> {
+      let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+      self.get_pin_actions(&pin_ids)
     }
 
-    pub fn set_pin_actions_for_group(&mut self, group_id: &str, action: PinActions, _mask: Option<u32>, data: Option<u32>) -> Result<(), Error> {
-        if let Some(d) = data {
-            self.set_pin_group_data(group_id, d)?;
-        }
-        let grp = self.get_pin_group(group_id).unwrap();
-        let pin_ids = grp.pin_ids.clone();
-        for (_i, n) in pin_ids.iter().enumerate() {
-            let p = self.pin(n).unwrap();
-            p.action = action;
-        }
-        Ok(())
+    pub fn set_pin_actions_for_group(&mut self, id: &str, action: PinActions, _mask: Option<u32>, data: Option<u32>) -> Result<(), Error> {
+        let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+        self.set_pin_actions(&pin_ids, action, data)
     }
-
-    //pub fn with_mask
 
     pub fn drive_pin_group(&mut self, group_id: &str, mask: Option<u32>, data: Option<u32>) -> Result<(), Error> {
         return self.set_pin_actions_for_group(group_id, PinActions::Drive, mask, data);
@@ -237,23 +249,21 @@ impl Model {
         return self.set_pin_actions_for_group(group_id, PinActions::HighZ, mask, Option::None);
     }
 
-    // Todo: Combine these with pin groups to cut down on the duplicate code
-
     pub fn get_pin_data(&mut self, ids: &Vec<String>) -> u32 {
         let mut data = 0;
         for n in ids.iter().rev() {
-          let p = self.pin(n).unwrap();
+          let p = self._pin(n).unwrap();
           data = (data << 1) + p.data;
         }
         data as u32
     }
 
     pub fn set_pin_data(&mut self, ids: &Vec<String>, data: u32) -> Result<(), Error> {
-        //self.verify_pin_group_data(group_id, data)?;
+        self.data_fits_in_pins(ids, data)?;
 
         let mut d = data;
         for n in ids.iter() {
-          let p = self.pin(n).unwrap();
+          let p = self._pin(n).unwrap();
           p.set_data((d & 0x1) as u8)?;
           d = d >> 1;
         }
@@ -263,7 +273,7 @@ impl Model {
     pub fn get_pin_actions(&mut self, ids: &Vec<String>) -> Result<String, Error> {
         let mut s = String::from("");
         for n in ids.iter() {
-          let p = self.pin(n).unwrap();
+          let p = self._pin(n).unwrap();
           s += &(p.action.as_char()).to_string();
         }
         Ok(s)
@@ -274,10 +284,19 @@ impl Model {
             self.set_pin_data(ids, d)?;
         }
         for (_i, n) in ids.iter().enumerate() {
-            let p = self.pin(n).unwrap();
+            let p = self._pin(n).unwrap();
             p.action = action;
         }
         Ok(())
+    }
+
+    pub fn resolve_pin_ids(&mut self, ids: &Vec<String>) -> Result<Vec<String>, Error> {
+        let mut physical_ids: Vec<String> = vec!();
+        for (_i, n) in ids.iter().enumerate() {
+            let p = self._pin(n).unwrap();
+            physical_ids.push(p.id.clone());
+        }
+        Ok(physical_ids)
     }
 
     pub fn drive_pins(&mut self, ids: &Vec<String>, data: Option<u32>) -> Result<(), Error> {
@@ -296,4 +315,22 @@ impl Model {
         self.set_pin_actions(ids, PinActions::HighZ, Option::None)
     }
 
+    // Assume the pin group is properly defined (that is, not pin duplicates and all pins exists. If the pin group exists, these should both be met)
+    pub fn slice_pin_group(&mut self, id: &str, start_idx: usize, stop_idx: usize, step_size: usize) -> Result<PinCollection, Error> {
+        if let Some(p) = self.pin(id) {
+            let ids = &p.pin_ids;
+            let mut sliced_ids: Vec<String> = vec!();
+
+            for i in (start_idx..=stop_idx).step_by(step_size) {
+                if i >= ids.len() {
+                    return Err(Error::new(&format!("Index {} exceeds available pins in group {} (length: {})", i, id, ids.len())));
+                }
+                let p = ids[i].clone();
+                sliced_ids.push(p);
+            }
+            Ok(PinCollection::new(&self.parent_path, &sliced_ids, Option::None))
+        } else {
+            Err(Error::new(&format!("Could not slice pin {} because it doesn't exists!", id)))
+        }
+    }
 }

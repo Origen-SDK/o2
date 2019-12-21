@@ -2,240 +2,504 @@ import origen # pylint: disable=import-error
 import _origen # pylint: disable=import-error
 import pytest
 
-def test_pin_api():
+def is_pin_group(obj):
+  assert isinstance(obj, _origen.dut.pins.PinGroup)
+
+def is_pin_collection(obj):
+  assert isinstance(obj, _origen.dut.pins.PinCollection)
+
+def is_pin(obj):
+  assert isinstance(obj, _origen.dut.pins.Pin)
+
+def check_alias(pin_id, alias_id):
+  assert alias_id in origen.dut.pins
+  assert origen.dut.pins[alias_id].pin_ids == [pin_id]
+  assert alias_id in origen.dut.physical_pin(pin_id).aliases
+
+def pins():
+  origen.dut.pins
+
+def p1():
+  origen.dut.pin("p1")
+
+def grp():
+  origen.dut.pin("grp")
+
+def test_pin_api_boots():
   origen.app.instantiate_dut("dut.falcon")
-
-  # Ensure the DUT was set
+  # Ensure the DUT was set and the pin container is available.
   assert origen.dut
-
-  # Check the initial pin states
   assert isinstance(origen.dut.pins, _origen.dut.pins.PinContainer)
 
-  # Add a single pin and check its available on the model
-  # Side note: the pin class should be cached, so all retrievals
-  #  of the same pin should point to the same cached instance.
-  assert origen.dut.pin("test_pin") is None
-  p = origen.dut.add_pin("test_pin")
-  assert isinstance(p, _origen.dut.pins.Pin)
+def test_empty_pins():
+  assert len(origen.dut.pins) == 0
+  assert len(origen.dut.physical_pins) == 0
+
+def test_add_and_retrieving_pins():
+  assert len(origen.dut.pins) == 0
+  p1 = origen.dut.add_pin("p1")
+  is_pin_group(p1)
   assert len(origen.dut.pins) == 1
-  p2 = origen.dut.pins['test_pin']
-  assert isinstance(p2, _origen.dut.pins.Pin)
-  p3 = origen.dut.pin('test_pin')
-  assert isinstance(p3, _origen.dut.pins.Pin)
-  #assert 'test_pin' in origen.dut.pins # origen.dut.has_pin('test_pin')
 
-  # Check the state of the pin itself
-  # This should be the default state
-  assert p.id == 'test_pin'
-  assert p._path == ''
-  assert p.data == 0
-  assert p.action == "HighZ"
+def test_retrieving_pins_using_pin_method():
+  p1 = origen.dut.pin("p1")
+  is_pin_group(p1)
+  assert p1.id == "p1"
 
-  # Add another pin
-  p = origen.dut.add_pin("other_pin")
-  assert isinstance(p, _origen.dut.pins.Pin)
-  assert len(origen.dut.pins) == 2
-  assert p.id == origen.dut.pins['other_pin'].id
-  assert p.id == origen.dut.pin('other_pin').id
-  #assert origen.dut.has_pin('other_pin')
+def test_exception_on_duplicate_id():
+  with pytest.raises(OSError):
+    origen.dut.add_pin("p1")
 
-  # Attempt to posture the pin.
-  assert p.data == 0
-  p.data = 1
-  assert p.data == 1
-  p.set(0)
-  assert p.data == 0
+def test_pin_group_default_state():
+  p1 = origen.dut.pin("p1")
+  assert p1.id == "p1"
+  assert len(p1) == 1
+  assert p1._path == ""
+  assert p1.data == 0
+  assert p1.pin_actions == "Z"
+  assert p1.pin_ids == ["p1"]
+  assert p1.physical_ids == ["p1"]
+  assert p1.little_endian
+  assert not p1.big_endian
 
-  # Drive/Verify/Capture Pins
-  assert p.action == "HighZ"
-  p.drive()
-  assert p.data == 0
-  assert p.action == "Drive"
-  p.verify()
-  assert p.data == 0
-  assert p.action == "Verify"
-  p.capture()
-  assert p.data == 0
-  assert p.action == "Capture"
-  p.highz()
-  assert p.data == 0
-  assert p.action == "HighZ"
+def test_retrieving_pins_using_indexing():
+  p1 = origen.dut.pins["p1"]
+  is_pin_group(p1)
+  assert p1.id == "p1"
 
-  p.drive(1)
-  assert p.data == 1
-  assert p.action == "Drive"
-  p.verify(0)
-  assert p.data == 0
-  assert p.action == "Verify"
-  p.capture()
-  assert p.data == 0
-  assert p.action == "Capture"
-  p.highz()
-  assert p.action == "HighZ"
-
-  # Some cases to ensure errors and bad input are handled.
-  # Access an unknown pin
+def test_retrieving_missing_pins():
+  assert origen.dut.pin("blah") is None
   with pytest.raises(KeyError):
     origen.dut.pins['blah']
-  with pytest.raises(OSError):
-    # Ensure we cannot add the same pin over again.
-    origen.dut.add_pin("test_pin")
-  with pytest.raises(OSError):
-    p.data = 2
-  with pytest.raises(OSError):
-    p.drive(2)
-  with pytest.raises(OSError):
-    p.verify(2)
-  with pytest.raises(OSError):
-    p.set(2)
-  assert p.action == "HighZ"
 
-  # Check that pins are available on subblocks
-  assert len(origen.dut.pins) == 2
-  assert origen.dut.sub_blocks["core1"]
+def test_adding_more_pins():
+  p2 = origen.dut.add_pin("p2")
+  p3 = origen.dut.add_pin("p3")
+  is_pin_group(p2)
+  is_pin_group(p3)
+  assert len(origen.dut.pins) == 3
+  assert "p2" in origen.dut.pins
+  assert "p3" in origen.dut.pins
+  _p2 = origen.dut.pin("p2")
+  _p3 = origen.dut.pin("p3")
+  is_pin_group(_p2)
+  is_pin_group(_p3)
+  assert _p2.id == "p2"
+  assert _p3.id == "p3"
+
+def test_grouping_pins():
+  grp = origen.dut.group_pins("grp", "p1", "p2", "p3")
+  is_pin_group(grp)
+  assert grp.id == "grp"
+  assert grp._path == ""
+  assert len(origen.dut.pins) == 4
+  assert len(grp) == 3
+  assert len(origen.dut.physical_pins) == 3
+  assert grp.pin_ids == ["p1", "p2", "p3"]
+  assert grp.data == 0
+  assert grp.pin_actions == "ZZZ"
+
+def test_exception_on_missing_pins():
+  assert len(origen.dut.pins) == 4
+  with pytest.raises(OSError):
+    origen.dut.group_pins("fail", "p2", "p3", "blah")
+  assert len(origen.dut.pins) == 4
+
+def test_retrieving_groups():
+  grp = origen.dut.pin("grp")
+  is_pin_group(grp)
+  _grp = origen.dut.pins["grp"]
+  is_pin_group(_grp)
+  assert grp.id == "grp"
+  assert _grp.id == "grp"
+
+def test_checking_ids_within_group():
+  grp = origen.dut.pins["grp"]
+  is_pin_group(grp)
+  assert "p1" in grp
+  assert "p2" in grp
+  assert "p3" in grp
+
+def test_setting_pin_data():
+  # Observe that the underlying pin state has changed, therefore changing ALL references to that/those pin(s)
+  grp = origen.dut.pin("grp")
+  assert grp.data == 0
+  grp.data = 0x3
+  assert grp.data == 3
+  assert origen.dut.pins["p1"].data == 1
+  assert origen.dut.pins["p2"].data == 1
+  assert origen.dut.pins["p3"].data == 0
+
+  origen.dut.pins["p3"].data = 1
+  assert origen.dut.pins["p3"].data == 1
+  assert grp.data == 7
+
+def test_exception_on_overflow():
+  grp = origen.dut.pin("grp")
+  assert grp.data == 7
+  with pytest.raises(OSError):
+    grp.data = 8
+  with pytest.raises(OSError):
+    grp.drive(8)
+  with pytest.raises(OSError):
+    grp.verify(8)
+  with pytest.raises(OSError):
+    grp.set(8)
+  assert grp.data == 7
+
+# Basically make sure we don't get a Rust panic when garbage input is given.
+# Would prefer to pass the error up through Python and cleanly fail.
+def test_exception_on_bad_input():
+  grp = origen.dut.pin("grp")
+  with pytest.raises(TypeError):
+     grp.data = "hi"
+  with pytest.raises(TypeError):
+    grp.drive({})
+  with pytest.raises(TypeError):
+    grp.verify([])
+  with pytest.raises(TypeError):
+    grp.set(origen)
+
+def test_driving_pins():
+  # Same as above: changing the pin action sets it in the physical pin.
+  # Note that you cannot set pin states directly using strings.
+  # !!! 
+  # Eventually, masking and indexing will be supported, so things like:
+  #   grp.with_mask(0x1).drive() #=> actions: "ZZD"
+  #   grp.[2:1].verify() #=> actions: "VVD"
+  # At this moment, its all or nothing though.
+  # !!!
+  grp = origen.dut.pin("grp")
+  assert grp.pin_actions == "ZZZ"
+  assert grp.drive() is None
+  assert grp.pin_actions == "DDD"
+  assert origen.dut.pins["p1"].pin_actions == "D"
+  assert origen.dut.pins["p2"].pin_actions == "D"
+  assert origen.dut.pins["p3"].pin_actions == "D"
+
+def test_capturing_and_highzing_pins():
+  grp = origen.dut.pin("grp")
+  assert grp.pin_actions == "DDD"
+  assert grp.highz() is None
+  assert grp.pin_actions == "ZZZ"
+  assert origen.dut.pins["p1"].pin_actions == "Z"
+  assert origen.dut.pins["p2"].pin_actions == "Z"
+  assert origen.dut.pins["p3"].pin_actions == "Z"
+
+  assert grp.capture() is None
+  assert grp.pin_actions == "CCC"
+  assert origen.dut.pins["p1"].pin_actions == "C"
+  assert origen.dut.pins["p2"].pin_actions == "C"
+  assert origen.dut.pins["p3"].pin_actions == "C"
+
+def test_driving_pins_with_data():
+  grp = origen.dut.pin("grp")
+  assert grp.data == 7
+  assert grp.pin_actions == "CCC"
+  assert grp.drive(5) is None
+  assert grp.data == 5
+  assert grp.pin_actions == "DDD"
+
+def test_verifying_pins():
+  grp = origen.dut.pin("grp")
+  assert grp.data == 5
+  assert grp.pin_actions == "DDD"
+  assert grp.verify() is None
+  assert grp.pin_actions == "VVV"
+
+  assert grp.verify(0) is None
+  assert grp.data == 0
+  assert grp.pin_actions == "VVV"
+
+
+def test_pins_in_subblocks():
+  # We should have pins at the DUT level, but not in any subblocks.
+  assert len(origen.dut.pins) == 4
   assert len(origen.dut.sub_blocks["core1"].pins) == 0
-  assert origen.dut.sub_blocks["core1"].add_pin("test_pin_core1")
+
+  # Add a pin at the subblock. Check it was added and has the correct path.
+  assert origen.dut.sub_blocks["core1"].add_pin("p1")
   assert len(origen.dut.sub_blocks["core1"].pins) == 1
-  p = origen.dut.sub_blocks["core1"].pin("test_pin_core1")
+  p = origen.dut.sub_blocks["core1"].pin("p1")
+  is_pin_group(p)
   assert p._path == "core1"
-  assert len(origen.dut.pins) == 2
 
-  # Add a pin alias
-  p = origen.dut.pin('test_pin')
-  #p.add_alias('test_alias')
-  origen.dut.add_pin_alias('test_pin', 'test_alias1')
-  alias_p = origen.dut.pin('test_alias1')
-  assert alias_p.id == p.id
-  assert len(origen.dut.pins) == 2
+  # Add another pin
+  assert origen.dut.sub_blocks["core1"].add_pin("_p1")
+  assert len(origen.dut.sub_blocks["core1"].pins) == 2
+  _p = origen.dut.sub_blocks["core1"].pin("_p1")
+  is_pin_group(_p)
+  assert _p._path == "core1"
 
-  # Add multiple aliases at once.
-  origen.dut.add_pin_alias('test_pin', 'test_alias2', 'test_alias3')
-  assert len(origen.dut.pins) == 2
-  assert origen.dut.pin('test_alias2').id == 'test_pin'
-  assert origen.dut.pin('test_alias3').id == 'test_pin'
+  # Verify the pins at origen.dut are unchanged.
+  assert len(origen.dut.pins) == 4
+  assert origen.dut.pin("p1")._path == ""
+  assert origen.dut.pin("_p1") is None
 
-  # Error conditions related to aliasing
-  with pytest.raises(OSError):
-    # Pin doesn't exists
-    origen.dut.add_pin_alias("blah", "test_blah")
-  with pytest.raises(OSError):
-    # alias already exists as a pin
-    origen.dut.add_pin_alias("test_pin", "test_pin")
-  with pytest.raises(OSError):
-    # Alias already exists
-    origen.dut.add_pin_alias("test_pin", "test_alias1")
-  with pytest.raises(OSError):
-    # Ensure we cannot add a pin whose id conflicts with an existing alias.
-    origen.dut.add_pin("test_alias1")
+def test_adding_aliases():
+  origen.dut.add_pin_alias("p1", "a1")
+  assert len(origen.dut.pins) == 5
+  assert len(origen.dut.physical_pins) == 3
+  assert "a1" in origen.dut.pins
+  a1 = origen.dut.pin("a1")
+  is_pin_group(a1)
+  assert len(a1) == 1
+  assert a1.pin_ids == ["p1"]
 
-  # Check some of the dict-like API
-  assert "test_pin" in origen.dut.pins
-  assert "test_alias1" in origen.dut.pins
+def test_driving_an_alias():
+  a1 = origen.dut.pin("a1")
+  p1 = origen.dut.pin("p1")
+  assert a1.drive(1) is None
+  assert a1.data == 1
+  assert a1.pin_actions == "D"
+  assert p1.data == 1
+  assert p1.pin_actions == "D"
+
+  assert a1.verify(0) is None
+  assert a1.data == 0
+  assert a1.pin_actions == "V"
+  assert p1.data == 0
+  assert p1.pin_actions == "V"
+
+def test_adding_multiple_aliases():
+  origen.dut.add_pin_alias("p1", "a1_a", "a1_b", "a1_c")
+  check_alias("p1", "a1_a")
+  check_alias("p1", "a1_b")
+  check_alias("p1", "a1_c")
+
+def test_exception_on_duplicate_aliases():
+  with pytest.raises(OSError):
+    origen.dut.add_pin_alias("p1", "a1")
+
+def test_exception_when_aliasing_missing_pin():
+  with pytest.raises(OSError):
+    origen.dut.add_pin_alias("blah", "alias_blah")
+
+def test_aliasing_an_alias():
+  origen.dut.add_pin_alias("a1", "_a1")
+  assert "_a1" in origen.dut.pins
+  assert origen.dut.pins["_a1"].pin_ids == ["p1"]
+
+def test_exception_on_grouping_the_same_pin():
+  with pytest.raises(OSError):
+    origen.dut.group_pins("test_grouping_the_same_pin", "p1", "p1", "p1")
+
+def test_exception_on_grouping_aliases_of_the_same_pin():
+  with pytest.raises(OSError):
+    origen.dut.group_pins("test_grouping_aliases_of_same_pin", "p2", "p3", "a1_a", "a1_b", "a1_c")
+
+def test_collecting_pins():
+  n = len(origen.dut.pins)
+  # Create an anonymous pin group (pin collection)
+  c = origen.dut.pins.collect("p1", "p2")
+  assert len(origen.dut.pins) == n
+  is_pin_collection(c)
+
+def test_exception_on_collecting_missing_pins():
+  with pytest.raises(OSError):
+    origen.dut.pins.collect("p1", "p2", "blah")
+
+def test_exception_on_collecting_duplicate_pins():
+  with pytest.raises(OSError):
+    origen.dut.pins.collect("p1", "p1", "p1")
+  with pytest.raises(OSError):
+    origen.dut.pins.collect("p1", "a1")
+  with pytest.raises(OSError):
+    origen.dut.pins.collect("a1_a", "a1_b", "a1_c")
+
+def test_pin_collection_initial_state():
+  origen.dut.pin("p1").drive(1)
+  origen.dut.pin("p2").drive(0)
+  origen.dut.pin("p3").drive(1)
+
+  c = origen.dut.pins.collect("p1", "p2", "p3")
+  is_pin_collection(c)
+  assert c.data == 0x5
+  assert c.pin_actions == "DDD"
+
+def test_pin_collection_getting_and_setting_data():
+  c = origen.dut.pins.collect("p1", "p2", "p3")
+  c.data = 0x7
+  assert c.data == 0x7
+  assert origen.dut.physical_pin("p1").data == 1
+  assert origen.dut.physical_pin("p2").data == 1
+  assert origen.dut.physical_pin("p3").data == 1
+
+  c.set(0x1)
+  assert c.data == 0x1
+  assert origen.dut.physical_pin("p1").data == 1
+  assert origen.dut.physical_pin("p2").data == 0
+  assert origen.dut.physical_pin("p3").data == 0
+
+  with pytest.raises(OSError):
+    c.data = 8
+  assert c.data == 0x1
+
+def test_pin_collectino_getting_and_setting_actions():
+  c = origen.dut.pins.collect("p1", "p2", "p3")
+  c.verify()
+  assert c.pin_actions == "VVV"
+  assert origen.dut.physical_pin("p1").action == "Verify"
+  assert origen.dut.physical_pin("p2").action == "Verify"
+  assert origen.dut.physical_pin("p3").action == "Verify"
+
+  c.highz()
+  assert c.pin_actions == "ZZZ"
+  assert origen.dut.physical_pin("p1").action == "HighZ"
+  assert origen.dut.physical_pin("p2").action == "HighZ"
+  assert origen.dut.physical_pin("p3").action == "HighZ"
+
+def test_pins_dict_like_api():
+  # Check '__contains__'
+  assert "p1" in origen.dut.pins
+
+  # Check '__getitem__' (indexing)
+  assert origen.dut.pins["p1"].id == "p1"
+
+  # Check 'keys()'
   keys = origen.dut.pins.keys()
+  assert isinstance(keys, list)
+  assert {'a1_c', 'a1', 'a1_b', 'grp', 'p1', 'p2', '_a1', 'p3', 'a1_a'} == set(keys)
+
+  # Check 'values()'
   values = origen.dut.pins.values()
-  assert set(keys) == set(['test_pin', 'other_pin'])
-  assert len(values) == 2
-  assert isinstance(values[0], _origen.dut.pins.Pin)
+  assert len(values) == 9
+  assert isinstance(values[0], _origen.dut.pins.PinGroup)
   for id in origen.dut.pins:
     assert id in keys
-  d = dict(origen.dut.pins)
-  assert isinstance(d, dict)
-  assert isinstance(d["test_pin"], _origen.dut.pins.Pin)
-  assert isinstance(d["other_pin"], _origen.dut.pins.Pin)
-  assert len(d) == 2
+
+  # Check 'items()'
   for n, p in origen.dut.pins.items():
     assert isinstance(n, str)
-    assert isinstance(p, _origen.dut.pins.Pin)
+    is_pin_group(p)
 
-  # Check initial state of pin groups
-  assert isinstance(origen.dut.pin_groups, _origen.dut.pins.PinGroupContainer)
-  assert len(origen.dut.pin_groups) == 0
-  assert origen.dut.pin_group('test_grp') is None
-  with pytest.raises(KeyError):
-    origen.dut.pin_groups['test_grp']
+  # Check __len__
+  assert len(origen.dut.pins) == 9
 
-  # Add a pin group.
-  grp = origen.dut.group_pins("test_grp", "test_pin", "other_pin")
-  assert isinstance(grp, _origen.dut.pins.PinGroup)
+  # Check 'to_dict' conversion
+  d = dict(origen.dut.pins)
+  assert isinstance(d, dict)
+  assert isinstance(d["p1"], _origen.dut.pins.PinGroup)
+  assert isinstance(d["p2"], _origen.dut.pins.PinGroup)
+  assert len(d) == 9
 
-  assert len(origen.dut.pin_groups) == 1
-  assert 'test_grp' in origen.dut.pin_groups
-  assert isinstance(origen.dut.pin_group('test_grp'), _origen.dut.pins.PinGroup)
-  assert isinstance(origen.dut.pin_groups['test_grp'], _origen.dut.pins.PinGroup)
+def test_physical_pins_dict_like_api():
+  # check __contains__
+  assert "p1" in origen.dut.physical_pins
 
-  origen.dut.group_pins("test_grp2", "test_alias", "other_pin")
-  assert len(origen.dut.pin_groups) == 2
-  assert 'test_grp' in origen.dut.pin_groups
-  assert isinstance(origen.dut.pin_group('test_grp2'), _origen.dut.pins.PinGroup)
+  # check __len__
+  assert len(origen.dut.physical_pins) == 3
 
-  # Add a pin group alias
-  # origen.dut.add_pin_group_alias("test_grp", "alias")
-  # assert len(origen.dut.pin_groups) == 2
-  # assert 'alias' in origen.dut.pin_groups
-  # assert isinstance(origen.dut.pin_group('alias'), _origen.dut.pins.PinGroup)
-  # assert isinstance(origen.dut.pin_groups['alias'], _origen.dut.pins.PinGroup)
+  # Check '__getitem__' (indexing)
+  pin = origen.dut.physical_pins["p1"]
+  is_pin(pin)
 
-  # Check the pin group
-  assert grp.id == "test_grp"
-  assert grp._path == ""
-  assert len(grp) == 2
-  assert grp.pin_ids == ['test_pin', 'other_pin']
-  assert grp.big_endian == False
-  assert grp.little_endian == True
-  assert 'test_pin' in grp
-  assert 'blah' not in grp
-  ids = ['test_pin', 'other_pin']
-  # for i, pin in enumerate(grp):
-  #   assert isinstance(pin, _origen.dut.pins.Pin)
-  #   assert pin.id == id[i]
-  assert grp.data == 0
-  grp.data = 1
-  assert grp.data == 1
+  pin_ids = ["p1", "p2", "p3"]
+  # Check keys()
+  assert set(origen.dut.physical_pins.keys()) == set(pin_ids)
 
-  # Test setting actions
-  assert grp.pin_actions == "ZZ"
-  assert origen.dut.pins["test_pin"].action == "HighZ"
-  assert origen.dut.pins["other_pin"].action == "HighZ"
+  # Check values()
+  for v in origen.dut.physical_pins.values():
+    is_pin(v)
+    assert v.id in pin_ids
 
-  grp.drive()
-  assert grp.pin_actions == "DD"
-  assert origen.dut.pins["test_pin"].action == "Drive"
-  assert origen.dut.pins["other_pin"].action == "Drive"
+  # Check items()
+  for n, p in origen.dut.physical_pins.items():
+    assert isinstance(n, str)
+    is_pin(p)
 
-  grp.verify()
-  assert grp.pin_actions == "VV"
-  assert origen.dut.pins["test_pin"].action == "Verify"
-  assert origen.dut.pins["other_pin"].action == "Verify"
+  # Check iterating
+  for id in origen.dut.physical_pins:
+    assert id in pin_ids
 
-  grp.capture()
-  assert grp.pin_actions == "CC"
-  assert origen.dut.pins["test_pin"].action == "Capture"
-  assert origen.dut.pins["other_pin"].action == "Capture"
+  # Check 'to_dict' conversion
+  d = dict(origen.dut.physical_pins)
+  assert isinstance(d, dict)
+  assert len(d) == 3
+  assert isinstance(d["p1"], _origen.dut.pins.Pin)
+  assert isinstance(d["p2"], _origen.dut.pins.Pin)
 
-  grp.highz()
-  assert grp.pin_actions == "ZZ"
-  assert origen.dut.pins["test_pin"].action == "HighZ"
-  assert origen.dut.pins["other_pin"].action == "HighZ"
+def test_pin_group_list_like_api():
+  grp = origen.dut.pin("grp")
 
-  origen.dut.pins["test_pin"].capture()
-  origen.dut.pins["other_pin"].verify()
-  assert grp.pin_actions == "CV"
+  # Check '__contains__'
+  assert "p1" in grp
 
-  # Create an anonymous pin group (pin collection)
-  collection = origen.dut.pins.collect("test_pin", "other_pin")
-  assert isinstance(collection, _origen.dut.pins.PinCollection)
-  assert len(collection) == 2
-  assert collection.ids == ["test_pin", "other_pin"]
-  collection.data = 0b10
-  assert collection.data == 0b10
-  collection.drive()
-  assert collection.pin_actions == "DD"
-  collection.verify()
-  assert collection.pin_actions == "VV"
-  collection.capture()
-  assert collection.pin_actions == "CC"
-  collection.highz()
-  assert collection.pin_actions == "ZZ"
+  # Check '__getitem__' (indexing)
+  is_pin_collection(grp[0])
+  assert grp[0].ids == ["p1"]
+
+  # Check __len__
+  assert len(grp) == 3
+
+  # Check iterating
+  # Note: Unlike the dictionary, this is ordered.
+  ids = [["p1"], ["p2"], ["p3"]]
+  for i, id in enumerate(grp):
+    is_pin_collection(id)
+    assert id.ids == ids[i]
+
+  # Check 'to_list'
+  as_list = list(grp)
+  assert isinstance(as_list, list)
+  for i, item in enumerate(as_list):
+    is_pin_collection(item)
+    assert item.ids == ids[i]
+
+def test_pin_collection_from_pin_group():
+  origen.dut.add_pin("p0")
+  origen.dut.group_pins("p", "p0", "p1", "p2", "p3")
+  grp = origen.dut.pins["p"]
+
+  assert grp[0].ids == ["p0"]
+  assert grp[1].ids == ["p1"]
+  assert grp[0:1].ids == ["p0", "p1"]
+  assert grp[1:3:2].ids == ["p1", "p3"]
+
+def test_pin_collection_list_like_api():
+  c = origen.dut.pins.collect("p0", "p1", "p2", "p3")
+  is_pin_collection(c)
+  
+  # Check __contains__
+  assert "p0" in c
+  assert "p3" in c
+
+  # Check __getitem__ (indexing)
+  assert c[0].ids == ["p0"]
+  assert c[1].ids == ["p1"]
+
+  # Check Slicing
+  assert c[0:1].ids == ["p0", "p1"]
+  assert c[1:3:2].ids == ["p1", "p3"]
+
+  # Check __len__
+  assert len(c) == 4
+
+  # Check iterating
+  ids = ["p0", "p1", "p2", "p3"]
+  for i, _c in enumerate(c):
+    is_pin_collection(_c)
+    _c.ids == list(ids[i])
+
+def test_exception_on_out_of_bounds_indexing():
+  # Covers both pin collection and pin groups
+  grp = origen.dut.pin("grp")
+  with pytest.raises(OSError):
+    grp[100]
+  with pytest.raises(OSError):
+    grp[0:100]
+
+  c = origen.dut.pins.collect("p1", "p2", "p3")
+  with pytest.raises(OSError):
+    c[100]
+  with pytest.raises(OSError):
+    c[0:100]
+
+# def test_in_progress_pin_api():
+  # !!!
+  # Experimental Stuff. Still in progress.
+  # Consider this non-official API experimentation.
+  # !!!
 
   # with pytest.raises(OSError):
   #   # Pin group with missing pin
@@ -251,14 +515,3 @@ def test_pin_api():
   
   # Add pin group, with an offset. This should add portb1 - portb5
   #portb = origen.dut.add_pins("portb", 4, offset=1)
-
-  origen.dut.add_pin("p0")
-  origen.dut.add_pin("p1")
-  origen.dut.add_pin("p2")
-  origen.dut.add_pin("p3")
-  origen.dut.group_pins("p", "p0", "p1", "p2", "p3")
-  grp = origen.dut.pin_groups["p"]
-  assert grp[0] == "p0"
-  assert grp[1] == "p1"
-  assert grp[0:1] == ["p0", "p1"]
-  assert grp[1:3:2] == ["p1", "p3"]

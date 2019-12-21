@@ -27,10 +27,8 @@ pub struct Model {
     /// All registers owned by this model are arranged within memory maps
     pub memory_maps: HashMap<String, MemoryMap>,
     // Pins
-    pub pins: HashMap<String, Pin>,
-    pub pin_groups: HashMap<String, PinGroup>,
-    pub pin_aliases: HashMap<String, String>,
-    pub pin_group_aliases: HashMap<String, String>,
+    pub physical_pins: HashMap<String, Pin>,
+    pub pins: HashMap<String, PinGroup>,
     // Levels
     // Timing
     // Specs
@@ -51,10 +49,8 @@ impl Model {
             display_path: p,
             sub_blocks: HashMap::new(),
             memory_maps: HashMap::new(),
+            physical_pins: HashMap::new(),
             pins: HashMap::new(),
-            pin_groups: HashMap::new(),
-            pin_aliases: HashMap::new(),
-            pin_group_aliases: HashMap::new(),
         }
     }
 

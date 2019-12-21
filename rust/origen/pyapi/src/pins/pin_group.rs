@@ -3,6 +3,7 @@ use origen::error::Error;
 use pyo3::prelude::*;
 use pyo3::{exceptions, PyErr};
 use super::pin::Pin;
+use super::pin_collection::PinCollection;
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes, PySlice};
 
@@ -19,7 +20,7 @@ impl PinGroup {
     fn get_id(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let grp = model.pin_group(&self.id);
+        let grp = model.pin(&self.id);
         match grp {
             Some(_grp) => {
                 Ok(_grp.id.clone())
@@ -53,7 +54,7 @@ impl PinGroup {
     fn get_pin_ids(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let grp = model.pin_group(&self.id);
+        let grp = model.pin(&self.id);
 
         let mut v: Vec<String> = Vec::new();
         match grp {
@@ -73,7 +74,7 @@ impl PinGroup {
     fn get_pins(&self) -> PyResult<Vec<Py<Pin>>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let grp = model.pin_group(&self.id);
+        let grp = model.pin(&self.id);
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -98,7 +99,7 @@ impl PinGroup {
     fn get_pin_actions(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        Ok(model.get_pin_actions_for_group(&self.id))
+        Ok(model.get_pin_actions_for_group(&self.id)?)
     }
 
     fn drive(&self, data: Option<u32>) -> PyResult<()> {
@@ -125,6 +126,14 @@ impl PinGroup {
       Ok(model.highz_pin_group(&self.id, Option::None)?)
     }
 
+    #[getter]
+    fn get_physical_ids(&self) -> PyResult<Vec<String>> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      let ids = model.resolve_pin_group_ids(&self.id)?;
+      Ok(ids.clone())
+   }
+
     // Debug helper: Get the id held by this instance.
     #[allow(non_snake_case)]
     #[getter]
@@ -149,7 +158,7 @@ impl PinGroup {
     fn get_little_endian(&self) -> PyResult<bool> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let grp = model.pin_group(&self.id);
+        let grp = model.pin(&self.id);
 
         match grp {
             Some(_grp) => {
@@ -168,7 +177,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinGroup {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let grp = model.pin_group(&self.id);
+        let grp = model.pin(&self.id);
         match grp {
             Some(_grp) => {
                 Ok(_grp.len())
@@ -181,7 +190,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinGroup {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        Ok(model.pin_group_contains_pin(&self.id, item))
+        Ok(model.pin_group_contains(&self.id, item)?)
     }
 }
 
@@ -191,23 +200,59 @@ impl<'p> pyo3::class::PyMappingProtocol<'p> for PinGroup {
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let grp = model.pin_group(&self.id).unwrap();
 
         let gil = Python::acquire_gil();
         let py = gil.python();
         if let Ok(slice) = idx.cast_as::<PySlice>() {
-          let mut v: Vec<String> = vec!();
-
-          // Indices requires (what I think is) a max size. Limiting to 1024 right now. Should be plenty.
-          let indices = slice.indices(1024)?;
-          for i in (indices.start..=indices.stop).step_by(indices.step as usize) {
-            let p = grp.pin_ids[i as usize].clone();
-            v.push(p);
-          }
-          Ok(v.to_object(py))
+          // Indices requires (what I think is) a max size. Should be plenty.
+          let indices = slice.indices(8192)?;
+          let collection = model.slice_pin_group(&self.id, indices.start as usize, indices.stop as usize, indices.step as usize)?;
+          Ok(Py::new(py, PinCollection::from(collection)).unwrap().to_object(py))
         } else {
           let i = idx.extract::<isize>().unwrap();
-          Ok(grp.pin_ids[i as usize].clone().to_object(py))
+          let collection = model.slice_pin_group(&self.id, i as usize, i as usize, 1)?;
+          Ok(Py::new(py, PinCollection::from(collection)).unwrap().to_object(py))
         }
+      }
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for PinGroup {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinGroupIter> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(&slf.path)?;
+        let grp = model.pin(&slf.id).unwrap();
+
+        Ok(PinGroupIter {
+            keys: grp.pin_ids.clone(),
+            i: 0,
+            path: slf.path.clone(),
+        })
     }
+}
+
+#[pyclass]
+pub struct PinGroupIter {
+  keys: Vec<String>,
+  i: usize,
+  path: String,
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for PinGroupIter {
+  fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(slf.to_object(py))
+  }
+
+  fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PinCollection>> {
+    if slf.i >= slf.keys.len() {
+        return Ok(None)
+    }
+    let id = slf.keys[slf.i].clone();
+    let collection = PinCollection::new(&(slf.path.as_str()), vec!(id))?;
+    slf.i += 1;
+    Ok(Some(collection))
+  }
 }

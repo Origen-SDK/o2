@@ -6,13 +6,13 @@ use pyo3::prelude::*;
 #[macro_use] mod pin_group;
 #[macro_use] mod pin_collection;
 mod pin_container;
-mod pin_group_container;
+mod physical_pin_container;
 
 use pin::{Pin};
 use pin_group::PinGroup;
 use pin_container::PinContainer;
-use pin_group_container::PinGroupContainer;
 use pin_collection::PinCollection;
+use physical_pin_container::PhysicalPinContainer;
 
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
@@ -23,7 +23,6 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Pin>()?;
     m.add_class::<PinContainer>()?;
     m.add_class::<PinGroup>()?;
-    m.add_class::<PinGroupContainer>()?;
     m.add_class::<PinCollection>()?;
     Ok(())
 }
@@ -40,7 +39,10 @@ impl PyDUT {
         let p = model.pin(id);
         match p {
             Some(_p) => {
-                Ok(pypin!(py, id, path).to_object(py))
+                Ok(Py::new(py, PinGroup {
+                    id: String::from(id),
+                    path: String::from(path),
+                }).unwrap().to_object(py))
             },
             None => Ok(py.None())
         }
@@ -55,7 +57,10 @@ impl PyDUT {
         let p = model.pin(id);
         match p {
             Some(_p) => {
-                Ok(pypin!(py, id, path).to_object(py))
+                Ok(Py::new(py, PinGroup {
+                    id: String::from(id),
+                    path: String::from(path),
+                }).unwrap().to_object(py))
             },
             None => Ok(py.None())
         }
@@ -87,12 +92,11 @@ impl PyDUT {
     fn group_pins(&self, path: &str, id: &str, pins: &PyTuple) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(path)?;
-
         model.group_pins(id, path, pins.extract()?)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin_group(id);
+        let p = model.pin(id);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -104,36 +108,31 @@ impl PyDUT {
         }
     }
 
-    fn pin_group(&self, path: &str, id: &str) -> PyResult<PyObject> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(path)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let p = model.pin_group(id);
-        match p {
-            Some(_p) => {
-                Ok(Py::new(py, PinGroup {
-                    id: String::from(id),
-                    path: String::from(path),
-                }).unwrap().to_object(py))
-            },
-            None => Ok(py.None())
-        }
-    }
-
-    //#[args(aliases = "*")]
-    //fn add_pin_group_alias(&self, path: &str, id: &str, aliases: &PyTuple) -> PyResult<()> {
-    //    Ok(())
-    //}
-
-    fn pin_groups(&self, path: &str) ->PyResult<Py<PinGroupContainer>> {
-        // even though we won't use the model, make sure the DUT exists and the path is reachable.
+    fn physical_pins(&self, path: &str) -> PyResult<Py<PhysicalPinContainer>> {
+        // Even though we won't use the model, make sure the DUT exists and the path is reachable.
         let mut dut = DUT.lock().unwrap();
         let _model = dut.get_mut_model(path)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(py, PinGroupContainer {path: String::from(path)}).unwrap())
+        Ok(Py::new(py, PhysicalPinContainer {path: String::from(path)}).unwrap())
+    }
+
+    fn physical_pin(&self, path: &str, id: &str) -> PyResult<PyObject> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(path)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let p = model.physical_pin(id);
+        match p {
+            Some(_p) => {
+                Ok(Py::new(py, Pin {
+                    id: String::from(id),
+                    path: String::from(path),
+                }).unwrap().to_object(py))
+            },
+            None => Ok(py.None())
+        }
     }
 }

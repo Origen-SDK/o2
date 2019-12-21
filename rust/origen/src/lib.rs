@@ -41,6 +41,16 @@ pub mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+#[macro_export]
+macro_rules! lock {
+    () => {
+        match DUT.lock() {
+            Ok(dut) => Ok(dut),
+            Err(e) => Err(origen::error::Error::new(&format!("Could not attain DUT lock!"))),
+        }
+    }
+}
+
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
 pub fn clean_mode(name: &str) -> String {
     let mut matches: Vec<String> = Vec::new();

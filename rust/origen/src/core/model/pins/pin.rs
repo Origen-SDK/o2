@@ -82,7 +82,7 @@ pub struct Pin {
     // Taking the speed over size here: this'll allow for quick lookups and indexing from pins into the pin group, but will
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
     // lookup boost.
-    pub memberships: HashMap<String, i32>,
+    pub groups: HashMap<String, usize>,
 }
 
 impl Pin {
@@ -129,7 +129,7 @@ impl Pin {
             action: PinActions::HighZ,
             initial: (PinActions::HighZ, false),
             aliases: Vec::new(),
-            memberships: HashMap::new(),
+            groups: HashMap::new(),
             role: PinRoles::Standard,
             meta: HashMap::new(),
         };
@@ -145,7 +145,7 @@ impl Default for Pin {
             action: PinActions::HighZ,
             initial: (PinActions::HighZ, false),
             aliases: Vec::new(),
-            memberships: HashMap::new(),
+            groups: HashMap::new(),
             role: PinRoles::Standard,
             meta: HashMap::new(),
         };

@@ -4,21 +4,19 @@ use pyo3::{exceptions};
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
 use pyo3::class::mapping::*;
-
-use super::pin_group::PinGroup;
-use super::pin_collection::PinCollection;
+use super::pin::Pin;
 
 #[pyclass]
-pub struct PinContainer {
+pub struct PhysicalPinContainer {
     pub path: String,
 }
 
 #[pymethods]
-impl PinContainer {
+impl PhysicalPinContainer {
     fn keys(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let ids = &model.pins;
+        let ids = &model.physical_pins;
 
         let mut v: Vec<String> = Vec::new();
         for (n, _p) in ids {
@@ -27,16 +25,16 @@ impl PinContainer {
         Ok(v)
     }
 
-    fn values(&self) -> PyResult<Vec<Py<PinGroup>>> {
+    fn values(&self) -> PyResult<Vec<Py<Pin>>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let pins = &model.pins;
+        let physical_pins = &model.physical_pins;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let mut v: Vec<Py<PinGroup>> = Vec::new();
-        for (n, _p) in pins {
-            v.push(Py::new(py, PinGroup {
+        let mut v: Vec<Py<Pin>> = Vec::new();
+        for (n, _p) in physical_pins {
+            v.push(Py::new(py, Pin {
                 id: String::from(n.clone()),
                 path: String::from(self.path.clone()),
             }).unwrap())
@@ -44,18 +42,18 @@ impl PinContainer {
         Ok(v)
     } 
 
-    fn items(&self) -> PyResult<Vec<(String, Py<PinGroup>)>> {
+    fn items(&self) -> PyResult<Vec<(String, Py<Pin>)>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        let pins = &model.pins;
+        let pins = &model.physical_pins;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let mut items: Vec<(String, Py<PinGroup>)> = Vec::new();
+        let mut items: Vec<(String, Py<Pin>)> = Vec::new();
         for (n, _p) in pins {
             items.push((
                 n.clone(),
-                Py::new(py, PinGroup {
+                Py::new(py, Pin {
                     id: String::from(n.clone()),
                     path: String::from(self.path.clone()),
                 }).unwrap(),
@@ -63,29 +61,20 @@ impl PinContainer {
         }
         Ok(items)
     }
-
-    #[args(ids = "*")]
-    fn collect(&self, ids: Vec<String>) -> PyResult<Py<PinCollection>> {
-      let gil = Python::acquire_gil();
-      let py = gil.python();
-      let collection = PinCollection::new(&self.path, ids)?;
-      let c = Py::new(py, collection).unwrap();
-      Ok(c)
-  }
 }
 
 #[pyproto]
-impl PyMappingProtocol for PinContainer {
-    fn __getitem__(&self, id: &str) -> PyResult<Py<PinGroup>> {
+impl PyMappingProtocol for PhysicalPinContainer {
+    fn __getitem__(&self, id: &str) -> PyResult<Py<Pin>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.physical_pin(id);
         match p {
             Some(_p) => {
-                Ok(Py::new(py, PinGroup {
+                Ok(Py::new(py, Pin {
                   id: String::from(id),
                   path: String::from(&self.path),
               }).unwrap())
@@ -98,39 +87,39 @@ impl PyMappingProtocol for PinContainer {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        Ok(model.number_of_ids())
+        Ok(model.number_of_physical_pins())
     }
 }
 
 #[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinContainerIter> {
+impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainer {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PhysicalPinContainerIter> {
         let dut = DUT.lock().unwrap();
         let model = dut.get_model(&slf.path)?;
-        Ok(PinContainerIter {
-            keys: model.pins.iter().map(|(s, _)| s.clone()).collect(),
+        Ok(PhysicalPinContainerIter {
+            keys: model.physical_pins.iter().map(|(s, _)| s.clone()).collect(),
             i: 0,
         })
     }
 }
 
 #[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for PinContainer {
+impl pyo3::class::sequence::PySequenceProtocol for PhysicalPinContainer {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        Ok(model.contains(item))
+        Ok(model._contains(item))
     }
 }
 
 #[pyclass]
-pub struct PinContainerIter {
+pub struct PhysicalPinContainerIter {
     keys: Vec<String>,
     i: usize,
 }
 
 #[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinContainerIter {
+impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainerIter {
 
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
