@@ -40,10 +40,17 @@ class Loader:
         yield self
         self.memory_map = None
 
+    @contextmanager
+    def AddressBlock(self, id):
+        self.address_block = id
+        yield self
+        self.address_block = None
+
     # Defines the methods that are accessible within blocks/<block>/registers.py
     def api(self):
         return {
             "Reg": self.Reg, 
             "SimpleReg": self.SimpleReg, 
             "MemoryMap": self.MemoryMap, 
+            "AddressBlock": self.AddressBlock, 
         }

@@ -213,14 +213,12 @@ impl MemoryMap {}
 #[pyproto]
 impl PyObjectProtocol for MemoryMap {
     fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
-        //let dut = DUT.lock().unwrap();
-        //let model = dut.get_model(&self.model_path)?;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
 
         // Calling .regs on an individual memory map returns the regs in its default
         // address block (the one named 'default')
         if query == "regs" {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
             let pyref = PyRef::new(
                 py,
                 Registers {
@@ -232,10 +230,27 @@ impl PyObjectProtocol for MemoryMap {
             )?;
             Ok(pyref.to_object(py))
         } else {
-            Err(AttributeError::py_err(format!(
-                "'MemoryMap' object has no attribute '{}'",
-                query
-            )))
+            //let dut = DUT.lock().unwrap();
+            //let model = dut.get_model(&self.model_path)?;
+            //let map = model.memory_maps.get(&self.id).unwrap();
+
+            //if map.address_blocks.contains_key(query) {
+            //    let pyref = PyRef::new(
+            //        py,
+            //        AddressBlock {
+            //            model_path: self.model_path.to_string(),
+            //            memory_map: self.id.to_string(),
+            //            id: query.to_string(),
+            //            i: 0,
+            //        },
+            //    )?;
+            //    Ok(pyref.to_object(py))
+            //} else {
+                Err(AttributeError::py_err(format!(
+                    "'MemoryMap' object has no attribute '{}'",
+                    query
+                )))
+            //}
         }
     }
 

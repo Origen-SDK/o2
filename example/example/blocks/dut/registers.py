@@ -29,5 +29,11 @@ with MemoryMap("user"):
         reg.bit([4,0], "adch", reset=0x1F)
 
 
-
 # Finally regs can be added to a full declared scope like this:
+with MemoryMap("test"):
+    with AddressBlock("bank0"):
+        # Test that reg names can be reused when scoped within a different map
+        SimpleReg("reg1", 0)
+
+        with Reg("reg2", 0x0024, size=16) as reg:
+            reg.bit([4,0], "adch", reset=0x1F)
