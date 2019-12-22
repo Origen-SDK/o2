@@ -25,22 +25,21 @@ impl PyDUT {
     }
 
     /// Creates a new model at the given path
-    fn create_sub_block(&self, path: &str, id: &str) -> PyResult<()> {
-        Ok(DUT.lock().unwrap().create_sub_block(path, id)?)
+    fn create_sub_block(&self, parent_id: usize, name: &str) -> PyResult<usize> {
+        Ok(DUT.lock().unwrap().create_sub_block(parent_id, name)?)
     }
 
     fn create_reg(
         &self,
-        path: &str,
-        memory_map: Option<&str>,
-        address_block: Option<&str>,
-        id: &str,
+        address_block_id: usize,
+        name: &str,
         offset: u32,
         size: Option<u32>,
-    ) -> PyResult<()> {
+    ) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
-        Ok(dut
-            .get_mut_model(path)?
-            .create_reg(memory_map, address_block, id, offset, size)?)
+        Ok(DUT
+            .lock()
+            .unwrap()
+            .create_reg(address_block_id, name, offset, size)?)
     }
 }

@@ -10,21 +10,22 @@ use pyo3::prelude::*;
 /// dut[.sub_block].memory_maps
 #[pymethods]
 impl PyDUT {
-    fn memory_maps(&self, path: &str) -> PyResult<MemoryMaps> {
-        // Verify the model exists, though we don't need it for now
-        DUT.lock().unwrap().get_model(path)?;
+    fn memory_maps(&self, model_id: usize) -> PyResult<MemoryMaps> {
         Ok(MemoryMaps {
-            model_path: path.to_string(),
+            model_id: model_id,
             i: 0,
         })
     }
 
-    fn memory_map(&self, path: &str, id: &str) -> PyResult<MemoryMap> {
-        // Verify the model exists, though we don't need it for now
-        DUT.lock().unwrap().get_model(path)?;
+    fn memory_map(&self, model_id: usize, name: &str) -> PyResult<MemoryMap> {
+        let id = DUT
+            .lock()
+            .unwrap()
+            .get_model(model_id)?
+            .get_memory_map_id(name)?;
         Ok(MemoryMap {
-            model_path: path.to_string(),
-            id: id.to_string(),
+            id: id,
+            name: name.to_string(),
         })
     }
 }
@@ -34,8 +35,8 @@ impl PyDUT {
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct MemoryMaps {
-    /// The path to the model which owns the contained memory maps
-    model_path: String,
+    /// The ID of the model which owns the contained memory maps
+    model_id: usize,
     /// Iterator index
     i: usize,
 }
@@ -197,10 +198,9 @@ impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
 #[pyclass]
 #[derive(Debug)]
 pub struct MemoryMap {
-    /// The path to the model which owns the contained memory maps
-    model_path: String,
+    id: usize,
     #[pyo3(get)]
-    id: String,
+    name: String,
 }
 
 /// User API methods, available to both Rust and Python
@@ -246,10 +246,10 @@ impl PyObjectProtocol for MemoryMap {
             //    )?;
             //    Ok(pyref.to_object(py))
             //} else {
-                Err(AttributeError::py_err(format!(
-                    "'MemoryMap' object has no attribute '{}'",
-                    query
-                )))
+            Err(AttributeError::py_err(format!(
+                "'MemoryMap' object has no attribute '{}'",
+                query
+            )))
             //}
         }
     }
