@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use crate::error::Error;
 
 /// List of supported pin actions.
@@ -36,6 +37,24 @@ impl PinActions {
             PinActions::Verify => 'V',
             PinActions::Capture => 'C',
             PinActions::HighZ => 'Z',
+        }
+    }
+}
+
+impl std::convert::TryFrom<u8> for PinActions {
+    type Error = crate::error::Error;
+    fn try_from(encoded_char: u8) -> Result<Self, Self::Error> {
+        let c = char::from(encoded_char);
+        match c {
+            'd' => Ok(PinActions::Drive),
+            'D' => Ok(PinActions::Drive),
+            'v' => Ok(PinActions::Verify),
+            'V' => Ok(PinActions::Verify),
+            'c' => Ok(PinActions::Capture),
+            'C' => Ok(PinActions::Capture),
+            'z' => Ok(PinActions::HighZ),
+            'Z' => Ok(PinActions::HighZ),
+            _ => Err(Error::new(&format!("Cannot derive PinActions enum from encoded character {}!", encoded_char))),
         }
     }
 }
@@ -121,7 +140,7 @@ impl Pin {
         }
     }
 
-    pub fn new(id: String, path: String) -> Pin {
+    pub fn new(id: String, path: String, reset_data: Option<u32>, reset_action: Option<PinActions>) -> Pin {
         return Pin {
             id: id,
             path: path,

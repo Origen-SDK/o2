@@ -64,6 +64,11 @@ impl PinContainer {
         Ok(items)
     }
 
+    #[getter]
+    fn get_ids(&self) -> PyResult<Vec<String>> {
+        self.keys()
+    }
+
     #[args(ids = "*")]
     fn collect(&self, ids: Vec<String>) -> PyResult<Py<PinCollection>> {
       let gil = Python::acquire_gil();

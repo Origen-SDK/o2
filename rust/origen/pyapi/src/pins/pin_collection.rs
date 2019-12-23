@@ -33,14 +33,36 @@ impl PinCollection {
     }
 
     #[setter]
-    fn set_data(&self, data: u32) -> PyResult<()> {
+    fn set_data(&self, data: u32) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
-        model.set_pin_data(&self.pin_collection.ids, data)?;
-        Ok(())
+        model.set_pin_collection_data(&self.pin_collection, data)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // I'm sure there's a better way to return self, but I wasn't able to get anything to work.
+        // Just copying self and returning that for now.
+        Ok(Py::new(py, PinCollection {
+          path: self.path.clone(),
+          pin_collection: self.pin_collection.clone(),
+        }).unwrap())
     }
 
-    fn set(&self, data: u32) -> PyResult<()> {
+    fn with_mask(&mut self, mask: usize) -> PyResult<Py<Self>> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(&self.path)?;
+        model.set_pin_collection_nonsticky_mask(&mut self.pin_collection, mask)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(py, PinCollection {
+          path: self.path.clone(),
+          pin_collection: self.pin_collection.clone(),
+        }).unwrap())
+    }
+
+    fn set(&self, data: u32) -> PyResult<Py<Self>> {
         return self.set_data(data);
     }
 
@@ -51,31 +73,31 @@ impl PinCollection {
       Ok(model.get_pin_actions(&self.pin_collection.ids)?)
     }
 
-    fn drive(&self, data: Option<u32>) -> PyResult<()> {
+    fn drive(&mut self, data: Option<u32>) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(&self.path)?;
-      model.drive_pins(&self.pin_collection.ids, data)?;
+      model.drive_pin_collection(&mut self.pin_collection, data)?;
       Ok(())
     }
 
-    fn verify(&self, data: Option<u32>) -> PyResult<()> {
+    fn verify(&mut self, data: Option<u32>) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(&self.path)?;
-      model.verify_pins(&self.pin_collection.ids, data)?;
+      model.verify_pin_collection(&mut self.pin_collection, data)?;
       Ok(())
     }
 
-    fn capture(&self) -> PyResult<()> {
+    fn capture(&mut self) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(&self.path)?;
-      model.capture_pins(&self.pin_collection.ids)?;
+      model.capture_pin_collection(&mut self.pin_collection)?;
       Ok(())
     }
 
-    fn highz(&self) -> PyResult<()> {
+    fn highz(&mut self) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(&self.path)?;
-      model.highz_pins(&self.pin_collection.ids)?;
+      model.highz_pin_collection(&mut self.pin_collection)?;
       Ok(())
     }
 

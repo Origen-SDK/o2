@@ -12,8 +12,8 @@ class Proxy:
   def physical_pins(self):
     return origen.dut.db.physical_pins(self.controller.path)
 
-  def add_pin(self, name):
-    return origen.dut.db.add_pin(self.controller.path, name)
+  def add_pin(self, name, **kwargs):
+    return origen.dut.db.add_pin(self.controller.path, name, **kwargs)
   
   def pin(self, name):
     return origen.dut.db.pin(self.controller.path, name)

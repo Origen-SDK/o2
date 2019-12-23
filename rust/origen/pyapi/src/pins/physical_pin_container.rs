@@ -61,6 +61,11 @@ impl PhysicalPinContainer {
         }
         Ok(items)
     }
+
+    #[getter]
+    fn get_ids(&self) -> PyResult<Vec<String>> {
+        self.keys()
+    }
 }
 
 #[pyproto]

@@ -495,20 +495,129 @@ def test_exception_on_out_of_bounds_indexing():
   with pytest.raises(OSError):
     c[0:100]
 
+# def test_pin_group_with_mask():
+#   ...
+
+# def test_pin_collection_with_mask():
+#   ...
+
+def test_chaining_method_calls_with_nonsticky_mask():
+  # This should set the data to 0x3, then drive the pins using mask 0x2.
+  # The mask should then be cleared.
+  c = origen.dut.pins.collect("p0", "p1")
+  c.data = 0x0
+  c.highz()
+  assert c.data == 0
+  assert c.pin_actions == "ZZ"
+
+  c.set(0x3).with_mask(0x2).drive()
+  assert c.data == 0x3
+  assert c.pin_actions == "DZ"
+
+  # This should set the data and action regardless of the mask being used previously.
+  c.data = 0x0
+  c.highz()
+  assert c.data == 0
+  assert c.pin_actions == "ZZ"
+
+  # This should set the data and pin action using the mask 0x1.
+  # The mask should then be cleared.
+  c.with_mask(0x1).set(0x3).verify()
+  assert c.data == 0x1
+  assert c.pin_actions == "ZV"
+
+  # This should set the data and action regardless of the mask being used previously.
+  c.data = 0x0
+  c.highz()
+  assert c.data == 0
+  assert c.pin_actions == "ZZ"
+
+# def test_chaining_method_calls_with_sticky_mask():
+#   ...
+
+### Get a clean DUT here ###
+
+def test_reseting_DUT():
+  origen.app.instantiate_dut("dut.falcon")
+  # Ensure the DUT was set and the pin container is available.
+  assert origen.dut
+  assert isinstance(origen.dut.pins, _origen.dut.pins.PinContainer)
+  assert len(origen.dut.pins) == 0
+  assert len(origen.dut.physical_pins) == 0
+
+def test_adding_multiple_pins():
+  # !!!
+  # This should add two physical pins and one pin group, containing both physical pins.
+  # !!!
+  porta = origen.dut.add_pin("porta", width=2)
+  is_pin_group(porta)
+  assert porta.id == "porta"
+  assert len(porta) == 2
+  assert len(origen.dut.physical_pins) == 2
+  assert len(origen.dut.pins) == 3
+  assert set(origen.dut.physical_pins.ids) == {"porta0", "porta1"}
+  assert set(origen.dut.pins.ids) == {"porta0", "porta1", "porta"}
+
+  # This should add four physical pins and one pin group, but the indexing should start a 1 instead of 0.
+  portb = origen.dut.add_pin("portb", width=4, offset=1)
+  is_pin_group(portb)
+  assert portb.id == "portb"
+  assert len(portb) == 4
+  assert len(origen.dut.physical_pins) == 6
+  assert len(origen.dut.pins) == 8
+  assert set(origen.dut.physical_pins.ids) == {"porta0", "porta1", "portb1", "portb2", "portb3", "portb4"}
+  assert set(origen.dut.pins.ids) == {"porta0", "porta1", "porta", "portb1", "portb2", "portb3", "portb4", "portb"}
+
+def test_adding_single_pins_with_width_and_offset():
+  # Corner case for adding single pins. Normally, you'd not use these options for a single one, but there's no reason why
+  # it should work any differently.
+  origen.dut.add_pin("portc", width=1, offset=1)
+  assert len(origen.dut.physical_pins) == 7
+  assert len(origen.dut.pins) == 10
+  assert "portc1" in origen.dut.physical_pins
+  assert "portc" in origen.dut.pins
+  assert "portc1" in origen.dut.pins
+
+  origen.dut.add_pin("portd", width=1)
+  assert len(origen.dut.physical_pins) == 8
+  assert len(origen.dut.pins) == 12
+  assert "portd0" in origen.dut.physical_pins
+  assert "portd" in origen.dut.pins
+  assert "portd0" in origen.dut.pins
+
+### Note: pyo3 will throw an overflow error on negative numbers.
+
+def test_exception_on_invalid_width():
+  assert len(origen.dut.physical_pins) == 8
+  assert len(origen.dut.pins) == 12
+  with pytest.raises(OSError):
+    origen.dut.add_pin("porte", width=0)
+  with pytest.raises(OverflowError):
+    origen.dut.add_pin("porte", width=-1)
+  assert len(origen.dut.physical_pins) == 8
+  assert len(origen.dut.pins) == 12
+
+def test_exception_on_invalid_offset():
+  assert len(origen.dut.physical_pins) == 8
+  assert len(origen.dut.pins) == 12
+  with pytest.raises(OverflowError):
+    origen.dut.add_pin("porte", width=1, offset=-1)
+  assert len(origen.dut.physical_pins) == 8
+  assert len(origen.dut.pins) == 12
+
+def test_exception_on_offset_without_width():
+  assert len(origen.dut.physical_pins) == 8
+  assert len(origen.dut.pins) == 12
+  with pytest.raises(OSError):
+    origen.dut.add_pin("porte", offset=1)
+  assert len(origen.dut.physical_pins) == 8
+  assert len(origen.dut.pins) == 12
+
 # def test_in_progress_pin_api():
   # !!!
   # Experimental Stuff. Still in progress.
   # Consider this non-official API experimentation.
   # !!!
-
-  # with pytest.raises(OSError):
-  #   # Pin group with missing pin
-  #   origen.dut.group_pins['error', 'test_pin', 'blah']
-  # with pytest.raises(OSError):
-  #   # Pin group where a pin and its alias are used.
-  #   origen.dut.group_pins['error', 'test_alias1', 'test_alias2']
-
-  # Error: Pin group where an alias is used.
 
   # Add pin group. This should add porta0 - porta7
   #porta = origen.dut.add_pins("porta", 8)

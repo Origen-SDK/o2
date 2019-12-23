@@ -13,6 +13,8 @@ use pin_group::PinGroup;
 use pin_container::PinContainer;
 use pin_collection::PinCollection;
 use physical_pin_container::PhysicalPinContainer;
+use std::collections::HashMap;
+use origen::core::model::pins::pin::PinActions;
 
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
@@ -29,10 +31,30 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pymethods]
 impl PyDUT {
-    fn add_pin(&self, path: &str, id: &str) -> PyResult<PyObject> {
+
+    #[args(kwargs = "**")]
+    fn add_pin(&self, path: &str, id: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(path)?;
-        model.add_pin(id, path)?;
+        let (mut reset_data, mut reset_action, mut width, mut offset): (Option<u32>, Option<String>, Option<u32>, Option<u32>) = (Option::None, Option::None, Option::None, Option::None);
+        match kwargs {
+            Some(args) => {
+                if let Some(arg) = args.get_item("reset_data") {
+                    reset_data = Option::Some(arg.extract::<u32>()?);
+                }
+                if let Some(arg) = args.get_item("reset_action") {
+                    reset_action = Option::Some(arg.extract::<String>()?);
+                }
+                if let Some(arg) = args.get_item("width") {
+                    width = Option::Some(arg.extract::<u32>()?);
+                }
+                if let Some(arg) = args.get_item("offset") {
+                    offset = Option::Some(arg.extract::<u32>()?);
+                }
+            },
+            None => {},
+        }
+        model.add_pin(id, path, width, offset, reset_data, reset_action)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();

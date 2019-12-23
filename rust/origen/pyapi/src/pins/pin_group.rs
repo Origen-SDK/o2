@@ -39,15 +39,34 @@ impl PinGroup {
     }
 
     #[setter]
-    fn set_data(&self, data: u32) -> PyResult<()> {
+    fn set_data(&self, data: u32) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(&self.path)?;
         model.set_pin_group_data(&self.id, data)?;
-        Ok(())
+        
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(py, Self {
+          id: self.id.clone(),
+          path: self.path.clone(),
+        }).unwrap())
     }
 
-    fn set(&self, data: u32) -> PyResult<()> {
+    fn set(&self, data: u32) -> PyResult<Py<Self>> {
         return self.set_data(data);
+    }
+
+    fn with_mask(&self, mask: usize) -> PyResult<Py<Self>> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(&self.path)?;
+        model.set_pin_group_nonsticky_mask(&self.id, mask)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(py, Self {
+          id: self.id.clone(),
+          path: self.path.clone(),
+        }).unwrap())
     }
 
     #[getter]
@@ -105,13 +124,13 @@ impl PinGroup {
     fn drive(&self, data: Option<u32>) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(&self.path)?;
-      Ok(model.drive_pin_group(&self.id, Option::None, data)?)
+      Ok(model.drive_pin_group(&self.id, data, Option::None)?)
     }
 
     fn verify(&self, data: Option<u32>) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(&self.path)?;
-      Ok(model.verify_pin_group(&self.id, Option::None, data)?)
+      Ok(model.verify_pin_group(&self.id, data, Option::None)?)
     }
 
     fn capture(&self) -> PyResult<()> {

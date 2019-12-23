@@ -5,21 +5,25 @@ use super::pin_collection::{Endianness};
 //use crate::core::model::Model;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PinGroup {
     pub id: String,
     pub path: String,
     pub pin_ids: Vec<String>,
     pub endianness: Endianness,
+    pub cached_width: usize,
+    pub mask: Option<usize>,
 }
 
 impl PinGroup {
-    pub fn new(id: String, path: String, pins: Vec<String>) -> PinGroup {
+    pub fn new(id: String, path: String, pins: Vec<String>, cached_width: usize) -> PinGroup {
         return PinGroup {
             id: String::from(id),
             path: String::from(path),
             pin_ids: pins,
             endianness: Endianness::LittleEndian,
+            cached_width: cached_width,
+            mask: Option::None,
         };
     }
 

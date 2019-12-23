@@ -7,11 +7,12 @@ pub enum Endianness {
 }
 
 /// Model for a collection (or group) of pins
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PinCollection {
   pub ids: Vec<String>,
   pub endianness: Endianness,
   pub path: String,
+  pub mask: Option<usize>,
 }
 
 impl PinCollection {
@@ -20,6 +21,7 @@ impl PinCollection {
       path: path.to_string(),
       ids: pin_ids.iter().map( |p| String::from(p)).collect(),
       endianness: endianness.unwrap_or(Endianness::LittleEndian),
+      mask: Option::None,
     }
   }
 
