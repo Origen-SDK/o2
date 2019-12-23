@@ -13,11 +13,11 @@ use crate::Result;
 #[derive(Debug)]
 pub struct Dut {
     pub id: String,
-    pub models: Vec<Model>,
-    pub memory_maps: Vec<MemoryMap>,
-    pub address_blocks: Vec<AddressBlock>,
-    pub registers: Vec<Register>,
-    pub bits: Vec<Bit>,
+    models: Vec<Model>,
+    memory_maps: Vec<MemoryMap>,
+    address_blocks: Vec<AddressBlock>,
+    registers: Vec<Register>,
+    bits: Vec<Bit>,
 }
 
 impl Dut {
