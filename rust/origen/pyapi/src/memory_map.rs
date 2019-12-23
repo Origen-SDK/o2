@@ -22,7 +22,8 @@ impl PyDUT {
             .lock()
             .unwrap()
             .get_model(model_id)?
-            .get_memory_map_id(name)?;
+            .get_memory_map_id(name)?
+            .clone();
         Ok(MemoryMap {
             id: id,
             name: name.to_string(),
@@ -46,26 +47,26 @@ pub struct MemoryMaps {
 impl MemoryMaps {
     fn len(&self) -> PyResult<usize> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         Ok(model.memory_maps.len())
     }
 
     fn keys(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         let keys: Vec<String> = model.memory_maps.keys().map(|x| x.clone()).collect();
         Ok(keys)
     }
 
     fn values(&self) -> PyResult<Vec<MemoryMap>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         let values: Vec<MemoryMap> = model
             .memory_maps
-            .keys()
-            .map(|x| MemoryMap {
-                model_path: self.model_path.to_string(),
-                id: x.to_string(),
+            .iter()
+            .map(|(k, v)| MemoryMap {
+                id: *v,
+                name: k.to_string(),
             })
             .collect();
         Ok(values)
@@ -73,16 +74,16 @@ impl MemoryMaps {
 
     fn items(&self) -> PyResult<Vec<(String, MemoryMap)>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         let items: Vec<(String, MemoryMap)> = model
             .memory_maps
-            .keys()
-            .map(|x| {
+            .iter()
+            .map(|(k, v)| {
                 (
-                    x.to_string(),
+                    k.to_string(),
                     MemoryMap {
-                        model_path: self.model_path.to_string(),
-                        id: x.to_string(),
+                        id: *v,
+                        name: k.to_string(),
                     },
                 )
             })
@@ -103,11 +104,11 @@ impl PyMappingProtocol for MemoryMaps {
     /// Implements memory_map["my_map"]
     fn __getitem__(&self, query: &str) -> PyResult<MemoryMap> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         if model.memory_maps.contains_key(query) {
             Ok(MemoryMap {
-                model_path: self.model_path.clone(),
-                id: query.to_string(),
+                id: *model.get_memory_map_id(query)?,
+                name: query.to_string(),
             })
         } else {
             Err(KeyError::py_err(format!(
@@ -123,11 +124,11 @@ impl PyObjectProtocol for MemoryMaps {
     /// Implements memory_map.my_map
     fn __getattr__(&self, query: &str) -> PyResult<MemoryMap> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         if model.memory_maps.contains_key(query) {
             Ok(MemoryMap {
-                model_path: self.model_path.clone(),
-                id: query.to_string(),
+                id: *model.get_memory_map_id(query)?,
+                name: query.to_string(),
             })
         } else {
             Err(AttributeError::py_err(format!(
@@ -139,7 +140,7 @@ impl PyObjectProtocol for MemoryMaps {
 
     fn __repr__(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         //let mut output: String = "".to_string();
         let (mut output, offset) = model.console_header();
         output += &(" ".repeat(offset));
@@ -171,7 +172,7 @@ impl pyo3::class::iter::PyIterProtocol for MemoryMaps {
 
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&slf.model_path).unwrap();
+        let model = dut.get_model(slf.model_id).unwrap();
         let keys: Vec<&String> = model.memory_maps.keys().collect();
 
         if slf.i >= keys.len() {
@@ -188,7 +189,7 @@ impl pyo3::class::iter::PyIterProtocol for MemoryMaps {
 impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         Ok(model.memory_maps.contains_key(item))
     }
 }
@@ -222,9 +223,11 @@ impl PyObjectProtocol for MemoryMap {
             let pyref = PyRef::new(
                 py,
                 Registers {
-                    model_path: self.model_path.to_string(),
-                    memory_map: self.id.to_string(),
-                    address_block: "default".to_string(),
+                    address_block_id: DUT
+                        .lock()
+                        .unwrap()
+                        .get_memory_map(self.id)?
+                        .get_address_block_id("default")?,
                     i: 0,
                 },
             )?;
@@ -256,8 +259,8 @@ impl PyObjectProtocol for MemoryMap {
 
     fn __richcmp__(&self, other: &MemoryMap, op: CompareOp) -> PyResult<bool> {
         match op {
-            CompareOp::Eq => Ok(self.model_path == other.model_path && self.id == other.id),
-            CompareOp::Ne => Ok(self.model_path != other.model_path || self.id != other.id),
+            CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
+            CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),
             CompareOp::Lt => Err(TypeError::py_err(
                 "'<' not supported between instances of 'MemoryMap'",
             )),

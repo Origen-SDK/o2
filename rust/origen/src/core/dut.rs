@@ -188,7 +188,9 @@ impl Dut {
     /// via the parent model).
     pub fn create_model(&mut self, parent_id: usize, name: &str) -> Result<usize> {
         let id;
-        { id = self.models.len(); }
+        {
+            id = self.models.len();
+        }
         {
             let m = self.get_mut_model(parent_id)?;
             if m.sub_blocks.contains_key(name) {
@@ -205,29 +207,40 @@ impl Dut {
         Ok(id)
     }
 
-    //pub fn create_memory_map(&mut self, model_id: usize, name: &str, address_unit_bits: Option<u32>) -> Result<usize> {
-    //    if self.models[model_id].memory_maps.contains_key(name) {
-    //        return Err(Error::new(&format!(
-    //            //"The block '{}' already contains a sub-block called '{}'",
-    //            "The block  already contains a sub-block called '{}'",
-    //            name
-    //        )));
+    pub fn create_memory_map(
+        &mut self,
+        model_id: usize,
+        name: &str,
+        address_unit_bits: Option<u32>,
+    ) -> Result<usize> {
+        let id;
+        {
+            id = self.memory_maps.len();
+        }
+        {
+            let model = self.get_mut_model(model_id)?;
 
-    //    } else {
+            if model.memory_maps.contains_key(name) {
+                return Err(Error::new(&format!(
+                    "The block '{}' already contains a memory map called '{}'",
+                    model.name, name
+                )));
+            } else {
+                model.memory_maps.insert(name.to_string(), id);
+            }
+        }
 
-    //    let mut defaults = MemoryMap::default();
-    //    match address_unit_bits {
-    //        Some(v) => defaults.address_unit_bits = v,
-    //        None => {}
-    //    }
-    //    self.memory_maps.insert(
-    //        id.to_string(),
-    //        MemoryMap {
-    //            id: id.to_string(),
-    //            ..defaults
-    //        },
-    //    );
-    //}
+        let mut defaults = MemoryMap::default();
+        match address_unit_bits {
+            Some(v) => defaults.address_unit_bits = v,
+            None => {}
+        }
+        self.memory_maps.push(MemoryMap {
+            name: name.to_string(),
+            ..defaults
+        });
+        Ok(id)
+    }
 
     pub fn create_address_block(
         &mut self,
@@ -239,7 +252,9 @@ impl Dut {
         access: Option<AccessType>,
     ) -> Result<usize> {
         let id;
-        { id = self.address_blocks.len(); }
+        {
+            id = self.address_blocks.len();
+        }
         {
             let map = self.get_mut_memory_map(memory_map_id)?;
 
@@ -249,7 +264,6 @@ impl Dut {
                     map.name, name
                 )));
             } else {
-
                 map.address_blocks.insert(name.to_string(), id);
             }
         }
@@ -272,12 +286,10 @@ impl Dut {
             None => {}
         }
 
-        self.address_blocks.push(
-            AddressBlock {
-                name: name.to_string(),
-                ..defaults
-            },
-        );
+        self.address_blocks.push(AddressBlock {
+            name: name.to_string(),
+            ..defaults
+        });
         Ok(id)
     }
 
@@ -289,7 +301,9 @@ impl Dut {
         size: Option<u32>,
     ) -> Result<usize> {
         let id;
-        { id = self.registers.len(); }
+        {
+            id = self.registers.len();
+        }
         {
             let a = self.get_mut_address_block(address_block_id)?;
             if a.registers.contains_key(name) {

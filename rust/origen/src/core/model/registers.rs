@@ -2,6 +2,8 @@
 //! structures upon which this is based:
 //! https://www.accellera.org/images/downloads/standards/ip-xact/IP-XACT_User_Guide_2018-02-16.pdf
 
+use crate::error::Error;
+use crate::Result as OrigenResult;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -11,6 +13,24 @@ pub enum AccessType {
     WriteOnly,
     ReadWriteOnce,
     WriteOnce,
+}
+
+impl std::str::FromStr for AccessType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ReadWrite" => Ok(AccessType::ReadWrite),
+            "ReadOnly" => Ok(AccessType::ReadOnly),
+            "WriteOnly" => Ok(AccessType::WriteOnly),
+            "ReadWriteOnce" => Ok(AccessType::ReadWriteOnce),
+            "WriteOnce" => Ok(AccessType::WriteOnce),
+            _ => Err(format!(
+                "'{}' is not a valid value for AccessType",
+                s
+            )),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -40,6 +60,21 @@ impl Default for MemoryMap {
     }
 }
 
+impl MemoryMap {
+    /// Get the ID from the given address block name
+    pub fn get_address_block_id(&self, name: &str) -> OrigenResult<usize> {
+        match self.address_blocks.get(name) {
+            Some(x) => Ok(*x),
+            None => {
+                return Err(Error::new(&format!(
+                    "The memory map '{}' does not have an address block named '{}'",
+                    self.name, name
+                )))
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 /// Represents a single, contiguous block of memory in a memory map.
 pub struct AddressBlock {
@@ -65,6 +100,21 @@ impl Default for AddressBlock {
             width: 0,
             access: AccessType::ReadWrite,
             registers: HashMap::new(),
+        }
+    }
+}
+
+impl AddressBlock {
+    /// Get the ID from the given register name
+    pub fn get_register_id(&self, name: &str) -> OrigenResult<usize> {
+        match self.registers.get(name) {
+            Some(x) => Ok(*x),
+            None => {
+                return Err(Error::new(&format!(
+                    "The address block '{}' does not have a register named '{}'",
+                    self.name, name
+                )))
+            }
         }
     }
 }

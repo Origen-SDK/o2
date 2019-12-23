@@ -1,7 +1,7 @@
 pub mod pins;
 pub mod registers;
-//use crate::error::Error;
-//use crate::Result;
+use crate::error::Error;
+use crate::Result;
 
 use std::collections::HashMap;
 
@@ -50,6 +50,19 @@ impl Model {
         } else {
             let s = names.join(".").chars().count() + 2;
             (l + "\n", s)
+        }
+    }
+
+    /// Get the ID for the given memory map name
+    pub fn get_memory_map_id(&self, name: &str) -> Result<&usize> {
+        match self.memory_maps.get(name) {
+            Some(x) => Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                    "The block '{}' does not have a memory map named '{}'",
+                    self.name, name
+                )))
+            }
         }
     }
 
