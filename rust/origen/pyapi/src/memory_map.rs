@@ -113,7 +113,7 @@ impl PyMappingProtocol for MemoryMaps {
         } else {
             Err(KeyError::py_err(format!(
                 "'{}' does not have a memory map called '{}'",
-                model.display_path, query
+                model.display_path(), query
             )))
         }
     }

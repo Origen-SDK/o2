@@ -12,7 +12,7 @@ use crate::Result;
 /// a memory map).
 #[derive(Debug)]
 pub struct Dut {
-    pub id: String,
+    pub name: String,
     models: Vec<Model>,
     memory_maps: Vec<MemoryMap>,
     address_blocks: Vec<AddressBlock>,
@@ -21,11 +21,10 @@ pub struct Dut {
 }
 
 impl Dut {
-    pub fn new(id: &str) -> Dut {
+    pub fn new(name: &str) -> Dut {
         // TODO: reserve some size for these?
         Dut {
-            id: id.to_string(),
-            //model: Model::new("".to_string(), "".to_string()),
+            name: name.to_string(),
             models: Vec::<Model>::new(),
             memory_maps: Vec::<MemoryMap>::new(),
             address_blocks: Vec::<AddressBlock>::new(),
@@ -37,14 +36,15 @@ impl Dut {
     /// Change the DUT, this replaces the existing mode with a fresh one (i.e.
     /// deletes all current DUT metadata and state, and updates the name/ID field
     /// with the given value
-    pub fn change(&mut self, id: &str) {
-        self.id = id.to_string();
-        //self.model = Model::new("".to_string(), "".to_string());
+    pub fn change(&mut self, name: &str) {
+        self.name = name.to_string();
         self.models.clear();
         self.memory_maps.clear();
         self.address_blocks.clear();
         self.registers.clear();
         self.bits.clear();
+        // Add the model for the DUT top-level (always ID 0)
+        let _ = self.create_model(None, "dut");
     }
 
     /// Get a mutable reference to the model with the given ID
@@ -186,23 +186,25 @@ impl Dut {
     /// The ID of the newly created model is returned to the caller who should save it
     /// if they want to access this model directly again (will also be accessible by name
     /// via the parent model).
-    pub fn create_model(&mut self, parent_id: usize, name: &str) -> Result<usize> {
+    pub fn create_model(&mut self, parent_id: Option<usize>, name: &str) -> Result<usize> {
         let id;
         {
             id = self.models.len();
         }
         {
-            let m = self.get_mut_model(parent_id)?;
-            if m.sub_blocks.contains_key(name) {
-                return Err(Error::new(&format!(
-                    "The block '{}' already contains a sub-block called '{}'",
-                    m.display_path, name
-                )));
-            } else {
-                m.sub_blocks.insert(name.to_string(), id);
+            if parent_id.is_some() {
+                let m = self.get_mut_model(parent_id.unwrap())?;
+                if m.sub_blocks.contains_key(name) {
+                    return Err(Error::new(&format!(
+                        "The block '{}' already contains a sub-block called '{}'",
+                        m.display_path(), name
+                    )));
+                } else {
+                    m.sub_blocks.insert(name.to_string(), id);
+                }
             }
         }
-        let new_model = Model::new(name.to_string());
+        let new_model = Model::new(name.to_string(), parent_id);
         self.models.push(new_model);
         Ok(id)
     }

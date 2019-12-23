@@ -25,10 +25,7 @@ impl std::str::FromStr for AccessType {
             "WriteOnly" => Ok(AccessType::WriteOnly),
             "ReadWriteOnce" => Ok(AccessType::ReadWriteOnce),
             "WriteOnce" => Ok(AccessType::WriteOnce),
-            _ => Err(format!(
-                "'{}' is not a valid value for AccessType",
-                s
-            )),
+            _ => Err(format!("'{}' is not a valid value for AccessType", s)),
         }
     }
 }
