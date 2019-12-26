@@ -36,6 +36,7 @@ fn status(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("is_app_present", &STATUS.is_app_present);
     let _ = ret.set_item("root", format!("{}", STATUS.root.display()));
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
+    let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     Ok(ret.into())
 }
 

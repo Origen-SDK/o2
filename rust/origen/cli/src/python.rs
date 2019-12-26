@@ -1,6 +1,7 @@
 // Responsible for managing Python execution
 
 use origen::core::os;
+use origen::STATUS;
 use semver::Version;
 
 const PYTHONS: &[&str] = &[
@@ -34,7 +35,7 @@ impl Default for Config {
                     available = true;
                     let poetry_cmd = format!(
                         "{}/.poetry/bin/poetry",
-                        std::env::var("HOME").expect("$HOME is not defined")
+                        format!("{}", STATUS.home.display())
                     );
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         return Config {
