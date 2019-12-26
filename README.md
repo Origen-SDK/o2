@@ -37,6 +37,7 @@ On Ubuntu, the following packages may need to be installed if you get errors:
 sudo apt install libssl-dev
 sudo apt install pkg-config
 sudo apt install python3-distutils
+sudo apt install python3-venv
 ~~~
 
 4b) Windows Compiled Libary
