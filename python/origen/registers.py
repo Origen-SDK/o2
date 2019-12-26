@@ -15,7 +15,7 @@ class Proxy:
     #def __repr__(self):
     #    return f"Registers in {self.controller.block_path}:\n0  : Reg 1\n4  : Reg 2"
 
-# This defines the methods for defining registers in Python and then handles serializing
+# This defines the API for defining registers in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
 class Loader:
     def __init__(self, controller):
@@ -26,21 +26,31 @@ class Loader:
     @contextmanager
     def Reg(self, id, address_offset, size=32):
         origen.dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
-        try:
-            yield self
-        finally:
-            pass
+        yield self
 
-    def reg(self, id, address_offset, size=32):
+    def SimpleReg(self, id, address_offset, size=32):
         origen.dut.db.create_reg(self.controller.path, self.memory_map, self.address_block, id, address_offset, size);
 
     def bit(self, number, id, access="rw", reset=0):
         pass
 
+    @contextmanager
+    def MemoryMap(self, id):
+        self.memory_map = id
+        yield self
+        self.memory_map = None
+
+    @contextmanager
+    def AddressBlock(self, id):
+        self.address_block = id
+        yield self
+        self.address_block = None
+
     # Defines the methods that are accessible within blocks/<block>/registers.py
     def api(self):
         return {
             "Reg": self.Reg, 
-            "reg": self.reg, 
-            "bit": self.bit
+            "SimpleReg": self.SimpleReg, 
+            "MemoryMap": self.MemoryMap, 
+            "AddressBlock": self.AddressBlock, 
         }

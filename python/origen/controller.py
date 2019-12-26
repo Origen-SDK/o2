@@ -1,5 +1,7 @@
 import origen
 import _origen
+from origen.registers import Loader as RegLoader
+from contextlib import contextmanager
 
 # The base class of all Origen controller objects
 class Base:
@@ -22,15 +24,15 @@ class Base:
     is_top = False
 
     def __init__(self):
-        pass
+        self.regs_loaded = False
 
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
+        # regs called directly on the controller means only the regs in the default
+        # memory map and address block
         if name == "regs":
-            self.app.load_block_files(self, "registers.py")
-            from origen.registers import Proxy
-            self.regs = Proxy(self)
-            return self.regs
+            self._load_regs()
+            return origen.dut.db.regs(self.path, None, None)
 
         elif name == "sub_blocks":
             from origen.sub_blocks import Proxy
@@ -39,28 +41,70 @@ class Base:
             return self.sub_blocks
 
         elif name == "memory_maps":
-            self.regs  # Ensure the memory maps for this block have been loaded
+            self._load_regs()
             return origen.dut.db.memory_maps(self.path)
 
+        elif name in self.sub_blocks:
+            return self.sub_blocks[name]
+
         else:
-            raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
+            self._load_regs()
+
+            if name in self.memory_maps:
+                return self.memory_maps[name]
+
+            else:
+                raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
         print(self.tree_as_str())
 
-    def tree_as_str(self):
-        if self.is_top:
-            t = "dut"
-        elif self.parent == '':
-            t = f"dut.{self.id}"
+    def tree_as_str(self, leader='', include_header=True):
+        if include_header:
+            if self.is_top:
+                t = "dut"
+            elif self.parent_path == '':
+                t = f"dut.{self.id}"
+            else:
+                t = f"dut.{self.parent_path}.{self.id}"
+            names = t.split('.')
+            names.pop()
+            if not names:
+                leader = ' '
+            else:
+                leader = ' ' * (2 + len('.'.join(names)))
         else:
-            t = f"dut.{self.parent}.{self.id}"
+            t = ''
+        last = len(self.sub_blocks) - 1
+        for i, key in enumerate(sorted(self.sub_blocks.keys())):
+            if i != last:
+                t += "\n" + leader + f"├── {key}"
+            else:
+                t += "\n" + leader + f"└── {key}"
+            if self.sub_blocks[key].sub_blocks.len() > 0:
+                if i != last:
+                    l = leader + '│    '
+                else:
+                    l = leader + '     '
+                t += self.sub_blocks[key].tree_as_str(l, False)
         return t
 
     def memory_map(self, id):
         self.regs  # Ensure the memory maps for this block have been loaded
         return origen.dut.db.memory_map(self.path, id)
 
+    def add_simple_reg(self, *args, **kwargs):
+        RegLoader(self).SimpleReg(*args, **kwargs)
+
+    @contextmanager
+    def add_reg(self, *args, **kwargs):
+        with RegLoader(self).Reg(*args, **kwargs) as reg:
+            yield reg
+
+    def _load_regs(self):
+        if not self.regs_loaded:
+            self.app.load_block_files(self, "registers.py")
+            self.regs_loaded = True
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

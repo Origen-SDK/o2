@@ -48,6 +48,19 @@ impl Model {
         }
     }
 
+    /// Returns the hierarchical name of the model and the offset for console displays
+    pub fn console_header(&self) -> (String, usize) {
+        let l = format!("{}", self.display_path);
+        let mut names: Vec<&str> = l.split(".").collect();
+        names.pop();
+        if names.is_empty() {
+            (l + "\n", 1)
+        } else {
+            let s = names.join(".").chars().count() + 2;
+            (l + "\n", s)
+        }
+    }
+
     pub fn add_memory_map(&mut self, id: &str, address_unit_bits: Option<u32>) {
         let mut defaults = MemoryMap::default();
         match address_unit_bits {

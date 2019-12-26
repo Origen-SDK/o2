@@ -6,13 +6,34 @@ import origen
 class Proxy:
     def __init__(self, controller):
         self.controller = controller
-        self.__store = {}
+        self.__dict__ = {}
 
     def __getitem__(self, key):
-        return self.__store[key]
+        return self.__dict__[key]
 
     def __add_block__(self, id, obj):
-        self.__store[id] = obj
+        self.__dict__[id] = obj
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def len(self):
+        return len(self.__dict__)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def items(self):
+        return self.__dict__.items()
+
+    def __cmp__(self, dict_):
+        return self.__cmp__(self.__dict__, dict_)
+
+    def __contains__(self, item):
+        return item in self.__dict__
 
 # This defines the methods for defining sub-blocks in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
