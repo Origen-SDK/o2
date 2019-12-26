@@ -31,18 +31,6 @@ impl PyDUT {
         Ok(DUT.lock().unwrap().create_model(parent_id, name)?)
     }
 
-    fn create_memory_map(
-        &self,
-        model_id: usize,
-        name: &str,
-        address_unit_bits: Option<u32>,
-    ) -> PyResult<usize> {
-        Ok(DUT
-            .lock()
-            .unwrap()
-            .create_memory_map(model_id, name, address_unit_bits)?)
-    }
-
     fn create_address_block(
         &self,
         memory_map_id: usize,

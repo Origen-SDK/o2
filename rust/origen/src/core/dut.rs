@@ -21,6 +21,8 @@ pub struct Dut {
 }
 
 impl Dut {
+    // This is called only once at the start of an Origen thread to create the global database,
+    // then the 'change' method is called every time a DUT is loaded
     pub fn new(name: &str) -> Dut {
         // TODO: reserve some size for these?
         Dut {
@@ -36,6 +38,7 @@ impl Dut {
     /// Change the DUT, this replaces the existing mode with a fresh one (i.e.
     /// deletes all current DUT metadata and state, and updates the name/ID field
     /// with the given value
+    // This is called once per DUT load
     pub fn change(&mut self, name: &str) {
         self.name = name.to_string();
         self.models.clear();
@@ -204,7 +207,7 @@ impl Dut {
                 }
             }
         }
-        let new_model = Model::new(name.to_string(), parent_id);
+        let new_model = Model::new(id, name.to_string(), parent_id);
         self.models.push(new_model);
         Ok(id)
     }

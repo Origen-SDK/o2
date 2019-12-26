@@ -17,7 +17,9 @@ class Base:
     # Returns the application instance that defines this block
     app = None
 
-    _id = None
+    model_id = None
+
+    _default_default_address_block = None
 
     is_top = False
 
@@ -27,6 +29,7 @@ class Base:
 
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
+        #print(f"Looking for attribute {name}")
         # regs called directly on the controller means only the regs in the default
         # memory map and address block
         if name == "regs":
@@ -121,7 +124,7 @@ class TopLevel(Base):
     def __init__(self):
         self.name = "dut"
         self.path = "dut"
-        self._id = 0
+        self.model_id = 0
         origen.dut = self
         # TODO: Probably pass the name of the target in here to act as the DUT name/ID
         self.db = _origen.dut.PyDUT("tbd")

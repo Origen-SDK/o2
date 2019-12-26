@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Model {
+    pub id: usize,
     pub name: String,
     /// The only one without a parent is the top-level DUT model
     pub parent_id: Option<usize>,
@@ -22,8 +23,9 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(name: String, parent_id: Option<usize>) -> Model {
+    pub fn new(id: usize, name: String, parent_id: Option<usize>) -> Model {
         Model {
+            id: id,
             name: name,
             parent_id: parent_id,
             sub_blocks: HashMap::new(),
@@ -44,10 +46,10 @@ impl Model {
         }
     }
 
-    /// Get the ID for the given memory map name
-    pub fn get_memory_map_id(&self, name: &str) -> Result<&usize> {
+    /// Get the ID for the given memory map name, throw an error if it doesn't exist
+    pub fn get_memory_map_id(&self, name: &str) -> Result<usize> {
         match self.memory_maps.get(name) {
-            Some(x) => Ok(x),
+            Some(x) => Ok(*x),
             None => {
                 return Err(Error::new(&format!(
                     "The block '{}' does not have a memory map named '{}'",

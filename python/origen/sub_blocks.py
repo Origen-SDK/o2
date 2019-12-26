@@ -48,7 +48,7 @@ class Loader:
         # Add the python representation of this block to its parent
         self.controller.sub_blocks.__add_block__(name, b)
         # Create a new representation of it in the internal database
-        b._id = origen.dut.db.create_model(self.controller._id, name)
+        b.model_id = origen.dut.db.create_model(self.controller.model_id, name)
         return b
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py

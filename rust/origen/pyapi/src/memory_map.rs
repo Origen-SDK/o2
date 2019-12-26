@@ -22,8 +22,32 @@ impl PyDUT {
             .lock()
             .unwrap()
             .get_model(model_id)?
-            .get_memory_map_id(name)?
-            .clone();
+            .get_memory_map_id(name)?;
+        Ok(MemoryMap {
+            id: id,
+            name: name.to_string(),
+        })
+    }
+
+    fn create_memory_map(
+        &self,
+        model_id: usize,
+        name: &str,
+        address_unit_bits: Option<u32>,
+    ) -> PyResult<usize> {
+        Ok(DUT
+            .lock()
+            .unwrap()
+            .create_memory_map(model_id, name, address_unit_bits)?)
+    }
+
+    fn get_or_create_memory_map(&self, model_id: usize, name: &str) -> PyResult<MemoryMap> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_model(model_id)?;
+        let id = match model.get_memory_map_id(name) {
+            Ok(v) => v,
+            Err(_) => dut.create_memory_map(model_id, name, None)?,
+        };
         Ok(MemoryMap {
             id: id,
             name: name.to_string(),
@@ -107,7 +131,7 @@ impl PyMappingProtocol for MemoryMaps {
         let model = dut.get_model(self.model_id)?;
         if model.memory_maps.contains_key(query) {
             Ok(MemoryMap {
-                id: *model.get_memory_map_id(query)?,
+                id: model.get_memory_map_id(query)?,
                 name: query.to_string(),
             })
         } else {
@@ -127,7 +151,7 @@ impl PyObjectProtocol for MemoryMaps {
         let model = dut.get_model(self.model_id)?;
         if model.memory_maps.contains_key(query) {
             Ok(MemoryMap {
-                id: *model.get_memory_map_id(query)?,
+                id: model.get_memory_map_id(query)?,
                 name: query.to_string(),
             })
         } else {
@@ -199,6 +223,7 @@ impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
 #[pyclass]
 #[derive(Debug)]
 pub struct MemoryMap {
+    #[pyo3(get)]
     id: usize,
     #[pyo3(get)]
     name: String,
