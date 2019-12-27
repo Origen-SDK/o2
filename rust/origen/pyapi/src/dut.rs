@@ -1,7 +1,5 @@
-use pyo3::exceptions;
 use pyo3::prelude::*;
 //use pyo3::wrap_pyfunction;
-use origen::core::model::registers::AccessType;
 use origen::DUT;
 
 /// Implements the module _origen.dut in Python which exposes all
@@ -29,33 +27,6 @@ impl PyDUT {
     /// Creates a new model at the given path
     fn create_model(&self, parent_id: Option<usize>, name: &str) -> PyResult<usize> {
         Ok(DUT.lock().unwrap().create_model(parent_id, name)?)
-    }
-
-    fn create_address_block(
-        &self,
-        memory_map_id: usize,
-        name: &str,
-        base_address: Option<u64>,
-        range: Option<u64>,
-        width: Option<u64>,
-        access: Option<&str>,
-    ) -> PyResult<usize> {
-        let acc: AccessType = match access {
-            Some(x) => match x.parse() {
-                Ok(y) => y,
-                Err(msg) => return Err(exceptions::OSError::py_err(msg)),
-            },
-            None => AccessType::ReadWrite,
-        };
-
-        Ok(DUT.lock().unwrap().create_address_block(
-            memory_map_id,
-            name,
-            base_address,
-            range,
-            width,
-            Some(acc),
-        )?)
     }
 
     fn create_reg(

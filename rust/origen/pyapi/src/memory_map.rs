@@ -137,7 +137,8 @@ impl PyMappingProtocol for MemoryMaps {
         } else {
             Err(KeyError::py_err(format!(
                 "'{}' does not have a memory map called '{}'",
-                model.display_path(), query
+                model.display_path(&dut),
+                query
             )))
         }
     }
@@ -166,7 +167,7 @@ impl PyObjectProtocol for MemoryMaps {
         let dut = DUT.lock().unwrap();
         let model = dut.get_model(self.model_id)?;
         //let mut output: String = "".to_string();
-        let (mut output, offset) = model.console_header();
+        let (mut output, offset) = model.console_header(&dut);
         output += &(" ".repeat(offset));
         output += "└── memory_maps\n";
         let leader = " ".repeat(offset + 5);
@@ -243,19 +244,26 @@ impl PyObjectProtocol for MemoryMap {
         let py = gil.python();
 
         // Calling .regs on an individual memory map returns the regs in its default
-        // address block (the one named 'default')
+        // address block (the one named 'default').
+        // If a default address block has not been defined then an empty Registers collection
+        // is returned.
         if query == "regs" {
+            let ab_id = DUT
+                .lock()
+                .unwrap()
+                .get_memory_map(self.id)?
+                .get_address_block_id("default");
             let pyref = PyRef::new(
                 py,
                 Registers {
-                    address_block_id: DUT
-                        .lock()
-                        .unwrap()
-                        .get_memory_map(self.id)?
-                        .get_address_block_id("default")?,
+                    address_block_id: match ab_id {
+                        Ok(v) => Some(v),
+                        Err(_) => None,
+                    },
                     i: 0,
                 },
             )?;
+
             Ok(pyref.to_object(py))
         } else {
             //let dut = DUT.lock().unwrap();

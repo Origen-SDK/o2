@@ -34,7 +34,10 @@ class Base:
         # memory map and address block
         if name == "regs":
             self._load_regs()
-            return origen.dut.db.regs(self.path, None, None)
+            if self._default_default_address_block:
+                return origen.dut.db.regs(self._default_default_address_block.id)
+            else:
+                return origen.dut.db.regs(None)
 
         elif name == "sub_blocks":
             self._load_sub_blocks()
@@ -42,7 +45,7 @@ class Base:
 
         elif name == "memory_maps":
             self._load_regs()
-            return origen.dut.db.memory_maps(self.path)
+            return origen.dut.db.memory_maps(self.model_id)
 
         else:
             self._load_sub_blocks()
@@ -62,12 +65,7 @@ class Base:
 
     def tree_as_str(self, leader='', include_header=True):
         if include_header:
-            if self.is_top:
-                t = "dut"
-            elif self.parent_path == '':
-                t = f"dut.{self.id}"
-            else:
-                t = f"dut.{self.parent_path}.{self.id}"
+            t = self.path
             names = t.split('.')
             names.pop()
             if not names:
@@ -90,9 +88,9 @@ class Base:
                 t += self.sub_blocks[key].tree_as_str(l, False)
         return t
 
-    def memory_map(self, id):
+    def memory_map(self, name):
         self.regs  # Ensure the memory maps for this block have been loaded
-        return origen.dut.db.memory_map(self.path, id)
+        return origen.dut.db.memory_map(self.model_id, name)
 
     def add_simple_reg(self, *args, **kwargs):
         RegLoader(self).SimpleReg(*args, **kwargs)

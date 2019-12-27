@@ -25,6 +25,8 @@ class Loader:
                 ab = origen.dut.db.get_or_create_address_block(mm.id, "default")
                 self.controller._default_default_address_block = ab
                 return ab
+            else:
+                return self.controller._default_default_address_block
         else:
             return origen.dut.db.get_or_create_address_block(self.memory_map.id, "default")
 

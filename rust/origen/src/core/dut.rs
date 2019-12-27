@@ -2,6 +2,7 @@ use crate::core::model::registers::{AccessType, AddressBlock, Bit, MemoryMap, Re
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
+use crate::DUT;
 
 /// The DUT stores all objects associated with a particular device.
 /// Each object type is organized into vectors, where a particular object's position within the
@@ -200,7 +201,8 @@ impl Dut {
                 if m.sub_blocks.contains_key(name) {
                     return Err(Error::new(&format!(
                         "The block '{}' already contains a sub-block called '{}'",
-                        m.display_path(), name
+                        m.display_path(&DUT.lock().unwrap()),
+                        name
                     )));
                 } else {
                     m.sub_blocks.insert(name.to_string(), id);

@@ -1,8 +1,9 @@
 pub mod pins;
 pub mod registers;
 use crate::error::Error;
+use crate::Dut;
 use crate::Result;
-use crate::DUT;
+use std::sync::MutexGuard;
 
 use std::collections::HashMap;
 
@@ -34,8 +35,8 @@ impl Model {
     }
 
     /// Returns the hierarchical name of the model and the offset for console displays
-    pub fn console_header(&self) -> (String, usize) {
-        let l = format!("{}", self.display_path());
+    pub fn console_header(&self, dut: &MutexGuard<Dut>) -> (String, usize) {
+        let l = format!("{}", self.display_path(dut));
         let mut names: Vec<&str> = l.split(".").collect();
         names.pop();
         if names.is_empty() {
@@ -60,12 +61,11 @@ impl Model {
     }
 
     /// Returns the path to this model for displaying to a user, e.g. in error messages.
-    pub fn display_path(&self) -> String {
+    pub fn display_path(&self, dut: &MutexGuard<Dut>) -> String {
         match self.parent_id {
             Some(p) => {
-                let dut = DUT.lock().unwrap();
                 let parent = dut.get_model(p).unwrap();
-                return format!("{}.{}", parent.display_path(), self.name);
+                return format!("{}.{}", parent.display_path(dut), self.name);
             }
             None => return format!("{}", self.name),
         }

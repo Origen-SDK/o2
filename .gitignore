@@ -4,6 +4,7 @@ __pycache__
 pip-wheel-metadata/
 _origen.pyd
 log/
+.vscode
 
 # Editor cruft
 *.swp

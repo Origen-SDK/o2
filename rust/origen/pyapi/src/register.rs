@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 /// my_block.[.my_memory_map][.my_address_block].regs
 #[pymethods]
 impl PyDUT {
-    fn regs(&self, address_block_id: usize) -> PyResult<Registers> {
+    fn regs(&self, address_block_id: Option<usize>) -> PyResult<Registers> {
         Ok(Registers {
             address_block_id: address_block_id,
             i: 0,
@@ -33,8 +33,9 @@ impl PyDUT {
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct Registers {
-    /// The ID of the address block which contains these registers
-    pub address_block_id: usize,
+    /// The ID of the address block which contains these registers. It is optional so that
+    /// an empty Registers collection can be created.
+    pub address_block_id: Option<usize>,
     /// Iterator index
     pub i: usize,
 }
@@ -43,41 +44,57 @@ pub struct Registers {
 #[pymethods]
 impl Registers {
     fn len(&self) -> PyResult<usize> {
-        Ok(DUT
-            .lock()
-            .unwrap()
-            .get_address_block(self.address_block_id)?
-            .registers
-            .len())
+        if self.address_block_id.is_some() {
+            Ok(DUT
+                .lock()
+                .unwrap()
+                .get_address_block(self.address_block_id.unwrap())?
+                .registers
+                .len())
+        } else {
+            Ok(0)
+        }
     }
 
     fn keys(&self) -> PyResult<Vec<String>> {
-        let dut = DUT.lock().unwrap();
-        let ab = dut.get_address_block(self.address_block_id)?;
-        let keys: Vec<String> = ab.registers.keys().map(|x| x.clone()).collect();
-        Ok(keys)
+        if self.address_block_id.is_some() {
+            let dut = DUT.lock().unwrap();
+            let ab = dut.get_address_block(self.address_block_id.unwrap())?;
+            let keys: Vec<String> = ab.registers.keys().map(|x| x.clone()).collect();
+            Ok(keys)
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     fn values(&self) -> PyResult<Vec<BitCollection>> {
-        let dut = DUT.lock().unwrap();
-        let ab = dut.get_address_block(self.address_block_id)?;
-        let values: Vec<BitCollection> = ab
-            .registers
-            .values()
-            .map(|x| BitCollection::from_reg_id(*x))
-            .collect();
-        Ok(values)
+        if self.address_block_id.is_some() {
+            let dut = DUT.lock().unwrap();
+            let ab = dut.get_address_block(self.address_block_id.unwrap())?;
+            let values: Vec<BitCollection> = ab
+                .registers
+                .values()
+                .map(|x| BitCollection::from_reg_id(*x))
+                .collect();
+            Ok(values)
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     fn items(&self) -> PyResult<Vec<(String, BitCollection)>> {
-        let dut = DUT.lock().unwrap();
-        let ab = dut.get_address_block(self.address_block_id)?;
-        let items: Vec<(String, BitCollection)> = ab
-            .registers
-            .iter()
-            .map(|(k, v)| (k.to_string(), BitCollection::from_reg_id(*v)))
-            .collect();
-        Ok(items)
+        if self.address_block_id.is_some() {
+            let dut = DUT.lock().unwrap();
+            let ab = dut.get_address_block(self.address_block_id.unwrap())?;
+            let items: Vec<(String, BitCollection)> = ab
+                .registers
+                .iter()
+                .map(|(k, v)| (k.to_string(), BitCollection::from_reg_id(*v)))
+                .collect();
+            Ok(items)
+        } else {
+            Ok(Vec::new())
+        }
     }
 }
 

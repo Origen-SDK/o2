@@ -92,6 +92,7 @@ pub fn run() {
 
     let status = os::cmd(&PYTHON_CONFIG.poetry_command)
         .arg("install")
+        .arg("--no-root")
         .status();
 
     if status.is_ok() {

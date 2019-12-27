@@ -56,4 +56,3 @@ class Loader:
         return {
             "sub_block": self.sub_block, 
         }
-                
