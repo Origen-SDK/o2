@@ -1,1 +1,1 @@
-reg("reg1", 0)
+SimpleReg("reg1", 0)

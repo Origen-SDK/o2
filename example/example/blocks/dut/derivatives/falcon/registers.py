@@ -1,1 +1,1 @@
-reg("reg3", 0x20)
+SimpleReg("freg1", 0x20)

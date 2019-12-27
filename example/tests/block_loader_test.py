@@ -2,10 +2,10 @@ import origen # pylint: disable=import-error
 
 def test_registers_are_loaded():
     origen.app.instantiate_dut("dut.falcon")
-    assert origen.dut.regs.len() == 3
+    assert origen.dut.regs.len() == 4
 
     origen.app.instantiate_dut("dut.eagle")
-    assert origen.dut.regs.len() == 2
+    assert origen.dut.regs.len() == 3
 
 def test_sub_blocks_are_loaded():
     origen.app.instantiate_dut("dut.falcon")

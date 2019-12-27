@@ -46,29 +46,4 @@ impl PyDUT {
             .get_mut_model(path)?
             .create_reg(memory_map, address_block, id, offset, size)?)
     }
-
-    fn get_reg(
-        &self,
-        path: &str,
-        memory_map: Option<&str>,
-        address_block: Option<&str>,
-        id: &str,
-    ) -> PyResult<BitCollection> {
-        let dut = DUT.lock().unwrap();
-        let model = dut.get_model(path)?;
-        let reg = model.get_reg(memory_map, address_block, id)?;
-
-        Ok(BitCollection::from_reg(
-            path,
-            memory_map,
-            address_block,
-            reg,
-        ))
-    }
-
-    fn number_of_regs(&self, path: &str) -> PyResult<usize> {
-        let dut = DUT.lock().unwrap();
-        let model = dut.get_model(path)?;
-        Ok(model.number_of_regs())
-    }
 }
