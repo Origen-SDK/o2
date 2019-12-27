@@ -153,6 +153,14 @@ impl PinGroup {
       Ok(ids.clone())
    }
 
+   #[getter]
+   fn get_width(&self) -> PyResult<usize> {
+     let mut dut = DUT.lock().unwrap();
+     let model = dut.get_mut_model(&self.path)?;
+     let grp = model.pin(&self.id).unwrap();
+     Ok(grp.len())
+   }
+
     // Debug helper: Get the id held by this instance.
     #[allow(non_snake_case)]
     #[getter]

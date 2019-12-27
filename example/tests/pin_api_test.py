@@ -613,6 +613,223 @@ def test_exception_on_offset_without_width():
   assert len(origen.dut.physical_pins) == 8
   assert len(origen.dut.pins) == 12
 
+# !!!
+# Reseting DUT
+# !!!
+
+def test_length_vs_width():
+  origen.app.instantiate_dut("dut.falcon")
+  assert origen.dut
+  origen.dut.add_pin("porta", width=2)
+  origen.dut.add_pin("portb", width=4)
+  assert len(origen.dut.physical_pins) == 6
+  assert len(origen.dut.pins) == 8
+  grp = origen.dut.group_pins("ports", "porta", "portb")
+  assert len(grp) == 6
+  assert grp.width == 6
+
+  c = origen.dut.pins.collect("porta", "portb")
+  assert len(c) == 6
+  assert c.width == 6
+
+# def test_flatten_ids():
+#   grp = origen.dut.pin("ports")
+#   c = origen.dut.pins.collect("porta", "portb")
+
+#   ids = grp.flatten_ids()
+#   assert ids == ["porta0", "porta1", "portb0", "portb1", "portb2", "portb3"]
+#   ids = c.flatten_ids()
+#   assert ids == ["porta0", "porta1", "portb0", "portb1", "portb2", "portb3"]
+
+# def test_flatten_pins():
+#   # Returns a pin collection containing the flattened physical pins in this group.
+#   grp = origen.dut.pin("ports")
+#   c = origen.dut.pins.collect("porta", "portb")
+
+#   ids = grp.flatten_pins()
+#   is_pin_group(ids)
+#   assert ids.flatten_ids == ["porta0", "porta1", "portb0", "portb1", "portb2", "portb3"]
+
+#   ids = c.flatten_pins()
+#   is_pin_group(ids)
+#   assert ids.flatten_ids == ["porta0", "porta1", "portb0", "portb1", "portb2", "portb3"]
+
+def test_getting_nested_pin_data():
+  grp = origen.dut.pin("ports")
+  c = origen.dut.pins.collect("porta", "portb")
+
+  assert grp.data == 0
+  assert c.data == 0
+
+def test_getting_nested_pin_actions():
+  grp = origen.dut.pin("ports")
+  c = origen.dut.pins.collect("porta", "portb")
+
+  assert grp.pin_actions == "ZZZZZZ"
+  assert c.pin_actions == "ZZZZZZ"
+
+def test_setting_nested_pin_data():
+  grp = origen.dut.pin("ports")
+  c = origen.dut.pins.collect("porta", "portb")
+
+  grp.data = 0x2A
+  assert grp.data == 0x2A
+  assert c.data == 0x2A
+  c.data = 0x15
+  assert c.data == 0x15
+  assert grp.data == 0x15
+
+def test_setting_nested_pin_actions():
+  grp = origen.dut.pin("ports")
+  c = origen.dut.pins.collect("porta", "portb")
+
+  grp.capture()
+  assert grp.pin_actions == "CCCCCC"
+  assert c.pin_actions == "CCCCCC"
+  c.verify()
+  assert c.pin_actions == "VVVVVV"
+  assert grp.pin_actions == "VVVVVV"
+
+def test_exception_on_grouping_duplicates_when_nested():
+  assert len(origen.dut.physical_pins) == 6
+  assert len(origen.dut.pins) == 9
+  assert "porta" in origen.dut.pins
+  assert "porta0" in origen.dut.pins
+  assert "porta1" in origen.dut.pins
+  with pytest.raises(OSError):
+    origen.dut.group_pins("grouping_porta", "porta", "porta0", "porta1")
+  assert len(origen.dut.physical_pins) == 6
+  assert len(origen.dut.pins) == 9
+
+def test_exception_on_collecting_duplicates_when_nested():
+  assert "porta" in origen.dut.pins
+  assert "porta0" in origen.dut.pins
+  assert "porta1" in origen.dut.pins
+  with pytest.raises(OSError):
+    origen.dut.pins.collect("collecting_porta", "porta", "porta0", "porta1")
+
+def test_exception_on_collecting_duplicates_when_nested_2():
+  origen.dut.group_pins("index_0s", "porta0", "portb0")
+  origen.dut.group_pins("index_0s_rev", "portb0", "porta0")
+  assert "error" not in origen.dut.pins
+  with pytest.raises(OSError):
+    origen.dut.pins.collect("error", "index_0s", "index_0s_rev")
+  assert "error" not in origen.dut.pins
+
+# def test_big_endian():
+#   pins = origen.dut.add_pin("portc", width=4, little_endian=False)
+#   assert pins.pin_ids == ["portc3", "portc2", "portc1", "portc0"]
+#   assert pins.litte_endian == False
+#   assert pins.big_endian == True
+
+# def test_little_endian():
+#   pins = origen.dut.add_pin("portd", width=4, little_endian=True)
+#   assert pins.pin_ids == ["portd0", "portd1", "portd2", "portd3"]
+#   assert pins.litte_endian == True
+#   assert pins.big_endian == False
+
+# def test_big_endian_with_offset():
+#   pins = origen.dut.add_pin("portc", width=2, little_endian=False, offset=2)
+#   assert pins[0].ids == ["porte3", "porte2"]
+#   assert pins.litte_endian == False
+#   assert pins.big_endian == True
+
+# def test_grouping_mixed_endianness():
+#   grp = origen.dut.group_pins("mixed_endianness", "portc", "portd")
+#   assert grp.pin_ids == ["portc3", "portc2", "portc1", "portc0", "portd3", "portd2", "portd1", "portd0"]
+#   assert pins.litte_endian == True
+#   assert pins.big_endian == False
+
+# def test_grouping_big_endian():
+#   grp = origen.dut.group_pins("big_endian", "portc", "portd", little_endian=False)
+#   assert grp.pin_ids == ["portd0", "portd1", "portd2", "portd3", "portc0", "portc1", "portc2", "portcd"]
+#   assert pins.litte_endian == False
+#   assert pins.big_endian == True
+
+# def test_collecting_mixed_endianness():
+#   grp = origen.dut.group_pins("portc", "portd")
+#   assert grp.pin_ids == ["portc3", "portc2", "portc1", "portc0", "portd3", "portd2", "portd1", "portd0"]
+#   assert pins.litte_endian == True
+#   assert pins.big_endian == False
+
+# def test_collecting_big_endian():
+#   c = origen.dut.pins.collect("portc", "portd", litte_endian=False)
+#   assert c.pin_ids == ["portd0", "portd1", "portd2", "portd3", "portc0", "portc1", "portc2", "portcd"]
+#   assert c.litte_endian == False
+#   assert c.big_endian == True
+
+# # !!!
+# # RESET DUT
+# # !!!
+
+# def test_default_reset_values():
+#   origen.dut.add_pins("p0")
+#   assert origen.dut.physical_pin("p0").reset_data == 0
+#   assert origen.dut.physical_pin("p0").reset_action == "Z"
+#   assert origen.dut.pin("p0").reset_data == 0
+#   assert origen.dut.pin("p0").reset_actions == "Z"
+
+# def test_default_reset_values_with_width():
+#   origen.dut.add_pins("porta", width=2)
+#   assert origen.dut.pin("porta").reset_data == 0
+#   assert origen.dut.pin("porta").reset_actions == "ZZ"
+
+# def test_adding_with_reset_values():
+#   origen.dut.add_pin("p1", reset_data=1, reset_action="D")
+#   assert origen.dut.physical_pin("p1").reset_data == 1
+#   assert origen.dut.physical_pin("p1").reset_action == "D"
+#   assert origen.dut.pin("p1").reset_data == 1
+#   assert origen.dut.pin("p1").reset_actions == "D"
+
+# def test_adding_with_reset_values_with_width():
+#   origen.dut.add_pins("portb", width=3, reset_data=0b101, reset_action="VDV")
+#   assert origen.dut.pin("portb").reset_data == 0b101
+#   assert origen.dut.pin("portb").reset_actions == "VDV"
+
+# def test_reset_values_persist_in_groups():
+#   grp = origen.dut.group_pins("grp1", "p1", "p0", "porta", "portb")
+#   assert grp.data == 0b1_0_00_101
+#   assert grp.pin_actions == "ZZZDVDV"
+#   assert grp.reset_data == 0b1_0_00_101
+#   assert grp.reset_actions == "ZZZDVDV"
+
+# def test_reset_values_persist_in_collections():
+#   c = origen.dut.pins.collect("p1", "p0", "porta", "portb")
+#   assert c.data == 0b1_0_00_101
+#   assert c.pin_actions == "ZZZDVDV"
+#   assert c.reset_data == 0b1_0_00_101
+#   assert c.reset_actions == "ZZZDVDV"
+
+# def test_exception_on_invalid_reset_data():
+#   with pytest.raises(OSError):
+#     origen.dut.add_pin("error", width=2, reset_data=0b111)
+
+# def test_exception_on_invalid_reset_actions():
+#   with pytest.raises(OSError):
+#     origen.dut.add_pin("error", width=2, reset_actions="ZZZ")
+#   with pytest.raises(OSError):
+#     origen.dut.add_pin("error", width=2, reset_actions="Z")
+
+# def test_resetting_pins():
+#   pins = origen.dut.pins("portb")
+#   pins.set(0b111)
+#   pins.drive()
+#   assert pins.data == 0b111
+#   assert pins.pin_actions == "DDD"
+#   pins.reset()
+#   assert pins.data == 0b101
+#   assert pins.pin_actions == "VDV"
+
+# def test_resetting_collection():
+#   c = origen.dut.pins.collect("portb", "p1")
+#   c.set(0b0000)
+#   c.capture()
+#   assert c.data == 0
+#   assert c.pin_actions == "CCCC"
+#   c.reset()
+#   assert c.data == 0b1011
+#   assert c.pin_actions == "VDVD"
+
 # def test_in_progress_pin_api():
   # !!!
   # Experimental Stuff. Still in progress.

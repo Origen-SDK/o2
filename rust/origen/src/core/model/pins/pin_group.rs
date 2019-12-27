@@ -5,24 +5,24 @@ use super::pin_collection::{Endianness};
 //use crate::core::model::Model;
 
 
+// We'll maintain both the pin_ids which the group was built with, but we'll also maintain the list
+// of physical IDs. Even though we can resolve this later, most operations wil 
 #[derive(Debug, Clone)]
 pub struct PinGroup {
     pub id: String,
     pub path: String,
     pub pin_ids: Vec<String>,
     pub endianness: Endianness,
-    pub cached_width: usize,
     pub mask: Option<usize>,
 }
 
 impl PinGroup {
-    pub fn new(id: String, path: String, pins: Vec<String>, cached_width: usize) -> PinGroup {
+    pub fn new(id: String, path: String, pins: Vec<String>) -> PinGroup {
         return PinGroup {
             id: String::from(id),
             path: String::from(path),
             pin_ids: pins,
             endianness: Endianness::LittleEndian,
-            cached_width: cached_width,
             mask: Option::None,
         };
     }

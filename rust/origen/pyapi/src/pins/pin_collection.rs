@@ -106,6 +106,11 @@ impl PinCollection {
         Ok(self.pin_collection.ids.clone())
     }
 
+    #[getter]
+    fn get_width(&self) -> PyResult<usize> {
+      Ok(self.pin_collection.len())
+    }
+
     #[allow(non_snake_case)]
     #[getter]
     fn get__path(&self) -> PyResult<String> {

@@ -41,7 +41,7 @@ impl PinActions {
     }
 }
 
-impl std::convert::TryFrom<u8> for PinActions {
+impl TryFrom<u8> for PinActions {
     type Error = crate::error::Error;
     fn try_from(encoded_char: u8) -> Result<Self, Self::Error> {
         let c = char::from(encoded_char);

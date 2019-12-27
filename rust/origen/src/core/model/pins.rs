@@ -69,7 +69,7 @@ impl Model {
                 let id = format!("{}{}", n, i);
                 p = Pin::new(String::from(&id), String::from(path), rdata, raction);
                 ids.push(String::from(&p.id));
-                self.pins.insert(String::from(&id), PinGroup::new(String::from(&id), String::from(path), vec!(String::from(&id)), 1));
+                self.pins.insert(String::from(&id), PinGroup::new(String::from(&id), String::from(path), vec!(String::from(&id))));
                 self.physical_pins.insert(String::from(&id), p);
             }
         } else {
@@ -87,7 +87,7 @@ impl Model {
             ids.push(String::from(&p.id));
             self.physical_pins.insert(String::from(n), p);
         }
-        let grp = PinGroup::new(String::from(n), String::from(path), ids, width.unwrap_or(1) as usize);
+        let grp = PinGroup::new(String::from(n), String::from(path), ids);
         self.pins.insert(String::from(n), grp);
         Ok(self.pins.get_mut(n).unwrap())
     }
@@ -104,7 +104,6 @@ impl Model {
                 String::from(alias),
                 String::from(&p.path),
                 vec!(String::from(&p.id)),
-                1,
             );
             p.aliases.push(String::from(alias));
         } else {
@@ -119,21 +118,24 @@ impl Model {
         if self.pin(id).is_some() {
             return Err(Error::new(&format!("Can not add pin group {} because it conflicts with a current pin group or alias id!", id)))
         }
-        let mut width = pins.len();
-        let mut seen_physical_ids: Vec<String> = vec!();
+
+        let mut physical_ids: Vec<String> = vec!();
         for (i, pin_id) in pins.iter().enumerate() {
             if let Some(p) = self.mut_physical_pin(pin_id) {
-                if seen_physical_ids.contains(&p.id) {
+                if physical_ids.contains(&p.id) {
                     return Err(Error::new(&format!("Can not group pins under {} because pin (or an alias of) {} has already been added to the group!", id, p.id)));
                 } else {
-                    seen_physical_ids.push(String::from(&p.id));
+                    //physical_ids.push(String::from(&p.id));
                     p.groups.insert(String::from(n), i);
                 }
             } else {
                 return Err(Error::new(&format!("Can not group pins under {} because pin {} does not exist!", id, pin_id)));
             }
+            if let Some(p) = self.pin(pin_id) {
+                physical_ids.extend(p.pin_ids.clone());
+            }
         }
-        let grp = PinGroup::new(String::from(n), String::from(path), pins, width);
+        let grp = PinGroup::new(String::from(n), String::from(path), physical_ids);
         self.pins.insert(String::from(n), grp);
         Ok(self.pins.get_mut(n).unwrap())
     }
@@ -193,25 +195,28 @@ impl Model {
     ///     * Each pin exist
     ///     * Each pin is unique (no duplicate pins) AND it points to a unique physical pin. That is, each pin is unique after resolving aliases.
     /// If all the above is met, we can group/collect these IDs.
-    pub fn verify_ids(&self, ids: &Vec<String>) -> Result<(), Error> {
-        let mut seen_physical_ids: Vec<String> = vec!();
+    pub fn verify_ids(&mut self, ids: &Vec<String>) -> Result<Vec<String>, Error> {
+        let mut physical_ids: Vec<String> = vec!();
         for (_i, pin_id) in ids.iter().enumerate() {
             if let Some(p) = self.physical_pin(pin_id) {
-                if seen_physical_ids.contains(&p.id) {
+                if physical_ids.contains(&p.id) {
                     return Err(Error::new(&format!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", pin_id, p.id)));
                 } else {
-                    seen_physical_ids.push(String::from(&p.id));
+                    //physical_ids.push(String::from(&p.id));
+                }
+                if let Some(p) = self.pin(pin_id) {
+                    physical_ids.extend(p.pin_ids.clone());
                 }
             } else {
                 return Err(Error::new(&format!("Can not collect pin '{}' because it does not exist!", pin_id)));
             }
         }
-        Ok(())
+        Ok(physical_ids.clone())
     }
 
     pub fn collect(&mut self, path: &str, ids: Vec<String>) -> Result<PinCollection, Error> {
-        self.verify_ids(&ids)?;
-        Ok(PinCollection::new(path, &ids, Option::Some(Endianness::LittleEndian)))
+        let pids = self.verify_ids(&ids)?;
+        Ok(PinCollection::new(path, &pids, Option::Some(Endianness::LittleEndian)))
     }
 
     /// Given a pin id, check if the pin or any of its aliases are present in pin group.
@@ -448,7 +453,7 @@ impl Model {
     pub fn width_of_pin_ids(&mut self, ids: &Vec<String>) -> usize {
         let mut w: usize = 0;
         for (i, id) in ids.iter().enumerate() {
-            w += self.pin(id).unwrap().cached_width;
+            w += self.pin(id).unwrap().len();
         }
         w
     }
