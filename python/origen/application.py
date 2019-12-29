@@ -9,14 +9,14 @@ from origen.controller import TopLevel
 # The base class of all application classes
 class Base:
     # Returns the unique ID (name) of the app/plugin
-    id =  _origen.app_config()["id"]
+    name =  _origen.app_config()["name"]
 
     __instantiate_dut_called = False
 
     # Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon
     def block_path_to_filepath(self, path):
         fields = path.split(".")
-        filepath = origen.root.joinpath(self.id).joinpath('blocks')
+        filepath = origen.root.joinpath(self.name).joinpath('blocks')
         for i, field in enumerate(fields):
             if i > 0:
                 filepath = filepath.joinpath('derivatives')
@@ -60,7 +60,7 @@ class Base:
                 block = Base()
         else:
             controller = '.derivatives.'.join(path.split("."))
-            controller = self.id + ".blocks." + controller + ".controller"
+            controller = self.name + ".blocks." + controller + ".controller"
             m = importlib.import_module(controller)
             block = m.Controller()
 
@@ -75,7 +75,7 @@ class Base:
         fields = controller.block_path.split(".")
         for i, field in enumerate(fields):
             if i == 0:
-                filepath = origen.root.joinpath(self.id).joinpath("blocks").joinpath(fields[i])
+                filepath = origen.root.joinpath(self.name).joinpath("blocks").joinpath(fields[i])
             else:
                 filepath = filepath.joinpath("derivatives").joinpath(fields[i])
             p = filepath.joinpath(filename)

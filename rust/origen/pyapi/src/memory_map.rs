@@ -10,21 +10,47 @@ use pyo3::prelude::*;
 /// dut[.sub_block].memory_maps
 #[pymethods]
 impl PyDUT {
-    fn memory_maps(&self, path: &str) -> PyResult<MemoryMaps> {
-        // Verify the model exists, though we don't need it for now
-        DUT.lock().unwrap().get_model(path)?;
+    fn memory_maps(&self, model_id: usize) -> PyResult<MemoryMaps> {
         Ok(MemoryMaps {
-            model_path: path.to_string(),
+            model_id: model_id,
             i: 0,
         })
     }
 
-    fn memory_map(&self, path: &str, id: &str) -> PyResult<MemoryMap> {
-        // Verify the model exists, though we don't need it for now
-        DUT.lock().unwrap().get_model(path)?;
+    fn memory_map(&self, model_id: usize, name: &str) -> PyResult<MemoryMap> {
+        let id = DUT
+            .lock()
+            .unwrap()
+            .get_model(model_id)?
+            .get_memory_map_id(name)?;
         Ok(MemoryMap {
-            model_path: path.to_string(),
-            id: id.to_string(),
+            id: id,
+            name: name.to_string(),
+        })
+    }
+
+    fn create_memory_map(
+        &self,
+        model_id: usize,
+        name: &str,
+        address_unit_bits: Option<u32>,
+    ) -> PyResult<usize> {
+        Ok(DUT
+            .lock()
+            .unwrap()
+            .create_memory_map(model_id, name, address_unit_bits)?)
+    }
+
+    fn get_or_create_memory_map(&self, model_id: usize, name: &str) -> PyResult<MemoryMap> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_model(model_id)?;
+        let id = match model.get_memory_map_id(name) {
+            Ok(v) => v,
+            Err(_) => dut.create_memory_map(model_id, name, None)?,
+        };
+        Ok(MemoryMap {
+            id: id,
+            name: name.to_string(),
         })
     }
 }
@@ -34,8 +60,8 @@ impl PyDUT {
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct MemoryMaps {
-    /// The path to the model which owns the contained memory maps
-    model_path: String,
+    /// The ID of the model which owns the contained memory maps
+    model_id: usize,
     /// Iterator index
     i: usize,
 }
@@ -45,26 +71,26 @@ pub struct MemoryMaps {
 impl MemoryMaps {
     fn len(&self) -> PyResult<usize> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         Ok(model.memory_maps.len())
     }
 
     fn keys(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         let keys: Vec<String> = model.memory_maps.keys().map(|x| x.clone()).collect();
         Ok(keys)
     }
 
     fn values(&self) -> PyResult<Vec<MemoryMap>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         let values: Vec<MemoryMap> = model
             .memory_maps
-            .keys()
-            .map(|x| MemoryMap {
-                model_path: self.model_path.to_string(),
-                id: x.to_string(),
+            .iter()
+            .map(|(k, v)| MemoryMap {
+                id: *v,
+                name: k.to_string(),
             })
             .collect();
         Ok(values)
@@ -72,16 +98,16 @@ impl MemoryMaps {
 
     fn items(&self) -> PyResult<Vec<(String, MemoryMap)>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         let items: Vec<(String, MemoryMap)> = model
             .memory_maps
-            .keys()
-            .map(|x| {
+            .iter()
+            .map(|(k, v)| {
                 (
-                    x.to_string(),
+                    k.to_string(),
                     MemoryMap {
-                        model_path: self.model_path.to_string(),
-                        id: x.to_string(),
+                        id: *v,
+                        name: k.to_string(),
                     },
                 )
             })
@@ -102,16 +128,17 @@ impl PyMappingProtocol for MemoryMaps {
     /// Implements memory_map["my_map"]
     fn __getitem__(&self, query: &str) -> PyResult<MemoryMap> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         if model.memory_maps.contains_key(query) {
             Ok(MemoryMap {
-                model_path: self.model_path.clone(),
-                id: query.to_string(),
+                id: model.get_memory_map_id(query)?,
+                name: query.to_string(),
             })
         } else {
             Err(KeyError::py_err(format!(
                 "'{}' does not have a memory map called '{}'",
-                model.display_path, query
+                model.display_path(&dut),
+                query
             )))
         }
     }
@@ -122,11 +149,11 @@ impl PyObjectProtocol for MemoryMaps {
     /// Implements memory_map.my_map
     fn __getattr__(&self, query: &str) -> PyResult<MemoryMap> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         if model.memory_maps.contains_key(query) {
             Ok(MemoryMap {
-                model_path: self.model_path.clone(),
-                id: query.to_string(),
+                id: model.get_memory_map_id(query)?,
+                name: query.to_string(),
             })
         } else {
             Err(AttributeError::py_err(format!(
@@ -138,9 +165,9 @@ impl PyObjectProtocol for MemoryMaps {
 
     fn __repr__(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         //let mut output: String = "".to_string();
-        let (mut output, offset) = model.console_header();
+        let (mut output, offset) = model.console_header(&dut);
         output += &(" ".repeat(offset));
         output += "└── memory_maps\n";
         let leader = " ".repeat(offset + 5);
@@ -170,7 +197,7 @@ impl pyo3::class::iter::PyIterProtocol for MemoryMaps {
 
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&slf.model_path).unwrap();
+        let model = dut.get_model(slf.model_id).unwrap();
         let keys: Vec<&String> = model.memory_maps.keys().collect();
 
         if slf.i >= keys.len() {
@@ -187,7 +214,7 @@ impl pyo3::class::iter::PyIterProtocol for MemoryMaps {
 impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&self.model_path)?;
+        let model = dut.get_model(self.model_id)?;
         Ok(model.memory_maps.contains_key(item))
     }
 }
@@ -197,10 +224,10 @@ impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
 #[pyclass]
 #[derive(Debug)]
 pub struct MemoryMap {
-    /// The path to the model which owns the contained memory maps
-    model_path: String,
     #[pyo3(get)]
-    id: String,
+    id: usize,
+    #[pyo3(get)]
+    name: String,
 }
 
 /// User API methods, available to both Rust and Python
@@ -217,17 +244,26 @@ impl PyObjectProtocol for MemoryMap {
         let py = gil.python();
 
         // Calling .regs on an individual memory map returns the regs in its default
-        // address block (the one named 'default')
+        // address block (the one named 'default').
+        // If a default address block has not been defined then an empty Registers collection
+        // is returned.
         if query == "regs" {
+            let ab_id = DUT
+                .lock()
+                .unwrap()
+                .get_memory_map(self.id)?
+                .get_address_block_id("default");
             let pyref = PyRef::new(
                 py,
                 Registers {
-                    model_path: self.model_path.to_string(),
-                    memory_map: self.id.to_string(),
-                    address_block: "default".to_string(),
+                    address_block_id: match ab_id {
+                        Ok(v) => Some(v),
+                        Err(_) => None,
+                    },
                     i: 0,
                 },
             )?;
+
             Ok(pyref.to_object(py))
         } else {
             //let dut = DUT.lock().unwrap();
@@ -246,18 +282,18 @@ impl PyObjectProtocol for MemoryMap {
             //    )?;
             //    Ok(pyref.to_object(py))
             //} else {
-                Err(AttributeError::py_err(format!(
-                    "'MemoryMap' object has no attribute '{}'",
-                    query
-                )))
+            Err(AttributeError::py_err(format!(
+                "'MemoryMap' object has no attribute '{}'",
+                query
+            )))
             //}
         }
     }
 
     fn __richcmp__(&self, other: &MemoryMap, op: CompareOp) -> PyResult<bool> {
         match op {
-            CompareOp::Eq => Ok(self.model_path == other.model_path && self.id == other.id),
-            CompareOp::Ne => Ok(self.model_path != other.model_path || self.id != other.id),
+            CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
+            CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),
             CompareOp::Lt => Err(TypeError::py_err(
                 "'<' not supported between instances of 'MemoryMap'",
             )),

@@ -12,7 +12,7 @@ use self::core::dut::Dut;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
 use crate::error::Error;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -39,6 +39,10 @@ lazy_static! {
 pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
+pub fn dut() -> MutexGuard<'static, Dut> {
+    DUT.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

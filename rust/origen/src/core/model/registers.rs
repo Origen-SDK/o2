@@ -2,6 +2,8 @@
 //! structures upon which this is based:
 //! https://www.accellera.org/images/downloads/standards/ip-xact/IP-XACT_User_Guide_2018-02-16.pdf
 
+use crate::error::Error;
+use crate::Result as OrigenResult;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -13,6 +15,21 @@ pub enum AccessType {
     WriteOnce,
 }
 
+impl std::str::FromStr for AccessType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ReadWrite" => Ok(AccessType::ReadWrite),
+            "ReadOnly" => Ok(AccessType::ReadOnly),
+            "WriteOnly" => Ok(AccessType::WriteOnly),
+            "ReadWriteOnce" => Ok(AccessType::ReadWriteOnce),
+            "WriteOnce" => Ok(AccessType::WriteOnce),
+            _ => Err(format!("'{}' is not a valid value for AccessType", s)),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Usage {
     Read,
@@ -22,20 +39,35 @@ pub enum Usage {
 
 #[derive(Debug)]
 pub struct MemoryMap {
-    pub id: String,
+    pub name: String,
     /// Represents the number of bits of an address increment between two
     /// consecutive addressable units in the memory map.
     /// Its value defaults to 8 indicating a byte addressable memory map.
     pub address_unit_bits: u32,
-    pub address_blocks: HashMap<String, AddressBlock>,
+    pub address_blocks: HashMap<String, usize>,
 }
 
 impl Default for MemoryMap {
     fn default() -> MemoryMap {
         MemoryMap {
-            id: "Default".to_string(),
+            name: "Default".to_string(),
             address_unit_bits: 8,
             address_blocks: HashMap::new(),
+        }
+    }
+}
+
+impl MemoryMap {
+    /// Get the ID from the given address block name
+    pub fn get_address_block_id(&self, name: &str) -> OrigenResult<usize> {
+        match self.address_blocks.get(name) {
+            Some(x) => Ok(*x),
+            None => {
+                return Err(Error::new(&format!(
+                    "The memory map '{}' does not have an address block named '{}'",
+                    self.name, name
+                )))
+            }
         }
     }
 }
@@ -43,7 +75,7 @@ impl Default for MemoryMap {
 #[derive(Debug)]
 /// Represents a single, contiguous block of memory in a memory map.
 pub struct AddressBlock {
-    pub id: String,
+    pub name: String,
     /// The starting address of the address block expressed in address_unit_bits
     /// from the parent memory map.
     pub base_address: u64,
@@ -53,13 +85,13 @@ pub struct AddressBlock {
     /// address block.
     pub width: u64,
     pub access: AccessType,
-    pub registers: HashMap<String, Register>,
+    pub registers: HashMap<String, usize>,
 }
 
 impl Default for AddressBlock {
     fn default() -> AddressBlock {
         AddressBlock {
-            id: "Default".to_string(),
+            name: "Default".to_string(),
             base_address: 0,
             range: 0,
             width: 0,
@@ -69,9 +101,24 @@ impl Default for AddressBlock {
     }
 }
 
+impl AddressBlock {
+    /// Get the ID from the given register name
+    pub fn get_register_id(&self, name: &str) -> OrigenResult<usize> {
+        match self.registers.get(name) {
+            Some(x) => Ok(*x),
+            None => {
+                return Err(Error::new(&format!(
+                    "The address block '{}' does not have a register named '{}'",
+                    self.name, name
+                )))
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Register {
-    pub id: String,
+    pub name: String,
     pub description: String,
     // TODO: What is this?!
     /// The dimension of the register, defaults to 1.
@@ -90,7 +137,7 @@ pub struct Register {
 impl Default for Register {
     fn default() -> Register {
         Register {
-            id: "Default".to_string(),
+            name: "Default".to_string(),
             description: "".to_string(),
             dim: 1,
             offset: 0,
@@ -113,7 +160,7 @@ impl Register {
 #[derive(Debug)]
 /// Named collections of bits within a register
 pub struct Field {
-    pub id: String,
+    pub name: String,
     pub description: String,
     /// Offset from the start of the register in bits.
     pub offset: u32,
@@ -139,7 +186,7 @@ pub struct Reset {
 
 #[derive(Debug)]
 pub struct EnumeratedValue {
-    pub id: String,
+    pub name: String,
     pub description: String,
     pub usage: Usage,
     /// The size of this vector corresponds to the size of the parent field.
