@@ -7,6 +7,7 @@ use pyo3::class::mapping::*;
 
 use super::pin_group::PinGroup;
 use super::pin_collection::PinCollection;
+use origen::core::model::pins::Endianness;
 
 #[pyclass]
 pub struct PinContainer {
@@ -69,11 +70,24 @@ impl PinContainer {
         self.keys()
     }
 
-    #[args(ids = "*")]
-    fn collect(&self, ids: Vec<String>) -> PyResult<Py<PinCollection>> {
+    #[args(ids = "*", options = "**")]
+    fn collect(&self, ids: Vec<String>, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
       let gil = Python::acquire_gil();
       let py = gil.python();
-      let collection = PinCollection::new(&self.path, ids)?;
+      let mut endianness = Option::None;
+      match options {
+        Some(options) => {
+          if let Some(opt) = options.get_item("little_endian") {
+              if opt.extract::<bool>()? {
+                  endianness = Option::Some(Endianness::LittleEndian);
+              } else {
+                  endianness = Option::Some(Endianness::BigEndian);
+              }
+          }
+        },
+        None => {}
+      }
+      let collection = PinCollection::new(&self.path, ids, endianness)?;
       let c = Py::new(py, collection).unwrap();
       Ok(c)
   }

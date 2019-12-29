@@ -15,6 +15,7 @@ use pin_collection::PinCollection;
 use physical_pin_container::PhysicalPinContainer;
 use std::collections::HashMap;
 use origen::core::model::pins::pin::PinActions;
+use origen::core::model::pins::Endianness;
 
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
@@ -36,7 +37,7 @@ impl PyDUT {
     fn add_pin(&self, path: &str, id: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(path)?;
-        let (mut reset_data, mut reset_action, mut width, mut offset): (Option<u32>, Option<String>, Option<u32>, Option<u32>) = (Option::None, Option::None, Option::None, Option::None);
+        let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (Option<u32>, Option<String>, Option<u32>, Option<u32>, Option<Endianness>) = (Option::None, Option::None, Option::None, Option::None, Option::None);
         match kwargs {
             Some(args) => {
                 if let Some(arg) = args.get_item("reset_data") {
@@ -51,10 +52,17 @@ impl PyDUT {
                 if let Some(arg) = args.get_item("offset") {
                     offset = Option::Some(arg.extract::<u32>()?);
                 }
+                if let Some(arg) = args.get_item("little_endian") {
+                    if arg.extract::<bool>()? {
+                        endianness = Option::Some(Endianness::LittleEndian);
+                    } else {
+                        endianness = Option::Some(Endianness::BigEndian);
+                    }
+                }
             },
             None => {},
         }
-        model.add_pin(id, path, width, offset, reset_data, reset_action)?;
+        model.add_pin(id, path, width, offset, reset_data, reset_action, endianness)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -110,11 +118,24 @@ impl PyDUT {
         Ok(Py::new(py, PinContainer {path: String::from(path)}).unwrap())
     }
 
-    #[args(pins = "*")]
-    fn group_pins(&self, path: &str, id: &str, pins: &PyTuple) -> PyResult<PyObject> {
+    #[args(pins = "*", options = "**")]
+    fn group_pins(&self, path: &str, id: &str, pins: &PyTuple, options: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
+        let mut endianness = Option::None;
+        match options {
+            Some(opts) => {
+                if let Some(opt) = opts.get_item("little_endian") {
+                    if opt.extract::<bool>()? {
+                        endianness = Option::Some(Endianness::LittleEndian);
+                    } else {
+                        endianness = Option::Some(Endianness::BigEndian);
+                    }
+                }
+            },
+            None => {}
+        }
         let model = dut.get_mut_model(path)?;
-        model.group_pins(id, path, pins.extract()?)?;
+        model.group_pins(id, path, pins.extract()?, endianness)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();

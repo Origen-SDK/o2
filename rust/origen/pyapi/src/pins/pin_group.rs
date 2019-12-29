@@ -145,6 +145,12 @@ impl PinGroup {
       Ok(model.highz_pin_group(&self.id, Option::None)?)
     }
 
+    fn reset(&self) -> PyResult<()> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      Ok(model.reset_pin_group(&self.id)?)
+    }
+
     #[getter]
     fn get_physical_ids(&self) -> PyResult<Vec<String>> {
       let mut dut = DUT.lock().unwrap();
@@ -159,6 +165,20 @@ impl PinGroup {
      let model = dut.get_mut_model(&self.path)?;
      let grp = model.pin(&self.id).unwrap();
      Ok(grp.len())
+   }
+
+   #[getter]
+   fn get_reset_data(&self) -> PyResult<u32> {
+     let mut dut = DUT.lock().unwrap();
+     let model = dut.get_mut_model(&self.path)?;
+     Ok(model.get_pin_group_reset_data(&self.id))
+   }
+
+   #[getter]
+   fn get_reset_actions(&self) -> PyResult<String> {
+     let mut dut = DUT.lock().unwrap();
+     let model = dut.get_mut_model(&self.path)?;
+     Ok(model.get_pin_reset_actions_for_group(&self.id)?)
    }
 
     // Debug helper: Get the id held by this instance.
@@ -278,7 +298,7 @@ impl pyo3::class::iter::PyIterProtocol for PinGroupIter {
         return Ok(None)
     }
     let id = slf.keys[slf.i].clone();
-    let collection = PinCollection::new(&(slf.path.as_str()), vec!(id))?;
+    let collection = PinCollection::new(&(slf.path.as_str()), vec!(id), Option::None)?;
     slf.i += 1;
     Ok(Some(collection))
   }

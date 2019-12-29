@@ -1,7 +1,7 @@
 //use super::pin::{PinActions};
 //use crate::error::Error;
 //use super::super::super::super::DUT;
-use super::pin_collection::{Endianness};
+use super::super::pins::{Endianness};
 //use crate::core::model::Model;
 
 
@@ -17,12 +17,27 @@ pub struct PinGroup {
 }
 
 impl PinGroup {
-    pub fn new(id: String, path: String, pins: Vec<String>) -> PinGroup {
+    pub fn new(id: String, path: String, pins: Vec<String>, endianness: Option<Endianness>) -> PinGroup {
         return PinGroup {
             id: String::from(id),
             path: String::from(path),
-            pin_ids: pins,
-            endianness: Endianness::LittleEndian,
+            pin_ids: match endianness {
+              Some(e) => {
+                match e {
+                  Endianness::LittleEndian => pins,
+                  Endianness::BigEndian => {
+                    let mut _pins = pins.clone();
+                    _pins.reverse();
+                    _pins
+                  }
+                }
+              },
+              None => pins,
+            },
+            endianness: match endianness {
+              Some(e) => e,
+              None => Endianness::LittleEndian,
+            },
             mask: Option::None,
         };
     }

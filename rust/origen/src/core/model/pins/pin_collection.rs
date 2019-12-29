@@ -1,10 +1,5 @@
 use crate::error::Error;
-
-/// Endianness for PinCollections
-#[derive(Debug, Copy, Clone)]
-pub enum Endianness {
-  LittleEndian, BigEndian
-}
+use super::super::pins::{Endianness};
 
 /// Model for a collection (or group) of pins
 #[derive(Debug, Clone)]
@@ -19,7 +14,15 @@ impl PinCollection {
   pub fn new(path: &str, pin_ids: &Vec<String>, endianness: Option<Endianness>) -> PinCollection {
     PinCollection {
       path: path.to_string(),
-      ids: pin_ids.iter().map( |p| String::from(p)).collect(),
+      ids: match endianness {
+        Some(e) => {
+          match e {
+            Endianness::LittleEndian => pin_ids.iter().map( |p| String::from(p)).collect(),
+            Endianness::BigEndian => pin_ids.iter().rev().map( |p| String::from(p)).collect(),
+          }
+        },
+        None => pin_ids.iter().map( |p| String::from(p)).collect()
+      },
       endianness: endianness.unwrap_or(Endianness::LittleEndian),
       mask: Option::None,
     }
@@ -39,5 +42,16 @@ impl PinCollection {
         sliced_ids.push(p);
     }
     Ok(PinCollection::new(&self.path, &sliced_ids, Option::Some(self.endianness)))
+  }
+
+  pub fn is_little_endian(&self) -> bool {
+    match self.endianness {
+      Endianness::LittleEndian => true,
+      Endianness::BigEndian => false,
+    }
+  }
+
+  pub fn is_big_endian(&self) -> bool {
+    return !self.is_little_endian();
   }
 }

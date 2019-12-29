@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes, PySlice};
 use origen::core::model::pins::pin_collection::PinCollection as OrigenPinCollection;
+use origen::core::model::pins::Endianness;
 
 #[pyclass]
 pub struct PinCollection {
@@ -12,10 +13,10 @@ pub struct PinCollection {
 }
 
 impl PinCollection{
-  pub fn new(path: &str, ids: Vec<String>) -> Result<PinCollection, Error> {
+  pub fn new(path: &str, ids: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
     let mut dut = lock!()?;
     let model = dut.get_mut_model(path)?;
-    let collection = model.collect(path, ids)?;
+    let collection = model.collect(path, ids, endianness)?;
     Ok(PinCollection {
         path: String::from(path),
         pin_collection: collection,
@@ -101,6 +102,13 @@ impl PinCollection {
       Ok(())
     }
 
+    fn reset(&mut self) -> PyResult<()> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      model.reset_pin_collection(&mut self.pin_collection)?;
+      Ok(())
+    }
+
     #[getter]
     fn get_ids(&self) -> PyResult<Vec<String>> {
         Ok(self.pin_collection.ids.clone())
@@ -111,10 +119,34 @@ impl PinCollection {
       Ok(self.pin_collection.len())
     }
 
+    #[getter]
+    fn get_reset_data(&self) -> PyResult<u32> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      Ok(model.get_pin_collection_reset_data(&self.pin_collection))
+    }
+ 
+    #[getter]
+    fn get_reset_actions(&self) -> PyResult<String> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      Ok(model.get_pin_reset_actions_for_collection(&self.pin_collection)?)
+    }
+
     #[allow(non_snake_case)]
     #[getter]
     fn get__path(&self) -> PyResult<String> {
         Ok(self.pin_collection.path.clone())
+    }
+
+    #[getter]
+    fn get_big_endian(&self) -> PyResult<bool> {
+      Ok(!self.pin_collection.is_little_endian())
+    }
+
+    #[getter]
+    fn get_little_endian(&self) -> PyResult<bool> {
+      Ok(self.pin_collection.is_little_endian())
     }
 }
 
@@ -190,7 +222,7 @@ impl pyo3::class::iter::PyIterProtocol for PinCollectionIter {
         return Ok(None)
     }
     let id = slf.keys[slf.i].clone();
-    let collection = PinCollection::new(&(slf.path.as_str()), vec!(id))?;
+    let collection = PinCollection::new(&(slf.path.as_str()), vec!(id), Option::None)?;
     slf.i += 1;
     Ok(Some(collection))
   }

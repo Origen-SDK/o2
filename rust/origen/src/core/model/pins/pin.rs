@@ -18,6 +18,10 @@ impl PinActions {
             "Verify" => Ok(PinActions::Verify),
             "Capture" => Ok(PinActions::Capture),
             "HighZ" => Ok(PinActions::HighZ),
+            "D" => Ok(PinActions::Drive),
+            "V" => Ok(PinActions::Verify),
+            "C" => Ok(PinActions::Capture),
+            "Z" => Ok(PinActions::HighZ),
             _ => Err(Error::new(&format!("Action {} is not available for pins!", s))),
         }
     }
@@ -90,7 +94,8 @@ pub struct Pin {
 
     /// The pin's initial action and state. This will be applied during creation and whenever the
     /// 'reset' function is called.
-    pub initial: (PinActions, bool),
+    pub reset_action: Option<PinActions>,
+    pub reset_data: Option<u32>,
 
     ///--- Meta Data ---///
     /// Any aliases this Pin has.
@@ -140,33 +145,38 @@ impl Pin {
         }
     }
 
+    pub fn reset(&mut self) -> Result<(), Error> {
+        match self.reset_data {
+            Some(d) => { self.data = (d as u8) },
+            None => { self.data = 0; },
+        }
+        match self.reset_action {
+            Some(a) => { self.action = a },
+            None => { self.action = PinActions::HighZ },
+        }
+        Ok(())
+    }
+
     pub fn new(id: String, path: String, reset_data: Option<u32>, reset_action: Option<PinActions>) -> Pin {
-        return Pin {
+        let mut p = Pin {
             id: id,
             path: path,
             data: 0,
             action: PinActions::HighZ,
-            initial: (PinActions::HighZ, false),
+            reset_data: reset_data,
+            reset_action: reset_action,
             aliases: Vec::new(),
             groups: HashMap::new(),
             role: PinRoles::Standard,
             meta: HashMap::new(),
         };
+        p.reset();
+        p
     }
 }
 
 impl Default for Pin {
     fn default() -> Pin {
-        return Pin {
-            id: String::from("default"),
-            path: String::from(""),
-            data: 0,
-            action: PinActions::HighZ,
-            initial: (PinActions::HighZ, false),
-            aliases: Vec::new(),
-            groups: HashMap::new(),
-            role: PinRoles::Standard,
-            meta: HashMap::new(),
-        };
+        Self::new(String::from("default"), String::from(""), Option::None, Option::None)
     }
 }

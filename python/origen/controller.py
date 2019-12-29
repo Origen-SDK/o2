@@ -64,20 +64,11 @@ class Base:
 
         elif name in pins.Proxy.api():
             from origen.pins import Proxy
-            #self.pins = Proxy(self)
             proxy = pins.Proxy(self)
             self.__proxies__["pins"] = proxy
             for method in pins.Proxy.api():
                 self.__setattr__(method, getattr(proxy, method))
             return eval(f"self.{name}")
-        # elif name in pins.Proxy.api():
-        #     proxy = pins.Proxy(self)
-        #     self.__proxies__["pins"] = proxy
-        #     for method in pins.Proxy.api():
-        #         self.__setattr__(method, getattr(proxy, method))
-        #     # Isn't supported by pins yet.
-        #     # self.app.load_block_files(self, "pins.py")
-        #     return eval(f"self.{name}")
         
         elif name == "memory_maps":
             self._load_regs()

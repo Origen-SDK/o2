@@ -55,6 +55,42 @@ impl Pin {
       Ok(pin.aliases.clone())
     }
 
+    #[getter]
+    fn get_reset_data(&self) -> PyResult<PyObject> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      let pin = model.physical_pin(&self.id).unwrap();
+      
+      let gil = Python::acquire_gil();
+      let py = gil.python();
+      match pin.reset_data {
+        Some(d) => {
+          Ok(d.to_object(py))
+        },
+        None => {
+          Ok(py.None())
+        }
+      }
+    }
+
+    #[getter]
+    fn get_reset_action(&self) -> PyResult<PyObject> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(&self.path)?;
+      let pin = model.physical_pin(&self.id).unwrap();
+      
+      let gil = Python::acquire_gil();
+      let py = gil.python();
+      match pin.reset_action {
+        Some(a) => {
+          Ok(String::from(a.as_char().to_string()).to_object(py))
+        },
+        None => {
+          Ok(py.None())
+        }
+      }
+    }
+
     // Debug helper: Get the id held by this instance.
     #[allow(non_snake_case)]
     #[getter]

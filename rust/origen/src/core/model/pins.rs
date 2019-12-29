@@ -4,16 +4,21 @@ pub mod pin_collection;
 use crate::error::Error;
 use std::convert::TryFrom;
 
-use pin_collection::{PinCollection, Endianness};
+use pin_collection::{PinCollection};
 use pin::{Pin, PinActions};
 use pin_group::PinGroup;
 use super::Model;
+
+#[derive(Debug, Copy, Clone)]
+pub enum Endianness {
+  LittleEndian, BigEndian
+}
 
 impl Model {
 
     //** Functions for adding, aliasing, grouping, and collecting pins **
 
-    pub fn add_pin(&mut self, id: &str, path: &str, width: Option<u32>, offset: Option<u32>, reset_data: Option<u32>, reset_action: Option<String>) -> Result<&mut PinGroup, Error> {
+    pub fn add_pin(&mut self, id: &str, path: &str, width: Option<u32>, offset: Option<u32>, reset_data: Option<u32>, reset_action: Option<String>, endianness: Option<Endianness>) -> Result<&mut PinGroup, Error> {
         let n = id;
         if self.pin(id).is_some() {
             return Err(Error::new(&format!("Can not add pin {} because it conflicts with a current pin or alias id!", id)))
@@ -35,11 +40,8 @@ impl Model {
                 return Err(Error::new(&format!("Width cannot be less than 1! Received {}", w)));
             }
             
-            // Check reset data & reset actions, if applicable, before proceeding.
-            // verify_data_fits()?;
-            // verify_action_string_fits()?;
-
-            let (mut rdata_, mut raction_, mut raction_i, mut offset_) = (0, "".as_bytes(), w-1, 0);
+            let (mut rdata_, mut raction_, mut raction_i, mut offset_) = (reset_data.unwrap_or(0), "".as_bytes(), w, 0);
+            self.verify_data_fits(w, rdata_)?;
             let mut temp = String::from("");
             if let Some(o) = offset {
                 offset_ = o;
@@ -47,12 +49,13 @@ impl Model {
             if let Some(r) = reset_action {
                 temp = r;
                 raction_ = temp.as_bytes();
+                self.verify_action_string_fits(w, raction_)?;
             }
             for i in offset_..(offset_ + w) {
                 if reset_data.is_some() {
                     // Set the individual pin data one by one, shifting the available data by one each time.
                     rdata = Some(rdata_ & 0x1);
-                    rdata_ << 1;
+                    rdata_ >>= 1;
                 }
                 if temp != "" {
                     // Same with the pin actions, except we'll be 'shifting' by a character each time.
@@ -60,7 +63,7 @@ impl Model {
                     //  end of the string.
                     // Note: a single character can be given to apply all the same action to all pins in the width.
                     if raction_.len() > 1 {
-                        raction = Some(PinActions::try_from(raction_[raction_i as usize])?);
+                        raction = Some(PinActions::try_from(raction_[(raction_i - 1) as usize])?);
                         raction_i -= 1;
                     } else {
                         raction = Some(PinActions::try_from(raction_[0])?);
@@ -69,11 +72,11 @@ impl Model {
                 let id = format!("{}{}", n, i);
                 p = Pin::new(String::from(&id), String::from(path), rdata, raction);
                 ids.push(String::from(&p.id));
-                self.pins.insert(String::from(&id), PinGroup::new(String::from(&id), String::from(path), vec!(String::from(&id))));
+                self.pins.insert(String::from(&id), PinGroup::new(String::from(&id), String::from(path), vec!(String::from(&id)), endianness));
                 self.physical_pins.insert(String::from(&id), p);
             }
         } else {
-            if let Some(d) = rdata {
+            if let Some(d) = reset_data {
                 // Single bit, so data can't be > 2.
                 if d > 2 {
                     return Err(Error::new(&format!("Reset data of {} overflows available width (1)!", d)));
@@ -87,7 +90,7 @@ impl Model {
             ids.push(String::from(&p.id));
             self.physical_pins.insert(String::from(n), p);
         }
-        let grp = PinGroup::new(String::from(n), String::from(path), ids);
+        let grp = PinGroup::new(String::from(n), String::from(path), ids, endianness);
         self.pins.insert(String::from(n), grp);
         Ok(self.pins.get_mut(n).unwrap())
     }
@@ -99,21 +102,28 @@ impl Model {
         }
 
         let grp;
-        if let Some(p) = self.mut_physical_pin(id) {
+        let mut ids: Vec<String> = vec!();
+        if let Some(p) = self.pin(id) {
             grp = PinGroup::new (
                 String::from(alias),
                 String::from(&p.path),
-                vec!(String::from(&p.id)),
+                //vec!(String::from(&p.id)),
+                p.pin_ids.clone(),
+                Option::Some(p.endianness),
             );
-            p.aliases.push(String::from(alias));
+            ids = p.pin_ids.clone();
         } else {
             return Err(Error::new(&format!("Could not alias pin {} to {}, as pin {} doesn't exists!", id, alias, id)))
+        }
+        for p in ids.iter() {
+            let pin = self._pin(&p).unwrap();
+            pin.aliases.push(String::from(alias));
         }
         self.pins.insert(String::from(alias), grp);
         Ok(())
     }
 
-    pub fn group_pins(&mut self, id: &str, path: &str, pins: Vec<String>) -> Result<&mut PinGroup, Error> {
+    pub fn group_pins(&mut self, id: &str, path: &str, pins: Vec<String>, endianness: Option<Endianness>) -> Result<&mut PinGroup, Error> {
         let n = id;
         if self.pin(id).is_some() {
             return Err(Error::new(&format!("Can not add pin group {} because it conflicts with a current pin group or alias id!", id)))
@@ -135,7 +145,7 @@ impl Model {
                 physical_ids.extend(p.pin_ids.clone());
             }
         }
-        let grp = PinGroup::new(String::from(n), String::from(path), physical_ids);
+        let grp = PinGroup::new(String::from(n), String::from(path), physical_ids, endianness);
         self.pins.insert(String::from(n), grp);
         Ok(self.pins.get_mut(n).unwrap())
     }
@@ -214,9 +224,9 @@ impl Model {
         Ok(physical_ids.clone())
     }
 
-    pub fn collect(&mut self, path: &str, ids: Vec<String>) -> Result<PinCollection, Error> {
+    pub fn collect(&mut self, path: &str, ids: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
         let pids = self.verify_ids(&ids)?;
-        Ok(PinCollection::new(path, &pids, Option::Some(Endianness::LittleEndian)))
+        Ok(PinCollection::new(path, &pids, endianness))
     }
 
     /// Given a pin id, check if the pin or any of its aliases are present in pin group.
@@ -276,9 +286,36 @@ impl Model {
         }
     }
 
+    pub fn verify_data_fits(&mut self, width: u32, data: u32) -> Result<(), Error> {
+        let two: u32 = 2;
+        if data > (two.pow(width) - 1) {
+            Err(Error::new(&format!("Data {} does not fit in pins with width of {}!", data, width)))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn verify_action_string_fits(&self, width: u32, action_string: &[u8]) -> Result<(), Error> {
+        if action_string.len() != (width as usize) {
+            Err(Error::new(&format!("Action string of length {} must match width {}!", action_string.len(), width)))
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn get_pin_group_data(&mut self, id: &str) -> u32 {
         let pin_ids = self.pin(id).unwrap().pin_ids.clone();
         self.get_pin_data(&pin_ids)
+    }
+
+    pub fn get_pin_group_reset_data(&mut self, id: &str) -> u32 {
+        let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+        self.get_pin_reset_data(&pin_ids)
+    }
+
+    pub fn reset_pin_group(&mut self, id: &str) -> Result<(), Error> {
+        let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+        self.reset_pin_ids(&pin_ids)
     }
 
     pub fn set_pin_group_data(&mut self, id: &str, data: u32) -> Result<(), Error> {
@@ -299,6 +336,11 @@ impl Model {
     pub fn get_pin_actions_for_group(&mut self, id: &str) -> Result<String, Error> {
       let pin_ids = self.pin(id).unwrap().pin_ids.clone();
       self.get_pin_actions(&pin_ids)
+    }
+
+    pub fn get_pin_reset_actions_for_group(&mut self, id: &str) -> Result<String, Error> {
+        let pin_ids = self.pin(id).unwrap().pin_ids.clone();
+        self.get_pin_reset_actions(&pin_ids)
     }
 
     pub fn set_pin_actions_for_group(&mut self, id: &str, action: PinActions, data: Option<u32>, mask: Option<usize>) -> Result<(), Error> {
@@ -331,6 +373,24 @@ impl Model {
         data as u32
     }
 
+    pub fn get_pin_reset_data(&mut self, ids: &Vec<String>) -> u32 {
+        let mut rdata = 0;
+        for n in ids.iter().rev() {
+          let p = self._pin(n).unwrap();
+          rdata = (rdata << 1) + p.reset_data.unwrap_or(0);
+        }
+        rdata as u32
+    }
+
+
+    pub fn reset_pin_ids(&mut self, ids: &Vec<String>) -> Result<(), Error> {
+        for n in ids.iter() {
+          let p = self._pin(n).unwrap();
+          p.reset();
+        }
+        Ok(())
+    }
+
     pub fn set_pin_data(&mut self, ids: &Vec<String>, data: u32, mask: Option<usize>) -> Result<(), Error> {
         self.data_fits_in_pins(ids, data)?;
 
@@ -354,9 +414,33 @@ impl Model {
         Ok(s)
     }
 
+    pub fn get_pin_reset_actions(&mut self, ids: &Vec<String>) -> Result<String, Error> {
+        let mut s = String::from("");
+        for n in ids.iter() {
+          let p = self._pin(n).unwrap();
+          s += &(p.reset_action.unwrap_or(PinActions::HighZ).as_char()).to_string();
+        }
+        Ok(s)
+    }
+
     pub fn get_pin_collection_data(&mut self, collection: &PinCollection) -> Result<u32, Error> {
         let ids = &collection.ids;
         Ok(self.get_pin_data(&ids))
+    }
+
+    pub fn get_pin_collection_reset_data(&mut self, collection: &PinCollection) -> u32 {
+        let ids = &collection.ids;
+        self.get_pin_reset_data(&ids)
+    }
+
+    pub fn get_pin_reset_actions_for_collection(&mut self, collection: &PinCollection) -> Result<String, Error> {
+        let ids = &collection.ids;
+        self.get_pin_reset_actions(&ids)
+    }
+
+    pub fn reset_pin_collection(&mut self,collection: &PinCollection) -> Result<(), Error> {
+        let ids = &collection.ids;
+        self.reset_pin_ids(&ids)
     }
 
     pub fn set_pin_collection_data(&mut self, collection: &PinCollection, data: u32) -> Result<(), Error> {
