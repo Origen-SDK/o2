@@ -7,14 +7,16 @@ use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
 pub struct Pin {
     pub id: String,
     pub path: String,
+    pub model_id: usize,
 }
 
 #[macro_export]
 macro_rules! pypin {
-  ($py:expr, $id:expr, $path:expr) => {
+  ($py:expr, $id:expr, $model_id:expr) => {
       Py::new($py, crate::pins::pin::Pin {
         id: String::from($id),
-        path: String::from($path),
+        path: String::from(""),
+        model_id: model_id,
       }).unwrap()
   }
 }
@@ -26,7 +28,7 @@ impl Pin {
     #[getter]
     fn get_id(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         let pin = model._pin(&self.id)?;
         Ok(pin.id.clone())
     }
@@ -34,7 +36,7 @@ impl Pin {
     #[getter]
     fn get_data(&self) -> PyResult<u8> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         let pin = model._pin(&self.id)?;
         Ok(pin.data)
     }
@@ -42,7 +44,7 @@ impl Pin {
     #[getter]
     fn get_action(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         let pin = model._pin(&self.id)?;
         Ok(String::from(pin.action.as_str()))
     }
@@ -50,7 +52,7 @@ impl Pin {
     #[getter]
     fn get_aliases(&self) -> PyResult<Vec<String>> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       let pin = model._pin(&self.id)?;
       Ok(pin.aliases.clone())
     }
@@ -58,7 +60,7 @@ impl Pin {
     #[getter]
     fn get_reset_data(&self) -> PyResult<PyObject> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       let pin = model.physical_pin(&self.id).unwrap();
       
       let gil = Python::acquire_gil();
@@ -76,7 +78,7 @@ impl Pin {
     #[getter]
     fn get_reset_action(&self) -> PyResult<PyObject> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       let pin = model.physical_pin(&self.id).unwrap();
       
       let gil = Python::acquire_gil();

@@ -8,10 +8,11 @@ pub struct PinCollection {
   pub endianness: Endianness,
   pub path: String,
   pub mask: Option<usize>,
+  pub model_id: usize,
 }
 
 impl PinCollection {
-  pub fn new(path: &str, pin_ids: &Vec<String>, endianness: Option<Endianness>) -> PinCollection {
+  pub fn new(model_id: usize, path: &str, pin_ids: &Vec<String>, endianness: Option<Endianness>) -> PinCollection {
     PinCollection {
       path: path.to_string(),
       ids: match endianness {
@@ -25,6 +26,7 @@ impl PinCollection {
       },
       endianness: endianness.unwrap_or(Endianness::LittleEndian),
       mask: Option::None,
+      model_id: model_id,
     }
   }
 
@@ -41,7 +43,7 @@ impl PinCollection {
         let p = self.ids[i].clone();
         sliced_ids.push(p);
     }
-    Ok(PinCollection::new(&self.path, &sliced_ids, Option::Some(self.endianness)))
+    Ok(PinCollection::new(self.model_id, &self.path, &sliced_ids, Option::Some(self.endianness)))
   }
 
   pub fn is_little_endian(&self) -> bool {

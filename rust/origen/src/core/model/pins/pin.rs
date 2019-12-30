@@ -147,7 +147,7 @@ impl Pin {
 
     pub fn reset(&mut self) -> Result<(), Error> {
         match self.reset_data {
-            Some(d) => { self.data = (d as u8) },
+            Some(d) => { self.data = d as u8 },
             None => { self.data = 0; },
         }
         match self.reset_action {

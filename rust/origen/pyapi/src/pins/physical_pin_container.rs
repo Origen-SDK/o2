@@ -9,13 +9,14 @@ use super::pin::Pin;
 #[pyclass]
 pub struct PhysicalPinContainer {
     pub path: String,
+    pub model_id: usize,
 }
 
 #[pymethods]
 impl PhysicalPinContainer {
     fn keys(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         let ids = &model.physical_pins;
 
         let mut v: Vec<String> = Vec::new();
@@ -27,7 +28,7 @@ impl PhysicalPinContainer {
 
     fn values(&self) -> PyResult<Vec<Py<Pin>>> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         let physical_pins = &model.physical_pins;
 
         let gil = Python::acquire_gil();
@@ -37,6 +38,7 @@ impl PhysicalPinContainer {
             v.push(Py::new(py, Pin {
                 id: String::from(n.clone()),
                 path: String::from(self.path.clone()),
+                model_id: self.model_id,
             }).unwrap())
         }
         Ok(v)
@@ -44,7 +46,7 @@ impl PhysicalPinContainer {
 
     fn items(&self) -> PyResult<Vec<(String, Py<Pin>)>> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         let pins = &model.physical_pins;
 
         let gil = Python::acquire_gil();
@@ -56,6 +58,7 @@ impl PhysicalPinContainer {
                 Py::new(py, Pin {
                     id: String::from(n.clone()),
                     path: String::from(self.path.clone()),
+                    model_id: self.model_id,
                 }).unwrap(),
             ));
         }
@@ -72,7 +75,7 @@ impl PhysicalPinContainer {
 impl PyMappingProtocol for PhysicalPinContainer {
     fn __getitem__(&self, id: &str) -> PyResult<Py<Pin>> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -82,6 +85,7 @@ impl PyMappingProtocol for PhysicalPinContainer {
                 Ok(Py::new(py, Pin {
                   id: String::from(id),
                   path: String::from(&self.path),
+                  model_id: self.model_id,
               }).unwrap())
             },
             // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
@@ -91,7 +95,7 @@ impl PyMappingProtocol for PhysicalPinContainer {
 
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         Ok(model.number_of_physical_pins())
     }
 }
@@ -100,7 +104,7 @@ impl PyMappingProtocol for PhysicalPinContainer {
 impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainer {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<PhysicalPinContainerIter> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(&slf.path)?;
+        let model = dut.get_model(slf.model_id)?;
         Ok(PhysicalPinContainerIter {
             keys: model.physical_pins.iter().map(|(s, _)| s.clone()).collect(),
             i: 0,
@@ -112,7 +116,7 @@ impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainer {
 impl pyo3::class::sequence::PySequenceProtocol for PhysicalPinContainer {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         Ok(model._contains(item))
     }
 }

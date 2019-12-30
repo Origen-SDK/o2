@@ -9,18 +9,20 @@ use origen::core::model::pins::Endianness;
 #[pyclass]
 pub struct PinCollection {
     path: String,
+    model_id: usize,
     pin_collection: OrigenPinCollection
 }
 
 impl PinCollection{
-  pub fn new(path: &str, ids: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
+  pub fn new(model_id: usize, ids: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
     let mut dut = lock!()?;
-    let model = dut.get_mut_model(path)?;
-    let collection = model.collect(path, ids, endianness)?;
+    let model = dut.get_mut_model(model_id)?;
+    let collection = model.collect(model_id, "", ids, endianness)?;
     Ok(PinCollection {
-        path: String::from(path),
+        path: String::from(""),
         pin_collection: collection,
-    })
+        model_id: model_id,
+      })
   }
 }
 
@@ -29,14 +31,14 @@ impl PinCollection {
     #[getter]
     fn get_data(&self) -> PyResult<u32> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.pin_collection.path)?;
+        let model = dut.get_mut_model(self.pin_collection.model_id)?;
         Ok(model.get_pin_data(&self.pin_collection.ids))
     }
 
     #[setter]
     fn set_data(&self, data: u32) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         model.set_pin_collection_data(&self.pin_collection, data)?;
 
         let gil = Python::acquire_gil();
@@ -47,12 +49,13 @@ impl PinCollection {
         Ok(Py::new(py, PinCollection {
           path: self.path.clone(),
           pin_collection: self.pin_collection.clone(),
+          model_id: self.model_id,
         }).unwrap())
     }
 
     fn with_mask(&mut self, mask: usize) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(&self.path)?;
+        let model = dut.get_mut_model(self.model_id)?;
         model.set_pin_collection_nonsticky_mask(&mut self.pin_collection, mask)?;
 
         let gil = Python::acquire_gil();
@@ -60,6 +63,7 @@ impl PinCollection {
         Ok(Py::new(py, PinCollection {
           path: self.path.clone(),
           pin_collection: self.pin_collection.clone(),
+          model_id: self.model_id,
         }).unwrap())
     }
 
@@ -70,41 +74,41 @@ impl PinCollection {
     #[getter]
     fn get_pin_actions(&self) -> PyResult<String> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       Ok(model.get_pin_actions(&self.pin_collection.ids)?)
     }
 
     fn drive(&mut self, data: Option<u32>) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       model.drive_pin_collection(&mut self.pin_collection, data)?;
       Ok(())
     }
 
     fn verify(&mut self, data: Option<u32>) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       model.verify_pin_collection(&mut self.pin_collection, data)?;
       Ok(())
     }
 
     fn capture(&mut self) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       model.capture_pin_collection(&mut self.pin_collection)?;
       Ok(())
     }
 
     fn highz(&mut self) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       model.highz_pin_collection(&mut self.pin_collection)?;
       Ok(())
     }
 
     fn reset(&mut self) -> PyResult<()> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       model.reset_pin_collection(&mut self.pin_collection)?;
       Ok(())
     }
@@ -122,14 +126,14 @@ impl PinCollection {
     #[getter]
     fn get_reset_data(&self) -> PyResult<u32> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       Ok(model.get_pin_collection_reset_data(&self.pin_collection))
     }
  
     #[getter]
     fn get_reset_actions(&self) -> PyResult<String> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       Ok(model.get_pin_reset_actions_for_collection(&self.pin_collection)?)
     }
 
@@ -158,7 +162,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinCollection {
 
     fn __contains__(&self, item: &str) -> PyResult<bool> {
       let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(&self.path)?;
+      let model = dut.get_mut_model(self.model_id)?;
       Ok(model.pin_ids_contain(&self.pin_collection.ids, item)?)
   }
 }
@@ -189,6 +193,7 @@ impl pyo3::class::iter::PyIterProtocol for PinCollection {
             keys: slf.pin_collection.ids.clone(),
             i: 0,
             path: slf.path.clone(),
+            model_id: slf.model_id,
         })
     }
 }
@@ -197,6 +202,7 @@ impl From<OrigenPinCollection> for PinCollection {
   fn from(collection: OrigenPinCollection) -> Self {
     PinCollection {
       path: collection.path.clone(),
+      model_id: collection.model_id.clone(),
       pin_collection: collection,
     }
   }
@@ -207,6 +213,7 @@ pub struct PinCollectionIter {
   keys: Vec<String>,
   i: usize,
   path: String,
+  model_id: usize,
 }
 
 #[pyproto]
@@ -222,7 +229,7 @@ impl pyo3::class::iter::PyIterProtocol for PinCollectionIter {
         return Ok(None)
     }
     let id = slf.keys[slf.i].clone();
-    let collection = PinCollection::new(&(slf.path.as_str()), vec!(id), Option::None)?;
+    let collection = PinCollection::new(slf.model_id, vec!(id), Option::None)?;
     slf.i += 1;
     Ok(Some(collection))
   }

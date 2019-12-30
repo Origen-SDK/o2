@@ -246,9 +246,9 @@ impl Model {
         Ok(physical_ids.clone())
     }
 
-    pub fn collect(&mut self, path: &str, ids: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
+    pub fn collect(&mut self, model_id: usize, path: &str, ids: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
         let pids = self.verify_ids(&ids)?;
-        Ok(PinCollection::new(path, &pids, endianness))
+        Ok(PinCollection::new(model_id, path, &pids, endianness))
     }
 
     /// Given a pin id, check if the pin or any of its aliases are present in pin group.
@@ -550,7 +550,8 @@ impl Model {
                 let p = ids[i].clone();
                 sliced_ids.push(p);
             }
-            Ok(PinCollection::new(&self.parent_path, &sliced_ids, Option::None))
+            Ok(PinCollection::new(self.id, &self.name, &sliced_ids, Option::None))
+            //Ok(PinCollection::new(&self.parent_path, &sliced_ids, Option::None))
         } else {
             Err(Error::new(&format!("Could not slice pin {} because it doesn't exists!", id)))
         }
