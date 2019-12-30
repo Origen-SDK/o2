@@ -29,15 +29,9 @@ impl Model {
         if !width.is_some() && offset.is_some() {
             return Err(Error::new(&format!("Can not add pin {} with a given offset but no width option!", id)))
         }
-        let reset_data_per_pin = 0 as usize;
-        let reset_action_per_pin = PinActions::HighZ;
         let mut ids: Vec<String> = vec!();
         let (mut rdata, mut raction) = (Option::None, Option::None);
 
-        // Rust doesn't like that the for look below could never be run, even though we'll exit with an error with a width of less than 1 
-        //  (we'll either run the loop, init with a size of 1, or fail).
-        // Need to either initialize to a dummy pin or use the MaybeUninit feature. Just initializing to a dummy value is easier and safer.
-        let mut p = Pin::new(String::from("Dummy"), String::from("Dummy"), Option::None, Option::None);
         if let Some(w) = width {
             if w < 1 {
                 return Err(Error::new(&format!("Width cannot be less than 1! Received {}", w)));
@@ -73,7 +67,7 @@ impl Model {
                     }
                 }
                 let id = format!("{}{}", n, i);
-                p = Pin::new(String::from(&id), String::from(path), rdata, raction);
+                let p = Pin::new(String::from(&id), String::from(path), rdata, raction);
                 ids.push(String::from(&p.id));
                 self.pins.insert(String::from(&id), PinGroup::new(String::from(&id), String::from(path), vec!(String::from(&id)), endianness));
                 self.physical_pins.insert(String::from(&id), p);
@@ -89,7 +83,7 @@ impl Model {
             if let Some(a) = reset_action {
                 raction = Some(PinActions::from_str(&a)?);
             }
-            p = Pin::new(String::from(n), String::from(path), rdata, raction);
+            let p = Pin::new(String::from(n), String::from(path), rdata, raction);
             ids.push(String::from(&p.id));
             self.physical_pins.insert(String::from(n), p);
         }
@@ -105,7 +99,7 @@ impl Model {
         }
 
         let grp;
-        let mut ids: Vec<String> = vec!();
+        let ids;
         if let Some(p) = self.pin(id) {
             grp = PinGroup::new (
                 String::from(alias),
@@ -559,7 +553,7 @@ impl Model {
 
     pub fn width_of_pin_ids(&mut self, ids: &Vec<String>) -> usize {
         let mut w: usize = 0;
-        for (i, id) in ids.iter().enumerate() {
+        for (_i, id) in ids.iter().enumerate() {
             w += self.pin(id).unwrap().len();
         }
         w

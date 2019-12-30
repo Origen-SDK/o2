@@ -13,8 +13,6 @@ use pin_group::PinGroup;
 use pin_container::PinContainer;
 use pin_collection::PinCollection;
 use physical_pin_container::PhysicalPinContainer;
-use std::collections::HashMap;
-use origen::core::model::pins::pin::PinActions;
 use origen::core::model::pins::Endianness;
 
 #[allow(unused_imports)]

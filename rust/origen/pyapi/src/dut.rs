@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use crate::register::BitCollection;
 use origen::DUT;
 use pyo3::{wrap_pymodule};
 use crate::pins::PyInit_pins;

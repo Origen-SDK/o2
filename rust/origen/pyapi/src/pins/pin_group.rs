@@ -277,7 +277,6 @@ impl pyo3::class::iter::PyIterProtocol for PinGroup {
         Ok(PinGroupIter {
             keys: grp.pin_ids.clone(),
             i: 0,
-            path: slf.path.clone(),
             model_id: slf.model_id,
         })
     }
@@ -287,7 +286,6 @@ impl pyo3::class::iter::PyIterProtocol for PinGroup {
 pub struct PinGroupIter {
   keys: Vec<String>,
   i: usize,
-  path: String,
   model_id: usize,
 }
 

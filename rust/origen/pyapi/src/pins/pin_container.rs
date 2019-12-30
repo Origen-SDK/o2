@@ -92,13 +92,12 @@ impl PinContainer {
       }
 
       let mut id_strs: Vec<String> = vec!();
-      let mut regex_indices: Vec<usize> = vec!();
-      for (i, id) in ids.iter().enumerate() {
-        let t = id.get_type().name();
+      for (_i, id) in ids.iter().enumerate() {
         if id.get_type().name() == "re.Pattern" {
           let r = id.getattr("pattern").unwrap();
           id_strs.push(format!("/{}/", r));
-        } else if let _id = id.extract::<String>()? {
+        } else {
+          let _id = id.extract::<String>()?;
           id_strs.push(_id.clone());
         }
       }

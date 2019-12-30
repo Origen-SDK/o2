@@ -145,7 +145,7 @@ impl Pin {
         }
     }
 
-    pub fn reset(&mut self) -> Result<(), Error> {
+    pub fn reset(&mut self) {
         match self.reset_data {
             Some(d) => { self.data = d as u8 },
             None => { self.data = 0; },
@@ -154,7 +154,6 @@ impl Pin {
             Some(a) => { self.action = a },
             None => { self.action = PinActions::HighZ },
         }
-        Ok(())
     }
 
     pub fn new(id: String, path: String, reset_data: Option<u32>, reset_action: Option<PinActions>) -> Pin {

@@ -192,7 +192,6 @@ impl pyo3::class::iter::PyIterProtocol for PinCollection {
         Ok(PinCollectionIter {
             keys: slf.pin_collection.ids.clone(),
             i: 0,
-            path: slf.path.clone(),
             model_id: slf.model_id,
         })
     }
@@ -212,7 +211,6 @@ impl From<OrigenPinCollection> for PinCollection {
 pub struct PinCollectionIter {
   keys: Vec<String>,
   i: usize,
-  path: String,
   model_id: usize,
 }
 
