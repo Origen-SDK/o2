@@ -166,7 +166,6 @@ impl PyObjectProtocol for MemoryMaps {
     fn __repr__(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let model = dut.get_model(self.model_id)?;
-        //let mut output: String = "".to_string();
         let (mut output, offset) = model.console_header(&dut);
         output += &(" ".repeat(offset));
         output += "└── memory_maps\n";
@@ -310,6 +309,8 @@ impl PyObjectProtocol for MemoryMap {
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        Ok("Here should be a nice graphic of the memory map".to_string())
+        let dut = origen::dut();
+        let memory_map = dut.get_memory_map(self.id)?;
+        Ok(memory_map.console_display(&dut)?)
     }
 }

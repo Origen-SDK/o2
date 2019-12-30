@@ -27,6 +27,11 @@ class Base:
         self.regs_loaded = False
         self.sub_blocks_loaded = False
 
+    def __repr__(self):
+        self._load_regs()
+        self._load_sub_blocks()
+        return origen.dut.db.model_console_display(self.model_id)
+
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
         #print(f"Looking for attribute {name}")
@@ -89,8 +94,12 @@ class Base:
         return t
 
     def memory_map(self, name):
-        self.regs  # Ensure the memory maps for this block have been loaded
+        self._load_regs()
         return origen.dut.db.memory_map(self.model_id, name)
+
+    def reg(self, name):
+        self._load_regs()
+        return origen.dut.db.reg(self._default_default_address_block.id, name)
 
     def add_simple_reg(self, *args, **kwargs):
         RegLoader(self).SimpleReg(*args, **kwargs)

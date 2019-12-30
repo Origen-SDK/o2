@@ -5,6 +5,9 @@
 use crate::error::Error;
 use crate::Result as OrigenResult;
 use std::collections::HashMap;
+use crate::Dut;
+use std::sync::MutexGuard;
+use crate::core::model::Model;
 
 #[derive(Debug)]
 pub enum AccessType {
@@ -40,6 +43,8 @@ pub enum Usage {
 #[derive(Debug)]
 pub struct MemoryMap {
     pub name: String,
+    pub id: usize,
+    pub model_id: usize,
     /// Represents the number of bits of an address increment between two
     /// consecutive addressable units in the memory map.
     /// Its value defaults to 8 indicating a byte addressable memory map.
@@ -50,6 +55,8 @@ pub struct MemoryMap {
 impl Default for MemoryMap {
     fn default() -> MemoryMap {
         MemoryMap {
+            id: 0,
+            model_id: 0,
             name: "Default".to_string(),
             address_unit_bits: 8,
             address_blocks: HashMap::new(),
@@ -69,6 +76,34 @@ impl MemoryMap {
                 )))
             }
         }
+    }
+
+    /// Returns an immutable reference to the parent model
+    pub fn model<'a>(&self, dut: &'a MutexGuard<Dut>) -> OrigenResult<&'a Model> {
+        dut.get_model(self.model_id)
+    }
+
+    pub fn console_display(&self, dut: &MutexGuard<Dut>) -> OrigenResult<String> {
+        let (mut output, offset) = self.model(&dut)?.console_header(&dut);
+        output += &(" ".repeat(offset));
+        output += &format!("└── memory_maps['{}']\n", self.name);
+        let mut leader = " ".repeat(offset + 5);
+        output += &format!("{}├── address_unit_bits: {}\n", leader, self.address_unit_bits);
+        output += &format!("{}└── address_blocks\n", leader);
+        leader += "     ";
+        let num_abs = self.address_blocks.keys().len();
+        if num_abs > 0 {
+            for (i, key) in self.address_blocks.keys().enumerate() {
+                if i != num_abs - 1 {
+                    output += &format!("{}├── {}\n", leader, key);
+                } else {
+                    output += &format!("{}└── {}\n", leader, key);
+                }
+            }
+        } else {
+            output += &format!("{}└── NONE\n", leader);
+        }
+        Ok(output)
     }
 }
 

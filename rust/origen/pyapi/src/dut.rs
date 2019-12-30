@@ -29,6 +29,12 @@ impl PyDUT {
         Ok(DUT.lock().unwrap().create_model(parent_id, name)?)
     }
 
+    fn model_console_display(&self, model_id: usize) -> PyResult<String> {
+        let dut = origen::dut();
+        let model = dut.get_model(model_id)?;
+        Ok(model.console_display(&dut)?)
+    }
+
     fn create_reg(
         &self,
         address_block_id: usize,

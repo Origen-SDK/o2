@@ -70,4 +70,42 @@ impl Model {
             None => return format!("{}", self.name),
         }
     }
+
+    pub fn console_display(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        let (mut output, offset) = self.console_header(&dut);
+        let offset = " ".repeat(offset);
+        output += &format!("{}├── memory_maps\n", offset);
+        let leader = format!("{}|    ", offset);
+        let num = self.memory_maps.keys().len();
+        if num > 0 {
+            let mut keys: Vec<&String> = self.memory_maps.keys().collect();
+            keys.sort();
+            for (i, key) in keys.iter().enumerate() {
+                if i != num - 1 {
+                    output += &format!("{}├── {}\n", leader, key);
+                } else {
+                    output += &format!("{}└── {}\n", leader, key);
+                }
+            }
+        } else {
+            output += &format!("{}└── NONE\n", leader);
+        }
+        output += &format!("{}└── sub_blocks\n", offset);
+        let leader = format!("{}     ", offset);
+        let num = self.sub_blocks.keys().len();
+        if num > 0 {
+            let mut keys: Vec<&String> = self.sub_blocks.keys().collect();
+            keys.sort();
+            for (i, key) in keys.iter().enumerate() {
+                if i != num - 1 {
+                    output += &format!("{}├── {}\n", leader, key);
+                } else {
+                    output += &format!("{}└── {}\n", leader, key);
+                }
+            }
+        } else {
+            output += &format!("{}└── NONE\n", leader);
+        }
+        Ok(output)
+    }
 }

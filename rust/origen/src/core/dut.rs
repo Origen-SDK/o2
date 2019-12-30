@@ -243,6 +243,8 @@ impl Dut {
             None => {}
         }
         self.memory_maps.push(MemoryMap {
+            id: id,
+            model_id: model_id,
             name: name.to_string(),
             ..defaults
         });
