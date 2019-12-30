@@ -64,8 +64,9 @@ fn search_for_app_root() -> (bool, PathBuf) {
 fn get_home_dir() -> PathBuf {
     if cfg!(windows) {
         PathBuf::from(env::var("USERPROFILE").expect("Please set environment variable USERPROFILE to point to your home directory, then try again"))
-    }
-    else {
-        PathBuf::from(env::var("HOME").expect("Please set environment variable HOME to point to your home directory, then try again"))
+    } else {
+        PathBuf::from(env::var("HOME").expect(
+            "Please set environment variable HOME to point to your home directory, then try again",
+        ))
     }
 }

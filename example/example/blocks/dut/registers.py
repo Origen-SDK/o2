@@ -10,9 +10,9 @@ SimpleReg("reg1", 0)
 # Another simple reg with custom size
 SimpleReg("reg2", 4, size=16)
 
-# This is the reg definition
+# This is the reg description
 with Reg("reg3", 0x0024, size=16) as reg:
-    # This is the COCO definition
+    # This is the COCO description
     reg.bit(7, "coco", access="ro")
     reg.bit(6, "aien")
     reg.bit(5, "diff")

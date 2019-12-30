@@ -5,6 +5,12 @@ def test_memory_maps():
     assert origen.dut.memory_maps
     assert origen.dut.memory_map("default") == origen.dut.memory_maps["default"]
     assert len(origen.dut.memory_maps) == 3
+    assert len(origen.dut.core0.memory_maps) == 0
+    assert len(origen.dut.core0.adc0.memory_maps) == 1
+    # Simple test to make sure the display method doesn't hang/crash
+    assert origen.dut.memory_maps.__repr__()
+    assert origen.dut.core0.memory_maps.__repr__()
+    assert origen.dut.core0.adc0.memory_maps.__repr__()
 
     # Check some of the dict-like API
     assert "default" in origen.dut.memory_maps

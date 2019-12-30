@@ -12,7 +12,7 @@ use self::core::dut::Dut;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
 use crate::error::Error;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -49,6 +49,10 @@ macro_rules! lock {
             Err(e) => Err(origen::error::Error::new(&format!("Could not attain DUT lock!"))),
         }
     }
+}
+
+pub fn dut() -> MutexGuard<'static, Dut> {
+    DUT.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
