@@ -296,6 +296,8 @@ impl Dut {
         }
 
         self.address_blocks.push(AddressBlock {
+            id: id,
+            memory_map_id: memory_map_id,
             name: name.to_string(),
             ..defaults
         });

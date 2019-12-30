@@ -2,12 +2,12 @@
 //! structures upon which this is based:
 //! https://www.accellera.org/images/downloads/standards/ip-xact/IP-XACT_User_Guide_2018-02-16.pdf
 
+use crate::core::model::Model;
 use crate::error::Error;
+use crate::Dut;
 use crate::Result as OrigenResult;
 use std::collections::HashMap;
-use crate::Dut;
 use std::sync::MutexGuard;
-use crate::core::model::Model;
 
 #[derive(Debug)]
 pub enum AccessType {
@@ -88,12 +88,17 @@ impl MemoryMap {
         output += &(" ".repeat(offset));
         output += &format!("└── memory_maps['{}']\n", self.name);
         let mut leader = " ".repeat(offset + 5);
-        output += &format!("{}├── address_unit_bits: {}\n", leader, self.address_unit_bits);
+        output += &format!(
+            "{}├── address_unit_bits: {}\n",
+            leader, self.address_unit_bits
+        );
         output += &format!("{}└── address_blocks\n", leader);
         leader += "     ";
         let num_abs = self.address_blocks.keys().len();
         if num_abs > 0 {
-            for (i, key) in self.address_blocks.keys().enumerate() {
+            let mut keys: Vec<&String> = self.address_blocks.keys().collect();
+            keys.sort();
+            for (i, key) in keys.iter().enumerate() {
                 if i != num_abs - 1 {
                     output += &format!("{}├── {}\n", leader, key);
                 } else {
@@ -110,6 +115,8 @@ impl MemoryMap {
 #[derive(Debug)]
 /// Represents a single, contiguous block of memory in a memory map.
 pub struct AddressBlock {
+    pub id: usize,
+    pub memory_map_id: usize,
     pub name: String,
     /// The starting address of the address block expressed in address_unit_bits
     /// from the parent memory map.
@@ -126,6 +133,8 @@ pub struct AddressBlock {
 impl Default for AddressBlock {
     fn default() -> AddressBlock {
         AddressBlock {
+            id: 0,
+            memory_map_id: 0,
             name: "Default".to_string(),
             base_address: 0,
             range: 0,
@@ -148,6 +157,32 @@ impl AddressBlock {
                 )))
             }
         }
+    }
+
+    pub fn console_display(&self, dut: &MutexGuard<Dut>) -> OrigenResult<String> {
+        //let (mut output, offset) = self.model(&dut)?.console_header(&dut);
+        //output += &(" ".repeat(offset));
+        //output += &format!("└── memory_maps['{}']\n", self.name);
+        //let mut leader = " ".repeat(offset + 5);
+        //output += &format!("{}├── address_unit_bits: {}\n", leader, self.address_unit_bits);
+        //output += &format!("{}└── address_blocks\n", leader);
+        //leader += "     ";
+        //let num_abs = self.address_blocks.keys().len();
+        //if num_abs > 0 {
+        //    let mut keys: Vec<&String> = self.address_blocks.keys().collect();
+        //    keys.sort();
+        //    for (i, key) in keys.iter().enumerate() {
+        //        if i != num_abs - 1 {
+        //            output += &format!("{}├── {}\n", leader, key);
+        //        } else {
+        //            output += &format!("{}└── {}\n", leader, key);
+        //        }
+        //    }
+        //} else {
+        //    output += &format!("{}└── NONE\n", leader);
+        //}
+        //Ok(output)
+        Ok("Still to implement console_display".to_string())
     }
 }
 
