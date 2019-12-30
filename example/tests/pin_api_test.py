@@ -163,12 +163,6 @@ def test_exception_on_bad_input():
 def test_driving_pins():
   # Same as above: changing the pin action sets it in the physical pin.
   # Note that you cannot set pin states directly using strings.
-  # !!! 
-  # Eventually, masking and indexing will be supported, so things like:
-  #   grp.with_mask(0x1).drive() #=> actions: "ZZD"
-  #   grp.[2:1].verify() #=> actions: "VVD"
-  # At this moment, its all or nothing though.
-  # !!!
   grp = origen.dut.pin("grp")
   assert grp.pin_actions == "ZZZ"
   assert grp.drive() is None
@@ -495,12 +489,6 @@ def test_exception_on_out_of_bounds_indexing():
   with pytest.raises(OSError):
     c[0:100]
 
-# def test_pin_group_with_mask():
-#   ...
-
-# def test_pin_collection_with_mask():
-#   ...
-
 def test_chaining_method_calls_with_nonsticky_mask():
   # This should set the data to 0x3, then drive the pins using mask 0x2.
   # The mask should then be cleared.
@@ -814,11 +802,30 @@ def test_exception_on_invalid_reset_actions():
   with pytest.raises(OSError):
     origen.dut.add_pin("error", width=2, reset_action="Z")
 
+def test_collecting_with_single_regex():
+  import re
+  r = re.compile("port.0")
+  c = origen.dut.pins.collect(r)
+  assert c.ids == ["porta0", "portb0"]
+
+def test_collecting_using_ruby_like_syntax():
+  c = origen.dut.pins.collect("/port.0/")
+  assert c.ids == ["porta0", "portb0"]
+
+def test_collecting_with_mixed_inputs():
+  import re
+  r = re.compile("port.0")
+  c = origen.dut.pins.collect("/port.1/", "p1", r)
+  assert c.ids == ["porta1", "portb1", "p1", "porta0", "portb0"]
+
 # def test_in_progress_pin_api():
 #   import re
-#   r = re.compile('port')
+#   r = re.compile("port.0")
 #   print(r.__class__)
+#   print(r.pattern)
 #   c = origen.dut.pins.collect(r)
+#   print(c.ids)
+#   assert 0 == 1
   # !!!
   # Experimental Stuff. Still in progress.
   # Consider this non-official API experimentation.

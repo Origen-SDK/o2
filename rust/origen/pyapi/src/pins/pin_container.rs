@@ -71,7 +71,7 @@ impl PinContainer {
     }
 
     #[args(ids = "*", options = "**")]
-    fn collect(&self, ids: Vec<String>, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
+    fn collect(&self, ids: &PyTuple, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
       let gil = Python::acquire_gil();
       let py = gil.python();
       let mut endianness = Option::None;
@@ -87,7 +87,19 @@ impl PinContainer {
         },
         None => {}
       }
-      let collection = PinCollection::new(&self.path, ids, endianness)?;
+
+      let mut id_strs: Vec<String> = vec!();
+      let mut regex_indices: Vec<usize> = vec!();
+      for (i, id) in ids.iter().enumerate() {
+        let t = id.get_type().name();
+        if id.get_type().name() == "re.Pattern" {
+          let r = id.getattr("pattern").unwrap();
+          id_strs.push(format!("/{}/", r));
+        } else if let _id = id.extract::<String>()? {
+          id_strs.push(_id.clone());
+        }
+      }
+      let collection = PinCollection::new(&self.path, id_strs, endianness)?;
       let c = Py::new(py, collection).unwrap();
       Ok(c)
   }

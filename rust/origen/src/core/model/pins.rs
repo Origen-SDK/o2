@@ -4,6 +4,9 @@ pub mod pin_collection;
 use crate::error::Error;
 use std::convert::TryFrom;
 
+extern crate regex;
+use regex::Regex;
+
 use pin_collection::{PinCollection};
 use pin::{Pin, PinActions};
 use pin_group::PinGroup;
@@ -208,7 +211,26 @@ impl Model {
     pub fn verify_ids(&mut self, ids: &Vec<String>) -> Result<Vec<String>, Error> {
         let mut physical_ids: Vec<String> = vec!();
         for (_i, pin_id) in ids.iter().enumerate() {
-            if let Some(p) = self.physical_pin(pin_id) {
+            if pin_id.starts_with("/") && pin_id.ends_with("/") {
+                let mut regex_str = pin_id.clone();
+                regex_str.pop();
+                regex_str.remove(0);
+                let regex = Regex::new(&regex_str).unwrap();
+
+                let mut _pin_ids: Vec<String> = vec!();
+                for (id_str, grp) in self.pins.iter() {
+                    if regex.is_match(id_str) {
+                        for _id_str in grp.pin_ids.iter() {
+                            if physical_ids.contains(_id_str) {
+                                return Err(Error::new(&format!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", id_str, regex_str, _id_str)));
+                            }
+                        }
+                        _pin_ids.extend(grp.pin_ids.clone())
+                    }
+                }
+                _pin_ids.sort();
+                physical_ids.extend(_pin_ids);
+            } else if let Some(p) = self.physical_pin(pin_id) {
                 if physical_ids.contains(&p.id) {
                     return Err(Error::new(&format!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", pin_id, p.id)));
                 } else {
