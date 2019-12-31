@@ -1,3 +1,4 @@
+//! This file is now obsolete and will be deleted
 //! Defines the set of actions associated with pattern generation
 // String is used for data to allow very large (ex. 300-bit) numbers
 // Enum Structs will be defined for most action types to hold their associated info

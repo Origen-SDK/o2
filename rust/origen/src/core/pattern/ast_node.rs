@@ -1,6 +1,7 @@
 use id_arena::{Arena, Id};
 use super::operation::Operation;
 use super::pinaction::PinAction;
+use super::register_action::RegisterAction;
 
 type AstNodeId = Id<AstNode>;
 
@@ -13,6 +14,6 @@ pub enum AstNode {
     Cycle{repeat: u32},
     Comment(String),
     Instrument{name: String, data: String, operation: Operation},
-    Register{name: String, address: u64, data: String, operation: Operation, children: Operation},
+    Register(RegisterAction),
     // Driver{name: String, operation: Operation, data: u32, size: u32, target: String, start_stop: Operation},
 }
