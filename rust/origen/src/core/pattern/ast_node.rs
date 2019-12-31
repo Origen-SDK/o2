@@ -1,6 +1,6 @@
 use id_arena::{Arena, Id};
 use super::operation::Operation;
-use super::pinaction::PinAction;
+use super::pin_action::PinAction;
 use super::register_action::RegisterAction;
 
 pub type AstNodeId = Id<AstNode>;

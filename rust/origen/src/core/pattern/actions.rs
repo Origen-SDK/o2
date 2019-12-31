@@ -30,7 +30,7 @@ mod tests {
     fn actions_struct_loads_reads() {
         let mut pattern_actions = Actions::new();
         pattern_actions.push(action::Action::Timeset("tp0".to_string()));
-        pattern_actions.push(action::Action::Pin(pinaction::PinAction::new("pa0", "1", operation::Operation::Read)));
+        pattern_actions.push(action::Action::Pin(pin_action::PinAction::new("pa0", "1", operation::Operation::Read)));
         assert_eq!((pattern_actions.vec()[0]).to_string(), "Timeset -> tp0");
         assert_eq!((pattern_actions.vec()[1]).to_string(), "PinAction -> pin: pa0, data: 1, operation: read");
     }
@@ -43,8 +43,8 @@ mod tests {
         let mut pattern_actions = Actions::new();
         pattern_actions.push(action::Action::Timeset("tp0".to_string()));
         pattern_actions.push(action::Action::Cycle{repeat: 35});
-        pattern_actions.push(action::Action::Pin(pinaction::PinAction::new("pin1", "1", operation::Operation::Read)));
-        pattern_actions.push(action::Action::Pin(pinaction::PinAction::new("pin2", "0", operation::Operation::Read)));
+        pattern_actions.push(action::Action::Pin(pin_action::PinAction::new("pin1", "1", operation::Operation::Read)));
+        pattern_actions.push(action::Action::Pin(pin_action::PinAction::new("pin2", "0", operation::Operation::Read)));
         pattern_actions.push(action::Action::Cycle{repeat: 2});
         
         // consume the actions:

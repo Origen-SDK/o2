@@ -5,7 +5,7 @@
 //
 
 use super::operation::Operation;
-use super::pinaction::PinAction;
+use super::pin_action::PinAction;
 
 pub enum Action {
     Pin(PinAction),

@@ -1,6 +1,6 @@
 pub mod action;
 pub mod operation;
-pub mod pinaction;
+pub mod pin_action;
 pub mod actions;
 pub mod ast_node;
 pub mod register_action;
