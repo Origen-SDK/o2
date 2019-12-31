@@ -16,7 +16,7 @@ mode = "development"
 
 if status["is_app_present"]:
     sys.path.insert(0, status["root"])
-    a = importlib.import_module(f'{_origen.app_config()["id"]}.application')
+    a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
     app = a.Application()
 
 def set_mode(val):

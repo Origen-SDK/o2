@@ -145,7 +145,8 @@ impl Logger {
             pb = (STATUS.home).to_path_buf().join(".origen").join("log");
         }
         // create all missing directories to avoid panics
-        fs::create_dir_all(pb.as_path()).expect(&(format!("Could not create the log directory {}",pb.display())));
+        fs::create_dir_all(pb.as_path())
+            .expect(&(format!("Could not create the log directory {}", pb.display())));
         pb
     }
 

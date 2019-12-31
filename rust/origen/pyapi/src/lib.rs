@@ -58,7 +58,7 @@ fn config(py: Python) -> PyResult<PyObject> {
 fn app_config(py: Python) -> PyResult<PyObject> {
     let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
-    let _ = ret.set_item("id", &APPLICATION_CONFIG.id);
+    let _ = ret.set_item("name", &APPLICATION_CONFIG.name);
     let _ = ret.set_item("target", &APPLICATION_CONFIG.target);
     let _ = ret.set_item("environment", &APPLICATION_CONFIG.environment);
     let _ = ret.set_item("mode", &APPLICATION_CONFIG.mode);
