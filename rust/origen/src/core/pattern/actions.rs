@@ -1,3 +1,4 @@
+//! This file is now obsolete and will be deleted
 //! Collects actions
 pub use super::*;
 

@@ -1,7 +1,7 @@
 //! Defines the set of actions associated with a pattern pin action
-// TODO: The operation/action type enum should come from the module that models the object (pins, regs, protocol, etc.)
 pub use super::operation::Operation;
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct PinAction {
     pub name: String,
     pub data: String,
