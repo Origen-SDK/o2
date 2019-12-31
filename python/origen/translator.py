@@ -68,7 +68,7 @@ class Translator:
              bit_range = self.__ip_xact_calc_bit_range(bit_size, bit_offset)
              bit_access = self.__ip_xact_format_access(bit_field_tag.find_next("spirit:access").text)
              # TODO: Need to figure out how to find a bit reset tag without finding the
-             # access tag from the next register
+             # reset tag from the next register
              # bit_reset_tag = bit_field_tag.find_next("spirit:reset")
              reg.bit(bit_range, bit_name, access=bit_access)
 
