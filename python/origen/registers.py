@@ -32,11 +32,11 @@ class Loader:
 
     @contextmanager
     def Reg(self, name, address_offset, size=32):
-        origen.dut.db.create_reg(self.current_address_block().id, name, address_offset, size)
+        origen.dut.db.create_reg(self.current_address_block().id, name, address_offset, size);
         yield self
 
     def SimpleReg(self, name, address_offset, size=32):
-        origen.dut.db.create_reg(self.current_address_block().id, name, address_offset, size)
+        origen.dut.db.create_reg(self.current_address_block().id, name, address_offset, size);
 
     def bit(self, number, name, access="rw", reset=0):
         pass
