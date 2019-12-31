@@ -3,7 +3,7 @@ use super::operation::Operation;
 use super::pinaction::PinAction;
 use super::register_action::RegisterAction;
 
-type AstNodeId = Id<AstNode>;
+pub type AstNodeId = Id<AstNode>;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum AstNode {
