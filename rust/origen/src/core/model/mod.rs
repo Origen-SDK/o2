@@ -6,6 +6,8 @@ use crate::Result;
 use std::sync::MutexGuard;
 
 use std::collections::HashMap;
+use pins::pin::Pin;
+use pins::pin_group::PinGroup;
 
 #[derive(Debug)]
 pub struct Model {
@@ -18,6 +20,8 @@ pub struct Model {
     /// All registers owned by this model are arranged within memory maps
     pub memory_maps: HashMap<String, usize>,
     // Pins
+    pub physical_pins: HashMap<String, Pin>,
+    pub pins: HashMap<String, PinGroup>,
     // Levels
     // Timing
     // Specs
@@ -31,6 +35,8 @@ impl Model {
             parent_id: parent_id,
             sub_blocks: HashMap::new(),
             memory_maps: HashMap::new(),
+            physical_pins: HashMap::new(),
+            pins: HashMap::new(),
         }
     }
 
