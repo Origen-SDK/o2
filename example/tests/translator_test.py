@@ -1,5 +1,4 @@
 import origen
-import origen.translator
 
 def test_translator_ip_xact():
     origen.app.instantiate_dut("dut.falcon")
