@@ -85,7 +85,7 @@ pub enum PinRoles {
 pub struct Pin {
     // Since pins will be added from the add_pin function of Pins,
     // just reuse that String instance instead of creating a new one.
-    pub id: String,
+    pub name: String,
     pub path: String,
     pub data: u8,
 
@@ -156,9 +156,9 @@ impl Pin {
         }
     }
 
-    pub fn new(id: String, path: String, reset_data: Option<u32>, reset_action: Option<PinActions>) -> Pin {
+    pub fn new(name: String, path: String, reset_data: Option<u32>, reset_action: Option<PinActions>) -> Pin {
         let mut p = Pin {
-            id: id,
+            name: name,
             path: path,
             data: 0,
             action: PinActions::HighZ,

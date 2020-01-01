@@ -17,10 +17,10 @@ impl PhysicalPinContainer {
     fn keys(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let ids = &model.physical_pins;
+        let names = &model.physical_pins;
 
         let mut v: Vec<String> = Vec::new();
-        for (n, _p) in ids {
+        for (n, _p) in names {
             v.push(n.clone());
         }
         Ok(v)
@@ -36,7 +36,7 @@ impl PhysicalPinContainer {
         let mut v: Vec<Py<Pin>> = Vec::new();
         for (n, _p) in physical_pins {
             v.push(Py::new(py, Pin {
-                id: String::from(n.clone()),
+                name: String::from(n.clone()),
                 path: String::from(self.path.clone()),
                 model_id: self.model_id,
             }).unwrap())
@@ -56,7 +56,7 @@ impl PhysicalPinContainer {
             items.push((
                 n.clone(),
                 Py::new(py, Pin {
-                    id: String::from(n.clone()),
+                    name: String::from(n.clone()),
                     path: String::from(self.path.clone()),
                     model_id: self.model_id,
                 }).unwrap(),
@@ -66,30 +66,30 @@ impl PhysicalPinContainer {
     }
 
     #[getter]
-    fn get_ids(&self) -> PyResult<Vec<String>> {
+    fn get_pin_names(&self) -> PyResult<Vec<String>> {
         self.keys()
     }
 }
 
 #[pyproto]
 impl PyMappingProtocol for PhysicalPinContainer {
-    fn __getitem__(&self, id: &str) -> PyResult<Py<Pin>> {
+    fn __getitem__(&self, name: &str) -> PyResult<Py<Pin>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.get_physical_pin(id);
+        let p = model.get_physical_pin(name);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, Pin {
-                  id: String::from(id),
+                  name: String::from(name),
                   path: String::from(&self.path),
                   model_id: self.model_id,
               }).unwrap())
             },
             // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
-            None => Err(exceptions::KeyError::py_err(format!("No pin or pin alias found for {}", id)))
+            None => Err(exceptions::KeyError::py_err(format!("No pin or pin alias found for {}", name)))
         }
     }
 
@@ -136,17 +136,17 @@ impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainerIter {
         Ok(slf.to_object(py))
     }
 
-    /// The Iterator will be created with an index starting at 0 and the pin ids at the time of its creation.
+    /// The Iterator will be created with an index starting at 0 and the pin names at the time of its creation.
     /// For each call to 'next', we'll create a pin object with the next value in the list, or None, if no more keys are available.
     /// Note: this means that the iterator can become stale if the PinContainer is changed. This can happen if the iterator is stored from Python code
-    ///  directly. E.g.: i = dut.pins.__iter__() => iterator with the pin ids at the time of creation,
+    ///  directly. E.g.: i = dut.pins.__iter__() => iterator with the pin names at the time of creation,
     /// Todo: Fix the above using iterators. My Rust skills aren't there yet though... - Coreyeng
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
         if slf.i >= slf.keys.len() {
             return Ok(None)
         }
-        let id = slf.keys[slf.i].clone();
+        let name = slf.keys[slf.i].clone();
         slf.i += 1;
-        Ok(Some(id))
+        Ok(Some(name))
     }
 }

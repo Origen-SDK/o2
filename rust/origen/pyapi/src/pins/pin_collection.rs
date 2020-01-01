@@ -14,10 +14,10 @@ pub struct PinCollection {
 }
 
 impl PinCollection{
-  pub fn new(model_id: usize, ids: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
+  pub fn new(model_id: usize, names: Vec<String>, endianness: Option<Endianness>) -> Result<PinCollection, Error> {
     let mut dut = lock!()?;
     let model = dut.get_mut_model(model_id)?;
-    let collection = model.collect(model_id, "", ids, endianness)?;
+    let collection = model.collect(model_id, "", names, endianness)?;
     Ok(PinCollection {
         path: String::from(""),
         pin_collection: collection,
@@ -32,7 +32,7 @@ impl PinCollection {
     fn get_data(&self) -> PyResult<u32> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.pin_collection.model_id)?;
-        Ok(model.get_pin_data(&self.pin_collection.ids))
+        Ok(model.get_pin_data(&self.pin_collection.pin_names))
     }
 
     #[setter]
@@ -75,7 +75,7 @@ impl PinCollection {
     fn get_pin_actions(&self) -> PyResult<String> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.get_pin_actions(&self.pin_collection.ids)?)
+      Ok(model.get_pin_actions(&self.pin_collection.pin_names)?)
     }
 
     fn drive(&mut self, data: Option<u32>) -> PyResult<()> {
@@ -114,8 +114,8 @@ impl PinCollection {
     }
 
     #[getter]
-    fn get_ids(&self) -> PyResult<Vec<String>> {
-        Ok(self.pin_collection.ids.clone())
+    fn get_pin_names(&self) -> PyResult<Vec<String>> {
+        Ok(self.pin_collection.pin_names.clone())
     }
 
     #[getter]
@@ -163,7 +163,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinCollection {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.pin_ids_contain(&self.pin_collection.ids, item)?)
+      Ok(model.pin_names_contain(&self.pin_collection.pin_names, item)?)
   }
 }
 
@@ -176,11 +176,11 @@ impl<'p> pyo3::class::PyMappingProtocol<'p> for PinCollection {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
           // Indices requires (what I think is) a max size. Should be plenty.
           let indices = slice.indices(8192)?;
-          let collection = self.pin_collection.slice_ids(indices.start as usize, indices.stop as usize, indices.step as usize)?;
+          let collection = self.pin_collection.slice_names(indices.start as usize, indices.stop as usize, indices.step as usize)?;
           Ok(Py::new(py, PinCollection::from(collection)).unwrap().to_object(py))
         } else {
           let i = idx.extract::<isize>().unwrap();
-          let collection = self.pin_collection.slice_ids(i as usize, i as usize, 1)?;
+          let collection = self.pin_collection.slice_names(i as usize, i as usize, 1)?;
           Ok(Py::new(py, PinCollection::from(collection)).unwrap().to_object(py))
         }
       }
@@ -190,7 +190,7 @@ impl<'p> pyo3::class::PyMappingProtocol<'p> for PinCollection {
 impl pyo3::class::iter::PyIterProtocol for PinCollection {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinCollectionIter> {
         Ok(PinCollectionIter {
-            keys: slf.pin_collection.ids.clone(),
+            keys: slf.pin_collection.pin_names.clone(),
             i: 0,
             model_id: slf.model_id,
         })
@@ -226,8 +226,8 @@ impl pyo3::class::iter::PyIterProtocol for PinCollectionIter {
     if slf.i >= slf.keys.len() {
         return Ok(None)
     }
-    let id = slf.keys[slf.i].clone();
-    let collection = PinCollection::new(slf.model_id, vec!(id), Option::None)?;
+    let name = slf.keys[slf.i].clone();
+    let collection = PinCollection::new(slf.model_id, vec!(name), Option::None)?;
     slf.i += 1;
     Ok(Some(collection))
   }
