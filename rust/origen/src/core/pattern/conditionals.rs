@@ -1,18 +1,17 @@
 //! Defines the if_true conditional structure
-use id_arena::Arena;
-use super::ast_node::{AstNode, AstNodeId};
+use super::ast_node::AstNodeId;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ConditionalIf {
     pub condition: AstNodeId,
-    pub children: Arena::<AstNode>,
+    pub children: Vec<AstNodeId>,
 }
 
 impl ConditionalIf {
     pub fn new(condition: &AstNodeId) -> ConditionalIf {
         ConditionalIf {
             condition: *condition,
-            children: Arena::<AstNode>::new(),
+            children: Vec::new(),
         }
     }
 }
@@ -20,14 +19,14 @@ impl ConditionalIf {
 #[derive(Debug, Eq, PartialEq)]
 pub struct ConditionalElse {
     pub linked_if: AstNodeId,
-    pub children: Arena::<AstNode>,
+    pub children: Vec<AstNodeId>,
 }
 
 impl ConditionalElse {
     pub fn new(linked_if: &AstNodeId) -> ConditionalElse {
         ConditionalElse {
             linked_if: *linked_if,
-            children: Arena::<AstNode>::new(),
+            children: Vec::new(),
         }
     }
 }

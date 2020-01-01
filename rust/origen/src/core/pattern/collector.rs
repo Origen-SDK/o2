@@ -1,20 +1,14 @@
-use id_arena::Arena;
-use super::ast_node::{AstNode, AstNodeId};
+use super::ast_node::AstNodeId;
 
 #[derive(Debug)]
 pub struct Collector {
-    pub collection: Arena::<AstNode>,
+    pub collection: Vec<AstNodeId>,
 }
 
 impl Collector {
     pub fn new() -> Collector {
-        Collector { collection: Arena::<AstNode>::new() }
-    }
-    
-    pub fn add_node(&mut self, node: AstNode) -> AstNodeId {
-        self.collection.alloc(node)
-    }
-    
+        Collector { collection: Vec::new() }
+    }    
 }
 
 #[derive(Debug)]
@@ -25,7 +19,7 @@ pub struct CollectionStack {
 impl CollectionStack {
     pub fn new() -> CollectionStack {
         let mut cs = CollectionStack { stack: Vec::new() };
-        // ensure there is 1 element on the stack so that it's usable
+        // ensure there is 1 element on the stack the main collection
         cs.new_collection();
         cs
     }
@@ -35,23 +29,23 @@ impl CollectionStack {
         self.stack.push(Collector::new());
     }
     
-    // pop a collection off the top of the stack and return it's Arena
+    // pop a collection off the top of the stack and return it's Vec
     // if there is only 1 element in the stack (this is the main collection)
-    // an empty Arena is returned
-    pub fn pop_collection(&mut self) -> Arena::<AstNode> {
+    // an empty Vec is returned
+    pub fn pop_collection(&mut self) -> Vec<AstNodeId> {
         if self.stack.len() == 1 {
-            Arena::<AstNode>::new()
+            Vec::new()
         } else {
             match self.stack.pop() {
                 Some(col) => col.collection,
-                None => Arena::<AstNode>::new(),
+                None => Vec::new(),
             }
         }
     }
     
-    // allocate a node in the Arena at the top of the stack, returning the ID
-    pub fn add_node(&mut self, node: AstNode) -> AstNodeId {
+    // allocate a node in the collection at the top of the stack
+    pub fn add_node(&mut self, node: &AstNodeId) {
         let index = self.stack.len() -1;
-        self.stack[index].add_node(node)
+        self.stack[index].collection.push(*node)
     }
 }

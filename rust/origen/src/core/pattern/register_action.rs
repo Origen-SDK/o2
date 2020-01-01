@@ -1,7 +1,6 @@
 //! Defines the set of actions associated with a register action
 pub use super::operation::Operation;
-use id_arena::Arena;
-pub use super::ast_node::AstNode;
+pub use super::ast_node::AstNodeId;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RegisterAction {
@@ -10,7 +9,7 @@ pub struct RegisterAction {
     pub data: String,
     pub operation: Operation,
     // register action can contain arbitrary number of child actions
-    pub children: Arena::<AstNode>,
+    pub children: Vec<AstNodeId>,
 }
 
 impl RegisterAction {
@@ -22,7 +21,7 @@ impl RegisterAction {
             address: *address,
             data: data.to_string(),
             operation: operation,
-            children: Arena::<AstNode>::new(),
+            children: Vec::new(),
         }
     }
     
@@ -34,6 +33,8 @@ impl RegisterAction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::ast_node::AstNode;
+    use id_arena::Arena;
     
     #[test]
     fn converts_to_string(){
@@ -42,9 +43,10 @@ mod tests {
     }
     
     #[test]
-    fn instantiates_new_mutable_arena() {
+    fn instantiates_new_mutable_children_vec() {
+        let mut ast_nodes = Arena::<AstNode>::new();
         let mut ra_node = RegisterAction::new("cntrl", &300, "0x40", Operation::Read);
-        ra_node.children.alloc(AstNode::Timeset("tp0".to_string()));
+        ra_node.children.push(ast_nodes.alloc(AstNode::Timeset("tp0".to_string())));
         assert_eq!(ra_node.children.len(), 1);
     }
 }
