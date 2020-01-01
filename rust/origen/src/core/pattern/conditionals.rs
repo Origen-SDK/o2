@@ -1,5 +1,5 @@
 //! Defines the if_true conditional structure
-use id_arena::{Arena, Id};
+use id_arena::Arena;
 use super::ast_node::{AstNode, AstNodeId};
 
 #[derive(Debug, Eq, PartialEq)]

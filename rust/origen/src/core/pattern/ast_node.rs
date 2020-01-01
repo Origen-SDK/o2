@@ -1,4 +1,4 @@
-use id_arena::{Arena, Id};
+use id_arena::Id;
 use super::operation::Operation;
 use super::pin_action::PinAction;
 use super::register_action::RegisterAction;
