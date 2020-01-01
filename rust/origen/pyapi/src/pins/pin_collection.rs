@@ -134,7 +134,7 @@ impl PinCollection {
     fn get_reset_actions(&self) -> PyResult<String> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.get_pin_reset_actions_for_collection(&self.pin_collection)?)
+      Ok(model.get_pin_collection_reset_actions(&self.pin_collection)?)
     }
 
     #[allow(non_snake_case)]

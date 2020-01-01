@@ -65,7 +65,7 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(id);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -85,7 +85,7 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(id);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -143,7 +143,7 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(id);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -174,7 +174,7 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.physical_pin(id);
+        let p = model.get_physical_pin(id);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, Pin {

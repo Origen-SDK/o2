@@ -61,7 +61,7 @@ impl Pin {
     fn get_reset_data(&self) -> PyResult<PyObject> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(self.model_id)?;
-      let pin = model.physical_pin(&self.id).unwrap();
+      let pin = model._get_physical_pin(&self.id)?;
       
       let gil = Python::acquire_gil();
       let py = gil.python();
@@ -79,7 +79,7 @@ impl Pin {
     fn get_reset_action(&self) -> PyResult<PyObject> {
       let mut dut = DUT.lock().unwrap();
       let model = dut.get_mut_model(self.model_id)?;
-      let pin = model.physical_pin(&self.id).unwrap();
+      let pin = model._get_physical_pin(&self.id)?;
       
       let gil = Python::acquire_gil();
       let py = gil.python();

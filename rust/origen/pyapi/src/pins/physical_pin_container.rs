@@ -79,7 +79,7 @@ impl PyMappingProtocol for PhysicalPinContainer {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.physical_pin(id);
+        let p = model.get_physical_pin(id);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, Pin {
@@ -96,7 +96,7 @@ impl PyMappingProtocol for PhysicalPinContainer {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        Ok(model.number_of_physical_pins())
+        Ok(model.physical_pins.len())
     }
 }
 

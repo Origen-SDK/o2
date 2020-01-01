@@ -115,7 +115,7 @@ impl PyMappingProtocol for PinContainer {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(id);
         match p {
             Some(_p) => {
                 Ok(Py::new(py, PinGroup {
@@ -132,7 +132,7 @@ impl PyMappingProtocol for PinContainer {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        Ok(model.number_of_ids())
+        Ok(model.pins.len())
     }
 }
 

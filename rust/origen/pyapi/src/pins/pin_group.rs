@@ -1,7 +1,5 @@
 use origen::DUT;
-use origen::error::Error;
 use pyo3::prelude::*;
-use pyo3::{exceptions, PyErr};
 use super::pin::Pin;
 use super::pin_collection::PinCollection;
 #[allow(unused_imports)]
@@ -21,15 +19,8 @@ impl PinGroup {
     fn get_id(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let grp = model.pin(&self.id);
-        match grp {
-            Some(_grp) => {
-                Ok(_grp.id.clone())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin group {}", self.id))))
-            }
-        }
+        let grp = model._get_pin_group(&self.id)?;
+        Ok(grp.id.clone())
     }
 
     #[getter]
@@ -76,53 +67,39 @@ impl PinGroup {
     fn get_pin_ids(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let grp = model.pin(&self.id);
+        let grp = model._get_pin_group(&self.id)?;
 
         let mut v: Vec<String> = Vec::new();
-        match grp {
-            Some(_grp) => {
-                for n in _grp.pin_ids.iter() {
-                    v.push(n.clone());
-                }
-                Ok(v)
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin group {}", self.id))))
-            }
+        for n in grp.pin_ids.iter() {
+            v.push(n.clone());
         }
+        Ok(v)
     }
 
     #[getter]
     fn get_pins(&self) -> PyResult<Vec<Py<Pin>>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let grp = model.pin(&self.id);
+        let grp = model._get_pin_group(&self.id)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
         let mut v: Vec<Py<Pin>> = Vec::new();
-        match grp {
-            Some(_grp) => {
-                for n in _grp.pin_ids.iter() {
-                    v.push(Py::new(py, Pin {
-                        id: String::from(n),
-                        path: String::from(&self.path),
-                        model_id: self.model_id,
-                    }).unwrap());
-                }
-                Ok(v)
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin group {}", self.id))))
-            }
+        for n in grp.pin_ids.iter() {
+            v.push(Py::new(py, Pin {
+                id: String::from(n),
+                path: String::from(&self.path),
+                model_id: self.model_id,
+            }).unwrap());
         }
+        Ok(v)
     }
 
     #[getter]
     fn get_pin_actions(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        Ok(model.get_pin_actions_for_group(&self.id)?)
+        Ok(model.get_pin_group_actions(&self.id)?)
     }
 
     fn drive(&self, data: Option<u32>) -> PyResult<()> {
@@ -167,7 +144,7 @@ impl PinGroup {
    fn get_width(&self) -> PyResult<usize> {
      let mut dut = DUT.lock().unwrap();
      let model = dut.get_mut_model(self.model_id)?;
-     let grp = model.pin(&self.id).unwrap();
+     let grp = model._get_pin_group(&self.id)?;
      Ok(grp.len())
    }
 
@@ -182,7 +159,7 @@ impl PinGroup {
    fn get_reset_actions(&self) -> PyResult<String> {
      let mut dut = DUT.lock().unwrap();
      let model = dut.get_mut_model(self.model_id)?;
-     Ok(model.get_pin_reset_actions_for_group(&self.id)?)
+     Ok(model.get_pin_group_reset_actions(&self.id)?)
    }
 
     // Debug helper: Get the id held by this instance.
@@ -209,18 +186,9 @@ impl PinGroup {
     fn get_little_endian(&self) -> PyResult<bool> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let grp = model.pin(&self.id);
-
-        match grp {
-            Some(_grp) => {
-                Ok(_grp.is_little_endian())
-            },
-            Option::None => {
-                Err(PyErr::from(Error::new(&format!("Stale reference to pin group {}", self.id))))
-            }
-        }
+        let grp = model._get_pin_group(&self.id)?;
+        Ok(grp.is_little_endian())
     }
-
 }
 
 #[pyproto]
@@ -228,14 +196,8 @@ impl pyo3::class::sequence::PySequenceProtocol for PinGroup {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let grp = model.pin(&self.id);
-        match grp {
-            Some(_grp) => {
-                Ok(_grp.len())
-            },
-            // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
-            None => Err(exceptions::KeyError::py_err(format!("No pin group or pin group alias found for {}", self.id)))
-        }
+        let grp = model._get_pin_group(&self.id)?;
+        Ok(grp.len())
     }
 
     fn __contains__(&self, item: &str) -> PyResult<bool> {
@@ -272,7 +234,7 @@ impl pyo3::class::iter::PyIterProtocol for PinGroup {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinGroupIter> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(slf.model_id)?;
-        let grp = model.pin(&slf.id).unwrap();
+        let grp = model._get_pin_group(&slf.id)?;
 
         Ok(PinGroupIter {
             keys: grp.pin_ids.clone(),
