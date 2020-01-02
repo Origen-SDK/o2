@@ -818,6 +818,13 @@ def test_collecting_with_mixed_inputs():
   c = origen.dut.pins.collect("/port.1/", "p1", r)
   assert c.pin_names == ["porta1", "portb1", "p1", "porta0", "portb0"]
 
+# def test_pins_have_empty_metadata():
+#   assert origen.dut.pin("porta1").metadata == {}
+#   assert origen.dut.physical_pin("porta1").metadata == {}
+#   assert origen.dut.pin("porta1").physical_pin_metadata == [{}]
+  
+
+
 # def test_in_progress_pin_api():
 #   import re
 #   r = re.compile("port.0")

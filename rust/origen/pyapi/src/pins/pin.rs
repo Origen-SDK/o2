@@ -23,6 +23,43 @@ macro_rules! pypin {
 
 #[pymethods]
 impl Pin {
+    // fn add_metadata(&self, meta_name: &str, obj: &PyAny) -> PyResult<()> {
+    //   let mut dut = DUT.lock().unwrap();
+    //   let model = dut.get_mut_model(self.model_id)?;
+    //   let pin = model._pin(&self.name)?;
+
+    //   let gil = Python::acquire_gil();
+    //   let py = gil.python();
+    //   //let o = Box::new(obj.to_object(py));
+    //   let o = Box::new(PyRef::new(py, obj));
+    //   pin.meta.insert(String::from(meta_name), o);
+    //   Ok(())
+    // }
+
+    // // fn get_meta(&self, meta_name: &str) -> PyResult<PyObject> {
+    // //   let mut dut = DUT.lock().unwrap();
+    // //   let model = dut.get_mut_model(self.model_id)?;
+    // //   let pin = model._pin(&self.name)?;
+
+    // //   let gil = Python::acquire_gil();
+    // //   let py = gil.python();
+    // //   pin.get_meta()
+    // // }
+
+    // #[getter]
+    // fn get_metadata(&self) -> PyResult<PyObject> {
+    //   let mut dut = DUT.lock().unwrap();
+    //   let model = dut.get_mut_model(self.model_id)?;
+    //   let pin = model._pin(&self.name)?;
+
+    //   let gil = Python::acquire_gil();
+    //   let py = gil.python();
+    //   let metadata = PyDict::new(py);
+    //   for (meta_name, meta_item) in pin.meta.iter() {
+    //     metadata.set_item(meta_name, *meta_item.downcast::<PyRef>().unwrap());
+    //   }
+    //   Ok(metadata.into())
+    // }
 
     // Even though we're storing the name in this instance, we're going to go back to the core anyway.
     #[getter]

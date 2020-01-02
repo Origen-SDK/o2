@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use crate::error::Error;
+use std::any::Any;
 
 /// List of supported pin actions.
 #[derive(Debug, Copy, Clone)]
@@ -101,7 +102,8 @@ pub struct Pin {
     /// Any aliases this Pin has.
     pub aliases: Vec<String>,
     pub role: PinRoles,
-    pub meta: HashMap<String, MetaAble>,
+    //pub meta: HashMap<String, MetaAble>,
+    pub meta: HashMap<String, Box<Any + std::marker::Send>>,
 
     // Taking the speed over size here: this'll allow for quick lookups and indexing from pins into the pin group, but will
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
