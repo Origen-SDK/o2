@@ -2,21 +2,24 @@ use crate::dut::PyDUT;
 use origen::DUT;
 use pyo3::prelude::*;
 
-#[macro_use] mod pin;
-#[macro_use] mod pin_group;
-#[macro_use] mod pin_collection;
-mod pin_container;
+#[macro_use]
+mod pin;
+#[macro_use]
+mod pin_group;
+#[macro_use]
+mod pin_collection;
 mod physical_pin_container;
+mod pin_container;
 
-use pin::{Pin};
-use pin_group::PinGroup;
-use pin_container::PinContainer;
-use pin_collection::PinCollection;
-use physical_pin_container::PhysicalPinContainer;
 use origen::core::model::pins::Endianness;
+use physical_pin_container::PhysicalPinContainer;
+use pin::Pin;
+use pin_collection::PinCollection;
+use pin_container::PinContainer;
+use pin_group::PinGroup;
 
 #[allow(unused_imports)]
-use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
+use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
 #[pymodule]
 /// Implements the module _origen.model in Python
@@ -30,13 +33,24 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pymethods]
 impl PyDUT {
-
     #[args(kwargs = "**")]
     fn add_pin(&self, model_id: usize, id: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let path = "";
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(model_id)?;
-        let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (Option<u32>, Option<String>, Option<u32>, Option<u32>, Option<Endianness>) = (Option::None, Option::None, Option::None, Option::None, Option::None);
+        let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (
+            Option<u32>,
+            Option<String>,
+            Option<u32>,
+            Option<u32>,
+            Option<Endianness>,
+        ) = (
+            Option::None,
+            Option::None,
+            Option::None,
+            Option::None,
+            Option::None,
+        );
         match kwargs {
             Some(args) => {
                 if let Some(arg) = args.get_item("reset_data") {
@@ -58,23 +72,34 @@ impl PyDUT {
                         endianness = Option::Some(Endianness::BigEndian);
                     }
                 }
-            },
-            None => {},
+            }
+            None => {}
         }
-        model.add_pin(id, path, width, offset, reset_data, reset_action, endianness)?;
+        model.add_pin(
+            id,
+            path,
+            width,
+            offset,
+            reset_data,
+            reset_action,
+            endianness,
+        )?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
         let p = model.pin(id);
         match p {
-            Some(_p) => {
-                Ok(Py::new(py, PinGroup {
+            Some(_p) => Ok(Py::new(
+                py,
+                PinGroup {
                     id: String::from(id),
                     path: String::from(path),
                     model_id: model_id,
-                }).unwrap().to_object(py))
-            },
-            None => Ok(py.None())
+                },
+            )
+            .unwrap()
+            .to_object(py)),
+            None => Ok(py.None()),
         }
     }
 
@@ -87,14 +112,17 @@ impl PyDUT {
         let py = gil.python();
         let p = model.pin(id);
         match p {
-            Some(_p) => {
-                Ok(Py::new(py, PinGroup {
+            Some(_p) => Ok(Py::new(
+                py,
+                PinGroup {
                     id: String::from(id),
                     path: String::from(path),
                     model_id: model_id,
-                }).unwrap().to_object(py))
-            },
-            None => Ok(py.None())
+                },
+            )
+            .unwrap()
+            .to_object(py)),
+            None => Ok(py.None()),
         }
     }
 
@@ -118,11 +146,24 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(py, PinContainer {path: String::from(path), model_id: model_id}).unwrap())
+        Ok(Py::new(
+            py,
+            PinContainer {
+                path: String::from(path),
+                model_id: model_id,
+            },
+        )
+        .unwrap())
     }
 
     #[args(pins = "*", options = "**")]
-    fn group_pins(&self, model_id: usize, id: &str, pins: &PyTuple, options: Option<&PyDict>) -> PyResult<PyObject> {
+    fn group_pins(
+        &self,
+        model_id: usize,
+        id: &str,
+        pins: &PyTuple,
+        options: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
         let path = "";
         let mut dut = DUT.lock().unwrap();
         let mut endianness = Option::None;
@@ -135,7 +176,7 @@ impl PyDUT {
                         endianness = Option::Some(Endianness::BigEndian);
                     }
                 }
-            },
+            }
             None => {}
         }
         let model = dut.get_mut_model(model_id)?;
@@ -145,14 +186,17 @@ impl PyDUT {
         let py = gil.python();
         let p = model.pin(id);
         match p {
-            Some(_p) => {
-                Ok(Py::new(py, PinGroup {
+            Some(_p) => Ok(Py::new(
+                py,
+                PinGroup {
                     id: String::from(id),
                     path: String::from(path),
                     model_id: model_id,
-                }).unwrap().to_object(py))
-            },
-            None => Ok(py.None())
+                },
+            )
+            .unwrap()
+            .to_object(py)),
+            None => Ok(py.None()),
         }
     }
 
@@ -164,7 +208,14 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(py, PhysicalPinContainer {path: String::from(path), model_id: model_id}).unwrap())
+        Ok(Py::new(
+            py,
+            PhysicalPinContainer {
+                path: String::from(path),
+                model_id: model_id,
+            },
+        )
+        .unwrap())
     }
 
     fn physical_pin(&self, model_id: usize, id: &str) -> PyResult<PyObject> {
@@ -176,14 +227,17 @@ impl PyDUT {
         let py = gil.python();
         let p = model.physical_pin(id);
         match p {
-            Some(_p) => {
-                Ok(Py::new(py, Pin {
+            Some(_p) => Ok(Py::new(
+                py,
+                Pin {
                     id: String::from(id),
                     path: String::from(path),
                     model_id: model_id,
-                }).unwrap().to_object(py))
-            },
-            None => Ok(py.None())
+                },
+            )
+            .unwrap()
+            .to_object(py)),
+            None => Ok(py.None()),
         }
     }
 }

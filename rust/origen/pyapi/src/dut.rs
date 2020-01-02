@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use origen::DUT;
-use pyo3::{wrap_pymodule};
 use crate::pins::PyInit_pins;
+use origen::DUT;
+use pyo3::prelude::*;
+use pyo3::wrap_pymodule;
 
 /// Implements the module _origen.dut in Python which exposes all
 /// DUT-related APIs

@@ -1,6 +1,6 @@
+use crate::error::Error;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use crate::error::Error;
 
 /// List of supported pin actions.
 #[derive(Debug, Copy, Clone)]
@@ -22,7 +22,10 @@ impl PinActions {
             "V" => Ok(PinActions::Verify),
             "C" => Ok(PinActions::Capture),
             "Z" => Ok(PinActions::HighZ),
-            _ => Err(Error::new(&format!("Action {} is not available for pins!", s))),
+            _ => Err(Error::new(&format!(
+                "Action {} is not available for pins!",
+                s
+            ))),
         }
     }
 
@@ -58,7 +61,10 @@ impl TryFrom<u8> for PinActions {
             'C' => Ok(PinActions::Capture),
             'z' => Ok(PinActions::HighZ),
             'Z' => Ok(PinActions::HighZ),
-            _ => Err(Error::new(&format!("Cannot derive PinActions enum from encoded character {}!", encoded_char))),
+            _ => Err(Error::new(&format!(
+                "Cannot derive PinActions enum from encoded character {}!",
+                encoded_char
+            ))),
         }
     }
 }
@@ -141,22 +147,32 @@ impl Pin {
             self.data = data;
             Ok(())
         } else {
-            Err(Error::new(&format!("Pin data must be either 0 or 1 - got {}", data)))
+            Err(Error::new(&format!(
+                "Pin data must be either 0 or 1 - got {}",
+                data
+            )))
         }
     }
 
     pub fn reset(&mut self) {
         match self.reset_data {
-            Some(d) => { self.data = d as u8 },
-            None => { self.data = 0; },
+            Some(d) => self.data = d as u8,
+            None => {
+                self.data = 0;
+            }
         }
         match self.reset_action {
-            Some(a) => { self.action = a },
-            None => { self.action = PinActions::HighZ },
+            Some(a) => self.action = a,
+            None => self.action = PinActions::HighZ,
         }
     }
 
-    pub fn new(id: String, path: String, reset_data: Option<u32>, reset_action: Option<PinActions>) -> Pin {
+    pub fn new(
+        id: String,
+        path: String,
+        reset_data: Option<u32>,
+        reset_action: Option<PinActions>,
+    ) -> Pin {
         let mut p = Pin {
             id: id,
             path: path,
@@ -176,6 +192,11 @@ impl Pin {
 
 impl Default for Pin {
     fn default() -> Pin {
-        Self::new(String::from("default"), String::from(""), Option::None, Option::None)
+        Self::new(
+            String::from("default"),
+            String::from(""),
+            Option::None,
+            Option::None,
+        )
     }
 }
