@@ -1,4 +1,6 @@
-use crate::core::model::registers::{AccessType, AddressBlock, Bit, MemoryMap, Register};
+use crate::core::model::registers::{
+    AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
+};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
@@ -17,6 +19,7 @@ pub struct Dut {
     models: Vec<Model>,
     memory_maps: Vec<MemoryMap>,
     address_blocks: Vec<AddressBlock>,
+    register_files: Vec<RegisterFile>,
     registers: Vec<Register>,
     bits: Vec<Bit>,
 }
@@ -31,6 +34,7 @@ impl Dut {
             models: Vec::<Model>::new(),
             memory_maps: Vec::<MemoryMap>::new(),
             address_blocks: Vec::<AddressBlock>::new(),
+            register_files: Vec::<RegisterFile>::new(),
             registers: Vec::<Register>::new(),
             bits: Vec::<Bit>::new(),
         }
@@ -45,6 +49,7 @@ impl Dut {
         self.models.clear();
         self.memory_maps.clear();
         self.address_blocks.clear();
+        self.register_files.clear();
         self.registers.clear();
         self.bits.clear();
         // Add the model for the DUT top-level (always ID 0)
@@ -126,6 +131,33 @@ impl Dut {
             None => {
                 return Err(Error::new(&format!(
                     "Something has gone wrong, no address_block exists with ID '{}'",
+                    id
+                )))
+            }
+        }
+    }
+
+    /// Get a mutable reference to the register file with the given ID
+    pub fn get_mut_register_file(&mut self, id: usize) -> Result<&mut RegisterFile> {
+        match self.register_files.get_mut(id) {
+            Some(x) => Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                    "Something has gone wrong, no register_file exists with ID '{}'",
+                    id
+                )))
+            }
+        }
+    }
+
+    /// Get a read-only reference to the register file with the given ID, use get_mut_register_file if
+    /// you need to modify it
+    pub fn get_register_file(&self, id: usize) -> Result<&RegisterFile> {
+        match self.register_files.get(id) {
+            Some(x) => Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                    "Something has gone wrong, no register_file exists with ID '{}'",
                     id
                 )))
             }

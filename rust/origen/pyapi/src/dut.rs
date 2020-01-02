@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 //use pyo3::wrap_pyfunction;
+use crate::register::Registers;
 use origen::DUT;
 
 /// Implements the module _origen.dut in Python which exposes all
@@ -33,6 +34,16 @@ impl PyDUT {
         let dut = origen::dut();
         let model = dut.get_model(model_id)?;
         Ok(model.console_display(&dut)?)
+    }
+
+    /// Returns an empty register collection
+    fn empty_regs(&self) -> PyResult<Registers> {
+        Ok(Registers {
+            address_block_id: None,
+            register_file_id: None,
+            ids: None,
+            i: 0,
+        })
     }
 
     fn create_reg(

@@ -1,41 +1,49 @@
-use crate::dut::PyDUT;
+//use crate::dut::PyDUT;
 //use origen::core::model::registers::Register;
 use origen::DUT;
 use pyo3::prelude::*;
 
-/// Implements the user APIs my_block.[.my_memory_map][.my_address_block].reg() and
-/// my_block.[.my_memory_map][.my_address_block].regs
-#[pymethods]
-impl PyDUT {
-    fn regs(&self, address_block_id: Option<usize>) -> PyResult<Registers> {
-        Ok(Registers {
-            address_block_id: address_block_id,
-            i: 0,
-        })
-    }
+///// Implements the user APIs my_block.[.my_memory_map][.my_address_block].reg() and
+///// my_block.[.my_memory_map][.my_address_block].regs
+//#[pymethods]
+//impl PyDUT {
+//    fn regs(&self, address_block_id: Option<usize>) -> PyResult<Registers> {
+//        Ok(Registers {
+//            address_block_id: address_block_id,
+//            i: 0,
+//        })
+//    }
+//
+//    fn reg(&self, address_block_id: usize, name: &str) -> PyResult<BitCollection> {
+//        Ok(BitCollection {
+//            reg_id: DUT
+//                .lock()
+//                .unwrap()
+//                .get_address_block(address_block_id)?
+//                .get_register_id(name)?,
+//            whole: true,
+//            bit_numbers: Vec::new(),
+//            i: 0,
+//        })
+//    }
+//}
 
-    fn reg(&self, address_block_id: usize, name: &str) -> PyResult<BitCollection> {
-        Ok(BitCollection {
-            reg_id: DUT
-                .lock()
-                .unwrap()
-                .get_address_block(address_block_id)?
-                .get_register_id(name)?,
-            whole: true,
-            bit_numbers: Vec::new(),
-            i: 0,
-        })
-    }
-}
-
-/// Implements the user API to work with a model's collection of registers, an instance
-/// of this is returned by my_block.[.my_memory_map][.my_address_block].regs
+/// Implements the user API to work with a collection of registers. The collection could be associated
+/// with another container object (an address block or register file), or this could be its own collection
+/// of otherwise un-related registers.
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct Registers {
     /// The ID of the address block which contains these registers. It is optional so that
-    /// an empty Registers collection can be created.
+    /// an empty Registers collection can be created, or a collection of
     pub address_block_id: Option<usize>,
+    /// The ID of the register file which contains these registers. It is optional as registers
+    /// can be instantiated in an address block directly and are not necessarily within an
+    pub register_file_id: Option<usize>,
+    /// The IDs of the contained registers. If not present then the IDs will be derived from either
+    /// the associated register file or address block. If both are defined then the register file IDs
+    /// will be used.
+    pub ids: Option<Vec<usize>>,
     /// Iterator index
     pub i: usize,
 }

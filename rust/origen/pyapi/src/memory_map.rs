@@ -259,6 +259,8 @@ impl PyObjectProtocol for MemoryMap {
                         Ok(v) => Some(v),
                         Err(_) => None,
                     },
+                    register_file_id: None,
+                    ids: None,
                     i: 0,
                 },
             )?;

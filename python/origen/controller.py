@@ -40,9 +40,9 @@ class Base:
         if name == "regs":
             self._load_regs()
             if self._default_default_address_block:
-                return origen.dut.db.regs(self._default_default_address_block.id)
+                return self._default_default_address_block.regs
             else:
-                return origen.dut.db.regs(None)
+                return origen.dut.db.empty_regs()
 
         elif name == "sub_blocks":
             self._load_sub_blocks()
@@ -99,7 +99,10 @@ class Base:
 
     def reg(self, name):
         self._load_regs()
-        return origen.dut.db.reg(self._default_default_address_block.id, name)
+        if self._default_default_address_block:
+            return self._default_default_address_block.reg(name)
+        else:
+            raise AttributeError(f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)")
 
     def add_simple_reg(self, *args, **kwargs):
         RegLoader(self).SimpleReg(*args, **kwargs)

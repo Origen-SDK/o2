@@ -262,11 +262,13 @@ impl PyObjectProtocol for AddressBlock {
         let py = gil.python();
         let dut = origen::dut();
 
-        if query == "regs" {
+        if query == "regs" || query == "registers" {
             let pyref = PyRef::new(
                 py,
                 Registers {
                     address_block_id: Some(self.id),
+                    register_file_id: None,
+                    ids: None,
                     i: 0,
                 },
             )?;

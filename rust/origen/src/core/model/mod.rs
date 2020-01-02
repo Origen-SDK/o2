@@ -5,7 +5,7 @@ use crate::Dut;
 use crate::Result;
 use std::sync::MutexGuard;
 
-use std::collections::HashMap;
+use indexmap::map::IndexMap;
 
 #[derive(Debug)]
 pub struct Model {
@@ -14,9 +14,9 @@ pub struct Model {
     /// The only one without a parent is the top-level DUT model
     pub parent_id: Option<usize>,
     /// All children of this block/model, which are themselves models
-    pub sub_blocks: HashMap<String, usize>,
+    pub sub_blocks: IndexMap<String, usize>,
     /// All registers owned by this model are arranged within memory maps
-    pub memory_maps: HashMap<String, usize>,
+    pub memory_maps: IndexMap<String, usize>,
     // Pins
     // Levels
     // Timing
@@ -29,8 +29,8 @@ impl Model {
             id: id,
             name: name,
             parent_id: parent_id,
-            sub_blocks: HashMap::new(),
-            memory_maps: HashMap::new(),
+            sub_blocks: IndexMap::new(),
+            memory_maps: IndexMap::new(),
         }
     }
 
@@ -74,13 +74,11 @@ impl Model {
     pub fn console_display(&self, dut: &MutexGuard<Dut>) -> Result<String> {
         let (mut output, offset) = self.console_header(&dut);
         let offset = " ".repeat(offset);
-        output += &format!("{}├── memory_maps\n", offset);
-        let leader = format!("{}|    ", offset);
         let num = self.memory_maps.keys().len();
         if num > 0 {
-            let mut keys: Vec<&String> = self.memory_maps.keys().collect();
-            keys.sort();
-            for (i, key) in keys.iter().enumerate() {
+            output += &format!("{}├── memory_maps\n", offset);
+            let leader = format!("{}|    ", offset);
+            for (i, key) in self.memory_maps.keys().enumerate() {
                 if i != num - 1 {
                     output += &format!("{}├── {}\n", leader, key);
                 } else {
@@ -88,15 +86,13 @@ impl Model {
                 }
             }
         } else {
-            output += &format!("{}└── NONE\n", leader);
+            output += &format!("{}├── memory_maps []\n", offset);
         }
-        output += &format!("{}└── sub_blocks\n", offset);
-        let leader = format!("{}     ", offset);
         let num = self.sub_blocks.keys().len();
         if num > 0 {
-            let mut keys: Vec<&String> = self.sub_blocks.keys().collect();
-            keys.sort();
-            for (i, key) in keys.iter().enumerate() {
+            output += &format!("{}└── sub_blocks\n", offset);
+            let leader = format!("{}     ", offset);
+            for (i, key) in self.sub_blocks.keys().enumerate() {
                 if i != num - 1 {
                     output += &format!("{}├── {}\n", leader, key);
                 } else {
@@ -104,7 +100,7 @@ impl Model {
                 }
             }
         } else {
-            output += &format!("{}└── NONE\n", leader);
+            output += &format!("{}└── sub_blocks []\n", offset);
         }
         Ok(output)
     }
