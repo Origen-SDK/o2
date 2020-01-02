@@ -4,8 +4,8 @@
 
 use crate::core::model::Model;
 use crate::error::Error;
-use crate::Dut;
 use crate::Result as OrigenResult;
+use crate::{Dut, LOGGER};
 use indexmap::map::IndexMap;
 use std::sync::MutexGuard;
 
@@ -16,6 +16,12 @@ pub enum AccessType {
     WriteOnly,
     ReadWriteOnce,
     WriteOnce,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum BitOrder {
+    LSB0,
+    MSB0,
 }
 
 impl std::str::FromStr for AccessType {
@@ -264,6 +270,8 @@ pub struct Register {
     /// Contains all bits implemented by the register, bits[i] will return None if
     /// the bit is unimplemented/undefined
     pub bits: Vec<Bit>,
+    // TODO: Should this be defined on Register, or inherited from address block/memory map?
+    pub bit_order: BitOrder,
 }
 
 impl Default for Register {
@@ -277,6 +285,7 @@ impl Default for Register {
             access: AccessType::ReadWrite,
             fields: IndexMap::new(),
             bits: Vec::new(),
+            bit_order: BitOrder::LSB0,
         }
     }
 }
@@ -286,6 +295,312 @@ impl Register {
         for _i in 0..self.size {
             self.bits.push(Bit::default());
         }
+    }
+
+    /// Returns a path to this register like "dut.my_block.my_map.my_address_block.my_reg", but the map and address block portions
+    /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
+    /// don't use them and simply define regs at the top-level of the block.
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> String {
+        format!("friendly.path.to.be.implemented.{}", self.name)
+    }
+
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy
+    pub fn address(&self, dut: &MutexGuard<Dut>) -> u64 {
+        0x1000
+    }
+
+    pub fn console_display(
+        &self,
+        dut: &MutexGuard<Dut>,
+        with_bit_order: Option<BitOrder>,
+        fancy_output: bool,
+    ) -> OrigenResult<String> {
+        let bit_order = match with_bit_order {
+            Some(x) => x,
+            None => BitOrder::LSB0,
+        };
+        if bit_order != self.bit_order {
+            LOGGER.warning(&format!(
+                "Register displayed with {:?} numbering, but defined with {:?} numbering",
+                bit_order, self.bit_order
+            ));
+            LOGGER.warning(&format!(
+                "Access (and display) this register with explicit numbering like this:"
+            ));
+            LOGGER.warning(&format!(""));
+            LOGGER.warning(&format!(
+                "   reg('{}').with_msb0        # bit numbering scheme is msb0",
+                self.name
+            ));
+            LOGGER.warning(&format!(
+                "   reg('{}').with_lsb0        # bit numbering scheme is lsb0 (default)",
+                self.name
+            ));
+            LOGGER.warning(&format!(
+                "   reg('{}')                  # bit numbering scheme is lsb0 (default)",
+                self.name
+            ));
+        }
+
+        // This fancy_output option is passed in via option
+        // Even better, the output could auto-detect 7-bit vs 8-bit terminal output and adjust the parameter, but that's for another day
+        let horiz_double_line;
+        let horiz_double_tee_down;
+        let horiz_double_tee_up;
+        let corner_double_up_left;
+        let corner_double_up_right;
+        let horiz_single_line;
+        let horiz_single_tee_down;
+        let horiz_single_tee_up;
+        let horiz_single_cross;
+        let horiz_double_cross;
+        let corner_single_down_left;
+        let corner_single_down_right;
+        let vert_single_line;
+        let vert_single_tee_left;
+        let vert_single_tee_right;
+
+        if fancy_output {
+            horiz_double_line = "═";
+            horiz_double_tee_down = "╤";
+            horiz_double_tee_up = "╧";
+            corner_double_up_left = "╒";
+            corner_double_up_right = "╕";
+            horiz_single_line = "─";
+            horiz_single_tee_down = "┬";
+            horiz_single_tee_up = "┴";
+            horiz_single_cross = "┼";
+            horiz_double_cross = "╪";
+            corner_single_down_left = "└";
+            corner_single_down_right = "┘";
+            vert_single_line = "│";
+            vert_single_tee_left = "┤";
+            vert_single_tee_right = "├";
+        } else {
+            horiz_double_line = "=";
+            horiz_double_tee_down = "=";
+            horiz_double_tee_up = "=";
+            corner_double_up_left = ".";
+            corner_double_up_right = ".";
+            horiz_single_line = "-";
+            horiz_single_tee_down = "-";
+            horiz_single_tee_up = "-";
+            horiz_single_cross = "+";
+            horiz_double_cross = "=";
+            corner_single_down_left = "`";
+            corner_single_down_right = "\'";
+            vert_single_line = "|";
+            vert_single_tee_left = "<";
+            vert_single_tee_right = ">";
+        }
+        let bit_width = 13;
+        let mut desc: Vec<String> = vec![format!(
+            "\n{:#X} - {}",
+            self.address(dut),
+            self.friendly_path(dut)
+        )];
+        let r = (self.size % 8) as usize;
+        if r == 0 {
+            let mut s = "  ".to_string()
+                + corner_double_up_left
+                + &(horiz_double_line.repeat(bit_width) + horiz_double_tee_down).repeat(8);
+            s.pop();
+            desc.push(s + corner_double_up_right);
+        } else {
+            let mut s = "  ".to_string()
+                + &(" ".repeat(bit_width + 1)).repeat(8 - r)
+                + corner_double_up_left
+                + &(horiz_double_line.repeat(bit_width) + horiz_double_tee_down).repeat(r);
+            s.pop();
+            desc.push(s + corner_double_up_right);
+        }
+
+        let num_bytes = (self.size as f32 / 8.0).ceil() as usize;
+        for byte_index in 0..num_bytes {
+            let byte_number = num_bytes - byte_index;
+            let max_bit = (byte_number * 8) - 1;
+            let min_bit = max_bit + 1 - 8;
+
+            // BIT INDEX ROW
+            let mut line = "  ".to_string();
+            for i in 0..8 {
+                let bit_num = (byte_number * 8) - i - 1;
+                if bit_num > self.size as usize - 1 {
+                    line += &" ".repeat(bit_width);
+                } else {
+                    if bit_order == BitOrder::LSB0 {
+                        line += vert_single_line;
+                        line += &format!("{: ^bit_width$}", bit_num, bit_width = bit_width);
+                    } else {
+                        line += vert_single_line;
+                        line += &format!(
+                            "{: ^bit_width$}",
+                            self.size - bit_num as u32 - 1,
+                            bit_width = bit_width
+                        );
+                    }
+                }
+            }
+            line += vert_single_line;
+            desc.push(line);
+
+            // BIT NAME ROW
+            let mut line = "  ".to_string();
+            let mut first_done = false;
+            //  named_bits include_spacers: true do |name, bit, bitcounter|
+            //    if _bit_in_range?(bit, max_bit, min_bit)
+            //      if max_bit > (size - 1) && !first_done
+            //        (max_bit - (size - 1)).times do
+            //          line << ' ' * (bit_width + 1)
+            //        end
+            //      end
+
+            //      if bit.size > 1
+
+            //        if name
+            //          if bitcounter.nil?
+            //            bit_name = "#{name}[#{_max_bit_in_range(bit, max_bit, min_bit, options)}:#{_min_bit_in_range(bit, max_bit, min_bit, options)}]"
+            //            bit_span = _num_bits_in_range(bit, max_bit, min_bit)
+
+            //          else
+            //            upper = _max_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
+            //            lower = _min_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
+            //            if dolsb0
+            //              bit_name = "#{name}[#{upper}:#{lower}]"
+            //            else
+            //              bit_name = "#{name}[#{upper}:#{lower}]"
+            //            end
+            //            bit_span = upper - lower + 1
+            //          end
+            //          width = (bit_width * bit_span) + bit_span - 1
+            //          if bit_name.length > width
+            //            line << vert_single_line + "#{bit_name[0..width - 2]}*"
+            //          else
+            //            line << vert_single_line + bit_name.center(width)
+            //          end
+
+            //        else
+            //          bit.shift_out_left do |bit|
+            //            if _index_in_range?(bit.position, max_bit, min_bit)
+            //              line << vert_single_line + ''.center(bit_width)
+            //            end
+            //          end
+            //        end
+
+            //      else
+            //        if name
+            //          bit_name = "#{name}"
+            //          if bit_name.length > bit_width
+            //            txt = "#{bit_name[0..bit_width - 2]}*"
+            //          else
+            //            txt = bit_name
+            //          end
+            //        else
+            //          txt = ''
+            //        end
+            //        line << vert_single_line + txt.center(bit_width)
+            //      end
+            //    end
+            //    first_done = true
+            //  end
+            line += vert_single_line;
+            desc.push(line);
+
+            // BIT STATE ROW
+            let mut line = "  ".to_string();
+            let mut first_done = false;
+            //  named_bits include_spacers: true do |name, bit, _bitcounter|
+            //    if _bit_in_range?(bit, max_bit, min_bit)
+            //      if max_bit > (size - 1) && !first_done
+            //        (max_bit - (size - 1)).times do
+            //          line << ' ' * (bit_width + 1)
+            //        end
+            //      end
+
+            //      if bit.size > 1
+            //        if name
+            //          if bit.has_known_value?
+            //            value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
+            //          else
+            //            if bit.reset_val == :undefined
+            //              value = 'X'
+            //            else
+            //              value = 'M'
+            //            end
+            //          end
+            //          value += _state_desc(bit)
+            //          bit_span = _num_bits_in_range(bit, max_bit, min_bit)
+            //          width = bit_width * bit_span
+            //          line << vert_single_line + value.center(width + bit_span - 1)
+            //        else
+            //          bit.shift_out_left do |bit|
+            //            if _index_in_range?(bit.position, max_bit, min_bit)
+            //              line << vert_single_line + ''.center(bit_width)
+            //            end
+            //          end
+            //        end
+            //      else
+            //        if name
+            //          if bit.has_known_value?
+            //            val = bit.val
+            //          else
+            //            if bit.reset_val == :undefined
+            //              val = 'X'
+            //            else
+            //              val = 'M'
+            //            end
+            //          end
+            //          value = "#{val}" + _state_desc(bit)
+            //          line << vert_single_line + value.center(bit_width)
+            //        else
+            //          line << vert_single_line + ''.center(bit_width)
+            //        end
+            //      end
+            //    end
+            //    first_done = true
+            //  end
+            line += vert_single_line;
+            desc.push(line);
+
+            if self.size >= 8 {
+                let r = (self.size % 8) as usize;
+                if byte_index == 0 && r != 0 {
+                    let mut s = "  ".to_string()
+                        + corner_double_up_left
+                        + &(horiz_double_line.repeat(bit_width) + horiz_double_tee_down)
+                            .repeat(8 - r);
+                    s.pop();
+                    s += horiz_double_cross;
+                    s += &horiz_single_line.repeat((bit_width + 1) * r);
+                    s.pop();
+                    desc.push(s + vert_single_tee_left);
+                } else {
+                    if byte_index == num_bytes - 1 {
+                        let mut s = "  ".to_string()
+                            + corner_single_down_left
+                            + &(horiz_single_line.repeat(bit_width) + horiz_single_tee_up)
+                                .repeat(8);
+                        s.pop();
+                        desc.push(s + corner_single_down_right);
+                    } else {
+                        let mut s = "  ".to_string()
+                            + vert_single_tee_right
+                            + &(horiz_single_line.repeat(bit_width) + horiz_single_cross).repeat(8);
+                        s.pop();
+                        desc.push(s + vert_single_tee_left);
+                    }
+                }
+            } else {
+                let mut s = "  ".to_string()
+                    + &" ".repeat((bit_width + 1) * (8 - self.size as usize))
+                    + corner_single_down_left
+                    + &(horiz_single_line.repeat(bit_width) + horiz_single_tee_up)
+                        .repeat(self.size as usize);
+                s.pop();
+                desc.push(s + corner_single_down_right);
+            }
+        }
+        Ok(desc.join("\n"))
     }
 }
 

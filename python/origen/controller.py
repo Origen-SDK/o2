@@ -94,6 +94,12 @@ class Base:
             if name in self.memory_maps:
                 return self.memory_maps[name]
 
+            # Finally see if this is a reference to a reg in the default address block
+            if self._default_default_address_block:
+                r = self._default_default_address_block.reg(name)
+                if r:
+                    return r
+
             raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):

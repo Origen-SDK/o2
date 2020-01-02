@@ -2,6 +2,7 @@
 //use origen::core::model::registers::Register;
 use num_bigint::{BigInt, BigUint};
 use origen::DUT;
+use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
 
 ///// Implements the user APIs my_block.[.my_memory_map][.my_address_block].reg() and
@@ -122,6 +123,15 @@ impl Register {
     fn data(&self, v: BigUint) -> BigUint {
         let d = BigUint::parse_bytes(b"12345678123456781234567812345678", 16).unwrap();
         d
+    }
+}
+
+#[pyproto]
+impl PyObjectProtocol for Register {
+    fn __repr__(&self) -> PyResult<String> {
+        let dut = origen::dut();
+        let reg = dut.get_register(self.id)?;
+        Ok(reg.console_display(&dut, None, true)?)
     }
 }
 

@@ -47,6 +47,9 @@ fn println(msg: &str, color: Color) {
         let status = writeln!(&mut stdout, "{}", msg);
         if status.is_ok() {
             let _ = stdout.reset();
+            // TODO: This flush added to stop the coloring hanging over into the console, perhaps
+            // for performance this should only be done when running in interactive mode
+            let _ = stdout.flush();
             return;
         }
     }
@@ -61,6 +64,9 @@ fn print(msg: &str, color: Color) {
         let status = write!(&mut stdout, "{}", msg);
         if status.is_ok() {
             let _ = stdout.reset();
+            // TODO: This flush added to stop the coloring hanging over into the console, perhaps
+            // for performance this should only be done when running in interactive mode
+            let _ = stdout.flush();
             return;
         }
     }
