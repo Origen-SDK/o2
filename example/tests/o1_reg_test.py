@@ -23,10 +23,9 @@ def test_reads_in_excel_TCU_registers_by_forward_single_bits_in_range():
         reg.bit(1, "pan",  reset=0)
         reg.bit(0, "peter",  reset=0)
 
-    pdb.set_trace()
+    #pdb.set_trace()
 
-    assert origen.dut.reg("tcu").data(0x12345678_12345678_12345678_12345678) == 0x12345678_12345678_12345678_12345678
-    #assert origen.dut.reg("tcu").data == 12
+    assert origen.dut.reg("tcu").data == 12
     #assert origen.dut.reg("tcu").bits("peter").size == 4
     #assert origen.dut.reg("tcu").bits("peter").data == 0b0110
     #origen.dut.reg("tcu").bits("peter").write(0)

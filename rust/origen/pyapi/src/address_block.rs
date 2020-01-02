@@ -251,14 +251,17 @@ pub struct AddressBlock {
 /// User API methods, available to both Rust and Python
 #[pymethods]
 impl AddressBlock {
-    fn reg(&self, name: &str) -> PyResult<Register> {
+    fn reg(&self, name: &str) -> PyResult<Option<Register>> {
         let id = origen::dut()
             .get_address_block(self.id)?
-            .get_register_id(name)?;
-        Ok(Register {
-            id: id,
-            name: name.to_string(),
-        })
+            .get_register_id(name);
+        match id {
+            Ok(id) => Ok(Some(Register {
+                id: id,
+                name: name.to_string(),
+            })),
+            Err(_) => Ok(None),
+        }
     }
 }
 

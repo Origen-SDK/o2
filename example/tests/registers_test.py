@@ -74,10 +74,14 @@ def test_regs_can_be_added():
     assert origen.dut.regs.len() == 6
 
 def test_address_blocks_can_be_fetched():
+    origen.app.instantiate_dut("dut.falcon")
+    assert origen.dut
     pass
 
 def test_regs_can_be_fetched():
-    pass
+    assert origen.dut.reg("reg1")
+    assert origen.dut.reg("no_reg") == None
+    #assert origen.dut.regs["reg1"]
 
 def test_register_value_can_be_read():
     origen.app.instantiate_dut("dut.falcon")
