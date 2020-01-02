@@ -1,6 +1,6 @@
 use crate::dut::PyDUT;
 use crate::memory_map::MemoryMap;
-use crate::register::Registers;
+use crate::register::{Register, Registers};
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;
@@ -250,7 +250,17 @@ pub struct AddressBlock {
 
 /// User API methods, available to both Rust and Python
 #[pymethods]
-impl AddressBlock {}
+impl AddressBlock {
+    fn reg(&self, name: &str) -> PyResult<Register> {
+        let id = origen::dut()
+            .get_address_block(self.id)?
+            .get_register_id(name)?;
+        Ok(Register {
+            id: id,
+            name: name.to_string(),
+        })
+    }
+}
 
 /// Internal, Rust-only methods
 impl AddressBlock {}
@@ -276,26 +286,24 @@ impl PyObjectProtocol for AddressBlock {
 
         // See if the requested attribute is a reference to one of this block's registers
         } else {
-            //let blk = dut.get_address_block(self.id)?;
+            let blk = dut.get_address_block(self.id)?;
 
-            //match blk.get_register_id(query) {
-            //    Ok(id) => {
-            //        let pyref = PyRef::new(
-            //            py,
-            //            Register {
-            //                id: id,
-            //                name: query.to_string(),
-            //            },
-            //        )?;
-            //        Ok(pyref.to_object(py))
-            //    }
-            //    Err(_) => Err(AttributeError::py_err(format!(
-            Err(AttributeError::py_err(format!(
-                "'AddressBlock' object has no attribute '{}'",
-                query
-            )))
-            //    ))),
-            //}
+            match blk.get_register_id(query) {
+                Ok(id) => {
+                    let pyref = PyRef::new(
+                        py,
+                        Register {
+                            id: id,
+                            name: query.to_string(),
+                        },
+                    )?;
+                    Ok(pyref.to_object(py))
+                }
+                Err(_) => Err(AttributeError::py_err(format!(
+                    "'AddressBlock' object has no attribute '{}'",
+                    query
+                ))),
+            }
         }
     }
 

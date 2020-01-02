@@ -1,6 +1,7 @@
 # These are the tests from o1's reg_spec.rb, converted to o2
 
 import origen
+import pdb
 
 #def read_register(reg, options={})
 #  # Dummy method to allow the bang methods to be tested
@@ -22,17 +23,21 @@ def test_reads_in_excel_TCU_registers_by_forward_single_bits_in_range():
         reg.bit(1, "pan",  reset=0)
         reg.bit(0, "peter",  reset=0)
 
-    assert origen.dut.reg("tcu").data == 12
-    assert origen.dut.reg("tcu").bits("peter").size == 4
-    assert origen.dut.reg("tcu").bits("peter").data == 0b0110
-    origen.dut.reg("tcu").bits("peter").write(0)
-    assert origen.dut.reg("tcu").data == 0
-    assert origen.dut.reg("tcu").bits("peter").data == 0
-    origen.dut.reg("tcu").bits("peter").write(7)
-    assert origen.dut.reg("tcu").data == 0b1101
-    assert origen.dut.reg("tcu").bits("peter").data == 7
-    origen.dut.reg("tcu").reset
-    assert origen.dut.reg("tcu").data == 12
+    pdb.set_trace()
+
+    assert origen.dut.reg("tcu").data(0x12345678_12345678_12345678_12345678) == 0x12345678_12345678_12345678_12345678
+    #assert origen.dut.reg("tcu").data == 12
+    #assert origen.dut.reg("tcu").bits("peter").size == 4
+    #assert origen.dut.reg("tcu").bits("peter").data == 0b0110
+    #origen.dut.reg("tcu").bits("peter").write(0)
+    #assert origen.dut.reg("tcu").data == 0
+    #assert origen.dut.reg("tcu").bits("peter").data == 0
+    #origen.dut.reg("tcu").bits("peter").write(7)
+    #assert origen.dut.reg("tcu").data == 0b1101
+    #assert origen.dut.reg("tcu").bits("peter").data == 7
+    #origen.dut.reg("tcu").reset
+    #assert origen.dut.reg("tcu").data == 12
+
     # Seems like we can drop this API
     #assert origen.dut.reg("tcu").contains_bits? == true
 

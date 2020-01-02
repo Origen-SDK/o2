@@ -1,5 +1,6 @@
 //use crate::dut::PyDUT;
 //use origen::core::model::registers::Register;
+use num_bigint::{BigInt, BigUint};
 use origen::DUT;
 use pyo3::prelude::*;
 
@@ -103,6 +104,24 @@ impl Registers {
         } else {
             Ok(Vec::new())
         }
+    }
+}
+
+/// Implements the user API to work with a single register
+#[pyclass]
+#[derive(Debug)]
+pub struct Register {
+    #[pyo3(get)]
+    pub id: usize,
+    #[pyo3(get)]
+    pub name: String,
+}
+
+#[pymethods]
+impl Register {
+    fn data(&self, v: BigUint) -> BigUint {
+        let d = BigUint::parse_bytes(b"12345678123456781234567812345678", 16).unwrap();
+        d
     }
 }
 

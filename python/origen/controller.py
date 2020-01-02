@@ -140,6 +140,7 @@ class Base:
 
     @contextmanager
     def add_reg(self, *args, **kwargs):
+        self._load_regs()
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
 
