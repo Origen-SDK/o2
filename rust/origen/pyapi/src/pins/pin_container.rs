@@ -1,12 +1,12 @@
 use origen::DUT;
-use pyo3::prelude::*;
-use pyo3::{exceptions};
-#[allow(unused_imports)]
-use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
 use pyo3::class::mapping::*;
+use pyo3::exceptions;
+use pyo3::prelude::*;
+#[allow(unused_imports)]
+use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
-use super::pin_group::PinGroup;
 use super::pin_collection::PinCollection;
+use super::pin_group::PinGroup;
 use origen::core::model::pins::Endianness;
 
 #[pyclass]
@@ -38,14 +38,20 @@ impl PinContainer {
         let py = gil.python();
         let mut v: Vec<Py<PinGroup>> = Vec::new();
         for (n, _p) in pins {
-            v.push(Py::new(py, PinGroup {
-                name: String::from(n.clone()),
-                path: String::from(self.path.clone()),
-                model_id: self.model_id,
-              }).unwrap())
+            v.push(
+                Py::new(
+                    py,
+                    PinGroup {
+                        name: String::from(n.clone()),
+                        path: String::from(self.path.clone()),
+                        model_id: self.model_id,
+                    },
+                )
+                .unwrap(),
+            )
         }
         Ok(v)
-    } 
+    }
 
     fn items(&self) -> PyResult<Vec<(String, Py<PinGroup>)>> {
         let mut dut = DUT.lock().unwrap();
@@ -58,11 +64,15 @@ impl PinContainer {
         for (n, _p) in pins {
             items.push((
                 n.clone(),
-                Py::new(py, PinGroup {
-                    name: String::from(n.clone()),
-                    path: String::from(self.path.clone()),
-                    model_id: self.model_id,
-                  }).unwrap(),
+                Py::new(
+                    py,
+                    PinGroup {
+                        name: String::from(n.clone()),
+                        path: String::from(self.path.clone()),
+                        model_id: self.model_id,
+                    },
+                )
+                .unwrap(),
             ));
         }
         Ok(items)
@@ -75,36 +85,36 @@ impl PinContainer {
 
     #[args(names = "*", options = "**")]
     fn collect(&self, names: &PyTuple, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
-      let gil = Python::acquire_gil();
-      let py = gil.python();
-      let mut endianness = Option::None;
-      match options {
-        Some(options) => {
-          if let Some(opt) = options.get_item("little_endian") {
-              if opt.extract::<bool>()? {
-                  endianness = Option::Some(Endianness::LittleEndian);
-              } else {
-                  endianness = Option::Some(Endianness::BigEndian);
-              }
-          }
-        },
-        None => {}
-      }
-
-      let mut name_strs: Vec<String> = vec!();
-      for (_i, n) in names.iter().enumerate() {
-        if n.get_type().name() == "re.Pattern" {
-          let r = n.getattr("pattern").unwrap();
-          name_strs.push(format!("/{}/", r));
-        } else {
-          let _n = n.extract::<String>()?;
-          name_strs.push(_n.clone());
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut endianness = Option::None;
+        match options {
+            Some(options) => {
+                if let Some(opt) = options.get_item("little_endian") {
+                    if opt.extract::<bool>()? {
+                        endianness = Option::Some(Endianness::LittleEndian);
+                    } else {
+                        endianness = Option::Some(Endianness::BigEndian);
+                    }
+                }
+            }
+            None => {}
         }
-      }
-      let collection = PinCollection::new(self.model_id, name_strs, endianness)?;
-      let c = Py::new(py, collection).unwrap();
-      Ok(c)
-  }
+
+        let mut name_strs: Vec<String> = vec![];
+        for (_i, n) in names.iter().enumerate() {
+            if n.get_type().name() == "re.Pattern" {
+                let r = n.getattr("pattern").unwrap();
+                name_strs.push(format!("/{}/", r));
+            } else {
+                let _n = n.extract::<String>()?;
+                name_strs.push(_n.clone());
+            }
+        }
+        let collection = PinCollection::new(self.model_id, name_strs, endianness)?;
+        let c = Py::new(py, collection).unwrap();
+        Ok(c)
+    }
 }
 
 #[pyproto]
@@ -117,15 +127,20 @@ impl PyMappingProtocol for PinContainer {
         let py = gil.python();
         let p = model.get_pin_group(name);
         match p {
-            Some(_p) => {
-                Ok(Py::new(py, PinGroup {
-                  name: String::from(name),
-                  path: String::from(&self.path),
-                  model_id: self.model_id,
-              }).unwrap())
-            },
+            Some(_p) => Ok(Py::new(
+                py,
+                PinGroup {
+                    name: String::from(name),
+                    path: String::from(&self.path),
+                    model_id: self.model_id,
+                },
+            )
+            .unwrap()),
             // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
-            None => Err(exceptions::KeyError::py_err(format!("No pin or pin alias found for {}", name)))
+            None => Err(exceptions::KeyError::py_err(format!(
+                "No pin or pin alias found for {}",
+                name
+            ))),
         }
     }
 
@@ -165,7 +180,6 @@ pub struct PinContainerIter {
 
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for PinContainerIter {
-
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -179,7 +193,7 @@ impl pyo3::class::iter::PyIterProtocol for PinContainerIter {
     /// Todo: Fix the above using iterators. My Rust skills aren't there yet though... - Coreyeng
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
         if slf.i >= slf.keys.len() {
-            return Ok(None)
+            return Ok(None);
         }
         let name = slf.keys[slf.i].clone();
         slf.i += 1;

@@ -1,10 +1,10 @@
-use origen::DUT;
-use pyo3::prelude::*;
-use pyo3::{exceptions};
-#[allow(unused_imports)]
-use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
-use pyo3::class::mapping::*;
 use super::pin::Pin;
+use origen::DUT;
+use pyo3::class::mapping::*;
+use pyo3::exceptions;
+use pyo3::prelude::*;
+#[allow(unused_imports)]
+use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
 #[pyclass]
 pub struct PhysicalPinContainer {
@@ -35,14 +35,20 @@ impl PhysicalPinContainer {
         let py = gil.python();
         let mut v: Vec<Py<Pin>> = Vec::new();
         for (n, _p) in physical_pins {
-            v.push(Py::new(py, Pin {
-                name: String::from(n.clone()),
-                path: String::from(self.path.clone()),
-                model_id: self.model_id,
-            }).unwrap())
+            v.push(
+                Py::new(
+                    py,
+                    Pin {
+                        name: String::from(n.clone()),
+                        path: String::from(self.path.clone()),
+                        model_id: self.model_id,
+                    },
+                )
+                .unwrap(),
+            )
         }
         Ok(v)
-    } 
+    }
 
     fn items(&self) -> PyResult<Vec<(String, Py<Pin>)>> {
         let mut dut = DUT.lock().unwrap();
@@ -55,11 +61,15 @@ impl PhysicalPinContainer {
         for (n, _p) in pins {
             items.push((
                 n.clone(),
-                Py::new(py, Pin {
-                    name: String::from(n.clone()),
-                    path: String::from(self.path.clone()),
-                    model_id: self.model_id,
-                }).unwrap(),
+                Py::new(
+                    py,
+                    Pin {
+                        name: String::from(n.clone()),
+                        path: String::from(self.path.clone()),
+                        model_id: self.model_id,
+                    },
+                )
+                .unwrap(),
             ));
         }
         Ok(items)
@@ -81,15 +91,20 @@ impl PyMappingProtocol for PhysicalPinContainer {
         let py = gil.python();
         let p = model.get_physical_pin(name);
         match p {
-            Some(_p) => {
-                Ok(Py::new(py, Pin {
-                  name: String::from(name),
-                  path: String::from(&self.path),
-                  model_id: self.model_id,
-              }).unwrap())
-            },
+            Some(_p) => Ok(Py::new(
+                py,
+                Pin {
+                    name: String::from(name),
+                    path: String::from(&self.path),
+                    model_id: self.model_id,
+                },
+            )
+            .unwrap()),
             // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
-            None => Err(exceptions::KeyError::py_err(format!("No pin or pin alias found for {}", name)))
+            None => Err(exceptions::KeyError::py_err(format!(
+                "No pin or pin alias found for {}",
+                name
+            ))),
         }
     }
 
@@ -129,7 +144,6 @@ pub struct PhysicalPinContainerIter {
 
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainerIter {
-
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -143,7 +157,7 @@ impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainerIter {
     /// Todo: Fix the above using iterators. My Rust skills aren't there yet though... - Coreyeng
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
         if slf.i >= slf.keys.len() {
-            return Ok(None)
+            return Ok(None);
         }
         let name = slf.keys[slf.i].clone();
         slf.i += 1;

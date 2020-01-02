@@ -1,7 +1,7 @@
 use origen::DUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
-use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes};
+use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
 #[pyclass]
 pub struct Pin {
@@ -12,13 +12,17 @@ pub struct Pin {
 
 #[macro_export]
 macro_rules! pypin {
-  ($py:expr, $name:expr, $model_id:expr) => {
-      Py::new($py, crate::pins::pin::Pin {
-        name: String::from($name),
-        path: String::from(""),
-        model_id: model_id,
-      }).unwrap()
-  }
+    ($py:expr, $name:expr, $model_id:expr) => {
+        Py::new(
+            $py,
+            crate::pins::pin::Pin {
+                name: String::from($name),
+                path: String::from(""),
+                model_id: model_id,
+            },
+        )
+        .unwrap()
+    };
 }
 
 #[pymethods]
@@ -88,46 +92,38 @@ impl Pin {
 
     #[getter]
     fn get_aliases(&self) -> PyResult<Vec<String>> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      let pin = model._pin(&self.name)?;
-      Ok(pin.aliases.clone())
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let pin = model._pin(&self.name)?;
+        Ok(pin.aliases.clone())
     }
 
     #[getter]
     fn get_reset_data(&self) -> PyResult<PyObject> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      let pin = model._get_physical_pin(&self.name)?;
-      
-      let gil = Python::acquire_gil();
-      let py = gil.python();
-      match pin.reset_data {
-        Some(d) => {
-          Ok(d.to_object(py))
-        },
-        None => {
-          Ok(py.None())
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let pin = model._get_physical_pin(&self.name)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match pin.reset_data {
+            Some(d) => Ok(d.to_object(py)),
+            None => Ok(py.None()),
         }
-      }
     }
 
     #[getter]
     fn get_reset_action(&self) -> PyResult<PyObject> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      let pin = model._get_physical_pin(&self.name)?;
-      
-      let gil = Python::acquire_gil();
-      let py = gil.python();
-      match pin.reset_action {
-        Some(a) => {
-          Ok(String::from(a.as_char().to_string()).to_object(py))
-        },
-        None => {
-          Ok(py.None())
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let pin = model._get_physical_pin(&self.name)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match pin.reset_action {
+            Some(a) => Ok(String::from(a.as_char().to_string()).to_object(py)),
+            None => Ok(py.None()),
         }
-      }
     }
 
     // Debug helper: Get the name held by this instance.

@@ -1,9 +1,9 @@
-use origen::DUT;
-use pyo3::prelude::*;
 use super::pin::Pin;
 use super::pin_collection::PinCollection;
+use origen::DUT;
+use pyo3::prelude::*;
 #[allow(unused_imports)]
-use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes, PySlice};
+use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 
 #[pyclass]
 pub struct PinGroup {
@@ -35,14 +35,18 @@ impl PinGroup {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
         model.set_pin_group_data(&self.name, data)?;
-        
+
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(py, Self {
-          name: self.name.clone(),
-          path: self.path.clone(),
-          model_id: self.model_id,
-        }).unwrap())
+        Ok(Py::new(
+            py,
+            Self {
+                name: self.name.clone(),
+                path: self.path.clone(),
+                model_id: self.model_id,
+            },
+        )
+        .unwrap())
     }
 
     fn set(&self, data: u32) -> PyResult<Py<Self>> {
@@ -56,11 +60,15 @@ impl PinGroup {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(py, Self {
-          name: self.name.clone(),
-          path: self.path.clone(),
-          model_id: self.model_id,
-        }).unwrap())
+        Ok(Py::new(
+            py,
+            Self {
+                name: self.name.clone(),
+                path: self.path.clone(),
+                model_id: self.model_id,
+            },
+        )
+        .unwrap())
     }
 
     #[getter]
@@ -86,11 +94,17 @@ impl PinGroup {
         let py = gil.python();
         let mut v: Vec<Py<Pin>> = Vec::new();
         for n in grp.pin_names.iter() {
-            v.push(Py::new(py, Pin {
-                name: String::from(n),
-                path: String::from(&self.path),
-                model_id: self.model_id,
-            }).unwrap());
+            v.push(
+                Py::new(
+                    py,
+                    Pin {
+                        name: String::from(n),
+                        path: String::from(&self.path),
+                        model_id: self.model_id,
+                    },
+                )
+                .unwrap(),
+            );
         }
         Ok(v)
     }
@@ -103,64 +117,64 @@ impl PinGroup {
     }
 
     fn drive(&self, data: Option<u32>) -> PyResult<()> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.drive_pin_group(&self.name, data, Option::None)?)
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        Ok(model.drive_pin_group(&self.name, data, Option::None)?)
     }
 
     fn verify(&self, data: Option<u32>) -> PyResult<()> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.verify_pin_group(&self.name, data, Option::None)?)
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        Ok(model.verify_pin_group(&self.name, data, Option::None)?)
     }
 
     fn capture(&self) -> PyResult<()> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.capture_pin_group(&self.name, Option::None)?)
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        Ok(model.capture_pin_group(&self.name, Option::None)?)
     }
 
     fn highz(&self) -> PyResult<()> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.highz_pin_group(&self.name, Option::None)?)
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        Ok(model.highz_pin_group(&self.name, Option::None)?)
     }
 
     fn reset(&self) -> PyResult<()> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      Ok(model.reset_pin_group(&self.name)?)
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        Ok(model.reset_pin_group(&self.name)?)
     }
 
     #[getter]
     fn get_physical_names(&self) -> PyResult<Vec<String>> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      let names = model.resolve_pin_group_names(&self.name)?;
-      Ok(names.clone())
-   }
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let names = model.resolve_pin_group_names(&self.name)?;
+        Ok(names.clone())
+    }
 
-   #[getter]
-   fn get_width(&self) -> PyResult<usize> {
-     let mut dut = DUT.lock().unwrap();
-     let model = dut.get_mut_model(self.model_id)?;
-     let grp = model._get_pin_group(&self.name)?;
-     Ok(grp.len())
-   }
+    #[getter]
+    fn get_width(&self) -> PyResult<usize> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let grp = model._get_pin_group(&self.name)?;
+        Ok(grp.len())
+    }
 
-   #[getter]
-   fn get_reset_data(&self) -> PyResult<u32> {
-     let mut dut = DUT.lock().unwrap();
-     let model = dut.get_mut_model(self.model_id)?;
-     Ok(model.get_pin_group_reset_data(&self.name))
-   }
+    #[getter]
+    fn get_reset_data(&self) -> PyResult<u32> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        Ok(model.get_pin_group_reset_data(&self.name))
+    }
 
-   #[getter]
-   fn get_reset_actions(&self) -> PyResult<String> {
-     let mut dut = DUT.lock().unwrap();
-     let model = dut.get_mut_model(self.model_id)?;
-     Ok(model.get_pin_group_reset_actions(&self.name)?)
-   }
+    #[getter]
+    fn get_reset_actions(&self) -> PyResult<String> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        Ok(model.get_pin_group_reset_actions(&self.name)?)
+    }
 
     // Debug helper: Get the name held by this instance.
     #[allow(non_snake_case)]
@@ -217,16 +231,25 @@ impl<'p> pyo3::class::PyMappingProtocol<'p> for PinGroup {
         let gil = Python::acquire_gil();
         let py = gil.python();
         if let Ok(slice) = idx.cast_as::<PySlice>() {
-          // Indices requires (what I think is) a max size. Should be plenty.
-          let indices = slice.indices(8192)?;
-          let collection = model.slice_pin_group(&self.name, indices.start as usize, indices.stop as usize, indices.step as usize)?;
-          Ok(Py::new(py, PinCollection::from(collection)).unwrap().to_object(py))
+            // Indices requires (what I think is) a max size. Should be plenty.
+            let indices = slice.indices(8192)?;
+            let collection = model.slice_pin_group(
+                &self.name,
+                indices.start as usize,
+                indices.stop as usize,
+                indices.step as usize,
+            )?;
+            Ok(Py::new(py, PinCollection::from(collection))
+                .unwrap()
+                .to_object(py))
         } else {
-          let i = idx.extract::<isize>().unwrap();
-          let collection = model.slice_pin_group(&self.name, i as usize, i as usize, 1)?;
-          Ok(Py::new(py, PinCollection::from(collection)).unwrap().to_object(py))
+            let i = idx.extract::<isize>().unwrap();
+            let collection = model.slice_pin_group(&self.name, i as usize, i as usize, 1)?;
+            Ok(Py::new(py, PinCollection::from(collection))
+                .unwrap()
+                .to_object(py))
         }
-      }
+    }
 }
 
 #[pyproto]
@@ -246,26 +269,26 @@ impl pyo3::class::iter::PyIterProtocol for PinGroup {
 
 #[pyclass]
 pub struct PinGroupIter {
-  keys: Vec<String>,
-  i: usize,
-  model_id: usize,
+    keys: Vec<String>,
+    i: usize,
+    model_id: usize,
 }
 
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for PinGroupIter {
-  fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    Ok(slf.to_object(py))
-  }
-
-  fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PinCollection>> {
-    if slf.i >= slf.keys.len() {
-        return Ok(None)
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(slf.to_object(py))
     }
-    let name = slf.keys[slf.i].clone();
-    let collection = PinCollection::new(slf.model_id, vec!(name), Option::None)?;
-    slf.i += 1;
-    Ok(Some(collection))
-  }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PinCollection>> {
+        if slf.i >= slf.keys.len() {
+            return Ok(None);
+        }
+        let name = slf.keys[slf.i].clone();
+        let collection = PinCollection::new(slf.model_id, vec![name], Option::None)?;
+        slf.i += 1;
+        Ok(Some(collection))
+    }
 }
