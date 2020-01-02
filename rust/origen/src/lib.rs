@@ -46,9 +46,11 @@ macro_rules! lock {
     () => {
         match DUT.lock() {
             Ok(dut) => Ok(dut),
-            Err(e) => Err(origen::error::Error::new(&format!("Could not attain DUT lock!"))),
+            Err(e) => Err(origen::error::Error::new(&format!(
+                "Could not attain DUT lock!"
+            ))),
         }
-    }
+    };
 }
 
 pub fn dut() -> MutexGuard<'static, Dut> {

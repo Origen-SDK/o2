@@ -5,9 +5,9 @@ use crate::Dut;
 use crate::Result;
 use std::sync::MutexGuard;
 
-use std::collections::HashMap;
 use pins::pin::Pin;
 use pins::pin_group::PinGroup;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Model {
