@@ -10,7 +10,8 @@ class Proxies:
         self.proxies = {}
     
     def __getitem__(self, name):
-        if (p := self.proxies.get(name)):
+        p = self.proxies.get(name)
+        if (p):
             return p
         else:
             origen.logger.error(f"No proxy for '{name}' has been set!")

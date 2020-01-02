@@ -5,6 +5,7 @@ use crate::Dut;
 use crate::Result;
 use std::sync::MutexGuard;
 
+use indexmap::map::IndexMap;
 use pins::pin::Pin;
 use pins::pin_group::PinGroup;
 use std::collections::HashMap;
@@ -16,9 +17,9 @@ pub struct Model {
     /// The only one without a parent is the top-level DUT model
     pub parent_id: Option<usize>,
     /// All children of this block/model, which are themselves models
-    pub sub_blocks: HashMap<String, usize>,
+    pub sub_blocks: IndexMap<String, usize>,
     /// All registers owned by this model are arranged within memory maps
-    pub memory_maps: HashMap<String, usize>,
+    pub memory_maps: IndexMap<String, usize>,
     // Pins
     pub physical_pins: HashMap<String, Pin>,
     pub pins: HashMap<String, PinGroup>,
@@ -33,8 +34,8 @@ impl Model {
             id: id,
             name: name,
             parent_id: parent_id,
-            sub_blocks: HashMap::new(),
-            memory_maps: HashMap::new(),
+            sub_blocks: IndexMap::new(),
+            memory_maps: IndexMap::new(),
             physical_pins: HashMap::new(),
             pins: HashMap::new(),
         }
