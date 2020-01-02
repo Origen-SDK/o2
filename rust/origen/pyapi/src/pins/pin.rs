@@ -5,18 +5,18 @@ use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
 #[pyclass]
 pub struct Pin {
-    pub id: String,
+    pub name: String,
     pub path: String,
     pub model_id: usize,
 }
 
 #[macro_export]
 macro_rules! pypin {
-    ($py:expr, $id:expr, $model_id:expr) => {
+    ($py:expr, $name:expr, $model_id:expr) => {
         Py::new(
             $py,
             crate::pins::pin::Pin {
-                id: String::from($id),
+                name: String::from($name),
                 path: String::from(""),
                 model_id: model_id,
             },
@@ -27,20 +27,58 @@ macro_rules! pypin {
 
 #[pymethods]
 impl Pin {
-    // Even though we're storing the id in this instance, we're going to go back to the core anyway.
+    // fn add_metadata(&self, meta_name: &str, obj: &PyAny) -> PyResult<()> {
+    //   let mut dut = DUT.lock().unwrap();
+    //   let model = dut.get_mut_model(self.model_id)?;
+    //   let pin = model._pin(&self.name)?;
+
+    //   let gil = Python::acquire_gil();
+    //   let py = gil.python();
+    //   //let o = Box::new(obj.to_object(py));
+    //   let o = Box::new(PyRef::new(py, obj));
+    //   pin.meta.insert(String::from(meta_name), o);
+    //   Ok(())
+    // }
+
+    // // fn get_meta(&self, meta_name: &str) -> PyResult<PyObject> {
+    // //   let mut dut = DUT.lock().unwrap();
+    // //   let model = dut.get_mut_model(self.model_id)?;
+    // //   let pin = model._pin(&self.name)?;
+
+    // //   let gil = Python::acquire_gil();
+    // //   let py = gil.python();
+    // //   pin.get_meta()
+    // // }
+
+    // #[getter]
+    // fn get_metadata(&self) -> PyResult<PyObject> {
+    //   let mut dut = DUT.lock().unwrap();
+    //   let model = dut.get_mut_model(self.model_id)?;
+    //   let pin = model._pin(&self.name)?;
+
+    //   let gil = Python::acquire_gil();
+    //   let py = gil.python();
+    //   let metadata = PyDict::new(py);
+    //   for (meta_name, meta_item) in pin.meta.iter() {
+    //     metadata.set_item(meta_name, *meta_item.downcast::<PyRef>().unwrap());
+    //   }
+    //   Ok(metadata.into())
+    // }
+
+    // Even though we're storing the name in this instance, we're going to go back to the core anyway.
     #[getter]
-    fn get_id(&self) -> PyResult<String> {
+    fn get_name(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let pin = model._pin(&self.id)?;
-        Ok(pin.id.clone())
+        let pin = model._pin(&self.name)?;
+        Ok(pin.name.clone())
     }
 
     #[getter]
     fn get_data(&self) -> PyResult<u8> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let pin = model._pin(&self.id)?;
+        let pin = model._pin(&self.name)?;
         Ok(pin.data)
     }
 
@@ -48,7 +86,7 @@ impl Pin {
     fn get_action(&self) -> PyResult<String> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let pin = model._pin(&self.id)?;
+        let pin = model._pin(&self.name)?;
         Ok(String::from(pin.action.as_str()))
     }
 
@@ -56,7 +94,7 @@ impl Pin {
     fn get_aliases(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let pin = model._pin(&self.id)?;
+        let pin = model._pin(&self.name)?;
         Ok(pin.aliases.clone())
     }
 
@@ -64,7 +102,7 @@ impl Pin {
     fn get_reset_data(&self) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let pin = model.physical_pin(&self.id).unwrap();
+        let pin = model._get_physical_pin(&self.name)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -78,7 +116,7 @@ impl Pin {
     fn get_reset_action(&self) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let pin = model.physical_pin(&self.id).unwrap();
+        let pin = model._get_physical_pin(&self.name)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -88,14 +126,14 @@ impl Pin {
         }
     }
 
-    // Debug helper: Get the id held by this instance.
+    // Debug helper: Get the name held by this instance.
     #[allow(non_snake_case)]
     #[getter]
-    fn get__id(&self) -> PyResult<String> {
-        Ok(self.id.clone())
+    fn get__name(&self) -> PyResult<String> {
+        Ok(self.name.clone())
     }
 
-    // Debug helper: Get the id held by this instance.
+    // Debug helper: Get the path held by this instance.
     #[allow(non_snake_case)]
     #[getter]
     fn get__path(&self) -> PyResult<String> {

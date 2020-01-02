@@ -20,10 +20,10 @@ impl PinContainer {
     fn keys(&self) -> PyResult<Vec<String>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        let ids = &model.pins;
+        let names = &model.pins;
 
         let mut v: Vec<String> = Vec::new();
-        for (n, _p) in ids {
+        for (n, _p) in names {
             v.push(n.clone());
         }
         Ok(v)
@@ -42,7 +42,7 @@ impl PinContainer {
                 Py::new(
                     py,
                     PinGroup {
-                        id: String::from(n.clone()),
+                        name: String::from(n.clone()),
                         path: String::from(self.path.clone()),
                         model_id: self.model_id,
                     },
@@ -67,7 +67,7 @@ impl PinContainer {
                 Py::new(
                     py,
                     PinGroup {
-                        id: String::from(n.clone()),
+                        name: String::from(n.clone()),
                         path: String::from(self.path.clone()),
                         model_id: self.model_id,
                     },
@@ -79,12 +79,12 @@ impl PinContainer {
     }
 
     #[getter]
-    fn get_ids(&self) -> PyResult<Vec<String>> {
+    fn get_pin_names(&self) -> PyResult<Vec<String>> {
         self.keys()
     }
 
-    #[args(ids = "*", options = "**")]
-    fn collect(&self, ids: &PyTuple, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
+    #[args(names = "*", options = "**")]
+    fn collect(&self, names: &PyTuple, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let mut endianness = Option::None;
@@ -101,17 +101,17 @@ impl PinContainer {
             None => {}
         }
 
-        let mut id_strs: Vec<String> = vec![];
-        for (_i, id) in ids.iter().enumerate() {
-            if id.get_type().name() == "re.Pattern" {
-                let r = id.getattr("pattern").unwrap();
-                id_strs.push(format!("/{}/", r));
+        let mut name_strs: Vec<String> = vec![];
+        for (_i, n) in names.iter().enumerate() {
+            if n.get_type().name() == "re.Pattern" {
+                let r = n.getattr("pattern").unwrap();
+                name_strs.push(format!("/{}/", r));
             } else {
-                let _id = id.extract::<String>()?;
-                id_strs.push(_id.clone());
+                let _n = n.extract::<String>()?;
+                name_strs.push(_n.clone());
             }
         }
-        let collection = PinCollection::new(self.model_id, id_strs, endianness)?;
+        let collection = PinCollection::new(self.model_id, name_strs, endianness)?;
         let c = Py::new(py, collection).unwrap();
         Ok(c)
     }
@@ -119,18 +119,18 @@ impl PinContainer {
 
 #[pyproto]
 impl PyMappingProtocol for PinContainer {
-    fn __getitem__(&self, id: &str) -> PyResult<Py<PinGroup>> {
+    fn __getitem__(&self, name: &str) -> PyResult<Py<PinGroup>> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(name);
         match p {
             Some(_p) => Ok(Py::new(
                 py,
                 PinGroup {
-                    id: String::from(id),
+                    name: String::from(name),
                     path: String::from(&self.path),
                     model_id: self.model_id,
                 },
@@ -139,7 +139,7 @@ impl PyMappingProtocol for PinContainer {
             // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
             None => Err(exceptions::KeyError::py_err(format!(
                 "No pin or pin alias found for {}",
-                id
+                name
             ))),
         }
     }
@@ -147,7 +147,7 @@ impl PyMappingProtocol for PinContainer {
     fn __len__(&self) -> PyResult<usize> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(self.model_id)?;
-        Ok(model.number_of_ids())
+        Ok(model.pins.len())
     }
 }
 
@@ -186,17 +186,17 @@ impl pyo3::class::iter::PyIterProtocol for PinContainerIter {
         Ok(slf.to_object(py))
     }
 
-    /// The Iterator will be created with an index starting at 0 and the pin ids at the time of its creation.
+    /// The Iterator will be created with an index starting at 0 and the pin names at the time of its creation.
     /// For each call to 'next', we'll create a pin object with the next value in the list, or None, if no more keys are available.
     /// Note: this means that the iterator can become stale if the PinContainer is changed. This can happen if the iterator is stored from Python code
-    ///  directly. E.g.: i = dut.pins.__iter__() => iterator with the pin ids at the time of creation,
+    ///  directly. E.g.: i = dut.pins.__iter__() => iterator with the pin names at the time of creation,
     /// Todo: Fix the above using iterators. My Rust skills aren't there yet though... - Coreyeng
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
         if slf.i >= slf.keys.len() {
             return Ok(None);
         }
-        let id = slf.keys[slf.i].clone();
+        let name = slf.keys[slf.i].clone();
         slf.i += 1;
-        Ok(Some(id))
+        Ok(Some(name))
     }
 }

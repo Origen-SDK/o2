@@ -1,4 +1,5 @@
 use crate::error::Error;
+use std::any::Any;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
@@ -91,7 +92,7 @@ pub enum PinRoles {
 pub struct Pin {
     // Since pins will be added from the add_pin function of Pins,
     // just reuse that String instance instead of creating a new one.
-    pub id: String,
+    pub name: String,
     pub path: String,
     pub data: u8,
 
@@ -107,7 +108,8 @@ pub struct Pin {
     /// Any aliases this Pin has.
     pub aliases: Vec<String>,
     pub role: PinRoles,
-    pub meta: HashMap<String, MetaAble>,
+    //pub meta: HashMap<String, MetaAble>,
+    pub meta: HashMap<String, Box<Any + std::marker::Send>>,
 
     // Taking the speed over size here: this'll allow for quick lookups and indexing from pins into the pin group, but will
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
@@ -168,13 +170,13 @@ impl Pin {
     }
 
     pub fn new(
-        id: String,
+        name: String,
         path: String,
         reset_data: Option<u32>,
         reset_action: Option<PinActions>,
     ) -> Pin {
         let mut p = Pin {
-            id: id,
+            name: name,
             path: path,
             data: 0,
             action: PinActions::HighZ,

@@ -11,10 +11,10 @@ def is_pin_collection(obj):
 def is_pin(obj):
   assert isinstance(obj, _origen.dut.pins.Pin)
 
-def check_alias(pin_id, alias_id):
-  assert alias_id in origen.dut.pins
-  assert origen.dut.pins[alias_id].pin_ids == [pin_id]
-  assert alias_id in origen.dut.physical_pin(pin_id).aliases
+def check_alias(pin_name, alias_name):
+  assert alias_name in origen.dut.pins
+  assert origen.dut.pins[alias_name].pin_names == [pin_name]
+  assert alias_name in origen.dut.physical_pin(pin_name).aliases
 
 def pins():
   origen.dut.pins
@@ -44,28 +44,28 @@ def test_add_and_retrieving_pins():
 def test_retrieving_pins_using_pin_method():
   p1 = origen.dut.pin("p1")
   is_pin_group(p1)
-  assert p1.id == "p1"
+  assert p1.name == "p1"
 
-def test_exception_on_duplicate_id():
+def test_exception_on_duplicate_name():
   with pytest.raises(OSError):
     origen.dut.add_pin("p1")
 
 def test_pin_group_default_state():
   p1 = origen.dut.pin("p1")
-  assert p1.id == "p1"
+  assert p1.name == "p1"
   assert len(p1) == 1
   assert p1._path == ""
   assert p1.data == 0
   assert p1.pin_actions == "Z"
-  assert p1.pin_ids == ["p1"]
-  assert p1.physical_ids == ["p1"]
+  assert p1.pin_names == ["p1"]
+  assert p1.physical_names == ["p1"]
   assert p1.little_endian
   assert not p1.big_endian
 
 def test_retrieving_pins_using_indexing():
   p1 = origen.dut.pins["p1"]
   is_pin_group(p1)
-  assert p1.id == "p1"
+  assert p1.name == "p1"
 
 def test_retrieving_missing_pins():
   assert origen.dut.pin("blah") is None
@@ -84,18 +84,18 @@ def test_adding_more_pins():
   _p3 = origen.dut.pin("p3")
   is_pin_group(_p2)
   is_pin_group(_p3)
-  assert _p2.id == "p2"
-  assert _p3.id == "p3"
+  assert _p2.name == "p2"
+  assert _p3.name == "p3"
 
 def test_grouping_pins():
   grp = origen.dut.group_pins("grp", "p1", "p2", "p3")
   is_pin_group(grp)
-  assert grp.id == "grp"
+  assert grp.name == "grp"
   assert grp._path == ""
   assert len(origen.dut.pins) == 4
   assert len(grp) == 3
   assert len(origen.dut.physical_pins) == 3
-  assert grp.pin_ids == ["p1", "p2", "p3"]
+  assert grp.pin_names == ["p1", "p2", "p3"]
   assert grp.data == 0
   assert grp.pin_actions == "ZZZ"
 
@@ -110,10 +110,10 @@ def test_retrieving_groups():
   is_pin_group(grp)
   _grp = origen.dut.pins["grp"]
   is_pin_group(_grp)
-  assert grp.id == "grp"
-  assert _grp.id == "grp"
+  assert grp.name == "grp"
+  assert _grp.name == "grp"
 
-def test_checking_ids_within_group():
+def test_checking_names_within_group():
   grp = origen.dut.pins["grp"]
   is_pin_group(grp)
   assert "p1" in grp
@@ -238,7 +238,7 @@ def test_adding_aliases():
   a1 = origen.dut.pin("a1")
   is_pin_group(a1)
   assert len(a1) == 1
-  assert a1.pin_ids == ["p1"]
+  assert a1.pin_names == ["p1"]
 
 def test_driving_an_alias():
   a1 = origen.dut.pin("a1")
@@ -272,7 +272,7 @@ def test_exception_when_aliasing_missing_pin():
 def test_aliasing_an_alias():
   origen.dut.add_pin_alias("a1", "_a1")
   assert "_a1" in origen.dut.pins
-  assert origen.dut.pins["_a1"].pin_ids == ["p1"]
+  assert origen.dut.pins["_a1"].pin_names == ["p1"]
 
 def test_exception_on_grouping_the_same_pin():
   with pytest.raises(OSError):
@@ -348,7 +348,7 @@ def test_pins_dict_like_api():
   assert "p1" in origen.dut.pins
 
   # Check '__getitem__' (indexing)
-  assert origen.dut.pins["p1"].id == "p1"
+  assert origen.dut.pins["p1"].name == "p1"
 
   # Check 'keys()'
   keys = origen.dut.pins.keys()
@@ -359,8 +359,8 @@ def test_pins_dict_like_api():
   values = origen.dut.pins.values()
   assert len(values) == 9
   assert isinstance(values[0], _origen.dut.pins.PinGroup)
-  for id in origen.dut.pins:
-    assert id in keys
+  for name in origen.dut.pins:
+    assert name in keys
 
   # Check 'items()'
   for n, p in origen.dut.pins.items():
@@ -388,14 +388,14 @@ def test_physical_pins_dict_like_api():
   pin = origen.dut.physical_pins["p1"]
   is_pin(pin)
 
-  pin_ids = ["p1", "p2", "p3"]
+  pin_names = ["p1", "p2", "p3"]
   # Check keys()
-  assert set(origen.dut.physical_pins.keys()) == set(pin_ids)
+  assert set(origen.dut.physical_pins.keys()) == set(pin_names)
 
   # Check values()
   for v in origen.dut.physical_pins.values():
     is_pin(v)
-    assert v.id in pin_ids
+    assert v.name in pin_names
 
   # Check items()
   for n, p in origen.dut.physical_pins.items():
@@ -403,8 +403,8 @@ def test_physical_pins_dict_like_api():
     is_pin(p)
 
   # Check iterating
-  for id in origen.dut.physical_pins:
-    assert id in pin_ids
+  for name in origen.dut.physical_pins:
+    assert name in pin_names
 
   # Check 'to_dict' conversion
   d = dict(origen.dut.physical_pins)
@@ -421,34 +421,34 @@ def test_pin_group_list_like_api():
 
   # Check '__getitem__' (indexing)
   is_pin_collection(grp[0])
-  assert grp[0].ids == ["p1"]
+  assert grp[0].pin_names == ["p1"]
 
   # Check __len__
   assert len(grp) == 3
 
   # Check iterating
   # Note: Unlike the dictionary, this is ordered.
-  ids = [["p1"], ["p2"], ["p3"]]
-  for i, id in enumerate(grp):
-    is_pin_collection(id)
-    assert id.ids == ids[i]
+  names = [["p1"], ["p2"], ["p3"]]
+  for i, name in enumerate(grp):
+    is_pin_collection(name)
+    assert name.pin_names == names[i]
 
   # Check 'to_list'
   as_list = list(grp)
   assert isinstance(as_list, list)
   for i, item in enumerate(as_list):
     is_pin_collection(item)
-    assert item.ids == ids[i]
+    assert item.pin_names == names[i]
 
 def test_pin_collection_from_pin_group():
   origen.dut.add_pin("p0")
   origen.dut.group_pins("p", "p0", "p1", "p2", "p3")
   grp = origen.dut.pins["p"]
 
-  assert grp[0].ids == ["p0"]
-  assert grp[1].ids == ["p1"]
-  assert grp[0:1].ids == ["p0", "p1"]
-  assert grp[1:3:2].ids == ["p1", "p3"]
+  assert grp[0].pin_names == ["p0"]
+  assert grp[1].pin_names == ["p1"]
+  assert grp[0:1].pin_names == ["p0", "p1"]
+  assert grp[1:3:2].pin_names == ["p1", "p3"]
 
 def test_pin_collection_list_like_api():
   c = origen.dut.pins.collect("p0", "p1", "p2", "p3")
@@ -459,21 +459,21 @@ def test_pin_collection_list_like_api():
   assert "p3" in c
 
   # Check __getitem__ (indexing)
-  assert c[0].ids == ["p0"]
-  assert c[1].ids == ["p1"]
+  assert c[0].pin_names == ["p0"]
+  assert c[1].pin_names == ["p1"]
 
   # Check Slicing
-  assert c[0:1].ids == ["p0", "p1"]
-  assert c[1:3:2].ids == ["p1", "p3"]
+  assert c[0:1].pin_names == ["p0", "p1"]
+  assert c[1:3:2].pin_names == ["p1", "p3"]
 
   # Check __len__
   assert len(c) == 4
 
   # Check iterating
-  ids = ["p0", "p1", "p2", "p3"]
+  names = ["p0", "p1", "p2", "p3"]
   for i, _c in enumerate(c):
     is_pin_collection(_c)
-    _c.ids == list(ids[i])
+    _c.pin_names == list(names[i])
 
 def test_exception_on_out_of_bounds_indexing():
   # Covers both pin collection and pin groups
@@ -539,22 +539,22 @@ def test_adding_multiple_pins():
   # !!!
   porta = origen.dut.add_pin("porta", width=2)
   is_pin_group(porta)
-  assert porta.id == "porta"
+  assert porta.name == "porta"
   assert len(porta) == 2
   assert len(origen.dut.physical_pins) == 2
   assert len(origen.dut.pins) == 3
-  assert set(origen.dut.physical_pins.ids) == {"porta0", "porta1"}
-  assert set(origen.dut.pins.ids) == {"porta0", "porta1", "porta"}
+  assert set(origen.dut.physical_pins.pin_names) == {"porta0", "porta1"}
+  assert set(origen.dut.pins.pin_names) == {"porta0", "porta1", "porta"}
 
   # This should add four physical pins and one pin group, but the indexing should start a 1 instead of 0.
   portb = origen.dut.add_pin("portb", width=4, offset=1)
   is_pin_group(portb)
-  assert portb.id == "portb"
+  assert portb.name == "portb"
   assert len(portb) == 4
   assert len(origen.dut.physical_pins) == 6
   assert len(origen.dut.pins) == 8
-  assert set(origen.dut.physical_pins.ids) == {"porta0", "porta1", "portb1", "portb2", "portb3", "portb4"}
-  assert set(origen.dut.pins.ids) == {"porta0", "porta1", "porta", "portb1", "portb2", "portb3", "portb4", "portb"}
+  assert set(origen.dut.physical_pins.pin_names) == {"porta0", "porta1", "portb1", "portb2", "portb3", "portb4"}
+  assert set(origen.dut.pins.pin_names) == {"porta0", "porta1", "porta", "portb1", "portb2", "portb3", "portb4", "portb"}
 
 def test_adding_single_pins_with_width_and_offset():
   # Corner case for adding single pins. Normally, you'd not use these options for a single one, but there's no reason why
@@ -684,43 +684,43 @@ def test_exception_on_collecting_duplicates_when_nested_2():
 
 def test_big_endian():
   pins = origen.dut.add_pin("portc", width=4, little_endian=False)
-  assert pins.pin_ids == ["portc3", "portc2", "portc1", "portc0"]
+  assert pins.pin_names == ["portc3", "portc2", "portc1", "portc0"]
   assert not pins.little_endian
   assert pins.big_endian
 
 def test_little_endian():
   pins = origen.dut.add_pin("portd", width=4, little_endian=True)
-  assert pins.pin_ids == ["portd0", "portd1", "portd2", "portd3"]
+  assert pins.pin_names == ["portd0", "portd1", "portd2", "portd3"]
   assert pins.little_endian
   assert not pins.big_endian
 
 def test_big_endian_with_offset():
   pins = origen.dut.add_pin("porte", width=2, little_endian=False, offset=2)
-  assert pins.pin_ids == ["porte3", "porte2"]
+  assert pins.pin_names == ["porte3", "porte2"]
   assert not pins.little_endian
   assert pins.big_endian
 
 def test_grouping_mixed_endianness():
   grp = origen.dut.group_pins("mixed_endianness", "portc", "portd")
-  assert grp.pin_ids == ["portc3", "portc2", "portc1", "portc0", "portd0", "portd1", "portd2", "portd3"]
+  assert grp.pin_names == ["portc3", "portc2", "portc1", "portc0", "portd0", "portd1", "portd2", "portd3"]
   assert grp.little_endian == True
   assert grp.big_endian == False
 
 def test_grouping_big_endian():
   grp = origen.dut.group_pins("big_endian", "portc", "portd", little_endian=False)
-  assert grp.pin_ids == ["portd3", "portd2", "portd1", "portd0", "portc0", "portc1", "portc2", "portc3"]
+  assert grp.pin_names == ["portd3", "portd2", "portd1", "portd0", "portc0", "portc1", "portc2", "portc3"]
   assert grp.little_endian == False
   assert grp.big_endian == True
 
 def test_collecting_mixed_endianness():
   c = origen.dut.pins.collect("portc", "portd")
-  assert c.ids == ["portc3", "portc2", "portc1", "portc0", "portd0", "portd1", "portd2", "portd3"]
+  assert c.pin_names == ["portc3", "portc2", "portc1", "portc0", "portd0", "portd1", "portd2", "portd3"]
   assert c.little_endian == True
   assert c.big_endian == False
 
 def test_collecting_big_endian():
   c = origen.dut.pins.collect("portc", "portd", little_endian=False)
-  assert c.ids == ["portd3", "portd2", "portd1", "portd0", "portc0", "portc1", "portc2", "portc3"]
+  assert c.pin_names == ["portd3", "portd2", "portd1", "portd0", "portc0", "portc1", "portc2", "portc3"]
   assert c.little_endian == False
   assert c.big_endian == True
 
@@ -806,17 +806,24 @@ def test_collecting_with_single_regex():
   import re
   r = re.compile("port.0")
   c = origen.dut.pins.collect(r)
-  assert c.ids == ["porta0", "portb0"]
+  assert c.pin_names == ["porta0", "portb0"]
 
 def test_collecting_using_ruby_like_syntax():
   c = origen.dut.pins.collect("/port.0/")
-  assert c.ids == ["porta0", "portb0"]
+  assert c.pin_names == ["porta0", "portb0"]
 
 def test_collecting_with_mixed_inputs():
   import re
   r = re.compile("port.0")
   c = origen.dut.pins.collect("/port.1/", "p1", r)
-  assert c.ids == ["porta1", "portb1", "p1", "porta0", "portb0"]
+  assert c.pin_names == ["porta1", "portb1", "p1", "porta0", "portb0"]
+
+# def test_pins_have_empty_metadata():
+#   assert origen.dut.pin("porta1").metadata == {}
+#   assert origen.dut.physical_pin("porta1").metadata == {}
+#   assert origen.dut.pin("porta1").physical_pin_metadata == [{}]
+  
+
 
 # def test_in_progress_pin_api():
 #   import re
@@ -824,7 +831,7 @@ def test_collecting_with_mixed_inputs():
 #   print(r.__class__)
 #   print(r.pattern)
 #   c = origen.dut.pins.collect(r)
-#   print(c.ids)
+#   print(c.pin_names)
 #   assert 0 == 1
   # !!!
   # Experimental Stuff. Still in progress.

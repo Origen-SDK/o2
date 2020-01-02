@@ -34,7 +34,7 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
 #[pymethods]
 impl PyDUT {
     #[args(kwargs = "**")]
-    fn add_pin(&self, model_id: usize, id: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn add_pin(&self, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let path = "";
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(model_id)?;
@@ -76,7 +76,7 @@ impl PyDUT {
             None => {}
         }
         model.add_pin(
-            id,
+            name,
             path,
             width,
             offset,
@@ -87,12 +87,12 @@ impl PyDUT {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(name);
         match p {
             Some(_p) => Ok(Py::new(
                 py,
                 PinGroup {
-                    id: String::from(id),
+                    name: String::from(name),
                     path: String::from(path),
                     model_id: model_id,
                 },
@@ -103,19 +103,19 @@ impl PyDUT {
         }
     }
 
-    fn pin(&self, model_id: usize, id: &str) -> PyResult<PyObject> {
+    fn pin(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
         let path = "";
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(model_id)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(name);
         match p {
             Some(_p) => Ok(Py::new(
                 py,
                 PinGroup {
-                    id: String::from(id),
+                    name: String::from(name),
                     path: String::from(path),
                     model_id: model_id,
                 },
@@ -127,13 +127,13 @@ impl PyDUT {
     }
 
     #[args(aliases = "*")]
-    fn add_pin_alias(&self, model_id: usize, id: &str, aliases: &PyTuple) -> PyResult<()> {
+    fn add_pin_alias(&self, model_id: usize, name: &str, aliases: &PyTuple) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(model_id)?;
 
         for alias in aliases {
             let _alias: String = alias.extract()?;
-            model.add_pin_alias(id, &_alias)?;
+            model.add_pin_alias(name, &_alias)?;
         }
         Ok(())
     }
@@ -160,7 +160,7 @@ impl PyDUT {
     fn group_pins(
         &self,
         model_id: usize,
-        id: &str,
+        name: &str,
         pins: &PyTuple,
         options: Option<&PyDict>,
     ) -> PyResult<PyObject> {
@@ -180,16 +180,16 @@ impl PyDUT {
             None => {}
         }
         let model = dut.get_mut_model(model_id)?;
-        model.group_pins(id, path, pins.extract()?, endianness)?;
+        model.group_pins(name, path, pins.extract()?, endianness)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.pin(id);
+        let p = model.get_pin_group(name);
         match p {
             Some(_p) => Ok(Py::new(
                 py,
                 PinGroup {
-                    id: String::from(id),
+                    name: String::from(name),
                     path: String::from(path),
                     model_id: model_id,
                 },
@@ -218,19 +218,19 @@ impl PyDUT {
         .unwrap())
     }
 
-    fn physical_pin(&self, model_id: usize, id: &str) -> PyResult<PyObject> {
+    fn physical_pin(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
         let path = "";
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(model_id)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let p = model.physical_pin(id);
+        let p = model.get_physical_pin(name);
         match p {
             Some(_p) => Ok(Py::new(
                 py,
                 Pin {
-                    id: String::from(id),
+                    name: String::from(name),
                     path: String::from(path),
                     model_id: model_id,
                 },
