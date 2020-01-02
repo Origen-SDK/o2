@@ -1,7 +1,29 @@
 import origen
 import _origen
+from origen import pins
 from origen.registers import Loader as RegLoader
 from contextlib import contextmanager
+
+class Proxies:
+    def __init__(self, controller):
+        self.controller = controller
+        self.proxies = {}
+    
+    def __getitem__(self, name):
+        p = self.proxies.get(name)
+        if (p):
+            return p
+        else:
+            origen.logger.error(f"No proxy for '{name}' has been set!")
+            exit()
+    
+    def __setitem__(self, name, proxy):
+        if proxy in self.proxies:
+            origen.logger.error(f"A proxy for '{proxy}' has already been set! Cannot set the same proxy again!")
+            exit()
+        else:
+            self.proxies[name] = proxy
+            return proxy
 
 # The base class of all Origen controller objects
 class Base:
@@ -24,6 +46,7 @@ class Base:
     is_top = False
 
     def __init__(self):
+        self.__proxies__ = Proxies(self)
         self.regs_loaded = False
         self.sub_blocks_loaded = False
 
@@ -48,6 +71,14 @@ class Base:
             self._load_sub_blocks()
             return self.sub_blocks
 
+        elif name in pins.Proxy.api():
+            from origen.pins import Proxy
+            proxy = pins.Proxy(self)
+            self.__proxies__["pins"] = proxy
+            for method in pins.Proxy.api():
+                self.__setattr__(method, getattr(proxy, method))
+            return eval(f"self.{name}")
+        
         elif name == "memory_maps":
             self._load_regs()
             return origen.dut.db.memory_maps(self.model_id)

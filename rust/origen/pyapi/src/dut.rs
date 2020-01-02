@@ -1,13 +1,16 @@
-use pyo3::prelude::*;
 //use pyo3::wrap_pyfunction;
+use crate::pins::PyInit_pins;
 use crate::register::Registers;
 use origen::DUT;
+use pyo3::prelude::*;
+use pyo3::wrap_pymodule;
 
 /// Implements the module _origen.dut in Python which exposes all
 /// DUT-related APIs
 #[pymodule]
 pub fn dut(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyDUT>()?;
+    m.add_wrapped(wrap_pymodule!(pins))?;
 
     Ok(())
 }

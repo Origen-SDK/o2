@@ -2,6 +2,7 @@ mod address_block;
 mod dut;
 mod logger;
 mod memory_map;
+mod pins;
 mod register;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};

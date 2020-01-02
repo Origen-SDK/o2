@@ -41,6 +41,18 @@ pub mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+#[macro_export]
+macro_rules! lock {
+    () => {
+        match DUT.lock() {
+            Ok(dut) => Ok(dut),
+            Err(e) => Err(origen::error::Error::new(&format!(
+                "Could not attain DUT lock!"
+            ))),
+        }
+    };
+}
+
 pub fn dut() -> MutexGuard<'static, Dut> {
     DUT.lock().unwrap()
 }
