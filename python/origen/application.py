@@ -105,5 +105,5 @@ class Base:
     def translate(self, remote_file):
         self.translator.translate(remote_file)
 
-    def to_python(self):
-        self.translator.export()
+    def to_python(self, export_dir = f"{origen.root}/vendor/python"):
+        self.translator.export(export_dir)

@@ -20,12 +20,13 @@ class Translator:
                 ip_xact = IpXact(self.creator)
                 ip_xact.parse(remote_file)
 
-    def export(self, export_dir = f"{origen.root}/vendor/python"):
+    def export(self, export_dir):
         if os.path.isdir(export_dir):
             if not os.access(export_dir, os.W_OK & os.X_OK):
                 os.chmod(export_dir, 0o755)
         else:
             os.mkdir(export_dir, 0o755)
+        breakpoint()
         # Loop through the memory maps
         # TODO: Return real memory map and address block iterators
         # for memory_map in origen.dut.memory_maps:   
