@@ -2,6 +2,9 @@ import origen # pylint: disable=import-error
 import _origen # pylint: disable=import-error
 import pytest
 
+class MyRandomClass:
+  pass
+
 def is_pin_group(obj):
   assert isinstance(obj, _origen.dut.pins.PinGroup)
 
@@ -818,28 +821,62 @@ def test_collecting_with_mixed_inputs():
   c = origen.dut.pins.collect("/port.1/", "p1", r)
   assert c.pin_names == ["porta1", "portb1", "p1", "porta0", "portb0"]
 
-# def test_pins_have_empty_metadata():
-#   assert origen.dut.pin("porta1").metadata == {}
-#   assert origen.dut.physical_pin("porta1").metadata == {}
-#   assert origen.dut.pin("porta1").physical_pin_metadata == [{}]
-  
+def test_physical_pin_has_empty_metadata():
+  assert origen.dut.physical_pin("porta0").added_metadata == []
 
+def test_adding_metadata_to_physical_pin():
+  # Essentially just check that nothing here throws an exception
+  origen.dut.physical_pin("porta0").add_metadata("meta1", 1)
+  origen.dut.physical_pin("porta0").add_metadata("meta2", "meta2!")
+  origen.dut.physical_pin("porta0").add_metadata("meta3", {})
+  origen.dut.physical_pin("porta0").add_metadata("meta4", MyRandomClass())
 
-# def test_in_progress_pin_api():
-#   import re
-#   r = re.compile("port.0")
-#   print(r.__class__)
-#   print(r.pattern)
-#   c = origen.dut.pins.collect(r)
-#   print(c.pin_names)
-#   assert 0 == 1
-  # !!!
-  # Experimental Stuff. Still in progress.
-  # Consider this non-official API experimentation.
-  # !!!
+def test_getting_all_metadata_keys():
+  assert origen.dut.physical_pin("porta0").added_metadata == ["meta1", "meta2", "meta3", "meta4"]
 
-  # Add pin group. This should add porta0 - porta7
-  #porta = origen.dut.add_pins("porta", 8)
-  
-  # Add pin group, with an offset. This should add portb1 - portb5
-  #portb = origen.dut.add_pins("portb", 4, offset=1)
+def test_getting_metadata_from_physical_pin():
+  assert origen.dut.physical_pin("porta0").get_metadata("meta1") == 1
+  assert origen.dut.physical_pin("porta0").get_metadata("meta2") == "meta2!"
+  assert isinstance(origen.dut.physical_pin("porta0").get_metadata("meta3"), dict)
+  assert isinstance(origen.dut.physical_pin("porta0").get_metadata("meta4"), MyRandomClass)
+
+def test_setting_existing_metadata_on_physical_pin():
+  assert origen.dut.physical_pin("porta0").set_metadata("meta1", "hi!")
+  assert origen.dut.physical_pin("porta0").set_metadata("meta2", "meta2 updated!")
+  assert origen.dut.physical_pin("porta0").get_metadata("meta1") == "hi!"
+  assert origen.dut.physical_pin("porta0").get_metadata("meta2") == "meta2 updated!"
+
+def test_setting_nonexistant_metadata_adds_it():
+  assert origen.dut.physical_pin('porta0').get_metadata("meta5") is None
+  assert origen.dut.physical_pin("porta0").set_metadata("meta5", 5.0) == False
+  assert origen.dut.physical_pin("porta0").get_metadata("meta5") == 5.0
+
+def test_interacting_with_reference_metadata():
+  d = origen.dut.physical_pin("porta0").get_metadata("meta3")
+  assert isinstance(d, dict)
+  assert "test" not in d
+  d["test"] = True
+  assert "test" in d
+  d2 = origen.dut.physical_pin("porta0").get_metadata("meta3")
+  assert "test" in d2
+
+def test_nonetype_on_retrieving_nonexistant_metadata():
+  assert origen.dut.physical_pin("porta0").get_metadata("blah") is None
+
+def test_exception_on_adding_duplicate_metadata():
+  with pytest.raises(OSError):
+    origen.dut.physical_pin("porta0").add_metadata("meta1", False)
+
+def test_additional_metadata():
+  origen.dut.physical_pin('porta1').add_metadata("m1", 1.0)
+  origen.dut.physical_pin('porta1').add_metadata("m2", -2)
+  assert origen.dut.physical_pin('porta1').get_metadata("m1") == 1.0
+  assert origen.dut.physical_pin('porta1').get_metadata("m2") == -2
+  assert origen.dut.physical_pin('porta0').get_metadata("m1") is None
+  assert origen.dut.physical_pin('porta0').get_metadata("m2") is None
+
+def test_metadata_with_same_name_on_different_objects():
+  origen.dut.physical_pin('porta0').add_metadata("index", 0)
+  origen.dut.physical_pin('porta1').add_metadata("index", 1)
+  assert origen.dut.physical_pin('porta0').get_metadata("index") == 0
+  assert origen.dut.physical_pin('porta1').get_metadata("index") == 1

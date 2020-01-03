@@ -88,6 +88,10 @@ class Base:
                     from origen.sub_blocks import Loader
                     context = Loader(controller).api()
 
+                elif filename == "pins.py":
+                    from origen.pins import Loader
+                    context = Loader(controller).api()
+
                 else:
                     block = controller
                     context = locals()
