@@ -101,7 +101,6 @@ pub struct Pin {
     /// Any aliases this Pin has.
     pub aliases: Vec<String>,
     pub role: PinRoles,
-    //pub meta: HashMap<String, MetaAble>,
     pub metadata: IndexMap<String, usize>,
 
     // Taking the speed over size here: this'll allow for quick lookups and indexing from pins into the pin group, but will

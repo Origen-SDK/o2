@@ -49,6 +49,7 @@ class Base:
         self.__proxies__ = Proxies(self)
         self.regs_loaded = False
         self.sub_blocks_loaded = False
+        self.pins_loaded = False
 
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
@@ -72,6 +73,7 @@ class Base:
             self.__proxies__["pins"] = proxy
             for method in pins.Proxy.api():
                 self.__setattr__(method, getattr(proxy, method))
+            self._load_pins()
             return eval(f"self.{name}")
         
         elif name == "memory_maps":
@@ -142,6 +144,11 @@ class Base:
             self.sub_blocks = Proxy(self)
             self.app.load_block_files(self, "sub_blocks.py")
             self.sub_blocks_loaded = True
+    
+    def _load_pins(self):
+        if not self.pins_loaded:
+            self.app.load_block_files(self, "pins.py")
+            self.pins_loaded = True
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
