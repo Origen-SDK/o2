@@ -42,3 +42,15 @@ class Proxy:
 class Loader:
   def __init__(self, controller):
     self.controller = controller
+
+  def Pin(self, name, **kwargs):
+    self.controller.add_pin(name, **kwargs)
+
+  def Alias(self, name, *aliases):
+    self.controller.add_pin_alias(name, *aliases)
+
+  def api(self):
+      return {
+          "Pin": self.Pin,
+          "Alias": self.Alias,
+      }
