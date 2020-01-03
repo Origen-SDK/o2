@@ -59,7 +59,7 @@ impl CollectionStack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::ast_node::{AstNode, AstNodeId};
+    use super::super::ast_node::AstNode;
     use super::super::register_action::RegisterAction;
     use super::super::pin_action::PinAction;
     use super::super::operation::Operation;
