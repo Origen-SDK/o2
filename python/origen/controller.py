@@ -2,6 +2,7 @@ import origen
 import _origen
 from origen import pins
 from origen.registers import Loader as RegLoader
+from origen.sub_blocks import Loader as SubBlockLoader
 from contextlib import contextmanager
 
 class Proxies:
@@ -132,6 +133,10 @@ class Base:
     def add_reg(self, *args, **kwargs):
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
+
+    def add_sub_block(self, *args, **kwargs):
+        self._load_sub_blocks()
+        return SubBlockLoader(self).sub_block(*args, **kwargs)
 
     def _load_regs(self):
         if not self.regs_loaded:

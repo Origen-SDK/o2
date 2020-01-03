@@ -54,5 +54,5 @@ class Loader:
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py
     def api(self):
         return {
-            "sub_block": self.sub_block, 
+            "SubBlock": self.sub_block, 
         }
