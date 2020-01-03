@@ -1,7 +1,7 @@
 use crate::error::Error;
-use std::any::Any;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use indexmap::map::IndexMap;
 
 /// List of supported pin actions.
 #[derive(Debug, Copy, Clone)]
@@ -70,13 +70,6 @@ impl TryFrom<u8> for PinActions {
     }
 }
 
-/// The following types are allowed as metadata
-#[derive(Debug)]
-pub enum MetaAble {
-    Text(String),
-    Int(i32),
-}
-
 /// Available Pin Roles
 #[derive(Debug)]
 pub enum PinRoles {
@@ -109,7 +102,7 @@ pub struct Pin {
     pub aliases: Vec<String>,
     pub role: PinRoles,
     //pub meta: HashMap<String, MetaAble>,
-    pub meta: HashMap<String, Box<Any + std::marker::Send>>,
+    pub metadata: IndexMap<String, usize>,
 
     // Taking the speed over size here: this'll allow for quick lookups and indexing from pins into the pin group, but will
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
@@ -169,6 +162,26 @@ impl Pin {
         }
     }
 
+    pub fn add_metadata_id(&mut self, id_str: &str, id: usize) -> Result<(), Error> {
+        if self.metadata.contains_key(id_str) {
+            Err(Error::new(&format!(
+                "Pin {} already has metadata {}! Use set_metadata to override its current value!",
+                self.name,
+                id_str,
+            )))
+        } else {
+            self.metadata.insert(String::from(id_str), id);
+            Ok(())
+        }
+    }
+
+    pub fn get_metadata_id(&self, id_str: &str) -> Option<usize> {
+        match self.metadata.get(id_str) {
+            Some(id) => Some(*id),
+            None => Option::None,
+        }
+    }
+
     pub fn new(
         name: String,
         path: String,
@@ -185,7 +198,7 @@ impl Pin {
             aliases: Vec::new(),
             groups: HashMap::new(),
             role: PinRoles::Standard,
-            meta: HashMap::new(),
+            metadata: IndexMap::new(),
         };
         p.reset();
         p
