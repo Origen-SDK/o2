@@ -22,7 +22,7 @@ class Translator:
 
     def export(self, export_dir = f"{origen.root}/vendor/python"):
         if os.path.isdir(export_dir):
-            if not os.access(export_dir, os.W_OK | os.X_OK):
+            if not os.access(export_dir, os.W_OK & os.X_OK):
                 os.chmod(export_dir, 0o755)
         else:
             os.mkdir(export_dir, 0o755)
