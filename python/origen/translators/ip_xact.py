@@ -2,6 +2,7 @@ import origen
 import re
 import bs4
 from bs4 import BeautifulSoup
+import os, sys
 
 class IpXact:
     # The creator may need to be passed in the parse method if

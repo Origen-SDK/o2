@@ -100,3 +100,6 @@ class Base:
 
     def translate(self, remote_file):
         self.translator.translate(remote_file)
+
+    def to_python(self):
+        self.translator.export()

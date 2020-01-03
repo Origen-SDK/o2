@@ -13,3 +13,6 @@ def test_translator_ip_xact():
     # TODO: Cannot test register attributes currently due to this issue:
     # (Pdb) origen.dut.memory_map("RegisterMap").regs('dut_top_level_reg_number_two')
     # *** TypeError: 'Registers' object is not callable
+
+def test_export_to_python():
+    # origen.app.to_python()

@@ -1,6 +1,7 @@
 import origen
 import re
-from os import access, R_OK
+import os
+from os import access, chmod, R_OK, W_OK, X_OK
 from os.path import isfile
 from origen.registers import Loader as Regs
 from origen.sub_blocks import Loader as SubBlocks
@@ -18,6 +19,18 @@ class Translator:
             if re.findall("spiritconsortium", snippet):
                 ip_xact = IpXact(self.creator)
                 ip_xact.parse(remote_file)
+
+    def export(self, export_dir = f"{origen.root}/vendor/python"):
+        if os.path.isdir(export_dir):
+            if not os.access(export_dir, os.W_OK | os.X_OK):
+                os.chmod(export_dir, 0o755)
+        else:
+            os.mkdir(export_dir, 0o755)
+        # Loop through the memory maps
+        # TODO: Return real memory map and address block iterators
+        # for memory_map in origen.dut.memory_maps:   
+        # TODO: Return a real register iterator         
+        # for reg in origen.dut.regs:
     
     def __remote_ok(self, remote_file):
         if not isfile(remote_file):
