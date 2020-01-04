@@ -1,6 +1,7 @@
+use super::memory_map::MemoryMap;
+use super::register::Register;
+use super::Registers;
 use crate::dut::PyDUT;
-use crate::memory_map::MemoryMap;
-use crate::register::{Register, Registers};
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;

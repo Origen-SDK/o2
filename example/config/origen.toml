@@ -8,7 +8,7 @@
 #python_cmd = "mypython"
 
 # If your company has an internal package server enter it here:
-#pkg_server: "https://pkgs.company.net:9292"
+#pkg_server = "https://pkgs.company.net:9292"
 # or here, if you need to use different urls for push and pull (write and read):
-#pkg_server_push: "https://pkgs.company.net:9292"
-#pkg_server_pull: "https://pkgs.company.net:9292"
+#pkg_server_push = "https://pkgs.company.net:9292"
+#pkg_server_pull = "https://pkgs.company.net:9292"

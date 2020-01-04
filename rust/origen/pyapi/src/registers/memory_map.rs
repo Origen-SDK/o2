@@ -1,6 +1,6 @@
-use crate::address_block::{AddressBlock, AddressBlocks};
+use super::address_block::{AddressBlock, AddressBlocks};
+use super::Registers;
 use crate::dut::PyDUT;
-use crate::register::Registers;
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;

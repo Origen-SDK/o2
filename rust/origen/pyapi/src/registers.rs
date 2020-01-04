@@ -1,9 +1,48 @@
+mod address_block;
+mod bit_collection;
+mod memory_map;
+mod register;
+
 //use crate::dut::PyDUT;
 //use origen::core::model::registers::Register;
-use num_bigint::{BigInt, BigUint};
+use bit_collection::BitCollection;
 use origen::DUT;
-use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+use register::{Field, FieldEnum};
+
+#[pymodule]
+/// Implements the module _origen.registers in Python
+pub fn registers(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Field>()?;
+    m.add_class::<FieldEnum>()?;
+
+    m.add_wrapped(wrap_pyfunction!(create))?;
+    Ok(())
+}
+
+/// Create a new register
+#[pyfunction]
+fn create(
+    address_block_id: usize,
+    name: &str,
+    offset: u32,
+    size: Option<u32>,
+    fields: Vec<&Field>,
+) -> PyResult<usize> {
+    println!("Received field: {:?}", fields);
+    Ok(origen::dut().create_reg(address_block_id, name, offset, size)?)
+}
+
+///// Returns an empty register collection
+//fn empty_regs() -> PyResult<Registers> {
+//    Ok(Registers {
+//        address_block_id: None,
+//        register_file_id: None,
+//        ids: None,
+//        i: 0,
+//    })
+//}
 
 ///// Implements the user APIs my_block.[.my_memory_map][.my_address_block].reg() and
 ///// my_block.[.my_memory_map][.my_address_block].regs
@@ -107,64 +146,3 @@ impl Registers {
         }
     }
 }
-
-/// Implements the user API to work with a single register
-#[pyclass]
-#[derive(Debug)]
-pub struct Register {
-    #[pyo3(get)]
-    pub id: usize,
-    #[pyo3(get)]
-    pub name: String,
-}
-
-#[pymethods]
-impl Register {
-    fn data(&self, v: BigUint) -> BigUint {
-        let d = BigUint::parse_bytes(b"12345678123456781234567812345678", 16).unwrap();
-        d
-    }
-}
-
-#[pyproto]
-impl PyObjectProtocol for Register {
-    fn __repr__(&self) -> PyResult<String> {
-        let dut = origen::dut();
-        let reg = dut.get_register(self.id)?;
-        Ok(reg.console_display(&dut, None, true)?)
-    }
-}
-
-/// A BitCollection represents either a whole register of a subset of a
-/// registers bits (not necessarily contiguous bits) and provides the user
-/// with the same API to set and consume register data in both cases.
-#[pyclass]
-#[derive(Debug)]
-pub struct BitCollection {
-    /// The ID of the parent register
-    reg_id: usize,
-    /// When true the BitCollection contains an entire register's worth of bits
-    whole: bool,
-    /// The index numbers of the bits from the register that are included in this
-    /// collection. Typically this will be mapped to the actual register bits by
-    /// BitCollection's methods.
-    bit_numbers: Vec<u16>,
-    /// Iterator index
-    i: usize,
-}
-
-/// Rust-private methods, i.e. not accessible from Python
-impl BitCollection {
-    pub fn from_reg_id(id: usize) -> BitCollection {
-        BitCollection {
-            reg_id: id,
-            whole: true,
-            bit_numbers: Vec::new(),
-            i: 0,
-        }
-    }
-}
-
-/// Methods available from Rust and Python
-#[pymethods]
-impl BitCollection {}

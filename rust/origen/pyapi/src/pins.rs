@@ -22,7 +22,7 @@ use pin_group::PinGroup;
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
 #[pymodule]
-/// Implements the module _origen.model in Python
+/// Implements the module _origen.pins in Python
 pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Pin>()?;
     m.add_class::<PinContainer>()?;

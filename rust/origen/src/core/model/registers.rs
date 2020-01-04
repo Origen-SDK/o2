@@ -7,6 +7,7 @@ use crate::error::Error;
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
 use indexmap::map::IndexMap;
+use num_bigint::BigUint;
 use std::sync::MutexGuard;
 
 #[derive(Debug)]
@@ -257,7 +258,7 @@ impl Default for RegisterFile {
 #[derive(Debug)]
 pub struct Register {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     // TODO: What is this?!
     /// The dimension of the register, defaults to 1.
     pub dim: u32,
@@ -277,8 +278,8 @@ pub struct Register {
 impl Default for Register {
     fn default() -> Register {
         Register {
-            name: "Default".to_string(),
-            description: "".to_string(),
+            name: "".to_string(),
+            description: None,
             dim: 1,
             offset: 0,
             size: 32,
@@ -608,37 +609,39 @@ impl Register {
 /// Named collections of bits within a register
 pub struct Field {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     /// Offset from the start of the register in bits.
     pub offset: u32,
     /// Width of the field in bits.
     pub width: u32,
-    /// Contains any reset values defined for this field.
-    pub resets: Vec<Reset>,
-    pub enumerated_values: IndexMap<String, EnumeratedValue>,
+    pub access: AccessType,
+    // Contains any reset values defined for this field.
+    //pub resets: Vec<Reset>,
+    // Just went with a simple reset value initially
+    /// The reset value of these bits, 0 if not present
+    reset: Option<BigUint>,
+    pub enumerated_values: Option<IndexMap<String, EnumeratedValue>>,
 }
 
-#[derive(Debug)]
-pub struct Reset {
-    pub reset_type: String,
-    // TODO: Should this be vector of tuples instead?
-    /// The size of this vector corresponds to the size of the parent field.
-    /// A set bit indicates a reset values of 1.
-    pub value: Vec<bool>,
-    /// The size of this vector corresponds to the size of the parent field.
-    /// A set bit indicates that the bit has a reset value defined by the
-    /// corresponding value.
-    pub mask: Vec<bool>,
-}
+//#[derive(Debug)]
+//pub struct Reset {
+//    pub reset_type: String,
+//    // TODO: Should this be vector of tuples instead?
+//    /// The size of this vector corresponds to the size of the parent field.
+//    /// A set bit indicates a reset values of 1.
+//    pub value: Vec<bool>,
+//    /// The size of this vector corresponds to the size of the parent field.
+//    /// A set bit indicates that the bit has a reset value defined by the
+//    /// corresponding value.
+//    pub mask: Vec<bool>,
+//}
 
 #[derive(Debug)]
 pub struct EnumeratedValue {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     pub usage: Usage,
-    /// The size of this vector corresponds to the size of the parent field.
-    /// A set bit indicates a value of 1.
-    pub value: Vec<bool>,
+    pub value: BigUint,
 }
 
 #[derive(Debug)]
