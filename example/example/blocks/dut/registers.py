@@ -13,9 +13,10 @@ SimpleReg("reg2", 4, size=16)
 #for i in range(20000):
 #    SimpleReg(f"areg{i}", 4)
 
-#origen.logger.info("Building 20000 regs")
-#for i in range(20000):
-for i in range(1):
+NUM_REGS = 1#20000
+
+origen.logger.info(f"Building {NUM_REGS} regs")
+for i in range(NUM_REGS):
     # This is the reg description
     with Reg(f"areg{i}", 0x0024, size=16):
         # This is the COCO description
@@ -28,7 +29,7 @@ for i in range(1):
             # A more complex enum, all fields except for value are optional
             "val2": { "value": 5, "usage": "w", "description": "The value of something"},
         })
-#origen.logger.info("Building 20000 regs complete")
+origen.logger.info(f"Building {NUM_REGS} regs complete")
 
 # Regs can be added within a defined memory map, and in this case no address
 # block is given so that will mean they are placed in a default address block

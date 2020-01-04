@@ -32,13 +32,13 @@ impl PyObjectProtocol for Register {
 #[pyclass]
 #[derive(Debug)]
 pub struct Field {
-    name: String,
-    description: Option<String>,
-    offset: u32,
-    width: u32,
-    access: String,
-    reset: Option<BigUint>,
-    enums: Option<Vec<FieldEnum>>,
+    pub name: String,
+    pub description: String,
+    pub offset: u32,
+    pub width: u32,
+    pub access: String,
+    pub reset: BigUint,
+    pub enums: Vec<FieldEnum>,
 }
 
 #[pymethods]
@@ -47,27 +47,21 @@ impl Field {
     fn new(
         obj: &PyRawObject,
         name: String,
-        description: Option<String>,
+        description: String,
         offset: u32,
         width: u32,
         access: String,
-        reset: Option<BigUint>,
-        enums: Option<Vec<&FieldEnum>>,
+        reset: BigUint,
+        enums: Vec<&FieldEnum>,
     ) {
-        let enum_val;
-        if enums.is_some() {
-            let mut enum_objs: Vec<FieldEnum> = Vec::new();
-            for e in enums.unwrap() {
-                enum_objs.push(FieldEnum {
-                    name: e.name.to_string(),
-                    description: e.description.clone(),
-                    usage: e.usage.clone(),
-                    value: e.value.clone(),
-                });
-            }
-            enum_val = Some(enum_objs);
-        } else {
-            enum_val = None;
+        let mut enum_objs: Vec<FieldEnum> = Vec::new();
+        for e in &enums {
+            enum_objs.push(FieldEnum {
+                name: e.name.to_string(),
+                description: e.description.clone(),
+                //usage: e.usage.clone(),
+                value: e.value.clone(),
+            });
         }
         obj.init({
             Field {
@@ -77,7 +71,7 @@ impl Field {
                 width: width,
                 access: access,
                 reset: reset,
-                enums: enum_val,
+                enums: enum_objs,
             }
         });
     }
@@ -86,10 +80,10 @@ impl Field {
 #[pyclass]
 #[derive(Debug)]
 pub struct FieldEnum {
-    name: String,
-    description: Option<String>,
-    usage: String,
-    value: BigUint,
+    pub name: String,
+    pub description: String,
+    //pub usage: String,
+    pub value: BigUint,
 }
 
 #[pymethods]
@@ -98,15 +92,15 @@ impl FieldEnum {
     fn new(
         obj: &PyRawObject,
         name: String,
-        description: Option<String>,
-        usage: String,
+        description: String,
+        //usage: String,
         value: BigUint,
     ) {
         obj.init({
             FieldEnum {
                 name: name,
                 description: description,
-                usage: usage,
+                //usage: usage,
                 value: value,
             }
         });

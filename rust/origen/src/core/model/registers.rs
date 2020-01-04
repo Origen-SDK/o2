@@ -8,6 +8,7 @@ use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
 use indexmap::map::IndexMap;
 use num_bigint::BigUint;
+use std::cmp;
 use std::sync::MutexGuard;
 
 #[derive(Debug)]
@@ -19,20 +20,14 @@ pub enum AccessType {
     WriteOnce,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum BitOrder {
-    LSB0,
-    MSB0,
-}
-
 impl std::str::FromStr for AccessType {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "ReadWrite" => Ok(AccessType::ReadWrite),
-            "ReadOnly" => Ok(AccessType::ReadOnly),
-            "WriteOnly" => Ok(AccessType::WriteOnly),
+            "ReadWrite" | "rw" => Ok(AccessType::ReadWrite),
+            "ReadOnly" | "ro" => Ok(AccessType::ReadOnly),
+            "WriteOnly" | "wo" => Ok(AccessType::WriteOnly),
             "ReadWriteOnce" => Ok(AccessType::ReadWriteOnce),
             "WriteOnce" => Ok(AccessType::WriteOnce),
             _ => Err(format!("'{}' is not a valid value for AccessType", s)),
@@ -40,12 +35,18 @@ impl std::str::FromStr for AccessType {
     }
 }
 
-#[derive(Debug)]
-pub enum Usage {
-    Read,
-    Write,
-    ReadWrite,
+#[derive(Debug, PartialEq)]
+pub enum BitOrder {
+    LSB0,
+    MSB0,
 }
+
+//#[derive(Debug)]
+//pub enum Usage {
+//    Read,
+//    Write,
+//    ReadWrite,
+//}
 
 #[derive(Debug)]
 pub struct MemoryMap {
@@ -301,12 +302,12 @@ impl Register {
     /// Returns a path to this register like "dut.my_block.my_map.my_address_block.my_reg", but the map and address block portions
     /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
     /// don't use them and simply define regs at the top-level of the block.
-    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> String {
+    pub fn friendly_path(&self, _dut: &MutexGuard<Dut>) -> String {
         format!("friendly.path.to.be.implemented.{}", self.name)
     }
 
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy
-    pub fn address(&self, dut: &MutexGuard<Dut>) -> u64 {
+    pub fn address(&self, _dut: &MutexGuard<Dut>) -> u64 {
         0x1000
     }
 
@@ -347,11 +348,11 @@ impl Register {
         // Even better, the output could auto-detect 7-bit vs 8-bit terminal output and adjust the parameter, but that's for another day
         let horiz_double_line;
         let horiz_double_tee_down;
-        let horiz_double_tee_up;
+        //let horiz_double_tee_up;
         let corner_double_up_left;
         let corner_double_up_right;
         let horiz_single_line;
-        let horiz_single_tee_down;
+        //let horiz_single_tee_down;
         let horiz_single_tee_up;
         let horiz_single_cross;
         let horiz_double_cross;
@@ -364,11 +365,11 @@ impl Register {
         if fancy_output {
             horiz_double_line = "═";
             horiz_double_tee_down = "╤";
-            horiz_double_tee_up = "╧";
+            //horiz_double_tee_up = "╧";
             corner_double_up_left = "╒";
             corner_double_up_right = "╕";
             horiz_single_line = "─";
-            horiz_single_tee_down = "┬";
+            //horiz_single_tee_down = "┬";
             horiz_single_tee_up = "┴";
             horiz_single_cross = "┼";
             horiz_double_cross = "╪";
@@ -380,11 +381,11 @@ impl Register {
         } else {
             horiz_double_line = "=";
             horiz_double_tee_down = "=";
-            horiz_double_tee_up = "=";
+            //horiz_double_tee_up = "=";
             corner_double_up_left = ".";
             corner_double_up_right = ".";
             horiz_single_line = "-";
-            horiz_single_tee_down = "-";
+            //horiz_single_tee_down = "-";
             horiz_single_tee_up = "-";
             horiz_single_cross = "+";
             horiz_double_cross = "=";
@@ -448,118 +449,118 @@ impl Register {
             // BIT NAME ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            //  named_bits include_spacers: true do |name, bit, bitcounter|
-            //    if _bit_in_range?(bit, max_bit, min_bit)
-            //      if max_bit > (size - 1) && !first_done
-            //        (max_bit - (size - 1)).times do
-            //          line << ' ' * (bit_width + 1)
-            //        end
-            //      end
+            let mut fields: Vec<&Field> = self.fields.values().collect();
+            fields.sort_by_key(|f| f.offset);
+            fields.reverse();
+            for field in fields {
+                if is_field_in_range(field, max_bit, min_bit) {
+                    if max_bit > (self.size as usize - 1) && !first_done {
+                        for _i in 0..(max_bit - (self.size as usize - 1)) {
+                            line += &" ".repeat(bit_width + 1);
+                        }
+                    }
 
-            //      if bit.size > 1
+                    if field.width > 1 {
+                        if !field.spacer {
+                            //      if contiguous
+                            let bit_name = format!(
+                                "{}[{}:{}]",
+                                field.name,
+                                max_bit_in_range(field, max_bit, min_bit, &bit_order),
+                                min_bit_in_range(field, max_bit, min_bit, &bit_order),
+                            );
+                            let bit_span = num_bits_in_range(field, max_bit, min_bit);
 
-            //        if name
-            //          if bitcounter.nil?
-            //            bit_name = "#{name}[#{_max_bit_in_range(bit, max_bit, min_bit, options)}:#{_min_bit_in_range(bit, max_bit, min_bit, options)}]"
-            //            bit_span = _num_bits_in_range(bit, max_bit, min_bit)
+                            // This is legacy code that handled non-contiguous fields
+                            //       else
+                            //            upper = _max_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
+                            //            lower = _min_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
+                            //            if dolsb0
+                            //              bit_name = "#{name}[#{upper}:#{lower}]"
+                            //            else
+                            //              bit_name = "#{name}[#{upper}:#{lower}]"
+                            //            end
+                            //            bit_span = upper - lower + 1
+                            //        end
 
-            //          else
-            //            upper = _max_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
-            //            lower = _min_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
-            //            if dolsb0
-            //              bit_name = "#{name}[#{upper}:#{lower}]"
-            //            else
-            //              bit_name = "#{name}[#{upper}:#{lower}]"
-            //            end
-            //            bit_span = upper - lower + 1
-            //          end
-            //          width = (bit_width * bit_span) + bit_span - 1
-            //          if bit_name.length > width
-            //            line << vert_single_line + "#{bit_name[0..width - 2]}*"
-            //          else
-            //            line << vert_single_line + bit_name.center(width)
-            //          end
-
-            //        else
-            //          bit.shift_out_left do |bit|
-            //            if _index_in_range?(bit.position, max_bit, min_bit)
-            //              line << vert_single_line + ''.center(bit_width)
-            //            end
-            //          end
-            //        end
-
-            //      else
-            //        if name
-            //          bit_name = "#{name}"
-            //          if bit_name.length > bit_width
-            //            txt = "#{bit_name[0..bit_width - 2]}*"
-            //          else
-            //            txt = bit_name
-            //          end
-            //        else
-            //          txt = ''
-            //        end
-            //        line << vert_single_line + txt.center(bit_width)
-            //      end
-            //    end
-            //    first_done = true
-            //  end
+                            let width = (bit_width * bit_span as usize) + bit_span as usize - 1;
+                            let txt = &bit_name.chars().take(width - 2).collect::<String>();
+                            line += vert_single_line;
+                            line += &format!("{: ^bit_width$}", txt, bit_width = width);
+                        } else {
+                            for i in 0..field.width {
+                                if is_index_in_range((field.offset + i) as usize, max_bit, min_bit)
+                                {
+                                    line += vert_single_line;
+                                    line += &" ".repeat(bit_width);
+                                }
+                            }
+                        }
+                    } else {
+                        let bit_name = &field.name;
+                        let txt = &bit_name.chars().take(bit_width - 2).collect::<String>();
+                        line += vert_single_line;
+                        line += &format!("{: ^bit_width$}", txt, bit_width = bit_width);
+                    }
+                }
+                first_done = true
+            }
             line += vert_single_line;
             desc.push(line);
 
             // BIT STATE ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            //  named_bits include_spacers: true do |name, bit, _bitcounter|
-            //    if _bit_in_range?(bit, max_bit, min_bit)
-            //      if max_bit > (size - 1) && !first_done
-            //        (max_bit - (size - 1)).times do
-            //          line << ' ' * (bit_width + 1)
-            //        end
-            //      end
-
-            //      if bit.size > 1
-            //        if name
-            //          if bit.has_known_value?
-            //            value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
-            //          else
-            //            if bit.reset_val == :undefined
-            //              value = 'X'
-            //            else
-            //              value = 'M'
-            //            end
-            //          end
-            //          value += _state_desc(bit)
-            //          bit_span = _num_bits_in_range(bit, max_bit, min_bit)
-            //          width = bit_width * bit_span
-            //          line << vert_single_line + value.center(width + bit_span - 1)
-            //        else
-            //          bit.shift_out_left do |bit|
-            //            if _index_in_range?(bit.position, max_bit, min_bit)
-            //              line << vert_single_line + ''.center(bit_width)
-            //            end
-            //          end
-            //        end
-            //      else
-            //        if name
-            //          if bit.has_known_value?
-            //            val = bit.val
-            //          else
-            //            if bit.reset_val == :undefined
-            //              val = 'X'
-            //            else
-            //              val = 'M'
-            //            end
-            //          end
-            //          value = "#{val}" + _state_desc(bit)
-            //          line << vert_single_line + value.center(bit_width)
-            //        else
-            //          line << vert_single_line + ''.center(bit_width)
-            //        end
+            //named_bits include_spacers: true do |name, bit, _bitcounter|
+            //  if _bit_in_range?(bit, max_bit, min_bit)
+            //    if max_bit > (size - 1) && !first_done
+            //      (max_bit - (size - 1)).times do
+            //        line << ' ' * (bit_width + 1)
             //      end
             //    end
-            //    first_done = true
+
+            //    if bit.size > 1
+            //      if name
+            //        if bit.has_known_value?
+            //          value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
+            //        else
+            //          if bit.reset_val == :undefined
+            //            value = 'X'
+            //          else
+            //            value = 'M'
+            //          end
+            //        end
+            //        value += _state_desc(bit)
+            //        bit_span = _num_bits_in_range(bit, max_bit, min_bit)
+            //        width = bit_width * bit_span
+            //        line << vert_single_line + value.center(width + bit_span - 1)
+            //      else
+            //        bit.shift_out_left do |bit|
+            //          if _index_in_range?(bit.position, max_bit, min_bit)
+            //            line << vert_single_line + ''.center(bit_width)
+            //          end
+            //        end
+            //      end
+            //    else
+            //      if name
+            //        if bit.has_known_value?
+            //          val = bit.val
+            //        else
+            //          if bit.reset_val == :undefined
+            //            val = 'X'
+            //          else
+            //            val = 'M'
+            //          end
+            //        end
+            //        value = "#{val}" + _state_desc(bit)
+            //        line << vert_single_line + value.center(bit_width)
+            //      else
+            //        line << vert_single_line + ''.center(bit_width)
+            //      end
+            //    end
             //  end
+            //  first_done = true
+            //end
             line += vert_single_line;
             desc.push(line);
 
@@ -603,13 +604,108 @@ impl Register {
         }
         Ok(desc.join("\n"))
     }
+
+    pub fn add_field(
+        &mut self,
+        name: &str,
+        description: &str,
+        offset: u32,
+        width: u32,
+        access: &str,
+        reset: &BigUint,
+    ) -> OrigenResult<&mut Field> {
+        let acc: AccessType = match access.parse() {
+            Ok(x) => x,
+            Err(msg) => return Err(Error::new(&msg)),
+        };
+        let f = Field {
+            name: name.to_string(),
+            description: description.to_string(),
+            offset: offset,
+            width: width,
+            access: acc,
+            reset: reset.clone(),
+            enums: IndexMap::new(),
+            spacer: false,
+        };
+        self.fields.insert(name.to_string(), f);
+        Ok(&mut self.fields[name])
+    }
 }
+
+//def _state_desc(bits)
+//state = []
+//unless bits.readable? && bits.writable?
+//  if bits.readable?
+//    state << 'RO'
+//  else
+//    state << 'WO'
+//  end
+//end
+//state << 'Rd' if bits.is_to_be_read?
+//state << 'Str' if bits.is_to_be_stored?
+//state << 'Ov' if bits.has_overlay?
+//if state.empty?
+//  ''
+//else
+//  "(#{state.join('|')})"
+//end
+//end
+
+fn max_bit_in_range(field: &Field, max: usize, _min: usize, bit_order: &BitOrder) -> u32 {
+    let upper = field.offset + field.width - 1;
+    if *bit_order == BitOrder::MSB0 {
+        field.width - (cmp::min(upper, max as u32) - field.offset) - 1
+    } else {
+        cmp::min(upper, max as u32) - field.offset
+    }
+}
+
+fn min_bit_in_range(field: &Field, _max: usize, min: usize, bit_order: &BitOrder) -> u32 {
+    let lower = field.offset;
+    if *bit_order == BitOrder::MSB0 {
+        field.width - (cmp::max(lower, min as u32) - lower) - 1
+    } else {
+        cmp::max(lower, min as u32) - field.offset
+    }
+}
+
+/// Returns true if some portion of the given bit Field falls within the given range
+fn is_field_in_range(field: &Field, max: usize, min: usize) -> bool {
+    let upper = (field.offset + field.width - 1) as usize;
+    let lower = field.offset as usize;
+    !((lower > max) || (upper < min))
+}
+
+//# Returns the number of bits from the given field that fall within the given range
+fn num_bits_in_range(field: &Field, max: usize, min: usize) -> u32 {
+    let upper = field.offset + field.width - 1;
+    let lower = field.offset;
+    cmp::min(upper, max as u32) - cmp::max(lower, min as u32) + 1
+}
+
+/// Returns true if the given index number is in the given range
+fn is_index_in_range(i: usize, max: usize, min: usize) -> bool {
+    !((i > max) || (i < min))
+}
+
+//def _bit_rw(bits)
+//if bits.readable? && bits.writable?
+//  'RW'
+//elsif bits.readable?
+//  'RO'
+//elsif bits.writable?
+//  'WO'
+//else
+//  'X'
+//end
+//end
 
 #[derive(Debug)]
 /// Named collections of bits within a register
 pub struct Field {
     pub name: String,
-    pub description: Option<String>,
+    pub description: String,
     /// Offset from the start of the register in bits.
     pub offset: u32,
     /// Width of the field in bits.
@@ -618,9 +714,32 @@ pub struct Field {
     // Contains any reset values defined for this field.
     //pub resets: Vec<Reset>,
     // Just went with a simple reset value initially
-    /// The reset value of these bits, 0 if not present
-    reset: Option<BigUint>,
-    pub enumerated_values: Option<IndexMap<String, EnumeratedValue>>,
+    pub reset: BigUint,
+    pub enums: IndexMap<String, EnumeratedValue>,
+    /// When a Field is being used to represent a gap (un-populated bits) in a register,
+    /// this attribute will be set to true
+    pub spacer: bool,
+}
+
+impl Field {
+    pub fn add_enum(
+        &mut self,
+        name: &str,
+        description: &str,
+        value: &BigUint,
+    ) -> OrigenResult<&EnumeratedValue> {
+        //let acc: AccessType = match access.parse() {
+        //    Ok(x) => x,
+        //    Err(msg) => return Err(Error::new(&msg)),
+        //};
+        let e = EnumeratedValue {
+            name: name.to_string(),
+            description: description.to_string(),
+            value: value.clone(),
+        };
+        self.enums.insert(name.to_string(), e);
+        Ok(&self.enums[name])
+    }
 }
 
 //#[derive(Debug)]
@@ -639,8 +758,8 @@ pub struct Field {
 #[derive(Debug)]
 pub struct EnumeratedValue {
     pub name: String,
-    pub description: Option<String>,
-    pub usage: Usage,
+    pub description: String,
+    //pub usage: Usage,
     pub value: BigUint,
 }
 

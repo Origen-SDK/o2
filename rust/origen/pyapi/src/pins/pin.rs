@@ -1,9 +1,9 @@
-use origen::DUT;
 use super::super::dut::PyDUT;
+use origen::DUT;
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
-use pyo3::types::IntoPyDict;
 #[pyclass]
 pub struct Pin {
     pub name: String,
@@ -36,10 +36,13 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        let dut = py.eval("origen.dut.db", None, Some(&locals)).unwrap().downcast_mut::<PyDUT>()?;
+        let dut = py
+            .eval("origen.dut.db", None, Some(&locals))
+            .unwrap()
+            .downcast_mut::<PyDUT>()?;
         let idx = dut.push_metadata(obj);
 
-        // Store the index of this object, returning an error if the 
+        // Store the index of this object, returning an error if the
         pin.add_metadata_id(id_str, idx)?;
         Ok(())
     }
@@ -52,13 +55,16 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        let dut = py.eval("origen.dut.db", None, Some(&locals)).unwrap().downcast_mut::<PyDUT>()?;
+        let dut = py
+            .eval("origen.dut.db", None, Some(&locals))
+            .unwrap()
+            .downcast_mut::<PyDUT>()?;
         match pin.get_metadata_id(id_str) {
             Some(idx) => {
                 println!("override!");
                 dut.override_metadata_at(idx, obj)?;
                 Ok(true)
-            },
+            }
             None => {
                 println!("adding!");
                 let idx = dut.push_metadata(obj);
@@ -77,19 +83,26 @@ impl Pin {
         match pin.metadata.get(id_str) {
             Some(idx) => {
                 let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-                let obj = py.eval(&format!("origen.dut.db.get_metadata({})", idx), None, Some(&locals)).unwrap().to_object(py);
+                let obj = py
+                    .eval(
+                        &format!("origen.dut.db.get_metadata({})", idx),
+                        None,
+                        Some(&locals),
+                    )
+                    .unwrap()
+                    .to_object(py);
                 Ok(obj)
-            },
+            }
             None => Ok(py.None()),
         }
     }
 
     #[getter]
     fn get_added_metadata(&self) -> PyResult<Vec<String>> {
-      let mut dut = DUT.lock().unwrap();
-      let model = dut.get_mut_model(self.model_id)?;
-      let pin = model._pin(&self.name)?;
-      Ok(pin.metadata.iter().map(|(k, _)| k.clone()).collect())
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let pin = model._pin(&self.name)?;
+        Ok(pin.metadata.iter().map(|(k, _)| k.clone()).collect())
     }
 
     // Even though we're storing the name in this instance, we're going to go back to the core anyway.

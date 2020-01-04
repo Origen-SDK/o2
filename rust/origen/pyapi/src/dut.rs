@@ -1,10 +1,10 @@
 use crate::pins::PyInit_pins;
 use crate::registers::PyInit_registers;
+use origen::error::Error;
 use pyo3::prelude::*;
-use pyo3::wrap_pymodule;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
-use origen::error::Error;
+use pyo3::wrap_pymodule;
 
 /// Implements the module _origen.dut in Python which exposes all
 /// DUT-related APIs
@@ -28,7 +28,7 @@ impl PyDUT {
     /// Instantiating a new instance of PyDUT means re-loading the target
     fn new(obj: &PyRawObject, name: &str) {
         origen::dut().change(name);
-        obj.init({ PyDUT { metadata: vec!() } });
+        obj.init({ PyDUT { metadata: vec![] } });
     }
 
     /// Creates a new model at the given path
@@ -45,7 +45,7 @@ impl PyDUT {
     pub fn push_metadata(&mut self, item: &PyAny) -> usize {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        
+
         self.metadata.push(item.to_object(py));
         self.metadata.len() - 1
     }
@@ -57,7 +57,10 @@ impl PyDUT {
             self.metadata[idx] = item.to_object(py);
             Ok(())
         } else {
-            Err(PyErr::from(Error::new(&format!("Overriding metadata at {} exceeds the size of the current metadata vector!", idx))))
+            Err(PyErr::from(Error::new(&format!(
+                "Overriding metadata at {} exceeds the size of the current metadata vector!",
+                idx
+            ))))
         }
     }
 
@@ -66,6 +69,4 @@ impl PyDUT {
     }
 }
 
-impl PyDUT {
-
-}
+impl PyDUT {}

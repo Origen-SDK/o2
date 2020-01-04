@@ -14,6 +14,7 @@ use register::{Field, FieldEnum};
 #[pymodule]
 /// Implements the module _origen.registers in Python
 pub fn registers(_py: Python, m: &PyModule) -> PyResult<()> {
+    // Used to pass register field info from Python to Rust when defining regs
     m.add_class::<Field>()?;
     m.add_class::<FieldEnum>()?;
 
@@ -30,8 +31,24 @@ fn create(
     size: Option<u32>,
     fields: Vec<&Field>,
 ) -> PyResult<usize> {
-    println!("Received field: {:?}", fields);
-    Ok(origen::dut().create_reg(address_block_id, name, offset, size)?)
+    let mut dut = origen::dut();
+    let id = dut.create_reg(address_block_id, name, offset, size)?;
+    let mut reg = dut.get_mut_register(id)?;
+    for f in &fields {
+        let mut field = reg.add_field(
+            &f.name,
+            &f.description,
+            f.offset,
+            f.width,
+            &f.access,
+            &f.reset,
+        )?;
+        for e in &f.enums {
+            field.add_enum(&e.name, &e.description, &e.value);
+        }
+        //println!("Received field: {:?}", field);
+    }
+    Ok(id)
 }
 
 ///// Returns an empty register collection

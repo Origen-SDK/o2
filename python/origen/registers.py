@@ -39,21 +39,21 @@ class Loader:
         _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, self.fields)
         self.fields = None
 
-    def SimpleReg(self, name, address_offset, size=32, reset=None):
-        field = _origen.dut.registers.Field("data", None, 0, size, "rw", reset, None)
+    def SimpleReg(self, name, address_offset, size=32, reset=0):
+        field = _origen.dut.registers.Field("data", "", 0, size, "rw", reset, [])
         _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, [field])
 
-    def Field(self, name, offset, width=1, access="rw", reset=None, enums=None, description=None):
+    def Field(self, name, offset, width=1, access="rw", reset=0, enums=None, description=""):
         if self.fields is not None:
+            e = []
             if enums is not None:
-                e = []
                 for enum_name, attrs in enums.items():
                     if isinstance(attrs, dict):
-                        e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description"), attrs.get("usage", "rw"), attrs["value"]))
+                        #e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description"), attrs.get("usage", "rw"), attrs["value"]))
+                        e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description", ""), attrs["value"]))
                     else:
-                        e.append(_origen.dut.registers.FieldEnum(enum_name, None, "rw", attrs))
-            else:
-                e = None
+                        #e.append(_origen.dut.registers.FieldEnum(enum_name, "", "rw", attrs))
+                        e.append(_origen.dut.registers.FieldEnum(enum_name, "", attrs))
             self.fields.append(_origen.dut.registers.Field(name, description, offset, width, access, reset, e))
         else:
             raise RuntimeError(f"A Field can only be defined within a 'with Reg' definition block")
