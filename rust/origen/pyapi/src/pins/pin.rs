@@ -1,8 +1,9 @@
 use origen::DUT;
+use super::super::dut::PyDUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
-
+use pyo3::types::IntoPyDict;
 #[pyclass]
 pub struct Pin {
     pub name: String,
@@ -27,43 +28,69 @@ macro_rules! pypin {
 
 #[pymethods]
 impl Pin {
-    // fn add_metadata(&self, meta_name: &str, obj: &PyAny) -> PyResult<()> {
-    //   let mut dut = DUT.lock().unwrap();
-    //   let model = dut.get_mut_model(self.model_id)?;
-    //   let pin = model._pin(&self.name)?;
+    fn add_metadata(&self, id_str: &str, obj: &PyAny) -> PyResult<()> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let pin = model._pin(&self.name)?;
 
-    //   let gil = Python::acquire_gil();
-    //   let py = gil.python();
-    //   //let o = Box::new(obj.to_object(py));
-    //   let o = Box::new(PyRef::new(py, obj));
-    //   pin.meta.insert(String::from(meta_name), o);
-    //   Ok(())
-    // }
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+        let dut = py.eval("origen.dut.db", None, Some(&locals)).unwrap().downcast_mut::<PyDUT>()?;
+        let idx = dut.push_metadata(obj);
 
-    // // fn get_meta(&self, meta_name: &str) -> PyResult<PyObject> {
-    // //   let mut dut = DUT.lock().unwrap();
-    // //   let model = dut.get_mut_model(self.model_id)?;
-    // //   let pin = model._pin(&self.name)?;
+        // Store the index of this object, returning an error if the 
+        pin.add_metadata_id(id_str, idx)?;
+        Ok(())
+    }
 
-    // //   let gil = Python::acquire_gil();
-    // //   let py = gil.python();
-    // //   pin.get_meta()
-    // // }
+    fn set_metadata(&self, id_str: &str, obj: &PyAny) -> PyResult<bool> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let pin = model._pin(&self.name)?;
 
-    // #[getter]
-    // fn get_metadata(&self) -> PyResult<PyObject> {
-    //   let mut dut = DUT.lock().unwrap();
-    //   let model = dut.get_mut_model(self.model_id)?;
-    //   let pin = model._pin(&self.name)?;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+        let dut = py.eval("origen.dut.db", None, Some(&locals)).unwrap().downcast_mut::<PyDUT>()?;
+        match pin.get_metadata_id(id_str) {
+            Some(idx) => {
+                println!("override!");
+                dut.override_metadata_at(idx, obj)?;
+                Ok(true)
+            },
+            None => {
+                println!("adding!");
+                let idx = dut.push_metadata(obj);
+                pin.add_metadata_id(id_str, idx)?;
+                Ok(false)
+            }
+        }
+    }
 
-    //   let gil = Python::acquire_gil();
-    //   let py = gil.python();
-    //   let metadata = PyDict::new(py);
-    //   for (meta_name, meta_item) in pin.meta.iter() {
-    //     metadata.set_item(meta_name, *meta_item.downcast::<PyRef>().unwrap());
-    //   }
-    //   Ok(metadata.into())
-    // }
+    fn get_metadata(&self, id_str: &str) -> PyResult<PyObject> {
+        let mut dut = DUT.lock().unwrap();
+        let model = dut.get_mut_model(self.model_id)?;
+        let pin = model._pin(&self.name)?;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match pin.metadata.get(id_str) {
+            Some(idx) => {
+                let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+                let obj = py.eval(&format!("origen.dut.db.get_metadata({})", idx), None, Some(&locals)).unwrap().to_object(py);
+                Ok(obj)
+            },
+            None => Ok(py.None()),
+        }
+    }
+
+    #[getter]
+    fn get_added_metadata(&self) -> PyResult<Vec<String>> {
+      let mut dut = DUT.lock().unwrap();
+      let model = dut.get_mut_model(self.model_id)?;
+      let pin = model._pin(&self.name)?;
+      Ok(pin.metadata.iter().map(|(k, _)| k.clone()).collect())
+    }
 
     // Even though we're storing the name in this instance, we're going to go back to the core anyway.
     #[getter]

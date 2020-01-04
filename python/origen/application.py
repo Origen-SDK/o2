@@ -5,6 +5,7 @@ import os.path
 import re
 import pdb
 from origen.controller import TopLevel
+from origen.translator import Translator
 
 # The base class of all application classes
 class Base:
@@ -12,6 +13,8 @@ class Base:
     name =  _origen.app_config()["name"]
 
     __instantiate_dut_called = False
+
+    translator = Translator()
 
     # Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon
     def block_path_to_filepath(self, path):
@@ -88,9 +91,16 @@ class Base:
                     from origen.sub_blocks import Loader
                     context = Loader(controller).api()
 
+                elif filename == "pins.py":
+                    from origen.pins import Loader
+                    context = Loader(controller).api()
+
                 else:
                     block = controller
                     context = locals()
                 origen.load_file(p, locals=context)
 
         return controller
+
+    def translate(self, remote_file):
+        self.translator.translate(remote_file)

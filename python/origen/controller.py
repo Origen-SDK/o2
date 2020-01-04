@@ -2,6 +2,7 @@ import origen
 import _origen
 from origen import pins
 from origen.registers import Loader as RegLoader
+from origen.sub_blocks import Loader as SubBlockLoader
 from contextlib import contextmanager
 
 class Proxies:
@@ -49,6 +50,7 @@ class Base:
         self.__proxies__ = Proxies(self)
         self.regs_loaded = False
         self.sub_blocks_loaded = False
+        self.pins_loaded = False
 
     def __repr__(self):
         self._load_regs()
@@ -77,6 +79,7 @@ class Base:
             self.__proxies__["pins"] = proxy
             for method in pins.Proxy.api():
                 self.__setattr__(method, getattr(proxy, method))
+            self._load_pins()
             return eval(f"self.{name}")
         
         elif name == "memory_maps":
@@ -150,6 +153,10 @@ class Base:
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
 
+    def add_sub_block(self, *args, **kwargs):
+        self._load_sub_blocks()
+        return SubBlockLoader(self).sub_block(*args, **kwargs)
+
     def _load_regs(self):
         if not self.regs_loaded:
             self.app.load_block_files(self, "registers.py")
@@ -161,6 +168,11 @@ class Base:
             self.sub_blocks = Proxy(self)
             self.app.load_block_files(self, "sub_blocks.py")
             self.sub_blocks_loaded = True
+    
+    def _load_pins(self):
+        if not self.pins_loaded:
+            self.app.load_block_files(self, "pins.py")
+            self.pins_loaded = True
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
