@@ -51,6 +51,11 @@ impl CollectionStack {
         }
     }
     
+    // return the main collection of node id's
+    pub fn main_collection(&self) -> &Collector {
+        &self.stack[0]
+    }
+    
     // allocate a node in the collection at the top of the stack
     pub fn add_node(&mut self, node: &AstNodeId) {
         let index = self.stack.len() -1;
@@ -94,6 +99,10 @@ impl NodeCollection {
         self.stack.clear();
     }
     
+    // return the main collection of node id's
+    pub fn main_collection(&self) -> &Collector {
+        self.stack.main_collection()
+    }
 }
 
 #[cfg(test)]
@@ -133,6 +142,26 @@ mod tests {
             match reg_ast_node {
                 AstNode::Register(reg_action) => assert_eq!(reg_action.children.collection.len(), 1),
                 _ => panic!("didn't get a register action back"),
+            }
+        }
+        
+        // iterate through the nodes to generate the final pattern output
+        process_all_nodes(&pattern_nodes.main_collection(), &pattern_nodes);
+    }
+    
+    // simple processor example - this will be deleted in the future
+    fn process_all_nodes(nodes: &Collector, pattern: &NodeCollection) {
+        for node_id in nodes.collection.iter(){
+            if let Some(node) = pattern.nodes.get(*node_id) {
+                match node {
+                    AstNode::Pin(pa) => println!("Call the method that updates the output pattern vector string, sending pa(PinAction struct)"),
+                    AstNode::Register(ra) => {
+                        println!("for an ascii pattern, print a comment with the register info, then process all children");
+                        process_all_nodes(&ra.children, pattern);
+                    },
+                    AstNode::Comment(comment) => println!("print the comment to the output"),
+                    _ => println!("other stuff"),
+                }
             }
         }
     }
