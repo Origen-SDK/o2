@@ -3,7 +3,9 @@
 //!   2) For node types that will have children a new stack index is created
 //!      once the children are collected, that stack index is moved to the parent node
 
-use super::ast_node::AstNodeId;
+use super::ast_node::{AstNode, AstNodeId};
+use crate::error::Error;
+use crate::Result;
 
 #[derive(Debug)]
 pub struct Collector {
@@ -54,6 +56,43 @@ impl CollectionStack {
         let index = self.stack.len() -1;
         self.stack[index].collection.push(*node)
     }
+    
+    // clear all contents of the stack
+    pub fn clear(&mut self) {
+        self.stack.clear();
+    }
+}
+
+pub struct NodeCollection {
+    pub nodes: Vec::<AstNode>,
+    pub stack: CollectionStack,
+}
+
+impl NodeCollection {
+    pub fn new() -> NodeCollection {
+        NodeCollection {
+            nodes: Vec::new(),
+            stack: CollectionStack::new(),
+        }
+    }
+    
+    pub fn add_node(&mut self, node: AstNode) -> AstNodeId {
+        self.nodes.push(node);
+        self.stack.add_node(&(self.nodes.len() - 1));
+        self.nodes.len() - 1
+    }
+    
+    pub fn get_mut_node(&mut self, id: AstNodeId) -> Result<&mut AstNode> {
+        match self.nodes.get_mut(id) {
+            Some(x) => Ok(x),
+            None => return Err(Error::new(&format!("Node does not exist: {}", id)))
+        }
+    }
+    
+    pub fn clear(&mut self) {
+        self.nodes.clear();
+        self.stack.clear();
+    }
 }
 
 #[cfg(test)]
@@ -63,39 +102,37 @@ mod tests {
     use super::super::register_action::RegisterAction;
     use super::super::pin_action::PinAction;
     use super::super::operation::Operation;
-    use id_arena::Arena;
     
     #[test]
     fn stack_works_to_collect_children(){
         // this holds all nodes
-        let mut pattern_nodes = Arena::<AstNode>::new();
+        let mut pattern_nodes = NodeCollection::new();
         // the stack holds vectors of node ID's for sequential processing
-        let mut collection_stack = CollectionStack::new();
         
         // place a few nodes in the stack
-        collection_stack.add_node(&pattern_nodes.alloc(AstNode::Timeset("tp0".to_string())));
-        collection_stack.add_node(&pattern_nodes.alloc(AstNode::Pin(PinAction::new("pa0", "0", Operation::Write))));
+        pattern_nodes.add_node(AstNode::Timeset("tp0".to_string()));
+        pattern_nodes.add_node(AstNode::Pin(PinAction::new("pa0", "0", Operation::Write)));
         
         // now create a node with children
         let mut reg_action = RegisterAction::new("ctrl", &0x300, "0xffee0011", Operation::Read);
         // new collection for collecting child nodes
-        collection_stack.new_collection();
+        pattern_nodes.stack.new_collection();
         // now all actions should go to the new collection
-        collection_stack.add_node(&pattern_nodes.alloc(AstNode::Pin(PinAction::new("pa0", "1", Operation::Write))));
+        pattern_nodes.add_node(AstNode::Pin(PinAction::new("pa0", "1", Operation::Write)));
         // done with register read, now pop children into the register node
-        reg_action.children = collection_stack.pop_collection();
+        reg_action.children = pattern_nodes.stack.pop_collection();
         // place the now completed register node into the collection
-        collection_stack.add_node(&pattern_nodes.alloc(AstNode::Register(reg_action)));
+        let ra_item = pattern_nodes.add_node(AstNode::Register(reg_action));
         
-        // check sizes
-        assert_eq!(collection_stack.stack.len(), 1);
-        assert_eq!(collection_stack.stack[0].collection.len(), 3);
+        // check sizes, ugly code
+        assert_eq!(pattern_nodes.stack.stack.len(), 1);
+        assert_eq!(pattern_nodes.stack.stack[0].collection.len(), 3);
         // get the register action node back and check the length of the children
-        // ugly code here, this isn't how you'd normally do this
-        let reg_ast_node = &pattern_nodes[collection_stack.stack[0].collection[2]];
-        match reg_ast_node {
-            AstNode::Register(reg_action) => assert_eq!(reg_action.children.len(), 1),
-            _ => panic!("didn't get a register action back"),
+        if let Some(reg_ast_node) = pattern_nodes.nodes.get(ra_item) {
+            match reg_ast_node {
+                AstNode::Register(reg_action) => assert_eq!(reg_action.children.len(), 1),
+                _ => panic!("didn't get a register action back"),
+            }
         }
     }
 }

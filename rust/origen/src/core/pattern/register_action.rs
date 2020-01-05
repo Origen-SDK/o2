@@ -34,7 +34,7 @@ impl RegisterAction {
 mod tests {
     use super::*;
     use super::super::ast_node::AstNode;
-    use id_arena::Arena;
+    use super::super::collector::NodeCollection;
     
     #[test]
     fn converts_to_string(){
@@ -44,9 +44,9 @@ mod tests {
     
     #[test]
     fn instantiates_new_mutable_children_vec() {
-        let mut ast_nodes = Arena::<AstNode>::new();
+        let mut ast_nodes = NodeCollection::new();
         let mut ra_node = RegisterAction::new("cntrl", &300, "0x40", Operation::Read);
-        ra_node.children.push(ast_nodes.alloc(AstNode::Timeset("tp0".to_string())));
+        ra_node.children.push(ast_nodes.add_node(AstNode::Timeset("tp0".to_string())));
         assert_eq!(ra_node.children.len(), 1);
     }
 }
