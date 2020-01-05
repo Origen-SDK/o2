@@ -7,7 +7,7 @@ use super::ast_node::{AstNode, AstNodeId};
 use crate::error::Error;
 use crate::Result;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Collector {
     pub collection: Vec<AstNodeId>,
 }
@@ -93,6 +93,7 @@ impl NodeCollection {
         self.nodes.clear();
         self.stack.clear();
     }
+    
 }
 
 #[cfg(test)]
@@ -120,7 +121,7 @@ mod tests {
         // now all actions should go to the new collection
         pattern_nodes.add_node(AstNode::Pin(PinAction::new("pa0", "1", Operation::Write)));
         // done with register read, now pop children into the register node
-        reg_action.children = pattern_nodes.stack.pop_collection();
+        reg_action.children.collection = pattern_nodes.stack.pop_collection();
         // place the now completed register node into the collection
         let ra_item = pattern_nodes.add_node(AstNode::Register(reg_action));
         
@@ -130,7 +131,7 @@ mod tests {
         // get the register action node back and check the length of the children
         if let Some(reg_ast_node) = pattern_nodes.nodes.get(ra_item) {
             match reg_ast_node {
-                AstNode::Register(reg_action) => assert_eq!(reg_action.children.len(), 1),
+                AstNode::Register(reg_action) => assert_eq!(reg_action.children.collection.len(), 1),
                 _ => panic!("didn't get a register action back"),
             }
         }

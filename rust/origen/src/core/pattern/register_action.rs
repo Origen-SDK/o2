@@ -1,6 +1,7 @@
 //! Defines the set of actions associated with a register action
 pub use super::operation::Operation;
 pub use super::ast_node::AstNodeId;
+pub use super::collector::Collector;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RegisterAction {
@@ -9,7 +10,7 @@ pub struct RegisterAction {
     pub data: String,
     pub operation: Operation,
     // register action can contain arbitrary number of child actions
-    pub children: Vec<AstNodeId>,
+    pub children: Collector,
 }
 
 impl RegisterAction {
@@ -21,12 +22,12 @@ impl RegisterAction {
             address: *address,
             data: data.to_string(),
             operation: operation,
-            children: Vec::new(),
+            children: Collector::new(),
         }
     }
     
     pub fn to_string(&self) -> String {
-        format!("register: {}, address: {}, data: {}, operation: {}, num children: {}", self.name, self.address, self.data, self.operation.to_string(), self.children.len())
+        format!("register: {}, address: {}, data: {}, operation: {}, num children: {}", self.name, self.address, self.data, self.operation.to_string(), self.children.collection.len())
     }
 }
 
@@ -46,7 +47,7 @@ mod tests {
     fn instantiates_new_mutable_children_vec() {
         let mut ast_nodes = NodeCollection::new();
         let mut ra_node = RegisterAction::new("cntrl", &300, "0x40", Operation::Read);
-        ra_node.children.push(ast_nodes.add_node(AstNode::Timeset("tp0".to_string())));
-        assert_eq!(ra_node.children.len(), 1);
+        ra_node.children.collection.push(ast_nodes.add_node(AstNode::Timeset("tp0".to_string())));
+        assert_eq!(ra_node.children.collection.len(), 1);
     }
 }
