@@ -23,7 +23,7 @@ for i in range(NUM_REGS):
         Field("coco", offset=7, access="ro")
         Field("aien", offset=6)
         Field("diff", offset=5)
-        Field("adch", offset=0, width=4, reset=0x1F, enums={
+        Field("adch", offset=0, width=5, reset=0x1F, enums={
             # A simple enum
             "val1": 3,
             # A more complex enum, all fields except for value are optional

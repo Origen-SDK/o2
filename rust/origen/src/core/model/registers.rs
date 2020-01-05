@@ -292,6 +292,156 @@ impl Default for Register {
     }
 }
 
+/// An iterator for a register's fields which yields them in offset order, starting from 0.
+/// An instance of this iterator is returned by my_reg.named_bits().
+pub struct RegisterFieldIterator<'a> {
+    reg: &'a Register,
+    field_names: Vec<String>,
+    // Tracks index through the field_names array
+    index: usize,
+    // Keeps track of the last register bit position
+    pos: u32,
+}
+
+impl<'a> RegisterFieldIterator<'a> {
+    fn new(reg: &Register, include_spacers: bool) -> RegisterFieldIterator {
+        // Derive the order of iteration when this iterator is created, then
+        // store the names of the fields locally in the order that is required.
+        // This can no doubt be done more elegantly, but for now the borrow checker
+        // has broken me.
+        let mut field_names: Vec<String>;
+
+        let mut fields: Vec<&Field> = reg.fields.values().collect();
+        fields.sort_by_key(|f| f.offset);
+        if include_spacers {
+            field_names = Vec::new();
+            let mut pos = 0;
+            for field in fields {
+                if pos != field.offset {
+                    field_names.push("_spacer_".to_string());
+                }
+                field_names.push(field.name.clone());
+                pos = field.offset + field.width;
+            }
+            if pos != reg.size {
+                field_names.push("_spacer_".to_string());
+            }
+        } else {
+            field_names = fields.iter().map(|m| m.name.clone()).collect();
+        }
+
+        RegisterFieldIterator {
+            reg: reg,
+            field_names: field_names,
+            index: 0,
+            pos: 0,
+        }
+    }
+
+    fn field_name_index(&self, ascending: bool) -> usize {
+        if ascending {
+            self.index
+        } else {
+            self.field_names.len() - self.index - 1
+        }
+    }
+
+    fn field(&self, ascending: bool, next: bool) -> Option<&Field> {
+        let mut i = self.field_name_index(ascending);
+        if next {
+            if ascending {
+                i += 1;
+                if i == self.field_names.len() {
+                    return None;
+                }
+            } else {
+                if i == 0 {
+                    return None;
+                }
+                i -= 1;
+            }
+        }
+        self.reg.fields.get(&self.field_names[i])
+    }
+
+    // Like next() but handles both forwards and backwards iteration - it was easier to implement
+    // them in parallel instead of split accross next() and next_back()
+    fn get(&mut self, ascending: bool) -> Option<SummaryField> {
+        if self.index >= self.field_names.len() {
+            None
+        } else {
+            if self.index == 0 {
+                if ascending {
+                    self.pos = 0;
+                } else {
+                    self.pos = self.reg.size;
+                }
+            }
+
+            let summary: SummaryField;
+
+            {
+                let name = &self.field_names[self.field_name_index(ascending)];
+                if name == "_spacer_" {
+                    let width;
+                    let offset;
+                    if ascending {
+                        offset = self.pos;
+                        // Look ahead to the next field to work out how wide this spacer needs to be
+                        width = match self.field(true, true) {
+                            Some(x) => x.offset - offset,
+                            None => self.reg.size,
+                        };
+                    } else {
+                        offset = match self.field(false, true) {
+                            Some(x) => x.offset + x.width,
+                            None => 0,
+                        };
+                        width = self.pos - offset;
+                    }
+                    summary = SummaryField {
+                        name: "spacer".to_string(),
+                        offset: offset,
+                        width: width,
+                        spacer: true,
+                    };
+                } else {
+                    let field = self.field(ascending, false).unwrap();
+                    summary = SummaryField {
+                        name: field.name.clone(),
+                        offset: field.offset,
+                        width: field.width,
+                        spacer: false,
+                    };
+                }
+            }
+
+            self.index += 1;
+            if ascending {
+                self.pos = summary.offset + summary.width;
+            } else {
+                self.pos = summary.offset;
+            }
+            Some(summary)
+        }
+    }
+}
+
+impl<'a> Iterator for RegisterFieldIterator<'a> {
+    type Item = SummaryField;
+
+    fn next(&mut self) -> Option<SummaryField> {
+        self.get(true)
+    }
+}
+
+// Enables reg.named_bits(true).rev()
+impl<'a> DoubleEndedIterator for RegisterFieldIterator<'a> {
+    fn next_back(&mut self) -> Option<SummaryField> {
+        self.get(false)
+    }
+}
+
 impl Register {
     pub fn create_bits(&mut self) {
         for _i in 0..self.size {
@@ -309,6 +459,12 @@ impl Register {
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy
     pub fn address(&self, _dut: &MutexGuard<Dut>) -> u64 {
         0x1000
+    }
+
+    /// Returns an iterator for the register's fields which yields them (as SummaryFields) in offset order, starting from lowest.
+    /// The caller can elect whether or not spacer fields should be inserted to represent un-implemented bits.
+    pub fn named_bits(&self, include_spacers: bool) -> RegisterFieldIterator {
+        RegisterFieldIterator::new(&self, include_spacers)
     }
 
     pub fn console_display(
@@ -420,7 +576,9 @@ impl Register {
         let num_bytes = (self.size as f32 / 8.0).ceil() as usize;
         for byte_index in 0..num_bytes {
             let byte_number = num_bytes - byte_index;
+            // The max bit number in the current byte row
             let max_bit = (byte_number * 8) - 1;
+            // The min bit number in the current byte row
             let min_bit = max_bit + 1 - 8;
 
             // BIT INDEX ROW
@@ -449,11 +607,8 @@ impl Register {
             // BIT NAME ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            let mut fields: Vec<&Field> = self.fields.values().collect();
-            fields.sort_by_key(|f| f.offset);
-            fields.reverse();
-            for field in fields {
-                if is_field_in_range(field, max_bit, min_bit) {
+            for field in self.named_bits(true).rev() {
+                if is_field_in_range(&field, max_bit, min_bit) {
                     if max_bit > (self.size as usize - 1) && !first_done {
                         for _i in 0..(max_bit - (self.size as usize - 1)) {
                             line += &" ".repeat(bit_width + 1);
@@ -466,10 +621,10 @@ impl Register {
                             let bit_name = format!(
                                 "{}[{}:{}]",
                                 field.name,
-                                max_bit_in_range(field, max_bit, min_bit, &bit_order),
-                                min_bit_in_range(field, max_bit, min_bit, &bit_order),
+                                max_bit_in_range(&field, max_bit, min_bit, &bit_order),
+                                min_bit_in_range(&field, max_bit, min_bit, &bit_order),
                             );
-                            let bit_span = num_bits_in_range(field, max_bit, min_bit);
+                            let bit_span = num_bits_in_range(&field, max_bit, min_bit);
 
                             // This is legacy code that handled non-contiguous fields
                             //       else
@@ -511,56 +666,60 @@ impl Register {
             // BIT STATE ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            //named_bits include_spacers: true do |name, bit, _bitcounter|
-            //  if _bit_in_range?(bit, max_bit, min_bit)
-            //    if max_bit > (size - 1) && !first_done
-            //      (max_bit - (size - 1)).times do
-            //        line << ' ' * (bit_width + 1)
-            //      end
-            //    end
+            for field in self.named_bits(true).rev() {
+                if is_field_in_range(&field, max_bit, min_bit) {
+                    if max_bit > (self.size as usize - 1) && !first_done {
+                        for _i in 0..(max_bit - (self.size as usize - 1)) {
+                            line += &" ".repeat(bit_width + 1);
+                        }
+                    }
 
-            //    if bit.size > 1
-            //      if name
-            //        if bit.has_known_value?
-            //          value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
-            //        else
-            //          if bit.reset_val == :undefined
-            //            value = 'X'
-            //          else
-            //            value = 'M'
-            //          end
-            //        end
-            //        value += _state_desc(bit)
-            //        bit_span = _num_bits_in_range(bit, max_bit, min_bit)
-            //        width = bit_width * bit_span
-            //        line << vert_single_line + value.center(width + bit_span - 1)
-            //      else
-            //        bit.shift_out_left do |bit|
-            //          if _index_in_range?(bit.position, max_bit, min_bit)
-            //            line << vert_single_line + ''.center(bit_width)
-            //          end
-            //        end
-            //      end
-            //    else
-            //      if name
-            //        if bit.has_known_value?
-            //          val = bit.val
-            //        else
-            //          if bit.reset_val == :undefined
-            //            val = 'X'
-            //          else
-            //            val = 'M'
-            //          end
-            //        end
-            //        value = "#{val}" + _state_desc(bit)
-            //        line << vert_single_line + value.center(bit_width)
-            //      else
-            //        line << vert_single_line + ''.center(bit_width)
-            //      end
-            //    end
-            //  end
-            //  first_done = true
-            //end
+                    if field.width > 1 {
+                        if !field.spacer {
+                            //      if name
+                            //        if bit.has_known_value?
+                            //          value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
+                            //        else
+                            //          if bit.reset_val == :undefined
+                            //            value = 'X'
+                            //          else
+                            //            value = 'M'
+                            //          end
+                            //        end
+                            //        value += _state_desc(bit)
+                            //        bit_span = _num_bits_in_range(bit, max_bit, min_bit)
+                            //        width = bit_width * bit_span
+                            //        line << vert_single_line + value.center(width + bit_span - 1)
+                        } else {
+                            for i in 0..field.width {
+                                if is_index_in_range((field.offset + i) as usize, max_bit, min_bit)
+                                {
+                                    line += vert_single_line;
+                                    line += &" ".repeat(bit_width);
+                                }
+                            }
+                        }
+                    } else {
+                        if !field.spacer {
+                            //        if bit.has_known_value?
+                            //          val = bit.val
+                            //        else
+                            //          if bit.reset_val == :undefined
+                            //            val = 'X'
+                            //          else
+                            //            val = 'M'
+                            //          end
+                            //        end
+                            //        value = "#{val}" + _state_desc(bit)
+                            //        line << vert_single_line + value.center(bit_width)
+                        } else {
+                            line += vert_single_line;
+                            line += &" ".repeat(bit_width);
+                        }
+                    }
+                }
+                first_done = true;
+            }
             line += vert_single_line;
             desc.push(line);
 
@@ -626,7 +785,6 @@ impl Register {
             access: acc,
             reset: reset.clone(),
             enums: IndexMap::new(),
-            spacer: false,
         };
         self.fields.insert(name.to_string(), f);
         Ok(&mut self.fields[name])
@@ -652,7 +810,7 @@ impl Register {
 //end
 //end
 
-fn max_bit_in_range(field: &Field, max: usize, _min: usize, bit_order: &BitOrder) -> u32 {
+fn max_bit_in_range(field: &SummaryField, max: usize, _min: usize, bit_order: &BitOrder) -> u32 {
     let upper = field.offset + field.width - 1;
     if *bit_order == BitOrder::MSB0 {
         field.width - (cmp::min(upper, max as u32) - field.offset) - 1
@@ -661,7 +819,7 @@ fn max_bit_in_range(field: &Field, max: usize, _min: usize, bit_order: &BitOrder
     }
 }
 
-fn min_bit_in_range(field: &Field, _max: usize, min: usize, bit_order: &BitOrder) -> u32 {
+fn min_bit_in_range(field: &SummaryField, _max: usize, min: usize, bit_order: &BitOrder) -> u32 {
     let lower = field.offset;
     if *bit_order == BitOrder::MSB0 {
         field.width - (cmp::max(lower, min as u32) - lower) - 1
@@ -671,14 +829,14 @@ fn min_bit_in_range(field: &Field, _max: usize, min: usize, bit_order: &BitOrder
 }
 
 /// Returns true if some portion of the given bit Field falls within the given range
-fn is_field_in_range(field: &Field, max: usize, min: usize) -> bool {
+fn is_field_in_range(field: &SummaryField, max: usize, min: usize) -> bool {
     let upper = (field.offset + field.width - 1) as usize;
     let lower = field.offset as usize;
     !((lower > max) || (upper < min))
 }
 
 //# Returns the number of bits from the given field that fall within the given range
-fn num_bits_in_range(field: &Field, max: usize, min: usize) -> u32 {
+fn num_bits_in_range(field: &SummaryField, max: usize, min: usize) -> u32 {
     let upper = field.offset + field.width - 1;
     let lower = field.offset;
     cmp::min(upper, max as u32) - cmp::max(lower, min as u32) + 1
@@ -716,9 +874,6 @@ pub struct Field {
     // Just went with a simple reset value initially
     pub reset: BigUint,
     pub enums: IndexMap<String, EnumeratedValue>,
-    /// When a Field is being used to represent a gap (un-populated bits) in a register,
-    /// this attribute will be set to true
-    pub spacer: bool,
 }
 
 impl Field {
@@ -740,6 +895,17 @@ impl Field {
         self.enums.insert(name.to_string(), e);
         Ok(&self.enums[name])
     }
+}
+
+#[derive(Debug)]
+/// A lightweight version of a Field that is returned by the my_reg.named_bits iterator,
+/// and which is also used to represent gaps in the register (when spacer = true).
+pub struct SummaryField {
+    pub name: String,
+    pub offset: u32,
+    /// Width of the field in bits.
+    pub width: u32,
+    pub spacer: bool,
 }
 
 //#[derive(Debug)]
