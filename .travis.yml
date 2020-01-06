@@ -1,9 +1,15 @@
 matrix:
   include:
-    - language: python
-      python: 3.8
+    - language: rust
       before_script:
-        - cd example
-        - origen setup
+        - cd rust/origen
       script:
-        - poetry run pytest
+        - cargo build --verbose --all --workspace --bins
+        - cargo test
+    # - language: python
+    #   python: 3.8
+    #   before_script:
+    #     - cd example
+    #       origen setup
+    #   script:
+    #     - poetry run pytest
