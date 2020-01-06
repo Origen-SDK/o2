@@ -2,9 +2,11 @@ matrix:
   include:
     - language: rust
       rust:
-        -  1.41.0-nightly
+        -  1.41.0
       script:
-        - cd rust/origen/pyapi
+        - cd rust/origen
+        - rustup override set nightly
+        - cd pyapi
         - cargo build
         - cd ../
         - cargo build --verbose --all --workspace --bins
