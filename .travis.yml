@@ -1,9 +1,12 @@
 matrix:
   include:
     - language: rust
-      before_script:
-        - cd rust/origen
+      rust:
+        -  1.41.0-nightly
       script:
+        - cd rust/origen/pyapi
+        - cargo build
+        - cd ../
         - cargo build --verbose --all --workspace --bins
         - cargo test
     # - language: python
