@@ -1,8 +1,7 @@
-use origen::DUT;
 use pyo3::prelude::*;
 use pyo3::class::mapping::*;
-use pyo3::exceptions;
 use origen::error::Error;
+use super::super::timesets::{DictLikeAPI, DictLikeIter};
 
 #[macro_export]
 macro_rules! pytimeset_container {
@@ -19,15 +18,23 @@ pub struct TimesetContainer {
 #[pymethods]
 impl TimesetContainer {
   fn keys(&self) -> PyResult<Vec<String>> {
-    super::super::timesets::DictLikeAPI::keys(self)
-    // let mut dut = DUT.lock().unwrap();
-    // let model = dut.get_model(self.model_id)?;
-    // let names = &model.timesets;
-    // Ok(names.iter().map(|(k, _)| k.clone()).collect())
+    DictLikeAPI::keys(self)
+  }
+
+  fn values(&self) -> PyResult<Vec<PyObject>> {
+    DictLikeAPI::values(self)
+  }
+
+  fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
+    DictLikeAPI::items(self)
+  }
+
+  fn get(&self, name: &str) -> PyResult<PyObject> {
+    DictLikeAPI::get(self, name)
   }
 }
 
-impl super::super::timesets::DictLikeAPI for TimesetContainer {
+impl DictLikeAPI for TimesetContainer {
   //type IdMapper = HashMap<String, usize>; //origen::core::model::timesets::Timesets;
   type PyItem = super::timeset::Timeset;
   // , model: &origen::core::model::Model
@@ -49,22 +56,17 @@ impl super::super::timesets::DictLikeAPI for TimesetContainer {
 #[pyproto]
 impl PyMappingProtocol for TimesetContainer {
     fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        match pytimeset!(py, model, self.model_id, name) {
-          Ok(t) => Ok(t),
-          Err(_) => Err(exceptions::KeyError::py_err(format!(
-            "No timeset found for {}",
-            name
-          ))),
-        }
+      DictLikeAPI::__getitem__(self, name)
     }
 
     fn __len__(&self) -> PyResult<usize> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-        Ok(model.timesets.len())
+      DictLikeAPI::__len__(self)
     }
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for TimesetContainer {
+  fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+    DictLikeAPI::__iter__(&*slf)
+  }
 }

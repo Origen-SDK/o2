@@ -63,6 +63,19 @@ pub trait DictLikeAPI {
     Ok(_items)
   }
 
+  fn get(&self, name: &str) -> PyResult<PyObject> {
+    let mut dut = DUT.lock().unwrap();
+    let model = dut.get_mut_model(self.model_id())?;
+    let item = model.lookup(self.lookup_key())?.get(name);
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    match item {
+        Some(_item) => Ok(self.new_pyitem(py, name, self.model_id())?),
+        None => Ok(py.None())
+      }
+  }
+
   // Functions for PyMappingProtocol
   fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
     let mut dut = DUT.lock().unwrap();
@@ -87,6 +100,45 @@ pub trait DictLikeAPI {
     let items = model.lookup(self.lookup_key())?;
     Ok(items.len())
   }
+
+  fn __iter__(&self) -> PyResult<DictLikeIter> {
+    let dut = DUT.lock().unwrap();
+    let model = dut.get_model(self.model_id())?;
+    let items = model.lookup(self.lookup_key())?;
+    Ok(DictLikeIter {
+        keys: items.iter().map(|(s, _)| s.clone()).collect(),
+        i: 0,
+    })
+  }
+}
+
+#[pyclass]
+pub struct DictLikeIter {
+    keys: Vec<String>,
+    i: usize,
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for DictLikeIter {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(slf.to_object(py))
+    }
+
+    /// The Iterator will be created with an index starting at 0 and the pin names at the time of its creation.
+    /// For each call to 'next', we'll create a pin object with the next value in the list, or None, if no more keys are available.
+    /// Note: this means that the iterator can become stale if the PinContainer is changed. This can happen if the iterator is stored from Python code
+    ///  directly. E.g.: i = dut.pins.__iter__() => iterator with the pin names at the time of creation,
+    /// Todo: Fix the above using iterators. My Rust skills aren't there yet though... - Coreyeng
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
+        if slf.i >= slf.keys.len() {
+            return Ok(None);
+        }
+        let name = slf.keys[slf.i].clone();
+        slf.i += 1;
+        Ok(Some(name))
+    }
 }
 
 #[macro_export]
