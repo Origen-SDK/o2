@@ -1,0 +1,9 @@
+matrix:
+  include:
+    - language: python
+      python: 3.8
+      before_script:
+        - cd example
+        - origen setup
+      script:
+        - poetry run pytest
