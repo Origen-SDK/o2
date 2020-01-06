@@ -1,5 +1,6 @@
 pub mod pins;
 pub mod registers;
+pub mod timesets;
 use crate::error::Error;
 use crate::Dut;
 use crate::Result;
@@ -25,6 +26,7 @@ pub struct Model {
     pub pins: HashMap<String, PinGroup>,
     // Levels
     // Timing
+    pub timesets: IndexMap<String, usize>,
     // Specs
 }
 
@@ -38,6 +40,14 @@ impl Model {
             memory_maps: IndexMap::new(),
             physical_pins: HashMap::new(),
             pins: HashMap::new(),
+            timesets: IndexMap::new(),
+        }
+    }
+
+    pub fn lookup(&self, key: &str) -> Result<&IndexMap<String, usize>> {
+        match key {
+            "timesets" => Ok(&self.timesets),
+            _ => Err(Error::new(&format!("No ID lookup table available for {}", key)))
         }
     }
 

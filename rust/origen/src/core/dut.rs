@@ -1,4 +1,5 @@
 use crate::core::model::registers::{AccessType, AddressBlock, Bit, MemoryMap, Register};
+use crate::core::model::timesets::timeset::{Timeset};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
@@ -19,6 +20,7 @@ pub struct Dut {
     address_blocks: Vec<AddressBlock>,
     registers: Vec<Register>,
     bits: Vec<Bit>,
+    pub timesets: Vec<Timeset>,
 }
 
 impl Dut {
@@ -33,6 +35,7 @@ impl Dut {
             address_blocks: Vec::<AddressBlock>::new(),
             registers: Vec::<Register>::new(),
             bits: Vec::<Bit>::new(),
+            timesets: Vec::<Timeset>::new(),
         }
     }
 
