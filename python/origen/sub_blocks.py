@@ -1,4 +1,5 @@
 import origen
+from origen.errors import *
 
 # A middleman between the Python controller and the associated Rust model and
 # which implements the application/user API for working with (sub-)blocks.
