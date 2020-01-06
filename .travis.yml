@@ -2,7 +2,7 @@ matrix:
   include:
     - language: rust
       rust:
-        -  1.41.0
+        -  1.40.0
       script:
         - cd rust/origen
         - rustup override set nightly
