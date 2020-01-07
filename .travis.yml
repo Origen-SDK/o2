@@ -15,7 +15,7 @@ matrix:
       rust: 1.40.0
       os: windows
       script:
-        - cd rust\origen
+        - cd rust/origen
         - rustup override set nightly
         - cd pyapi
         - cargo build
