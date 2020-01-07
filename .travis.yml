@@ -24,7 +24,7 @@ jobs:
         - cargo build
         - cd ../
         - cargo build --verbose --all --workspace --bins
-        - cd example
+        - cd ../../example
         - ls ../
         - ls ../rust/origen
         - ls ../rust/origen/target
