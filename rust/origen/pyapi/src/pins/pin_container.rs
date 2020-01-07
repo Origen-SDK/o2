@@ -103,7 +103,7 @@ impl PinContainer {
 
         let mut name_strs: Vec<String> = vec![];
         for (_i, n) in names.iter().enumerate() {
-            if n.get_type().name() == "re.Pattern" {
+            if n.get_type().name() == "re.Pattern" || n.get_type().name() == "_sre.SRE_Pattern" {
                 let r = n.getattr("pattern").unwrap();
                 name_strs.push(format!("/{}/", r));
             } else {

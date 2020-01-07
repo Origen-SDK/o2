@@ -125,7 +125,7 @@ matrix:
       os: windows
       before_script:
         - choco install python3 --version 3.7.6
-        - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
+        - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
         - python --version
         - python --version
         - cd rust/origen
@@ -146,7 +146,7 @@ matrix:
       os: windows
       before_script:
         - choco install python3 --version 3.6.8
-        - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
+        - export PATH="/c/Python36:/c/Python36/Scripts:$PATH"
         - python --version
         - python --version
         - cd rust/origen
