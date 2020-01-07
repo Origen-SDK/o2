@@ -16,6 +16,11 @@ jobs:
       python: 3.8
       script:
         - cd example
+        - ls ../
+        - ls ../rust/origen
+        - ls ../rust/origen/target
+        - ls ../rust/origen/target/debug
+        - chmod 777 ../rust/origen/target/debug/*
         - ../rust/origen/target/debug/origen setup
         - poetry run pytest
 
