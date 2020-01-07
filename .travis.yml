@@ -1,22 +1,27 @@
 matrix:
   include:
-    - language: rust
-      rust: 1.40.0
-      os: linux
-      script:
-        - cd rust/origen
-        - rustup override set nightly
-        - cd pyapi
-        - cargo build
-        - cd ../
-        - cargo build --verbose --all --workspace --bins
-        - cargo test
+    # - language: rust
+    #   rust: 1.40.0
+    #   os: linux
+    #   script:
+    #     - cd rust/origen
+    #     - rustup override set nightly
+    #     - cd pyapi
+    #     - cargo build
+    #     - cd ../
+    #     - cargo build --verbose --all --workspace --bins
+    #     - cargo test
     - language: rust
       rust: 1.40.0
       os: windows
       before_script:
         - choco install python3 -v
+        - choco list
+        - ls /c/ProgramData/chocolatey/bin
+        - ls /c/
         - export PATH="/c/ProgramData/chocolatey/bin:$PATH"
+        - python --version
+        - python3 --version
       script:
         - cd rust/origen
         - rustup override set nightly
@@ -25,65 +30,24 @@ matrix:
         - cd ..
         - cargo build --verbose --all --workspace --bins
         - cargo test
-    - language: python
-      python: 3.8
-      script:
-        - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
-        - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
-        - rustc --version
-        - cd rust/origen
-        - rustup override set nightly
-        - cd pyapi
-        - cargo build
-        - cd ../
-        - cargo build --verbose --all --workspace --bins
-        - cd ../../example
-        - ls ../
-        - ls ../rust/origen
-        - ls ../rust/origen/target
-        - ls ../rust/origen/target/debug
-        - chmod 777 ../rust/origen/target/debug/*
-        - ../rust/origen/target/debug/origen setup
-        - source $HOME/.poetry/env
-        - poetry run pytest
-
-# matrix:
-#   include:
-#     - language: rust
-#       rust:
-#         -  1.40.0
-#       script:
-#         - cd rust/origen
-#         - rustup override set nightly
-#         - cd pyapi
-#         - cargo build
-#         - cd ../
-#         - cargo build --verbose --all --workspace --bins
-#         - cargo test
-#     - language: python
-#       python:
-#         - 3.8
-#       # env:
-#       #   global:
-#       #     - =
-#       before_install:
-#         - rust global 1.40.0
-#       before_script:
-#         - cd rust/origen
-#         - rustup override set nightly
-#         - cd pyapi
-#         - cargo build
-#         - cd ../
-#         - cargo build --verbose --all --workspace --bins
-#         - cd ../../
-#       script:
-#         - cd example
-#         - ../rust/origen/target/origen setup
-#         - poetry run pytest
-#     # - language: python
-#     #   python: 3.8
-#     #   before_script:
-#     #     - cd example
-#     #       origen setup
-#     #   script:
-#     #     - poetry run pytest
+    # - language: python
+    #   python: 3.8
+    #   script:
+    #     - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
+    #     - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
+    #     - rustc --version
+    #     - cd rust/origen
+    #     - rustup override set nightly
+    #     - cd pyapi
+    #     - cargo build
+    #     - cd ../
+    #     - cargo build --verbose --all --workspace --bins
+    #     - cd ../../example
+    #     - ls ../
+    #     - ls ../rust/origen
+    #     - ls ../rust/origen/target
+    #     - ls ../rust/origen/target/debug
+    #     - chmod 777 ../rust/origen/target/debug/*
+    #     - ../rust/origen/target/debug/origen setup
+    #     - source $HOME/.poetry/env
+    #     - poetry run pytest
