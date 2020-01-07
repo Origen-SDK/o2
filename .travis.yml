@@ -31,6 +31,7 @@ jobs:
         - ls ../rust/origen/target/debug
         - chmod 777 ../rust/origen/target/debug/*
         - ../rust/origen/target/debug/origen setup
+        - source $HOME/.poetry/env
         - poetry run pytest
 
 # matrix:
