@@ -16,7 +16,7 @@ jobs:
       python: 3.8
       script:
         - cd example
-        - ../rust/origen/target/origen setup
+        - ../rust/origen/target/debug/origen setup
         - poetry run pytest
 
 # matrix:
