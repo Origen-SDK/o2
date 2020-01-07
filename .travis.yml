@@ -1,5 +1,5 @@
-matrix:
-  include:
+# matrix:
+#   include:
 #     # Run Rust backend tests on Linux
 #     - language: rust
 #       rust: 1.40.0
@@ -141,60 +141,71 @@ matrix:
 #       script:
 #         - $HOME/.poetry/bin/poetry run pytest
     # Run Python frontend tests on Windows, using Rust 1.40 nightly-MSVC to compile the backend.
-    - language: rust
-      rust: 1.40.0
-      os: windows
-      before_script:
-        - choco install python3 --version 3.6.8 --override --installarguments '/quiet InstallAllUsers=1 PrependPath=1 "TargetDir=C:\PythonForO2"'
-        - export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
-        - python --version
-        - python --version
-        - cd rust/origen
-        - rustup override set nightly-x86_64-pc-windows-msvc
-        - cd pyapi
-        - cargo build
-        - cd ..
-        - cargo build --verbose --all --workspace --bins
-        - cp ./target/debug/_origen.dll ../../python/_origen.pyd
-        - cd ../../example
-        - ../rust/origen/target/debug/origen -v
-        - ../rust/origen/target/debug/origen setup
-      script:
-        - $HOME/.poetry/bin/poetry run pytest
+    # - language: rust
+    #   rust: 1.40.0
+    #   os: windows
+    #   before_script:
+    #     - choco install python3 --version 3.6.8 --override --installarguments '/quiet InstallAllUsers=1 PrependPath=1 "TargetDir=C:\PythonForO2"'
+    #     - export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
+    #     - python --version
+    #     - python --version
+    #     - cd rust/origen
+    #     - rustup override set nightly-x86_64-pc-windows-msvc
+    #     - cd pyapi
+    #     - cargo build
+    #     - cd ..
+    #     - cargo build --verbose --all --workspace --bins
+    #     - cp ./target/debug/_origen.dll ../../python/_origen.pyd
+    #     - cd ../../example
+    #     - ../rust/origen/target/debug/origen -v
+    #     - ../rust/origen/target/debug/origen setup
+    #   script:
+    #     - $HOME/.poetry/bin/poetry run pytest
 
-# os:
-#   - linux
-#   - windows
+os:
+  - linux
+  - windows
 
-# language: rust
+language: rust
 
-# rust:
-#   1.40.0
+rust:
+  1.40.0
 
-# env:
-#   - O2_REGRESSION=BACKEND O2_PYTHON_VERSION=3.8.1
-#   - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.8.1
-#   - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.7.6
-#   - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.6.8
+env:
+  - O2_REGRESSION=BACKEND O2_PYTHON_VERSION=3.8.1
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.8.1
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.7.6
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.6.8
 
-# # If we're on Windows, us Choco to install and add it to the path.
-# # If Linux, use pyenv.
-# before_install:
-#   - if [ "${TRAVIS_OS_NAME}" == "windows"]; then
-#   -   choco install python3 --version ${O2_PYTHON_VERSION} --override --installarguments "TargetDir=/c/PythonForO2"
-#   -   export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
-#   - else
-#   -   ~/virtualenv/python${O2_PYTHON_VERSION}/bin/activate
-#   - fi
-#   - python --version
+# If we're on Windows, us Choco to install and add it to the path.
+# If Linux, use pyenv.
+before_install:
+  - >
+    if [ "${TRAVIS_OS_NAME}" == "windows"]; then
+      choco install python3 --version ${O2_PYTHON_VERSION} --override --installarguments '/quiet InstallAllUsers=1 PrependPath=1 "TargetDir=C:\PythonForO2"'
+      export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
+    else
+      ~/virtualenv/python${O2_PYTHON_VERSION}/bin/activate
+    fi
+  - python --version
 
-# # Compile the backend.
-# before_script:
-#   - ...
+# Compile the backend.
+before_script:
+  - cd rust/origen
+  - if [ "${TRAVIS_OS_NAME}" == "windows"]; then rustup override set nightly-x86_64-pc-windows-msvc; else rustup override set nightly; fi
+  - cd pyapi
+  - cargo build
+  - cd ..
+  - cargo build --verbose --all --workspace --bins
+  - cp ./target/debug/_origen.dll ../../python/_origen.pyd
+  - cd ../../example
+  - ../rust/origen/target/debug/origen -v
+  - ../rust/origen/target/debug/origen setup
 
-# script:
-#   - if [ "${O2_REGRESSION}" = "BACKEND"]; then
-#   -   cargo test
-#   - else
-#   -   poetry run pytest
-#   - fi
+script:
+  - >
+    if [ "${O2_REGRESSION}" = "BACKEND"]; then
+      cargo test
+    else
+      poetry run pytest
+    fi
