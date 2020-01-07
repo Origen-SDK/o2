@@ -21,16 +21,16 @@ matrix:
         # - ls /c/
         - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
         - python --version
-        - powershell python --version
+        - python --version
        # - choco install windows-sdk-10.0
       script:
         - cd rust/origen
-        - powershell rustup override set nightly
+        - rustup override set nightly-x86_64-pc-windows-msvc
         - cd pyapi
-        - powershell cargo build
+        - cargo build
         - cd ..
-        - powershell cargo build --verbose --all --workspace --bins
-        - powershell cargo test
+        - cargo build --verbose --all --workspace --bins
+        - cargo test
     # - language: python
     #   python: 3.8
     #   script:
