@@ -1,20 +1,29 @@
 jobs:
   include:
-    - stage: Build Backend
-      language: rust
-      rust: 1.40.0
+    # - stage: Build Backend
+    #   language: rust
+    #   rust: 1.40.0
+    #   script:
+    #     - cd rust/origen
+    #     - rustup override set nightly
+    #     - cd pyapi
+    #     - cargo build
+    #     - cd ../
+    #     - cargo build --verbose --all --workspace --bins
+    #     - cargo test
+    - stage: Python Frontend
+      language: python
+      python: 3.8
       script:
+        - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
+        - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
+        - rustc --version
         - cd rust/origen
         - rustup override set nightly
         - cd pyapi
         - cargo build
         - cd ../
         - cargo build --verbose --all --workspace --bins
-        - cargo test
-    - stage: Python Frontend
-      language: python
-      python: 3.8
-      script:
         - cd example
         - ls ../
         - ls ../rust/origen
