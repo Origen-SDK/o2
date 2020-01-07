@@ -21,9 +21,9 @@ matrix:
         - ls /c/
         - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
         - python --version
-        - where python
-        - /c/ProgramData/chocolatey/bin/python --version
+       # - choco install windows-sdk-10.0
       script:
+        - powershell
         - cd rust/origen
         - rustup override set nightly
         - cd pyapi
