@@ -1,4 +1,5 @@
 import origen
+import pdb
 
 def test_sub_blocks_can_be_added():
     origen.app.instantiate_dut("dut.falcon")
@@ -18,3 +19,15 @@ def test_sub_blocks_can_be_added():
     assert origen.dut.core0.adc0.sub_blocks.len() == 1
     assert list(origen.dut.core0.adc0.sub_blocks.keys()) == ["my_block"]
     assert block.name == "my_block"
+
+def test_sub_block_iteration():
+    origen.app.instantiate_dut("dut.falcon")
+    expected = ['core0', 'core1', 'core2', 'core3']
+    collected = []
+    for name in origen.dut.sub_blocks:
+        collected.append(name)
+    assert collected == expected
+    collected = []
+    for name, sub_block in origen.dut.sub_blocks.items():
+        collected.append(sub_block.name)
+    assert collected == expected
