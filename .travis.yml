@@ -14,6 +14,9 @@ matrix:
     - language: rust
       rust: 1.40.0
       os: windows
+      before_script:
+        - choco install python3
+        - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
       script:
         - cd rust/origen
         - rustup override set nightly
@@ -23,7 +26,10 @@ matrix:
         - cargo build --verbose --all --workspace --bins
         - cargo test
     - language: python
-      python: 3.8
+      python:
+        - 3.8
+        - 3.7
+        - 3.6
       script:
         - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
         - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
