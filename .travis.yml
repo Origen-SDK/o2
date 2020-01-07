@@ -15,8 +15,8 @@ matrix:
       rust: 1.40.0
       os: windows
       before_script:
-        - choco install python3
-        - $env:Path += ";C:/ProgramData/chocolatey/bin"
+        - choco install python3 -v
+        - export PATH="/c/ProgramData/chocolatey/bin:$PATH"
       script:
         - cd rust/origen
         - rustup override set nightly
