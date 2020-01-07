@@ -145,7 +145,7 @@ matrix:
       rust: 1.40.0
       os: windows
       before_script:
-        - choco install python3 --version 3.6.8 --override --installarguments '/quiet InstallAllUsers=1 PrependPath=1 "TargetDir=/c/PythonForO2"'
+        - choco install python3 --version 3.6.8 --override --installarguments '/quiet InstallAllUsers=1 PrependPath=1 "TargetDir=C:\PythonForO2"'
         - export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
         - python --version
         - python --version
