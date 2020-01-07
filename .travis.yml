@@ -21,6 +21,8 @@ matrix:
         - ls /c/
         - export PATH="/c/ProgramData/chocolatey/bin:$PATH"
         - python --version
+        - where python
+        - /c/ProgramData/chocolatey/bin/python --version
         - python3 --version
       script:
         - cd rust/origen
