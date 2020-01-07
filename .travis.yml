@@ -1,6 +1,7 @@
 jobs:
   include:
     - stage: Build Backend
+      language: rust
       rust: 1.40.0
       script:
         - cd rust/origen
@@ -11,6 +12,7 @@ jobs:
         - cargo build --verbose --all --workspace --bins
         - cargo test
     - stage: Python Frontend
+      language: python
       python: 3.8
       script:
         - cd example
