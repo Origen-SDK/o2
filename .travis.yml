@@ -1,8 +1,7 @@
-matrix:
+jobs:
   include:
-    - language: rust
-      rust:
-        -  1.40.0
+    - stage: Build Backend
+      rust: 1.40.0
       script:
         - cd rust/origen
         - rustup override set nightly
@@ -11,30 +10,50 @@ matrix:
         - cd ../
         - cargo build --verbose --all --workspace --bins
         - cargo test
-    - language: python
-      python:
-        - 3.8
-      # env:
-      #   global:
-      #     - =
-      before_install:
-        - rust global 1.40.0
-      before_script:
-        - cd rust/origen
-        - rustup override set nightly
-        - cd pyapi
-        - cargo build
-        - cd ../
-        - cargo build --verbose --all --workspace --bins
-        - cd ../../
+    - stage: Python Frontend
+      python: 3.8
       script:
         - cd example
         - ../rust/origen/target/origen setup
         - poetry run pytest
-    # - language: python
-    #   python: 3.8
-    #   before_script:
-    #     - cd example
-    #       origen setup
-    #   script:
-    #     - poetry run pytest
+
+# matrix:
+#   include:
+#     - language: rust
+#       rust:
+#         -  1.40.0
+#       script:
+#         - cd rust/origen
+#         - rustup override set nightly
+#         - cd pyapi
+#         - cargo build
+#         - cd ../
+#         - cargo build --verbose --all --workspace --bins
+#         - cargo test
+#     - language: python
+#       python:
+#         - 3.8
+#       # env:
+#       #   global:
+#       #     - =
+#       before_install:
+#         - rust global 1.40.0
+#       before_script:
+#         - cd rust/origen
+#         - rustup override set nightly
+#         - cd pyapi
+#         - cargo build
+#         - cd ../
+#         - cargo build --verbose --all --workspace --bins
+#         - cd ../../
+#       script:
+#         - cd example
+#         - ../rust/origen/target/origen setup
+#         - poetry run pytest
+#     # - language: python
+#     #   python: 3.8
+#     #   before_script:
+#     #     - cd example
+#     #       origen setup
+#     #   script:
+#     #     - poetry run pytest
