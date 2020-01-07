@@ -1,151 +1,151 @@
-matrix:
-  include:
-    # Run Rust backend tests on Linux
-    - language: rust
-      rust: 1.40.0
-      os: linux
-      script:
-        - cd rust/origen
-        - rustup override set nightly
-        - cd pyapi
-        - cargo build
-        - cd ../
-        - cargo build --verbose --all --workspace --bins
-        - cargo test
+# matrix:
+#   include:
+#     # Run Rust backend tests on Linux
+#     - language: rust
+#       rust: 1.40.0
+#       os: linux
+#       script:
+#         - cd rust/origen
+#         - rustup override set nightly
+#         - cd pyapi
+#         - cargo build
+#         - cd ../
+#         - cargo build --verbose --all --workspace --bins
+#         - cargo test
 
-    # Run Rust backend tests on Windows, using MSVC (Microsoft Visual Studio) toolchain
-    - language: rust
-      rust: 1.40.0
-      os: windows
-      before_script:
-        - choco install python3 --version 3.8.1
-        - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
-        - python --version
-        - python --version
-      script:
-        - cd rust/origen
-        - rustup override set nightly-x86_64-pc-windows-msvc
-        - cd pyapi
-        - cargo build
-        - cd ..
-        - cargo build --verbose --all --workspace --bins
-        - cargo test
+#     # Run Rust backend tests on Windows, using MSVC (Microsoft Visual Studio) toolchain
+#     - language: rust
+#       rust: 1.40.0
+#       os: windows
+#       before_script:
+#         - choco install python3 --version 3.8.1
+#         - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
+#         - python --version
+#         - python --version
+#       script:
+#         - cd rust/origen
+#         - rustup override set nightly-x86_64-pc-windows-msvc
+#         - cd pyapi
+#         - cargo build
+#         - cd ..
+#         - cargo build --verbose --all --workspace --bins
+#         - cargo test
 
-    # Run Python frontend tests on Linux, using Rust 1.40 nightly to compile the backend
-    - language: python
-      python: 3.8
-      script:
-        - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
-        - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
-        - rustc --version
-        - cd rust/origen
-        - rustup override set nightly
-        - cd pyapi
-        - cargo build
-        - cd ../
-        - cargo build --verbose --all --workspace --bins
-        - cd ../../example
-        - ls ../
-        - ls ../rust/origen
-        - ls ../rust/origen/target
-        - ls ../rust/origen/target/debug
-        - chmod 777 ../rust/origen/target/debug/*
-        - ../rust/origen/target/debug/origen setup
-        - source $HOME/.poetry/env
-        - poetry run pytest
-    # Run Python frontend tests on Linux, using Rust 1.40 nightly to compile the backend
-    - language: python
-      python: 3.7
-      script:
-        - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
-        - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
-        - rustc --version
-        - cd rust/origen
-        - rustup override set nightly
-        - cd pyapi
-        - cargo build
-        - cd ../
-        - cargo build --verbose --all --workspace --bins
-        - cd ../../example
-        - ls ../
-        - ls ../rust/origen
-        - ls ../rust/origen/target
-        - ls ../rust/origen/target/debug
-        - chmod 777 ../rust/origen/target/debug/*
-        - ../rust/origen/target/debug/origen setup
-        - source $HOME/.poetry/env
-        - poetry run pytest
-    # Run Python frontend tests on Linux, using Rust 1.40 nightly to compile the backend
-    - language: python
-      python: 3.6
-      script:
-        - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
-        - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
-        - rustc --version
-        - cd rust/origen
-        - rustup override set nightly
-        - cd pyapi
-        - cargo build
-        - cd ../
-        - cargo build --verbose --all --workspace --bins
-        - cd ../../example
-        - ls ../
-        - ls ../rust/origen
-        - ls ../rust/origen/target
-        - ls ../rust/origen/target/debug
-        - chmod 777 ../rust/origen/target/debug/*
-        - ../rust/origen/target/debug/origen setup
-        - source $HOME/.poetry/env
-        - poetry run pytest
+#     # Run Python frontend tests on Linux, using Rust 1.40 nightly to compile the backend
+#     - language: python
+#       python: 3.8
+#       script:
+#         - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
+#         - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
+#         - rustc --version
+#         - cd rust/origen
+#         - rustup override set nightly
+#         - cd pyapi
+#         - cargo build
+#         - cd ../
+#         - cargo build --verbose --all --workspace --bins
+#         - cd ../../example
+#         - ls ../
+#         - ls ../rust/origen
+#         - ls ../rust/origen/target
+#         - ls ../rust/origen/target/debug
+#         - chmod 777 ../rust/origen/target/debug/*
+#         - ../rust/origen/target/debug/origen setup
+#         - source $HOME/.poetry/env
+#         - poetry run pytest
+#     # Run Python frontend tests on Linux, using Rust 1.40 nightly to compile the backend
+#     - language: python
+#       python: 3.7
+#       script:
+#         - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
+#         - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
+#         - rustc --version
+#         - cd rust/origen
+#         - rustup override set nightly
+#         - cd pyapi
+#         - cargo build
+#         - cd ../
+#         - cargo build --verbose --all --workspace --bins
+#         - cd ../../example
+#         - ls ../
+#         - ls ../rust/origen
+#         - ls ../rust/origen/target
+#         - ls ../rust/origen/target/debug
+#         - chmod 777 ../rust/origen/target/debug/*
+#         - ../rust/origen/target/debug/origen setup
+#         - source $HOME/.poetry/env
+#         - poetry run pytest
+#     # Run Python frontend tests on Linux, using Rust 1.40 nightly to compile the backend
+#     - language: python
+#       python: 3.6
+#       script:
+#         - curl -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.40.0 --profile=minimal -y
+#         - export PATH=${TRAVIS_HOME}/.cargo/bin:$PATH
+#         - rustc --version
+#         - cd rust/origen
+#         - rustup override set nightly
+#         - cd pyapi
+#         - cargo build
+#         - cd ../
+#         - cargo build --verbose --all --workspace --bins
+#         - cd ../../example
+#         - ls ../
+#         - ls ../rust/origen
+#         - ls ../rust/origen/target
+#         - ls ../rust/origen/target/debug
+#         - chmod 777 ../rust/origen/target/debug/*
+#         - ../rust/origen/target/debug/origen setup
+#         - source $HOME/.poetry/env
+#         - poetry run pytest
 
+#     # Run Python frontend tests on Windows, using Rust 1.40 nightly-MSVC to compile the backend.
+#     - language: rust
+#       rust: 1.40.0
+#       os: windows
+#       before_script:
+#         - choco install python3 --version 3.8.1
+#         - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
+#         - python --version
+#         - python --version
+#         - cd rust/origen
+#         - rustup override set nightly-x86_64-pc-windows-msvc
+#         - cd pyapi
+#         - cargo build
+#         - cd ..
+#         - cargo build --verbose --all --workspace --bins
+#         - cp ./target/debug/_origen.dll ../../python/_origen.pyd
+#         - cd ../../example
+#         - ../rust/origen/target/debug/origen -v
+#         - ../rust/origen/target/debug/origen setup
+#       script:
+#         - $HOME/.poetry/bin/poetry run pytest
+#     # Run Python frontend tests on Windows, using Rust 1.40 nightly-MSVC to compile the backend.
+#     - language: rust
+#       rust: 1.40.0
+#       os: windows
+#       before_script:
+#         - choco install python3 --version 3.7.6
+#         - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
+#         - python --version
+#         - python --version
+#         - cd rust/origen
+#         - rustup override set nightly-x86_64-pc-windows-msvc
+#         - cd pyapi
+#         - cargo build
+#         - cd ..
+#         - cargo build --verbose --all --workspace --bins
+#         - cp ./target/debug/_origen.dll ../../python/_origen.pyd
+#         - cd ../../example
+#         - ../rust/origen/target/debug/origen -v
+#         - ../rust/origen/target/debug/origen setup
+#       script:
+#         - $HOME/.poetry/bin/poetry run pytest
     # Run Python frontend tests on Windows, using Rust 1.40 nightly-MSVC to compile the backend.
     - language: rust
       rust: 1.40.0
       os: windows
       before_script:
-        - choco install python3 --version 3.8.1
-        - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
-        - python --version
-        - python --version
-        - cd rust/origen
-        - rustup override set nightly-x86_64-pc-windows-msvc
-        - cd pyapi
-        - cargo build
-        - cd ..
-        - cargo build --verbose --all --workspace --bins
-        - cp ./target/debug/_origen.dll ../../python/_origen.pyd
-        - cd ../../example
-        - ../rust/origen/target/debug/origen -v
-        - ../rust/origen/target/debug/origen setup
-      script:
-        - $HOME/.poetry/bin/poetry run pytest
-    # Run Python frontend tests on Windows, using Rust 1.40 nightly-MSVC to compile the backend.
-    - language: rust
-      rust: 1.40.0
-      os: windows
-      before_script:
-        - choco install python3 --version 3.7.6
-        - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
-        - python --version
-        - python --version
-        - cd rust/origen
-        - rustup override set nightly-x86_64-pc-windows-msvc
-        - cd pyapi
-        - cargo build
-        - cd ..
-        - cargo build --verbose --all --workspace --bins
-        - cp ./target/debug/_origen.dll ../../python/_origen.pyd
-        - cd ../../example
-        - ../rust/origen/target/debug/origen -v
-        - ../rust/origen/target/debug/origen setup
-      script:
-        - $HOME/.poetry/bin/poetry run pytest
-    # Run Python frontend tests on Windows, using Rust 1.40 nightly-MSVC to compile the backend.
-    - language: rust
-      rust: 1.40.0
-      os: windows
-      before_script:
-        - choco install python3 --version 3.6.8 --override --installarguments "TargetDir=/c/PythonForO2"
+        - choco install python3 --version 3.6.8 --override --installarguments '/quiet InstallAllUsers=1 PrependPath=1 "TargetDir=/c/PythonForO2"'
         - export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
         - python --version
         - python --version
@@ -172,19 +172,21 @@ matrix:
 #   1.40.0
 
 # env:
-#   - O2_REGRESSION=BACKEND O2_PYTHON=3.8.1
-#   - O2_REGRESSION=FRONTEND O2_PYTHON=3.8.1
-#   - O2_REGRESSION=FRONTEND O2_PYTHON=3.7.6
-#   - O2_REGRESSION=FRONTEND O2_PYTHON=3.6.8
+#   - O2_REGRESSION=BACKEND O2_PYTHON_VERSION=3.8.1
+#   - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.8.1
+#   - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.7.6
+#   - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.6.8
 
-# If we're on Windows, us Choco to install and add it to the path.
-# If Linux, use pyenv.
+# # If we're on Windows, us Choco to install and add it to the path.
+# # If Linux, use pyenv.
 # before_install:
 #   - if [ "${TRAVIS_OS_NAME}" == "windows"]; then
-#   -   ...
+#   -   choco install python3 --version ${O2_PYTHON_VERSION} --override --installarguments "TargetDir=/c/PythonForO2"
+#   -   export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
 #   - else
-#   -   ...
+#   -   ~/virtualenv/python${O2_PYTHON_VERSION}/bin/activate
 #   - fi
+#   - python --version
 
 # # Compile the backend.
 # before_script:
