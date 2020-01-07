@@ -1,5 +1,4 @@
 import origen
-from origen.errors import *
 
 # A middleman between the Python controller and the associated Rust model and
 # which implements the application/user API for working with (sub-)blocks.
@@ -42,27 +41,15 @@ class Loader:
     def __init__(self, controller):
         self.controller = controller
 
-    def sub_block(self, name, block_path=None):        
-        sub_blocks_check = self.sub_blocks(name)
-        if sub_blocks_check is None:
-            b = self.controller.app.instantiate_block(block_path)
-            b.name = name
-            b.path = f"{self.controller.path}.{name}"
-            # Add the python representation of this block to its parent
-            self.controller.sub_blocks.__add_block__(name, b)
-            # Create a new representation of it in the internal database
-            b.model_id = origen.dut.db.create_model(self.controller.model_id, name)
-            return b
-        else:
-            raise DuplicateInstanceError(sub_blocks_check, 'sub_block')
-
-    def sub_blocks(self, name=None):
-        if name is None:
-            return self.controller.sub_blocks
-        elif name in self.controller.sub_blocks:
-            return self.controller.sub_blocks[name]
-        else:
-            return None
+    def sub_block(self, name, block_path=None):
+        b = self.controller.app.instantiate_block(block_path)
+        b.name = name
+        b.path = f"{self.controller.path}.{name}"
+        # Add the python representation of this block to its parent
+        self.controller.sub_blocks.__add_block__(name, b)
+        # Create a new representation of it in the internal database
+        b.model_id = origen.dut.db.create_model(self.controller.model_id, name)
+        return b
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py
     def api(self):
