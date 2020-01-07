@@ -16,16 +16,16 @@ matrix:
       os: windows
       before_script:
         - choco install python3 --version 3.8.1
-        - choco list
-        - ls /c/ProgramData/chocolatey/bin
-        - ls /c/
+        # - choco list
+        # - ls /c/ProgramData/chocolatey/bin
+        # - ls /c/
         - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
         - python --version
         - powershell python --version
        # - choco install windows-sdk-10.0
       script:
         - cd rust/origen
-        - rustup override set nightly
+        - powershell rustup override set nightly
         - cd pyapi
         - powershell cargo build
         - cd ..
