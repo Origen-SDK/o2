@@ -1,5 +1,5 @@
-# matrix:
-#   include:
+matrix:
+  include:
 #     # Run Rust backend tests on Linux
 #     - language: rust
 #       rust: 1.40.0
