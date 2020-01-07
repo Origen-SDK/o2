@@ -1,5 +1,6 @@
 matrix:
   include:
+    # Run Rust backend tests on Linux
     # - language: rust
     #   rust: 1.40.0
     #   os: linux
@@ -11,18 +12,15 @@ matrix:
     #     - cd ../
     #     - cargo build --verbose --all --workspace --bins
     #     - cargo test
+    # Run Rust backend tests on Windows, using MSVC (Microsoft Visual Studio) toolchain
     - language: rust
       rust: 1.40.0
       os: windows
       before_script:
         - choco install python3 --version 3.8.1
-        # - choco list
-        # - ls /c/ProgramData/chocolatey/bin
-        # - ls /c/
         - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
         - python --version
         - python --version
-       # - choco install windows-sdk-10.0
       script:
         - cd rust/origen
         - rustup override set nightly-x86_64-pc-windows-msvc
@@ -31,6 +29,7 @@ matrix:
         - cd ..
         - cargo build --verbose --all --workspace --bins
         - cargo test
+    # Run Python frontend tests on Linux, using Rust 1.40 nightly to compile the backend
     # - language: python
     #   python: 3.8
     #   script:
@@ -52,3 +51,25 @@ matrix:
     #     - ../rust/origen/target/debug/origen setup
     #     - source $HOME/.poetry/env
     #     - poetry run pytest
+    # Run Python frontend tests on Windows, using Rust 1.40 nightly-MSVC to compile the backend.
+    - language: rust
+      rust: 1.40.0
+      os: windows
+      before_script:
+        - choco install python3 --version 3.8.1
+        - export PATH="/c/Python38:/c/Python38/Scripts:$PATH"
+        - python --version
+        - python --version
+        - cd rust/origen
+        - rustup override set nightly-x86_64-pc-windows-msvc
+        - cd pyapi
+        - cargo build
+        - cd ..
+        - cargo build --verbose --all --workspace --bins
+        - cp ./target/debug/_origen.dll ../../python/_origen.pyd
+        - cd ../../example
+        - ../rust/origen/target/debug/origen -v
+        - ../rust/origen/target/debug/origen setup
+        - $HOME/.poetry/bin/poetry run pytest
+      script:
+        - cargo test
