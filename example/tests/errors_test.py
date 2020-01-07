@@ -3,13 +3,11 @@ import pytest
 from origen.errors import *
 
 def boot_falcon():
-    if origen.app is None:
-        return origen.app.instantiate_dut("dut.falcon")
-    else:
-        return origen.app
+    return origen.app.instantiate_dut("dut.falcon") if origen.dut is None else origen.dut
 
 def test_duplicate_detected_error():
-    app = boot_falcon()
-    with pytest.raises(DuplicateDetectedError) as err_info:
-        raise DuplicateDetectedError(app)
-    assert str(err_info.value) == "Cannot create instance of class 'example.application.Application' named 'example', it already exists!"
+    boot_falcon()
+    assert list(origen.dut.sub_blocks.keys()) == ['core0', 'core1', 'core2', 'core3']
+    with pytest.raises(DuplicateInstanceError) as err_info:
+        origen.dut.add_sub_block('core0')
+    assert str(err_info.value) == "Cannot create instance of 'sub_block' named 'core0', it already exists!"
