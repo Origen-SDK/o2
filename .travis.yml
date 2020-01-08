@@ -200,12 +200,11 @@ before_script:
   - cargo build
   - cd ..
   - cargo build --verbose --all --workspace --bins
-  - cp ./target/debug/_origen.dll ../../python/_origen.pyd
+  - if [ "${TRAVIS_OS_NAME}" == "windows" ]; then cp ./target/debug/_origen.dll ../../python/_origen.pyd; fi
 
 script:
   - >
     if [ "${O2_REGRESSION}" = "BACKEND" ]; then
-      cd ..
       cargo test
     else
       cd ../../example
