@@ -67,9 +67,9 @@ fn test() {
   let t = Timeset::new("t1", Some(Box::new("1.0 + 1")), Option::None);
   assert!(t.eval(None).is_err());
 
-  let t = Timeset::new("t1", Some(Box::new("period")), Option::None);
+  let t = Timeset::new("t1", Some(Box::new("period")), Some(1.0 as f64));
   assert_eq!(t.eval(Some(1.0 as f64)).unwrap(), 1.0 as f64);
 
-  let t = Timeset::new("t1", Some(Box::new("period + 0.25")), Option::None);
+  let t = Timeset::new("t1", Some(Box::new("period + 0.25")), Some(1.0 as f64));
   assert_eq!(t.eval(Some(1.0 as f64)).unwrap(), 1.25 as f64);
 }

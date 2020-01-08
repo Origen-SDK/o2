@@ -1,0 +1,59 @@
+os:
+  - linux
+  - windows
+
+language: rust
+
+# Add or change the Rust version as needed.
+rust:
+  1.40.0
+
+# For each OS and Rust version, both the frontend and backend specs will be run.
+# For the backend, only a single Python version is needed.
+# For the frontend, it'll be tested against the Python versions below, corresponding to the latest Chocolately release for 3.6, 3.7, and 3.8.
+# Additional Python versions, or even frontend lanuages, can be added here as needed.
+env:
+  - O2_REGRESSION=BACKEND O2_PYTHON_VERSION=3.8.1 LINUX_BIN_PATH=3.8
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.8.1 LINUX_BIN_PATH=3.8
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.7.6 LINUX_BIN_PATH=3.7
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.6.8 LINUX_BIN_PATH=3.6
+
+# We cannot pass files between builds without using a dummy repo or something similiar. Instead, we'll indicate Rust as the main language above and install
+# Python manually. This works out alright since the Windows environment need Python manually installed anyway.
+# (coreyeng) Activating the Python version we've installed in Linux seems to mess with some Python libraries' availability. This only seems to affect 'cargo test'
+#            though; it'll still build fine (as evidenced by the frontend tests) but the Rust regressions will fail.
+#            Since the Linux default is fine for backend tests, just skipping over the activation for the backend.
+before_install:
+  - >
+    if [ "${TRAVIS_OS_NAME}" == "windows" ]; then
+      choco install python3 --version ${O2_PYTHON_VERSION} --override --installarguments '/quiet InstallAllUsers=1 PrependPath=1 "TargetDir=C:\PythonForO2"'
+      export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
+    else
+      export archive_url=https://storage.googleapis.com/travis-ci-language-archives/python/binaries/ubuntu/16.04/x86_64/python-${LINUX_BIN_PATH}.tar.bz2
+      curl -sSf --retry 5 -o python-${LINUX_BIN_PATH}.tar.bz2 ${archive_url}
+      sudo tar xjf python-${LINUX_BIN_PATH}.tar.bz2 --directory /
+      if [ "${O2_REGRESSION}" == "FRONTEND" ]; then source ~/virtualenv/python$LINUX_BIN_PATH/bin/activate; fi
+    fi
+  - python --version
+
+# Compile the backend.
+# For Windows, force the MSVC build (Microsoft Visual Studio)
+before_script:
+  - cd rust/origen
+  - if [ "${TRAVIS_OS_NAME}" == "windows" ]; then rustup override set nightly-x86_64-pc-windows-msvc; else rustup override set nightly; fi
+  - cd pyapi
+  - cargo build
+  - cd ..
+  - cargo build --verbose --all --workspace --bins
+
+script:
+  - >
+    if [ "${O2_REGRESSION}" == "BACKEND" ]; then
+      cargo test
+    else
+      if [ "${TRAVIS_OS_NAME}" == "windows" ]; then cp ./target/debug/_origen.dll ../../python/_origen.pyd; fi
+      cd ../../example
+      ../rust/origen/target/debug/origen -v
+      ../rust/origen/target/debug/origen setup
+      $HOME/.poetry/bin/poetry run pytest
+    fi
