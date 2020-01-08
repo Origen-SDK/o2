@@ -6,6 +6,7 @@ import re
 import pdb
 from origen.controller import TopLevel
 from origen.translator import Translator
+from origen.compiler import Compiler
 from origen.errors import *
 
 # The base class of all application classes
@@ -105,3 +106,8 @@ class Base:
 
     def translate(self, remote_file):
         self.translator.translate(remote_file)
+
+    def compile(self, *files, **options):
+        _compiler = Compiler(*files, **options)
+        _compiler.run
+        return _compiler
