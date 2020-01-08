@@ -445,15 +445,6 @@ impl<'a> DoubleEndedIterator for RegisterFieldIterator<'a> {
 }
 
 impl Register {
-    pub fn create_bits(&mut self) {
-        for field in self.named_bits(true).collect::<Vec<SummaryField>>() {
-            for i in 0..field.width {
-                //dut.bits.push(Bit{overlay: None, register_id: reg.id, state: 0});
-                self.bits.push(i as usize);
-            }
-        }
-    }
-
     /// Returns a path to this register like "dut.my_block.my_map.my_address_block.my_reg", but the map and address block portions
     /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
     /// don't use them and simply define regs at the top-level of the block.
