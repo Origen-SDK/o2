@@ -1,6 +1,7 @@
 import origen
 import re
 import bs4
+from origen.errors import *
 from bs4 import BeautifulSoup
 
 class IpXact:

@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::class::mapping::*;
 use origen::error::Error;
-use super::super::timesets::{DictLikeAPI, DictLikeIter};
+use super::super::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter};
 
 #[macro_export]
 macro_rules! pytimeset_container {
@@ -35,10 +35,6 @@ impl TimesetContainer {
 }
 
 impl DictLikeAPI for TimesetContainer {
-  //type IdMapper = HashMap<String, usize>; //origen::core::model::timesets::Timesets;
-  type PyItem = super::timeset::Timeset;
-  // , model: &origen::core::model::Model
-
   fn lookup_key(&self) -> &str {
     &"timesets"
   }
@@ -48,7 +44,6 @@ impl DictLikeAPI for TimesetContainer {
   }
 
   fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error> {
-    //Ok(super::timeset::Timeset::new(name, model_id))
     Ok(Py::new(py, super::timeset::Timeset::new(name, model_id)).unwrap().to_object(py))
   }
 }

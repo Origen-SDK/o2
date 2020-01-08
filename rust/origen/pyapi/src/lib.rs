@@ -1,3 +1,4 @@
+mod meta;
 mod address_block;
 mod dut;
 mod logger;

@@ -4,6 +4,7 @@ from origen import pins
 from origen import timesets
 from origen.registers import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
+from origen.errors import *
 from contextlib import contextmanager
 
 class Proxies:

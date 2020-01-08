@@ -1,4 +1,5 @@
 import origen
+from origen.errors import *
 
 class Proxy:
   def __init__(self, controller):
