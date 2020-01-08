@@ -21,7 +21,7 @@ pub struct Dut {
     address_blocks: Vec<AddressBlock>,
     register_files: Vec<RegisterFile>,
     registers: Vec<Register>,
-    bits: Vec<Bit>,
+    pub bits: Vec<Bit>,
 }
 
 impl Dut {
@@ -364,12 +364,11 @@ impl Dut {
             None => {}
         }
         let reg = Register {
+            id: id,
             name: name.to_string(),
             offset: offset,
             ..defaults
         };
-
-        //reg.create_bits();
 
         self.registers.push(reg);
         Ok(id)

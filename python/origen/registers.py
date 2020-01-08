@@ -1,9 +1,6 @@
 import origen
-<<<<<<< HEAD
 import _origen
-=======
 from origen.errors import *
->>>>>>> master
 from contextlib import contextmanager
 
 # This defines the API for defining registers in Python and then handles serializing

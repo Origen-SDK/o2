@@ -1,3 +1,4 @@
+from time import time
 # Registers added in the global scope of these files will be added to
 # a memory map called 'default' and within that an address block called
 # 'default'. Such regs can be accessed via my_block.regs and users who
@@ -13,9 +14,10 @@ SimpleReg("reg2", 4, size=16)
 #for i in range(20000):
 #    SimpleReg(f"areg{i}", 4)
 
-NUM_REGS = 1#20000
+NUM_REGS = 20000
 
-origen.logger.info(f"Building {NUM_REGS} regs")
+#origen.logger.info(f"Building {NUM_REGS} regs")
+start_time = time()
 for i in range(NUM_REGS):
     # This is the reg description
     with Reg(f"areg{i}", 0x0024, size=16):
@@ -29,7 +31,9 @@ for i in range(NUM_REGS):
             # A more complex enum, all fields except for value are optional
             "val2": { "value": 5, "usage": "w", "description": "The value of something"},
         })
-origen.logger.info(f"Building {NUM_REGS} regs complete")
+end_time = time()
+#origen.logger.info(f"Building {NUM_REGS} regs complete")
+origen.logger.info(f"Building {NUM_REGS} regs took: {end_time - start_time}")
 
 # Regs can be added within a defined memory map, and in this case no address
 # block is given so that will mean they are placed in a default address block

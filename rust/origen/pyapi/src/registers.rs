@@ -6,6 +6,7 @@ mod register;
 //use crate::dut::PyDUT;
 //use origen::core::model::registers::Register;
 use bit_collection::BitCollection;
+use origen::core::model::registers::{Bit, SummaryField};
 use origen::DUT;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -31,24 +32,50 @@ fn create(
     size: Option<u32>,
     fields: Vec<&Field>,
 ) -> PyResult<usize> {
-    let mut dut = origen::dut();
-    let id = dut.create_reg(address_block_id, name, offset, size)?;
-    let mut reg = dut.get_mut_register(id)?;
-    for f in &fields {
-        let mut field = reg.add_field(
-            &f.name,
-            &f.description,
-            f.offset,
-            f.width,
-            &f.access,
-            &f.reset,
-        )?;
-        for e in &f.enums {
-            field.add_enum(&e.name, &e.description, &e.value);
-        }
-        //println!("Received field: {:?}", field);
+    let reg_id;
+    let reg_fields;
+    let base_bit_id;
+
+    {
+        base_bit_id = origen::dut().bits.len();
     }
-    Ok(id)
+    {
+        let mut dut = origen::dut();
+        reg_id = dut.create_reg(address_block_id, name, offset, size)?;
+        let mut reg = dut.get_mut_register(reg_id)?;
+        for f in &fields {
+            let mut field = reg.add_field(
+                &f.name,
+                &f.description,
+                f.offset,
+                f.width,
+                &f.access,
+                &f.reset,
+            )?;
+            for e in &f.enums {
+                field.add_enum(&e.name, &e.description, &e.value);
+            }
+        }
+        for i in 0..reg.size as usize {
+            reg.bits.push((base_bit_id + i) as usize);
+        }
+        reg_fields = reg.named_bits(true).collect::<Vec<SummaryField>>();
+    }
+
+    // Create the bits now that we know which ones are implemented
+    let mut dut = origen::dut();
+    for field in reg_fields {
+        for _i in 0..field.width {
+            dut.bits.push(Bit {
+                overlay: None,
+                register_id: reg_id,
+                state: 0,
+                unimplemented: field.spacer,
+            });
+        }
+    }
+
+    Ok(reg_id)
 }
 
 ///// Returns an empty register collection

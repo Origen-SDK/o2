@@ -258,6 +258,7 @@ impl Default for RegisterFile {
 
 #[derive(Debug)]
 pub struct Register {
+    pub id: usize,
     pub name: String,
     pub description: Option<String>,
     // TODO: What is this?!
@@ -271,7 +272,7 @@ pub struct Register {
     pub fields: IndexMap<String, Field>,
     /// Contains all bits implemented by the register, bits[i] will return None if
     /// the bit is unimplemented/undefined
-    pub bits: Vec<Bit>,
+    pub bits: Vec<usize>,
     // TODO: Should this be defined on Register, or inherited from address block/memory map?
     pub bit_order: BitOrder,
 }
@@ -279,6 +280,7 @@ pub struct Register {
 impl Default for Register {
     fn default() -> Register {
         Register {
+            id: 0,
             name: "".to_string(),
             description: None,
             dim: 1,
@@ -444,8 +446,11 @@ impl<'a> DoubleEndedIterator for RegisterFieldIterator<'a> {
 
 impl Register {
     pub fn create_bits(&mut self) {
-        for _i in 0..self.size {
-            self.bits.push(Bit::default());
+        for field in self.named_bits(true).collect::<Vec<SummaryField>>() {
+            for i in 0..field.width {
+                //dut.bits.push(Bit{overlay: None, register_id: reg.id, state: 0});
+                self.bits.push(i as usize);
+            }
         }
     }
 
@@ -929,33 +934,17 @@ pub struct EnumeratedValue {
     pub value: BigUint,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct Bit {
-    /// When true the bit stores a 1, else 0 (unless the Z or X bit is set)
-    pub set: bool,
-    /// When set the bit value is X
-    pub x: bool,
-    /// When set the bit value is Z
-    pub z: bool,
-    /// When set the overlay string should be applied to pattern vectors for this bit
-    pub overlay: bool,
-    pub overlay_str: String,
-    /// When set the bit should be compared during a read transaction
-    pub compare: bool,
-    /// When set the bit should be captured during a read transaction
-    pub capture: bool,
-}
-
-impl Default for Bit {
-    fn default() -> Bit {
-        Bit {
-            set: false,
-            x: false,
-            z: false,
-            overlay: false,
-            overlay_str: "".to_string(),
-            compare: false,
-            capture: false,
-        }
-    }
+    pub register_id: usize,
+    pub overlay: Option<String>,
+    /// The individual bits mean the following:
+    /// 0 - Data value
+    /// 1 - Value is X when 1
+    /// 2 - Value is Z when 1
+    /// 3 - Bit is to be read
+    /// 4 - Bit is to be captured
+    /// 5 - Bit has an overlay (defined by overlay str)
+    pub state: u8,
+    pub unimplemented: bool,
 }
