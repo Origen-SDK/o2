@@ -1,4 +1,4 @@
-use super::{AccessType, BitOrder};
+use super::{AccessType, BitCollection, BitOrder};
 use crate::Error;
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
@@ -153,6 +153,7 @@ impl<'a> RegisterFieldIterator<'a> {
                         width = self.pos - offset;
                     }
                     summary = SummaryField {
+                        reg_id: self.reg.id,
                         name: "spacer".to_string(),
                         offset: offset,
                         width: width,
@@ -161,6 +162,7 @@ impl<'a> RegisterFieldIterator<'a> {
                 } else {
                     let field = self.field(ascending, false).unwrap();
                     summary = SummaryField {
+                        reg_id: self.reg.id,
                         name: field.name.clone(),
                         offset: field.offset,
                         width: field.width,
@@ -423,20 +425,20 @@ impl Register {
 
                     if field.width > 1 {
                         if !field.spacer {
-                            //let bits = BitCollection::from_field(field);
-                            //        if bit.has_known_value?
-                            //          value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
-                            //        else
-                            //          if bit.reset_val == :undefined
-                            //            value = 'X'
-                            //          else
-                            //            value = 'M'
-                            //          end
-                            //        end
-                            //        value += _state_desc(bit)
-                            //        bit_span = _num_bits_in_range(bit, max_bit, min_bit)
-                            //        width = bit_width * bit_span
-                            //        line << vert_single_line + value.center(width + bit_span - 1)
+                            let bits = field.to_bit_collection(dut);
+                            if bits.has_known_value() {
+                                //          value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
+                            } else {
+                                //          if bit.reset_val == :undefined
+                                //            value = 'X'
+                                //          else
+                                //            value = 'M'
+                                //          end
+                            }
+                        //        value += _state_desc(bit)
+                        //        bit_span = _num_bits_in_range(bit, max_bit, min_bit)
+                        //        width = bit_width * bit_span
+                        //        line << vert_single_line + value.center(width + bit_span - 1)
                         } else {
                             for i in 0..field.width {
                                 if is_index_in_range((field.offset + i) as usize, max_bit, min_bit)
@@ -648,11 +650,25 @@ impl Field {
 /// A lightweight version of a Field that is returned by the my_reg.named_bits iterator,
 /// and which is also used to represent gaps in the register (when spacer = true).
 pub struct SummaryField {
+    pub reg_id: usize,
     pub name: String,
     pub offset: u32,
     /// Width of the field in bits.
     pub width: u32,
     pub spacer: bool,
+}
+
+impl SummaryField {
+    pub fn to_bit_collection<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
+        let mut bits: Vec<usize> = Vec::new();
+        let reg = dut.get_register(self.reg_id).unwrap();
+
+        for i in 0..self.width {
+            bits.push(reg.bits[(self.offset + i) as usize]);
+        }
+
+        BitCollection::for_bit_ids(bits, dut)
+    }
 }
 
 //#[derive(Debug)]

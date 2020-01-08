@@ -12,3 +12,10 @@ pub struct Bit {
     pub state: u8,
     pub unimplemented: bool,
 }
+
+impl Bit {
+    /// Returns true if not in X or Z state
+    pub fn has_known_value(&self) -> bool {
+        self.state & 0b110 == 0
+    }
+}
