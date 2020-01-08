@@ -5,13 +5,13 @@ extern crate serde;
 
 pub mod core;
 pub mod error;
+pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 use self::core::dut::Dut;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
-use crate::error::Error;
 use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
