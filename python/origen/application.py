@@ -17,6 +17,7 @@ class Base:
     __instantiate_dut_called = False
 
     translator = Translator()
+    compiler = Compiler()
 
     # Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon
     def block_path_to_filepath(self, path):
@@ -107,7 +108,6 @@ class Base:
     def translate(self, remote_file):
         self.translator.translate(remote_file)
 
-    def compile(self, *files, **options):
-        _compiler = Compiler(*files, **options)
-        _compiler.run
-        return _compiler
+    def compile(self, *args, **options):
+        self.compiler.run(*args, **options)
+        return self.compiler
