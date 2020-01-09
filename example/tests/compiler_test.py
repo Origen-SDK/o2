@@ -12,7 +12,7 @@ def test_compiler_inits():
     assert origen.app.compiler.output_files == []
     assert isinstance(origen.app.compiler.syntax, origen.compiler.Compiler.MakoSyntax) == True
     
-def test_compiler_renders_text(capfd):
+def test_compiler_renders_text():
     origen.app.compile("hello, ${name}!", name='jack')
     assert len(origen.app.compiler.renders) == 1
     assert len(origen.app.compiler.stack) == 0
@@ -21,5 +21,6 @@ def test_compiler_renders_text(capfd):
     assert len(origen.app.compiler.renders) == 2
     assert len(origen.app.compiler.stack) == 0
     assert origen.app.compiler.renders[1] == "jack is a good boy!"
+    assert origen.app.compiler.renders[-1] == origen.app.compiler.last_render()
 
    

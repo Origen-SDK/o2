@@ -82,6 +82,9 @@ class Compiler:
         else:
             raise TypeError('Compiler stack is empty, cannot run!')
 
+    def last_render(self):
+        return self.renders[-1] if self.renders else None
+    
     def __templates_dir(self):
         templates_dir = pathlib.Path(f"{origen.root}/{origen.app.name}/templates")
         if not templates_dir.exists():
