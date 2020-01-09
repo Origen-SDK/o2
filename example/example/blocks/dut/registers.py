@@ -14,7 +14,7 @@ SimpleReg("reg2", 4, size=16)
 #for i in range(20000):
 #    SimpleReg(f"areg{i}", 4)
 
-NUM_REGS = 1#20000
+NUM_REGS = 20000
 
 #origen.logger.info(f"Building {NUM_REGS} regs")
 start_time = time()

@@ -340,8 +340,8 @@ impl Dut {
         &mut self,
         address_block_id: usize,
         name: &str,
-        offset: u32,
-        size: Option<u32>,
+        offset: usize,
+        size: Option<usize>,
     ) -> Result<usize> {
         let id;
         {

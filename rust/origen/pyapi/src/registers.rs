@@ -2,6 +2,7 @@ mod address_block;
 mod bit_collection;
 mod memory_map;
 mod register;
+use std::sync::RwLock;
 
 //use crate::dut::PyDUT;
 //use origen::core::model::registers::Register;
@@ -28,8 +29,8 @@ pub fn registers(_py: Python, m: &PyModule) -> PyResult<()> {
 fn create(
     address_block_id: usize,
     name: &str,
-    offset: u32,
-    size: Option<u32>,
+    offset: usize,
+    size: Option<usize>,
     fields: Vec<&Field>,
 ) -> PyResult<usize> {
     let reg_id;
@@ -67,9 +68,9 @@ fn create(
     for field in reg_fields {
         for _i in 0..field.width {
             dut.bits.push(Bit {
-                overlay: None,
+                overlay: RwLock::new(None),
                 register_id: reg_id,
-                state: 0,
+                state: RwLock::new(0),
                 unimplemented: field.spacer,
             });
         }

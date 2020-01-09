@@ -16,9 +16,9 @@ pub struct Register {
     /// The dimension of the register, defaults to 1.
     pub dim: u32,
     /// Address offset from the start of the parent address block in address_unit_bits.
-    pub offset: u32,
+    pub offset: usize,
     /// The size of the register in bits.
-    pub size: u32,
+    pub size: usize,
     pub access: AccessType,
     pub fields: IndexMap<String, Field>,
     /// Contains all bits implemented by the register, bits[i] will return None if
@@ -53,7 +53,7 @@ pub struct RegisterFieldIterator<'a> {
     // Tracks index through the field_names array
     index: usize,
     // Keeps track of the last register bit position
-    pos: u32,
+    pos: usize,
 }
 
 impl<'a> RegisterFieldIterator<'a> {
@@ -306,7 +306,7 @@ impl Register {
             self.address(dut),
             self.friendly_path(dut)
         )];
-        let r = (self.size % 8) as usize;
+        let r = self.size % 8;
         if r == 0 {
             let mut s = "  ".to_string()
                 + corner_double_up_left
@@ -326,15 +326,15 @@ impl Register {
         for byte_index in 0..num_bytes {
             let byte_number = num_bytes - byte_index;
             // The max bit number in the current byte row
-            let max_bit = (byte_number * 8) - 1;
+            let max_bit: usize = (byte_number * 8) - 1;
             // The min bit number in the current byte row
-            let min_bit = max_bit + 1 - 8;
+            let min_bit: usize = max_bit + 1 - 8;
 
             // BIT INDEX ROW
             let mut line = "  ".to_string();
             for i in 0..8 {
                 let bit_num = (byte_number * 8) - i - 1;
-                if bit_num > self.size as usize - 1 {
+                if bit_num > self.size - 1 {
                     line += &" ".repeat(bit_width);
                 } else {
                     if bit_order == BitOrder::LSB0 {
@@ -344,7 +344,7 @@ impl Register {
                         line += vert_single_line;
                         line += &format!(
                             "{: ^bit_width$}",
-                            self.size - bit_num as u32 - 1,
+                            self.size - bit_num - 1,
                             bit_width = bit_width
                         );
                     }
@@ -358,8 +358,8 @@ impl Register {
             let mut first_done = false;
             for field in self.named_bits(true).rev() {
                 if is_field_in_range(&field, max_bit, min_bit) {
-                    if max_bit > (self.size as usize - 1) && !first_done {
-                        for _i in 0..(max_bit - (self.size as usize - 1)) {
+                    if max_bit > (self.size - 1) && !first_done {
+                        for _i in 0..(max_bit - (self.size - 1)) {
                             line += &" ".repeat(bit_width + 1);
                         }
                     }
@@ -387,14 +387,13 @@ impl Register {
                             //            bit_span = upper - lower + 1
                             //        end
 
-                            let width = (bit_width * bit_span as usize) + bit_span as usize - 1;
+                            let width = (bit_width * bit_span) + bit_span - 1;
                             let txt = &bit_name.chars().take(width - 2).collect::<String>();
                             line += vert_single_line;
                             line += &format!("{: ^bit_width$}", txt, bit_width = width);
                         } else {
                             for i in 0..field.width {
-                                if is_index_in_range((field.offset + i) as usize, max_bit, min_bit)
-                                {
+                                if is_index_in_range(field.offset + i, max_bit, min_bit) {
                                     line += vert_single_line;
                                     line += &" ".repeat(bit_width);
                                 }
@@ -417,8 +416,8 @@ impl Register {
             let mut first_done = false;
             for field in self.named_bits(true).rev() {
                 if is_field_in_range(&field, max_bit, min_bit) {
-                    if max_bit > (self.size as usize - 1) && !first_done {
-                        for _i in 0..(max_bit - (self.size as usize - 1)) {
+                    if max_bit > (self.size - 1) && !first_done {
+                        for _i in 0..(max_bit - self.size - 1) {
                             line += &" ".repeat(bit_width + 1);
                         }
                     }
@@ -426,8 +425,15 @@ impl Register {
                     if field.width > 1 {
                         if !field.spacer {
                             let bits = field.to_bit_collection(dut);
+                            //let value;
                             if bits.has_known_value() {
-                                //          value = '0x%X' % bit.val[_max_bit_in_range(bit, max_bit, min_bit).._min_bit_in_range(bit, max_bit, min_bit)]
+                                let v = bits
+                                    .range(
+                                        max_bit_in_range(&field, max_bit, min_bit, &bit_order),
+                                        min_bit_in_range(&field, max_bit, min_bit, &bit_order),
+                                    )
+                                    .data();
+                            //value = '0x%X' % bit.val[.._min_bit_in_range(bit, max_bit, min_bit)]
                             } else {
                                 //          if bit.reset_val == :undefined
                                 //            value = 'X'
@@ -441,8 +447,7 @@ impl Register {
                         //        line << vert_single_line + value.center(width + bit_span - 1)
                         } else {
                             for i in 0..field.width {
-                                if is_index_in_range((field.offset + i) as usize, max_bit, min_bit)
-                                {
+                                if is_index_in_range(field.offset + i, max_bit, min_bit) {
                                     line += vert_single_line;
                                     line += &" ".repeat(bit_width);
                                 }
@@ -473,7 +478,7 @@ impl Register {
             desc.push(line);
 
             if self.size >= 8 {
-                let r = (self.size % 8) as usize;
+                let r = self.size % 8;
                 if byte_index == 0 && r != 0 {
                     let mut s = "  ".to_string()
                         + corner_double_up_left
@@ -502,10 +507,10 @@ impl Register {
                 }
             } else {
                 let mut s = "  ".to_string()
-                    + &" ".repeat((bit_width + 1) * (8 - self.size as usize))
+                    + &" ".repeat((bit_width + 1) * (8 - self.size))
                     + corner_single_down_left
                     + &(horiz_single_line.repeat(bit_width) + horiz_single_tee_up)
-                        .repeat(self.size as usize);
+                        .repeat(self.size);
                 s.pop();
                 desc.push(s + corner_single_down_right);
             }
@@ -517,8 +522,8 @@ impl Register {
         &mut self,
         name: &str,
         description: &str,
-        offset: u32,
-        width: u32,
+        offset: usize,
+        width: usize,
         access: &str,
         reset: &BigUint,
     ) -> OrigenResult<&mut Field> {
@@ -559,36 +564,36 @@ impl Register {
 //end
 //end
 
-fn max_bit_in_range(field: &SummaryField, max: usize, _min: usize, bit_order: &BitOrder) -> u32 {
+fn max_bit_in_range(field: &SummaryField, max: usize, _min: usize, bit_order: &BitOrder) -> usize {
     let upper = field.offset + field.width - 1;
     if *bit_order == BitOrder::MSB0 {
-        field.width - (cmp::min(upper, max as u32) - field.offset) - 1
+        field.width - (cmp::min(upper, max) - field.offset) - 1
     } else {
-        cmp::min(upper, max as u32) - field.offset
+        cmp::min(upper, max) - field.offset
     }
 }
 
-fn min_bit_in_range(field: &SummaryField, _max: usize, min: usize, bit_order: &BitOrder) -> u32 {
+fn min_bit_in_range(field: &SummaryField, _max: usize, min: usize, bit_order: &BitOrder) -> usize {
     let lower = field.offset;
     if *bit_order == BitOrder::MSB0 {
-        field.width - (cmp::max(lower, min as u32) - lower) - 1
+        field.width - (cmp::max(lower, min) - lower) - 1
     } else {
-        cmp::max(lower, min as u32) - field.offset
+        cmp::max(lower, min) - field.offset
     }
 }
 
 /// Returns true if some portion of the given bit Field falls within the given range
 fn is_field_in_range(field: &SummaryField, max: usize, min: usize) -> bool {
-    let upper = (field.offset + field.width - 1) as usize;
-    let lower = field.offset as usize;
+    let upper = field.offset + field.width - 1;
+    let lower = field.offset;
     !((lower > max) || (upper < min))
 }
 
 //# Returns the number of bits from the given field that fall within the given range
-fn num_bits_in_range(field: &SummaryField, max: usize, min: usize) -> u32 {
+fn num_bits_in_range(field: &SummaryField, max: usize, min: usize) -> usize {
     let upper = field.offset + field.width - 1;
     let lower = field.offset;
-    cmp::min(upper, max as u32) - cmp::max(lower, min as u32) + 1
+    cmp::min(upper, max) - cmp::max(lower, min) + 1
 }
 
 /// Returns true if the given index number is in the given range
@@ -614,9 +619,9 @@ pub struct Field {
     pub name: String,
     pub description: String,
     /// Offset from the start of the register in bits.
-    pub offset: u32,
+    pub offset: usize,
     /// Width of the field in bits.
-    pub width: u32,
+    pub width: usize,
     pub access: AccessType,
     // Contains any reset values defined for this field.
     //pub resets: Vec<Reset>,
@@ -652,9 +657,9 @@ impl Field {
 pub struct SummaryField {
     pub reg_id: usize,
     pub name: String,
-    pub offset: u32,
+    pub offset: usize,
     /// Width of the field in bits.
-    pub width: u32,
+    pub width: usize,
     pub spacer: bool,
 }
 
@@ -664,7 +669,7 @@ impl SummaryField {
         let reg = dut.get_register(self.reg_id).unwrap();
 
         for i in 0..self.width {
-            bits.push(reg.bits[(self.offset + i) as usize]);
+            bits.push(reg.bits[self.offset]);
         }
 
         BitCollection::for_bit_ids(bits, dut)
