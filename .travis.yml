@@ -39,19 +39,20 @@ before_install:
 # Compile the backend.
 # For Windows, force the MSVC build (Microsoft Visual Studio)
 before_script:
-  - cd rust/origen
+  - cd rust
   - if [ "${TRAVIS_OS_NAME}" == "windows" ]; then rustup override set nightly-x86_64-pc-windows-msvc; else rustup override set nightly; fi
-  - cd pyapi
-  - cargo build
-  - cd ..
+  - cd origen
   - cargo build --verbose --all --workspace --bins
+  - cd ../pyapi
+  - cargo build
+  - cd ../origen
 
 script:
   - >
     if [ "${O2_REGRESSION}" == "BACKEND" ]; then
       cargo test
     else
-      if [ "${TRAVIS_OS_NAME}" == "windows" ]; then cp ./target/debug/_origen.dll ../../python/_origen.pyd; fi
+      if [ "${TRAVIS_OS_NAME}" == "windows" ]; then cp ../pyapi/target/debug/_origen.dll ../../python/_origen.pyd; fi
       cd ../../example
       ../rust/origen/target/debug/origen -v
       ../rust/origen/target/debug/origen setup
