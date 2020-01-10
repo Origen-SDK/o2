@@ -425,26 +425,32 @@ impl Register {
                     if field.width > 1 {
                         if !field.spacer {
                             let bits = field.to_bit_collection(dut);
-                            //let value;
+                            let mut value = "".to_string();
                             if bits.has_known_value() {
                                 let v = bits
                                     .range(
                                         max_bit_in_range(&field, max_bit, min_bit, &bit_order),
                                         min_bit_in_range(&field, max_bit, min_bit, &bit_order),
                                     )
-                                    .data();
-                            //value = '0x%X' % bit.val[.._min_bit_in_range(bit, max_bit, min_bit)]
+                                    .data()
+                                    .unwrap();
+                                value += &format!("{:#X}", v);
                             } else {
                                 //          if bit.reset_val == :undefined
-                                //            value = 'X'
+                                value += "X";
                                 //          else
                                 //            value = 'M'
                                 //          end
                             }
-                        //        value += _state_desc(bit)
-                        //        bit_span = _num_bits_in_range(bit, max_bit, min_bit)
-                        //        width = bit_width * bit_span
-                        //        line << vert_single_line + value.center(width + bit_span - 1)
+                            //        value += _state_desc(bit)
+                            let bit_span = num_bits_in_range(&field, max_bit, min_bit);
+                            let width = bit_width * bit_span;
+                            line += vert_single_line;
+                            line += &format!(
+                                "{: ^bit_width$}",
+                                value,
+                                bit_width = width + bit_span - 1
+                            );
                         } else {
                             for i in 0..field.width {
                                 if is_index_in_range(field.offset + i, max_bit, min_bit) {
@@ -455,17 +461,21 @@ impl Register {
                         }
                     } else {
                         if !field.spacer {
-                            //        if bit.has_known_value?
-                            //          val = bit.val
-                            //        else
-                            //          if bit.reset_val == :undefined
-                            //            val = 'X'
-                            //          else
-                            //            val = 'M'
-                            //          end
-                            //        end
-                            //        value = "#{val}" + _state_desc(bit)
-                            //        line << vert_single_line + value.center(bit_width)
+                            let bits = field.to_bit_collection(dut);
+                            let mut value = "".to_string();
+                            if bits.has_known_value() {
+                                //  val = bit.val
+                                value += &format!("{}", bits.data().unwrap());
+                            } else {
+                                //  if bit.reset_val == :undefined
+                                value += "X";
+                                //  else
+                                //    val = 'M'
+                                //  end
+                            }
+                            //value = "#{val}" + _state_desc(bit)
+                            line += vert_single_line;
+                            line += &format!("{: ^bit_width$}", value, bit_width = bit_width);
                         } else {
                             line += vert_single_line;
                             line += &" ".repeat(bit_width);
@@ -668,7 +678,7 @@ impl SummaryField {
         let mut bits: Vec<usize> = Vec::new();
         let reg = dut.get_register(self.reg_id).unwrap();
 
-        for i in 0..self.width {
+        for _i in 0..self.width {
             bits.push(reg.bits[self.offset]);
         }
 
