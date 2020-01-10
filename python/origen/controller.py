@@ -1,6 +1,7 @@
 import origen
 import _origen
 from origen import pins
+from origen import timesets
 from origen.registers import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
 from origen.errors import *
@@ -52,6 +53,7 @@ class Base:
         self.regs_loaded = False
         self.sub_blocks_loaded = False
         self.pins_loaded = False
+        self.timesets_loaded= False
 
     def __repr__(self):
         self._load_regs()
@@ -86,6 +88,15 @@ class Base:
         elif name == "memory_maps":
             self._load_regs()
             return origen.dut.db.memory_maps(self.model_id)
+
+        elif name in timesets.Proxy.api():
+            from origen.timesets import Proxy
+            proxy = timesets.Proxy(self)
+            self.__proxies__["timesets"] = proxy
+            for method in timesets.Proxy.api():
+                self.__setattr__(method, getattr(proxy, method))
+            self._load_timesets()
+            return eval(f"self.{name}")
 
         else:
             self._load_sub_blocks()
@@ -174,6 +185,11 @@ class Base:
         if not self.pins_loaded:
             self.app.load_block_files(self, "pins.py")
             self.pins_loaded = True
+
+    def _load_timesets(self):
+        if not self.timesets_loaded:
+            self.app.load_block_files(self, "timesets.py")
+            self.timesets_loaded = True
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

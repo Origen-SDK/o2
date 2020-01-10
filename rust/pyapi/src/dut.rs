@@ -1,5 +1,6 @@
 use crate::pins::PyInit_pins;
 use crate::registers::PyInit_registers;
+use crate::timesets::PyInit_timesets;
 use origen::error::Error;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
@@ -13,6 +14,7 @@ pub fn dut(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyDUT>()?;
     m.add_wrapped(wrap_pymodule!(pins))?;
     m.add_wrapped(wrap_pymodule!(registers))?;
+    m.add_wrapped(wrap_pymodule!(timesets))?;
     Ok(())
 }
 
