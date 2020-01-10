@@ -3,7 +3,6 @@ name = "pyapi"
 version = "0.0.0"  # Runtime version defined by top-level Cargo.toml
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 edition = "2018"
-workspace = ".."
 
 [lib]
 name = "_origen"
@@ -13,7 +12,7 @@ crate-type = ["cdylib"]
 ## See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-origen = { path = ".." }
+origen = { path = "../origen" }
 num-bigint = "0.2"
 
 [dependencies.pyo3]

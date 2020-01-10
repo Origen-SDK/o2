@@ -43,9 +43,9 @@ fn create(
     {
         let mut dut = origen::dut();
         reg_id = dut.create_reg(address_block_id, name, offset, size)?;
-        let mut reg = dut.get_mut_register(reg_id)?;
+        let reg = dut.get_mut_register(reg_id)?;
         for f in &fields {
-            let mut field = reg.add_field(
+            let field = reg.add_field(
                 &f.name,
                 &f.description,
                 f.offset,

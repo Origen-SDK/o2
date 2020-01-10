@@ -5,6 +5,7 @@ use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
 use crate::DUT;
+use std::sync::RwLock;
 
 /// The DUT stores all objects associated with a particular device.
 /// Each object type is organized into vectors, where a particular object's position within the
@@ -372,5 +373,23 @@ impl Dut {
 
         self.registers.push(reg);
         Ok(id)
+    }
+
+    /// Creates a bit for testing bit collections and so on, does not add the new
+    /// bit to a parent register
+    pub fn create_test_bit(&mut self) -> usize {
+        let id;
+        {
+            id = self.bits.len();
+        }
+        let bit = Bit {
+            overlay: RwLock::new(None),
+            register_id: 0,
+            state: RwLock::new(0),
+            unimplemented: false,
+        };
+
+        self.bits.push(bit);
+        id
     }
 }

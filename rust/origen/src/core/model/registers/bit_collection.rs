@@ -1,7 +1,7 @@
 use super::Bit;
 use crate::{Dut, Result};
 use num_bigint::BigUint;
-use std::sync::{MutexGuard, RwLock};
+use std::sync::MutexGuard;
 
 #[derive(Debug)]
 pub struct BitCollection<'a> {
@@ -27,6 +27,22 @@ impl<'a> BitCollection<'a> {
         }
     }
 
+    pub fn set_data(&self, value: BigUint) {
+        let mut bytes = value.to_bytes_be();
+
+        let mut byte = bytes.pop().unwrap();
+
+        for (i, &bit) in self.bits.iter().enumerate() {
+            bit.set_data(byte >> i % 8);
+            if i % 8 == 7 {
+                match bytes.pop() {
+                    Some(x) => byte = x,
+                    None => return,
+                }
+            }
+        }
+    }
+
     pub fn data(&self) -> Result<BigUint> {
         let mut bytes: Vec<u8> = Vec::new();
 
@@ -42,7 +58,7 @@ impl<'a> BitCollection<'a> {
         if self.bits.len() % 8 != 0 {
             bytes.push(byte);
         }
-        Ok(BigUint::from_bytes_be(&bytes))
+        Ok(BigUint::from_bytes_le(&bytes))
     }
 
     /// Returns true if no contained bits are in X or Z state
@@ -71,25 +87,17 @@ mod tests {
     use crate::core::model::registers::{Bit, BitCollection};
     use crate::{dut, Dut};
     use num_bigint::ToBigUint;
-    use std::cmp;
     use std::sync::MutexGuard;
 
-    fn make_bits(number: usize) {
-        for i in 0..number {
-            dut().bits.push(Bit {
-                overlay: RwLock::new(None),
-                register_id: 0,
-                state: RwLock::new(0),
-                unimplemented: false,
-            });
+    fn make_bit_collection<'a>(size: usize, dut: &'a mut MutexGuard<Dut>) -> BitCollection<'a> {
+        let mut bit_ids: Vec<usize> = Vec::new();
+        for _i in 0..size {
+            bit_ids.push(dut.create_test_bit());
         }
-    }
 
-    fn make_bit_collection<'a>(size: usize, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
         let mut bits: Vec<&Bit> = Vec::new();
-
-        for i in 0..size {
-            bits.push(dut.get_bit(i).unwrap());
+        for id in bit_ids {
+            bits.push(dut.get_bit(id).unwrap());
         }
 
         BitCollection {
@@ -101,14 +109,34 @@ mod tests {
 
     #[test]
     fn data_method_works() {
-        make_bits(128);
-        let dut = dut();
-        let bc = make_bit_collection(16, &dut);
+        let mut dut = dut();
+        let bc = make_bit_collection(16, &mut dut);
 
         assert_eq!(bc.data().unwrap(), 0.to_biguint().unwrap());
-        for i in 0..16 {
-            dut.get_bit(i).unwrap().set_data(1);
-        }
-        assert_eq!(bc.data().unwrap(), 0xFF.to_biguint().unwrap());
+    }
+
+    #[test]
+    fn set_data_method_works() {
+        let mut dut = dut();
+        let bc = make_bit_collection(16, &mut dut);
+
+        bc.set_data(0.to_biguint().unwrap());
+        assert_eq!(bc.data().unwrap(), 0.to_biguint().unwrap());
+        bc.set_data(0xFFFF.to_biguint().unwrap());
+        assert_eq!(bc.data().unwrap(), 0xFFFF.to_biguint().unwrap());
+        bc.set_data(0x1234.to_biguint().unwrap());
+        assert_eq!(bc.data().unwrap(), 0x1234.to_biguint().unwrap());
+    }
+
+    #[test]
+    fn range_method_works() {
+        let mut dut = dut();
+        let bc = make_bit_collection(16, &mut dut);
+
+        bc.set_data(0x1234.to_biguint().unwrap());
+        assert_eq!(bc.data().unwrap(), 0x1234.to_biguint().unwrap());
+        assert_eq!(bc.range(3, 0).data().unwrap(), 0x4.to_biguint().unwrap());
+        assert_eq!(bc.range(7, 4).data().unwrap(), 0x3.to_biguint().unwrap());
+        assert_eq!(bc.range(15, 8).data().unwrap(), 0x12.to_biguint().unwrap());
     }
 }
