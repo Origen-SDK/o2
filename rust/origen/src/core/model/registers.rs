@@ -17,13 +17,14 @@ pub use register::Register;
 pub use register::SummaryField;
 pub use register_file::RegisterFile;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AccessType {
     ReadWrite,
     ReadOnly,
     WriteOnly,
     ReadWriteOnce,
     WriteOnce,
+    Unimplemented,
 }
 
 impl std::str::FromStr for AccessType {
@@ -38,6 +39,20 @@ impl std::str::FromStr for AccessType {
             "WriteOnce" => Ok(AccessType::WriteOnce),
             _ => Err(format!("'{}' is not a valid value for AccessType", s)),
         }
+    }
+}
+
+impl AccessType {
+    pub fn is_readable(&self) -> bool {
+        *self != AccessType::WriteOnly
+    }
+
+    pub fn is_writeable(&self) -> bool {
+        *self != AccessType::ReadOnly && *self != AccessType::Unimplemented
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.is_writeable()
     }
 }
 

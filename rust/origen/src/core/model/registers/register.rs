@@ -21,9 +21,8 @@ pub struct Register {
     pub size: usize,
     pub access: AccessType,
     pub fields: IndexMap<String, Field>,
-    /// Contains all bits implemented by the register, bits[i] will return None if
-    /// the bit is unimplemented/undefined
-    pub bits: Vec<usize>,
+    /// Contains the IDs of all bits owned by the register
+    pub bit_ids: Vec<usize>,
     // TODO: Should this be defined on Register, or inherited from address block/memory map?
     pub bit_order: BitOrder,
 }
@@ -39,7 +38,7 @@ impl Default for Register {
             size: 32,
             access: AccessType::ReadWrite,
             fields: IndexMap::new(),
-            bits: Vec::new(),
+            bit_ids: Vec::new(),
             bit_order: BitOrder::LSB0,
         }
     }
@@ -158,6 +157,7 @@ impl<'a> RegisterFieldIterator<'a> {
                         offset: offset,
                         width: width,
                         spacer: true,
+                        access: AccessType::Unimplemented,
                     };
                 } else {
                     let field = self.field(ascending, false).unwrap();
@@ -167,6 +167,7 @@ impl<'a> RegisterFieldIterator<'a> {
                         offset: field.offset,
                         width: field.width,
                         spacer: false,
+                        access: field.access,
                     };
                 }
             }
@@ -424,7 +425,7 @@ impl Register {
 
                     if field.width > 1 {
                         if !field.spacer {
-                            let bits = field.to_bit_collection(dut);
+                            let bits = field.bits(dut);
                             let mut value = "".to_string();
                             if bits.has_known_value() {
                                 let v = bits
@@ -442,7 +443,7 @@ impl Register {
                                 //            value = 'M'
                                 //          end
                             }
-                            //        value += _state_desc(bit)
+                            value += &state_desc(&bits);
                             let bit_span = num_bits_in_range(&field, max_bit, min_bit);
                             let width = bit_width * bit_span;
                             line += vert_single_line;
@@ -461,10 +462,9 @@ impl Register {
                         }
                     } else {
                         if !field.spacer {
-                            let bits = field.to_bit_collection(dut);
+                            let bits = field.bits(dut);
                             let mut value = "".to_string();
                             if bits.has_known_value() {
-                                //  val = bit.val
                                 value += &format!("{}", bits.data().unwrap());
                             } else {
                                 //  if bit.reset_val == :undefined
@@ -473,7 +473,7 @@ impl Register {
                                 //    val = 'M'
                                 //  end
                             }
-                            //value = "#{val}" + _state_desc(bit)
+                            value += &state_desc(&bits);
                             line += vert_single_line;
                             line += &format!("{: ^bit_width$}", value, bit_width = bit_width);
                         } else {
@@ -542,6 +542,7 @@ impl Register {
             Err(msg) => return Err(Error::new(&msg)),
         };
         let f = Field {
+            reg_id: self.id,
             name: name.to_string(),
             description: description.to_string(),
             offset: offset,
@@ -553,26 +554,43 @@ impl Register {
         self.fields.insert(name.to_string(), f);
         Ok(&mut self.fields[name])
     }
+
+    /// Returns all bits owned by the register, wrapped in a BitCollection
+    pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
+        let mut bits: Vec<usize> = Vec::new();
+
+        for i in 0..self.size {
+            bits.push(self.bit_ids[i]);
+        }
+
+        BitCollection::for_bit_ids(bits, dut)
+    }
 }
 
-//def _state_desc(bits)
-//state = []
-//unless bits.readable? && bits.writable?
-//  if bits.readable?
-//    state << 'RO'
-//  else
-//    state << 'WO'
-//  end
-//end
-//state << 'Rd' if bits.is_to_be_read?
-//state << 'Str' if bits.is_to_be_stored?
-//state << 'Ov' if bits.has_overlay?
-//if state.empty?
-//  ''
-//else
-//  "(#{state.join('|')})"
-//end
-//end
+fn state_desc(bits: &BitCollection) -> String {
+    let mut state: Vec<&str> = Vec::new();
+    if !(bits.is_readable() && bits.is_writable()) {
+        if bits.is_readable() {
+            state.push("RO");
+        } else {
+            state.push("WO");
+        }
+    }
+    if bits.is_to_be_read() {
+        state.push("Rd");
+    }
+    if bits.is_to_be_captured() {
+        state.push("Cap");
+    }
+    if bits.has_overlay() {
+        state.push("Ov");
+    }
+    if state.len() == 0 {
+        "".to_string()
+    } else {
+        format!("({})", state.join("|"))
+    }
+}
 
 fn max_bit_in_range(field: &SummaryField, max: usize, _min: usize, bit_order: &BitOrder) -> usize {
     let upper = field.offset + field.width - 1;
@@ -626,6 +644,7 @@ fn is_index_in_range(i: usize, max: usize, min: usize) -> bool {
 #[derive(Debug)]
 /// Named collections of bits within a register
 pub struct Field {
+    pub reg_id: usize,
     pub name: String,
     pub description: String,
     /// Offset from the start of the register in bits.
@@ -659,6 +678,18 @@ impl Field {
         self.enums.insert(name.to_string(), e);
         Ok(&self.enums[name])
     }
+
+    /// Returns the bits associated with the field, wrapped in a BitCollection
+    pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
+        let mut bits: Vec<usize> = Vec::new();
+        let reg = dut.get_register(self.reg_id).unwrap();
+
+        for i in 0..self.width {
+            bits.push(reg.bit_ids[self.offset + i]);
+        }
+
+        BitCollection::for_bit_ids(bits, dut)
+    }
 }
 
 #[derive(Debug)]
@@ -670,16 +701,18 @@ pub struct SummaryField {
     pub offset: usize,
     /// Width of the field in bits.
     pub width: usize,
+    pub access: AccessType,
     pub spacer: bool,
 }
 
 impl SummaryField {
-    pub fn to_bit_collection<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
+    /// Returns the bits associated with the field, wrapped in a BitCollection
+    pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
         let mut bits: Vec<usize> = Vec::new();
         let reg = dut.get_register(self.reg_id).unwrap();
 
-        for _i in 0..self.width {
-            bits.push(reg.bits[self.offset]);
+        for i in 0..self.width {
+            bits.push(reg.bit_ids[self.offset + i]);
         }
 
         BitCollection::for_bit_ids(bits, dut)

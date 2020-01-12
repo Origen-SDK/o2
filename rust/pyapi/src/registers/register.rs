@@ -14,9 +14,23 @@ pub struct Register {
 
 #[pymethods]
 impl Register {
-    fn data(&self, v: BigUint) -> BigUint {
-        let d = BigUint::parse_bytes(b"12345678123456781234567812345678", 16).unwrap();
-        d
+    /// An alias for get_data()
+    fn data(&self) -> PyResult<BigUint> {
+        self.get_data()
+    }
+
+    fn get_data(&self) -> PyResult<BigUint> {
+        let dut = origen::dut();
+        Ok(dut.get_register(self.id)?.bits(&dut).data()?)
+    }
+
+    fn set_data(&self, value: BigUint) -> PyResult<Register> {
+        let dut = origen::dut();
+        dut.get_register(self.id)?.bits(&dut).set_data(value);
+        Ok(Register {
+            id: self.id,
+            name: self.name.clone(),
+        })
     }
 }
 

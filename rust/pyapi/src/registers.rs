@@ -58,7 +58,7 @@ fn create(
             }
         }
         for i in 0..reg.size as usize {
-            reg.bits.push((base_bit_id + i) as usize);
+            reg.bit_ids.push((base_bit_id + i) as usize);
         }
         reg_fields = reg.named_bits(true).collect::<Vec<SummaryField>>();
     }
@@ -71,7 +71,7 @@ fn create(
                 overlay: RwLock::new(None),
                 register_id: reg_id,
                 state: RwLock::new(0),
-                unimplemented: field.spacer,
+                access: field.access,
             });
         }
     }

@@ -80,6 +80,35 @@ impl<'a> BitCollection<'a> {
             i: 0,
         }
     }
+
+    /// Returns true if any bits in the collection has their read flag set
+    pub fn is_to_be_read(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_to_be_read())
+    }
+
+    /// Returns true if any bits in the collection has their capture flag set
+    pub fn is_to_be_captured(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_to_be_captured())
+    }
+
+    /// Returns true if any bits in the collection has an overlay set
+    pub fn has_overlay(&self) -> bool {
+        self.bits.iter().any(|bit| bit.has_overlay())
+    }
+
+    /// Returns true if any bits in the collection is writeable
+    pub fn is_writeable(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_writeable())
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.is_writeable()
+    }
+
+    /// Returns true if any bits in the collection is readable
+    pub fn is_readable(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_readable())
+    }
 }
 
 #[cfg(test)]

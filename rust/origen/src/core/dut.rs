@@ -389,7 +389,7 @@ impl Dut {
             overlay: RwLock::new(None),
             register_id: 0,
             state: RwLock::new(0),
-            unimplemented: false,
+            access: AccessType::ReadWrite,
         };
 
         self.bits.push(bit);

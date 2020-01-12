@@ -1,7 +1,9 @@
+use super::AccessType;
+use super::AccessType::Unimplemented;
 use crate::{Error, Result};
 use std::sync::RwLock;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Bit {
     pub register_id: usize,
     pub overlay: RwLock<Option<String>>,
@@ -13,21 +15,21 @@ pub struct Bit {
     /// 4 - Bit is to be captured
     /// 5 - Bit has an overlay (defined by overlay str)
     pub state: RwLock<u8>,
-    pub unimplemented: bool,
+    pub access: AccessType,
 }
 
 impl Bit {
     /// Returns true if not in X or Z state
     pub fn has_known_value(&self) -> bool {
-        self.unimplemented || *self.state.read().unwrap() & 0b110 == 0
+        self.access == Unimplemented || *self.state.read().unwrap() & 0b110 == 0
     }
 
     pub fn is_x(&self) -> bool {
-        !self.unimplemented && *self.state.read().unwrap() & 0b10 != 0
+        self.access != Unimplemented && *self.state.read().unwrap() & 0b10 != 0
     }
 
     pub fn is_z(&self) -> bool {
-        !self.unimplemented && *self.state.read().unwrap() & 0b100 != 0
+        self.access != Unimplemented && *self.state.read().unwrap() & 0b100 != 0
     }
 
     pub fn is_to_be_read(&self) -> bool {
@@ -36,6 +38,22 @@ impl Bit {
 
     pub fn is_to_be_captured(&self) -> bool {
         *self.state.read().unwrap() & 0b1_0000 != 0
+    }
+
+    pub fn has_overlay(&self) -> bool {
+        *self.state.read().unwrap() & 0b10_0000 != 0
+    }
+
+    pub fn is_readable(&self) -> bool {
+        self.access.is_readable()
+    }
+
+    pub fn is_writeable(&self) -> bool {
+        self.access.is_writeable()
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.access.is_writable()
     }
 
     pub fn state_char(&self) -> char {
@@ -66,15 +84,21 @@ impl Bit {
     }
 
     pub fn set_data(&self, val: u8) {
-        if !self.unimplemented {
-            let state_val;
-            {
-                // Clear X and Z flags
-                state_val = *self.state.read().unwrap() & 0b1111_1000;
-            }
-            let mut state = self.state.write().unwrap();
-            // Clear X and Z flags
-            *state = state_val | (val & 0b1);
+        if self.is_writeable() {
+            self.force_data(val);
         }
+    }
+
+    /// Like set_data(), but will force the data value in the event of the bit being unimplemented or
+    /// otherwise unwritable
+    pub fn force_data(&self, val: u8) {
+        let state_val;
+        {
+            // Clear X and Z flags
+            state_val = *self.state.read().unwrap() & 0b1111_1000;
+        }
+        let mut state = self.state.write().unwrap();
+        // Clear X and Z flags
+        *state = state_val | (val & 0b1);
     }
 }
