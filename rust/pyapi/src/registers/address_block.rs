@@ -1,5 +1,5 @@
+use super::bit_collection::BitCollection;
 use super::memory_map::MemoryMap;
-use super::register::Register;
 use super::Registers;
 use crate::dut::PyDUT;
 use origen::DUT;
@@ -252,15 +252,12 @@ pub struct AddressBlock {
 /// User API methods, available to both Rust and Python
 #[pymethods]
 impl AddressBlock {
-    fn reg(&self, name: &str) -> PyResult<Option<Register>> {
+    fn reg(&self, name: &str) -> PyResult<Option<BitCollection>> {
         let id = origen::dut()
             .get_address_block(self.id)?
             .get_register_id(name);
         match id {
-            Ok(id) => Ok(Some(Register {
-                id: id,
-                name: name.to_string(),
-            })),
+            Ok(id) => Ok(Some(BitCollection::from_reg_id(id))),
             Err(_) => Ok(None),
         }
     }
@@ -294,13 +291,7 @@ impl PyObjectProtocol for AddressBlock {
 
             match blk.get_register_id(query) {
                 Ok(id) => {
-                    let pyref = PyRef::new(
-                        py,
-                        Register {
-                            id: id,
-                            name: query.to_string(),
-                        },
-                    )?;
+                    let pyref = PyRef::new(py, BitCollection::from_reg_id(id))?;
                     Ok(pyref.to_object(py))
                 }
                 Err(_) => Err(AttributeError::py_err(format!(

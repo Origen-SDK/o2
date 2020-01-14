@@ -9,7 +9,7 @@ pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
-use self::core::dut::Dut;
+pub use self::core::dut::Dut;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
 use std::sync::{Mutex, MutexGuard};

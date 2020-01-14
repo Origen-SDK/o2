@@ -63,23 +63,24 @@ impl<'a> RegisterFieldIterator<'a> {
         // has broken me.
         let mut field_names: Vec<String>;
 
-        let mut fields: Vec<&Field> = reg.fields.values().collect();
-        fields.sort_by_key(|f| f.offset);
+        let mut fields: Vec<(&String, &Field)> = reg.fields.iter().map(|(key, val)| (key, val)).collect();
+        fields.sort_by_key(|(_, val)| val.offset);
+
         if include_spacers {
             field_names = Vec::new();
             let mut pos = 0;
-            for field in fields {
+            for (key, field) in fields {
                 if pos != field.offset {
                     field_names.push("_spacer_".to_string());
                 }
-                field_names.push(field.name.clone());
+                field_names.push(key.clone());
                 pos = field.offset + field.width;
             }
             if pos != reg.size {
                 field_names.push("_spacer_".to_string());
             }
         } else {
-            field_names = fields.iter().map(|m| m.name.clone()).collect();
+            field_names = fields.iter().map(|(key, _)| format!("{}", key)).collect();
         }
 
         RegisterFieldIterator {
@@ -463,6 +464,8 @@ impl Register {
                     } else {
                         if !field.spacer {
                             let bits = field.bits(dut);
+                            //println!("field: {:?}", field);
+                            //println!("bits: {:?}", bits);
                             let mut value = "".to_string();
                             if bits.has_known_value() {
                                 value += &format!("{}", bits.data().unwrap());
@@ -550,9 +553,18 @@ impl Register {
             access: acc,
             reset: reset.clone(),
             enums: IndexMap::new(),
+            related_fields: 0,
         };
-        self.fields.insert(name.to_string(), f);
-        Ok(&mut self.fields[name])
+        if self.fields.contains_key(name) {
+            let mut orig = self.fields.get_mut(name).unwrap();
+            orig.related_fields += 1;
+            let key = format!("{}{}", name, orig.related_fields);
+            self.fields.insert(key.clone(), f);
+            Ok(&mut self.fields[&key])
+        } else {
+            self.fields.insert(name.to_string(), f);
+            Ok(&mut self.fields[name])
+        }
     }
 
     /// Returns all bits owned by the register, wrapped in a BitCollection
@@ -563,7 +575,7 @@ impl Register {
             bits.push(self.bit_ids[i]);
         }
 
-        BitCollection::for_bit_ids(bits, dut)
+        BitCollection::for_bit_ids(&bits, dut)
     }
 }
 
@@ -657,6 +669,7 @@ pub struct Field {
     // Just went with a simple reset value initially
     pub reset: BigUint,
     pub enums: IndexMap<String, EnumeratedValue>,
+    related_fields: usize,
 }
 
 impl Field {
@@ -679,16 +692,48 @@ impl Field {
         Ok(&self.enums[name])
     }
 
-    /// Returns the bits associated with the field, wrapped in a BitCollection
-    pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
+    /// Returns the bit IDs associated with the field, wrapped in a Vec
+    pub fn bit_ids(&self, dut: &MutexGuard<Dut>) -> Vec<usize> {
         let mut bits: Vec<usize> = Vec::new();
         let reg = dut.get_register(self.reg_id).unwrap();
 
-        for i in 0..self.width {
-            bits.push(reg.bit_ids[self.offset + i]);
+        if self.related_fields > 0 {
+            // Collect all related fields
+            let mut fields: Vec<&Field> = Vec::new();
+
+            fields.push(self);
+            
+            for i in 0..self.related_fields {
+                let f = reg.fields.get(&format!("{}{}", self.name, i + 1)).unwrap();
+                fields.push(f);
+            }
+            
+            // Sort them by offset
+            //fields.sort_by(|a, b| b.offset.cmp(&a.offset)); 
+            fields.sort_by_key(|f| f.offset); 
+
+            // Now collect their bits
+
+            for f in fields {
+                //println!("Here is the reg: {:?}", reg);
+                for i in 0..f.width {
+                    bits.push(reg.bit_ids[f.offset + i]);
+                }
+            }
+
+        } else {
+            for i in 0..self.width {
+                bits.push(reg.bit_ids[self.offset + i]);
+            }
         }
 
-        BitCollection::for_bit_ids(bits, dut)
+        bits
+    }
+
+    /// Returns the bits associated with the field, wrapped in a BitCollection
+    pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
+        let bit_ids = self.bit_ids(dut);
+        BitCollection::for_bit_ids(&bit_ids, dut)
     }
 }
 
@@ -715,7 +760,7 @@ impl SummaryField {
             bits.push(reg.bit_ids[self.offset + i]);
         }
 
-        BitCollection::for_bit_ids(bits, dut)
+        BitCollection::for_bit_ids(&bits, dut)
     }
 }
 

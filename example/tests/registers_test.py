@@ -70,7 +70,7 @@ def test_regs_can_be_added():
     origen.dut.add_simple_reg("treg1", 0x1000)
     assert origen.dut.regs.len() == 5
     with origen.dut.add_reg("treg2", 0x1004) as reg:
-        reg.bit([7,0], 'trim')
+        reg.Field('trim', offset=0, width=8)
     assert origen.dut.regs.len() == 6
 
 def test_address_blocks_can_be_fetched():

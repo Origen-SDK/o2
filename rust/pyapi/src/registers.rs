@@ -54,7 +54,7 @@ fn create(
                 &f.reset,
             )?;
             for e in &f.enums {
-                field.add_enum(&e.name, &e.description, &e.value);
+                field.add_enum(&e.name, &e.description, &e.value)?;
             }
         }
         for i in 0..reg.size as usize {

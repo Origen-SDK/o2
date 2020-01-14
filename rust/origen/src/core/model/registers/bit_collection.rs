@@ -13,11 +13,11 @@ pub struct BitCollection<'a> {
 }
 
 impl<'a> BitCollection<'a> {
-    pub fn for_bit_ids(ids: Vec<usize>, dut: &'a MutexGuard<'a, Dut>) -> BitCollection<'a> {
+    pub fn for_bit_ids(ids: &Vec<usize>, dut: &'a MutexGuard<'a, Dut>) -> BitCollection<'a> {
         let mut bits: Vec<&Bit> = Vec::new();
 
         for id in ids {
-            bits.push(dut.get_bit(id).unwrap());
+            bits.push(dut.get_bit(*id).unwrap());
         }
 
         BitCollection {

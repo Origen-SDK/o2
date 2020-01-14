@@ -1,47 +1,5 @@
 use num_bigint::BigUint;
-use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
-
-/// Implements the user API to work with a single register
-#[pyclass]
-#[derive(Debug)]
-pub struct Register {
-    #[pyo3(get)]
-    pub id: usize,
-    #[pyo3(get)]
-    pub name: String,
-}
-
-#[pymethods]
-impl Register {
-    /// An alias for get_data()
-    fn data(&self) -> PyResult<BigUint> {
-        self.get_data()
-    }
-
-    fn get_data(&self) -> PyResult<BigUint> {
-        let dut = origen::dut();
-        Ok(dut.get_register(self.id)?.bits(&dut).data()?)
-    }
-
-    fn set_data(&self, value: BigUint) -> PyResult<Register> {
-        let dut = origen::dut();
-        dut.get_register(self.id)?.bits(&dut).set_data(value);
-        Ok(Register {
-            id: self.id,
-            name: self.name.clone(),
-        })
-    }
-}
-
-#[pyproto]
-impl PyObjectProtocol for Register {
-    fn __repr__(&self) -> PyResult<String> {
-        let dut = origen::dut();
-        let reg = dut.get_register(self.id)?;
-        Ok(reg.console_display(&dut, None, true)?)
-    }
-}
 
 #[pyclass]
 #[derive(Debug)]

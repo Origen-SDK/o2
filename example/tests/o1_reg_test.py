@@ -11,29 +11,31 @@ import pdb
 #  # Dummy method to allow the bang methods to be tested
 #end
 
-def test_reads_in_excel_TCU_registers_by_forward_single_bits_in_range():
+def test_split_bits_test():
     origen.app.instantiate_dut("dut.falcon")
     with origen.dut.add_reg("tcu", 0x0024, size=8) as reg:
-        reg.bit(7, "peter",  reset=0)
-        reg.bit(6, "mike",  reset=0)
-        reg.bit(5, "mike",  reset=0)
-        reg.bit(4, "mike",  reset=0)
-        reg.bit(3, "peter", reset=1)
-        reg.bit(2, "peter", reset=1)
-        reg.bit(1, "pan",  reset=0)
-        reg.bit(0, "peter",  reset=0)
+        reg.Field("peter", offset=7, reset=0)
+        reg.Field("mike",  offset=6, reset=0)
+        reg.Field("mike",  offset=5, reset=0)
+        reg.Field("mike",  offset=4, reset=0)
+        reg.Field("peter", offset=3, reset=1)
+        reg.Field("peter", offset=2, reset=1)
+        reg.Field("pan",   offset=1, reset=0)
+        reg.Field("peter", offset=0, reset=0)
 
     #pdb.set_trace()
 
-    assert origen.dut.reg("tcu").get_data() == 12
-    #assert origen.dut.reg("tcu").bits("peter").size == 4
-    #assert origen.dut.reg("tcu").bits("peter").data == 0b0110
-    #origen.dut.reg("tcu").bits("peter").write(0)
-    #assert origen.dut.reg("tcu").data == 0
-    #assert origen.dut.reg("tcu").bits("peter").data == 0
-    #origen.dut.reg("tcu").bits("peter").write(7)
-    #assert origen.dut.reg("tcu").data == 0b1101
-    #assert origen.dut.reg("tcu").bits("peter").data == 7
+    # TODO: Add reset values
+    #assert origen.dut.reg("tcu").get_data() == 12
+    assert origen.dut.reg("tcu").bits("peter").len() == 4
+    #assert origen.dut.reg("tcu").bits("peter").data() == 0b0110
+    origen.dut.reg("tcu").bits("peter").set_data(0)
+    assert origen.dut.reg("tcu").data() == 0
+    assert origen.dut.reg("tcu").bits("peter").data() == 0
+    origen.dut.reg("tcu").bits("peter").set_data(7)
+    assert origen.dut.reg("tcu").data() == 0b1101
+    assert origen.dut.reg("tcu").get_data() == 0b1101
+    assert origen.dut.reg("tcu").bits("peter").data() == 7
     #origen.dut.reg("tcu").reset
     #assert origen.dut.reg("tcu").data == 12
 
@@ -497,15 +499,17 @@ def test_reads_in_excel_TCU_registers_by_forward_single_bits_in_range():
 #        i += 1
 #      end
 #    end
-#
-#    it "should respond to value as an alias of data" do
-#        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                              b1: {pos: 8, bits: 8})
-#        reg.write(0x1234)
-#        reg.data.should == 0x1234
-#        reg.value.should == 0x1234
-#    end
-#
+
+def test_should_respond_to_data_as_an_alias_of_get_data():
+    origen.app.instantiate_dut("dut.falcon")
+    with origen.dut.add_reg("r1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8)
+        reg.Field("b1", offset=8, width=8)
+
+    origen.dut.r1.set_data(0x1234)
+    assert origen.dut.r1.get_data() == 0x1234
+    assert origen.dut.r1.data() == 0x1234
+
 #    specify "when data= is passed a Reg object the reg#data value is used" do
 #        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8}, 
 #                                               b1: {pos: 8, bits: 8})
