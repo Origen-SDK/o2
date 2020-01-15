@@ -2,8 +2,9 @@ import origen
 import pathlib
 import re
 import mako
+import os
 from mako.template import Template
-from os import access, W_OK
+from os import access, W_OK, X_OK, R_OK
 from origen.errors import *
 
 class Compiler:
@@ -45,14 +46,18 @@ class Compiler:
         
     # Run the compiler with the stack as-is or with new args
     def run(self, *args, **options):
+        self.__check_args(*args)
         opts = {
-            'output_dir': self.__templates_dir()
+            # TODO: Hook up to origen.app.output_directory
+            'output_dir':    self.templates_dir(),
+            'templates_dir': self.templates_dir()
         }
         # This was much easier in Ruby as the dict method 'update' acts
         # like Ruby's hash 'merge' method
         for k, v in options.items():
             if k in opts:
                 opts[k] = v
+        opts = self.__make_pathlibs_if_necessary(opts)
         if args:
             self.push(*args, **options)
         if self.stack:
@@ -77,7 +82,22 @@ class Compiler:
                     else:
                         # Check if the str is a file located in the templates directory
                         # or if it is direct path to a templated file
-                        print('Finding file names in directory look-up fashion is not yet supported')
+                        template_path = opts['templates_dir'] / arg
+                        self.__check_template(template_path)
+                        curr_template = Template(filename=f"{template_path}")
+                        # TODO: Figure out how to get the current DUT and app loaded 
+                        # automatically for all templates
+                        template_output = curr_template.render()
+                        output_path = str(template_path)
+                        output_path = output_path.replace('.mako','')
+                        output_path = pathlib.Path(output_path)
+                        if output_path.exists():
+                            output_path.unlink()
+                        with open(output_path, 'w+') as f:
+                            f.write(template_output)
+                        # TODO: Figure out why this doesn't work
+                        output_path.chmod(0o755)                  
+                        self.output_files.append(output_path)
                 self.stack.pop()
         else:
             raise TypeError('Compiler stack is empty, cannot run!')
@@ -85,7 +105,7 @@ class Compiler:
     def last_render(self):
         return self.renders[-1] if self.renders else None
     
-    def __templates_dir(self):
+    def templates_dir(self):
         templates_dir = pathlib.Path(f"{origen.root}/{origen.app.name}/templates")
         if not templates_dir.exists():
             raise FileNotFoundError(f"Application templates directory does not exist at {templates_dir}")
@@ -104,3 +124,17 @@ class Compiler:
             if isinstance(arg, pathlib.Path):
                 if not arg.suffix == '.mako':
                     raise FileExtensionError('.mako')
+
+    def __make_pathlibs_if_necessary(self, opts):
+        for k,v in dict(filter(lambda k: '_dir' in k[0] , opts.items())).items():
+            opts[k] = v if isinstance(v, pathlib.PurePath) else pathlib.Path(v)
+            opts[k].resolve()
+        return opts
+
+    def __check_template(self, t):
+        if not t.exists():
+            raise FileNotFoundError(f"Template file does not exist at {t}")
+        elif not access(t, R_OK):
+            raise PermissionError(f"Template file exists at {t} but is not readable!")
+        elif not access(t, X_OK):
+            raise PermissionError(f"Template file exists at {t} but is not executable!")

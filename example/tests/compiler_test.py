@@ -1,5 +1,9 @@
 import origen
 import pytest
+import pathlib
+import os
+import stat
+from os import access, W_OK, X_OK, R_OK
 
 def boot_falcon():
     return origen.app.instantiate_dut("dut.falcon") if origen.dut is None else origen.dut
@@ -11,6 +15,7 @@ def test_compiler_inits():
     assert origen.app.compiler.renders == []
     assert origen.app.compiler.output_files == []
     assert isinstance(origen.app.compiler.syntax, origen.compiler.Compiler.MakoSyntax) == True
+    assert str(origen.app.compiler.templates_dir()) == "/mnt/c/o2/compiler/example/example/templates"
     
 def test_compiler_renders_text():
     origen.app.compile("hello, ${name}!", name='jack')
@@ -22,5 +27,20 @@ def test_compiler_renders_text():
     assert len(origen.app.compiler.stack) == 0
     assert origen.app.compiler.renders[1] == "jack is a good boy!"
     assert origen.app.compiler.renders[-1] == origen.app.compiler.last_render()
+
+def test_compiler_templates_files():
+    templates_dir = f"{origen.root}/../python/templates"
+    origen.app.compile('dut_info.txt.mako', templates_dir=templates_dir)
+    assert len(origen.app.compiler.stack) == 0
+    assert len(origen.app.compiler.output_files) == 1
+    compiled_file = origen.app.compiler.output_files[0]
+    compiled_file_status = os.stat(compiled_file)
+    assert isinstance(compiled_file, pathlib.PurePath) == True
+    assert compiled_file.exists() == True
+    assert access(compiled_file, R_OK) == True
+    # Check file permissions
+    assert bool(compiled_file_status.st_mode & stat.S_IRUSR) == True
+    assert bool(compiled_file_status.st_mode & stat.S_IWUSR) == True
+    assert bool(compiled_file_status.st_mode & stat.S_IWUSR) == True
 
    
