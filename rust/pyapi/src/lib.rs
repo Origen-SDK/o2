@@ -1,10 +1,8 @@
-mod meta;
-mod address_block;
 mod dut;
 mod logger;
-mod memory_map;
+mod meta;
 mod pins;
-mod register;
+mod registers;
 mod timesets;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};

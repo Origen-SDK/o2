@@ -1,4 +1,5 @@
 import origen
+import _origen
 from origen.errors import *
 from contextlib import contextmanager
 
@@ -9,6 +10,7 @@ class Loader:
         self.controller = controller
         self.memory_map = None
         self.address_block = None
+        self.fields = None
 
     def current_memory_map(self):
         if self.memory_map is not None:
@@ -33,14 +35,29 @@ class Loader:
 
     @contextmanager
     def Reg(self, name, address_offset, size=32):
-        origen.dut.db.create_reg(self.current_address_block().id, name, address_offset, size)
+        self.fields = []
         yield self
+        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, self.fields)
+        self.fields = None
 
-    def SimpleReg(self, name, address_offset, size=32):
-        origen.dut.db.create_reg(self.current_address_block().id, name, address_offset, size)
+    def SimpleReg(self, name, address_offset, size=32, reset=0):
+        field = _origen.dut.registers.Field("data", "", 0, size, "rw", reset, [])
+        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, [field])
 
-    def bit(self, number, name, access="rw", reset=0):
-        pass
+    def Field(self, name, offset, width=1, access="rw", reset=0, enums=None, description=""):
+        if self.fields is not None:
+            e = []
+            if enums is not None:
+                for enum_name, attrs in enums.items():
+                    if isinstance(attrs, dict):
+                        #e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description"), attrs.get("usage", "rw"), attrs["value"]))
+                        e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description", ""), attrs["value"]))
+                    else:
+                        #e.append(_origen.dut.registers.FieldEnum(enum_name, "", "rw", attrs))
+                        e.append(_origen.dut.registers.FieldEnum(enum_name, "", attrs))
+            self.fields.append(_origen.dut.registers.Field(name, description, offset, width, access, reset, e))
+        else:
+            raise RuntimeError(f"A Field can only be defined within a 'with Reg' definition block")
 
     @contextmanager
     def MemoryMap(self, name):
@@ -62,6 +79,7 @@ class Loader:
     def api(self):
         return {
             "Reg": self.Reg, 
+            "Field": self.Field, 
             "SimpleReg": self.SimpleReg, 
             "MemoryMap": self.MemoryMap, 
             "AddressBlock": self.AddressBlock, 

@@ -47,7 +47,10 @@ impl Model {
     pub fn lookup(&self, key: &str) -> Result<&IndexMap<String, usize>> {
         match key {
             "timesets" => Ok(&self.timesets),
-            _ => Err(Error::new(&format!("No ID lookup table available for {}", key)))
+            _ => Err(Error::new(&format!(
+                "No ID lookup table available for {}",
+                key
+            ))),
         }
     }
 
@@ -86,5 +89,39 @@ impl Model {
             }
             None => return format!("{}", self.name),
         }
+    }
+
+    pub fn console_display(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        let (mut output, offset) = self.console_header(&dut);
+        let offset = " ".repeat(offset);
+        let num = self.memory_maps.keys().len();
+        if num > 0 {
+            output += &format!("{}├── memory_maps\n", offset);
+            let leader = format!("{}|    ", offset);
+            for (i, key) in self.memory_maps.keys().enumerate() {
+                if i != num - 1 {
+                    output += &format!("{}├── {}\n", leader, key);
+                } else {
+                    output += &format!("{}└── {}\n", leader, key);
+                }
+            }
+        } else {
+            output += &format!("{}├── memory_maps []\n", offset);
+        }
+        let num = self.sub_blocks.keys().len();
+        if num > 0 {
+            output += &format!("{}└── sub_blocks\n", offset);
+            let leader = format!("{}     ", offset);
+            for (i, key) in self.sub_blocks.keys().enumerate() {
+                if i != num - 1 {
+                    output += &format!("{}├── {}\n", leader, key);
+                } else {
+                    output += &format!("{}└── {}\n", leader, key);
+                }
+            }
+        } else {
+            output += &format!("{}└── sub_blocks []\n", offset);
+        }
+        Ok(output)
     }
 }

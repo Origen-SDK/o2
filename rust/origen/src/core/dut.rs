@@ -1,9 +1,12 @@
-use crate::core::model::registers::{AccessType, AddressBlock, Bit, MemoryMap, Register};
-use crate::core::model::timesets::timeset::{Timeset};
+use crate::core::model::registers::{
+    AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
+};
+use crate::core::model::timesets::timeset::Timeset;
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
 use crate::DUT;
+use std::sync::RwLock;
 
 /// The DUT stores all objects associated with a particular device.
 /// Each object type is organized into vectors, where a particular object's position within the
@@ -18,8 +21,9 @@ pub struct Dut {
     models: Vec<Model>,
     memory_maps: Vec<MemoryMap>,
     address_blocks: Vec<AddressBlock>,
+    register_files: Vec<RegisterFile>,
     registers: Vec<Register>,
-    bits: Vec<Bit>,
+    pub bits: Vec<Bit>,
     pub timesets: Vec<Timeset>,
 }
 
@@ -33,6 +37,7 @@ impl Dut {
             models: Vec::<Model>::new(),
             memory_maps: Vec::<MemoryMap>::new(),
             address_blocks: Vec::<AddressBlock>::new(),
+            register_files: Vec::<RegisterFile>::new(),
             registers: Vec::<Register>::new(),
             bits: Vec::<Bit>::new(),
             timesets: Vec::<Timeset>::new(),
@@ -48,6 +53,7 @@ impl Dut {
         self.models.clear();
         self.memory_maps.clear();
         self.address_blocks.clear();
+        self.register_files.clear();
         self.registers.clear();
         self.bits.clear();
         // Add the model for the DUT top-level (always ID 0)
@@ -129,6 +135,33 @@ impl Dut {
             None => {
                 return Err(Error::new(&format!(
                     "Something has gone wrong, no address_block exists with ID '{}'",
+                    id
+                )))
+            }
+        }
+    }
+
+    /// Get a mutable reference to the register file with the given ID
+    pub fn get_mut_register_file(&mut self, id: usize) -> Result<&mut RegisterFile> {
+        match self.register_files.get_mut(id) {
+            Some(x) => Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                    "Something has gone wrong, no register_file exists with ID '{}'",
+                    id
+                )))
+            }
+        }
+    }
+
+    /// Get a read-only reference to the register file with the given ID, use get_mut_register_file if
+    /// you need to modify it
+    pub fn get_register_file(&self, id: usize) -> Result<&RegisterFile> {
+        match self.register_files.get(id) {
+            Some(x) => Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                    "Something has gone wrong, no register_file exists with ID '{}'",
                     id
                 )))
             }
@@ -246,6 +279,8 @@ impl Dut {
             None => {}
         }
         self.memory_maps.push(MemoryMap {
+            id: id,
+            model_id: model_id,
             name: name.to_string(),
             ..defaults
         });
@@ -297,6 +332,8 @@ impl Dut {
         }
 
         self.address_blocks.push(AddressBlock {
+            id: id,
+            memory_map_id: memory_map_id,
             name: name.to_string(),
             ..defaults
         });
@@ -307,8 +344,8 @@ impl Dut {
         &mut self,
         address_block_id: usize,
         name: &str,
-        offset: u32,
-        size: Option<u32>,
+        offset: usize,
+        size: Option<usize>,
     ) -> Result<usize> {
         let id;
         {
@@ -331,14 +368,31 @@ impl Dut {
             None => {}
         }
         let reg = Register {
+            id: id,
             name: name.to_string(),
             offset: offset,
             ..defaults
         };
 
-        //reg.create_bits();
-
         self.registers.push(reg);
         Ok(id)
+    }
+
+    /// Creates a bit for testing bit collections and so on, does not add the new
+    /// bit to a parent register
+    pub fn create_test_bit(&mut self) -> usize {
+        let id;
+        {
+            id = self.bits.len();
+        }
+        let bit = Bit {
+            overlay: RwLock::new(None),
+            register_id: 0,
+            state: RwLock::new(0),
+            access: AccessType::ReadWrite,
+        };
+
+        self.bits.push(bit);
+        id
     }
 }
