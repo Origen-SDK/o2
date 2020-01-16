@@ -26,9 +26,9 @@ def test_split_bits_test():
     #pdb.set_trace()
 
     # TODO: Add reset values
-    #assert origen.dut.reg("tcu").get_data() == 12
+    assert origen.dut.reg("tcu").get_data() == 12
     assert origen.dut.reg("tcu").bits("peter").len() == 4
-    #assert origen.dut.reg("tcu").bits("peter").data() == 0b0110
+    assert origen.dut.reg("tcu").bits("peter").data() == 0b0110
     origen.dut.reg("tcu").bits("peter").set_data(0)
     assert origen.dut.reg("tcu").data() == 0
     assert origen.dut.reg("tcu").bits("peter").data() == 0

@@ -7,9 +7,19 @@ use std::sync::MutexGuard;
 pub struct BitCollection<'a> {
     /// When true the BitCollection contains an entire register's worth of bits
     whole: bool,
-    bits: Vec<&'a Bit>,
+    pub bits: Vec<&'a Bit>,
     /// Iterator index
     i: usize,
+}
+
+impl<'a> Default for BitCollection<'a> {
+    fn default() -> BitCollection<'a> {
+        BitCollection {
+            whole: false,
+            bits: Vec::new(),
+            i: 0,
+        }
+    }
 }
 
 impl<'a> BitCollection<'a> {
@@ -70,7 +80,7 @@ impl<'a> BitCollection<'a> {
     pub fn range(&self, max: usize, min: usize) -> BitCollection<'a> {
         let mut bits: Vec<&Bit> = Vec::new();
 
-        for i in min..max {
+        for i in min..max + 1 {
             bits.push(self.bits[i]);
         }
 
@@ -167,5 +177,10 @@ mod tests {
         assert_eq!(bc.range(3, 0).data().unwrap(), 0x4.to_biguint().unwrap());
         assert_eq!(bc.range(7, 4).data().unwrap(), 0x3.to_biguint().unwrap());
         assert_eq!(bc.range(15, 8).data().unwrap(), 0x12.to_biguint().unwrap());
+
+        let bc = make_bit_collection(8, &mut dut);
+        bc.set_data(0x1F.to_biguint().unwrap());
+        assert_eq!(bc.range(4, 0).data().unwrap(), 0x1F.to_biguint().unwrap());
+        assert_eq!(bc.range(7, 4).data().unwrap(), 0x1.to_biguint().unwrap());
     }
 }

@@ -2,6 +2,8 @@ mod address_block;
 mod bit_collection;
 mod memory_map;
 mod register;
+use num_bigint::BigUint;
+use num_traits::identities::Zero;
 use std::sync::RwLock;
 
 //use crate::dut::PyDUT;
@@ -31,11 +33,15 @@ fn create(
     name: &str,
     offset: usize,
     size: Option<usize>,
-    fields: Vec<&Field>,
+    mut fields: Vec<&Field>,
 ) -> PyResult<usize> {
     let reg_id;
     let reg_fields;
     let base_bit_id;
+    let mut reset_vals: Vec<Option<&BigUint>> = Vec::new();
+    let mut non_zero_reset = false;
+
+    fields.sort_by_key(|field| field.offset);
 
     {
         base_bit_id = origen::dut().bits.len();
@@ -56,6 +62,12 @@ fn create(
             for e in &f.enums {
                 field.add_enum(&e.name, &e.description, &e.value)?;
             }
+            if f.reset.is_zero() {
+                reset_vals.push(None);
+            } else {
+                reset_vals.push(Some(&f.reset));
+                non_zero_reset = true;
+            }
         }
         for i in 0..reg.size as usize {
             reg.bit_ids.push((base_bit_id + i) as usize);
@@ -64,15 +76,40 @@ fn create(
     }
 
     // Create the bits now that we know which ones are implemented
+    reset_vals.reverse();
     let mut dut = origen::dut();
     for field in reg_fields {
-        for _i in 0..field.width {
-            dut.bits.push(Bit {
-                overlay: RwLock::new(None),
-                register_id: reg_id,
-                state: RwLock::new(0),
-                access: field.access,
-            });
+        // Intention here is to skip decomposing the BigUint unless required
+        if !non_zero_reset || field.spacer || reset_vals.last().unwrap().is_none() {
+            for _i in 0..field.width {
+                dut.bits.push(Bit {
+                    overlay: RwLock::new(None),
+                    register_id: reg_id,
+                    state: RwLock::new(0),
+                    access: field.access,
+                });
+            }
+        } else {
+            let mut bytes = reset_vals.last().unwrap().unwrap().to_bytes_be();
+            let mut byte = bytes.pop().unwrap();
+            for i in 0..field.width {
+                let state = (byte >> i % 8) & 1;
+                dut.bits.push(Bit {
+                    overlay: RwLock::new(None),
+                    register_id: reg_id,
+                    state: RwLock::new(state),
+                    access: field.access,
+                });
+                if i % 8 == 7 {
+                    match bytes.pop() {
+                        Some(x) => byte = x,
+                        None => byte = 0,
+                    }
+                }
+            }
+        }
+        if !field.spacer {
+            reset_vals.pop();
         }
     }
 

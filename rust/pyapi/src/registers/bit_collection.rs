@@ -43,7 +43,7 @@ impl PyObjectProtocol for BitCollection {
             Ok(reg.console_display(&dut, None, true)?)
         } else {
             Ok(format!(
-                "<BitCollection containing {} bits",
+                "<BitCollection containing {} bits>",
                 self.bit_ids.len()
             ))
         }

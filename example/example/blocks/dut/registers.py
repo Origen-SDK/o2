@@ -25,6 +25,7 @@ for i in range(NUM_REGS):
         Field("coco", offset=7, access="ro")
         Field("aien", offset=6)
         Field("diff", offset=5)
+        #Field("adch", offset=0, width=5, reset=0x1F, enums={
         Field("adch", offset=0, width=5, reset=0x1F, enums={
             # A simple enum
             "val1": 3,
@@ -43,7 +44,7 @@ with MemoryMap("user"):
     SimpleReg("reg1", 0)
 
     with Reg("reg2", 0x0024, size=16):
-        Field("adch", offset=0, width=4, reset=0x1F)
+        Field("adch", offset=0, width=4, reset=0x5)
 
 
 # Finally regs can be added to a fully declared scope like this:
@@ -53,4 +54,4 @@ with MemoryMap("test"):
         SimpleReg("reg1", 0)
 
         with Reg("reg2", 0x0024, size=16):
-            Field("adch", offset=0, width=4, reset=0x1F)
+            Field("adch", offset=0, width=4, reset=0x10)
