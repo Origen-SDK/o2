@@ -1,7 +1,32 @@
 import origen
 import _origen
+from origen import pins
+from origen import timesets
 from origen.registers import Loader as RegLoader
+from origen.sub_blocks import Loader as SubBlockLoader
+from origen.errors import *
 from contextlib import contextmanager
+
+class Proxies:
+    def __init__(self, controller):
+        self.controller = controller
+        self.proxies = {}
+    
+    def __getitem__(self, name):
+        p = self.proxies.get(name)
+        if (p):
+            return p
+        else:
+            origen.logger.error(f"No proxy for '{name}' has been set!")
+            exit()
+    
+    def __setitem__(self, name, proxy):
+        if proxy in self.proxies:
+            origen.logger.error(f"A proxy for '{proxy}' has already been set! Cannot set the same proxy again!")
+            exit()
+        else:
+            self.proxies[name] = proxy
+            return proxy
 
 # The base class of all Origen controller objects
 class Base:
@@ -24,8 +49,16 @@ class Base:
     is_top = False
 
     def __init__(self):
+        self.__proxies__ = Proxies(self)
         self.regs_loaded = False
         self.sub_blocks_loaded = False
+        self.pins_loaded = False
+        self.timesets_loaded= False
+
+    def __repr__(self):
+        self._load_regs()
+        self._load_sub_blocks()
+        return origen.dut.db.model_console_display(self.model_id)
 
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
@@ -35,17 +68,35 @@ class Base:
         if name == "regs":
             self._load_regs()
             if self._default_default_address_block:
-                return origen.dut.db.regs(self._default_default_address_block.id)
+                return self._default_default_address_block.regs
             else:
-                return origen.dut.db.regs(None)
+                return origen.dut.db.empty_regs()
 
         elif name == "sub_blocks":
             self._load_sub_blocks()
             return self.sub_blocks
 
+        elif name in pins.Proxy.api():
+            from origen.pins import Proxy
+            proxy = pins.Proxy(self)
+            self.__proxies__["pins"] = proxy
+            for method in pins.Proxy.api():
+                self.__setattr__(method, getattr(proxy, method))
+            self._load_pins()
+            return eval(f"self.{name}")
+        
         elif name == "memory_maps":
             self._load_regs()
             return origen.dut.db.memory_maps(self.model_id)
+
+        elif name in timesets.Proxy.api():
+            from origen.timesets import Proxy
+            proxy = timesets.Proxy(self)
+            self.__proxies__["timesets"] = proxy
+            for method in timesets.Proxy.api():
+                self.__setattr__(method, getattr(proxy, method))
+            self._load_timesets()
+            return eval(f"self.{name}")
 
         else:
             self._load_sub_blocks()
@@ -57,6 +108,12 @@ class Base:
 
             if name in self.memory_maps:
                 return self.memory_maps[name]
+
+            # Finally see if this is a reference to a reg in the default address block
+            if self._default_default_address_block:
+                r = self._default_default_address_block.reg(name)
+                if r:
+                    return r
 
             raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
@@ -89,16 +146,28 @@ class Base:
         return t
 
     def memory_map(self, name):
-        self.regs  # Ensure the memory maps for this block have been loaded
+        self._load_regs()
         return origen.dut.db.memory_map(self.model_id, name)
+
+    def reg(self, name):
+        self._load_regs()
+        if self._default_default_address_block:
+            return self._default_default_address_block.reg(name)
+        else:
+            raise AttributeError(f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)")
 
     def add_simple_reg(self, *args, **kwargs):
         RegLoader(self).SimpleReg(*args, **kwargs)
 
     @contextmanager
     def add_reg(self, *args, **kwargs):
+        self._load_regs()
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
+
+    def add_sub_block(self, *args, **kwargs):
+        self._load_sub_blocks()
+        return SubBlockLoader(self).sub_block(*args, **kwargs)
 
     def _load_regs(self):
         if not self.regs_loaded:
@@ -111,6 +180,16 @@ class Base:
             self.sub_blocks = Proxy(self)
             self.app.load_block_files(self, "sub_blocks.py")
             self.sub_blocks_loaded = True
+    
+    def _load_pins(self):
+        if not self.pins_loaded:
+            self.app.load_block_files(self, "pins.py")
+            self.pins_loaded = True
+
+    def _load_timesets(self):
+        if not self.timesets_loaded:
+            self.app.load_block_files(self, "timesets.py")
+            self.timesets_loaded = True
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

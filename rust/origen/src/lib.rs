@@ -5,13 +5,13 @@ extern crate serde;
 
 pub mod core;
 pub mod error;
+pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
-use self::core::dut::Dut;
+pub use self::core::dut::Dut;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
-use crate::error::Error;
 use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -39,6 +39,18 @@ lazy_static! {
 pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
+#[macro_export]
+macro_rules! lock {
+    () => {
+        match DUT.lock() {
+            Ok(dut) => Ok(dut),
+            Err(e) => Err(origen::error::Error::new(&format!(
+                "Could not attain DUT lock!"
+            ))),
+        }
+    };
 }
 
 pub fn dut() -> MutexGuard<'static, Dut> {

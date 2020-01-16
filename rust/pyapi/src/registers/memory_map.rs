@@ -1,5 +1,6 @@
+use super::address_block::{AddressBlock, AddressBlocks};
+use super::Registers;
 use crate::dut::PyDUT;
-use crate::register::Registers;
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;
@@ -166,14 +167,15 @@ impl PyObjectProtocol for MemoryMaps {
     fn __repr__(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let model = dut.get_model(self.model_id)?;
-        //let mut output: String = "".to_string();
         let (mut output, offset) = model.console_header(&dut);
         output += &(" ".repeat(offset));
         output += "└── memory_maps\n";
         let leader = " ".repeat(offset + 5);
         let num_maps = model.memory_maps.keys().len();
         if num_maps > 0 {
-            for (i, key) in model.memory_maps.keys().enumerate() {
+            let mut keys: Vec<&String> = model.memory_maps.keys().collect();
+            keys.sort();
+            for (i, key) in keys.iter().enumerate() {
                 if i != num_maps - 1 {
                     output += &format!("{}├── {}\n", leader, key);
                 } else {
@@ -225,9 +227,9 @@ impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
 #[derive(Debug)]
 pub struct MemoryMap {
     #[pyo3(get)]
-    id: usize,
+    pub id: usize,
     #[pyo3(get)]
-    name: String,
+    pub name: String,
 }
 
 /// User API methods, available to both Rust and Python
@@ -242,17 +244,14 @@ impl PyObjectProtocol for MemoryMap {
     fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
+        let dut = origen::dut();
 
         // Calling .regs on an individual memory map returns the regs in its default
         // address block (the one named 'default').
         // If a default address block has not been defined then an empty Registers collection
         // is returned.
         if query == "regs" {
-            let ab_id = DUT
-                .lock()
-                .unwrap()
-                .get_memory_map(self.id)?
-                .get_address_block_id("default");
+            let ab_id = dut.get_memory_map(self.id)?.get_address_block_id("default");
             let pyref = PyRef::new(
                 py,
                 Registers {
@@ -260,33 +259,43 @@ impl PyObjectProtocol for MemoryMap {
                         Ok(v) => Some(v),
                         Err(_) => None,
                     },
+                    register_file_id: None,
+                    ids: None,
                     i: 0,
                 },
             )?;
 
             Ok(pyref.to_object(py))
-        } else {
-            //let dut = DUT.lock().unwrap();
-            //let model = dut.get_model(&self.model_path)?;
-            //let map = model.memory_maps.get(&self.id).unwrap();
+        } else if query == "address_blocks" {
+            Ok(PyRef::new(
+                py,
+                AddressBlocks {
+                    memory_map_id: self.id,
+                    i: 0,
+                },
+            )?
+            .to_object(py))
 
-            //if map.address_blocks.contains_key(query) {
-            //    let pyref = PyRef::new(
-            //        py,
-            //        AddressBlock {
-            //            model_path: self.model_path.to_string(),
-            //            memory_map: self.id.to_string(),
-            //            id: query.to_string(),
-            //            i: 0,
-            //        },
-            //    )?;
-            //    Ok(pyref.to_object(py))
-            //} else {
-            Err(AttributeError::py_err(format!(
-                "'MemoryMap' object has no attribute '{}'",
-                query
-            )))
-            //}
+        // See if the requested attribute is a reference to one of this map's address blocks
+        } else {
+            let map = dut.get_memory_map(self.id)?;
+
+            match map.get_address_block_id(query) {
+                Ok(id) => {
+                    let pyref = PyRef::new(
+                        py,
+                        AddressBlock {
+                            id: id,
+                            name: query.to_string(),
+                        },
+                    )?;
+                    Ok(pyref.to_object(py))
+                }
+                Err(_) => Err(AttributeError::py_err(format!(
+                    "'MemoryMap' object has no attribute '{}'",
+                    query
+                ))),
+            }
         }
     }
 
@@ -310,6 +319,8 @@ impl PyObjectProtocol for MemoryMap {
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        Ok("Here should be a nice graphic of the memory map".to_string())
+        let dut = origen::dut();
+        let memory_map = dut.get_memory_map(self.id)?;
+        Ok(memory_map.console_display(&dut)?)
     }
 }

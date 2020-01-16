@@ -1,8 +1,9 @@
-mod address_block;
 mod dut;
 mod logger;
-mod memory_map;
-mod register;
+mod meta;
+mod pins;
+mod registers;
+mod timesets;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
