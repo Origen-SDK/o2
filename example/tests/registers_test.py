@@ -66,12 +66,12 @@ def test_address_blocks():
 
 def test_regs_can_be_added():
     origen.app.instantiate_dut("dut.falcon")
-    assert origen.dut.regs.len() == 4
+    base = origen.dut.regs.len()
     origen.dut.add_simple_reg("treg1", 0x1000)
-    assert origen.dut.regs.len() == 5
+    assert origen.dut.regs.len() == base + 1
     with origen.dut.add_reg("treg2", 0x1004) as reg:
         reg.Field('trim', offset=0, width=8)
-    assert origen.dut.regs.len() == 6
+    assert origen.dut.regs.len() == base + 2
 
 def test_address_blocks_can_be_fetched():
     origen.app.instantiate_dut("dut.falcon")
@@ -83,8 +83,27 @@ def test_regs_can_be_fetched():
     assert origen.dut.reg("no_reg") == None
     #assert origen.dut.regs["reg1"]
 
-def test_register_value_can_be_read():
+def test_register_reset_values():
     origen.app.instantiate_dut("dut.falcon")
-    #assert origen.dut.regs["reg1"].data == 0
 
+    with origen.dut.add_reg("t1", 0) as reg:
+        reg.Field("f1", offset=0, width=8, reset=0x55)
+    assert origen.dut.t1.f1.data() == 0x55
 
+    with origen.dut.add_reg("t2", 0) as reg:
+        reg.Field("f1", offset=0, width=8, resets={
+            "hard": 0xAA,
+            "soft": 0xFF,
+        })
+    assert origen.dut.t2.f1.data() == 0xAA
+
+    with origen.dut.add_reg("t3", 0) as reg:
+        reg.Field("f1", offset=0, width=8, resets={
+            "hard": { "value": 0xAA, "mask": 0xF0 },
+            "soft": 0xFF,
+        })
+    assert origen.dut.t3.f1.data() == 0xA0
+        
+
+def test_reading_undefined_data_raises_error():
+    pass

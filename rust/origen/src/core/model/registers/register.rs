@@ -537,7 +537,6 @@ impl Register {
         offset: usize,
         width: usize,
         access: &str,
-        reset: &BigUint,
     ) -> OrigenResult<&mut Field> {
         let acc: AccessType = match access.parse() {
             Ok(x) => x,
@@ -550,7 +549,7 @@ impl Register {
             offset: offset,
             width: width,
             access: acc,
-            reset: reset.clone(),
+            resets: IndexMap::new(),
             enums: IndexMap::new(),
             related_fields: 0,
         };
@@ -663,10 +662,9 @@ pub struct Field {
     /// Width of the field in bits.
     pub width: usize,
     pub access: AccessType,
-    // Contains any reset values defined for this field.
-    //pub resets: Vec<Reset>,
-    // Just went with a simple reset value initially
-    pub reset: BigUint,
+    /// Contains any reset values defined for this field, if
+    /// not present it will default to resetting all bits to 0
+    pub resets: IndexMap<String, Reset>,
     pub enums: IndexMap<String, EnumeratedValue>,
     related_fields: usize,
 }
@@ -689,6 +687,28 @@ impl Field {
         };
         self.enums.insert(name.to_string(), e);
         Ok(&self.enums[name])
+    }
+
+    pub fn add_reset(
+        &mut self,
+        name: &str,
+        value: &BigUint,
+        mask: Option<&BigUint>,
+    ) -> OrigenResult<&Reset> {
+        let r;
+        if mask.is_some() {
+            r = Reset {
+                value: value.clone(),
+                mask: Some(mask.unwrap().clone()),
+            };
+        } else {
+            r = Reset {
+                value: value.clone(),
+                mask: None,
+            };
+        }
+        self.resets.insert(name.to_string(), r);
+        Ok(&self.resets[name])
     }
 
     /// Returns the bit IDs associated with the field, wrapped in a Vec
@@ -761,18 +781,11 @@ impl SummaryField {
     }
 }
 
-//#[derive(Debug)]
-//pub struct Reset {
-//    pub reset_type: String,
-//    // TODO: Should this be vector of tuples instead?
-//    /// The size of this vector corresponds to the size of the parent field.
-//    /// A set bit indicates a reset values of 1.
-//    pub value: Vec<bool>,
-//    /// The size of this vector corresponds to the size of the parent field.
-//    /// A set bit indicates that the bit has a reset value defined by the
-//    /// corresponding value.
-//    pub mask: Vec<bool>,
-//}
+#[derive(Debug)]
+pub struct Reset {
+    pub value: BigUint,
+    pub mask: Option<BigUint>,
+}
 
 #[derive(Debug)]
 pub struct EnumeratedValue {

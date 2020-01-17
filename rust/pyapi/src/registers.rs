@@ -3,7 +3,7 @@ mod bit_collection;
 mod memory_map;
 mod register;
 use num_bigint::BigUint;
-use num_traits::identities::Zero;
+//use num_traits::identities::Zero;
 use std::sync::RwLock;
 
 //use crate::dut::PyDUT;
@@ -13,7 +13,7 @@ use origen::core::model::registers::{Bit, SummaryField};
 use origen::DUT;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use register::{Field, FieldEnum};
+use register::{Field, FieldEnum, ResetVal};
 
 #[pymodule]
 /// Implements the module _origen.registers in Python
@@ -21,6 +21,7 @@ pub fn registers(_py: Python, m: &PyModule) -> PyResult<()> {
     // Used to pass register field info from Python to Rust when defining regs
     m.add_class::<Field>()?;
     m.add_class::<FieldEnum>()?;
+    m.add_class::<ResetVal>()?;
 
     m.add_wrapped(wrap_pyfunction!(create))?;
     Ok(())
@@ -38,7 +39,7 @@ fn create(
     let reg_id;
     let reg_fields;
     let base_bit_id;
-    let mut reset_vals: Vec<Option<&BigUint>> = Vec::new();
+    let mut reset_vals: Vec<Option<(&BigUint, Option<&BigUint>)>> = Vec::new();
     let mut non_zero_reset = false;
 
     fields.sort_by_key(|field| field.offset);
@@ -51,22 +52,27 @@ fn create(
         reg_id = dut.create_reg(address_block_id, name, offset, size)?;
         let reg = dut.get_mut_register(reg_id)?;
         for f in &fields {
-            let field = reg.add_field(
-                &f.name,
-                &f.description,
-                f.offset,
-                f.width,
-                &f.access,
-                &f.reset,
-            )?;
+            let field = reg.add_field(&f.name, &f.description, f.offset, f.width, &f.access)?;
             for e in &f.enums {
                 field.add_enum(&e.name, &e.description, &e.value)?;
             }
-            if f.reset.is_zero() {
+            if f.resets.is_none() {
                 reset_vals.push(None);
             } else {
-                reset_vals.push(Some(&f.reset));
-                non_zero_reset = true;
+                let mut val_found = false;
+                for r in f.resets.as_ref().unwrap() {
+                    field.add_reset(&r.name, &r.value, r.mask.as_ref())?;
+                    // Apply this state to the register at time 0
+                    if r.name == "hard" {
+                        //TODO: Need to handle the mask here too
+                        reset_vals.push(Some((&r.value, r.mask.as_ref())));
+                        non_zero_reset = true;
+                        val_found = true;
+                    }
+                }
+                if !val_found {
+                    reset_vals.push(None);
+                }
             }
         }
         for i in 0..reg.size as usize {
@@ -90,20 +96,50 @@ fn create(
                 });
             }
         } else {
-            let mut bytes = reset_vals.last().unwrap().unwrap().to_bytes_be();
-            let mut byte = bytes.pop().unwrap();
-            for i in 0..field.width {
-                let state = (byte >> i % 8) & 1;
-                dut.bits.push(Bit {
-                    overlay: RwLock::new(None),
-                    register_id: reg_id,
-                    state: RwLock::new(state),
-                    access: field.access,
-                });
-                if i % 8 == 7 {
-                    match bytes.pop() {
-                        Some(x) => byte = x,
-                        None => byte = 0,
+            let reset_val = reset_vals.last().unwrap().unwrap();
+
+            // If no reset mask to apply. There is a lot of duplication here but ran
+            // into borrow issues that I couldn't resolve and had to move on.
+            if reset_val.1.is_none() {
+                let mut bytes = reset_val.0.to_bytes_be();
+                let mut byte = bytes.pop().unwrap();
+                for i in 0..field.width {
+                    let state = (byte >> i % 8) & 1;
+                    dut.bits.push(Bit {
+                        overlay: RwLock::new(None),
+                        register_id: reg_id,
+                        state: RwLock::new(state),
+                        access: field.access,
+                    });
+                    if i % 8 == 7 {
+                        match bytes.pop() {
+                            Some(x) => byte = x,
+                            None => byte = 0,
+                        }
+                    }
+                }
+            } else {
+                let mut bytes = reset_val.0.to_bytes_be();
+                let mut byte = bytes.pop().unwrap();
+                let mut mask_bytes = reset_val.1.unwrap().to_bytes_be();
+                let mut mask_byte = mask_bytes.pop().unwrap();
+                for i in 0..field.width {
+                    let state = (byte >> i % 8) & (mask_byte >> i % 8) & 1;
+                    dut.bits.push(Bit {
+                        overlay: RwLock::new(None),
+                        register_id: reg_id,
+                        state: RwLock::new(state),
+                        access: field.access,
+                    });
+                    if i % 8 == 7 {
+                        match bytes.pop() {
+                            Some(x) => byte = x,
+                            None => byte = 0,
+                        }
+                        match mask_bytes.pop() {
+                            Some(x) => mask_byte = x,
+                            None => mask_byte = 0,
+                        }
                     }
                 }
             }

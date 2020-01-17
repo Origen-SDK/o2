@@ -36,7 +36,7 @@ def test_split_bits_test():
     assert origen.dut.reg("tcu").data() == 0b1101
     assert origen.dut.reg("tcu").get_data() == 0b1101
     assert origen.dut.reg("tcu").bits("peter").data() == 7
-    #origen.dut.reg("tcu").reset
+    #origen.dut.reg("tcu").reset()
     #assert origen.dut.reg("tcu").data == 12
 
     # Seems like we can drop this API

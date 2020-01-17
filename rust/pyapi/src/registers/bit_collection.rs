@@ -4,6 +4,7 @@ use origen::Dut;
 use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::exceptions;
+use pyo3::exceptions::AttributeError;
 use pyo3::prelude::*;
 use std::sync::MutexGuard;
 
@@ -46,6 +47,32 @@ impl PyObjectProtocol for BitCollection {
                 "<BitCollection containing {} bits>",
                 self.bit_ids.len()
             ))
+        }
+    }
+
+    /// Implements my_reg.my_bits
+    fn __getattr__(&self, query: &str) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        if self.whole {
+            let reg = dut.get_register(self.reg_id)?;
+            if reg.fields.contains_key(query) {
+                Ok(BitCollection {
+                    reg_id: self.reg_id,
+                    whole: false,
+                    bit_ids: reg.fields.get(query).unwrap().bit_ids(&dut),
+                    i: 0,
+                })
+            } else {
+                Err(AttributeError::py_err(format!(
+                    "'BitCollection' object has no attribute '{}'",
+                    query
+                )))
+            }
+        } else {
+            Err(AttributeError::py_err(format!(
+                "'BitCollection' object has no attribute '{}'",
+                query
+            )))
         }
     }
 }

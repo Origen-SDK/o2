@@ -25,7 +25,6 @@ for i in range(NUM_REGS):
         Field("coco", offset=7, access="ro")
         Field("aien", offset=6)
         Field("diff", offset=5)
-        #Field("adch", offset=0, width=5, reset=0x1F, enums={
         Field("adch", offset=0, width=5, reset=0x1F, enums={
             # A simple enum
             "val1": 3,
@@ -35,6 +34,23 @@ for i in range(NUM_REGS):
 end_time = time()
 #origen.logger.info(f"Building {NUM_REGS} regs complete")
 origen.logger.info(f"Building {NUM_REGS} regs took: {end_time - start_time}")
+
+# Field adch has no reset value
+with Reg("breg0", 0x0024, size=16):
+    Field("adch", offset=0, width=5)
+
+# Field adch has a simple reset value
+with Reg("creg0", 0x0024, size=16):
+    Field("adch", offset=0, width=5, reset=0)
+    
+# Field adch has multiple reset values
+with Reg("dreg0", 0x0024, size=16):
+    Field("adch", offset=0, width=5, resets={
+        # A simple reset value, 'hard' is equivalent to reset=5
+        "hard": 5,
+        # A more complex reset, all fields except for value are optional
+        "async": { "value": 0xF, "mask": 0b1010 },
+    })
 
 # Regs can be added within a defined memory map, and in this case no address
 # block is given so that will mean they are placed in a default address block
