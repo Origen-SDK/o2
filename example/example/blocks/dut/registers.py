@@ -1,4 +1,5 @@
 from time import time
+import pdb
 # Registers added in the global scope of these files will be added to
 # a memory map called 'default' and within that an address block called
 # 'default'. Such regs can be accessed via my_block.regs and users who
@@ -7,6 +8,7 @@ from time import time
 
 # A simple reg definition with all bits writable, here at address 0 and a
 # default size of 32-bits
+
 SimpleReg("reg1", 0)
 # Another simple reg with custom size
 SimpleReg("reg2", 4, size=16)

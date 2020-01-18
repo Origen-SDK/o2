@@ -23,8 +23,6 @@ def test_split_bits_test():
         reg.Field("pan",   offset=1, reset=0)
         reg.Field("peter", offset=0, reset=0)
 
-    #pdb.set_trace()
-
     # TODO: Add reset values
     assert origen.dut.reg("tcu").get_data() == 12
     assert origen.dut.reg("tcu").bits("peter").len() == 4

@@ -1,4 +1,7 @@
 import origen
+from origen.errors import *
+import pytest
+import pdb
 
 def test_memory_maps():
     origen.app.instantiate_dut("dut.falcon")
@@ -106,4 +109,10 @@ def test_register_reset_values():
         
 
 def test_reading_undefined_data_raises_error():
-    pass
+    origen.app.instantiate_dut("dut.falcon")
+    origen.dut.add_simple_reg("t1", 0)
+    reg = origen.dut.t1
+    with pytest.raises(UndefinedDataError):
+        reg.data()
+    reg.set_data(0)
+    assert reg.data() == 0

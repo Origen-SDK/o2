@@ -3,12 +3,12 @@ mod bit_collection;
 mod memory_map;
 mod register;
 use num_bigint::BigUint;
-//use num_traits::identities::Zero;
 use std::sync::RwLock;
 
 //use crate::dut::PyDUT;
 //use origen::core::model::registers::Register;
 use bit_collection::BitCollection;
+use origen::core::model::registers::bit::{UNDEFINED, ZERO};
 use origen::core::model::registers::{Bit, SummaryField};
 use origen::DUT;
 use pyo3::prelude::*;
@@ -27,7 +27,7 @@ pub fn registers(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-/// Create a new register
+/// Create a new register, returning its ID
 #[pyfunction]
 fn create(
     address_block_id: usize,
@@ -88,10 +88,16 @@ fn create(
         // Intention here is to skip decomposing the BigUint unless required
         if !non_zero_reset || field.spacer || reset_vals.last().unwrap().is_none() {
             for _i in 0..field.width {
+                let val;
+                if field.spacer {
+                    val = ZERO;
+                } else {
+                    val = UNDEFINED;
+                }
                 dut.bits.push(Bit {
                     overlay: RwLock::new(None),
                     register_id: reg_id,
-                    state: RwLock::new(0),
+                    state: RwLock::new(val),
                     access: field.access,
                 });
             }

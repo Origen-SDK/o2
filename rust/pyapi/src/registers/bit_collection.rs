@@ -5,8 +5,11 @@ use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::exceptions;
 use pyo3::exceptions::AttributeError;
+use pyo3::import_exception;
 use pyo3::prelude::*;
 use std::sync::MutexGuard;
+
+import_exception!(origen.errors, UndefinedDataError);
 
 /// A BitCollection represents either a whole register or a subset of a
 /// registers bits (not necessarily contiguous bits) and provides the user
@@ -91,7 +94,15 @@ impl BitCollection {
 
     fn get_data(&self) -> PyResult<BigUint> {
         let dut = origen::dut();
-        Ok(self.materialize(&dut)?.data()?)
+        match self.materialize(&dut)?.data() {
+            Ok(v) => Ok(v),
+            Err(_) => {
+                match dut.get_register(self.reg_id) {
+                    Ok(v) => Err(UndefinedDataError::py_err(format!("Attempted to reference data from register '{}' but it contains undefined (X) bits!", v.name))),
+                    Err(_) => Err(UndefinedDataError::py_err("Attempted to reference a data value that contains undefined (X) bits!")),
+                }
+            },
+        }
     }
 
     fn set_data(&self, value: BigUint) -> PyResult<BitCollection> {

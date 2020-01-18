@@ -39,7 +39,6 @@ impl<'a> BitCollection<'a> {
 
     pub fn set_data(&self, value: BigUint) {
         let mut bytes = value.to_bytes_be();
-
         let mut byte = bytes.pop().unwrap();
 
         for (i, &bit) in self.bits.iter().enumerate() {
@@ -47,16 +46,17 @@ impl<'a> BitCollection<'a> {
             if i % 8 == 7 {
                 match bytes.pop() {
                     Some(x) => byte = x,
-                    None => return,
+                    None => byte = 0,
                 }
             }
         }
     }
 
+    /// Returns the data value of the BitCollection. This will return an error if
+    /// any of the bits are undefined (X or Z).
     pub fn data(&self) -> Result<BigUint> {
         let mut bytes: Vec<u8> = Vec::new();
 
-        //self.bits.iter().all(|bit| bit.has_known_value())
         let mut byte: u8 = 0;
         for (i, &bit) in self.bits.iter().enumerate() {
             byte = byte | bit.data()? << i % 8;

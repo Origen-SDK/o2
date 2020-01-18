@@ -3,6 +3,11 @@ use super::AccessType::Unimplemented;
 use crate::{Error, Result};
 use std::sync::RwLock;
 
+// State values for common initialization cases
+pub const ZERO: u8 = 0;
+pub const ONE: u8 = 1;
+pub const UNDEFINED: u8 = 0b10;
+
 #[derive(Debug)]
 pub struct Bit {
     pub register_id: usize,

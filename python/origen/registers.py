@@ -37,16 +37,16 @@ class Loader:
     def Reg(self, name, address_offset, size=32):
         self.fields = []
         yield self
-        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, self.fields)
+        reg = _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, self.fields)
         self.fields = None
 
     def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None):
-        field = _origen.dut.registers.Field("data", "", 0, size, "rw", self.clean_resets(reset or resets), self.clean_enums(enums))
+        field = _origen.dut.registers.Field("data", "", 0, size, "rw", self.clean_resets(reset, resets), self.clean_enums(enums))
         _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, [field])
 
     def Field(self, name, offset, width=1, access="rw", reset=None, resets=None, enums=None, description=""):
         if self.fields is not None:
-            self.fields.append(_origen.dut.registers.Field(name, description, offset, width, access, self.clean_resets(reset or resets), self.clean_enums(enums)))
+            self.fields.append(_origen.dut.registers.Field(name, description, offset, width, access, self.clean_resets(reset, resets), self.clean_enums(enums)))
         else:
             raise RuntimeError(f"A Field can only be defined within a 'with Reg' definition block")
 
@@ -78,8 +78,10 @@ class Loader:
                         e.append(_origen.dut.registers.FieldEnum(enum_name, "", attrs))
             return e
 
-    def clean_resets(self, resets):
+    def clean_resets(self, reset, resets):
         r = None
+        if resets is None:
+            resets = reset
         if resets is not None:
             r = []
             if isinstance(resets, dict):
