@@ -1,12 +1,20 @@
-use super::Bit;
+use super::{Bit, Register};
 use crate::{Dut, Result};
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
 
 #[derive(Debug)]
 pub struct BitCollection<'a> {
-    /// When true the BitCollection contains an entire register's worth of bits
-    whole: bool,
+    /// Optionally contains the ID of the reg that owns the bits
+    reg_id: Option<usize>,
+    /// Optionally contains the name of the field that owns the bits
+    field: Option<String>,
+    /// When true the BitCollection contains all bits of the register defined
+    /// by reg_id
+    whole_reg: bool,
+    /// When true the BitCollection contains all bits of the field defined
+    /// by field
+    whole_field: bool,
     pub bits: Vec<&'a Bit>,
     /// Iterator index
     i: usize,
@@ -15,7 +23,10 @@ pub struct BitCollection<'a> {
 impl<'a> Default for BitCollection<'a> {
     fn default() -> BitCollection<'a> {
         BitCollection {
-            whole: false,
+            reg_id: None,
+            field: None,
+            whole_reg: false,
+            whole_field: false,
             bits: Vec::new(),
             i: 0,
         }
@@ -23,6 +34,10 @@ impl<'a> Default for BitCollection<'a> {
 }
 
 impl<'a> BitCollection<'a> {
+    /// Creates a BitCollection from the given collection of bit IDs.
+    /// The resultant collection can not be associated back to a register or field.
+    /// Use the methods <reg>.bits() and <field>.bits() to create BitCollections with the necessary
+    /// metadata to associate with the parent object.
     pub fn for_bit_ids(ids: &Vec<usize>, dut: &'a MutexGuard<'a, Dut>) -> BitCollection<'a> {
         let mut bits: Vec<&Bit> = Vec::new();
 
@@ -31,7 +46,53 @@ impl<'a> BitCollection<'a> {
         }
 
         BitCollection {
-            whole: false,
+            reg_id: None,
+            field: None,
+            whole_reg: false,
+            whole_field: false,
+            bits: bits,
+            i: 0,
+        }
+    }
+
+    /// Creates a BitCollection for the given register, normally this would not be called directly
+    /// and would instead be called via <reg>.bits()
+    pub fn for_register(reg: &Register, dut: &'a MutexGuard<'a, Dut>) -> BitCollection<'a> {
+        let mut bits: Vec<&Bit> = Vec::new();
+
+        for id in &reg.bit_ids {
+            bits.push(dut.get_bit(*id).unwrap());
+        }
+
+        BitCollection {
+            reg_id: Some(reg.id),
+            field: None,
+            whole_reg: true,
+            whole_field: false,
+            bits: bits,
+            i: 0,
+        }
+    }
+
+    /// Creates a BitCollection for the given register field, normally this would not be called directly
+    /// and would instead be called via <reg>.bits()
+    pub fn for_field(
+        ids: &Vec<usize>,
+        reg_id: usize,
+        name: &str,
+        dut: &'a MutexGuard<'a, Dut>,
+    ) -> BitCollection<'a> {
+        let mut bits: Vec<&Bit> = Vec::new();
+
+        for id in ids {
+            bits.push(dut.get_bit(*id).unwrap());
+        }
+
+        BitCollection {
+            reg_id: Some(reg_id),
+            field: Some(name.to_string()),
+            whole_reg: false,
+            whole_field: true,
             bits: bits,
             i: 0,
         }
@@ -76,7 +137,7 @@ impl<'a> BitCollection<'a> {
         self.bits.iter().all(|bit| bit.has_known_value())
     }
 
-    /// Returns true if no contained bits are in X or Z state
+    /// Returns a new BitCollection containing the subset of bits within the given range
     pub fn range(&self, max: usize, min: usize) -> BitCollection<'a> {
         let mut bits: Vec<&Bit> = Vec::new();
 
@@ -85,7 +146,10 @@ impl<'a> BitCollection<'a> {
         }
 
         BitCollection {
-            whole: false,
+            reg_id: self.reg_id,
+            field: self.field.clone(),
+            whole_reg: self.whole_reg && bits.len() == self.bits.len(),
+            whole_field: self.whole_field && bits.len() == self.bits.len(),
             bits: bits,
             i: 0,
         }
@@ -140,7 +204,10 @@ mod tests {
         }
 
         BitCollection {
-            whole: false,
+            reg_id: None,
+            field: None,
+            whole_reg: false,
+            whole_field: false,
             bits: bits,
             i: 0,
         }

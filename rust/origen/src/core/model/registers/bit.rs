@@ -1,6 +1,7 @@
 use super::AccessType;
 use super::AccessType::Unimplemented;
 use crate::{Error, Result};
+use std::collections::HashMap;
 use std::sync::RwLock;
 
 // State values for common initialization cases
@@ -12,6 +13,7 @@ pub const UNDEFINED: u8 = 0b10;
 pub struct Bit {
     pub register_id: usize,
     pub overlay: RwLock<Option<String>>,
+    pub overlay_snapshots: RwLock<HashMap<String, Option<String>>>,
     /// The individual bits mean the following:
     /// 0 - Data value
     /// 1 - Value is X
@@ -20,6 +22,9 @@ pub struct Bit {
     /// 4 - Bit is to be captured
     /// 5 - Bit has an overlay (defined by overlay str)
     pub state: RwLock<u8>,
+    /// The state of the bit at the last reset
+    pub reset_state: RwLock<u8>,
+    pub state_snapshots: RwLock<HashMap<String, u8>>,
     pub access: AccessType,
 }
 

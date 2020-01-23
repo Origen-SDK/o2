@@ -18,9 +18,11 @@ import_exception!(origen.errors, UndefinedDataError);
 #[derive(Debug, Clone)]
 pub struct BitCollection {
     /// The ID of the parent register
-    pub reg_id: usize,
+    pub reg_id: Option<usize>,
+    pub field: Option<String>,
     /// When true the BitCollection contains an entire register's worth of bits
-    pub whole: bool,
+    pub whole_reg: bool,
+    pub whole_field: bool,
     pub bit_ids: Vec<usize>,
     /// Iterator index
     pub i: usize,
@@ -30,8 +32,10 @@ pub struct BitCollection {
 impl BitCollection {
     pub fn from_reg_id(id: usize) -> BitCollection {
         BitCollection {
-            reg_id: id,
-            whole: true,
+            reg_id: Some(id),
+            field: None,
+            whole_reg: true,
+            whole_field: false,
             bit_ids: Vec::new(),
             i: 0,
         }
@@ -41,13 +45,38 @@ impl BitCollection {
 #[pyproto]
 impl PyObjectProtocol for BitCollection {
     fn __repr__(&self) -> PyResult<String> {
-        if self.whole {
+        if self.reg_id.is_some() {
             let dut = origen::dut();
-            let reg = dut.get_register(self.reg_id)?;
-            Ok(reg.console_display(&dut, None, true)?)
+            let reg = dut.get_register(self.reg_id.unwrap())?;
+            if self.field.is_none() {
+                if self.whole_reg {
+                    Ok(reg.console_display(&dut, None, true)?)
+                } else {
+                    Ok(format!(
+                        "<BitCollection containing an ad-hoc colleciton of {} bit(s) from register '{}'>",
+                        self.bit_ids.len(),
+                        reg.name
+                    ))
+                }
+            } else {
+                if self.whole_field {
+                    Ok(format!(
+                        "<BitCollection containing all bits from register field '{}.{}'>",
+                        reg.name,
+                        self.field.as_ref().unwrap()
+                    ))
+                } else {
+                    Ok(format!(
+                        "<BitCollection containing an ad-hoc collection of {} bit(s) from register field '{}.{}'>",
+                        self.bit_ids.len(),
+                        reg.name,
+                        self.field.as_ref().unwrap()
+                    ))
+                }
+            }
         } else {
             Ok(format!(
-                "<BitCollection containing {} bits>",
+                "<BitCollection containing an ad-hoc collection of {} bit(s)>",
                 self.bit_ids.len()
             ))
         }
@@ -56,12 +85,14 @@ impl PyObjectProtocol for BitCollection {
     /// Implements my_reg.my_bits
     fn __getattr__(&self, query: &str) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        if self.whole {
-            let reg = dut.get_register(self.reg_id)?;
+        if self.whole_reg {
+            let reg = dut.get_register(self.reg_id.unwrap())?;
             if reg.fields.contains_key(query) {
                 Ok(BitCollection {
                     reg_id: self.reg_id,
-                    whole: false,
+                    field: Some(query.to_string()),
+                    whole_reg: false,
+                    whole_field: true,
                     bit_ids: reg.fields.get(query).unwrap().bit_ids(&dut),
                     i: 0,
                 })
@@ -87,6 +118,10 @@ impl BitCollection {
         Ok(self.bit_ids.len())
     }
 
+    fn reset(&self, name: Option<&str>) -> PyResult<BitCollection> {
+        Ok(self.clone())
+    }
+
     /// An alias for get_data()
     fn data(&self) -> PyResult<BigUint> {
         self.get_data()
@@ -97,11 +132,17 @@ impl BitCollection {
         match self.materialize(&dut)?.data() {
             Ok(v) => Ok(v),
             Err(_) => {
-                match dut.get_register(self.reg_id) {
-                    Ok(v) => Err(UndefinedDataError::py_err(format!("Attempted to reference data from register '{}' but it contains undefined (X) bits!", v.name))),
-                    Err(_) => Err(UndefinedDataError::py_err("Attempted to reference a data value that contains undefined (X) bits!")),
+                if self.reg_id.is_some() {
+                    match dut.get_register(self.reg_id.unwrap()) {
+                        Ok(v) => Err(UndefinedDataError::py_err(format!("Attempted to reference data from register '{}' but it contains undefined (X) bits!", v.name))),
+                        Err(_) => Err(UndefinedDataError::py_err("Attempted to reference a data value that contains undefined (X) bits!")),
+                    }
+                } else {
+                    Err(UndefinedDataError::py_err(
+                        "Attempted to reference a data value that contains undefined (X) bits!",
+                    ))
                 }
-            },
+            }
         }
     }
 
@@ -113,13 +154,15 @@ impl BitCollection {
 
     fn bits(&self, name: &str) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        let reg = dut.get_register(self.reg_id)?;
 
-        if self.whole {
+        if self.whole_reg {
+            let reg = dut.get_register(self.reg_id.unwrap())?;
             if reg.fields.contains_key(name) {
                 Ok(BitCollection {
                     reg_id: self.reg_id,
-                    whole: false,
+                    field: Some(name.to_string()),
+                    whole_reg: false,
+                    whole_field: true,
                     bit_ids: reg.fields.get(name).unwrap().bit_ids(&dut),
                     i: 0,
                 })
@@ -142,8 +185,15 @@ impl BitCollection {
 impl BitCollection {
     /// Turn into a full BitCollection containing bit object references
     fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<RichBC<'a>> {
-        if self.whole {
-            Ok(dut.get_register(self.reg_id)?.bits(&dut))
+        if self.whole_reg {
+            Ok(dut.get_register(self.reg_id.unwrap())?.bits(&dut))
+        } else if self.whole_field {
+            Ok(dut
+                .get_register(self.reg_id.unwrap())?
+                .fields
+                .get(self.field.as_ref().unwrap())
+                .unwrap()
+                .bits(&dut))
         } else {
             Ok(RichBC::for_bit_ids(&self.bit_ids, &dut))
         }

@@ -6,6 +6,7 @@ use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
 use crate::DUT;
+use std::collections::HashMap;
 use std::sync::RwLock;
 
 /// The DUT stores all objects associated with a particular device.
@@ -387,8 +388,11 @@ impl Dut {
         }
         let bit = Bit {
             overlay: RwLock::new(None),
+            overlay_snapshots: RwLock::new(HashMap::new()),
             register_id: 0,
             state: RwLock::new(0),
+            reset_state: RwLock::new(0),
+            state_snapshots: RwLock::new(HashMap::new()),
             access: AccessType::ReadWrite,
         };
 

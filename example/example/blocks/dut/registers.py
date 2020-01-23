@@ -22,7 +22,7 @@ NUM_REGS = 1#20000
 start_time = time()
 for i in range(NUM_REGS):
     # This is the reg description
-    with Reg(f"areg{i}", 0x0024, size=16):
+    with Reg(f"areg{i}", 0x0024):
         # This is the COCO description
         Field("coco", offset=7, access="ro")
         Field("aien", offset=6)

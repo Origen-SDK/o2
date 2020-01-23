@@ -567,13 +567,7 @@ impl Register {
 
     /// Returns all bits owned by the register, wrapped in a BitCollection
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
-        let mut bits: Vec<usize> = Vec::new();
-
-        for i in 0..self.size {
-            bits.push(self.bit_ids[i]);
-        }
-
-        BitCollection::for_bit_ids(&bits, dut)
+        BitCollection::for_register(self, dut)
     }
 }
 
@@ -750,7 +744,7 @@ impl Field {
     /// Returns the bits associated with the field, wrapped in a BitCollection
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
         let bit_ids = self.bit_ids(dut);
-        BitCollection::for_bit_ids(&bit_ids, dut)
+        BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
     }
 }
 
@@ -770,14 +764,14 @@ pub struct SummaryField {
 impl SummaryField {
     /// Returns the bits associated with the field, wrapped in a BitCollection
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
-        let mut bits: Vec<usize> = Vec::new();
+        let mut bit_ids: Vec<usize> = Vec::new();
         let reg = dut.get_register(self.reg_id).unwrap();
 
         for i in 0..self.width {
-            bits.push(reg.bit_ids[self.offset + i]);
+            bit_ids.push(reg.bit_ids[self.offset + i]);
         }
 
-        BitCollection::for_bit_ids(&bits, dut)
+        BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
     }
 }
 

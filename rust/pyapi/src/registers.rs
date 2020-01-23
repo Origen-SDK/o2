@@ -3,6 +3,7 @@ mod bit_collection;
 mod memory_map;
 mod register;
 use num_bigint::BigUint;
+use std::collections::HashMap;
 use std::sync::RwLock;
 
 //use crate::dut::PyDUT;
@@ -96,8 +97,11 @@ fn create(
                 }
                 dut.bits.push(Bit {
                     overlay: RwLock::new(None),
+                    overlay_snapshots: RwLock::new(HashMap::new()),
                     register_id: reg_id,
                     state: RwLock::new(val),
+                    reset_state: RwLock::new(val),
+                    state_snapshots: RwLock::new(HashMap::new()),
                     access: field.access,
                 });
             }
@@ -113,8 +117,11 @@ fn create(
                     let state = (byte >> i % 8) & 1;
                     dut.bits.push(Bit {
                         overlay: RwLock::new(None),
+                        overlay_snapshots: RwLock::new(HashMap::new()),
                         register_id: reg_id,
                         state: RwLock::new(state),
+                        reset_state: RwLock::new(state),
+                        state_snapshots: RwLock::new(HashMap::new()),
                         access: field.access,
                     });
                     if i % 8 == 7 {
@@ -133,8 +140,11 @@ fn create(
                     let state = (byte >> i % 8) & (mask_byte >> i % 8) & 1;
                     dut.bits.push(Bit {
                         overlay: RwLock::new(None),
+                        overlay_snapshots: RwLock::new(HashMap::new()),
                         register_id: reg_id,
                         state: RwLock::new(state),
+                        reset_state: RwLock::new(state),
+                        state_snapshots: RwLock::new(HashMap::new()),
                         access: field.access,
                     });
                     if i % 8 == 7 {
