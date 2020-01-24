@@ -1,4 +1,5 @@
 use super::{AccessType, BitCollection, BitOrder};
+use super::bit::UNDEFINED;
 use crate::Error;
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
@@ -777,6 +778,8 @@ impl Field {
                         // Think its OK to panic here if this get_bit doesn't return something, things
                         // will have gone seriously wrong somewhere
                         dut.get_bit(bit_ids[i]).unwrap().reset(state);
+                    } else {
+                        dut.get_bit(bit_ids[i]).unwrap().reset(UNDEFINED);
                     }
                     if i % 8 == 7 {
                         match bytes.pop() {

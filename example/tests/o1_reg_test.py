@@ -11,7 +11,7 @@ import pdb
 #  # Dummy method to allow the bang methods to be tested
 #end
 
-def test_split_bits_test():
+def test_split_bits():
     origen.app.instantiate_dut("dut.falcon")
     with origen.dut.add_reg("tcu", 0x0024, size=8) as reg:
         reg.Field("peter", offset=7, reset=0)
@@ -36,116 +36,100 @@ def test_split_bits_test():
     origen.dut.reg("tcu").reset()
     assert origen.dut.reg("tcu").data() == 12
 
-    # Seems like we can drop this API
-    #assert origen.dut.reg("tcu").contains_bits? == true
+def test_more_split_bits():
+    origen.app.instantiate_dut("dut.falcon")
+    with origen.dut.add_reg("tcu", 0x0024, size=8) as reg:
+        reg.Field("peter", offset=7, reset=0)
+        reg.Field("mike",  offset=4, width=3, reset=0)
+        reg.Field("peter", offset=2, width=2, reset=3)
+        reg.Field("pan",   offset=1, reset=0)
+        reg.Field("peter", offset=0, reset=0)
 
-#    it "Reads in excel TCU registers forward description" do
-#      reg :tcu, 0x0024, size: 8 do
-#        bits 7,   :peter,  reset: 0
-#        bits 6..4,   :mike,  reset: 0
-#        bits 3..2, :peter, reset: 3
-#        bits 1,   :pan,  reset: 0
-#        bits 0,   :peter,  reset: 0
-#      end
-#        reg(:tcu).data.should == 12
-#        reg(:tcu).bits(:peter).size.should == 4
-#        reg(:tcu).bits(:peter).data.should == 0b0110
-#        reg(:tcu).bits(:peter).write(0)
-#        reg(:tcu).data.should == 0
-#        reg(:tcu).bits(:peter).data.should == 0
-#        reg(:tcu).bits(:peter).write(7)
-#        reg(:tcu).data.should == 0b1101
-#        reg(:tcu).bits(:peter).data.should == 7
-#        reg(:tcu).reset
-#        reg(:tcu).data.should == 12
-#    end
-#
-#    it "Reads in excel TCU registers in multiple ranges" do
-#      reg :tcu, 0x0070, size: 16 do
-#        bits 15,   :mike,  reset: 1
-#        bits 14,   :bill,  reset: 0
-#        bits 13,   :robert,  reset: 1
-#        bits 12,   :james,  reset: 0
-#        bits 11,   :james, reset: 1
-#        bits 10,   :james, reset: 0
-#        bits 9,    :paul,  reset: 1
-#        bits 8,    :peter,  reset: 0
-#        bits 7,    :mike,  reset: 1
-#        bits 6,    :mike,  reset: 0
-#        bits 5,    :paul,  reset: 1
-#        bits 4,    :paul,  reset: 0
-#        bits 3,    :mike, reset: 1
-#        bits 2,    :robert, reset: 0
-#        bits 1,    :bill,  reset: 0
-#        bits 0,    :ian,  reset: 1
-#      end
-#        reg(:tcu).data.should == 43689
-#        #check sizes
-#        reg(:tcu).bits(:bill).size.should == 2
-#        reg(:tcu).bits(:ian).size.should == 1
-#        reg(:tcu).bits(:james).size.should == 3
-#        reg(:tcu).bits(:mike).size.should == 4
-#        reg(:tcu).bits(:paul).size.should == 3
-#        reg(:tcu).bits(:peter).size.should == 1
-#        reg(:tcu).bits(:robert).size.should == 2
-#      #check reset data
-#        reg(:tcu).bits(:bill).data.should == 0
-#        reg(:tcu).bits(:ian).data.should == 1
-#        reg(:tcu).bits(:james).data.should == 2
-#        reg(:tcu).bits(:mike).data.should == 13
-#        reg(:tcu).bits(:paul).data.should == 6
-#        reg(:tcu).bits(:peter).data.should == 0
-#        reg(:tcu).bits(:robert).data.should == 2
-#        #write register to all 1
-#        
-#        reg(:tcu).write(0xFFFF)
-#        reg(:tcu).data.should == 65535
-#        
-#        #write :peter to 0 and james[1] to 0
-#        reg(:tcu).bits(:peter).write(0b0)
-#        reg(:tcu).bits(:james)[1].write(0b0)
-#        reg(:tcu).bits(:peter).data.should == 0
-#        reg(:tcu).bits(:james).data.should == (0b101)
-#        reg(:tcu).data.should == 63231
-#        
-#        
-#  
-#        #write mike to 1010 and james[2] to 1
-#        reg(:tcu).bits(:mike).write(0b1010)
-#        reg(:tcu).bits(:james)[2].write(0)
-#        reg(:tcu).bits(:mike).data.should == 10
-#        reg(:tcu).bits(:james).data.should == (0b001)
-#        reg(:tcu).data.should == 58999
-#      
-#        reg(:tcu).reset
-#        reg(:tcu).data.should == 43689
-#      
-#    end
-#
-#
-#
-#
-#    it "can be initialized" do
-#        Reg.new(self, 0, 16, :dummy, bit0: {pos: 0}, 
-#                                     bit1: {pos: 1}, 
-#                                     bus0: {pos: 2, bits: 4}).is_a?(Reg).should == true
-#    end
-#
-#    it "has an address" do
-#        Reg.new(self, 0x10, 16, :dummy).address.should == 0x10
-#    end
-#
-#
-#    it "has a reset data value" do
-#        reg = Reg.new(self, 0x10, 16, :dummy)
-#        reg.data.should == 0
-#        Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, res: 1}, 
-#                                        b1: {pos: 1, res: 1}).data.should == 0x3
-#        Reg.new(self, 0x10, 17, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                        b1: {pos: 8, bits: 8, res: 0xAA},
-#                                        b2: {pos: 16, res: 1}).data.should == 0x1AA55
-#    end
-#
+    assert origen.dut.tcu.data() == 12
+    assert origen.dut.tcu.peter.len() == 4
+    assert origen.dut.tcu.peter.data() == 0b0110
+    origen.dut.tcu.peter.set_data(0)
+    assert origen.dut.tcu.data() == 0
+    assert origen.dut.tcu.peter.data() == 0
+    origen.dut.tcu.peter.set_data(7)
+    assert origen.dut.tcu.data() == 0b1101
+    assert origen.dut.tcu.peter.data() == 7
+    assert origen.dut.tcu.reset()
+    assert origen.dut.tcu.data() == 12
+
+def test_yet_more_split_bits():
+    origen.app.instantiate_dut("dut.falcon")
+    with origen.dut.add_reg("tcu", 0x0070, size=16) as reg:
+        reg.Field("mike",   offset=15, reset = 1)
+        reg.Field("bill",   offset=14, reset = 0)
+        reg.Field("robert", offset=13, reset = 1)
+        reg.Field("james",  offset=12, reset = 0)
+        reg.Field("james",  offset=11, reset = 1)
+        reg.Field("james",  offset=10, reset = 0)
+        reg.Field("paul",   offset=9,  reset = 1)
+        reg.Field("peter",  offset=8,  reset = 0)
+        reg.Field("mike",   offset=7,  reset = 1)
+        reg.Field("mike",   offset=6,  reset = 0)
+        reg.Field("paul",   offset=5,  reset = 1)
+        reg.Field("paul",   offset=4,  reset = 0)
+        reg.Field("mike",   offset=3,  reset = 1)
+        reg.Field("robert", offset=2,  reset = 0)
+        reg.Field("bill",   offset=1,  reset = 0)
+        reg.Field("ian",    offset=0,  reset = 1)
+
+    assert origen.dut.tcu.data() == 43689
+    #check sizes
+    assert origen.dut.tcu.bill.len() == 2
+    assert origen.dut.tcu.ian.len() == 1
+    assert origen.dut.tcu.james.len() == 3
+    assert origen.dut.tcu.mike.len() == 4
+    assert origen.dut.tcu.paul.len() == 3
+    assert origen.dut.tcu.peter.len() == 1
+    assert origen.dut.tcu.robert.len() == 2
+    #check reset data
+    assert origen.dut.tcu.bill.data() == 0
+    assert origen.dut.tcu.ian.data() == 1
+    assert origen.dut.tcu.james.data() == 2
+    assert origen.dut.tcu.mike.data() == 13
+    assert origen.dut.tcu.paul.data() == 6
+    assert origen.dut.tcu.peter.data() == 0
+    assert origen.dut.tcu.robert.data() == 2
+    #write register to all 1
+        
+    origen.dut.tcu.set_data(0xFFFF)
+    assert origen.dut.tcu.data() == 65535
+        
+    #write :peter to 0 and james[1] to 0
+    origen.dut.tcu.peter.set_data(0b0)
+    origen.dut.tcu.james[1].set_data(0b0)
+    assert origen.dut.tcu.peter.data() == 0
+    assert origen.dut.tcu.james.data() == (0b101)
+    assert origen.dut.tcu.data() == 63231
+  
+    #write mike to 1010 and james[2] to 1
+    origen.dut.tcu.mike.set_data(0b1010)
+    origen.dut.tcu.james[2].set_data(0)
+    assert origen.dut.tcu.mike.data() == 10
+    assert origen.dut.tcu.james.data() == 0b001
+    assert origen.dut.tcu.data() == 58999
+    assert origen.dut.tcu.reset()
+    assert origen.dut.tcu.data() == 43689
+
+    def test_has_an_address():
+        origen.app.instantiate_dut("dut.falcon")
+        origen.dut.add_simple_reg("tr1", 0x10)
+        assert origen.dut.tr1.address == 0x10
+
+    #it "has a reset data value" do
+    #    reg = Reg.new(self, 0x10, 16, :dummy)
+    #    reg.data.should == 0
+    #    Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, res: 1}, 
+    #                                    b1: {pos: 1, res: 1}).data.should == 0x3
+    #    Reg.new(self, 0x10, 17, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
+    #                                    b1: {pos: 8, bits: 8, res: 0xAA},
+    #                                    b2: {pos: 16, res: 1}).data.should == 0x1AA55
+    #end
+
 #    it "stores reset data at bit level" do       
 #        reg = Reg.new(self, 0x10, 17, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
 #                                              b1: {pos: 8, bits: 8, res: 0xAA},

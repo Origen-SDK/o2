@@ -112,11 +112,11 @@ impl Bit {
         *state = state_val | (val & 0b1);
     }
 
-    /// Clears all flags and applies the given data value and makes it the new reset baseline
+    /// Applies the given state value and makes it the new reset baseline
     pub fn reset(&self, val: u8) {
         let mut state = self.state.write().unwrap();
-        *state = val & 0b1;
+        *state = val;
         let mut reset_state = self.reset_state.write().unwrap();
-        *reset_state = val & 0b1;
+        *reset_state = val;
     }
 }

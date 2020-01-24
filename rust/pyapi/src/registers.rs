@@ -257,7 +257,7 @@ impl Registers {
             let values: Vec<BitCollection> = ab
                 .registers
                 .values()
-                .map(|x| BitCollection::from_reg_id(*x))
+                .map(|x| BitCollection::from_reg_id(*x, &dut))
                 .collect();
             Ok(values)
         } else {
@@ -272,7 +272,7 @@ impl Registers {
             let items: Vec<(String, BitCollection)> = ab
                 .registers
                 .iter()
-                .map(|(k, v)| (k.to_string(), BitCollection::from_reg_id(*v)))
+                .map(|(k, v)| (k.to_string(), BitCollection::from_reg_id(*v, &dut)))
                 .collect();
             Ok(items)
         } else {

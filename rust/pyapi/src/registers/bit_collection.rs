@@ -3,11 +3,14 @@ use origen::core::model::registers::BitCollection as RichBC;
 use origen::Dut;
 use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
+use pyo3::class::PyMappingProtocol;
 use pyo3::exceptions;
 use pyo3::exceptions::AttributeError;
 use pyo3::import_exception;
 use pyo3::prelude::*;
 use std::sync::MutexGuard;
+use pyo3::types::{PyDict, PyList, PyTuple, PyIterator, PyAny, PyBytes, PySlice, PyInt};
+use std::iter::FromIterator;
 
 import_exception!(origen.errors, UndefinedDataError);
 
@@ -30,13 +33,14 @@ pub struct BitCollection {
 
 /// Rust-private methods, i.e. not accessible from Python
 impl BitCollection {
-    pub fn from_reg_id(id: usize) -> BitCollection {
+    pub fn from_reg_id(id: usize, dut: &MutexGuard<Dut>) -> BitCollection {
+        let reg = dut.get_register(id).unwrap();
         BitCollection {
             reg_id: Some(id),
             field: None,
             whole_reg: true,
             whole_field: false,
-            bit_ids: Vec::new(),
+            bit_ids: reg.bit_ids.clone(),
             i: 0,
         }
     }
@@ -107,6 +111,61 @@ impl PyObjectProtocol for BitCollection {
                 "'BitCollection' object has no attribute '{}'",
                 query
             )))
+        }
+    }
+}
+
+#[pyproto]
+impl PyMappingProtocol for BitCollection {
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self.bit_ids.len())
+    }
+
+    /// Implements my_reg[5]
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<BitCollection> {
+        let field = match &self.field {
+            Some(x) => Some(x.to_string()),
+            None => None
+        };
+        if let Ok(slice) = idx.cast_as::<PySlice>() {
+            // Indices requires (what I think is) a max size. Should be plenty.
+            let indices = slice.indices(8192)?;
+            // TODO: Should this support step size?
+            let start = indices.start as usize;
+            let stop = indices.stop as usize;
+            let bit_ids = Vec::from_iter(self.bit_ids[start..stop].iter().cloned()); 
+            Ok(BitCollection {
+                reg_id: self.reg_id,
+                field: field,
+                whole_reg: self.whole_reg && self.bit_ids.len() == bit_ids.len(),
+                whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
+                bit_ids: bit_ids,
+                i: 0,
+            })
+
+        } else if let Ok(int) = idx.cast_as::<PyInt>() {
+            let i = idx.extract::<isize>().unwrap();
+            let query = i as usize;
+            if query < self.bit_ids.len() {
+                let mut bit_ids: Vec<usize> = Vec::new();
+                bit_ids.push(self.bit_ids[query]);
+                Ok(BitCollection {
+                    reg_id: self.reg_id,
+                    field: field,
+                    whole_reg: self.whole_reg && self.bit_ids.len() == bit_ids.len(),
+                    whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
+                    bit_ids: bit_ids,
+                    i: 0,
+                })
+            } else {
+                Err(PyErr::new::<exceptions::RuntimeError, _>(
+                    "The given bit index is out of range",
+                ))
+            }
+        } else {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Illegal bit index given",
+            ))
         }
     }
 }
