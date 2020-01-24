@@ -53,30 +53,30 @@ impl PyObjectProtocol for BitCollection {
                     Ok(reg.console_display(&dut, None, true)?)
                 } else {
                     Ok(format!(
-                        "<BitCollection containing an ad-hoc colleciton of {} bit(s) from register '{}'>",
+                        "<BitCollection: a subset of '{}' ({} bit(s))>",
+                        reg.name,
                         self.bit_ids.len(),
-                        reg.name
                     ))
                 }
             } else {
                 if self.whole_field {
                     Ok(format!(
-                        "<BitCollection containing all bits from register field '{}.{}'>",
+                        "<BitCollection: '{}.{}'>",
                         reg.name,
                         self.field.as_ref().unwrap()
                     ))
                 } else {
                     Ok(format!(
-                        "<BitCollection containing an ad-hoc collection of {} bit(s) from register field '{}.{}'>",
-                        self.bit_ids.len(),
+                        "<BitCollection: a subset of '{}.{}' ({} bits(s))>",
                         reg.name,
-                        self.field.as_ref().unwrap()
+                        self.field.as_ref().unwrap(),
+                        self.bit_ids.len(),
                     ))
                 }
             }
         } else {
             Ok(format!(
-                "<BitCollection containing an ad-hoc collection of {} bit(s)>",
+                "<BitCollection: an ad-hoc collection of {} bit(s)>",
                 self.bit_ids.len()
             ))
         }
@@ -119,6 +119,11 @@ impl BitCollection {
     }
 
     fn reset(&self, name: Option<&str>) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        match name {
+            Some(n) => self.materialize(&dut)?.reset(n, &dut)?,
+            None => self.materialize(&dut)?.reset("hard", &dut)?,
+        };
         Ok(self.clone())
     }
 

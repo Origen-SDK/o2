@@ -1,5 +1,6 @@
 use super::{Bit, Register};
-use crate::{Dut, Result};
+use super::register::Field;
+use crate::{Dut, Result, Error};
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
 
@@ -182,6 +183,41 @@ impl<'a> BitCollection<'a> {
     /// Returns true if any bits in the collection is readable
     pub fn is_readable(&self) -> bool {
         self.bits.iter().any(|bit| bit.is_readable())
+    }
+
+    /// Resets the bits if the collection is for a whole bit field or register, otherwise
+    /// an error will be raised
+    pub fn reset(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<()> {
+        if self.whole_reg || self.whole_field {
+            if self.whole_reg {
+                self.reg(dut)?.reset(name, dut);
+            } else {
+                self.field(dut)?.reset(name, dut);
+            }
+            Ok(())
+        } else {
+            Err(Error::new(
+                "Reset cannot be called on an ad-hoc BitCollection, only on a Register or a named Bit Field"
+            ))
+        }
+    }
+
+    /// Returns the Register object associated with the BitCollection. Note that this will
+    /// return the reg even if the BitCollection only contains a subset of the register's bits
+    pub fn reg(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Register> {
+        match self.reg_id {
+            Some(x) => dut.get_register(x),
+            None => Err(Error::new("Tried to reference the Register object from a BitCollection with no reg_id")),
+        }
+    }
+    
+    /// Returns the bit Field object associated with the BitCollection. Note that this will
+    /// return the Field even if the BitCollection only contains a subset of the field's bits
+    pub fn field(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Field> {
+        match &self.field {
+            Some(x) => Ok(&self.reg(dut)?.fields[x]),
+            None => Err(Error::new("Tried to reference the Field object from a BitCollection with no field data")),
+        }
     }
 }
 

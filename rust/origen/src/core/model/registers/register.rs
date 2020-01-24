@@ -219,6 +219,14 @@ impl Register {
         RegisterFieldIterator::new(&self, include_spacers)
     }
 
+    /// Applies the given reset type to all fields, if the fields don't have a reset defined with
+    /// the given name then no action will be taken
+    pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
+        for (_, field) in &self.fields {
+            field.reset(name, dut);
+        }
+    }
+
     pub fn console_display(
         &self,
         dut: &MutexGuard<Dut>,
@@ -745,6 +753,59 @@ impl Field {
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
         let bit_ids = self.bit_ids(dut);
         BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
+    }
+
+
+    /// Applies the given reset type, if the field doesn't have a reset defined with
+    /// the given name then no action will be taken
+    pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
+        let r = self.resets.get(name);
+        let bit_ids = self.bit_ids(dut);
+        if r.is_some() {
+            let rst = r.unwrap();
+            // Sorry for the duplication, need to learn how to handle loops with an optional
+            // parameter properly in Rust - SMcG
+            if rst.mask.is_some() {
+                let mut bytes = rst.value.to_bytes_be();
+                let mut byte = bytes.pop().unwrap();
+                let mut mask_bytes = rst.value.to_bytes_be();
+                let mut mask_byte = bytes.pop().unwrap();
+                for i in 0..self.width {
+                    let state = (byte >> i % 8) & 1;
+                    let mask = (mask_byte >> i % 8) & 1;
+                    if mask == 1 {
+                        // Think its OK to panic here if this get_bit doesn't return something, things
+                        // will have gone seriously wrong somewhere
+                        dut.get_bit(bit_ids[i]).unwrap().reset(state);
+                    }
+                    if i % 8 == 7 {
+                        match bytes.pop() {
+                            Some(x) => byte = x,
+                            None => byte = 0,
+                        }
+                        match mask_bytes.pop() {
+                            Some(x) => mask_byte = x,
+                            None => mask_byte = 0,
+                        }
+                    }
+                }
+            } else {
+                let mut bytes = rst.value.to_bytes_be();
+                let mut byte = bytes.pop().unwrap();
+                for i in 0..self.width {
+                    let state = (byte >> i % 8) & 1;
+                    // Think its OK to panic here if this get_bit doesn't return something, things
+                    // will have gone seriously wrong somewhere
+                    dut.get_bit(bit_ids[i]).unwrap().reset(state);
+                    if i % 8 == 7 {
+                        match bytes.pop() {
+                            Some(x) => byte = x,
+                            None => byte = 0,
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
