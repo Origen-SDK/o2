@@ -1,12 +1,13 @@
 use crate::core::model::registers::{
     AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
 };
-use crate::core::model::timesets::timeset::Timeset;
+use crate::core::model::timesets::timeset::{Timeset, Wavetable, Wave, Event};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
 use crate::DUT;
 use std::sync::RwLock;
+use indexmap::IndexMap;
 
 /// The DUT stores all objects associated with a particular device.
 /// Each object type is organized into vectors, where a particular object's position within the
@@ -25,6 +26,10 @@ pub struct Dut {
     registers: Vec<Register>,
     pub bits: Vec<Bit>,
     pub timesets: Vec<Timeset>,
+    pub wavetables: Vec<Wavetable>,
+    pub waves: Vec<Wave>,
+    pub wave_events: Vec<Event>,
+    pub id_mappings: Vec<IndexMap<String, usize>>,
 }
 
 impl Dut {
@@ -41,6 +46,11 @@ impl Dut {
             registers: Vec::<Register>::new(),
             bits: Vec::<Bit>::new(),
             timesets: Vec::<Timeset>::new(),
+            wavetables: Vec::<Wavetable>::new(),
+            waves: Vec::<Wave>::new(),
+            wave_events: Vec::<Event>::new(),
+
+            id_mappings: Vec::<IndexMap<String, usize>>::new(),
         }
     }
 
@@ -56,6 +66,12 @@ impl Dut {
         self.register_files.clear();
         self.registers.clear();
         self.bits.clear();
+        self.timesets.clear();
+        self.wavetables.clear();
+        self.waves.clear();
+        self.wave_events.clear();
+
+        self.id_mappings.clear();
         // Add the model for the DUT top-level (always ID 0)
         let _ = self.create_model(None, "dut");
     }

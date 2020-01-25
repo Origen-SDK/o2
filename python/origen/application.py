@@ -6,7 +6,6 @@ import re
 import pdb
 from origen.controller import TopLevel
 from origen.translator import Translator
-from origen.errors import *
 
 # The base class of all application classes
 class Base:
@@ -94,6 +93,10 @@ class Base:
 
                 elif filename == "pins.py":
                     from origen.pins import Loader
+                    context = Loader(controller).api()
+                
+                elif filename == "timing.py":
+                    from origen.timesets import Loader
                     context = Loader(controller).api()
 
                 else:

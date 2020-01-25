@@ -4,7 +4,6 @@ from origen import pins
 from origen import timesets
 from origen.registers import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
-from origen.errors import *
 from contextlib import contextmanager
 
 class Proxies:
@@ -188,7 +187,7 @@ class Base:
 
     def _load_timesets(self):
         if not self.timesets_loaded:
-            self.app.load_block_files(self, "timesets.py")
+            self.app.load_block_files(self, "timing.py")
             self.timesets_loaded = True
 
 # The base class of all Origen controller objects which are also

@@ -27,9 +27,9 @@ class Loader:
     self.controller = controller
   
   def Timeset(self, name, **kwargs):
-    self.controller.add_timeset(name, **kwargs)
+    return self.controller.add_timeset(name, **kwargs)
   
   def api(self):
     return {
-      "Timeset", self.Timeset,
+      "Timeset": self.Timeset,
     }
