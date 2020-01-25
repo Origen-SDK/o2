@@ -42,8 +42,10 @@ before_install:
       which python3
       which python
       python -c 'from distutils import sysconfig; print(sysconfig.get_config_var("LIBDIR"))'
-      ls /home/travis/virtualenv/python3.8.0/bin/python3
-      ls /home/travis/virtualenv/python3.8.0/bin/python3/*
+      ls /opt/python/3.8.0/lib -R
+      ls /home/travis/virtualenv/python3.8.0/bin/python3 -R
+      #ls /home/travis/virtualenv/python3.8.0/bin/python3
+      #ls /home/travis/virtualenv/python3.8.0/bin/python3/*
       #ls $LD_LIBRARY_PATH
     fi
   - python --version
