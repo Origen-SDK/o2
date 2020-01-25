@@ -12,11 +12,13 @@ rust:
 # For the backend, only a single Python version is needed.
 # For the frontend, it'll be tested against the Python versions below, corresponding to the latest Chocolately release for 3.6, 3.7, and 3.8.
 # Additional Python versions, or even frontend lanuages, can be added here as needed.
+# Note: I'm not sure why the LIBPYTHON doesn't necessarily match the Python version. But, going with what gets installed 
+# -
 env:
-  - O2_REGRESSION=BACKEND O2_PYTHON_VERSION=3.8.1 LINUX_BIN_PATH=3.8
-  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.8.1 LINUX_BIN_PATH=3.8
-  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.7.6 LINUX_BIN_PATH=3.7
-  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.6.8 LINUX_BIN_PATH=3.6
+  - O2_REGRESSION=BACKEND O2_PYTHON_VERSION=3.8.1 LINUX_BIN_PATH=3.8 LIBPYTHON_PATH=3.8.0
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.8.1 LINUX_BIN_PATH=3.8 LIBPYTHON_PATH=3.8.0
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.7.6 LINUX_BIN_PATH=3.7 LIBPYTHON_PATH=3.7.2
+  - O2_REGRESSION=FRONTEND O2_PYTHON_VERSION=3.6.8 LINUX_BIN_PATH=3.6 LIBPYTHON_PATH=3.6.8
 
 # We cannot pass files between builds without using a dummy repo or something similiar. Instead, we'll indicate Rust as the main language above and install
 # Python manually. This works out alright since the Windows environment need Python manually installed anyway.
@@ -35,18 +37,19 @@ before_install:
       if [ "${O2_REGRESSION}" == "FRONTEND" ]; then source ~/virtualenv/python$LINUX_BIN_PATH/bin/activate; fi
 
       # Not sure why, but the above activition doesn't seem to add these. Need to do this ourselves.
-      #export LD_LIBRARY_PATH=/usr/lib/python${LINUX_BIN_PATH}m/config-${LINUX_BIN_PATH}m-x86_64-linux-gnu
-      #export LIBRARY_PATH=/usr/lib/python${LINUX_BIN_PATH}m/config-${LINUX_BIN_PATH}m-x86_64-linux-gnu
-      #echo "LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
-      #echo "LIBRARY_PATH: ${LIBRARY_PATH}"
+      # Keeping some of the below for debug
+      export LD_LIBRARY_PATH=/opt/python/${LIBPYTHON_PATH}/lib
+      export LIBRARY_PATH=/opt/python/${LIBPYTHON_PATH}/lib
+      echo "LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
+      echo "LIBRARY_PATH: ${LIBRARY_PATH}"
       which python3
       which python
       python -c 'from distutils import sysconfig; print(sysconfig.get_config_var("LIBDIR"))'
-      ls /opt/python/3.8.0/lib -R
-      ls /home/travis/virtualenv/python3.8.0/bin/python3 -R
+      ls /opt/python/
+      #ls /home/travis/virtualenv/python3.8.0/bin/python3 -R
       #ls /home/travis/virtualenv/python3.8.0/bin/python3
       #ls /home/travis/virtualenv/python3.8.0/bin/python3/*
-      #ls $LD_LIBRARY_PATH
+      ls $LD_LIBRARY_PATH
     fi
   - python --version
 
