@@ -35,10 +35,11 @@ before_install:
       if [ "${O2_REGRESSION}" == "FRONTEND" ]; then source ~/virtualenv/python$LINUX_BIN_PATH/bin/activate; fi
 
       # Not sure why, but the above activition doesn't seem to add these. Need to do this ourselves.
-      export LD_LIBRARY_PATH=/usr/lib/python${LINUX_BIN_PATH}m/config-${LINUX_BIN_PATH}m-x86_64-linux-gnu:$LD_LIBRARY_PATH
-      export LIBRARY_PATH=/usr/lib/python${LINUX_BIN_PATH}m/config-${LINUX_BIN_PATH}m-x86_64-linux-gnu:$LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH=/usr/lib/python${LINUX_BIN_PATH}m/config-${LINUX_BIN_PATH}m-x86_64-linux-gnu
+      export LIBRARY_PATH=/usr/lib/python${LINUX_BIN_PATH}m/config-${LINUX_BIN_PATH}m-x86_64-linux-gnu
       echo "LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
       echo "LIBRARY_PATH: ${LIBRARY_PATH}"
+      ls $LD_LIBRARY_PATH
     fi
   - python --version
 
