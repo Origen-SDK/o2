@@ -41,8 +41,8 @@ before_install:
       #echo "LIBRARY_PATH: ${LIBRARY_PATH}"
       which python3
       which python
-      python -c 'from distutils import sysconfig; print sysconfig.get_config_var("LIBDIR")')
-      ls $LD_LIBRARY_PATH
+      python -c 'from distutils import sysconfig; print sysconfig.get_config_var("LIBDIR")'
+      #ls $LD_LIBRARY_PATH
     fi
   - python --version
 
