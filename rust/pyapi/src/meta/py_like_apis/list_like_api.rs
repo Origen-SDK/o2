@@ -44,7 +44,7 @@ pub trait ListLikeAPI {
   fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
     let dut = DUT.lock().unwrap();
     let item_ids = self.item_ids(&dut);
-    let indices = slice.indices(item_ids.len() as i32)?;
+    let indices = slice.indices((item_ids.len() as i32).into())?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
