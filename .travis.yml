@@ -38,17 +38,16 @@ before_install:
 
       # Not sure why, but the above activition doesn't seem to add these. Need to do this ourselves.
       # Keeping some of the below for debug
+      # Note: these are blank at the start, so just setting them.
+      echo "LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
+      echo "LIBRARY_PATH: ${LIBRARY_PATH}"
       export LD_LIBRARY_PATH=/opt/python/${LIBPYTHON_PATH}/lib
       export LIBRARY_PATH=/opt/python/${LIBPYTHON_PATH}/lib
       echo "LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
       echo "LIBRARY_PATH: ${LIBRARY_PATH}"
       which python3
-      which python
       python -c 'from distutils import sysconfig; print(sysconfig.get_config_var("LIBDIR"))'
       ls /opt/python/
-      #ls /home/travis/virtualenv/python3.8.0/bin/python3 -R
-      #ls /home/travis/virtualenv/python3.8.0/bin/python3
-      #ls /home/travis/virtualenv/python3.8.0/bin/python3/*
       ls $LD_LIBRARY_PATH
     fi
   - python --version
@@ -73,5 +72,5 @@ script:
       cd ../../example
       ../rust/origen/target/debug/origen -v
       ../rust/origen/target/debug/origen setup
-      $HOME/.poetry/bin/poetry run pytest
+      $HOME/.poetry/bin/poetry run pytest -vv
     fi
