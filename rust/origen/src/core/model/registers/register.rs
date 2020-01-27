@@ -1,5 +1,5 @@
-use super::{AccessType, BitCollection, BitOrder};
 use super::bit::UNDEFINED;
+use super::{AccessType, BitCollection, BitOrder};
 use crate::Error;
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
@@ -210,8 +210,8 @@ impl Register {
     }
 
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy
-    pub fn address(&self, _dut: &MutexGuard<Dut>) -> u64 {
-        0x1000
+    pub fn address(&self, _dut: &MutexGuard<Dut>) -> u128 {
+        self.offset as u128
     }
 
     /// Returns an iterator for the register's fields which yields them (as SummaryFields) in offset order, starting from lowest.
@@ -755,7 +755,6 @@ impl Field {
         let bit_ids = self.bit_ids(dut);
         BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
     }
-
 
     /// Applies the given reset type, if the field doesn't have a reset defined with
     /// the given name then no action will be taken

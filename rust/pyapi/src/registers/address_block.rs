@@ -254,8 +254,7 @@ pub struct AddressBlock {
 impl AddressBlock {
     fn reg(&self, name: &str) -> PyResult<Option<BitCollection>> {
         let dut = origen::dut();
-        let id = dut.get_address_block(self.id)?
-            .get_register_id(name);
+        let id = dut.get_address_block(self.id)?.get_register_id(name);
         match id {
             Ok(id) => Ok(Some(BitCollection::from_reg_id(id, &dut))),
             Err(_) => Ok(None),

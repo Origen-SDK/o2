@@ -1,6 +1,6 @@
-use super::{Bit, Register};
 use super::register::Field;
-use crate::{Dut, Result, Error};
+use super::{Bit, Register};
+use crate::{Dut, Error, Result};
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
 
@@ -187,14 +187,14 @@ impl<'a> BitCollection<'a> {
 
     /// Resets the bits if the collection is for a whole bit field or register, otherwise
     /// an error will be raised
-    pub fn reset(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<()> {
+    pub fn reset(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection> {
         if self.whole_reg || self.whole_field {
             if self.whole_reg {
                 self.reg(dut)?.reset(name, dut);
             } else {
                 self.field(dut)?.reset(name, dut);
             }
-            Ok(())
+            Ok(self)
         } else {
             Err(Error::new(
                 "Reset cannot be called on an ad-hoc BitCollection, only on a Register or a named Bit Field"
@@ -207,17 +207,43 @@ impl<'a> BitCollection<'a> {
     pub fn reg(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Register> {
         match self.reg_id {
             Some(x) => dut.get_register(x),
-            None => Err(Error::new("Tried to reference the Register object from a BitCollection with no reg_id")),
+            None => Err(Error::new(
+                "Tried to reference the Register object from a BitCollection with no reg_id",
+            )),
         }
     }
-    
+
     /// Returns the bit Field object associated with the BitCollection. Note that this will
     /// return the Field even if the BitCollection only contains a subset of the field's bits
     pub fn field(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Field> {
         match &self.field {
             Some(x) => Ok(&self.reg(dut)?.fields[x]),
-            None => Err(Error::new("Tried to reference the Field object from a BitCollection with no field data")),
+            None => Err(Error::new(
+                "Tried to reference the Field object from a BitCollection with no field data",
+            )),
         }
+    }
+
+    pub fn shift_left(&self, shift_in: u8) -> Result<u8> {
+        let mut v1 = shift_in & 0x1;
+        let mut v2: u8;
+        for &bit in self.bits.iter() {
+            v2 = bit.data()? & 0x1;
+            bit.set_data(v1);
+            v1 = v2;
+        }
+        Ok(v1)
+    }
+
+    pub fn shift_right(&self, shift_in: u8) -> Result<u8> {
+        let mut v1 = shift_in & 0x1;
+        let mut v2: u8;
+        for &bit in self.bits.iter().rev() {
+            v2 = bit.data()? & 0x1;
+            bit.set_data(v1);
+            v1 = v2;
+        }
+        Ok(v1)
     }
 }
 
