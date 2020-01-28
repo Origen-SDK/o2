@@ -46,7 +46,7 @@ impl Timeset {
     let p = self.period_as_string.as_ref().unwrap_or(&default);
     let err = &format!("Could not evaluate Timeset {}'s expression: '{}'", self.name, p);
     if current_period.is_none() && self.default_period.is_none() {
-      return Err(Error::new(&format!("No current timeset period set! Cannot evalate timeset '{}' without a current period as it does not have a default period!", self.name)));
+      return Err(Error::new(&format!("No current timeset period set! Cannot evaluate timeset '{}' without a current period as it does not have a default period!", self.name)));
     }
     match eval::Expr::new(p).value("period", current_period.unwrap_or(self.default_period.unwrap())).exec() {
       Ok(val) => {
@@ -98,7 +98,8 @@ pub struct Wavetable {
   // in an 'event_map', whose key is a PinGroup name and whose values are a list of events associated
   // with that PinGroup.
   // Note that events are Event-IDs, which can be looked up from the DUT.
-  pub wave_ids: IndexMap<String, usize>
+  //pub wave_ids: IndexMap<String, usize>
+  pub wave_group_ids: IndexMap<String, usize>
 }
 
 impl Wavetable {
@@ -109,19 +110,20 @@ impl Wavetable {
       timeset_id: timeset_id,
       id: id,
       period: Option::None,
-      wave_ids: IndexMap::new(),
+      //wave_ids: IndexMap::new(),
+      wave_group_ids: IndexMap::new(),
     })
   }
 
-  pub fn get_wave_id(&self, name: &str) -> Option<usize> {
-    match self.wave_ids.get(name) {
+  pub fn get_wave_group_id(&self, name: &str) -> Option<usize> {
+    match self.wave_group_ids.get(name) {
       Some(t) => Some(*t),
       None => None,
     }
   }
 
-  pub fn contains_wave(&self, name: &str) -> bool {
-    self.wave_ids.contains_key(name)
+  pub fn contains_wave_group(&self, name: &str) -> bool {
+    self.wave_group_ids.contains_key(name)
   }
 
   // At some point, add some preliminary checking of the period to weed out some gross failures.
@@ -133,10 +135,15 @@ impl Wavetable {
     Ok(())
   }
 
-  pub fn register_wave(&mut self, id: usize, name: &str) -> Result<Wave, Error> {
-    let w = Wave::new(self.model_id, self.timeset_id, self.id, id, name)?;
-    self.wave_ids.insert(String::from(name), id);
-    Ok(w)
+  // pub fn register_wave(&mut self, id: usize, name: &str) -> Result<Wave, Error> {
+  //   let w = Wave::new(self.model_id, self.timeset_id, self.id, id, name)?;
+  //   self.wave_ids.insert(String::from(name), id);
+  //   Ok(w)
+  // }
+  pub fn register_wave_group(&mut self, id: usize, name: &str, derived_from: Option<Vec<usize>>) -> Result<WaveGroup, Error> {
+    let wgrp = WaveGroup::new_from_wavetable(self, id, name, derived_from)?;
+    self.wave_group_ids.insert(String::from(name), id);
+    Ok(wgrp)
   }
 
   pub fn eval(&self, current_period: Option<f64>) -> Result<Option<f64>, Error> {
@@ -159,6 +166,50 @@ impl Wavetable {
       Err(_e) => Err(Error::new(err))
     }
   }
+}
+
+#[derive(Debug)]
+pub struct WaveGroup {
+  pub model_id: usize,
+  pub timeset_id: usize,
+  pub wavetable_id: usize,
+  pub id: usize,
+  pub name: String,
+  pub wave_ids: IndexMap<String, usize>,
+  pub derived_from: Option<Vec<usize>>,
+}
+
+impl WaveGroup {
+  // If a wavetable is given, extract the IDs from there instead of tearing it apart upstream just to put it back together again here.
+  pub fn new_from_wavetable(wavetable: &Wavetable, id: usize, name: &str, derived_from: Option<Vec<usize>>) -> Result<Self, Error> {
+    let wgrp = WaveGroup {
+      model_id: wavetable.model_id,
+      timeset_id: wavetable.timeset_id,
+      wavetable_id: wavetable.id,
+      id: id,
+      name: String::from(name),
+      wave_ids: IndexMap::new(),
+      derived_from: derived_from,
+    };
+    Ok(wgrp)
+  }
+
+  pub fn register_wave(&mut self, id: usize, indicator: &str) -> Result<Wave, Error> {
+    let w = Wave::new_from_wave_group(self, id, indicator)?;
+    self.wave_ids.insert(indicator.to_string(), id);
+    Ok(w)
+  }
+
+  pub fn get_wave_id(&self, name: &str) -> Option<usize> {
+    match self.wave_ids.get(name) {
+      Some(t) => Some(*t),
+      None => None,
+    }
+  }
+
+  pub fn contains_wave(&self, name: &str) -> bool {
+    self.wave_ids.contains_key(name)
+  }
 
   pub fn get_waves_applied_to(&self, dut: &super::super::super::dut::Dut, pin: &str) -> Vec<String> {
     let mut rtn: Vec<String> = vec!();
@@ -177,24 +228,39 @@ pub struct Wave {
   pub model_id: usize,
   pub timeset_id: usize,
   pub wavetable_id: usize,
+  pub wave_group_id: usize,
   pub wave_id: usize,
-  pub name: String,
+  //pub name: String,
   pub events: Vec<usize>,
   pub pins: Vec<String>,
   pub indicator: String,
 }
 
 impl Wave {
-  pub fn new(model_id: usize, timeset_id: usize, wavetable_id: usize, wave_id: usize, name: &str) -> Result<Self, Error> {
+  pub fn new(model_id: usize, timeset_id: usize, wavetable_id: usize, wave_group_id: usize, wave_id: usize, indicator: &str) -> Result<Self, Error> {
     Ok(Wave {
       model_id: model_id,
       timeset_id: timeset_id,
       wavetable_id: wavetable_id,
+      wave_group_id: wave_group_id,
       wave_id: wave_id,
-      name: String::from(name),
+      //name: String::from(name),
       events: vec!(),
       pins: vec!(),
-      indicator: String::from(""),
+      indicator: String::from(indicator),
+    })
+  }
+
+  pub fn new_from_wave_group(wgrp: &WaveGroup, id: usize, indicator: &str) -> Result<Self, Error> {
+    Ok(Wave {
+      model_id: wgrp.model_id,
+      timeset_id: wgrp.timeset_id,
+      wavetable_id: wgrp.wavetable_id,
+      wave_group_id: wgrp.id,
+      wave_id: id,
+      events: vec!(),
+      pins: vec!(),
+      indicator: String::from(indicator),
     })
   }
 

@@ -17,20 +17,21 @@ mod timeset_container;
 #[macro_use]
 mod timeset;
 
-use timeset::{Timeset, Wavetable, Wave, EventList, Event};
-use timeset_container::{TimesetContainer, WavetableContainer, WaveContainer, EventContainer};
+use timeset::{Timeset, Wavetable, WaveGroup, Wave, Event};
+use timeset_container::{TimesetContainer, WavetableContainer, WaveGroupContainer, WaveContainer, EventContainer};
 use pyo3::types::{PyDict, PyAny};
 
 #[pymodule]
 pub fn timesets(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TimesetContainer>()?;
     m.add_class::<WavetableContainer>()?;
+    m.add_class::<WaveGroupContainer>()?;
     m.add_class::<WaveContainer>()?;
     m.add_class::<EventContainer>()?;
     m.add_class::<Timeset>()?;
     m.add_class::<Wavetable>()?;
+    m.add_class::<WaveGroup>()?;
     m.add_class::<Wave>()?;
-    m.add_class::<EventList>()?;
     m.add_class::<Event>()?;
     Ok(())
 }

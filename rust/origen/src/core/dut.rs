@@ -1,7 +1,7 @@
 use crate::core::model::registers::{
     AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
 };
-use crate::core::model::timesets::timeset::{Timeset, Wavetable, Wave, Event};
+use crate::core::model::timesets::timeset::{Timeset, Wavetable, Wave, WaveGroup, Event};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
@@ -27,6 +27,7 @@ pub struct Dut {
     pub bits: Vec<Bit>,
     pub timesets: Vec<Timeset>,
     pub wavetables: Vec<Wavetable>,
+    pub wave_groups: Vec<WaveGroup>,
     pub waves: Vec<Wave>,
     pub wave_events: Vec<Event>,
     pub id_mappings: Vec<IndexMap<String, usize>>,
@@ -47,6 +48,7 @@ impl Dut {
             bits: Vec::<Bit>::new(),
             timesets: Vec::<Timeset>::new(),
             wavetables: Vec::<Wavetable>::new(),
+            wave_groups: Vec::<WaveGroup>::new(),
             waves: Vec::<Wave>::new(),
             wave_events: Vec::<Event>::new(),
 
@@ -68,6 +70,7 @@ impl Dut {
         self.bits.clear();
         self.timesets.clear();
         self.wavetables.clear();
+        self.wave_groups.clear();
         self.waves.clear();
         self.wave_events.clear();
 

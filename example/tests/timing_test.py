@@ -158,7 +158,8 @@ class TestWavesDictLike(Fixture_DictLikeAPI):
   def parameterize(self):
     return {
       "keys": ["w1", "w2", "w3"],
-      "klass": _origen.dut.timesets.Wave,
+      #"klass": _origen.dut.timesets.Wave,
+      "klass": _origen.dut.timesets.WaveGroup,
       "not_in_dut": "Blah"
     }
 
@@ -186,8 +187,9 @@ class TestEventsListLike(Fixture_ListLikeAPI):
 
   def boot_list_under_test(self):
     origen.app.instantiate_dut("dut.eagle")
-    wt = origen.dut.add_timeset("t").add_wavetable("wt")
-    w = wt.add_wave("w1")
+    w = origen.dut.add_timeset("t").add_wavetable("wt").add_waves("w1").add_wave("1")
+    #w = wt.add_wave("w1")
+
     w.push_event(at="period*0.25", unit="ns", action=w.DriveHigh)
     w.push_event(at="period*0.50", unit="ns", action=w.DriveLow)
     w.push_event(at="period*0.75", unit="ns", action=w.HighZ)
@@ -236,77 +238,79 @@ class TestComplexTimingScenerios:
     t = origen.dut.add_timeset("complex")
     wtbl = t.add_wavetable("w1")
     wtbl.period = "40"
+    wgrp = wtbl.add_waves("Ports")
 
     # Add drive data waves
     # This wave should tranlate into STIL as:
     #   1 { DriveHigh: '10ns', U; }
-    w = wtbl.add_wave("DriveHigh")
-    w.indicator = "1"
+    w = wgrp.add_wave("1")
+    #w.indicator = "1"
     w.apply_to("porta", "portb")
     w.push_event(at="period*0.25", unit="ns", action=w.DriveHigh)
 
     # This wave should tranlate into STIL as:
     #   0 { DriveLow: '10ns', D; }
-    w = wtbl.add_wave("DriveLow")
-    w.indicator = "0"
+    w = wgrp.add_wave("0")
+    #w.indicator = "0"
     w.apply_to("porta", "portb")
     w.push_event(at="period*0.25", unit="ns", action=w.DriveLow)
 
     # Add highZ wave
     # This wave should tranlate into STIL as:
     #   Z { HighZ: '10ns', Z; }
-    w = wtbl.add_wave("HighZ")
-    w.indicator = "Z"
+    w = wgrp.add_wave("Z")
+    #w.indicator = "Z"
     w.apply_to("porta", "portb")
     w.push_event(at="period*0.25", unit="ns", action=w.HighZ)
 
     # Add comparison waves
     # This wave should tranlate into STIL as:
     #   H { CompareHigh: '4ns', H; }
-    w = wtbl.add_wave("VerifyHigh")
-    w.indicator = "H"
+    w = wgrp.add_wave("H")
+    #w.indicator = "H"
     w.apply_to("porta", "portb")
     w.push_event(at="period*0.10", unit="ns", action=w.VerifyHigh)
 
     # This wave should tranlate into STIL as:
     #   L { CompareLow: '4ns', L; }
-    w = wtbl.add_wave("VerifyLow")
-    w.indicator = "L"
+    w = wgrp.add_wave("L")
+    #w.indicator = "L"
     w.apply_to("porta", "portb")
     w.push_event(at="period*0.10", unit="ns", action=w.VerifyLow)
 
+    wgrp = wtbl.add_waves("Clk")
+
     # This wave should tranlate into STIL as:
     #   1 { StartClk: '0ns', U; "@/2", D; }
-    w = wtbl.add_wave("StartClk")
-    w.indicator = "1"
+    w = wgrp.add_wave("1")
+    #w.indicator = "1"
     w.apply_to("clk")
     w.push_event(at=0, unit="ns", action=w.DriveHigh)
     w.push_event(at="period/2", unit="ns", action=w.DriveLow)
 
     # This wave should tranlate into STIL as:
     #   0 { StopClk: '0ns', D; }
-    w = wtbl.add_wave("StopClk")
-    w.indicator = "0"
+    w = wgrp.add_wave("0")
+    #w.indicator = "0"
     w.apply_to("clk")
     w.push_event(at=0, unit="ns", action=w.DriveLow)
 
-  # The fixture above is the linearized, more verbose, but more explicit way to generate timing.
-  # The fixtures below will generate equivalent timesets using 'syntatic sugar' to make writing
-  # timesets more user friendly.
+  # The fixture above is the linearized, more verbose, but more explicit way to define timing.
+  # The fixtures below will generate equivalent timesets using 'syntatic sugar' to make the definitions more user friendly.
   # Note though that these fixtures don't do anything too crazy. If crazy waves are needed, the interface above will need to be used.
-  # @pytest.fixture
-  # def define_complex_timing_more_easily(self, clean_falcon):
-  #   t = origen.dut.add_timeset("complex")
-  #   wtbl = t.add_wavetable("w1")
-  #   wtbl.period = "40"
+  @pytest.fixture
+  def define_complex_timing_more_easily(self, clean_falcon):
+    # Adds five individual waves and returns them as a group.
+    waves = origen.dut.add_timeset("complex").add_wavetable("w1", period="40").add_waves("PortOperations", indicators=["1", "0", "H", "L", "Z"])
+    waves["H"]
+    origen.dut.add_timeset("complex").wavetable["w1"].waves["PortOperations-H"]
 
-  #   # Add drive data waves
-  #   # This wave should tranlate into STIL as:
-  #   #   10HLZ { Drives: '10ns', U/D/H/L/Z; }
-  #   waves = wtbl.add_waves("PortOperations", 5)
-  #   waves.indicators = ["1", "0", "H", "L", "Z"]
-  #   waves.apply_to("porta", "portb")
-  #   waves.push_event(at="period*0.25", unit="ns", action=[waves.DriveHigh, waves.DriveLow, waves.VerifyHigh, waves.VerifyLow, waves.HighZ])
+    # Add drive data waves
+    # This wave should tranlate into STIL as:
+    #   10HLZ { Drives: '10ns', U/D/H/L/Z; }
+    #waves.indicators = 
+    waves.apply_to("porta", "portb")
+    waves.push_event(at="period*0.25", unit="ns", action=[waves.DriveHigh, waves.DriveLow, waves.VerifyHigh, waves.VerifyLow, waves.HighZ])
 
   # @pytest.fixture
   # def define_complex_timing_with_context_managers(self, clean_falcon):
@@ -349,15 +353,15 @@ class TestComplexTimingScenerios:
     assert wtbl.__period__ == "40"
 
     # Get the pins which have waves defined for them in the wavetable
-    clk_waves = wtbl.waves.applied_to("clk")
-    assert isinstance(clk_waves, dict)
-    assert len(clk_waves) == 2
-    assert set(clk_waves.keys()) == {"StartClk", "StopClk"}
-    assert isinstance(clk_waves["StartClk"], _origen.dut.timesets.Wave)
-    assert clk_waves["StartClk"].name == "StartClk"
+    # clk_waves = wtbl.waves.applied_to("clk")
+    # assert isinstance(clk_waves, dict)
+    # assert len(clk_waves) == 2
+    # assert set(clk_waves.keys()) == {"StartClk", "StopClk"}
+    # assert isinstance(clk_waves["StartClk"], _origen.dut.timesets.Wave)
+    # assert clk_waves["StartClk"].name == "StartClk"
 
     # Given a single waveform, retrieve its events
-    wave = wtbl.waves["DriveHigh"]
+    wave = wtbl.waves["Ports"].waves["1"]
     assert wave.indicator == "1"
     assert wave.applied_to == ["porta", "portb"]
     assert len(wave.events) == 1
@@ -368,7 +372,7 @@ class TestComplexTimingScenerios:
     assert e.__at__ == "period*0.25"
     assert e.at == 10
 
-    wave = wtbl.waves["StartClk"]
+    wave = wtbl.waves["Clk"].waves["1"]
     e = wave.events[0]
     assert e.action == wave.DriveHigh
     assert e.unit == "ns"
@@ -389,22 +393,22 @@ class TestComplexTimingScenerios:
   def test_exception_on_duplicate_wave(self, define_complex_timeset):
     assert 'complex' in origen.dut.timesets
     assert 'w1' in origen.dut.timesets['complex'].wavetables
-    assert 'DriveHigh' in origen.dut.timesets['complex'].wavetables['w1'].waves
+    assert 'Ports' in origen.dut.timesets['complex'].wavetables['w1'].waves
     with pytest.raises(OSError):
-      origen.dut.timesets['complex'].wavetables['w1'].add_wave('DriveHigh')
+      origen.dut.timesets['complex'].wavetables['w1'].add_wave('Ports')
   
   def test_exception_on_event_missing_action(self, define_complex_timeset):
-    w = origen.dut.timesets['complex'].wavetables['w1'].waves['DriveHigh']
+    w = origen.dut.timesets['complex'].wavetables['w1'].waves['Ports'].waves["1"]
     with pytest.raises(TypeError):
       w.push_event(at="10")
   
   def test_exception_on_event_missing_at(self, define_complex_timeset):
-    w = origen.dut.timesets['complex'].wavetables['w1'].waves['DriveHigh']
+    w = origen.dut.timesets['complex'].wavetables['w1'].waves['Ports'].waves["1"]
     with pytest.raises(TypeError):
       w.push_event(action=w.DriveHigh)
   
   def test_exception_on_evaluating_with_missing_period(self, clean_falcon):
-    w = origen.dut.add_timeset('t').add_wavetable('wtbl').add_wave('w')
+    w = origen.dut.add_timeset('t').add_wavetable('wtbl').add_wave('w').add_wave("1")
     w.push_event(at="period/2", action=w.DriveHigh)
     assert origen.dut.timesets['t'].wavetables['wtbl'].period is None
     assert w.events[0].__at__ == "period/2"
@@ -412,7 +416,7 @@ class TestComplexTimingScenerios:
       w.events[0].at
   
   def test_exception_on_unknown_action(self, define_complex_timeset):
-    w = origen.dut.timesets['complex'].wavetables['w1'].waves['DriveHigh']
+    w = origen.dut.timesets['complex'].wavetables['w1'].waves['Ports'].waves["1"]
     with pytest.raises(OSError):
       w.push_event(action="blah!", at="period/2")
 

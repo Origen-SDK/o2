@@ -1,7 +1,7 @@
 pub mod timeset;
 
 use super::Model;
-use timeset::{Timeset, Wavetable, Wave, Event};
+use timeset::{Timeset, Wavetable, Wave, WaveGroup, Event};
 use crate::error::Error;
 use super::super::dut::Dut;
 
@@ -153,38 +153,77 @@ impl Dut {
     }
   }
 
-  pub fn create_wave(&mut self, wavetable_id: usize, name: &str) -> Result<&Wave, Error> {
+  pub fn create_wave_group(&mut self, wavetable_id: usize, name: &str, derived_from: Option<Vec<usize>>) -> Result<&WaveGroup, Error> {
+    let id;
+    {
+      id = self.wave_groups.len();
+    }
+
+    let wgrp;
+    {
+      let wtbl = &mut self.wavetables[wavetable_id];
+      if wtbl.contains_wave_group(name) {
+        return duplicate_error!("wave group", wtbl.name, name);
+      }
+  
+      wgrp = wtbl.register_wave_group(
+        id,
+        name,
+        derived_from
+      )?;
+    }
+    self.wave_groups.push(wgrp);
+    Ok(&self.wave_groups[id])
+  }
+
+  pub fn create_wave(&mut self, wave_group_id: usize, indicator: &str) -> Result<&Wave, Error> {
     let id;
     {
       id = self.waves.len();
     }
 
-    let wave;
+    let w;
     {
-      let t = &mut self.wavetables[wavetable_id];
-      if t.contains_wave(name) {
-        return duplicate_error!("wave", t.name, name);
+      let wgrp = &mut self.wave_groups[wave_group_id];
+      if wgrp.contains_wave(indicator) {
+        return duplicate_error!("wave", wgrp.name, indicator);
       }
   
-      wave = t.register_wave(
+      w = wgrp.register_wave(
         id,
-        name
+        indicator
       )?;
     }
-    self.waves.push(wave);
+    self.waves.push(w);
     Ok(&self.waves[id])
   }
 
-  pub fn get_wave(&self, wavetable_id: usize, name: &str) -> Option<&Wave> {
-    if let Some(w) = self.wavetables[wavetable_id].get_wave_id(name) {
+  pub fn get_wave_group(&self, wavetable_id: usize, name: &str) -> Option<&WaveGroup> {
+    if let Some(wgrp_id) = self.wavetables[wavetable_id].get_wave_group_id(name) {
+      Some(&self.wave_groups[wgrp_id])
+    } else {
+      Option::None
+    }
+  }
+
+  pub fn get_mut_wave_group(&mut self, wavetable_id: usize, name: &str) -> Option<&mut WaveGroup> {
+    if let Some(wgrp_id) = self.wavetables[wavetable_id].get_wave_group_id(name) {
+      Some(&mut self.wave_groups[wgrp_id])
+    } else {
+      Option::None
+    }
+  }
+
+  pub fn get_wave(&self, wave_group_id: usize, name: &str) -> Option<&Wave> {
+    if let Some(w) = self.wave_groups[wave_group_id].get_wave_id(name) {
       Some(&self.waves[w])
     } else {
       Option::None
     }
   }
 
-  pub fn get_mut_wave(&mut self, wavetable_id: usize, name: &str) -> Option<&mut Wave> {
-    if let Some(w) = self.wavetables[wavetable_id].get_wave_id(name) {
+  pub fn get_mut_wave(&mut self, wave_group_id: usize, name: &str) -> Option<&mut Wave> {
+    if let Some(w) = self.wave_groups[wave_group_id].get_wave_id(name) {
       Some(&mut self.waves[w])
     } else {
       Option::None

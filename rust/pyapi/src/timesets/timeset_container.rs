@@ -145,9 +145,80 @@ impl pyo3::class::iter::PyIterProtocol for WavetableContainer {
 }
 
 #[macro_export]
-macro_rules! pywave_container {
+macro_rules! pywave_group_container {
   ($py:expr, $model_id:expr, $timeset_id:expr, $wavetable_id:expr, $name:expr) => {
-    Py::new($py, WaveContainer {model_id: $model_id, timeset_id: $timeset_id, wavetable_id: $wavetable_id, name: String::from($name)}).unwrap()
+    Py::new($py, WaveGroupContainer {model_id: $model_id, timeset_id: $timeset_id, wavetable_id: $wavetable_id, name: String::from($name)}).unwrap()
+  };
+}
+
+/// Wave Group Container
+#[pyclass]
+pub struct WaveGroupContainer {
+  pub model_id: usize,
+  pub timeset_id: usize,
+  pub wavetable_id: usize,
+  pub name: String,
+}
+
+#[pymethods]
+impl WaveGroupContainer {
+  fn keys(&self) -> PyResult<Vec<String>> {
+    DictLikeAPI::keys(self)
+  }
+
+  fn values(&self) -> PyResult<Vec<PyObject>> {
+    DictLikeAPI::values(self)
+  }
+
+  fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
+    DictLikeAPI::items(self)
+  }
+
+  fn get(&self, name: &str) -> PyResult<PyObject> {
+    DictLikeAPI::get(self, name)
+  }
+}
+
+impl DictLikeAPI for WaveGroupContainer {
+  fn lookup_key(&self) -> &str {
+    &"wave_groups"
+  }
+
+  fn lookup_table(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> IndexMap<String, usize> {
+    dut.wavetables[self.wavetable_id].wave_group_ids.clone()
+  }
+
+  fn model_id(&self) -> usize {
+    self.model_id
+  }
+
+  fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error> {
+    Ok(Py::new(py, super::timeset::WaveGroup::new(model_id, self.timeset_id, self.wavetable_id, name)).unwrap().to_object(py))
+  }
+}
+
+#[pyproto]
+impl PyMappingProtocol for WaveGroupContainer {
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+      DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+      DictLikeAPI::__len__(self)
+    }
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for WaveGroupContainer {
+  fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+    DictLikeAPI::__iter__(&*slf)
+  }
+}
+
+#[macro_export]
+macro_rules! pywave_container {
+  ($py:expr, $model_id:expr, $timeset_id:expr, $wavetable_id:expr, $wave_group_id:expr, $name:expr) => {
+    Py::new($py, WaveContainer {model_id: $model_id, timeset_id: $timeset_id, wavetable_id: $wavetable_id, wave_group_id: $wave_group_id, name: String::from($name)}).unwrap()
   };
 }
 
@@ -157,6 +228,7 @@ pub struct WaveContainer {
   pub model_id: usize,
   pub timeset_id: usize,
   pub wavetable_id: usize,
+  pub wave_group_id: usize,
   pub name: String,
 }
 
@@ -180,12 +252,12 @@ impl WaveContainer {
 
   fn applied_to(&self, pin: String) -> PyResult<PyObject> {
     let dut = DUT.lock().unwrap();
-    let wtbl = &dut.wavetables[self.wavetable_id];
+    let wgrp = &dut.wave_groups[self.wave_group_id];
 
     let gil = Python::acquire_gil();
     let py = gil.python();
     let rtn = PyDict::new(py);
-    for name in wtbl.get_waves_applied_to(&dut, &pin).iter() {
+    for name in wgrp.get_waves_applied_to(&dut, &pin).iter() {
       rtn.set_item(name.clone(), self.new_pyitem(py, &name, self.model_id)?)?;
     }
     Ok(rtn.to_object(py))
@@ -198,7 +270,7 @@ impl DictLikeAPI for WaveContainer {
   }
 
   fn lookup_table(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> IndexMap<String, usize> {
-    dut.wavetables[self.wavetable_id].wave_ids.clone()
+    dut.wave_groups[self.wave_group_id].wave_ids.clone()
   }
 
   fn model_id(&self) -> usize {
@@ -206,7 +278,7 @@ impl DictLikeAPI for WaveContainer {
   }
 
   fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error> {
-    Ok(Py::new(py, super::timeset::Wave::new(model_id, self.timeset_id, self.wavetable_id, name)).unwrap().to_object(py))
+    Ok(Py::new(py, super::timeset::Wave::new(model_id, self.timeset_id, self.wavetable_id, self.wave_group_id, name)).unwrap().to_object(py))
   }
 }
 
@@ -230,8 +302,8 @@ impl pyo3::class::iter::PyIterProtocol for WaveContainer {
 
 #[macro_export]
 macro_rules! pyevent_container {
-  ($py:expr, $model_id:expr, $timeset_id:expr, $wavetable_id:expr, $wave_id:expr, $wave_name:expr) => {
-    Py::new($py, EventContainer {model_id: $model_id, timeset_id: $timeset_id, wavetable_id: $wavetable_id, wave_id: $wave_id, wave_name: String::from($wave_name)}).unwrap()
+  ($py:expr, $model_id:expr, $timeset_id:expr, $wavetable_id:expr, $wave_group_id:expr, $wave_id:expr, $wave_name:expr) => {
+    Py::new($py, EventContainer {model_id: $model_id, timeset_id: $timeset_id, wavetable_id: $wavetable_id, wave_group_id: $wave_group_id, wave_id: $wave_id, wave_name: String::from($wave_name)}).unwrap()
   };
 }
 
@@ -242,6 +314,7 @@ pub struct EventContainer {
   pub model_id: usize,
   pub timeset_id: usize,
   pub wavetable_id: usize,
+  pub wave_group_id: usize,
   pub wave_id: usize,
   pub wave_name: String,
 }
@@ -256,7 +329,7 @@ impl ListLikeAPI for EventContainer {
   }
 
   fn new_pyitem(&self, py: Python, idx: usize) -> Result<PyObject, Error> {
-    Ok(Py::new(py, super::timeset::Event::new(self.model_id, self.timeset_id, self.wavetable_id, self.wave_id, &self.wave_name, idx)).unwrap().to_object(py))
+    Ok(Py::new(py, super::timeset::Event::new(self.model_id, self.timeset_id, self.wavetable_id, self.wave_group_id, self.wave_id, &self.wave_name, idx)).unwrap().to_object(py))
   }
 
   fn __iter__(&self) -> PyResult<ListLikeIter> {

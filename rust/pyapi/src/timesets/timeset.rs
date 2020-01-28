@@ -2,7 +2,7 @@ use origen::DUT;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyAny};
 use origen::error::Error;
-use super::timeset_container::{WavetableContainer, WaveContainer, EventContainer};
+use super::timeset_container::{WavetableContainer, WaveGroupContainer, WaveContainer, EventContainer};
 
 #[macro_export]
 macro_rules! pytimeset {
@@ -54,10 +54,10 @@ macro_rules! pywavetable {
 }
 
 #[macro_export]
-macro_rules! pywave {
+macro_rules! pywave_group {
   ($py:expr, $wavetable:expr, $name:expr) => {
-    if $wavetable.contains_wave($name) {
-      Ok(Py::new($py, crate::timesets::timeset::Wave {
+    if $wavetable.contains_wave_group($name) {
+      Ok(Py::new($py, crate::timesets::timeset::WaveGroup {
         name: String::from($name),
         model_id: $wavetable.model_id,
         timeset_id: $wavetable.timeset_id,
@@ -66,7 +66,26 @@ macro_rules! pywave {
     } else {
       // Note: Errors here shouldn't happen. Any errors that arise are either
       // bugs or from the user meta-programming their way into the backend DB.
-      Err(PyErr::from(origen::error::Error::new(&format!("No wave {} has been added on block {}", $name, $wavetable.name))))
+      Err(PyErr::from(origen::error::Error::new(&format!("No wave group {} has been added on block {}", $name, $wavetable.name))))
+    }
+  };
+}
+
+#[macro_export]
+macro_rules! pywave {
+  ($py:expr, $wave_group:expr, $name:expr) => {
+    if $wave_group.contains_wave($name) {
+      Ok(Py::new($py, crate::timesets::timeset::Wave {
+        name: String::from($name),
+        model_id: $wave_group.model_id,
+        timeset_id: $wave_group.timeset_id,
+        wavetable_id: $wave_group.wavetable_id,
+        wave_group_id: $wave_group.id,
+      }).unwrap().to_object($py))
+    } else {
+      // Note: Errors here shouldn't happen. Any errors that arise are either
+      // bugs or from the user meta-programming their way into the backend DB.
+      Err(PyErr::from(origen::error::Error::new(&format!("No wave {} has been added on block {}", $name, $wave_group.name))))
     }
   };
 }
@@ -79,14 +98,15 @@ macro_rules! pyevent {
         model_id: $wave.model_id,
         timeset_id: $wave.timeset_id,
         wavetable_id: $wave.wavetable_id,
+        wave_group_id: $wave.wave_group_id,
         wave_id: $wave.wave_id,
-        wave_name: $wave.name.clone(),
+        wave_indicator: $wave.indicator.clone(),
         index: $event_index,
       }).unwrap().to_object($py))
     } else {
       // Note: Errors here shouldn't happen. Any errors that arise are either
       // bugs or from the user meta-programming their way into the backend DB.
-      Err(PyErr::from(origen::error::Error::new(&format!("No event at {} has been added on wave {}", $event_index, $wave.name))))
+      Err(PyErr::from(origen::error::Error::new(&format!("No event at {} has been added on wave {}", $event_index, $wave.indicator))))
     }
   };
 }
@@ -201,29 +221,34 @@ pub struct Wavetable {
 impl Wavetable {
 
   #[args(_kwargs = "**")]
-  fn add_wave(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject>  {
+  fn add_waves(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject>  {
     let mut dut = DUT.lock().unwrap();
     let w_id;
     {
       w_id = dut.get_wavetable(self.timeset_id, &self.name).unwrap().id;
     }
-    dut.create_wave(w_id, name)?;
+    dut.create_wave_group(w_id, name, Option::None)?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
     let wt = dut.get_wavetable(self.timeset_id, &self.name).unwrap();
-    Ok(pywave!(py, wt, name)?)
+    Ok(pywave_group!(py, wt, name)?)
+  }
+
+  #[args(_kwargs = "**")]
+  fn add_wave(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject>  {
+    self.add_waves(name, _kwargs)
   }
 
   #[getter]
-  fn get_waves(&self) -> PyResult<Py<WaveContainer>> {
+  fn get_waves(&self) -> PyResult<Py<WaveGroupContainer>> {
     let w_id;
     {
       w_id = self.get_origen_id()?;
     }
     let gil = Python::acquire_gil();
     let py = gil.python();
-    Ok(pywave_container!(py, self.model_id, self.timeset_id, w_id, &self.name))
+    Ok(pywave_group_container!(py, self.model_id, self.timeset_id, w_id, &self.name))
   }
 
   #[getter]
@@ -302,10 +327,73 @@ impl Wavetable {
 }
 
 #[pyclass]
+pub struct WaveGroup {
+  pub model_id: usize,
+  pub timeset_id: usize,
+  pub wavetable_id: usize,
+  pub name: String,
+}
+
+#[pymethods]
+impl WaveGroup {
+  #[args(_kwargs = "**")]
+  fn add_wave(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject>  {
+    let mut dut = DUT.lock().unwrap();
+    let wgrp_id;
+    {
+      wgrp_id = dut.get_wave_group(self.wavetable_id, &self.name).unwrap().id;
+    }
+    dut.create_wave(wgrp_id, name)?;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let wgrp = dut.get_wave_group(self.wavetable_id, &self.name).unwrap();
+    Ok(pywave!(py, wgrp, name)?)
+  }
+
+  #[getter]
+  fn get_waves(&self) -> PyResult<Py<WaveContainer>> {
+    let wgrp_id;
+    {
+      wgrp_id = self.get_origen_id()?;
+    }
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(pywave_container!(py, self.model_id, self.timeset_id, self.wavetable_id, wgrp_id, &self.name))
+  }
+
+  #[getter]
+  fn get_name(&self) -> PyResult<String> {
+    let dut = DUT.lock().unwrap();
+    let wt = dut.get_wavetable(self.timeset_id, &self.name);
+    Ok(wt.unwrap().name.clone())
+  }
+}
+
+impl WaveGroup {
+  pub fn new(model_id: usize, timeset_id: usize, wavetable_id: usize, name: &str) -> Self {
+    Self {
+      model_id: model_id,
+      timeset_id: timeset_id,
+      wavetable_id: wavetable_id,
+      name: String::from(name),
+    }
+  }
+
+  pub fn get_origen_id(&self) -> Result<usize, Error> {
+    let dut = DUT.lock().unwrap();
+    let wavetable = &dut.wavetables[self.wavetable_id];
+    let wgrp_id = wavetable.get_wave_group_id(&self.name).unwrap();
+    Ok(wgrp_id)
+  }
+}
+
+#[pyclass]
 pub struct Wave {
   pub model_id: usize,
   pub timeset_id: usize,
   pub wavetable_id: usize,
+  pub wave_group_id: usize,
   pub name: String,
 }
 
@@ -319,7 +407,7 @@ impl Wave {
     {
       wave_id = self.get_origen_id()?;
     }
-    Ok(pyevent_container!(py, self.model_id, self.timeset_id, self.wavetable_id, wave_id, &self.name))
+    Ok(pyevent_container!(py, self.model_id, self.timeset_id, self.wavetable_id, self.wave_group_id, wave_id, &self.name))
   }
 
   #[args(event="**")]
@@ -327,7 +415,7 @@ impl Wave {
     let mut dut = DUT.lock().unwrap();
     let (w_id, e_index);
     {
-      w_id = dut.get_wave(self.wavetable_id, &self.name).unwrap().wave_id;
+      w_id = dut.get_wave(self.wave_group_id, &self.name).unwrap().wave_id;
     }
 
     if event.is_none() {
@@ -396,21 +484,21 @@ impl Wave {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let w = dut.get_wave(self.wavetable_id, &self.name).unwrap();
+    let w = dut.get_wave(self.wave_group_id, &self.name).unwrap();
     Ok(pyevent!(py, w, e_index)?)
   }
 
   #[getter]
   fn get_indicator(&self) -> PyResult<String> {
     let dut = DUT.lock().unwrap();
-    let w = dut.get_wave(self.wavetable_id, &self.name).unwrap();
+    let w = dut.get_wave(self.wave_group_id, &self.name).unwrap();
     Ok(w.indicator.clone())
   }
 
   #[setter]
   fn set_indicator(&self, indicator: &str) -> PyResult<()> {
     let mut dut = DUT.lock().unwrap();
-    let w = dut.get_mut_wave(self.wavetable_id, &self.name).unwrap();
+    let w = dut.get_mut_wave(self.wave_group_id, &self.name).unwrap();
     w.set_indicator(&indicator)?;
     Ok(())
   }
@@ -418,14 +506,14 @@ impl Wave {
   #[getter]
   fn get_applied_to(&self) -> PyResult<Vec<String>> {
     let dut = DUT.lock().unwrap();
-    let w = dut.get_wave(self.wavetable_id, &self.name).unwrap();
+    let w = dut.get_wave(self.wave_group_id, &self.name).unwrap();
     Ok(w.pins.clone())
   }
 
   #[args(pins="*")]
   fn apply_to(&self, pins: Vec<String>) -> PyResult<PyObject> {
     let mut dut = DUT.lock().unwrap();
-    let w = dut.get_mut_wave(self.wavetable_id, &self.name).unwrap();
+    let w = dut.get_mut_wave(self.wave_group_id, &self.name).unwrap();
     w.apply_to(pins)?;
 
     let gil = Python::acquire_gil();
@@ -435,6 +523,7 @@ impl Wave {
       model_id: self.model_id,
       timeset_id: self.timeset_id,
       wavetable_id: self.wavetable_id,
+      wave_group_id: self.wave_group_id,
     }).unwrap().to_object(py))
   }
 
@@ -488,38 +577,40 @@ impl Wave {
 }
 
 impl Wave {
-  pub fn new(model_id: usize, timeset_id: usize, wavetable_id: usize, name: &str) -> Self {
+  pub fn new(model_id: usize, timeset_id: usize, wavetable_id: usize, wave_group_id: usize, name: &str) -> Self {
     Self {
       model_id: model_id,
       timeset_id: timeset_id,
       wavetable_id: wavetable_id,
+      wave_group_id: wave_group_id,
       name: String::from(name),
     }
   }
 
   pub fn get_origen_id(&self) -> Result<usize, Error> {
     let dut = DUT.lock().unwrap();
-    let wavetable = &dut.wavetables[self.wavetable_id];
-    let w_id = wavetable.get_wave_id(&self.name).unwrap();
+    let wgrp = &dut.wave_groups[self.wave_group_id];
+    let w_id = wgrp.get_wave_id(&self.name).unwrap();
     Ok(w_id)
   }
 }
 
-#[pyclass]
-pub struct EventList {
-  pub model_id: usize,
-  pub timeset_id: String,
-  pub wavetable_id: String,
-  pub wave_name: String,
-}
+// #[pyclass]
+// pub struct EventList {
+//   pub model_id: usize,
+//   pub timeset_id: String,
+//   pub wavetable_id: String,
+//   pub wave_indicator: String,
+// }
 
 #[pyclass]
 pub struct Event {
   pub model_id: usize,
   pub timeset_id: usize,
   pub wavetable_id: usize,
+  pub wave_group_id: usize,
   pub wave_id: usize,
-  pub wave_name: String,
+  pub wave_indicator: String,
   pub index: usize,
 }
 
@@ -564,13 +655,14 @@ impl Event {
 }
 
 impl Event {
-  pub fn new(model_id: usize, timeset_id:usize, wavetable_id: usize, wave_id: usize, wave_name: &str, id: usize) -> Self {
+  pub fn new(model_id: usize, timeset_id:usize, wavetable_id: usize, wave_group_id: usize, wave_id: usize, wave_indicator: &str, id: usize) -> Self {
     Self {
       model_id: model_id,
       timeset_id: timeset_id,
       wavetable_id: wavetable_id,
+      wave_group_id: wave_group_id,
       wave_id: wave_id,
-      wave_name: String::from(wave_name),
+      wave_indicator: String::from(wave_indicator),
       index: id,
     }
   }
