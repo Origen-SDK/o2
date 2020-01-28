@@ -392,6 +392,7 @@ impl Dut {
             register_id: 0,
             state: RwLock::new(0),
             reset_state: RwLock::new(0),
+            device_state: RwLock::new(0),
             state_snapshots: RwLock::new(HashMap::new()),
             access: AccessType::ReadWrite,
         };

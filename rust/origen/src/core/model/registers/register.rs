@@ -61,7 +61,7 @@ impl<'a> RegisterFieldIterator<'a> {
         // Derive the order of iteration when this iterator is created, then
         // store the names of the fields locally in the order that is required.
         // This can no doubt be done more elegantly, but for now the borrow checker
-        // has broken me.
+        // has broken me - ginty.
         let mut field_names: Vec<String>;
 
         let mut fields: Vec<(&String, &Field)> =
@@ -378,7 +378,6 @@ impl Register {
 
                     if field.width > 1 {
                         if !field.spacer {
-                            //      if contiguous
                             let bit_name = format!(
                                 "{}[{}:{}]",
                                 field.name,
@@ -386,19 +385,6 @@ impl Register {
                                 min_bit_in_range(&field, max_bit, min_bit, &bit_order),
                             );
                             let bit_span = num_bits_in_range(&field, max_bit, min_bit);
-
-                            // This is legacy code that handled non-contiguous fields
-                            //       else
-                            //            upper = _max_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
-                            //            lower = _min_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
-                            //            if dolsb0
-                            //              bit_name = "#{name}[#{upper}:#{lower}]"
-                            //            else
-                            //              bit_name = "#{name}[#{upper}:#{lower}]"
-                            //            end
-                            //            bit_span = upper - lower + 1
-                            //        end
-
                             let width = (bit_width * bit_span) + bit_span - 1;
                             let txt = &bit_name.chars().take(width - 2).collect::<String>();
                             line += vert_single_line;
@@ -412,10 +398,16 @@ impl Register {
                             }
                         }
                     } else {
-                        let bit_name = &field.name;
-                        let txt = &bit_name.chars().take(bit_width - 2).collect::<String>();
-                        line += vert_single_line;
-                        line += &format!("{: ^bit_width$}", txt, bit_width = bit_width);
+                        if field.spacer {
+                            let txt = &"".to_string();
+                            line += vert_single_line;
+                            line += &format!("{: ^bit_width$}", txt, bit_width = bit_width);
+                        } else {
+                            let bit_name = &field.name;
+                            let txt = &bit_name.chars().take(bit_width - 2).collect::<String>();
+                            line += vert_single_line;
+                            line += &format!("{: ^bit_width$}", txt, bit_width = bit_width);
+                        }
                     }
                 }
                 first_done = true
@@ -764,7 +756,7 @@ impl Field {
         if r.is_some() {
             let rst = r.unwrap();
             // Sorry for the duplication, need to learn how to handle loops with an optional
-            // parameter properly in Rust - SMcG
+            // parameter properly in Rust - ginty
             if rst.mask.is_some() {
                 let mut bytes = rst.value.to_bytes_be();
                 let mut byte = bytes.pop().unwrap();

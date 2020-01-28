@@ -185,6 +185,18 @@ impl<'a> BitCollection<'a> {
         self.bits.iter().any(|bit| bit.is_readable())
     }
 
+    pub fn is_update_required(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_update_required())
+    }
+
+    /// Set the collection's device_state field to be the same as its current data state
+    pub fn update_device_state(&self) -> Result<&BitCollection> {
+        for &bit in self.bits.iter() {
+            bit.update_device_state()?;
+        }
+        Ok(self)
+    }
+
     /// Resets the bits if the collection is for a whole bit field or register, otherwise
     /// an error will be raised
     pub fn reset(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection> {
@@ -200,6 +212,15 @@ impl<'a> BitCollection<'a> {
                 "Reset cannot be called on an ad-hoc BitCollection, only on a Register or a named Bit Field"
             ))
         }
+    }
+
+    //pub fn read(&self, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection> {
+    pub fn read(&self) -> Result<&BitCollection> {
+        for &bit in self.bits.iter() {
+            bit.read()?;
+        }
+        // TODO: Record the read in the AST here
+        Ok(self)
     }
 
     /// Returns the Register object associated with the BitCollection. Note that this will

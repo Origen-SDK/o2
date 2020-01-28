@@ -101,6 +101,7 @@ fn create(
                     register_id: reg_id,
                     state: RwLock::new(val),
                     reset_state: RwLock::new(val),
+                    device_state: RwLock::new(val),
                     state_snapshots: RwLock::new(HashMap::new()),
                     access: field.access,
                 });
@@ -121,6 +122,7 @@ fn create(
                         register_id: reg_id,
                         state: RwLock::new(state),
                         reset_state: RwLock::new(state),
+                        device_state: RwLock::new(state),
                         state_snapshots: RwLock::new(HashMap::new()),
                         access: field.access,
                     });
@@ -144,6 +146,7 @@ fn create(
                         register_id: reg_id,
                         state: RwLock::new(state),
                         reset_state: RwLock::new(state),
+                        device_state: RwLock::new(state),
                         state_snapshots: RwLock::new(HashMap::new()),
                         access: field.access,
                     });

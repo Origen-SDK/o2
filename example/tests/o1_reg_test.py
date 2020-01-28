@@ -237,122 +237,124 @@ def test_len_method():
     assert dut.tr1.len() == 16
     assert dut.tr2.len() == 36
 
-#    it "can shift out left" do
-#        reg = Reg.new(self, 0x10, 8, :dummy, b0: {pos: 0, bits: 4, res: 0x5}, 
-#                                             b1: {pos: 4, bits: 4, res: 0xA})
-#        expected = [1,0,1,0,0,1,0,1]
-#        x = 0
-#        reg.shift_out_left do |bit|
-#          bit.data.should == expected[x]
-#          x += 1
-#        end
-#        reg.write(0xF0)
-#        expected = [1,1,1,1,0,0,0,0]
-#        x = 0
-#        reg.shift_out_left do |bit|
-#          bit.data.should == expected[x]
-#          x += 1
-#        end
-#    end
+def test_it_can_shift_out_left():
+    with dut.add_reg("tr1", 0x0, size=8) as reg:
+        reg.Field("b0", offset=0, width=4, reset=0x5)
+        reg.Field("b1", offset=4, width=4, reset=0xA)
+    
+    reg = dut.tr1
+    expected = [1,0,1,0,0,1,0,1]
+    x = 0
+    for bit in reg.shift_out_left():
+      assert bit.data() == expected[x]
+      x += 1
+    reg.set_data(0xF0)
+    expected = [1,1,1,1,0,0,0,0]
+    x = 0
+    for bit in reg.shift_out_left():
+      assert bit.data() == expected[x]
+      x += 1
+
+def test_it_can_shift_out_right():
+    with dut.add_reg("tr1", 0x0, size=8) as reg:
+        reg.Field("b0", offset=0, width=4, reset=0x5)
+        reg.Field("b1", offset=4, width=4, reset=0xA)
+        
+    reg = dut.tr1
+    expected = [1,0,1,0,0,1,0,1]
+    x = 0
+    for bit in reg.shift_out_right():
+        assert bit.data() == expected[7-x]
+        x += 1
+    reg.set_data(0xF0)
+    expected = [1,1,1,1,0,0,0,0]
+    x = 0
+    for bit in reg.shift_out_right():
+        assert bit.data() == expected[7-x]
+        x += 1
+
+def test_it_can_shift_out_with_holes_present():
+    with dut.add_reg("tr1", 0x0, size=8) as reg:
+        reg.Field("b0", offset=1, width=2, reset=0b11)
+        reg.Field("b1", offset=6, width=1, reset=0b1)
+    reg = dut.tr1
+
+    expected = [0,1,0,0,0,1,1,0]
+    x = 0
+    for bit in reg.shift_out_left():
+        assert bit.data() == expected[x] 
+        x += 1
+    expected = [0,1,1,0,0,0,1,0]
+    x = 0
+    for bit in reg.shift_out_right():
+        assert bit.data() == expected[x] 
+        x += 1
+
+def test_read_method_tags_all_bits_for_read():
+    dut.add_simple_reg("tr1", 0x10, size=16, reset=0)
+    reg = dut.tr1
+    reg.read()
+    for i in range(16):
+        assert reg[i].is_to_be_read() == True
+
+# This test added due to problems shifting out buses (in o1)
+def test_it_can_shift_out_left_with_holes_and_buses():
+    with dut.add_reg("tr1", 0x0, size=8) as reg:
+        reg.Field("b0", offset=5)
+        reg.Field("b1", offset=0, width=4)
+
+    reg = dut.tr1
+    reg.set_data(0xFF)
+    assert reg.data() == 0b00101111
+    expected = [0,0,1,0,1,1,1,1]
+    x = 0
+    for bit in reg.shift_out_left():
+        assert bit.data() == expected[x]
+        x += 1
+
+def test_bits_mark_as_update_required_correctly():
+    with dut.add_reg("tr1", 0x0, size=8) as reg:
+        reg.Field("b0", offset=5, reset=1)
+        reg.Field("b1", offset=0, width=4, reset=3)
+    reg = dut.tr1
+
+    assert reg.is_update_required() == False
+    reg.set_data(0x23)
+    assert reg.is_update_required() == False
+    reg.set_data(0x0F)
+    assert reg.is_update_required() == True
+    reg.set_data(0x23)
+    assert reg.is_update_required() == False
+
+def test_update_device_state_clears_update_required():
+    with dut.add_reg("tr1", 0x0, size=8) as reg:
+        reg.Field("b0", offset=5, reset=1)
+        reg.Field("b1", offset=0, width=4, reset=3)
+    reg = dut.tr1
+    reg.set_data(0x0F)
+    assert reg.is_update_required() == True
+    reg.update_device_state()
+    assert reg.is_update_required() == False
+
+#def test_can_iterate_through_fields():
+#    with dut.add_reg("tr1", 0x0, size=16) as reg:
+#        reg.Field("b0", offset=0, width=8, reset=0x55)
+#        reg.Field("b1", offset=8, width=4, reset=0xA)
+#        reg.Field("b2", offset=14, width=2, reset=1)
+#    reg = dut.tr1
 #
-#    it "can shift out right" do
-#        reg = Reg.new(self, 0x10, 8, :dummy, b0: {pos: 0, bits: 4, res: 0x5}, 
-#                                             b1: {pos: 4, bits: 4, res: 0xA})
-#        expected = [1,0,1,0,0,1,0,1]
-#        x = 0
-#        reg.shift_out_right do |bit|
-#          bit.data.should == expected[7-x]
-#          x += 1
-#        end
-#        reg.write(0xF0)
-#        expected = [1,1,1,1,0,0,0,0]
-#        x = 0
-#        reg.shift_out_right do |bit|
-#          bit.data.should == expected[7-x]
-#          x += 1
-#        end
-#    end
-#
-#    it "can shift out with holes present" do
-#        reg = Reg.new(self, 0x10, 8, :dummy, b0: {pos: 1, bits: 2, res: 0b11}, 
-#                                             b1: {pos: 6, bits: 1, res: 0b1})
-#        
-#        expected = [0,1,0,0,0,1,1,0]
-#        x = 0
-#        reg.shift_out_left do |bit|
-#          bit.data.should == expected[x] 
-#          x += 1
-#        end
-#        expected = [0,1,1,0,0,0,1,0]
-#        x = 0
-#        reg.shift_out_right do |bit|
-#          bit.data.should == expected[x] 
-#          x += 1
-#        end
-#    end
-#
-#    specify "read method tags all bits for read" do
-#        reg = Reg.new(self, 0x10, 16, :dummy)
-#        reg.read
-#        16.times do |n|
-#            reg.bit(n).is_to_be_read?.should == true
-#        end
-#    end
-#
-#    # This test added due to problems shifting out buses
-#    it "can shift out left with holes and buses" do
-#        reg = Reg.new(self, 0x10, 8, :dummy, b0: {pos: 5}, 
-#                                             b1: {pos: 0, bits: 4})
-#        reg.write(0xFF)
-#        reg.data.should == 0b00101111
-#        expected = [0,0,1,0,1,1,1,1]
-#        x = 0
-#        reg.shift_out_left do |bit|
-#          bit.data.should == expected[x]
-#          x += 1
-#        end
-#    end
-#
-#    specify "bits mark as update required correctly" do
-#        reg = Reg.new(self, 0x10, 8, :dummy, b0: {pos: 5, res: 1}, 
-#                                             b1: {pos: 0, bits: 4, res: 3})
-#
-#        reg.update_required?.should == false
-#        reg.write(0x23)
-#        reg.update_required?.should == false
-#        reg.write(0x0F)
-#        reg.update_required?.should == true
-#    end
-#
-#    specify "clear_flags clears update required" do
-#        reg = Reg.new(self, 0x10, 8, :dummy, b0: {pos: 5, res: 1}, 
-#                                             b1: {pos: 0, bits: 4, res: 3})
-#
-#        reg.write(0x0F)
-#        reg.update_required?.should == true
-#        reg.clear_flags
-#        reg.update_required?.should == false
-#    end
-#
-#
-#    specify "can index through named bits" do
-#        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                              b1: {pos: 8, bits: 4, res: 0xA},
-#                                              b2: {pos: 14,bits: 2, res: 1})      
-#        reg.named_bits do |name, bits|
-#            case name
-#            when :b0
-#                bits.write(0x1)
-#            when :b1             
-#                bits.write(0x2)
-#            when :b2
-#                bits.write(0x3)
-#            end
-#        end
-#        reg.data.should == 0xC201
-#        reg.bits(:b1).data.should == 0x2
-#    end
-#
+#    # TODO: Should this return a dict or a hash?
+#    for bits in reg.fields():
+#        if bits.name == "b0":
+#            bits.set_data(0x1)
+#        elif bits.name == "b1":
+#            bits.set_data(0x2)
+#        elif bits.name == "b2":
+#            bits.set_data(0x3)
+#            
+#    assert reg.data() == 0xC201
+#    assert reg.field("b1").data() == 0x2
+
 #    specify "can use named bits with bit ordering" do
 #        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 1, bits: 7, res: 0x55}, 
 #                                               b1: {pos: 8, bits: 4, res: 0xA},

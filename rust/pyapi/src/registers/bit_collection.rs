@@ -28,8 +28,9 @@ pub struct BitCollection {
     pub whole_reg: bool,
     pub whole_field: bool,
     pub bit_ids: Vec<usize>,
-    /// Iterator index
+    /// Iterator index and vars
     pub i: usize,
+    pub sl: bool,
 }
 
 /// Rust-private methods, i.e. not accessible from Python
@@ -43,7 +44,52 @@ impl BitCollection {
             whole_field: false,
             bit_ids: reg.bit_ids.clone(),
             i: 0,
+            sl: false,
         }
+    }
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for BitCollection {
+    /// Just returns self un-modified. The configuration of the iteration
+    /// index and any other iterator vars should be done by calling one of the methods
+    /// like shift_out_left() and then iterating on the BitCollection object returned
+    /// by that.
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<BitCollection> {
+        Ok(slf.clone())
+    }
+
+    /// The BitCollection iterators always yield more BitCollections, usually a BC
+    /// containing only one bit.
+    // It's easier to implement a single API that way rather than adding another one
+    // for Bit objects that is almost the same as the BC API.
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<BitCollection>> {
+        if slf.i >= slf.bit_ids.len() {
+            return Ok(None);
+        }
+
+        let mut bit_ids: Vec<usize> = Vec::new();
+        if slf.sl {
+            bit_ids.push(slf.bit_ids[slf.bit_ids.len() - slf.i - 1]);
+        } else {
+            bit_ids.push(slf.bit_ids[slf.i]);
+        }
+
+        let bc = BitCollection {
+            reg_id: slf.reg_id,
+            field: match &slf.field {
+                Some(x) => Some(x.to_string()),
+                None => None,
+            },
+            whole_reg: slf.whole_reg && slf.bit_ids.len() == bit_ids.len(),
+            whole_field: slf.whole_field && slf.bit_ids.len() == bit_ids.len(),
+            bit_ids: bit_ids,
+            i: 0,
+            sl: false,
+        };
+
+        slf.i += 1;
+        Ok(Some(bc))
     }
 }
 
@@ -103,6 +149,7 @@ impl PyObjectProtocol for BitCollection {
                         whole_field: true,
                         bit_ids: reg.fields.get(query).unwrap().bit_ids(&dut),
                         i: 0,
+                        sl: false,
                     })
                 } else {
                     Err(AttributeError::py_err(format!(
@@ -153,6 +200,7 @@ impl PyMappingProtocol for BitCollection {
                 whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
                 bit_ids: bit_ids,
                 i: 0,
+                sl: false,
             })
         } else if let Ok(_int) = idx.cast_as::<PyInt>() {
             let i = idx.extract::<usize>().unwrap();
@@ -166,6 +214,7 @@ impl PyMappingProtocol for BitCollection {
                     whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
                     bit_ids: bit_ids,
                     i: 0,
+                    sl: false,
                 })
             } else {
                 Err(PyErr::new::<exceptions::RuntimeError, _>(
@@ -194,6 +243,20 @@ impl PyMappingProtocol for BitCollection {
 impl BitCollection {
     fn len(&self) -> PyResult<usize> {
         Ok(self.bit_ids.len())
+    }
+
+    fn shift_out_left(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        bc.i = 0;
+        bc.sl = true;
+        Ok(bc)
+    }
+
+    fn shift_out_right(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        bc.i = 0;
+        bc.sl = false;
+        Ok(bc)
     }
 
     fn reset(&self, name: Option<&str>) -> PyResult<BitCollection> {
@@ -247,6 +310,53 @@ impl BitCollection {
         Ok(self.clone())
     }
 
+    pub fn read(&self) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        self.materialize(&dut)?.read()?;
+        Ok(self.clone())
+    }
+
+    /// Returns true if any bits in the collection has their read flag set
+    pub fn is_to_be_read(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.is_to_be_read())
+    }
+
+    /// Returns true if any bits in the collection has their capture flag set
+    pub fn is_to_be_captured(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.is_to_be_captured())
+    }
+
+    /// Returns true if any bits in the collection has an overlay set
+    pub fn has_overlay(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.has_overlay())
+    }
+
+    /// Returns true if any bits in the collection are writeable
+    pub fn is_writeable(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.is_writeable())
+    }
+
+    pub fn is_writable(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.is_writable())
+    }
+
+    /// Returns true if any bits in the collection are readable
+    pub fn is_readable(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.is_readable())
+    }
+
+    /// Returns true if the current data state of te BitCollection is out of sync with
+    /// what the device state is
+    pub fn is_update_required(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.is_update_required())
+    }
+
+    /// Set the collection's device_state field to be the same as its current data state
+    pub fn update_device_state(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.update_device_state()?;
+        Ok(self.clone())
+    }
+
     /// An alias for field()
     fn bit(&self, name: &str) -> PyResult<BitCollection> {
         self.field(name)
@@ -265,6 +375,7 @@ impl BitCollection {
                     whole_field: true,
                     bit_ids: reg.fields.get(name).unwrap().bit_ids(&dut),
                     i: 0,
+                    sl: false,
                 })
             } else {
                 let msg = format!(
