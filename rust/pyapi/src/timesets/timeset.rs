@@ -343,7 +343,19 @@ impl WaveGroup {
     {
       wgrp_id = dut.get_wave_group(self.wavetable_id, &self.name).unwrap().id;
     }
-    dut.create_wave(wgrp_id, name)?;
+    let mut derived_from = Option::None;
+    if let Some(args) = _kwargs {
+      if let Some(_derived_from) = args.get_item("derived_from") {
+        if let Ok(_waves) = _derived_from.extract::<String>() {
+          derived_from = Some(vec!(_waves));
+        } else if let Ok(_waves) = _derived_from.extract::<Vec<String>>() {
+          derived_from = Some(_waves);
+        } else {
+          return type_error!("Could not interpret 'derived_From' argument as a string or as a list of strings!")
+        }
+      }
+    }
+    dut.create_wave(wgrp_id, name, derived_from)?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -617,10 +629,18 @@ pub struct Event {
 #[pymethods]
 impl Event {
   #[getter]
-  pub fn action(&self) -> PyResult<String> {
+  pub fn get_action(&self) -> PyResult<String> {
     let dut = DUT.lock().unwrap();
     let e = dut.get_event(self.wave_id, self.index).unwrap();
     Ok(e.action.clone())
+  }
+
+  #[setter]
+  pub fn action(&self, action: &str) -> PyResult<()> {
+    let mut dut = DUT.lock().unwrap();
+    let e = dut.get_mut_event(self.wave_id, self.index).unwrap();
+    e.set_action(action)?;
+    Ok(())
   }
 
   #[getter]

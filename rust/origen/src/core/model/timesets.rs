@@ -30,6 +30,16 @@ macro_rules! backend_lookup_error {
     };
 }
 
+#[macro_export]
+macro_rules! lookup_error {
+    ($container:expr, $name:expr) => {
+      Err(Error::new(&format!(
+        "Could not find {} named {}!",
+        $container, $name
+      )))
+    };
+}
+
 impl Model {
   pub fn add_timeset(&mut self, model_id: usize, instance_id: usize, name: &str, period: Option<Box<dyn std::string::ToString>>, default_period: Option<f64>) -> Result<Timeset, Error> {
     let t = Timeset::new(model_id, instance_id, name, period, default_period);
@@ -176,7 +186,7 @@ impl Dut {
     Ok(&self.wave_groups[id])
   }
 
-  pub fn create_wave(&mut self, wave_group_id: usize, indicator: &str) -> Result<&Wave, Error> {
+  pub fn create_wave(&mut self, wave_group_id: usize, indicator: &str, derived_from: Option<Vec<String>>) -> Result<&Wave, Error> {
     let id;
     {
       id = self.waves.len();
@@ -195,6 +205,30 @@ impl Dut {
       )?;
     }
     self.waves.push(w);
+
+    if let Some(bases) = derived_from {
+      for base in bases.iter() {
+        let base_wave: Wave;
+        {
+          base_wave = self._get_wave(wave_group_id, base)?;
+        }
+        {
+          // Todo: Need to further define how wave inheritance should look.
+          // In the wave is independent, so we're recreating the events, not just storing a reference to the derived wave's events.
+          // We're also allowing one wave to come in an knock out the events of another, if it includes any events.
+          // So, we'll only overwrite events if the another wave includes them. But, there's no way to know this ahead of time without doing a second pass.
+          for e_id in base_wave.events.iter() {
+            let e = self.wave_events[*e_id].clone();
+            self.create_event(id, Box::new(e.at), e.unit, &e.action)?;
+          }
+        }
+        // If given, pull the following out of the wave:
+        //  * pins
+        //  * events
+        let w = &mut self.waves[id];
+        w.pins = base_wave.pins.clone();
+      }
+    }
     Ok(&self.waves[id])
   }
 
@@ -219,6 +253,14 @@ impl Dut {
       Some(&self.waves[w])
     } else {
       Option::None
+    }
+  }
+
+  pub fn _get_wave(&self, wave_group_id: usize, name: &str) -> Result<Wave, Error> {
+    if let Some(w) = self.wave_groups[wave_group_id].get_wave_id(name) {
+      Ok(self.waves[w].clone())
+    } else {
+      lookup_error!("wave", name)
     }
   }
 

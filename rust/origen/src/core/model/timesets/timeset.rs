@@ -223,7 +223,7 @@ impl WaveGroup {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Wave {
   pub model_id: usize,
   pub timeset_id: usize,
@@ -334,7 +334,7 @@ pub fn as_str(&self) -> &'static str {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Event {
   pub wavetable_id: usize,
   pub wave_id: usize,
@@ -378,6 +378,12 @@ impl Event {
       }
       Err(_e) => Err(Error::new(err))
     }
+  }
+
+  pub fn set_action(&mut self, action: &str) -> Result<(), Error> {
+    let _temp = EventActions::from_str(action)?;
+    self.action = action.to_string();
+    Ok(())
   }
 }
 
