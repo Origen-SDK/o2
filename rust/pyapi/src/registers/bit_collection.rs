@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 use origen::core::model::registers::BitCollection as RichBC;
-use origen::core::model::registers::Register;
+use origen::core::model::registers::{BitOrder, Register};
 use origen::Dut;
 use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
@@ -30,6 +30,9 @@ pub struct BitCollection {
     pub bit_ids: Vec<usize>,
     /// When true the BitCollection is representing a gap in a register
     pub spacer: bool,
+    /// This is a temporary bit_order that controls what view the user sees via
+    /// the with_msb0() and with_lsb0() methods
+    pub bit_order: BitOrder,
     /// Iterator index and vars
     pub i: usize,
     pub sl: bool,
@@ -48,6 +51,9 @@ impl BitCollection {
             i: 0,
             sl: false,
             spacer: false,
+            // Important, all displays are LSB0 by default regardless of how the reg
+            // was defined
+            bit_order: BitOrder::LSB0,
         }
     }
 }
@@ -90,6 +96,7 @@ impl pyo3::class::iter::PyIterProtocol for BitCollection {
             i: 0,
             sl: false,
             spacer: false,
+            bit_order: slf.bit_order,
         };
 
         slf.i += 1;
@@ -105,7 +112,7 @@ impl PyObjectProtocol for BitCollection {
             let reg = dut.get_register(self.reg_id.unwrap())?;
             if self.field.is_none() {
                 if self.whole_reg {
-                    Ok(reg.console_display(&dut, None, true)?)
+                    Ok(reg.console_display(&dut, Some(self.bit_order), true)?)
                 } else {
                     Ok(format!(
                         "<BitCollection: a subset of '{}' ({} bit(s))>",
@@ -160,13 +167,14 @@ impl PyObjectProtocol for BitCollection {
                             i: 0,
                             sl: false,
                             spacer: false,
+                            bit_order: self.bit_order,
                         },
                     )?
                     .to_object(py),
                 );
             }
             Ok(PyList::new(py, bits).into())
-        // .bits returns a Python dict containing field objects as BCs and spacer BCs
+        // .fields returns a Python dict containing field objects as BCs and spacer BCs
         } else if self.whole_reg {
             if query == "fields" {
                 let fields = PyDict::new(py);
@@ -189,6 +197,7 @@ impl PyObjectProtocol for BitCollection {
                                 i: 0,
                                 sl: false,
                                 spacer: field.spacer,
+                                bit_order: self.bit_order,
                             },
                         )?
                         .to_object(py),
@@ -210,6 +219,7 @@ impl PyObjectProtocol for BitCollection {
                             i: 0,
                             sl: false,
                             spacer: false,
+                            bit_order: self.bit_order,
                         },
                     )?
                     .to_object(py))
@@ -245,8 +255,8 @@ impl PyMappingProtocol for BitCollection {
             // Indices requires (what I think is) a max size. Should be plenty.
             let indices = slice.indices(8192)?;
             // TODO: Should this support step size?
-            let upper;
-            let lower;
+            let mut upper;
+            let mut lower;
             if indices.start > indices.stop {
                 upper = indices.start as usize;
                 lower = indices.stop as usize;
@@ -254,7 +264,15 @@ impl PyMappingProtocol for BitCollection {
                 upper = indices.stop as usize;
                 lower = indices.start as usize;
             }
-            let bit_ids = Vec::from_iter(self.bit_ids[lower..upper + 1].iter().cloned());
+            let bit_ids;
+            if self.bit_order == BitOrder::MSB0 {
+                upper = self.bit_ids.len() - upper - 1;
+                lower = self.bit_ids.len() - lower - 1;
+                let tmp = upper;
+                upper = lower;
+                lower = tmp;
+            }
+            bit_ids = Vec::from_iter(self.bit_ids[lower..upper + 1].iter().cloned());
             Ok(BitCollection {
                 reg_id: self.reg_id,
                 field: field,
@@ -264,12 +282,17 @@ impl PyMappingProtocol for BitCollection {
                 i: 0,
                 sl: false,
                 spacer: false,
+                bit_order: self.bit_order,
             })
         } else if let Ok(_int) = idx.cast_as::<PyInt>() {
             let i = idx.extract::<usize>().unwrap();
             if i < self.bit_ids.len() {
                 let mut bit_ids: Vec<usize> = Vec::new();
-                bit_ids.push(self.bit_ids[i]);
+                if self.bit_order == BitOrder::LSB0 {
+                    bit_ids.push(self.bit_ids[i]);
+                } else {
+                    bit_ids.push(self.bit_ids[self.bit_ids.len() - i - 1]);
+                }
                 Ok(BitCollection {
                     reg_id: self.reg_id,
                     field: field,
@@ -279,6 +302,7 @@ impl PyMappingProtocol for BitCollection {
                     i: 0,
                     sl: false,
                     spacer: false,
+                    bit_order: self.bit_order,
                 })
             } else {
                 Err(PyErr::new::<exceptions::RuntimeError, _>(
@@ -305,6 +329,20 @@ impl PyMappingProtocol for BitCollection {
 /// User API methods
 #[pymethods]
 impl BitCollection {
+    /// Returns a copy of the BitCollection with its bit_order attribute set to MSB0
+    fn with_msb0(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        bc.bit_order = BitOrder::MSB0;
+        Ok(bc)
+    }
+
+    /// Returns a copy of the BitCollection with its bit_order attribute set to LSB0
+    fn with_lsb0(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        bc.bit_order = BitOrder::LSB0;
+        Ok(bc)
+    }
+
     fn len(&self) -> PyResult<usize> {
         Ok(self.bit_ids.len())
     }
@@ -436,6 +474,7 @@ impl BitCollection {
                     i: 0,
                     sl: false,
                     spacer: false,
+                    bit_order: self.bit_order,
                 })
             } else {
                 let msg = format!(

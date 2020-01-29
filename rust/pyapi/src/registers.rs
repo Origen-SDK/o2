@@ -10,7 +10,7 @@ use std::sync::RwLock;
 //use origen::core::model::registers::Register;
 use bit_collection::BitCollection;
 use origen::core::model::registers::bit::{UNDEFINED, ZERO};
-use origen::core::model::registers::{Bit, SummaryField};
+use origen::core::model::registers::{Bit, BitOrder, SummaryField};
 use origen::DUT;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -35,6 +35,7 @@ fn create(
     name: &str,
     offset: usize,
     size: Option<usize>,
+    bit_order: String,
     mut fields: Vec<&Field>,
 ) -> PyResult<usize> {
     let reg_id;
@@ -42,6 +43,7 @@ fn create(
     let base_bit_id;
     let mut reset_vals: Vec<Option<(&BigUint, Option<&BigUint>)>> = Vec::new();
     let mut non_zero_reset = false;
+    let lsb0;
 
     fields.sort_by_key(|field| field.offset);
 
@@ -50,8 +52,9 @@ fn create(
     }
     {
         let mut dut = origen::dut();
-        reg_id = dut.create_reg(address_block_id, name, offset, size)?;
+        reg_id = dut.create_reg(address_block_id, name, offset, size, &bit_order)?;
         let reg = dut.get_mut_register(reg_id)?;
+        lsb0 = reg.bit_order == BitOrder::LSB0;
         for f in &fields {
             let field = reg.add_field(&f.name, &f.description, f.offset, f.width, &f.access)?;
             for e in &f.enums {
@@ -83,7 +86,9 @@ fn create(
     }
 
     // Create the bits now that we know which ones are implemented
-    reset_vals.reverse();
+    if lsb0 {
+        reset_vals.reverse();
+    }
     let mut dut = origen::dut();
     for field in reg_fields {
         // Intention here is to skip decomposing the BigUint unless required

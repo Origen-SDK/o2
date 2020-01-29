@@ -336,122 +336,40 @@ def test_update_device_state_clears_update_required():
     reg.update_device_state()
     assert reg.is_update_required() == False
 
-#def test_can_iterate_through_fields():
-#    with dut.add_reg("tr1", 0x0, size=16) as reg:
-#        reg.Field("b0", offset=0, width=8, reset=0x55)
-#        reg.Field("b1", offset=8, width=4, reset=0xA)
-#        reg.Field("b2", offset=14, width=2, reset=1)
-#    reg = dut.tr1
-#
-#    # TODO: Should this return a dict or a hash?
-#    for bits in reg.fields():
-#        if bits.name == "b0":
-#            bits.set_data(0x1)
-#        elif bits.name == "b1":
-#            bits.set_data(0x2)
-#        elif bits.name == "b2":
-#            bits.set_data(0x3)
-#            
-#    assert reg.data() == 0xC201
-#    assert reg.field("b1").data() == 0x2
+def test_can_iterate_through_fields():
+    with dut.add_reg("tr1", 0x0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0x55)
+        reg.Field("b1", offset=8, width=4, reset=0xA)
+        reg.Field("b2", offset=14, width=2, reset=1)
+    reg = dut.tr1
 
-#    specify "can use named bits with bit ordering" do
-#        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 1, bits: 7, res: 0x55}, 
-#                                               b1: {pos: 8, bits: 4, res: 0xA},
-#                                               b2: {pos: 14,bits: 2, res: 1})
-#
-#        reg2 = Reg.new(self, 0x11, 8, :dummy_msb, bit_order: :msb0, msb0: {pos: 6, bits: 1}, 
-#                                                                    msb1: {pos: 4, bits: 2, res: 0x3},
-#                                                                    msb2: {pos: 0, bits: 1, res: 1})
-#  
-#        reg1.named_bits[0] == reg1.bits(:b0) 
-#        reg1.named_bits[2] == reg1.bits(:b2) 
-#        reg1.named_bits(include_spacers: true)[1] == reg1.bits(:b0) 
-#        reg1.named_bits(include_spacers: true)[4] == reg1.bits(:b2) 
-#        reg2.named_bits[0] == reg2.bits(:msb0) 
-#        reg2.named_bits[2] == reg2.bits(:msb2) 
-#        reg2.named_bits(include_spacers: true)[1] == reg2.bits(:msb0) 
-#        reg2.named_bits(include_spacers: true)[4] == reg2.bits(:msb2) 
-#        names = []
-#        reg1.named_bits { |name, bits| names.push(name) }
-#        names.should == [:b2, :b1, :b0]
-#        names = []
-#        reg1.named_bits(include_spacers: true) { |name, bits| names.push(name) }
-#        names.should == [:b2, nil, :b1, :b0, nil]
-#        names = []
-#        reg2.named_bits { |name, bits| names.push(name) }
-#        names.should == [:msb2, :msb1, :msb0]
-#        names = []
-#        reg2.named_bits(include_spacers: true) { |name, bits| names.push(name) }
-#        names.should == [:msb2, nil, :msb1, :msb0, nil]
-#         #reg1.reverse_named_bits[2] == reg1.bits(:b2) 
-#    end
-#
-#    specify "can check bit positions of used_bits" do
-#        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                              b1: {pos: 8, bits: 4, res: 0xA},
-#                                              b2: {pos: 14,bits: 2, res: 1})
-#
-#        reg2 = Reg.new(self, 0x11, 8, :dummy_fstat, fstat0: {pos: 7, bits: 1}, 
-#                                              fstat1: {pos: 4, bits: 2, res: 0x3},
-#                                              fstat2: {pos: 0,bits: 1, res: 1})
-#                                              
-#        reg1.used_bits.should == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15]
-#        reg2.used_bits.should == [0, 4, 5, 7]
-#    end
-#
-#    specify "can check for presence used_bits" do
-#        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                              b1: {pos: 8, bits: 4, res: 0xA},
-#                                              b2: {pos: 14,bits: 2, res: 1})
-#
-#        reg2 = Reg.new(self, 0x11, 8, :dummy_fstat, fstat0: {pos: 7, bits: 1}, 
-#                                              fstat1: {pos: 4, bits: 2, res: 0x3},
-#                                              fstat2: {pos: 0,bits: 1, res: 1})
-#                                              
-#        reg3 = Reg.new(self, 0x12, 32, :dummy_empty)
-#        
-#        reg1.used_bits?.should == true
-#        reg2.used_bits?.should == true
-#        reg3.used_bits?.should == false
-#    end
-#
-#    specify "can check bit positions of empty_bits" do
-#        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                              b1: {pos: 8, bits: 4, res: 0xA},
-#                                              b2: {pos: 14,bits: 2, res: 1})
-#
-#        reg2 = Reg.new(self, 0x11, 8, :dummy_fstat, fstat0: {pos: 7, bits: 1}, 
-#                                              fstat1: {pos: 4, bits: 2, res: 0x3},
-#                                              fstat2: {pos: 0,bits: 1, res: 1})
-#                                              
-#        reg1.empty_bits.should == [12, 13]
-#        reg2.empty_bits.should == [1, 2, 3, 6]
-#    end
-#
-#    specify "can check for presence empty_bits" do
-#        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                              b1: {pos: 8, bits: 4, res: 0xA},
-#                                              b2: {pos: 12, bits: 1},
-#                                              b3: {pos: 13, bits: 1},
-#                                              b4: {pos: 14,bits: 2, res: 1})
-#
-#        reg2 = Reg.new(self, 0x11, 8, :dummy_fstat, fstat0: {pos: 7, bits: 1}, 
-#                                              fstat1: {pos: 4, bits: 2, res: 0x3},
-#                                              fstat2: {pos: 0,bits: 1, res: 1})
-#                                              
-#        reg3 = Reg.new(self, 0x12, 32, :dummy_empty)
-#        reg4 = Reg.new(self, 0x13, 32, :dummy_empty, full32: {pos: 0, bits: 32})
-#        reg5 = Reg.new(self, 0x14, 8, :dummy_empty, full8: {pos: 0, bits: 8})
-#        
-#        reg1.empty_bits?.should == false
-#        reg2.empty_bits?.should == true
-#        reg3.empty_bits?.should == true
-#        reg4.empty_bits?.should == false
-#        reg5.empty_bits?.should == false
-#        
-#    end
-#    
+    for name, field in reg.fields.items():
+        if name == "b0":
+            field.set_data(0x1)
+        elif name == "b1":
+            field.set_data(0x2)
+        elif name == "b2":
+            field.set_data(0x3)
+            
+    assert reg.data() == 0xC201
+    assert reg.field("b1").data() == 0x2
+
+def test_can_use_fields_with_bit_ordering():
+    with dut.add_reg("tr1", 0x0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0x55)
+        reg.Field("b1", offset=8, width=4, reset=0xA)
+        reg.Field("b2", offset=14, width=2, reset=1)
+    reg1 = dut.tr1
+    with dut.add_reg("tr2", 0x0, bit_order="msb0", size=8) as reg:
+        reg.Field("msb0", offset=6, width=2)
+        reg.Field("msb1", offset=4, width=2, reset=0x3)
+        reg.Field("msb2", offset=0, reset=1)
+    reg2 = dut.tr2
+
+    assert list(reg1.fields.keys())[0] == "b0"
+    assert list(reg2.fields.keys())[0] == "msb0"
+
+# TODO: Should be supported, but via the more generic access= attribute rather than w1c=
 #    specify "can set bitw1c attribute and query w1c status" do
 #        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
 #                                              b1: {pos: 8, bits: 4, res: 0xA},
@@ -463,7 +381,8 @@ def test_update_device_state_clears_update_required():
 #        reg.bit(:b3).w1c.should == false
 #        reg.bit(:b4).w1c.should == false
 #    end
-#
+
+# TODO: What's the Python equivalent of this?
 #    it "should respond to bit collection methods" do
 #        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
 #                                              b1: {pos: 8, bits: 4, res: 0xA},
@@ -483,6 +402,7 @@ def test_should_respond_to_data_as_an_alias_of_get_data():
     assert dut.r1.get_data() == 0x1234
     assert dut.r1.data() == 0x1234
     
+# TODO: Probably required, but putting as lower prior
 #    specify "bits can be deleted" do
 #        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8}, 
 #                                              b1: {pos: 8, bits: 8})

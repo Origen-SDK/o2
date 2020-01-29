@@ -144,4 +144,29 @@ def test_reg_fields_attr_returns_a_dict():
     reg.fields["b0"].set_data(0b1)
     reg.fields["b1"].set_data(0b1100)
     assert reg.data() == 0b101100
-    
+
+def test_msb0_behavior():
+    with dut.add_reg("tr1", 0, size=16, bit_order="msb0") as reg:
+        reg.Field("coco", offset=7, access="ro", reset=0)
+        reg.Field("aien", offset=6, reset=0)
+        reg.Field("diff", offset=5, reset=0)
+        reg.Field("adch", offset=0, width=5, reset=0x1F)
+    reg = dut.tr1
+    assert reg.data() == 0xF800
+    reg.set_data(0)
+    assert reg.diff.data() == 0
+    reg[10].set_data(1)
+    assert reg.diff.data() == 1
+    reg.set_data(0)
+    assert reg.diff.data() == 0
+    reg.with_msb0()[5].set_data(1)
+    assert reg.diff.data() == 1
+    assert reg.data() == 0x400
+    assert reg.with_msb0().data() == 0x400
+    reg.adch.set_data(0)
+    reg[13:11].set_data(7)
+    assert reg.adch.data() == 7
+    reg.adch.set_data(0)
+    assert reg.adch.data() == 0
+    reg.with_msb0()[2:4].set_data(7)
+    assert reg.adch.data() == 7

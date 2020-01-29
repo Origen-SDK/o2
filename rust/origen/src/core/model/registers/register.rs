@@ -248,11 +248,11 @@ impl Register {
             ));
             LOGGER.warning(&format!(""));
             LOGGER.warning(&format!(
-                "   reg('{}').with_msb0        # bit numbering scheme is msb0",
+                "   reg('{}').with_msb0()      # bit numbering scheme is msb0",
                 self.name
             ));
             LOGGER.warning(&format!(
-                "   reg('{}').with_lsb0        # bit numbering scheme is lsb0 (default)",
+                "   reg('{}').with_lsb0()      # bit numbering scheme is lsb0 (default)",
                 self.name
             ));
             LOGGER.warning(&format!(
@@ -535,7 +535,7 @@ impl Register {
         &mut self,
         name: &str,
         description: &str,
-        offset: usize,
+        mut offset: usize,
         width: usize,
         access: &str,
     ) -> OrigenResult<&mut Field> {
@@ -543,6 +543,9 @@ impl Register {
             Ok(x) => x,
             Err(msg) => return Err(Error::new(&msg)),
         };
+        if self.bit_order == BitOrder::MSB0 {
+            offset = self.size - offset - width;
+        }
         let f = Field {
             reg_id: self.id,
             name: name.to_string(),

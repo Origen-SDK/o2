@@ -34,15 +34,15 @@ class Loader:
             return origen.dut.db.get_or_create_address_block(self.memory_map.id, "default")
 
     @contextmanager
-    def Reg(self, name, address_offset, size=32):
+    def Reg(self, name, address_offset, size=32, bit_order="lsb0"):
         self.fields = []
         yield self
-        reg = _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, self.fields)
+        reg = _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, bit_order, self.fields)
         self.fields = None
 
-    def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None):
+    def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0"):
         field = _origen.dut.registers.Field("data", "", 0, size, "rw", self.clean_resets(reset, resets), self.clean_enums(enums))
-        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, [field])
+        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, bit_order, [field])
 
     def Field(self, name, offset, width=1, access="rw", reset=None, resets=None, enums=None, description=""):
         if self.fields is not None:

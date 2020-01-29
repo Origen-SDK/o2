@@ -347,6 +347,7 @@ impl Dut {
         name: &str,
         offset: usize,
         size: Option<usize>,
+        bit_order: &str,
     ) -> Result<usize> {
         let id;
         {
@@ -367,6 +368,10 @@ impl Dut {
         match size {
             Some(v) => defaults.size = v,
             None => {}
+        }
+        match bit_order.parse() {
+            Ok(x) => defaults.bit_order = x,
+            Err(msg) => return Err(Error::new(&msg)),
         }
         let reg = Register {
             id: id,
