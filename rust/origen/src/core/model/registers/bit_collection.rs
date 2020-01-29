@@ -133,6 +133,27 @@ impl<'a> BitCollection<'a> {
         Ok(BigUint::from_bytes_le(&bytes))
     }
 
+    /// Returns the overlay value of the BitCollection. This will return an error if
+    /// not all bits return the same value.
+    pub fn get_overlay(&self) -> Result<Option<String>> {
+        let val = self.bits[0].get_overlay();
+        if !self.bits.iter().all(|&bit| bit.get_overlay() == val) {
+            Err(Error::new(
+                "The bits in the collection have different overlay values",
+            ))
+        } else {
+            Ok(val)
+        }
+    }
+
+    /// Set the overlay value of the BitCollection.
+    pub fn set_overlay(&self, val: Option<&str>) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.set_overlay(val);
+        }
+        self
+    }
+
     /// Returns true if no contained bits are in X or Z state
     pub fn has_known_value(&self) -> bool {
         self.bits.iter().all(|bit| bit.has_known_value())

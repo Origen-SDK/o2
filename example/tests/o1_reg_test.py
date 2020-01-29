@@ -393,7 +393,6 @@ def test_can_use_fields_with_bit_ordering():
 #    end
 
 def test_should_respond_to_data_as_an_alias_of_get_data():
-    origen.app.instantiate_dut("dut.falcon")
     with dut.add_reg("r1", 0, size=16) as reg:
         reg.Field("b0", offset=0, width=8)
         reg.Field("b1", offset=8, width=8)
@@ -412,66 +411,39 @@ def test_should_respond_to_data_as_an_alias_of_get_data():
 #        reg.write(0xFFFF)
 #        reg.data.should == 0x00FF
 #    end
-#
-#    it "can be copied" do
-#        reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                               b1: {pos: 8, bits: 8})
-#        reg2 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                               b1: {pos: 8, bits: 8})
-#        reg1.overlay("hello")
-#        reg1.write(0x1234)
-#        reg2.copy(reg1)
-#        reg1.overlay_str.should == "hello"
-#        reg1.data.should == 0x1234
-#    end
-#
-#    specify "copy works via the reg API" do
-#      load_target
-#      reg1 = dut.nvm.reg(:mclkdiv)
-#      reg2 = dut.nvm.reg(:data)
-#      reg1.overlay("hello")
-#      reg1.write(0x1234)
-#      reg2.copy(reg1)
-#      reg1.overlay_str.should == "hello"
-#      reg1.data.should == 0x1234
-#    end
-#
-#    specify "copy works with bit collections" do
-#      load_target
-#      reg1 = dut.nvm.reg(:mclkdiv)
-#      reg1 = reg1.bits
-#      reg2 = dut.nvm.reg(:data)
-#      reg1.overlay("hello")
-#      reg1.write(0x1234)
-#      reg2.copy(reg1)
-#      reg1.overlay_str.should == "hello"
-#      reg1.data.should == 0x1234
-#    end
-#
-#    specify "bit collections can be copied to other bitcollections" do
-#      cpreg1 = Reg.new(self, 0x110, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                                b1: {pos: 8, bits: 8})
-#      cpreg2 = Reg.new(self, 0x111, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                                b1: {pos: 8, bits: 8})
-#      bits1 = cpreg1.b0
-#      bits2 = cpreg2.b0
-#      bits1.data.should == 0
-#      bits1[1].is_to_be_read?.should == false
-#      bits2.read(0b0010)
-#      bits1.copy_all(bits2)
-#      bits1.data.should == 0b0010
-#      bits1[1].is_to_be_read?.should == true
-#      bits1.is_to_be_read?.should == true
-#
-#      # Bit collection copy can also accept a flat value, in which case
-#      # it is just a write that clears flags:
-#
-#      bits1.copy_all(0b1001)
-#      bits1.data.should == 0b1001
-#      bits1[1].is_to_be_read?.should == false
-#      bits1.is_to_be_read?.should == false
-#    end
-#
+
+def test_reg_state_can_be_copied():
+    with dut.add_reg("tr1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8)
+        reg.Field("b1", offset=8, width=8)
+    with dut.add_reg("tr2", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8)
+        reg.Field("b1", offset=8, width=8)
+    reg1 = dut.tr1
+    reg2 = dut.tr2
+    reg1.set_overlay("hello")
+    reg1.set_data(0x1234)
+    reg2.copy(reg1)
+    assert reg2.overlay() == "hello"
+    assert reg2.data() == 0x1234
+
+def test_bit_collections_can_be_copied_to_other_bitcollections():
+    with dut.add_reg("tr1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
+    with dut.add_reg("tr2", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
+    bits1 = dut.tr1.b0
+    bits2 = dut.tr2.b0
+    assert bits1.data() == 0
+    assert bits1[1].is_to_be_read() == False
+    bits2.set_data(0b0010).read()
+    bits1.copy(bits2)
+    assert bits1.data() == 0b0010
+    assert bits1[1].is_to_be_read() == True
+    assert bits1.is_to_be_read() == True
+
 #    specify "status string methods work" do
 #      reg = Reg.new(self, 0x112, 16, :dummy, b0: {pos: 0, bits: 8}, 
 #                                             b1: {pos: 8, bits: 8})

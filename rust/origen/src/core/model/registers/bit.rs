@@ -33,6 +33,17 @@ pub struct Bit {
 }
 
 impl Bit {
+    /// Copies the state (data and flags) and overlay attributes of the given bit to self
+    pub fn copy_state(&self, source: &Bit) {
+        let mut state = self.state.write().unwrap();
+        *state = *source.state.read().unwrap();
+        let mut overlay = self.overlay.write().unwrap();
+        match &*source.overlay.read().unwrap() {
+            Some(x) => *overlay = Some(x.to_string()),
+            None => *overlay = None,
+        }
+    }
+
     /// Returns true if not in X or Z state
     pub fn has_known_value(&self) -> bool {
         self.access == Unimplemented || *self.state.read().unwrap() & 0b110 == 0
@@ -140,6 +151,21 @@ impl Bit {
         let mut state = self.state.write().unwrap();
         // Clear X and Z flags
         *state = state_val | (val & 0b1);
+    }
+
+    pub fn get_overlay(&self) -> Option<String> {
+        match &*self.overlay.read().unwrap() {
+            Some(x) => Some(x.to_string()),
+            None => None,
+        }
+    }
+
+    pub fn set_overlay(&self, val: Option<&str>) {
+        let mut overlay = self.overlay.write().unwrap();
+        match val {
+            Some(x) => *overlay = Some(x.to_string()),
+            None => *overlay = None,
+        }
     }
 
     /// Applies the given state value, making it the new reset baseline and

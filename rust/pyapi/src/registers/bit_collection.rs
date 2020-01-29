@@ -412,6 +412,34 @@ impl BitCollection {
         Ok(self.clone())
     }
 
+    fn set_overlay(&self, value: Option<&str>) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        self.materialize(&dut)?.set_overlay(value);
+        Ok(self.clone())
+    }
+
+    fn overlay(&self) -> PyResult<Option<String>> {
+        self.get_overlay()
+    }
+
+    fn get_overlay(&self) -> PyResult<Option<String>> {
+        let dut = origen::dut();
+        Ok(self.materialize(&dut)?.get_overlay()?)
+    }
+
+    fn copy(&self, src: &BitCollection) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        let dest = self.materialize(&dut)?;
+        let source = src.materialize(&dut)?;
+
+        for (i, bit) in dest.bits.iter().enumerate() {
+            if i < source.bits.len() {
+                bit.copy_state(source.bits[i]);
+            }
+        }
+        Ok(self.clone())
+    }
+
     pub fn read(&self) -> PyResult<BitCollection> {
         let dut = origen::dut();
         self.materialize(&dut)?.read()?;
