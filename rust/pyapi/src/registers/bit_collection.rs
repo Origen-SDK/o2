@@ -9,7 +9,7 @@ use pyo3::exceptions;
 use pyo3::exceptions::AttributeError;
 use pyo3::import_exception;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyInt, PySlice, PyString};
+use pyo3::types::{PyAny, PyDict, PyInt, PyList, PySlice, PyString};
 use std::iter::FromIterator;
 use std::sync::MutexGuard;
 
@@ -28,6 +28,8 @@ pub struct BitCollection {
     pub whole_reg: bool,
     pub whole_field: bool,
     pub bit_ids: Vec<usize>,
+    /// When true the BitCollection is representing a gap in a register
+    pub spacer: bool,
     /// Iterator index and vars
     pub i: usize,
     pub sl: bool,
@@ -45,6 +47,7 @@ impl BitCollection {
             bit_ids: reg.bit_ids.clone(),
             i: 0,
             sl: false,
+            spacer: false,
         }
     }
 }
@@ -86,6 +89,7 @@ impl pyo3::class::iter::PyIterProtocol for BitCollection {
             bit_ids: bit_ids,
             i: 0,
             sl: false,
+            spacer: false,
         };
 
         slf.i += 1;
@@ -133,24 +137,82 @@ impl PyObjectProtocol for BitCollection {
         }
     }
 
-    /// Implements my_reg.my_bits
-    fn __getattr__(&self, query: &str) -> PyResult<BitCollection> {
+    fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
         let dut = origen::dut();
-        if self.whole_reg {
-            if query == "bits" || query == "fields" {
-                Ok(self.clone())
+        // .bits returns a Python list containing individual bit objects wrapped in BCs
+        if query == "bits" {
+            let mut bits: Vec<PyObject> = Vec::new();
+            for id in &self.bit_ids {
+                bits.push(
+                    Py::new(
+                        py,
+                        BitCollection {
+                            reg_id: self.reg_id,
+                            field: match &self.field {
+                                Some(x) => Some(x.to_string()),
+                                None => None,
+                            },
+                            whole_reg: self.whole_reg && self.bit_ids.len() == 1,
+                            whole_field: self.whole_field && self.bit_ids.len() == 1,
+                            bit_ids: vec![*id],
+                            i: 0,
+                            sl: false,
+                            spacer: false,
+                        },
+                    )?
+                    .to_object(py),
+                );
+            }
+            Ok(PyList::new(py, bits).into())
+        // .bits returns a Python dict containing field objects as BCs and spacer BCs
+        } else if self.whole_reg {
+            if query == "fields" {
+                let fields = PyDict::new(py);
+                let reg = dut.get_register(self.reg_id.unwrap())?;
+                for field in reg.fields(true) {
+                    fields.set_item(
+                        field.name.clone(),
+                        Py::new(
+                            py,
+                            BitCollection {
+                                reg_id: self.reg_id,
+                                field: Some(field.name),
+                                whole_reg: self.whole_reg && self.bit_ids.len() == field.width,
+                                whole_field: true,
+                                bit_ids: Vec::from_iter(
+                                    self.bit_ids[field.offset..field.offset + field.width]
+                                        .iter()
+                                        .cloned(),
+                                ),
+                                i: 0,
+                                sl: false,
+                                spacer: field.spacer,
+                            },
+                        )?
+                        .to_object(py),
+                    )?;
+                }
+                Ok(fields.into())
+            // .my_field
             } else {
                 let reg = dut.get_register(self.reg_id.unwrap())?;
                 if reg.fields.contains_key(query) {
-                    Ok(BitCollection {
-                        reg_id: self.reg_id,
-                        field: Some(query.to_string()),
-                        whole_reg: false,
-                        whole_field: true,
-                        bit_ids: reg.fields.get(query).unwrap().bit_ids(&dut),
-                        i: 0,
-                        sl: false,
-                    })
+                    Ok(Py::new(
+                        py,
+                        BitCollection {
+                            reg_id: self.reg_id,
+                            field: Some(query.to_string()),
+                            whole_reg: false,
+                            whole_field: true,
+                            bit_ids: reg.fields.get(query).unwrap().bit_ids(&dut),
+                            i: 0,
+                            sl: false,
+                            spacer: false,
+                        },
+                    )?
+                    .to_object(py))
                 } else {
                     Err(AttributeError::py_err(format!(
                         "'BitCollection' object has no attribute '{}'",
@@ -201,6 +263,7 @@ impl PyMappingProtocol for BitCollection {
                 bit_ids: bit_ids,
                 i: 0,
                 sl: false,
+                spacer: false,
             })
         } else if let Ok(_int) = idx.cast_as::<PyInt>() {
             let i = idx.extract::<usize>().unwrap();
@@ -215,6 +278,7 @@ impl PyMappingProtocol for BitCollection {
                     bit_ids: bit_ids,
                     i: 0,
                     sl: false,
+                    spacer: false,
                 })
             } else {
                 Err(PyErr::new::<exceptions::RuntimeError, _>(
@@ -357,11 +421,6 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    /// An alias for field()
-    fn bit(&self, name: &str) -> PyResult<BitCollection> {
-        self.field(name)
-    }
-
     fn field(&self, name: &str) -> PyResult<BitCollection> {
         let dut = origen::dut();
 
@@ -376,6 +435,7 @@ impl BitCollection {
                     bit_ids: reg.fields.get(name).unwrap().bit_ids(&dut),
                     i: 0,
                     sl: false,
+                    spacer: false,
                 })
             } else {
                 let msg = format!(

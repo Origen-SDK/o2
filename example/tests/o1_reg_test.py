@@ -149,18 +149,18 @@ def test_stores_reset_data_at_bit_level():
     assert dut.tr1.b1.data() == 0xAA
     assert dut.tr1.b2.data() == 1
 
-def test_bits_can_be_accessed_via_bit_or_bits():
+def test_fields_can_be_accessed_via_field_or_fields():
     with dut.add_reg("tr1", 0x0) as reg:
         reg.Field("b0", offset=0, width=8, reset=0x55)
         reg.Field("b1", offset=8, width=8, reset=0xAA)
         reg.Field("b2", offset=16, reset = 1)
 
-    assert dut.tr1.bits["b0"].data() == 0x55
-    assert dut.tr1.bits["b1"].data() == 0xAA
-    assert dut.tr1.bits["b2"].data() == 1
-    assert dut.tr1.bit("b0").data() == 0x55
-    assert dut.tr1.bit("b1").data() == 0xAA
-    assert dut.tr1.bit("b2").data() == 1
+    assert dut.tr1.fields["b0"].data() == 0x55
+    assert dut.tr1.fields["b1"].data() == 0xAA
+    assert dut.tr1.fields["b2"].data() == 1
+    assert dut.tr1.field("b0").data() == 0x55
+    assert dut.tr1.field("b1").data() == 0xAA
+    assert dut.tr1.field("b2").data() == 1
 
 def test_bits_can_be_accessed_via_position_number():
     with dut.add_reg("tr1", 0x0) as reg:

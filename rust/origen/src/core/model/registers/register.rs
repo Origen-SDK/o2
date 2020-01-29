@@ -46,7 +46,7 @@ impl Default for Register {
 }
 
 /// An iterator for a register's fields which yields them in offset order, starting from 0.
-/// An instance of this iterator is returned by my_reg.named_bits().
+/// An instance of this iterator is returned by my_reg.fields().
 pub struct RegisterFieldIterator<'a> {
     reg: &'a Register,
     field_names: Vec<String>,
@@ -145,7 +145,7 @@ impl<'a> RegisterFieldIterator<'a> {
                         // Look ahead to the next field to work out how wide this spacer needs to be
                         width = match self.field(true, true) {
                             Some(x) => x.offset - offset,
-                            None => self.reg.size,
+                            None => self.reg.size - offset,
                         };
                     } else {
                         offset = match self.field(false, true) {
@@ -194,7 +194,7 @@ impl<'a> Iterator for RegisterFieldIterator<'a> {
     }
 }
 
-// Enables reg.named_bits(true).rev()
+// Enables reg.fields(true).rev()
 impl<'a> DoubleEndedIterator for RegisterFieldIterator<'a> {
     fn next_back(&mut self) -> Option<SummaryField> {
         self.get(false)
@@ -216,7 +216,7 @@ impl Register {
 
     /// Returns an iterator for the register's fields which yields them (as SummaryFields) in offset order, starting from lowest.
     /// The caller can elect whether or not spacer fields should be inserted to represent un-implemented bits.
-    pub fn named_bits(&self, include_spacers: bool) -> RegisterFieldIterator {
+    pub fn fields(&self, include_spacers: bool) -> RegisterFieldIterator {
         RegisterFieldIterator::new(&self, include_spacers)
     }
 
@@ -368,7 +368,7 @@ impl Register {
             // BIT NAME ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            for field in self.named_bits(true).rev() {
+            for field in self.fields(true).rev() {
                 if is_field_in_range(&field, max_bit, min_bit) {
                     if max_bit > (self.size - 1) && !first_done {
                         for _i in 0..(max_bit - (self.size - 1)) {
@@ -418,7 +418,7 @@ impl Register {
             // BIT STATE ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            for field in self.named_bits(true).rev() {
+            for field in self.fields(true).rev() {
                 if is_field_in_range(&field, max_bit, min_bit) {
                     if max_bit > (self.size - 1) && !first_done {
                         for _i in 0..(max_bit - self.size - 1) {
@@ -804,7 +804,7 @@ impl Field {
 }
 
 #[derive(Debug)]
-/// A lightweight version of a Field that is returned by the my_reg.named_bits iterator,
+/// A lightweight version of a Field that is returned by the my_reg.fields() iterator,
 /// and which is also used to represent gaps in the register (when spacer = true).
 pub struct SummaryField {
     pub reg_id: usize,
