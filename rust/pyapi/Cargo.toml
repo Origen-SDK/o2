@@ -13,7 +13,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 origen = { path = "../origen" }
+num-bigint = "0.2"
 
 [dependencies.pyo3]
 version = "0.8.2"
-features = ["extension-module"]
+features = ["extension-module", "num-bigint"]

@@ -14,8 +14,10 @@ pub struct Collector {
 
 impl Collector {
     pub fn new() -> Collector {
-        Collector { collection: Vec::new() }
-    }    
+        Collector {
+            collection: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -31,12 +33,12 @@ impl CollectionStack {
         cs.new_collection();
         cs
     }
-    
+
     // create a new collection and push it on the end of the stack
     pub fn new_collection(&mut self) {
         self.stack.push(Collector::new());
     }
-    
+
     // pop a collection off the top of the stack and return it's Vec
     // if there is only 1 element in the stack (this is the main collection)
     // an empty Vec is returned
@@ -50,18 +52,18 @@ impl CollectionStack {
             }
         }
     }
-    
+
     // return the main collection of node id's
     pub fn main_collection(&self) -> &Collector {
         &self.stack[0]
     }
-    
+
     // allocate a node in the collection at the top of the stack
     pub fn add_node(&mut self, node: &AstNodeId) {
-        let index = self.stack.len() -1;
+        let index = self.stack.len() - 1;
         self.stack[index].collection.push(*node)
     }
-    
+
     // clear all contents of the stack
     pub fn clear(&mut self) {
         self.stack.clear();
@@ -69,7 +71,7 @@ impl CollectionStack {
 }
 
 pub struct NodeCollection {
-    pub nodes: Vec::<AstNode>,
+    pub nodes: Vec<AstNode>,
     pub stack: CollectionStack,
 }
 
@@ -80,25 +82,25 @@ impl NodeCollection {
             stack: CollectionStack::new(),
         }
     }
-    
+
     pub fn add_node(&mut self, node: AstNode) -> AstNodeId {
         self.nodes.push(node);
         self.stack.add_node(&(self.nodes.len() - 1));
         self.nodes.len() - 1
     }
-    
+
     pub fn get_mut_node(&mut self, id: AstNodeId) -> Result<&mut AstNode> {
         match self.nodes.get_mut(id) {
             Some(x) => Ok(x),
-            None => return Err(Error::new(&format!("Node does not exist: {}", id)))
+            None => return Err(Error::new(&format!("Node does not exist: {}", id))),
         }
     }
-    
+
     pub fn clear(&mut self) {
         self.nodes.clear();
         self.stack.clear();
     }
-    
+
     // return the main collection of node id's
     pub fn main_collection(&self) -> &Collector {
         self.stack.main_collection()
@@ -107,22 +109,22 @@ impl NodeCollection {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::ast_node::AstNode;
-    use super::super::register_action::RegisterAction;
-    use super::super::pin_action::PinAction;
     use super::super::operation::Operation;
-    
+    use super::super::pin_action::PinAction;
+    use super::super::register_action::RegisterAction;
+    use super::*;
+
     #[test]
-    fn stack_works_to_collect_children(){
+    fn stack_works_to_collect_children() {
         // this holds all nodes
         let mut pattern_nodes = NodeCollection::new();
         // the stack holds vectors of node ID's for sequential processing
-        
+
         // place a few nodes in the stack
         pattern_nodes.add_node(AstNode::Timeset("tp0".to_string()));
         pattern_nodes.add_node(AstNode::Pin(PinAction::new("pa0", "0", Operation::Write)));
-        
+
         // now create a node with children
         let mut reg_action = RegisterAction::new("ctrl", &0x300, "0xffee0011", Operation::Read);
         // new collection for collecting child nodes
@@ -133,25 +135,27 @@ mod tests {
         reg_action.children.collection = pattern_nodes.stack.pop_collection();
         // place the now completed register node into the collection
         let ra_item = pattern_nodes.add_node(AstNode::Register(reg_action));
-        
+
         // check sizes, ugly code
         assert_eq!(pattern_nodes.stack.stack.len(), 1);
         assert_eq!(pattern_nodes.stack.stack[0].collection.len(), 3);
         // get the register action node back and check the length of the children
         if let Some(reg_ast_node) = pattern_nodes.nodes.get(ra_item) {
             match reg_ast_node {
-                AstNode::Register(reg_action) => assert_eq!(reg_action.children.collection.len(), 1),
+                AstNode::Register(reg_action) => {
+                    assert_eq!(reg_action.children.collection.len(), 1)
+                }
                 _ => panic!("didn't get a register action back"),
             }
         }
-        
+
         // iterate through the nodes to generate the final pattern output
         process_all_nodes(&pattern_nodes.main_collection(), &pattern_nodes);
     }
-    
+
     // simple processor example - this will be deleted in the future
     fn process_all_nodes(nodes: &Collector, pattern: &NodeCollection) {
-        for node_id in nodes.collection.iter(){
+        for node_id in nodes.collection.iter() {
             if let Some(node) = pattern.nodes.get(*node_id) {
                 match node {
                     AstNode::Pin(pa) => println!("Call the method that updates the output pattern vector string, sending pa(PinAction struct)"),
