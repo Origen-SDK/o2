@@ -2,6 +2,7 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 import sys
+import pdb
 
 if sys.platform == "win32":
     # The below is needed only for pyreadline, which is needed only for Windows support.
@@ -88,7 +89,7 @@ if sys.platform == "win32":
 
 # Called by the Origen CLI to boot the Origen Python env, not for application use
 # Any target/env overrides given to the command line will be passed in here
-def __origen__(command, target=None, environment=None, mode=None):
+def __origen__(command, target=None, environment=None, mode=None, files=None):
     import origen
     import _origen
     import origen.application
@@ -99,10 +100,18 @@ def __origen__(command, target=None, environment=None, mode=None):
     else:
         origen.set_mode(mode)
 
+    if files is not None:
+        _origen.file_handler().init(files)
+
     origen.target.load(target=target, environment=environment)
 
     if command == "generate":
         print("Generate command called!")
+
+    elif command == "compile":
+        for file in _origen.file_handler():
+            # Invoke compiler here
+            pass
 
     elif command == "interactive":
         import atexit, os, sys, colorama, termcolor, readline, rlcompleter
