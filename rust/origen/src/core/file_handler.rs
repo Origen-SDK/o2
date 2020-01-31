@@ -13,7 +13,7 @@ lazy_static! {
 
 #[derive(Debug)]
 /// This struct is used as a singleton to store a permanent record of the file arguments
-/// given to the current command and the clean list of files this resolves too (lazily evaluated)
+/// given to the current command and the clean list of files this resolves to
 struct Files {
     /// The file arguments as originally supplied
     items: Vec<String>,

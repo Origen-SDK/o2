@@ -2,7 +2,6 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 import sys
-import pdb
 
 if sys.platform == "win32":
     # The below is needed only for pyreadline, which is needed only for Windows support.
