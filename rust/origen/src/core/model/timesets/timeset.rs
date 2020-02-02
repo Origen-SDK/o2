@@ -10,7 +10,7 @@ pub struct SimpleTimeset {
   pub default_period: Option<f64>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Timeset {
   pub name: String,
   pub model_id: usize,
@@ -86,7 +86,7 @@ impl Default for Timeset {
 // Structuring the WaveTable for ATE generation which, when a pin is changed, will look up here what that change 'means' and
 // what to actually put in the output.
 // So, given a known Timeset and Wavetable, allow for a quick lookup of an event from a given PinGroup name.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Wavetable {
   pub name: String,
   pub model_id: usize,
@@ -168,7 +168,7 @@ impl Wavetable {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WaveGroup {
   pub model_id: usize,
   pub timeset_id: usize,

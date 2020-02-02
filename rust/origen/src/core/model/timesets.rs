@@ -54,10 +54,6 @@ impl Model {
     }
   }
 
-  pub fn len(&self) -> usize {
-    self.timesets.len()
-  }
-
   pub fn contains_timeset(&self, name: &str) -> bool {
     self.timesets.contains_key(name)
   }
@@ -95,36 +91,6 @@ impl Dut {
     Ok(&self.timesets[id])
   }
   
-  pub fn get_timeset(&self, model_id: usize, name: &str) -> Option<&Timeset> {
-    if let Some(t) = self.get_model(model_id).unwrap().get_timeset_id(name) {
-      Some(&self.timesets[t])
-    } else {
-      Option::None
-    }
-  }
-
-  pub fn get_mut_timeset(&mut self, model_id: usize, name: &str) -> Option<&mut Timeset> {
-    if let Some(t) = self.get_model(model_id).unwrap().get_timeset_id(name) {
-      Some(&mut self.timesets[t])
-    } else {
-      Option::None
-    }
-  }
-
-  pub fn _get_timeset(&self, model_id: usize, name: &str) -> Result<&Timeset, Error> {
-    match self.get_timeset(model_id, name) {
-      Some(t) => Ok(t),
-      None => backend_lookup_error!("timeset", name)
-    }
-  }
-
-  pub fn _get_mut_timeset(&mut self, model_id: usize, name: &str) -> Result<&mut Timeset, Error> {
-    match self.get_mut_timeset(model_id, name) {
-      Some(t) => Ok(t),
-      None => backend_lookup_error!("timeset", name)
-    }
-  }
-
   pub fn create_wavetable(&mut self, timeset_id: usize, name: &str) -> Result<&Wavetable, Error> {
     let id;
     {
@@ -145,22 +111,6 @@ impl Dut {
     }
     self.wavetables.push(w);
     Ok(&self.wavetables[id])
-  }
-
-  pub fn get_wavetable(&self, timeset_id: usize, name: &str) -> Option<&Wavetable> {
-    if let Some(w) = self.timesets[timeset_id].get_wavetable_id(name) {
-      Some(&self.wavetables[w])
-    } else {
-      Option::None
-    }
-  }
-
-  pub fn get_mut_wavetable(&mut self, timeset_id: usize, name: &str) -> Option<&mut Wavetable> {
-    if let Some(w) = self.timesets[timeset_id].get_wavetable_id(name) {
-      Some(&mut self.wavetables[w])
-    } else {
-      Option::None
-    }
   }
 
   pub fn create_wave_group(&mut self, wavetable_id: usize, name: &str, derived_from: Option<Vec<usize>>) -> Result<&WaveGroup, Error> {
@@ -210,7 +160,7 @@ impl Dut {
       for base in bases.iter() {
         let base_wave: Wave;
         {
-          base_wave = self._get_wave(wave_group_id, base)?;
+          base_wave = self._get_cloned_wave(wave_group_id, base)?;
         }
         {
           // Todo: Need to further define how wave inheritance should look.
@@ -232,46 +182,6 @@ impl Dut {
     Ok(&self.waves[id])
   }
 
-  pub fn get_wave_group(&self, wavetable_id: usize, name: &str) -> Option<&WaveGroup> {
-    if let Some(wgrp_id) = self.wavetables[wavetable_id].get_wave_group_id(name) {
-      Some(&self.wave_groups[wgrp_id])
-    } else {
-      Option::None
-    }
-  }
-
-  pub fn get_mut_wave_group(&mut self, wavetable_id: usize, name: &str) -> Option<&mut WaveGroup> {
-    if let Some(wgrp_id) = self.wavetables[wavetable_id].get_wave_group_id(name) {
-      Some(&mut self.wave_groups[wgrp_id])
-    } else {
-      Option::None
-    }
-  }
-
-  pub fn get_wave(&self, wave_group_id: usize, name: &str) -> Option<&Wave> {
-    if let Some(w) = self.wave_groups[wave_group_id].get_wave_id(name) {
-      Some(&self.waves[w])
-    } else {
-      Option::None
-    }
-  }
-
-  pub fn _get_wave(&self, wave_group_id: usize, name: &str) -> Result<Wave, Error> {
-    if let Some(w) = self.wave_groups[wave_group_id].get_wave_id(name) {
-      Ok(self.waves[w].clone())
-    } else {
-      lookup_error!("wave", name)
-    }
-  }
-
-  pub fn get_mut_wave(&mut self, wave_group_id: usize, name: &str) -> Option<&mut Wave> {
-    if let Some(w) = self.wave_groups[wave_group_id].get_wave_id(name) {
-      Some(&mut self.waves[w])
-    } else {
-      Option::None
-    }
-  }
-
   pub fn create_event(&mut self, wave_id: usize, at: Box<dyn std::string::ToString>, unit: Option<String>, action: &str) -> Result<&Event, Error> {
     let e_id;
     {
@@ -285,24 +195,5 @@ impl Dut {
     }
     self.wave_events.push(event);
     Ok(&self.wave_events[e_id])
-  }
-
-  /// Gets an event at index 'event_index' from a wave.
-  /// Note: the indices are from the wave, NOT from the toplevel DUT. Using dut.waves_events[event_index] will
-  ///   probably return the wrong event, which may not even be on the wave in question.
-  pub fn get_event(&self, wave_id: usize, event_index: usize) -> Option<&Event> {
-    if let Some(e_id) = self.waves[wave_id].get_event_id(event_index) {
-      Some(&self.wave_events[e_id])
-    } else {
-      Option::None
-    }
-  }
-
-  pub fn get_mut_event(&mut self, wave_id: usize, event_index: usize) -> Option<&mut Event> {
-    if let Some(e_id) = self.waves[wave_id].get_event_id(event_index) {
-      Some(&mut self.wave_events[e_id])
-    } else {
-      Option::None
-    }
   }
 }
