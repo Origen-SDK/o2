@@ -35,7 +35,8 @@ pub struct BitCollection {
     pub bit_order: BitOrder,
     /// Iterator index and vars
     pub i: usize,
-    pub sl: bool,
+    pub shift_left: bool,
+    pub shift_logical: bool,
 }
 
 /// Rust-private methods, i.e. not accessible from Python
@@ -49,7 +50,8 @@ impl BitCollection {
             whole_field: false,
             bit_ids: reg.bit_ids.clone(),
             i: 0,
-            sl: false,
+            shift_left: false,
+            shift_logical: false,
             spacer: false,
             // Important, all displays are LSB0 by default regardless of how the reg
             // was defined
@@ -78,7 +80,7 @@ impl pyo3::class::iter::PyIterProtocol for BitCollection {
         }
 
         let mut bit_ids: Vec<usize> = Vec::new();
-        if slf.sl {
+        if slf.shift_left {
             bit_ids.push(slf.bit_ids[slf.bit_ids.len() - slf.i - 1]);
         } else {
             bit_ids.push(slf.bit_ids[slf.i]);
@@ -94,7 +96,8 @@ impl pyo3::class::iter::PyIterProtocol for BitCollection {
             whole_field: slf.whole_field && slf.bit_ids.len() == bit_ids.len(),
             bit_ids: bit_ids,
             i: 0,
-            sl: false,
+            shift_left: false,
+            shift_logical: false,
             spacer: false,
             bit_order: slf.bit_order,
         };
@@ -107,6 +110,12 @@ impl pyo3::class::iter::PyIterProtocol for BitCollection {
 #[pyproto]
 impl PyObjectProtocol for BitCollection {
     fn __repr__(&self) -> PyResult<String> {
+        let plural;
+        if self.bit_ids.len() > 1 {
+            plural = "s";
+        } else {
+            plural = "";
+        }
         if self.reg_id.is_some() {
             let dut = origen::dut();
             let reg = dut.get_register(self.reg_id.unwrap())?;
@@ -115,9 +124,10 @@ impl PyObjectProtocol for BitCollection {
                     Ok(reg.console_display(&dut, Some(self.bit_order), true)?)
                 } else {
                     Ok(format!(
-                        "<BitCollection: a subset of '{}' ({} bit(s))>",
-                        reg.name,
+                        "<BitCollection: {} bit{} from '{}'>",
                         self.bit_ids.len(),
+                        plural,
+                        reg.name,
                     ))
                 }
             } else {
@@ -129,17 +139,19 @@ impl PyObjectProtocol for BitCollection {
                     ))
                 } else {
                     Ok(format!(
-                        "<BitCollection: a subset of '{}.{}' ({} bits(s))>",
+                        "<BitCollection: {} bit{} from '{}.{}'>",
+                        self.bit_ids.len(),
+                        plural,
                         reg.name,
                         self.field.as_ref().unwrap(),
-                        self.bit_ids.len(),
                     ))
                 }
             }
         } else {
             Ok(format!(
-                "<BitCollection: an ad-hoc collection of {} bit(s)>",
-                self.bit_ids.len()
+                "<BitCollection: {} bit{}>",
+                self.bit_ids.len(),
+                plural
             ))
         }
     }
@@ -165,7 +177,8 @@ impl PyObjectProtocol for BitCollection {
                             whole_field: self.whole_field && self.bit_ids.len() == 1,
                             bit_ids: vec![*id],
                             i: 0,
-                            sl: false,
+                            shift_left: false,
+                            shift_logical: false,
                             spacer: false,
                             bit_order: self.bit_order,
                         },
@@ -195,7 +208,8 @@ impl PyObjectProtocol for BitCollection {
                                         .cloned(),
                                 ),
                                 i: 0,
-                                sl: false,
+                                shift_left: false,
+                                shift_logical: false,
                                 spacer: field.spacer,
                                 bit_order: self.bit_order,
                             },
@@ -217,7 +231,8 @@ impl PyObjectProtocol for BitCollection {
                             whole_field: true,
                             bit_ids: reg.fields.get(query).unwrap().bit_ids(&dut),
                             i: 0,
-                            sl: false,
+                            shift_left: false,
+                            shift_logical: false,
                             spacer: false,
                             bit_order: self.bit_order,
                         },
@@ -280,7 +295,8 @@ impl PyMappingProtocol for BitCollection {
                 whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
                 bit_ids: bit_ids,
                 i: 0,
-                sl: false,
+                shift_left: false,
+                shift_logical: false,
                 spacer: false,
                 bit_order: self.bit_order,
             })
@@ -300,7 +316,8 @@ impl PyMappingProtocol for BitCollection {
                     whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
                     bit_ids: bit_ids,
                     i: 0,
-                    sl: false,
+                    shift_left: false,
+                    shift_logical: false,
                     spacer: false,
                     bit_order: self.bit_order,
                 })
@@ -350,14 +367,16 @@ impl BitCollection {
     fn shift_out_left(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         bc.i = 0;
-        bc.sl = true;
+        bc.shift_left = true;
+        bc.shift_logical = false;
         Ok(bc)
     }
 
     fn shift_out_right(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         bc.i = 0;
-        bc.sl = false;
+        bc.shift_left = false;
+        bc.shift_logical = false;
         Ok(bc)
     }
 
@@ -500,7 +519,8 @@ impl BitCollection {
                     whole_field: true,
                     bit_ids: reg.fields.get(name).unwrap().bit_ids(&dut),
                     i: 0,
-                    sl: false,
+                    shift_left: false,
+                    shift_logical: false,
                     spacer: false,
                     bit_order: self.bit_order,
                 })
@@ -538,6 +558,25 @@ impl BitCollection {
                 "Called 'offset()' on a BitCollection that is not associated with a register",
             )),
         }
+    }
+
+    fn status_str(&self, operation: &str) -> PyResult<String> {
+        Ok(self.materialize(&origen::dut())?.status_str(operation)?)
+    }
+
+    fn clear_flags(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.clear_flags();
+        Ok(self.clone())
+    }
+
+    fn capture(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.capture();
+        Ok(self.clone())
+    }
+
+    fn set_undefined(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.set_undefined();
+        Ok(self.clone())
     }
 }
 

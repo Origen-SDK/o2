@@ -2,9 +2,15 @@ use super::register::Field;
 use super::{Bit, Register};
 use crate::{Dut, Error, Result};
 use num_bigint::BigUint;
+use regex::Regex;
 use std::sync::MutexGuard;
 
-#[derive(Debug)]
+const DONT_CARE_CHAR: &str = "X";
+const OVERLAY_CHAR: &str = "V";
+const STORE_CHAR: &str = "S";
+const UNKNOWN_CHAR: &str = "?";
+
+#[derive(Debug, Clone)]
 pub struct BitCollection<'a> {
     /// Optionally contains the ID of the reg that owns the bits
     reg_id: Option<usize>,
@@ -17,8 +23,10 @@ pub struct BitCollection<'a> {
     /// by field
     whole_field: bool,
     pub bits: Vec<&'a Bit>,
-    /// Iterator index
+    /// Iterator index and vars
     i: usize,
+    shift_left: bool,
+    shift_logical: bool,
 }
 
 impl<'a> Default for BitCollection<'a> {
@@ -30,6 +38,27 @@ impl<'a> Default for BitCollection<'a> {
             whole_field: false,
             bits: Vec::new(),
             i: 0,
+            shift_left: false,
+            shift_logical: false,
+        }
+    }
+}
+
+impl<'a> Iterator for BitCollection<'a> {
+    type Item = &'a Bit;
+
+    fn next(&mut self) -> Option<&'a Bit> {
+        if self.i < self.len() {
+            let bit;
+            if self.shift_left {
+                bit = self.bits[self.len() - self.i - 1];
+            } else {
+                bit = self.bits[self.i];
+            }
+            self.i += 1;
+            Some(bit)
+        } else {
+            None
         }
     }
 }
@@ -53,6 +82,8 @@ impl<'a> BitCollection<'a> {
             whole_field: false,
             bits: bits,
             i: 0,
+            shift_left: false,
+            shift_logical: false,
         }
     }
 
@@ -72,6 +103,8 @@ impl<'a> BitCollection<'a> {
             whole_field: false,
             bits: bits,
             i: 0,
+            shift_left: false,
+            shift_logical: false,
         }
     }
 
@@ -96,6 +129,8 @@ impl<'a> BitCollection<'a> {
             whole_field: true,
             bits: bits,
             i: 0,
+            shift_left: false,
+            shift_logical: false,
         }
     }
 
@@ -174,6 +209,8 @@ impl<'a> BitCollection<'a> {
             whole_field: self.whole_field && bits.len() == self.bits.len(),
             bits: bits,
             i: 0,
+            shift_left: false,
+            shift_logical: false,
         }
     }
 
@@ -216,6 +253,27 @@ impl<'a> BitCollection<'a> {
             bit.update_device_state()?;
         }
         Ok(self)
+    }
+
+    pub fn clear_flags(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.clear_flags();
+        }
+        self
+    }
+
+    pub fn capture(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.capture();
+        }
+        self
+    }
+
+    pub fn set_undefined(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.set_undefined();
+        }
+        self
     }
 
     /// Resets the bits if the collection is for a whole bit field or register, otherwise
@@ -287,6 +345,126 @@ impl<'a> BitCollection<'a> {
         }
         Ok(v1)
     }
+
+    pub fn shift_out_left(&self) -> BitCollection {
+        let mut bc = self.clone();
+        bc.i = 0;
+        bc.shift_left = true;
+        bc.shift_logical = false;
+        bc
+    }
+
+    pub fn shift_out_right(&self) -> BitCollection {
+        let mut bc = self.clone();
+        bc.i = 0;
+        bc.shift_left = false;
+        bc.shift_logical = false;
+        bc
+    }
+
+    pub fn len(&self) -> usize {
+        self.bits.len()
+    }
+
+    pub fn status_str(&mut self, operation: &str) -> Result<String> {
+        let mut ss = "".to_string();
+        if operation == "read" || operation == "r" {
+            for bit in self.shift_out_left() {
+                if bit.is_to_be_captured() {
+                    ss += STORE_CHAR;
+                } else if bit.is_to_be_read() {
+                    if bit.has_overlay() {
+                        //&& options[:mark_overlays]
+                        ss += OVERLAY_CHAR
+                    } else {
+                        if bit.has_known_value() {
+                            if bit.data().unwrap() == 0 {
+                                ss += "0";
+                            } else {
+                                ss += "1";
+                            }
+                        } else {
+                            ss += UNKNOWN_CHAR;
+                        }
+                    }
+                } else {
+                    ss += DONT_CARE_CHAR;
+                }
+            }
+        } else if operation == "write" || operation == "w" {
+            for bit in self.shift_out_left() {
+                if bit.has_overlay() {
+                    //&& options[:mark_overlays]
+                    ss += OVERLAY_CHAR;
+                } else {
+                    if bit.has_known_value() {
+                        if bit.data().unwrap() == 0 {
+                            ss += "0";
+                        } else {
+                            ss += "1";
+                        }
+                    } else {
+                        ss += UNKNOWN_CHAR;
+                    }
+                }
+            }
+        } else {
+            return Err(Error::new(&format!(
+                "Unknown operation argument '{}', must be \"read\" or \"write\"",
+                operation
+            )));
+        }
+        Ok(BitCollection::make_hex_like(
+            &ss,
+            (self.len() as f64 / 4.0).ceil() as usize,
+        ))
+    }
+
+    // Converts a binary-like representation of a data value into a hex-like version.
+    // e.g. input  => 010S0011SSSS0110   (where S, X or V represent store, don't care or overlay)
+    //      output => [010s]3S6    (i.e. nibbles that are not all of the same type are expanded)
+    fn make_hex_like(regval: &str, size_in_nibbles: usize) -> String {
+        let mut outstr = "".to_string();
+        let mut re = "^(.?.?.?.)".to_string();
+        for _i in 0..size_in_nibbles - 1 {
+            re += "(....)";
+        }
+        re += "$";
+        let regex = Regex::new(&format!(r"{}", re)).unwrap();
+
+        let captures = regex.captures(regval).unwrap();
+
+        let mut nibbles: Vec<&str> = Vec::new();
+        for i in 0..size_in_nibbles {
+            // now grouped by nibble
+            nibbles.push(&captures[i + 1]);
+        }
+
+        let regex = Regex::new(&format!(
+            r"[{}{}{}{}]",
+            UNKNOWN_CHAR, DONT_CARE_CHAR, STORE_CHAR, OVERLAY_CHAR
+        ))
+        .unwrap();
+
+        for nibble in nibbles {
+            // If contains any special chars...
+            if regex.is_match(nibble) {
+                let c1 = nibble.chars().next().unwrap();
+                // If all the same...
+                if nibble.chars().count() == 4 && nibble.chars().all(|c2| c1 == c2) {
+                    outstr += &format!("{}", c1);
+                // Otherwise present this nibble in 'binary' format
+                } else {
+                    outstr += &format!("[{}]", nibble.to_ascii_lowercase());
+                }
+            // Otherwise if all 1s and 0s...
+            } else {
+                let n: u32 = u32::from_str_radix(nibble, 2).unwrap();
+                outstr += &format!("{:X?}", n);
+            }
+        }
+        outstr
+    }
 }
 
 #[cfg(test)]
@@ -314,6 +492,8 @@ mod tests {
             whole_field: false,
             bits: bits,
             i: 0,
+            shift_left: false,
+            shift_logical: false,
         }
     }
 

@@ -444,47 +444,47 @@ def test_bit_collections_can_be_copied_to_other_bitcollections():
     assert bits1[1].is_to_be_read() == True
     assert bits1.is_to_be_read() == True
 
-#    specify "status string methods work" do
-#      reg = Reg.new(self, 0x112, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                             b1: {pos: 8, bits: 8})
-#      reg[3..0].write(0x5)
-#      reg[7..4].overlay("overlayx")
-#      reg[15..8].write(0xAA)
-#      reg[10].overlay("overlayy")
-#      reg.status_str(:write).should == "A[1v10]V5"
-#      reg.reset
-#      reg.clear_flags
-#      reg.overlay(nil)
-#      reg.status_str(:write).should == "0000"
-#      reg.status_str(:read).should == "XXXX"
-#      reg[7..4].read(5)
-#      reg.status_str(:read).should == "XX5X"
-#      reg[7..4].read(5)
-#      reg[14].read(0)
-#      reg.status_str(:read).should == "[x0xx]X5X"
-#      reg[3..0].store
-#      reg.status_str(:read).should == "[x0xx]X5S"
-#      reg[12..8].overlay("overlayx")
-#      reg[12..8].read
-#      reg.status_str(:read).should == "[x0xv]V5S"
-#      reg[15].store
-#      reg.status_str(:read).should == "[s0xv]V5S"
-#      reg[7..4].unknown = true
-#      reg.status_str(:read).should == "[s0xv]V?S"
-#    end
-#
-#    it "status_str works on non-nibble aligned regs" do
-#      reg :mr1, 0 do
-#        bits 10..0, :b1
-#      end
-#      mr1.b1.status_str(:write).should == "000"
-#      mr1.b1.status_str(:read).should == "[xxx]XX"
-#      mr1.b1.read
-#      mr1.b1.status_str(:read).should == "000"
-#      mr1.b1.read(0xFFF)
-#      mr1.b1.status_str(:read).should == "7FF"
-#    end
-#
+def test_status_string_methods_work():
+    with dut.add_reg("tr1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
+    reg = dut.tr1
+    reg[3:0].set_data(0x5)
+    reg[7:4].set_overlay("overlayx")
+    reg[15:8].set_data(0xAA)
+    reg[10].set_overlay("overlayy")
+    assert reg.status_str("write") == "A[1v10]V5"
+    reg.reset()
+    reg.clear_flags()
+    reg.set_overlay(None)
+    assert reg.status_str("write") == "0000"
+    assert reg.status_str("read") == "XXXX"
+    reg[7:4].set_data(5).read()
+    assert reg.status_str("read") == "XX5X"
+    reg[7:4].set_data(5).read()
+    reg[14].set_data(0).read()
+    assert reg.status_str("read") == "[x0xx]X5X"
+    reg[3:0].capture()
+    assert reg.status_str("read") == "[x0xx]X5S"
+    reg[12:8].set_overlay("overlayx")
+    reg[12:8].read()
+    assert reg.status_str("read") == "[x0xv]V5S"
+    reg[15].capture()
+    assert reg.status_str("read") == "[s0xv]V5S"
+    reg[7:4].set_undefined()
+    assert reg.status_str("read") == "[s0xv]V?S"
+    
+def test_status_str_works_on_non_nibble_aligned_regs():
+    with dut.add_reg("mr1", 0) as reg:
+        reg.Field("b1", offset=0, width=11, reset=0)
+    mr1 = dut.mr1
+    assert mr1.b1.status_str("write") == "000"
+    assert mr1.b1.status_str("read") == "[xxx]XX"
+    mr1.b1.read()
+    assert mr1.b1.status_str("read") == "000"
+    mr1.b1.set_data(0xFFF).read()
+    assert mr1.b1.status_str("read") == "7FF"
+
 #    specify "the enable_mask method works" do
 #      reg = Reg.new(self, 0x113, 16, :dummy, b0: {pos: 0, bits: 8}, 
 #                                             b1: {pos: 8, bits: 8})

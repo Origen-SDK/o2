@@ -21,7 +21,6 @@ pub struct Bit {
     /// 2 - Value is Z
     /// 3 - Bit is to be read
     /// 4 - Bit is to be captured
-    /// 5 - Bit has an overlay (defined by overlay str)
     pub state: RwLock<u8>,
     /// The state we think the device has, only bits [2:0] are applicable.
     /// This is updated by reseting the register or executing a transaction.
@@ -42,6 +41,34 @@ impl Bit {
             Some(x) => *overlay = Some(x.to_string()),
             None => *overlay = None,
         }
+    }
+
+    pub fn clear_flags(&self) {
+        let state_val;
+        {
+            state_val = *self.state.read().unwrap();
+        }
+        let mut state = self.state.write().unwrap();
+        *state = state_val & 0b111;
+    }
+
+    pub fn capture(&self) {
+        let state_val;
+        {
+            state_val = *self.state.read().unwrap();
+        }
+        let mut state = self.state.write().unwrap();
+        *state = state_val | 0b1_0000;
+    }
+
+    /// Sets the bit's data value to X
+    pub fn set_undefined(&self) {
+        let state_val;
+        {
+            state_val = *self.state.read().unwrap();
+        }
+        let mut state = self.state.write().unwrap();
+        *state = state_val | 0b10;
     }
 
     /// Returns true if not in X or Z state
@@ -66,7 +93,7 @@ impl Bit {
     }
 
     pub fn has_overlay(&self) -> bool {
-        *self.state.read().unwrap() & 0b10_0000 != 0
+        (*self.overlay.read().unwrap()).is_some()
     }
 
     pub fn is_readable(&self) -> bool {
