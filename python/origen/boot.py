@@ -109,6 +109,8 @@ def __origen__(command, target=None, environment=None, mode=None, files=None):
 
     elif command == "compile":
         for file in _origen.file_handler():
+            breakpoint()
+            pathlib.Path(file)
             # Invoke compiler here
             pass
 
