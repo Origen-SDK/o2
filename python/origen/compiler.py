@@ -107,6 +107,7 @@ class Compiler:
             return templates_dir
 
     def __write_output_file(self, template_output, template_path):
+        origen.logger.info(f"Compiling mako template {template_path}")
         output_path = str(template_path)
         output_path = output_path.replace('.mako','')
         output_path = pathlib.Path(output_path)
@@ -116,7 +117,8 @@ class Compiler:
             f.write(template_output)
         # TODO: Figure out why this doesn't work
         output_path.chmod(0o755)
-        self.output_files.append(output_path)       
+        self.output_files.append(output_path)
+        origen.logger.info(f"Compiler output created at {output_path}")     
     
     def __check_args(self, *args):
         # Args must be either a pathlib or a str
