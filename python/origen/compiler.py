@@ -141,5 +141,3 @@ class Compiler:
             raise FileNotFoundError(f"Template file does not exist at {t}")
         elif not access(t, R_OK):
             raise PermissionError(f"Template file exists at {t} but is not readable!")
-        elif not access(t, X_OK):
-            raise PermissionError(f"Template file exists at {t} but is not executable!")
