@@ -15,7 +15,7 @@ def test_compiler_inits():
     assert origen.app.compiler.renders == []
     assert origen.app.compiler.output_files == []
     assert isinstance(origen.app.compiler.syntax, origen.compiler.Compiler.MakoSyntax) == True
-    assert str(origen.app.compiler.templates_dir()) == "/mnt/c/o2/compiler/example/example/templates"
+    assert str(origen.app.compiler.templates_dir()) == f"{origen.root}/example/templates"
 
 def test_compiler_understands_global_context():
     assert origen.app.compile("dut's name is ${dut.name}").renders[0] == "dut's name is dut"
