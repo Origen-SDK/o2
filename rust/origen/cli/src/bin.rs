@@ -73,6 +73,7 @@ fn main() {
                     .takes_value(true)
                     .value_name("FILES")
                     .multiple(true)
+                    .required(true)
                 )
                 .arg(Arg::with_name("target")
                     .short("t")
@@ -106,6 +107,7 @@ fn main() {
                     .takes_value(true)
                     .value_name("FILES")
                     .multiple(true)
+                    .required(true)
                 )
                 .arg(Arg::with_name("target")
                     .short("t")
@@ -191,6 +193,7 @@ fn main() {
                     &m.value_of("target"),
                     &m.value_of("environment"),
                     &m.value_of("mode"),
+                    Some(m.values_of("files").unwrap().collect()),
                 );
             }
             Some("compile") => {
@@ -200,6 +203,7 @@ fn main() {
                     &m.value_of("target"),
                     &m.value_of("environment"),
                     &m.value_of("mode"),
+                    Some(m.values_of("files").unwrap().collect()),
                 );
             }
             Some("target") => {

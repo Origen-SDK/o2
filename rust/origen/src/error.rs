@@ -51,3 +51,9 @@ impl std::convert::From<Error> for PyErr {
         exceptions::OSError::py_err(err.msg)
     }
 }
+
+impl std::convert::From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
