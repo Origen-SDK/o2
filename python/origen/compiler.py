@@ -64,8 +64,8 @@ class Compiler:
             for arg in self.stack:
                 if isinstance(arg, pathlib.Path):
                     # Compile the file
-                    curr_template = Template(filename=arg)
-                    curr_template.render()
+                    curr_template = Template(filename=str(arg))
+                    self.__write_output_file(curr_template.render(), arg)
                 else:
                     # Could be a file name, a file path, or templated text
                     if self.syntax.inspect(arg):
@@ -87,17 +87,7 @@ class Compiler:
                         curr_template = Template(filename=f"{template_path}")
                         # TODO: Figure out how to get the current DUT and app loaded 
                         # automatically for all templates
-                        template_output = curr_template.render()
-                        output_path = str(template_path)
-                        output_path = output_path.replace('.mako','')
-                        output_path = pathlib.Path(output_path)
-                        if output_path.exists():
-                            output_path.unlink()
-                        with open(output_path, 'w+') as f:
-                            f.write(template_output)
-                        # TODO: Figure out why this doesn't work
-                        output_path.chmod(0o755)                  
-                        self.output_files.append(output_path)
+                        self.__write_output_file(curr_template.render(), template_path)   
                 self.stack.pop()
         else:
             raise TypeError('Compiler stack is empty, cannot run!')
@@ -115,6 +105,18 @@ class Compiler:
             raise PermissionError(f"Application templates directory exists at {templates_dir} but is not writeable!")
         else:
             return templates_dir
+
+    def __write_output_file(self, template_output, template_path):
+        output_path = str(template_path)
+        output_path = output_path.replace('.mako','')
+        output_path = pathlib.Path(output_path)
+        if output_path.exists():
+            output_path.unlink()
+        with open(output_path, 'w+') as f:
+            f.write(template_output)
+        # TODO: Figure out why this doesn't work
+        output_path.chmod(0o755)
+        self.output_files.append(output_path)       
     
     def __check_args(self, *args):
         # Args must be either a pathlib or a str
