@@ -17,16 +17,31 @@ export PATH="$HOME/.cargo/bin:$PATH"
 ~~~
 
 4) Compile the Rust code (you will repeat this step everytime you change it):
+
+To compile the core and CLI:
 ~~~
 cd o2/rust/origen
-cd pyapi && cargo build && cd ../ && cargo build --workspace --bins
+cargo build --workspace --bins
+~~~
+
+To compile the Python extension:
+~~~
+cd o2/rust/pyapi
+cargo build
+~~~
+
+To build it all:
+
+~~~
+cd o2/rust
+cd origen && cargo build --workspace --bins && cd ../pyapi && cargo build
 ~~~
 
 Or, using powershell:
 
 ~~~
-cd o2\rust\origen
-cd pyapi ; cargo build ; cd .. ; cargo build --workspace --bins
+cd o2\rust
+cd origen ; cargo build --workspace --bins ; cd ..\pyapi  ; cargo build
 ~~~
 
 4a) Missing Ubuntu Packages

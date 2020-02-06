@@ -55,6 +55,11 @@ class Base:
         self.pins_loaded = False
         self.timesets_loaded= False
 
+    def __repr__(self):
+        self._load_regs()
+        self._load_sub_blocks()
+        return origen.dut.db.model_console_display(self.model_id)
+
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
         #print(f"Looking for attribute {name}")
@@ -63,9 +68,9 @@ class Base:
         if name == "regs":
             self._load_regs()
             if self._default_default_address_block:
-                return origen.dut.db.regs(self._default_default_address_block.id)
+                return self._default_default_address_block.regs
             else:
-                return origen.dut.db.regs(None)
+                return origen.dut.db.empty_regs()
 
         elif name == "sub_blocks":
             self._load_sub_blocks()
@@ -104,6 +109,12 @@ class Base:
             if name in self.memory_maps:
                 return self.memory_maps[name]
 
+            # Finally see if this is a reference to a reg in the default address block
+            if self._default_default_address_block:
+                r = self._default_default_address_block.reg(name)
+                if r:
+                    return r
+
             raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
@@ -135,14 +146,22 @@ class Base:
         return t
 
     def memory_map(self, name):
-        self.regs  # Ensure the memory maps for this block have been loaded
+        self._load_regs()
         return origen.dut.db.memory_map(self.model_id, name)
+
+    def reg(self, name):
+        self._load_regs()
+        if self._default_default_address_block:
+            return self._default_default_address_block.reg(name)
+        else:
+            raise AttributeError(f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)")
 
     def add_simple_reg(self, *args, **kwargs):
         RegLoader(self).SimpleReg(*args, **kwargs)
 
     @contextmanager
     def add_reg(self, *args, **kwargs):
+        self._load_regs()
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
 

@@ -1,10 +1,9 @@
-mod meta;
-mod address_block;
 mod dut;
+mod file_handler;
 mod logger;
-mod memory_map;
+mod meta;
 mod pins;
-mod register;
+mod registers;
 mod timesets;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
@@ -24,10 +23,18 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(app_config))?;
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
     m.add_wrapped(wrap_pyfunction!(target_file))?;
+    m.add_wrapped(wrap_pyfunction!(file_handler))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
     Ok(())
+}
+
+/// Returns a file handler object (iterable) for consuming the file arguments
+/// given to the CLI
+#[pyfunction]
+fn file_handler() -> PyResult<file_handler::FileHandler> {
+    Ok(file_handler::FileHandler::new())
 }
 
 /// Returns the Origen status which informs whether an app is present, the Origen version,

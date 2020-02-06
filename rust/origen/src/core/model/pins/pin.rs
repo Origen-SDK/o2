@@ -1,7 +1,7 @@
 use crate::error::Error;
+use indexmap::map::IndexMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use indexmap::map::IndexMap;
 
 /// List of supported pin actions.
 #[derive(Debug, Copy, Clone)]
@@ -165,8 +165,7 @@ impl Pin {
         if self.metadata.contains_key(id_str) {
             Err(Error::new(&format!(
                 "Pin {} already has metadata {}! Use set_metadata to override its current value!",
-                self.name,
-                id_str,
+                self.name, id_str,
             )))
         } else {
             self.metadata.insert(String::from(id_str), id);
