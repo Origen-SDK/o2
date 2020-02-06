@@ -43,6 +43,10 @@ class Compiler:
             raise RuntimeError("Cannot pop compiler stack, nothing on it!")
         else:
             self.stack.pop()
+
+    # Clear the stack
+    def clear(self):
+        self.stack, self.renders, self.output_files = [], [], []
         
     # Run the compiler with the stack as-is or with new args
     def run(self, *args, **options):
@@ -65,20 +69,17 @@ class Compiler:
                 if isinstance(arg, pathlib.Path):
                     # Compile the file
                     curr_template = Template(filename=str(arg))
-                    self.__write_output_file(curr_template.render(), arg)
+                    self.__write_output_file(curr_template.render(dut=origen.standard_context()['dut'], tester=origen.standard_context()['tester'], origen=origen.standard_context()['origen']), arg)
                 else:
                     # Could be a file name, a file path, or templated text
                     if self.syntax.inspect(arg):
                         # Need to check that the user passed in a dictionary
                         # that contains the metadata needed to render
-                        if options:
-                            # arg is valid Mako, compile the text directly
-                            curr_template = Template(arg)
-                            # NOTE: If the options dict does not contain every (and only those) pieces 
-                            # of metadata needed by the templated string, it will fail
-                            self.renders.append(curr_template.render(**options))
-                        else:
-                            raise TypeError("Missing metadata to compile templated text!")
+                        # arg is valid Mako, compile the text directly
+                        curr_template = Template(arg)
+                        # NOTE: If the options dict does not contain every pieces 
+                        # of metadata needed by the templated string, it will fail
+                        self.renders.append(curr_template.render(dut=origen.standard_context()['dut'], tester=origen.standard_context()['tester'], origen=origen.standard_context()['origen'], **options))
                     else:
                         # Check if the str is a file located in the templates directory
                         # or if it is direct path to a templated file
@@ -87,7 +88,7 @@ class Compiler:
                         curr_template = Template(filename=f"{template_path}")
                         # TODO: Figure out how to get the current DUT and app loaded 
                         # automatically for all templates
-                        self.__write_output_file(curr_template.render(), template_path)   
+                        self.__write_output_file(curr_template.render(dut=origen.standard_context()['dut'], tester=origen.standard_context()['tester'], origen=origen.standard_context()['origen']), template_path)  
                 self.stack.pop()
         else:
             raise TypeError('Compiler stack is empty, cannot run!')

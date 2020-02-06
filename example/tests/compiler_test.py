@@ -16,7 +16,18 @@ def test_compiler_inits():
     assert origen.app.compiler.output_files == []
     assert isinstance(origen.app.compiler.syntax, origen.compiler.Compiler.MakoSyntax) == True
     assert str(origen.app.compiler.templates_dir()) == "/mnt/c/o2/compiler/example/example/templates"
-    
+
+def test_compiler_understand_global_context():
+    assert origen.app.compile("dut's name is ${dut.name}").renders[0] == "dut's name is dut"
+    assert origen.app.compile("tester is ${tester}").renders[1] == "tester is None"
+    assert origen.app.compile("origen version is of type '${type(origen.version)}'").renders[2] == "origen version is of type '<class 'str'>'"
+
+def test_compiler_can_clear_itself():
+    origen.app.compiler.clear()
+    assert origen.app.compiler.stack == []
+    assert origen.app.compiler.renders == []
+    assert origen.app.compiler.output_files == []
+
 def test_compiler_renders_text():
     origen.app.compile("hello, ${name}!", name='jack')
     assert len(origen.app.compiler.renders) == 1
@@ -27,6 +38,7 @@ def test_compiler_renders_text():
     assert len(origen.app.compiler.stack) == 0
     assert origen.app.compiler.renders[1] == "jack is a good boy!"
     assert origen.app.compiler.renders[-1] == origen.app.compiler.last_render()
+    
 
 def test_compiler_renders_files():
     templates_dir = f"{origen.root}/../python/templates"
