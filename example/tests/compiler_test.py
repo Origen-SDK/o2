@@ -17,7 +17,7 @@ def test_compiler_inits():
     assert isinstance(origen.app.compiler.syntax, origen.compiler.Compiler.MakoSyntax) == True
     assert str(origen.app.compiler.templates_dir()) == "/mnt/c/o2/compiler/example/example/templates"
 
-def test_compiler_understand_global_context():
+def test_compiler_understands_global_context():
     assert origen.app.compile("dut's name is ${dut.name}").renders[0] == "dut's name is dut"
     assert origen.app.compile("tester is ${tester}").renders[1] == "tester is None"
     assert origen.app.compile("origen version is of type '${type(origen.version)}'").renders[2] == "origen version is of type '<class 'str'>'"
