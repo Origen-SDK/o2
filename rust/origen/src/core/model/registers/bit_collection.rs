@@ -366,6 +366,54 @@ impl<'a> BitCollection<'a> {
         self.bits.len()
     }
 
+    pub fn read_enables(&self) -> BigUint {
+        let mut bytes: Vec<u8> = Vec::new();
+        let mut byte: u8 = 0;
+        for (i, &bit) in self.bits.iter().enumerate() {
+            byte = byte | bit.read_enable_flag() << i % 8;
+            if i % 8 == 7 {
+                bytes.push(byte);
+                byte = 0;
+            }
+        }
+        if self.bits.len() % 8 != 0 {
+            bytes.push(byte);
+        }
+        BigUint::from_bytes_le(&bytes)
+    }
+
+    pub fn capture_enables(&self) -> BigUint {
+        let mut bytes: Vec<u8> = Vec::new();
+        let mut byte: u8 = 0;
+        for (i, &bit) in self.bits.iter().enumerate() {
+            byte = byte | bit.capture_enable_flag() << i % 8;
+            if i % 8 == 7 {
+                bytes.push(byte);
+                byte = 0;
+            }
+        }
+        if self.bits.len() % 8 != 0 {
+            bytes.push(byte);
+        }
+        BigUint::from_bytes_le(&bytes)
+    }
+
+    pub fn overlay_enables(&self) -> BigUint {
+        let mut bytes: Vec<u8> = Vec::new();
+        let mut byte: u8 = 0;
+        for (i, &bit) in self.bits.iter().enumerate() {
+            byte = byte | bit.overlay_enable_flag() << i % 8;
+            if i % 8 == 7 {
+                bytes.push(byte);
+                byte = 0;
+            }
+        }
+        if self.bits.len() % 8 != 0 {
+            bytes.push(byte);
+        }
+        BigUint::from_bytes_le(&bytes)
+    }
+
     pub fn status_str(&mut self, operation: &str) -> Result<String> {
         let mut ss = "".to_string();
         if operation == "read" || operation == "r" {

@@ -485,74 +485,38 @@ def test_status_str_works_on_non_nibble_aligned_regs():
     mr1.b1.set_data(0xFFF).read()
     assert mr1.b1.status_str("read") == "7FF"
 
-#    specify "the enable_mask method works" do
-#      reg = Reg.new(self, 0x113, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                             b1: {pos: 8, bits: 8})
-#      reg.enable_mask(:read).should == 0
-#      reg[7..4].read(0xA)
-#      reg.enable_mask(:read).should == 0xF0
-#    end
-#
-#    specify "regs are correctly marked for read" do
-#      reg1 = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                             b1: {pos: 8, bits: 8})
-#      reg2 = Reg.new(self, 0x11, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                             b1: {pos: 8, bits: 8})
-#      reg3 = Reg.new(self, 0x12, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                             b1: {pos: 8, bits: 8})
-#      reg4 = Reg.new(self, 0x13, 16, :dummy, b0: {pos: 0, bits: 8}, 
-#                                             b1: {pos: 8, bits: 8})
-#      reg1.read
-#      reg1.is_to_be_read?.should == true
-#      reg2.read!
-#      reg2.is_to_be_read?.should == true
-#      reg3.read(0xFFFF)
-#      reg3.is_to_be_read?.should == true
-#      reg4.read!(0xFFFF)
-#      reg4.is_to_be_read?.should == true
-#    end
-#
-#    specify "reg(:blah) can be used to test for the presence of a register" do
-#      load_target
-#      dut.nvm.reg(:blah).should_not be
-#    end
-#
-#    specify "reg(:blah) can be used to test for the presence of a register - not when strict" do
-#      Origen.config.strict_errors = true
-#      load_target
-#      puts "******************** Missing register error expected here ********************"
-#      lambda do
-#        dut.nvm.reg(:blah).should_not be
-#      end.should raise_error
-#    end
-#
-#    it "registers can be overridden in sub classes" do
-#      Origen.config.strict_errors = false
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.reg(:data).address.should == 0x4
-#      nvm.redefine_data_reg
-#      nvm.reg(:data).address.should == 0x40
-#    end
-#
-#    it "registers can be overridden in sub classes - not when strict" do
-#      Origen.config.strict_errors = true
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.reg(:data).address.should == 0x4
-#      puts "******************** Redefine register error expected here ********************"
-#      lambda do
-#        nvm.redefine_data_reg
-#      end.should raise_error
-#    end
-#
-#    it "register owned_by method works" do
-#      dut.nvm.reg(:mclkdiv).owned_by?(:ram).should == false
-#      dut.nvm.reg(:mclkdiv).owned_by?(:nvm).should == true
-#      dut.nvm.reg(:mclkdiv).owned_by?(:flash).should == true
-#      dut.nvm.reg(:mclkdiv).owned_by?(:fmu).should == true
-#    end
-#
+def test_the_flags_methods():
+    with dut.add_reg("tr1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
+    reg = dut.tr1
+    assert reg.read_enables() == 0
+    assert reg.capture_enables() == 0
+    assert reg.overlay_enables() == 0
+    reg[7:4].read()
+    assert reg.read_enables() == 0xF0
+    reg.b1.set_overlay("blah")
+    assert reg.overlay_enables() == 0xFF00
+    reg[11:4].capture()
+    assert reg.capture_enables() == 0x0FF0
+
+def test_regs_are_correctly_marked_for_read():
+    with dut.add_reg("tr1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
+    assert dut.tr1.is_to_be_read() == False
+    dut.tr1.read()
+    assert dut.tr1.is_to_be_read() == True
+
+def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
+    with dut.add_reg("tr1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
+    assert dut.reg("tr1") != None
+    assert dut.reg("tr2") == None
+
+
+
 #    it "registers automatically pick up a base address from the object doing the read/write" do
 #      dut.nvm.reg(:mclkdiv).address.should == 0x4000_0003
 #    end

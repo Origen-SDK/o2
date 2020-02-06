@@ -195,6 +195,30 @@ impl Bit {
         }
     }
 
+    pub fn read_enable_flag(&self) -> u8 {
+        if self.is_to_be_read() {
+            1
+        } else {
+            0
+        }
+    }
+
+    pub fn capture_enable_flag(&self) -> u8 {
+        if self.is_to_be_captured() {
+            1
+        } else {
+            0
+        }
+    }
+
+    pub fn overlay_enable_flag(&self) -> u8 {
+        if self.has_overlay() {
+            1
+        } else {
+            0
+        }
+    }
+
     /// Applies the given state value, making it the new reset baseline and
     /// the device_state
     pub fn reset(&self, val: u8) {

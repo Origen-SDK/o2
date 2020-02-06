@@ -578,6 +578,18 @@ impl BitCollection {
         self.materialize(&origen::dut())?.set_undefined();
         Ok(self.clone())
     }
+
+    fn read_enables(&self) -> PyResult<BigUint> {
+        Ok(self.materialize(&origen::dut())?.read_enables())
+    }
+
+    fn capture_enables(&self) -> PyResult<BigUint> {
+        Ok(self.materialize(&origen::dut())?.capture_enables())
+    }
+
+    fn overlay_enables(&self) -> PyResult<BigUint> {
+        Ok(self.materialize(&origen::dut())?.overlay_enables())
+    }
 }
 
 /// Internal helper methods

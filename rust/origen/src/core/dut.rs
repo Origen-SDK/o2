@@ -58,7 +58,7 @@ impl Dut {
         self.registers.clear();
         self.bits.clear();
         // Add the model for the DUT top-level (always ID 0)
-        let _ = self.create_model(None, "dut");
+        let _ = self.create_model(None, "dut", None);
     }
 
     /// Get a mutable reference to the model with the given ID
@@ -227,7 +227,12 @@ impl Dut {
     /// The ID of the newly created model is returned to the caller who should save it
     /// if they want to access this model directly again (will also be accessible by name
     /// via the parent model).
-    pub fn create_model(&mut self, parent_id: Option<usize>, name: &str) -> Result<usize> {
+    pub fn create_model(
+        &mut self,
+        parent_id: Option<usize>,
+        name: &str,
+        base_address: Option<u64>,
+    ) -> Result<usize> {
         let id;
         {
             id = self.models.len();
@@ -246,7 +251,7 @@ impl Dut {
                 }
             }
         }
-        let new_model = Model::new(id, name.to_string(), parent_id);
+        let new_model = Model::new(id, name.to_string(), parent_id, base_address);
         self.models.push(new_model);
         Ok(id)
     }
