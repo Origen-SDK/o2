@@ -39,7 +39,6 @@ def test_compiler_renders_text():
     assert origen.app.compiler.renders[1] == "jack is a good boy!"
     assert origen.app.compiler.renders[-1] == origen.app.compiler.last_render()
     
-
 def test_compiler_renders_files():
     templates_dir = f"{origen.root}/../python/templates"
     origen.app.compile('dut_info.txt.mako', templates_dir=templates_dir)
