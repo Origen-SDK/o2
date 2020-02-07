@@ -53,6 +53,5 @@ def test_compiler_renders_files():
     assert bool(compiled_file_status.st_mode & stat.S_IRUSR) == True
     assert bool(compiled_file_status.st_mode & stat.S_IWUSR) == True
     assert bool(compiled_file_status.st_mode & stat.S_IWUSR) == True
-    assert compiled_file_status.st_size == 33
 
    
