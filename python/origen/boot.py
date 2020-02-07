@@ -2,6 +2,7 @@
 from __future__ import print_function, unicode_literals, absolute_import
 
 import sys
+import pathlib
 
 if sys.platform == "win32":
     # The below is needed only for pyreadline, which is needed only for Windows support.
@@ -109,8 +110,7 @@ def __origen__(command, target=None, environment=None, mode=None, files=None):
 
     elif command == "compile":
         for file in _origen.file_handler():
-            # Invoke compiler here
-            pass
+            origen.app.compile(pathlib.Path(file))
 
     elif command == "interactive":
         import atexit, os, sys, colorama, termcolor, readline, rlcompleter
