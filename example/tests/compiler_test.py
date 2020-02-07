@@ -15,7 +15,7 @@ def test_compiler_inits():
     assert origen.app.compiler.renders == []
     assert origen.app.compiler.output_files == []
     assert isinstance(origen.app.compiler.syntax, origen.compiler.Compiler.MakoSyntax) == True
-    assert str(origen.app.compiler.templates_dir()) == f"{origen.root}/example/templates"
+    assert origen.app.compiler.templates_dir() == pathlib.Path(f"{origen.root}/{origen.app.name}/templates")
 
 def test_compiler_understands_global_context():
     assert origen.app.compile("dut's name is ${dut.name}").renders[0] == "dut's name is dut"
@@ -40,7 +40,7 @@ def test_compiler_renders_text():
     assert origen.app.compiler.renders[-1] == origen.app.compiler.last_render()
     
 def test_compiler_renders_files():
-    templates_dir = f"{origen.root}/../python/templates"
+    templates_dir = pathlib.Path(f"{origen.root}/../python/templates")
     origen.app.compile('dut_info.txt.mako', templates_dir=templates_dir)
     assert len(origen.app.compiler.stack) == 0
     assert len(origen.app.compiler.output_files) == 1
