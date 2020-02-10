@@ -5,6 +5,7 @@ from os import access, chmod, R_OK, W_OK, X_OK
 from os.path import isfile
 from origen.registers import Loader as Regs
 from origen.sub_blocks import Loader as SubBlocks
+from origen.errors import *
 from .translators.ip_xact import IpXact
 
 class Translator:

@@ -12,6 +12,7 @@ colorama = "^0.4"
 bs4 = "0.0.1"
 beautifulsoup4 = "4.8.2"
 lxml = "4.4.2"
+mako = "1.1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

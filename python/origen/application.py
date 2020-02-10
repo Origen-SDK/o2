@@ -6,6 +6,8 @@ import re
 import pdb
 from origen.controller import TopLevel
 from origen.translator import Translator
+from origen.compiler import Compiler
+from origen.errors import *
 
 # The base class of all application classes
 class Base:
@@ -15,6 +17,7 @@ class Base:
     __instantiate_dut_called = False
 
     translator = Translator()
+    compiler = Compiler()
 
     # Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon
     def block_path_to_filepath(self, path):
@@ -107,3 +110,7 @@ class Base:
 
     def to_python(self, export_dir = f"{origen.root}/vendor/python"):
         self.translator.export(export_dir)
+        
+    def compile(self, *args, **options):
+        self.compiler.run(*args, **options)
+        return self.compiler
