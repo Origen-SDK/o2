@@ -1,12 +1,14 @@
 use crate::core::model::registers::{
     AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
 };
-use crate::core::model::timesets::timeset::Timeset;
+use crate::core::model::timesets::timeset::{Timeset, Wavetable, Wave, WaveGroup, Event};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::Result;
 use crate::DUT;
 use std::sync::RwLock;
+use indexmap::IndexMap;
+use crate::meta::{IdGetters};
 
 /// The DUT stores all objects associated with a particular device.
 /// Each object type is organized into vectors, where a particular object's position within the
@@ -15,7 +17,13 @@ use std::sync::RwLock;
 /// bit IDs. This approach allows bits to be easily passed around by ID to enable the creation of
 /// bit collections that are small (a subset of a register's bits) or very large (all bits in
 /// a memory map).
-#[derive(Debug)]
+//#[include_id_getters]
+#[derive(Debug, IdGetters)]
+#[id_getters_by_mapping(field="timeset", parent_field="models", return_type="Timeset", field_container_name="timesets")]
+#[id_getters_by_mapping(field="wavetable", parent_field="timesets", return_type="Wavetable", field_container_name="wavetables")]
+#[id_getters_by_mapping(field="wave_group", parent_field="wavetables", return_type="WaveGroup", field_container_name="wave_groups")]
+#[id_getters_by_mapping(field="wave", parent_field="wave_groups", return_type="Wave", field_container_name="waves")]
+#[id_getters_by_index(field="event", parent_field="waves", return_type="Event", field_container_name="wave_events")]
 pub struct Dut {
     pub name: String,
     models: Vec<Model>,
@@ -25,6 +33,11 @@ pub struct Dut {
     registers: Vec<Register>,
     pub bits: Vec<Bit>,
     pub timesets: Vec<Timeset>,
+    pub wavetables: Vec<Wavetable>,
+    pub wave_groups: Vec<WaveGroup>,
+    pub waves: Vec<Wave>,
+    pub wave_events: Vec<Event>,
+    pub id_mappings: Vec<IndexMap<String, usize>>,
 }
 
 impl Dut {
@@ -41,6 +54,12 @@ impl Dut {
             registers: Vec::<Register>::new(),
             bits: Vec::<Bit>::new(),
             timesets: Vec::<Timeset>::new(),
+            wavetables: Vec::<Wavetable>::new(),
+            wave_groups: Vec::<WaveGroup>::new(),
+            waves: Vec::<Wave>::new(),
+            wave_events: Vec::<Event>::new(),
+
+            id_mappings: Vec::<IndexMap<String, usize>>::new(),
         }
     }
 
@@ -56,6 +75,13 @@ impl Dut {
         self.register_files.clear();
         self.registers.clear();
         self.bits.clear();
+        self.timesets.clear();
+        self.wavetables.clear();
+        self.wave_groups.clear();
+        self.waves.clear();
+        self.wave_events.clear();
+
+        self.id_mappings.clear();
         // Add the model for the DUT top-level (always ID 0)
         let _ = self.create_model(None, "dut");
     }
@@ -394,5 +420,16 @@ impl Dut {
 
         self.bits.push(bit);
         id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        let dut = super::Dut::new("placeholder");
+        //dut.get_event_test(0, 0);
+        //dut.hello_macro();
+        //assert_eq!(2 + 2, 4);
     }
 }
