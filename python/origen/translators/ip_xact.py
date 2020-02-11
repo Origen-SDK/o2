@@ -51,17 +51,17 @@ class IpXact:
                   self.__create_fields(reg, reg_tag)
                    
     def __create_fields(self, reg, reg_tag):
-         for field_field_tag in reg_tag.find_all("spirit:field"):
-             field_name = field_field_tag.find_next("spirit:name").text
-             field_descp = field_field_tag.find_next("spirit:description").text
-             field_offset = field_field_tag.find_next("spirit:bitOffset").text
-             field_size = int(field_field_tag.find_next("spirit:bitWidth").text)
+         for field_tag in reg_tag.find_all("spirit:field"):
+             field_name = field_tag.find_next("spirit:name").text
+             field_descp = field_tag.find_next("spirit:description").text
+             field_offset = field_tag.find_next("spirit:bitOffset").text
+             field_size = int(field_tag.find_next("spirit:bitWidth").text)
              field_offset = int(field_offset, 16) if field_offset else 0
              field_range = self.__calc_field_range(field_size, field_offset)
-             field_access = self.__format_access(field_field_tag.find_next("spirit:access").text)
+             field_access = self.__format_access(field_tag.find_next("spirit:access").text)
              # TODO: Need to figure out how to find a bit reset tag without finding the
              # reset tag from the next register
-             # field_reset_tag = field_field_tag.find_next("spirit:reset")
+             # field_reset_tag = field_tag.find_next("spirit:reset")
              breakpoint()
              reg.Field(field_name, offset=field_offset, access=field_access, width=field_size)
 
