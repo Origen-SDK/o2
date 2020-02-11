@@ -1,14 +1,15 @@
 use crate::core::model::registers::{
     AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
 };
-use crate::core::model::timesets::timeset::{Timeset, Wavetable, Wave, WaveGroup, Event};
+use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 use crate::core::model::Model;
 use crate::error::Error;
+use crate::meta::IdGetters;
 use crate::Result;
 use crate::DUT;
-use std::sync::RwLock;
 use indexmap::IndexMap;
-use crate::meta::{IdGetters};
+use std::collections::HashMap;
+use std::sync::RwLock;
 
 /// The DUT stores all objects associated with a particular device.
 /// Each object type is organized into vectors, where a particular object's position within the
@@ -19,11 +20,36 @@ use crate::meta::{IdGetters};
 /// a memory map).
 //#[include_id_getters]
 #[derive(Debug, IdGetters)]
-#[id_getters_by_mapping(field="timeset", parent_field="models", return_type="Timeset", field_container_name="timesets")]
-#[id_getters_by_mapping(field="wavetable", parent_field="timesets", return_type="Wavetable", field_container_name="wavetables")]
-#[id_getters_by_mapping(field="wave_group", parent_field="wavetables", return_type="WaveGroup", field_container_name="wave_groups")]
-#[id_getters_by_mapping(field="wave", parent_field="wave_groups", return_type="Wave", field_container_name="waves")]
-#[id_getters_by_index(field="event", parent_field="waves", return_type="Event", field_container_name="wave_events")]
+#[id_getters_by_mapping(
+    field = "timeset",
+    parent_field = "models",
+    return_type = "Timeset",
+    field_container_name = "timesets"
+)]
+#[id_getters_by_mapping(
+    field = "wavetable",
+    parent_field = "timesets",
+    return_type = "Wavetable",
+    field_container_name = "wavetables"
+)]
+#[id_getters_by_mapping(
+    field = "wave_group",
+    parent_field = "wavetables",
+    return_type = "WaveGroup",
+    field_container_name = "wave_groups"
+)]
+#[id_getters_by_mapping(
+    field = "wave",
+    parent_field = "wave_groups",
+    return_type = "Wave",
+    field_container_name = "waves"
+)]
+#[id_getters_by_index(
+    field = "event",
+    parent_field = "waves",
+    return_type = "Event",
+    field_container_name = "wave_events"
+)]
 pub struct Dut {
     pub name: String,
     models: Vec<Model>,
@@ -83,7 +109,7 @@ impl Dut {
 
         self.id_mappings.clear();
         // Add the model for the DUT top-level (always ID 0)
-        let _ = self.create_model(None, "dut");
+        let _ = self.create_model(None, "dut", None);
     }
 
     /// Get a mutable reference to the model with the given ID
@@ -252,7 +278,12 @@ impl Dut {
     /// The ID of the newly created model is returned to the caller who should save it
     /// if they want to access this model directly again (will also be accessible by name
     /// via the parent model).
-    pub fn create_model(&mut self, parent_id: Option<usize>, name: &str) -> Result<usize> {
+    pub fn create_model(
+        &mut self,
+        parent_id: Option<usize>,
+        name: &str,
+        base_address: Option<u64>,
+    ) -> Result<usize> {
         let id;
         {
             id = self.models.len();
@@ -271,7 +302,7 @@ impl Dut {
                 }
             }
         }
-        let new_model = Model::new(id, name.to_string(), parent_id);
+        let new_model = Model::new(id, name.to_string(), parent_id, base_address);
         self.models.push(new_model);
         Ok(id)
     }
@@ -372,6 +403,7 @@ impl Dut {
         name: &str,
         offset: usize,
         size: Option<usize>,
+        bit_order: &str,
     ) -> Result<usize> {
         let id;
         {
@@ -393,6 +425,10 @@ impl Dut {
             Some(v) => defaults.size = v,
             None => {}
         }
+        match bit_order.parse() {
+            Ok(x) => defaults.bit_order = x,
+            Err(msg) => return Err(Error::new(&msg)),
+        }
         let reg = Register {
             id: id,
             name: name.to_string(),
@@ -413,8 +449,12 @@ impl Dut {
         }
         let bit = Bit {
             overlay: RwLock::new(None),
+            overlay_snapshots: RwLock::new(HashMap::new()),
             register_id: 0,
             state: RwLock::new(0),
+            reset_state: RwLock::new(0),
+            device_state: RwLock::new(0),
+            state_snapshots: RwLock::new(HashMap::new()),
             access: AccessType::ReadWrite,
         };
 

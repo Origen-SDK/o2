@@ -253,11 +253,10 @@ pub struct AddressBlock {
 #[pymethods]
 impl AddressBlock {
     fn reg(&self, name: &str) -> PyResult<Option<BitCollection>> {
-        let id = origen::dut()
-            .get_address_block(self.id)?
-            .get_register_id(name);
+        let dut = origen::dut();
+        let id = dut.get_address_block(self.id)?.get_register_id(name);
         match id {
-            Ok(id) => Ok(Some(BitCollection::from_reg_id(id))),
+            Ok(id) => Ok(Some(BitCollection::from_reg_id(id, &dut))),
             Err(_) => Ok(None),
         }
     }
@@ -291,7 +290,7 @@ impl PyObjectProtocol for AddressBlock {
 
             match blk.get_register_id(query) {
                 Ok(id) => {
-                    let pyref = PyRef::new(py, BitCollection::from_reg_id(id))?;
+                    let pyref = PyRef::new(py, BitCollection::from_reg_id(id, &dut))?;
                     Ok(pyref.to_object(py))
                 }
                 Err(_) => Err(AttributeError::py_err(format!(

@@ -1,9 +1,9 @@
 //#![feature(concat_idents)]
 
+use indexmap::map::IndexMap;
+use origen::error::Error;
 use origen::DUT;
 use pyo3::prelude::*;
-use origen::error::Error;
-use indexmap::map::IndexMap;
 // dut: &std::sync::MutexGuard<origen::core::dut::Dut>
 
 // extern crate proc_macro;
@@ -21,7 +21,7 @@ use indexmap::map::IndexMap;
 //     quote! {
 //         impl DictLikeAPI for #name {
 //             fn lookup_code() {
-                
+
 //             }
 //         }
 //     }
@@ -40,95 +40,95 @@ use indexmap::map::IndexMap;
 // }
 
 pub trait DictLikeAPI {
-  fn model_id(&self) -> usize;
-  fn lookup_key(&self) -> &str;
-  fn lookup_table(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> IndexMap<String, usize>;
-  fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error>;
+    fn model_id(&self) -> usize;
+    fn lookup_key(&self) -> &str;
+    fn lookup_table(
+        &self,
+        dut: &std::sync::MutexGuard<origen::core::dut::Dut>,
+    ) -> IndexMap<String, usize>;
+    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error>;
 
-//   #[proc_macro]
-//   fn lookup_code(input: TokenStream) -> TokenStream {
+    //   #[proc_macro]
+    //   fn lookup_code(input: TokenStream) -> TokenStream {
 
-//   };
+    //   };
 
-  fn keys(&self) -> PyResult<Vec<String>> {
-    let dut = DUT.lock().unwrap();
-    let names = self.lookup_table(&dut); //model.lookup(self.lookup_key())?;
-    Ok(names.iter().map(|(k, _)| k.clone()).collect())
-  }
-
-  fn values(&self) -> PyResult<Vec<PyObject>> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
-
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let mut v: Vec<PyObject> = Vec::new();
-    for (n, _item) in items {
-        v.push(self.new_pyitem(py, &n, self.model_id())?);
+    fn keys(&self) -> PyResult<Vec<String>> {
+        let dut = DUT.lock().unwrap();
+        let names = self.lookup_table(&dut); //model.lookup(self.lookup_key())?;
+        Ok(names.iter().map(|(k, _)| k.clone()).collect())
     }
-    Ok(v)
-  }
 
-  fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
+    fn values(&self) -> PyResult<Vec<PyObject>> {
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let mut _items: Vec<(String, PyObject)> = Vec::new();
-    for (n, _item) in items.iter() {
-        _items.push((
-            n.clone(),
-            self.new_pyitem(py, &n, self.model_id())?
-        ));
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut v: Vec<PyObject> = Vec::new();
+        for (n, _item) in items {
+            v.push(self.new_pyitem(py, &n, self.model_id())?);
+        }
+        Ok(v)
     }
-    Ok(_items)
-  }
 
-  fn get(&self, name: &str) -> PyResult<PyObject> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
-    let item = items.get(name);
+    fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
 
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    match item {
-        Some(_item) => Ok(self.new_pyitem(py, name, self.model_id())?),
-        None => Ok(py.None())
-      }
-  }
-
-  // Functions for PyMappingProtocol
-  fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
-    let item = items.get(name);
-
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    match item {
-        Some(_item) => Ok(self.new_pyitem(py, name, self.model_id())?),
-        None => Err(pyo3::exceptions::KeyError::py_err(format!(
-            "No pin or pin alias found for {}",
-            name
-        ))),
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut _items: Vec<(String, PyObject)> = Vec::new();
+        for (n, _item) in items.iter() {
+            _items.push((n.clone(), self.new_pyitem(py, &n, self.model_id())?));
+        }
+        Ok(_items)
     }
-  }
 
-  fn __len__(&self) -> PyResult<usize> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
-    Ok(items.len())
-  }
+    fn get(&self, name: &str) -> PyResult<PyObject> {
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
+        let item = items.get(name);
 
-  fn __iter__(&self) -> PyResult<DictLikeIter> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
-    Ok(DictLikeIter {
-        keys: items.iter().map(|(s, _)| s.clone()).collect(),
-        i: 0,
-    })
-  }
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match item {
+            Some(_item) => Ok(self.new_pyitem(py, name, self.model_id())?),
+            None => Ok(py.None()),
+        }
+    }
+
+    // Functions for PyMappingProtocol
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
+        let item = items.get(name);
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match item {
+            Some(_item) => Ok(self.new_pyitem(py, name, self.model_id())?),
+            None => Err(pyo3::exceptions::KeyError::py_err(format!(
+                "No pin or pin alias found for {}",
+                name
+            ))),
+        }
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
+        Ok(items.len())
+    }
+
+    fn __iter__(&self) -> PyResult<DictLikeIter> {
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
+        Ok(DictLikeIter {
+            keys: items.iter().map(|(s, _)| s.clone()).collect(),
+            i: 0,
+        })
+    }
 }
 
 #[pyclass]
