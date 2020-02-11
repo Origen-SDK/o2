@@ -2,6 +2,8 @@ import origen
 import _origen
 from origen.errors import *
 from contextlib import contextmanager
+from inspect import getframeinfo, stack
+import pdb
 
 # This defines the API for defining registers in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
@@ -35,14 +37,18 @@ class Loader:
 
     @contextmanager
     def Reg(self, name, address_offset, size=32, bit_order="lsb0"):
+        caller = getframeinfo(stack()[2][0])
+        print(f"{caller.filename}:{caller.lineno}")
         self.fields = []
         yield self
-        reg = _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, bit_order, self.fields)
+        # TODO: The None here is for an option register file ID, which is not hooked up yet
+        reg = _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, self.fields)
         self.fields = None
 
     def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0"):
         field = _origen.dut.registers.Field("data", "", 0, size, "rw", self.clean_resets(reset, resets), self.clean_enums(enums))
-        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, bit_order, [field])
+        # TODO: The None here is for an option register file ID, which is not hooked up yet
+        _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, [field])
 
     def Field(self, name, offset, width=1, access="rw", reset=None, resets=None, enums=None, description=""):
         if self.fields is not None:

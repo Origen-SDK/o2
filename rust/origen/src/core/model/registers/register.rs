@@ -1,8 +1,8 @@
 use super::bit::UNDEFINED;
-use super::{AccessType, BitCollection, BitOrder};
-use crate::Error;
+use super::{AccessType, AddressBlock, BitCollection, BitOrder, RegisterFile};
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
+use crate::{Error, Result};
 use indexmap::map::IndexMap;
 use num_bigint::BigUint;
 use std::cmp;
@@ -11,6 +11,8 @@ use std::sync::MutexGuard;
 #[derive(Debug)]
 pub struct Register {
     pub id: usize,
+    pub address_block_id: usize,
+    pub register_file_id: Option<usize>,
     pub name: String,
     pub description: Option<String>,
     // TODO: What is this?!
@@ -32,6 +34,8 @@ impl Default for Register {
     fn default() -> Register {
         Register {
             id: 0,
+            address_block_id: 0,
+            register_file_id: None,
             name: "".to_string(),
             description: None,
             dim: 1,
@@ -209,9 +213,33 @@ impl Register {
         format!("friendly.path.to.be.implemented.{}", self.name)
     }
 
-    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy
-    pub fn address(&self, _dut: &MutexGuard<Dut>) -> u128 {
-        self.offset as u128
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy.
+    /// By default the address is returned in the address_unit_bits size of the current top-level DUT.
+    /// Optionally an alternative address_unit_bits can be supplied here and the address will be returned in those
+    /// units.
+    pub fn address(&self, dut: &MutexGuard<Dut>, address_unit_bits: Option<u32>) -> Result<u128> {
+        match address_unit_bits {
+            Some(x) => Ok(self.bit_address(dut)? / x as u128),
+            None => Ok(self.bit_address(dut)? / dut.model().address_unit_bits as u128),
+        }
+    }
+
+    /// Returns the address_unit_bits size that the register's offset is defined in.
+    pub fn address_unit_bits(&self, dut: &MutexGuard<Dut>) -> Result<u32> {
+        match self.register_file_id {
+            Some(_x) => Ok(self.register_file(dut).unwrap()?.address_unit_bits(dut)?),
+            None => Ok(self.address_block(dut)?.address_unit_bits(dut)?),
+        }
+    }
+
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierachy.
+    /// The returned address is with an address_unit_bits size of 1.
+    pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> Result<u128> {
+        let base = match self.register_file_id {
+            Some(_x) => self.register_file(dut).unwrap()?.bit_address(dut)?,
+            None => self.address_block(dut)?.bit_address(dut)?,
+        };
+        Ok(base + (self.offset as u128 * self.address_unit_bits(dut)? as u128))
     }
 
     /// Returns an iterator for the register's fields which yields them (as SummaryFields) in offset order, starting from lowest.
@@ -315,7 +343,7 @@ impl Register {
         let bit_width = 13;
         let mut desc: Vec<String> = vec![format!(
             "\n{:#X} - {}",
-            self.address(dut),
+            self.address(dut, None)?,
             self.friendly_path(dut)
         )];
         let r = self.size % 8;
@@ -572,6 +600,23 @@ impl Register {
     /// Returns all bits owned by the register, wrapped in a BitCollection
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
         BitCollection::for_register(self, dut)
+    }
+
+    /// Returns an immutable reference to the address block object that owns the register.
+    /// Note that this may or may not be the immediate parent of the register depending on
+    /// whether it is instantiated within a register file or not.
+    pub fn address_block<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a AddressBlock> {
+        dut.get_address_block(self.address_block_id)
+    }
+
+    /// Returns an immutable reference to the register file object that owns the register.
+    /// If it returns None it means that the register is instantiated directly within an
+    /// address block.
+    pub fn register_file<'a>(&self, dut: &'a MutexGuard<Dut>) -> Option<Result<&'a RegisterFile>> {
+        match self.register_file_id {
+            Some(x) => Some(dut.get_register_file(x)),
+            None => None,
+        }
     }
 }
 

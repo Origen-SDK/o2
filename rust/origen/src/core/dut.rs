@@ -112,6 +112,20 @@ impl Dut {
         let _ = self.create_model(None, "dut", None);
     }
 
+    /// Returns a mutable reference to the top-level model
+    pub fn mut_model(&mut self) -> &mut Model {
+        self.models
+            .get_mut(0)
+            .expect("Something has gone wrong, no top-level model found!")
+    }
+
+    /// Returns an immutable reference to the top-level model
+    pub fn model(&self) -> &Model {
+        self.models
+            .get(0)
+            .expect("Something has gone wrong, no top-level model found!")
+    }
+
     /// Get a mutable reference to the model with the given ID
     pub fn get_mut_model(&mut self, id: usize) -> Result<&mut Model> {
         match self.models.get_mut(id) {
@@ -282,7 +296,7 @@ impl Dut {
         &mut self,
         parent_id: Option<usize>,
         name: &str,
-        base_address: Option<u64>,
+        offset: Option<u128>,
     ) -> Result<usize> {
         let id;
         {
@@ -302,7 +316,7 @@ impl Dut {
                 }
             }
         }
-        let new_model = Model::new(id, name.to_string(), parent_id, base_address);
+        let new_model = Model::new(id, name.to_string(), parent_id, offset);
         self.models.push(new_model);
         Ok(id)
     }
@@ -348,7 +362,7 @@ impl Dut {
         &mut self,
         memory_map_id: usize,
         name: &str,
-        base_address: Option<u64>,
+        offset: Option<u128>,
         range: Option<u64>,
         width: Option<u64>,
         access: Option<AccessType>,
@@ -371,8 +385,8 @@ impl Dut {
         }
 
         let mut defaults = AddressBlock::default();
-        match base_address {
-            Some(v) => defaults.base_address = v,
+        match offset {
+            Some(v) => defaults.offset = v,
             None => {}
         }
         match range {
@@ -400,6 +414,7 @@ impl Dut {
     pub fn create_reg(
         &mut self,
         address_block_id: usize,
+        register_file_id: Option<usize>,
         name: &str,
         offset: usize,
         size: Option<usize>,
@@ -433,6 +448,8 @@ impl Dut {
             id: id,
             name: name.to_string(),
             offset: offset,
+            address_block_id: address_block_id,
+            register_file_id: register_file_id,
             ..defaults
         };
 
@@ -467,7 +484,7 @@ impl Dut {
 mod tests {
     #[test]
     fn it_works() {
-        let dut = super::Dut::new("placeholder");
+        let _dut = super::Dut::new("placeholder");
         //dut.get_event_test(0, 0);
         //dut.hello_macro();
         //assert_eq!(2 + 2, 4);

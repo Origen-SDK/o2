@@ -13,7 +13,7 @@ pub struct AddressBlock {
     pub name: String,
     /// The starting address of the address block expressed in address_unit_bits
     /// from the parent memory map.
-    pub base_address: u64,
+    pub offset: u128,
     /// The number of addressable units in the address block.
     pub range: u64,
     /// The maximum number of bits that can be accessed by a transaction into this
@@ -30,7 +30,7 @@ impl Default for AddressBlock {
             id: 0,
             memory_map_id: 0,
             name: "Default".to_string(),
-            base_address: 0,
+            offset: 0,
             range: 0,
             width: 0,
             access: AccessType::ReadWrite,
@@ -49,6 +49,18 @@ impl AddressBlock {
     /// Returns an immutable reference to the parent memory map
     pub fn memory_map<'a>(&self, dut: &'a MutexGuard<Dut>) -> OrigenResult<&'a MemoryMap> {
         dut.get_memory_map(self.memory_map_id)
+    }
+
+    /// Returns the address_unit_bits size from the parent memory map
+    pub fn address_unit_bits(&self, dut: &MutexGuard<Dut>) -> OrigenResult<u32> {
+        Ok(self.memory_map(dut)?.address_unit_bits)
+    }
+
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierachy.
+    /// The returned address is with an address_unit_bits size of 1.
+    pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> OrigenResult<u128> {
+        let base = self.model(dut)?.bit_address(dut)?;
+        Ok(base + (self.offset * self.address_unit_bits(dut)? as u128))
     }
 
     /// Get the ID from the given register name

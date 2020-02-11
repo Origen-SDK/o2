@@ -32,6 +32,7 @@ pub fn registers(_py: Python, m: &PyModule) -> PyResult<()> {
 #[pyfunction]
 fn create(
     address_block_id: usize,
+    register_file_id: Option<usize>,
     name: &str,
     offset: usize,
     size: Option<usize>,
@@ -52,7 +53,14 @@ fn create(
     }
     {
         let mut dut = origen::dut();
-        reg_id = dut.create_reg(address_block_id, name, offset, size, &bit_order)?;
+        reg_id = dut.create_reg(
+            address_block_id,
+            register_file_id,
+            name,
+            offset,
+            size,
+            &bit_order,
+        )?;
         let reg = dut.get_mut_register(reg_id)?;
         lsb0 = reg.bit_order == BitOrder::LSB0;
         for f in &fields {

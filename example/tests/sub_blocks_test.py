@@ -40,8 +40,25 @@ def test_sub_block_iteration():
         collected.append(sub_block.name)
     assert collected == expected
 
-#def test_sub_block_base_addresses():
-#    assert dut.core0.base_address == 0
-#    assert dut.core1.base_address == 0x1000_0000
-#    assert dut.core2.base_address == 0x2000_0000
-#    assert dut.core3.base_address == 0x3000_0000
+def test_sub_block_offset():
+    assert dut.core0.offset == 0
+    assert dut.core1.offset == 0x1000_0000
+    assert dut.core2.offset == 0x2000_0000
+    assert dut.core3.offset == 0x3000_0000
+
+def test_sub_block_address_method():
+    assert dut.core0.address() == 0
+    assert dut.core0.adc0.address() == 0
+    assert dut.core0.adc1.address() == 0x1000
+    assert dut.core1.address() == 0x1000_0000
+    assert dut.core1.adc0.address() == 0x1000_0000
+    assert dut.core1.adc1.address() == 0x1000_1000
+    assert dut.core2.address() == 0x2000_0000
+    assert dut.core2.adc0.address() == 0x2000_0000
+    assert dut.core2.adc1.address() == 0x2000_1000
+    assert dut.core3.address() == 0x3000_0000
+    assert dut.core3.adc0.address() == 0x3000_0000
+    assert dut.core3.adc1.address() == 0x3000_1000
+    
+def test_address_unit_bits():
+    pass

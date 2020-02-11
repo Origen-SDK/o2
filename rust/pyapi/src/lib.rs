@@ -2,6 +2,7 @@ mod dut;
 mod file_handler;
 mod logger;
 mod meta;
+mod model;
 mod pins;
 mod registers;
 mod timesets;

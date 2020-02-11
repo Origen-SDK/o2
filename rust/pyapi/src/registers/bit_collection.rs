@@ -542,7 +542,7 @@ impl BitCollection {
     fn address(&self) -> PyResult<u128> {
         let dut = origen::dut();
         match self.reg(&dut) {
-            Some(x) => Ok(x.address(&dut)),
+            Some(x) => Ok(x.address(&dut, None)?),
             None => Err(PyErr::new::<exceptions::RuntimeError, _>(
                 "Called 'address()' on a BitCollection that is not associated with a register",
             )),

@@ -62,11 +62,9 @@ class Base:
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
         #print(f"Looking for attribute {name}")
-        if name == "base_address":
-            self.model().base_address
         # regs called directly on the controller means only the regs in the default
         # memory map and address block
-        elif name == "regs":
+        if name == "regs":
             self._load_regs()
             if self._default_default_address_block:
                 return self._default_default_address_block.regs
@@ -116,7 +114,10 @@ class Base:
                 if r:
                     return r
 
-            raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
+            try:
+                return getattr(self.model(), name)
+            except AttributeError:
+                raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
         print(self.tree_as_str())
