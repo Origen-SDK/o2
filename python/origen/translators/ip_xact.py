@@ -62,7 +62,8 @@ class IpXact:
              # TODO: Need to figure out how to find a bit reset tag without finding the
              # reset tag from the next register
              # field_reset_tag = field_tag.find_next("spirit:reset")
-             breakpoint()
+             if field_name == 'osch':
+                breakpoint() 
              reg.Field(field_name, offset=field_offset, access=field_access, width=field_size)
 
     def __calc_field_range(self, field_size, field_offset):

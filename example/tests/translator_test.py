@@ -4,9 +4,7 @@ def test_translator_ip_xact():
     origen.app.instantiate_dut("dut.falcon")
     remote_file = f"{origen.root}/vendor/ip-xact/spirit1-4_ip-xact.xml"
     assert len(origen.dut.memory_maps) == 3
-    breakpoint()
     origen.app.translate(remote_file)
-    breakpoint()
     assert len(origen.dut.memory_maps) == 4
     # TODO: Must be a better way to check this
     assert str(type(origen.dut.memory_map("RegisterMap"))) == "<class 'MemoryMap'>"
