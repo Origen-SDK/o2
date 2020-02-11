@@ -29,7 +29,7 @@ impl Default for AddressBlock {
         AddressBlock {
             id: 0,
             memory_map_id: 0,
-            name: "Default".to_string(),
+            name: "default".to_string(),
             offset: 0,
             range: 0,
             width: 0,
@@ -61,6 +61,18 @@ impl AddressBlock {
     pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> OrigenResult<u128> {
         let base = self.model(dut)?.bit_address(dut)?;
         Ok(base + (self.offset * self.address_unit_bits(dut)? as u128))
+    }
+
+    /// Returns a path to this address_block like "dut.my_block.my_map.my_address_block", but the map and address block portions
+    /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
+    /// don't use them and simply define regs at the top-level of the block.
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> OrigenResult<String> {
+        let path = self.memory_map(dut)?.friendly_path(dut)?;
+        if self.name == "default" {
+            Ok(path)
+        } else {
+            Ok(format!("{}.{}", path, self.name))
+        }
     }
 
     /// Get the ID from the given register name

@@ -61,4 +61,6 @@ def test_sub_block_address_method():
     assert dut.core3.adc1.address() == 0x3000_1000
     
 def test_address_unit_bits():
-    pass
+    assert dut.address_unit_bits == 8
+    # TODO: Verify this can be changed and the address calcs work out correctly
+    

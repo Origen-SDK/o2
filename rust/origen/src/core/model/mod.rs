@@ -168,4 +168,12 @@ impl Model {
             }
         }
     }
+
+    /// Returns a path to this block like "dut.my_block"
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        match self.parent(dut)? {
+            None => Ok("dut".to_string()),
+            Some(x) => Ok(format!("{}.{}", x.friendly_path(dut)?, self.name)),
+        }
+    }
 }

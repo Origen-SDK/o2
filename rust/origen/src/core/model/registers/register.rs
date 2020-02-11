@@ -209,8 +209,12 @@ impl Register {
     /// Returns a path to this register like "dut.my_block.my_map.my_address_block.my_reg", but the map and address block portions
     /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
     /// don't use them and simply define regs at the top-level of the block.
-    pub fn friendly_path(&self, _dut: &MutexGuard<Dut>) -> String {
-        format!("friendly.path.to.be.implemented.{}", self.name)
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        let path = match self.register_file(dut) {
+            Some(x) => x?.friendly_path(dut)?,
+            None => self.address_block(dut)?.friendly_path(dut)?,
+        };
+        Ok(format!("{}.{}", path, self.name))
     }
 
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy.
@@ -226,8 +230,8 @@ impl Register {
 
     /// Returns the address_unit_bits size that the register's offset is defined in.
     pub fn address_unit_bits(&self, dut: &MutexGuard<Dut>) -> Result<u32> {
-        match self.register_file_id {
-            Some(_x) => Ok(self.register_file(dut).unwrap()?.address_unit_bits(dut)?),
+        match self.register_file(dut) {
+            Some(x) => Ok(x?.address_unit_bits(dut)?),
             None => Ok(self.address_block(dut)?.address_unit_bits(dut)?),
         }
     }
@@ -235,8 +239,8 @@ impl Register {
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierachy.
     /// The returned address is with an address_unit_bits size of 1.
     pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> Result<u128> {
-        let base = match self.register_file_id {
-            Some(_x) => self.register_file(dut).unwrap()?.bit_address(dut)?,
+        let base = match self.register_file(dut) {
+            Some(x) => x?.bit_address(dut)?,
             None => self.address_block(dut)?.bit_address(dut)?,
         };
         Ok(base + (self.offset as u128 * self.address_unit_bits(dut)? as u128))
@@ -344,7 +348,7 @@ impl Register {
         let mut desc: Vec<String> = vec![format!(
             "\n{:#X} - {}",
             self.address(dut, None)?,
-            self.friendly_path(dut)
+            self.friendly_path(dut)?
         )];
         let r = self.size % 8;
         if r == 0 {
