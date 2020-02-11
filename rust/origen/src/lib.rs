@@ -5,12 +5,14 @@ extern crate serde;
 extern crate meta;
 
 pub mod core;
+pub mod testers;
 pub mod error;
 pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
+pub use self::core::tester::Tester;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
 use std::sync::{Mutex, MutexGuard};
@@ -34,6 +36,8 @@ lazy_static! {
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
     /// etc.)
     pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
+    /// The global tester model.
+    pub static ref TESTER: Mutex<Tester> = Mutex::new(Tester::new());
 }
 
 // Use of a mod or pub mod is not actually necessary.
@@ -56,6 +60,10 @@ macro_rules! lock {
 
 pub fn dut() -> MutexGuard<'static, Dut> {
     DUT.lock().unwrap()
+}
+
+pub fn tester() -> MutexGuard<'static, Tester> {
+    TESTER.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

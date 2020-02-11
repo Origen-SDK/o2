@@ -2,7 +2,6 @@
 
 use origen::DUT;
 use pyo3::prelude::*;
-use origen::error::Error;
 use indexmap::map::IndexMap;
 // dut: &std::sync::MutexGuard<origen::core::dut::Dut>
 
@@ -43,7 +42,7 @@ pub trait DictLikeAPI {
   fn model_id(&self) -> usize;
   fn lookup_key(&self) -> &str;
   fn lookup_table(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> IndexMap<String, usize>;
-  fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error>;
+  fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> PyResult<PyObject>;
 
 //   #[proc_macro]
 //   fn lookup_code(input: TokenStream) -> TokenStream {

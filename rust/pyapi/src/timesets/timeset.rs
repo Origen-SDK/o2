@@ -127,6 +127,12 @@ impl Timeset {
     Ok(timeset.unwrap().name.clone())
   }
 
+  #[allow(non_snake_case)]
+  #[getter]
+  fn get___origen__model_id__(&self) -> PyResult<usize> {
+    Ok(self.model_id)
+  }
+
   #[getter]
   fn get_period(&self) -> PyResult<f64> {
     let dut = DUT.lock().unwrap();

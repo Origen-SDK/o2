@@ -1,11 +1,10 @@
 use origen::DUT;
 use pyo3::prelude::*;
-use origen::error::Error;
 use pyo3::types::{PyAny, PySlice};
 
 pub trait ListLikeAPI {
   fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize>;
-  fn new_pyitem(&self, py: Python, idx: usize) -> Result<PyObject, Error>;
+  fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject>;
   fn __iter__(&self) -> PyResult<ListLikeIter>;
 
   fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {

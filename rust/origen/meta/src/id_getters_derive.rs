@@ -70,15 +70,16 @@ pub fn impl_id_getters(ast: &syn::DeriveInput) -> syn::Result<TokenStream> {
                 let field_container_name = format_ident!("{}", config.field_container_name);
                 let parent_field = format_ident!("{}", config.parent_field);
         
-                let (lookup_type, error_message);
+                let (lookup_type, error_message, err_str);
                 if config.getter_type == "by_index" {
                     lookup_type = quote! { usize };
-                    error_message = quote! { &format!("Could not find #config.field at index {}!", identifier) };
+                    err_str = format!("\"Could not find {} at index {{}}!\"", config.field);
                 } else {
                     lookup_type = quote!{ &str };
-                    error_message = quote! { &format!("Could not find #config.field named {}!", identifier) };
+                    err_str = format!("\"Could not find {} named {{}}!\"", config.field);
                 }
-        
+                error_message = quote! { &format!(#err_str, identifier) };
+
                 getter_functions.extend(quote! {
                     impl #name {
                         pub fn #func_name (&self, parent_field_id: usize, identifier: #lookup_type) -> Option<& #retn > {

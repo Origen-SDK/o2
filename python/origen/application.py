@@ -35,6 +35,9 @@ class Base:
         if not isinstance(dut, TopLevel):
             raise RuntimeError("The DUT object is not an instance of origen.application::TopLevel")
         origen.dut = dut
+        if origen.tester:
+            # Clear the tester as it may hold references to a previous DUT's backend which was just wiped out.
+            origen.tester.reset()
         return dut
 
     # Instantiate the given block and return it

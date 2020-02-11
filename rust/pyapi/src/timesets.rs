@@ -13,9 +13,9 @@ macro_rules! type_error {
 }
 
 #[macro_use]
-mod timeset_container;
+pub mod timeset_container;
 #[macro_use]
-mod timeset;
+pub mod timeset;
 
 use timeset::{Timeset, Wavetable, WaveGroup, Wave, Event};
 use timeset_container::{TimesetContainer, WavetableContainer, WaveGroupContainer, WaveContainer, EventContainer};
