@@ -97,6 +97,10 @@ class Base:
                 elif filename == "pins.py":
                     from origen.pins import Loader
                     context = Loader(controller).api()
+                
+                elif filename == "timing.py":
+                    from origen.timesets import Loader
+                    context = Loader(controller).api()
 
                 else:
                     block = controller

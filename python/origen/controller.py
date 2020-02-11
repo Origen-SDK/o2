@@ -4,7 +4,6 @@ from origen import pins
 from origen import timesets
 from origen.registers import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
-from origen.errors import *
 from contextlib import contextmanager
 
 class Proxies:
@@ -63,9 +62,11 @@ class Base:
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
         #print(f"Looking for attribute {name}")
+        if name == "base_address":
+            self.model().base_address
         # regs called directly on the controller means only the regs in the default
         # memory map and address block
-        if name == "regs":
+        elif name == "regs":
             self._load_regs()
             if self._default_default_address_block:
                 return self._default_default_address_block.regs
@@ -159,6 +160,9 @@ class Base:
     def add_simple_reg(self, *args, **kwargs):
         RegLoader(self).SimpleReg(*args, **kwargs)
 
+    def model(self):
+        return origen.dut.db.model(self.model_id)
+
     @contextmanager
     def add_reg(self, *args, **kwargs):
         self._load_regs()
@@ -188,7 +192,7 @@ class Base:
 
     def _load_timesets(self):
         if not self.timesets_loaded:
-            self.app.load_block_files(self, "timesets.py")
+            self.app.load_block_files(self, "timing.py")
             self.timesets_loaded = True
 
 # The base class of all Origen controller objects which are also

@@ -8,7 +8,7 @@ edition = "2018"
 build = "build.rs"
 
 [workspace]
-members = ["cli"]
+members = ["cli", "meta"]
 
 [lib]
 
@@ -31,6 +31,7 @@ num-bigint = "0.2"
 # Per this SO thread: https://stackoverflow.com/questions/37296351/trait-for-numeric-functionality-in-rust
 # the num crate includes some useful traits to accept float-like and integer-like things without having to manually enumerate them all.
 num = "0.2.0"
+meta = { path = "./meta" }
 
 [build-dependencies]
 built = "0.3"

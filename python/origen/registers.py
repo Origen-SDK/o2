@@ -34,28 +34,19 @@ class Loader:
             return origen.dut.db.get_or_create_address_block(self.memory_map.id, "default")
 
     @contextmanager
-    def Reg(self, name, address_offset, size=32):
+    def Reg(self, name, address_offset, size=32, bit_order="lsb0"):
         self.fields = []
         yield self
-        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, self.fields)
+        reg = _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, bit_order, self.fields)
         self.fields = None
 
-    def SimpleReg(self, name, address_offset, size=32, reset=0):
-        field = _origen.dut.registers.Field("data", "", 0, size, "rw", reset, [])
-        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, [field])
+    def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0"):
+        field = _origen.dut.registers.Field("data", "", 0, size, "rw", self.clean_resets(reset, resets), self.clean_enums(enums))
+        _origen.dut.registers.create(self.current_address_block().id, name, address_offset, size, bit_order, [field])
 
-    def Field(self, name, offset, width=1, access="rw", reset=0, enums=None, description=""):
+    def Field(self, name, offset, width=1, access="rw", reset=None, resets=None, enums=None, description=""):
         if self.fields is not None:
-            e = []
-            if enums is not None:
-                for enum_name, attrs in enums.items():
-                    if isinstance(attrs, dict):
-                        #e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description"), attrs.get("usage", "rw"), attrs["value"]))
-                        e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description", ""), attrs["value"]))
-                    else:
-                        #e.append(_origen.dut.registers.FieldEnum(enum_name, "", "rw", attrs))
-                        e.append(_origen.dut.registers.FieldEnum(enum_name, "", attrs))
-            self.fields.append(_origen.dut.registers.Field(name, description, offset, width, access, reset, e))
+            self.fields.append(_origen.dut.registers.Field(name, description, offset, width, access, self.clean_resets(reset, resets), self.clean_enums(enums)))
         else:
             raise RuntimeError(f"A Field can only be defined within a 'with Reg' definition block")
 
@@ -74,6 +65,35 @@ class Loader:
         self.address_block = origen.dut.db.get_or_create_address_block(self.current_memory_map().id, name)
         yield self
         self.address_block = None
+
+    def clean_enums(self, enums):
+            e = []
+            if enums is not None:
+                for enum_name, attrs in enums.items():
+                    if isinstance(attrs, dict):
+                        #e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description"), attrs.get("usage", "rw"), attrs["value"]))
+                        e.append(_origen.dut.registers.FieldEnum(enum_name, attrs.get("description", ""), attrs["value"]))
+                    else:
+                        #e.append(_origen.dut.registers.FieldEnum(enum_name, "", "rw", attrs))
+                        e.append(_origen.dut.registers.FieldEnum(enum_name, "", attrs))
+            return e
+
+    def clean_resets(self, reset, resets):
+        r = None
+        if resets is None:
+            resets = reset
+        if resets is not None:
+            r = []
+            if isinstance(resets, dict):
+                for reset_name, attrs in resets.items():
+                    if isinstance(attrs, dict):
+                        r.append(_origen.dut.registers.ResetVal(reset_name, attrs["value"], attrs.get("mask")))
+                    else:
+                        r.append(_origen.dut.registers.ResetVal(reset_name, attrs, None))
+            else:
+                r.append(_origen.dut.registers.ResetVal("hard", resets, None))
+
+        return r
 
     # Defines the methods that are accessible within blocks/<block>/registers.py
     def api(self):

@@ -2,15 +2,6 @@ use super::dut::PyDUT;
 use origen::DUT;
 use pyo3::prelude::*;
 
-#[macro_use]
-mod timeset;
-#[macro_use]
-mod timeset_container;
-
-use pyo3::types::{PyAny, PyDict};
-use timeset::Timeset;
-use timeset_container::TimesetContainer;
-
 #[macro_export]
 macro_rules! type_error {
     ($message:expr) => {
@@ -18,10 +9,29 @@ macro_rules! type_error {
     };
 }
 
+#[macro_use]
+mod timeset_container;
+#[macro_use]
+mod timeset;
+
+use pyo3::types::{PyAny, PyDict};
+use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
+use timeset_container::{
+    EventContainer, TimesetContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
+};
+
 #[pymodule]
 pub fn timesets(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TimesetContainer>()?;
+    m.add_class::<WavetableContainer>()?;
+    m.add_class::<WaveGroupContainer>()?;
+    m.add_class::<WaveContainer>()?;
+    m.add_class::<EventContainer>()?;
     m.add_class::<Timeset>()?;
+    m.add_class::<Wavetable>()?;
+    m.add_class::<WaveGroup>()?;
+    m.add_class::<Wave>()?;
+    m.add_class::<Event>()?;
     Ok(())
 }
 
