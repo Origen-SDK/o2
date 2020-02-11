@@ -63,7 +63,8 @@ impl<'a> RegisterFieldIterator<'a> {
         // has broken me.
         let mut field_names: Vec<String>;
 
-        let mut fields: Vec<(&String, &Field)> = reg.fields.iter().map(|(key, val)| (key, val)).collect();
+        let mut fields: Vec<(&String, &Field)> =
+            reg.fields.iter().map(|(key, val)| (key, val)).collect();
         fields.sort_by_key(|(_, val)| val.offset);
 
         if include_spacers {
@@ -702,15 +703,15 @@ impl Field {
             let mut fields: Vec<&Field> = Vec::new();
 
             fields.push(self);
-            
+
             for i in 0..self.related_fields {
                 let f = reg.fields.get(&format!("{}{}", self.name, i + 1)).unwrap();
                 fields.push(f);
             }
-            
+
             // Sort them by offset
-            //fields.sort_by(|a, b| b.offset.cmp(&a.offset)); 
-            fields.sort_by_key(|f| f.offset); 
+            //fields.sort_by(|a, b| b.offset.cmp(&a.offset));
+            fields.sort_by_key(|f| f.offset);
 
             // Now collect their bits
 
@@ -720,7 +721,6 @@ impl Field {
                     bits.push(reg.bit_ids[f.offset + i]);
                 }
             }
-
         } else {
             for i in 0..self.width {
                 bits.push(reg.bit_ids[self.offset + i]);

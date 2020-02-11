@@ -74,3 +74,4 @@ script:
       ../rust/origen/target/debug/origen setup
       $HOME/.poetry/bin/poetry run pytest -vv
     fi
+    
