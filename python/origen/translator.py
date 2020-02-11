@@ -27,7 +27,6 @@ class Translator:
                 os.chmod(export_dir, 0o755)
         else:
             os.mkdir(export_dir, 0o755)
-        breakpoint()
         # Loop through the memory maps
         # TODO: Return real memory map and address block iterators
         # for memory_map in origen.dut.memory_maps:   
