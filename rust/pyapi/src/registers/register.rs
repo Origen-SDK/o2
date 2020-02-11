@@ -9,7 +9,7 @@ pub struct Field {
     pub offset: usize,
     pub width: usize,
     pub access: String,
-    pub reset: BigUint,
+    pub resets: Option<Vec<ResetVal>>,
     pub enums: Vec<FieldEnum>,
 }
 
@@ -23,7 +23,7 @@ impl Field {
         offset: usize,
         width: usize,
         access: String,
-        reset: BigUint,
+        resets: Option<Vec<&ResetVal>>,
         enums: Vec<&FieldEnum>,
     ) {
         let mut enum_objs: Vec<FieldEnum> = Vec::new();
@@ -35,6 +35,20 @@ impl Field {
                 value: e.value.clone(),
             });
         }
+        let rsts: Option<Vec<ResetVal>>;
+        if resets.is_some() {
+            let mut _rsts: Vec<ResetVal> = Vec::new();
+            for r in &resets.unwrap() {
+                _rsts.push(ResetVal {
+                    name: r.name.to_string(),
+                    value: r.value.clone(),
+                    mask: r.mask.clone(),
+                });
+            }
+            rsts = Some(_rsts);
+        } else {
+            rsts = None;
+        }
         obj.init({
             Field {
                 name: name,
@@ -42,7 +56,7 @@ impl Field {
                 offset: offset,
                 width: width,
                 access: access,
-                reset: reset,
+                resets: rsts,
                 enums: enum_objs,
             }
         });
@@ -74,6 +88,28 @@ impl FieldEnum {
                 description: description,
                 //usage: usage,
                 value: value,
+            }
+        });
+    }
+}
+
+#[pyclass]
+#[derive(Debug)]
+pub struct ResetVal {
+    pub name: String,
+    pub value: BigUint,
+    pub mask: Option<BigUint>,
+}
+
+#[pymethods]
+impl ResetVal {
+    #[new]
+    fn new(obj: &PyRawObject, name: String, value: BigUint, mask: Option<BigUint>) {
+        obj.init({
+            ResetVal {
+                name: name,
+                value: value,
+                mask: mask,
             }
         });
     }

@@ -1,37 +1,80 @@
+//#![feature(concat_idents)]
+
+use indexmap::map::IndexMap;
 use origen::error::Error;
 use origen::DUT;
 use pyo3::prelude::*;
+// dut: &std::sync::MutexGuard<origen::core::dut::Dut>
+
+// extern crate proc_macro;
+// extern crate syn;
+// // #[macro_use]
+// extern crate quote;
+
+// use proc_macro::TokenStream;
+
+// #[proc_macro_derive(DictLikeAPI, attributes(lookup_code))]
+// pub fn derive_dict_like_api(input: TokenStream) -> TokenStream {
+//     let n = input.to_string();
+//     let ast = syn::parse_derive_input(&n).unwrap();
+//     let gen;
+//     quote! {
+//         impl DictLikeAPI for #name {
+//             fn lookup_code() {
+
+//             }
+//         }
+//     }
+//     gen.parse().unwrap()
+// }
+
+// struct DictLikeParams {
+//     lookup_code: syn::expr;
+// }
+
+// impl Parse for DictLikeParams {
+//     fn parse(input: ParseStream) -> Result<Self> {
+//         let lookup_code = input.parse()?;
+//         Ok(DictLikeParams{lookup_code: lookup_code})
+//     }
+// }
 
 pub trait DictLikeAPI {
     fn model_id(&self) -> usize;
     fn lookup_key(&self) -> &str;
+    fn lookup_table(
+        &self,
+        dut: &std::sync::MutexGuard<origen::core::dut::Dut>,
+    ) -> IndexMap<String, usize>;
     fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error>;
+
+    //   #[proc_macro]
+    //   fn lookup_code(input: TokenStream) -> TokenStream {
+
+    //   };
 
     fn keys(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(self.model_id())?;
-        let names = model.lookup(self.lookup_key())?;
+        let names = self.lookup_table(&dut); //model.lookup(self.lookup_key())?;
         Ok(names.iter().map(|(k, _)| k.clone()).collect())
     }
 
     fn values(&self) -> PyResult<Vec<PyObject>> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id())?;
-        let items = model.lookup(self.lookup_key())?;
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
 
         let gil = Python::acquire_gil();
         let py = gil.python();
         let mut v: Vec<PyObject> = Vec::new();
         for (n, _item) in items {
-            v.push(self.new_pyitem(py, n, self.model_id())?);
+            v.push(self.new_pyitem(py, &n, self.model_id())?);
         }
         Ok(v)
     }
 
     fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id())?;
-        let items = model.lookup(self.lookup_key())?;
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -43,9 +86,9 @@ pub trait DictLikeAPI {
     }
 
     fn get(&self, name: &str) -> PyResult<PyObject> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id())?;
-        let item = model.lookup(self.lookup_key())?.get(name);
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
+        let item = items.get(name);
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -57,9 +100,9 @@ pub trait DictLikeAPI {
 
     // Functions for PyMappingProtocol
     fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id())?;
-        let item = model.lookup(self.lookup_key())?.get(name);
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
+        let item = items.get(name);
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -73,16 +116,14 @@ pub trait DictLikeAPI {
     }
 
     fn __len__(&self) -> PyResult<usize> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id())?;
-        let items = model.lookup(self.lookup_key())?;
+        let dut = DUT.lock().unwrap();
+        let items = self.lookup_table(&dut);
         Ok(items.len())
     }
 
     fn __iter__(&self) -> PyResult<DictLikeIter> {
         let dut = DUT.lock().unwrap();
-        let model = dut.get_model(self.model_id())?;
-        let items = model.lookup(self.lookup_key())?;
+        let items = self.lookup_table(&dut);
         Ok(DictLikeIter {
             keys: items.iter().map(|(s, _)| s.clone()).collect(),
             i: 0,

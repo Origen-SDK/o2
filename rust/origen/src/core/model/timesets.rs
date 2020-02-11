@@ -3,7 +3,7 @@ pub mod timeset;
 use super::super::dut::Dut;
 use super::Model;
 use crate::error::Error;
-use timeset::Timeset;
+use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 
 /// Returns an Origen Error with pre-formatted message comlaining that
 /// someting already exists.
@@ -30,16 +30,26 @@ macro_rules! backend_lookup_error {
     };
 }
 
+#[macro_export]
+macro_rules! lookup_error {
+    ($container:expr, $name:expr) => {
+        Err(Error::new(&format!(
+            "Could not find {} named {}!",
+            $container, $name
+        )))
+    };
+}
+
 impl Model {
     pub fn add_timeset(
         &mut self,
-        _model_id: usize,
+        model_id: usize,
         instance_id: usize,
         name: &str,
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
     ) -> Result<Timeset, Error> {
-        let t = Timeset::new(name, period, default_period);
+        let t = Timeset::new(model_id, instance_id, name, period, default_period);
         self.timesets.insert(String::from(name), instance_id);
         Ok(t)
     }
@@ -49,10 +59,6 @@ impl Model {
             Some(t) => Some(*t),
             None => None,
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.timesets.len()
     }
 
     pub fn contains_timeset(&self, name: &str) -> bool {
@@ -86,33 +92,115 @@ impl Dut {
         Ok(&self.timesets[id])
     }
 
-    pub fn get_timeset(&self, model_id: usize, name: &str) -> Option<&Timeset> {
-        if let Some(t) = self.get_model(model_id).unwrap().get_timeset_id(name) {
-            Some(&self.timesets[t])
-        } else {
-            Option::None
+    pub fn create_wavetable(&mut self, timeset_id: usize, name: &str) -> Result<&Wavetable, Error> {
+        let id;
+        {
+            id = self.wavetables.len();
         }
+
+        let w;
+        {
+            let t = &mut self.timesets[timeset_id];
+            if t.contains_wavetable(name) {
+                return duplicate_error!("wavetable", t.name, name);
+            }
+
+            w = t.register_wavetable(id, name)?;
+        }
+        self.wavetables.push(w);
+        Ok(&self.wavetables[id])
     }
 
-    pub fn get_mut_timeset(&mut self, model_id: usize, name: &str) -> Option<&mut Timeset> {
-        if let Some(t) = self.get_model(model_id).unwrap().get_timeset_id(name) {
-            Some(&mut self.timesets[t])
-        } else {
-            Option::None
+    pub fn create_wave_group(
+        &mut self,
+        wavetable_id: usize,
+        name: &str,
+        derived_from: Option<Vec<usize>>,
+    ) -> Result<&WaveGroup, Error> {
+        let id;
+        {
+            id = self.wave_groups.len();
         }
+
+        let wgrp;
+        {
+            let wtbl = &mut self.wavetables[wavetable_id];
+            if wtbl.contains_wave_group(name) {
+                return duplicate_error!("wave group", wtbl.name, name);
+            }
+
+            wgrp = wtbl.register_wave_group(id, name, derived_from)?;
+        }
+        self.wave_groups.push(wgrp);
+        Ok(&self.wave_groups[id])
     }
 
-    pub fn _get_timeset(&self, model_id: usize, name: &str) -> Result<&Timeset, Error> {
-        match self.get_timeset(model_id, name) {
-            Some(t) => Ok(t),
-            None => backend_lookup_error!("timeset", name),
+    pub fn create_wave(
+        &mut self,
+        wave_group_id: usize,
+        indicator: &str,
+        derived_from: Option<Vec<String>>,
+    ) -> Result<&Wave, Error> {
+        let id;
+        {
+            id = self.waves.len();
         }
+
+        let w;
+        {
+            let wgrp = &mut self.wave_groups[wave_group_id];
+            if wgrp.contains_wave(indicator) {
+                return duplicate_error!("wave", wgrp.name, indicator);
+            }
+
+            w = wgrp.register_wave(id, indicator)?;
+        }
+        self.waves.push(w);
+
+        if let Some(bases) = derived_from {
+            for base in bases.iter() {
+                let base_wave: Wave;
+                {
+                    base_wave = self._get_cloned_wave(wave_group_id, base)?;
+                }
+                {
+                    // Todo: Need to further define how wave inheritance should look.
+                    // In the wave is independent, so we're recreating the events, not just storing a reference to the derived wave's events.
+                    // We're also allowing one wave to come in an knock out the events of another, if it includes any events.
+                    // So, we'll only overwrite events if the another wave includes them. But, there's no way to know this ahead of time without doing a second pass.
+                    for e_id in base_wave.events.iter() {
+                        let e = self.wave_events[*e_id].clone();
+                        self.create_event(id, Box::new(e.at), e.unit, &e.action)?;
+                    }
+                }
+                // If given, pull the following out of the wave:
+                //  * pins
+                //  * events
+                let w = &mut self.waves[id];
+                w.pins = base_wave.pins.clone();
+            }
+        }
+        Ok(&self.waves[id])
     }
 
-    // pub fn _get_mut_timeset(&mut self, name: &str) -> Result<&mut Timeset, Error> {
-    //   match self.get_mut_timeset(name) {
-    //     Some(t) => Ok(t),
-    //     None => no_pin_group_error!()
-    //   }
-    // }
+    pub fn create_event(
+        &mut self,
+        wave_id: usize,
+        at: Box<dyn std::string::ToString>,
+        unit: Option<String>,
+        action: &str,
+    ) -> Result<&Event, Error> {
+        let e_id;
+        {
+            e_id = self.wave_events.len();
+        }
+
+        let event;
+        {
+            let w = &mut self.waves[wave_id];
+            event = w.push_event(e_id, at, unit, action)?;
+        }
+        self.wave_events.push(event);
+        Ok(&self.wave_events[e_id])
+    }
 }

@@ -14,5 +14,5 @@ pub fn run(target: &Option<&str>, environment: &Option<&str>, mode: &Option<&str
             .open(&history_file);
     }
 
-    super::launch("interactive", target, environment, mode);
+    super::launch("interactive", target, environment, mode, None);
 }

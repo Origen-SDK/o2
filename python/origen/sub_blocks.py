@@ -44,14 +44,14 @@ class Loader:
     def __init__(self, controller):
         self.controller = controller
 
-    def sub_block(self, name, block_path=None):
+    def sub_block(self, name, block_path=None, base_address=None):
         b = self.controller.app.instantiate_block(block_path)
         b.name = name
         b.path = f"{self.controller.path}.{name}"
         # Add the python representation of this block to its parent
         self.controller.sub_blocks.__add_block__(name, b)
         # Create a new representation of it in the internal database
-        b.model_id = origen.dut.db.create_model(self.controller.model_id, name)
+        b.model_id = origen.dut.db.create_model(self.controller.model_id, name, base_address)
         return b
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py

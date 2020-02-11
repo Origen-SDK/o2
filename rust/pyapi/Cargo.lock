@@ -280,6 +280,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3197e20c7edb283f87c071ddfc7a2cca8f8e0b888c242959846a6fce03c72223"
 
 [[package]]
+name = "meta"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "nom"
 version = "4.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -384,6 +392,7 @@ dependencies = [
  "eval",
  "indexmap",
  "lazy_static 1.4.0",
+ "meta",
  "num",
  "num-bigint",
  "path-clean",
@@ -467,7 +476,9 @@ dependencies = [
 name = "pyapi"
 version = "0.0.0"
 dependencies = [
+ "indexmap",
  "num-bigint",
+ "num-traits 0.2.11",
  "origen",
  "pyo3",
 ]

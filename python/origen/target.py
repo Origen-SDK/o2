@@ -6,6 +6,7 @@ def load(target=None, environment=None):
     app = origen.app
     if target == None:
         target = _origen.app_config()["target"]
+
     if environment == None:
         environment = _origen.app_config()["environment"]
 

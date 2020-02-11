@@ -802,6 +802,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1043,6 +1051,7 @@ dependencies = [
  "eval",
  "indexmap",
  "lazy_static 1.4.0",
+ "meta",
  "num",
  "num-bigint",
  "path-clean",
