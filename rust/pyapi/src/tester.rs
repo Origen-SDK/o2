@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use origen::error::Error;
 use super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use origen::core::tester::{StubNodes, Generators};
-//use pyo3::type_object::PyTypeObject;
+use pyo3::types::IntoPyDict;
 
 #[pymodule]
 pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -20,7 +20,6 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 pub struct PyTester {
   python_generators: HashMap<String, PyObject>,
   metadata: Vec<PyObject>,
-  //py_ast: PyObject,
 }
 
 #[pymethods]
@@ -31,39 +30,8 @@ impl PyTester {
     obj.init({ PyTester {
       python_generators: HashMap::new(),
       metadata: vec!(),
-      // py_ast: {
-      //     let gil = Python::acquire_gil();
-      //     let py = gil.python();
-      //     Py::new(py, StubPyAST {}).unwrap().to_object(py)
-      //   }
       }
     });
-  }
-
-  pub fn push_metadata(&mut self, item: &PyAny) -> usize {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    self.metadata.push(item.to_object(py));
-    self.metadata.len() - 1
-  }
-
-  pub fn override_metadata_at(&mut self, idx: usize, item: &PyAny) -> PyResult<()> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    if self.metadata.len() > idx {
-        self.metadata[idx] = item.to_object(py);
-        Ok(())
-    } else {
-        Err(PyErr::from(Error::new(&format!(
-            "Overriding metadata at {} exceeds the size of the current metadata vector!",
-            idx
-        ))))
-    }
-  }
-
-  pub fn get_metadata(&self, idx: usize) -> PyResult<&PyObject> {
-      Ok(&self.metadata[idx])
   }
 
   fn reset(slf: PyRef<Self>) -> PyResult<PyObject> {
@@ -107,24 +75,13 @@ impl PyTester {
           tester.clear_timeset()?;
         }
         return self.get_timeset();
-        //return type_error!(format!("Test! (class '{}')", timeset.get_type().name()));
       } else if timeset.get_type().name().to_string() == "Timeset" {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let obj = timeset.to_object(py);
-        //let m = obj.getattr(py, "__module__")?.extract::<String>(py)?;
-
-        //if m == "_origen.dut.timesets" {
-          model_id = obj.getattr(py, "__origen__model_id__")?.extract::<usize>(py)?;
-          timeset_name = obj.getattr(py, "name")?.extract::<String>(py)?;
-        //} else {
-        //  return type_error!(format!("Could not interpret 'timeset' argument as _origen.dut.timesets.Timeset object! It appears to be of type 'Timeset', but of module '{}'", m));
-        //}
+        model_id = obj.getattr(py, "__origen__model_id__")?.extract::<usize>(py)?;
+        timeset_name = obj.getattr(py, "name")?.extract::<String>(py)?;
       } else {
-        //let obj = timeset.to_object(); // timeset.get_type().name().to_string() == "_origen.dut.timesets.Timeset"
-        //if obj.call0()
-        //let t = pyo3::type_object::PyTypeObject::type_object(timeset);
-        //timeset.get_type().is_instance();
         return type_error!(format!("Could not interpret 'timeset' argument as String or _origen.dut.timesets.Timeset object! (class '{}')", timeset.get_type().name()));
       }
     }
@@ -135,10 +92,6 @@ impl PyTester {
       tester.set_timeset(&dut, model_id, &timeset_name)?;
     }
     self.get_timeset()
-    // let model = dut.get_model(model_id).unwrap();
-    // let gil = Python::acquire_gil();
-    // let py = gil.python();
-    // pytimeset!(py, model, model_id, &timeset_name)
   }
 
   fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
@@ -146,25 +99,116 @@ impl PyTester {
   }
 
   fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<PyObject> {
-    let mut tester = origen::tester();
-    tester.cc(&comment)?;
+    {
+      let mut tester = origen::tester();
+      tester.cc(&comment)?;
+    }
+    slf.issue_callbacks("cc")?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
     Ok(slf.to_object(py))
   }
 
+  fn issue_callbacks(&self, func: &str) -> PyResult<()> {
+    // Get the current targeted generators
+    let targets;
+    {
+      let tester = origen::tester();
+      targets = tester.targets().clone();
+    }
+
+    // issue callbacks in the order which they were targeted
+    for (i, t) in targets.iter().enumerate() {
+      match t {
+        Generators::External(g) => {
+          // External generators which the backend can't generate itself. Need to generate them here.
+          match self.python_generators.get(&(g.clone())) {
+            Some(gen) => {
+              // The generator here is a PyObject - a handle on the class itself.
+              // Instantiate it and call its generate method with the AST.
+              let gil = Python::acquire_gil();
+              let py = gil.python();
+              let inst = gen.call0(py)?;
+              let args = PyTuple::new(py, &[Py::new(py, StubPyAST {})?.to_object(py)]);
+
+              // Note: We could just try the callback on the generator and ignore an attribute error, but this ignores any attribute errors that
+              // may occur inside of the callback itself. So, check first if the attribute exists, so we know we're calling it.
+              let has_attr = inst.getattr(py, func);
+
+              // the above attr either didn't throw an error or threw an attribute error, then carry on.
+              // Otherwise, something unexpected occured. Throw that error.
+              match has_attr {
+                Err(e) => {
+                  if !e.is_instance::<pyo3::exceptions::AttributeError>(py) {
+                    return Err(PyErr::from(e));
+                  }
+                },
+                _ => {
+                  inst.call_method1(py, func, args)?;
+                },
+              }
+            },
+            None => return Err(PyErr::from(Error::new(&format!("Something's gone wrong and Python generator {} cannot be found!", g)))),
+          }
+        },
+        _ => {
+          let mut tester = origen::tester();
+          tester.issue_callback_at(func, i)?;
+        }
+      }
+    }
+    Ok(())
+  }
+
   /// Expecting more arguments/options to eventually be added here.
   #[args(kwargs="**")]
   fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-    let mut tester = origen::tester();
-    let mut repeat = None;
-    if let Some(_kwargs) = kwargs {
-      if let Some(_kwarg) = _kwargs.get_item("repeat") {
-        repeat = Some(_kwarg.extract::<usize>()?);
+    let targets;
+    {
+      let mut tester = origen::tester();
+      let mut repeat = None;
+      if let Some(_kwargs) = kwargs {
+        if let Some(_kwarg) = _kwargs.get_item("repeat") {
+          repeat = Some(_kwarg.extract::<usize>()?);
+        }
+      }
+      tester.cycle(repeat)?;
+      targets = tester.targets().clone();
+    }
+
+    // issue callbacks
+    for (i, t) in targets.iter().enumerate() {
+      match t {
+        Generators::External(g) => {
+          // External generators which the backend can't generate itself. Need to generate them here.
+          match slf.python_generators.get(&(g.clone())) {
+            Some(gen) => {
+              // The generator here is a PyObject - a handle on the class itself.
+              // Instantiate it and call its generate method with the AST.
+              let gil = Python::acquire_gil();
+              let py = gil.python();
+              let inst = gen.call0(py)?;
+              let args = PyTuple::new(py, &[Py::new(py, StubPyAST {})?.to_object(py)]);
+              let r = inst.call_method1(py, "cycle", args);
+              match r {
+                Err(p) => {
+                  if !p.is_instance::<pyo3::exceptions::AttributeError>(py) {
+                    return Err(PyErr::from(p));
+                  }
+                },
+                _ => {},
+              }
+            },
+            None => return Err(PyErr::from(Error::new(&format!("Something's gone wrong and Python generator {} cannot be found!", g)))),
+          }
+        },
+        _ => {
+          let mut tester = origen::tester();
+          tester.issue_callback_at("cycle", i)?;
+        }
       }
     }
-    tester.cycle(repeat)?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -181,19 +225,14 @@ impl PyTester {
 
   fn register_generator(&mut self, g: &PyAny) -> PyResult<()> {
     let mut tester = origen::tester();
-    //let name = generator.get_type().name().to_string();
-    //let klass = g.downcast_ref::<PyType>()?;
-    //let name = klass.name().to_string(); //g.name().to_string();
     let gil = Python::acquire_gil();
     let py = gil.python();
 
     let obj = g.to_object(py);
     let mut n = obj.getattr(py, "__module__")?.extract::<String>(py)?;
     n.push_str(&format!(".{}", obj.getattr(py, "__qualname__")?.extract::<String>(py)?));
-    //let name = klass_name.extract::<String>(py)?;
 
     tester.register_external_generator(&n)?;
-    //let t = g.downcast_ref::<PyType>()?;
     self.python_generators.insert(n, obj);
     Ok(())
   }
@@ -207,12 +246,6 @@ impl PyTester {
         if let Ok(name) = g.extract::<String>() {
           tester.target(&name)?;
         } else {
-          // let gil = Python::acquire_gil();
-          // let py = gil.python();
-          // let klass = g.to_object(py);
-          // let klass = g.downcast_ref::<PyType>()?;
-          // let name = klass.name().to_string(); //g.name().to_string();
-          // tester.target(&name)?;
           let gil = Python::acquire_gil();
           let py = gil.python();
       
@@ -241,19 +274,12 @@ impl PyTester {
     Ok(slf.to_object(py))
   }
 
-  // fn active_generator(&self) -> PyResult<String> {
-  //   // ...
-  // }
-
   fn generate(&self) -> PyResult<()> {
-    //let stat;
-    let mut targets: Vec<Generators> = vec!();
+    let targets;
     {
-      let mut tester = origen::tester();
-      //stat = tester.generate()?;
+      let tester = origen::tester();
       targets = tester.targets().clone();
     }
-    //for g in stat.external {
     for (i, t) in targets.iter().enumerate() {
       match t {
         Generators::External(g) => {
@@ -264,9 +290,6 @@ impl PyTester {
               // Instantiate it and call its generate method with the AST.
               let gil = Python::acquire_gil();
               let py = gil.python();
-              //let klass = gen.to_object(py);
-              //let obj = gen.call_method0(py, "__new__", )?;
-              //gen.call_method0(py, "__init__")?;
               let inst = gen.call0(py)?;
               let args = PyTuple::new(py, &[Py::new(py, StubPyAST {})?.to_object(py)]);
               inst.call_method1(py, "generate", args)?;
@@ -276,7 +299,8 @@ impl PyTester {
         },
         _ => {
           let mut tester = origen::tester();
-          tester.generate_target_at(i)?;
+          let dut = origen::DUT.lock().unwrap();
+          tester.generate_target_at(i, &dut)?;
         }
       }
     }
@@ -291,7 +315,6 @@ impl PyTester {
 
   #[getter]
   fn ast(&self) -> PyResult<PyObject> {
-    //Ok(self.py_ast)
     let gil = Python::acquire_gil();
     let py = gil.python();
     Ok(Py::new(py, StubPyAST {})?.to_object(py))
@@ -299,16 +322,31 @@ impl PyTester {
 }
 
 impl PyTester {
+  pub fn push_metadata(&mut self, item: &PyAny) -> usize {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
 
-  // /// Retrieves a built timeset object from the Origen backend.
-  // fn origen_timeset(&self) -> Timeset {
-  //   // ...
-  // }
+    self.metadata.push(item.to_object(py));
+    self.metadata.len() - 1
+  }
 
-  // /// Retrieves a built timeset object from the PyAPI.
-  // fn pyorigen_timeset(&self) -> Timeset {
-  //   // ...
-  // }
+  pub fn override_metadata_at(&mut self, idx: usize, item: &PyAny) -> PyResult<()> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    if self.metadata.len() > idx {
+        self.metadata[idx] = item.to_object(py);
+        Ok(())
+    } else {
+        Err(PyErr::from(Error::new(&format!(
+            "Overriding metadata at {} exceeds the size of the current metadata vector!",
+            idx
+        ))))
+    }
+  }
+
+  pub fn get_metadata(&self, idx: usize) -> PyResult<&PyObject> {
+      Ok(&self.metadata[idx])
+  }
 }
 
 #[pyclass]
@@ -354,15 +392,28 @@ impl ListLikeAPI for StubPyAST {
     let node = &ast.nodes[idx];
     let dict = PyDict::new(py);
     match node {
-      StubNodes::Comment {content, meta} => {
+      StubNodes::Comment {content, ..} => {
         dict.set_item("type", "comment")?;
         dict.set_item("content", content)?;
       },
-      StubNodes::Vector {timeset_id, repeat, meta} => {
+      StubNodes::Vector {timeset_id, repeat, ..} => {
+        let (model_id, name);
+        {
+          let dut = origen::dut();
+          let tset = &dut.timesets[*timeset_id];
+          model_id = tset.model_id;
+          name = tset.name.clone();
+        }
+        let t = Py::new(py, Timeset {
+          name: name,
+          model_id: model_id
+        }).unwrap().to_object(py);
+
+        dict.set_item("timeset", t)?;
         dict.set_item("type", "vector")?;
         dict.set_item("repeat", repeat)?;
       },
-      StubNodes::Node {meta} => {
+      StubNodes::Node {..} => {
         dict.set_item("type", "node")?;
       },
     }
@@ -405,6 +456,104 @@ impl PyNode {
   #[getter]
   fn fields(&self) -> PyResult<&PyObject> {
     Ok(&self.fields)
+  }
+}
+
+#[pymethods]
+impl PyNode {
+  fn add_metadata(&self, id_str: &str, obj: &PyAny) -> PyResult<()> {
+    let mut tester = origen::tester();
+    let ast = tester.get_mut_ast();
+    let node = &mut ast.nodes[self.idx];
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+    let pytester = py
+        .eval("origen.tester", None, Some(&locals))
+        .unwrap()
+        .downcast_mut::<PyTester>()?;
+    let idx = pytester.push_metadata(obj);
+
+    node.add_metadata_id(id_str, idx)?;
+    Ok(())
+  }
+
+  fn get_metadata(&self, id_str: &str) -> PyResult<PyObject> {
+    let tester = origen::tester();
+    let ast = tester.get_ast();
+    let node = &ast.nodes[self.idx];
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    match node.get_metadata_id(id_str) {
+        Some(idx) => {
+          let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+          let pytester = py
+            .eval("origen.tester", None, Some(&locals))
+            .unwrap()
+            .downcast_mut::<PyTester>()?;
+          let obj = pytester.get_metadata(idx)?;
+          Ok(obj.to_object(py))
+        }
+        None => Ok(py.None()),
+    }
+  }
+
+  fn set_metadata(&self, id_str: &str, obj: &PyAny) -> PyResult<bool> {
+    let mut tester = origen::tester();
+    let ast = tester.get_mut_ast();
+    let node = &mut ast.nodes[self.idx];
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+    let pytester = py
+        .eval("origen.tester", None, Some(&locals))
+        .unwrap()
+        .downcast_mut::<PyTester>()?;
+    match node.get_metadata_id(id_str) {
+        Some(idx) => {
+            pytester.override_metadata_at(idx, obj)?;
+            Ok(true)
+        }
+        None => {
+            let idx = pytester.push_metadata(obj);
+            node.add_metadata_id(id_str, idx)?;
+            Ok(false)
+        }
+    }
+  }
+
+  // This is more of just a prototype at this point to ensure things like this will work.
+  fn set(&self, field: &str, value: &PyAny) -> PyResult<()> {
+    let mut tester = origen::tester();
+    let ast = tester.get_mut_ast();
+    let node = &mut ast.nodes[self.idx];
+    let node_;
+
+    match node {
+      StubNodes::Comment {content: _, meta} => {
+        match field {
+          "content" => {
+            node_ = StubNodes::Comment {
+              content: value.extract::<String>()?,
+              meta: meta.clone(),
+            };
+          },
+          _ => return Err(PyErr::from(Error::new(&format!("Node type 'comment' does not have field '{}'", field))))
+        }
+      },
+      StubNodes::Vector {timeset_id: _, repeat: _, meta: _} => {
+        return Err(PyErr::from(Error::new(&format!("Node type 'vector' does not have field '{}'", field))))
+      },
+      StubNodes::Node {..} => {
+        return Err(PyErr::from(Error::new(&format!("Node type 'node' does not have field '{}'", field))))
+      },
+    }
+    drop(node);
+    ast.nodes[self.idx] = node_;
+    Ok(())
   }
 }
 

@@ -21,6 +21,38 @@ class PyTestGenerator:
         node_str = f"Error! Unknown type {n.fields['type']}"
       print(f"  PyTestGenerator: Node {i}: {node_str}")
 
+# Test generator used to test the frontend <-> backend interceptor hooks
+class PyTestGeneratorWithInterceptor:
+  def generate(self, ast):
+    print("Printing StubPyAST to console...")
+    for i, n in enumerate(ast):
+      if n.fields["type"] == "node":
+        node_str = "Node"
+      elif n.fields["type"] == "comment":
+        node_str = f"Comment - Content: {n.fields['content']}"
+      elif n.fields["type"] == "vector":
+        node_str = f"Vector - Repeat: {n.fields['repeat']}"
+      else:
+        node_str = f"Error! Unknown type {n.fields['type']}"
+      print(f"  PyTestGeneratorWithInterceptor: Node {i}: {node_str}")
+
+  def cc(self, ast):
+    ast[-1].set('content', f"Intercepted By PyTestGeneratorWithInterceptor: {ast[-1].fields['content']}")
+
+# Test generator which ignores everything and uses the meta interface only.
+# Not overly practical, but this should work nonetheless.
+class PyTestMetaGenerator:
+  def generate(self, ast):
+    print("Printing StubPyAST to console...")
+    for i, n in enumerate(ast):
+      print(f"  PyTestMetaGenerator: {i}: {n.get_metadata('meta_gen_str')}")
+
+  def cycle(self, ast):
+    ast[-1].add_metadata('meta_gen_str', f"Meta Cycle: {ast[-1].fields['repeat']}")
+
+  def cc(self, ast):
+    ast[-1].add_metadata('meta_gen_str', f"Meta CC: {ast[-1].fields['content']}")
+
 class TestPyAST(Fixture_ListLikeAPI):
 
   def verify_i0(self, i):
@@ -202,8 +234,26 @@ class TestBackendGenerator:
     assert out == "\n".join([
       "Printing StubAST to console...",
       "  ::DummyGenerator Node 0: Comment - Content: Pattern Start!",
-      "  ::DummyGenerator Node 1: Vector - Repeat: 5",
+      "  ::DummyGenerator Node 1: Vector - Repeat: 5, Timeset: 'simple'",
       "  ::DummyGenerator Node 2: Comment - Content: Pattern End!",
+      ""
+    ])
+    assert err == ""
+  
+  def test_interceptors_on_backend(self, capfd, clean_eagle, clean_tester):
+    origen.tester.target("::DummyGeneratorWithInterceptors")
+    origen.tester.set_timeset("simple")
+    run_pattern()
+    origen.tester.generate()
+    out, err = capfd.readouterr()
+    assert out == "\n".join([
+      "Comment intercepted by DummyGeneratorWithInterceptors!",
+      "Vector intercepted by DummyGeneratorWithInterceptors!",
+      "Comment intercepted by DummyGeneratorWithInterceptors!",
+      "Printing StubAST to console...",
+      "  ::DummyGeneratorWithInterceptors Node 0: Comment - Content: Comment intercepted by DummyGeneratorWithInterceptors! Pattern Start!",
+      "  ::DummyGeneratorWithInterceptors Node 1: Vector - Repeat: 5, Timeset: 'simple'",
+      "  ::DummyGeneratorWithInterceptors Node 2: Comment - Content: Comment intercepted by DummyGeneratorWithInterceptors! Pattern End!",
       ""
     ])
     assert err == ""
@@ -219,6 +269,38 @@ class TestFrontendGenerator:
       "  PyTestGenerator: Node 0: Comment - Content: Pattern Start!",
       "  PyTestGenerator: Node 1: Vector - Repeat: 5",
       "  PyTestGenerator: Node 2: Comment - Content: Pattern End!",
+      ""
+    ])
+    assert err == ""
+
+  def test_generator_with_interceptors(self, capfd, clean_eagle, clean_tester):
+    origen.tester.register_generator(PyTestGeneratorWithInterceptor)
+    origen.tester.target(PyTestGeneratorWithInterceptor)
+    origen.tester.set_timeset("simple")
+    run_pattern()
+    origen.tester.generate()
+    out, err = capfd.readouterr()
+    assert out == "\n".join([
+      "Printing StubPyAST to console...",
+      "  PyTestGeneratorWithInterceptor: Node 0: Comment - Content: Intercepted By PyTestGeneratorWithInterceptor: Pattern Start!",
+      "  PyTestGeneratorWithInterceptor: Node 1: Vector - Repeat: 5",
+      "  PyTestGeneratorWithInterceptor: Node 2: Comment - Content: Intercepted By PyTestGeneratorWithInterceptor: Pattern End!",
+      ""
+    ])
+    assert err == ""
+
+  def test_meta_generator(self, capfd, clean_eagle, clean_tester):
+    origen.tester.register_generator(PyTestMetaGenerator)
+    origen.tester.target(PyTestMetaGenerator)
+    origen.tester.set_timeset("simple")
+    run_pattern()
+    origen.tester.generate()
+    out, err = capfd.readouterr()
+    assert out == "\n".join([
+      "Printing StubPyAST to console...",
+      "  PyTestMetaGenerator: 0: Meta CC: Pattern Start!",
+      "  PyTestMetaGenerator: 1: Meta Cycle: 5",
+      "  PyTestMetaGenerator: 2: Meta CC: Pattern End!",
       ""
     ])
     assert err == ""

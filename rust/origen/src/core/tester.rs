@@ -2,6 +2,7 @@ use crate::error::Error;
 use super::model::timesets::timeset::{Timeset};
 use indexmap::IndexMap;
 use crate::testers::v93k::Generator as V93KGen;
+use crate::core::dut::{Dut};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Generators {
@@ -48,17 +49,57 @@ pub struct ExternalGenerator {
 pub enum StubNodes {
   Comment {
     content: String,
-    meta: Vec<usize>,
+    meta: IndexMap<String, usize>,
   },
   Vector {
     //timeset: String,
     timeset_id: usize,
     repeat: usize,
-    meta: Vec<usize>,
+    meta: IndexMap<String, usize>,
   },
   Node {
-    meta: Vec<usize>,
+    meta: IndexMap<String, usize>,
   },
+}
+
+impl StubNodes {
+  pub fn add_metadata_id(&mut self, identifier: &str, id: usize) -> Result<(), Error> {
+    match self {
+      Self::Comment {content: _, meta} => {
+        meta.insert(identifier.to_string(), id);
+      },
+      Self::Vector {timeset_id: _, repeat: _, meta} => {
+        meta.insert(identifier.to_string(), id);
+      },
+      Self::Node {meta} => {
+        meta.insert(identifier.to_string(), id);
+      }
+    }
+    Ok(())
+  }
+
+  pub fn get_metadata_id(&self, identifier: &str) -> Option<usize> {
+    match self {
+      Self::Comment {content: _, meta} => {
+        match meta.get(identifier) {
+          Some(id) => Some(*id),
+          None => None,
+        }
+      },
+      Self::Vector {timeset_id: _, repeat: _, meta} => {
+        match meta.get(identifier) {
+          Some(id) => Some(*id),
+          None => None,
+        }
+      },
+      Self::Node {meta} => {
+        match meta.get(identifier) {
+          Some(id) => Some(*id),
+          None => None,
+        }
+      }
+    }
+  }
 }
 
 #[derive(Debug)]
@@ -84,20 +125,18 @@ impl StubAST {
   }
 
   pub fn push_comment(&mut self, comment: &str) -> Result<(), Error> {
-    //self.nodes.push(comment.to_string());
     self.nodes.push(StubNodes::Comment {
       content: comment.to_string(),
-      meta: vec!(),
+      meta: IndexMap::new(),
     });
     Ok(())
   }
 
   pub fn push_vector(&mut self, timeset_id: usize, repeat: usize) -> Result<(), Error> {
-    //self.nodes.push(format!("Vector - Timeset ID: {}, Repeat: {}", timeset_id, repeat).to_string());
     self.nodes.push(StubNodes::Vector {
       timeset_id: timeset_id,
       repeat: repeat,
-      meta: vec!(),
+      meta: IndexMap::new(),
     });
     self.vector_count += 1;
     self.cycle_count += repeat;
@@ -115,10 +154,6 @@ impl StubAST {
   pub fn len(&self) -> usize {
     self.nodes.len()
   }
-
-  // pub fn get_node(&self, idx) {
-
-  // }
 }
 
 #[derive(Debug)]
@@ -183,93 +218,56 @@ impl Tester {
 
   pub fn set_timeset(&mut self, dut: &super::dut::Dut, model_id: usize, timeset_name: &str) -> Result<(), Error> {
     self.current_timeset_id = Some(dut._get_timeset(model_id, timeset_name)?.id);
-    self.issue_callbacks("set_timeset")?;
     Ok(())
   }
 
   pub fn clear_timeset(&mut self) -> Result<(), Error> {
     self.current_timeset_id = Option::None;
-    self.issue_callbacks("clear_timeset")?;
     Ok(())
   }
 
-  pub fn issue_callbacks(&mut self, func: &str) -> Result<(), Error> {
-    for g in self.target_generators.iter() {
-      match g {
-        Generators::DummyGeneratorWithInterceptors => {
-          let g_ = DummyGeneratorWithInterceptors{};
-          if func == "cc" {
-            g_.cc(&mut self.ast)?;
-          } else if func == "cycle" {
-            g_.cycle(&mut self.ast)?;
-          };
-        },
-        _ => {}
-      }
+  pub fn issue_callback_at(&mut self, func: &str, idx: usize) -> Result<(), Error> {
+    let g = &self.target_generators[idx];
+    match g {
+      Generators::DummyGeneratorWithInterceptors => {
+        let g_ = DummyGeneratorWithInterceptors{};
+        if func == "cc" {
+          g_.cc(&mut self.ast)?;
+        } else if func == "cycle" {
+          g_.cycle(&mut self.ast)?;
+        };
+      },
+      _ => {}
     }
     Ok(())
   }
 
   pub fn cc(&mut self, comment: &str) -> Result<(), Error> {
     self.ast.push_comment(comment)?;
-    self.issue_callbacks("cc")?;
     Ok(())
   }
 
   pub fn cycle(&mut self, repeat: Option<usize>) -> Result<(), Error>{
-    self.ast.push_vector(self._current_timeset_id()?, repeat.unwrap_or(1));
-    self.issue_callbacks("cycle")?;
+    self.ast.push_vector(self._current_timeset_id()?, repeat.unwrap_or(1))?;
     Ok(())
-  }
-
-  pub fn generate(&mut self) -> Result<GenerateStatus, Error> {
-    let mut stat = GenerateStatus::new();
-    let num_targets;
-    {
-      num_targets = self.target_generators.len();
-    }
-    //for (i, g) in self.target_generators.iter().enumerate() {
-    for i in 0..num_targets {
-      let stat_ = self.generate_target_at(i)?;
-      stat.completed.extend(stat_.completed);
-      stat.external.extend(stat_.external);
-      // match g {
-      //   Generators::DummyGenerator => {
-      //     DummyGenerator{}.generate(&self.ast)?;
-      //     stat.completed.push(Generators::DummyGenerator.to_string())
-      //   },
-      //   Generators::DummyGeneratorWithInterceptors => {
-      //     DummyGeneratorWithInterceptors{}.generate(&self.ast)?;
-      //     stat.completed.push(Generators::DummyGeneratorWithInterceptors.to_string())
-      //   }
-      //   Generators::V93K_ST7 => {
-      //     V93KGen{}.generate(&self.ast)?;
-      //     stat.completed.push(Generators::V93K_ST7.to_string())
-      //   }
-      //   Generators::External(gen) => {
-      //     stat.external.push(gen.to_string());
-      //   }
-      // }
-    }
-    Ok(stat)
   }
 
   /// Generates the output for the target at index i.
   /// Allows the frontend to call generators in a loop.
-  pub fn generate_target_at(&mut self, idx: usize) -> Result<GenerateStatus, Error> {
+  pub fn generate_target_at(&mut self, idx: usize, dut: &Dut) -> Result<GenerateStatus, Error> {
     let mut stat = GenerateStatus::new();
     let g = &self.target_generators[idx];
     match g {
       Generators::DummyGenerator => {
-        DummyGenerator{}.generate(&self.ast)?;
+        DummyGenerator{}.generate(&self.ast, dut)?;
         stat.completed.push(Generators::DummyGenerator.to_string())
       },
       Generators::DummyGeneratorWithInterceptors => {
-        DummyGeneratorWithInterceptors{}.generate(&self.ast)?;
+        DummyGeneratorWithInterceptors{}.generate(&self.ast, dut)?;
         stat.completed.push(Generators::DummyGeneratorWithInterceptors.to_string())
       }
       Generators::V93kSt7 => {
-        V93KGen{}.generate(&self.ast)?;
+        V93KGen{}.generate(&self.ast, dut)?;
         stat.completed.push(Generators::V93kSt7.to_string())
       }
       Generators::External(gen) => {
@@ -320,7 +318,6 @@ impl Tester {
 
   pub fn generators(&self) -> Vec<String> {
     let mut gens = Generators::DummyGenerator.to_vector_strings();
-    //let temp = self.external_generators.iter().map ( |n| n).collect::<Vec<String>>();
     gens.extend(self.external_generators.iter().map(|(n, _)| n.clone()).collect::<Vec<String>>());
     gens
   }
@@ -340,24 +337,21 @@ impl GenerateStatus {
   }
 }
 
-struct Generator {
-  name: String,
-  path: String,
-
-}
-
 struct DummyGenerator {}
 
 impl DummyGenerator {
 
   /// A dummy generator which simply prints everything to the screen.
-  pub fn generate(&self, ast: &StubAST) -> Result<(), Error> {
+  pub fn generate(&self, ast: &StubAST, dut: &Dut) -> Result<(), Error> {
     println!("Printing StubAST to console...");
     for (i, n) in ast.nodes.iter().enumerate() {
       match n {
-        StubNodes::Comment {content, meta} => println!("  ::DummyGenerator Node {}: Comment - Content: {}", i, content),
-        StubNodes::Vector {timeset_id, repeat, meta} => println!("  ::DummyGenerator Node {}: Vector - Repeat: {}", i, repeat),
-        StubNodes::Node {meta} => println!("  ::DummyGenerator Node {}: Node", i),
+        StubNodes::Comment {content, ..} => println!("  ::DummyGenerator Node {}: Comment - Content: {}", i, content),
+        StubNodes::Vector {timeset_id, repeat, ..} => {
+          let t = &dut.timesets[*timeset_id];
+          println!("  ::DummyGenerator Node {}: Vector - Repeat: {}, Timeset: '{}'", i, repeat, t.name);
+        },
+        StubNodes::Node { .. } => println!("  ::DummyGenerator Node {}: Node", i),
       }
     }
     Ok(())
@@ -369,13 +363,16 @@ struct DummyGeneratorWithInterceptors {}
 impl DummyGeneratorWithInterceptors {
 
   /// A dummy generator which simply prints everything to the screen.
-  pub fn generate(&self, ast: &StubAST) -> Result<(), Error> {
+  pub fn generate(&self, ast: &StubAST, dut: &Dut) -> Result<(), Error> {
     println!("Printing StubAST to console...");
     for (i, n) in ast.nodes.iter().enumerate() {
       match n {
-        StubNodes::Comment {content, meta} => println!("  ::DummyGeneratorWithInterceptors Node {}: Comment - Content: {}", i, content),
-        StubNodes::Vector {timeset_id, repeat, meta} => println!("  ::DummyGeneratorWithInterceptors Node {}: Vector - Repeat: {}", i, repeat),
-        StubNodes::Node {meta} => println!("  ::DummyGeneratorWithInterceptors Node {}: Node", i),
+        StubNodes::Comment {content, ..} => println!("  ::DummyGeneratorWithInterceptors Node {}: Comment - Content: {}", i, content),
+        StubNodes::Vector {timeset_id, repeat, ..} => {
+          let t = &dut.timesets[*timeset_id];
+          println!("  ::DummyGeneratorWithInterceptors Node {}: Vector - Repeat: {}, Timeset: '{}'", i, repeat, t.name);
+        },
+        StubNodes::Node { .. } => println!("  ::DummyGeneratorWithInterceptors Node {}: Node", i),
       }
     }
     Ok(())
@@ -384,7 +381,7 @@ impl DummyGeneratorWithInterceptors {
   pub fn cycle(&self, ast: &mut StubAST) -> Result<(), Error> {
     let n = ast.nodes.last_mut().unwrap();
     match n {
-      StubNodes::Vector {timeset_id, repeat, meta} => {
+      StubNodes::Vector { .. } => {
         println!("Vector intercepted by DummyGeneratorWithInterceptors!");
         Ok(())
       },
@@ -399,7 +396,7 @@ impl DummyGeneratorWithInterceptors {
       StubNodes::Comment {content, meta} => {
         println!("Comment intercepted by DummyGeneratorWithInterceptors!");
         n_ = StubNodes::Comment {
-          content: String::from(format!("  Comment intercepted by DummyGeneratorWithInterceptors! {}", content.clone())),
+          content: String::from(format!("Comment intercepted by DummyGeneratorWithInterceptors! {}", content.clone())),
           meta: meta.clone(),
         };
       },

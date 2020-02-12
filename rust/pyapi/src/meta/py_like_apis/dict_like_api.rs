@@ -56,8 +56,11 @@ pub trait DictLikeAPI {
   }
 
   fn values(&self) -> PyResult<Vec<PyObject>> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
+    let items;
+    {
+      let dut = DUT.lock().unwrap();
+      items = self.lookup_table(&dut);
+    }
 
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -69,8 +72,11 @@ pub trait DictLikeAPI {
   }
 
   fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
+    let items;
+    {
+      let dut = DUT.lock().unwrap();
+      items = self.lookup_table(&dut);
+    }
 
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -85,33 +91,33 @@ pub trait DictLikeAPI {
   }
 
   fn get(&self, name: &str) -> PyResult<PyObject> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
-    let item = items.get(name);
-
     let gil = Python::acquire_gil();
     let py = gil.python();
-    match item {
-        Some(_item) => Ok(self.new_pyitem(py, name, self.model_id())?),
-        None => Ok(py.None())
+    {
+      let dut = DUT.lock().unwrap();
+      let items = self.lookup_table(&dut);
+      if items.get(name).is_none() {
+        return Ok(py.None());
       }
+    }
+    Ok(self.new_pyitem(py, name, self.model_id())?)
   }
 
   // Functions for PyMappingProtocol
   fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
-    let item = items.get(name);
-
     let gil = Python::acquire_gil();
     let py = gil.python();
-    match item {
-        Some(_item) => Ok(self.new_pyitem(py, name, self.model_id())?),
-        None => Err(pyo3::exceptions::KeyError::py_err(format!(
-            "No pin or pin alias found for {}",
-            name
-        ))),
+    {
+      let dut = DUT.lock().unwrap();
+      let items = self.lookup_table(&dut);
+      if items.get(name).is_none() {
+        return Err(pyo3::exceptions::KeyError::py_err(format!(
+          "No item found for {}",
+          name
+        )));
+      }
     }
+    Ok(self.new_pyitem(py, name, self.model_id())?)
   }
 
   fn __len__(&self) -> PyResult<usize> {
@@ -121,8 +127,11 @@ pub trait DictLikeAPI {
   }
 
   fn __iter__(&self) -> PyResult<DictLikeIter> {
-    let dut = DUT.lock().unwrap();
-    let items = self.lookup_table(&dut);
+    let items;
+    {
+      let dut = DUT.lock().unwrap();
+      items = self.lookup_table(&dut);
+    }
     Ok(DictLikeIter {
         keys: items.iter().map(|(s, _)| s.clone()).collect(),
         i: 0,
