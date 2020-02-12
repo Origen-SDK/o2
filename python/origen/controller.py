@@ -62,9 +62,11 @@ class Base:
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
         #print(f"Looking for attribute {name}")
+        if name == "base_address":
+            self.model().base_address
         # regs called directly on the controller means only the regs in the default
         # memory map and address block
-        if name == "regs":
+        elif name == "regs":
             self._load_regs()
             if self._default_default_address_block:
                 return self._default_default_address_block.regs
@@ -157,6 +159,9 @@ class Base:
 
     def add_simple_reg(self, *args, **kwargs):
         RegLoader(self).SimpleReg(*args, **kwargs)
+
+    def model(self):
+        return origen.dut.db.model(self.model_id)
 
     @contextmanager
     def add_reg(self, *args, **kwargs):

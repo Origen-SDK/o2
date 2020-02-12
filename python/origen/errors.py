@@ -10,3 +10,11 @@ class DuplicateInstanceError(Exception):
                 Exception.__init__(self, f"Cannot create instance of '{klass}', it already exists!")
         else:
             raise TypeError("Class alias must be of type 'str'!")
+
+class UndefinedDataError(Exception):
+    def __init__(self, msg):
+        Exception.__init__(self, msg)
+
+class FileExtensionError(Exception):
+    def __init__(self, ext):
+        Exception.__init__(self, f"File extension incorrect, must be '{ext}'!")

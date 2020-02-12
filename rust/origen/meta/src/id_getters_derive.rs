@@ -1,5 +1,5 @@
 use crate::proc_macro::TokenStream;
-use quote::{quote, format_ident};
+use quote::{format_ident, quote};
 use syn;
 
 #[derive(Default)]
@@ -12,52 +12,67 @@ struct Config {
 }
 
 pub fn impl_id_getters(ast: &syn::DeriveInput) -> syn::Result<TokenStream> {
-  let name = &ast.ident;
-  let mut getter_functions = quote! {};
-  for (_i, attr) in ast.attrs.iter().enumerate() {
-      // Go through the given attributes. If something doesn't parse, just ignore it. The Rust language will eithe catch for something
-      // grossly malformed, or it may be a (very) customized attribute.
-      // Likewise, ignore any atttributes that aren't ours.
-      match attr.parse_meta()? {
-        syn::Meta::List(syn::MetaList {ref path, ref nested, ..}) => {
-            if path.is_ident("id_getters_by_index") || path.is_ident("id_getters_by_mapping") {
-                let mut config = Config::default();
-                if path.is_ident("id_getters_by_index") {
-                    config.getter_type = "by_index".to_string();
-                } else {
-                    config.getter_type = "by_mapping".to_string();
-                }
-                for (_i, _attr) in nested.iter().enumerate() {
-                    match _attr {
-                        syn::NestedMeta::Meta(syn::Meta::NameValue(ref name_value_pair)) => {
-                            // Match the name/value pair to the appropriate field in the config.
-                            if name_value_pair.path.is_ident("field") {
-                                match &name_value_pair.lit {
+    let name = &ast.ident;
+    let mut getter_functions = quote! {};
+    for (_i, attr) in ast.attrs.iter().enumerate() {
+        // Go through the given attributes. If something doesn't parse, just ignore it. The Rust language will eithe catch for something
+        // grossly malformed, or it may be a (very) customized attribute.
+        // Likewise, ignore any atttributes that aren't ours.
+        match attr.parse_meta()? {
+            syn::Meta::List(syn::MetaList {
+                ref path,
+                ref nested,
+                ..
+            }) => {
+                if path.is_ident("id_getters_by_index") || path.is_ident("id_getters_by_mapping") {
+                    let mut config = Config::default();
+                    if path.is_ident("id_getters_by_index") {
+                        config.getter_type = "by_index".to_string();
+                    } else {
+                        config.getter_type = "by_mapping".to_string();
+                    }
+                    for (_i, _attr) in nested.iter().enumerate() {
+                        match _attr {
+                            syn::NestedMeta::Meta(syn::Meta::NameValue(ref name_value_pair)) => {
+                                // Match the name/value pair to the appropriate field in the config.
+                                if name_value_pair.path.is_ident("field") {
+                                    match &name_value_pair.lit {
                                     syn::Lit::Str(l) => config.field = l.value(),
                                     _ => return Err(syn::Error::new_spanned(name_value_pair.lit.clone(), format!("Could not process name-value pair's value as a String")))
                                 }
-                            } else if name_value_pair.path.is_ident("parent_field") {
-                                match &name_value_pair.lit {
+                                } else if name_value_pair.path.is_ident("parent_field") {
+                                    match &name_value_pair.lit {
                                     syn::Lit::Str(l) => config.parent_field = l.value(),
                                     _ => return Err(syn::Error::new_spanned(name_value_pair.lit.clone(), format!("Could not process name-value pair's value as a String")))
                                 }
-                            } else if name_value_pair.path.is_ident("field_container_name") {
-                                match &name_value_pair.lit {
+                                } else if name_value_pair.path.is_ident("field_container_name") {
+                                    match &name_value_pair.lit {
                                     syn::Lit::Str(l) => config.field_container_name = l.value(),
                                     _ => return Err(syn::Error::new_spanned(name_value_pair.lit.clone(), format!("Could not process name-value pair's value as a String")))
                                 }
-                            } else if name_value_pair.path.is_ident("return_type") {
-                                match &name_value_pair.lit {
+                                } else if name_value_pair.path.is_ident("return_type") {
+                                    match &name_value_pair.lit {
                                     syn::Lit::Str(l) => config.return_type = l.value(),
                                     _ => return Err(syn::Error::new_spanned(name_value_pair.lit.clone(), format!("Could not process name-value pair's value as a String")))
                                 }
-                            } else {
-                                return Err(syn::Error::new_spanned(name_value_pair.path.clone(), format!("Unexpected name-value pair '{}'", name_value_pair.path.get_ident().unwrap())))
+                                } else {
+                                    return Err(syn::Error::new_spanned(
+                                        name_value_pair.path.clone(),
+                                        format!(
+                                            "Unexpected name-value pair '{}'",
+                                            name_value_pair.path.get_ident().unwrap()
+                                        ),
+                                    ));
+                                }
                             }
-                        },
-                        _ => return Err(syn::Error::new_spanned(_attr, format!("Could not process as a name-value pair!")))
+                            _ => {
+                                return Err(syn::Error::new_spanned(
+                                    _attr,
+                                    format!("Could not process as a name-value pair!"),
+                                ))
+                            }
+                        }
                     }
-                }
 
                 let func_name = format_ident!("get_{}", config.field);
                 let mut_func_name = format_ident!("get_mut_{}", config.field);
@@ -123,10 +138,10 @@ pub fn impl_id_getters(ast: &syn::DeriveInput) -> syn::Result<TokenStream> {
                         }
                     }
                 });
+                }
             }
-        },
-        _ => {},
-      }
-  }
-  Ok(getter_functions.into())
+            _ => {}
+        }
+    }
+    Ok(getter_functions.into())
 }

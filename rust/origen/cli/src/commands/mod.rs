@@ -14,6 +14,7 @@ pub fn launch(
     target: &Option<&str>,
     environment: &Option<&str>,
     mode: &Option<&str>,
+    files: Option<Vec<&str>>,
 ) {
     let mut cmd = format!(
         "from origen.boot import __origen__; __origen__('{}'",
@@ -31,6 +32,11 @@ pub fn launch(
     if mode.is_some() {
         let c = clean_mode(mode.unwrap());
         cmd += &format!(", mode='{}'", c).to_string();
+    }
+
+    if files.is_some() {
+        let f: Vec<String> = files.unwrap().iter().map(|f| format!("'{}'", f)).collect();
+        cmd += &format!(", files=[{}]", f.join(",")).to_string();
     }
 
     cmd += ");";

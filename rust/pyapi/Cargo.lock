@@ -484,6 +484,7 @@ version = "0.0.0"
 dependencies = [
  "indexmap",
  "num-bigint",
+ "num-traits 0.2.11",
  "origen",
  "pyo3",
 ]

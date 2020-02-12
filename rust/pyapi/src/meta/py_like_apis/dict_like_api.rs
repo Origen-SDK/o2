@@ -1,8 +1,8 @@
 //#![feature(concat_idents)]
 
+use indexmap::map::IndexMap;
 use origen::DUT;
 use pyo3::prelude::*;
-use indexmap::map::IndexMap;
 // dut: &std::sync::MutexGuard<origen::core::dut::Dut>
 
 // extern crate proc_macro;
@@ -20,7 +20,7 @@ use indexmap::map::IndexMap;
 //     quote! {
 //         impl DictLikeAPI for #name {
 //             fn lookup_code() {
-                
+
 //             }
 //         }
 //     }
