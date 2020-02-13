@@ -19,5 +19,5 @@ def clean_tester():
   origen.tester.reset()
   assert origen.tester.targets == []
   assert len(origen.tester.ast) == 0
-  assert origen.tester.generators == ["::DummyGenerator", "::DummyGeneratorWithInterceptors", "::V93K::ST7"]
+  assert origen.tester.generators == ["::DummyGenerator", "::DummyGeneratorWithInterceptors", "::V93K::ST7", "::Simulator"]
   assert origen.tester.timeset is None

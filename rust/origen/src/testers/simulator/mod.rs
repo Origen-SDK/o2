@@ -15,7 +15,7 @@ impl Generator {
     Ok(())
   }
 
-  pub fn set_timeset(&self, _timeset_id: usize, _dut: &Dut) -> Result<(), Error> {
+  pub fn set_timeset(&self, _timeset_id: Option<usize>, _dut: &Dut) -> Result<(), Error> {
     println!("<Issue command to set the timeset in the simulator...>");
     Ok(())
   }

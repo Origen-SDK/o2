@@ -74,6 +74,7 @@ impl PyTester {
           let mut tester = origen::TESTER.lock().unwrap();
           tester.clear_timeset()?;
         }
+        self.issue_callbacks("clear_timeset")?;
         return self.get_timeset();
       } else if timeset.get_type().name().to_string() == "Timeset" {
         let gil = Python::acquire_gil();
@@ -87,9 +88,12 @@ impl PyTester {
     }
 
     {
-      let mut tester = origen::TESTER.lock().unwrap();
-      let dut = origen::DUT.lock().unwrap();
-      tester.set_timeset(&dut, model_id, &timeset_name)?;
+      {
+        let mut tester = origen::TESTER.lock().unwrap();
+        let dut = origen::DUT.lock().unwrap();
+        tester.set_timeset(&dut, model_id, &timeset_name)?;
+      }
+      self.issue_callbacks("set_timeset")?;
     }
     self.get_timeset()
   }
@@ -154,7 +158,8 @@ impl PyTester {
         },
         _ => {
           let mut tester = origen::tester();
-          tester.issue_callback_at(func, i)?;
+          let dut = origen::dut();
+          tester.issue_callback_at(func, i, &dut)?;
         }
       }
     }
@@ -205,7 +210,8 @@ impl PyTester {
         },
         _ => {
           let mut tester = origen::tester();
-          tester.issue_callback_at("cycle", i)?;
+          let dut = origen::dut();
+          tester.issue_callback_at("cycle", i, &dut)?;
         }
       }
     }
