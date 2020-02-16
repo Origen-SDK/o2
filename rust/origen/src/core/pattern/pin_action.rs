@@ -1,16 +1,17 @@
 //! Defines the set of actions associated with a pattern pin action
+
 pub use super::operation::Operation;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct PinAction {
+    // The name field should be replaced with an ID field
     pub name: String,
     pub data: String,
+    // The operation field may be redundant if the data character contains the same info
     pub operation: Operation,
 }
 
 impl PinAction {
-    // This exists to add window dressing to the data string. Default expected will be hex.
-    // TODO: "0x" will be added if no format designator is present.
     pub fn new(name: &str, data: &str, operation: Operation) -> PinAction {
         PinAction {
             name: name.to_string(),

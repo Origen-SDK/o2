@@ -1,11 +1,9 @@
-//! The collector stack is a Vector of Vectors used for 2 purposes:
-//!   1) Index 0 is the main collection of sequential ast nodes to be processed
-//!   2) For node types that will have children a new stack index is created
-//!      once the children are collected, that stack index is moved to the parent node
-
 use super::ast_node::{AstNode, AstNodeId};
 use crate::error::Error;
 use crate::Result;
+
+
+// The collector is a vec of sequential node id's
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Collector {
@@ -20,6 +18,11 @@ impl Collector {
     }
 }
 
+// The collection stack is a Vector of Vectors used for 2 purposes:
+//   1) Index 0 is the main collection of sequential ast nodes id's to be processed
+//   2) For node types that will have children a new stack index is created
+//      once the children are collected, that stack index is moved to the parent node
+
 #[derive(Debug)]
 pub struct CollectionStack {
     // pub for now, will add a getter or iterator
@@ -27,6 +30,7 @@ pub struct CollectionStack {
 }
 
 impl CollectionStack {
+    // Create a new CollectionStack ensuring that the main collection is created
     pub fn new() -> CollectionStack {
         let mut cs = CollectionStack { stack: Vec::new() };
         // ensure there is 1 element on the stack the main collection
@@ -70,6 +74,7 @@ impl CollectionStack {
     }
 }
 
+// NodeCollection holds the actual Ast Nodes and a CollectionStack (references to the nodes in the order they are to be processed)
 pub struct NodeCollection {
     pub nodes: Vec<AstNode>,
     pub stack: CollectionStack,
@@ -83,6 +88,8 @@ impl NodeCollection {
         }
     }
 
+    // Stores the AstNode and adds it's ID to the active collection of the stack
+    // Returns the node id (which is it's index in the node vec)
     pub fn add_node(&mut self, node: AstNode) -> AstNodeId {
         self.nodes.push(node);
         self.stack.add_node(&(self.nodes.len() - 1));
@@ -104,6 +111,10 @@ impl NodeCollection {
     // return the main collection of node id's
     pub fn main_collection(&self) -> &Collector {
         self.stack.main_collection()
+    }
+    
+    // coming soon - iterate through the stack and output text representation of the AST
+    pub fn to_text(&self, file_name: &str) {
     }
 }
 

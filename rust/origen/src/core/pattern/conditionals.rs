@@ -1,4 +1,8 @@
 //! Defines the if_true conditional structure
+//  The If and Else nodes may be useful for complex
+//  pattern/subroutine creation. Other types like
+//  branch and label may be added
+
 use super::ast_node::AstNodeId;
 use super::collector::Collector;
 

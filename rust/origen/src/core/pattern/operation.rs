@@ -1,7 +1,6 @@
 //! Defines the set of operation types associated with pattern generation
-//  This enum will be used by all action types
+//  This enum will be temporarily used by all action types if needed
 
-// May need to be more of these and more precise names
 // TODO: The operation/action type enum should come from the module that models the object (pins, regs, protocol, etc.)
 #[derive(Debug, Eq, PartialEq)]
 pub enum Operation {

@@ -14,8 +14,7 @@ pub struct RegisterAction {
 }
 
 impl RegisterAction {
-    // This exists to add window dressing to the data string. Default expected will be hex.
-    // TODO: "0x" will be added if no format designator is present.
+    // TODO: name and address can be replaced by a register ID in the future
     pub fn new(name: &str, address: &u64, data: &str, operation: Operation) -> RegisterAction {
         RegisterAction {
             name: name.to_string(),
