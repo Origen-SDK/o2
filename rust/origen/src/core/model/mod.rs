@@ -24,14 +24,29 @@ pub struct Model {
     // Pins
     pub physical_pins: HashMap<String, Pin>,
     pub pins: HashMap<String, PinGroup>,
-    // Levels
-    // Timing
     pub timesets: IndexMap<String, usize>,
-    // Specs
+    // TODO: Levels
+    // TODO: Specs
+    /// Represents the number of bits of an address increment between two
+    /// consecutive addressable units within the block.
+    /// Its value defaults to 8 indicating a byte addressable memory map.
+    /// This attribute can be overridden by MemoryMaps defined within the block.
+    /// Since this attribute is intrinsically linked to the definitions within block,
+    /// it cannot be overridden by instantiation.
+    pub address_unit_bits: u32,
+    /// The starting address of the address block expressed in address_unit_bits
+    /// from the parent block.
+    /// This defaults to 0 but can be overridden by instantiation.
+    pub base_address: u64,
 }
 
 impl Model {
-    pub fn new(id: usize, name: String, parent_id: Option<usize>) -> Model {
+    pub fn new(
+        id: usize,
+        name: String,
+        parent_id: Option<usize>,
+        base_address: Option<u64>,
+    ) -> Model {
         Model {
             id: id,
             name: name,
@@ -41,6 +56,11 @@ impl Model {
             physical_pins: HashMap::new(),
             pins: HashMap::new(),
             timesets: IndexMap::new(),
+            address_unit_bits: 8,
+            base_address: match base_address {
+                Some(x) => x,
+                None => 0,
+            },
         }
     }
 

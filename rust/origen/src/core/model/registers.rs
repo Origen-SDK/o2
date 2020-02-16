@@ -56,10 +56,22 @@ impl AccessType {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum BitOrder {
     LSB0,
     MSB0,
+}
+
+impl std::str::FromStr for BitOrder {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "MSB0" | "msb0" => Ok(BitOrder::MSB0),
+            "LSB0" | "lsb0" => Ok(BitOrder::LSB0),
+            _ => Err(format!("'{}' is not a valid value for BitOrder", s)),
+        }
+    }
 }
 
 //#[derive(Debug)]

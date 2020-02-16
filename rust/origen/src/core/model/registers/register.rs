@@ -1,3 +1,4 @@
+use super::bit::UNDEFINED;
 use super::{AccessType, BitCollection, BitOrder};
 use crate::Error;
 use crate::Result as OrigenResult;
@@ -45,7 +46,7 @@ impl Default for Register {
 }
 
 /// An iterator for a register's fields which yields them in offset order, starting from 0.
-/// An instance of this iterator is returned by my_reg.named_bits().
+/// An instance of this iterator is returned by my_reg.fields().
 pub struct RegisterFieldIterator<'a> {
     reg: &'a Register,
     field_names: Vec<String>,
@@ -60,10 +61,11 @@ impl<'a> RegisterFieldIterator<'a> {
         // Derive the order of iteration when this iterator is created, then
         // store the names of the fields locally in the order that is required.
         // This can no doubt be done more elegantly, but for now the borrow checker
-        // has broken me.
+        // has broken me - ginty.
         let mut field_names: Vec<String>;
 
-        let mut fields: Vec<(&String, &Field)> = reg.fields.iter().map(|(key, val)| (key, val)).collect();
+        let mut fields: Vec<(&String, &Field)> =
+            reg.fields.iter().map(|(key, val)| (key, val)).collect();
         fields.sort_by_key(|(_, val)| val.offset);
 
         if include_spacers {
@@ -143,7 +145,7 @@ impl<'a> RegisterFieldIterator<'a> {
                         // Look ahead to the next field to work out how wide this spacer needs to be
                         width = match self.field(true, true) {
                             Some(x) => x.offset - offset,
-                            None => self.reg.size,
+                            None => self.reg.size - offset,
                         };
                     } else {
                         offset = match self.field(false, true) {
@@ -192,7 +194,7 @@ impl<'a> Iterator for RegisterFieldIterator<'a> {
     }
 }
 
-// Enables reg.named_bits(true).rev()
+// Enables reg.fields(true).rev()
 impl<'a> DoubleEndedIterator for RegisterFieldIterator<'a> {
     fn next_back(&mut self) -> Option<SummaryField> {
         self.get(false)
@@ -208,14 +210,22 @@ impl Register {
     }
 
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy
-    pub fn address(&self, _dut: &MutexGuard<Dut>) -> u64 {
-        0x1000
+    pub fn address(&self, _dut: &MutexGuard<Dut>) -> u128 {
+        self.offset as u128
     }
 
     /// Returns an iterator for the register's fields which yields them (as SummaryFields) in offset order, starting from lowest.
     /// The caller can elect whether or not spacer fields should be inserted to represent un-implemented bits.
-    pub fn named_bits(&self, include_spacers: bool) -> RegisterFieldIterator {
+    pub fn fields(&self, include_spacers: bool) -> RegisterFieldIterator {
         RegisterFieldIterator::new(&self, include_spacers)
+    }
+
+    /// Applies the given reset type to all fields, if the fields don't have a reset defined with
+    /// the given name then no action will be taken
+    pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
+        for (_, field) in &self.fields {
+            field.reset(name, dut);
+        }
     }
 
     pub fn console_display(
@@ -238,11 +248,11 @@ impl Register {
             ));
             LOGGER.warning(&format!(""));
             LOGGER.warning(&format!(
-                "   reg('{}').with_msb0        # bit numbering scheme is msb0",
+                "   reg('{}').with_msb0()      # bit numbering scheme is msb0",
                 self.name
             ));
             LOGGER.warning(&format!(
-                "   reg('{}').with_lsb0        # bit numbering scheme is lsb0 (default)",
+                "   reg('{}').with_lsb0()      # bit numbering scheme is lsb0 (default)",
                 self.name
             ));
             LOGGER.warning(&format!(
@@ -358,7 +368,7 @@ impl Register {
             // BIT NAME ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            for field in self.named_bits(true).rev() {
+            for field in self.fields(true).rev() {
                 if is_field_in_range(&field, max_bit, min_bit) {
                     if max_bit > (self.size - 1) && !first_done {
                         for _i in 0..(max_bit - (self.size - 1)) {
@@ -368,7 +378,6 @@ impl Register {
 
                     if field.width > 1 {
                         if !field.spacer {
-                            //      if contiguous
                             let bit_name = format!(
                                 "{}[{}:{}]",
                                 field.name,
@@ -376,19 +385,6 @@ impl Register {
                                 min_bit_in_range(&field, max_bit, min_bit, &bit_order),
                             );
                             let bit_span = num_bits_in_range(&field, max_bit, min_bit);
-
-                            // This is legacy code that handled non-contiguous fields
-                            //       else
-                            //            upper = _max_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
-                            //            lower = _min_bit_in_range(bit, max_bit, min_bit, options) + bitcounter - bit.size
-                            //            if dolsb0
-                            //              bit_name = "#{name}[#{upper}:#{lower}]"
-                            //            else
-                            //              bit_name = "#{name}[#{upper}:#{lower}]"
-                            //            end
-                            //            bit_span = upper - lower + 1
-                            //        end
-
                             let width = (bit_width * bit_span) + bit_span - 1;
                             let txt = &bit_name.chars().take(width - 2).collect::<String>();
                             line += vert_single_line;
@@ -402,10 +398,16 @@ impl Register {
                             }
                         }
                     } else {
-                        let bit_name = &field.name;
-                        let txt = &bit_name.chars().take(bit_width - 2).collect::<String>();
-                        line += vert_single_line;
-                        line += &format!("{: ^bit_width$}", txt, bit_width = bit_width);
+                        if field.spacer {
+                            let txt = &"".to_string();
+                            line += vert_single_line;
+                            line += &format!("{: ^bit_width$}", txt, bit_width = bit_width);
+                        } else {
+                            let bit_name = &field.name;
+                            let txt = &bit_name.chars().take(bit_width - 2).collect::<String>();
+                            line += vert_single_line;
+                            line += &format!("{: ^bit_width$}", txt, bit_width = bit_width);
+                        }
                     }
                 }
                 first_done = true
@@ -416,7 +418,7 @@ impl Register {
             // BIT STATE ROW
             let mut line = "  ".to_string();
             let mut first_done = false;
-            for field in self.named_bits(true).rev() {
+            for field in self.fields(true).rev() {
                 if is_field_in_range(&field, max_bit, min_bit) {
                     if max_bit > (self.size - 1) && !first_done {
                         for _i in 0..(max_bit - self.size - 1) {
@@ -464,8 +466,6 @@ impl Register {
                     } else {
                         if !field.spacer {
                             let bits = field.bits(dut);
-                            //println!("field: {:?}", field);
-                            //println!("bits: {:?}", bits);
                             let mut value = "".to_string();
                             if bits.has_known_value() {
                                 value += &format!("{}", bits.data().unwrap());
@@ -535,15 +535,17 @@ impl Register {
         &mut self,
         name: &str,
         description: &str,
-        offset: usize,
+        mut offset: usize,
         width: usize,
         access: &str,
-        reset: &BigUint,
     ) -> OrigenResult<&mut Field> {
         let acc: AccessType = match access.parse() {
             Ok(x) => x,
             Err(msg) => return Err(Error::new(&msg)),
         };
+        if self.bit_order == BitOrder::MSB0 {
+            offset = self.size - offset - width;
+        }
         let f = Field {
             reg_id: self.id,
             name: name.to_string(),
@@ -551,7 +553,7 @@ impl Register {
             offset: offset,
             width: width,
             access: acc,
-            reset: reset.clone(),
+            resets: IndexMap::new(),
             enums: IndexMap::new(),
             related_fields: 0,
         };
@@ -569,13 +571,7 @@ impl Register {
 
     /// Returns all bits owned by the register, wrapped in a BitCollection
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
-        let mut bits: Vec<usize> = Vec::new();
-
-        for i in 0..self.size {
-            bits.push(self.bit_ids[i]);
-        }
-
-        BitCollection::for_bit_ids(&bits, dut)
+        BitCollection::for_register(self, dut)
     }
 }
 
@@ -664,10 +660,9 @@ pub struct Field {
     /// Width of the field in bits.
     pub width: usize,
     pub access: AccessType,
-    // Contains any reset values defined for this field.
-    //pub resets: Vec<Reset>,
-    // Just went with a simple reset value initially
-    pub reset: BigUint,
+    /// Contains any reset values defined for this field, if
+    /// not present it will default to resetting all bits to 0
+    pub resets: IndexMap<String, Reset>,
     pub enums: IndexMap<String, EnumeratedValue>,
     related_fields: usize,
 }
@@ -692,6 +687,28 @@ impl Field {
         Ok(&self.enums[name])
     }
 
+    pub fn add_reset(
+        &mut self,
+        name: &str,
+        value: &BigUint,
+        mask: Option<&BigUint>,
+    ) -> OrigenResult<&Reset> {
+        let r;
+        if mask.is_some() {
+            r = Reset {
+                value: value.clone(),
+                mask: Some(mask.unwrap().clone()),
+            };
+        } else {
+            r = Reset {
+                value: value.clone(),
+                mask: None,
+            };
+        }
+        self.resets.insert(name.to_string(), r);
+        Ok(&self.resets[name])
+    }
+
     /// Returns the bit IDs associated with the field, wrapped in a Vec
     pub fn bit_ids(&self, dut: &MutexGuard<Dut>) -> Vec<usize> {
         let mut bits: Vec<usize> = Vec::new();
@@ -702,25 +719,23 @@ impl Field {
             let mut fields: Vec<&Field> = Vec::new();
 
             fields.push(self);
-            
+
             for i in 0..self.related_fields {
                 let f = reg.fields.get(&format!("{}{}", self.name, i + 1)).unwrap();
                 fields.push(f);
             }
-            
+
             // Sort them by offset
-            //fields.sort_by(|a, b| b.offset.cmp(&a.offset)); 
-            fields.sort_by_key(|f| f.offset); 
+            //fields.sort_by(|a, b| b.offset.cmp(&a.offset));
+            fields.sort_by_key(|f| f.offset);
 
             // Now collect their bits
 
             for f in fields {
-                //println!("Here is the reg: {:?}", reg);
                 for i in 0..f.width {
                     bits.push(reg.bit_ids[f.offset + i]);
                 }
             }
-
         } else {
             for i in 0..self.width {
                 bits.push(reg.bit_ids[self.offset + i]);
@@ -733,12 +748,66 @@ impl Field {
     /// Returns the bits associated with the field, wrapped in a BitCollection
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
         let bit_ids = self.bit_ids(dut);
-        BitCollection::for_bit_ids(&bit_ids, dut)
+        BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
+    }
+
+    /// Applies the given reset type, if the field doesn't have a reset defined with
+    /// the given name then no action will be taken
+    pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
+        let r = self.resets.get(name);
+        let bit_ids = self.bit_ids(dut);
+        if r.is_some() {
+            let rst = r.unwrap();
+            // Sorry for the duplication, need to learn how to handle loops with an optional
+            // parameter properly in Rust - ginty
+            if rst.mask.is_some() {
+                let mut bytes = rst.value.to_bytes_be();
+                let mut byte = bytes.pop().unwrap();
+                let mut mask_bytes = rst.value.to_bytes_be();
+                let mut mask_byte = bytes.pop().unwrap();
+                for i in 0..self.width {
+                    let state = (byte >> i % 8) & 1;
+                    let mask = (mask_byte >> i % 8) & 1;
+                    if mask == 1 {
+                        // Think its OK to panic here if this get_bit doesn't return something, things
+                        // will have gone seriously wrong somewhere
+                        dut.get_bit(bit_ids[i]).unwrap().reset(state);
+                    } else {
+                        dut.get_bit(bit_ids[i]).unwrap().reset(UNDEFINED);
+                    }
+                    if i % 8 == 7 {
+                        match bytes.pop() {
+                            Some(x) => byte = x,
+                            None => byte = 0,
+                        }
+                        match mask_bytes.pop() {
+                            Some(x) => mask_byte = x,
+                            None => mask_byte = 0,
+                        }
+                    }
+                }
+            } else {
+                let mut bytes = rst.value.to_bytes_be();
+                let mut byte = bytes.pop().unwrap();
+                for i in 0..self.width {
+                    let state = (byte >> i % 8) & 1;
+                    // Think its OK to panic here if this get_bit doesn't return something, things
+                    // will have gone seriously wrong somewhere
+                    dut.get_bit(bit_ids[i]).unwrap().reset(state);
+                    if i % 8 == 7 {
+                        match bytes.pop() {
+                            Some(x) => byte = x,
+                            None => byte = 0,
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 #[derive(Debug)]
-/// A lightweight version of a Field that is returned by the my_reg.named_bits iterator,
+/// A lightweight version of a Field that is returned by the my_reg.fields() iterator,
 /// and which is also used to represent gaps in the register (when spacer = true).
 pub struct SummaryField {
     pub reg_id: usize,
@@ -753,29 +822,22 @@ pub struct SummaryField {
 impl SummaryField {
     /// Returns the bits associated with the field, wrapped in a BitCollection
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
-        let mut bits: Vec<usize> = Vec::new();
+        let mut bit_ids: Vec<usize> = Vec::new();
         let reg = dut.get_register(self.reg_id).unwrap();
 
         for i in 0..self.width {
-            bits.push(reg.bit_ids[self.offset + i]);
+            bit_ids.push(reg.bit_ids[self.offset + i]);
         }
 
-        BitCollection::for_bit_ids(&bits, dut)
+        BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
     }
 }
 
-//#[derive(Debug)]
-//pub struct Reset {
-//    pub reset_type: String,
-//    // TODO: Should this be vector of tuples instead?
-//    /// The size of this vector corresponds to the size of the parent field.
-//    /// A set bit indicates a reset values of 1.
-//    pub value: Vec<bool>,
-//    /// The size of this vector corresponds to the size of the parent field.
-//    /// A set bit indicates that the bit has a reset value defined by the
-//    /// corresponding value.
-//    pub mask: Vec<bool>,
-//}
+#[derive(Debug)]
+pub struct Reset {
+    pub value: BigUint,
+    pub mask: Option<BigUint>,
+}
 
 #[derive(Debug)]
 pub struct EnumeratedValue {

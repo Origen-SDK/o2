@@ -34,8 +34,13 @@ impl PyDUT {
     }
 
     /// Creates a new model at the given path
-    fn create_model(&self, parent_id: Option<usize>, name: &str) -> PyResult<usize> {
-        Ok(origen::dut().create_model(parent_id, name)?)
+    fn create_model(
+        &self,
+        parent_id: Option<usize>,
+        name: &str,
+        base_address: Option<u64>,
+    ) -> PyResult<usize> {
+        Ok(origen::dut().create_model(parent_id, name, base_address)?)
     }
 
     fn model_console_display(&self, model_id: usize) -> PyResult<String> {
