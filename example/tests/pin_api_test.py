@@ -57,7 +57,6 @@ def test_pin_group_default_state():
   p1 = origen.dut.pin("p1")
   assert p1.name == "p1"
   assert len(p1) == 1
-  assert p1._path == ""
   assert p1.data == 0
   assert p1.pin_actions == "Z"
   assert p1.pin_names == ["p1"]
@@ -94,11 +93,10 @@ def test_grouping_pins():
   grp = origen.dut.group_pins("grp", "p1", "p2", "p3")
   is_pin_group(grp)
   assert grp.name == "grp"
-  assert grp._path == ""
+  assert grp.pin_names == ["p1", "p2", "p3"]
   assert len(origen.dut.pins) == 4
   assert len(grp) == 3
   assert len(origen.dut.physical_pins) == 3
-  assert grp.pin_names == ["p1", "p2", "p3"]
   assert grp.data == 0
   assert grp.pin_actions == "ZZZ"
 
@@ -214,23 +212,20 @@ def test_pins_in_subblocks():
   assert len(origen.dut.pins) == 4
   assert len(origen.dut.sub_blocks["core1"].pins) == 0
 
-  # Add a pin at the subblock. Check it was added and has the correct path.
+  # Add a pin at the subblock.
   assert origen.dut.sub_blocks["core1"].add_pin("p1")
   assert len(origen.dut.sub_blocks["core1"].pins) == 1
   p = origen.dut.sub_blocks["core1"].pin("p1")
   is_pin_group(p)
-  #assert p._path == "core1"
 
   # Add another pin
   assert origen.dut.sub_blocks["core1"].add_pin("_p1")
   assert len(origen.dut.sub_blocks["core1"].pins) == 2
   _p = origen.dut.sub_blocks["core1"].pin("_p1")
   is_pin_group(_p)
-  #assert _p._path == "core1"
 
   # Verify the pins at origen.dut are unchanged.
   assert len(origen.dut.pins) == 4
-  assert origen.dut.pin("p1")._path == ""
   assert origen.dut.pin("_p1") is None
 
 def test_adding_aliases():
