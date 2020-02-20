@@ -1,7 +1,8 @@
 use super::ast_node::{AstNode, AstNodeId};
 use crate::error::Error;
 use crate::Result;
-
+use std::fs::File;
+use std::io::prelude::*;
 
 // The collector is a vec of sequential node id's
 
@@ -115,6 +116,26 @@ impl NodeCollection {
     
     // coming soon - iterate through the stack and output text representation of the AST
     pub fn to_text(&self, file_name: &str) {
+        let mut file = match File::create(file_name) {
+            Err(_e) => panic!("could not create {}", file_name),
+            Ok(f) => f,
+        };
+        self.all_nodes_to_file(&mut file, self.main_collection(), "s");
+    }
+    
+    pub fn all_nodes_to_file(&self, file: &mut File, nodes: &Collector, prefix: &str){
+        for node_id in nodes.collection.iter() {
+            if let Some(node) = self.nodes.get(*node_id) {
+                match node {
+                    AstNode::Pin(n) => {file.write(format!("{}({})", prefix, n.to_string()).as_bytes());},
+                    AstNode::Register(n) => {
+                        file.write(format!("{}({})", prefix, n.to_string()).as_bytes());
+                        self.all_nodes_to_file(file, &n.children, &("  ".to_owned() + prefix));
+                       },
+                    _ => {file.write(format!("unprocessed node").as_bytes());},
+                }
+            }
+        }
     }
 }
 
