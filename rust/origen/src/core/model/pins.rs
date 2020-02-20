@@ -30,8 +30,7 @@ impl Model {
         endianness: Option<Endianness>,
     ) -> Result<(PinGroup, Pin), Error> {
         let pin_group = PinGroup::new(self.id, pin_group_id, name.to_string(), vec!(name.to_string()), endianness);
-        let mut physical_pin = Pin::new(self.id, physical_pin_id, name.to_string(), reset_data, reset_action);
-        physical_pin.groups.insert(name.to_string(), 0);
+        let physical_pin = Pin::new(self.id, physical_pin_id, name.to_string(), reset_data, reset_action);
         self.pin_groups.insert(name.to_string(), pin_group_id);
         self.pins.insert(name.to_string(), physical_pin_id);
         Ok((pin_group, physical_pin))
@@ -231,27 +230,15 @@ impl Dut {
         {
             id = self.pin_groups.len();
         }
-        let mut physical_names: Vec<String> = vec!();
-        for (i, pin_name) in pins.iter().enumerate() {
-            if let Some(p) = self.resolve_to_mut_physical_pin(model_id, pin_name) {
-                if physical_names.contains(&p.name) {
-                    return Err(Error::new(&format!("Can not group pins under {} because pin (or an alias of) {} has already been added to the group!", name, p.name)));
-                } else {
-                    p.groups.insert(String::from(name), i);
-                }
-            } else {
-                return Err(Error::new(&format!(
-                    "Can not group pins under {} because pin {} does not exist!",
-                    name, pin_name
-                )));
-            }
-            if let Some(p) = self.get_pin_group(model_id, pin_name) {
-                physical_names.extend_from_slice(&p.pin_names);
-            }
+        let pnames = self.verify_names(model_id, &pins)?;
+        for (i, pname) in pnames.iter().enumerate() {
+            let p = self._get_mut_pin(model_id, pname)?;
+            p.groups.insert(String::from(name), i);
         }
 
         let model = &mut self.models[model_id];
-        self.pin_groups.push(model.register_pin_group(id, name, physical_names, endianness)?);
+        //self.pin_groups.push(model.register_pin_group(id, name, physical_names, endianness)?);
+        self.pin_groups.push(model.register_pin_group(id, name, pnames, endianness)?);
         Ok(&self.pin_groups[id])
     }
 

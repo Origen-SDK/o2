@@ -154,4 +154,11 @@ impl Pin {
             None => Ok(py.None()),
         }
     }
+
+    #[getter]
+    fn get_groups(&self) -> PyResult<std::collections::HashMap<String, usize>> {
+        let dut = DUT.lock().unwrap();
+        let pin = dut._get_pin(self.model_id, &self.name)?;
+        Ok(pin.groups.clone())
+    }
 }

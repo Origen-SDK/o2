@@ -161,8 +161,18 @@ impl PyDUT {
             }
             None => {}
         }
+        let mut name_strs: Vec<String> = vec![];
+        for (_i, n) in pins.iter().enumerate() {
+            if n.get_type().name() == "re.Pattern" || n.get_type().name() == "_sre.SRE_Pattern" {
+                let r = n.getattr("pattern").unwrap();
+                name_strs.push(format!("/{}/", r));
+            } else {
+                let _n = n.extract::<String>()?;
+                name_strs.push(_n.clone());
+            }
+        }
         let mut dut = DUT.lock().unwrap();
-        dut.group_pins_by_name(model_id, name, pins.extract()?, endianness)?;
+        dut.group_pins_by_name(model_id, name, name_strs, endianness)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
