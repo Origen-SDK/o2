@@ -38,6 +38,8 @@ fn create(
     size: Option<usize>,
     bit_order: String,
     mut fields: Vec<&Field>,
+    filename: Option<String>,
+    lineno: Option<usize>,
 ) -> PyResult<usize> {
     let reg_id;
     let reg_fields;
@@ -60,6 +62,8 @@ fn create(
             offset,
             size,
             &bit_order,
+            filename,
+            lineno,
         )?;
         let reg = dut.get_mut_register(reg_id)?;
         lsb0 = reg.bit_order == BitOrder::LSB0;

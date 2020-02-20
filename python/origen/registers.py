@@ -36,19 +36,27 @@ class Loader:
             return origen.dut.db.get_or_create_address_block(self.memory_map.id, "default")
 
     @contextmanager
-    def Reg(self, name, address_offset, size=32, bit_order="lsb0"):
-        caller = getframeinfo(stack()[2][0])
-        print(f"{caller.filename}:{caller.lineno}")
+    def Reg(self, name, address_offset, size=32, bit_order="lsb0", _called_from_controller=False):
+        if _called_from_controller:
+            caller = getframeinfo(stack()[4][0])
+        else:
+            caller = getframeinfo(stack()[2][0])
         self.fields = []
         yield self
-        # TODO: The None here is for an option register file ID, which is not hooked up yet
-        reg = _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, self.fields)
+        # TODO: The None here is for an optional register file ID, which is not hooked up yet
+        reg = _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, self.fields,
+                                           caller.filename, caller.lineno)
         self.fields = None
 
-    def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0"):
+    def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0", _called_from_controller=False):
+        if _called_from_controller:
+            caller = getframeinfo(stack()[2][0])
+        else:
+            caller = getframeinfo(stack()[1][0])
         field = _origen.dut.registers.Field("data", "", 0, size, "rw", self.clean_resets(reset, resets), self.clean_enums(enums))
-        # TODO: The None here is for an option register file ID, which is not hooked up yet
-        _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, [field])
+        # TODO: The None here is for an optional register file ID, which is not hooked up yet
+        _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, [field],
+                                     caller.filename, caller.lineno)
 
     def Field(self, name, offset, width=1, access="rw", reset=None, resets=None, enums=None, description=""):
         if self.fields is not None:

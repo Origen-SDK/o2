@@ -515,35 +515,20 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
     assert dut.reg("tr1") != None
     assert dut.reg("tr2") == None
 
+def test_registers_can_be_declared_in_block_format_with_descriptions():
+    # This is test reg 1
+    with dut.add_reg("tr1", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
+    # This is test reg 2
+    # With a 2 line description
+    with dut.add_reg("tr2", 0, size=16) as reg:
+        reg.Field("b0", offset=0, width=8, reset=0)
+        reg.Field("b1", offset=8, width=8, reset=0)
 
-
-#    it "registers automatically pick up a base address from the object doing the read/write" do
-#      dut.nvm.reg(:mclkdiv).address.should == 0x4000_0003
-#    end
-#
-#    it "registers pick up a base address from the object doing the write" do
-#      dut.nvm.reg(:mclkdiv).address(relative: true).should == 0x3
-#      dut.nvm.reg(:mclkdiv).write!
-#      dut.nvm.reg(:mclkdiv).address.should == 0x4000_0003
-#    end
-#
-#    it "registers pick up a base address from the object doing the read" do
-#      dut.nvm.reg(:mclkdiv).address(relative: true).should == 0x3
-#      dut.nvm.reg(:mclkdiv).read!
-#      dut.nvm.reg(:mclkdiv).address.should == 0x4000_0003
-#    end
-#
-#    it "registers can be declared in block format with descriptions" do
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg).data.should == 0x8055
-#      nvm.reg(:dreg2).data.should == 0x8055
-#      nvm.reg(:dreg).write(0xFFFF)
-#      nvm.reg(:dreg).data.should == 0xFF55
-#      nvm.reg(:dreg).description(include_name: false).size.should == 1
-#      nvm.reg(:dreg).description(include_name: false).first.should == "This is dreg"
-#      nvm.reg(:dreg2).description(include_name: false).first.should == "This is dreg2"
+    assert dut.tr1.description() == "This is test reg 1"
+    assert dut.tr2.description() == "This is test reg 2\nWith a 2 line description"
+    
 #      nvm.reg(:dreg).bit(:bit15).description.size.should == 1
 #      nvm.reg(:dreg).bit(:bit15).description.first.should == "This is dreg bit 15"
 #      nvm.reg(:dreg2).bit(:bit15).description.first.should == "This is dreg2 bit 15"
@@ -606,117 +591,6 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
 #      nvm.reg(:dreg3).full_name.should == "Data Register 3"
 #    end
 #
-#    it "arbitrary meta data can be defined and read from registers and bits" do
-#      default_reg_metadata do |reg|
-#        reg.readable_in_user_mode = true
-#        reg.something_else = 20
-#        reg.blah = :blah
-#      end
-#
-#      default_bit_metadata do |bit|
-#        bit.property_x = :x
-#        bit.property_y = :y
-#        bit.property_z = :z
-#      end
-#
-#      reg :test1, 0, size: 16 do
-#        bit 15,   :bx
-#        bit 7..0, :by
-#      end
-#
-#      reg :test2, 10, size: 16, readable_in_user_mode: false, something_else: 10 do
-#        bit 15,   :bx, property_x: "X"
-#        bit 7..0, :by, property_y: "Y", property_z: "Z"
-#      end
-#
-#      reg(:test1).respond_to?(:readable_in_user_mode).should == true
-#      reg(:test1).respond_to?(:readable_in_user_mode?).should == true
-#      reg(:test1).respond_to?(:readable_in_test_mode).should == false
-#      reg(:test1).respond_to?(:something_else).should == true
-#      reg(:test1).respond_to?(:something_else?).should == false
-#      reg(:test1).respond_to?(:something_undefined).should == false
-#      reg(:test1).bit(:bx).respond_to?(:property_w).should == false
-#      reg(:test1).bit(:bx).respond_to?(:property_x).should == true
-#      reg(:test1).bit(:bx).respond_to?(:property_y).should == true
-#      reg(:test1).bit(:bx).respond_to?(:property_z).should == true
-#      reg(:test2).bit(:bx).respond_to?(:property_w).should == false
-#      reg(:test2).bit(:bx).respond_to?(:property_x).should == true
-#      reg(:test2).bit(:bx).respond_to?(:property_y).should == true
-#      reg(:test2).bit(:bx).respond_to?(:property_z).should == true
-#      reg(:test1).bit(:by).respond_to?(:property_w).should == false
-#      reg(:test1).bit(:by).respond_to?(:property_x).should == true
-#      reg(:test1).bit(:by).respond_to?(:property_y).should == true
-#      reg(:test1).bit(:by).respond_to?(:property_z).should == true
-#      reg(:test2).bit(:by).respond_to?(:property_w).should == false
-#      reg(:test2).bit(:by).respond_to?(:property_x).should == true
-#      reg(:test2).bit(:by).respond_to?(:property_y).should == true
-#      reg(:test2).bit(:by).respond_to?(:property_z).should == true
-#
-#      reg(:test1).meta.should == {readable_in_user_mode: true, something_else: 20, blah: :blah}
-#      reg(:test2).meta.should == {readable_in_user_mode: false, something_else: 10, blah: :blah}
-#      reg(:test1).readable_in_user_mode.should == true
-#      reg(:test1).readable_in_user_mode?.should == true
-#      reg(:test2).readable_in_user_mode.should == false
-#      reg(:test2).readable_in_user_mode?.should == false
-#      reg(:test1).something_else.should == 20
-#      reg(:test2).something_else.should == 10
-#
-#      reg(:test1).bit(:bx).meta.should == {property_x: :x, property_y: :y, property_z: :z}
-#      reg(:test2).bit(:bx).meta.should == {property_x: "X", property_y: :y, property_z: :z}
-#      reg(:test1).bit(:bx).property_x.should == :x
-#      reg(:test2).bit(:bx).property_x.should == "X"
-#
-#      reg(:test1).bit(2).meta.should == {property_x: :x, property_y: :y, property_z: :z}
-#      reg(:test2).bit(2).meta.should == {property_x: :x, property_y: "Y", property_z: "Z"}
-#      reg(:test1).bit(2).property_x.should == :x
-#      reg(:test2).bit(2).property_x.should == :x
-#      reg(:test1).bit(2).property_y.should == :y
-#      reg(:test2).bit(2).property_y.should == "Y"
-#
-#      reg(:test1).bits(:by).meta.should == {property_x: :x, property_y: :y, property_z: :z}
-#      reg(:test2).bits(:by).meta.should == {property_x: :x, property_y: "Y", property_z: "Z"}
-#      reg(:test1).bits(:by).property_x.should == :x
-#      reg(:test2).bits(:by).property_x.should == :x
-#      reg(:test1).bits(:by).property_y.should == :y
-#      reg(:test2).bits(:by).property_y.should == "Y"
-#    end
-#
-#    it "arbitrary meta data is isolated to registers owned by a given class" do
-#      class MetaClass1
-#        include Origen::Registers
-#        def initialize
-#          default_reg_metadata do |reg|
-#            reg.property1 = 1
-#            reg.property2 = 2
-#          end
-#
-#          reg :reg1, 0 do
-#            bit 31..0, :data
-#          end 
-#        end
-#      end
-#
-#      class MetaClass2
-#        include Origen::Registers
-#        def initialize
-#          default_reg_metadata do |reg|
-#            reg.property1 = 3
-#          end
-#
-#          reg :reg1, 0 do
-#            bit 31..0, :data
-#          end 
-#        end
-#      end
-#
-#      reg1 = MetaClass1.new.reg(:reg1)
-#      reg2 = MetaClass2.new.reg(:reg1)
-#      reg1.property1.should == 1
-#      reg2.property1.should == 3
-#      reg1.respond_to?(:property2).should == true
-#      reg2.respond_to?(:property2).should == false
-#    end
-#
 #    it "large bit collections work" do
 #      reg :regx, 0 do
 #        bit 31..0, :data
@@ -728,42 +602,6 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
 #      lower.data.should == 0x4C
 #      lower = reg.bits(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
 #      lower.data.should == 0x4C
-#    end
-#
-#    it "global reg and bit meta data can be added by a plugin" do
-#      Origen::Registers.default_reg_meta_data do |reg|
-#        reg.attr_x
-#        reg.attr_y = 10
-#        reg.attr_z = 20
-#      end
-#
-#      Origen::Registers.default_bit_meta_data do |bit|
-#        bit.attr_bx
-#        bit.attr_by = 10
-#        bit.attr_bz = 20
-#      end
-#
-#      reg :regblah, 0, attr_z: 30 do
-#        bit 31..16, :upper, attr_bz: 5
-#        bit 15..1, :lower
-#        bit 0, :bit0, attr_by: 15
-#      end 
-#
-#      reg(:regblah).attr_y.should == 10
-#      reg(:regblah).attr_z.should == 30
-#      reg(:regblah).attr_x.should == nil
-#      reg(:regblah).attr_x = :yo
-#      reg(:regblah).attr_x.should == :yo
-#      reg(:regblah).bits(:upper).attr_by.should == 10
-#      reg(:regblah).bits(:upper).attr_bz.should == 5
-#      reg(:regblah).bits(:upper).attr_bx.should == nil
-#      reg(:regblah).bits(:upper).attr_bx = :yo
-#      reg(:regblah).bits(:upper).attr_bx.should == :yo
-#      reg(:regblah).bit(:bit0).attr_by.should == 15
-#      reg(:regblah).bit(:bit0).attr_bz.should == 20
-#      reg(:regblah).bit(:bit0).attr_bx.should == nil
-#      reg(:regblah).bit(:bit0).attr_bx = :yo
-#      reg(:regblah).bit(:bit0).attr_bx.should == :yo
 #    end
 #
 #    it "reg and bit reset data can be fetched" do

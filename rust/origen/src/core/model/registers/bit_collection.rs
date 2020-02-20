@@ -1,5 +1,4 @@
-use super::register::Field;
-use super::{Bit, Register};
+use super::{Bit, Field, Register};
 use crate::{Dut, Error, Result};
 use num_bigint::BigUint;
 use regex::Regex;

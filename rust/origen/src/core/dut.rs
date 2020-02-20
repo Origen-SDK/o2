@@ -8,7 +8,11 @@ use crate::meta::IdGetters;
 use crate::Result;
 use crate::DUT;
 use indexmap::IndexMap;
+use regex::Regex;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::sync::RwLock;
 
 /// The DUT stores all objects associated with a particular device.
@@ -64,6 +68,8 @@ pub struct Dut {
     pub waves: Vec<Wave>,
     pub wave_events: Vec<Event>,
     pub id_mappings: Vec<IndexMap<String, usize>>,
+    /// Cache of descriptions parsed from reg definition files
+    pub reg_descriptions: IndexMap<String, IndexMap<usize, String>>,
 }
 
 impl Dut {
@@ -84,8 +90,8 @@ impl Dut {
             wave_groups: Vec::<WaveGroup>::new(),
             waves: Vec::<Wave>::new(),
             wave_events: Vec::<Event>::new(),
-
             id_mappings: Vec::<IndexMap<String, usize>>::new(),
+            reg_descriptions: IndexMap::new(),
         }
     }
 
@@ -106,8 +112,8 @@ impl Dut {
         self.wave_groups.clear();
         self.waves.clear();
         self.wave_events.clear();
-
         self.id_mappings.clear();
+        self.reg_descriptions.clear();
         // Add the model for the DUT top-level (always ID 0)
         let _ = self.create_model(None, "dut", None);
     }
@@ -419,6 +425,8 @@ impl Dut {
         offset: usize,
         size: Option<usize>,
         bit_order: &str,
+        filename: Option<String>,
+        lineno: Option<usize>,
     ) -> Result<usize> {
         let id;
         {
@@ -450,6 +458,8 @@ impl Dut {
             offset: offset,
             address_block_id: address_block_id,
             register_file_id: register_file_id,
+            filename: filename,
+            lineno: lineno,
             ..defaults
         };
 
@@ -477,6 +487,68 @@ impl Dut {
 
         self.bits.push(bit);
         id
+    }
+
+    // Returns the description of this register, if any.
+    // **Note** Adding a description field will override any comment-driven documentation
+    // of a register (ie markdown style comments)
+    pub fn get_reg_description(&mut self, filename: &str, lineno: usize) -> Option<String> {
+        if self.reg_descriptions.get(filename).is_none() {
+            self.parse_descriptions(filename);
+        }
+        match self.reg_descriptions.get(filename) {
+            Some(x) => match x.get(&lineno) {
+                Some(y) => Some(y.to_string()),
+                None => None,
+            },
+            None => None,
+        }
+    }
+
+    fn parse_descriptions(&mut self, filename: &str) {
+        let path = Path::new(filename);
+        if !path.exists() {
+            return;
+        }
+
+        let f = File::open(path).unwrap();
+        let f = BufReader::new(f);
+        let mut desc = "".to_string();
+
+        let re1 = Regex::new(r"^\s*#\s?(.*)").unwrap();
+        // https://rubular.com/r/QN0aCI8N6Oj77v
+        let re2 = Regex::new(
+            r#"^\s*(SimpleReg|with Reg|with .*\.add_reg|.*\.add_simple_reg)\(r?f?["'](.*)["']"#,
+        )
+        .unwrap();
+        //let re3 = Regex::new(r"").unwrap();
+
+        if self.reg_descriptions.get(filename).is_none() {
+            self.reg_descriptions
+                .insert(filename.to_string(), IndexMap::new());
+        }
+        let descs = self.reg_descriptions.get_mut(filename).unwrap();
+
+        let mut i = 1;
+        for line in f.lines() {
+            let line = line.unwrap();
+
+            if re1.is_match(&line) {
+                let caps = re1.captures(&line).unwrap();
+                if desc != "" {
+                    desc += "\n";
+                }
+                desc += caps.get(1).unwrap().as_str();
+            } else if re2.is_match(&line) {
+                if desc != "" {
+                    descs.insert(i, desc);
+                }
+                desc = "".to_string();
+            } else {
+                desc = "".to_string();
+            }
+            i += 1;
+        }
     }
 }
 

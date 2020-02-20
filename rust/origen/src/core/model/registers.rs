@@ -5,6 +5,7 @@
 pub mod address_block;
 pub mod bit;
 pub mod bit_collection;
+pub mod field;
 pub mod memory_map;
 pub mod register;
 pub mod register_file;
@@ -12,9 +13,9 @@ pub mod register_file;
 pub use address_block::AddressBlock;
 pub use bit::Bit;
 pub use bit_collection::BitCollection;
+pub use field::{Field, SummaryField};
 pub use memory_map::MemoryMap;
 pub use register::Register;
-pub use register::SummaryField;
 pub use register_file::RegisterFile;
 
 #[derive(Debug, PartialEq, Copy, Clone)]

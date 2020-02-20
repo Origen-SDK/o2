@@ -159,6 +159,7 @@ class Base:
             raise AttributeError(f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)")
 
     def add_simple_reg(self, *args, **kwargs):
+        kwargs["_called_from_controller"] = True
         RegLoader(self).SimpleReg(*args, **kwargs)
 
     def model(self):
@@ -167,6 +168,7 @@ class Base:
     @contextmanager
     def add_reg(self, *args, **kwargs):
         self._load_regs()
+        kwargs["_called_from_controller"] = True
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
 

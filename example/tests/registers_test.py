@@ -170,3 +170,20 @@ def test_msb0_behavior():
     assert reg.adch.data() == 0
     reg.with_msb0()[2:4].set_data(7)
     assert reg.adch.data() == 7
+
+def test_filename_and_lineno():
+    assert "example/blocks/dut/registers.py" in dut.areg0.filename
+    assert "example/blocks/dut/registers.py" in dut.reg1.filename
+    assert type(dut.areg0.lineno) == int
+    # Test a locally defined register to verify that the stack offset is correct
+    # when Reg is called indirectly
+    with dut.add_reg("tr1", 0x0, size=8) as reg:
+        reg.Field("b0", offset=5, reset=1)
+        reg.Field("b1", offset=0, width=4, reset=3)
+    dut.add_simple_reg("tr2", 0x1000)
+
+    assert "tests/registers_test.py" in dut.tr1.filename
+    assert "tests/registers_test.py" in dut.tr2.filename
+    assert dut.tr1.lineno == 180
+    assert dut.tr2.lineno == 183
+    

@@ -590,6 +590,48 @@ impl BitCollection {
     fn overlay_enables(&self) -> PyResult<BigUint> {
         Ok(self.materialize(&origen::dut())?.overlay_enables())
     }
+
+    #[getter]
+    /// Returns the name of the file (full path) where the register was defined
+    fn filename(&self) -> PyResult<Option<String>> {
+        match self.reg(&origen::dut()) {
+            Some(x) => match &x.filename {
+                Some(y) => Ok(Some(y.to_string())),
+                None => Ok(None),
+            },
+            None => Ok(None),
+        }
+    }
+
+    #[getter]
+    /// Returns the line number of the file (full path) where the register was defined
+    fn lineno(&self) -> PyResult<Option<usize>> {
+        match self.reg(&origen::dut()) {
+            Some(x) => Ok(x.lineno),
+            None => Ok(None),
+        }
+    }
+
+    fn description(&self) -> PyResult<Option<String>> {
+        let mut dut = origen::dut();
+        if self.whole_reg {
+            //if self.description.is_some() {
+            //    desc = self.description.as_ref().unwrap().to_string();
+            //} else if self.filename.is_none() {
+            //    return None;
+            //} else {
+            let filename;
+            let lineno;
+            {
+                let reg = self.reg(&dut).unwrap();
+                filename = reg.filename.as_ref().unwrap().clone();
+                lineno = reg.lineno.as_ref().unwrap().clone();
+            };
+            Ok(dut.get_reg_description(&filename, lineno))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 /// Internal helper methods
