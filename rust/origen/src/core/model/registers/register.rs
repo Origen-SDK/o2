@@ -28,7 +28,7 @@ pub struct Register {
     pub bit_order: BitOrder,
     /// The (Python) source file from which the register was defined
     pub filename: Option<String>,
-    /// The (Python) source file line number of the register definition
+    /// The (Python) source file line number where the register was defined
     pub lineno: Option<usize>,
 }
 
@@ -574,10 +574,12 @@ impl Register {
     pub fn add_field(
         &mut self,
         name: &str,
-        description: &str,
+        description: Option<&String>,
         mut offset: usize,
         width: usize,
         access: &str,
+        filename: Option<&String>,
+        lineno: Option<usize>,
     ) -> OrigenResult<&mut Field> {
         let acc: AccessType = match access.parse() {
             Ok(x) => x,
@@ -589,13 +591,21 @@ impl Register {
         let f = Field {
             reg_id: self.id,
             name: name.to_string(),
-            description: description.to_string(),
+            description: match description {
+                None => None,
+                Some(x) => Some(x.to_string()),
+            },
             offset: offset,
             width: width,
             access: acc,
             resets: IndexMap::new(),
             enums: IndexMap::new(),
             related_fields: 0,
+            filename: match filename {
+                None => None,
+                Some(x) => Some(x.clone()),
+            },
+            lineno: lineno,
         };
         if self.fields.contains_key(name) {
             let mut orig = self.fields.get_mut(name).unwrap();

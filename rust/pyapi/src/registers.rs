@@ -68,7 +68,15 @@ fn create(
         let reg = dut.get_mut_register(reg_id)?;
         lsb0 = reg.bit_order == BitOrder::LSB0;
         for f in &fields {
-            let field = reg.add_field(&f.name, &f.description, f.offset, f.width, &f.access)?;
+            let field = reg.add_field(
+                &f.name,
+                f.description.as_ref(),
+                f.offset,
+                f.width,
+                &f.access,
+                f.filename.as_ref(),
+                f.lineno,
+            )?;
             for e in &f.enums {
                 field.add_enum(&e.name, &e.description, &e.value)?;
             }

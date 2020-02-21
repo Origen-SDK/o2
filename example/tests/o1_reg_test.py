@@ -516,29 +516,25 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
     assert dut.reg("tr2") == None
 
 def test_registers_can_be_declared_in_block_format_with_descriptions():
-    # This is test reg 1
-    with dut.add_reg("tr1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
-    # This is test reg 2
-    # With a 2 line description
-    with dut.add_reg("tr2", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
+    with origen.reg_description_parsing():
+        # This is test reg 1
+        with dut.add_reg("tr1", 0, size=16) as reg:
+            # This is tr1 field b0
+            reg.Field("b0", offset=0, width=8, reset=0)
+            # This is tr1 field b1
+            # With multi-lines
+            reg.Field("b1", offset=8, width=8, reset=0)
+        # This is test reg 2
+        # With a 2 line description
+        with dut.add_reg("tr2", 0, size=16) as reg:
+            reg.Field("b0", offset=0, width=8, reset=0)
+            reg.Field("b1", offset=8, width=8, reset=0)
 
     assert dut.tr1.description() == "This is test reg 1"
     assert dut.tr2.description() == "This is test reg 2\nWith a 2 line description"
+    assert dut.tr1.b0.description() == "This is tr1 field b0"
+    assert dut.tr1.b1.description() == "This is tr1 field b1\nWith multi-lines"
     
-#      nvm.reg(:dreg).bit(:bit15).description.size.should == 1
-#      nvm.reg(:dreg).bit(:bit15).description.first.should == "This is dreg bit 15"
-#      nvm.reg(:dreg2).bit(:bit15).description.first.should == "This is dreg2 bit 15"
-#      nvm.reg(:dreg).bit(:lower).description.size.should == 2
-#      nvm.reg(:dreg).bit(:lower).description.first.should == "This is dreg bit lower"
-#      nvm.reg(:dreg2).bit(:lower).description.first.should == "This is dreg2 bit lower"
-#      nvm.reg(:dreg).bit(:lower).description.last.should == "This is dreg bit lower line 2"
-#      nvm.reg(:dreg2).bit(:lower).description.last.should == "This is dreg2 bit lower line 2"
-#    end
-#
 #    it "register descriptions can be supplied via the API" do     
 #      Origen.app.unload_target!
 #      nvm = OrigenCoreSupport::NVM::NVMSub.new

@@ -11,7 +11,7 @@ use std::sync::MutexGuard;
 pub struct Field {
     pub reg_id: usize,
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     /// Offset from the start of the register in bits.
     pub offset: usize,
     /// Width of the field in bits.
@@ -22,6 +22,10 @@ pub struct Field {
     pub resets: IndexMap<String, Reset>,
     pub enums: IndexMap<String, EnumeratedValue>,
     pub related_fields: usize,
+    /// The (Python) source file where the field was defined
+    pub filename: Option<String>,
+    /// The (Python) source file line number where the field was defined
+    pub lineno: Option<usize>,
 }
 
 impl Field {

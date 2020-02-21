@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 use origen::core::model::registers::BitCollection as RichBC;
-use origen::core::model::registers::{BitOrder, Register};
+use origen::core::model::registers::{BitOrder, Field, Register};
 use origen::Dut;
 use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
@@ -592,22 +592,15 @@ impl BitCollection {
     }
 
     #[getter]
-    /// Returns the name of the file (full path) where the register was defined
+    /// Returns the name of the file (full path) where the register was defined.
+    /// If it returns None it means that the register has been defined in a non-std location and Origen
+    /// couldn't work out where the sourcefile is.
     fn filename(&self) -> PyResult<Option<String>> {
         match self.reg(&origen::dut()) {
             Some(x) => match &x.filename {
                 Some(y) => Ok(Some(y.to_string())),
                 None => Ok(None),
             },
-            None => Ok(None),
-        }
-    }
-
-    #[getter]
-    /// Returns the line number of the file (full path) where the register was defined
-    fn lineno(&self) -> PyResult<Option<usize>> {
-        match self.reg(&origen::dut()) {
-            Some(x) => Ok(x.lineno),
             None => Ok(None),
         }
     }
@@ -626,6 +619,20 @@ impl BitCollection {
                 }
                 filename = reg.filename.as_ref().unwrap().clone();
                 lineno = reg.lineno.as_ref().unwrap().clone();
+            };
+            Ok(dut.get_reg_description(&filename, lineno))
+        } else if self.whole_field {
+            let filename;
+            let lineno;
+            {
+                let field = self.field_obj(&dut).unwrap();
+                if field.description.is_some() {
+                    return Ok(Some(field.description.as_ref().unwrap().to_string()));
+                } else if field.filename.is_none() {
+                    return Ok(None);
+                }
+                filename = field.filename.as_ref().unwrap().clone();
+                lineno = field.lineno.as_ref().unwrap().clone();
             };
             Ok(dut.get_reg_description(&filename, lineno))
         } else {
@@ -656,6 +663,16 @@ impl BitCollection {
     fn reg<'a>(&self, dut: &'a MutexGuard<Dut>) -> Option<&'a Register> {
         if self.reg_id.is_some() {
             Some(dut.get_register(self.reg_id.unwrap()).unwrap())
+        } else {
+            None
+        }
+    }
+
+    /// Return the field object or None
+    fn field_obj<'a>(&self, dut: &'a MutexGuard<Dut>) -> Option<&'a Field> {
+        if self.reg_id.is_some() && self.field.is_some() {
+            let reg = dut.get_register(self.reg_id.unwrap()).unwrap();
+            Some(reg.fields.get(self.field.as_ref().unwrap()).unwrap())
         } else {
             None
         }

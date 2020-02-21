@@ -496,6 +496,7 @@ impl Dut {
         if self.reg_descriptions.get(filename).is_none() {
             self.parse_descriptions(filename);
         }
+        println!("{:?}", self.reg_descriptions);
         match self.reg_descriptions.get(filename) {
             Some(x) => match x.get(&lineno) {
                 Some(y) => Some(y.to_string()),
@@ -518,10 +519,9 @@ impl Dut {
         let re1 = Regex::new(r"^\s*#\s?(.*)").unwrap();
         // https://rubular.com/r/QN0aCI8N6Oj77v
         let re2 = Regex::new(
-            r#"^\s*(SimpleReg|with Reg|with .*\.add_reg|.*\.add_simple_reg)\(r?f?["'](.*)["']"#,
+            r#"^\s*(SimpleReg|with Reg|with .*\.add_reg|.*\.add_simple_reg|.*\.Field)\(r?f?["'](.*)["']"#,
         )
         .unwrap();
-        //let re3 = Regex::new(r"").unwrap();
 
         if self.reg_descriptions.get(filename).is_none() {
             self.reg_descriptions

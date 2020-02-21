@@ -173,18 +173,17 @@ def test_msb0_behavior():
 
 def test_filename_and_lineno():
     if origen.status["on_windows"]:
-        assert "example\\blocks\\dut\\registers.py" in dut.areg0.filename
+        assert "example\\blocks\\dut\\registers.py" in dut.breg0.filename
         assert "example\\blocks\\dut\\registers.py" in dut.reg1.filename
     else:
-        assert "example/blocks/dut/registers.py" in dut.areg0.filename
+        assert "example/blocks/dut/registers.py" in dut.breg0.filename
         assert "example/blocks/dut/registers.py" in dut.reg1.filename
-    assert type(dut.areg0.lineno) == int
-    # Test a locally defined register to verify that the stack offset is correct
-    # when Reg is called indirectly
-    with dut.add_reg("tr1", 0x0, size=8) as reg:
-        reg.Field("b0", offset=5, reset=1)
-        reg.Field("b1", offset=0, width=4, reset=3)
-    dut.add_simple_reg("tr2", 0x1000)
+    with origen.reg_description_parsing():
+        # Test a locally defined register to verify that the user can add info about the file
+        with dut.add_reg("tr1", 0x0, size=8) as reg:
+            reg.Field("b0", offset=5, reset=1)
+            reg.Field("b1", offset=0, width=4, reset=3)
+        dut.add_simple_reg("tr2", 0x1000)
 
     if origen.status["on_windows"]:
         assert "tests\\registers_test.py" in dut.tr1.filename
@@ -192,6 +191,4 @@ def test_filename_and_lineno():
     else:
         assert "tests/registers_test.py" in dut.tr1.filename
         assert "tests/registers_test.py" in dut.tr2.filename
-    assert dut.tr1.lineno == 184
-    assert dut.tr2.lineno == 187
     

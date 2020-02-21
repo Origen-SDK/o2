@@ -5,12 +5,14 @@ use pyo3::prelude::*;
 #[derive(Debug)]
 pub struct Field {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     pub offset: usize,
     pub width: usize,
     pub access: String,
     pub resets: Option<Vec<ResetVal>>,
     pub enums: Vec<FieldEnum>,
+    pub filename: Option<String>,
+    pub lineno: Option<usize>,
 }
 
 #[pymethods]
@@ -19,12 +21,14 @@ impl Field {
     fn new(
         obj: &PyRawObject,
         name: String,
-        description: String,
+        description: Option<String>,
         offset: usize,
         width: usize,
         access: String,
         resets: Option<Vec<&ResetVal>>,
         enums: Vec<&FieldEnum>,
+        filename: Option<String>,
+        lineno: Option<usize>,
     ) {
         let mut enum_objs: Vec<FieldEnum> = Vec::new();
         for e in &enums {
@@ -58,6 +62,8 @@ impl Field {
                 access: access,
                 resets: rsts,
                 enums: enum_objs,
+                filename: filename,
+                lineno: lineno,
             }
         });
     }
