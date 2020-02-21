@@ -615,15 +615,15 @@ impl BitCollection {
     fn description(&self) -> PyResult<Option<String>> {
         let mut dut = origen::dut();
         if self.whole_reg {
-            //if self.description.is_some() {
-            //    desc = self.description.as_ref().unwrap().to_string();
-            //} else if self.filename.is_none() {
-            //    return None;
-            //} else {
             let filename;
             let lineno;
             {
                 let reg = self.reg(&dut).unwrap();
+                if reg.description.is_some() {
+                    return Ok(Some(reg.description.as_ref().unwrap().to_string()));
+                } else if reg.filename.is_none() {
+                    return Ok(None);
+                }
                 filename = reg.filename.as_ref().unwrap().clone();
                 lineno = reg.lineno.as_ref().unwrap().clone();
             };
