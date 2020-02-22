@@ -162,7 +162,7 @@ impl Dut {
             let names = &p.pin_names;
             let mut sliced_names: Vec<String> = vec!();
 
-            for i in (start_idx..=stop_idx).step_by(step_size) {
+            for i in (start_idx..stop_idx).step_by(step_size) {
                 if i >= names.len() {
                     return Err(Error::new(&format!(
                         "Index {} exceeds available pins in group {} (length: {})",

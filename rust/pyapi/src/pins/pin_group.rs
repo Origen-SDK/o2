@@ -3,8 +3,10 @@ use origen::DUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
+use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 
 #[pyclass]
+#[derive(Clone)]
 pub struct PinGroup {
     pub name: String,
     pub model_id: usize,
@@ -175,85 +177,86 @@ impl PinGroup {
 
 #[pyproto]
 impl pyo3::class::sequence::PySequenceProtocol for PinGroup {
-    fn __len__(&self) -> PyResult<usize> {
-        let dut = DUT.lock().unwrap();
-        let grp = dut._get_pin_group(self.model_id, &self.name)?;
-        Ok(grp.len())
+    // Need to overwrite contains to account for aliasing
+    fn __contains__(&self, item: &PyAny) -> PyResult<bool> {
+        if let Ok(s) = item.extract::<String>() {
+            let dut = DUT.lock().unwrap();
+            Ok(dut.pin_group_contains(self.model_id, &self.name, &s)?)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl ListLikeAPI for PinGroup {
+    fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize> {
+        let grp = dut._get_pin_group(self.model_id, &self.name).unwrap();
+        let mut pin_ids: Vec<usize> = vec!();
+        for pname in grp.pin_names.iter() {
+            pin_ids.push(dut._get_pin(self.model_id, pname).unwrap().id);
+        }
+        pin_ids
     }
 
-    fn __contains__(&self, item: &str) -> PyResult<bool> {
+    // Grabs a single pin and puts it in an anonymous pin collection
+    fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.pin_group_contains(self.model_id, &self.name, item)?)
+        let collection = dut.slice_pin_group(self.model_id, &self.name, idx, idx+1, 1)?;
+        Ok(Py::new(py, PinCollection::from(collection))
+            .unwrap()
+            .to_object(py))
+    }
+
+    fn __iter__(&self) -> PyResult<ListLikeIter> {
+        Ok(ListLikeIter {
+            parent: Box::new((*self).clone()),
+            i: 0,
+        })
+    }
+
+    fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
+        let mut names: Vec<String> = vec!();
+        {
+            let (indices, pin_names);
+            let dut = DUT.lock().unwrap();
+            pin_names = &dut._get_pin_group(self.model_id, &self.name)?.pin_names;
+            indices = slice.indices((pin_names.len() as i32).into())?;
+    
+            let mut i = indices.start;
+            if indices.step > 0 {
+                while i < indices.stop {
+                    names.push(pin_names[i as usize].clone());
+                    i += indices.step;
+                }
+            } else {
+                while i > indices.stop {
+                    names.push(pin_names[i as usize].clone());
+                    i += indices.step;
+                }
+            }
+        }
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(py, PinCollection::new(self.model_id, names, None)?)
+                .unwrap()
+                .to_object(py))
     }
 }
 
 #[pyproto]
-impl<'p> pyo3::class::PyMappingProtocol<'p> for PinGroup {
-    // Indexing example: https://github.com/PyO3/pyo3/blob/master/tests/test_dunder.rs#L423-L438
+impl pyo3::class::mapping::PyMappingProtocol for PinGroup {
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        let dut = DUT.lock().unwrap();
+        ListLikeAPI::__getitem__(self, idx)
+    }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
-            // Indices requires (what I think is) a max size. Should be plenty.
-            let indices = slice.indices(8192)?;
-            let collection = dut.slice_pin_group(
-                self.model_id,
-                &self.name,
-                indices.start as usize,
-                indices.stop as usize,
-                indices.step as usize,
-            )?;
-            Ok(Py::new(py, PinCollection::from(collection))
-                .unwrap()
-                .to_object(py))
-        } else {
-            let i = idx.extract::<isize>().unwrap();
-            let collection = dut.slice_pin_group(self.model_id, &self.name, i as usize, i as usize, 1)?;
-            Ok(Py::new(py, PinCollection::from(collection))
-                .unwrap()
-                .to_object(py))
-        }
+    fn __len__(&self) -> PyResult<usize> {
+        ListLikeAPI::__len__(self)
     }
 }
 
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for PinGroup {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinGroupIter> {
-        let dut = DUT.lock().unwrap();
-        let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-
-        Ok(PinGroupIter {
-            keys: grp.pin_names.clone(),
-            i: 0,
-            model_id: slf.model_id,
-        })
-    }
-}
-
-#[pyclass]
-pub struct PinGroupIter {
-    keys: Vec<String>,
-    i: usize,
-    model_id: usize,
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinGroupIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
-    }
-
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PinCollection>> {
-        if slf.i >= slf.keys.len() {
-            return Ok(None);
-        }
-        let name = slf.keys[slf.i].clone();
-        let collection = PinCollection::new(slf.model_id, vec![name], Option::None)?;
-        slf.i += 1;
-        Ok(Some(collection))
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ListLikeIter> {
+        ListLikeAPI::__iter__(&*slf)
     }
 }

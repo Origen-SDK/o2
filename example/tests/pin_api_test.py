@@ -1,7 +1,7 @@
 import pytest
 import origen, _origen # pylint: disable=import-error
 from tests.shared import clean_eagle, clean_falcon, clean_tester # pylint: disable=import-error
-from tests.shared.python_like_apis import Fixture_DictLikeAPI # pylint: disable=import-error
+from tests.shared.python_like_apis import Fixture_DictLikeAPI, Fixture_ListLikeAPI # pylint: disable=import-error
 
 class MyRandomClass:
   pass
@@ -58,6 +58,52 @@ class TestPhysicalPinContainerDictLike(Fixture_DictLikeAPI):
     dut.add_pin("p2")
     dut.add_pin("p3")
     return dut.physical_pins
+
+class TestPinGroupListLike(Fixture_ListLikeAPI):
+  def parameterize(self):
+    return {
+      "slice_klass": _origen.dut.pins.PinCollection
+    }
+  
+  def verify_i0(self, i):
+    assert isinstance(i, _origen.dut.pins.PinCollection)
+    assert i.pin_names == ["pins0"]
+
+  def verify_i1(self, i):
+    assert isinstance(i, _origen.dut.pins.PinCollection)
+    assert i.pin_names == ["pins1"]
+
+  def verify_i2(self, i):
+    assert isinstance(i, _origen.dut.pins.PinCollection)
+    assert i.pin_names == ["pins2"]
+
+  def boot_list_under_test(self):
+    origen.app.instantiate_dut("dut.falcon")
+    origen.dut.add_pin("pins", width=3)
+    return origen.dut.pin("pins")
+
+class TestPinCollectionListLike(Fixture_ListLikeAPI):
+  def parameterize(self):
+    return {
+      "slice_klass": _origen.dut.pins.PinCollection
+    }
+
+  def verify_i0(self, i):
+    assert isinstance(i, _origen.dut.pins.PinCollection)
+    assert i.pin_names == ["pins0"]
+
+  def verify_i1(self, i):
+    assert isinstance(i, _origen.dut.pins.PinCollection)
+    assert i.pin_names == ["pins1"]
+
+  def verify_i2(self, i):
+    assert isinstance(i, _origen.dut.pins.PinCollection)
+    assert i.pin_names == ["pins2"]
+
+  def boot_list_under_test(self):
+    origen.app.instantiate_dut("dut.falcon")
+    origen.dut.add_pin("pins", width=3)
+    return origen.dut.pins.collect("pins0", "pins1", "pins2")
 
 @pytest.fixture
 def ports():
@@ -741,81 +787,6 @@ def test_pin_loader_api(clean_eagle):
   ]
   assert origen.dut.pin("portc").reset_data == 0x3
   assert origen.dut.pin("clk").reset_actions == "D"
-
-def test_pin_group_list_like_api(clean_falcon, pins, grp, ports):
-  grp = origen.dut.pin("grp")
-
-  # Check '__contains__'
-  assert "p1" in grp
-
-  # Check '__getitem__' (indexing)
-  is_pin_collection(grp[0])
-  assert grp[0].pin_names == ["p1"]
-
-  # Check __len__
-  assert len(grp) == 3
-
-  # Check iterating
-  # Note: Unlike the dictionary, this is ordered.
-  names = [["p1"], ["p2"], ["p3"]]
-  for i, name in enumerate(grp):
-    is_pin_collection(name)
-    assert name.pin_names == names[i]
-
-  # Check 'to_list'
-  as_list = list(grp)
-  assert isinstance(as_list, list)
-  for i, item in enumerate(as_list):
-    is_pin_collection(item)
-    assert item.pin_names == names[i]
-
-def test_pin_collection_from_pin_group():
-  origen.dut.group_pins("p", "p0", "p1", "p2", "p3")
-  grp = origen.dut.pins["p"]
-
-  assert grp[0].pin_names == ["p0"]
-  assert grp[1].pin_names == ["p1"]
-  assert grp[0:1].pin_names == ["p0", "p1"]
-  assert grp[1:3:2].pin_names == ["p1", "p3"]
-
-def test_pin_collection_list_like_api():
-  c = origen.dut.pins.collect("p0", "p1", "p2", "p3")
-  is_pin_collection(c)
-  
-  # Check __contains__
-  assert "p0" in c
-  assert "p3" in c
-
-  # Check __getitem__ (indexing)
-  assert c[0].pin_names == ["p0"]
-  assert c[1].pin_names == ["p1"]
-
-  # Check Slicing
-  assert c[0:1].pin_names == ["p0", "p1"]
-  assert c[1:3:2].pin_names == ["p1", "p3"]
-
-  # Check __len__
-  assert len(c) == 4
-
-  # Check iterating
-  names = ["p0", "p1", "p2", "p3"]
-  for i, _c in enumerate(c):
-    is_pin_collection(_c)
-    _c.pin_names == list(names[i])
-
-def test_exception_on_out_of_bounds_indexing():
-  # Covers both pin collection and pin groups
-  grp = origen.dut.pin("grp")
-  with pytest.raises(OSError):
-    grp[100]
-  with pytest.raises(OSError):
-    grp[0:100]
-
-  c = origen.dut.pins.collect("p1", "p2", "p3")
-  with pytest.raises(OSError):
-    c[100]
-  with pytest.raises(OSError):
-    c[0:100]
 
 def test_physical_pin_has_empty_metadata():
   assert origen.dut.physical_pin("porta0").added_metadata == []
