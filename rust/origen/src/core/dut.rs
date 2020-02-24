@@ -4,6 +4,7 @@ use crate::core::model::registers::{
 use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 use crate::core::model::pins::pin::{Pin};
 use crate::core::model::pins::pin_group::{PinGroup};
+use crate::core::model::pins::pin_header::{PinHeader};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::meta::IdGetters;
@@ -20,7 +21,6 @@ use std::sync::RwLock;
 /// bit IDs. This approach allows bits to be easily passed around by ID to enable the creation of
 /// bit collections that are small (a subset of a register's bits) or very large (all bits in
 /// a memory map).
-//#[include_id_getters]
 #[derive(Debug, IdGetters)]
 #[id_getters_by_mapping(
     field = "timeset",
@@ -64,6 +64,12 @@ use std::sync::RwLock;
     return_type = "PinGroup",
     field_container_name = "pin_groups"
 )]
+#[id_getters_by_mapping(
+    field = "pin_header",
+    parent_field = "models",
+    return_type = "PinHeader",
+    field_container_name = "pin_headers"
+)]
 pub struct Dut {
     pub name: String,
     pub models: Vec<Model>,
@@ -79,6 +85,7 @@ pub struct Dut {
     pub wave_events: Vec<Event>,
     pub pins: Vec<Pin>,
     pub pin_groups: Vec<PinGroup>,
+    pub pin_headers: Vec<PinHeader>,
     pub id_mappings: Vec<IndexMap<String, usize>>,
 }
 
@@ -102,6 +109,7 @@ impl Dut {
             wave_events: Vec::<Event>::new(),
             pins: Vec::<Pin>::new(),
             pin_groups: Vec::<PinGroup>::new(),
+            pin_headers: Vec::<PinHeader>::new(),
             id_mappings: Vec::<IndexMap<String, usize>>::new(),
         }
     }

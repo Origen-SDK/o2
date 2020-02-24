@@ -10,6 +10,7 @@ mod pin_group;
 mod pin_collection;
 mod physical_pin_container;
 mod pin_container;
+mod pin_header;
 
 use origen::core::model::pins::Endianness;
 use physical_pin_container::PhysicalPinContainer;
@@ -17,6 +18,7 @@ use pin::Pin;
 use pin_collection::PinCollection;
 use pin_container::PinContainer;
 use pin_group::PinGroup;
+use pin_header::{PinHeader, PinHeaderContainer};
 
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
@@ -28,6 +30,8 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PinContainer>()?;
     m.add_class::<PinGroup>()?;
     m.add_class::<PinCollection>()?;
+    m.add_class::<PinHeader>()?;
+    m.add_class::<PinHeaderContainer>()?;
     Ok(())
 }
 
@@ -208,6 +212,54 @@ impl PyDUT {
             Some(_p) => Ok(Py::new(
                 py,
                 Pin {
+                    name: String::from(name),
+                    model_id: model_id,
+                },
+            )
+            .unwrap()
+            .to_object(py)),
+            None => Ok(py.None()),
+        }
+    }
+
+    #[args(pins = "*")]
+    fn add_pin_header(&self, model_id: usize, name: &str, pins: &PyTuple) -> PyResult<Py<PinHeader>> {
+        let mut dut = DUT.lock().unwrap();
+        dut.create_pin_header(model_id, name, pins.extract::<Vec<String>>()?)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(
+            py,
+            PinHeader {
+                name: String::from(name),
+                model_id: model_id,
+            },
+        )
+        .unwrap())
+    }
+
+    fn pin_headers(&self, model_id: usize) -> PyResult<Py<PinHeaderContainer>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(
+            py,
+            PinHeaderContainer {
+                model_id: model_id,
+            },
+        )
+        .unwrap())
+    }
+
+    fn pin_header(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
+        let dut = DUT.lock().unwrap();
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match dut.get_pin_header(model_id, name) {
+            Some(_p) => Ok(Py::new(
+                py,
+                PinHeader {
                     name: String::from(name),
                     model_id: model_id,
                 },

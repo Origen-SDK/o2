@@ -28,6 +28,16 @@ class Proxy:
   def physical_pin(self, name):
     return origen.dut.db.physical_pin(self.controller.model_id, name)
 
+  @property
+  def pin_headers(self):
+    return origen.dut.db.pin_headers(self.controller.model_id)
+
+  def add_pin_header(self, name, *pins):
+    return origen.dut.db.add_pin_header(self.controller.model_id, name, *pins)
+  
+  def pin_header(self, name):
+    return origen.dut.db.get_pin_header(self.controller.model_id, name)
+
   @classmethod
   def api(cls):
     return [
@@ -38,6 +48,9 @@ class Proxy:
       'group_pins',
       'physical_pin',
       'physical_pins',
+      'pin_headers',
+      'add_pin_header',
+      'pin_header'
     ]
   
 class Loader:
@@ -50,8 +63,12 @@ class Loader:
   def Alias(self, name, *aliases):
     self.controller.add_pin_alias(name, *aliases)
 
+  def PinHeader(self, name, *pins):
+    self.controller.add_pin_header(name, *pins)
+
   def api(self):
       return {
           "Pin": self.Pin,
           "Alias": self.Alias,
+          "PinHeader": self.PinHeader,
       }

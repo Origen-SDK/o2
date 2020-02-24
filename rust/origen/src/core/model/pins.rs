@@ -1,6 +1,7 @@
 pub mod pin;
 pub mod pin_collection;
 pub mod pin_group;
+pub mod pin_header;
 use crate::error::Error;
 use std::convert::TryFrom;
 use super::super::dut::Dut;

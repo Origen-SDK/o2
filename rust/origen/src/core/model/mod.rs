@@ -20,6 +20,7 @@ pub struct Model {
     // Pins
     pub pins: IndexMap<String, usize>,
     pub pin_groups: IndexMap<String, usize>,
+    pub pin_headers: IndexMap<String, usize>,
 
     pub timesets: IndexMap<String, usize>,
     // TODO: Levels
@@ -52,6 +53,7 @@ impl Model {
             memory_maps: IndexMap::new(),
             pins: IndexMap::new(),
             pin_groups: IndexMap::new(),
+            pin_headers: IndexMap::new(),
             timesets: IndexMap::new(),
             address_unit_bits: 8,
             base_address: match base_address {
