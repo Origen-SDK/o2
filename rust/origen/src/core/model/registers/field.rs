@@ -18,7 +18,7 @@ pub struct Field {
     pub width: usize,
     pub access: AccessType,
     /// Contains any reset values defined for this field, if
-    /// not present it will default to resetting all bits to 0
+    /// not present it will default to resetting all bits to undefined
     pub resets: IndexMap<String, Reset>,
     pub enums: IndexMap<String, EnumeratedValue>,
     pub related_fields: usize,

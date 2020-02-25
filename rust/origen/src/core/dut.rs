@@ -427,6 +427,7 @@ impl Dut {
         bit_order: &str,
         filename: Option<String>,
         lineno: Option<usize>,
+        description: Option<String>,
     ) -> Result<usize> {
         let id;
         {
@@ -460,6 +461,7 @@ impl Dut {
             register_file_id: register_file_id,
             filename: filename,
             lineno: lineno,
+            description: description,
             ..defaults
         };
 
@@ -475,6 +477,7 @@ impl Dut {
             id = self.bits.len();
         }
         let bit = Bit {
+            id: id,
             overlay: RwLock::new(None),
             overlay_snapshots: RwLock::new(HashMap::new()),
             register_id: 0,
@@ -483,6 +486,7 @@ impl Dut {
             device_state: RwLock::new(0),
             state_snapshots: RwLock::new(HashMap::new()),
             access: AccessType::ReadWrite,
+            position: 0,
         };
 
         self.bits.push(bit);
@@ -496,7 +500,6 @@ impl Dut {
         if self.reg_descriptions.get(filename).is_none() {
             self.parse_descriptions(filename);
         }
-        println!("{:?}", self.reg_descriptions);
         match self.reg_descriptions.get(filename) {
             Some(x) => match x.get(&lineno) {
                 Some(y) => Some(y.to_string()),

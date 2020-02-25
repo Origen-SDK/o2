@@ -40,6 +40,7 @@ fn create(
     mut fields: Vec<&Field>,
     filename: Option<String>,
     lineno: Option<usize>,
+    description: Option<String>,
 ) -> PyResult<usize> {
     let reg_id;
     let reg_fields;
@@ -64,6 +65,7 @@ fn create(
             &bit_order,
             filename,
             lineno,
+            description,
         )?;
         let reg = dut.get_mut_register(reg_id)?;
         lsb0 = reg.bit_order == BitOrder::LSB0;
@@ -113,14 +115,19 @@ fn create(
     for field in reg_fields {
         // Intention here is to skip decomposing the BigUint unless required
         if !non_zero_reset || field.spacer || reset_vals.last().unwrap().is_none() {
-            for _i in 0..field.width {
+            for i in 0..field.width {
                 let val;
                 if field.spacer {
                     val = ZERO;
                 } else {
                     val = UNDEFINED;
                 }
+                let id;
+                {
+                    id = dut.bits.len();
+                }
                 dut.bits.push(Bit {
+                    id: id,
                     overlay: RwLock::new(None),
                     overlay_snapshots: RwLock::new(HashMap::new()),
                     register_id: reg_id,
@@ -129,6 +136,7 @@ fn create(
                     device_state: RwLock::new(val),
                     state_snapshots: RwLock::new(HashMap::new()),
                     access: field.access,
+                    position: field.offset + i,
                 });
             }
         } else {
@@ -141,7 +149,12 @@ fn create(
                 let mut byte = bytes.pop().unwrap();
                 for i in 0..field.width {
                     let state = (byte >> i % 8) & 1;
+                    let id;
+                    {
+                        id = dut.bits.len();
+                    }
                     dut.bits.push(Bit {
+                        id: id,
                         overlay: RwLock::new(None),
                         overlay_snapshots: RwLock::new(HashMap::new()),
                         register_id: reg_id,
@@ -150,6 +163,7 @@ fn create(
                         device_state: RwLock::new(state),
                         state_snapshots: RwLock::new(HashMap::new()),
                         access: field.access,
+                        position: field.offset + i,
                     });
                     if i % 8 == 7 {
                         match bytes.pop() {
@@ -165,7 +179,12 @@ fn create(
                 let mut mask_byte = mask_bytes.pop().unwrap();
                 for i in 0..field.width {
                     let state = (byte >> i % 8) & (mask_byte >> i % 8) & 1;
+                    let id;
+                    {
+                        id = dut.bits.len();
+                    }
                     dut.bits.push(Bit {
+                        id: id,
                         overlay: RwLock::new(None),
                         overlay_snapshots: RwLock::new(HashMap::new()),
                         register_id: reg_id,
@@ -174,6 +193,7 @@ fn create(
                         device_state: RwLock::new(state),
                         state_snapshots: RwLock::new(HashMap::new()),
                         access: field.access,
+                        position: field.offset + i,
                     });
                     if i % 8 == 7 {
                         match bytes.pop() {

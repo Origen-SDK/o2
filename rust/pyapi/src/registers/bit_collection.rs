@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use num_bigint::BigUint;
 use origen::core::model::registers::BitCollection as RichBC;
 use origen::core::model::registers::{BitOrder, Field, Register};
@@ -9,7 +10,7 @@ use pyo3::exceptions;
 use pyo3::exceptions::AttributeError;
 use pyo3::import_exception;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict, PyInt, PyList, PySlice, PyString};
+use pyo3::types::{PyAny, PyDict, PyInt, PyList, PySlice, PyString, PyTuple};
 use std::iter::FromIterator;
 use std::sync::MutexGuard;
 
@@ -55,6 +56,24 @@ impl BitCollection {
             spacer: false,
             // Important, all displays are LSB0 by default regardless of how the reg
             // was defined
+            bit_order: BitOrder::LSB0,
+        }
+    }
+
+    pub fn from_rich_bc(bc: &RichBC) -> BitCollection {
+        BitCollection {
+            reg_id: bc.reg_id,
+            field: match &bc.field {
+                None => None,
+                Some(x) => Some(x.clone()),
+            },
+            whole_reg: bc.whole_reg,
+            whole_field: bc.whole_field,
+            bit_ids: bc.bits.iter().map(|bit| bit.id).collect(),
+            i: 0,
+            shift_left: false,
+            shift_logical: false,
+            spacer: false,
             bit_order: BitOrder::LSB0,
         }
     }
@@ -346,6 +365,22 @@ impl PyMappingProtocol for BitCollection {
 /// User API methods
 #[pymethods]
 impl BitCollection {
+    /// Returns a bit collection containing the given bit indices
+    #[args(args = "*")]
+    fn subset(&self, args: &PyTuple) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        bc.bit_ids = Vec::from_iter(
+            args.iter()
+                .map(|x| x.extract::<usize>().unwrap())
+                .sorted()
+                .map(|x| self.bit_ids[x])
+                .collect::<Vec<usize>>(),
+        );
+        bc.whole_reg = false;
+        bc.whole_field = false;
+        Ok(bc)
+    }
+
     /// Returns a copy of the BitCollection with its bit_order attribute set to MSB0
     fn with_msb0(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
@@ -387,6 +422,14 @@ impl BitCollection {
             None => self.materialize(&dut)?.reset("hard", &dut)?,
         };
         Ok(self.clone())
+    }
+
+    fn reset_val(&self, name: Option<&str>) -> PyResult<Option<BigUint>> {
+        let dut = origen::dut();
+        match name {
+            Some(n) => Ok(self.materialize(&dut)?.reset_val(n, &dut)?),
+            None => Ok(self.materialize(&dut)?.reset_val("hard", &dut)?),
+        }
     }
 
     #[args(shift_in = "0")]
@@ -533,7 +576,56 @@ impl BitCollection {
             }
         } else {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
-                "'.bits(<name>)' method can only be called on registers",
+                "'.field()' method can only be called on registers",
+            ))
+        }
+    }
+
+    #[args(args = "*")]
+    fn try_fields(&self, args: &PyTuple) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+
+        if self.whole_reg {
+            let mut found = 0;
+            let reg = dut.get_register(self.reg_id.unwrap())?;
+
+            let names = Vec::from_iter(
+                args.iter()
+                    .map(|x| x.extract::<&str>().unwrap())
+                    .collect::<Vec<&str>>(),
+            );
+            let mut bc = RichBC::default();
+            bc.reg_id = Some(reg.id);
+
+            for name in names {
+                let field = reg.fields.get(name);
+                if field.is_some() {
+                    found += 1;
+                    bc.field = Some(name.to_string());
+                    let field = field.unwrap();
+                    for bit in field.bits(&dut) {
+                        bc.bits.push(bit)
+                    }
+                }
+            }
+
+            bc.sort_bits();
+
+            if found == 0 {
+                let msg = format!(
+                    "Register '{}' does not have any bit fields called {:?}",
+                    reg.name, args
+                );
+                Err(PyErr::new::<exceptions::RuntimeError, _>(msg))
+            } else {
+                if found > 1 {
+                    bc.field = None;
+                }
+                Ok(BitCollection::from_rich_bc(&bc))
+            }
+        } else {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "'.try_fields()' method can only be called on registers",
             ))
         }
     }

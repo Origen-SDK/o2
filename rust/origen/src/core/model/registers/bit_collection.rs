@@ -12,20 +12,20 @@ const UNKNOWN_CHAR: &str = "?";
 #[derive(Debug, Clone)]
 pub struct BitCollection<'a> {
     /// Optionally contains the ID of the reg that owns the bits
-    reg_id: Option<usize>,
+    pub reg_id: Option<usize>,
     /// Optionally contains the name of the field that owns the bits
-    field: Option<String>,
+    pub field: Option<String>,
     /// When true the BitCollection contains all bits of the register defined
     /// by reg_id
-    whole_reg: bool,
+    pub whole_reg: bool,
     /// When true the BitCollection contains all bits of the field defined
     /// by field
-    whole_field: bool,
+    pub whole_field: bool,
     pub bits: Vec<&'a Bit>,
     /// Iterator index and vars
-    i: usize,
-    shift_left: bool,
-    shift_logical: bool,
+    pub i: usize,
+    pub shift_left: bool,
+    pub shift_logical: bool,
 }
 
 impl<'a> Default for BitCollection<'a> {
@@ -131,6 +131,11 @@ impl<'a> BitCollection<'a> {
             shift_left: false,
             shift_logical: false,
         }
+    }
+
+    /// Sort the bits in the collection by their position property
+    pub fn sort_bits(&mut self) {
+        self.bits.sort_by_key(|bit| bit.position);
     }
 
     pub fn set_data(&self, value: BigUint) {
@@ -290,6 +295,29 @@ impl<'a> BitCollection<'a> {
                 "Reset cannot be called on an ad-hoc BitCollection, only on a Register or a named Bit Field"
             ))
         }
+    }
+
+    /// Returns the data value of the BitCollection. This will return None if
+    /// any of the bits in the collection do not have a value for the given reset type.
+    /// An error will be returned if the bits can be resolved to a parent register.
+    pub fn reset_val(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<Option<BigUint>> {
+        let reg = self.reg(dut)?;
+        let mut bytes: Vec<u8> = Vec::new();
+        let mut byte: u8 = 0;
+        for (i, &bit) in self.bits.iter().enumerate() {
+            match reg.reset_val_for_bit(name, bit.position)? {
+                None => return Ok(None),
+                Some(x) => byte = byte | x << i % 8,
+            }
+            if i % 8 == 7 {
+                bytes.push(byte);
+                byte = 0;
+            }
+        }
+        if self.bits.len() % 8 != 0 {
+            bytes.push(byte);
+        }
+        Ok(Some(BigUint::from_bytes_le(&bytes)))
     }
 
     //pub fn read(&self, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection> {

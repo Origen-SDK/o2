@@ -210,6 +210,46 @@ impl<'a> DoubleEndedIterator for RegisterFieldIterator<'a> {
 }
 
 impl Register {
+    /// Returns the reset value of the given bit index for the given reset name/type.
+    pub fn reset_val_for_bit(&self, name: &str, index: usize) -> Result<Option<u8>> {
+        let field = self.field_for_bit(index)?;
+        if field.is_none() {
+            return Ok(None);
+        }
+        let field = field.unwrap();
+        let reset = field.resets.get(name);
+        if reset.is_none() {
+            return Ok(None);
+        }
+        let reset = reset.unwrap();
+        let bytes = reset.value.to_bytes_be();
+        let local_offset = index - field.offset;
+        let i = local_offset / 8;
+        if i >= bytes.len() {
+            Ok(Some(0))
+        } else {
+            let byte = bytes[local_offset / 8];
+            Ok(Some((byte >> local_offset % 8) & 1))
+        }
+    }
+
+    /// Returns the field object that owns the given bit, an error will be returned if the given
+    /// index is out of range.
+    /// None will be returned if the given index is within range but no bit field has been defined
+    /// at that bit position.
+    pub fn field_for_bit(&self, index: usize) -> Result<Option<&Field>> {
+        if index >= self.size {
+            return Err(Error::new(&format!(
+                "Tried to look up bit field at index {} in reg {}, but it is only {} bits wide",
+                index, self.name, self.size
+            )));
+        }
+        Ok(self
+            .fields
+            .values()
+            .find(|field| index >= field.offset && index < field.offset + field.width))
+    }
+
     /// Returns a path to this register like "dut.my_block.my_map.my_address_block.my_reg", but the map and address block portions
     /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
     /// don't use them and simply define regs at the top-level of the block.

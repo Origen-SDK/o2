@@ -535,19 +535,15 @@ def test_registers_can_be_declared_in_block_format_with_descriptions():
     assert dut.tr1.b0.description() == "This is tr1 field b0"
     assert dut.tr1.b1.description() == "This is tr1 field b1\nWith multi-lines"
     
-#    it "register descriptions can be supplied via the API" do     
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg3).description(include_name: false).size.should == 1
-#      nvm.reg(:dreg3).description(include_name: false).first.should == "This is dreg3"
-#      nvm.reg(:dreg3).bit(:bit15).description.size.should == 1
-#      nvm.reg(:dreg3).bit(:bit15).description.first.should == "This is dreg3 bit 15"
-#      nvm.reg(:dreg3).bit(:lower).description.size.should == 2
-#      nvm.reg(:dreg3).bit(:lower).description.first.should == "This is dreg3 bit lower"
-#      nvm.reg(:dreg3).bit(:lower).description.last.should == "This is dreg3 bit lower line 2"
-#    end
-#
+def test_register_descriptions_can_be_supplied_via_the_API():
+    with dut.add_reg("tr1", 0, size=16, description="Hello, I'm tr1") as reg:
+        reg.Field("b0", offset=0, width=8, reset=0, description="I'm b0")
+        reg.Field("b1", offset=8, width=8, reset=0, description="I'm b1")
+
+    assert dut.tr1.description() == "Hello, I'm tr1"
+    assert dut.tr1.b0.description() == "I'm b0"
+    assert dut.tr1.b1.description() == "I'm b1"
+
 #    it "bit value descriptions work" do
 #      Origen.app.unload_target!
 #      nvm = OrigenCoreSupport::NVM::NVMSub.new
@@ -570,84 +566,64 @@ def test_registers_can_be_declared_in_block_format_with_descriptions():
 #      nvm.reg(:dreg).bits(:bit14).description(include_bit_values: false, include_name: false).should == ["This does something cool"]
 #      nvm.reg(:dreg3).bits(:bit14).description(include_bit_values: false, include_name: false).should == ["This does something cool"]
 #    end
-#
-#    it "bit names from a description work" do
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg).bits(:bit14).full_name.should == "Bit 14"
-#      nvm.reg(:dreg3).bits(:bit14).full_name.should == "Bit 14"
-#    end
-#
-#    it "register names from a description work" do
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg).full_name.should == "Data Register 3"
-#      nvm.reg(:dreg3).full_name.should == "Data Register 3"
-#    end
-#
-#    it "large bit collections work" do
-#      reg :regx, 0 do
-#        bit 31..0, :data
-#      end 
-#      reg = reg(:regx)
-#      reg.write(0x4C)
-#      reg.data.should == 0x4C
-#      lower = reg.bits(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)
-#      lower.data.should == 0x4C
-#      lower = reg.bits(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
-#      lower.data.should == 0x4C
-#    end
-#
-#    it "reg and bit reset data can be fetched" do
-#      reg :reset_test, 100 do
-#        bit 31..16, :upper, reset: 0x5555
-#        bit 15..1, :lower
-#        bit 0, :bit0, reset: 1
-#      end 
-#
-#      reg(:reset_test).reset_val.should == 0x55550001
-#      reg(:reset_test).bits(:upper).reset_val.should == 0x5555
-#      reg(:reset_test).bits(:lower).reset_val.should == 0x0000
-#      reg(:reset_test).bit(:bit0).reset_val.should == 0x1 
-#      reg(:reset_test).write(0xFFFF_FFFF)
-#      reg(:reset_test).reset_val.should == 0x55550001
-#      reg(:reset_test).val.should == 0xFFFF_FFFF
-#    end
-#
-#    it "reset values work correct in real life case" do
-#      reg :proth, 0x0024, size: 32 do
-#        bits 31..24,   :fprot7,  reset: 0xFF
-#        bits 23..16,   :fprot6,  reset: 0xEE
-#        bits 15..8,    :fprot5,  reset: 0xDD
-#        bits 7..0,     :fprot4,  reset: 0x11
-#      end
-#      reg(:proth).data.should == 0xFFEE_DD11
-#      reg(:proth).reset_val.should == 0xFFEE_DD11
-#      reg(:proth).bits(:fprot7).reset_val.should == 0xFF
-#      reg(:proth).bits(:fprot6).reset_val.should == 0xEE
-#      reg(:proth).bits(:fprot5).reset_val.should == 0xDD
-#      reg(:proth).bits(:fprot4).reset_val.should == 0x11
-#    end
-#
-#    it "a few different bit names can be tried" do
-#      reg :multi_name, 0x0030 do
-#        bit 3, :some_bit3
-#        bit 2, :some_bit2
-#        bit 1, :some_bit1
-#        bit 0, :some_bit0
-#      end
-#      reg(:multi_name).bits(:blah1, :blah_blah1, :some_bit1).write(1)
-#      reg(:multi_name).data.should == 2
-#      # X chosen here specifically in the name so that when sorted it comes
-#      # after the name that will match a bit in this register
-#      reg(:multi_name).bit(:some_bit0, :xlah0, :xlah_blah0).write(1)
-#      reg(:multi_name).data.should == 3
-#      reg(:multi_name).bit(:some_bit2, :some_bit3, :some_bit4).write(3)
-#      reg(:multi_name).data.should == 0xF
-#    end
-#
+
+def test_subset_method():
+    with dut.add_reg("regx", 0) as reg:
+        reg.Field("data", offset=0, width=32)
+
+    reg = dut.regx
+    reg.set_data(0x1111_224C)
+    assert reg.data() == 0x1111_224C
+    lower = reg.subset(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)
+    assert lower.data() == 0x224C
+    lower = reg.subset(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
+    assert lower.data() == 0x224C
+
+def test_reg_and_bit_reset_data_can_be_fetched():
+    with dut.add_reg("reset_test", 100) as reg:
+        reg.Field("upper", offset=16, width=16, reset=0x5555)
+        reg.Field("lower", offset=1, width=15, reset=0)
+        reg.Field("bit0", offset=0, reset=1)
+
+    assert dut.reset_test.reset_val() == 0x55550001
+    assert dut.reset_test.upper.reset_val() == 0x5555
+    assert dut.reset_test.lower.reset_val() == 0x0000
+    assert dut.reset_test.bit0.reset_val() == 0x1 
+    dut.reset_test.set_data(0xFFFF_FFFF)
+    assert dut.reset_test.reset_val() == 0x55550001
+    assert dut.reset_test.data() == 0xFFFF_FFFF
+
+def test_reset_values_work_correct_in_real_life_case():
+    with dut.add_reg("proth", 0x0024, size=32) as reg:
+        reg.Field("fprot7", offset=24, width=8, reset=0xFF)
+        reg.Field("fprot6", offset=16, width=8, reset=0xEE)
+        reg.Field("fprot5", offset=8,  width=8, reset=0xDD)
+        reg.Field("fprot4", offset=0,  width=8, reset=0x11)
+
+    assert dut.proth.data() == 0xFFEE_DD11
+    assert dut.proth.reset_val() == 0xFFEE_DD11
+    assert dut.proth.fprot7.reset_val() == 0xFF
+    assert dut.proth.fprot6.reset_val() == 0xEE
+    assert dut.proth.fprot5.reset_val() == 0xDD
+    assert dut.proth.fprot4.reset_val() == 0x11
+
+def test_a_few_different_bit_names_can_be_tried():
+    with dut.add_reg("multi_name", 0x0030) as reg:
+        reg.Field("some_bit3", offset=3)
+        reg.Field("some_bit2", offset=2)
+        reg.Field("some_bit1", offset=1)
+        reg.Field("some_bit0", offset=0)
+
+    dut.multi_name.set_data(0)
+    dut.multi_name.try_fields("blah1", "blah_blah1", "some_bit1").set_data(1)
+    assert dut.multi_name.data() == 2
+    # X chosen here specifically in the name so that when sorted it comes
+    # after the name that will match a bit in this register
+    dut.multi_name.try_fields("some_bit0", "xlah0", "xlah_blah0").set_data(1)
+    assert dut.multi_name.data() == 3
+    dut.multi_name.try_fields("some_bit2", "some_bit3", "some_bit4").set_data(3)
+    assert dut.multi_name.data() == 0xF
+
 #    it "the bits method accepts an array of bit ids" do
 #      reg :tr, 0 do
 #        bits 31..0, :data
@@ -684,40 +660,6 @@ def test_registers_can_be_declared_in_block_format_with_descriptions():
 #        reg(:tr3).bit(0).is_to_be_read?.should == true
 #        reg(:tr3).bit(0).clear_read_flag
 #        reg(:tr3).bit(0).is_to_be_read?.should == false
-#    end
-#
-#    specify "bit reset values can be specified as undefined or memory" do
-#      reg :reset1, 0 do
-#        bit 1, :x, reset: :undefined
-#        bit 0, :y, reset: :memory
-#      end
-#
-#      reg :reset1a, 0 do
-#        bits 15..8, :x, reset: :undefined
-#        bits 7..0,  :y, reset: :memory
-#      end
-#
-#      reg(:reset1).bit(:x).reset_val.should == :undefined
-#      reg(:reset1).bit(:y).reset_val.should == :memory
-#      # We still need to pick a data value (until Origen can truly model the concept of X)
-#      reg(:reset1).data.should == 0
-#      # But we can also tell that the true state is undefined 
-#      reg(:reset1).bit(:x).has_known_value?.should == false
-#      reg(:reset1).bit(:y).has_known_value?.should == false
-#      reg(:reset1).write(0xFFFF_FFFF)
-#      reg(:reset1).bit(:x).has_known_value?.should == true
-#      reg(:reset1).bit(:y).has_known_value?.should == true
-#      reg(:reset1).data.should == 3
-#      reg(:reset1).reset
-#      reg(:reset1).bit(:x).has_known_value?.should == false
-#      reg(:reset1).bit(:y).has_known_value?.should == false
-#      reg(:reset1).data.should == 0
-#
-#      reg(:reset1a).bits(:x).reset_val.should == :undefined
-#      reg(:reset1a).bits(:y).reset_val.should == :memory
-#      reg(:reset1a).has_known_value?.should == false
-#      reg(:reset1a).bits(:x).has_known_value?.should == false
-#      reg(:reset1a).bits(:y).has_known_value?.should == false
 #    end
 #
 #    specify "reset values can be set at register level" do
@@ -815,14 +757,6 @@ def test_registers_can_be_declared_in_block_format_with_descriptions():
 #      end
 #      reg(:reg2)[7].should be
 #      reg(:reg2)[8].should == nil
-#    end
-#
-#    specify "reg dot syntax works" do
-#      reg :reg_dot1, 0, size: 8 do
-#        bits 7..0, :d1
-#      end
-#      reg_dot1.val.should == 0
-#      reg_dot1.d1.val.should == 0
 #    end
 #
 #    specify "regs can be deleted" do

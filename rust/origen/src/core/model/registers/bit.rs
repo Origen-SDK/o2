@@ -12,6 +12,7 @@ pub const UNDEFINED: u8 = 0b10;
 // TODO: Would one RwLock wrapping a BitInner struct instantiate faster?
 #[derive(Debug)]
 pub struct Bit {
+    pub id: usize,
     pub register_id: usize,
     pub overlay: RwLock<Option<String>>,
     pub overlay_snapshots: RwLock<HashMap<String, Option<String>>>,
@@ -29,6 +30,7 @@ pub struct Bit {
     pub reset_state: RwLock<u8>,
     pub state_snapshots: RwLock<HashMap<String, u8>>,
     pub access: AccessType,
+    pub position: usize,
 }
 
 impl Bit {
