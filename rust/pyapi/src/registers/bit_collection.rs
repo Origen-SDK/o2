@@ -38,6 +38,7 @@ pub struct BitCollection {
     pub i: usize,
     pub shift_left: bool,
     pub shift_logical: bool,
+    pub transaction: u8,
 }
 
 /// Rust-private methods, i.e. not accessible from Python
@@ -57,6 +58,7 @@ impl BitCollection {
             // Important, all displays are LSB0 by default regardless of how the reg
             // was defined
             bit_order: BitOrder::LSB0,
+            transaction: 0,
         }
     }
 
@@ -75,6 +77,7 @@ impl BitCollection {
             shift_logical: false,
             spacer: false,
             bit_order: BitOrder::LSB0,
+            transaction: 0,
         }
     }
 }
@@ -119,6 +122,7 @@ impl pyo3::class::iter::PyIterProtocol for BitCollection {
             shift_logical: false,
             spacer: false,
             bit_order: slf.bit_order,
+            transaction: slf.transaction,
         };
 
         slf.i += 1;
@@ -183,27 +187,8 @@ impl PyObjectProtocol for BitCollection {
         if query == "bits" {
             let mut bits: Vec<PyObject> = Vec::new();
             for id in &self.bit_ids {
-                bits.push(
-                    Py::new(
-                        py,
-                        BitCollection {
-                            reg_id: self.reg_id,
-                            field: match &self.field {
-                                Some(x) => Some(x.to_string()),
-                                None => None,
-                            },
-                            whole_reg: self.whole_reg && self.bit_ids.len() == 1,
-                            whole_field: self.whole_field && self.bit_ids.len() == 1,
-                            bit_ids: vec![*id],
-                            i: 0,
-                            shift_left: false,
-                            shift_logical: false,
-                            spacer: false,
-                            bit_order: self.bit_order,
-                        },
-                    )?
-                    .to_object(py),
-                );
+                let bc = self.smart_clone(vec![*id]);
+                bits.push(Py::new(py, bc)?.to_object(py));
             }
             Ok(PyList::new(py, bits).into())
         // .fields returns a Python dict containing field objects as BCs and spacer BCs
@@ -212,51 +197,23 @@ impl PyObjectProtocol for BitCollection {
                 let fields = PyDict::new(py);
                 let reg = dut.get_register(self.reg_id.unwrap())?;
                 for field in reg.fields(true) {
-                    fields.set_item(
-                        field.name.clone(),
-                        Py::new(
-                            py,
-                            BitCollection {
-                                reg_id: self.reg_id,
-                                field: Some(field.name),
-                                whole_reg: self.whole_reg && self.bit_ids.len() == field.width,
-                                whole_field: true,
-                                bit_ids: Vec::from_iter(
-                                    self.bit_ids[field.offset..field.offset + field.width]
-                                        .iter()
-                                        .cloned(),
-                                ),
-                                i: 0,
-                                shift_left: false,
-                                shift_logical: false,
-                                spacer: field.spacer,
-                                bit_order: self.bit_order,
-                            },
-                        )?
-                        .to_object(py),
-                    )?;
+                    let mut bc = self.smart_clone(Vec::from_iter(
+                        self.bit_ids[field.offset..field.offset + field.width]
+                            .iter()
+                            .cloned(),
+                    ));
+                    bc.field = Some(field.name.clone());
+                    fields.set_item(field.name, Py::new(py, bc)?.to_object(py))?;
                 }
                 Ok(fields.into())
             // .my_field
             } else {
                 let reg = dut.get_register(self.reg_id.unwrap())?;
                 if reg.fields.contains_key(query) {
-                    Ok(Py::new(
-                        py,
-                        BitCollection {
-                            reg_id: self.reg_id,
-                            field: Some(query.to_string()),
-                            whole_reg: false,
-                            whole_field: true,
-                            bit_ids: reg.fields.get(query).unwrap().bit_ids(&dut),
-                            i: 0,
-                            shift_left: false,
-                            shift_logical: false,
-                            spacer: false,
-                            bit_order: self.bit_order,
-                        },
-                    )?
-                    .to_object(py))
+                    let mut bc = self.smart_clone(reg.fields.get(query).unwrap().bit_ids(&dut));
+                    bc.field = Some(query.to_string());
+                    bc.whole_field = true;
+                    Ok(Py::new(py, bc)?.to_object(py))
                 } else {
                     Err(AttributeError::py_err(format!(
                         "'BitCollection' object has no attribute '{}'",
@@ -307,18 +264,9 @@ impl PyMappingProtocol for BitCollection {
                 lower = tmp;
             }
             bit_ids = Vec::from_iter(self.bit_ids[lower..upper + 1].iter().cloned());
-            Ok(BitCollection {
-                reg_id: self.reg_id,
-                field: field,
-                whole_reg: self.whole_reg && self.bit_ids.len() == bit_ids.len(),
-                whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
-                bit_ids: bit_ids,
-                i: 0,
-                shift_left: false,
-                shift_logical: false,
-                spacer: false,
-                bit_order: self.bit_order,
-            })
+            let mut bc = self.smart_clone(bit_ids);
+            bc.field = field;
+            Ok(bc)
         } else if let Ok(_int) = idx.cast_as::<PyInt>() {
             let i = idx.extract::<usize>().unwrap();
             if i < self.bit_ids.len() {
@@ -328,18 +276,9 @@ impl PyMappingProtocol for BitCollection {
                 } else {
                     bit_ids.push(self.bit_ids[self.bit_ids.len() - i - 1]);
                 }
-                Ok(BitCollection {
-                    reg_id: self.reg_id,
-                    field: field,
-                    whole_reg: self.whole_reg && self.bit_ids.len() == bit_ids.len(),
-                    whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
-                    bit_ids: bit_ids,
-                    i: 0,
-                    shift_left: false,
-                    shift_logical: false,
-                    spacer: false,
-                    bit_order: self.bit_order,
-                })
+                let mut bc = self.smart_clone(bit_ids);
+                bc.field = field;
+                Ok(bc)
             } else {
                 Err(PyErr::new::<exceptions::RuntimeError, _>(
                     "The given bit index is out of range",
@@ -365,17 +304,59 @@ impl PyMappingProtocol for BitCollection {
 /// User API methods
 #[pymethods]
 impl BitCollection {
+    /// Similar to the regular clone(), but doesn't clone the bit_ids vector and assigns
+    /// the supplied one instead.
+    pub fn smart_clone(&self, bit_ids: Vec<usize>) -> BitCollection {
+        BitCollection {
+            reg_id: self.reg_id,
+            field: match &self.field {
+                None => None,
+                Some(x) => Some(x.clone()),
+            },
+            whole_reg: self.whole_reg && self.bit_ids.len() == bit_ids.len(),
+            whole_field: self.whole_field && self.bit_ids.len() == bit_ids.len(),
+            bit_ids: bit_ids,
+            i: 0,
+            shift_left: self.shift_left,
+            shift_logical: self.shift_logical,
+            spacer: self.spacer,
+            bit_order: self.bit_order,
+            transaction: self.transaction,
+        }
+    }
+
     /// Returns a bit collection containing the given bit indices
     #[args(args = "*")]
     fn subset(&self, args: &PyTuple) -> PyResult<BitCollection> {
         let mut bc = self.clone();
-        bc.bit_ids = Vec::from_iter(
-            args.iter()
-                .map(|x| x.extract::<usize>().unwrap())
-                .sorted()
-                .map(|x| self.bit_ids[x])
-                .collect::<Vec<usize>>(),
-        );
+        let mut bit_ids: Vec<usize> = Vec::new();
+
+        for arg in args.iter() {
+            let id = arg.extract::<usize>();
+            if id.is_ok() {
+                bit_ids.push(id.unwrap());
+            } else {
+                let ids = arg.extract::<Vec<usize>>();
+                if ids.is_ok() {
+                    for id in ids.unwrap() {
+                        bit_ids.push(id);
+                    }
+                } else {
+                    let msg = format!(
+                        "The BitCollection.subset() method can accept multiple integers or an array of integer arguments only, this invalid: '{:?}'",
+                        args
+                    );
+                    return Err(PyErr::new::<exceptions::RuntimeError, _>(msg));
+                }
+            }
+        }
+
+        bc.bit_ids = bit_ids
+            .into_iter()
+            .sorted()
+            .map(|x| self.bit_ids[x])
+            .collect::<Vec<usize>>();
+
         bc.whole_reg = false;
         bc.whole_field = false;
         Ok(bc)
@@ -397,6 +378,24 @@ impl BitCollection {
 
     fn len(&self) -> PyResult<usize> {
         Ok(self.bit_ids.len())
+    }
+
+    #[getter]
+    fn size(&self) -> PyResult<usize> {
+        self.len()
+    }
+
+    #[getter]
+    fn width(&self) -> PyResult<usize> {
+        self.len()
+    }
+
+    #[getter]
+    /// Returns the bit's position (offset) within its parent register.
+    /// If the BitCollection contains > 1 bits, then this will return the lowest position.
+    fn position(&self) -> PyResult<usize> {
+        let dut = origen::dut();
+        Ok(self.materialize(&dut)?.position())
     }
 
     fn shift_out_left(&self) -> PyResult<BitCollection> {
@@ -470,7 +469,11 @@ impl BitCollection {
 
     fn set_data(&self, value: BigUint) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        self.materialize(&dut)?.set_data(value);
+        let rbc = self.materialize(&dut)?;
+        rbc.set_data(value);
+        if self.is_verify_transaction_open() {
+            rbc.set_verify_flag(None)?;
+        }
         Ok(self.clone())
     }
 
@@ -502,15 +505,111 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    pub fn read(&self) -> PyResult<BitCollection> {
+    #[args(enable = "None")]
+    /// Trigger a verify transaction on the register
+    pub fn verify(&self, enable: Option<BigUint>) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        self.materialize(&dut)?.read()?;
+        if self.transaction != 0 {
+            self.set_verify_flag(enable)?;
+        } else {
+            self.materialize(&dut)?.verify(enable)?;
+        }
         Ok(self.clone())
     }
 
-    /// Returns true if any bits in the collection has their read flag set
-    pub fn is_to_be_read(&self) -> PyResult<bool> {
-        Ok(self.materialize(&origen::dut())?.is_to_be_read())
+    #[args(enable = "None")]
+    /// Equivalent to calling verify() but without invoking a register transaction at the end,
+    /// i.e. it will set the verify flag on the bits and optionally apply an enable mask when
+    /// deciding what bit flags to set.
+    pub fn set_verify_flag(&self, enable: Option<BigUint>) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        self.materialize(&dut)?.set_verify_flag(enable)?;
+        Ok(self.clone())
+    }
+
+    /// Trigger a write transaction on the register
+    pub fn write(&self) -> PyResult<BitCollection> {
+        if self.transaction != 0 {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Can't call write() from within a transaction block, did you mean to call set_data()?",
+            ))
+        } else {
+            let dut = origen::dut();
+            self.materialize(&dut)?.write()?;
+            Ok(self.clone())
+        }
+    }
+
+    pub fn is_verify_transaction_open(&self) -> bool {
+        self.transaction == 1
+    }
+
+    pub fn is_write_transaction_open(&self) -> bool {
+        self.transaction == 2
+    }
+
+    pub fn is_transaction_open(&self) -> bool {
+        self.transaction != 0
+    }
+
+    pub fn start_verify_transaction(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        if bc.transaction != 0 {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Attempted to start a verify transaction on a BitCollection that already has a transaction underway",
+            ))
+        } else {
+            bc.transaction = 1;
+            Ok(bc)
+        }
+    }
+
+    pub fn end_verify_transaction(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        if self.transaction != 1 {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Attempted to end a verify transaction on a BitCollection that does not have a transaction underway",
+            ))
+        } else {
+            bc.transaction = 0;
+            Ok(bc)
+        }
+    }
+
+    pub fn start_write_transaction(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        if bc.transaction != 0 {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Attempted to start a write transaction on a BitCollection that already has a transaction underway",
+            ))
+        } else {
+            bc.transaction = 2;
+            Ok(bc)
+        }
+    }
+
+    pub fn end_write_transaction(&self) -> PyResult<BitCollection> {
+        let mut bc = self.clone();
+        if self.transaction != 2 {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Attempted to end a write transaction on a BitCollection that does not have a transaction underway",
+            ))
+        } else {
+            bc.transaction = 0;
+            bc.write()?;
+            Ok(bc)
+        }
+    }
+
+    /// Clears the verify flag on all bits in the collection
+    pub fn clear_verify_flag(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.clear_verify_flag();
+        Ok(self.clone())
+    }
+
+    /// Returns true if any bits in the collection has their verify flag set
+    pub fn is_to_be_verified(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.is_to_be_verified())
     }
 
     /// Returns true if any bits in the collection has their capture flag set
@@ -555,18 +654,10 @@ impl BitCollection {
         if self.whole_reg {
             let reg = dut.get_register(self.reg_id.unwrap())?;
             if reg.fields.contains_key(name) {
-                Ok(BitCollection {
-                    reg_id: self.reg_id,
-                    field: Some(name.to_string()),
-                    whole_reg: false,
-                    whole_field: true,
-                    bit_ids: reg.fields.get(name).unwrap().bit_ids(&dut),
-                    i: 0,
-                    shift_left: false,
-                    shift_logical: false,
-                    spacer: false,
-                    bit_order: self.bit_order,
-                })
+                let mut bc = self.smart_clone(reg.fields.get(name).unwrap().bit_ids(&dut));
+                bc.field = Some(name.to_string());
+                bc.whole_field = true;
+                Ok(bc)
             } else {
                 let msg = format!(
                     "Register '{}' does not have a bit field called '{}'",
@@ -671,8 +762,8 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn read_enables(&self) -> PyResult<BigUint> {
-        Ok(self.materialize(&origen::dut())?.read_enables())
+    fn verify_enables(&self) -> PyResult<BigUint> {
+        Ok(self.materialize(&origen::dut())?.verify_enables())
     }
 
     fn capture_enables(&self) -> PyResult<BigUint> {

@@ -138,6 +138,11 @@ impl<'a> BitCollection<'a> {
         self.bits.sort_by_key(|bit| bit.position);
     }
 
+    /// If the BitCollection contains > 1 bits, then this will return the lowest position
+    pub fn position(&self) -> usize {
+        self.bits[0].position
+    }
+
     pub fn set_data(&self, value: BigUint) {
         let mut bytes = value.to_bytes_be();
         let mut byte = bytes.pop().unwrap();
@@ -218,9 +223,17 @@ impl<'a> BitCollection<'a> {
         }
     }
 
-    /// Returns true if any bits in the collection has their read flag set
-    pub fn is_to_be_read(&self) -> bool {
-        self.bits.iter().any(|bit| bit.is_to_be_read())
+    /// Clears the verify flag on all bits in the collection
+    pub fn clear_verify_flag(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.clear_verify_flag();
+        }
+        self
+    }
+
+    /// Returns true if any bits in the collection has their verify flag set
+    pub fn is_to_be_verified(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_to_be_verified())
     }
 
     /// Returns true if any bits in the collection has their capture flag set
@@ -320,12 +333,44 @@ impl<'a> BitCollection<'a> {
         Ok(Some(BigUint::from_bytes_le(&bytes)))
     }
 
-    //pub fn read(&self, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection> {
-    pub fn read(&self) -> Result<&BitCollection> {
-        for &bit in self.bits.iter() {
-            bit.read()?;
+    /// Trigger a verify operation on the register
+    pub fn verify(&self, enable: Option<BigUint>) -> Result<&BitCollection> {
+        self.set_verify_flag(enable)?;
+        // TODO: Record the verify in the AST here
+        Ok(self)
+    }
+
+    /// Equivalent to calling verify() but without invoking a register transaction at the end,
+    /// i.e. it will set the verify flag on the bits and optionally apply an enable mask when
+    /// deciding what bit flags to set.
+    pub fn set_verify_flag(&self, enable: Option<BigUint>) -> Result<&BitCollection> {
+        if enable.is_some() {
+            let enable = enable.unwrap();
+            let mut bytes = enable.to_bytes_be();
+            let mut byte = bytes.pop().unwrap();
+
+            for (i, &bit) in self.bits.iter().enumerate() {
+                if (byte >> i % 8) & 1 == 1 {
+                    bit.verify()?;
+                }
+                if i % 8 == 7 {
+                    match bytes.pop() {
+                        Some(x) => byte = x,
+                        None => byte = 0,
+                    }
+                }
+            }
+        } else {
+            for &bit in self.bits.iter() {
+                bit.verify()?;
+            }
         }
-        // TODO: Record the read in the AST here
+        Ok(self)
+    }
+
+    /// Trigger a write operation on the register
+    pub fn write(&self) -> Result<&BitCollection> {
+        // TODO: Record the write in the AST here
         Ok(self)
     }
 
@@ -393,11 +438,11 @@ impl<'a> BitCollection<'a> {
         self.bits.len()
     }
 
-    pub fn read_enables(&self) -> BigUint {
+    pub fn verify_enables(&self) -> BigUint {
         let mut bytes: Vec<u8> = Vec::new();
         let mut byte: u8 = 0;
         for (i, &bit) in self.bits.iter().enumerate() {
-            byte = byte | bit.read_enable_flag() << i % 8;
+            byte = byte | bit.verify_enable_flag() << i % 8;
             if i % 8 == 7 {
                 bytes.push(byte);
                 byte = 0;
@@ -443,11 +488,11 @@ impl<'a> BitCollection<'a> {
 
     pub fn status_str(&mut self, operation: &str) -> Result<String> {
         let mut ss = "".to_string();
-        if operation == "read" || operation == "r" {
+        if operation == "verify" || operation == "r" {
             for bit in self.shift_out_left() {
                 if bit.is_to_be_captured() {
                     ss += STORE_CHAR;
-                } else if bit.is_to_be_read() {
+                } else if bit.is_to_be_verified() {
                     if bit.has_overlay() {
                         //&& options[:mark_overlays]
                         ss += OVERLAY_CHAR
@@ -485,7 +530,7 @@ impl<'a> BitCollection<'a> {
             }
         } else {
             return Err(Error::new(&format!(
-                "Unknown operation argument '{}', must be \"read\" or \"write\"",
+                "Unknown operation argument '{}', must be \"verify\" or \"write\"",
                 operation
             )));
         }

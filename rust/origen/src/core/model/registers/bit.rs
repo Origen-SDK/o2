@@ -20,7 +20,7 @@ pub struct Bit {
     /// 0 - Data value
     /// 1 - Value is X
     /// 2 - Value is Z
-    /// 3 - Bit is to be read
+    /// 3 - Bit is to be verified
     /// 4 - Bit is to be captured
     pub state: RwLock<u8>,
     /// The state we think the device has, only bits [2:0] are applicable.
@@ -52,6 +52,15 @@ impl Bit {
         }
         let mut state = self.state.write().unwrap();
         *state = state_val & 0b111;
+    }
+
+    pub fn clear_verify_flag(&self) {
+        let state_val;
+        {
+            state_val = *self.state.read().unwrap();
+        }
+        let mut state = self.state.write().unwrap();
+        *state = state_val & 0b11110111;
     }
 
     pub fn capture(&self) {
@@ -86,7 +95,7 @@ impl Bit {
         self.access != Unimplemented && *self.state.read().unwrap() & 0b100 != 0
     }
 
-    pub fn is_to_be_read(&self) -> bool {
+    pub fn is_to_be_verified(&self) -> bool {
         *self.state.read().unwrap() & 0b1000 != 0
     }
 
@@ -126,14 +135,14 @@ impl Bit {
         }
     }
 
-    pub fn read(&self) -> Result<()> {
+    pub fn verify(&self) -> Result<()> {
         if self.has_known_value() {
             let mut state = self.state.write().unwrap();
             *state = *state | 0b1000;
             Ok(())
         } else {
             return Err(Error::new(&format!(
-                "Attempt to read a bit which has an undefined data value, bit state is: {}",
+                "Attempt to verify a bit which has an undefined data value, bit state is: {}",
                 self.state_char()
             )));
         }
@@ -197,8 +206,8 @@ impl Bit {
         }
     }
 
-    pub fn read_enable_flag(&self) -> u8 {
-        if self.is_to_be_read() {
+    pub fn verify_enable_flag(&self) -> u8 {
+        if self.is_to_be_verified() {
             1
         } else {
             0

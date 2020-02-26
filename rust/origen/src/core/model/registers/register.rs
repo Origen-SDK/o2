@@ -690,8 +690,8 @@ impl Register {
                 state.push("WO");
             }
         }
-        if bits.is_to_be_read() {
-            state.push("Rd");
+        if bits.is_to_be_verified() {
+            state.push("Vfy");
         }
         if bits.is_to_be_captured() {
             state.push("Cap");

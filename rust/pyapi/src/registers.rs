@@ -41,6 +41,7 @@ fn create(
     filename: Option<String>,
     lineno: Option<usize>,
     description: Option<String>,
+    resets: Option<Vec<&ResetVal>>,
 ) -> PyResult<usize> {
     let reg_id;
     let reg_fields;

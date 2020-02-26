@@ -36,7 +36,7 @@ class Loader:
             return origen.dut.db.get_or_create_address_block(self.memory_map.id, "default")
 
     @contextmanager
-    def Reg(self, name, address_offset, size=32, bit_order="lsb0", _called_from_controller=False, description=None):
+    def Reg(self, name, address_offset, size=32, bit_order="lsb0", _called_from_controller=False, description=None, reset=None, resets=None):
         if origen._reg_description_parsing:
             if _called_from_controller:
                 caller = getframeinfo(stack()[4][0])
@@ -52,7 +52,7 @@ class Loader:
         yield self
         # TODO: The None here is for an optional register file ID, which is not hooked up yet
         reg = _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, self.fields,
-                                           filename, lineno, description)
+                                           filename, lineno, description, self.clean_resets(reset, resets))
         self.fields = None
 
     def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0", _called_from_controller=False, description=None):
