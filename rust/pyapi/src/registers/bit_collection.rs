@@ -398,6 +398,14 @@ impl BitCollection {
         Ok(self.materialize(&dut)?.position())
     }
 
+    #[getter]
+    /// Returns the access attribute of the BitCollection. This will raise an error if
+    /// the collection is comprised of bits with a different access attribute value.
+    fn access(&self) -> PyResult<String> {
+        let dut = origen::dut();
+        Ok(self.materialize(&dut)?.access()?.to_string())
+    }
+
     fn shift_out_left(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         bc.i = 0;

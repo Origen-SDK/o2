@@ -43,7 +43,7 @@ impl Default for Register {
             dim: 1,
             offset: 0,
             size: 32,
-            access: AccessType::ReadWrite,
+            access: AccessType::RW,
             fields: IndexMap::new(),
             bit_ids: Vec::new(),
             bit_order: BitOrder::LSB0,

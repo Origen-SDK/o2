@@ -33,7 +33,7 @@ impl Default for AddressBlock {
             offset: 0,
             range: 0,
             width: 0,
-            access: AccessType::ReadWrite,
+            access: AccessType::RW,
             registers: IndexMap::new(),
             register_files: IndexMap::new(),
         }

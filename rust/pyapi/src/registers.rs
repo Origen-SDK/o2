@@ -43,6 +43,7 @@ fn create(
     lineno: Option<usize>,
     description: Option<String>,
     resets: Option<Vec<&ResetVal>>,
+    access: Option<String>,
 ) -> PyResult<usize> {
     let reg_id;
     let reg_fields;
@@ -72,12 +73,19 @@ fn create(
         let reg = dut.get_mut_register(reg_id)?;
         lsb0 = reg.bit_order == BitOrder::LSB0;
         for f in &fields {
+            let acc = match &f.access {
+                Some(x) => x,
+                None => match &access {
+                    Some(y) => y,
+                    None => "rw",
+                },
+            };
             let field = reg.add_field(
                 &f.name,
                 f.description.as_ref(),
                 f.offset,
                 f.width,
-                &f.access,
+                acc,
                 f.filename.as_ref(),
                 f.lineno,
             )?;

@@ -658,6 +658,8 @@ def test_reset_values_can_be_set_at_register_level():
 
     assert dut.reset2.data() == 3
 
+# This should be handled by metadata:
+#
 #    specify "a memory location can be set on a register" do
 #      reg :reset6, 0, memory: 0x1234_0000 do
 #        bit 1, :x
@@ -668,20 +670,21 @@ def test_reset_values_can_be_set_at_register_level():
 #      reg(:reset6).bit(:y).reset_val.should == :memory
 #      reg(:reset6).memory.should == 0x1234_0000
 #    end
-#
-#    specify "access can be set and tested at reg level" do
-#      reg :access1, 0, access: :w1c do
-#        bits 2..1, :x
-#        bit  0,    :y
-#      end
-#
-#      reg(:access1).bits(:x).w1c?.should == true
-#      reg(:access1).bit(:y).w1c?.should == true
-#      reg(:access1).w1c?.should == true
-#      reg(:access1).w1s?.should == false
-#      # Verify the access can be pulled for a mutli-bit collection
-#      reg(:access1).bits(:x).access.should == :w1c
-#    end
+
+def test_access_can_be_set_and_tested_at_reg_level():
+    with dut.add_reg("access1", 0, access="ro") as reg:
+        reg.Field("x", offset=1, width=2)
+        reg.Field("y", offset=0, access="w1c")
+
+    assert dut.access1.x.access == "RO"
+    assert dut.access1.y.access == "W1C"
+
+    with dut.add_reg("access2", 0) as reg:
+        reg.Field("x", offset=1, width=2)
+        reg.Field("y", offset=0, access="w1c")
+
+    assert dut.access2.x.access == "RW"
+    assert dut.access2.y.access == "W1C"
 
 def test_sub_collections_of_bits_can_be_made_from_bit_collections():
     with dut.add_reg("treg1", 0) as reg:

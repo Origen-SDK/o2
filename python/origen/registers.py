@@ -36,7 +36,7 @@ class Loader:
             return origen.dut.db.get_or_create_address_block(self.memory_map.id, "default")
 
     @contextmanager
-    def Reg(self, name, address_offset, size=32, bit_order="lsb0", _called_from_controller=False, description=None, reset=None, resets=None):
+    def Reg(self, name, address_offset, size=32, bit_order="lsb0", _called_from_controller=False, description=None, reset=None, resets=None, access=None):
         if origen._reg_description_parsing:
             if _called_from_controller:
                 caller = getframeinfo(stack()[4][0])
@@ -52,10 +52,10 @@ class Loader:
         yield self
         # TODO: The None here is for an optional register file ID, which is not hooked up yet
         reg = _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, self.fields,
-                                           filename, lineno, description, self.clean_resets(reset, resets))
+                                           filename, lineno, description, self.clean_resets(reset, resets), access)
         self.fields = None
 
-    def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0", _called_from_controller=False, description=None):
+    def SimpleReg(self, name, address_offset, size=32, reset=None, resets=None, enums=None, bit_order="lsb0", _called_from_controller=False, description=None, access=None):
         if origen._reg_description_parsing:
             if _called_from_controller:
                 caller = getframeinfo(stack()[2][0])
@@ -66,12 +66,12 @@ class Loader:
         else:
             filename = None
             lineno = None
-        field = _origen.dut.registers.Field("data", "", 0, size, "rw", self.clean_resets(reset, resets), self.clean_enums(enums))
+        field = _origen.dut.registers.Field("data", "", 0, size, access, self.clean_resets(reset, resets), self.clean_enums(enums))
         # TODO: The None here is for an optional register file ID, which is not hooked up yet
         _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, [field],
-                                     filename, lineno, description)
+                                     filename, lineno, description, None, None)
 
-    def Field(self, name, offset, width=1, access="rw", reset=None, resets=None, enums=None, description=None):
+    def Field(self, name, offset, width=1, access=None, reset=None, resets=None, enums=None, description=None):
         if origen._reg_description_parsing:
             caller = getframeinfo(stack()[1][0])
             filename = caller.filename

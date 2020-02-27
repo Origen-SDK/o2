@@ -1,4 +1,5 @@
 use super::{Bit, Field, Register};
+use crate::core::model::registers::AccessType;
 use crate::{Dut, Error, Result};
 use num_bigint::BigUint;
 use regex::Regex;
@@ -141,6 +142,19 @@ impl<'a> BitCollection<'a> {
     /// If the BitCollection contains > 1 bits, then this will return the lowest position
     pub fn position(&self) -> usize {
         self.bits[0].position
+    }
+
+    /// Returns the access attribute of the BitCollection. This will raise an error if
+    /// the collection is comprised of bits with a different access attribute value.
+    pub fn access(&self) -> Result<AccessType> {
+        let val = self.bits[0].access;
+        if !self.bits.iter().all(|&bit| bit.access == val) {
+            Err(Error::new(
+                "The bits in the collection have different access values",
+            ))
+        } else {
+            Ok(val)
+        }
     }
 
     pub fn set_data(&self, value: BigUint) {
