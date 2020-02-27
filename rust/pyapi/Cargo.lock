@@ -416,6 +416,7 @@ dependencies = [
  "meta",
  "num",
  "num-bigint",
+ "num-traits 0.2.11",
  "path-clean",
  "pathdiff",
  "pyo3",

@@ -11,6 +11,7 @@ use std::sync::RwLock;
 use bit_collection::BitCollection;
 use origen::core::model::registers::bit::{UNDEFINED, ZERO};
 use origen::core::model::registers::{Bit, BitOrder, SummaryField};
+use origen::core::utility::big_uint_helpers::*;
 use origen::DUT;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -46,7 +47,7 @@ fn create(
     let reg_id;
     let reg_fields;
     let base_bit_id;
-    let mut reset_vals: Vec<Option<(&BigUint, Option<&BigUint>)>> = Vec::new();
+    let mut reset_vals: Vec<Option<(BigUint, Option<BigUint>)>> = Vec::new();
     let mut non_zero_reset = false;
     let lsb0;
 
@@ -83,18 +84,50 @@ fn create(
             for e in &f.enums {
                 field.add_enum(&e.name, &e.description, &e.value)?;
             }
-            if f.resets.is_none() {
+            if f.resets.is_none() && resets.is_none() {
                 reset_vals.push(None);
             } else {
                 let mut val_found = false;
-                for r in f.resets.as_ref().unwrap() {
-                    field.add_reset(&r.name, &r.value, r.mask.as_ref())?;
-                    // Apply this state to the register at time 0
-                    if r.name == "hard" {
-                        //TODO: Need to handle the mask here too
-                        reset_vals.push(Some((&r.value, r.mask.as_ref())));
-                        non_zero_reset = true;
-                        val_found = true;
+                // Store any resets defined on the field
+                if !f.resets.is_none() {
+                    for r in f.resets.as_ref().unwrap() {
+                        field.add_reset(&r.name, &r.value, r.mask.as_ref())?;
+                        // Apply this state to the register at time 0
+                        if r.name == "hard" {
+                            //TODO: Need to handle the mask here too
+                            reset_vals.push(Some((r.value.clone(), r.mask.clone())));
+                            non_zero_reset = true;
+                            val_found = true;
+                        }
+                    }
+                }
+                // Store the field's portion of any top-level register resets
+                if !resets.is_none() {
+                    for r in resets.as_ref().unwrap() {
+                        // Allow a reset of the same name defined on a field to override
+                        // it's portion of a top-level register reset value - i.e. if the field
+                        // already has a value for this reset then do nothing here
+                        if !field.resets.contains_key(&r.name) {
+                            // Work out the portion of the reset for this field
+                            let value =
+                                bit_slice(&r.value, field.offset, field.width + field.offset - 1)?;
+                            let mask = match &r.mask {
+                                None => None,
+                                Some(x) => Some(bit_slice(
+                                    &x,
+                                    field.offset,
+                                    field.width + field.offset - 1,
+                                )?),
+                            };
+                            field.add_reset(&r.name, &value, mask.as_ref())?;
+                            // Apply this state to the register at time 0
+                            if r.name == "hard" {
+                                //TODO: Need to handle the mask here too
+                                reset_vals.push(Some((value, mask)));
+                                non_zero_reset = true;
+                                val_found = true;
+                            }
+                        }
                     }
                 }
                 if !val_found {
@@ -141,11 +174,11 @@ fn create(
                 });
             }
         } else {
-            let reset_val = reset_vals.last().unwrap().unwrap();
+            let reset_val = reset_vals.last().unwrap().as_ref().unwrap();
 
             // If no reset mask to apply. There is a lot of duplication here but ran
             // into borrow issues that I couldn't resolve and had to move on.
-            if reset_val.1.is_none() {
+            if reset_val.1.as_ref().is_none() {
                 let mut bytes = reset_val.0.to_bytes_be();
                 let mut byte = bytes.pop().unwrap();
                 for i in 0..field.width {
@@ -176,7 +209,7 @@ fn create(
             } else {
                 let mut bytes = reset_val.0.to_bytes_be();
                 let mut byte = bytes.pop().unwrap();
-                let mut mask_bytes = reset_val.1.unwrap().to_bytes_be();
+                let mut mask_bytes = reset_val.1.as_ref().unwrap().to_bytes_be();
                 let mut mask_byte = mask_bytes.pop().unwrap();
                 for i in 0..field.width {
                     let state = (byte >> i % 8) & (mask_byte >> i % 8) & 1;
