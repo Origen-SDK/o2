@@ -191,4 +191,46 @@ def test_filename_and_lineno():
     else:
         assert "tests/registers_test.py" in dut.tr1.filename
         assert "tests/registers_test.py" in dut.tr2.filename
-    
+
+def test_register_dirty_tracking():
+    dut.add_simple_reg("treg1", 0x1000, reset=0)
+    reg = dut.treg1
+
+    assert reg.data() == 0
+    assert reg.is_modified_since_reset() == False
+    assert reg.is_in_reset_state() == True
+    reg.set_data(0x1234)
+    assert reg.is_modified_since_reset() == True
+    assert reg.is_in_reset_state() == False
+    reg.set_data(0)
+    assert reg.is_modified_since_reset() == True
+    assert reg.is_in_reset_state() == True
+    reg.reset()
+    assert reg.is_modified_since_reset() == False
+    assert reg.is_in_reset_state() == True
+
+#def test_reg_dirty_collection():
+
+def test_snapshots():
+    dut.add_simple_reg("treg1", 0x1000, reset=0)
+    reg = dut.treg1
+
+    reg.set_data(0x1234)
+    reg.set_overlay("blah")
+    reg.snapshot("snap1")
+    assert reg.is_changed("snap1") == False
+    reg.set_data(0xFFFF)
+    reg.snapshot("snap2")
+    assert reg.is_changed("snap1") == True
+    assert reg.is_changed("snap2") == False
+    reg.rollback("snap1")
+    assert reg.data() == 0x1234
+    assert reg.is_changed("snap1") == False
+    assert reg.is_changed("snap2") == True
+    reg.rollback("snap1")
+    assert reg.is_changed("snap1") == False
+    reg.set_overlay(None)
+    assert reg.is_changed("snap1") == True
+    assert reg.overlay() == None
+    reg.rollback("snap1")
+    assert reg.overlay() == "blah"

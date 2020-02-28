@@ -362,19 +362,6 @@ def test_can_use_fields_with_bit_ordering():
     assert list(reg1.fields.keys())[0] == "b0"
     assert list(reg2.fields.keys())[0] == "msb0"
 
-# TODO: Should be supported, but via the more generic access= attribute rather than w1c=
-#    specify "can set bitw1c attribute and query w1c status" do
-#        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                              b1: {pos: 8, bits: 4, res: 0xA},
-#                                              b2: {pos: 12, bits: 1, w1c: true},
-#                                              b3: {pos: 13, bits: 1, w1c: false},
-#                                              b4: {pos: 14,bits: 1, res: 1})
-#
-#        reg.bit(:b2).w1c.should == true
-#        reg.bit(:b3).w1c.should == false
-#        reg.bit(:b4).w1c.should == false
-#    end
-
 # TODO: What's the Python equivalent of this?
 #    it "should respond to bit collection methods" do
 #        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
@@ -797,26 +784,6 @@ def test_transactions_can_set_verify_bits():
 #        reg(:reg).bits(:field2).data.should == 0xa
 #        reg(:reg).bits(:field3).data.should == 0xa
 #        reg(:reg).bits(:field4).data.should == 0xa
-#    end
-#
-#    it 'regs with all bits writable can be created via a shorthand' do
-#      class RegBlock
-#        include Origen::Model
-#        def initialize
-#          reg :reg1, 0
-#          reg :reg2, 4, size: 8
-#          reg :reg3, 5, size: 8, reset: 0xFF
-#        end
-#      end
-#
-#      b = RegBlock.new
-#      b.reg1.size.should == 32
-#      b.reg2.size.should == 8
-#      b.reg1.write(0xFFFF_FFFF)
-#      b.reg1.data.should == 0xFFFF_FFFF
-#      b.reg2.write(0xFF)
-#      b.reg2.data.should == 0xFF
-#      b.reg3.data.should == 0xFF
 #    end
 
 def test_regs_can_shift_left():

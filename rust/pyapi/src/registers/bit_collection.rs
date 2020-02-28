@@ -439,6 +439,44 @@ impl BitCollection {
         }
     }
 
+    /// Returns true if the data value of any of the bits has been changed since
+    /// the last reset. It returns true even if the current data value matches the
+    /// default reset value and it will only be returned to false upon a reset operation.
+    fn is_modified_since_reset(&self) -> PyResult<bool> {
+        let dut = origen::dut();
+        Ok(self.materialize(&dut)?.is_modified_since_reset())
+    }
+
+    /// Returns true if the data value of all bits matches that of the given
+    /// reset type ("hard", by default).
+    fn is_in_reset_state(&self, name: Option<&str>) -> PyResult<bool> {
+        let dut = origen::dut();
+        Ok(self.materialize(&dut)?.is_in_reset_state(name, &dut)?)
+    }
+
+    /// Take a snapshot of the current state of all bits, the state can be rolled
+    /// back in future by supplying the same name to the rollback method
+    fn snapshot(&self, name: &str) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        self.materialize(&dut)?.snapshot(name)?;
+        Ok(self.clone())
+    }
+
+    /// Returns true if the state of any bits has changed vs. the given snapshot
+    /// reference. An error will be raised if no snapshot with the given name is found.
+    fn is_changed(&self, name: &str) -> PyResult<bool> {
+        let dut = origen::dut();
+        Ok(self.materialize(&dut)?.is_changed(name)?)
+    }
+
+    /// Rollback the state of all bits to the given snapshot.
+    /// An error will be raised if no snapshot with the given name is found.
+    fn rollback(&self, name: &str) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        self.materialize(&dut)?.rollback(name)?;
+        Ok(self.clone())
+    }
+
     #[args(shift_in = "0")]
     fn shift_left(&self, shift_in: u8) -> PyResult<u8> {
         let dut = origen::dut();

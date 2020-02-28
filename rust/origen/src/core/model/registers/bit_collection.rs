@@ -324,9 +324,9 @@ impl<'a> BitCollection<'a> {
         }
     }
 
-    /// Returns the data value of the BitCollection. This will return None if
+    /// Returns the data value of the given reset type. This will return None if
     /// any of the bits in the collection do not have a value for the given reset type.
-    /// An error will be returned if the bits can be resolved to a parent register.
+    /// An error will be returned if the bits can't be resolved to a parent register.
     pub fn reset_val(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<Option<BigUint>> {
         let reg = self.reg(dut)?;
         let mut bytes: Vec<u8> = Vec::new();
@@ -345,6 +345,60 @@ impl<'a> BitCollection<'a> {
             bytes.push(byte);
         }
         Ok(Some(BigUint::from_bytes_le(&bytes)))
+    }
+
+    /// Returns true if the data value of any of the bits has been changed since
+    /// the last reset. It returns true even if the current data value matches the
+    /// default reset value and it will only be returned to false upon a reset operation.
+    pub fn is_modified_since_reset(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_modified_since_reset())
+    }
+
+    /// Returns true if the data value of all bits matches that of the given
+    /// reset type ("hard", by default).
+    /// If no data is defined for the given reset type then the result will be false.
+    pub fn is_in_reset_state(
+        &self,
+        name: Option<&str>,
+        dut: &'a MutexGuard<'a, Dut>,
+    ) -> Result<bool> {
+        let reset_name = match name {
+            None => "hard",
+            Some(x) => x,
+        };
+        match self.reset_val(reset_name, dut)? {
+            None => Ok(false),
+            Some(x) => Ok(x == self.data()?),
+        }
+    }
+
+    /// Take a snapshot of the current state of all bits, the state can be rolled
+    /// back in future by supplying the same name to the rollback method
+    pub fn snapshot(&self, name: &str) -> Result<&BitCollection> {
+        for &bit in self.bits.iter() {
+            bit.snapshot(name);
+        }
+        Ok(self)
+    }
+
+    /// Returns true if the state of any bits has changed vs. the given snapshot
+    /// reference. An error will be raised if no snapshot with the given name is found.
+    pub fn is_changed(&self, name: &str) -> Result<bool> {
+        for &bit in self.bits.iter() {
+            if bit.is_changed(name)? {
+                return Ok(true);
+            };
+        }
+        Ok(false)
+    }
+
+    /// Rollback the state of all bits to the given snapshot.
+    /// An error will be raised if no snapshot with the given name is found.
+    pub fn rollback(&self, name: &str) -> Result<&BitCollection> {
+        for &bit in self.bits.iter() {
+            bit.rollback(name)?;
+        }
+        Ok(self)
     }
 
     /// Trigger a verify operation on the register
