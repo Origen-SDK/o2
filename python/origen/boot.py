@@ -105,8 +105,22 @@ def __origen__(command, target=None, environment=None, mode=None, files=None):
 
     origen.target.load(target=target, environment=environment)
 
+    if command == "utility":
+        print("Utility!!")
+
+    # Future: Add options to generate patterns concurrently, or send them off to LSF.
+    # For now, just looping over the patterns.
+    # Future: Add flow options.
     if command == "generate":
-        print("Generate command called!")
+        for (i, f) in enumerate(_origen.file_handler()):
+            # For each pattern, instantiate the DUT and reset the AST
+            origen.tester.reset()
+            origen.target.load(target=target, environment=environment)
+            origen.logger.info(f"Generating Pattern {i+1} of {len(_origen.file_handler())}: {f}")
+            
+            j = origen.producer.create_pattern_job(f)
+            j.run()
+        # Print a summary here...
 
     elif command == "compile":
         for file in _origen.file_handler():

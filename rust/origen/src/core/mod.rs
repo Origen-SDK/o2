@@ -8,3 +8,4 @@ pub mod status;
 pub mod term;
 pub mod utility;
 pub mod tester;
+pub mod producer;

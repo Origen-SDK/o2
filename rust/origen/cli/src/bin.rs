@@ -169,7 +169,20 @@ fn main() {
            .subcommand(SubCommand::with_name("setup")
                 .about("Setup your application's Python environment"),
            )
-    }
+
+           /************************************************************************************/
+           .subcommand(SubCommand::with_name("utility")
+                .about("Various utility functions and helpers")
+                .subcommand(SubCommand::with_name("sources")
+                    .about("Locates source files for generation or compilation")
+                    .arg(Arg::with_name("pattern")
+                        .help("Locate pattern source only")
+                    // <Add more options here>
+                    )
+                )
+           )
+
+      }
 
     let matches = app.get_matches();
 
@@ -217,6 +230,16 @@ fn main() {
             Some("mode") => {
                 let matches = matches.subcommand_matches("mode").unwrap();
                 commands::mode::run(matches.value_of("mode"));
+            }
+            Some("utility") => {
+                // Placeholder for utility commands
+                commands::launch(
+                    "utility",
+                    &None,
+                    &None,
+                    &None,
+                    None,
+                )
             }
             // Should never hit these
             None => {}

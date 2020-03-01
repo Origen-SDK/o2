@@ -13,6 +13,7 @@ use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
 pub use self::core::tester::Tester;
+pub use self::core::producer::Producer;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
 use std::sync::{Mutex, MutexGuard};
@@ -38,6 +39,8 @@ lazy_static! {
     pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
     /// The global tester model.
     pub static ref TESTER: Mutex<Tester> = Mutex::new(Tester::new());
+    /// Producer
+    pub static ref PRODUCER: Mutex<Producer> = Mutex::new(Producer::new());
 }
 
 // Use of a mod or pub mod is not actually necessary.
@@ -64,6 +67,10 @@ pub fn dut() -> MutexGuard<'static, Dut> {
 
 pub fn tester() -> MutexGuard<'static, Tester> {
     TESTER.lock().unwrap()
+}
+
+pub fn producer() -> MutexGuard<'static, Producer> {
+    PRODUCER.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

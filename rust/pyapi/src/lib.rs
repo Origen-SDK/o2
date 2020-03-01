@@ -7,6 +7,7 @@ mod registers;
 #[macro_use]
 mod timesets;
 mod tester;
+mod producer;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
@@ -17,6 +18,7 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 use dut::PyInit_dut;
 use tester::PyInit_tester;
 use logger::PyInit_logger;
+use producer::PyInit_producer;
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -31,6 +33,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
     m.add_wrapped(wrap_pymodule!(tester))?;
+    m.add_wrapped(wrap_pymodule!(producer))?;
     Ok(())
 }
 

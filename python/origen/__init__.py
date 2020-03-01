@@ -4,6 +4,7 @@ from pathlib import Path
 import importlib
 
 from origen.tester import Tester, DummyTester
+from origen.producer import Producer
 
 config = _origen.config()
 status = _origen.status()
@@ -14,6 +15,7 @@ logger = _origen.logger
 app = None
 dut = None
 tester = Tester()
+producer = Producer()
 #tester = _origen.tester.PyTester("placeholder")
 #tester.register_generator(DummyTester)
 
@@ -41,7 +43,7 @@ def standard_context():
     return {
         "origen": sys.modules[__name__],
         "dut": dut, 
-        "tester": tester, 
+        "tester": tester,
     }
 
 # class Tester:
