@@ -297,7 +297,7 @@ impl Register {
     }
 
     /// Applies the given reset type to all fields, if the fields don't have a reset defined with
-    /// the given name then no action will be taken
+    /// the given name then their value will be set to undefined
     pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
         for (_, field) in &self.fields {
             field.reset(name, dut);

@@ -1,5 +1,5 @@
 use super::address_block::{AddressBlock, AddressBlocks};
-use super::Registers;
+use super::register_collection::RegisterCollection;
 use crate::dut::PyDUT;
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
@@ -254,7 +254,7 @@ impl PyObjectProtocol for MemoryMap {
             let ab_id = dut.get_memory_map(self.id)?.get_address_block_id("default");
             let pyref = PyRef::new(
                 py,
-                Registers {
+                RegisterCollection {
                     address_block_id: match ab_id {
                         Ok(v) => Some(v),
                         Err(_) => None,

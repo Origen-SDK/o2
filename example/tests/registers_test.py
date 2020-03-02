@@ -209,8 +209,6 @@ def test_register_dirty_tracking():
     assert reg.is_modified_since_reset() == False
     assert reg.is_in_reset_state() == True
 
-#def test_reg_dirty_collection():
-
 def test_snapshots():
     dut.add_simple_reg("treg1", 0x1000, reset=0)
     reg = dut.treg1
@@ -234,3 +232,15 @@ def test_snapshots():
     assert reg.overlay() == None
     reg.rollback("snap1")
     assert reg.overlay() == "blah"
+
+def test_x_bits_reset_correctly():
+    assert dut.areg0.aien.has_known_value() == False
+    assert dut.areg0.set_data(0)
+    assert dut.areg0.aien.has_known_value() == True
+    assert dut.areg0.reset()
+    assert dut.areg0.aien.has_known_value() == False
+
+def test_reg_dirty_collection():
+    dut.add_simple_reg("tr1", 0x1000, reset=0)
+    dut.add_simple_reg("tr2", 0x1000, reset=0)
+    dut.add_simple_reg("tr3", 0x1000, reset=0)

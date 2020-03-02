@@ -3,7 +3,7 @@
 import origen
 import pdb
 import pytest
-from origen import write_transaction, verify_transaction
+from origen.registers.actions import *
 
 @pytest.fixture(autouse=True)
 def run_around_tests():

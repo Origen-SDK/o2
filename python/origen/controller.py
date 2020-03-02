@@ -2,7 +2,7 @@ import origen
 import _origen
 from origen import pins
 from origen import timesets
-from origen.registers import Loader as RegLoader
+from origen.registers.loader import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
 from contextlib import contextmanager
 

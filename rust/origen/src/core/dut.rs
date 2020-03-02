@@ -60,7 +60,16 @@ pub struct Dut {
     memory_maps: Vec<MemoryMap>,
     address_blocks: Vec<AddressBlock>,
     register_files: Vec<RegisterFile>,
+    // Make sure this stays private, important for dirty tracking that all accesses are made
+    // through the get_register method
     registers: Vec<Register>,
+    // A list of reg IDs that have been accessed since the last target load is maintained here,
+    // these are considered potenentially modified - i.e. some may have been fetched but their
+    // data state was never changed.
+    // Methods will be available to filter this list into the subset that have actually been
+    // modified.
+    // It is wrapped in a RwLock so that it can be updated from an immutable DUT reference.
+    accessed_regs: RwLock<Vec<usize>>,
     pub bits: Vec<Bit>,
     pub timesets: Vec<Timeset>,
     pub wavetables: Vec<Wavetable>,
@@ -84,6 +93,7 @@ impl Dut {
             address_blocks: Vec::<AddressBlock>::new(),
             register_files: Vec::<RegisterFile>::new(),
             registers: Vec::<Register>::new(),
+            accessed_regs: RwLock::new(Vec::<usize>::new()),
             bits: Vec::<Bit>::new(),
             timesets: Vec::<Timeset>::new(),
             wavetables: Vec::<Wavetable>::new(),
@@ -106,6 +116,7 @@ impl Dut {
         self.address_blocks.clear();
         self.register_files.clear();
         self.registers.clear();
+        self.accessed_regs.write().unwrap().clear();
         self.bits.clear();
         self.timesets.clear();
         self.wavetables.clear();
@@ -243,7 +254,10 @@ impl Dut {
     /// Get a mutable reference to the register with the given ID
     pub fn get_mut_register(&mut self, id: usize) -> Result<&mut Register> {
         match self.registers.get_mut(id) {
-            Some(x) => Ok(x),
+            Some(x) => {
+                self.accessed_regs.write().unwrap().push(id);
+                Ok(x)
+            }
             None => {
                 return Err(Error::new(&format!(
                     "Something has gone wrong, no register exists with ID '{}'",
@@ -257,7 +271,10 @@ impl Dut {
     /// you need to modify it
     pub fn get_register(&self, id: usize) -> Result<&Register> {
         match self.registers.get(id) {
-            Some(x) => Ok(x),
+            Some(x) => {
+                self.accessed_regs.write().unwrap().push(id);
+                Ok(x)
+            }
             None => {
                 return Err(Error::new(&format!(
                     "Something has gone wrong, no register exists with ID '{}'",

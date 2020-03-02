@@ -1,6 +1,6 @@
 use crate::model::Model as ModelProxy;
 use crate::pins::PyInit_pins;
-use crate::registers::PyInit_registers;
+use crate::registers::{PyInit_registers, RegisterCollection};
 use crate::timesets::PyInit_timesets;
 use origen::error::Error;
 use pyo3::prelude::*;
@@ -78,6 +78,10 @@ impl PyDUT {
 
     pub fn model(&self, id: usize) -> PyResult<ModelProxy> {
         Ok(ModelProxy::new(id))
+    }
+
+    pub fn empty_regs(&self) -> PyResult<RegisterCollection> {
+        Ok(RegisterCollection::new())
     }
 }
 

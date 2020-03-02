@@ -1,6 +1,6 @@
 use super::AddressBlock;
 use crate::Dut;
-use crate::Result;
+use crate::{Error, Result};
 use indexmap::map::IndexMap;
 use std::sync::MutexGuard;
 
@@ -45,6 +45,19 @@ impl Default for RegisterFile {
 }
 
 impl RegisterFile {
+    /// Get the ID from the given register name
+    pub fn get_register_id(&self, name: &str) -> Result<usize> {
+        match self.registers.get(name) {
+            Some(x) => Ok(*x),
+            None => {
+                return Err(Error::new(&format!(
+                    "The register file '{}' does not have a register named '{}'",
+                    self.name, name
+                )))
+            }
+        }
+    }
+
     /// Returns an immutable reference to the address block object that owns the register file.
     /// Note that this may or may not be the immediate parent of the register file depending on
     /// whether it is instantiated within another register file or not.

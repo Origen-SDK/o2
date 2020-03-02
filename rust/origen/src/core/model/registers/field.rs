@@ -113,7 +113,7 @@ impl Field {
     }
 
     /// Applies the given reset type, if the field doesn't have a reset defined with
-    /// the given name then no action will be taken
+    /// the given name then their value will be set to undefined
     pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
         let r = self.resets.get(name);
         let bit_ids = self.bit_ids(dut);
@@ -162,6 +162,10 @@ impl Field {
                         }
                     }
                 }
+            }
+        } else {
+            for i in 0..self.width {
+                dut.get_bit(bit_ids[i]).unwrap().reset(UNDEFINED);
             }
         }
     }

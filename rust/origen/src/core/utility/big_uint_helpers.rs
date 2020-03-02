@@ -101,7 +101,7 @@ mod tests {
     use num_bigint::ToBigUint;
 
     #[test]
-    fn subset_works() {
+    fn bit_slice_works() {
         assert_eq!(
             bit_slice(&0.to_biguint().unwrap(), 15, 31).unwrap(),
             0.to_biguint().unwrap()

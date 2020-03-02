@@ -820,6 +820,11 @@ impl BitCollection {
         Ok(self.materialize(&origen::dut())?.overlay_enables())
     }
 
+    /// Returns true if no contained bits are in X or Z state
+    fn has_known_value(&self) -> PyResult<bool> {
+        Ok(self.materialize(&origen::dut())?.has_known_value())
+    }
+
     #[getter]
     /// Returns the name of the file (full path) where the register was defined.
     /// If it returns None it means that the register has been defined in a non-std location and Origen
