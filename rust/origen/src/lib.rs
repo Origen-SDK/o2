@@ -4,6 +4,7 @@ extern crate lazy_static;
 extern crate serde;
 extern crate meta;
 
+mod ast;
 pub mod core;
 pub mod error;
 pub use error::Error;
