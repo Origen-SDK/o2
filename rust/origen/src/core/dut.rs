@@ -467,7 +467,7 @@ impl Dut {
 mod tests {
     #[test]
     fn it_works() {
-        let dut = super::Dut::new("placeholder");
+        let _dut = super::Dut::new("placeholder");
         //dut.get_event_test(0, 0);
         //dut.hello_macro();
         //assert_eq!(2 + 2, 4);
