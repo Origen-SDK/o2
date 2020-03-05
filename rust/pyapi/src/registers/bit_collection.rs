@@ -551,14 +551,18 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    #[args(enable = "None")]
+    #[args(enable = "None", preset = "false")]
     /// Trigger a verify transaction on the register
-    pub fn verify(&self, enable: Option<BigUint>) -> PyResult<BitCollection> {
+    pub fn _internal_verify(
+        &self,
+        enable: Option<BigUint>,
+        preset: bool,
+    ) -> PyResult<BitCollection> {
         let dut = origen::dut();
         if self.transaction != 0 {
             self.set_verify_flag(enable)?;
         } else {
-            self.materialize(&dut)?.verify(enable)?;
+            self.materialize(&dut)?.verify(enable, preset)?;
         }
         Ok(self.clone())
     }
@@ -573,8 +577,7 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    /// Trigger a write transaction on the register
-    pub fn write(&self) -> PyResult<BitCollection> {
+    pub fn _internal_write(&self) -> PyResult<BitCollection> {
         if self.transaction != 0 {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
                 "Can't call write() from within a transaction block, did you mean to call set_data()?",
@@ -598,7 +601,7 @@ impl BitCollection {
         self.transaction != 0
     }
 
-    pub fn start_verify_transaction(&self) -> PyResult<BitCollection> {
+    pub fn _internal_start_verify_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if bc.transaction != 0 {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
@@ -610,7 +613,7 @@ impl BitCollection {
         }
     }
 
-    pub fn end_verify_transaction(&self) -> PyResult<BitCollection> {
+    pub fn _internal_end_verify_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if self.transaction != 1 {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
@@ -622,7 +625,7 @@ impl BitCollection {
         }
     }
 
-    pub fn start_write_transaction(&self) -> PyResult<BitCollection> {
+    pub fn _internal_start_write_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if bc.transaction != 0 {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
@@ -634,7 +637,7 @@ impl BitCollection {
         }
     }
 
-    pub fn end_write_transaction(&self) -> PyResult<BitCollection> {
+    pub fn _internal_end_write_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if self.transaction != 2 {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
@@ -642,7 +645,6 @@ impl BitCollection {
             ))
         } else {
             bc.transaction = 0;
-            bc.write()?;
             Ok(bc)
         }
     }
@@ -871,6 +873,16 @@ impl BitCollection {
             Ok(dut.get_reg_description(&filename, lineno))
         } else {
             Ok(None)
+        }
+    }
+
+    fn model_path(&self) -> PyResult<String> {
+        let dut = origen::dut();
+        match self.reg(&dut) {
+            Some(x) => Ok(x.model_path(&dut)?),
+            None => Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Called 'model_path()' on a BitCollection that is not associated with a register",
+            )),
         }
     }
 }

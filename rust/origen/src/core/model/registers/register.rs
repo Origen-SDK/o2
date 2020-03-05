@@ -1,4 +1,5 @@
 use super::{AccessType, AddressBlock, BitCollection, BitOrder, Field, RegisterFile, SummaryField};
+use crate::core::model::Model;
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
 use crate::{Error, Result};
@@ -259,6 +260,16 @@ impl Register {
             None => self.address_block(dut)?.friendly_path(dut)?,
         };
         Ok(format!("{}.{}", path, self.name))
+    }
+
+    /// Returns an immutable reference to the parent model
+    pub fn model<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Model> {
+        self.address_block(dut)?.model(dut)
+    }
+
+    /// Returns a path reference to the register's model/controller, e.g. "dut.core0.adc1"
+    pub fn model_path(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        self.model(dut)?.friendly_path(dut)
     }
 
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy.

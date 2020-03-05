@@ -12,6 +12,7 @@ class Proxy:
         return self._dict[key]
 
     def __add_block__(self, name, obj):
+        obj.parent = self.controller
         self._dict[name] = obj
 
     def __len__(self):

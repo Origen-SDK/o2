@@ -198,6 +198,12 @@ class Base:
             self.app.load_block_files(self, "timing.py")
             self.timesets_loaded = True
 
+    def write_register(self, reg_or_val, **kwargs):
+        pass
+
+    def verify_register(self, reg_or_val, **kwargs):
+        pass
+
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
 class TopLevel(Base):

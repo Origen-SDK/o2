@@ -402,8 +402,10 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Trigger a verify operation on the register
-    pub fn verify(&self, enable: Option<BigUint>) -> Result<&BitCollection> {
-        self.set_verify_flag(enable)?;
+    pub fn verify(&self, enable: Option<BigUint>, preset: bool) -> Result<&BitCollection> {
+        if !preset {
+            self.set_verify_flag(enable)?;
+        }
         // TODO: Record the verify in the AST here
         Ok(self)
     }

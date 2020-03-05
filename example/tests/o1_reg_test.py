@@ -286,7 +286,7 @@ def test_it_can_shift_out_with_holes_present():
 def test_verify_method_tags_all_bits_for_verify():
     dut.add_simple_reg("tr1", 0x10, size=16, reset=0)
     reg = dut.tr1
-    reg.verify()
+    verify(reg)
     for i in range(16):
         assert reg[i].is_to_be_verified() == True
 
@@ -418,7 +418,7 @@ def test_bit_collections_can_be_copied_to_other_bitcollections():
     bits2 = dut.tr2.b0
     assert bits1.data() == 0
     assert bits1[1].is_to_be_verified() == False
-    bits2.set_data(0b0010).verify()
+    verify(bits2.set_data(0b0010))
     bits1.copy(bits2)
     assert bits1.data() == 0b0010
     assert bits1[1].is_to_be_verified() == True
@@ -439,15 +439,15 @@ def test_status_string_methods_work():
     reg.set_overlay(None)
     assert reg.status_str("write") == "0000"
     assert reg.status_str("verify") == "XXXX"
-    reg[7:4].set_data(5).verify()
+    verify(reg[7:4].set_data(5))
     assert reg.status_str("verify") == "XX5X"
-    reg[7:4].set_data(5).verify()
-    reg[14].set_data(0).verify()
+    verify(reg[7:4].set_data(5))
+    verify(reg[14].set_data(0))
     assert reg.status_str("verify") == "[x0xx]X5X"
     reg[3:0].capture()
     assert reg.status_str("verify") == "[x0xx]X5S"
     reg[12:8].set_overlay("overlayx")
-    reg[12:8].verify()
+    verify(reg[12:8])
     assert reg.status_str("verify") == "[x0xv]V5S"
     reg[15].capture()
     assert reg.status_str("verify") == "[s0xv]V5S"
@@ -460,9 +460,9 @@ def test_status_str_works_on_non_nibble_aligned_regs():
     mr1 = dut.mr1
     assert mr1.b1.status_str("write") == "000"
     assert mr1.b1.status_str("verify") == "[xxx]XX"
-    mr1.b1.verify()
+    verify(mr1.b1)
     assert mr1.b1.status_str("verify") == "000"
-    mr1.b1.set_data(0xFFF).verify()
+    verify(mr1.b1.set_data(0xFFF))
     assert mr1.b1.status_str("verify") == "7FF"
 
 def test_the_flags_methods():
@@ -473,7 +473,7 @@ def test_the_flags_methods():
     assert reg.verify_enables() == 0
     assert reg.capture_enables() == 0
     assert reg.overlay_enables() == 0
-    reg[7:4].verify()
+    verify(reg[7:4])
     assert reg.verify_enables() == 0xF0
     reg.b1.set_overlay("blah")
     assert reg.overlay_enables() == 0xFF00
@@ -485,7 +485,7 @@ def test_regs_are_correctly_marked_for_verify():
         reg.Field("b0", offset=0, width=8, reset=0)
         reg.Field("b1", offset=8, width=8, reset=0)
     assert dut.tr1.is_to_be_verified() == False
-    dut.tr1.verify()
+    verify(dut.tr1)
     assert dut.tr1.is_to_be_verified() == True
 
 def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
@@ -616,7 +616,7 @@ def test_the_verify_method_should_accept_an_enable_option():
     with dut.add_reg("tr2", 0) as reg:
         reg.Field("data", offset=0, width=32)
 
-    dut.tr2.set_data(0x1234_5678).verify(enable=0x0000_00F0)
+    verify(dut.tr2.set_data(0x1234_5678), enable=0x0000_00F0)
     assert dut.tr2.data() == 0x1234_5678
     assert dut.tr2[0].is_to_be_verified() == False
     assert dut.tr2[1].is_to_be_verified() == False
@@ -632,7 +632,7 @@ def test_clear_verify_flag_clears_is_to_be_verify_status():
     with dut.add_reg("tr3", 0) as reg:
         reg.Field("data", offset=0, width=32)
 
-    dut.tr3.set_data(0x0F).verify()
+    verify(dut.tr3.set_data(0x0F))
     assert dut.tr3[0].is_to_be_verified() == True
     dut.tr3[0].clear_verify_flag()
     assert dut.tr3[0].is_to_be_verified() == False
