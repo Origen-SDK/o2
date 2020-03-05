@@ -53,11 +53,46 @@ impl AST {
         self.nodes.clear();
         self.nodes.push(node);
     }
+
+    pub fn process(&self, process_fn: &dyn Fn(&Node) -> Node) -> Node {
+        if self.nodes.len() > 1 {
+            let node = self.to_node();
+            process_fn(&node)
+        } else {
+            process_fn(&self.nodes[0])
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        if self.nodes.len() > 1 {
+            let node = self.to_node();
+            node.to_string()
+        } else {
+            self.nodes[0].to_string()
+        }
+    }
+
+    // Closes all currently open nodes into new node but leaving the original state of the AST
+    // unmodified.
+    // This is like a snapshot of the current AST state, mainly useful for printing to the console
+    // for debug.
+    fn to_node(&self) -> Node {
+        let mut node = self.nodes.last().unwrap().clone();
+        let num = self.nodes.len();
+        if num > 1 {
+            for i in 1..num {
+                let n = node;
+                node = self.nodes[num - i - 1].clone();
+                node.add_child(n);
+            }
+        }
+        node
+    }
 }
 
 impl fmt::Display for AST {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.nodes[0])
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -107,7 +142,7 @@ pub struct Meta {
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", ToString::run(self))
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -137,6 +172,10 @@ impl Node {
             meta: None,
             children: nodes,
         }
+    }
+
+    pub fn to_string(&self) -> String {
+        ToString::run(self)
     }
 
     pub fn add_child(&mut self, node: Node) {

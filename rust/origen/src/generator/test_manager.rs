@@ -1,4 +1,7 @@
 //! Responsible for managing the current test (pattern).
+//! This basically manages a RWLock over an AST representing the current test, allowing
+//! application code to always deal with an immutable reference to an instance of this
+//! struct at origen::TEST.
 
 use crate::generator::ast::*;
 use crate::Result;
@@ -50,6 +53,11 @@ impl TestManager {
     pub fn to_string(&self) -> String {
         let ast = self.ast.read().unwrap();
         format!("{}", ast)
+    }
+
+    pub fn process(&self, process_fn: &dyn Fn(&Node) -> Node) -> Node {
+        let ast = self.ast.read().unwrap();
+        ast.process(process_fn)
     }
 }
 

@@ -8,6 +8,7 @@ pub use test_manager::TestManager;
 #[cfg(test)]
 mod tests {
     use crate::generator::ast::*;
+    use crate::generator::processors::*;
     use crate::TEST;
 
     #[test]
@@ -23,9 +24,12 @@ mod tests {
         ));
         TEST.push(c);
         let cyc = Node::new(Attrs::Cycle(1));
-        for _i in 0..10 {
+        for _i in 0..5 {
             TEST.push(cyc.clone());
         }
+        println!("The AST in progress, we want to see the RegWrite here:");
+        println!("{}", TEST.to_string());
+
         TEST.close(tid).expect("Closed reg trans properly");
 
         let c = Node::new(Attrs::Comment(
@@ -33,10 +37,14 @@ mod tests {
         ));
         TEST.push(c);
 
+        println!("The completed AST:");
         println!("{}", TEST.to_string());
 
-        //let reg_write =
-        //let mut reg_write =
-        assert_eq!(1, 1);
+        println!("The completed AST with upcased comments:");
+        let new_ast = TEST.process(&|ast| UpcaseComments::run(ast));
+        println!("{}", new_ast);
+
+        println!("Check the original AST is still available/unmodified:");
+        println!("{}", TEST.to_string());
     }
 }

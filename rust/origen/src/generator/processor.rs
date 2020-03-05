@@ -6,6 +6,7 @@
 use crate::generator::ast::*;
 use num_bigint::BigUint;
 
+/// All procesor handler methods should return this
 pub enum Return {
     /// This is the value returned by the default Processor trait handlers
     /// and is used to indicated that a given processor has not implemented a
