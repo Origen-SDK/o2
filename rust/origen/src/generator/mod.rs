@@ -44,6 +44,10 @@ mod tests {
         let new_ast = TEST.process(&|ast| UpcaseComments::run(ast));
         println!("{}", new_ast);
 
+        println!("The completed AST with upcased comments and combined cycles:");
+        let new_ast = CycleCombiner::run(&new_ast);
+        println!("{}", new_ast);
+
         println!("Check the original AST is still available/unmodified:");
         println!("{}", TEST.to_string());
     }

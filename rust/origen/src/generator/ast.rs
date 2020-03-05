@@ -203,39 +203,58 @@ impl Node {
             Return::Unimplemented => processor.on_all(&self),
             _ => r,
         };
-        // Now decide what action to take and what to return based on the return
-        // code from the node's handler.
-        match r {
-            Return::Delete => None,
-            Return::ProcessChildren => {
-                let nodes = self.process_children(processor);
-                Some(self.replace_children(nodes))
-            }
+        self.process_return_code(r, processor)
+    }
+
+    fn process_return_code(&self, code: Return, processor: &mut dyn Processor) -> Option<Node> {
+        match code {
+            Return::None => None,
+            Return::ProcessChildren => Some(self.process_children(processor)),
             Return::Unmodified => Some(self.clone()),
             Return::Replace(node) => Some(node),
             // We can't return multiple nodes from this function, so we return them
             // wrapped in a meta-node and the process_children method will identify
             // this and remove the wrapper to inline the contained nodes.
+            Return::Unwrap => Some(Node::inline(self.children.clone())),
             Return::Inline(nodes) => Some(Node::inline(nodes)),
+            Return::InlineUnboxed(nodes) => Some(Node::inline(
+                nodes.into_iter().map(|n| Box::new(n)).collect(),
+            )),
             _ => None,
         }
     }
 
-    /// Returns a new vector containing processed versions of the node's children
-    pub fn process_children(&self, processor: &mut dyn Processor) -> Vec<Box<Node>> {
-        let mut output: Vec<Box<Node>> = Vec::new();
+    /// Returns a new node which is a copy of self with its children replaced
+    /// by their processed counterparts.
+    pub fn process_children(&self, processor: &mut dyn Processor) -> Node {
+        if self.children.len() == 0 {
+            return self.clone();
+        }
+        let mut nodes: Vec<Box<Node>> = Vec::new();
         for child in &self.children {
             if let Some(node) = child.process(processor) {
                 if let Attrs::_Inline = node.attrs {
                     for c in node.children {
-                        output.push(c);
+                        nodes.push(c);
                     }
                 } else {
-                    output.push(Box::new(node));
+                    nodes.push(Box::new(node));
                 }
             }
         }
-        output
+        // Call the end of block handler, giving the processor a chance to do any
+        // internal clean up or inject some more nodes at the end
+        let r = processor.on_end_of_block(&self);
+        if let Some(node) = self.process_return_code(r, processor) {
+            if let Attrs::_Inline = node.attrs {
+                for c in node.children {
+                    nodes.push(c);
+                }
+            } else {
+                nodes.push(Box::new(node));
+            }
+        }
+        self.replace_children(nodes)
     }
 
     /// Returns a new node which is a copy of self with its children replaced

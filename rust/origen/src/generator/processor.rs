@@ -13,28 +13,42 @@ pub enum Return {
     /// handler for a given node type. Implementations of the Processor trait
     /// should never return this type.
     Unimplemented,
-    /// Deleted the node from the output AST.
-    Delete,
-    /// Process the node's children, replacing it's current children with their
+    /// Deletes the node from the output AST.
+    None,
+    /// Clones the node (and all of its children) into the output AST. Note that
+    /// the child nodes are not processed in this case (though they will appear in
+    /// the output unmodified).
+    Unmodified,
+    /// Clones the node but replaces it's current children with their
     /// processed counterparts in the output AST.
     ProcessChildren,
-    /// Clones the node (and all of its children) into the output AST.
-    Unmodified,
     /// Replace the node in the output AST with the given node.
     Replace(Node),
+    /// Removes the node and leaves its children in its place.
+    Unwrap,
     /// Replace the node in the output AST with the given nodes, the vector wrapper
     /// will be removed and the nodes will be placed inline with where the current
     /// node is/was.
     Inline(Vec<Box<Node>>),
+    /// Same as Inline, but accepts a vector of un-boxed nodes
+    InlineUnboxed(Vec<Node>),
 }
 
 // Implements default handlers for all node types
 pub trait Processor {
-    // This will be called for all nodes unless a dedicated handler
-    // handler exists for the given node type. It means that by default, all
-    // nodes will have their children processed by all processors.
+    /// This will be called for all nodes unless a dedicated handler
+    /// handler exists for the given node type. It means that by default, all
+    /// nodes will have their children processed by all processors.
     fn on_all(&mut self, _node: &Node) -> Return {
         Return::ProcessChildren
+    }
+
+    /// This will be called at the end of processing every node which has children.
+    /// The node which is about to be closed is provided in the arguments.
+    /// Note that you should probably never return a derivative of the given node
+    /// here, it should either be None or a new node(s)
+    fn on_end_of_block(&mut self, _node: &Node) -> Return {
+        Return::None
     }
 
     fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
