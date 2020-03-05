@@ -1,4 +1,8 @@
-use super::super::*;
+//! This is used to implement the fmt::Display trait for nodes and is a
+//! good example of a simple AST processor
+
+use crate::generator::ast::*;
+use crate::generator::processor::*;
 
 pub struct ToString {
     indent: usize,
@@ -6,16 +10,13 @@ pub struct ToString {
 }
 
 impl ToString {
-    pub fn new() -> ToString {
-        ToString {
+    pub fn run(node: &Node) -> String {
+        let mut p = ToString {
             indent: 0,
             output: "".to_string(),
-        }
-    }
-
-    pub fn run(&mut self, node: &Node) -> &str {
-        node.process(self);
-        &self.output
+        };
+        node.process(&mut p);
+        p.output
     }
 }
 

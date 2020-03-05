@@ -35,6 +35,8 @@ lazy_static! {
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
     /// etc.)
     pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
+    /// Storage for the current test (pattern)
+    pub static ref TEST: generator::TestManager = generator::TestManager::new();
 }
 
 // Use of a mod or pub mod is not actually necessary.
