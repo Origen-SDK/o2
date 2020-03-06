@@ -9,7 +9,8 @@ import pdb
 # A simple reg definition with all bits writable, here at address 0 and a
 # default size of 32-bits
 
-SimpleReg("reg1", 0)
+with origen.reg_description_parsing():
+    SimpleReg("reg1", 0)
 # Another simple reg with custom size
 SimpleReg("reg2", 4, size=16)
 
@@ -38,8 +39,9 @@ end_time = time()
 origen.logger.info(f"Building {NUM_REGS} regs took: {end_time - start_time}")
 
 # Field adch has no reset value
-with Reg("breg0", 0x0024, size=16):
-    Field("adch", offset=0, width=5)
+with origen.reg_description_parsing():
+    with Reg("breg0", 0x0024, size=16):
+        Field("adch", offset=0, width=5)
 
 # Field adch has a simple reset value
 with Reg("creg0", 0x0024, size=16):

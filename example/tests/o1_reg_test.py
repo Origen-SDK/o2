@@ -3,14 +3,7 @@
 import origen
 import pdb
 import pytest
-
-#def read_register(reg, options={})
-#  # Dummy method to allow the bang methods to be tested
-#end
-#
-#def write_register(reg, options={})
-#  # Dummy method to allow the bang methods to be tested
-#end
+from origen.registers.actions import *
 
 @pytest.fixture(autouse=True)
 def run_around_tests():
@@ -290,12 +283,12 @@ def test_it_can_shift_out_with_holes_present():
         assert bit.data() == expected[x] 
         x += 1
 
-def test_read_method_tags_all_bits_for_read():
+def test_verify_method_tags_all_bits_for_verify():
     dut.add_simple_reg("tr1", 0x10, size=16, reset=0)
     reg = dut.tr1
-    reg.read()
+    verify(reg)
     for i in range(16):
-        assert reg[i].is_to_be_read() == True
+        assert reg[i].is_to_be_verified() == True
 
 # This test added due to problems shifting out buses (in o1)
 def test_it_can_shift_out_left_with_holes_and_buses():
@@ -369,26 +362,13 @@ def test_can_use_fields_with_bit_ordering():
     assert list(reg1.fields.keys())[0] == "b0"
     assert list(reg2.fields.keys())[0] == "msb0"
 
-# TODO: Should be supported, but via the more generic access= attribute rather than w1c=
-#    specify "can set bitw1c attribute and query w1c status" do
-#        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
-#                                              b1: {pos: 8, bits: 4, res: 0xA},
-#                                              b2: {pos: 12, bits: 1, w1c: true},
-#                                              b3: {pos: 13, bits: 1, w1c: false},
-#                                              b4: {pos: 14,bits: 1, res: 1})
-#
-#        reg.bit(:b2).w1c.should == true
-#        reg.bit(:b3).w1c.should == false
-#        reg.bit(:b4).w1c.should == false
-#    end
-
 # TODO: What's the Python equivalent of this?
 #    it "should respond to bit collection methods" do
 #        reg = Reg.new(self, 0x10, 16, :dummy, b0: {pos: 0, bits: 8, res: 0x55}, 
 #                                              b1: {pos: 8, bits: 4, res: 0xA},
 #                                              b2: {pos: 14,bits: 2, res: 1})
 #        reg.respond_to?("data").should == true
-#        reg.respond_to?("read").should == true
+#        reg.respond_to?("verify").should == true
 #        reg.respond_to?("some_nonsens").should_not == true
 #    end
 
@@ -437,12 +417,12 @@ def test_bit_collections_can_be_copied_to_other_bitcollections():
     bits1 = dut.tr1.b0
     bits2 = dut.tr2.b0
     assert bits1.data() == 0
-    assert bits1[1].is_to_be_read() == False
-    bits2.set_data(0b0010).read()
+    assert bits1[1].is_to_be_verified() == False
+    verify(bits2.set_data(0b0010))
     bits1.copy(bits2)
     assert bits1.data() == 0b0010
-    assert bits1[1].is_to_be_read() == True
-    assert bits1.is_to_be_read() == True
+    assert bits1[1].is_to_be_verified() == True
+    assert bits1.is_to_be_verified() == True
 
 def test_status_string_methods_work():
     with dut.add_reg("tr1", 0, size=16) as reg:
@@ -458,55 +438,55 @@ def test_status_string_methods_work():
     reg.clear_flags()
     reg.set_overlay(None)
     assert reg.status_str("write") == "0000"
-    assert reg.status_str("read") == "XXXX"
-    reg[7:4].set_data(5).read()
-    assert reg.status_str("read") == "XX5X"
-    reg[7:4].set_data(5).read()
-    reg[14].set_data(0).read()
-    assert reg.status_str("read") == "[x0xx]X5X"
+    assert reg.status_str("verify") == "XXXX"
+    verify(reg[7:4].set_data(5))
+    assert reg.status_str("verify") == "XX5X"
+    verify(reg[7:4].set_data(5))
+    verify(reg[14].set_data(0))
+    assert reg.status_str("verify") == "[x0xx]X5X"
     reg[3:0].capture()
-    assert reg.status_str("read") == "[x0xx]X5S"
+    assert reg.status_str("verify") == "[x0xx]X5S"
     reg[12:8].set_overlay("overlayx")
-    reg[12:8].read()
-    assert reg.status_str("read") == "[x0xv]V5S"
+    verify(reg[12:8])
+    assert reg.status_str("verify") == "[x0xv]V5S"
     reg[15].capture()
-    assert reg.status_str("read") == "[s0xv]V5S"
+    assert reg.status_str("verify") == "[s0xv]V5S"
     reg[7:4].set_undefined()
-    assert reg.status_str("read") == "[s0xv]V?S"
+    assert reg.status_str("verify") == "[s0xv]V?S"
     
 def test_status_str_works_on_non_nibble_aligned_regs():
     with dut.add_reg("mr1", 0) as reg:
         reg.Field("b1", offset=0, width=11, reset=0)
     mr1 = dut.mr1
     assert mr1.b1.status_str("write") == "000"
-    assert mr1.b1.status_str("read") == "[xxx]XX"
-    mr1.b1.read()
-    assert mr1.b1.status_str("read") == "000"
-    mr1.b1.set_data(0xFFF).read()
-    assert mr1.b1.status_str("read") == "7FF"
+    assert mr1.b1.status_str("verify") == "[xxx]XX"
+    verify(mr1.b1)
+    assert mr1.b1.status_str("verify") == "000"
+    verify(mr1.b1.set_data(0xFFF))
+    assert mr1.b1.status_str("verify") == "7FF"
 
 def test_the_flags_methods():
     with dut.add_reg("tr1", 0, size=16) as reg:
         reg.Field("b0", offset=0, width=8, reset=0)
         reg.Field("b1", offset=8, width=8, reset=0)
     reg = dut.tr1
-    assert reg.read_enables() == 0
+    assert reg.verify_enables() == 0
     assert reg.capture_enables() == 0
     assert reg.overlay_enables() == 0
-    reg[7:4].read()
-    assert reg.read_enables() == 0xF0
+    verify(reg[7:4])
+    assert reg.verify_enables() == 0xF0
     reg.b1.set_overlay("blah")
     assert reg.overlay_enables() == 0xFF00
     reg[11:4].capture()
     assert reg.capture_enables() == 0x0FF0
 
-def test_regs_are_correctly_marked_for_read():
+def test_regs_are_correctly_marked_for_verify():
     with dut.add_reg("tr1", 0, size=16) as reg:
         reg.Field("b0", offset=0, width=8, reset=0)
         reg.Field("b1", offset=8, width=8, reset=0)
-    assert dut.tr1.is_to_be_read() == False
-    dut.tr1.read()
-    assert dut.tr1.is_to_be_read() == True
+    assert dut.tr1.is_to_be_verified() == False
+    verify(dut.tr1)
+    assert dut.tr1.is_to_be_verified() == True
 
 def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
     with dut.add_reg("tr1", 0, size=16) as reg:
@@ -515,58 +495,35 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
     assert dut.reg("tr1") != None
     assert dut.reg("tr2") == None
 
+def test_registers_can_be_declared_in_block_format_with_descriptions():
+    with origen.reg_description_parsing():
+        # This is test reg 1
+        with dut.add_reg("tr1", 0, size=16) as reg:
+            # This is tr1 field b0
+            reg.Field("b0", offset=0, width=8, reset=0)
+            # This is tr1 field b1
+            # With multi-lines
+            reg.Field("b1", offset=8, width=8, reset=0)
+        # This is test reg 2
+        # With a 2 line description
+        with dut.add_reg("tr2", 0, size=16) as reg:
+            reg.Field("b0", offset=0, width=8, reset=0)
+            reg.Field("b1", offset=8, width=8, reset=0)
 
+    assert dut.tr1.description() == "This is test reg 1"
+    assert dut.tr2.description() == "This is test reg 2\nWith a 2 line description"
+    assert dut.tr1.b0.description() == "This is tr1 field b0"
+    assert dut.tr1.b1.description() == "This is tr1 field b1\nWith multi-lines"
+    
+def test_register_descriptions_can_be_supplied_via_the_API():
+    with dut.add_reg("tr1", 0, size=16, description="Hello, I'm tr1") as reg:
+        reg.Field("b0", offset=0, width=8, reset=0, description="I'm b0")
+        reg.Field("b1", offset=8, width=8, reset=0, description="I'm b1")
 
-#    it "registers automatically pick up a base address from the object doing the read/write" do
-#      dut.nvm.reg(:mclkdiv).address.should == 0x4000_0003
-#    end
-#
-#    it "registers pick up a base address from the object doing the write" do
-#      dut.nvm.reg(:mclkdiv).address(relative: true).should == 0x3
-#      dut.nvm.reg(:mclkdiv).write!
-#      dut.nvm.reg(:mclkdiv).address.should == 0x4000_0003
-#    end
-#
-#    it "registers pick up a base address from the object doing the read" do
-#      dut.nvm.reg(:mclkdiv).address(relative: true).should == 0x3
-#      dut.nvm.reg(:mclkdiv).read!
-#      dut.nvm.reg(:mclkdiv).address.should == 0x4000_0003
-#    end
-#
-#    it "registers can be declared in block format with descriptions" do
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg).data.should == 0x8055
-#      nvm.reg(:dreg2).data.should == 0x8055
-#      nvm.reg(:dreg).write(0xFFFF)
-#      nvm.reg(:dreg).data.should == 0xFF55
-#      nvm.reg(:dreg).description(include_name: false).size.should == 1
-#      nvm.reg(:dreg).description(include_name: false).first.should == "This is dreg"
-#      nvm.reg(:dreg2).description(include_name: false).first.should == "This is dreg2"
-#      nvm.reg(:dreg).bit(:bit15).description.size.should == 1
-#      nvm.reg(:dreg).bit(:bit15).description.first.should == "This is dreg bit 15"
-#      nvm.reg(:dreg2).bit(:bit15).description.first.should == "This is dreg2 bit 15"
-#      nvm.reg(:dreg).bit(:lower).description.size.should == 2
-#      nvm.reg(:dreg).bit(:lower).description.first.should == "This is dreg bit lower"
-#      nvm.reg(:dreg2).bit(:lower).description.first.should == "This is dreg2 bit lower"
-#      nvm.reg(:dreg).bit(:lower).description.last.should == "This is dreg bit lower line 2"
-#      nvm.reg(:dreg2).bit(:lower).description.last.should == "This is dreg2 bit lower line 2"
-#    end
-#
-#    it "register descriptions can be supplied via the API" do     
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg3).description(include_name: false).size.should == 1
-#      nvm.reg(:dreg3).description(include_name: false).first.should == "This is dreg3"
-#      nvm.reg(:dreg3).bit(:bit15).description.size.should == 1
-#      nvm.reg(:dreg3).bit(:bit15).description.first.should == "This is dreg3 bit 15"
-#      nvm.reg(:dreg3).bit(:lower).description.size.should == 2
-#      nvm.reg(:dreg3).bit(:lower).description.first.should == "This is dreg3 bit lower"
-#      nvm.reg(:dreg3).bit(:lower).description.last.should == "This is dreg3 bit lower line 2"
-#    end
-#
+    assert dut.tr1.description() == "Hello, I'm tr1"
+    assert dut.tr1.b0.description() == "I'm b0"
+    assert dut.tr1.b1.description() == "I'm b1"
+
 #    it "bit value descriptions work" do
 #      Origen.app.unload_target!
 #      nvm = OrigenCoreSupport::NVM::NVMSub.new
@@ -589,330 +546,106 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
 #      nvm.reg(:dreg).bits(:bit14).description(include_bit_values: false, include_name: false).should == ["This does something cool"]
 #      nvm.reg(:dreg3).bits(:bit14).description(include_bit_values: false, include_name: false).should == ["This does something cool"]
 #    end
-#
-#    it "bit names from a description work" do
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg).bits(:bit14).full_name.should == "Bit 14"
-#      nvm.reg(:dreg3).bits(:bit14).full_name.should == "Bit 14"
-#    end
-#
-#    it "register names from a description work" do
-#      Origen.app.unload_target!
-#      nvm = OrigenCoreSupport::NVM::NVMSub.new
-#      nvm.add_reg_with_block_format
-#      nvm.reg(:dreg).full_name.should == "Data Register 3"
-#      nvm.reg(:dreg3).full_name.should == "Data Register 3"
-#    end
-#
-#    it "arbitrary meta data can be defined and read from registers and bits" do
-#      default_reg_metadata do |reg|
-#        reg.readable_in_user_mode = true
-#        reg.something_else = 20
-#        reg.blah = :blah
-#      end
-#
-#      default_bit_metadata do |bit|
-#        bit.property_x = :x
-#        bit.property_y = :y
-#        bit.property_z = :z
-#      end
-#
-#      reg :test1, 0, size: 16 do
-#        bit 15,   :bx
-#        bit 7..0, :by
-#      end
-#
-#      reg :test2, 10, size: 16, readable_in_user_mode: false, something_else: 10 do
-#        bit 15,   :bx, property_x: "X"
-#        bit 7..0, :by, property_y: "Y", property_z: "Z"
-#      end
-#
-#      reg(:test1).respond_to?(:readable_in_user_mode).should == true
-#      reg(:test1).respond_to?(:readable_in_user_mode?).should == true
-#      reg(:test1).respond_to?(:readable_in_test_mode).should == false
-#      reg(:test1).respond_to?(:something_else).should == true
-#      reg(:test1).respond_to?(:something_else?).should == false
-#      reg(:test1).respond_to?(:something_undefined).should == false
-#      reg(:test1).bit(:bx).respond_to?(:property_w).should == false
-#      reg(:test1).bit(:bx).respond_to?(:property_x).should == true
-#      reg(:test1).bit(:bx).respond_to?(:property_y).should == true
-#      reg(:test1).bit(:bx).respond_to?(:property_z).should == true
-#      reg(:test2).bit(:bx).respond_to?(:property_w).should == false
-#      reg(:test2).bit(:bx).respond_to?(:property_x).should == true
-#      reg(:test2).bit(:bx).respond_to?(:property_y).should == true
-#      reg(:test2).bit(:bx).respond_to?(:property_z).should == true
-#      reg(:test1).bit(:by).respond_to?(:property_w).should == false
-#      reg(:test1).bit(:by).respond_to?(:property_x).should == true
-#      reg(:test1).bit(:by).respond_to?(:property_y).should == true
-#      reg(:test1).bit(:by).respond_to?(:property_z).should == true
-#      reg(:test2).bit(:by).respond_to?(:property_w).should == false
-#      reg(:test2).bit(:by).respond_to?(:property_x).should == true
-#      reg(:test2).bit(:by).respond_to?(:property_y).should == true
-#      reg(:test2).bit(:by).respond_to?(:property_z).should == true
-#
-#      reg(:test1).meta.should == {readable_in_user_mode: true, something_else: 20, blah: :blah}
-#      reg(:test2).meta.should == {readable_in_user_mode: false, something_else: 10, blah: :blah}
-#      reg(:test1).readable_in_user_mode.should == true
-#      reg(:test1).readable_in_user_mode?.should == true
-#      reg(:test2).readable_in_user_mode.should == false
-#      reg(:test2).readable_in_user_mode?.should == false
-#      reg(:test1).something_else.should == 20
-#      reg(:test2).something_else.should == 10
-#
-#      reg(:test1).bit(:bx).meta.should == {property_x: :x, property_y: :y, property_z: :z}
-#      reg(:test2).bit(:bx).meta.should == {property_x: "X", property_y: :y, property_z: :z}
-#      reg(:test1).bit(:bx).property_x.should == :x
-#      reg(:test2).bit(:bx).property_x.should == "X"
-#
-#      reg(:test1).bit(2).meta.should == {property_x: :x, property_y: :y, property_z: :z}
-#      reg(:test2).bit(2).meta.should == {property_x: :x, property_y: "Y", property_z: "Z"}
-#      reg(:test1).bit(2).property_x.should == :x
-#      reg(:test2).bit(2).property_x.should == :x
-#      reg(:test1).bit(2).property_y.should == :y
-#      reg(:test2).bit(2).property_y.should == "Y"
-#
-#      reg(:test1).bits(:by).meta.should == {property_x: :x, property_y: :y, property_z: :z}
-#      reg(:test2).bits(:by).meta.should == {property_x: :x, property_y: "Y", property_z: "Z"}
-#      reg(:test1).bits(:by).property_x.should == :x
-#      reg(:test2).bits(:by).property_x.should == :x
-#      reg(:test1).bits(:by).property_y.should == :y
-#      reg(:test2).bits(:by).property_y.should == "Y"
-#    end
-#
-#    it "arbitrary meta data is isolated to registers owned by a given class" do
-#      class MetaClass1
-#        include Origen::Registers
-#        def initialize
-#          default_reg_metadata do |reg|
-#            reg.property1 = 1
-#            reg.property2 = 2
-#          end
-#
-#          reg :reg1, 0 do
-#            bit 31..0, :data
-#          end 
-#        end
-#      end
-#
-#      class MetaClass2
-#        include Origen::Registers
-#        def initialize
-#          default_reg_metadata do |reg|
-#            reg.property1 = 3
-#          end
-#
-#          reg :reg1, 0 do
-#            bit 31..0, :data
-#          end 
-#        end
-#      end
-#
-#      reg1 = MetaClass1.new.reg(:reg1)
-#      reg2 = MetaClass2.new.reg(:reg1)
-#      reg1.property1.should == 1
-#      reg2.property1.should == 3
-#      reg1.respond_to?(:property2).should == true
-#      reg2.respond_to?(:property2).should == false
-#    end
-#
-#    it "large bit collections work" do
-#      reg :regx, 0 do
-#        bit 31..0, :data
-#      end 
-#      reg = reg(:regx)
-#      reg.write(0x4C)
-#      reg.data.should == 0x4C
-#      lower = reg.bits(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)
-#      lower.data.should == 0x4C
-#      lower = reg.bits(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
-#      lower.data.should == 0x4C
-#    end
-#
-#    it "global reg and bit meta data can be added by a plugin" do
-#      Origen::Registers.default_reg_meta_data do |reg|
-#        reg.attr_x
-#        reg.attr_y = 10
-#        reg.attr_z = 20
-#      end
-#
-#      Origen::Registers.default_bit_meta_data do |bit|
-#        bit.attr_bx
-#        bit.attr_by = 10
-#        bit.attr_bz = 20
-#      end
-#
-#      reg :regblah, 0, attr_z: 30 do
-#        bit 31..16, :upper, attr_bz: 5
-#        bit 15..1, :lower
-#        bit 0, :bit0, attr_by: 15
-#      end 
-#
-#      reg(:regblah).attr_y.should == 10
-#      reg(:regblah).attr_z.should == 30
-#      reg(:regblah).attr_x.should == nil
-#      reg(:regblah).attr_x = :yo
-#      reg(:regblah).attr_x.should == :yo
-#      reg(:regblah).bits(:upper).attr_by.should == 10
-#      reg(:regblah).bits(:upper).attr_bz.should == 5
-#      reg(:regblah).bits(:upper).attr_bx.should == nil
-#      reg(:regblah).bits(:upper).attr_bx = :yo
-#      reg(:regblah).bits(:upper).attr_bx.should == :yo
-#      reg(:regblah).bit(:bit0).attr_by.should == 15
-#      reg(:regblah).bit(:bit0).attr_bz.should == 20
-#      reg(:regblah).bit(:bit0).attr_bx.should == nil
-#      reg(:regblah).bit(:bit0).attr_bx = :yo
-#      reg(:regblah).bit(:bit0).attr_bx.should == :yo
-#    end
-#
-#    it "reg and bit reset data can be fetched" do
-#      reg :reset_test, 100 do
-#        bit 31..16, :upper, reset: 0x5555
-#        bit 15..1, :lower
-#        bit 0, :bit0, reset: 1
-#      end 
-#
-#      reg(:reset_test).reset_val.should == 0x55550001
-#      reg(:reset_test).bits(:upper).reset_val.should == 0x5555
-#      reg(:reset_test).bits(:lower).reset_val.should == 0x0000
-#      reg(:reset_test).bit(:bit0).reset_val.should == 0x1 
-#      reg(:reset_test).write(0xFFFF_FFFF)
-#      reg(:reset_test).reset_val.should == 0x55550001
-#      reg(:reset_test).val.should == 0xFFFF_FFFF
-#    end
-#
-#    it "reset values work correct in real life case" do
-#      reg :proth, 0x0024, size: 32 do
-#        bits 31..24,   :fprot7,  reset: 0xFF
-#        bits 23..16,   :fprot6,  reset: 0xEE
-#        bits 15..8,    :fprot5,  reset: 0xDD
-#        bits 7..0,     :fprot4,  reset: 0x11
-#      end
-#      reg(:proth).data.should == 0xFFEE_DD11
-#      reg(:proth).reset_val.should == 0xFFEE_DD11
-#      reg(:proth).bits(:fprot7).reset_val.should == 0xFF
-#      reg(:proth).bits(:fprot6).reset_val.should == 0xEE
-#      reg(:proth).bits(:fprot5).reset_val.should == 0xDD
-#      reg(:proth).bits(:fprot4).reset_val.should == 0x11
-#    end
-#
-#    it "a few different bit names can be tried" do
-#      reg :multi_name, 0x0030 do
-#        bit 3, :some_bit3
-#        bit 2, :some_bit2
-#        bit 1, :some_bit1
-#        bit 0, :some_bit0
-#      end
-#      reg(:multi_name).bits(:blah1, :blah_blah1, :some_bit1).write(1)
-#      reg(:multi_name).data.should == 2
-#      # X chosen here specifically in the name so that when sorted it comes
-#      # after the name that will match a bit in this register
-#      reg(:multi_name).bit(:some_bit0, :xlah0, :xlah_blah0).write(1)
-#      reg(:multi_name).data.should == 3
-#      reg(:multi_name).bit(:some_bit2, :some_bit3, :some_bit4).write(3)
-#      reg(:multi_name).data.should == 0xF
-#    end
-#
-#    it "the bits method accepts an array of bit ids" do
-#      reg :tr, 0 do
-#        bits 31..0, :data
-#      end
-#
-#      reg(:tr).bits([4,5,6,7]).write(0xF)
-#      reg(:tr).data.should == 0x0000_00F0
-#    end
-#
-#    it "the Reg.read method should accept a mask option" do
-#      reg :tr2, 0 do
-#        bits 31..0, :data
-#      end
-#
-#      reg(:tr2).read!(0x1234_5678, mask: 0x0000_00F0)
-#      reg(:tr2).data.should == 0x1234_5678
-#      reg(:tr2).bit(0).is_to_be_read?.should == false
-#      reg(:tr2).bit(1).is_to_be_read?.should == false
-#      reg(:tr2).bit(2).is_to_be_read?.should == false
-#      reg(:tr2).bit(3).is_to_be_read?.should == false
-#      reg(:tr2).bit(4).is_to_be_read?.should == true
-#      reg(:tr2).bit(5).is_to_be_read?.should == true
-#      reg(:tr2).bit(6).is_to_be_read?.should == true
-#      reg(:tr2).bit(7).is_to_be_read?.should == true
-#      reg(:tr2).bit(8).is_to_be_read?.should == false
-#    end
-#
-#    specify "clear_read_flag clears is_to_be_read status " do
-#      reg :tr3, 0 do
-#        bits 31..0, :data
-#      end
-#
-#        reg(:tr3).read(0x0F)
-#        reg(:tr3).bit(0).is_to_be_read?.should == true
-#        reg(:tr3).bit(0).clear_read_flag
-#        reg(:tr3).bit(0).is_to_be_read?.should == false
-#    end
-#
-#    specify "bit reset values can be specified as undefined or memory" do
-#      reg :reset1, 0 do
-#        bit 1, :x, reset: :undefined
-#        bit 0, :y, reset: :memory
-#      end
-#
-#      reg :reset1a, 0 do
-#        bits 15..8, :x, reset: :undefined
-#        bits 7..0,  :y, reset: :memory
-#      end
-#
-#      reg(:reset1).bit(:x).reset_val.should == :undefined
-#      reg(:reset1).bit(:y).reset_val.should == :memory
-#      # We still need to pick a data value (until Origen can truly model the concept of X)
-#      reg(:reset1).data.should == 0
-#      # But we can also tell that the true state is undefined 
-#      reg(:reset1).bit(:x).has_known_value?.should == false
-#      reg(:reset1).bit(:y).has_known_value?.should == false
-#      reg(:reset1).write(0xFFFF_FFFF)
-#      reg(:reset1).bit(:x).has_known_value?.should == true
-#      reg(:reset1).bit(:y).has_known_value?.should == true
-#      reg(:reset1).data.should == 3
-#      reg(:reset1).reset
-#      reg(:reset1).bit(:x).has_known_value?.should == false
-#      reg(:reset1).bit(:y).has_known_value?.should == false
-#      reg(:reset1).data.should == 0
-#
-#      reg(:reset1a).bits(:x).reset_val.should == :undefined
-#      reg(:reset1a).bits(:y).reset_val.should == :memory
-#      reg(:reset1a).has_known_value?.should == false
-#      reg(:reset1a).bits(:x).has_known_value?.should == false
-#      reg(:reset1a).bits(:y).has_known_value?.should == false
-#    end
-#
-#    specify "reset values can be set at register level" do
-#      reg :reset2, 0, reset: 0x3 do
-#        bit 3, :w
-#        bits 2..1, :x
-#        bit 0, :y
-#      end
-#      reg :reset3, 0, reset: :undefined do
-#        bit 1, :x
-#        bit 0, :y
-#      end
-#      reg :reset4, 0, reset: :memory do
-#        bit 1, :x
-#        bit 0, :y
-#      end
-#      reg :reset5, 0, reset: :memory do
-#        bit 1, :x
-#        bit 0, :y, reset: :undefined
-#      end
-#
-#      reg(:reset2).data.should == 3
-#      reg(:reset3).bit(:x).reset_val.should == :undefined
-#      reg(:reset3).bit(:y).reset_val.should == :undefined
-#      reg(:reset4).bit(:x).reset_val.should == :memory
-#      reg(:reset4).bit(:y).reset_val.should == :memory
-#      reg(:reset5).bit(:x).reset_val.should == :memory
-#      reg(:reset5).bit(:y).reset_val.should == :undefined
-#    end
+
+def test_subset_method():
+    with dut.add_reg("regx", 0) as reg:
+        reg.Field("data", offset=0, width=32)
+
+    reg = dut.regx
+    reg.set_data(0x1111_224C)
+    assert reg.data() == 0x1111_224C
+    lower = reg.subset(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)
+    assert lower.data() == 0x224C
+    lower = reg.subset(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
+    assert lower.data() == 0x224C
+
+def test_reg_and_bit_reset_data_can_be_fetched():
+    with dut.add_reg("reset_test", 100) as reg:
+        reg.Field("upper", offset=16, width=16, reset=0x5555)
+        reg.Field("lower", offset=1, width=15, reset=0)
+        reg.Field("bit0", offset=0, reset=1)
+
+    assert dut.reset_test.reset_val() == 0x55550001
+    assert dut.reset_test.upper.reset_val() == 0x5555
+    assert dut.reset_test.lower.reset_val() == 0x0000
+    assert dut.reset_test.bit0.reset_val() == 0x1 
+    dut.reset_test.set_data(0xFFFF_FFFF)
+    assert dut.reset_test.reset_val() == 0x55550001
+    assert dut.reset_test.data() == 0xFFFF_FFFF
+
+def test_reset_values_work_correct_in_real_life_case():
+    with dut.add_reg("proth", 0x0024, size=32) as reg:
+        reg.Field("fprot7", offset=24, width=8, reset=0xFF)
+        reg.Field("fprot6", offset=16, width=8, reset=0xEE)
+        reg.Field("fprot5", offset=8,  width=8, reset=0xDD)
+        reg.Field("fprot4", offset=0,  width=8, reset=0x11)
+
+    assert dut.proth.data() == 0xFFEE_DD11
+    assert dut.proth.reset_val() == 0xFFEE_DD11
+    assert dut.proth.fprot7.reset_val() == 0xFF
+    assert dut.proth.fprot6.reset_val() == 0xEE
+    assert dut.proth.fprot5.reset_val() == 0xDD
+    assert dut.proth.fprot4.reset_val() == 0x11
+
+def test_a_few_different_bit_names_can_be_tried():
+    with dut.add_reg("multi_name", 0x0030) as reg:
+        reg.Field("some_bit3", offset=3)
+        reg.Field("some_bit2", offset=2)
+        reg.Field("some_bit1", offset=1)
+        reg.Field("some_bit0", offset=0)
+
+    dut.multi_name.set_data(0)
+    dut.multi_name.try_fields("blah1", "blah_blah1", "some_bit1").set_data(1)
+    assert dut.multi_name.data() == 2
+    # X chosen here specifically in the name so that when sorted it comes
+    # after the name that will match a bit in this register
+    dut.multi_name.try_fields("some_bit0", "xlah0", "xlah_blah0").set_data(1)
+    assert dut.multi_name.data() == 3
+    dut.multi_name.try_fields("some_bit2", "some_bit3", "some_bit4").set_data(3)
+    assert dut.multi_name.data() == 0xF
+
+def test_the_subset_method_accepts_an_array_of_bit_ids():
+    with dut.add_reg("tr", 0) as reg:
+        reg.Field("data", offset=0, width=32)
+
+    dut.tr.set_data(0)
+    dut.tr.subset([4,5,6,7]).set_data(0xF)
+    assert dut.tr.data() == 0x0000_00F0
+
+def test_the_verify_method_should_accept_an_enable_option():
+    with dut.add_reg("tr2", 0) as reg:
+        reg.Field("data", offset=0, width=32)
+
+    verify(dut.tr2.set_data(0x1234_5678), enable=0x0000_00F0)
+    assert dut.tr2.data() == 0x1234_5678
+    assert dut.tr2[0].is_to_be_verified() == False
+    assert dut.tr2[1].is_to_be_verified() == False
+    assert dut.tr2[2].is_to_be_verified() == False
+    assert dut.tr2[3].is_to_be_verified() == False
+    assert dut.tr2[4].is_to_be_verified() == True
+    assert dut.tr2[5].is_to_be_verified() == True
+    assert dut.tr2[6].is_to_be_verified() == True
+    assert dut.tr2[7].is_to_be_verified() == True
+    assert dut.tr2[8].is_to_be_verified() == False
+
+def test_clear_verify_flag_clears_is_to_be_verify_status():
+    with dut.add_reg("tr3", 0) as reg:
+        reg.Field("data", offset=0, width=32)
+
+    verify(dut.tr3.set_data(0x0F))
+    assert dut.tr3[0].is_to_be_verified() == True
+    dut.tr3[0].clear_verify_flag()
+    assert dut.tr3[0].is_to_be_verified() == False
+
+def test_reset_values_can_be_set_at_register_level():
+    with dut.add_reg("reset2", 0, reset=0x3) as reg:
+       reg.Field("w", offset=3)
+       reg.Field("x", offset=1, width=2)
+       reg.Field("y", offset=0)
+
+    assert dut.reset2.data() == 3
+
+# This should be handled by metadata:
 #
 #    specify "a memory location can be set on a register" do
 #      reg :reset6, 0, memory: 0x1234_0000 do
@@ -924,73 +657,48 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
 #      reg(:reset6).bit(:y).reset_val.should == :memory
 #      reg(:reset6).memory.should == 0x1234_0000
 #    end
-#
-#    specify "access can be set and tested at reg level" do
-#      reg :access1, 0, access: :w1c do
-#        bits 2..1, :x
-#        bit  0,    :y
-#      end
-#
-#      reg(:access1).bits(:x).w1c?.should == true
-#      reg(:access1).bit(:y).w1c?.should == true
-#      reg(:access1).w1c?.should == true
-#      reg(:access1).w1s?.should == false
-#      # Verify the access can be pulled for a mutli-bit collection
-#      reg(:access1).bits(:x).access.should == :w1c
-#    end
-#
-#    specify "sub collections of bits can be made from bit collections" do
-#      reg :reg1, 0 do
-#        bits 31..0, :data
-#      end
-#
-#      reg(:reg1)[:data].size.should == 32
-#      reg(:reg1)[31..0].size.should == 32
-#      reg(:reg1).bits(:data).size.should == 32
-#      reg(:reg1).bits(:data)[15..8].size.should == 8
-#      reg(:reg1).bits(:data)[15..8].write(0xFF)
-#      reg(:reg1).data.should == 0x0000_FF00
-#      reg(:reg1).reset
-#      # Verify that bits are stored in consistent order
-#      reg(:reg1).to_a.map {|b| b.position }.should == 
-#        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
-#      reg(:reg1)[].to_a.map {|b| b.position }.should == 
-#        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
-#      reg(:reg1)[15..0].to_a.map {|b| b.position }.should ==
-#        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-#      reg(:reg1)[][15..0].to_a.map {|b| b.position }.should ==
-#        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-#      reg(:reg1)[15..0][15..8].to_a.map {|b| b.position }.should ==
-#        [8, 9, 10, 11, 12, 13, 14, 15]
-#      reg(:reg1)[15..0][15..8][3..0].to_a.map {|b| b.position }.should ==
-#        [8, 9, 10, 11]
-#
-#      reg(:reg1)[15..0][15..8][3..0].write(0xF)
-#      reg(:reg1).data.should == 0x0000_0F00
-#
-#      # When 1 bit requested just return that bit, this is consistent with the original
-#      # behaviour before sub collections were added
-#      reg(:reg1).bits(:data)[15].class.should == Origen::Registers::Bit
-#      # Calling bits on a bit collection with no args should just return self
-#      reg(:reg1).bits(:data).bits.size.should == 32
-#    end
-#
-#    specify "indexed references to missing bits should return nil" do
-#      reg :reg2, 0, size: 8 do
-#        bits 7..0, :data
-#      end
-#      reg(:reg2)[7].should be
-#      reg(:reg2)[8].should == nil
-#    end
-#
-#    specify "reg dot syntax works" do
-#      reg :reg_dot1, 0, size: 8 do
-#        bits 7..0, :d1
-#      end
-#      reg_dot1.val.should == 0
-#      reg_dot1.d1.val.should == 0
-#    end
-#
+
+def test_access_can_be_set_and_tested_at_reg_level():
+    with dut.add_reg("access1", 0, access="ro") as reg:
+        reg.Field("x", offset=1, width=2)
+        reg.Field("y", offset=0, access="w1c")
+
+    assert dut.access1.x.access == "RO"
+    assert dut.access1.y.access == "W1C"
+
+    with dut.add_reg("access2", 0) as reg:
+        reg.Field("x", offset=1, width=2)
+        reg.Field("y", offset=0, access="w1c")
+
+    assert dut.access2.x.access == "RW"
+    assert dut.access2.y.access == "W1C"
+
+def test_sub_collections_of_bits_can_be_made_from_bit_collections():
+    with dut.add_reg("treg1", 0) as reg:
+        reg.Field("data", offset=0, width=32, reset=0)
+    
+    reg1 = dut.treg1
+
+    assert reg1.field("data").size == 32
+    assert reg1[31:0].size == 32
+    assert reg1.field("data").size == 32
+    assert reg1.field("data")[15:8].size == 8
+    reg1.field("data")[15:8].set_data(0xFF)
+    assert reg1.data() == 0x0000_FF00
+    reg1.reset()
+    # Verify that bits are stored in consistent order
+    assert list(map(lambda b: b.position, reg1.bits)) == \
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+    assert list(map(lambda b: b.position, reg1[15:0])) == \
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    assert list(map(lambda b: b.position, reg1[15:0][15:8])) == \
+        [8, 9, 10, 11, 12, 13, 14, 15]
+    assert list(map(lambda b: b.position, reg1[15:0][15:8][3:0])) == \
+        [8, 9, 10, 11]
+
+    reg1[15:0][15:8][3:0].set_data(0xF)
+    assert reg1.data() == 0x0000_0F00
+
 #    specify "regs can be deleted" do
 #      class RegOwner
 #        include Origen::Model
@@ -1022,33 +730,36 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
 #      top.has_reg?(:reg3).should == false
 #      top.has_reg?(:reg4).should == false
 #    end
-#
-#    specify "block read/write method can set/read bits" do
-#      add_reg :blregtest,   0x00,  4,  :y       => { :pos => 0},
-#                                       :x       => { :pos => 1, :bits => 2 },
-#                                       :w       => { :pos => 3 }
-#      reg(:blregtest).data.should == 0x0
-#      reg(:blregtest).write! do |r|
-#        r.bits(:y).write(1)
-#        r.bits(:x).write(0x2)
-#        r.bits(:w).write(1)
-#      end
-#      reg(:blregtest).data.should == 0xD
-#
-#      reg(:blregtest).write(0)
-#      reg(:blregtest).x.write! do |b|
-#        b[1].write(1)
-#      end
-#      reg(:blregtest).data.should == 0b0100
-#
-#      reg(:blregtest).read! do |r|
-#        r.bits(:y).read
-#      end      
-#      reg(:blregtest).bits(:y).is_to_be_read?.should == true
-#      reg(:blregtest).bits(:x).is_to_be_read?.should == false
-#      reg(:blregtest).bits(:w).is_to_be_read?.should == false
-#    end
-#
+
+def test_transactions_can_set_verify_bits():
+    with dut.add_reg("blregtest", 0, size=4) as reg:
+        reg.Field("y", offset=0)
+        reg.Field("x", offset=1, width=2)
+        reg.Field("w", offset=3)
+
+    dut.blregtest.set_data(0)
+    assert dut.blregtest.data() == 0x0
+
+    with write_transaction(dut.blregtest) as reg:
+        reg.y.set_data(1)
+        reg.x.set_data(2)
+        reg.w.set_data(1)
+
+    assert dut.blregtest.data() == 0xD
+
+    dut.blregtest.set_data(0)
+    with write_transaction(dut.blregtest.x) as field:
+        field[1].set_data(1)
+
+    assert dut.blregtest.data() == 0b0100
+
+    with verify_transaction(dut.blregtest) as reg:
+        reg.y.set_data(1)
+
+    assert dut.blregtest.y.is_to_be_verified() == True
+    assert dut.blregtest.x.is_to_be_verified() == False
+    assert dut.blregtest.w.is_to_be_verified() == False
+
 #    it "write method can override a read-only register bitfield with :force = true" do
 #        reg :reg, 0x0, 32, description: 'reg' do
 #            bits 7..0,   :field1, reset: 0x0, access: :rw
@@ -1073,26 +784,6 @@ def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
 #        reg(:reg).bits(:field2).data.should == 0xa
 #        reg(:reg).bits(:field3).data.should == 0xa
 #        reg(:reg).bits(:field4).data.should == 0xa
-#    end
-#
-#    it 'regs with all bits writable can be created via a shorthand' do
-#      class RegBlock
-#        include Origen::Model
-#        def initialize
-#          reg :reg1, 0
-#          reg :reg2, 4, size: 8
-#          reg :reg3, 5, size: 8, reset: 0xFF
-#        end
-#      end
-#
-#      b = RegBlock.new
-#      b.reg1.size.should == 32
-#      b.reg2.size.should == 8
-#      b.reg1.write(0xFFFF_FFFF)
-#      b.reg1.data.should == 0xFFFF_FFFF
-#      b.reg2.write(0xFF)
-#      b.reg2.data.should == 0xFF
-#      b.reg3.data.should == 0xFF
 #    end
 
 def test_regs_can_shift_left():

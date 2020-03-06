@@ -22,7 +22,7 @@ impl Default for MemoryMap {
         MemoryMap {
             id: 0,
             model_id: 0,
-            name: "Default".to_string(),
+            name: "default".to_string(),
             address_unit_bits: 8,
             address_blocks: IndexMap::new(),
         }
@@ -40,6 +40,18 @@ impl MemoryMap {
                     self.name, name
                 )))
             }
+        }
+    }
+
+    /// Returns a path to this memory_map like "dut.my_block.my_map", but the map and address block portions
+    /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
+    /// don't use them and simply define regs at the top-level of the block.
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> OrigenResult<String> {
+        let path = self.model(dut)?.friendly_path(dut)?;
+        if self.name == "default" {
+            Ok(path)
+        } else {
+            Ok(format!("{}.{}", path, self.name))
         }
     }
 

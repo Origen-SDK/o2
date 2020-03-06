@@ -2,7 +2,7 @@ import origen
 import re
 from os import access, R_OK
 from os.path import isfile
-from origen.registers import Loader as Regs
+from origen.registers.loader import Loader as Regs
 from origen.sub_blocks import Loader as SubBlocks
 from origen.errors import *
 from .translators.ip_xact import IpXact

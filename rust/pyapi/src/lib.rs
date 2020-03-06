@@ -2,6 +2,7 @@ mod dut;
 mod file_handler;
 mod logger;
 mod meta;
+mod model;
 mod pins;
 mod registers;
 mod timesets;
@@ -47,6 +48,7 @@ fn status(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("root", format!("{}", STATUS.root.display()));
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
+    let _ = ret.set_item("on_windows", cfg!(windows));
     Ok(ret.into())
 }
 
