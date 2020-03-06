@@ -87,7 +87,7 @@ class Base:
             p = filepath.joinpath(filename)
             if p.exists():
                 if filename == "registers.py":
-                    from origen.registers import Loader
+                    from origen.registers.loader import Loader
                     context = Loader(controller).api()
                     
                 elif filename == "sub_blocks.py":

@@ -1,6 +1,6 @@
 use super::bit_collection::BitCollection;
 use super::memory_map::MemoryMap;
-use super::Registers;
+use super::register_collection::RegisterCollection;
 use crate::dut::PyDUT;
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
@@ -275,7 +275,7 @@ impl PyObjectProtocol for AddressBlock {
         if query == "regs" || query == "registers" {
             let pyref = PyRef::new(
                 py,
-                Registers {
+                RegisterCollection {
                     address_block_id: Some(self.id),
                     register_file_id: None,
                     ids: None,

@@ -1,4 +1,8 @@
+use super::AddressBlock;
+use crate::Dut;
+use crate::{Error, Result};
 use indexmap::map::IndexMap;
+use std::sync::MutexGuard;
 
 #[derive(Debug)]
 /// Represents a groups of registers within an address block. RegisterFiles can also contain
@@ -16,7 +20,7 @@ pub struct RegisterFile {
     pub dim: u32,
     /// The address offset from the containing address block or register file,
     /// expressed in address_unit_bits from the parent memory map.
-    pub address_offset: u64,
+    pub offset: u128,
     /// The number of addressable units in the register file.
     pub range: u64,
     pub registers: IndexMap<String, usize>,
@@ -29,13 +33,78 @@ impl Default for RegisterFile {
             id: 0,
             address_block_id: 0,
             register_file_id: None,
-            name: "Default".to_string(),
+            name: "default".to_string(),
             description: "".to_string(),
             dim: 1,
-            address_offset: 0,
+            offset: 0,
             range: 0,
             registers: IndexMap::new(),
             register_files: IndexMap::new(),
+        }
+    }
+}
+
+impl RegisterFile {
+    /// Get the ID from the given register name
+    pub fn get_register_id(&self, name: &str) -> Result<usize> {
+        match self.registers.get(name) {
+            Some(x) => Ok(*x),
+            None => {
+                return Err(Error::new(&format!(
+                    "The register file '{}' does not have a register named '{}'",
+                    self.name, name
+                )))
+            }
+        }
+    }
+
+    /// Returns an immutable reference to the address block object that owns the register file.
+    /// Note that this may or may not be the immediate parent of the register file depending on
+    /// whether it is instantiated within another register file or not.
+    pub fn address_block<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a AddressBlock> {
+        dut.get_address_block(self.address_block_id)
+    }
+
+    /// Returns an immutable reference to the register file object that owns the register file.
+    /// If it returns None it means that the register file is instantiated directly within an
+    /// address block.
+    pub fn register_file<'a>(&self, dut: &'a MutexGuard<Dut>) -> Option<Result<&'a RegisterFile>> {
+        match self.register_file_id {
+            Some(x) => Some(dut.get_register_file(x)),
+            None => None,
+        }
+    }
+
+    /// Returns the address_unit_bits size that the register file's offset is defined in.
+    pub fn address_unit_bits(&self, dut: &MutexGuard<Dut>) -> Result<u32> {
+        match self.register_file(dut) {
+            Some(x) => Ok(x?.address_unit_bits(dut)?),
+            None => Ok(self.address_block(dut)?.address_unit_bits(dut)?),
+        }
+    }
+
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierachy.
+    /// The returned address is with an address_unit_bits size of 1.
+    pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> Result<u128> {
+        let base = match self.register_file(dut) {
+            Some(x) => x?.bit_address(dut)?,
+            None => self.address_block(dut)?.bit_address(dut)?,
+        };
+        Ok(base + (self.offset * self.address_unit_bits(dut)? as u128))
+    }
+
+    /// Returns a path to this register file like "dut.my_block.my_map.my_address_block.my_reg_file", but the map and address block portions
+    /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
+    /// don't use them and simply define regs at the top-level of the block.
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        let path = match self.register_file(dut) {
+            Some(x) => x?.friendly_path(dut)?,
+            None => self.address_block(dut)?.friendly_path(dut)?,
+        };
+        if self.name == "default" {
+            Ok(path)
+        } else {
+            Ok(format!("{}.{}", path, self.name))
         }
     }
 }

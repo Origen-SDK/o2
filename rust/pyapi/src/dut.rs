@@ -1,5 +1,6 @@
+use crate::model::Model as ModelProxy;
 use crate::pins::PyInit_pins;
-use crate::registers::PyInit_registers;
+use crate::registers::{PyInit_registers, RegisterCollection};
 use crate::timesets::PyInit_timesets;
 use origen::error::Error;
 use pyo3::prelude::*;
@@ -38,9 +39,9 @@ impl PyDUT {
         &self,
         parent_id: Option<usize>,
         name: &str,
-        base_address: Option<u64>,
+        offset: Option<u128>,
     ) -> PyResult<usize> {
-        Ok(origen::dut().create_model(parent_id, name, base_address)?)
+        Ok(origen::dut().create_model(parent_id, name, offset)?)
     }
 
     fn model_console_display(&self, model_id: usize) -> PyResult<String> {
@@ -73,6 +74,14 @@ impl PyDUT {
 
     pub fn get_metadata(&self, idx: usize) -> PyResult<&PyObject> {
         Ok(&self.metadata[idx])
+    }
+
+    pub fn model(&self, id: usize) -> PyResult<ModelProxy> {
+        Ok(ModelProxy::new(id))
+    }
+
+    pub fn empty_regs(&self) -> PyResult<RegisterCollection> {
+        Ok(RegisterCollection::new())
     }
 }
 
