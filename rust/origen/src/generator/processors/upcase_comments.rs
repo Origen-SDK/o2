@@ -15,8 +15,8 @@ impl UpcaseComments {
 }
 
 impl Processor for UpcaseComments {
-    fn on_comment(&mut self, msg: &str, node: &Node) -> Return {
-        let new_node = node.replace_attrs(Attrs::Comment(msg.to_uppercase()));
+    fn on_comment(&mut self, level: u8, msg: &str, node: &Node) -> Return {
+        let new_node = node.replace_attrs(Attrs::Comment(level, msg.to_uppercase()));
         Return::Replace(new_node)
     }
 }

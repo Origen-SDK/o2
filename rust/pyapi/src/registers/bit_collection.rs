@@ -2,8 +2,7 @@ use itertools::Itertools;
 use num_bigint::BigUint;
 use origen::core::model::registers::BitCollection as RichBC;
 use origen::core::model::registers::{BitOrder, Field, Register};
-use origen::Dut;
-use origen::Result;
+use origen::{Dut, Result, TEST};
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::class::PyMappingProtocol;
 use pyo3::exceptions;
@@ -557,14 +556,20 @@ impl BitCollection {
         &self,
         enable: Option<BigUint>,
         preset: bool,
-    ) -> PyResult<BitCollection> {
-        let dut = origen::dut();
+    ) -> PyResult<Option<usize>> {
         if self.transaction != 0 {
             self.set_verify_flag(enable)?;
+            Ok(None)
         } else {
-            self.materialize(&dut)?.verify(enable, preset)?;
+            let dut = origen::dut();
+            let ref_id = self.materialize(&dut)?.verify(enable, preset, &dut)?;
+            Ok(ref_id)
         }
-        Ok(self.clone())
+    }
+
+    pub fn _end_internal_verify(&self, ref_id: usize) -> PyResult<()> {
+        TEST.close(ref_id)?;
+        Ok(())
     }
 
     #[args(enable = "None")]
@@ -577,16 +582,21 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    pub fn _internal_write(&self) -> PyResult<BitCollection> {
+    pub fn _internal_write(&self) -> PyResult<Option<usize>> {
         if self.transaction != 0 {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
                 "Can't call write() from within a transaction block, did you mean to call set_data()?",
             ))
         } else {
             let dut = origen::dut();
-            self.materialize(&dut)?.write()?;
-            Ok(self.clone())
+            let ref_id = self.materialize(&dut)?.write(&dut)?;
+            Ok(ref_id)
         }
+    }
+
+    pub fn _end_internal_write(&self, ref_id: usize) -> PyResult<()> {
+        TEST.close(ref_id)?;
+        Ok(())
     }
 
     pub fn is_verify_transaction_open(&self) -> bool {

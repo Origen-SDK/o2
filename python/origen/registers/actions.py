@@ -16,12 +16,14 @@ def verify_transaction(bit_collection, enable=None):
     verify(bit_collection, enable=enable, _preset=True)
 
 def verify(bit_collection, enable=None, _preset=False):
-    bit_collection._internal_verify(enable, _preset)
+    ref = bit_collection._internal_verify(enable, _preset)
     _get_controller(bit_collection).verify_register(bit_collection)
+    bit_collection._end_internal_verify(ref)
 
 def write(bit_collection):
-    bit_collection._internal_write()
+    ref = bit_collection._internal_write()
     _get_controller(bit_collection).write_register(bit_collection)
+    bit_collection._end_internal_write(ref)
 
 def _get_controller(bit_collection):
     obj = origen

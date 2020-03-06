@@ -13,20 +13,33 @@ impl CycleCombiner {
         let mut p = CycleCombiner { cycle_count: 0 };
         node.process(&mut p).unwrap()
     }
+
+    fn consume_cycles(&mut self) -> Node {
+        let cyc = Node::new(Attrs::Cycle(self.cycle_count, true));
+        self.cycle_count = 0;
+        cyc
+    }
 }
 
 impl Processor for CycleCombiner {
-    fn on_cycle(&mut self, repeat: u32, _node: &Node) -> Return {
-        self.cycle_count += repeat;
-        Return::None
+    fn on_cycle(&mut self, repeat: u32, compressable: bool, node: &Node) -> Return {
+        if compressable {
+            self.cycle_count += repeat;
+            Return::None
+        } else {
+            if self.cycle_count > 0 {
+                let cyc = self.consume_cycles();
+                Return::InlineUnboxed(vec![cyc, node.clone()])
+            } else {
+                Return::Unmodified
+            }
+        }
     }
 
     // Don't let it leave an open block with cycles pending
     fn on_end_of_block(&mut self, _node: &Node) -> Return {
         if self.cycle_count > 0 {
-            let cyc = Node::new(Attrs::Cycle(self.cycle_count));
-            self.cycle_count = 0;
-            Return::Replace(cyc)
+            Return::Replace(self.consume_cycles())
         } else {
             Return::None
         }
@@ -37,8 +50,7 @@ impl Processor for CycleCombiner {
         if self.cycle_count == 0 {
             Return::ProcessChildren
         } else {
-            let cyc = Node::new(Attrs::Cycle(self.cycle_count));
-            self.cycle_count = 0;
+            let cyc = self.consume_cycles();
             let new_node = node.process_children(self);
             Return::InlineUnboxed(vec![cyc, new_node])
         }

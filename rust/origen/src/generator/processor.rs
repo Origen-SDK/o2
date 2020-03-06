@@ -12,7 +12,7 @@ pub enum Return {
     /// and is used to indicated that a given processor has not implemented a
     /// handler for a given node type. Implementations of the Processor trait
     /// should never return this type.
-    Unimplemented,
+    _Unimplemented,
     /// Deletes the node from the output AST.
     None,
     /// Clones the node (and all of its children) into the output AST. Note that
@@ -52,30 +52,48 @@ pub trait Processor {
     }
 
     fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
-        Return::Unimplemented
+        Return::_Unimplemented
     }
 
-    fn on_comment(&mut self, _msg: &str, _node: &Node) -> Return {
-        Return::Unimplemented
+    fn on_comment(&mut self, _level: u8, _msg: &str, _node: &Node) -> Return {
+        Return::_Unimplemented
     }
 
-    fn on_pin_write(&mut self, _id: usize, _val: u128) -> Return {
-        Return::Unimplemented
+    fn on_pin_write(&mut self, _id: usize, _data: u128) -> Return {
+        Return::_Unimplemented
     }
 
-    fn on_pin_verify(&mut self, _id: usize, _val: u128) -> Return {
-        Return::Unimplemented
+    fn on_pin_verify(&mut self, _id: usize, _data: u128) -> Return {
+        Return::_Unimplemented
     }
 
-    fn on_reg_write(&mut self, _id: usize, _val: &BigUint) -> Return {
-        Return::Unimplemented
+    fn on_reg_write(
+        &mut self,
+        _id: usize,
+        _data: &BigUint,
+        _overlay_enable: &BigUint,
+        _overlay_str: &Option<String>,
+    ) -> Return {
+        Return::_Unimplemented
     }
 
-    fn on_reg_verify(&mut self, _id: usize, _val: &BigUint) -> Return {
-        Return::Unimplemented
+    fn on_reg_verify(
+        &mut self,
+        _id: usize,
+        _val: &BigUint,
+        _verify_enable: &BigUint,
+        _capture_enable: &BigUint,
+        _overlay_enable: &BigUint,
+        _overlay_str: &Option<String>,
+    ) -> Return {
+        Return::_Unimplemented
     }
 
-    fn on_cycle(&mut self, _repeat: u32, _node: &Node) -> Return {
-        Return::Unimplemented
+    fn on_cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Return {
+        Return::_Unimplemented
+    }
+
+    fn on_flow(&mut self, _name: &str, _node: &Node) -> Return {
+        Return::_Unimplemented
     }
 }

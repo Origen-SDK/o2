@@ -4,6 +4,74 @@ use crate::{Error, Result};
 use num_bigint::BigUint;
 use std::fmt;
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Attrs {
+    // A meta-node type, used to indicate a node who's children should be placed inline at the given location
+    _Inline,
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Test (pat gen) nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    Test(String),
+    Comment(u8, String), // level, msg
+    PinWrite(Id, u128),
+    PinVerify(Id, u128),
+    RegWrite(Id, BigUint, BigUint, Option<String>), // reg_id, data, overlay_enable, overlay_str
+    RegVerify(Id, BigUint, BigUint, BigUint, BigUint, Option<String>), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    Cycle(u32, bool), // repeat (0 not allowed), compressable
+
+    //// Teradyne custom nodes
+
+    //// Advantest custom nodes
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Flow (prog gen) nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    Flow(String),
+}
+
+impl Node {
+    /// Returns a new node which is the output of the node processed by the given processor.
+    /// Returning None means that the processor has decided that the node should be removed
+    /// from the next stage AST.
+    pub fn process(&self, processor: &mut dyn Processor) -> Option<Node> {
+        // Call the dedicated handler for this node if it exists
+        let r = match &self.attrs {
+            Attrs::Test(name) => processor.on_test(&name, &self),
+            Attrs::Comment(level, msg) => processor.on_comment(*level, &msg, &self),
+            Attrs::PinWrite(id, data) => processor.on_pin_write(*id, *data),
+            Attrs::PinVerify(id, data) => processor.on_pin_verify(*id, *data),
+            Attrs::RegWrite(id, data, overlay_enable, overlay_str) => {
+                processor.on_reg_write(*id, data, overlay_enable, overlay_str)
+            }
+            Attrs::RegVerify(
+                id,
+                data,
+                verify_enable,
+                capture_enable,
+                overlay_enable,
+                overlay_str,
+            ) => processor.on_reg_verify(
+                *id,
+                data,
+                verify_enable,
+                capture_enable,
+                overlay_enable,
+                overlay_str,
+            ),
+            Attrs::Cycle(repeat, compressable) => processor.on_cycle(*repeat, *compressable, &self),
+            Attrs::Flow(name) => processor.on_flow(&name, &self),
+            _ => Return::_Unimplemented,
+        };
+        // If not, call the default handler all nodes handler
+        let r = match r {
+            Return::_Unimplemented => processor.on_all(&self),
+            _ => r,
+        };
+        self.process_return_code(r, processor)
+    }
+}
+
 #[derive(Debug)]
 pub struct AST {
     nodes: Vec<Node>,
@@ -98,31 +166,6 @@ impl fmt::Display for AST {
 
 type Id = usize;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Attrs {
-    // A meta-node type, used to indicate a node who's children should be placed inline at the given location
-    _Inline,
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //// Test (patgen) nodes
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// The top-level node type
-    Test(String),
-    Comment(String),
-    PinWrite(Id, u128),
-    PinVerify(Id, u128),
-    RegWrite(Id, BigUint),
-    RegVerify(Id, BigUint),
-    Cycle(u32),
-    //// Teradyne custom nodes
-
-    //// Advantest custom nodes
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //// Flow (proggen) nodes
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-}
-
 #[derive(Clone, Debug)]
 pub struct Node {
     pub attrs: Attrs,
@@ -180,30 +223,6 @@ impl Node {
 
     pub fn add_child(&mut self, node: Node) {
         self.children.push(Box::new(node));
-    }
-
-    /// Returns a new node which is the output of the node processed by the
-    /// given processor.
-    /// Returning None means that the processor has decided that the node should
-    /// be deleted from the next stage AST.
-    pub fn process(&self, processor: &mut dyn Processor) -> Option<Node> {
-        // Call the dedicated handler for this node if it exists
-        let r = match &self.attrs {
-            Attrs::Test(name) => processor.on_test(&name, &self),
-            Attrs::Comment(msg) => processor.on_comment(&msg, &self),
-            Attrs::PinWrite(id, val) => processor.on_pin_write(*id, *val),
-            Attrs::PinVerify(id, val) => processor.on_pin_verify(*id, *val),
-            Attrs::RegWrite(id, val) => processor.on_reg_write(*id, val),
-            Attrs::RegVerify(id, val) => processor.on_reg_verify(*id, val),
-            Attrs::Cycle(repeat) => processor.on_cycle(*repeat, &self),
-            _ => Return::Unimplemented,
-        };
-        // If not, call the default handler all nodes handler
-        let r = match r {
-            Return::Unimplemented => processor.on_all(&self),
-            _ => r,
-        };
-        self.process_return_code(r, processor)
     }
 
     fn process_return_code(&self, code: Return, processor: &mut dyn Processor) -> Option<Node> {

@@ -1,6 +1,7 @@
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
-use crate::{Dut, Error, Result};
+use crate::generator::ast::*;
+use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
@@ -402,12 +403,30 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Trigger a verify operation on the register
-    pub fn verify(&self, enable: Option<BigUint>, preset: bool) -> Result<&BitCollection> {
+    pub fn verify(
+        &self,
+        enable: Option<BigUint>,
+        preset: bool,
+        dut: &'a MutexGuard<Dut>,
+    ) -> Result<Option<usize>> {
         if !preset {
             self.set_verify_flag(enable)?;
         }
-        // TODO: Record the verify in the AST here
-        Ok(self)
+        // Record the verify in the AST
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?.bits(dut);
+            let n = Node::new(Attrs::RegVerify(
+                id,
+                reg.data()?,
+                reg.verify_enables(),
+                reg.capture_enables(),
+                reg.overlay_enables(),
+                reg.get_overlay()?,
+            ));
+            Ok(Some(TEST.push_and_open(n)))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Equivalent to calling verify() but without invoking a register transaction at the end,
@@ -439,9 +458,20 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Trigger a write operation on the register
-    pub fn write(&self) -> Result<&BitCollection> {
-        // TODO: Record the write in the AST here
-        Ok(self)
+    pub fn write(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<usize>> {
+        // Record the write in the AST
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?.bits(dut);
+            let n = Node::new(Attrs::RegWrite(
+                id,
+                reg.data()?,
+                reg.overlay_enables(),
+                reg.get_overlay()?,
+            ));
+            Ok(Some(TEST.push_and_open(n)))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Returns the Register object associated with the BitCollection. Note that this will

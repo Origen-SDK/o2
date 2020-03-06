@@ -7,7 +7,7 @@ mod pins;
 mod registers;
 mod timesets;
 
-use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
+use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
@@ -25,9 +25,17 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
     m.add_wrapped(wrap_pyfunction!(target_file))?;
     m.add_wrapped(wrap_pyfunction!(file_handler))?;
+    m.add_wrapped(wrap_pyfunction!(test))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
+    Ok(())
+}
+
+/// Prints out the AST for the current test to the console
+#[pyfunction]
+fn test() -> PyResult<()> {
+    println!("{}", TEST.to_string());
     Ok(())
 }
 
