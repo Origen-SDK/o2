@@ -111,6 +111,10 @@ impl AccessType {
     pub fn is_writable(&self) -> bool {
         self.is_writeable()
     }
+
+    pub fn is_unimplemented(&self) -> bool {
+        *self == AccessType::Unimplemented
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]

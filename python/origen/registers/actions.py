@@ -18,12 +18,14 @@ def verify_transaction(bit_collection, enable=None):
 def verify(bit_collection, enable=None, _preset=False):
     ref = bit_collection._internal_verify(enable, _preset)
     _get_controller(bit_collection).verify_register(bit_collection)
-    bit_collection._end_internal_verify(ref)
+    if ref is not None:
+        bit_collection._end_internal_verify(ref)
 
 def write(bit_collection):
     ref = bit_collection._internal_write()
     _get_controller(bit_collection).write_register(bit_collection)
-    bit_collection._end_internal_write(ref)
+    if ref is not None:
+        bit_collection._end_internal_write(ref)
 
 def _get_controller(bit_collection):
     obj = origen

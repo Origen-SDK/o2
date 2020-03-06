@@ -33,9 +33,14 @@ impl TestManager {
         ast.push(node);
     }
 
+    ///// Returns a copy of the last node in the AST by default, or optionally a
+    //pub fn fetch(&self, offset: Option<usize>) -> Node {
+
+    //}
+
     /// Push a new node into the AST and leave it open, meaning that all new nodes
     /// added to the AST will be inserted as children of this node until it is closed.
-    /// An reference ID is returned and the caller should save this and provide it again
+    /// A reference ID is returned and the caller should save this and provide it again
     /// when calling close(). If the reference does not match the expected an error will
     /// be raised. This will catch any cases of application code forgetting to close
     /// a node before closing one of its parents.

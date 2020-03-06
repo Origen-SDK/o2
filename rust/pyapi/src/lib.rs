@@ -5,6 +5,7 @@ mod meta;
 mod model;
 mod pins;
 mod registers;
+mod services;
 mod timesets;
 
 use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS, TEST};
@@ -15,6 +16,7 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 // Imported pyapi modules
 use dut::PyInit_dut;
 use logger::PyInit_logger;
+use services::PyInit_services;
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -29,6 +31,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
+    m.add_wrapped(wrap_pymodule!(services))?;
     Ok(())
 }
 

@@ -5,6 +5,7 @@ use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wav
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::meta::IdGetters;
+use crate::services::Service;
 use crate::Result;
 use crate::DUT;
 use indexmap::IndexMap;
@@ -79,6 +80,7 @@ pub struct Dut {
     pub id_mappings: Vec<IndexMap<String, usize>>,
     /// Cache of descriptions parsed from reg definition files
     pub reg_descriptions: IndexMap<String, IndexMap<usize, String>>,
+    services: Vec<Service>,
 }
 
 impl Dut {
@@ -102,6 +104,7 @@ impl Dut {
             wave_events: Vec::<Event>::new(),
             id_mappings: Vec::<IndexMap<String, usize>>::new(),
             reg_descriptions: IndexMap::new(),
+            services: Vec::<Service>::new(),
         }
     }
 

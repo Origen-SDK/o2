@@ -5,8 +5,10 @@ extern crate serde;
 extern crate meta;
 
 pub mod core;
+pub mod drivers;
 pub mod error;
 pub mod generator;
+pub mod services;
 pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;

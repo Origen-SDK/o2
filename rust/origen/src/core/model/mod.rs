@@ -38,6 +38,7 @@ pub struct Model {
     /// The starting address of the block expressed in address_unit_bits of the parent block.
     /// This defaults to 0 but can be overridden by instantiation.
     pub offset: u128,
+    pub services: IndexMap<String, usize>,
 }
 
 impl Model {
@@ -56,6 +57,7 @@ impl Model {
                 Some(x) => x,
                 None => 0,
             },
+            services: IndexMap::new(),
         }
     }
 

@@ -265,8 +265,9 @@ impl Bit {
         // Let's make set_data ignore bit behaviour and can introduce an additional
         // behavioral-aware method in future
         //if self.is_writeable() {
-        self.force_data(val);
-        //}
+        if !self.access.is_unimplemented() {
+            self.force_data(val);
+        }
     }
 
     /// Like set_data(), but will force the data value in the event of the bit being unimplemented or
