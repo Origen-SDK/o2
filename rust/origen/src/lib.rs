@@ -5,7 +5,6 @@ extern crate serde;
 extern crate meta;
 
 pub mod core;
-pub mod drivers;
 pub mod error;
 pub mod generator;
 pub mod services;

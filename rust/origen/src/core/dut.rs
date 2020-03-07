@@ -173,6 +173,33 @@ impl Dut {
         }
     }
 
+    /// Get a mutable reference to the service with the given ID
+    pub fn get_mut_service(&mut self, id: usize) -> Result<&mut Service> {
+        match self.services.get_mut(id) {
+            Some(x) => Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                    "Something has gone wrong, no service exists with ID '{}'",
+                    id
+                )))
+            }
+        }
+    }
+
+    /// Get a read-only reference to the service with the given ID, use get_mut_service if
+    /// you need to modify it
+    pub fn get_service(&self, id: usize) -> Result<&Service> {
+        match self.services.get(id) {
+            Some(x) => Ok(x),
+            None => {
+                return Err(Error::new(&format!(
+                    "Something has gone wrong, no service exists with ID '{}'",
+                    id
+                )))
+            }
+        }
+    }
+
     /// Get a mutable reference to the memory map with the given ID
     pub fn get_mut_memory_map(&mut self, id: usize) -> Result<&mut MemoryMap> {
         match self.memory_maps.get_mut(id) {
@@ -509,6 +536,16 @@ impl Dut {
         };
 
         self.bits.push(bit);
+        id
+    }
+
+    /// Adds the given service to the database, returning its assigned ID
+    pub fn add_service(&mut self, service: Service) -> usize {
+        let id;
+        {
+            id = self.services.len();
+        }
+        self.services.push(service);
         id
     }
 

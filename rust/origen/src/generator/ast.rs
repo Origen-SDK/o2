@@ -18,6 +18,10 @@ pub enum Attrs {
     PinVerify(Id, u128),
     RegWrite(Id, BigUint, BigUint, Option<String>), // reg_id, data, overlay_enable, overlay_str
     RegVerify(Id, BigUint, BigUint, BigUint, BigUint, Option<String>), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    JTAGWriteIR,
+    JTAGReadIR,
+    JTAGWriteDR,
+    JTAGReadDR,
     Cycle(u32, bool), // repeat (0 not allowed), compressable
 
     //// Teradyne custom nodes
@@ -59,6 +63,10 @@ impl Node {
                 overlay_enable,
                 overlay_str,
             ),
+            Attrs::JTAGWriteIR => processor.on_jtag_write_ir(&self),
+            Attrs::JTAGReadIR => processor.on_jtag_read_ir(&self),
+            Attrs::JTAGWriteDR => processor.on_jtag_write_dr(&self),
+            Attrs::JTAGReadDR => processor.on_jtag_read_dr(&self),
             Attrs::Cycle(repeat, compressable) => processor.on_cycle(*repeat, *compressable, &self),
             Attrs::Flow(name) => processor.on_flow(&name, &self),
             _ => Return::_Unimplemented,
@@ -140,7 +148,7 @@ impl AST {
         }
     }
 
-    // Closes all currently open nodes into new node but leaving the original state of the AST
+    // Closes all currently open nodes into a new node but leaving the original state of the AST
     // unmodified.
     // This is like a snapshot of the current AST state, mainly useful for printing to the console
     // for debug.

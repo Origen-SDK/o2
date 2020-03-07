@@ -89,6 +89,22 @@ pub trait Processor {
         Return::_Unimplemented
     }
 
+    fn on_jtag_write_ir(&mut self, _node: &Node) -> Return {
+        Return::_Unimplemented
+    }
+
+    fn on_jtag_read_ir(&mut self, _node: &Node) -> Return {
+        Return::_Unimplemented
+    }
+
+    fn on_jtag_write_dr(&mut self, _node: &Node) -> Return {
+        Return::_Unimplemented
+    }
+
+    fn on_jtag_read_dr(&mut self, _node: &Node) -> Return {
+        Return::_Unimplemented
+    }
+
     fn on_cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Return {
         Return::_Unimplemented
     }

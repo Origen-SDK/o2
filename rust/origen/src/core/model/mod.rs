@@ -61,6 +61,18 @@ impl Model {
         }
     }
 
+    pub fn add_service(&mut self, name: &str, id: usize) -> Result<()> {
+        if self.services.contains_key(name) {
+            return Err(Error::new(&format!(
+                "The model '{}' already has a service called '{}'",
+                self.name, name
+            )));
+        } else {
+            self.services.insert(name.to_string(), id);
+        }
+        Ok(())
+    }
+
     pub fn lookup(&self, key: &str) -> Result<&IndexMap<String, usize>> {
         match key {
             "timesets" => Ok(&self.timesets),
