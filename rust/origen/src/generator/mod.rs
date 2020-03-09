@@ -20,7 +20,7 @@ mod tests {
         let reg_trans = Node::new(Attrs::RegWrite(
             10,
             0x12345678_u32.into(),
-            0_u32.into(),
+            None,
             None,
         ));
         let tid = TEST.push_and_open(reg_trans);
