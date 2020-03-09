@@ -17,12 +17,7 @@ mod tests {
         let c = Node::new(Attrs::Comment(1, "Hello".to_string()));
         TEST.push(c);
 
-        let reg_trans = Node::new(Attrs::RegWrite(
-            10,
-            0x12345678_u32.into(),
-            None,
-            None,
-        ));
+        let reg_trans = Node::new(Attrs::RegWrite(10, 0x12345678_u32.into(), None, None));
         let tid = TEST.push_and_open(reg_trans);
         let c = Node::new(Attrs::Comment(
             1,

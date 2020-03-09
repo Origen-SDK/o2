@@ -6,7 +6,8 @@ use crate::{Result, Value, TEST};
 
 #[derive(Clone, Debug)]
 pub struct Service {
-    // For example, to keep track of the current IR value
+    // For example, to keep track of the current IR value, would also add fields
+    // here to record the pins (defined when the service was instantiated)
     pub ir_val: u64,
 }
 

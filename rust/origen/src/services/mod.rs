@@ -23,6 +23,11 @@ impl Services {
         }
     }
 
+    // Called when the DUT is changed
+    pub fn change(&mut self) {
+        self.services.clear();
+    }
+
     /// Adds the given service to the database, returning its assigned ID
     pub fn add_service(&mut self, service: Service) -> usize {
         let id;

@@ -31,6 +31,7 @@ impl PyDUT {
     /// Instantiating a new instance of PyDUT means re-loading the target
     fn new(obj: &PyRawObject, name: &str) {
         origen::dut().change(name);
+        origen::services().change();
         obj.init({ PyDUT { metadata: vec![] } });
     }
 
