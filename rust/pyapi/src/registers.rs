@@ -1,5 +1,5 @@
 mod address_block;
-mod bit_collection;
+pub mod bit_collection;
 mod memory_map;
 mod register;
 mod register_collection;

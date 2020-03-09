@@ -13,8 +13,11 @@ pub use error::Error;
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
+use self::core::model::registers::BitCollection;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
+pub use self::services::Services;
+use num_bigint::BigUint;
 use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -36,6 +39,9 @@ lazy_static! {
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
     /// etc.)
     pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
+    /// Services owned by the current DUT, stored as a separate collection to avoid having to
+    /// get a mutable ref on the DUT if the service needs mutation
+    pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
 }
@@ -44,6 +50,11 @@ lazy_static! {
 pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
+pub enum Value<'a> {
+    Bits(BitCollection<'a>, Option<u32>), // bits holding data, optional size
+    Data(BigUint, u32),                   // value, size
 }
 
 #[macro_export]
@@ -60,6 +71,10 @@ macro_rules! lock {
 
 pub fn dut() -> MutexGuard<'static, Dut> {
     DUT.lock().unwrap()
+}
+
+pub fn services() -> MutexGuard<'static, Services> {
+    SERVICES.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

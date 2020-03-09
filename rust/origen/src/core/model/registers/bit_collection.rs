@@ -195,14 +195,23 @@ impl<'a> BitCollection<'a> {
     /// Returns the overlay value of the BitCollection. This will return an error if
     /// not all bits return the same value.
     pub fn get_overlay(&self) -> Result<Option<String>> {
-        let val = self.bits[0].get_overlay();
-        if !self.bits.iter().all(|&bit| bit.get_overlay() == val) {
-            Err(Error::new(
-                "The bits in the collection have different overlay values",
-            ))
-        } else {
-            Ok(val)
+        let mut result: Option<String> = None;
+        for &bit in self.bits.iter() {
+            match &bit.get_overlay() {
+                None => {}
+                Some(val) => match &result {
+                    None => result = Some(val.to_string()),
+                    Some(existing) => {
+                        if val != existing {
+                            return Err(Error::new(
+                                format!("The bits in the collection have different overlay values, found: '{}' and '{}'", val, existing).as_str(),
+                            ));
+                        }
+                    }
+                },
+            }
         }
+        Ok(result)
     }
 
     /// Set the overlay value of the BitCollection.
@@ -418,9 +427,9 @@ impl<'a> BitCollection<'a> {
             let n = Node::new(Attrs::RegVerify(
                 id,
                 reg.data()?,
-                reg.verify_enables(),
-                reg.capture_enables(),
-                reg.overlay_enables(),
+                Some(reg.verify_enables()),
+                Some(reg.capture_enables()),
+                Some(reg.overlay_enables()),
                 reg.get_overlay()?,
             ));
             Ok(Some(TEST.push_and_open(n)))
@@ -465,7 +474,7 @@ impl<'a> BitCollection<'a> {
             let n = Node::new(Attrs::RegWrite(
                 id,
                 reg.data()?,
-                reg.overlay_enables(),
+                Some(reg.overlay_enables()),
                 reg.get_overlay()?,
             ));
             Ok(Some(TEST.push_and_open(n)))

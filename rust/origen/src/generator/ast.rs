@@ -16,12 +16,33 @@ pub enum Attrs {
     Comment(u8, String), // level, msg
     PinWrite(Id, u128),
     PinVerify(Id, u128),
-    RegWrite(Id, BigUint, BigUint, Option<String>), // reg_id, data, overlay_enable, overlay_str
-    RegVerify(Id, BigUint, BigUint, BigUint, BigUint, Option<String>), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    JTAGWriteIR,
-    JTAGReadIR,
-    JTAGWriteDR,
-    JTAGReadDR,
+    RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
+    RegVerify(
+        Id,
+        BigUint,
+        Option<BigUint>,
+        Option<BigUint>,
+        Option<BigUint>,
+        Option<String>,
+    ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    JTAGWriteIR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
+    JTAGVerifyIR(
+        u32,
+        BigUint,
+        Option<BigUint>,
+        Option<BigUint>,
+        Option<BigUint>,
+        Option<String>,
+    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    JTAGWriteDR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
+    JTAGVerifyDR(
+        u32,
+        BigUint,
+        Option<BigUint>,
+        Option<BigUint>,
+        Option<BigUint>,
+        Option<String>,
+    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
     Cycle(u32, bool), // repeat (0 not allowed), compressable
 
     //// Teradyne custom nodes
@@ -63,10 +84,42 @@ impl Node {
                 overlay_enable,
                 overlay_str,
             ),
-            Attrs::JTAGWriteIR => processor.on_jtag_write_ir(&self),
-            Attrs::JTAGReadIR => processor.on_jtag_read_ir(&self),
-            Attrs::JTAGWriteDR => processor.on_jtag_write_dr(&self),
-            Attrs::JTAGReadDR => processor.on_jtag_read_dr(&self),
+            Attrs::JTAGWriteIR(size, data, overlay_enable, overlay_str) => {
+                processor.on_jtag_write_ir(*size, data, overlay_enable, overlay_str)
+            }
+            Attrs::JTAGVerifyIR(
+                size,
+                data,
+                verify_enable,
+                capture_enable,
+                overlay_enable,
+                overlay_str,
+            ) => processor.on_jtag_verify_ir(
+                *size,
+                data,
+                verify_enable,
+                capture_enable,
+                overlay_enable,
+                overlay_str,
+            ),
+            Attrs::JTAGWriteDR(size, data, overlay_enable, overlay_str) => {
+                processor.on_jtag_write_dr(*size, data, overlay_enable, overlay_str)
+            }
+            Attrs::JTAGVerifyDR(
+                size,
+                data,
+                verify_enable,
+                capture_enable,
+                overlay_enable,
+                overlay_str,
+            ) => processor.on_jtag_verify_dr(
+                *size,
+                data,
+                verify_enable,
+                capture_enable,
+                overlay_enable,
+                overlay_str,
+            ),
             Attrs::Cycle(repeat, compressable) => processor.on_cycle(*repeat, *compressable, &self),
             Attrs::Flow(name) => processor.on_flow(&name, &self),
             _ => Return::_Unimplemented,

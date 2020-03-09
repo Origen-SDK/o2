@@ -550,6 +550,18 @@ impl BitCollection {
         Ok(self.clone())
     }
 
+    /// Returns a representation of the register which owns the bits in the collection
+    fn as_reg(&self) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        if let Some(id) = self.reg_id {
+            Ok(BitCollection::from_reg_id(id, &dut))
+        } else {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Called as_reg() on a bit collection with no association to a register",
+            ))
+        }
+    }
+
     #[args(enable = "None", preset = "false")]
     /// Trigger a verify transaction on the register
     pub fn _internal_verify(
@@ -900,7 +912,7 @@ impl BitCollection {
 /// Internal helper methods
 impl BitCollection {
     /// Turn into a full BitCollection containing bit object references
-    fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<RichBC<'a>> {
+    pub fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<RichBC<'a>> {
         if self.whole_reg {
             Ok(dut.get_register(self.reg_id.unwrap())?.bits(&dut))
         } else if self.whole_field {

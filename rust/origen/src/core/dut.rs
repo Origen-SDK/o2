@@ -5,7 +5,6 @@ use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wav
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::meta::IdGetters;
-use crate::services::Service;
 use crate::Result;
 use crate::DUT;
 use indexmap::IndexMap;
@@ -80,7 +79,6 @@ pub struct Dut {
     pub id_mappings: Vec<IndexMap<String, usize>>,
     /// Cache of descriptions parsed from reg definition files
     pub reg_descriptions: IndexMap<String, IndexMap<usize, String>>,
-    services: Vec<Service>,
 }
 
 impl Dut {
@@ -104,7 +102,6 @@ impl Dut {
             wave_events: Vec::<Event>::new(),
             id_mappings: Vec::<IndexMap<String, usize>>::new(),
             reg_descriptions: IndexMap::new(),
-            services: Vec::<Service>::new(),
         }
     }
 
@@ -167,33 +164,6 @@ impl Dut {
             None => {
                 return Err(Error::new(&format!(
                     "Something has gone wrong, no model exists with ID '{}'",
-                    id
-                )))
-            }
-        }
-    }
-
-    /// Get a mutable reference to the service with the given ID
-    pub fn get_mut_service(&mut self, id: usize) -> Result<&mut Service> {
-        match self.services.get_mut(id) {
-            Some(x) => Ok(x),
-            None => {
-                return Err(Error::new(&format!(
-                    "Something has gone wrong, no service exists with ID '{}'",
-                    id
-                )))
-            }
-        }
-    }
-
-    /// Get a read-only reference to the service with the given ID, use get_mut_service if
-    /// you need to modify it
-    pub fn get_service(&self, id: usize) -> Result<&Service> {
-        match self.services.get(id) {
-            Some(x) => Ok(x),
-            None => {
-                return Err(Error::new(&format!(
-                    "Something has gone wrong, no service exists with ID '{}'",
                     id
                 )))
             }
@@ -536,16 +506,6 @@ impl Dut {
         };
 
         self.bits.push(bit);
-        id
-    }
-
-    /// Adds the given service to the database, returning its assigned ID
-    pub fn add_service(&mut self, service: Service) -> usize {
-        let id;
-        {
-            id = self.services.len();
-        }
-        self.services.push(service);
         id
     }
 

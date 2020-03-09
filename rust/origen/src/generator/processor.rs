@@ -71,7 +71,7 @@ pub trait Processor {
         &mut self,
         _id: usize,
         _data: &BigUint,
-        _overlay_enable: &BigUint,
+        _overlay_enable: &Option<BigUint>,
         _overlay_str: &Option<String>,
     ) -> Return {
         Return::_Unimplemented
@@ -80,28 +80,56 @@ pub trait Processor {
     fn on_reg_verify(
         &mut self,
         _id: usize,
-        _val: &BigUint,
-        _verify_enable: &BigUint,
-        _capture_enable: &BigUint,
-        _overlay_enable: &BigUint,
+        _data: &BigUint,
+        _verify_enable: &Option<BigUint>,
+        _capture_enable: &Option<BigUint>,
+        _overlay_enable: &Option<BigUint>,
         _overlay_str: &Option<String>,
     ) -> Return {
         Return::_Unimplemented
     }
 
-    fn on_jtag_write_ir(&mut self, _node: &Node) -> Return {
+    fn on_jtag_write_ir(
+        &mut self,
+        _size: u32,
+        _data: &BigUint,
+        _overlay_enable: &Option<BigUint>,
+        _overlay_str: &Option<String>,
+    ) -> Return {
         Return::_Unimplemented
     }
 
-    fn on_jtag_read_ir(&mut self, _node: &Node) -> Return {
+    fn on_jtag_verify_ir(
+        &mut self,
+        _size: u32,
+        _data: &BigUint,
+        _verify_enable: &Option<BigUint>,
+        _capture_enable: &Option<BigUint>,
+        _overlay_enable: &Option<BigUint>,
+        _overlay_str: &Option<String>,
+    ) -> Return {
         Return::_Unimplemented
     }
 
-    fn on_jtag_write_dr(&mut self, _node: &Node) -> Return {
+    fn on_jtag_write_dr(
+        &mut self,
+        _size: u32,
+        _data: &BigUint,
+        _overlay_enable: &Option<BigUint>,
+        _overlay_str: &Option<String>,
+    ) -> Return {
         Return::_Unimplemented
     }
 
-    fn on_jtag_read_dr(&mut self, _node: &Node) -> Return {
+    fn on_jtag_verify_dr(
+        &mut self,
+        _size: u32,
+        _data: &BigUint,
+        _verify_enable: &Option<BigUint>,
+        _capture_enable: &Option<BigUint>,
+        _overlay_enable: &Option<BigUint>,
+        _overlay_str: &Option<String>,
+    ) -> Return {
         Return::_Unimplemented
     }
 
