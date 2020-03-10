@@ -211,10 +211,10 @@ class Base:
             self.services = {}
             self.app.load_block_files(self, "services.py")
 
-    def write_register(self, reg_or_val, **kwargs):
+    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
 
-    def verify_register(self, reg_or_val, **kwargs):
+    def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
 
 # The base class of all Origen controller objects which are also
