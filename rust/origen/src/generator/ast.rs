@@ -296,10 +296,10 @@ impl Node {
             // wrapped in a meta-node and the process_children method will identify
             // this and remove the wrapper to inline the contained nodes.
             Return::Unwrap => Some(Node::inline(self.children.clone())),
-            Return::Inline(nodes) => Some(Node::inline(nodes)),
-            Return::InlineUnboxed(nodes) => Some(Node::inline(
+            Return::Inline(nodes) => Some(Node::inline(
                 nodes.into_iter().map(|n| Box::new(n)).collect(),
             )),
+            Return::InlineBoxed(nodes) => Some(Node::inline(nodes)),
             _ => None,
         }
     }

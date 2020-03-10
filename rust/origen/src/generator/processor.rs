@@ -29,9 +29,9 @@ pub enum Return {
     /// Replace the node in the output AST with the given nodes, the vector wrapper
     /// will be removed and the nodes will be placed inline with where the current
     /// node is/was.
-    Inline(Vec<Box<Node>>),
-    /// Same as Inline, but accepts a vector of un-boxed nodes
-    InlineUnboxed(Vec<Node>),
+    Inline(Vec<Node>),
+    /// Same as Inline, but accepts a vector of boxed nodes
+    InlineBoxed(Vec<Box<Node>>),
 }
 
 // Implements default handlers for all node types

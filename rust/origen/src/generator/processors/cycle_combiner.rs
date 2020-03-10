@@ -29,7 +29,7 @@ impl Processor for CycleCombiner {
         } else {
             if self.cycle_count > 0 {
                 let cyc = self.consume_cycles();
-                Return::InlineUnboxed(vec![cyc, node.clone()])
+                Return::Inline(vec![cyc, node.clone()])
             } else {
                 Return::Unmodified
             }
@@ -52,7 +52,7 @@ impl Processor for CycleCombiner {
         } else {
             let cyc = self.consume_cycles();
             let new_node = node.process_children(self);
-            Return::InlineUnboxed(vec![cyc, new_node])
+            Return::Inline(vec![cyc, new_node])
         }
     }
 }
