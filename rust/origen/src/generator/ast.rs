@@ -4,6 +4,15 @@ use crate::{Error, Result};
 use num_bigint::BigUint;
 use std::fmt;
 
+#[macro_export]
+macro_rules! node {
+    ( $attr:ident, $( $x:expr ),* ) => {
+        {
+            Node::new(Attrs::$attr($( $x ),*))
+        }
+    };
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Attrs {
     // A meta-node type, used to indicate a node who's children should be placed inline at the given location

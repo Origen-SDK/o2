@@ -1,3 +1,4 @@
+#[macro_use]
 pub mod ast;
 mod processor;
 mod processors;
@@ -14,19 +15,16 @@ mod tests {
     #[test]
     fn nodes_can_be_created_and_nested() {
         TEST.start("trim_vbgap");
-        let c = Node::new(Attrs::Comment(1, "Hello".to_string()));
+        let c = node!(Comment, 1, "Hello".to_string());
         TEST.push(c);
 
-        let reg_trans = Node::new(Attrs::RegWrite(10, 0x12345678_u32.into(), None, None));
+        let reg_trans = node!(RegWrite, 10, 0x12345678_u32.into(), None, None);
         let tid = TEST.push_and_open(reg_trans);
-        let c = Node::new(Attrs::Comment(
-            1,
-            "Should be inside reg transaction".to_string(),
-        ));
+        let c = node!(Comment, 1, "Should be inside reg transaction".to_string());
         TEST.push(c);
-        let cyc = Node::new(Attrs::Cycle(1, false));
+        let cyc = node!(Cycle, 1, false);
         TEST.push(cyc);
-        let cyc = Node::new(Attrs::Cycle(1, true));
+        let cyc = node!(Cycle, 1, true);
         for _i in 0..5 {
             TEST.push(cyc.clone());
         }
@@ -35,10 +33,7 @@ mod tests {
 
         TEST.close(tid).expect("Closed reg trans properly");
 
-        let c = Node::new(Attrs::Comment(
-            1,
-            "Should be outside reg transaction".to_string(),
-        ));
+        let c = node!(Comment, 1, "Should be outside reg transaction".to_string());
         TEST.push(c);
 
         println!("The completed AST:");

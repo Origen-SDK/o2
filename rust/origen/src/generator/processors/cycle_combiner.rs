@@ -15,7 +15,7 @@ impl CycleCombiner {
     }
 
     fn consume_cycles(&mut self) -> Node {
-        let cyc = Node::new(Attrs::Cycle(self.cycle_count, true));
+        let cyc = node!(Cycle, self.cycle_count, true);
         self.cycle_count = 0;
         cyc
     }
