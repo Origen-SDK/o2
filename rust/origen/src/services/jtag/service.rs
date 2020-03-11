@@ -2,6 +2,7 @@
 //! all state storage for a JTAG driver instance
 
 use crate::generator::ast::*;
+use crate::node;
 use crate::{Result, Value, TEST};
 
 #[derive(Clone, Debug)]
@@ -15,7 +16,7 @@ fn cycles(num: u32) {
     // This is temporary to create some AST content, the only direct Node creation
     // done by this driver should be JTAG nodes.
     // Cycles will be induced by API method calls in future, e.g. tester.cycle()
-    let cyc = Node::new(Attrs::Cycle(1, true));
+    let cyc = node!(Cycle, 1, true);
     for _i in 0..num {
         TEST.push(cyc.clone());
     }
@@ -28,16 +29,17 @@ impl Service {
 
     pub fn write_ir(&mut self, value: Value) -> Result<()> {
         let trans = match value {
-            Value::Bits(bits, size) => Node::new(Attrs::JTAGWriteIR(
+            Value::Bits(bits, size) => node!(
+                JTAGWriteIR,
                 match size {
                     None => bits.len() as u32,
                     Some(x) => x,
                 },
                 bits.data()?,
                 Some(bits.overlay_enables()),
-                bits.get_overlay()?,
-            )),
-            Value::Data(value, size) => Node::new(Attrs::JTAGWriteIR(size, value, None, None)),
+                bits.get_overlay()?
+            ),
+            Value::Data(value, size) => node!(JTAGWriteIR, size, value, None, None),
         };
         let tid = TEST.push_and_open(trans);
 
@@ -52,7 +54,8 @@ impl Service {
 
     pub fn verify_ir(&mut self, value: Value) -> Result<()> {
         let trans = match value {
-            Value::Bits(bits, size) => Node::new(Attrs::JTAGVerifyIR(
+            Value::Bits(bits, size) => node!(
+                JTAGVerifyIR,
                 match size {
                     None => bits.len() as u32,
                     Some(x) => x,
@@ -61,11 +64,9 @@ impl Service {
                 Some(bits.verify_enables()),
                 Some(bits.capture_enables()),
                 Some(bits.overlay_enables()),
-                bits.get_overlay()?,
-            )),
-            Value::Data(value, size) => {
-                Node::new(Attrs::JTAGVerifyIR(size, value, None, None, None, None))
-            }
+                bits.get_overlay()?
+            ),
+            Value::Data(value, size) => node!(JTAGVerifyIR, size, value, None, None, None, None),
         };
         let tid = TEST.push_and_open(trans);
 
@@ -80,16 +81,17 @@ impl Service {
 
     pub fn write_dr(&mut self, value: Value) -> Result<()> {
         let trans = match value {
-            Value::Bits(bits, size) => Node::new(Attrs::JTAGWriteDR(
+            Value::Bits(bits, size) => node!(
+                JTAGWriteDR,
                 match size {
                     None => bits.len() as u32,
                     Some(x) => x,
                 },
                 bits.data()?,
                 Some(bits.overlay_enables()),
-                bits.get_overlay()?,
-            )),
-            Value::Data(value, size) => Node::new(Attrs::JTAGWriteIR(size, value, None, None)),
+                bits.get_overlay()?
+            ),
+            Value::Data(value, size) => node!(JTAGWriteIR, size, value, None, None),
         };
         let tid = TEST.push_and_open(trans);
 
@@ -104,7 +106,8 @@ impl Service {
 
     pub fn verify_dr(&mut self, value: Value) -> Result<()> {
         let trans = match value {
-            Value::Bits(bits, size) => Node::new(Attrs::JTAGVerifyDR(
+            Value::Bits(bits, size) => node!(
+                JTAGVerifyDR,
                 match size {
                     None => bits.len() as u32,
                     Some(x) => x,
@@ -113,11 +116,9 @@ impl Service {
                 Some(bits.verify_enables()),
                 Some(bits.capture_enables()),
                 Some(bits.overlay_enables()),
-                bits.get_overlay()?,
-            )),
-            Value::Data(value, size) => {
-                Node::new(Attrs::JTAGVerifyIR(size, value, None, None, None, None))
-            }
+                bits.get_overlay()?
+            ),
+            Value::Data(value, size) => node!(JTAGVerifyIR, size, value, None, None, None, None),
         };
         let tid = TEST.push_and_open(trans);
 

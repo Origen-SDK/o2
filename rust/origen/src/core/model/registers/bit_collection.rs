@@ -1,6 +1,7 @@
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
 use crate::generator::ast::*;
+use crate::node;
 use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
@@ -424,14 +425,15 @@ impl<'a> BitCollection<'a> {
         // Record the verify in the AST
         if let Some(id) = self.reg_id {
             let reg = self.reg(dut)?.bits(dut);
-            let n = Node::new(Attrs::RegVerify(
+            let n = node!(
+                RegVerify,
                 id,
                 reg.data()?,
                 Some(reg.verify_enables()),
                 Some(reg.capture_enables()),
                 Some(reg.overlay_enables()),
-                reg.get_overlay()?,
-            ));
+                reg.get_overlay()?
+            );
             Ok(Some(TEST.push_and_open(n)))
         } else {
             Ok(None)
@@ -471,12 +473,13 @@ impl<'a> BitCollection<'a> {
         // Record the write in the AST
         if let Some(id) = self.reg_id {
             let reg = self.reg(dut)?.bits(dut);
-            let n = Node::new(Attrs::RegWrite(
+            let n = node!(
+                RegWrite,
                 id,
                 reg.data()?,
                 Some(reg.overlay_enables()),
-                reg.get_overlay()?,
-            ));
+                reg.get_overlay()?
+            );
             Ok(Some(TEST.push_and_open(n)))
         } else {
             Ok(None)

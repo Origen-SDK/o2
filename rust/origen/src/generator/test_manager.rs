@@ -16,14 +16,14 @@ pub struct TestManager {
 impl TestManager {
     pub fn new() -> TestManager {
         TestManager {
-            ast: RwLock::new(AST::new(Node::new(Attrs::Test("ad-hoc".to_string())))),
+            ast: RwLock::new(AST::new(node!(Test, "ad-hoc".to_string()))),
         }
     }
 
     /// Starts a new test (deletes the current AST and starts a new one)
     pub fn start(&self, name: &str) {
         let mut ast = self.ast.write().unwrap();
-        let node = Node::new(Attrs::Test(name.to_string()));
+        let node = node!(Test, name.to_string());
         ast.start(node);
     }
 
