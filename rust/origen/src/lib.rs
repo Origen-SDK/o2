@@ -16,8 +16,10 @@ pub use self::core::dut::Dut;
 use self::core::model::registers::BitCollection;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
+use self::generator::ast::*;
 pub use self::services::Services;
 use num_bigint::BigUint;
+use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -46,7 +48,24 @@ lazy_static! {
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
 }
 
-// Use of a mod or pub mod is not actually necessary.
+impl PartialEq<AST> for TEST {
+    fn eq(&self, ast: &AST) -> bool {
+        self.to_node() == ast.to_node()
+    }
+}
+
+impl PartialEq<Node> for TEST {
+    fn eq(&self, node: &Node) -> bool {
+        self.to_node() == *node
+    }
+}
+
+impl fmt::Debug for TEST {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_node())
+    }
+}
+
 pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));

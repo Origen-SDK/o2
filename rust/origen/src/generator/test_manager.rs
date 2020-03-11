@@ -8,7 +8,6 @@ use crate::Result;
 use std::fmt;
 use std::sync::RwLock;
 
-#[derive(Debug)]
 pub struct TestManager {
     pub ast: RwLock<AST>,
 }
@@ -64,9 +63,20 @@ impl TestManager {
         let ast = self.ast.read().unwrap();
         ast.process(process_fn)
     }
+
+    pub fn to_node(&self) -> Node {
+        let ast = self.ast.read().unwrap();
+        ast.to_node()
+    }
 }
 
 impl fmt::Display for TestManager {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.ast.read().unwrap())
+    }
+}
+
+impl fmt::Debug for TestManager {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.ast.read().unwrap())
     }

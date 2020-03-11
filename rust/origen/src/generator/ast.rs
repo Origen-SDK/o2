@@ -1,5 +1,6 @@
 use super::processors::ToString;
 use crate::generator::processor::*;
+use crate::TEST;
 use crate::{Error, Result};
 use num_bigint::BigUint;
 use std::fmt;
@@ -142,7 +143,6 @@ impl Node {
     }
 }
 
-#[derive(Debug)]
 pub struct AST {
     nodes: Vec<Node>,
 }
@@ -214,7 +214,7 @@ impl AST {
     // unmodified.
     // This is like a snapshot of the current AST state, mainly useful for printing to the console
     // for debug.
-    fn to_node(&self) -> Node {
+    pub fn to_node(&self) -> Node {
         let mut node = self.nodes.last().unwrap().clone();
         let num = self.nodes.len();
         if num > 1 {
@@ -234,9 +234,27 @@ impl fmt::Display for AST {
     }
 }
 
+impl fmt::Debug for AST {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl PartialEq<Node> for AST {
+    fn eq(&self, node: &Node) -> bool {
+        self.to_node() == *node
+    }
+}
+
+impl PartialEq<TEST> for AST {
+    fn eq(&self, test: &TEST) -> bool {
+        self.to_node() == test.to_node()
+    }
+}
+
 type Id = usize;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq)]
 pub struct Node {
     pub attrs: Attrs,
     pub meta: Option<Meta>,
@@ -247,7 +265,7 @@ pub struct Node {
     children: Vec<Box<Node>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Meta {
     filename: Option<String>,
     lineno: Option<usize>,
@@ -256,6 +274,18 @@ pub struct Meta {
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_string())
+    }
+}
+
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl PartialEq<AST> for Node {
+    fn eq(&self, ast: &AST) -> bool {
+        *self == ast.to_node()
     }
 }
 
