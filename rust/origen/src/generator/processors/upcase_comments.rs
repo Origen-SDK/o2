@@ -20,3 +20,22 @@ impl Processor for UpcaseComments {
         Return::Replace(new_node)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::generator::ast::*;
+    use crate::generator::processors::*;
+
+    #[test]
+    fn it_works() {
+        let mut ast = AST::new(node!(Test, "t1".to_string()));
+        ast.push(node!(Cycle, 1, false));
+        ast.push(node!(Comment, 1, "some comment".to_string()));
+
+        let mut expect = AST::new(node!(Test, "t1".to_string()));
+        expect.push(node!(Cycle, 1, false));
+        expect.push(node!(Comment, 1, "SOME COMMENT".to_string()));
+
+        assert_eq!(UpcaseComments::run(&ast.to_node()), expect);
+    }
+}

@@ -54,6 +54,30 @@ impl TestManager {
         ast.close(ref_id)
     }
 
+    /// Replace the node n - offset with the given node, use offset = 0 to
+    /// replace the last node that was pushed.
+    /// Fails if the AST has no children yet or if the offset is otherwise out
+    /// of range.
+    pub fn replace(&self, node: Node, offset: usize) -> Result<()> {
+        let mut ast = self.ast.write().unwrap();
+        ast.replace(node, offset)
+    }
+
+    /// Returns a copy of node n - offset, an offset of 0 means
+    /// the last node pushed.
+    /// Fails if the offset is out of range.
+    pub fn get(&self, offset: usize) -> Result<Node> {
+        let ast = self.ast.write().unwrap();
+        ast.get(offset)
+    }
+
+    /// Insert the node at position n - offset, using offset = 0 is equivalent
+    /// calling push().
+    pub fn insert(&self, node: Node, offset: usize) -> Result<()> {
+        let mut ast = self.ast.write().unwrap();
+        ast.insert(node, offset)
+    }
+
     pub fn to_string(&self) -> String {
         let ast = self.ast.read().unwrap();
         format!("{}", ast)
@@ -79,5 +103,26 @@ impl fmt::Display for TestManager {
 impl fmt::Debug for TestManager {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.ast.read().unwrap())
+    }
+}
+
+impl PartialEq<AST> for TestManager {
+    fn eq(&self, ast: &AST) -> bool {
+        self.to_node() == ast.to_node()
+    }
+}
+
+impl PartialEq<Node> for TestManager {
+    fn eq(&self, node: &Node) -> bool {
+        self.to_node() == *node
+    }
+}
+
+impl Clone for TestManager {
+    fn clone(&self) -> TestManager {
+        let ast = self.ast.read().unwrap();
+        TestManager {
+            ast: RwLock::new(ast.clone()),
+        }
     }
 }

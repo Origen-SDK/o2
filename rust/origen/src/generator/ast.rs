@@ -1,5 +1,6 @@
 use super::processors::ToString;
 use crate::generator::processor::*;
+use crate::generator::TestManager;
 use crate::TEST;
 use crate::{Error, Result};
 use num_bigint::BigUint;
@@ -143,6 +144,7 @@ impl Node {
     }
 }
 
+#[derive(Clone)]
 pub struct AST {
     nodes: Vec<Node>,
 }
@@ -160,7 +162,7 @@ impl AST {
 
     /// Push a new node into the AST and leave it open, meaning that all new nodes
     /// added to the AST will be inserted as children of this node until it is closed.
-    /// An reference ID is returned and the caller should save this and provide it again
+    /// A reference ID is returned and the caller should save this and provide it again
     /// when calling close(). If the reference does not match the expected an error will
     /// be raised. This will catch any cases of AST application code forgetting to close
     /// a node before closing one of its parents.
@@ -184,6 +186,106 @@ impl AST {
             node.add_child(n);
         }
         Ok(())
+    }
+
+    /// Replace the node n - offset with the given node, use offset = 0 to
+    /// replace the last node that was pushed.
+    /// Fails if the AST has no children yet or if the offset is otherwise out
+    /// of range.
+    pub fn replace(&mut self, node: Node, mut offset: usize) -> Result<()> {
+        let mut node_offset = 0;
+        let mut child_offset = 0;
+        let mut root_node = false;
+        let node_len = self.nodes.len();
+        while offset > 0 {
+            let node = &self.nodes[node_len - 1 - node_offset];
+            let num_children = node.children.len();
+            // If node to be replaced lies in this node's children
+            if num_children > offset {
+                child_offset = offset;
+                offset = 0;
+            // If node to be replaced is this node itself
+            } else if num_children == offset {
+                root_node = true;
+                offset = 0;
+            // The node to be replaced lies outside this node
+            } else {
+                node_offset += 1;
+                offset -= num_children + 1;
+                child_offset = 0;
+            }
+        }
+        let index = node_len - 1 - node_offset;
+        let mut n = self.nodes.remove(index);
+        if root_node {
+            self.nodes.insert(index, node);
+        } else {
+            n.replace_child(node, child_offset)?;
+            self.nodes.insert(index, n);
+        }
+        Ok(())
+    }
+
+    /// Insert the node at position n - offset, using offset = 0 is equivalent
+    /// calling push().
+    pub fn insert(&mut self, node: Node, mut offset: usize) -> Result<()> {
+        let mut node_offset = 0;
+        let mut child_offset = 0;
+        let node_len = self.nodes.len();
+        while offset > 0 {
+            let node = &self.nodes[node_len - 1 - node_offset];
+            let num_children = node.children.len();
+            // If node is to be inserted into this node's children
+            if num_children >= offset {
+                child_offset = offset;
+                offset = 0;
+            // The parent node lies outside this node
+            } else {
+                node_offset += 1;
+                offset -= num_children + 1;
+                child_offset = 0;
+            }
+        }
+        let index = node_len - 1 - node_offset;
+        let mut n = self.nodes.remove(index);
+        n.insert_child(node, child_offset)?;
+        self.nodes.insert(index, n);
+        Ok(())
+    }
+
+    /// Returns a copy of node n - offset, an offset of 0 means
+    /// the last node pushed.
+    /// Fails if the offset is out of range.
+    pub fn get(&self, mut offset: usize) -> Result<Node> {
+        let mut node_offset = 0;
+        let mut child_offset = 0;
+        let mut root_node = false;
+        let node_len = self.nodes.len();
+        while offset > 0 {
+            let node = &self.nodes[node_len - 1 - node_offset];
+            let num_children = node.children.len();
+            // If node to be returned lies in this node's children
+            if num_children > offset {
+                child_offset = offset;
+                offset = 0;
+            // If node to be returned is this node itself
+            } else if num_children == offset {
+                root_node = true;
+                offset = 0;
+            // The node to be returned lies outside this node
+            } else {
+                node_offset += 1;
+                offset -= num_children + 1;
+                child_offset = 0;
+            }
+        }
+        let index = node_len - 1 - node_offset;
+        let n = &self.nodes[index];
+        if root_node {
+            Ok(self.nodes[index].clone())
+        } else {
+            Ok(n.get_child(child_offset)?)
+        }
     }
 
     /// Clear the current AST and start a new one with the given node at the top-level
@@ -248,6 +350,12 @@ impl PartialEq<Node> for AST {
 
 impl PartialEq<TEST> for AST {
     fn eq(&self, test: &TEST) -> bool {
+        self.to_node() == test.to_node()
+    }
+}
+
+impl PartialEq<TestManager> for AST {
+    fn eq(&self, test: &TestManager) -> bool {
         self.to_node() == test.to_node()
     }
 }
@@ -323,6 +431,61 @@ impl Node {
 
     pub fn add_child(&mut self, node: Node) {
         self.children.push(Box::new(node));
+    }
+
+    pub fn insert_child(&mut self, node: Node, offset: usize) -> Result<()> {
+        let len = self.children.len();
+        if offset > len {
+            return Err(Error::new(&format!(
+                "An offset of {} was given to insert a child into a node with only {} children",
+                offset, len
+            )));
+        }
+        let index = self.children.len() - offset;
+        self.children.insert(index, Box::new(node));
+        Ok(())
+    }
+
+    /// Replace the child n - offset with the given node, use offset = 0 to
+    /// replace the last child that was pushed.
+    /// Fails if the node has no children or if the given offset is
+    /// otherwise out of range.
+    pub fn replace_child(&mut self, node: Node, offset: usize) -> Result<()> {
+        let len = self.children.len();
+        if len == 0 {
+            return Err(Error::new(
+                "Attempted to replace a child in a node with no children",
+            ));
+        } else if offset > len - 1 {
+            return Err(Error::new(&format!(
+                "An offset of {} was given to replace a child in a node with only {} children",
+                offset, len
+            )));
+        }
+        let index = self.children.len() - 1 - offset;
+        self.children.remove(index);
+        self.children.insert(index, Box::new(node));
+        Ok(())
+    }
+
+    /// Returns a copy of child n - offset, an offset of 0 means
+    /// the last child that was pushed.
+    /// Fails if the node has no children or if the given offset is
+    /// otherwise out of range.
+    pub fn get_child(&self, offset: usize) -> Result<Node> {
+        let len = self.children.len();
+        if len == 0 {
+            return Err(Error::new(
+                "Attempted to get a child in a node with no children",
+            ));
+        } else if offset > len - 1 {
+            return Err(Error::new(&format!(
+                "An offset of {} was given to get a child in a node with only {} children",
+                offset, len
+            )));
+        }
+        let index = self.children.len() - 1 - offset;
+        Ok(*self.children[index].clone())
     }
 
     fn process_return_code(&self, code: Return, processor: &mut dyn Processor) -> Option<Node> {
