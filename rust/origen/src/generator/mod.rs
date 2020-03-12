@@ -296,16 +296,31 @@ mod tests {
         let test = TestManager::new();
 
         test.start("t1");
-        test.push(node!(Cycle, 1, false));
+        test.push(node!(Cycle, 1, true));
         let reg_trans = node!(RegWrite, 10, 0x12345678_u32.into(), None, None);
         let _tid = test.push_and_open(reg_trans);
-        test.push(node!(Cycle, 2, false));
-        test.push(node!(Cycle, 3, false));
-        test.push(node!(Cycle, 4, false));
+        test.push(node!(Cycle, 2, true));
+        test.push(node!(Cycle, 3, true));
+        test.push(node!(Cycle, 4, true));
 
-        assert_eq!(test.get(0).unwrap(), node!(Cycle, 4, false));
-        assert_eq!(test.get(1).unwrap(), node!(Cycle, 3, false));
-        assert_eq!(test.get(2).unwrap(), node!(Cycle, 2, false));
-        assert_eq!(test.get(4).unwrap(), node!(Cycle, 1, false));
+        assert_eq!(test.get(0).unwrap(), node!(Cycle, 4, true));
+        assert_eq!(test.get(1).unwrap(), node!(Cycle, 3, true));
+        assert_eq!(test.get(2).unwrap(), node!(Cycle, 2, true));
+        assert_eq!(test.get(4).unwrap(), node!(Cycle, 1, true));
+
+        // Test cycle optimizer code
+        if let Attrs::Cycle(repeat, compressable) = test.get(0).unwrap().attrs {
+            if compressable {
+                test.replace(node!(Cycle, repeat + 1, true), 0).expect("ok");
+            }
+        }
+
+        let mut ast = AST::new(node!(Test, "t1".to_string()));
+        ast.push(node!(Cycle, 1, true));
+        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        ast.push(node!(Cycle, 2, true));
+        ast.push(node!(Cycle, 3, true));
+        ast.push(node!(Cycle, 5, true));
+        assert_eq!(test, ast);
     }
 }
