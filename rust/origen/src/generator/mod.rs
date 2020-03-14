@@ -1,6 +1,6 @@
 #[macro_use]
 pub mod ast;
-mod processor;
+pub mod processor;
 mod processors;
 mod test_manager;
 

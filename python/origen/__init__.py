@@ -3,6 +3,7 @@ import _origen
 from pathlib import Path
 import importlib
 from contextlib import contextmanager
+import pickle
 
 config = _origen.config()
 status = _origen.status()
@@ -31,6 +32,9 @@ def load_file(path, globals={}, locals={}):
     with open(path) as f:
         code = compile(f.read(), path, 'exec')
         exec(code, globals, context)
+
+def test_ast():
+    return pickle.loads(bytes(_origen.test_ast()))
 
 @contextmanager
 def reg_description_parsing():

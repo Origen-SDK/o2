@@ -15,7 +15,7 @@ macro_rules! node {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Attrs {
     // A meta-node type, used to indicate a node who's children should be placed inline at the given location
     _Inline,
@@ -312,6 +312,16 @@ impl AST {
         }
     }
 
+    /// Serializes the AST for import into Python
+    pub fn to_pickle(&self) -> Vec<u8> {
+        if self.nodes.len() > 1 {
+            let node = self.to_node();
+            node.to_pickle()
+        } else {
+            self.nodes[0].to_pickle()
+        }
+    }
+
     // Closes all currently open nodes into a new node but leaving the original state of the AST
     // unmodified.
     // This is like a snapshot of the current AST state, mainly useful for printing to the console
@@ -362,7 +372,7 @@ impl PartialEq<TestManager> for AST {
 
 type Id = usize;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Serialize)]
 pub struct Node {
     pub attrs: Attrs,
     pub meta: Option<Meta>,
@@ -373,7 +383,7 @@ pub struct Node {
     children: Vec<Box<Node>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Meta {
     filename: Option<String>,
     lineno: Option<usize>,
@@ -427,6 +437,11 @@ impl Node {
 
     pub fn to_string(&self) -> String {
         ToString::run(self)
+    }
+
+    /// Serializes the AST for import into Python
+    pub fn to_pickle(&self) -> Vec<u8> {
+        serde_pickle::to_vec(self, true).unwrap()
     }
 
     pub fn add_child(&mut self, node: Node) {

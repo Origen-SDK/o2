@@ -92,6 +92,13 @@ impl TestManager {
         let ast = self.ast.read().unwrap();
         ast.to_node()
     }
+
+    /// Serializes the AST for import into Python
+    pub fn to_pickle(&self) -> Vec<u8> {
+        let ast = self.ast.read().unwrap();
+
+        ast.to_pickle()
+    }
 }
 
 impl fmt::Display for TestManager {
