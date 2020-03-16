@@ -13,6 +13,11 @@ macro_rules! node {
             Node::new(Attrs::$attr($( $x ),*))
         }
     };
+    ( $attr:ident ) => {
+        {
+            Node::new(Attrs::$attr)
+        }
+    };
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
