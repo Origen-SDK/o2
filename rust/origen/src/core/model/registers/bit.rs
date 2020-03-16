@@ -262,7 +262,10 @@ impl Bit {
     }
 
     pub fn set_data(&self, val: u8) {
-        if self.is_writeable() {
+        // Let's make set_data ignore bit behaviour and can introduce an additional
+        // behavioral-aware method in future
+        //if self.is_writeable() {
+        if !self.access.is_unimplemented() {
             self.force_data(val);
         }
     }

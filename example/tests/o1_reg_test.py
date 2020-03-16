@@ -432,7 +432,7 @@ def test_status_string_methods_work():
     reg[3:0].set_data(0x5)
     reg[7:4].set_overlay("overlayx")
     reg[15:8].set_data(0xAA)
-    reg[10].set_overlay("overlayy")
+    reg[10].set_overlay("overlayx")
     assert reg.status_str("write") == "A[1v10]V5"
     reg.reset()
     reg.clear_flags()

@@ -12,20 +12,20 @@ def run_around_tests():
     # Code that will run after each test
 
 def test_sub_blocks_can_be_added():
-    assert dut.sub_blocks.len() == 4
+    assert len(dut.sub_blocks) == 4
     assert list(dut.sub_blocks.keys()) == ['core0', 'core1', 'core2', 'core3']
 
     # Test adding a sub_block to the top-level
     block = dut.add_sub_block("core4", block_path="core")
-    assert dut.sub_blocks.len() == 5
+    assert len(dut.sub_blocks) == 5
     assert list(dut.sub_blocks.keys()) == ['core0', 'core1', 'core2', 'core3', 'core4']
     assert block.name == "core4"
 
     # Test adding a sub_block to an embedded block...
-    assert dut.core0.adc0.sub_blocks.len() == 0
+    assert len(dut.core0.adc0.sub_blocks) == 0
     assert list(dut.core0.adc0.sub_blocks.keys()) == []
     block = dut.core0.adc0.add_sub_block("my_block", block_path="adc.8_bit")
-    assert dut.core0.adc0.sub_blocks.len() == 1
+    assert len(dut.core0.adc0.sub_blocks) == 1
     assert list(dut.core0.adc0.sub_blocks.keys()) == ["my_block"]
     assert block.name == "my_block"
 

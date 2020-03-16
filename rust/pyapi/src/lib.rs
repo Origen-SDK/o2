@@ -5,16 +5,21 @@ mod meta;
 mod model;
 mod pins;
 mod registers;
+mod services;
 mod timesets;
 
-use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
+use crate::registers::bit_collection::BitCollection;
+use num_bigint::BigUint;
+use origen::{Dut, Error, Result, Value, APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyAny, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use std::sync::MutexGuard;
 
 // Imported pyapi modules
 use dut::PyInit_dut;
 use logger::PyInit_logger;
+use services::PyInit_services;
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -25,10 +30,47 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
     m.add_wrapped(wrap_pyfunction!(target_file))?;
     m.add_wrapped(wrap_pyfunction!(file_handler))?;
+    m.add_wrapped(wrap_pyfunction!(test))?;
+    m.add_wrapped(wrap_pyfunction!(test_ast))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
+    m.add_wrapped(wrap_pymodule!(services))?;
     Ok(())
+}
+
+fn extract_value<'a>(
+    bits_or_val: &PyAny,
+    size: Option<u32>,
+    dut: &'a MutexGuard<Dut>,
+) -> Result<Value<'a>> {
+    let bits = bits_or_val.extract::<&BitCollection>();
+    if bits.is_ok() {
+        return Ok(Value::Bits(bits.unwrap().materialize(dut)?, size));
+    }
+    let value = bits_or_val.extract::<BigUint>();
+    if value.is_ok() {
+        return match size {
+            Some(x) => Ok(Value::Data(value.unwrap(), x)),
+            None => Err(Error::new(
+                "A size argument must be supplied along with a data value",
+            )),
+        };
+    }
+    Err(Error::new("Illegal bits/value argument"))
+}
+
+/// Prints out the AST for the current test to the console
+#[pyfunction]
+fn test() -> PyResult<()> {
+    println!("{}", TEST.to_string());
+    Ok(())
+}
+
+/// Returns the AST for the current test in Python
+#[pyfunction]
+fn test_ast() -> PyResult<Vec<u8>> {
+    Ok(TEST.to_pickle())
 }
 
 /// Returns a file handler object (iterable) for consuming the file arguments

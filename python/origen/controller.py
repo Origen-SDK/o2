@@ -52,7 +52,8 @@ class Base:
         self.regs_loaded = False
         self.sub_blocks_loaded = False
         self.pins_loaded = False
-        self.timesets_loaded= False
+        self.timesets_loaded = False
+        self.services_loaded = False
 
     def __repr__(self):
         self._load_regs()
@@ -75,6 +76,10 @@ class Base:
             self._load_sub_blocks()
             return self.sub_blocks
 
+        elif name == "services":
+            self._load_services()
+            return self.services
+
         elif name in pins.Proxy.api():
             from origen.pins import Proxy
             proxy = pins.Proxy(self)
@@ -96,6 +101,9 @@ class Base:
                 self.__setattr__(method, getattr(proxy, method))
             self._load_timesets()
             return eval(f"self.{name}")
+
+        elif name in self.services:
+            return self.services[name]
 
         else:
             self._load_sub_blocks()
@@ -139,7 +147,7 @@ class Base:
                 t += "\n" + leader + f"├── {key}"
             else:
                 t += "\n" + leader + f"└── {key}"
-            if self.sub_blocks[key].sub_blocks.len() > 0:
+            if len(self.sub_blocks[key].sub_blocks) > 0:
                 if i != last:
                     l = leader + '│    '
                 else:
@@ -183,8 +191,7 @@ class Base:
 
     def _load_sub_blocks(self):
         if not self.sub_blocks_loaded:
-            from origen.sub_blocks import Proxy
-            self.sub_blocks = Proxy(self)
+            self.sub_blocks = {}
             self.app.load_block_files(self, "sub_blocks.py")
             self.sub_blocks_loaded = True
     
@@ -198,10 +205,16 @@ class Base:
             self.app.load_block_files(self, "timing.py")
             self.timesets_loaded = True
 
-    def write_register(self, reg_or_val, **kwargs):
+    def _load_services(self):
+        if not self.services_loaded:
+            self.services_loaded = True
+            self.services = {}
+            self.app.load_block_files(self, "services.py")
+
+    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
 
-    def verify_register(self, reg_or_val, **kwargs):
+    def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
 
 # The base class of all Origen controller objects which are also

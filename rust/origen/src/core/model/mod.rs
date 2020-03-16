@@ -38,6 +38,7 @@ pub struct Model {
     /// The starting address of the block expressed in address_unit_bits of the parent block.
     /// This defaults to 0 but can be overridden by instantiation.
     pub offset: u128,
+    pub services: IndexMap<String, usize>,
 }
 
 impl Model {
@@ -56,7 +57,20 @@ impl Model {
                 Some(x) => x,
                 None => 0,
             },
+            services: IndexMap::new(),
         }
+    }
+
+    pub fn add_service(&mut self, name: &str, id: usize) -> Result<()> {
+        if self.services.contains_key(name) {
+            return Err(Error::new(&format!(
+                "The model '{}' already has a service called '{}'",
+                self.name, name
+            )));
+        } else {
+            self.services.insert(name.to_string(), id);
+        }
+        Ok(())
     }
 
     pub fn lookup(&self, key: &str) -> Result<&IndexMap<String, usize>> {

@@ -16,8 +16,13 @@ impl Model {
     }
 
     /// Turn into a full Model
-    fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a RichModel> {
+    pub fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a RichModel> {
         dut.get_model(self.id)
+    }
+
+    /// Turn into a full Model
+    pub fn materialize_mut<'a>(&self, dut: &'a mut MutexGuard<Dut>) -> Result<&'a mut RichModel> {
+        dut.get_mut_model(self.id)
     }
 }
 
@@ -40,5 +45,10 @@ impl Model {
     fn address(&self, _address_unit_bits: Option<u32>) -> PyResult<u128> {
         let dut = origen::dut();
         Ok(self.materialize(&dut)?.address(&dut)?)
+    }
+
+    #[getter]
+    fn id(&self) -> PyResult<usize> {
+        Ok(self.id)
     }
 }

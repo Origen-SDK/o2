@@ -2,8 +2,7 @@ use itertools::Itertools;
 use num_bigint::BigUint;
 use origen::core::model::registers::BitCollection as RichBC;
 use origen::core::model::registers::{BitOrder, Field, Register};
-use origen::Dut;
-use origen::Result;
+use origen::{Dut, Result, TEST};
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::class::PyMappingProtocol;
 use pyo3::exceptions;
@@ -551,20 +550,38 @@ impl BitCollection {
         Ok(self.clone())
     }
 
+    /// Returns a representation of the register which owns the bits in the collection
+    fn as_reg(&self) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        if let Some(id) = self.reg_id {
+            Ok(BitCollection::from_reg_id(id, &dut))
+        } else {
+            Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Called as_reg() on a bit collection with no association to a register",
+            ))
+        }
+    }
+
     #[args(enable = "None", preset = "false")]
     /// Trigger a verify transaction on the register
     pub fn _internal_verify(
         &self,
         enable: Option<BigUint>,
         preset: bool,
-    ) -> PyResult<BitCollection> {
-        let dut = origen::dut();
+    ) -> PyResult<Option<usize>> {
         if self.transaction != 0 {
             self.set_verify_flag(enable)?;
+            Ok(None)
         } else {
-            self.materialize(&dut)?.verify(enable, preset)?;
+            let dut = origen::dut();
+            let ref_id = self.materialize(&dut)?.verify(enable, preset, &dut)?;
+            Ok(ref_id)
         }
-        Ok(self.clone())
+    }
+
+    pub fn _end_internal_verify(&self, ref_id: usize) -> PyResult<()> {
+        TEST.close(ref_id)?;
+        Ok(())
     }
 
     #[args(enable = "None")]
@@ -577,16 +594,21 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    pub fn _internal_write(&self) -> PyResult<BitCollection> {
+    pub fn _internal_write(&self) -> PyResult<Option<usize>> {
         if self.transaction != 0 {
             Err(PyErr::new::<exceptions::RuntimeError, _>(
                 "Can't call write() from within a transaction block, did you mean to call set_data()?",
             ))
         } else {
             let dut = origen::dut();
-            self.materialize(&dut)?.write()?;
-            Ok(self.clone())
+            let ref_id = self.materialize(&dut)?.write(&dut)?;
+            Ok(ref_id)
         }
+    }
+
+    pub fn _end_internal_write(&self, ref_id: usize) -> PyResult<()> {
+        TEST.close(ref_id)?;
+        Ok(())
     }
 
     pub fn is_verify_transaction_open(&self) -> bool {
@@ -890,7 +912,7 @@ impl BitCollection {
 /// Internal helper methods
 impl BitCollection {
     /// Turn into a full BitCollection containing bit object references
-    fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<RichBC<'a>> {
+    pub fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<RichBC<'a>> {
         if self.whole_reg {
             Ok(dut.get_register(self.reg_id.unwrap())?.bits(&dut))
         } else if self.whole_field {

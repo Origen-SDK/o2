@@ -1,6 +1,8 @@
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
-use crate::{Dut, Error, Result};
+use crate::generator::ast::*;
+use crate::node;
+use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
@@ -194,14 +196,23 @@ impl<'a> BitCollection<'a> {
     /// Returns the overlay value of the BitCollection. This will return an error if
     /// not all bits return the same value.
     pub fn get_overlay(&self) -> Result<Option<String>> {
-        let val = self.bits[0].get_overlay();
-        if !self.bits.iter().all(|&bit| bit.get_overlay() == val) {
-            Err(Error::new(
-                "The bits in the collection have different overlay values",
-            ))
-        } else {
-            Ok(val)
+        let mut result: Option<String> = None;
+        for &bit in self.bits.iter() {
+            match &bit.get_overlay() {
+                None => {}
+                Some(val) => match &result {
+                    None => result = Some(val.to_string()),
+                    Some(existing) => {
+                        if val != existing {
+                            return Err(Error::new(
+                                format!("The bits in the collection have different overlay values, found: '{}' and '{}'", val, existing).as_str(),
+                            ));
+                        }
+                    }
+                },
+            }
         }
+        Ok(result)
     }
 
     /// Set the overlay value of the BitCollection.
@@ -402,12 +413,31 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Trigger a verify operation on the register
-    pub fn verify(&self, enable: Option<BigUint>, preset: bool) -> Result<&BitCollection> {
+    pub fn verify(
+        &self,
+        enable: Option<BigUint>,
+        preset: bool,
+        dut: &'a MutexGuard<Dut>,
+    ) -> Result<Option<usize>> {
         if !preset {
             self.set_verify_flag(enable)?;
         }
-        // TODO: Record the verify in the AST here
-        Ok(self)
+        // Record the verify in the AST
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?.bits(dut);
+            let n = node!(
+                RegVerify,
+                id,
+                reg.data()?,
+                Some(reg.verify_enables()),
+                Some(reg.capture_enables()),
+                Some(reg.overlay_enables()),
+                reg.get_overlay()?
+            );
+            Ok(Some(TEST.push_and_open(n)))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Equivalent to calling verify() but without invoking a register transaction at the end,
@@ -439,9 +469,21 @@ impl<'a> BitCollection<'a> {
     }
 
     /// Trigger a write operation on the register
-    pub fn write(&self) -> Result<&BitCollection> {
-        // TODO: Record the write in the AST here
-        Ok(self)
+    pub fn write(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<usize>> {
+        // Record the write in the AST
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?.bits(dut);
+            let n = node!(
+                RegWrite,
+                id,
+                reg.data()?,
+                Some(reg.overlay_enables()),
+                reg.get_overlay()?
+            );
+            Ok(Some(TEST.push_and_open(n)))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Returns the Register object associated with the BitCollection. Note that this will
