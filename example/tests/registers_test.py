@@ -244,3 +244,18 @@ def test_reg_dirty_collection():
     dut.add_simple_reg("tr1", 0x1000, reset=0)
     dut.add_simple_reg("tr2", 0x1000, reset=0)
     dut.add_simple_reg("tr3", 0x1000, reset=0)
+
+def test_enum_values():
+    with dut.add_reg("tr1", 0, size=16, reset=0) as reg:
+        reg.Field("lower", offset=0, width=8, enums={
+            # A simple enum
+            "val1": 3,
+            # A more complex enum, all fields except for value are optional
+            "val2": { "value": 5, "usage": "w", "description": "The value of something"},
+        })
+        
+    assert dut.tr1.data() == 0
+    assert dut.tr1.lower.set_data("val1")
+    assert dut.tr1.lower.data() == 3
+    assert dut.tr1.lower.set_data("val2")
+    assert dut.tr1.lower.data() == 5

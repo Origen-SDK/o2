@@ -512,14 +512,51 @@ impl BitCollection {
         }
     }
 
-    fn set_data(&self, value: BigUint) -> PyResult<BitCollection> {
+    fn set_data(&self, value: &PyAny) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        let rbc = self.materialize(&dut)?;
-        rbc.set_data(value);
-        if self.is_verify_transaction_open() {
-            rbc.set_verify_flag(None)?;
+        if let Ok(_name) = value.cast_as::<PyString>() {
+            if self.whole_field {
+                let name = value.extract::<&str>().unwrap();
+                let field = self.field_obj(&dut).unwrap();
+                if field.enums.contains_key(name) {
+                    let rbc = self.materialize(&dut)?;
+                    rbc.set_data(field.enums.get(name).unwrap().value.clone());
+                    if self.is_verify_transaction_open() {
+                        rbc.set_verify_flag(None)?;
+                    }
+                    Ok(self.clone())
+                } else {
+                    let msg = format!(
+                        "Bitfield '{}' does not have an enum named '{}'",
+                        self.field.as_ref().unwrap(),
+                        name
+                    );
+                    Err(PyErr::new::<exceptions::RuntimeError, _>(msg))
+                }
+            } else {
+                Err(PyErr::new::<exceptions::RuntimeError, _>(
+                    "An enum reference can only be used to set data on a named bit field",
+                ))
+            }
+        } else {
+            match value.extract::<BigUint>() {
+                Ok(val) => {
+                    let rbc = self.materialize(&dut)?;
+                    rbc.set_data(val);
+                    if self.is_verify_transaction_open() {
+                        rbc.set_verify_flag(None)?;
+                    }
+                    Ok(self.clone())
+                }
+                Err(_) => {
+                    let msg = format!(
+                        "Illegal value passed to set_data '{:?}', should be a string referring to an enum or a data value",
+                        value
+                    );
+                    Err(PyErr::new::<exceptions::RuntimeError, _>(msg))
+                }
+            }
         }
-        Ok(self.clone())
     }
 
     fn set_overlay(&self, value: Option<&str>) -> PyResult<BitCollection> {
