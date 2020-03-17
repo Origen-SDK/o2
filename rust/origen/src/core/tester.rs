@@ -193,10 +193,28 @@ impl Tester {
   }
 
   pub fn reset(&mut self) -> Result<(), Error> {
+    self.clear_dut_dependencies()?;
+    self.reset_external_generators()?;
+    Ok(())
+  }
+
+  /// Clears all members which reference members on the current DUT.
+  pub fn clear_dut_dependencies(&mut self) -> Result<(), Error> {
     self.ast.reset();
     self.current_timeset_id = Option::None;
+    Ok(())
+  }
+
+  // Resets the external generators.
+  // Also clears the targeted generators, as it may point to an external one that will be cleared.
+  pub fn reset_external_generators(&mut self) -> Result<(), Error> {
     self.target_generators.clear();
     self.external_generators.clear();
+    Ok(())
+  }
+
+  pub fn reset_targets(&mut self) -> Result<(), Error> {
+    self.target_generators.clear();
     Ok(())
   }
 

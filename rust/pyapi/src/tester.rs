@@ -42,6 +42,30 @@ impl PyTester {
     Ok(slf.to_object(py))
   }
 
+  fn clear_dut_dependencies(slf: PyRef<Self>) -> PyResult<PyObject> {
+    origen::tester().clear_dut_dependencies()?;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(slf.to_object(py))
+  }
+
+  fn reset_external_generators(slf: PyRef<Self>) -> PyResult<PyObject> {
+    origen::tester().reset_external_generators()?;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(slf.to_object(py))
+  }
+
+  fn reset_targets(slf: PyRef<Self>) -> PyResult<PyObject> {
+    origen::tester().reset_targets()?;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(slf.to_object(py))
+  }
+
   #[getter]
   fn get_timeset(&self) -> PyResult<PyObject> {
     let tester = origen::tester();
