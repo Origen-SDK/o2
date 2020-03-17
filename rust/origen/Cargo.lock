@@ -674,6 +674,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "iter-read"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d03e6379deaba8f70d594164614dbae5d5354e861d7a9f9864a7492f6a29b303"
+
+[[package]]
 name = "itoa"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -927,6 +933,7 @@ dependencies = [
  "autocfg 1.0.0",
  "num-integer",
  "num-traits 0.2.11",
+ "serde 1.0.104",
 ]
 
 [[package]]
@@ -1054,12 +1061,14 @@ dependencies = [
  "meta",
  "num",
  "num-bigint",
+ "num-traits 0.2.11",
  "path-clean",
  "pathdiff",
  "pyo3",
  "regex",
  "semver",
  "serde 1.0.104",
+ "serde-pickle",
  "termcolor",
  "time",
  "walkdir",
@@ -1578,6 +1587,19 @@ dependencies = [
  "num-traits 0.1.43",
  "regex",
  "serde 0.8.23",
+]
+
+[[package]]
+name = "serde-pickle"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88a107730ae624d2d79717a20ef4adb6b5925a6f74c5c786b71a1a1d1ea19836"
+dependencies = [
+ "byteorder",
+ "iter-read",
+ "num-bigint",
+ "num-traits 0.2.11",
+ "serde 1.0.104",
 ]
 
 [[package]]

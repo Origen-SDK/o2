@@ -2,6 +2,8 @@ import sys
 import _origen
 from pathlib import Path
 import importlib
+from contextlib import contextmanager
+import pickle
 
 from origen.tester import Tester, DummyTester
 
@@ -10,6 +12,7 @@ status = _origen.status()
 root = Path(status["root"])
 version = status["origen_version"]
 logger = _origen.logger
+_reg_description_parsing = False
 
 app = None
 dut = None
@@ -34,6 +37,17 @@ def load_file(path, globals={}, locals={}):
     with open(path) as f:
         code = compile(f.read(), path, 'exec')
         exec(code, globals, context)
+
+def test_ast():
+    return pickle.loads(bytes(_origen.test_ast()))
+
+@contextmanager
+def reg_description_parsing():
+    global _reg_description_parsing
+    orig = _reg_description_parsing
+    _reg_description_parsing = True
+    yield
+    _reg_description_parsing = orig
 
 # Returns the context (locals) that are available by default within files
 # loaded by Origen, e.g. dut, tester, origen, etc.

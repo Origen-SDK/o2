@@ -7,14 +7,21 @@ extern crate meta;
 pub mod core;
 pub mod testers;
 pub mod error;
+pub mod generator;
+pub mod services;
 pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
 pub use self::core::tester::Tester;
+use self::core::model::registers::BitCollection;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
+use self::generator::ast::*;
+pub use self::services::Services;
+use num_bigint::BigUint;
+use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -38,12 +45,39 @@ lazy_static! {
     pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
     /// The global tester model.
     pub static ref TESTER: Mutex<Tester> = Mutex::new(Tester::new());
+    /// Services owned by the current DUT, stored as a separate collection to avoid having to
+    /// get a mutable ref on the DUT if the service needs mutation
+    pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
+    /// Storage for the current test (pattern)
+    pub static ref TEST: generator::TestManager = generator::TestManager::new();
 }
 
-// Use of a mod or pub mod is not actually necessary.
+impl PartialEq<AST> for TEST {
+    fn eq(&self, ast: &AST) -> bool {
+        self.to_node() == ast.to_node()
+    }
+}
+
+impl PartialEq<Node> for TEST {
+    fn eq(&self, node: &Node) -> bool {
+        self.to_node() == *node
+    }
+}
+
+impl fmt::Debug for TEST {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_node())
+    }
+}
+
 pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
+pub enum Value<'a> {
+    Bits(BitCollection<'a>, Option<u32>), // bits holding data, optional size
+    Data(BigUint, u32),                   // value, size
 }
 
 #[macro_export]
@@ -64,6 +98,10 @@ pub fn dut() -> MutexGuard<'static, Dut> {
 
 pub fn tester() -> MutexGuard<'static, Tester> {
     TESTER.lock().unwrap()
+}
+
+pub fn services() -> MutexGuard<'static, Services> {
+    SERVICES.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

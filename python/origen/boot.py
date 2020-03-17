@@ -134,6 +134,7 @@ def __origen__(command, targets=None, environment=None, mode=None, files=None):
 
         import code
         from origen import dut, tester
+        from origen.registers.actions import write, verify, write_transaction, verify_transaction
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
 
     else:
