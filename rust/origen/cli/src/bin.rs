@@ -173,7 +173,11 @@ fn main() {
             Some("interactive") => {
                 let m = matches.subcommand_matches("interactive").unwrap();
                 commands::interactive::run(
-                    Some(m.values_of("target").unwrap().collect()),
+                    if let Some(targets) = m.values_of("target") {
+                        Some(targets.collect())
+                    } else {
+                        Option::None
+                    },
                     &m.value_of("mode"),
                 );
             }
@@ -181,7 +185,11 @@ fn main() {
                 let m = matches.subcommand_matches("generate").unwrap();
                 commands::launch(
                     "generate",
-                    Some(m.values_of("target").unwrap().collect()),
+                    if let Some(targets) = m.values_of("target") {
+                        Some(targets.collect())
+                    } else {
+                        Option::None
+                    },
                     &m.value_of("mode"),
                     Some(m.values_of("files").unwrap().collect()),
                 );
@@ -190,7 +198,11 @@ fn main() {
                 let m = matches.subcommand_matches("compile").unwrap();
                 commands::launch(
                     "compile",
-                    Some(m.values_of("target").unwrap().collect()),
+                    if let Some(targets) = m.values_of("target") {
+                        Some(targets.collect())
+                    } else {
+                        Option::None
+                    },
                     &m.value_of("mode"),
                     Some(m.values_of("files").unwrap().collect()),
                 );
