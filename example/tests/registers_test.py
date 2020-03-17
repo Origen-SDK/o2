@@ -79,7 +79,7 @@ def test_regs_can_be_added():
     dut.add_simple_reg("treg1", 0x1000)
     assert dut.regs.len() == base + 1
     with dut.add_reg("treg2", 0x1004) as reg:
-        reg.Field('trim', offset=0, width=8)
+        reg.Field('trim', offset=0, size=8)
     assert dut.regs.len() == base + 2
 
 def test_address_blocks_can_be_fetched():
@@ -93,18 +93,18 @@ def test_regs_can_be_fetched():
 
 def test_register_reset_values():
     with dut.add_reg("t1", 0) as reg:
-        reg.Field("f1", offset=0, width=8, reset=0x55)
+        reg.Field("f1", offset=0, size=8, reset=0x55)
     assert dut.t1.f1.data() == 0x55
 
     with dut.add_reg("t2", 0) as reg:
-        reg.Field("f1", offset=0, width=8, resets={
+        reg.Field("f1", offset=0, size=8, resets={
             "hard": 0xAA,
             "soft": 0xFF,
         })
     assert dut.t2.f1.data() == 0xAA
 
     with dut.add_reg("t3", 0) as reg:
-        reg.Field("f1", offset=0, width=8, resets={
+        reg.Field("f1", offset=0, size=8, resets={
             "hard": { "value": 0xAA, "mask": 0xF0 },
             "soft": 0xFF,
         })
@@ -122,7 +122,7 @@ def test_reading_undefined_data_raises_error():
 def test_reg_bits_attr_returns_a_list():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
         reg.Field("b0", offset=5, reset=1)
-        reg.Field("b1", offset=0, width=4, reset=3)
+        reg.Field("b1", offset=0, size=4, reset=3)
     reg = dut.tr1
     assert isinstance(reg.bits, list)
     assert len(reg.bits) == 8
@@ -135,7 +135,7 @@ def test_reg_bits_attr_returns_a_list():
 def test_reg_fields_attr_returns_a_dict():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
         reg.Field("b0", offset=5, reset=1)
-        reg.Field("b1", offset=0, width=4, reset=3)
+        reg.Field("b1", offset=0, size=4, reset=3)
     reg = dut.tr1
     assert isinstance(reg.fields, dict)
     assert reg.fields["b0"].len() == 1
@@ -150,7 +150,7 @@ def test_msb0_behavior():
         reg.Field("coco", offset=7, access="ro", reset=0)
         reg.Field("aien", offset=6, reset=0)
         reg.Field("diff", offset=5, reset=0)
-        reg.Field("adch", offset=0, width=5, reset=0x1F)
+        reg.Field("adch", offset=0, size=5, reset=0x1F)
     reg = dut.tr1
     assert reg.data() == 0xF800
     reg.set_data(0)
@@ -182,7 +182,7 @@ def test_filename_and_lineno():
         # Test a locally defined register to verify that the user can add info about the file
         with dut.add_reg("tr1", 0x0, size=8) as reg:
             reg.Field("b0", offset=5, reset=1)
-            reg.Field("b1", offset=0, width=4, reset=3)
+            reg.Field("b1", offset=0, size=4, reset=3)
         dut.add_simple_reg("tr2", 0x1000)
 
     if origen.status["on_windows"]:
@@ -247,7 +247,7 @@ def test_reg_dirty_collection():
 
 def test_enum_values():
     with dut.add_reg("tr1", 0, size=16, reset=0) as reg:
-        reg.Field("lower", offset=0, width=8, enums={
+        reg.Field("lower", offset=0, size=8, enums={
             # A simple enum
             "val1": 3,
             # A more complex enum, all fields except for value are optional

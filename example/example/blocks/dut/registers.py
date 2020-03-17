@@ -28,7 +28,7 @@ for i in range(NUM_REGS):
         Field("coco", offset=7, access="ro")
         Field("aien", offset=6)
         Field("diff", offset=5)
-        Field("adch", offset=0, width=5, reset=0x1F, enums={
+        Field("adch", offset=0, size=5, reset=0x1F, enums={
             # A simple enum
             "val1": 3,
             # A more complex enum, all fields except for value are optional
@@ -41,15 +41,15 @@ origen.logger.info(f"Building {NUM_REGS} regs took: {end_time - start_time}")
 # Field adch has no reset value
 with origen.reg_description_parsing():
     with Reg("breg0", 0x0024, size=16):
-        Field("adch", offset=0, width=5)
+        Field("adch", offset=0, size=5)
 
 # Field adch has a simple reset value
 with Reg("creg0", 0x0024, size=16):
-    Field("adch", offset=0, width=5, reset=0)
+    Field("adch", offset=0, size=5, reset=0)
     
 # Field adch has multiple reset values
 with Reg("dreg0", 0x0024, size=16):
-    Field("adch", offset=0, width=5, resets={
+    Field("adch", offset=0, size=5, resets={
         # A simple reset value, 'hard' is equivalent to reset=5
         "hard": 5,
         # A more complex reset, all fields except for value are optional
@@ -64,7 +64,7 @@ with MemoryMap("user"):
     SimpleReg("reg1", 0)
 
     with Reg("reg2", 0x0024, size=16):
-        Field("adch", offset=0, width=4, reset=0x5)
+        Field("adch", offset=0, size=4, reset=0x5)
 
 
 # Finally regs can be added to a fully declared scope like this:
@@ -74,4 +74,4 @@ with MemoryMap("test"):
         SimpleReg("reg1", 0)
 
         with Reg("reg2", 0x0024, size=16):
-            Field("adch", offset=0, width=4, reset=0x10)
+            Field("adch", offset=0, size=4, reset=0x10)

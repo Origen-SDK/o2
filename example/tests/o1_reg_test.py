@@ -41,8 +41,8 @@ def test_split_bits():
 def test_more_split_bits():
     with dut.add_reg("tcu", 0x0024, size=8) as reg:
         reg.Field("peter", offset=7, reset=0)
-        reg.Field("mike",  offset=4, width=3, reset=0)
-        reg.Field("peter", offset=2, width=2, reset=3)
+        reg.Field("mike",  offset=4, size=3, reset=0)
+        reg.Field("peter", offset=2, size=2, reset=3)
         reg.Field("pan",   offset=1, reset=0)
         reg.Field("peter", offset=0, reset=0)
         
@@ -127,15 +127,15 @@ def test_has_a_reset_data_value():
         reg.Field("b1", offset=1, reset = 1)
     assert dut.tr2.data() == 3
     with dut.add_reg("tr3", 0x0) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=8, reset=0xAA)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=8, reset=0xAA)
         reg.Field("b2", offset=16, reset = 1)
     assert dut.tr3.data() == 0x1AA55
 
 def test_stores_reset_data_at_bit_level():
     with dut.add_reg("tr1", 0x0) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=8, reset=0xAA)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=8, reset=0xAA)
         reg.Field("b2", offset=16, reset = 1)
 
     assert dut.tr1.b0.data() == 0x55
@@ -144,8 +144,8 @@ def test_stores_reset_data_at_bit_level():
 
 def test_fields_can_be_accessed_via_field_or_fields():
     with dut.add_reg("tr1", 0x0) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=8, reset=0xAA)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=8, reset=0xAA)
         reg.Field("b2", offset=16, reset = 1)
 
     assert dut.tr1.fields["b0"].data() == 0x55
@@ -157,8 +157,8 @@ def test_fields_can_be_accessed_via_field_or_fields():
 
 def test_bits_can_be_accessed_via_position_number():
     with dut.add_reg("tr1", 0x0) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=8, reset=0xAA)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=8, reset=0xAA)
         reg.Field("b2", offset=16, reset = 0)
 
     assert dut.tr1[0].data() == 1
@@ -167,8 +167,8 @@ def test_bits_can_be_accessed_via_position_number():
 
 def test_bits_can_be_written_directly():
     with dut.add_reg("tr1", 0x0) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=8, reset=0xAA)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=8, reset=0xAA)
         reg.Field("b2", offset=16, reset = 1)
 
     assert dut.tr1.b1.data() == 0xAA
@@ -178,8 +178,8 @@ def test_bits_can_be_written_directly():
 
 def test_bits_can_be_written_indirectly():
     with dut.add_reg("tr1", 0x0) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=8, reset=0xAA)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=8, reset=0xAA)
         reg.Field("b2", offset=16, reset = 1)
 
     dut.tr1.set_data(0x1234)
@@ -207,16 +207,16 @@ def test_bits_can_be_written_indirectly():
 
 def test_only_defined_bits_capture_state():
     with dut.add_reg("tr1", 0x0) as reg:
-        reg.Field("b0", offset=0, width=4, reset=0x55)
-        reg.Field("b1", offset=8, width=4, reset=0xAA)
+        reg.Field("b0", offset=0, size=4, reset=0x55)
+        reg.Field("b1", offset=8, size=4, reset=0xAA)
 
     dut.tr1.set_data(0xFFFF) 
     assert dut.tr1.data() == 0x0F0F
 
 def test_bits_can_be_reset_indirectly():
     with dut.add_reg("tr1", 0x0) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=8, reset=0xAA)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=8, reset=0xAA)
 
     dut.tr1.set_data(0xFFFF) 
     assert dut.tr1.data() == 0xFFFF
@@ -232,8 +232,8 @@ def test_len_method():
 
 def test_it_can_shift_out_left():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
-        reg.Field("b0", offset=0, width=4, reset=0x5)
-        reg.Field("b1", offset=4, width=4, reset=0xA)
+        reg.Field("b0", offset=0, size=4, reset=0x5)
+        reg.Field("b1", offset=4, size=4, reset=0xA)
     
     reg = dut.tr1
     expected = [1,0,1,0,0,1,0,1]
@@ -250,8 +250,8 @@ def test_it_can_shift_out_left():
 
 def test_it_can_shift_out_right():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
-        reg.Field("b0", offset=0, width=4, reset=0x5)
-        reg.Field("b1", offset=4, width=4, reset=0xA)
+        reg.Field("b0", offset=0, size=4, reset=0x5)
+        reg.Field("b1", offset=4, size=4, reset=0xA)
         
     reg = dut.tr1
     expected = [1,0,1,0,0,1,0,1]
@@ -268,8 +268,8 @@ def test_it_can_shift_out_right():
 
 def test_it_can_shift_out_with_holes_present():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
-        reg.Field("b0", offset=1, width=2, reset=0b11)
-        reg.Field("b1", offset=6, width=1, reset=0b1)
+        reg.Field("b0", offset=1, size=2, reset=0b11)
+        reg.Field("b1", offset=6, size=1, reset=0b1)
     reg = dut.tr1
 
     expected = [0,1,0,0,0,1,1,0]
@@ -294,7 +294,7 @@ def test_verify_method_tags_all_bits_for_verify():
 def test_it_can_shift_out_left_with_holes_and_buses():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
         reg.Field("b0", offset=5)
-        reg.Field("b1", offset=0, width=4)
+        reg.Field("b1", offset=0, size=4)
 
     reg = dut.tr1
     reg.set_data(0xFF)
@@ -308,7 +308,7 @@ def test_it_can_shift_out_left_with_holes_and_buses():
 def test_bits_mark_as_update_required_correctly():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
         reg.Field("b0", offset=5, reset=1)
-        reg.Field("b1", offset=0, width=4, reset=3)
+        reg.Field("b1", offset=0, size=4, reset=3)
     reg = dut.tr1
 
     assert reg.is_update_required() == False
@@ -322,7 +322,7 @@ def test_bits_mark_as_update_required_correctly():
 def test_update_device_state_clears_update_required():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
         reg.Field("b0", offset=5, reset=1)
-        reg.Field("b1", offset=0, width=4, reset=3)
+        reg.Field("b1", offset=0, size=4, reset=3)
     reg = dut.tr1
     reg.set_data(0x0F)
     assert reg.is_update_required() == True
@@ -331,9 +331,9 @@ def test_update_device_state_clears_update_required():
 
 def test_can_iterate_through_fields():
     with dut.add_reg("tr1", 0x0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=4, reset=0xA)
-        reg.Field("b2", offset=14, width=2, reset=1)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=4, reset=0xA)
+        reg.Field("b2", offset=14, size=2, reset=1)
     reg = dut.tr1
 
     for name, field in reg.fields.items():
@@ -349,13 +349,13 @@ def test_can_iterate_through_fields():
 
 def test_can_use_fields_with_bit_ordering():
     with dut.add_reg("tr1", 0x0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0x55)
-        reg.Field("b1", offset=8, width=4, reset=0xA)
-        reg.Field("b2", offset=14, width=2, reset=1)
+        reg.Field("b0", offset=0, size=8, reset=0x55)
+        reg.Field("b1", offset=8, size=4, reset=0xA)
+        reg.Field("b2", offset=14, size=2, reset=1)
     reg1 = dut.tr1
     with dut.add_reg("tr2", 0x0, bit_order="msb0", size=8) as reg:
-        reg.Field("msb0", offset=6, width=2)
-        reg.Field("msb1", offset=4, width=2, reset=0x3)
+        reg.Field("msb0", offset=6, size=2)
+        reg.Field("msb1", offset=4, size=2, reset=0x3)
         reg.Field("msb2", offset=0, reset=1)
     reg2 = dut.tr2
 
@@ -374,8 +374,8 @@ def test_can_use_fields_with_bit_ordering():
 
 def test_should_respond_to_data_as_an_alias_of_get_data():
     with dut.add_reg("r1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8)
-        reg.Field("b1", offset=8, width=8)
+        reg.Field("b0", offset=0, size=8)
+        reg.Field("b1", offset=8, size=8)
 
     dut.r1.set_data(0x1234)
     assert dut.r1.get_data() == 0x1234
@@ -394,11 +394,11 @@ def test_should_respond_to_data_as_an_alias_of_get_data():
 
 def test_reg_state_can_be_copied():
     with dut.add_reg("tr1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8)
-        reg.Field("b1", offset=8, width=8)
+        reg.Field("b0", offset=0, size=8)
+        reg.Field("b1", offset=8, size=8)
     with dut.add_reg("tr2", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8)
-        reg.Field("b1", offset=8, width=8)
+        reg.Field("b0", offset=0, size=8)
+        reg.Field("b1", offset=8, size=8)
     reg1 = dut.tr1
     reg2 = dut.tr2
     reg1.set_overlay("hello")
@@ -409,11 +409,11 @@ def test_reg_state_can_be_copied():
 
 def test_bit_collections_can_be_copied_to_other_bitcollections():
     with dut.add_reg("tr1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
+        reg.Field("b0", offset=0, size=8, reset=0)
+        reg.Field("b1", offset=8, size=8, reset=0)
     with dut.add_reg("tr2", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
+        reg.Field("b0", offset=0, size=8, reset=0)
+        reg.Field("b1", offset=8, size=8, reset=0)
     bits1 = dut.tr1.b0
     bits2 = dut.tr2.b0
     assert bits1.data() == 0
@@ -426,8 +426,8 @@ def test_bit_collections_can_be_copied_to_other_bitcollections():
 
 def test_status_string_methods_work():
     with dut.add_reg("tr1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
+        reg.Field("b0", offset=0, size=8, reset=0)
+        reg.Field("b1", offset=8, size=8, reset=0)
     reg = dut.tr1
     reg[3:0].set_data(0x5)
     reg[7:4].set_overlay("overlayx")
@@ -456,7 +456,7 @@ def test_status_string_methods_work():
     
 def test_status_str_works_on_non_nibble_aligned_regs():
     with dut.add_reg("mr1", 0) as reg:
-        reg.Field("b1", offset=0, width=11, reset=0)
+        reg.Field("b1", offset=0, size=11, reset=0)
     mr1 = dut.mr1
     assert mr1.b1.status_str("write") == "000"
     assert mr1.b1.status_str("verify") == "[xxx]XX"
@@ -467,8 +467,8 @@ def test_status_str_works_on_non_nibble_aligned_regs():
 
 def test_the_flags_methods():
     with dut.add_reg("tr1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
+        reg.Field("b0", offset=0, size=8, reset=0)
+        reg.Field("b1", offset=8, size=8, reset=0)
     reg = dut.tr1
     assert reg.verify_enables() == 0
     assert reg.capture_enables() == 0
@@ -482,16 +482,16 @@ def test_the_flags_methods():
 
 def test_regs_are_correctly_marked_for_verify():
     with dut.add_reg("tr1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
+        reg.Field("b0", offset=0, size=8, reset=0)
+        reg.Field("b1", offset=8, size=8, reset=0)
     assert dut.tr1.is_to_be_verified() == False
     verify(dut.tr1)
     assert dut.tr1.is_to_be_verified() == True
 
 def test_reg_method_can_be_used_to_test_for_the_presence_of_a_register():
     with dut.add_reg("tr1", 0, size=16) as reg:
-        reg.Field("b0", offset=0, width=8, reset=0)
-        reg.Field("b1", offset=8, width=8, reset=0)
+        reg.Field("b0", offset=0, size=8, reset=0)
+        reg.Field("b1", offset=8, size=8, reset=0)
     assert dut.reg("tr1") != None
     assert dut.reg("tr2") == None
 
@@ -500,15 +500,15 @@ def test_registers_can_be_declared_in_block_format_with_descriptions():
         # This is test reg 1
         with dut.add_reg("tr1", 0, size=16) as reg:
             # This is tr1 field b0
-            reg.Field("b0", offset=0, width=8, reset=0)
+            reg.Field("b0", offset=0, size=8, reset=0)
             # This is tr1 field b1
             # With multi-lines
-            reg.Field("b1", offset=8, width=8, reset=0)
+            reg.Field("b1", offset=8, size=8, reset=0)
         # This is test reg 2
         # With a 2 line description
         with dut.add_reg("tr2", 0, size=16) as reg:
-            reg.Field("b0", offset=0, width=8, reset=0)
-            reg.Field("b1", offset=8, width=8, reset=0)
+            reg.Field("b0", offset=0, size=8, reset=0)
+            reg.Field("b1", offset=8, size=8, reset=0)
 
     assert dut.tr1.description() == "This is test reg 1"
     assert dut.tr2.description() == "This is test reg 2\nWith a 2 line description"
@@ -517,8 +517,8 @@ def test_registers_can_be_declared_in_block_format_with_descriptions():
     
 def test_register_descriptions_can_be_supplied_via_the_API():
     with dut.add_reg("tr1", 0, size=16, description="Hello, I'm tr1") as reg:
-        reg.Field("b0", offset=0, width=8, reset=0, description="I'm b0")
-        reg.Field("b1", offset=8, width=8, reset=0, description="I'm b1")
+        reg.Field("b0", offset=0, size=8, reset=0, description="I'm b0")
+        reg.Field("b1", offset=8, size=8, reset=0, description="I'm b1")
 
     assert dut.tr1.description() == "Hello, I'm tr1"
     assert dut.tr1.b0.description() == "I'm b0"
@@ -549,7 +549,7 @@ def test_register_descriptions_can_be_supplied_via_the_API():
 
 def test_subset_method():
     with dut.add_reg("regx", 0) as reg:
-        reg.Field("data", offset=0, width=32)
+        reg.Field("data", offset=0, size=32)
 
     reg = dut.regx
     reg.set_data(0x1111_224C)
@@ -561,8 +561,8 @@ def test_subset_method():
 
 def test_reg_and_bit_reset_data_can_be_fetched():
     with dut.add_reg("reset_test", 100) as reg:
-        reg.Field("upper", offset=16, width=16, reset=0x5555)
-        reg.Field("lower", offset=1, width=15, reset=0)
+        reg.Field("upper", offset=16, size=16, reset=0x5555)
+        reg.Field("lower", offset=1, size=15, reset=0)
         reg.Field("bit0", offset=0, reset=1)
 
     assert dut.reset_test.reset_val() == 0x55550001
@@ -575,10 +575,10 @@ def test_reg_and_bit_reset_data_can_be_fetched():
 
 def test_reset_values_work_correct_in_real_life_case():
     with dut.add_reg("proth", 0x0024, size=32) as reg:
-        reg.Field("fprot7", offset=24, width=8, reset=0xFF)
-        reg.Field("fprot6", offset=16, width=8, reset=0xEE)
-        reg.Field("fprot5", offset=8,  width=8, reset=0xDD)
-        reg.Field("fprot4", offset=0,  width=8, reset=0x11)
+        reg.Field("fprot7", offset=24, size=8, reset=0xFF)
+        reg.Field("fprot6", offset=16, size=8, reset=0xEE)
+        reg.Field("fprot5", offset=8,  size=8, reset=0xDD)
+        reg.Field("fprot4", offset=0,  size=8, reset=0x11)
 
     assert dut.proth.data() == 0xFFEE_DD11
     assert dut.proth.reset_val() == 0xFFEE_DD11
@@ -606,7 +606,7 @@ def test_a_few_different_bit_names_can_be_tried():
 
 def test_the_subset_method_accepts_an_array_of_bit_ids():
     with dut.add_reg("tr", 0) as reg:
-        reg.Field("data", offset=0, width=32)
+        reg.Field("data", offset=0, size=32)
 
     dut.tr.set_data(0)
     dut.tr.subset([4,5,6,7]).set_data(0xF)
@@ -614,7 +614,7 @@ def test_the_subset_method_accepts_an_array_of_bit_ids():
 
 def test_the_verify_method_should_accept_an_enable_option():
     with dut.add_reg("tr2", 0) as reg:
-        reg.Field("data", offset=0, width=32)
+        reg.Field("data", offset=0, size=32)
 
     verify(dut.tr2.set_data(0x1234_5678), enable=0x0000_00F0)
     assert dut.tr2.data() == 0x1234_5678
@@ -630,7 +630,7 @@ def test_the_verify_method_should_accept_an_enable_option():
 
 def test_clear_verify_flag_clears_is_to_be_verify_status():
     with dut.add_reg("tr3", 0) as reg:
-        reg.Field("data", offset=0, width=32)
+        reg.Field("data", offset=0, size=32)
 
     verify(dut.tr3.set_data(0x0F))
     assert dut.tr3[0].is_to_be_verified() == True
@@ -640,7 +640,7 @@ def test_clear_verify_flag_clears_is_to_be_verify_status():
 def test_reset_values_can_be_set_at_register_level():
     with dut.add_reg("reset2", 0, reset=0x3) as reg:
        reg.Field("w", offset=3)
-       reg.Field("x", offset=1, width=2)
+       reg.Field("x", offset=1, size=2)
        reg.Field("y", offset=0)
 
     assert dut.reset2.data() == 3
@@ -660,14 +660,14 @@ def test_reset_values_can_be_set_at_register_level():
 
 def test_access_can_be_set_and_tested_at_reg_level():
     with dut.add_reg("access1", 0, access="ro") as reg:
-        reg.Field("x", offset=1, width=2)
+        reg.Field("x", offset=1, size=2)
         reg.Field("y", offset=0, access="w1c")
 
     assert dut.access1.x.access == "RO"
     assert dut.access1.y.access == "W1C"
 
     with dut.add_reg("access2", 0) as reg:
-        reg.Field("x", offset=1, width=2)
+        reg.Field("x", offset=1, size=2)
         reg.Field("y", offset=0, access="w1c")
 
     assert dut.access2.x.access == "RW"
@@ -675,7 +675,7 @@ def test_access_can_be_set_and_tested_at_reg_level():
 
 def test_sub_collections_of_bits_can_be_made_from_bit_collections():
     with dut.add_reg("treg1", 0) as reg:
-        reg.Field("data", offset=0, width=32, reset=0)
+        reg.Field("data", offset=0, size=32, reset=0)
     
     reg1 = dut.treg1
 
@@ -734,7 +734,7 @@ def test_sub_collections_of_bits_can_be_made_from_bit_collections():
 def test_transactions_can_set_verify_bits():
     with dut.add_reg("blregtest", 0, size=4) as reg:
         reg.Field("y", offset=0)
-        reg.Field("x", offset=1, width=2)
+        reg.Field("x", offset=1, size=2)
         reg.Field("w", offset=3)
 
     dut.blregtest.set_data(0)

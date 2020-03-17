@@ -71,7 +71,7 @@ class Loader:
         _origen.dut.registers.create(self.current_address_block().id, None, name, address_offset, size, bit_order, [field],
                                      filename, lineno, description, None, None)
 
-    def Field(self, name, offset, width=1, access=None, reset=None, resets=None, enums=None, description=None):
+    def Field(self, name, offset, size=1, access=None, reset=None, resets=None, enums=None, description=None):
         if origen._reg_description_parsing:
             caller = getframeinfo(stack()[1][0])
             filename = caller.filename
@@ -80,7 +80,7 @@ class Loader:
             filename = None
             lineno = None
         if self.fields is not None:
-            self.fields.append(_origen.dut.registers.Field(name, description, offset, width, access, self.clean_resets(reset, resets), self.clean_enums(enums),
+            self.fields.append(_origen.dut.registers.Field(name, description, offset, size, access, self.clean_resets(reset, resets), self.clean_enums(enums),
                                filename, lineno))
         else:
             raise RuntimeError(f"A Field can only be defined within a 'with Reg' definition block")
