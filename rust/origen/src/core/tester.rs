@@ -1,45 +1,52 @@
 use crate::error::Error;
 use super::model::timesets::timeset::{Timeset};
 use indexmap::IndexMap;
-use crate::testers::v93k::Generator as V93KGen;
-use crate::testers::simulator::Generator as Simulator;
-use crate::testers::{DummyGeneratorWithInterceptors, DummyGenerator};
+use crate::testers::{instantiate_tester, available_testers};
 use crate::core::dut::{Dut};
+use crate::generator::ast::{Attrs, Node};
+use crate::TEST;
+use crate::node;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug)]
 pub enum Generators {
-  DummyGenerator,
-  DummyGeneratorWithInterceptors,
-  V93kSt7,
-  Simulator,
-  //J750,
-  //Uflex,
+  Internal(Box<dyn TesterAPI + std::marker::Send>),
   External(String),
 }
 
-impl Generators {
-  pub fn from_str(s: &str) -> Option<Self> {
-    match s {
-      "::DummyGenerator" => Some(Self::DummyGenerator),
-      "::DummyGeneratorWithInterceptors" => Some(Self::DummyGeneratorWithInterceptors),
-      "::V93K::ST7" => Some(Self::V93kSt7),
-      "::Simulator" => Some(Self::Simulator),
-      _ => None
+impl Clone for Generators {
+  fn clone(&self) -> Generators {
+    match self {
+      Generators::Internal(_g) => Generators::Internal((*_g).clone()),
+      Generators::External(_g) => Generators::External(_g.clone()),
     }
   }
+}
 
+impl PartialEq<Generators> for Generators {
+  fn eq(&self, g: &Generators) -> bool {
+    match g {
+      Generators::Internal(_g) => match self {
+        Generators::Internal(_self) => {
+          *_g.name() == *_self.name()
+        },
+        _ => false
+      }
+      Generators::External(_g) => match self {
+        Generators::External(_self) => {
+          _g == _self
+        },
+        _ => false
+      }
+    }
+  }
+}
+
+impl Generators {
   pub fn to_string(&self) -> String {
     match self {
-      Self::DummyGenerator => "::DummyGenerator".to_string(),
-      Self::DummyGeneratorWithInterceptors => "::DummyGeneratorWithInterceptors".to_string(),
-      Self::V93kSt7 => "::V93K::ST7".to_string(),
-      Self::Simulator => "::Simulator".to_string(),
       Self::External(g) => g.clone(),
+      Self::Internal(g) => g.to_string(),
     }
-  }
-
-  pub fn to_vector_strings(&self) -> Vec<String> {
-    vec!("::DummyGenerator".to_string(), "::DummyGeneratorWithInterceptors".to_string(), "::V93K::ST7".to_string(), "::Simulator".to_string())
   }
 }
 
@@ -51,126 +58,11 @@ pub struct ExternalGenerator {
 }
 
 #[derive(Debug)]
-pub enum StubNodes {
-  Comment {
-    content: String,
-    meta: IndexMap<String, usize>,
-  },
-  Vector {
-    //timeset: String,
-    timeset_id: usize,
-    repeat: usize,
-    meta: IndexMap<String, usize>,
-  },
-  Node {
-    meta: IndexMap<String, usize>,
-  },
-}
-
-impl StubNodes {
-  pub fn add_metadata_id(&mut self, identifier: &str, id: usize) -> Result<(), Error> {
-    match self {
-      Self::Comment {content: _, meta} => {
-        meta.insert(identifier.to_string(), id);
-      },
-      Self::Vector {timeset_id: _, repeat: _, meta} => {
-        meta.insert(identifier.to_string(), id);
-      },
-      Self::Node {meta} => {
-        meta.insert(identifier.to_string(), id);
-      }
-    }
-    Ok(())
-  }
-
-  pub fn get_metadata_id(&self, identifier: &str) -> Option<usize> {
-    match self {
-      Self::Comment {content: _, meta} => {
-        match meta.get(identifier) {
-          Some(id) => Some(*id),
-          None => None,
-        }
-      },
-      Self::Vector {timeset_id: _, repeat: _, meta} => {
-        match meta.get(identifier) {
-          Some(id) => Some(*id),
-          None => None,
-        }
-      },
-      Self::Node {meta} => {
-        match meta.get(identifier) {
-          Some(id) => Some(*id),
-          None => None,
-        }
-      }
-    }
-  }
-}
-
-#[derive(Debug)]
-pub struct StubAST {
-  pub nodes: Vec<StubNodes>,
-  vector_count: usize,
-  cycle_count: usize,
-}
-
-impl StubAST {
-  pub fn new() -> Self {
-    Self {
-      nodes: vec!(),
-      vector_count: 0,
-      cycle_count: 0,
-    }
-  }
-
-  pub fn reset(&mut self) -> () {
-    self.nodes.clear();
-    self.vector_count = 0;
-    self.cycle_count = 0;
-  }
-
-  pub fn push_comment(&mut self, comment: &str) -> Result<(), Error> {
-    self.nodes.push(StubNodes::Comment {
-      content: comment.to_string(),
-      meta: IndexMap::new(),
-    });
-    Ok(())
-  }
-
-  pub fn push_vector(&mut self, timeset_id: usize, repeat: usize) -> Result<(), Error> {
-    self.nodes.push(StubNodes::Vector {
-      timeset_id: timeset_id,
-      repeat: repeat,
-      meta: IndexMap::new(),
-    });
-    self.vector_count += 1;
-    self.cycle_count += repeat;
-    Ok(())
-  }
-
-  pub fn cycle_count(&self) -> usize {
-    self.cycle_count
-  }
-
-  pub fn vector_count(&self) -> usize {
-    self.vector_count
-  }
-
-  pub fn len(&self) -> usize {
-    self.nodes.len()
-  }
-}
-
-#[derive(Debug)]
 pub struct Tester {
   /// The current timeset ID, if its set.
   /// This is the direct ID to the timeset object.
   /// The name and model ID can be found on this object.
   current_timeset_id: Option<usize>,
-
-  /// Stubbed AST. Replace this with something else when it becomes available.
-  ast: StubAST,
-
   external_generators: IndexMap<String, Generators>,
   pub target_generators: Vec<Generators>,
 }
@@ -179,7 +71,6 @@ impl Tester {
   pub fn new() -> Self {
     Tester {
       current_timeset_id: Option::None,
-      ast: StubAST::new(),
       external_generators: IndexMap::new(),
       target_generators: vec!(),
     }
@@ -200,7 +91,7 @@ impl Tester {
 
   /// Clears all members which reference members on the current DUT.
   pub fn clear_dut_dependencies(&mut self) -> Result<(), Error> {
-    self.ast.reset();
+    TEST.start("ad-hoc");
     self.current_timeset_id = Option::None;
     Ok(())
   }
@@ -241,6 +132,7 @@ impl Tester {
 
   pub fn set_timeset(&mut self, dut: &Dut, model_id: usize, timeset_name: &str) -> Result<(), Error> {
     self.current_timeset_id = Some(dut._get_timeset(model_id, timeset_name)?.id);
+    TEST.push(node!(SetTimeset, self.current_timeset_id.unwrap()));
     Ok(())
   }
 
@@ -249,75 +141,59 @@ impl Tester {
     Ok(())
   }
 
-  pub fn issue_callback_at(&mut self, func: &str, idx: usize, dut: &Dut) -> Result<(), Error> {
-    let g = &self.target_generators[idx];
+  pub fn issue_callback_at(&mut self, idx: usize) -> Result<(), Error> {
+    let g = &mut self.target_generators[idx];
+
+    // Grab the last node and immutably pass it to the interceptor
     match g {
-      Generators::DummyGeneratorWithInterceptors => {
-        let g_ = DummyGeneratorWithInterceptors{};
-        if func == "cc" {
-          g_.cc(&mut self.ast)?;
-        } else if func == "cycle" {
-          g_.cycle(&mut self.ast)?;
-        };
-      },
-      Generators::Simulator => {
-        let g_ = Simulator{};
-        match func {
-          "cc" => g_.cc(&mut self.ast, dut)?,
-          "cycle" => g_.cycle(&mut self.ast, dut)?,
-          "set_timeset" => g_.set_timeset(self.current_timeset_id, dut)?,
-          "clear_timeset" => g_.clear_timeset(dut)?,
-          _ => {}, // Simulator does not have callbacks for other functions
+      Generators::Internal(g_) => {
+        let last_node = TEST.get(0).unwrap();
+        match &last_node.attrs {
+          Attrs::Cycle(repeat, compressable) => g_.cycle(*repeat, *compressable, &last_node)?,
+          Attrs::Comment(level, msg) => g_.cc(*level, &msg, &last_node)?,
+          Attrs::SetTimeset(timeset_id) => g_.set_timeset(*timeset_id, &last_node)?,
+          Attrs::ClearTimeset() => g_.clear_timeset(&last_node)?,
+          _ => {}
         }
-      }
+      },
       _ => {}
     }
     Ok(())
   }
 
   pub fn cc(&mut self, comment: &str) -> Result<(), Error> {
-    self.ast.push_comment(comment)?;
+    let comment_node = node!(Comment, 1, comment.to_string());
+    TEST.push(comment_node);
     Ok(())
   }
 
-  pub fn cycle(&mut self, repeat: Option<usize>) -> Result<(), Error>{
-    self.ast.push_vector(self._current_timeset_id()?, repeat.unwrap_or(1))?;
+  pub fn cycle(&mut self, repeat: Option<usize>) -> Result<(), Error> {
+    let cycle_node = node!(Cycle, repeat.unwrap_or(1) as u32, true);
+    TEST.push(cycle_node);
     Ok(())
   }
 
   /// Generates the output for the target at index i.
   /// Allows the frontend to call generators in a loop.
-  pub fn generate_target_at(&mut self, idx: usize, dut: &Dut) -> Result<GenerateStatus, Error> {
+  pub fn generate_target_at(&mut self, idx: usize) -> Result<GenerateStatus, Error> {
     let mut stat = GenerateStatus::new();
-    let g = &self.target_generators[idx];
+    let g = &mut self.target_generators[idx];
     match g {
-      Generators::DummyGenerator => {
-        DummyGenerator{}.generate(&self.ast, dut)?;
-        stat.completed.push(Generators::DummyGenerator.to_string())
-      },
-      Generators::DummyGeneratorWithInterceptors => {
-        DummyGeneratorWithInterceptors{}.generate(&self.ast, dut)?;
-        stat.completed.push(Generators::DummyGeneratorWithInterceptors.to_string())
-      }
-      Generators::V93kSt7 => {
-        V93KGen{}.generate(&self.ast, dut)?;
-        stat.completed.push(Generators::V93kSt7.to_string())
-      }
-      Generators::Simulator => {
-        Simulator{}.generate(&self.ast, dut)?;
-        stat.completed.push(Generators::Simulator.to_string())
-      }
       Generators::External(gen) => {
         stat.external.push(gen.to_string());
+      },
+      Generators::Internal(gen) => {
+        TEST.process(&mut |ast| gen.run(ast));
+        stat.completed.push(gen.to_string())
       }
     }
     Ok(stat)
   }
 
-  pub fn target(&mut self, generator: &str) -> Result<(), Error> {
+  pub fn target(&mut self, generator: &str) -> Result<&Generators, Error> {
     let g;
-    if let Some(_g) = Generators::from_str(generator) {
-      g = _g;
+    if let Some(_g) = instantiate_tester(generator) {
+      g = Generators::Internal(_g);
     } else if let Some(_g) = self.external_generators.get(generator) {
       g = (*_g).clone();
     } else {
@@ -328,7 +204,7 @@ impl Tester {
         Err(Error::new(&format!("Generator {} has already been targeted!", generator)))
     } else {
       self.target_generators.push(g);
-      Ok(())
+      Ok(&self.target_generators.last().unwrap())
     }
   }
 
@@ -345,16 +221,8 @@ impl Tester {
     Ok(())
   }
 
-  pub fn get_ast(&self) -> &StubAST {
-    &self.ast
-  }
-
-  pub fn get_mut_ast(&mut self) -> &mut StubAST {
-    &mut self.ast
-  }
-
   pub fn generators(&self) -> Vec<String> {
-    let mut gens = Generators::DummyGenerator.to_vector_strings();
+    let mut gens: Vec<String> = available_testers();
     gens.extend(self.external_generators.iter().map(|(n, _)| n.clone()).collect::<Vec<String>>());
     gens
   }
@@ -371,5 +239,45 @@ impl GenerateStatus {
       completed: vec!(),
       external: vec!(),
     }
+  }
+}
+
+/// Trait which allows Rust-side implemented testers to intercept generic calls
+///   from the tester.
+/// Each method will be given the resulting node after processing.
+/// Note: the node given is only a clone of what will be stored in the AST.
+pub trait Interceptor {
+  fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
+    Ok(())
+  }
+
+  fn set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Result<(), Error> {
+    Ok(())
+  }
+
+  fn clear_timeset(&mut self, _node: &Node) -> Result<(), Error> {
+    Ok(())
+  }
+
+  fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
+    Ok(())
+  }
+}
+impl<'a, T> Interceptor for &'a T where T: TesterAPI {}
+impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
+
+pub trait TesterAPI: std::fmt::Debug + crate::generator::processor::Processor + Interceptor {
+  fn name(&self) -> String;
+  fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
+  fn run(&mut self, node: &Node) -> Node;
+
+  fn to_string(&self) -> String {
+    format!("::{}", self.name())
+  }
+}
+
+impl PartialEq<Generators> for dyn TesterAPI {
+  fn eq(&self, g: &Generators) -> bool {
+    self.to_string() == g.to_string()
   }
 }

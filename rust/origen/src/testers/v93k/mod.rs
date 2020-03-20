@@ -1,22 +1,51 @@
-use crate::core::tester::{StubAST, StubNodes};
-use crate::error::Error;
-use crate::core::dut::{Dut};
+use crate::DUT;
+use crate::generator::processor::{Return, Processor};
+use crate::generator::ast::{Node};
+use crate::core::tester::{TesterAPI, Interceptor};
 
-pub struct Generator {}
+#[derive(Debug, Clone)]
+pub struct Generator {
+  current_timeset_id: Option<usize>
+}
 
-impl Generator {
-  /// An extremely elementary generator for the 93. Won't actually generate anything of use yet.
-  pub fn generate(&self, ast: &StubAST, dut: &Dut) -> Result<(), Error> {
-    for (_i, n) in ast.nodes.iter().enumerate() {
-      match n {
-        StubNodes::Comment {content, ..} => println!("# {}", content),
-        StubNodes::Vector {timeset_id, repeat, ..} => {
-          let t = &dut.timesets[*timeset_id];
-          println!("R{} {} <Pins> # <EoL Comment>;", repeat, t.name);
-        },
-        StubNodes::Node {..} => return Err(Error::new(&format!("Pure meta nodes are not supported by the V93K yet!"))),
-      }
+impl Default for Generator {
+  fn default() -> Self {
+    Self {
+      current_timeset_id: None
     }
-    Ok(())
+  }
+}
+
+impl Interceptor for Generator {}
+impl TesterAPI for Generator {
+  fn name(&self) -> String {
+    "DummyGenerator".to_string()
+  }
+
+  fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
+    Box::new(std::clone::Clone::clone(self))
+  }
+
+  fn run(&mut self, node: &Node) -> Node {
+    node.process(self).unwrap()
+  }
+}
+
+impl Processor for Generator {
+  fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
+    println!("# {}", msg);
+    Return::Unmodified
+  }
+
+  fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
+    let dut = DUT.lock().unwrap();
+    let t = &dut.timesets[self.current_timeset_id.unwrap()];
+    println!("R{} {} <Pins> # <EoL Comment>;", repeat, t.name);
+    Return::Unmodified
+  }
+
+  fn on_set_timeset(&mut self, timeset_id: usize, _node: &Node) -> Return {
+    self.current_timeset_id = Some(timeset_id);
+    Return::Unmodified
   }
 }

@@ -140,4 +140,12 @@ pub trait Processor {
     fn on_flow(&mut self, _name: &str, _node: &Node) -> Return {
         Return::_Unimplemented
     }
+
+    fn on_set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Return {
+        Return::_Unimplemented
+    }
+
+    fn on_clear_timeset(&mut self, _node: &Node) -> Return {
+        Return::_Unimplemented
+    }
 }

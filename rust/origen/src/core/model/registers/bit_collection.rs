@@ -1,6 +1,5 @@
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
-use crate::generator::ast::*;
 use crate::node;
 use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;

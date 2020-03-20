@@ -80,28 +80,16 @@ pub enum Value<'a> {
     Data(BigUint, u32),                   // value, size
 }
 
-#[macro_export]
-macro_rules! lock {
-    () => {
-        match DUT.lock() {
-            Ok(dut) => Ok(dut),
-            Err(e) => Err(origen::error::Error::new(&format!(
-                "Could not attain DUT lock!"
-            ))),
-        }
-    };
-}
-
 pub fn dut() -> MutexGuard<'static, Dut> {
-    DUT.lock().unwrap()
+    DUT.try_lock().expect("Backend Error: Unable to acquire DUT lock!")
 }
 
 pub fn tester() -> MutexGuard<'static, Tester> {
-    TESTER.lock().unwrap()
+    TESTER.try_lock().expect("Backend Error: Unable to acquire TESTER lock!")
 }
 
 pub fn services() -> MutexGuard<'static, Services> {
-    SERVICES.lock().unwrap()
+    SERVICES.try_lock().expect("Backend Error: Unable to acquire SERVICES lock!")
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

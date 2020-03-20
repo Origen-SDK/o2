@@ -10,12 +10,12 @@ use std::fmt;
 macro_rules! node {
     ( $attr:ident, $( $x:expr ),* ) => {
         {
-            Node::new(Attrs::$attr($( $x ),*))
+            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr($( $x ),*))
         }
     };
     ( $attr:ident ) => {
         {
-            Node::new(Attrs::$attr)
+            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr)
         }
     };
 }
@@ -30,6 +30,8 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     Test(String),
     Comment(u8, String), // level, msg
+    SetTimeset(usize), // Indicates both a set or change of the current timeset
+    ClearTimeset(),
     PinWrite(Id, u128),
     PinVerify(Id, u128),
     RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
@@ -79,6 +81,8 @@ impl Node {
         // Call the dedicated handler for this node if it exists
         let r = match &self.attrs {
             Attrs::Test(name) => processor.on_test(&name, &self),
+            Attrs::SetTimeset(timeset_id) => processor.on_set_timeset(*timeset_id, &self),
+            Attrs::ClearTimeset() => processor.on_clear_timeset(&self),
             Attrs::Comment(level, msg) => processor.on_comment(*level, &msg, &self),
             Attrs::PinWrite(id, data) => processor.on_pin_write(*id, *data),
             Attrs::PinVerify(id, data) => processor.on_pin_verify(*id, *data),
@@ -299,7 +303,7 @@ impl AST {
         self.nodes.push(node);
     }
 
-    pub fn process(&self, process_fn: &dyn Fn(&Node) -> Node) -> Node {
+    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Node) -> Node {
         if self.nodes.len() > 1 {
             let node = self.to_node();
             process_fn(&node)

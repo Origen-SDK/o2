@@ -4,8 +4,6 @@ use super::super::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter}
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use super::super::timesets::*;
 use indexmap::map::IndexMap;
-use origen::error::Error;
-use pyo3::class::mapping::*;
 //use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 
