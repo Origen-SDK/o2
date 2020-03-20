@@ -4,11 +4,11 @@ use crate::generator::ast::{Node};
 use crate::core::tester::{TesterAPI, Interceptor};
 
 #[derive(Debug, Clone)]
-pub struct Generator {
+pub struct Renderer {
   current_timeset_id: Option<usize>
 }
 
-impl Default for Generator {
+impl Default for Renderer {
   fn default() -> Self {
     Self {
       current_timeset_id: None
@@ -16,10 +16,10 @@ impl Default for Generator {
   }
 }
 
-impl Interceptor for Generator {}
-impl TesterAPI for Generator {
+impl Interceptor for Renderer {}
+impl TesterAPI for Renderer {
   fn name(&self) -> String {
-    "DummyGenerator".to_string()
+    "V93K_ST7".to_string()
   }
 
   fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
@@ -31,7 +31,7 @@ impl TesterAPI for Generator {
   }
 }
 
-impl Processor for Generator {
+impl Processor for Renderer {
   fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
     println!("# {}", msg);
     Return::Unmodified

@@ -8,8 +8,8 @@ use crate::core::tester::{TesterAPI, Interceptor};
 
 pub fn available_testers() -> Vec<String> {
   vec![
-    "::DummyGenerator".to_string(),
-    "::DummyGeneratorWithInterceptors".to_string(),
+    "::DummyRenderer".to_string(),
+    "::DummyRendererWithInterceptors".to_string(),
     "::V93K::ST7".to_string(),
     "::Simulator".to_string(),
   ]
@@ -17,21 +17,21 @@ pub fn available_testers() -> Vec<String> {
 
 pub fn instantiate_tester(g: &str) -> Option<Box<dyn TesterAPI + std::marker::Send>> {
   match &g {
-    &"::DummyGenerator" => Some(Box::new(DummyGenerator::default())),
-    &"::DummyGeneratorWithInterceptors" => Some(Box::new(DummyGeneratorWithInterceptors::default())),
-    &"::V93K::ST7" => Some(Box::new(v93k::Generator::default())),
-    &"::Simulator" => Some(Box::new(simulator::Generator::default())),
+    &"::DummyRenderer" => Some(Box::new(DummyRenderer::default())),
+    &"::DummyRendererWithInterceptors" => Some(Box::new(DummyRendererWithInterceptors::default())),
+    &"::V93K::ST7" => Some(Box::new(v93k::Renderer::default())),
+    &"::Simulator" => Some(Box::new(simulator::Renderer::default())),
     _ => None
   }
 }
 
 #[derive(Debug, Clone)]
-pub struct DummyGenerator {
+pub struct DummyRenderer {
   count: usize,
   current_timeset_id: Option<usize>,
 }
 
-impl Default for DummyGenerator {
+impl Default for DummyRenderer {
   fn default() -> Self {
     Self {
       count: 0,
@@ -40,11 +40,11 @@ impl Default for DummyGenerator {
   }
 }
 
-impl DummyGenerator {}
-impl Interceptor for DummyGenerator {}
-impl TesterAPI for DummyGenerator {
+impl DummyRenderer {}
+impl Interceptor for DummyRenderer {}
+impl TesterAPI for DummyRenderer {
   fn name(&self) -> String {
-    "DummyGenerator".to_string()
+    "DummyRenderer".to_string()
   }
 
   fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
@@ -56,7 +56,7 @@ impl TesterAPI for DummyGenerator {
   }
 }
 
-impl Processor for DummyGenerator {
+impl Processor for DummyRenderer {
   fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
     // Not counting the top node as a node. Only comments and cycles.
     println!("Printing StubAST to console...");
@@ -64,7 +64,7 @@ impl Processor for DummyGenerator {
   }
   
   fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
-    println!("  ::DummyGenerator Node {}: Comment - Content: {}", self.count, msg);
+    println!("  ::DummyRenderer Node {}: Comment - Content: {}", self.count, msg);
     self.count += 1;
     Return::Unmodified
   }
@@ -72,7 +72,7 @@ impl Processor for DummyGenerator {
   fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
     let dut = dut();
     let t = &dut.timesets[self.current_timeset_id.unwrap()];
-    println!("  ::DummyGenerator Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
+    println!("  ::DummyRenderer Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
     self.count += 1;
     Return::Unmodified
   }
@@ -84,16 +84,16 @@ impl Processor for DummyGenerator {
 }
 
 #[derive(Debug, Clone)]
-pub struct DummyGeneratorWithInterceptors {
+pub struct DummyRendererWithInterceptors {
   count: usize,
   current_timeset_id: Option<usize>,
 }
 
-impl DummyGeneratorWithInterceptors {}
+impl DummyRendererWithInterceptors {}
 
-impl TesterAPI for DummyGeneratorWithInterceptors {
+impl TesterAPI for DummyRendererWithInterceptors {
   fn name(&self) -> String {
-    "DummyGeneratorWithInterceptors".to_string()
+    "DummyRendererWithInterceptors".to_string()
   }
 
   fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
@@ -107,7 +107,7 @@ impl TesterAPI for DummyGeneratorWithInterceptors {
   }
 }
 
-impl Default for DummyGeneratorWithInterceptors {
+impl Default for DummyRendererWithInterceptors {
   fn default() -> Self {
     Self {
       count: 0,
@@ -116,19 +116,19 @@ impl Default for DummyGeneratorWithInterceptors {
   }
 }
 
-impl Interceptor for DummyGeneratorWithInterceptors {
+impl Interceptor for DummyRendererWithInterceptors {
   fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
-    println!("Vector intercepted by DummyGeneratorWithInterceptors!");
+    println!("Vector intercepted by DummyRendererWithInterceptors!");
     Ok(())
   }
 
   fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
-    println!("Comment intercepted by DummyGeneratorWithInterceptors!");
+    println!("Comment intercepted by DummyRendererWithInterceptors!");
     Ok(())
   }
 }
 
-impl Processor for DummyGeneratorWithInterceptors {
+impl Processor for DummyRendererWithInterceptors {
 
   fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
     // Not counting the top node as a node. Only comments and cycles.
@@ -137,7 +137,7 @@ impl Processor for DummyGeneratorWithInterceptors {
   }
 
   fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
-    println!("  ::DummyGeneratorWithInterceptors Node {}: Comment - Content: {}", self.count, msg);
+    println!("  ::DummyRendererWithInterceptors Node {}: Comment - Content: {}", self.count, msg);
     self.count += 1;
     Return::Unmodified
   }
@@ -145,7 +145,7 @@ impl Processor for DummyGeneratorWithInterceptors {
   fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
     let dut = dut();
     let t = &dut.timesets[self.current_timeset_id.unwrap()];
-    println!("  ::DummyGeneratorWithInterceptors Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
+    println!("  ::DummyRendererWithInterceptors Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
     self.count += 1;
     Return::Unmodified
   }

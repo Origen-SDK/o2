@@ -9,7 +9,7 @@ class TesterAPI(processor.Processor):
   def __init__(self):
     processor.Processor.__init__(self)
   
-  def generate(self):
+  def render(self):
     return self.process(origen.test_ast())
   
   def __origen__issue_callback__(self, func, node_bytes):

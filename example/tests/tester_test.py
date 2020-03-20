@@ -5,8 +5,8 @@ from tests.shared.python_like_apis import Fixture_ListLikeAPI # pylint: disable=
 from origen.generator.tester_api import TesterAPI # pylint: disable=import-error
 from origen.generator.processor import Return # pylint: disable=import-error
 
-# Test generator used to test the frontend <-> backend generator hooks
-class PyTestGenerator(TesterAPI):
+# Test tester used to test the frontend <-> backend tester hooks
+class PyTestRenderer(TesterAPI):
   def __init__(self):
     TesterAPI.__init__(self)
     self.i = 0
@@ -17,18 +17,18 @@ class PyTestGenerator(TesterAPI):
 
   def on_comment(self, node):
     node_str = f"Comment - Content: {node['attrs'][1][1]}"
-    print(f"  PyTestGenerator: Node {self.i}: {node_str}")
+    print(f"  PyTestRenderer: Node {self.i}: {node_str}")
     self.i += 1
     return Return.unmodified
 
   def on_cycle(self, node):
     node_str = f"Vector - Repeat: {node['attrs'][1][0]}"
-    print(f"  PyTestGenerator: Node {self.i}: {node_str}")
+    print(f"  PyTestRenderer: Node {self.i}: {node_str}")
     self.i += 1
     return Return.unmodified
 
-# Test generator used to test the frontend <-> backend interceptor hooks
-class PyTestGeneratorWithInterceptor(TesterAPI):
+# Test tester used to test the frontend <-> backend interceptor hooks
+class PyTestRendererWithInterceptor(TesterAPI):
   def __init__(self):
     TesterAPI.__init__(self)
     self.i = 0
@@ -39,24 +39,23 @@ class PyTestGeneratorWithInterceptor(TesterAPI):
 
   def on_comment(self, node):
     node_str = f"Comment - Content: {node['attrs'][1][1]}"
-    print(f"  PyTestGeneratorWithInterceptor: Node {self.i}: {node_str}")
+    print(f"  PyTestRendererWithInterceptor: Node {self.i}: {node_str}")
     self.i += 1
     return Return.unmodified
 
   def on_cycle(self, node):
     node_str = f"Vector - Repeat: {node['attrs'][1][0]}"
-    print(f"  PyTestGeneratorWithInterceptor: Node {self.i}: {node_str}")
+    print(f"  PyTestRendererWithInterceptor: Node {self.i}: {node_str}")
     self.i += 1
     return Return.unmodified
 
   def cc(self, node):
     node_str = f"Comment - Content: {node['attrs'][1][1]}"
-    print(f"Intercepted By PyTestGeneratorWithInterceptor: {node_str}")
-    #ast[-1].set('content', f"Intercepted By PyTestGeneratorWithInterceptor: {ast[-1].fields['content']}")
+    print(f"Intercepted By PyTestRendererWithInterceptor: {node_str}")
 
-# Test generator which ignores everything and uses the meta interface only.
+# Test tester which ignores everything and uses the meta interface only.
 # Not overly practical, but this should work nonetheless.
-class PyTestMetaGenerator(TesterAPI):
+class PyTestMetaRenderer(TesterAPI):
   def __init__(self):
     TesterAPI.__init__(self)
     self.nodes = []
@@ -64,7 +63,7 @@ class PyTestMetaGenerator(TesterAPI):
   def on_test(self, _node):
     print("Printing StubPyAST to console...")
     for i, n in enumerate(self.nodes):
-      print(f"  PyTestMetaGenerator: {i}: {n}")
+      print(f"  PyTestMetaRenderer: {i}: {n}")
     return Return.unmodified
 
   def cycle(self, node):
@@ -80,7 +79,7 @@ def test_init_state(clean_eagle, clean_tester):
   # but just in case those change unbeknownst to this method, double check the initial state here.
   assert origen.tester
   assert origen.tester.targets == []
-  assert origen.tester.generators == ["::DummyGenerator", "::DummyGeneratorWithInterceptors", "::V93K::ST7", "::Simulator"]
+  assert origen.tester.testers == ["::DummyRenderer", "::DummyRendererWithInterceptors", "::V93K::ST7", "::Simulator"]
   assert origen.tester.timeset is None
 
 def test_setting_a_timeset(clean_eagle, clean_tester):
@@ -108,18 +107,18 @@ def test_setting_timeset_with_instance(clean_eagle, clean_tester):
 
 def test_setting_targets(clean_eagle, clean_tester):
   assert origen.tester.targets == []
-  origen.tester.target("::DummyGenerator")
-  assert origen.tester.targets == ["::DummyGenerator"]
+  origen.tester.target("::DummyRenderer")
+  assert origen.tester.targets == ["::DummyRenderer"]
 
 def test_resetting_targets():
-  assert origen.tester.targets == ["::DummyGenerator"]
+  assert origen.tester.targets == ["::DummyRenderer"]
   origen.tester.clear_targets()
   assert origen.tester.targets == []
 
 def test_exception_on_duplicate_targets(clean_eagle, clean_tester):
-  origen.tester.target("::DummyGenerator")
+  origen.tester.target("::DummyRenderer")
   with pytest.raises(OSError):
-    origen.tester.target("::DummyGenerator")
+    origen.tester.target("::DummyRenderer")
 
 def test_exception_on_unknown_target(clean_eagle, clean_tester):
   with pytest.raises(OSError):
@@ -152,24 +151,24 @@ class TestTesterAPI:
     assert n["attrs"][0] == "Cycle"
     assert n["attrs"][1][0] == 10
 
-def test_adding_frontend_generator(clean_eagle, clean_tester):
-  assert "tester_test.PyTestGenerator" not in origen.tester.generators
-  origen.tester.register_generator(PyTestGenerator)
-  assert "tester_test.PyTestGenerator" in origen.tester.generators
+def test_adding_frontend_renderer(clean_eagle, clean_tester):
+  assert "tester_test.PyTestRenderer" not in origen.tester.testers
+  origen.tester.register_tester(PyTestRenderer)
+  assert "tester_test.PyTestRenderer" in origen.tester.testers
 
-def test_frontend_generators_can_be_targeted():
+def test_frontend_testers_can_be_targeted():
   origen.tester.clear_targets()
-  assert "tester_test.PyTestGenerator" in origen.tester.generators
+  assert "tester_test.PyTestRenderer" in origen.tester.testers
   assert origen.tester.targets == []
-  origen.tester.target("tester_test.PyTestGenerator")
-  assert origen.tester.targets == ["tester_test.PyTestGenerator"]
+  origen.tester.target("tester_test.PyTestRenderer")
+  assert origen.tester.targets == ["tester_test.PyTestRenderer"]
 
-def test_frontend_generators_can_be_targeted_as_class():
+def test_frontend_testers_can_be_targeted_as_class():
   origen.tester.clear_targets()
-  assert "tester_test.PyTestGenerator" in origen.tester.generators
+  assert "tester_test.PyTestRenderer" in origen.tester.testers
   assert origen.tester.targets == []
-  origen.tester.target(PyTestGenerator)
-  assert origen.tester.targets == ["tester_test.PyTestGenerator"]
+  origen.tester.target(PyTestRenderer)
+  assert origen.tester.targets == ["tester_test.PyTestRenderer"]
 
 def run_pattern():
   origen.tester.cc("Pattern Start!")
@@ -178,149 +177,149 @@ def run_pattern():
 
 @pytest.fixture
 def tester_target_backend_dummy():
-  origen.tester.target("::DummyGenerator")
+  origen.tester.target("::DummyRenderer")
 
 @pytest.fixture
 def tester_target_frontend_dummy():
   try:
-    origen.tester.register_generator(PyTestGenerator)
+    origen.tester.register_tester(PyTestRenderer)
   except OSError:
     # If we get an error back that shows it's already been added, that's fine. Ignore it.
     pass
-  origen.tester.target("tester_test.PyTestGenerator")
+  origen.tester.target("tester_test.PyTestRenderer")
 
-class TestBackendGenerator:
-  def test_generator(self, capfd, clean_eagle, clean_tester, tester_target_backend_dummy):
+class TestBackendRenderer:
+  def test_tester(self, capfd, clean_eagle, clean_tester, tester_target_backend_dummy):
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.generate()
+    origen.tester.render()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Printing StubAST to console...",
-      "  ::DummyGenerator Node 0: Comment - Content: Pattern Start!",
-      "  ::DummyGenerator Node 1: Vector - Repeat: 5, Timeset: 'simple'",
-      "  ::DummyGenerator Node 2: Comment - Content: Pattern End!",
+      "  ::DummyRenderer Node 0: Comment - Content: Pattern Start!",
+      "  ::DummyRenderer Node 1: Vector - Repeat: 5, Timeset: 'simple'",
+      "  ::DummyRenderer Node 2: Comment - Content: Pattern End!",
       ""
     ])
     assert err == ""
   
   def test_interceptors_on_backend(self, capfd, clean_eagle, clean_tester):
-    origen.tester.target("::DummyGeneratorWithInterceptors")
+    origen.tester.target("::DummyRendererWithInterceptors")
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.generate()
+    origen.tester.render()
     out, err = capfd.readouterr()
     assert out == "\n".join([
-      "Comment intercepted by DummyGeneratorWithInterceptors!",
-      "Vector intercepted by DummyGeneratorWithInterceptors!",
-      "Comment intercepted by DummyGeneratorWithInterceptors!",
+      "Comment intercepted by DummyRendererWithInterceptors!",
+      "Vector intercepted by DummyRendererWithInterceptors!",
+      "Comment intercepted by DummyRendererWithInterceptors!",
       "Printing StubAST to console...",
-      "  ::DummyGeneratorWithInterceptors Node 0: Comment - Content: Pattern Start!",
-      "  ::DummyGeneratorWithInterceptors Node 1: Vector - Repeat: 5, Timeset: 'simple'",
-      "  ::DummyGeneratorWithInterceptors Node 2: Comment - Content: Pattern End!",
+      "  ::DummyRendererWithInterceptors Node 0: Comment - Content: Pattern Start!",
+      "  ::DummyRendererWithInterceptors Node 1: Vector - Repeat: 5, Timeset: 'simple'",
+      "  ::DummyRendererWithInterceptors Node 2: Comment - Content: Pattern End!",
       ""
     ])
     assert err == ""
 
-class TestFrontendGenerator:
-  def test_generator(self, capfd, clean_eagle, clean_tester, tester_target_frontend_dummy):
+class TestFrontendRenderer:
+  def test_tester(self, capfd, clean_eagle, clean_tester, tester_target_frontend_dummy):
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.generate()
+    origen.tester.render()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Printing StubPyAST to console...",
-      "  PyTestGenerator: Node 0: Comment - Content: Pattern Start!",
-      "  PyTestGenerator: Node 1: Vector - Repeat: 5",
-      "  PyTestGenerator: Node 2: Comment - Content: Pattern End!",
+      "  PyTestRenderer: Node 0: Comment - Content: Pattern Start!",
+      "  PyTestRenderer: Node 1: Vector - Repeat: 5",
+      "  PyTestRenderer: Node 2: Comment - Content: Pattern End!",
       ""
     ])
     assert err == ""
 
-  def test_generator_with_interceptors(self, capfd, clean_eagle, clean_tester):
-    origen.tester.register_generator(PyTestGeneratorWithInterceptor)
-    origen.tester.target(PyTestGeneratorWithInterceptor)
+  def test_renderer_with_interceptors(self, capfd, clean_eagle, clean_tester):
+    origen.tester.register_tester(PyTestRendererWithInterceptor)
+    origen.tester.target(PyTestRendererWithInterceptor)
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.generate()
+    origen.tester.render()
     out, err = capfd.readouterr()
     assert out == "\n".join([
-      "Intercepted By PyTestGeneratorWithInterceptor: Comment - Content: Pattern Start!",
-      "Intercepted By PyTestGeneratorWithInterceptor: Comment - Content: Pattern End!",
+      "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern Start!",
+      "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern End!",
       "Printing StubPyAST to console...",
-      "  PyTestGeneratorWithInterceptor: Node 0: Comment - Content: Pattern Start!",
-      "  PyTestGeneratorWithInterceptor: Node 1: Vector - Repeat: 5",
-      "  PyTestGeneratorWithInterceptor: Node 2: Comment - Content: Pattern End!",
+      "  PyTestRendererWithInterceptor: Node 0: Comment - Content: Pattern Start!",
+      "  PyTestRendererWithInterceptor: Node 1: Vector - Repeat: 5",
+      "  PyTestRendererWithInterceptor: Node 2: Comment - Content: Pattern End!",
       ""
     ])
     assert err == ""
 
-  def test_meta_generator(self, capfd, clean_eagle, clean_tester):
-    origen.tester.register_generator(PyTestMetaGenerator)
-    origen.tester.target(PyTestMetaGenerator)
+  def test_meta_renderer(self, capfd, clean_eagle, clean_tester):
+    origen.tester.register_tester(PyTestMetaRenderer)
+    origen.tester.target(PyTestMetaRenderer)
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.generate()
+    origen.tester.render()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Printing StubPyAST to console...",
-      "  PyTestMetaGenerator: 0: Meta CC: Pattern Start!",
-      "  PyTestMetaGenerator: 1: Meta Cycle: 5",
-      "  PyTestMetaGenerator: 2: Meta CC: Pattern End!",
+      "  PyTestMetaRenderer: 0: Meta CC: Pattern Start!",
+      "  PyTestMetaRenderer: 1: Meta Cycle: 5",
+      "  PyTestMetaRenderer: 2: Meta CC: Pattern End!",
       ""
     ])
     assert err == ""
 
-def test_targeted_generator_ordering(capfd, clean_eagle, clean_tester):
-    origen.tester.register_generator(PyTestGeneratorWithInterceptor)
-    origen.tester.target(PyTestGeneratorWithInterceptor)
-    origen.tester.target("::DummyGeneratorWithInterceptors")
+def test_targeted_renderer_ordering(capfd, clean_eagle, clean_tester):
+    origen.tester.register_tester(PyTestRendererWithInterceptor)
+    origen.tester.target(PyTestRendererWithInterceptor)
+    origen.tester.target("::DummyRendererWithInterceptors")
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.generate()
+    origen.tester.render()
     out, err = capfd.readouterr()
     assert out == "\n".join([
-      "Intercepted By PyTestGeneratorWithInterceptor: Comment - Content: Pattern Start!",
-      "Comment intercepted by DummyGeneratorWithInterceptors!",
-      "Vector intercepted by DummyGeneratorWithInterceptors!",
-      "Intercepted By PyTestGeneratorWithInterceptor: Comment - Content: Pattern End!",
-      "Comment intercepted by DummyGeneratorWithInterceptors!",
+      "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern Start!",
+      "Comment intercepted by DummyRendererWithInterceptors!",
+      "Vector intercepted by DummyRendererWithInterceptors!",
+      "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern End!",
+      "Comment intercepted by DummyRendererWithInterceptors!",
       "Printing StubPyAST to console...",
-      "  PyTestGeneratorWithInterceptor: Node 0: Comment - Content: Pattern Start!",
-      "  PyTestGeneratorWithInterceptor: Node 1: Vector - Repeat: 5",
-      "  PyTestGeneratorWithInterceptor: Node 2: Comment - Content: Pattern End!",
+      "  PyTestRendererWithInterceptor: Node 0: Comment - Content: Pattern Start!",
+      "  PyTestRendererWithInterceptor: Node 1: Vector - Repeat: 5",
+      "  PyTestRendererWithInterceptor: Node 2: Comment - Content: Pattern End!",
       ""
       "Printing StubAST to console...",
-      "  ::DummyGeneratorWithInterceptors Node 0: Comment - Content: Pattern Start!",
-      "  ::DummyGeneratorWithInterceptors Node 1: Vector - Repeat: 5, Timeset: 'simple'",
-      "  ::DummyGeneratorWithInterceptors Node 2: Comment - Content: Pattern End!",
+      "  ::DummyRendererWithInterceptors Node 0: Comment - Content: Pattern Start!",
+      "  ::DummyRendererWithInterceptors Node 1: Vector - Repeat: 5, Timeset: 'simple'",
+      "  ::DummyRendererWithInterceptors Node 2: Comment - Content: Pattern End!",
       ""
     ])
     assert err == ""
 
-def test_targeted_generator_reverse_ordering(capfd, clean_eagle, clean_tester):
-    origen.tester.register_generator(PyTestGeneratorWithInterceptor)
-    origen.tester.target("::DummyGeneratorWithInterceptors")
-    origen.tester.target(PyTestGeneratorWithInterceptor)
+def test_targeted_renderer_reverse_ordering(capfd, clean_eagle, clean_tester):
+    origen.tester.register_tester(PyTestRendererWithInterceptor)
+    origen.tester.target("::DummyRendererWithInterceptors")
+    origen.tester.target(PyTestRendererWithInterceptor)
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.generate()
+    origen.tester.render()
     out, err = capfd.readouterr()
     assert out == "\n".join([
-      "Comment intercepted by DummyGeneratorWithInterceptors!",
-      "Intercepted By PyTestGeneratorWithInterceptor: Comment - Content: Pattern Start!",
-      "Vector intercepted by DummyGeneratorWithInterceptors!",
-      "Comment intercepted by DummyGeneratorWithInterceptors!",
-      "Intercepted By PyTestGeneratorWithInterceptor: Comment - Content: Pattern End!",
+      "Comment intercepted by DummyRendererWithInterceptors!",
+      "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern Start!",
+      "Vector intercepted by DummyRendererWithInterceptors!",
+      "Comment intercepted by DummyRendererWithInterceptors!",
+      "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern End!",
       "Printing StubAST to console...",
-      "  ::DummyGeneratorWithInterceptors Node 0: Comment - Content: Pattern Start!",
-      "  ::DummyGeneratorWithInterceptors Node 1: Vector - Repeat: 5, Timeset: 'simple'",
-      "  ::DummyGeneratorWithInterceptors Node 2: Comment - Content: Pattern End!",
+      "  ::DummyRendererWithInterceptors Node 0: Comment - Content: Pattern Start!",
+      "  ::DummyRendererWithInterceptors Node 1: Vector - Repeat: 5, Timeset: 'simple'",
+      "  ::DummyRendererWithInterceptors Node 2: Comment - Content: Pattern End!",
       ""
       "Printing StubPyAST to console...",
-      "  PyTestGeneratorWithInterceptor: Node 0: Comment - Content: Pattern Start!",
-      "  PyTestGeneratorWithInterceptor: Node 1: Vector - Repeat: 5",
-      "  PyTestGeneratorWithInterceptor: Node 2: Comment - Content: Pattern End!",
+      "  PyTestRendererWithInterceptor: Node 0: Comment - Content: Pattern Start!",
+      "  PyTestRendererWithInterceptor: Node 1: Vector - Repeat: 5",
+      "  PyTestRendererWithInterceptor: Node 2: Comment - Content: Pattern End!",
       ""
     ])
     assert err == ""

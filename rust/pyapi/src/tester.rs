@@ -3,7 +3,7 @@ use pyo3::types::{PyAny, PyDict, PyTuple};
 use super::timesets::timeset::{Timeset};
 use std::collections::HashMap;
 use origen::error::Error;
-use origen::core::tester::{Generators};
+use origen::core::tester::{TesterSource};
 use origen::TEST;
 
 #[pymodule]
@@ -15,8 +15,8 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 #[pyclass(subclass)]
 #[derive(Debug)]
 pub struct PyTester {
-  python_generators: HashMap<String, PyObject>,
-  instantiated_generators: HashMap<String, PyObject>,
+  python_testers: HashMap<String, PyObject>,
+  instantiated_testers: HashMap<String, PyObject>,
   metadata: Vec<PyObject>,
 }
 
@@ -26,8 +26,8 @@ impl PyTester {
   fn new(obj: &PyRawObject) {
     origen::tester().reset().unwrap();
     obj.init({ PyTester {
-      python_generators: HashMap::new(),
-      instantiated_generators: HashMap::new(),
+      python_testers: HashMap::new(),
+      instantiated_testers: HashMap::new(),
       metadata: vec!(),
       }
     });
@@ -49,8 +49,8 @@ impl PyTester {
     Ok(slf.to_object(py))
   }
 
-  fn reset_external_generators(slf: PyRef<Self>) -> PyResult<PyObject> {
-    origen::tester().reset_external_generators()?;
+  fn reset_external_testers(slf: PyRef<Self>) -> PyResult<PyObject> {
+    origen::tester().reset_external_testers()?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -138,7 +138,7 @@ impl PyTester {
   }
 
   fn issue_callbacks(&self, func: &str) -> PyResult<()> {
-    // Get the current targeted generators
+    // Get the current targeted testers
     let targets;
     {
       let tester = origen::tester();
@@ -148,12 +148,12 @@ impl PyTester {
     // issue callbacks in the order which they were targeted
     for (i, t) in targets.iter().enumerate() {
       match t {
-        Generators::External(g) => {
-          // External generators which the backend can't generate itself. Need to generate them here.
-          match self.instantiated_generators.get(g) {
+        TesterSource::External(g) => {
+          // External testers which the backend can't render itself. Need to render them here.
+          match self.instantiated_testers.get(g) {
             Some(inst) => {
-              // The generator here is a PyObject - a handle on the class itself.
-              // Instantiate it and call its generate method with the AST.
+              // The tester here is a PyObject - a handle on the class itself.
+              // Instantiate it and call its render method with the AST.
               let gil = Python::acquire_gil();
               let py = gil.python();
               let last_node = TEST.get(0).unwrap().to_pickle();
@@ -164,7 +164,7 @@ impl PyTester {
               // whether it happens here or there.
               inst.call_method1(py, "__origen__issue_callback__", args)?;
             },
-            None => return Err(PyErr::from(Error::new(&format!("Something's gone wrong and Python generator {} cannot be found!", g)))),
+            None => return Err(PyErr::from(Error::new(&format!("Something's gone wrong and Python tester {} cannot be found!", g)))),
           }
         },
         _ => {
@@ -204,7 +204,7 @@ impl PyTester {
     Self::cycle(slf, Some(&kwargs))
   }
 
-  fn register_generator(&mut self, g: &PyAny) -> PyResult<()> {
+  fn register_tester(&mut self, g: &PyAny) -> PyResult<()> {
     let mut tester = origen::tester();
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -213,17 +213,17 @@ impl PyTester {
     let mut n = obj.getattr(py, "__module__")?.extract::<String>(py)?;
     n.push_str(&format!(".{}", obj.getattr(py, "__qualname__")?.extract::<String>(py)?));
 
-    tester.register_external_generator(&n)?;
-    self.python_generators.insert(n, obj);
+    tester.register_external_tester(&n)?;
+    self.python_testers.insert(n, obj);
     Ok(())
   }
 
-  #[args(generators="*")]
-  fn target(&mut self, generators: &PyTuple) -> PyResult<Vec<String>> {
-    if generators.len() > 0 {
+  #[args(testers="*")]
+  fn target(&mut self, testers: &PyTuple) -> PyResult<Vec<String>> {
+    if testers.len() > 0 {
       let mut tester = origen::tester();
-      for g in generators.iter() {
-        // Accept either a string name or the actual class of the generator
+      for g in testers.iter() {
+        // Accept either a string name or the actual class of the tester
         if let Ok(name) = g.extract::<String>() {
           tester.target(&name)?;
         } else {
@@ -235,10 +235,10 @@ impl PyTester {
           n.push_str(&format!(".{}", obj.getattr(py, "__qualname__")?.extract::<String>(py)?));
           let t = tester.target(&n)?;
           match t {
-            Generators::External(gen) => {
-              let klass = self.python_generators.get(gen).unwrap();
+            TesterSource::External(gen) => {
+              let klass = self.python_testers.get(gen).unwrap();
               let inst = klass.call0(py)?;
-              self.instantiated_generators.insert(gen.to_string(), inst);
+              self.instantiated_testers.insert(gen.to_string(), inst);
             },
             _ => {}
           }
@@ -263,7 +263,7 @@ impl PyTester {
     Ok(slf.to_object(py))
   }
 
-  fn generate(&self) -> PyResult<()> {
+  fn render(&self) -> PyResult<()> {
     let targets;
     {
       let tester = origen::tester();
@@ -271,23 +271,23 @@ impl PyTester {
     }
     for (i, t) in targets.iter().enumerate() {
       match t {
-        Generators::External(g) => {
-          // External generators which the backend can't generate itself. Need to generate them here.
-          match self.instantiated_generators.get(g) {
+        TesterSource::External(g) => {
+          // External testers which the backend can't render itself. Need to render them here.
+          match self.instantiated_testers.get(g) {
             Some(inst) => {
-              // The generator here is a PyObject - a handle on the class itself.
-              // Instantiate it and call its generate method with the AST.
+              // The tester here is a PyObject - a handle on the class itself.
+              // Instantiate it and call its render method with the AST.
               let gil = Python::acquire_gil();
               let py = gil.python();
-              inst.call_method0(py, "generate")?;
+              inst.call_method0(py, "render")?;
             },
-            None => return Err(PyErr::from(Error::new(&format!("Something's gone wrong and Python generator {} cannot be found!", g)))),
+            None => return Err(PyErr::from(Error::new(&format!("Something's gone wrong and Python tester {} cannot be found!", g)))),
           }
         },
         _ => {
           let mut tester = origen::tester();
           //let dut = origen::DUT.lock().unwrap();
-          tester.generate_target_at(i)?;
+          tester.render_target_at(i)?;
         }
       }
     }
@@ -295,8 +295,8 @@ impl PyTester {
   }
 
   #[getter]
-  fn generators(&self) -> PyResult<Vec<String>> {
+  fn testers(&self) -> PyResult<Vec<String>> {
     let tester = origen::tester();
-    Ok(tester.generators())
+    Ok(tester.testers())
   }
 }

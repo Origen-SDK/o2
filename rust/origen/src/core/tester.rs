@@ -8,31 +8,31 @@ use crate::TEST;
 use crate::node;
 
 #[derive(Debug)]
-pub enum Generators {
+pub enum TesterSource {
   Internal(Box<dyn TesterAPI + std::marker::Send>),
   External(String),
 }
 
-impl Clone for Generators {
-  fn clone(&self) -> Generators {
+impl Clone for TesterSource {
+  fn clone(&self) -> TesterSource {
     match self {
-      Generators::Internal(_g) => Generators::Internal((*_g).clone()),
-      Generators::External(_g) => Generators::External(_g.clone()),
+      TesterSource::Internal(_g) => TesterSource::Internal((*_g).clone()),
+      TesterSource::External(_g) => TesterSource::External(_g.clone()),
     }
   }
 }
 
-impl PartialEq<Generators> for Generators {
-  fn eq(&self, g: &Generators) -> bool {
+impl PartialEq<TesterSource> for TesterSource {
+  fn eq(&self, g: &TesterSource) -> bool {
     match g {
-      Generators::Internal(_g) => match self {
-        Generators::Internal(_self) => {
+      TesterSource::Internal(_g) => match self {
+        TesterSource::Internal(_self) => {
           *_g.name() == *_self.name()
         },
         _ => false
       }
-      Generators::External(_g) => match self {
-        Generators::External(_self) => {
+      TesterSource::External(_g) => match self {
+        TesterSource::External(_self) => {
           _g == _self
         },
         _ => false
@@ -41,7 +41,7 @@ impl PartialEq<Generators> for Generators {
   }
 }
 
-impl Generators {
+impl TesterSource {
   pub fn to_string(&self) -> String {
     match self {
       Self::External(g) => g.clone(),
@@ -51,28 +51,21 @@ impl Generators {
 }
 
 #[derive(Debug)]
-pub struct ExternalGenerator {
-  name: String,
-  source: String,
-  generator: Box<dyn core::any::Any + std::marker::Send + 'static>,
-}
-
-#[derive(Debug)]
 pub struct Tester {
   /// The current timeset ID, if its set.
   /// This is the direct ID to the timeset object.
   /// The name and model ID can be found on this object.
   current_timeset_id: Option<usize>,
-  external_generators: IndexMap<String, Generators>,
-  pub target_generators: Vec<Generators>,
+  external_testers: IndexMap<String, TesterSource>,
+  pub target_testers: Vec<TesterSource>,
 }
 
 impl Tester {
   pub fn new() -> Self {
     Tester {
       current_timeset_id: Option::None,
-      external_generators: IndexMap::new(),
-      target_generators: vec!(),
+      external_testers: IndexMap::new(),
+      target_testers: vec!(),
     }
   }
 
@@ -85,7 +78,7 @@ impl Tester {
 
   pub fn reset(&mut self) -> Result<(), Error> {
     self.clear_dut_dependencies()?;
-    self.reset_external_generators()?;
+    self.reset_external_testers()?;
     Ok(())
   }
 
@@ -96,21 +89,21 @@ impl Tester {
     Ok(())
   }
 
-  // Resets the external generators.
-  // Also clears the targeted generators, as it may point to an external one that will be cleared.
-  pub fn reset_external_generators(&mut self) -> Result<(), Error> {
-    self.target_generators.clear();
-    self.external_generators.clear();
+  // Resets the external testers.
+  // Also clears the targeted testers, as it may point to an external one that will be cleared.
+  pub fn reset_external_testers(&mut self) -> Result<(), Error> {
+    self.target_testers.clear();
+    self.external_testers.clear();
     Ok(())
   }
 
   pub fn reset_targets(&mut self) -> Result<(), Error> {
-    self.target_generators.clear();
+    self.target_testers.clear();
     Ok(())
   }
 
-  pub fn register_external_generator(&mut self, generator: &str) -> Result<(), Error> {
-    self.external_generators.insert(generator.to_string(), Generators::External(generator.to_string()));
+  pub fn register_external_tester(&mut self, tester: &str) -> Result<(), Error> {
+    self.external_testers.insert(tester.to_string(), TesterSource::External(tester.to_string()));
     Ok(())
   }
 
@@ -142,11 +135,11 @@ impl Tester {
   }
 
   pub fn issue_callback_at(&mut self, idx: usize) -> Result<(), Error> {
-    let g = &mut self.target_generators[idx];
+    let g = &mut self.target_testers[idx];
 
     // Grab the last node and immutably pass it to the interceptor
     match g {
-      Generators::Internal(g_) => {
+      TesterSource::Internal(g_) => {
         let last_node = TEST.get(0).unwrap();
         match &last_node.attrs {
           Attrs::Cycle(repeat, compressable) => g_.cycle(*repeat, *compressable, &last_node)?,
@@ -173,16 +166,16 @@ impl Tester {
     Ok(())
   }
 
-  /// Generates the output for the target at index i.
-  /// Allows the frontend to call generators in a loop.
-  pub fn generate_target_at(&mut self, idx: usize) -> Result<GenerateStatus, Error> {
-    let mut stat = GenerateStatus::new();
-    let g = &mut self.target_generators[idx];
+  /// Renders the output for the target at index i.
+  /// Allows the frontend to call testers in a loop.
+  pub fn render_target_at(&mut self, idx: usize) -> Result<RenderStatus, Error> {
+    let mut stat = RenderStatus::new();
+    let g = &mut self.target_testers[idx];
     match g {
-      Generators::External(gen) => {
+      TesterSource::External(gen) => {
         stat.external.push(gen.to_string());
       },
-      Generators::Internal(gen) => {
+      TesterSource::Internal(gen) => {
         TEST.process(&mut |ast| gen.run(ast));
         stat.completed.push(gen.to_string())
       }
@@ -190,50 +183,50 @@ impl Tester {
     Ok(stat)
   }
 
-  pub fn target(&mut self, generator: &str) -> Result<&Generators, Error> {
+  pub fn target(&mut self, tester: &str) -> Result<&TesterSource, Error> {
     let g;
-    if let Some(_g) = instantiate_tester(generator) {
-      g = Generators::Internal(_g);
-    } else if let Some(_g) = self.external_generators.get(generator) {
+    if let Some(_g) = instantiate_tester(tester) {
+      g = TesterSource::Internal(_g);
+    } else if let Some(_g) = self.external_testers.get(tester) {
       g = (*_g).clone();
     } else {
-      return Err(Error::new(&format!("Could not find generator '{}'!", generator)));
+      return Err(Error::new(&format!("Could not find tester '{}'!", tester)));
     }
 
-    if self.target_generators.contains(&g) {
-        Err(Error::new(&format!("Generator {} has already been targeted!", generator)))
+    if self.target_testers.contains(&g) {
+        Err(Error::new(&format!("Tester {} has already been targeted!", tester)))
     } else {
-      self.target_generators.push(g);
-      Ok(&self.target_generators.last().unwrap())
+      self.target_testers.push(g);
+      Ok(&self.target_testers.last().unwrap())
     }
   }
 
-  pub fn targets(&self) -> &Vec<Generators> {
-    &self.target_generators
+  pub fn targets(&self) -> &Vec<TesterSource> {
+    &self.target_testers
   }
 
   pub fn targets_as_strs(&self) -> Vec<String> {
-    self.target_generators.iter().map( |g| g.to_string()).collect()
+    self.target_testers.iter().map( |g| g.to_string()).collect()
   }
 
   pub fn clear_targets(&mut self) -> Result<(), Error> {
-    self.target_generators.clear();
+    self.target_testers.clear();
     Ok(())
   }
 
-  pub fn generators(&self) -> Vec<String> {
+  pub fn testers(&self) -> Vec<String> {
     let mut gens: Vec<String> = available_testers();
-    gens.extend(self.external_generators.iter().map(|(n, _)| n.clone()).collect::<Vec<String>>());
+    gens.extend(self.external_testers.iter().map(|(n, _)| n.clone()).collect::<Vec<String>>());
     gens
   }
 }
 
-pub struct GenerateStatus {
+pub struct RenderStatus {
   pub completed: Vec<String>,
   pub external: Vec<String>,
 }
 
-impl GenerateStatus {
+impl RenderStatus {
   pub fn new() -> Self {
     Self {
       completed: vec!(),
@@ -276,8 +269,8 @@ pub trait TesterAPI: std::fmt::Debug + crate::generator::processor::Processor + 
   }
 }
 
-impl PartialEq<Generators> for dyn TesterAPI {
-  fn eq(&self, g: &Generators) -> bool {
+impl PartialEq<TesterSource> for dyn TesterAPI {
+  fn eq(&self, g: &TesterSource) -> bool {
     self.to_string() == g.to_string()
   }
 }

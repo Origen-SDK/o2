@@ -4,16 +4,16 @@ use crate::generator::ast::{Node};
 use crate::core::tester::{TesterAPI, Interceptor};
 
 #[derive(Debug, Clone)]
-pub struct Generator {}
+pub struct Renderer {}
 
-impl Default for Generator {
+impl Default for Renderer {
   fn default() -> Self {
     Self {}
   }
 }
 
-impl Processor for Generator {}
-impl Interceptor for Generator {
+impl Processor for Renderer {}
+impl Interceptor for Renderer {
   fn clear_timeset(&mut self, _node: &Node) -> Result<(), Error> {
     println!("<Issue command to clear the timeset in the simulator...>");
     Ok(())
@@ -35,9 +35,9 @@ impl Interceptor for Generator {
   }
 
 }
-impl TesterAPI for Generator {
+impl TesterAPI for Renderer {
   fn name(&self) -> String {
-    "DummyGenerator".to_string()
+    "Simulator".to_string()
   }
 
   fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
