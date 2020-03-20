@@ -81,15 +81,15 @@ pub enum Value<'a> {
 }
 
 pub fn dut() -> MutexGuard<'static, Dut> {
-    DUT.try_lock().expect("Backend Error: Unable to acquire DUT lock!")
+    DUT.lock().unwrap()
 }
 
 pub fn tester() -> MutexGuard<'static, Tester> {
-    TESTER.try_lock().expect("Backend Error: Unable to acquire TESTER lock!")
+    TESTER.lock().unwrap()
 }
 
 pub fn services() -> MutexGuard<'static, Services> {
-    SERVICES.try_lock().expect("Backend Error: Unable to acquire SERVICES lock!")
+    SERVICES.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
