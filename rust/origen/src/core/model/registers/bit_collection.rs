@@ -701,7 +701,7 @@ impl<'a> BitCollection<'a> {
 #[cfg(test)]
 mod tests {
     use crate::core::model::registers::{Bit, BitCollection};
-    use crate::{dut_or_wait, Dut};
+    use crate::{dut, Dut};
     use num_bigint::ToBigUint;
     use std::sync::MutexGuard;
 
@@ -730,7 +730,7 @@ mod tests {
 
     #[test]
     fn data_method_works() {
-        let mut dut = dut_or_wait();
+        let mut dut = dut();
         let bc = make_bit_collection(16, &mut dut);
 
         assert_eq!(bc.data().unwrap(), 0.to_biguint().unwrap());
@@ -738,7 +738,7 @@ mod tests {
 
     #[test]
     fn set_data_method_works() {
-        let mut dut = dut_or_wait();
+        let mut dut = dut();
         let bc = make_bit_collection(16, &mut dut);
 
         bc.set_data(0.to_biguint().unwrap());
@@ -751,7 +751,7 @@ mod tests {
 
     #[test]
     fn range_method_works() {
-        let mut dut = dut_or_wait();
+        let mut dut = dut();
         let bc = make_bit_collection(16, &mut dut);
 
         bc.set_data(0x1234.to_biguint().unwrap());
