@@ -1,16 +1,17 @@
-use super::bit::UNDEFINED;
-use super::{AccessType, BitCollection, BitOrder};
-use crate::Error;
+use super::{AccessType, AddressBlock, BitCollection, BitOrder, Field, RegisterFile, SummaryField};
+use crate::core::model::Model;
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
+use crate::{Error, Result};
 use indexmap::map::IndexMap;
-use num_bigint::BigUint;
 use std::cmp;
 use std::sync::MutexGuard;
 
 #[derive(Debug)]
 pub struct Register {
     pub id: usize,
+    pub address_block_id: usize,
+    pub register_file_id: Option<usize>,
     pub name: String,
     pub description: Option<String>,
     // TODO: What is this?!
@@ -26,21 +27,29 @@ pub struct Register {
     pub bit_ids: Vec<usize>,
     // TODO: Should this be defined on Register, or inherited from address block/memory map?
     pub bit_order: BitOrder,
+    /// The (Python) source file from which the register was defined
+    pub filename: Option<String>,
+    /// The (Python) source file line number where the register was defined
+    pub lineno: Option<usize>,
 }
 
 impl Default for Register {
     fn default() -> Register {
         Register {
             id: 0,
+            address_block_id: 0,
+            register_file_id: None,
             name: "".to_string(),
             description: None,
             dim: 1,
             offset: 0,
             size: 32,
-            access: AccessType::ReadWrite,
+            access: AccessType::RW,
             fields: IndexMap::new(),
             bit_ids: Vec::new(),
             bit_order: BitOrder::LSB0,
+            filename: None,
+            lineno: None,
         }
     }
 }
@@ -202,16 +211,94 @@ impl<'a> DoubleEndedIterator for RegisterFieldIterator<'a> {
 }
 
 impl Register {
+    /// Returns the reset value of the given bit index for the given reset name/type.
+    pub fn reset_val_for_bit(&self, name: &str, index: usize) -> Result<Option<u8>> {
+        let field = self.field_for_bit(index)?;
+        if field.is_none() {
+            return Ok(None);
+        }
+        let field = field.unwrap();
+        let reset = field.resets.get(name);
+        if reset.is_none() {
+            return Ok(None);
+        }
+        let reset = reset.unwrap();
+        let bytes = reset.value.to_bytes_be();
+        let local_offset = index - field.offset;
+        let i = local_offset / 8;
+        if i >= bytes.len() {
+            Ok(Some(0))
+        } else {
+            let byte = bytes[local_offset / 8];
+            Ok(Some((byte >> local_offset % 8) & 1))
+        }
+    }
+
+    /// Returns the field object that owns the given bit, an error will be returned if the given
+    /// index is out of range.
+    /// None will be returned if the given index is within range but no bit field has been defined
+    /// at that bit position.
+    pub fn field_for_bit(&self, index: usize) -> Result<Option<&Field>> {
+        if index >= self.size {
+            return Err(Error::new(&format!(
+                "Tried to look up bit field at index {} in reg {}, but it is only {} bits wide",
+                index, self.name, self.size
+            )));
+        }
+        Ok(self
+            .fields
+            .values()
+            .find(|field| index >= field.offset && index < field.offset + field.width))
+    }
+
     /// Returns a path to this register like "dut.my_block.my_map.my_address_block.my_reg", but the map and address block portions
     /// will be inhibited when they are 'default'. This is to keep map and address block concerns out of the view of users who
     /// don't use them and simply define regs at the top-level of the block.
-    pub fn friendly_path(&self, _dut: &MutexGuard<Dut>) -> String {
-        format!("friendly.path.to.be.implemented.{}", self.name)
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        let path = match self.register_file(dut) {
+            Some(x) => x?.friendly_path(dut)?,
+            None => self.address_block(dut)?.friendly_path(dut)?,
+        };
+        Ok(format!("{}.{}", path, self.name))
     }
 
-    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy
-    pub fn address(&self, _dut: &MutexGuard<Dut>) -> u128 {
-        self.offset as u128
+    /// Returns an immutable reference to the parent model
+    pub fn model<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Model> {
+        self.address_block(dut)?.model(dut)
+    }
+
+    /// Returns a path reference to the register's model/controller, e.g. "dut.core0.adc1"
+    pub fn model_path(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        self.model(dut)?.friendly_path(dut)
+    }
+
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierarchy.
+    /// By default the address is returned in the address_unit_bits size of the current top-level DUT.
+    /// Optionally an alternative address_unit_bits can be supplied here and the address will be returned in those
+    /// units.
+    pub fn address(&self, dut: &MutexGuard<Dut>, address_unit_bits: Option<u32>) -> Result<u128> {
+        match address_unit_bits {
+            Some(x) => Ok(self.bit_address(dut)? / x as u128),
+            None => Ok(self.bit_address(dut)? / dut.model().address_unit_bits as u128),
+        }
+    }
+
+    /// Returns the address_unit_bits size that the register's offset is defined in.
+    pub fn address_unit_bits(&self, dut: &MutexGuard<Dut>) -> Result<u32> {
+        match self.register_file(dut) {
+            Some(x) => Ok(x?.address_unit_bits(dut)?),
+            None => Ok(self.address_block(dut)?.address_unit_bits(dut)?),
+        }
+    }
+
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierachy.
+    /// The returned address is with an address_unit_bits size of 1.
+    pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> Result<u128> {
+        let base = match self.register_file(dut) {
+            Some(x) => x?.bit_address(dut)?,
+            None => self.address_block(dut)?.bit_address(dut)?,
+        };
+        Ok(base + (self.offset as u128 * self.address_unit_bits(dut)? as u128))
     }
 
     /// Returns an iterator for the register's fields which yields them (as SummaryFields) in offset order, starting from lowest.
@@ -221,7 +308,7 @@ impl Register {
     }
 
     /// Applies the given reset type to all fields, if the fields don't have a reset defined with
-    /// the given name then no action will be taken
+    /// the given name then their value will be set to undefined
     pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
         for (_, field) in &self.fields {
             field.reset(name, dut);
@@ -315,8 +402,8 @@ impl Register {
         let bit_width = 13;
         let mut desc: Vec<String> = vec![format!(
             "\n{:#X} - {}",
-            self.address(dut),
-            self.friendly_path(dut)
+            self.address(dut, None)?,
+            self.friendly_path(dut)?
         )];
         let r = self.size % 8;
         if r == 0 {
@@ -369,7 +456,7 @@ impl Register {
             let mut line = "  ".to_string();
             let mut first_done = false;
             for field in self.fields(true).rev() {
-                if is_field_in_range(&field, max_bit, min_bit) {
+                if Register::is_field_in_range(&field, max_bit, min_bit) {
                     if max_bit > (self.size - 1) && !first_done {
                         for _i in 0..(max_bit - (self.size - 1)) {
                             line += &" ".repeat(bit_width + 1);
@@ -381,17 +468,17 @@ impl Register {
                             let bit_name = format!(
                                 "{}[{}:{}]",
                                 field.name,
-                                max_bit_in_range(&field, max_bit, min_bit, &bit_order),
-                                min_bit_in_range(&field, max_bit, min_bit, &bit_order),
+                                Register::max_bit_in_range(&field, max_bit, min_bit, &bit_order),
+                                Register::min_bit_in_range(&field, max_bit, min_bit, &bit_order),
                             );
-                            let bit_span = num_bits_in_range(&field, max_bit, min_bit);
+                            let bit_span = Register::num_bits_in_range(&field, max_bit, min_bit);
                             let width = (bit_width * bit_span) + bit_span - 1;
                             let txt = &bit_name.chars().take(width - 2).collect::<String>();
                             line += vert_single_line;
                             line += &format!("{: ^bit_width$}", txt, bit_width = width);
                         } else {
                             for i in 0..field.width {
-                                if is_index_in_range(field.offset + i, max_bit, min_bit) {
+                                if Register::is_index_in_range(field.offset + i, max_bit, min_bit) {
                                     line += vert_single_line;
                                     line += &" ".repeat(bit_width);
                                 }
@@ -419,7 +506,7 @@ impl Register {
             let mut line = "  ".to_string();
             let mut first_done = false;
             for field in self.fields(true).rev() {
-                if is_field_in_range(&field, max_bit, min_bit) {
+                if Register::is_field_in_range(&field, max_bit, min_bit) {
                     if max_bit > (self.size - 1) && !first_done {
                         for _i in 0..(max_bit - self.size - 1) {
                             line += &" ".repeat(bit_width + 1);
@@ -433,8 +520,12 @@ impl Register {
                             if bits.has_known_value() {
                                 let v = bits
                                     .range(
-                                        max_bit_in_range(&field, max_bit, min_bit, &bit_order),
-                                        min_bit_in_range(&field, max_bit, min_bit, &bit_order),
+                                        Register::max_bit_in_range(
+                                            &field, max_bit, min_bit, &bit_order,
+                                        ),
+                                        Register::min_bit_in_range(
+                                            &field, max_bit, min_bit, &bit_order,
+                                        ),
                                     )
                                     .data()
                                     .unwrap();
@@ -446,8 +537,8 @@ impl Register {
                                 //            value = 'M'
                                 //          end
                             }
-                            value += &state_desc(&bits);
-                            let bit_span = num_bits_in_range(&field, max_bit, min_bit);
+                            value += &Register::state_desc(&bits);
+                            let bit_span = Register::num_bits_in_range(&field, max_bit, min_bit);
                             let width = bit_width * bit_span;
                             line += vert_single_line;
                             line += &format!(
@@ -457,7 +548,7 @@ impl Register {
                             );
                         } else {
                             for i in 0..field.width {
-                                if is_index_in_range(field.offset + i, max_bit, min_bit) {
+                                if Register::is_index_in_range(field.offset + i, max_bit, min_bit) {
                                     line += vert_single_line;
                                     line += &" ".repeat(bit_width);
                                 }
@@ -476,7 +567,7 @@ impl Register {
                                 //    val = 'M'
                                 //  end
                             }
-                            value += &state_desc(&bits);
+                            value += &Register::state_desc(&bits);
                             line += vert_single_line;
                             line += &format!("{: ^bit_width$}", value, bit_width = bit_width);
                         } else {
@@ -534,10 +625,12 @@ impl Register {
     pub fn add_field(
         &mut self,
         name: &str,
-        description: &str,
+        description: Option<&String>,
         mut offset: usize,
         width: usize,
         access: &str,
+        filename: Option<&String>,
+        lineno: Option<usize>,
     ) -> OrigenResult<&mut Field> {
         let acc: AccessType = match access.parse() {
             Ok(x) => x,
@@ -549,13 +642,21 @@ impl Register {
         let f = Field {
             reg_id: self.id,
             name: name.to_string(),
-            description: description.to_string(),
+            description: match description {
+                None => None,
+                Some(x) => Some(x.to_string()),
+            },
             offset: offset,
             width: width,
             access: acc,
             resets: IndexMap::new(),
             enums: IndexMap::new(),
             related_fields: 0,
+            filename: match filename {
+                None => None,
+                Some(x) => Some(x.clone()),
+            },
+            lineno: lineno,
         };
         if self.fields.contains_key(name) {
             let mut orig = self.fields.get_mut(name).unwrap();
@@ -573,276 +674,105 @@ impl Register {
     pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
         BitCollection::for_register(self, dut)
     }
-}
 
-fn state_desc(bits: &BitCollection) -> String {
-    let mut state: Vec<&str> = Vec::new();
-    if !(bits.is_readable() && bits.is_writable()) {
-        if bits.is_readable() {
-            state.push("RO");
-        } else {
-            state.push("WO");
+    /// Returns an immutable reference to the address block object that owns the register.
+    /// Note that this may or may not be the immediate parent of the register depending on
+    /// whether it is instantiated within a register file or not.
+    pub fn address_block<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a AddressBlock> {
+        dut.get_address_block(self.address_block_id)
+    }
+
+    /// Returns an immutable reference to the register file object that owns the register.
+    /// If it returns None it means that the register is instantiated directly within an
+    /// address block.
+    pub fn register_file<'a>(&self, dut: &'a MutexGuard<Dut>) -> Option<Result<&'a RegisterFile>> {
+        match self.register_file_id {
+            Some(x) => Some(dut.get_register_file(x)),
+            None => None,
         }
     }
-    if bits.is_to_be_read() {
-        state.push("Rd");
-    }
-    if bits.is_to_be_captured() {
-        state.push("Cap");
-    }
-    if bits.has_overlay() {
-        state.push("Ov");
-    }
-    if state.len() == 0 {
-        "".to_string()
-    } else {
-        format!("({})", state.join("|"))
-    }
-}
 
-fn max_bit_in_range(field: &SummaryField, max: usize, _min: usize, bit_order: &BitOrder) -> usize {
-    let upper = field.offset + field.width - 1;
-    if *bit_order == BitOrder::MSB0 {
-        field.width - (cmp::min(upper, max) - field.offset) - 1
-    } else {
-        cmp::min(upper, max) - field.offset
-    }
-}
-
-fn min_bit_in_range(field: &SummaryField, _max: usize, min: usize, bit_order: &BitOrder) -> usize {
-    let lower = field.offset;
-    if *bit_order == BitOrder::MSB0 {
-        field.width - (cmp::max(lower, min) - lower) - 1
-    } else {
-        cmp::max(lower, min) - field.offset
-    }
-}
-
-/// Returns true if some portion of the given bit Field falls within the given range
-fn is_field_in_range(field: &SummaryField, max: usize, min: usize) -> bool {
-    let upper = field.offset + field.width - 1;
-    let lower = field.offset;
-    !((lower > max) || (upper < min))
-}
-
-//# Returns the number of bits from the given field that fall within the given range
-fn num_bits_in_range(field: &SummaryField, max: usize, min: usize) -> usize {
-    let upper = field.offset + field.width - 1;
-    let lower = field.offset;
-    cmp::min(upper, max) - cmp::max(lower, min) + 1
-}
-
-/// Returns true if the given index number is in the given range
-fn is_index_in_range(i: usize, max: usize, min: usize) -> bool {
-    !((i > max) || (i < min))
-}
-
-//def _bit_rw(bits)
-//if bits.readable? && bits.writable?
-//  'RW'
-//elsif bits.readable?
-//  'RO'
-//elsif bits.writable?
-//  'WO'
-//else
-//  'X'
-//end
-//end
-
-#[derive(Debug)]
-/// Named collections of bits within a register
-pub struct Field {
-    pub reg_id: usize,
-    pub name: String,
-    pub description: String,
-    /// Offset from the start of the register in bits.
-    pub offset: usize,
-    /// Width of the field in bits.
-    pub width: usize,
-    pub access: AccessType,
-    /// Contains any reset values defined for this field, if
-    /// not present it will default to resetting all bits to 0
-    pub resets: IndexMap<String, Reset>,
-    pub enums: IndexMap<String, EnumeratedValue>,
-    related_fields: usize,
-}
-
-impl Field {
-    pub fn add_enum(
-        &mut self,
-        name: &str,
-        description: &str,
-        value: &BigUint,
-    ) -> OrigenResult<&EnumeratedValue> {
-        //let acc: AccessType = match access.parse() {
-        //    Ok(x) => x,
-        //    Err(msg) => return Err(Error::new(&msg)),
-        //};
-        let e = EnumeratedValue {
-            name: name.to_string(),
-            description: description.to_string(),
-            value: value.clone(),
-        };
-        self.enums.insert(name.to_string(), e);
-        Ok(&self.enums[name])
-    }
-
-    pub fn add_reset(
-        &mut self,
-        name: &str,
-        value: &BigUint,
-        mask: Option<&BigUint>,
-    ) -> OrigenResult<&Reset> {
-        let r;
-        if mask.is_some() {
-            r = Reset {
-                value: value.clone(),
-                mask: Some(mask.unwrap().clone()),
-            };
-        } else {
-            r = Reset {
-                value: value.clone(),
-                mask: None,
-            };
-        }
-        self.resets.insert(name.to_string(), r);
-        Ok(&self.resets[name])
-    }
-
-    /// Returns the bit IDs associated with the field, wrapped in a Vec
-    pub fn bit_ids(&self, dut: &MutexGuard<Dut>) -> Vec<usize> {
-        let mut bits: Vec<usize> = Vec::new();
-        let reg = dut.get_register(self.reg_id).unwrap();
-
-        if self.related_fields > 0 {
-            // Collect all related fields
-            let mut fields: Vec<&Field> = Vec::new();
-
-            fields.push(self);
-
-            for i in 0..self.related_fields {
-                let f = reg.fields.get(&format!("{}{}", self.name, i + 1)).unwrap();
-                fields.push(f);
-            }
-
-            // Sort them by offset
-            //fields.sort_by(|a, b| b.offset.cmp(&a.offset));
-            fields.sort_by_key(|f| f.offset);
-
-            // Now collect their bits
-
-            for f in fields {
-                for i in 0..f.width {
-                    bits.push(reg.bit_ids[f.offset + i]);
-                }
-            }
-        } else {
-            for i in 0..self.width {
-                bits.push(reg.bit_ids[self.offset + i]);
-            }
-        }
-
-        bits
-    }
-
-    /// Returns the bits associated with the field, wrapped in a BitCollection
-    pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
-        let bit_ids = self.bit_ids(dut);
-        BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
-    }
-
-    /// Applies the given reset type, if the field doesn't have a reset defined with
-    /// the given name then no action will be taken
-    pub fn reset(&self, name: &str, dut: &MutexGuard<Dut>) {
-        let r = self.resets.get(name);
-        let bit_ids = self.bit_ids(dut);
-        if r.is_some() {
-            let rst = r.unwrap();
-            // Sorry for the duplication, need to learn how to handle loops with an optional
-            // parameter properly in Rust - ginty
-            if rst.mask.is_some() {
-                let mut bytes = rst.value.to_bytes_be();
-                let mut byte = bytes.pop().unwrap();
-                let mut mask_bytes = rst.value.to_bytes_be();
-                let mut mask_byte = bytes.pop().unwrap();
-                for i in 0..self.width {
-                    let state = (byte >> i % 8) & 1;
-                    let mask = (mask_byte >> i % 8) & 1;
-                    if mask == 1 {
-                        // Think its OK to panic here if this get_bit doesn't return something, things
-                        // will have gone seriously wrong somewhere
-                        dut.get_bit(bit_ids[i]).unwrap().reset(state);
-                    } else {
-                        dut.get_bit(bit_ids[i]).unwrap().reset(UNDEFINED);
-                    }
-                    if i % 8 == 7 {
-                        match bytes.pop() {
-                            Some(x) => byte = x,
-                            None => byte = 0,
-                        }
-                        match mask_bytes.pop() {
-                            Some(x) => mask_byte = x,
-                            None => mask_byte = 0,
-                        }
-                    }
-                }
+    fn state_desc(bits: &BitCollection) -> String {
+        let mut state: Vec<&str> = Vec::new();
+        if !(bits.is_readable() && bits.is_writable()) {
+            if bits.is_readable() {
+                state.push("RO");
             } else {
-                let mut bytes = rst.value.to_bytes_be();
-                let mut byte = bytes.pop().unwrap();
-                for i in 0..self.width {
-                    let state = (byte >> i % 8) & 1;
-                    // Think its OK to panic here if this get_bit doesn't return something, things
-                    // will have gone seriously wrong somewhere
-                    dut.get_bit(bit_ids[i]).unwrap().reset(state);
-                    if i % 8 == 7 {
-                        match bytes.pop() {
-                            Some(x) => byte = x,
-                            None => byte = 0,
-                        }
-                    }
-                }
+                state.push("WO");
             }
         }
-    }
-}
-
-#[derive(Debug)]
-/// A lightweight version of a Field that is returned by the my_reg.fields() iterator,
-/// and which is also used to represent gaps in the register (when spacer = true).
-pub struct SummaryField {
-    pub reg_id: usize,
-    pub name: String,
-    pub offset: usize,
-    /// Width of the field in bits.
-    pub width: usize,
-    pub access: AccessType,
-    pub spacer: bool,
-}
-
-impl SummaryField {
-    /// Returns the bits associated with the field, wrapped in a BitCollection
-    pub fn bits<'a>(&self, dut: &'a MutexGuard<Dut>) -> BitCollection<'a> {
-        let mut bit_ids: Vec<usize> = Vec::new();
-        let reg = dut.get_register(self.reg_id).unwrap();
-
-        for i in 0..self.width {
-            bit_ids.push(reg.bit_ids[self.offset + i]);
+        if bits.is_to_be_verified() {
+            state.push("Vfy");
         }
-
-        BitCollection::for_field(&bit_ids, self.reg_id, &self.name, dut)
+        if bits.is_to_be_captured() {
+            state.push("Cap");
+        }
+        if bits.has_overlay() {
+            state.push("Ov");
+        }
+        if state.len() == 0 {
+            "".to_string()
+        } else {
+            format!("({})", state.join("|"))
+        }
     }
-}
 
-#[derive(Debug)]
-pub struct Reset {
-    pub value: BigUint,
-    pub mask: Option<BigUint>,
-}
+    fn max_bit_in_range(
+        field: &SummaryField,
+        max: usize,
+        _min: usize,
+        bit_order: &BitOrder,
+    ) -> usize {
+        let upper = field.offset + field.width - 1;
+        if *bit_order == BitOrder::MSB0 {
+            field.width - (cmp::min(upper, max) - field.offset) - 1
+        } else {
+            cmp::min(upper, max) - field.offset
+        }
+    }
 
-#[derive(Debug)]
-pub struct EnumeratedValue {
-    pub name: String,
-    pub description: String,
-    //pub usage: Usage,
-    pub value: BigUint,
+    fn min_bit_in_range(
+        field: &SummaryField,
+        _max: usize,
+        min: usize,
+        bit_order: &BitOrder,
+    ) -> usize {
+        let lower = field.offset;
+        if *bit_order == BitOrder::MSB0 {
+            field.width - (cmp::max(lower, min) - lower) - 1
+        } else {
+            cmp::max(lower, min) - field.offset
+        }
+    }
+
+    /// Returns true if some portion of the given bit Field falls within the given range
+    fn is_field_in_range(field: &SummaryField, max: usize, min: usize) -> bool {
+        let upper = field.offset + field.width - 1;
+        let lower = field.offset;
+        !((lower > max) || (upper < min))
+    }
+
+    //# Returns the number of bits from the given field that fall within the given range
+    fn num_bits_in_range(field: &SummaryField, max: usize, min: usize) -> usize {
+        let upper = field.offset + field.width - 1;
+        let lower = field.offset;
+        cmp::min(upper, max) - cmp::max(lower, min) + 1
+    }
+
+    /// Returns true if the given index number is in the given range
+    fn is_index_in_range(i: usize, max: usize, min: usize) -> bool {
+        !((i > max) || (i < min))
+    }
+
+    //def _bit_rw(bits)
+    //if bits.readable? && bits.writable?
+    //  'RW'
+    //elsif bits.readable?
+    //  'RO'
+    //elsif bits.writable?
+    //  'WO'
+    //else
+    //  'X'
+    //end
+    //end
 }

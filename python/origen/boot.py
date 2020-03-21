@@ -89,7 +89,7 @@ if sys.platform == "win32":
 
 # Called by the Origen CLI to boot the Origen Python env, not for application use
 # Any target/env overrides given to the command line will be passed in here
-def __origen__(command, target=None, environment=None, mode=None, files=None):
+def __origen__(command, targets=None, environment=None, mode=None, files=None):
     import origen
     import _origen
     import origen.application
@@ -103,7 +103,7 @@ def __origen__(command, target=None, environment=None, mode=None, files=None):
     if files is not None:
         _origen.file_handler().init(files)
 
-    origen.target.load(target=target, environment=environment)
+    origen.target.load(targets=targets)
 
     if command == "utility":
         print("Utility!!")
@@ -148,6 +148,7 @@ def __origen__(command, target=None, environment=None, mode=None, files=None):
 
         import code
         from origen import dut, tester
+        from origen.registers.actions import write, verify, write_transaction, verify_transaction
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
 
     else:

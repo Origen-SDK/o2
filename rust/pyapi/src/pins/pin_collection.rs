@@ -1,7 +1,7 @@
 use origen::core::model::pins::pin_collection::PinCollection as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
-use origen::{lock, DUT};
+use origen::{dut, DUT};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
@@ -20,7 +20,7 @@ impl PinCollection {
         names: Vec<String>,
         endianness: Option<Endianness>,
     ) -> Result<PinCollection, Error> {
-        let mut dut = lock!()?;
+        let mut dut = dut();
         //let model = dut.get_mut_model(model_id)?;
         let collection = dut.collect(model_id, names, endianness)?;
         Ok(PinCollection {

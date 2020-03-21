@@ -81,6 +81,10 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
             }
         }
     }
+    // After collecting all the matches, if the size > 1 then filter again for exact matches
+    if files.len() > 1 {
+        files = files.into_iter().filter(|path| path.file_name().unwrap().to_str().unwrap() == &format!("{}.py", name)).collect();
+    }
     files
 }
 

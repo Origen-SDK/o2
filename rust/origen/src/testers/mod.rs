@@ -1,77 +1,157 @@
 pub mod v93k;
 pub mod simulator;
-use crate::core::tester::{StubAST, StubNodes};
 use crate::error::Error;
-use crate::core::dut::{Dut};
+use crate::dut;
+use crate::generator::processor::{Return, Processor};
+use crate::generator::ast::{Node};
+use crate::core::tester::{TesterAPI, Interceptor};
 
-pub struct DummyGenerator {}
+pub fn available_testers() -> Vec<String> {
+  vec![
+    "::DummyRenderer".to_string(),
+    "::DummyRendererWithInterceptors".to_string(),
+    "::V93K::ST7".to_string(),
+    "::Simulator".to_string(),
+  ]
+}
 
-impl DummyGenerator {
+pub fn instantiate_tester(g: &str) -> Option<Box<dyn TesterAPI + std::marker::Send>> {
+  match &g {
+    &"::DummyRenderer" => Some(Box::new(DummyRenderer::default())),
+    &"::DummyRendererWithInterceptors" => Some(Box::new(DummyRendererWithInterceptors::default())),
+    &"::V93K::ST7" => Some(Box::new(v93k::Renderer::default())),
+    &"::Simulator" => Some(Box::new(simulator::Renderer::default())),
+    _ => None
+  }
+}
 
-  /// A dummy generator which simply prints everything to the screen.
-  pub fn generate(&self, ast: &StubAST, dut: &Dut) -> Result<(), Error> {
-    println!("Printing StubAST to console...");
-    for (i, n) in ast.nodes.iter().enumerate() {
-      match n {
-        StubNodes::Comment {content, ..} => println!("  ::DummyGenerator Node {}: Comment - Content: {}", i, content),
-        StubNodes::Vector {timeset_id, repeat, ..} => {
-          let t = &dut.timesets[*timeset_id];
-          println!("  ::DummyGenerator Node {}: Vector - Repeat: {}, Timeset: '{}'", i, repeat, t.name);
-        },
-        StubNodes::Node { .. } => println!("  ::DummyGenerator Node {}: Node", i),
-      }
+#[derive(Debug, Clone)]
+pub struct DummyRenderer {
+  count: usize,
+  current_timeset_id: Option<usize>,
+}
+
+impl Default for DummyRenderer {
+  fn default() -> Self {
+    Self {
+      count: 0,
+      current_timeset_id: Option::None,
     }
+  }
+}
+
+impl DummyRenderer {}
+impl Interceptor for DummyRenderer {}
+impl TesterAPI for DummyRenderer {
+  fn name(&self) -> String {
+    "DummyRenderer".to_string()
+  }
+
+  fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
+    Box::new(std::clone::Clone::clone(self))
+  }
+
+  fn run(&mut self, node: &Node) -> Node {
+    node.process(self).unwrap()
+  }
+}
+
+impl Processor for DummyRenderer {
+  fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
+    // Not counting the top node as a node. Only comments and cycles.
+    println!("Printing StubAST to console...");
+    Return::ProcessChildren
+  }
+  
+  fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
+    println!("  ::DummyRenderer Node {}: Comment - Content: {}", self.count, msg);
+    self.count += 1;
+    Return::Unmodified
+  }
+
+  fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
+    let dut = dut();
+    let t = &dut.timesets[self.current_timeset_id.unwrap()];
+    println!("  ::DummyRenderer Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
+    self.count += 1;
+    Return::Unmodified
+  }
+
+  fn on_set_timeset(&mut self, timeset_id: usize, _node: &Node) -> Return {
+    self.current_timeset_id = Some(timeset_id);
+    Return::Unmodified
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct DummyRendererWithInterceptors {
+  count: usize,
+  current_timeset_id: Option<usize>,
+}
+
+impl DummyRendererWithInterceptors {}
+
+impl TesterAPI for DummyRendererWithInterceptors {
+  fn name(&self) -> String {
+    "DummyRendererWithInterceptors".to_string()
+  }
+
+  fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
+    Box::new(std::clone::Clone::clone(self))
+  }
+
+  fn run(&mut self, node: &Node) -> Node {
+    //let mut slf = Self::default();
+    node.process(self).unwrap()
+    //node.clone()
+  }
+}
+
+impl Default for DummyRendererWithInterceptors {
+  fn default() -> Self {
+    Self {
+      count: 0,
+      current_timeset_id: Option::None,
+    }
+  }
+}
+
+impl Interceptor for DummyRendererWithInterceptors {
+  fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
+    println!("Vector intercepted by DummyRendererWithInterceptors!");
+    Ok(())
+  }
+
+  fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
+    println!("Comment intercepted by DummyRendererWithInterceptors!");
     Ok(())
   }
 }
 
-pub struct DummyGeneratorWithInterceptors {}
+impl Processor for DummyRendererWithInterceptors {
 
-impl DummyGeneratorWithInterceptors {
-
-  /// A dummy generator which simply prints everything to the screen.
-  pub fn generate(&self, ast: &StubAST, dut: &Dut) -> Result<(), Error> {
+  fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
+    // Not counting the top node as a node. Only comments and cycles.
     println!("Printing StubAST to console...");
-    for (i, n) in ast.nodes.iter().enumerate() {
-      match n {
-        StubNodes::Comment {content, ..} => println!("  ::DummyGeneratorWithInterceptors Node {}: Comment - Content: {}", i, content),
-        StubNodes::Vector {timeset_id, repeat, ..} => {
-          let t = &dut.timesets[*timeset_id];
-          println!("  ::DummyGeneratorWithInterceptors Node {}: Vector - Repeat: {}, Timeset: '{}'", i, repeat, t.name);
-        },
-        StubNodes::Node { .. } => println!("  ::DummyGeneratorWithInterceptors Node {}: Node", i),
-      }
-    }
-    Ok(())
+    Return::ProcessChildren
   }
 
-  pub fn cycle(&self, ast: &mut StubAST) -> Result<(), Error> {
-    let n = ast.nodes.last_mut().unwrap();
-    match n {
-      StubNodes::Vector { .. } => {
-        println!("Vector intercepted by DummyGeneratorWithInterceptors!");
-        Ok(())
-      },
-      _ => Err(Error::new(&format!("Error Intercepting Vector! Expected vector node!")))
-    }
+  fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
+    println!("  ::DummyRendererWithInterceptors Node {}: Comment - Content: {}", self.count, msg);
+    self.count += 1;
+    Return::Unmodified
   }
 
-  pub fn cc(&self, ast: &mut StubAST) -> Result<(), Error> {
-    let n = ast.nodes.last().unwrap();
-    let n_;
-    match n {
-      StubNodes::Comment {content, meta} => {
-        println!("Comment intercepted by DummyGeneratorWithInterceptors!");
-        n_ = StubNodes::Comment {
-          content: String::from(format!("Comment intercepted by DummyGeneratorWithInterceptors! {}", content.clone())),
-          meta: meta.clone(),
-        };
-      },
-      _ => return Err(Error::new(&format!("Error Intercepting Comment! Expected comment node!")))
-    }
-    drop(n);
-    let i = ast.len() - 1;
-    ast.nodes[i] = n_;
-    Ok(())
+  fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
+    let dut = dut();
+    let t = &dut.timesets[self.current_timeset_id.unwrap()];
+    println!("  ::DummyRendererWithInterceptors Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
+    self.count += 1;
+    Return::Unmodified
+  }
+
+  fn on_set_timeset(&mut self, timeset_id: usize, _node: &Node) -> Return {
+    self.current_timeset_id = Some(timeset_id);
+    Return::Unmodified
   }
 }
