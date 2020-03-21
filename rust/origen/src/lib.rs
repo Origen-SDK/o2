@@ -3,12 +3,15 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde;
 extern crate meta;
+#[macro_use]
+extern crate pest_derive;
 
 pub mod core;
 pub mod error;
 pub mod generator;
 pub mod services;
 pub use error::Error;
+pub mod stil;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
