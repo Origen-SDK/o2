@@ -124,26 +124,69 @@ fn main() {
            .subcommand(SubCommand::with_name("target")
                 .about("Set/view the default target")
                 .visible_alias("t")
-                .arg(Arg::with_name("targets")
-                    .help("The name of the file(s) from targets/ to be set, added, or removed to the default target(s)")
-                    .takes_value(true)
-                    .value_name("TARGETS")
-                    .multiple(true)
+                // .arg(Arg::with_name("targets")
+                //     .help("The name of the file(s) from targets/ to be set, added, or removed to the default target(s)")
+                // )
+                .subcommand(SubCommand::with_name("add")
+                    .about("Activates the given target(s)")
+                    .visible_alias("a")
+                    .arg(Arg::with_name("targets")
+                        .help("Targets to be activated")
+                        .takes_value(true)
+                        .value_name("TARGETS")
+                        .multiple(true)
+                        .required(true)
+                    )
                 )
-                .arg(Arg::with_name("add")
-                    .help("Adds the given target(s) to the current default target(s)")
-                    .short("a")
-                    .long("add")
-                    .takes_value(false)
-                    .conflicts_with("remove")
+                .subcommand(SubCommand::with_name("remove")
+                    .about("Deactivates the given target(s)")
+                    .visible_alias("r")
+                    .arg(Arg::with_name("targets")
+                        .help("Targets to be deactivated")
+                        .takes_value(true)
+                        .value_name("TARGETS")
+                        .multiple(true)
+                        .required(true)
+                    )
                 )
-                .arg(Arg::with_name("remove")
-                    .help("Removes the given target(s) to the current default target(s)")
-                    .short("r")
-                    .long("remove")
-                    .takes_value(false)
-                    .conflicts_with("add")
+                .subcommand(SubCommand::with_name("set")
+                    .about("Activates the given target(s) while deactivating all others")
+                    .visible_alias("s")
+                    .arg(Arg::with_name("targets")
+                        .help("Targets to be set")
+                        .takes_value(true)
+                        .value_name("TARGETS")
+                        .multiple(true)
+                        .required(true)
+                    )
                 )
+                .subcommand(SubCommand::with_name("default")
+                    .about("Activates the default target(s) while deactivating all others")
+                    .visible_alias("d")
+                )
+                .subcommand(SubCommand::with_name("view")
+                    .about("Views the currently activated target(s)")
+                    .visible_alias("v")
+                )
+
+                // .arg(Arg::with_name("add")
+                //     .help("Adds the given target(s) to the current default target(s)")
+                //     .short("a")
+                //     .long("add")
+                //     .takes_value(false)
+                //     .conflicts_with("remove")
+                // )
+                // .arg(Arg::with_name("remove")
+                //     .help("Removes the given target(s) to the current default target(s)")
+                //     .short("r")
+                //     .long("remove")
+                //     .takes_value(false)
+                //     .conflicts_with("add")
+                // )
+                // .arg(Arg::with_name("clear")
+                //     .help("Clears all the current targets")
+                //     .short("")
+                // )
            )
 
            /************************************************************************************/
@@ -208,21 +251,31 @@ fn main() {
                 );
             }
             Some("target") => {
+                // let m = matches.subcommand_matches("target").unwrap();
+                // let a;
+                // if m.value_of("add").is_some() {
+                //     a = Some("add");
+                // } else if m.value_of("remove").is_some() {
+                //     a = Some("remove");
+                // } else {
+                //     a = None;
+                // }
+                // //commands::target::run(matches.value_of("target"));
+                // if let Some(targets) = m.values_of("targets") {
+                //     commands::target::run(Some(targets.collect()), a);
+                // } else {
+                //     commands::target::run(None, a);
+                // }
                 let m = matches.subcommand_matches("target").unwrap();
-                let a;
-                if m.value_of("add").is_some() {
-                    a = Some("add");
-                } else if m.value_of("remove").is_some() {
-                    a = Some("remove");
-                } else {
-                    a = None;
-                }
-                //commands::target::run(matches.value_of("target"));
-                if let Some(targets) = m.values_of("targets") {
-                    commands::target::run(Some(targets.collect()), a);
-                } else {
-                    commands::target::run(None, a);
-                }
+                commands::target::run(
+                    m.subcommand_name(),
+                    {
+                        match m.values_of("targets") {
+                            Some(targets) => Some(targets.collect()),
+                            None => None,
+                        }
+                    }
+                );
             }
             Some("mode") => {
                 let matches = matches.subcommand_matches("mode").unwrap();
