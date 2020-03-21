@@ -3,596 +3,184 @@ field = { (ASCII_DIGIT | "." | "-")+ }
 stil_source = { SOI ~ stil_source_items+ ~ EOI }
 
 stil_source_items = {
-    S | N | stil_version  | header_block
+    S | N | stil_version  | header_block | signals_block | signal_groups_block |
+    timing_block | pattern_exec_block | pattern_burst_block
 }
-//S / N / block_comment / one_line_comment / stil_version / header_block / signals_block /
-//signal_groups_block / timing_block / pattern_exec_block / pattern_burst_block
-//end
 
-stil_version = { "STIL" ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT ~ ";" }
-
-string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+stil_version = { "STIL" ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT ~ EOS }
 
 //############################################################################
 //# 6.13 and 6.14. Timing and Signal Expressions
 //############################################################################
-//
-//rule sigref_expr
-//(simple_name:name / "'" s expression_subset s "'") {
-//  def to_ast
-//    n :sigref_expr, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule expression_subset
-//add / subtract / name / paren_expression
-//end
-//
-//rule expression
-//add / subtract / multiply / divide / number_with_unit / number / name / paren_expression
-//end
-//
-//rule terminal
-//number_with_unit / number / name / paren_expression
-//end
-//
-//rule add
-//terminal s "+" s expression {
-//  def to_ast
-//    n :add, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule subtract
-//terminal s "-" s expression {
-//  def to_ast
-//    n :subtract, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule multiply
-//terminal s "*" s expression {
-//  def to_ast
-//    n :multiply, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule divide
-//terminal s "/" s expression {
-//  def to_ast
-//    n :divide, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule paren_expression
-//"(" s expression s ")" {
-//  def to_ast
-//    n :parens, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule time_expr
-//"'" s expression s "'" {
-//  def to_ast
-//    n :time_expr, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule number_with_unit
-//value:(number+) prefix:engineering_prefix? units:si_unit {
-//  def to_ast
-//    children = []
-//    children << n(:value, value.text_value.to_i)
-//    children << n(:prefix, prefix.text_value) if respond_to?(:prefix)
-//    children << n(:units, units.text_value)
-//    n :number_with_unit, *children
-//  end
-//}
-//end
 
-si_unit = {
-    "A" | "Cel" | "F" | "H" | "Hz" | "m" | "Ohm" | "s" | "W" | "V"
-}
-
-engineering_prefix = {
-    "E" | "P" | "T" | "G" | "M" | "k" | "m" | "u" | "n" | "p" | "f" | "a"
-}
+sigref_expr = { name | ("'" ~ expression_subset ~ "'") }
+expression_subset = { add | subtract | name | paren_expression }
+expression = { add | subtract | multiply | divide | number_with_unit | number | name | paren_expression }
+terminal = { number_with_unit | number | name | paren_expression }
+add = { terminal ~ "+" ~ expression }
+subtract = { terminal ~ "-" ~ expression }
+multiply = { terminal ~ "*" ~ expression }
+divide = { terminal ~ "/" ~ expression }
+paren_expression = { "(" ~ expression ~ ")" }
+time_expr = { "'" ~ expression ~ "'" }
+number_with_unit = { number+ ~ engineering_prefix? ~ si_unit }
+si_unit = { "A" | "Cel" | "F" | "H" | "Hz" | "m" | "Ohm" | "s" | "W" | "V" }
+engineering_prefix = { "E" | "P" | "T" | "G" | "M" | "k" | "m" | "u" | "n" | "p" | "f" | "a" }
 
 //############################################################################
 //# 9. Header Block
 //############################################################################
 
 header_block = { "Header" ~ "{" ~ title? ~ date? ~ source? ~ history? ~ "}" }
-title = { "Title" ~ string ~ ";" }
-date = { "Date" ~ string ~ ";" }
-source = { "Source" ~ string ~ ";" }
+title = { "Title" ~ string ~ EOS }
+date = { "Date" ~ string ~ EOS }
+source = { "Source" ~ string ~ EOS }
 history = { "History" ~ "{" ~ annotation* ~ "}" }
 annotation = { "Ann" ~ "{*" ~ (!"*}" ~ ANY)* ~ "*}" }
 
 //############################################################################
 //# 14. Signals Block
 //############################################################################
-//
-//rule signals_block
-//"Signals" s "{" (s signal)* s "}" {
-//  def to_ast
-//    n :signals, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule signal
-//(signame:name S type:("InOut" / "Out" / "In" / "Supply" / "Pseudo") s ";" /
-// signame:name S type:("InOut" / "Out" / "In" / "Supply" / "Pseudo") s
-//   properties:("{" s termination? s default_state? s base? s alignment? s scan_in? s scan_out? s data_bit_count? s "}" )) {
-//  def to_ast
-//    n :signal, signame.text_value, type.text_value
-//  end
-//}
-//end
-//
-//rule termination
-//"Termination" S value:("TerminateHigh" / "TerminateLow" / "TerminateOff" / "TerminateUknown") s ";" {
-//  def to_ast
-//    n :termination, value.text_value
-//  end
-//}
-//end
-//
-//rule default_state
-//"DefaultState" S value:("U" / "D" / "Z" / "ForceUp" / "ForceDown" / "ForceOff") s ";" {
-//  def to_ast
-//    n :default_state, value.text_value
-//  end
-//}
-//end
-//
-//rule base
-//"Base" S type:("Hex" / "Dec") S chars:waveform_character_list s ";" {
-//  def to_ast
-//    n :base, type.text_value, chars.text_value
-//  end
-//}
-//end
-//
-//rule alignment
-//"Alignment" S type:("MSB" / "LSB") s ";" {
-//  def to_ast
-//    n :alignment, type.text_value
-//  end
-//}
-//end
-//
-//rule scan_in
-//"ScanIn" S size:integer s ";" {
-//  def to_ast
-//    n :scan_in, size.text_value.to_i
-//  end
-//}
-//end
-//
-//rule scan_out
-//"ScanOut" S size:integer s ";" {
-//  def to_ast
-//    n :scan_out, size.text_value.to_i
-//  end
-//}
-//end
-//
-//rule data_bit_count
-//"DataBitCount" S size:integer s ";" {
-//  def to_ast
-//    n :data_bit_count, size.text_value.to_i
-//  end
-//}
-//end
-//
-//rule waveform_character_list
-//[a-zA-Z0-9]+
-//end
-//
+
+signals_block = { "Signals" ~ "{" ~ signal* ~ "}" }
+signal = {
+    (name ~ ("InOut" | "Out" | "In" | "Supply" | "Pseudo") ~ EOS) |
+    (name ~ ("InOut" | "Out" | "In" | "Supply" | "Pseudo") ~
+    ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
+}
+
+termination = {
+    "Termination" ~ ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUknown") ~ EOS
+}
+
+default_state = {
+    "DefaultState" ~ ("U" | "D" | "Z" | "ForceUp" | "ForceDown" | "ForceOff") ~ EOS
+}
+
+base = { "Base" ~ ("Hex" | "Dec") ~ waveform_character_list ~ EOS }
+
+alignment = { "Alignment" ~ ("MSB" | "LSB") ~ EOS }
+scan_in = { "ScanIn" ~ integer ~ EOS }
+scan_out = { "ScanOut" ~ integer ~ EOS }
+data_bit_count = { "DataBitCount" ~ integer ~ EOS }
+waveform_character_list = @{ ASCII_ALPHANUMERIC+ }
+
 //############################################################################
 //# 15. SignalGroups Block
 //############################################################################
-//
-//rule signal_groups_block
-//"SignalGroups" s name? s "{" (s signal_group)* s "}" {
-//  def to_ast
-//    n :signal_groups, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule signal_group
-//(name s "=" s sigref_expr s ";" /
-// name s "=" s sigref_expr s 
-//   properties:("{" s termination? s default_state? s base? s alignment? s scan_in? s scan_out? s data_bit_count? s "}" )) {
-//  def to_ast
-//    n :signal_group, *elements_to_ast
-//  end
-//}
-//end
-//
+
+signal_groups_block = { "SignalGroups" ~ name? ~ "{" ~ signal_group* ~ "}" }
+signal_group = {
+    (name ~ "=" ~ sigref_expr ~ EOS) |
+    (name ~ "=" ~ sigref_expr ~ 
+       ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
+}
+
 //############################################################################
 //# 16. PatternExec Block
 //############################################################################
-//
-//rule pattern_exec_block
-//"PatternExec" S name? s "{" (s category)* (s selector)* (s timing)? (s pattern_burst)? s "}" {
-//  def to_ast
-//    n :pattern_exec, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule category
-//"Category" S nm:name s ";" {
-//  def to_ast
-//    n :category, nm.text_value
-//  end
-//}
-//end
-//
-//rule selector
-//"Selector" S nm:name s ";" {
-//  def to_ast
-//    n :selector, nm.text_value
-//  end
-//}
-//end
-//
-//rule timing
-//"Timing" S nm:name s ";" {
-//  def to_ast
-//    n :timing, nm.text_value
-//  end
-//}
-//end
-//
-//rule pattern_burst
-//"PatternBurst" S nm:name s ";" {
-//  def to_ast
-//    n :pattern_burst, nm.text_value
-//  end
-//}
-//end
-//
+
+pattern_exec_block = {
+    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ "}"
+}
+category = { "Category" ~ name ~ EOS }
+selector = { "Selector" ~ name ~ EOS }
+timing = { "Timing" ~ name ~ EOS }
+pattern_burst = { "PatternBurst" ~ name ~ EOS }
+
 //############################################################################
 //# 17. PatternBurst Block
 //############################################################################
-//
-//rule pattern_burst_block
-//"PatternBurst" S name s "{" (s signal_groups)* (s macro_defs)* (s procedures)? (s scan_structures)? (s start)?
-//                            (s stop)? (s termination_block)* (s pat_list)+ s "}" {
-//  def to_ast
-//    n :pattern_burst, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule signal_groups
-//"SignalGroups" S nm:name s ";" {
-//  def to_ast
-//    n :signal_groups, nm.text_value
-//  end
-//}
-//end
-//
-//rule macro_defs
-//"MacroDefs" S nm:name s ";" {
-//  def to_ast
-//    n :macro_defs, nm.text_value
-//  end
-//}
-//end
-//
-//rule procedures
-//"Procedures" S nm:name s ";" {
-//  def to_ast
-//    n :procedures, nm.text_value
-//  end
-//}
-//end
-//
-//rule scan_structures
-//"ScanStructures" S nm:name s ";" {
-//  def to_ast
-//    n :scan_structures, nm.text_value
-//  end
-//}
-//end
-//
-//rule start
-//"Start" S nm:name s ";" {
-//  def to_ast
-//    n :start, nm.text_value
-//  end
-//}
-//end
-//
-//rule stop
-//"Stop" S nm:name s ";" {
-//  def to_ast
-//    n :stop, nm.text_value
-//  end
-//}
-//end
-//
-//rule termination_block
-//"Termination" s "{" (s termination_item)* s "}" {
-//  def to_ast
-//    n :termination_block, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule termination_item
-//exp:sigref_expr S value:("TerminateHigh" / "TerminateLow" / "TerminateOff" / "TerminateUknown") s ";" {
-//  def to_ast
-//    n :termination_item, exp.to_ast, value.text_value
-//  end
-//}
-//end
-//
-//rule pat_list
-//"PatList" s "{" (s pat_list_item)* s "}" {
-//  def to_ast
-//    n :pat_list, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule pat_list_item
-//(nm:name s (";" / attrs:("{" (s signal_groups)* (s macro_defs)* (s procedures)? (s scan_structures)? (s start)?
-//                             (s stop)? (s termination_block)* s "}"))) {
-//  def to_ast
-//    n :pat_list_item, *elements_to_ast
-//  end
-//}
-//end
-//
+
+pattern_burst_block = {
+    "PatternBurst" ~ name ~ "{" ~ signal_groups* ~ macro_defs* ~ procedures? ~ scan_structures? ~ start? ~
+        stop? ~ termination_block* ~ pat_list+ ~ "}"
+}
+signal_groups = { "SignalGroups" ~ name ~ EOS }
+macro_defs = { "MacroDefs" ~ name ~ EOS }
+procedures = { "Procedures" ~ name ~ EOS }
+scan_structures = { "ScanStructures" ~ name ~ EOS }
+start = { "Start" ~ name ~ EOS }
+stop = { "Stop" ~ name ~ EOS }
+termination_block = { "Termination" ~ "{" ~ termination_item* ~ "}" }
+termination_item = {
+    sigref_expr ~ ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUknown") ~ EOS
+}
+pat_list = { "PatList" ~ "{" ~ pat_list_item* ~ "}" }
+pat_list_item = {
+    name ~ (EOS | ("{" ~ signal_groups* ~ macro_defs* ~ procedures? ~ scan_structures? ~ start? ~
+                       stop? ~ termination_block* ~ "}"))
+}
+
 //############################################################################
 //# 18. Timing block
 //############################################################################
-//
-//rule timing_block
-//"Timing" s name? s "{" (s signal_groups_ref)* (s waveform_table)* s "}" {
-//  def to_ast
-//    n :timing, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule signal_groups_ref
-//"SignalGroups" S name s ";" {
-//  def to_ast
-//    n :signal_groups_ref, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule waveform_table
-//"WaveformTable" S name s "{" s period? (s inherit_waveform_table)* s sub_waveforms? s waveforms s "}" {
-//  def to_ast
-//    n :waveform_table, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule period
-//"Period" S time_expr s ";" {
-//  def to_ast
-//    n :period, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule inherit_waveform_table
-//"InheritWaveformTable" s name s ";" {
-//  def to_ast
-//    n :inherit_waveform_table, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule inherit_waveform
-//"InheritWaveform" s nm:name s ";" {
-//  def to_ast
-//    n :inherit_waveform, nm.text_value
-//  end
-//}
-//end
-//
-//rule inherit_waveform_wfc
-//"InheritWaveform" s nm:name_wfc s ";" {
-//  def to_ast
-//    n :inherit_waveform, nm.text_value
-//  end
-//}
-//end
-//
-//rule name_wfc
-//(((name_segment ".")+ wfc_list) / wfc_list) {
-//  def to_ast
-//    text_value
-//  end
-//}
-//end
-//
-//rule sub_waveforms
-//"SubWaveforms" # Not implemented yet
-//end
-//
-//rule waveforms
-//"Waveforms" s "{" (s waveform)* s "}" {
-//  def to_ast
-//    n :waveforms, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule waveform
-//sigref_expr s "{" (s inherit_waveform)* (s wfc_definition)* s "}" {
-//  def to_ast
-//    n :waveform, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule wfc_char
-//[0-9A-Za-z]
-//end
-//
-//rule wfc_list
-//wfc_char+ {
-//  def to_ast
-//    n :wfc_list, text_value
-//  end
-//}
-//end
-//
-//rule wfc_definition
-//wfc_list s "{" (s inherit_waveform_wfc)* (s event)* s "}" {
-//  def to_ast
-//    n :wfc_definition, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule event
-//event_label? s time_expr? s event_list? s ";" {
-//  def to_ast
-//    n :event, *elements_to_ast
-//  end
-//}
-//end
-//
-//rule event_label
-//name ":" {
-//  def to_ast
-//    n :event_label, text_value.chop
-//  end
-//}
-//end
-//
-//rule event_char
-//"D" / "U" / "Z" / "P" / "L" / "H" / "X" / "x" / "T" / "V" / "l" / "h" / "t" / "v" / "R" / "G" /
-//"Q" / "M" / "N" / "A" / "B" / "F" / "?"
-//end
-//
-//rule event_list
-//event_char ("/" event_char)* { 
-//  def to_ast
-//    n :event_list, text_value
-//  end
-//}
-//end
-//
+
+timing_block = { "Timing" ~ name? ~ "{" ~ signal_groups_ref* ~ waveform_table* ~ "}" }
+signal_groups_ref = { "SignalGroups" ~ name ~ EOS }
+waveform_table = {
+    "WaveformTable" ~ name ~ "{" ~ period? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
+}
+period = { "Period" ~ time_expr ~ EOS }
+inherit_waveform_table = { "InheritWaveformTable" ~ name ~ EOS }
+inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
+inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
+name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
+sub_waveforms = { "SubWaveforms" } // Not implemented yet
+waveforms = { "Waveforms" ~ "{" ~ waveform* ~ "}" }
+waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ wfc_definition* ~ "}" }
+wfc_char = { ASCII_ALPHANUMERIC }
+wfc_list = @{ wfc_char+ }
+wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
+event = { event_label? ~ time_expr? ~ event_list? ~ EOS }
+event_label = { name ~ ":" }
+event_char = {
+    "D" | "U" | "Z" | "P" | "L" | "H" | "X" | "x" | "T" | "V" | "l" | "h" | "t" | "v" | "R" | "G" |
+    "Q" | "M" | "N" | "A" | "B" | "F" | "?"
+}
+event_list = { event_char ~ ("/" ~ event_char)* }
+
 //############################################################################
 //# Identifiers
 //############################################################################
-//
-//rule name
-//(((name_segment ".")+ name_segment) / name_segment) {
-//  def to_ast
-//    n :name, text_value
-//  end
-//}
-//end
-//
-//rule name_segment
-//simple_identifier / escaped_identifier
-//end
-//
-//rule simple_identifier
-//(letter / underline) simple_character*
-//end
-//
-//rule simple_character
-//letter / digit / underline
-//end
-//
-//rule letter
-//upper_case_letter / lower_case_letter
-//end
-//
-//rule upper_case_letter
-//[A-Z]
-//end
-//
-//rule lower_case_letter
-//[a-z]
-//end
-//
-//rule underline
-//"_"
-//end
-//
-//rule escaped_identifier
-//'"' escaped_character+ '"'
-//end
-//
-//rule escaped_character
-//simple_character / special_character / whitespace_character
-//end
-//
-//rule special_character
-//"!" / "@" / "#" / "$" / "%" / "^" / "&" / "*" / "(" / ")" / "-" / "+" /
-//"+" / "|" / "`" / "~" / "{" / "[" / "}" / "]" / ":" / ";" / "'" / "," /
-//"<" / "." / ">" / "/" / "?" / "\\"
-//end
-//
-//rule whitespace_character
-//" " / "\t" / "\n"
-//end
-//
+
+string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+name = @{ ((name_segment ~ ".")+ ~ name_segment) | name_segment }
+name_segment = { simple_identifier | escaped_identifier }
+simple_identifier = @{ (letter | underline) ~ simple_character* }
+simple_character = { letter | digit | underline }
+letter = { upper_case_letter | lower_case_letter }
+upper_case_letter = { ASCII_ALPHA_UPPER }
+lower_case_letter = { ASCII_ALPHA_LOWER }
+underline = { "_" }
+escaped_identifier = @{ "\"" ~ escaped_character+ ~ "\"" }
+escaped_character = { simple_character | special_character | whitespace_character }
+special_character = {
+    "!" | "@" | "#" | "$" | "%" | "^" | "&" | "*" | "(" | ")" | "-" | "+" |
+    "+" | "|" | "`" | "~" | "{" | "[" | "}" | "]" | ":" | ";" | "'" | "," |
+    "<" | "." | ">" | "/" | "?" | "\\"
+}
+whitespace_character = { " " | "\t" | "\n" }
+
 //#############################################################################
 //# Numbers
 //#############################################################################
-//
-//rule digit
-//[0-9]
-//end
-//
-//rule hexdigit
-//[a-f] / [A-F]
-//end
-//
-//rule hex_number
-//hexdigit+
-//end
-//
-//rule integer
-//digit+
-//end
-//
-//rule signed_integer
-//integer / "-" integer
-//end
-//
-//rule number
-//(signed_integer / signed_integer "." integer / signed_integer "e" signed_integer /
-//signed_integer "." integer "e" signed_integer) {
-//  def to_ast
-//    if text_value.to_f == text_value.to_i
-//      text_value.to_i
-//    else
-//      text_value.to_f
-//    end
-//  end
-//}
-//end
-//
+
+digit = { ASCII_DIGIT }
+hexdigit = { ASCII_HEX_DIGIT }
+hex_number = @{ hexdigit+ }
+integer = @{ digit+ }
+signed_integer = @{ integer | ("-" ~ integer) }
+number = {
+    signed_integer | (signed_integer ~ "." ~ integer) | (signed_integer ~ "e" ~ signed_integer) |
+    (signed_integer ~ "." ~ integer ~ "e" ~ signed_integer)
+}
+
 //#############################################################################
 //# Comments and Whitespace
 //#############################################################################
+EOS = _{ ";" }
+
 block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 one_line_comment = _{ "//" ~ (!N ~ ANY)* }
