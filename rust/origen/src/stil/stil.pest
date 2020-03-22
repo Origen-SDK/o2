@@ -4,7 +4,8 @@ stil_source = { SOI ~ stil_source_items+ ~ EOI }
 
 stil_source_items = {
     S | N | stil_version  | header_block | signals_block | signal_groups_block |
-    timing_block | pattern_exec_block | pattern_burst_block
+    timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
+    scan_structures_block
 }
 
 stil_version = { "STIL" ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT ~ EOS }
@@ -13,7 +14,7 @@ stil_version = { "STIL" ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT ~ EOS }
 //# 6.13 and 6.14. Timing and Signal Expressions
 //############################################################################
 
-sigref_expr = { name | ("'" ~ expression_subset ~ "'") }
+sigref_expr = { name | (single_quote ~ expression_subset ~ single_quote) }
 expression_subset = { add | subtract | name | paren_expression }
 expression = { add | subtract | multiply | divide | number_with_unit | number | name | paren_expression }
 terminal = { number_with_unit | number | name | paren_expression }
@@ -22,7 +23,7 @@ subtract = { terminal ~ "-" ~ expression }
 multiply = { terminal ~ "*" ~ expression }
 divide = { terminal ~ "/" ~ expression }
 paren_expression = { "(" ~ expression ~ ")" }
-time_expr = { "'" ~ expression ~ "'" }
+time_expr = { single_quote ~ expression ~ single_quote }
 number_with_unit = { number+ ~ engineering_prefix? ~ si_unit }
 si_unit = { "A" | "Cel" | "F" | "H" | "Hz" | "m" | "Ohm" | "s" | "W" | "V" }
 engineering_prefix = { "E" | "P" | "T" | "G" | "M" | "k" | "m" | "u" | "n" | "p" | "f" | "a" }
@@ -141,6 +142,36 @@ event_char = {
 event_list = { event_char ~ ("/" ~ event_char)* }
 
 //############################################################################
+//# 19. Spec and Selector Blocks
+//############################################################################
+
+spec_block = { "Spec" ~ name? ~ "{" ~ (category_block | variable_block)* ~ "}" }
+category_block = { "Category" ~ name ~ "{" ~ spec_item* ~ "}" }
+spec_item = { typical_var | spec_var }
+typical_var = { name ~ "=" ~ time_expr ~ EOS }
+spec_var = { name ~ "{" ~ spec_var_item* ~ "}" }
+spec_var_item = { ("Min" | "Typ" | "Max") ~ time_expr ~ EOS }
+variable_block = { "Variable" ~ name ~ "{" ~ spec_item* ~ "}" }
+selector_block = { "Selector" ~ name ~ "{" ~ selector_item* ~ "}" }
+selector_item = @{ name ~ S ~ ("Min" | "Typ" | "Max" | "Meas") ~ s ~ EOS }
+
+//############################################################################
+//# 20. ScanStructures Blocks
+//############################################################################
+
+scan_structures_block = { "ScanStructures" ~ name? ~ "{" ~ scan_chain* ~ "}" }
+scan_chain = { "ScanChain" ~ name ~ "{" ~ scan_length ~ (scan_out_length | scan_cells | scan_in_name |
+               scan_out_name | scan_master_clock | scan_slave_clock | scan_inversion)* ~ "}" }
+scan_length = { "ScanLength" ~ integer ~ EOS }
+scan_out_length = { "ScanOutLength" ~ integer ~ EOS }
+scan_cells = { "ScanCells" ~ ("!" | name)* ~ EOS }
+scan_in_name = { "ScanIn" ~ name ~ EOS }
+scan_out_name = { "ScanOut" ~ name ~ EOS }
+scan_master_clock = { "ScanMasterClock" ~ name* ~ EOS }
+scan_slave_clock = { "ScanSlaveClock" ~ name* ~ EOS }
+scan_inversion = { "ScanInversion" ~ ("0" | "1") ~ EOS }
+
+//############################################################################
 //# Identifiers
 //############################################################################
 
@@ -157,7 +188,7 @@ escaped_identifier = @{ "\"" ~ escaped_character+ ~ "\"" }
 escaped_character = { simple_character | special_character | whitespace_character }
 special_character = {
     "!" | "@" | "#" | "$" | "%" | "^" | "&" | "*" | "(" | ")" | "-" | "+" |
-    "+" | "|" | "`" | "~" | "{" | "[" | "}" | "]" | ":" | ";" | "'" | "," |
+    "+" | "|" | "`" | "~" | "{" | "[" | "}" | "]" | ":" | ";" | single_quote | "," |
     "<" | "." | ">" | "/" | "?" | "\\"
 }
 whitespace_character = { " " | "\t" | "\n" }
@@ -172,14 +203,17 @@ hex_number = @{ hexdigit+ }
 integer = @{ digit+ }
 signed_integer = @{ integer | ("-" ~ integer) }
 number = {
-    signed_integer | (signed_integer ~ "." ~ integer) | (signed_integer ~ "e" ~ signed_integer) |
-    (signed_integer ~ "." ~ integer ~ "e" ~ signed_integer)
+    (signed_integer ~ "." ~ integer ~ "e" ~ signed_integer) |
+    (signed_integer ~ "." ~ integer) | (signed_integer ~ "e" ~ signed_integer) |
+    signed_integer
 }
 
 //#############################################################################
 //# Comments and Whitespace
 //#############################################################################
 EOS = _{ ";" }
+
+single_quote = _{ "'" | "’" }
 
 block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
