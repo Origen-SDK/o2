@@ -137,20 +137,19 @@ ScanStructures {
 // Pattern blocks always come at the end of STIL file, this is not parsed
 // into an AST and instead will be read and execute line-at-time, to enable
 // handling of very large pattern files
-//Pattern blah {
-//    Ann {* blah blah 1 *} 
-//    Ann {* blah blah 1 *} 
-//    Ann {* blah blah 1 *} 
-//    Ann {* blah blah 1 *} 
-//    W wft1;
-//    V { ALL = 0110110110110110110111011; }
-//    // Test that loops containing 1 vector will be interpreted as a repeat
-//    Loop 10 {
-//      V { ALL = 0110110110110110110111011; }
-//    }
-//    V { ALL = 0110110110110110110111011; }
-//    Ann {* blah blah 1 *} 
-//    Vector { ALL = 0110110110110110110111011; }
-//    V { ALL = 0110110110110110110111011; }
-//}
-//
+Pattern blah {
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    W wft1;
+    V { ALL = 0110110110110110110111011; }
+    // Test that loops containing 1 vector will be interpreted as a repeat
+    Loop 10 {
+      V { ALL = 0110110110110110110111011; }
+    }
+    V { ALL = 0110110110110110110111011; }
+    Ann {* blah blah 1 *} 
+    Vector { ALL = 0110110110110110110111011; }
+    V { ALL = 0110110110110110110111011; }
+}

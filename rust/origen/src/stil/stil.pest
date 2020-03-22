@@ -5,7 +5,7 @@ stil_source = { SOI ~ stil_source_items+ ~ EOI }
 stil_source_items = {
     S | N | stil_version  | header_block | signals_block | signal_groups_block |
     timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
-    scan_structures_block
+    scan_structures_block | pattern_block
 }
 
 stil_version = { "STIL" ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT ~ EOS }
@@ -170,6 +170,52 @@ scan_out_name = { "ScanOut" ~ name ~ EOS }
 scan_master_clock = { "ScanMasterClock" ~ name* ~ EOS }
 scan_slave_clock = { "ScanSlaveClock" ~ name* ~ EOS }
 scan_inversion = { "ScanInversion" ~ ("0" | "1") ~ EOS }
+
+//############################################################################
+//# 23. Pattern Blocks
+//############################################################################
+
+pattern_block = { "Pattern" ~ name ~ "{" ~ (label? ~ time_unit)? ~ pattern_statement* ~ "}" }
+label = { (string | name) ~ ":" }
+time_unit = { "TimeUnit" ~ time_expr ~ EOS }
+pattern_statement = { label | vector | waveform_statement | condition | call | macro_statement | loop_statement |
+                      match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation }
+
+vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
+cyclized_data = { (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
+vec_data = { repeat | waveform_format | hex_format | dec_format | data_string }
+repeat = @{ "\\r" ~ integer }
+waveform_format = { "\\w" }
+hex_format = @{ "\\h " | ("\\h" ~ ASCII_ALPHANUMERIC+) }
+dec_format = @{ "\\d " | ("\\d" ~ ASCII_ALPHANUMERIC+) }
+data_string = { ASCII_ALPHANUMERIC+ }
+non_cyclized_data = { (time_value ~ sigref_expr ~ "=" ~ event_list ~ EOS) |
+                      (time_value ~ "{" ~ (sigref_expr ~ "=" ~ event_list ~ EOS)+ ~ "}") }
+time_value = @{ "@" ~ integer }
+
+waveform_statement = { "W" ~ "aveformTable"? ~ name ~ EOS }
+
+condition = { "C" ~ "ondition"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
+
+//call = { ("Call" ~ name ~ "{" ~ (scan_data | cyclized_data | non_cyclized_data)* ~ "}") | ("Call" ~ name ~ EOS) }
+// Can't see what is different between scan_data and cyclized_data
+call = { ("Call" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("Call" ~ name ~ EOS) }
+
+macro_statement = { ("Macro" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("Macro" ~ name ~ EOS) }
+
+loop_statement = { "Loop" ~ integer ~ "{" ~ pattern_statement* ~ "}" }
+
+match_loop = { "MatchLoop" ~ (integer | "Infinite") ~ "{" ~ pattern_statement+ ~ "}" }
+
+goto = { "Goto" ~ name ~ EOS }
+
+breakpoint = { ("BreakPoint" ~ EOS) | ("BreakPoint" ~ "{" ~ pattern_statement* ~ "}") }
+
+iddq = { "IDDQ" ~ "TestPoint" ~ EOS }
+
+stop_statement = { "Stop" ~ EOS }
+
+scan_chain_statement = { "ScanChain" ~ name ~ EOS }
 
 //############################################################################
 //# Identifiers

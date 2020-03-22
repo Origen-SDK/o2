@@ -26,38 +26,37 @@ PatternBurst one_functional {
 }
 
 
-//// Pattern blocks always come at the end of STIL file, this is not parsed
-//// into an AST and instead will be read and execute line-at-time, to enable
-//// handling of very large pattern files
-//Pattern "p_one_functional" {
-//    Ann {* blah blah 1 *} 
-//    Ann {* blah blah 1 *} 
-//    Ann {* blah blah 1 *} 
-//    Ann {* blah blah 1 *} 
-//    W "wft1";
-//    V { "ALL" = 01101101; }
-//    // Test that loops containing 1 vector will be interpreted as a repeat
-//    Loop 10 {   // Repeat nested style
-//      V { "ALL" = 0000HHHH; }
-//    }
-//    Loop 5 {
-//      V { "ALL" = 1010HLHL; }
-//      V { "ALL" = 01010HLH; }
-//    }
-//    Loop 20 { V { "ALL" = 0111XXXX; }} // Repeat in-line style
-//    Ann {* blah blah 1 *} 
-//    Vector { "ALL" = 0000LLLL; } // Test an end of line comment
-//    Ann {* Test a nested loop *} 
-//    Loop 5 {
-//      V { ALL = 1010HLHL; }
-//      V { ALL = 01010HLH; }
-//      Loop 10 {
-//        V { "ALL" = 0000HHHH; }
-//        V { "ALL" = 1111LLLL; }
-//      }
-//    }
-//
-//
-//    V { "ALL" = 0101LLLL; }
-//}
-//
+// Pattern blocks always come at the end of STIL file, this is not parsed
+// into an AST and instead will be read and execute line-at-time, to enable
+// handling of very large pattern files
+Pattern "p_one_functional" {
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    W "wft1";
+    V { "ALL" = 01101101; }
+    // Test that loops containing 1 vector will be interpreted as a repeat
+    Loop 10 {   // Repeat nested style
+      V { "ALL" = 0000HHHH; }
+    }
+    Loop 5 {
+      V { "ALL" = 1010HLHL; }
+      V { "ALL" = 01010HLH; }
+    }
+    Loop 20 { V { "ALL" = 0111XXXX; }} // Repeat in-line style
+    Ann {* blah blah 1 *} 
+    Vector { "ALL" = 0000LLLL; } // Test an end of line comment
+    Ann {* Test a nested loop *} 
+    Loop 5 {
+      V { ALL = 1010HLHL; }
+      V { ALL = 01010HLH; }
+      Loop 10 {
+        V { "ALL" = 0000HHHH; }
+        V { "ALL" = 1111LLLL; }
+      }
+    }
+
+
+    V { "ALL" = 0101LLLL; }
+}
