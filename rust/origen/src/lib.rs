@@ -11,7 +11,6 @@ pub mod error;
 pub mod generator;
 pub mod services;
 pub use error::Error;
-pub mod stil;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;

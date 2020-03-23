@@ -1,4 +1,5 @@
 use super::processors::ToString;
+use super::stil;
 use crate::generator::processor::*;
 use crate::generator::TestManager;
 use crate::TEST;
@@ -69,6 +70,28 @@ pub enum Attrs {
     //// Flow (prog gen) nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     Flow(String),
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// STIL
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    STIL,
+    STILVersion(u32, u32), // major, minor
+    STILHeader,
+    STILTitle(String),
+    STILDate(String),
+    STILSource(String),
+    STILHistory,
+    STILAnnotation(String),
+    STILInclude(String, Option<String>),
+    STILSignals,
+    STILSignal(String, stil::SignalType), // name, type
+    STILTermination(stil::Termination),
+    STILDefaultState(stil::State),
+    STILWaveformChar(char),
+    STILAlignment(stil::Alignment),
+    STILScanIn(u32),
+    STILScanOut(u32),
+    STILDataBitCount(u32),
 }
 
 impl Node {

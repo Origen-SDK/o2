@@ -2,13 +2,17 @@ field = { (ASCII_DIGIT | "." | "-")+ }
 
 stil_source = { SOI ~ stil_source_items+ ~ EOI }
 
-stil_source_items = {
+stil_source_items = _{
     S | N | stil_version  | header_block | signals_block | signal_groups_block |
     timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
-    scan_structures_block | pattern_block
+    scan_structures_block | pattern_block | include
 }
 
-stil_version = { "STIL" ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT ~ EOS }
+stil_version = { "STIL" ~ integer ~ "." ~ integer ~ EOS }
+major = { ASCII_DIGIT }
+minor = { ASCII_DIGIT }
+
+include = { "Include" ~ string ~ ("IfNeed" ~ name)? ~ EOS }
 
 //############################################################################
 //# 6.13 and 6.14. Timing and Signal Expressions
@@ -37,7 +41,8 @@ title = { "Title" ~ string ~ EOS }
 date = { "Date" ~ string ~ EOS }
 source = { "Source" ~ string ~ EOS }
 history = { "History" ~ "{" ~ annotation* ~ "}" }
-annotation = { "Ann" ~ "{*" ~ (!"*}" ~ ANY)* ~ "*}" }
+annotation = { "Ann" ~ "{*" ~ annotation_inner ~ "*}" }
+annotation_inner = { (!"*}" ~ ANY)* }
 
 //############################################################################
 //# 14. Signals Block
@@ -45,26 +50,32 @@ annotation = { "Ann" ~ "{*" ~ (!"*}" ~ ANY)* ~ "*}" }
 
 signals_block = { "Signals" ~ "{" ~ signal* ~ "}" }
 signal = {
-    (name ~ ("InOut" | "Out" | "In" | "Supply" | "Pseudo") ~ EOS) |
-    (name ~ ("InOut" | "Out" | "In" | "Supply" | "Pseudo") ~
+    (name ~ signal_type ~ EOS) |
+    (name ~ signal_type ~
     ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
 }
+signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo") }
 
 termination = {
-    "Termination" ~ ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUknown") ~ EOS
+    "Termination" ~ termination_val ~ EOS
 }
+termination_val = { ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUknown") }
 
 default_state = {
-    "DefaultState" ~ ("U" | "D" | "Z" | "ForceUp" | "ForceDown" | "ForceOff") ~ EOS
+    "DefaultState" ~ state_val ~ EOS
 }
+state_val =  { ("U" | "D" | "Z" | "ForceUp" | "ForceDown" | "ForceOff") }
 
-base = { "Base" ~ ("Hex" | "Dec") ~ waveform_character_list ~ EOS }
+base = { "Base" ~ base_val ~ waveform_character_list ~ EOS }
+base_val = { ("Hex" | "Dec") }
 
-alignment = { "Alignment" ~ ("MSB" | "LSB") ~ EOS }
+alignment = { "Alignment" ~ alignment_val ~ EOS }
+alignment_val = { ("MSB" | "LSB") }
 scan_in = { "ScanIn" ~ integer ~ EOS }
 scan_out = { "ScanOut" ~ integer ~ EOS }
 data_bit_count = { "DataBitCount" ~ integer ~ EOS }
-waveform_character_list = @{ ASCII_ALPHANUMERIC+ }
+waveform_character_list = @{ waveform_character+ }
+waveform_character = { ASCII_ALPHANUMERIC }
 
 //############################################################################
 //# 15. SignalGroups Block

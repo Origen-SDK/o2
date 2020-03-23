@@ -2,6 +2,7 @@
 pub mod ast;
 pub mod processor;
 mod processors;
+pub mod stil;
 mod test_manager;
 
 pub use test_manager::TestManager;
