@@ -180,8 +180,8 @@ fn to_node(pair: Pair<Rule>) -> Node {
             }
             n
         }
-        Rule::category => node!(STILCategory, inner_strs(pair)[0].parse().unwrap()),
-        Rule::selector => node!(STILSelector, inner_strs(pair)[0].parse().unwrap()),
+        Rule::category => node!(STILCategoryRef, inner_strs(pair)[0].parse().unwrap()),
+        Rule::selector => node!(STILSelectorRef, inner_strs(pair)[0].parse().unwrap()),
         Rule::timing => node!(STILTimingRef, inner_strs(pair)[0].parse().unwrap()),
         Rule::pattern_burst => node!(STILPatternBurstRef, inner_strs(pair)[0].parse().unwrap()),
         Rule::pattern_burst_block => {
@@ -202,7 +202,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
         Rule::signal_groups => node!(STILSignalGroupsRef, inner_strs(pair)[0].parse().unwrap()),
         Rule::macro_defs => node!(STILMacroDefs, inner_strs(pair)[0].parse().unwrap()),
         Rule::procedures => node!(STILProcedures, inner_strs(pair)[0].parse().unwrap()),
-        Rule::scan_structures => node!(STILScanStructures, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_structures => node!(STILScanStructuresRef, inner_strs(pair)[0].parse().unwrap()),
         Rule::start => node!(STILStart, inner_strs(pair)[0].parse().unwrap()),
         Rule::stop => node!(STILStop, inner_strs(pair)[0].parse().unwrap()),
         Rule::termination_block => process_children(node!(STILTerminations), pair),
@@ -292,6 +292,135 @@ fn to_node(pair: Pair<Rule>) -> Node {
             }
             node!(STILEventList, vals)
         }
+        Rule::spec_block => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n;
+            if vals.len() == 0 {
+                n = node!(STILSpec, None);
+            } else {
+                n = node!(STILSpec, Some(vals[0].to_string()));
+            }
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::category_block => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(
+                STILCategory,
+                pairs.next().unwrap().as_str().parse().unwrap()
+            );
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::spec_item => process_children(node!(STILSpecItem), pair),
+        Rule::typical_var => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(
+                STILTypicalVar,
+                pairs.next().unwrap().as_str().parse().unwrap()
+            );
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::spec_var => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(STILSpecVar, pairs.next().unwrap().as_str().parse().unwrap());
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::spec_var_item => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(
+                STILSpecVarItem,
+                pairs.next().unwrap().as_str().parse().unwrap()
+            );
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::variable_block => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(
+                STILVariable,
+                pairs.next().unwrap().as_str().parse().unwrap()
+            );
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::selector_block => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(
+                STILSelector,
+                pairs.next().unwrap().as_str().parse().unwrap()
+            );
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::selector_item => {
+            let strs: Vec<&str> = pair.into_inner().map(|v| v.as_str()).collect();
+            node!(
+                STILSelectorItem,
+                strs[0].parse().unwrap(),
+                strs[1].parse().unwrap()
+            )
+        }
+        Rule::scan_structures_block => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n;
+            if vals.len() == 0 {
+                n = node!(STILScanStructures, None);
+            } else {
+                n = node!(STILScanStructures, Some(vals[0].to_string()));
+            }
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::scan_chain => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(STILScanChain, pairs.next().unwrap().as_str().to_string());
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::scan_in_name => node!(STILScanInName, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_out_name => node!(STILScanOutName, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_length => node!(STILScanLength, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_out_length => node!(STILScanOutLength, inner_strs(pair)[0].parse().unwrap()),
+        Rule::not => node!(STILNot),
+        Rule::scan_cells => process_children(node!(STILScanCells), pair),
+        Rule::scan_master_clock => process_children(node!(STILScanMasterClock), pair),
+        Rule::scan_slave_clock => process_children(node!(STILScanSlaveClock), pair),
+        Rule::scan_inversion => node!(STILScanInversion, inner_strs(pair)[0].parse().unwrap()),
 
         //println!("********************* {:?}", pair);
         _ => node!(STILUnknown),

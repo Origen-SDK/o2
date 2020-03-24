@@ -38,3 +38,11 @@ pub enum Alignment {
     MSB,
     LSB,
 }
+
+#[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
+pub enum Selector {
+    Min,
+    Typ,
+    Max,
+    Meas,
+}

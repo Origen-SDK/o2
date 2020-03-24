@@ -160,10 +160,12 @@ category_block = { "Category" ~ name ~ "{" ~ spec_item* ~ "}" }
 spec_item = { typical_var | spec_var }
 typical_var = { name ~ "=" ~ time_expr ~ EOS }
 spec_var = { name ~ "{" ~ spec_var_item* ~ "}" }
-spec_var_item = { ("Min" | "Typ" | "Max") ~ time_expr ~ EOS }
+spec_var_item = { selector_val_subset ~ time_expr ~ EOS }
 variable_block = { "Variable" ~ name ~ "{" ~ spec_item* ~ "}" }
 selector_block = { "Selector" ~ name ~ "{" ~ selector_item* ~ "}" }
-selector_item = @{ name ~ S ~ ("Min" | "Typ" | "Max" | "Meas") ~ s ~ EOS }
+selector_item = ${ name ~ S ~ selector_val ~ s ~ EOS }
+selector_val = { ("Min" | "Typ" | "Max" | "Meas") } 
+selector_val_subset = { ("Min" | "Typ" | "Max") }
 
 //############################################################################
 //# 20. ScanStructures Blocks
@@ -174,12 +176,14 @@ scan_chain = { "ScanChain" ~ name ~ "{" ~ scan_length ~ (scan_out_length | scan_
                scan_out_name | scan_master_clock | scan_slave_clock | scan_inversion)* ~ "}" }
 scan_length = { "ScanLength" ~ integer ~ EOS }
 scan_out_length = { "ScanOutLength" ~ integer ~ EOS }
-scan_cells = { "ScanCells" ~ ("!" | name)* ~ EOS }
+scan_cells = { "ScanCells" ~ (not | name)* ~ EOS }
+not = { "!" }
 scan_in_name = { "ScanIn" ~ name ~ EOS }
 scan_out_name = { "ScanOut" ~ name ~ EOS }
 scan_master_clock = { "ScanMasterClock" ~ name* ~ EOS }
 scan_slave_clock = { "ScanSlaveClock" ~ name* ~ EOS }
-scan_inversion = { "ScanInversion" ~ ("0" | "1") ~ EOS }
+scan_inversion = { "ScanInversion" ~ scan_inversion_val ~ EOS }
+scan_inversion_val = { ("0" | "1") }
 
 //############################################################################
 //# 23. Pattern Blocks
