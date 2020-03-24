@@ -17,6 +17,7 @@ Signals {
   B4 Out; B5 Out; B6 Out; B7 Out;
   Z0 Out {
     DefaultState Z;
+    Base Hex wW;
   }
 }
 

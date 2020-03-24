@@ -22,11 +22,19 @@ fn inner_strs(pair: Pair<Rule>) -> Vec<&str> {
     pair.into_inner().map(|v| v.as_str()).collect()
 }
 
+// Adds the child nodes contained in the given parser pair to the given node
 fn process_children(mut node: Node, pair: Pair<Rule>) -> Node {
     for c in pair.into_inner() {
         node.add_child(to_node(c));
     }
     node
+}
+
+// Returns the child node contained in the given parser pair, the caller is responsible
+// for supplying a pair that contains only one node
+fn process_child(pair: Pair<Rule>) -> Node {
+    let mut nodes: Vec<Node> = pair.into_inner().map(|v| to_node(v)).collect();
+    nodes.pop().unwrap()
 }
 
 fn unquote(text: &str) -> String {
@@ -41,8 +49,8 @@ fn unquote(text: &str) -> String {
     }
 }
 
+// This is the main function responsible for transforming the parsed strings into an AST
 fn to_node(pair: Pair<Rule>) -> Node {
-    //println!("********************* {:?}", pair);
     match pair.as_rule() {
         Rule::stil_source => process_children(node!(STIL), pair),
         Rule::stil_version => {
@@ -53,6 +61,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
                 vals[1].parse().unwrap()
             )
         }
+        Rule::label => node!(STILLabel, unquote(inner_strs(pair)[0])),
         Rule::header_block => process_children(node!(STILHeader), pair),
         Rule::title => node!(STILTitle, unquote(inner_strs(pair)[0])),
         Rule::date => node!(STILDate, unquote(inner_strs(pair)[0])),
@@ -89,12 +98,203 @@ fn to_node(pair: Pair<Rule>) -> Node {
         }
         Rule::termination => node!(STILTermination, inner_strs(pair)[0].parse().unwrap()),
         Rule::default_state => node!(STILDefaultState, inner_strs(pair)[0].parse().unwrap()),
-        //STILWaveformChar(char),
-        //STILAlignment(stil::Alignment),
-        //STILScanIn(u32),
-        //STILScanOut(u32),
-        //STILDataBitCount(u32),
-        _ => node!(STIL),
+        Rule::base => {
+            let vals = inner_strs(pair);
+            node!(STILBase, vals[0].parse().unwrap(), vals[1].parse().unwrap())
+        }
+        Rule::alignment => node!(STILAlignment, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_in => node!(STILScanIn, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_out => node!(STILScanOut, inner_strs(pair)[0].parse().unwrap()),
+        Rule::data_bit_count => node!(STILDataBitCount, inner_strs(pair)[0].parse().unwrap()),
+        Rule::signal_groups_block => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n;
+            if vals.len() == 0 {
+                n = node!(STILSignalGroups, None);
+            } else {
+                n = node!(STILSignalGroups, Some(vals[0].to_string()));
+            }
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::signal_group => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n = node!(STILSignalGroup, vals[0].parse().unwrap());
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::sigref_expr => process_children(node!(STILSigRefExpr), pair),
+        Rule::name => node!(STILName, pair.as_str().to_string()),
+        Rule::expression | Rule::expression_subset => process_children(node!(STILExpr), pair),
+        Rule::time_expr => process_child(pair),
+        Rule::add => process_children(node!(STILAdd), pair),
+        Rule::subtract => process_children(node!(STILSubtract), pair),
+        Rule::multiply => process_children(node!(STILMultiply), pair),
+        Rule::divide => process_children(node!(STILDivide), pair),
+        Rule::paren_expression => process_children(node!(STILParens), pair),
+        Rule::terminal => process_child(pair),
+        Rule::number => process_children(node!(STILNumber), pair),
+        Rule::number_with_unit => process_children(node!(STILNumberWithUnit), pair),
+        Rule::si_unit => node!(STILSIUnit, pair.as_str().parse().unwrap()),
+        Rule::engineering_prefix => node!(STILEngPrefix, pair.as_str().parse().unwrap()),
+        Rule::integer => node!(STILInteger, pair.as_str().parse().unwrap()),
+        Rule::signed_integer => node!(STILSignedInteger, pair.as_str().parse().unwrap()),
+        Rule::point => node!(STILPoint),
+        Rule::exponential => node!(STILExp),
+        Rule::minus => node!(STILMinus),
+        Rule::pattern_exec_block => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n;
+            if vals.len() == 0 {
+                n = node!(STILPatternExec, None);
+            } else {
+                n = node!(STILPatternExec, Some(vals[0].to_string()));
+            }
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::category => node!(STILCategory, inner_strs(pair)[0].parse().unwrap()),
+        Rule::selector => node!(STILSelector, inner_strs(pair)[0].parse().unwrap()),
+        Rule::timing => node!(STILTimingRef, inner_strs(pair)[0].parse().unwrap()),
+        Rule::pattern_burst => node!(STILPatternBurstRef, inner_strs(pair)[0].parse().unwrap()),
+        Rule::pattern_burst_block => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n = node!(STILPatternBurst, vals[0].parse().unwrap());
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::signal_groups => node!(STILSignalGroupsRef, inner_strs(pair)[0].parse().unwrap()),
+        Rule::macro_defs => node!(STILMacroDefs, inner_strs(pair)[0].parse().unwrap()),
+        Rule::procedures => node!(STILProcedures, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_structures => node!(STILScanStructures, inner_strs(pair)[0].parse().unwrap()),
+        Rule::start => node!(STILStart, inner_strs(pair)[0].parse().unwrap()),
+        Rule::stop => node!(STILStop, inner_strs(pair)[0].parse().unwrap()),
+        Rule::termination_block => process_children(node!(STILTerminations), pair),
+        Rule::termination_item => process_children(node!(STILTerminationItem), pair),
+        Rule::pat_list => process_children(node!(STILPatList), pair),
+        Rule::pat_list_item => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n = node!(STILPat, vals[0].parse().unwrap());
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::timing_block => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n;
+            if vals.len() == 0 {
+                n = node!(STILTiming, None);
+            } else {
+                n = node!(STILTiming, Some(vals[0].to_string()));
+            }
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::waveform_table => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::name => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n = node!(STILWaveformTable, vals[0].parse().unwrap());
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::period => process_children(node!(STILPeriod), pair),
+        Rule::inherit_waveform_table | Rule::inherit_waveform | Rule::inherit_waveform_wfc => {
+            node!(STILInherit, inner_strs(pair)[0].parse().unwrap())
+        }
+        Rule::sub_waveforms => process_children(node!(STILSubWaveforms), pair),
+        Rule::sub_waveform => process_children(node!(STILSubWaveform), pair),
+        Rule::waveforms => process_children(node!(STILWaveforms), pair),
+        Rule::waveform => process_children(node!(STILWaveform), pair),
+        Rule::wfc_definition => {
+            let mut vals: Vec<&str> = Vec::new();
+            let mut children: Vec<Node> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::wfc_list => vals.push(inner_pair.as_str()),
+                    _ => children.push(to_node(inner_pair)),
+                };
+            }
+            let mut n = node!(STILWFChar, vals[0].parse().unwrap());
+            for child in children {
+                n.add_child(child);
+            }
+            n
+        }
+        Rule::event => process_children(node!(STILEvent), pair),
+        Rule::event_list => {
+            let mut vals: Vec<char> = Vec::new();
+            for inner_pair in pair.into_inner() {
+                match inner_pair.as_rule() {
+                    Rule::event_char => vals.push(inner_pair.as_str().parse().unwrap()),
+                    _ => unreachable!(),
+                };
+            }
+            node!(STILEventList, vals)
+        }
+
+        //println!("********************* {:?}", pair);
+        _ => node!(STILUnknown),
     }
 }
 

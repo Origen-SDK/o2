@@ -116,7 +116,7 @@ start = { "Start" ~ name ~ EOS }
 stop = { "Stop" ~ name ~ EOS }
 termination_block = { "Termination" ~ "{" ~ termination_item* ~ "}" }
 termination_item = {
-    sigref_expr ~ ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUknown") ~ EOS
+    sigref_expr ~ termination_val ~ EOS
 }
 pat_list = { "PatList" ~ "{" ~ pat_list_item* ~ "}" }
 pat_list_item = {
@@ -128,29 +128,28 @@ pat_list_item = {
 //# 18. Timing block
 //############################################################################
 
-timing_block = { "Timing" ~ name? ~ "{" ~ signal_groups_ref* ~ waveform_table* ~ "}" }
-signal_groups_ref = { "SignalGroups" ~ name ~ EOS }
+timing_block = { "Timing" ~ name? ~ "{" ~ signal_groups* ~ waveform_table* ~ "}" }
 waveform_table = {
     "WaveformTable" ~ name ~ "{" ~ period? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
 }
 period = { "Period" ~ time_expr ~ EOS }
 inherit_waveform_table = { "InheritWaveformTable" ~ name ~ EOS }
-inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
-inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
-name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
-sub_waveforms = { "SubWaveforms" } // Not implemented yet
+sub_waveforms = { "SubWaveforms" ~ "{" ~ sub_waveform* ~ "}" }
+sub_waveform = { label? ~ "Duration" ~ time_expr ~ "{" ~ event* ~ "}" }
 waveforms = { "Waveforms" ~ "{" ~ waveform* ~ "}" }
 waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ wfc_definition* ~ "}" }
-wfc_char = { ASCII_ALPHANUMERIC }
-wfc_list = @{ wfc_char+ }
+inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
 wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
-event = { event_label? ~ time_expr? ~ event_list? ~ EOS }
-event_label = { name ~ ":" }
+wfc_list = @{ wfc_char+ }
+wfc_char = { ASCII_ALPHANUMERIC }
+inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
+name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
+event = { label? ~ time_expr? ~ event_list? ~ EOS }
+event_list = { event_char ~ ("/" ~ event_char)* }
 event_char = {
     "D" | "U" | "Z" | "P" | "L" | "H" | "X" | "x" | "T" | "V" | "l" | "h" | "t" | "v" | "R" | "G" |
     "Q" | "M" | "N" | "A" | "B" | "F" | "?"
 }
-event_list = { event_char ~ ("/" ~ event_char)* }
 
 //############################################################################
 //# 19. Spec and Selector Blocks
@@ -258,12 +257,15 @@ digit = { ASCII_DIGIT }
 hexdigit = { ASCII_HEX_DIGIT }
 hex_number = @{ hexdigit+ }
 integer = @{ digit+ }
-signed_integer = @{ integer | ("-" ~ integer) }
+signed_integer = @{ integer | (minus ~ integer) }
 number = {
-    (signed_integer ~ "." ~ integer ~ "e" ~ signed_integer) |
-    (signed_integer ~ "." ~ integer) | (signed_integer ~ "e" ~ signed_integer) |
+    (signed_integer ~ point ~ integer ~ exponential ~ signed_integer) |
+    (signed_integer ~ point ~ integer) | (signed_integer ~ exponential ~ signed_integer) |
     signed_integer
 }
+exponential = { "e" }
+point = { "." }
+minus = { "-" }
 
 //#############################################################################
 //# Comments and Whitespace
