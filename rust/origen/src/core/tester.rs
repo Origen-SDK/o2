@@ -76,15 +76,19 @@ impl Tester {
     }
   }
 
-  pub fn reset(&mut self) -> Result<(), Error> {
-    self.clear_dut_dependencies()?;
+  pub fn reset(&mut self, ast_name: Option<String>) -> Result<(), Error> {
+    self.clear_dut_dependencies(ast_name)?;
     self.reset_external_testers()?;
     Ok(())
   }
 
   /// Clears all members which reference members on the current DUT.
-  pub fn clear_dut_dependencies(&mut self) -> Result<(), Error> {
-    TEST.start("ad-hoc");
+  pub fn clear_dut_dependencies(&mut self, ast_name: Option<String>) -> Result<(), Error> {
+    if let Some(ast) = ast_name {
+      TEST.start(&ast);
+    } else {
+      TEST.start("ad-hoc");
+    }
     self.current_timeset_id = Option::None;
     Ok(())
   }

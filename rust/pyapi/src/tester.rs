@@ -24,7 +24,7 @@ pub struct PyTester {
 impl PyTester {
   #[new]
   fn new(obj: &PyRawObject) {
-    origen::tester().reset().unwrap();
+    origen::tester().reset(None).unwrap();
     obj.init({ PyTester {
       python_testers: HashMap::new(),
       instantiated_testers: HashMap::new(),
@@ -33,16 +33,30 @@ impl PyTester {
     });
   }
 
-  fn reset(slf: PyRef<Self>) -> PyResult<PyObject> {
-    origen::tester().reset()?;
+  #[args(kwargs="**")]
+  fn reset(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    let mut ast_name = None;
+    if let Some(args) = kwargs {
+      if let Some(ast) = args.get_item("ast_name") {
+        ast_name = Some(ast.extract::<String>()?);
+      }
+    }
+    origen::tester().reset(ast_name)?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();
     Ok(slf.to_object(py))
   }
 
-  fn clear_dut_dependencies(slf: PyRef<Self>) -> PyResult<PyObject> {
-    origen::tester().clear_dut_dependencies()?;
+  #[args(kwargs="**")]
+  fn clear_dut_dependencies(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    let mut ast_name = None;
+    if let Some(args) = kwargs {
+      if let Some(ast) = args.get_item("ast_name") {
+        ast_name = Some(ast.extract::<String>()?);
+      }
+    }
+    origen::tester().clear_dut_dependencies(ast_name)?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();

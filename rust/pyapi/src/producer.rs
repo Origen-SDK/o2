@@ -21,17 +21,21 @@ pub struct PyJob {
 #[pymethods]
 impl PyJob {
   pub fn run(&self) -> PyResult<()> {
-    let p = origen::producer();
-    let j = &p.jobs[self.id];
-    
+    let cmd;
+    {
+      let p = origen::producer();
+      let j = &p.jobs[self.id];
+      cmd = j.command.clone();
+    }
+
     let gil = Python::acquire_gil();
     let py = gil.python();
     let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-    println!("{}", &j.command.display().to_string());
+    println!("{}", &cmd);
     py.eval(
       &format!(
         "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{'produce_pattern': lambda **kwargs : __import__(\"origen\").producer.produce_pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs)}}}})",
-        &j.command.display().to_string(),
+        &cmd,
         self.id),
       None, 
       Some(locals)
@@ -39,8 +43,16 @@ impl PyJob {
     Ok(())
   }
 
+  #[getter]
   pub fn id(&self) -> PyResult<usize> {
     Ok(self.id)
+  }
+
+  #[getter]
+  pub fn command(&self) -> PyResult<String> {
+    let p = origen::producer();
+    let j = &p.jobs[self.id];
+    Ok(j.command.clone())
   }
 }
 
@@ -59,9 +71,9 @@ impl PyProducer {
 
   fn create_pattern_job(&self, command: &str) -> PyResult<Py<PyJob>> {
     let mut p = origen::producer();
-    let mut path = PathBuf::new();
-    path.push(command);
-    let j = p.create_pattern_job(path)?;
+    //let mut path = PathBuf::new();
+    //path.push(command);
+    let j = p.create_pattern_job(command)?;
 
     let gil = Python::acquire_gil();
     let py = gil.python();

@@ -3,7 +3,7 @@ use crate::core::term;
 /// which will include the currently selected target/environment settings form the workspace
 use crate::STATUS;
 use config::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -15,6 +15,9 @@ pub struct Config {
     pub target: Option<String>,
     pub environment: Option<String>,
     pub mode: String,
+    pub output_directory: Option<String>,
+    pub website_output_directory: Option<String>,
+    pub website_source_directory: Option<String>,
 }
 
 impl Default for Config {

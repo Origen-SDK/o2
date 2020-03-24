@@ -1,25 +1,7 @@
 import _origen
 from contextlib import contextmanager, ContextDecorator
 import origen.producer
-
-class Job(_origen.producer.PyJob):
-  @contextmanager
-  def produce_pattern(self, **kwargs):
-      origen.tester.reset()
-      origen.target.reload()
-      origen.tester.target("::V93K::ST7")
-
-      def callback(m):
-          if hasattr(origen.dut, m) and callable(getattr(origen.dut, m)) and not kwargs.get(f"skip_{m}"):
-              getattr(origen.dut, m)(**kwargs)
-
-      origen.logger.info(f"  Producing Pattern")
-      pat = Pattern(**kwargs)
-      callback('startup')
-      yield pat
-      callback('shutdown')
-
-      origen.tester.generate()
+from pathlib import Path
 
 class Producer(_origen.producer.PyProducer):
   def issue_callback(self, c, kwargs):
@@ -33,22 +15,34 @@ class Producer(_origen.producer.PyProducer):
 
   @contextmanager
   def produce_pattern(self, job, **kwargs):
+      name = Path(job.command).stem
+      pat = Pattern(name, **kwargs)
+
       origen.tester.reset()
       origen.target.reload()
-      origen.tester.target("::V93K::ST7")
+      origen.tester.clear_dut_dependencies(ast_name=pat.name)
 
       def callback(m):
           if hasattr(origen.dut, m) and callable(getattr(origen.dut, m)) and not kwargs.get(f"skip_{m}"):
               getattr(origen.dut, m)(**kwargs)
 
       origen.logger.info(f"  Producing Pattern with job ID {job.id}")
-      pat = Pattern(**kwargs)
       callback('startup')
       yield pat
       callback('shutdown')
 
-      origen.tester.generate()
+      origen.tester.render()
 
 class Pattern(_origen.producer.PyPattern):
-  def __init__(self, **kwargs):
-    ...
+  def __init__(self, name, **kwargs):
+    if name in kwargs:
+      # User overwrote the pattern name, or provided one for a sourceless generation
+      name = kwargs['name']
+    
+    if "prefix" in kwargs:
+      name = f"{kwargs['prefix']}_{name}"
+    
+    if "postfix" in kwargs:
+      name = f"{name}_{kwargs['postfix']}"
+
+    self.name = name
