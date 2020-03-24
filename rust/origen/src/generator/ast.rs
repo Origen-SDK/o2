@@ -76,75 +76,7 @@ impl Node {
     /// Returning None means that the processor has decided that the node should be removed
     /// from the next stage AST.
     pub fn process(&self, processor: &mut dyn Processor) -> Option<Node> {
-        // Call the dedicated handler for this node if it exists
-        let r = match &self.attrs {
-            Attrs::Test(name) => processor.on_test(&name, &self),
-            Attrs::Comment(level, msg) => processor.on_comment(*level, &msg, &self),
-            Attrs::PinWrite(id, data) => processor.on_pin_write(*id, *data),
-            Attrs::PinVerify(id, data) => processor.on_pin_verify(*id, *data),
-            Attrs::RegWrite(id, data, overlay_enable, overlay_str) => {
-                processor.on_reg_write(*id, data, overlay_enable, overlay_str)
-            }
-            Attrs::RegVerify(
-                id,
-                data,
-                verify_enable,
-                capture_enable,
-                overlay_enable,
-                overlay_str,
-            ) => processor.on_reg_verify(
-                *id,
-                data,
-                verify_enable,
-                capture_enable,
-                overlay_enable,
-                overlay_str,
-            ),
-            Attrs::JTAGWriteIR(size, data, overlay_enable, overlay_str) => {
-                processor.on_jtag_write_ir(*size, data, overlay_enable, overlay_str)
-            }
-            Attrs::JTAGVerifyIR(
-                size,
-                data,
-                verify_enable,
-                capture_enable,
-                overlay_enable,
-                overlay_str,
-            ) => processor.on_jtag_verify_ir(
-                *size,
-                data,
-                verify_enable,
-                capture_enable,
-                overlay_enable,
-                overlay_str,
-            ),
-            Attrs::JTAGWriteDR(size, data, overlay_enable, overlay_str) => {
-                processor.on_jtag_write_dr(*size, data, overlay_enable, overlay_str)
-            }
-            Attrs::JTAGVerifyDR(
-                size,
-                data,
-                verify_enable,
-                capture_enable,
-                overlay_enable,
-                overlay_str,
-            ) => processor.on_jtag_verify_dr(
-                *size,
-                data,
-                verify_enable,
-                capture_enable,
-                overlay_enable,
-                overlay_str,
-            ),
-            Attrs::Cycle(repeat, compressable) => processor.on_cycle(*repeat, *compressable, &self),
-            Attrs::Flow(name) => processor.on_flow(&name, &self),
-            _ => Return::_Unimplemented,
-        };
-        // If not, call the default handler all nodes handler
-        let r = match r {
-            Return::_Unimplemented => processor.on_all(&self),
-            _ => r,
-        };
+        let r = processor.on_node(&self);
         self.process_return_code(r, processor)
     }
 }
@@ -522,7 +454,6 @@ impl Node {
                 nodes.into_iter().map(|n| Box::new(n)).collect(),
             )),
             Return::InlineBoxed(nodes) => Some(Node::inline(nodes)),
-            _ => None,
         }
     }
 
