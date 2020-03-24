@@ -1,6 +1,6 @@
 use crate::DUT;
 use crate::generator::processor::{Return, Processor};
-use crate::generator::ast::{Node};
+use crate::generator::ast::{Node, Attrs};
 use crate::core::tester::{TesterAPI, Interceptor};
 //use crate::current_job;
 //use crate::core::producer::{output_file};
@@ -38,30 +38,32 @@ impl TesterAPI for Renderer {
 }
 
 impl Processor for Renderer {
-  fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
-    //self.output_file = output_file!("avc");
-    println!("{}", _name);
-    let mut p = PathBuf::from(_name);
-    p.set_extension(".avc");
-    self.output_file = Some(File::create(p));
-    //self.output_file.write(PRODUCER.pattern_header());
-    Return::ProcessChildren
-  }
-
-  fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
-    self.output_file.as_mut().unwrap().write_ln(&format!("# {}", msg));
-    Return::Unmodified
-  }
-
-  fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
-    let dut = DUT.lock().unwrap();
-    let t = &dut.timesets[self.current_timeset_id.unwrap()];
-    self.output_file.as_mut().unwrap().write_ln(&format!("R{} {} <Pins> # <EoL Comment>;", repeat, t.name));
-    Return::Unmodified
-  }
-
-  fn on_set_timeset(&mut self, timeset_id: usize, _node: &Node) -> Return {
-    self.current_timeset_id = Some(timeset_id);
-    Return::Unmodified
+  fn on_node(&mut self, node: &Node) -> Return {
+    match &node.attrs {
+        Attrs::Test(name) => {
+          //self.output_file = output_file!("avc");
+          println!("{}", name);
+          let mut p = PathBuf::from(name);
+          p.set_extension(".avc");
+          self.output_file = Some(File::create(p));
+          //self.output_file.write(PRODUCER.pattern_header());
+          Return::ProcessChildren
+        }
+        Attrs::Comment(_level, msg) => {
+          self.output_file.as_mut().unwrap().write_ln(&format!("# {}", msg));
+          Return::Unmodified
+        },
+        Attrs::Cycle(repeat, _compressable) => {
+          let dut = DUT.lock().unwrap();
+          let t = &dut.timesets[self.current_timeset_id.unwrap()];
+          self.output_file.as_mut().unwrap().write_ln(&format!("R{} {} <Pins> # <EoL Comment>;", repeat, t.name));
+          Return::Unmodified
+        },
+        Attrs::SetTimeset(timeset_id) => {
+          self.current_timeset_id = Some(*timeset_id);
+          Return::Unmodified      
+        },
+        _ => Return::ProcessChildren,
+    }
   }
 }

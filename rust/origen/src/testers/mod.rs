@@ -3,7 +3,7 @@ pub mod simulator;
 use crate::error::Error;
 use crate::dut;
 use crate::generator::processor::{Return, Processor};
-use crate::generator::ast::{Node};
+use crate::generator::ast::{Node, Attrs};
 use crate::core::tester::{TesterAPI, Interceptor};
 
 pub fn available_testers() -> Vec<String> {
@@ -57,29 +57,31 @@ impl TesterAPI for DummyRenderer {
 }
 
 impl Processor for DummyRenderer {
-  fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
-    // Not counting the top node as a node. Only comments and cycles.
-    println!("Printing StubAST to console...");
-    Return::ProcessChildren
-  }
-  
-  fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
-    println!("  ::DummyRenderer Node {}: Comment - Content: {}", self.count, msg);
-    self.count += 1;
-    Return::Unmodified
-  }
-
-  fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
-    let dut = dut();
-    let t = &dut.timesets[self.current_timeset_id.unwrap()];
-    println!("  ::DummyRenderer Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
-    self.count += 1;
-    Return::Unmodified
-  }
-
-  fn on_set_timeset(&mut self, timeset_id: usize, _node: &Node) -> Return {
-    self.current_timeset_id = Some(timeset_id);
-    Return::Unmodified
+  fn on_node(&mut self, node: &Node) -> Return {
+    match &node.attrs {
+        Attrs::Test(_name) => {
+          // Not counting the top node as a node. Only comments and cycles.
+          println!("Printing StubAST to console...");
+          Return::ProcessChildren
+        }
+        Attrs::Comment(_level, msg) => {
+          println!("  ::DummyRenderer Node {}: Comment - Content: {}", self.count, msg);
+          self.count += 1;
+          Return::Unmodified
+        },
+        Attrs::Cycle(repeat, _compressable) => {
+          let dut = dut();
+          let t = &dut.timesets[self.current_timeset_id.unwrap()];
+          println!("  ::DummyRenderer Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
+          self.count += 1;
+          Return::Unmodified
+        },
+        Attrs::SetTimeset(timeset_id) => {
+          self.current_timeset_id = Some(*timeset_id);
+          Return::Unmodified
+        },
+        _ => Return::ProcessChildren,
+    }
   }
 }
 
@@ -129,29 +131,30 @@ impl Interceptor for DummyRendererWithInterceptors {
 }
 
 impl Processor for DummyRendererWithInterceptors {
-
-  fn on_test(&mut self, _name: &str, _node: &Node) -> Return {
-    // Not counting the top node as a node. Only comments and cycles.
-    println!("Printing StubAST to console...");
-    Return::ProcessChildren
-  }
-
-  fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
-    println!("  ::DummyRendererWithInterceptors Node {}: Comment - Content: {}", self.count, msg);
-    self.count += 1;
-    Return::Unmodified
-  }
-
-  fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
-    let dut = dut();
-    let t = &dut.timesets[self.current_timeset_id.unwrap()];
-    println!("  ::DummyRendererWithInterceptors Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
-    self.count += 1;
-    Return::Unmodified
-  }
-
-  fn on_set_timeset(&mut self, timeset_id: usize, _node: &Node) -> Return {
-    self.current_timeset_id = Some(timeset_id);
-    Return::Unmodified
+  fn on_node(&mut self, node: &Node) -> Return {
+    match &node.attrs {
+        Attrs::Test(_name) => {
+          // Not counting the top node as a node. Only comments and cycles.
+          println!("Printing StubAST to console...");
+          Return::ProcessChildren
+        }
+        Attrs::Comment(_level, msg) => {
+          println!("  ::DummyRendererWithInterceptors Node {}: Comment - Content: {}", self.count, msg);
+          self.count += 1;
+          Return::Unmodified
+        },
+        Attrs::Cycle(repeat, _compressable) => {
+          let dut = dut();
+          let t = &dut.timesets[self.current_timeset_id.unwrap()];
+          println!("  ::DummyRendererWithInterceptors Node {}: Vector - Repeat: {}, Timeset: '{}'", self.count, repeat, t.name);
+          self.count += 1;
+          Return::Unmodified
+        },
+        Attrs::SetTimeset(timeset_id) => {
+          self.current_timeset_id = Some(*timeset_id);
+          Return::Unmodified
+        },
+        _ => Return::ProcessChildren,
+    }
   }
 }
