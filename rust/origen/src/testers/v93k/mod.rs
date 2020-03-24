@@ -1,6 +1,6 @@
 use crate::DUT;
 use crate::generator::processor::{Return, Processor};
-use crate::generator::ast::{Node};
+use crate::generator::ast::{Node, Attrs};
 use crate::core::tester::{TesterAPI, Interceptor};
 
 #[derive(Debug, Clone)]
@@ -32,20 +32,23 @@ impl TesterAPI for Renderer {
 }
 
 impl Processor for Renderer {
-  fn on_comment(&mut self, _level: u8, msg: &str, _node: &Node) -> Return {
-    println!("# {}", msg);
-    Return::Unmodified
-  }
-
-  fn on_cycle(&mut self, repeat: u32, _compressable: bool, _node: &Node) -> Return {
-    let dut = DUT.lock().unwrap();
-    let t = &dut.timesets[self.current_timeset_id.unwrap()];
-    println!("R{} {} <Pins> # <EoL Comment>;", repeat, t.name);
-    Return::Unmodified
-  }
-
-  fn on_set_timeset(&mut self, timeset_id: usize, _node: &Node) -> Return {
-    self.current_timeset_id = Some(timeset_id);
-    Return::Unmodified
+  fn on_node(&mut self, node: &Node) -> Return {
+    match &node.attrs {
+        Attrs::Comment(_level, msg) => {
+          println!("# {}", msg);
+          Return::Unmodified
+        },
+        Attrs::Cycle(repeat, _compressable) => {
+          let dut = DUT.lock().unwrap();
+          let t = &dut.timesets[self.current_timeset_id.unwrap()];
+          println!("R{} {} <Pins> # <EoL Comment>;", repeat, t.name);
+          Return::Unmodified      
+        },
+        Attrs::SetTimeset(timeset_id) => {
+          self.current_timeset_id = Some(*timeset_id);
+          Return::Unmodified      
+        },
+        _ => Return::ProcessChildren,
+    }
   }
 }

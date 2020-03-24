@@ -21,7 +21,7 @@ impl ToString {
 }
 
 impl Processor for ToString {
-    fn on_all(&mut self, node: &Node) -> Return {
+    fn on_node(&mut self, node: &Node) -> Return {
         self.output += &" ".repeat(self.indent);
         self.output += &format!("{:?}\n", node.attrs);
         self.indent += 4;
