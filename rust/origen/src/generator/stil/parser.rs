@@ -9,7 +9,7 @@ use std::fs;
 #[grammar = "generator/stil/stil.pest"]
 pub struct STILParser;
 
-fn import(file: &str) -> Result<Node> {
+pub fn import(file: &str) -> Result<Node> {
     let data = fs::read_to_string(file).expect(&format!("Cannot read file: {}", file));
 
     match STILParser::parse(Rule::stil_source, &data) {
@@ -119,7 +119,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
             if vals.len() == 0 {
                 n = node!(STILSignalGroups, None);
             } else {
-                n = node!(STILSignalGroups, Some(vals[0].to_string()));
+                n = node!(STILSignalGroups, Some(unquote(vals[0])));
             }
             for child in children {
                 n.add_child(child);
@@ -135,14 +135,14 @@ fn to_node(pair: Pair<Rule>) -> Node {
                     _ => children.push(to_node(inner_pair)),
                 };
             }
-            let mut n = node!(STILSignalGroup, vals[0].parse().unwrap());
+            let mut n = node!(STILSignalGroup, unquote(vals[0]));
             for child in children {
                 n.add_child(child);
             }
             n
         }
         Rule::sigref_expr => process_children(node!(STILSigRefExpr), pair),
-        Rule::name => node!(STILName, pair.as_str().to_string()),
+        Rule::name => node!(STILName, unquote(pair.as_str())),
         Rule::expression | Rule::expression_subset => process_children(node!(STILExpr), pair),
         Rule::time_expr => process_child(pair),
         Rule::add => process_children(node!(STILAdd), pair),
@@ -173,7 +173,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
             if vals.len() == 0 {
                 n = node!(STILPatternExec, None);
             } else {
-                n = node!(STILPatternExec, Some(vals[0].to_string()));
+                n = node!(STILPatternExec, Some(unquote(vals[0])));
             }
             for child in children {
                 n.add_child(child);
@@ -193,7 +193,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
                     _ => children.push(to_node(inner_pair)),
                 };
             }
-            let mut n = node!(STILPatternBurst, vals[0].parse().unwrap());
+            let mut n = node!(STILPatternBurst, unquote(vals[0]));
             for child in children {
                 n.add_child(child);
             }
@@ -217,7 +217,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
                     _ => children.push(to_node(inner_pair)),
                 };
             }
-            let mut n = node!(STILPat, vals[0].parse().unwrap());
+            let mut n = node!(STILPat, unquote(vals[0]));
             for child in children {
                 n.add_child(child);
             }
@@ -236,7 +236,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
             if vals.len() == 0 {
                 n = node!(STILTiming, None);
             } else {
-                n = node!(STILTiming, Some(vals[0].to_string()));
+                n = node!(STILTiming, Some(unquote(vals[0])));
             }
             for child in children {
                 n.add_child(child);
@@ -252,7 +252,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
                     _ => children.push(to_node(inner_pair)),
                 };
             }
-            let mut n = node!(STILWaveformTable, vals[0].parse().unwrap());
+            let mut n = node!(STILWaveformTable, unquote(vals[0]));
             for child in children {
                 n.add_child(child);
             }
@@ -305,7 +305,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
             if vals.len() == 0 {
                 n = node!(STILSpec, None);
             } else {
-                n = node!(STILSpec, Some(vals[0].to_string()));
+                n = node!(STILSpec, Some(unquote(vals[0])));
             }
             for child in children {
                 n.add_child(child);
@@ -397,7 +397,7 @@ fn to_node(pair: Pair<Rule>) -> Node {
             if vals.len() == 0 {
                 n = node!(STILScanStructures, None);
             } else {
-                n = node!(STILScanStructures, Some(vals[0].to_string()));
+                n = node!(STILScanStructures, Some(unquote(vals[0])));
             }
             for child in children {
                 n.add_child(child);
@@ -412,8 +412,8 @@ fn to_node(pair: Pair<Rule>) -> Node {
             }
             n
         }
-        Rule::scan_in_name => node!(STILScanInName, inner_strs(pair)[0].parse().unwrap()),
-        Rule::scan_out_name => node!(STILScanOutName, inner_strs(pair)[0].parse().unwrap()),
+        Rule::scan_in_name => node!(STILScanInName, unquote(inner_strs(pair)[0])),
+        Rule::scan_out_name => node!(STILScanOutName, unquote(inner_strs(pair)[0])),
         Rule::scan_length => node!(STILScanLength, inner_strs(pair)[0].parse().unwrap()),
         Rule::scan_out_length => node!(STILScanOutLength, inner_strs(pair)[0].parse().unwrap()),
         Rule::not => node!(STILNot),
@@ -421,6 +421,83 @@ fn to_node(pair: Pair<Rule>) -> Node {
         Rule::scan_master_clock => process_children(node!(STILScanMasterClock), pair),
         Rule::scan_slave_clock => process_children(node!(STILScanSlaveClock), pair),
         Rule::scan_inversion => node!(STILScanInversion, inner_strs(pair)[0].parse().unwrap()),
+        Rule::pattern_block => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(STILPattern, pairs.next().unwrap().as_str().to_string());
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::time_unit => process_children(node!(STILTimeUnit), pair),
+        Rule::vector => process_children(node!(STILVector), pair),
+        Rule::cyclized_data => process_children(node!(STILCyclizedData), pair),
+        Rule::non_cyclized_data => process_children(node!(STILNonCyclizedData), pair),
+        Rule::repeat => node!(STILRepeat, inner_strs(pair)[0].parse().unwrap()),
+        Rule::waveform_format => node!(STILWaveformFormat),
+        Rule::pattern_statement => process_child(pair),
+        Rule::hex_format => {
+            let vals = inner_strs(pair);
+            if vals.len() == 0 {
+                node!(STILHexFormat, None)
+            } else {
+                node!(STILHexFormat, Some(vals[0].to_string()))
+            }
+        }
+        Rule::dec_format => {
+            let vals = inner_strs(pair);
+            if vals.len() == 0 {
+                node!(STILDecFormat, None)
+            } else {
+                node!(STILDecFormat, Some(vals[0].to_string()))
+            }
+        }
+        Rule::data_string => node!(STILData, pair.as_str().to_string()),
+        Rule::vec_data => process_child(pair),
+        Rule::time_value => node!(STILTimeValue, inner_strs(pair)[0].parse().unwrap()),
+        Rule::waveform_statement => node!(STILWaveformRef, unquote(inner_strs(pair)[0])),
+        Rule::condition => process_children(node!(STILCondition), pair),
+        Rule::call => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(STILCall, pairs.next().unwrap().as_str().to_string());
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::macro_statement => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(STILMacro, pairs.next().unwrap().as_str().to_string());
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::loop_statement => {
+            let mut pairs = pair.into_inner();
+            let mut n = node!(STILLoop, pairs.next().unwrap().as_str().parse().unwrap());
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::match_loop => {
+            let mut pairs = pair.into_inner();
+            let timeout = pairs.next().unwrap();
+            let mut n = match timeout.as_rule() {
+                Rule::integer => node!(STILMatchLoop, Some(timeout.as_str().parse().unwrap())),
+                Rule::infinite => node!(STILMatchLoop, None),
+                _ => unreachable!(),
+            };
+            for p in pairs {
+                n.add_child(to_node(p));
+            }
+            n
+        }
+        Rule::goto => node!(STILGoto, inner_strs(pair)[0].parse().unwrap()),
+        Rule::breakpoint => process_children(node!(STILBreakPoint), pair),
+        Rule::iddq => node!(STILIDDQ),
+        Rule::stop_statement => node!(STILStopStatement),
 
         //println!("********************* {:?}", pair);
         _ => node!(STILUnknown),
@@ -438,8 +515,20 @@ mod tests {
 
     #[test]
     fn test_example1_to_ast() {
-        let r = import("../../example/vendor/stil/example1.stil");
-        println!("{:?}", r);
+        let _r = import("../../example/vendor/stil/example1.stil");
+        //println!("{:?}", _r);
+    }
+
+    #[test]
+    fn test_example2_to_ast() {
+        let _r = import("../../example/vendor/stil/example2.stil");
+        //println!("{:?}", _r);
+    }
+
+    #[test]
+    fn test_example3_to_ast() {
+        let _r = import("../../example/vendor/stil/example3.stil");
+        //println!("{:?}", _r);
     }
 
     #[test]

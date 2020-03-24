@@ -200,8 +200,8 @@ cyclized_data = { (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (
 vec_data = { repeat | waveform_format | hex_format | dec_format | data_string }
 repeat = @{ "\\r" ~ integer }
 waveform_format = { "\\w" }
-hex_format = @{ "\\h " | ("\\h" ~ ASCII_ALPHANUMERIC+) }
-dec_format = @{ "\\d " | ("\\d" ~ ASCII_ALPHANUMERIC+) }
+hex_format = @{ "\\h " | ("\\h" ~ data_string) }
+dec_format = @{ "\\d " | ("\\d" ~ data_string) }
 data_string = { ASCII_ALPHANUMERIC+ }
 non_cyclized_data = { (time_value ~ sigref_expr ~ "=" ~ event_list ~ EOS) |
                       (time_value ~ "{" ~ (sigref_expr ~ "=" ~ event_list ~ EOS)+ ~ "}") }
@@ -219,7 +219,8 @@ macro_statement = { ("Macro" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)*
 
 loop_statement = { "Loop" ~ integer ~ "{" ~ pattern_statement* ~ "}" }
 
-match_loop = { "MatchLoop" ~ (integer | "Infinite") ~ "{" ~ pattern_statement+ ~ "}" }
+match_loop = { "MatchLoop" ~ (integer | infinite) ~ "{" ~ pattern_statement+ ~ "}" }
+infinite = { "Infinite" }
 
 goto = { "Goto" ~ name ~ EOS }
 
