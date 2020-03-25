@@ -1,0 +1,31 @@
+STIL 1.0;
+
+Timing "Timing_Standard"
+{
+	WaveformTable WaveTable_Standard
+	{
+		Period '10ns';
+		Waveforms
+		{
+
+			AllPins { 
+				1 {'0ns' U;  '0ns' X;}
+				0 {'0ns' D;  '0ns' X;}
+				H {'0ns' Z;  '0ns' H;}
+				L {'0ns' Z;  '0ns' L;}
+				i {'0ns' Z;  '0ns' X;}
+				Z {'0ns' Z;  '0ns' X; }
+				z {'0ns' Z;  '0ns' T;}
+				X {'0ns' Z;  '0ns' X;  }
+				x {'0ns' Z;  '0ns' X; }
+				T {'0ns' Z;  '0ns' H;}
+				t {'0ns' Z;  '0ns' L;}
+				r {'0ns' Z;  '1ns' L;  '30ns' H;}
+				R {'0ns' Z;  '0ns' H;  '80ns' L;}
+				p {'0ns' D;  '1ns' X; '49ns' U;}
+				P {'0ns' U;  '0ns' X; '198ns' D;}
+			}
+
+		}
+	}
+}
