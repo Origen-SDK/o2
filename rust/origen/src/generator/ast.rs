@@ -75,8 +75,8 @@ impl Node {
     /// Returns a new node which is the output of the node processed by the given processor.
     /// Returning None means that the processor has decided that the node should be removed
     /// from the next stage AST.
-    pub fn process(&self, processor: &mut dyn Processor) -> Option<Node> {
-        let r = processor.on_node(&self);
+    pub fn process(&self, processor: &mut dyn Processor) -> Result<Option<Node>> {
+        let r = processor.on_node(&self)?;
         self.process_return_code(r, processor)
     }
 }
@@ -440,32 +440,36 @@ impl Node {
         Ok(*self.children[index].clone())
     }
 
-    fn process_return_code(&self, code: Return, processor: &mut dyn Processor) -> Option<Node> {
+    fn process_return_code(
+        &self,
+        code: Return,
+        processor: &mut dyn Processor,
+    ) -> Result<Option<Node>> {
         match code {
-            Return::None => None,
-            Return::ProcessChildren => Some(self.process_children(processor)),
-            Return::Unmodified => Some(self.clone()),
-            Return::Replace(node) => Some(node),
+            Return::None => Ok(None),
+            Return::ProcessChildren => Ok(Some(self.process_children(processor)?)),
+            Return::Unmodified => Ok(Some(self.clone())),
+            Return::Replace(node) => Ok(Some(node)),
             // We can't return multiple nodes from this function, so we return them
             // wrapped in a meta-node and the process_children method will identify
             // this and remove the wrapper to inline the contained nodes.
-            Return::Unwrap => Some(Node::inline(self.children.clone())),
-            Return::Inline(nodes) => Some(Node::inline(
+            Return::Unwrap => Ok(Some(Node::inline(self.children.clone()))),
+            Return::Inline(nodes) => Ok(Some(Node::inline(
                 nodes.into_iter().map(|n| Box::new(n)).collect(),
-            )),
-            Return::InlineBoxed(nodes) => Some(Node::inline(nodes)),
+            ))),
+            Return::InlineBoxed(nodes) => Ok(Some(Node::inline(nodes))),
         }
     }
 
     /// Returns a new node which is a copy of self with its children replaced
     /// by their processed counterparts.
-    pub fn process_children(&self, processor: &mut dyn Processor) -> Node {
+    pub fn process_children(&self, processor: &mut dyn Processor) -> Result<Node> {
         if self.children.len() == 0 {
-            return self.clone();
+            return Ok(self.clone());
         }
         let mut nodes: Vec<Box<Node>> = Vec::new();
         for child in &self.children {
-            if let Some(node) = child.process(processor) {
+            if let Some(node) = child.process(processor)? {
                 if let Attrs::_Inline = node.attrs {
                     for c in node.children {
                         nodes.push(c);
@@ -477,8 +481,8 @@ impl Node {
         }
         // Call the end of block handler, giving the processor a chance to do any
         // internal clean up or inject some more nodes at the end
-        let r = processor.on_end_of_block(&self);
-        if let Some(node) = self.process_return_code(r, processor) {
+        let r = processor.on_end_of_block(&self)?;
+        if let Some(node) = self.process_return_code(r, processor)? {
             if let Attrs::_Inline = node.attrs {
                 for c in node.children {
                     nodes.push(c);
@@ -487,7 +491,7 @@ impl Node {
                 nodes.push(Box::new(node));
             }
         }
-        self.replace_children(nodes)
+        Ok(self.replace_children(nodes))
     }
 
     /// Returns a new node which is a copy of self with its children replaced
