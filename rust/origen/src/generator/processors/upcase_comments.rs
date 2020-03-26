@@ -8,20 +8,20 @@ pub struct UpcaseComments {}
 
 impl UpcaseComments {
     #[allow(dead_code)]
-    pub fn run(node: &Node) -> Node {
+    pub fn run(node: &Node) -> Result<Node> {
         let mut p = UpcaseComments {};
-        node.process(&mut p).unwrap()
+        Ok(node.process(&mut p)?.unwrap())
     }
 }
 
 impl Processor for UpcaseComments {
-    fn on_node(&mut self, node: &Node) -> Return {
+    fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
             Attrs::Comment(level, msg) => {
                 let new_node = node.replace_attrs(Attrs::Comment(*level, msg.to_uppercase()));
-                Return::Replace(new_node)
+                Ok(Return::Replace(new_node))
             }
-            _ => Return::ProcessChildren,
+            _ => Ok(Return::ProcessChildren),
         }
     }
 }
@@ -41,6 +41,9 @@ mod tests {
         expect.push(node!(Cycle, 1, false));
         expect.push(node!(Comment, 1, "SOME COMMENT".to_string()));
 
-        assert_eq!(UpcaseComments::run(&ast.to_node()), expect);
+        assert_eq!(
+            UpcaseComments::run(&ast.to_node()).expect("Comments upcased"),
+            expect
+        );
     }
 }
