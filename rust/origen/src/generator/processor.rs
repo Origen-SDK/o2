@@ -3,6 +3,7 @@
 //! internals (i.e. children vector) which could be subject to change.
 
 use crate::generator::ast::*;
+pub use crate::Result;
 
 /// All procesor handler methods should return this
 pub enum Return {
@@ -28,15 +29,15 @@ pub enum Return {
 }
 
 pub trait Processor {
-    fn on_node(&mut self, _node: &Node) -> Return {
-        Return::ProcessChildren
+    fn on_node(&mut self, _node: &Node) -> Result<Return> {
+        Ok(Return::ProcessChildren)
     }
 
     /// This will be called at the end of processing every node which has children.
     /// The node which is about to be closed is provided in the arguments.
     /// Note that you should probably never return a derivative of the given node
     /// here, it should either be None or a new node(s)
-    fn on_end_of_block(&mut self, _node: &Node) -> Return {
-        Return::None
+    fn on_end_of_block(&mut self, _node: &Node) -> Result<Return> {
+        Ok(Return::None)
     }
 }
