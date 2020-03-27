@@ -8,18 +8,7 @@ Header {
   }
 }
 
-Signals {
-  DIR In;
-  OE_ In;
-  A0 In; A1 In; A2 In; A3 In;
-  A4 In; A5 In; A6 In; A7 In;
-  B0 Out; B1 Out; B2 Out; B3 Out;
-  B4 Out; B5 Out; B6 Out; B7 Out;
-  Z0 Out {
-    DefaultState Z;
-    Base Hex wW;
-  }
-}
+Include "pins.stil";
 
 // Examples of a global (unnamed) SignalGroups block
 SignalGroups { 

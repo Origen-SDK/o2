@@ -96,6 +96,7 @@ pub enum Attrs {
     STILSignalGroups(Option<String>),
     STILSignalGroup(String),
     STILSigRefExpr,
+    STILTimeExpr,
     STILName(String),
     STILExpr,
     STILSIUnit(String),
@@ -181,6 +182,7 @@ pub enum Attrs {
     STILBreakPoint,
     STILIDDQ,
     STILStopStatement,
+    STILTerminal,
 }
 
 impl Node {
@@ -202,6 +204,10 @@ impl AST {
     /// Create a new AST with the given node as the top-level
     pub fn new(node: Node) -> AST {
         AST { nodes: vec![node] }
+    }
+
+    pub fn unwrap(&mut self) -> Node {
+        self.nodes.pop().unwrap()
     }
 
     /// Push a new terminal node into the AST
