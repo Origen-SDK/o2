@@ -12,7 +12,14 @@ pub struct STILParser;
 
 pub fn parse_file(path: &Path) -> Result<Node> {
     if path.exists() {
-        parse_str(&fs::read_to_string(path)?)
+        match parse_str(&fs::read_to_string(path)?) {
+            Ok(n) => Ok(n),
+            Err(e) => Err(Error::new(&format!(
+                "Error parsing file {}:\n{}",
+                path.canonicalize()?.display(),
+                e.msg
+            ))),
+        }
     } else {
         Err(Error::new(&format!(
             "File does not exist: {}",
@@ -620,8 +627,8 @@ mod tests {
     #[test]
     fn test_example4_to_ast() {
         let _stil = STIL::from_file(Path::new("../../example/vendor/stil/example4.stil"))
-            .expect("Imported example3");
-        println!("{:?}", _stil.ast);
+            .expect("Imported example4");
+        //println!("{:?}", _stil.ast);
     }
 
     #[test]

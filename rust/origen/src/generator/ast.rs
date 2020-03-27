@@ -182,7 +182,6 @@ pub enum Attrs {
     STILBreakPoint,
     STILIDDQ,
     STILStopStatement,
-    STILTerminal,
 }
 
 impl Node {
