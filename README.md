@@ -98,7 +98,3 @@ All being well, you now have a booted Origen console and an app instance availab
 
 
 
-
-### Screenshots of the above process
-
-<will add screenshots later>
