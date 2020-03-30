@@ -18,16 +18,21 @@ include = { "Include" ~ string ~ ("IfNeed" ~ name)? ~ EOS }
 //# 6.13 and 6.14. Timing and Signal Expressions
 //############################################################################
 
-sigref_expr = { name | (single_quote ~ expression_subset ~ single_quote) }
-expression_subset = { add | subtract | name | paren_expression }
-expression = { add | subtract | multiply | divide | number_with_unit | number | name | paren_expression }
-terminal = { number_with_unit | number | name | paren_expression }
-add = { terminal ~ "+" ~ expression }
-subtract = { terminal ~ "-" ~ expression }
-multiply = { terminal ~ "*" ~ expression }
-divide = { terminal ~ "/" ~ expression }
-paren_expression = { "(" ~ expression ~ ")" }
 time_expr = { single_quote ~ expression ~ single_quote }
+expression = { term ~ ((add | subtract) ~ term)* }
+add = { "+" }
+subtract = { "-" }
+term = { factor ~ ((multiply | divide) ~ factor)* }
+multiply = { "*" }
+divide = { "/" }
+factor = { paren_expression | number_with_unit | number | name }
+paren_expression = { "(" ~ expression ~ ")" }
+
+sigref_expr = { name | (single_quote ~ expression_ ~ single_quote) }
+expression_ = { factor_ ~ ((add | subtract) ~ factor_)* }
+factor_ = { paren_expression_ | name }
+paren_expression_ = { "(" ~ expression_ ~ ")" }
+
 number_with_unit = { number+ ~ engineering_prefix? ~ si_unit }
 si_unit = { "A" | "Cel" | "F" | "H" | "Hz" | "m" | "Ohm" | "s" | "W" | "V" }
 engineering_prefix = { "E" | "P" | "T" | "G" | "M" | "k" | "m" | "u" | "n" | "p" | "f" | "a" }

@@ -1,7 +1,7 @@
 use crate::generator::ast::*;
 use crate::node;
 use crate::{Error, Result};
-use pest::iterators::Pair;
+use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use std::fs;
 use std::path::Path;
@@ -51,33 +51,78 @@ fn unquote(text: &str) -> String {
     }
 }
 
-// This is the main function responsible for transforming the parsed strings into an AST
-fn to_ast(pair: Pair<Rule>) -> Result<AST> {
-    let mut ast = AST::new(node!(STIL));
-    let mut ids: Vec<usize> = vec![];
-    let mut pairs = vec![pair.into_inner()];
-    loop {
-        let pair;
-        loop {
-            match pairs.last_mut().unwrap().next() {
-                Some(p) => {
-                    pair = p;
-                    break;
+fn build_expression(pair: Pair<Rule>) -> Result<Node> {
+    let mut pairs = pair.into_inner();
+    let p2 = pairs.next().unwrap();
+    let mut term = to_ast(p2)?.unwrap();
+    let mut done = false;
+    while !done {
+        if let Some(next) = pairs.peek() {
+            match next.as_rule() {
+                Rule::add => {
+                    pairs.next();
+                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let mut n = node!(STILAdd);
+                    n.add_child(term);
+                    n.add_child(next_term);
+                    term = n;
                 }
-                None => {
-                    pairs.pop();
-                    if pairs.len() > 0 {
-                        let id = ids.pop().unwrap();
-                        if id != 0 {
-                            ast.close(id)?;
-                        }
-                    } else {
-                        return Ok(ast);
-                    }
+                Rule::subtract => {
+                    pairs.next();
+                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let mut n = node!(STILSubtract);
+                    n.add_child(term);
+                    n.add_child(next_term);
+                    term = n;
                 }
+                _ => done = true,
             }
+        } else {
+            done = true;
         }
+    }
+    Ok(term)
+}
 
+fn build_term(pair: Pair<Rule>) -> Result<Node> {
+    let mut pairs = pair.into_inner();
+    let mut term = to_ast(pairs.next().unwrap())?.unwrap();
+    let mut done = false;
+    while !done {
+        if let Some(next) = pairs.peek() {
+            match next.as_rule() {
+                Rule::multiply => {
+                    pairs.next();
+                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let mut n = node!(STILMultiply);
+                    n.add_child(term);
+                    n.add_child(next_term);
+                    term = n;
+                }
+                Rule::divide => {
+                    pairs.next();
+                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let mut n = node!(STILDivide);
+                    n.add_child(term);
+                    n.add_child(next_term);
+                    term = n;
+                }
+                _ => done = true,
+            }
+        } else {
+            done = true;
+        }
+    }
+    Ok(term)
+}
+
+// This is the main function responsible for transforming the parsed strings into an AST
+pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
+    let mut ast = AST::new();
+    let mut ids: Vec<usize> = vec![];
+    let mut pairs: Vec<Pairs<Rule>> = vec![];
+
+    loop {
         match pair.as_rule() {
             Rule::stil_source => {
                 ids.push(ast.push_and_open(node!(STIL)));
@@ -182,36 +227,15 @@ fn to_ast(pair: Pair<Rule>) -> Result<AST> {
                 pairs.push(pair.into_inner());
             }
             Rule::name => ast.push(node!(STILName, unquote(pair.as_str()))),
-            Rule::expression | Rule::expression_subset => {
-                ids.push(ast.push_and_open(node!(STILExpr)));
-                pairs.push(pair.into_inner());
+            Rule::expression | Rule::expression_ => {
+                ast.push(build_expression(pair)?);
             }
             Rule::time_expr => {
                 ids.push(ast.push_and_open(node!(STILTimeExpr)));
                 pairs.push(pair.into_inner());
             }
-            Rule::add => {
-                ids.push(ast.push_and_open(node!(STILAdd)));
-                pairs.push(pair.into_inner());
-            }
-            Rule::subtract => {
-                ids.push(ast.push_and_open(node!(STILSubtract)));
-                pairs.push(pair.into_inner());
-            }
-            Rule::multiply => {
-                ids.push(ast.push_and_open(node!(STILMultiply)));
-                pairs.push(pair.into_inner());
-            }
-            Rule::divide => {
-                ids.push(ast.push_and_open(node!(STILDivide)));
-                pairs.push(pair.into_inner());
-            }
-            Rule::paren_expression => {
+            Rule::paren_expression | Rule::paren_expression_ => {
                 ids.push(ast.push_and_open(node!(STILParens)));
-                pairs.push(pair.into_inner());
-            }
-            Rule::terminal => {
-                ids.push(0);
                 pairs.push(pair.into_inner());
             }
             Rule::number => {
@@ -226,10 +250,8 @@ fn to_ast(pair: Pair<Rule>) -> Result<AST> {
             Rule::engineering_prefix => {
                 ast.push(node!(STILEngPrefix, pair.as_str().parse().unwrap()))
             }
-            Rule::integer => ast.push(node!(STILInteger, pair.as_str().parse().unwrap())),
-            Rule::signed_integer => {
-                ast.push(node!(STILSignedInteger, pair.as_str().parse().unwrap()))
-            }
+            Rule::integer => ast.push(node!(Integer, pair.as_str().parse().unwrap())),
+            Rule::signed_integer => ast.push(node!(SignedInteger, pair.as_str().parse().unwrap())),
             Rule::point => ast.push(node!(STILPoint)),
             Rule::exponential => ast.push(node!(STILExp)),
             Rule::minus => ast.push(node!(STILMinus)),
@@ -584,10 +606,47 @@ fn to_ast(pair: Pair<Rule>) -> Result<AST> {
             }
             Rule::iddq => ast.push(node!(STILIDDQ)),
             Rule::stop_statement => ast.push(node!(STILStopStatement)),
+            Rule::term => {
+                ast.push(build_term(pair)?);
+            }
+            Rule::factor | Rule::factor_ => {
+                ids.push(0);
+                pairs.push(pair.into_inner());
+            }
 
             ////println!("********************* {:?}", pair);
             Rule::EOI => {}
-            _ => unreachable!(),
+            _ => {
+                println!("********************* {:?}", pair);
+                unreachable!()
+            }
+        }
+
+        loop {
+            match pairs.last_mut() {
+                Some(x) => match x.next() {
+                    Some(p) => {
+                        pair = p;
+                        break;
+                    }
+                    None => {
+                        pairs.pop();
+                        if pairs.len() > 0 {
+                            let id = ids.pop().unwrap();
+                            if id != 0 {
+                                if id == 1 {
+                                    return Ok(ast);
+                                } else {
+                                    ast.close(id)?;
+                                }
+                            }
+                        } else {
+                            return Ok(ast);
+                        }
+                    }
+                },
+                None => return Ok(ast),
+            }
         }
     }
 }

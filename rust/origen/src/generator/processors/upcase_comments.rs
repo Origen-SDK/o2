@@ -33,11 +33,13 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let mut ast = AST::new(node!(Test, "t1".to_string()));
+        let mut ast = AST::new();
+        ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Comment, 1, "some comment".to_string()));
 
-        let mut expect = AST::new(node!(Test, "t1".to_string()));
+        let mut expect = AST::new();
+        expect.push_and_open(node!(Test, "t1".to_string()));
         expect.push(node!(Cycle, 1, false));
         expect.push(node!(Comment, 1, "SOME COMMENT".to_string()));
 
