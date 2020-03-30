@@ -226,7 +226,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 ids.push(ast.push_and_open(node!(STILSigRefExpr)));
                 pairs.push(pair.into_inner());
             }
-            Rule::name => ast.push(node!(STILName, unquote(pair.as_str()))),
+            Rule::name => ast.push(node!(String, unquote(pair.as_str()))),
             Rule::expression | Rule::expression_ => {
                 ast.push(build_expression(pair)?);
             }
@@ -239,7 +239,7 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 pairs.push(pair.into_inner());
             }
             Rule::number => {
-                ids.push(ast.push_and_open(node!(STILNumber)));
+                ids.push(0);
                 pairs.push(pair.into_inner());
             }
             Rule::number_with_unit => {
@@ -250,11 +250,10 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::engineering_prefix => {
                 ast.push(node!(STILEngPrefix, pair.as_str().parse().unwrap()))
             }
-            Rule::integer => ast.push(node!(Integer, pair.as_str().parse().unwrap())),
-            Rule::signed_integer => ast.push(node!(SignedInteger, pair.as_str().parse().unwrap())),
-            Rule::point => ast.push(node!(STILPoint)),
-            Rule::exponential => ast.push(node!(STILExp)),
-            Rule::minus => ast.push(node!(STILMinus)),
+            Rule::integer | Rule::signed_integer => {
+                ast.push(node!(Integer, pair.as_str().parse().unwrap()))
+            }
+            Rule::float_number => ast.push(node!(Float, pair.as_str().parse().unwrap())),
             Rule::pattern_exec_block => {
                 let mut p = pair.into_inner();
                 let n;

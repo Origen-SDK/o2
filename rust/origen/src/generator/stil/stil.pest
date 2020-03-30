@@ -268,10 +268,10 @@ hexdigit = { ASCII_HEX_DIGIT }
 hex_number = @{ hexdigit+ }
 integer = @{ digit+ }
 signed_integer = @{ integer | (minus ~ integer) }
-number = {
+number = { float_number | signed_integer }
+float_number = {
     (signed_integer ~ point ~ integer ~ exponential ~ signed_integer) |
-    (signed_integer ~ point ~ integer) | (signed_integer ~ exponential ~ signed_integer) |
-    signed_integer
+    (signed_integer ~ point ~ integer) | (signed_integer ~ exponential ~ signed_integer)
 }
 exponential = { "e" }
 point = { "." }

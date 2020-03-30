@@ -10,9 +10,9 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Data Types
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Integer(u64),
-    SignedInteger(i64),
+    Integer(i64),
     Float(f64),
+    String(String),
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Test (pat gen) nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -84,7 +84,6 @@ pub enum Attrs {
     STILSignalGroup(String),
     STILSigRefExpr,
     STILTimeExpr,
-    STILName(String),
     STILSIUnit(String),
     STILEngPrefix(String),
     STILAdd,
@@ -93,10 +92,6 @@ pub enum Attrs {
     STILDivide,
     STILParens,
     STILNumberWithUnit,
-    STILNumber,
-    STILPoint,
-    STILExp,
-    STILMinus,
     STILPatternExec(Option<String>),
     STILCategoryRef(String),
     STILSelectorRef(String),

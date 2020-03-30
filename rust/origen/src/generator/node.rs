@@ -152,7 +152,7 @@ impl Node {
     ) -> Result<Option<Node>> {
         match code {
             Return::None => Ok(None),
-            Return::ProcessChildren => Ok(Some(self.process_children(processor)?)),
+            Return::ProcessChildren => Ok(Some(self.process_and_update_children(processor)?)),
             Return::Unmodified => Ok(Some(self.clone())),
             Return::Replace(node) => Ok(Some(node)),
             // We can't return multiple nodes from this function, so we return them
@@ -168,10 +168,18 @@ impl Node {
 
     /// Returns a new node which is a copy of self with its children replaced
     /// by their processed counterparts.
-    pub fn process_children(&self, processor: &mut dyn Processor) -> Result<Node> {
+    pub fn process_and_update_children(&self, processor: &mut dyn Processor) -> Result<Node> {
         if self.children.len() == 0 {
             return Ok(self.clone());
         }
+        Ok(self.replace_children(self.process_and_box_children(processor)?))
+    }
+
+    /// Returns processed versions of the node's children, each wrapped in a Box
+    pub fn process_and_box_children(
+        &self,
+        processor: &mut dyn Processor,
+    ) -> Result<Vec<Box<Node>>> {
         let mut nodes: Vec<Box<Node>> = Vec::new();
         for child in &self.children {
             if let Some(node) = child.process(processor)? {
@@ -196,7 +204,36 @@ impl Node {
                 nodes.push(Box::new(node));
             }
         }
-        Ok(self.replace_children(nodes))
+        Ok(nodes)
+    }
+
+    /// Returns processed versions of the node's children
+    pub fn process_children(&self, processor: &mut dyn Processor) -> Result<Vec<Node>> {
+        let mut nodes: Vec<Node> = Vec::new();
+        for child in &self.children {
+            if let Some(node) = child.process(processor)? {
+                if let Attrs::_Inline = node.attrs {
+                    for c in node.children {
+                        nodes.push(*c);
+                    }
+                } else {
+                    nodes.push(node);
+                }
+            }
+        }
+        // Call the end of block handler, giving the processor a chance to do any
+        // internal clean up or inject some more nodes at the end
+        let r = processor.on_end_of_block(&self)?;
+        if let Some(node) = self.process_return_code(r, processor)? {
+            if let Attrs::_Inline = node.attrs {
+                for c in node.children {
+                    nodes.push(*c);
+                }
+            } else {
+                nodes.push(node);
+            }
+        }
+        Ok(nodes)
     }
 
     /// Returns a new node which is a copy of self with its children replaced

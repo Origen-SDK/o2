@@ -43,7 +43,7 @@ impl Processor for CycleCombiner {
                     Ok(Return::ProcessChildren)
                 } else {
                     let cyc = self.consume_cycles();
-                    let new_node = node.process_children(self)?;
+                    let new_node = node.process_and_update_children(self)?;
                     Ok(Return::Inline(vec![cyc, new_node]))
                 }
             }
