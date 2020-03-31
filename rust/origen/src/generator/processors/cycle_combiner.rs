@@ -9,9 +9,9 @@ pub struct CycleCombiner {
 
 impl CycleCombiner {
     #[allow(dead_code)]
-    pub fn run(node: &Node) -> Node {
+    pub fn run(node: &Node) -> Result<Node> {
         let mut p = CycleCombiner { cycle_count: 0 };
-        node.process(&mut p).unwrap()
+        Ok(node.process(&mut p)?.unwrap())
     }
 
     fn consume_cycles(&mut self) -> Node {
@@ -22,40 +22,40 @@ impl CycleCombiner {
 }
 
 impl Processor for CycleCombiner {
-    fn on_node(&mut self, node: &Node) -> Return {
+    fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
             Attrs::Cycle(repeat, compressable) => {
                 if *compressable {
                     self.cycle_count += repeat;
-                    Return::None
+                    Ok(Return::None)
                 } else {
                     if self.cycle_count > 0 {
                         let cyc = self.consume_cycles();
-                        Return::Inline(vec![cyc, node.clone()])
+                        Ok(Return::Inline(vec![cyc, node.clone()]))
                     } else {
-                        Return::Unmodified
+                        Ok(Return::Unmodified)
                     }
                 }
             }
             // For all other nodes except for cycles
             _ => {
                 if self.cycle_count == 0 {
-                    Return::ProcessChildren
+                    Ok(Return::ProcessChildren)
                 } else {
                     let cyc = self.consume_cycles();
-                    let new_node = node.process_children(self);
-                    Return::Inline(vec![cyc, new_node])
+                    let new_node = node.process_and_update_children(self)?;
+                    Ok(Return::Inline(vec![cyc, new_node]))
                 }
             }
         }
     }
 
     // Don't let it leave an open block with cycles pending
-    fn on_end_of_block(&mut self, _node: &Node) -> Return {
+    fn on_end_of_block(&mut self, _node: &Node) -> Result<Return> {
         if self.cycle_count > 0 {
-            Return::Replace(self.consume_cycles())
+            Ok(Return::Replace(self.consume_cycles()))
         } else {
-            Return::None
+            Ok(Return::None)
         }
     }
 }

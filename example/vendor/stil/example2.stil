@@ -1,0 +1,97 @@
+STIL 1.0;
+
+Header {
+  Title "Hello World";
+  History {
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 2 *} 
+  }
+}
+
+Signals {
+  DIR In;
+  OE_ In;
+  A0 In; A1 In; A2 In; A3 In;
+  A4 In; A5 In; A6 In; A7 In;
+  B0 Out; B1 Out; B2 Out; B3 Out;
+  B4 Out; B5 Out; B6 Out; B7 Out;
+}
+
+// Examples of a global (unnamed) SignalGroups block
+
+SignalGroups { 
+  a0_pin = 'A0';
+  b0_pin = B0;
+  abus_pins = 'A0+A1+A2+A3+A4+A5+A6+A7';
+  bbus_pins = 'B0+B1+(B2+B3+B4)+B5+B6+B7';
+  bbus_odd = 'bbus_pins-B0-B2-B3-B4';
+  xbus = 'DIR+OE_' { Base Hex wW; Alignment LSB; }
+}
+
+// Example of a SignalGroups block for domain "quality"
+SignalGroups quality {
+  abus_pins = 'A0+A1+A2+A3';
+}
+
+Timing {
+  WaveformTable defaults {
+    Waveforms {
+      allpins { xX { TMARK: 't_anchor' Z; } }
+    }
+  }
+  WaveformTable wft1 {
+    Period 'tper' ;
+    InheritWaveformTable defaults;
+    Waveforms {
+      A7M { xX { 'TMARK+tx' Z; } }
+      A7  { xX { 'TMARK+tx' Z; } }
+      DIR { 01 { 'TMARK+tic1' D/U; } }
+    }
+  }
+  WaveformTable misc {
+    Waveforms {
+      some_pins {
+        InheritWaveform wft1.blah;
+        xy { '0ns' D; '10ns' D/U; }
+      }
+      some_more_pins {
+        ab { InheritWaveform wft1.bbus_aliases.1h; }
+      }
+    }
+  }
+}
+
+PatternExec maintest_fast {
+  Category fast;
+  Selector type1;
+  Timing simple_wave;
+  PatternBurst one_functional;
+}
+
+PatternBurst one_functional {
+  PatList { simple_pattern_ref;
+            write_vecs { Start xbegin; } // 'start' for write_vecs only
+            read_vecs  { Start xend;   } // 'start' for read_vecs only
+  }
+}
+
+
+// Pattern blocks always come at the end of STIL file, this is not parsed
+// into an AST and instead will be read and execute line-at-time, to enable
+// handling of very large pattern files
+Pattern "blah" {
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    Ann {* blah blah 1 *} 
+    W "wft1";
+    V { "ALL" = 0110110110110110110111011; }
+    // Test that loops containing 1 vector will be interpreted as a repeat
+    Loop 10 {
+      V { "ALL" = 0110110110110110110111011; }
+    }
+    Loop 20 { V { "ALL" = 0110110110110110110111011; }}
+    Ann {* blah blah 1 *} 
+    Vector { "ALL" = 0110110110110110110111011; }
+    V { "ALL" = 0110110110110110110111011; }
+}
