@@ -3,6 +3,8 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde;
 extern crate meta;
+#[macro_use]
+extern crate pest_derive;
 
 pub mod core;
 pub mod error;
