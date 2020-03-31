@@ -56,6 +56,6 @@ def reg_description_parsing():
 def standard_context():
     return {
         "origen": sys.modules[__name__],
-        "dut": dut, 
-        "tester": tester,
+        "dut": lambda: __import__("origen").dut,
+        "tester": lambda: __import__("origen").tester,
     }

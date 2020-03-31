@@ -1,7 +1,7 @@
 #[macro_use]
 pub mod ast;
 pub mod processor;
-mod processors;
+pub mod processors;
 mod test_manager;
 
 pub use test_manager::TestManager;

@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use super::timesets::timeset::{Timeset};
+use super::pins::pin_header::{PinHeader};
 use std::collections::HashMap;
 use origen::error::Error;
 use origen::core::tester::{TesterSource};
@@ -137,6 +138,59 @@ impl PyTester {
 
   fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
     self.timeset(timeset)
+  }
+
+  #[getter]
+  fn get_pin_header(&self) -> PyResult<PyObject> {
+    let tester = origen::tester();
+    let dut = origen::dut();
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    if let Some(header) = tester.get_pin_header(&dut) {
+      Ok(Py::new(py, PinHeader {
+        name: header.name.clone(),
+        model_id: header.model_id
+      }).unwrap().to_object(py))
+    } else {
+      Ok(py.None())
+    }
+  }
+
+  #[setter]
+  fn pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
+    let (model_id, pin_header_name);
+
+    if pin_header.get_type().name().to_string() == "NoneType" {
+      {
+        let mut tester = origen::TESTER.lock().unwrap();
+        tester.clear_pin_header()?;
+      }
+      self.issue_callbacks("clear_pin_header")?;
+      return self.get_timeset();
+    } else if pin_header.get_type().name().to_string() == "PinHeader" {
+      let gil = Python::acquire_gil();
+      let py = gil.python();
+      let obj = pin_header.to_object(py);
+      model_id = obj.getattr(py, "__origen__model_id__")?.extract::<usize>(py)?;
+      pin_header_name = obj.getattr(py, "name")?.extract::<String>(py)?;
+    } else {
+      return type_error!(format!("Could not interpret 'pin_header' argument as _origen.dut.Pins.PinHeader object! (class '{}')", pin_header.get_type().name()));
+    }
+
+    {
+      {
+        let mut tester = origen::TESTER.lock().unwrap();
+        let dut = origen::DUT.lock().unwrap();
+        tester.set_pin_header(&dut, model_id, &pin_header_name)?;
+      }
+      self.issue_callbacks("set_pin_header")?;
+    }
+    self.get_pin_header()
+  }
+
+  fn set_pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
+    self.pin_header(pin_header)
   }
 
   fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<PyObject> {

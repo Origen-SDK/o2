@@ -3,8 +3,10 @@ use crate::generator::processor::*;
 use crate::generator::TestManager;
 use crate::TEST;
 use crate::{Error, Result};
+use crate::core::model::pins::pin::PinActions;
 use num_bigint::BigUint;
 use std::fmt;
+use std::collections::HashMap;
 
 #[macro_export]
 macro_rules! node {
@@ -20,6 +22,13 @@ macro_rules! node {
     };
 }
 
+#[macro_export]
+macro_rules! push_pin_actions {
+    ($pin_info:expr) => {{
+        crate::TEST.push(crate::node!(PinAction, $pin_info));
+    }};
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Attrs {
     // A meta-node type, used to indicate a node who's children should be placed inline at the given location
@@ -31,9 +40,10 @@ pub enum Attrs {
     Test(String),
     Comment(u8, String), // level, msg
     SetTimeset(usize), // Indicates both a set or change of the current timeset
-    ClearTimeset(),
-    PinWrite(Id, u128),
-    PinVerify(Id, u128),
+    ClearTimeset,
+    SetPinHeader(usize), // Indicates the pin header selected
+    ClearPinHeader,
+    PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, PinActions, Pin Data
     RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
     RegVerify(
         Id,

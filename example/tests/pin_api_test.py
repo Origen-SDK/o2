@@ -152,7 +152,7 @@ def test_pin_base_state(clean_falcon):
   assert p.reset_data is None
   assert p.reset_action is None
   assert p.aliases == []
-  assert p.groups == {"p0": 0}
+  assert p.groups == {}
 
 class TestDefiningPins:
   def test_adding_pins_with_width(self, clean_falcon):
@@ -914,6 +914,6 @@ def test_pin_loader_api(clean_eagle):
   ]
   assert origen.dut.pin("portc").reset_data == 0x3
   assert origen.dut.pin("clk").reset_actions == "D"
-  assert origen.dut.pin_headers.keys() == ["ports", "clk"]
+  assert origen.dut.pin_headers.keys() == ["ports", "clk", "all", "pins-for-toggle", "pins-for-toggle-rev"]
   assert origen.dut.pin_headers["ports"].pin_names == ["porta", "portb", "portc"]
   assert origen.dut.pin_headers["clk"].pin_names == ["clk"]

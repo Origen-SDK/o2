@@ -7,6 +7,7 @@ use crate::{Error, Result};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::fs::File as StdFile;
+use std::fs::{create_dir_all};
 use std::io::prelude::*;
 
 lazy_static! {
@@ -28,6 +29,7 @@ impl std::clone::Clone for File {
 impl File {
     /// Creates or overrides the given file and panics if the creation fails
     pub fn create(f: PathBuf) -> Self {
+        Self::mkdir_p(&f.parent().expect(&format!("Unable to locate parent of {:?}", f)));
         let file = StdFile::create(f.clone()).expect(&format!("Unable to create file at {:?}", f));
         Self {
             file_obj: file,
@@ -42,6 +44,10 @@ impl File {
             file_obj: file,
             path: f,
         })
+    }
+
+    pub fn mkdir_p(path: &Path) {
+        create_dir_all(path).expect(&format!("Unable to create all directories at {:?}", path));
     }
 
     /// Writes content to the underlying file and panics if the write failed

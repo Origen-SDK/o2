@@ -10,7 +10,7 @@ mod pin_group;
 mod pin_collection;
 mod physical_pin_container;
 mod pin_container;
-mod pin_header;
+pub mod pin_header;
 
 use origen::core::model::pins::Endianness;
 use physical_pin_container::PhysicalPinContainer;

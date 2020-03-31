@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 /// List of supported pin actions.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PinActions {
     Drive,
     Verify,
@@ -43,6 +43,25 @@ impl PinActions {
         match self {
             PinActions::Drive => 'D',
             PinActions::Verify => 'V',
+            PinActions::Capture => 'C',
+            PinActions::HighZ => 'Z',
+        }
+    }
+    
+    pub fn as_tester_char(&self, data: u8) -> char {
+        match self {
+            PinActions::Drive => {
+                match data {
+                    0 => '0',
+                    _ => '1',
+                }
+            },
+            PinActions::Verify => {
+                match data {
+                    0 => 'L',
+                    _ => 'H',
+                }
+            },
             PinActions::Capture => 'C',
             PinActions::HighZ => 'Z',
         }

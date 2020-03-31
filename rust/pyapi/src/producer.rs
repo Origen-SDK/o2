@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use origen::{STATUS};
-use std::path::{PathBuf};
 
 #[pymodule]
 pub fn producer(_py: Python, m: &PyModule) -> PyResult<()> {
