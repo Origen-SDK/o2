@@ -176,7 +176,7 @@ impl Tester {
         stat.external.push(gen.to_string());
       },
       TesterSource::Internal(gen) => {
-        TEST.process(&mut |ast| gen.run(ast));
+        TEST.process(&mut |ast| gen.run(ast).unwrap());
         stat.completed.push(gen.to_string())
       }
     }
@@ -262,7 +262,7 @@ impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
 pub trait TesterAPI: std::fmt::Debug + crate::generator::processor::Processor + Interceptor {
   fn name(&self) -> String;
   fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
-  fn run(&mut self, node: &Node) -> Node;
+  fn run(&mut self, node: &Node) -> crate::Result<Node>;
 
   fn to_string(&self) -> String {
     format!("::{}", self.name())

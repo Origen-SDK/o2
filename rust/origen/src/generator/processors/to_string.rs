@@ -15,18 +15,18 @@ impl ToString {
             indent: 0,
             output: "".to_string(),
         };
-        node.process(&mut p);
+        node.process(&mut p).unwrap();
         p.output
     }
 }
 
 impl Processor for ToString {
-    fn on_all(&mut self, node: &Node) -> Return {
+    fn on_node(&mut self, node: &Node) -> Result<Return> {
         self.output += &" ".repeat(self.indent);
         self.output += &format!("{:?}\n", node.attrs);
         self.indent += 4;
-        node.process_children(self);
+        node.process_children(self)?;
         self.indent -= 4;
-        Return::Unmodified
+        Ok(Return::Unmodified)
     }
 }

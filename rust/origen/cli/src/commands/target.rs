@@ -1,9 +1,20 @@
 use origen::core::application::target;
 use origen::APPLICATION_CONFIG;
 
+<<<<<<< HEAD
 pub fn run(subcmd: Option<&str>, tnames: Option<Vec<&str>>) {
     if subcmd.is_none() {
         run(Some("view"), None)
+=======
+pub fn run(tnames: Option<Vec<&str>>, _action: Option<&str>) {
+    if tnames.is_none() {
+        if APPLICATION_CONFIG.target.is_some() {
+            let name = APPLICATION_CONFIG.target.clone().unwrap();
+            println!("{}", name);
+        } else {
+            println!("No default target is currently enabled in this workspace");
+        }
+>>>>>>> origin/tester_prototype
     } else {
         if tnames.is_none() {
             if APPLICATION_CONFIG.target.is_some() {

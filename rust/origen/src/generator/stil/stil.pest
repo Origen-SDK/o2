@@ -1,0 +1,307 @@
+field = { (ASCII_DIGIT | "." | "-")+ }
+
+stil_source = { SOI ~ stil_source_items+ ~ EOI }
+
+stil_source_items = _{
+    stil_version | header_block | signals_block | signal_groups_block |
+    timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
+    scan_structures_block | pattern_block | include
+}
+
+stil_version = { "STIL" ~ integer ~ "." ~ integer ~ EOS }
+major = { ASCII_DIGIT }
+minor = { ASCII_DIGIT }
+
+include = { "Include" ~ string ~ ("IfNeed" ~ name)? ~ EOS }
+
+//############################################################################
+//# 6.13 and 6.14. Timing and Signal Expressions
+//############################################################################
+
+time_expr = { single_quote ~ expression ~ single_quote }
+expression = { term ~ ((add | subtract) ~ term)* }
+add = { "+" }
+subtract = { "-" }
+term = { factor ~ ((multiply | divide) ~ factor)* }
+multiply = { "*" }
+divide = { "/" }
+factor = { paren_expression | number_with_unit | number | name }
+paren_expression = { "(" ~ expression ~ ")" }
+
+sigref_expr = { name | (single_quote ~ expression_ ~ single_quote) }
+expression_ = { factor_ ~ ((add | subtract) ~ factor_)* }
+factor_ = { paren_expression_ | name }
+paren_expression_ = { "(" ~ expression_ ~ ")" }
+
+number_with_unit = { number+ ~ engineering_prefix? ~ si_unit }
+si_unit = { "A" | "Cel" | "F" | "H" | "Hz" | "m" | "Ohm" | "s" | "W" | "V" }
+engineering_prefix = { "E" | "P" | "T" | "G" | "M" | "k" | "m" | "u" | "n" | "p" | "f" | "a" }
+
+//############################################################################
+//# 9. Header Block
+//############################################################################
+
+header_block = { "Header" ~ "{" ~ title? ~ date? ~ source? ~ history? ~ "}" }
+title = { "Title" ~ string ~ EOS }
+date = { "Date" ~ string ~ EOS }
+source = { "Source" ~ string ~ EOS }
+history = { "History" ~ "{" ~ annotation* ~ "}" }
+annotation = { "Ann" ~ "{*" ~ annotation_inner ~ "*}" }
+annotation_inner = { (!"*}" ~ ANY)* }
+
+//############################################################################
+//# 14. Signals Block
+//############################################################################
+
+signals_block = { "Signals" ~ "{" ~ signal* ~ "}" }
+signal = {
+    (name ~ signal_type ~ EOS) |
+    (name ~ signal_type ~
+    ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
+}
+signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo") }
+
+termination = {
+    "Termination" ~ termination_val ~ EOS
+}
+termination_val = { ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUknown") }
+
+default_state = {
+    "DefaultState" ~ state_val ~ EOS
+}
+state_val =  { ("U" | "D" | "Z" | "ForceUp" | "ForceDown" | "ForceOff") }
+
+base = { "Base" ~ base_val ~ waveform_character_list ~ EOS }
+base_val = { ("Hex" | "Dec") }
+
+alignment = { "Alignment" ~ alignment_val ~ EOS }
+alignment_val = { ("MSB" | "LSB") }
+scan_in = { "ScanIn" ~ integer ~ EOS }
+scan_out = { "ScanOut" ~ integer ~ EOS }
+data_bit_count = { "DataBitCount" ~ integer ~ EOS }
+waveform_character_list = @{ waveform_character+ }
+waveform_character = { ASCII_ALPHANUMERIC }
+
+//############################################################################
+//# 15. SignalGroups Block
+//############################################################################
+
+signal_groups_block = { "SignalGroups" ~ name? ~ "{" ~ signal_group* ~ "}" }
+signal_group = {
+    (name ~ "=" ~ sigref_expr ~ EOS) |
+    (name ~ "=" ~ sigref_expr ~ 
+       ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
+}
+
+//############################################################################
+//# 16. PatternExec Block
+//############################################################################
+
+pattern_exec_block = {
+    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ "}"
+}
+category = { "Category" ~ name ~ EOS }
+selector = { "Selector" ~ name ~ EOS }
+timing = { "Timing" ~ name ~ EOS }
+pattern_burst = { "PatternBurst" ~ name ~ EOS }
+
+//############################################################################
+//# 17. PatternBurst Block
+//############################################################################
+
+pattern_burst_block = {
+    "PatternBurst" ~ name ~ "{" ~ signal_groups* ~ macro_defs* ~ procedures? ~ scan_structures? ~ start? ~
+        stop? ~ termination_block* ~ pat_list+ ~ "}"
+}
+signal_groups = { "SignalGroups" ~ name ~ EOS }
+macro_defs = { "MacroDefs" ~ name ~ EOS }
+procedures = { "Procedures" ~ name ~ EOS }
+scan_structures = { "ScanStructures" ~ name ~ EOS }
+start = { "Start" ~ name ~ EOS }
+stop = { "Stop" ~ name ~ EOS }
+termination_block = { "Termination" ~ "{" ~ termination_item* ~ "}" }
+termination_item = {
+    sigref_expr ~ termination_val ~ EOS
+}
+pat_list = { "PatList" ~ "{" ~ pat_list_item* ~ "}" }
+pat_list_item = {
+    name ~ (EOS | ("{" ~ signal_groups* ~ macro_defs* ~ procedures? ~ scan_structures? ~ start? ~
+                       stop? ~ termination_block* ~ "}"))
+}
+
+//############################################################################
+//# 18. Timing block
+//############################################################################
+
+timing_block = { "Timing" ~ name? ~ "{" ~ signal_groups* ~ waveform_table* ~ "}" }
+waveform_table = {
+    "WaveformTable" ~ name ~ "{" ~ period? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
+}
+period = { "Period" ~ time_expr ~ EOS }
+inherit_waveform_table = { "InheritWaveformTable" ~ name ~ EOS }
+sub_waveforms = { "SubWaveforms" ~ "{" ~ sub_waveform* ~ "}" }
+sub_waveform = { label? ~ "Duration" ~ time_expr ~ "{" ~ event* ~ "}" }
+waveforms = { "Waveforms" ~ "{" ~ waveform* ~ "}" }
+waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ wfc_definition* ~ "}" }
+inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
+wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
+wfc_list = @{ wfc_char+ }
+wfc_char = { ASCII_ALPHANUMERIC }
+inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
+name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
+event = { label? ~ time_expr? ~ event_list? ~ EOS }
+event_list = { event_char ~ ("/" ~ event_char)* }
+event_char = {
+    "D" | "U" | "Z" | "P" | "L" | "H" | "X" | "x" | "T" | "V" | "l" | "h" | "t" | "v" | "R" | "G" |
+    "Q" | "M" | "N" | "A" | "B" | "F" | "?"
+}
+
+//############################################################################
+//# 19. Spec and Selector Blocks
+//############################################################################
+
+spec_block = { "Spec" ~ name? ~ "{" ~ (category_block | variable_block)* ~ "}" }
+category_block = { "Category" ~ name ~ "{" ~ spec_item* ~ "}" }
+spec_item = { typical_var | spec_var }
+typical_var = { name ~ "=" ~ time_expr ~ EOS }
+spec_var = { name ~ "{" ~ spec_var_item* ~ "}" }
+spec_var_item = { selector_val_subset ~ time_expr ~ EOS }
+variable_block = { "Variable" ~ name ~ "{" ~ spec_item* ~ "}" }
+selector_block = { "Selector" ~ name ~ "{" ~ selector_item* ~ "}" }
+selector_item = ${ name ~ S ~ selector_val ~ s ~ EOS }
+selector_val = { ("Min" | "Typ" | "Max" | "Meas") } 
+selector_val_subset = { ("Min" | "Typ" | "Max") }
+
+//############################################################################
+//# 20. ScanStructures Blocks
+//############################################################################
+
+scan_structures_block = { "ScanStructures" ~ name? ~ "{" ~ scan_chain* ~ "}" }
+scan_chain = { "ScanChain" ~ name ~ "{" ~ scan_length ~ (scan_out_length | scan_cells | scan_in_name |
+               scan_out_name | scan_master_clock | scan_slave_clock | scan_inversion)* ~ "}" }
+scan_length = { "ScanLength" ~ integer ~ EOS }
+scan_out_length = { "ScanOutLength" ~ integer ~ EOS }
+scan_cells = { "ScanCells" ~ (not | name)* ~ EOS }
+not = { "!" }
+scan_in_name = { "ScanIn" ~ name ~ EOS }
+scan_out_name = { "ScanOut" ~ name ~ EOS }
+scan_master_clock = { "ScanMasterClock" ~ name* ~ EOS }
+scan_slave_clock = { "ScanSlaveClock" ~ name* ~ EOS }
+scan_inversion = { "ScanInversion" ~ scan_inversion_val ~ EOS }
+scan_inversion_val = { ("0" | "1") }
+
+//############################################################################
+//# 23. Pattern Blocks
+//############################################################################
+
+pattern_block = { "Pattern" ~ name ~ "{" ~ (label? ~ time_unit)? ~ pattern_statement* ~ "}" }
+label = { (string | name) ~ ":" }
+time_unit = { "TimeUnit" ~ time_expr ~ EOS }
+pattern_statement = { label | vector | waveform_statement | condition | call | macro_statement | loop_statement |
+                      match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation }
+
+vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
+cyclized_data = { (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
+vec_data = { repeat | waveform_format | hex_format | dec_format | data_string }
+repeat = @{ "\\r" ~ integer }
+waveform_format = { "\\w" }
+hex_format = @{ "\\h " | ("\\h" ~ data_string) }
+dec_format = @{ "\\d " | ("\\d" ~ data_string) }
+data_string = { ASCII_ALPHANUMERIC+ }
+non_cyclized_data = { (time_value ~ sigref_expr ~ "=" ~ event_list ~ EOS) |
+                      (time_value ~ "{" ~ (sigref_expr ~ "=" ~ event_list ~ EOS)+ ~ "}") }
+time_value = @{ "@" ~ integer }
+
+waveform_statement = { "W" ~ "aveformTable"? ~ name ~ EOS }
+
+condition = { "C" ~ "ondition"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
+
+//call = { ("Call" ~ name ~ "{" ~ (scan_data | cyclized_data | non_cyclized_data)* ~ "}") | ("Call" ~ name ~ EOS) }
+// Can't see what is different between scan_data and cyclized_data
+call = { ("Call" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("Call" ~ name ~ EOS) }
+
+macro_statement = { ("Macro" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("Macro" ~ name ~ EOS) }
+
+loop_statement = { "Loop" ~ integer ~ "{" ~ pattern_statement* ~ "}" }
+
+match_loop = { "MatchLoop" ~ (integer | infinite) ~ "{" ~ pattern_statement+ ~ "}" }
+infinite = { "Infinite" }
+
+goto = { "Goto" ~ name ~ EOS }
+
+breakpoint = { ("BreakPoint" ~ EOS) | ("BreakPoint" ~ "{" ~ pattern_statement* ~ "}") }
+
+iddq = { "IDDQ" ~ "TestPoint" ~ EOS }
+
+stop_statement = { "Stop" ~ EOS }
+
+scan_chain_statement = { "ScanChain" ~ name ~ EOS }
+
+//############################################################################
+//# Identifiers
+//############################################################################
+
+string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+name = @{ ((name_segment ~ ".")+ ~ name_segment) | name_segment }
+name_segment = { simple_identifier | escaped_identifier }
+simple_identifier = @{ (letter | underline) ~ simple_character* }
+simple_character = { letter | digit | underline }
+letter = { upper_case_letter | lower_case_letter }
+upper_case_letter = { ASCII_ALPHA_UPPER }
+lower_case_letter = { ASCII_ALPHA_LOWER }
+underline = { "_" }
+escaped_identifier = @{ "\"" ~ escaped_character+ ~ "\"" }
+escaped_character = { simple_character | special_character | whitespace_character }
+special_character = {
+    "!" | "@" | "#" | "$" | "%" | "^" | "&" | "*" | "(" | ")" | "-" | "+" |
+    "+" | "|" | "`" | "~" | "{" | "[" | "}" | "]" | ":" | ";" | single_quote | "," |
+    "<" | "." | ">" | "/" | "?" | "\\"
+}
+whitespace_character = { " " | "\t" | "\n" }
+
+//#############################################################################
+//# Numbers
+//#############################################################################
+
+digit = { ASCII_DIGIT }
+hexdigit = { ASCII_HEX_DIGIT }
+hex_number = @{ hexdigit+ }
+integer = @{ digit+ }
+signed_integer = @{ integer | (minus ~ integer) }
+number = { float_number | signed_integer }
+float_number = {
+    (signed_integer ~ point ~ integer ~ exponential ~ signed_integer) |
+    (signed_integer ~ point ~ integer) | (signed_integer ~ exponential ~ signed_integer)
+}
+exponential = { "e" }
+point = { "." }
+minus = { "-" }
+
+//#############################################################################
+//# Comments and Whitespace
+//#############################################################################
+EOS = _{ ";" }
+
+single_quote = _{ "'" | "’" }
+
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+one_line_comment = _{ "//" ~ (!N ~ ANY)* }
+
+space = _{ " " | "\t" }
+
+// Optional space, including newlines and comments
+s = _{ (space | N | one_line_comment | block_comment)* }
+
+// Required space, including newlines and comments
+S = _{ (space | N | one_line_comment | block_comment)+ }
+
+// Optional end of line
+n = _{ NEWLINE? }
+
+// Required end of line
+N = _{ NEWLINE }
+
+// For Pest implicit whitespace insertion
+WHITESPACE = _{ space | NEWLINE }
+COMMENT = _{ block_comment | one_line_comment }

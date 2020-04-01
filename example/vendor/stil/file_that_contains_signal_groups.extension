@@ -1,0 +1,22 @@
+STIL 1.0;
+
+SignalGroups { 
+  group0 = 'PIN0 + PIN1';
+  group1 = 'PIN2 + PIN3';
+  group2 = 'PIN3 + PIN4';
+  group3 = 'PIN5 + PIN6';
+  group4 = 'PIN7 + PIN8';
+  group5 = 'PIN9 + PIN10';
+  group6 = 'PIN11 + PIN12';
+  group7 = 'PIn13 + PIN14';
+  group8 = 'PIN15 + PIN16';
+  group9 = 'PIN17 + PIN18';
+  group10 = 'PIN19 + PIN20';
+  group11 = 'PIN21 + PIN22';
+  group12 = 'PIN23 + PIN24';
+  
+  MULTIGROUP0 = 'group0 + group1 + group2';
+  MULTIGROUP1 = 'group3 + group4 + group5 + group6' ;
+  AllPins = 'group0 + group1 + group2 + group3 + group4 + group5 + group6 + group7 + group8 + group9 + group10 + group11 + group12';
+
+}

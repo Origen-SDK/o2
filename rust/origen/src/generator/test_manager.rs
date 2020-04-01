@@ -14,8 +14,10 @@ pub struct TestManager {
 
 impl TestManager {
     pub fn new() -> TestManager {
+        let mut ast = AST::new();
+        ast.push_and_open(node!(Test, "ad-hoc".to_string()));
         TestManager {
-            ast: RwLock::new(AST::new(node!(Test, "ad-hoc".to_string()))),
+            ast: RwLock::new(ast),
         }
     }
 
