@@ -84,11 +84,7 @@ mod tests {
 
         // Test upcase comments processor
 
-<<<<<<< HEAD
-        let new_ast = test.process(&mut |ast| UpcaseComments::run(ast));
-=======
-        let new_ast = test.process(&|ast| UpcaseComments::run(ast).expect("comments upcased"));
->>>>>>> origin/master
+        let new_ast = test.process(&mut |ast| UpcaseComments::run(ast).expect("comments upcased"));
 
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "trim_vbgap".to_string()));

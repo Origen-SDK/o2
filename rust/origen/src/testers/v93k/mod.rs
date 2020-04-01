@@ -26,29 +26,29 @@ impl TesterAPI for Renderer {
     Box::new(std::clone::Clone::clone(self))
   }
 
-  fn run(&mut self, node: &Node) -> Node {
-    node.process(self).unwrap()
+  fn run(&mut self, node: &Node) -> crate::Result<Node> {
+    Ok(node.process(self)?.unwrap())
   }
 }
 
 impl Processor for Renderer {
-  fn on_node(&mut self, node: &Node) -> Return {
+  fn on_node(&mut self, node: &Node) -> crate::Result<Return> {
     match &node.attrs {
         Attrs::Comment(_level, msg) => {
           println!("# {}", msg);
-          Return::Unmodified
+          Ok(Return::Unmodified)
         },
         Attrs::Cycle(repeat, _compressable) => {
           let dut = DUT.lock().unwrap();
           let t = &dut.timesets[self.current_timeset_id.unwrap()];
           println!("R{} {} <Pins> # <EoL Comment>;", repeat, t.name);
-          Return::Unmodified      
+          Ok(Return::Unmodified)
         },
         Attrs::SetTimeset(timeset_id) => {
           self.current_timeset_id = Some(*timeset_id);
-          Return::Unmodified      
+          Ok(Return::Unmodified)
         },
-        _ => Return::ProcessChildren,
+        _ => Ok(Return::ProcessChildren),
     }
   }
 }

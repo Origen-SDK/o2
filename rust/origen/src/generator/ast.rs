@@ -19,69 +19,6 @@ macro_rules! node {
     };
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum Attrs {
-    // A meta-node type, used to indicate a node who's children should be placed inline at the given location
-    _Inline,
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //// Test (pat gen) nodes
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Test(String),
-    Comment(u8, String), // level, msg
-    SetTimeset(usize), // Indicates both a set or change of the current timeset
-    ClearTimeset(),
-    PinWrite(Id, u128),
-    PinVerify(Id, u128),
-    RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
-    RegVerify(
-        Id,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
-    ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    JTAGWriteIR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
-    JTAGVerifyIR(
-        u32,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
-    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    JTAGWriteDR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
-    JTAGVerifyDR(
-        u32,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
-    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    Cycle(u32, bool), // repeat (0 not allowed), compressable
-
-    //// Teradyne custom nodes
-
-    //// Advantest custom nodes
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //// Flow (prog gen) nodes
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    Flow(String),
-}
-
-impl Node {
-    /// Returns a new node which is the output of the node processed by the given processor.
-    /// Returning None means that the processor has decided that the node should be removed
-    /// from the next stage AST.
-    pub fn process(&self, processor: &mut dyn Processor) -> Option<Node> {
-        let r = processor.on_node(&self);
-        self.process_return_code(r, processor)
-    }
-}
-
 /// An AST provides an API for constructing a node tree, when completed it can be unwrapped
 /// to a node by calling the unwrap() method
 #[derive(Clone)]
