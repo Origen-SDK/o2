@@ -44,7 +44,7 @@ impl TesterAPI for Renderer {
     Box::new(std::clone::Clone::clone(self))
   }
 
-  fn run(&mut self, node: &Node) -> Node {
-    node.process(self).unwrap()
+  fn run(&mut self, node: &Node) -> crate::Result<Node> {
+    Ok(node.process(self)?.unwrap())
   }
 }

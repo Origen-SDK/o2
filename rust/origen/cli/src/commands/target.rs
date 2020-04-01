@@ -1,7 +1,7 @@
 use origen::core::application::target;
 use origen::APPLICATION_CONFIG;
 
-pub fn run(tnames: Option<Vec<&str>>, action: Option<&str>) {
+pub fn run(tnames: Option<Vec<&str>>, _action: Option<&str>) {
     if tnames.is_none() {
         if APPLICATION_CONFIG.target.is_some() {
             let name = APPLICATION_CONFIG.target.clone().unwrap();

@@ -5,6 +5,7 @@ use crate::generator::processor::*;
 use crate::core::model::pins::pin::PinActions;
 use crate::core::model::pins::StateTracker;
 use std::collections::HashMap;
+use crate::Result;
 
 /// Combines adjacent pin actions into a single pin action
 pub struct PinActionCombiner {
@@ -22,7 +23,7 @@ pub struct PinActionCombiner {
 ///   First, all nodes are run through and indices of pin changes are marked.
 ///   Second, all non-PinAction nodes are copied over, with only PinAction nodes whose indices were marked are copied over.
 impl PinActionCombiner {
-    pub fn run(node: &Node) -> Node {
+    pub fn run(node: &Node) -> Result<Node> {
         let mut p = PinActionCombiner {
           current_state: HashMap::new(),
           i: 0,
@@ -30,10 +31,10 @@ impl PinActionCombiner {
           updated_indices: vec![],
         };
 
-        node.process(&mut p).unwrap();
+        node.process(&mut p)?.unwrap();
         p.advance_to_second_pass();
-        let n = node.process(&mut p).unwrap();
-        n
+        let n = node.process(&mut p)?.unwrap();
+        Ok(n)
     }
 
     pub fn advance_to_second_pass(&mut self) {
@@ -43,7 +44,7 @@ impl PinActionCombiner {
 }
 
 impl Processor for PinActionCombiner {
-    fn on_node(&mut self, node: &Node) -> Return {
+    fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
             // Grab the pins and push them into the running vectors, then delete this node.
             Attrs::PinAction(pin_changes) => {
@@ -65,22 +66,22 @@ impl Processor for PinActionCombiner {
                   }
                 }
                 self.i += 1;
-                Return::Unmodified
+                Ok(Return::Unmodified)
               } else {
                 // Delete any pin action nodes whose indice is not presetn in the saved indices
                 if self.updated_indices.contains(&self.i) {
                   self.i += 1;
-                  Return::Unmodified
+                  Ok(Return::Unmodified)
                 } else {
                   self.i += 1;
-                  Return::None
+                  Ok(Return::None)
                 }
               }
             },
             _ => {
                 // For all other nodes, just advance.
                 self.i += 1;
-                Return::ProcessChildren
+                Ok(Return::ProcessChildren)
             }
         }
     }

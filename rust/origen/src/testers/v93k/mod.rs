@@ -37,12 +37,12 @@ impl Renderer {
     self.states.as_mut().unwrap()
   }
 
-  fn update_states(&mut self, pin_changes: &HashMap<String, (PinActions, u8)>, dut: &Dut) -> Return {
+  fn update_states(&mut self, pin_changes: &HashMap<String, (PinActions, u8)>, dut: &Dut) -> crate::Result<Return> {
     let s = self.states(dut);
     for (name, changes) in pin_changes.iter() {
       s.update(name, Some(changes.0), Some(changes.1), dut);
     }
-    Return::Unmodified
+    Ok(Return::Unmodified)
   }
 }
 
@@ -68,19 +68,19 @@ impl TesterAPI for Renderer {
     Box::new(std::clone::Clone::clone(self))
   }
 
-  fn run(&mut self, node: &Node) -> Node {
-    node.process(self).unwrap()
+  fn run(&mut self, node: &Node) -> crate::Result<Node> {
+    Ok(node.process(self)?.unwrap())
   }
 
-  fn preprocess(&mut self, node: &Node) -> Node {
-    let mut n = PinActionCombiner::run(node);
-    n = CycleCombiner::run(&n);
-    n
+  fn preprocess(&mut self, node: &Node) -> crate::Result<Node> {
+    let mut n = PinActionCombiner::run(node)?;
+    n = CycleCombiner::run(&n)?;
+    Ok(n)
   }
 }
 
 impl Processor for Renderer {
-  fn on_node(&mut self, node: &Node) -> Return {
+  fn on_node(&mut self, node: &Node) -> crate::Result<Return> {
     match &node.attrs {
         Attrs::Test(name) => {
           //self.output_file = output_file!("avc");
@@ -91,11 +91,11 @@ impl Processor for Renderer {
           p.set_extension(".avc");
           self.output_file = Some(File::create(p));
           //self.output_file.write(PRODUCER.pattern_header());
-          Return::ProcessChildren
+          Ok(Return::ProcessChildren)
         }
         Attrs::Comment(_level, msg) => {
           self.output_file.as_mut().unwrap().write_ln(&format!("# {}", msg));
-          Return::Unmodified
+          Ok(Return::Unmodified)
         },
         Attrs::PinAction(pin_changes) => {
           let dut = DUT.lock().unwrap();
@@ -118,17 +118,17 @@ impl Processor for Renderer {
             // The pin states should have been previously updated from the PinAction node, or just has default values
             self.states.as_ref().unwrap().as_strings().unwrap().join(" ")
           ));
-          Return::Unmodified
+          Ok(Return::Unmodified)
         },
         Attrs::SetTimeset(timeset_id) => {
           self.current_timeset_id = Some(*timeset_id);
-          Return::Unmodified
+          Ok(Return::Unmodified)
         },
         Attrs::SetPinHeader(pin_header_id) => {
           self.pin_header_id = Some(*pin_header_id);
-          Return::Unmodified
+          Ok(Return::Unmodified)
         }
-        _ => Return::ProcessChildren,
+        _ => Ok(Return::ProcessChildren),
     }
   }
 }
