@@ -12,12 +12,12 @@ pub struct STILParser;
 
 pub fn parse_file(path: &Path) -> Result<Node> {
     if path.exists() {
-        match parse_str(&fs::read_to_string(path)?) {
-            Ok(n) => Ok(n),
+        match STILParser::parse(Rule::stil_source, &fs::read_to_string(path)?) {
+            Ok(mut stil) => Ok(to_ast(stil.next().unwrap(), Some(path))?.unwrap()),
             Err(e) => Err(Error::new(&format!(
                 "Error parsing file {}:\n{}",
                 path.canonicalize()?.display(),
-                e.msg
+                &format!("{}", e)
             ))),
         }
     } else {
@@ -31,7 +31,7 @@ pub fn parse_file(path: &Path) -> Result<Node> {
 pub fn parse_str(stil: &str) -> Result<Node> {
     match STILParser::parse(Rule::stil_source, stil) {
         Err(e) => Err(Error::new(&format!("{}", e))),
-        Ok(mut stil) => Ok(to_ast(stil.next().unwrap())?.unwrap()),
+        Ok(mut stil) => Ok(to_ast(stil.next().unwrap(), None)?.unwrap()),
     }
 }
 
@@ -54,14 +54,14 @@ fn unquote(text: &str) -> String {
 fn build_expression(pair: Pair<Rule>) -> Result<Node> {
     let mut pairs = pair.into_inner();
     let p2 = pairs.next().unwrap();
-    let mut term = to_ast(p2)?.unwrap();
+    let mut term = to_ast(p2, None)?.unwrap();
     let mut done = false;
     while !done {
         if let Some(next) = pairs.peek() {
             match next.as_rule() {
                 Rule::add => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STILAdd);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -69,7 +69,7 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node> {
                 }
                 Rule::subtract => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STILSubtract);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -86,14 +86,14 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node> {
 
 fn build_term(pair: Pair<Rule>) -> Result<Node> {
     let mut pairs = pair.into_inner();
-    let mut term = to_ast(pairs.next().unwrap())?.unwrap();
+    let mut term = to_ast(pairs.next().unwrap(), None)?.unwrap();
     let mut done = false;
     while !done {
         if let Some(next) = pairs.peek() {
             match next.as_rule() {
                 Rule::multiply => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STILMultiply);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -101,7 +101,7 @@ fn build_term(pair: Pair<Rule>) -> Result<Node> {
                 }
                 Rule::divide => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STILDivide);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -117,7 +117,7 @@ fn build_term(pair: Pair<Rule>) -> Result<Node> {
 }
 
 // This is the main function responsible for transforming the parsed strings into an AST
-pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
+pub fn to_ast(mut pair: Pair<Rule>, file: Option<&Path>) -> Result<AST> {
     let mut ast = AST::new();
     let mut ids: Vec<usize> = vec![];
     let mut pairs: Vec<Pairs<Rule>> = vec![];
@@ -125,7 +125,14 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
     loop {
         match pair.as_rule() {
             Rule::stil_source => {
-                ids.push(ast.push_and_open(node!(STIL)));
+                let path = match file {
+                    Some(p) => match p.canonicalize()?.to_str() {
+                        Some(p) => Some(p.to_string()),
+                        None => None,
+                    },
+                    None => None,
+                };
+                ids.push(ast.push_and_open(node!(STIL, path)));
                 pairs.push(pair.into_inner());
             }
             Rule::stil_version => {

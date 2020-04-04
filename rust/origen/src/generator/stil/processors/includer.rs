@@ -37,7 +37,7 @@ impl Processor for Includer {
                 let ast = parser::parse_file(&path)?;
                 Return::Replace(Includer::run(&ast, path.parent())?)
             }
-            Attrs::STIL => Return::ProcessChildren,
+            Attrs::STIL(_file) => Return::ProcessChildren,
             // No need to recurse into other nodes, all includes should be at the top-level
             _ => Return::Unmodified,
         };
