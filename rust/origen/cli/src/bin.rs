@@ -124,9 +124,6 @@ fn main() {
            .subcommand(SubCommand::with_name("target")
                 .about("Set/view the default target")
                 .visible_alias("t")
-                // .arg(Arg::with_name("targets")
-                //     .help("The name of the file(s) from targets/ to be set, added, or removed to the default target(s)")
-                // )
                 .subcommand(SubCommand::with_name("add")
                     .about("Activates the given target(s)")
                     .visible_alias("a")
@@ -168,25 +165,6 @@ fn main() {
                     .about("Views the currently activated target(s)")
                     .visible_alias("v")
                 )
-
-                // .arg(Arg::with_name("add")
-                //     .help("Adds the given target(s) to the current default target(s)")
-                //     .short("a")
-                //     .long("add")
-                //     .takes_value(false)
-                //     .conflicts_with("remove")
-                // )
-                // .arg(Arg::with_name("remove")
-                //     .help("Removes the given target(s) to the current default target(s)")
-                //     .short("r")
-                //     .long("remove")
-                //     .takes_value(false)
-                //     .conflicts_with("add")
-                // )
-                // .arg(Arg::with_name("clear")
-                //     .help("Clears all the current targets")
-                //     .short("")
-                // )
            )
 
            /************************************************************************************/
@@ -251,31 +229,19 @@ fn main() {
                 );
             }
             Some("target") => {
-                // let m = matches.subcommand_matches("target").unwrap();
-                // let a;
-                // if m.value_of("add").is_some() {
-                //     a = Some("add");
-                // } else if m.value_of("remove").is_some() {
-                //     a = Some("remove");
-                // } else {
-                //     a = None;
-                // }
-                // //commands::target::run(matches.value_of("target"));
-                // if let Some(targets) = m.values_of("targets") {
-                //     commands::target::run(Some(targets.collect()), a);
-                // } else {
-                //     commands::target::run(None, a);
-                // }
                 let m = matches.subcommand_matches("target").unwrap();
-                commands::target::run(
-                    m.subcommand_name(),
-                    {
-                        match m.values_of("targets") {
+                let subm = m.subcommand();
+                if let Some(s) = subm.1 {
+                    commands::target::run(
+                        Some(subm.0),
+                        match s.values_of("targets") {
                             Some(targets) => Some(targets.collect()),
-                            None => None,
+                            None => None
                         }
-                    }
-                );
+                    )
+                } else {
+                    commands::target::run(None, None);
+                }
             }
             Some("mode") => {
                 let matches = matches.subcommand_matches("mode").unwrap();

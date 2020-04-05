@@ -1,6 +1,6 @@
 use crate::core::term;
 /// Exposes the application configuration options from config/application.toml
-/// which will include the currently selected target/environment settings form the workspace
+/// which will include the currently selected target settings form the workspace
 use crate::STATUS;
 use config::File;
 use std::path::PathBuf;
@@ -12,9 +12,17 @@ use std::path::PathBuf;
 // * add an example of it to src/app_generators/templates/app/config/application.toml
 pub struct Config {
     pub name: String,
-    pub target: Option<String>,
-    pub environment: Option<String>,
+    pub target: Option<Vec<String>>,
     pub mode: String,
+}
+
+impl Config {
+    pub fn refresh(&mut self) {
+        let latest = Self::default();
+        self.name = latest.name;
+        self.target = latest.target;
+        self.mode = latest.mode;
+    }
 }
 
 impl Default for Config {
@@ -23,9 +31,7 @@ impl Default for Config {
 
         // Start off by specifying the default values for all attributes, seems fine
         // not to handle these errors
-        //let _ = s.set_default("name", "");
-        //let _ = s.set_default("target", None::<String>);
-        //let _ = s.set_default("environment", None::<String>);
+        let _ = s.set_default("target", None::<Vec<String>>);
         let _ = s.set_default("mode", "development".to_string());
 
         if STATUS.is_app_present {

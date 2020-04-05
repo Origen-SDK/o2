@@ -12,7 +12,8 @@ mod tester;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::{Dut, Error, Result, Value, APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS, TEST};
+use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
+use origen::app_config as origen_app_config;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
@@ -116,10 +117,10 @@ fn config(py: Python) -> PyResult<PyObject> {
 fn app_config(py: Python) -> PyResult<PyObject> {
     let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
-    let _ = ret.set_item("name", &APPLICATION_CONFIG.name);
-    let _ = ret.set_item("target", &APPLICATION_CONFIG.target);
-    let _ = ret.set_item("environment", &APPLICATION_CONFIG.environment);
-    let _ = ret.set_item("mode", &APPLICATION_CONFIG.mode);
+    let app_config = origen_app_config();
+    let _ = ret.set_item("name", &app_config.name);
+    let _ = ret.set_item("target", &app_config.target);
+    let _ = ret.set_item("mode", &app_config.mode);
     Ok(ret.into())
 }
 

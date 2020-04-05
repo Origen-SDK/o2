@@ -1,39 +1,35 @@
 use origen::core::application::target;
-use origen::APPLICATION_CONFIG;
+use origen::{backend_fail, backend_expect};
 
-<<<<<<< HEAD
 pub fn run(subcmd: Option<&str>, tnames: Option<Vec<&str>>) {
-    if subcmd.is_none() {
-        run(Some("view"), None)
-=======
-pub fn run(tnames: Option<Vec<&str>>, _action: Option<&str>) {
-    if tnames.is_none() {
-        if APPLICATION_CONFIG.target.is_some() {
-            let name = APPLICATION_CONFIG.target.clone().unwrap();
-            println!("{}", name);
-        } else {
-            println!("No default target is currently enabled in this workspace");
-        }
->>>>>>> origin/tester_prototype
-    } else {
-        if tnames.is_none() {
-            if APPLICATION_CONFIG.target.is_some() {
-                let name = APPLICATION_CONFIG.target.clone().unwrap();
-                println!("{}", name);
-            } else {
-                println!("No default target is currently enabled in this workspace");
-            }
-        } else {
-            for name in tnames.unwrap().iter() {
-                //let name = tname.unwrap();
-                if name == &"default" {
-                    target::delete_val("target");
+    if let Some(cmd) = subcmd {
+        match cmd {
+            "add" => {
+                target::add(backend_expect!(tnames, "No targets given to 'target add' cmd!"));
+            },
+            "default" => {
+                target::reset();
+            },
+            "remove" => {
+                target::remove(backend_expect!(tnames, "No targets given to 'target add' cmd!"));
+            },
+            "set" => {
+                target::set(backend_expect!(tnames, "No targets given to 'target set' cmd!"));
+            },
+            "view" => {
+                if let Some(targets) = target::get() {
+                    println!("The targets currently enabled are:");
+                    println!("{}", targets.join("\n"))
                 } else {
-                    let c = target::clean_name(name, "targets", false);
-                    target::set_workspace("target", &c);
-                    println!("Your workspace target is now set to: {}", c);
+                    println!("No targets have been enabled and this workspace does not enable any default targets")
                 }
+                return ()
+            }
+            _ => {
+                // Shouldn't hit this. Should be caught by clap before getting here
+                backend_fail!("Unknown subcommand in target processor");
             }
         }
     }
+    run(Some("view"), None)
 }
