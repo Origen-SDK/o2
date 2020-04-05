@@ -1,7 +1,8 @@
 pub mod big_uint_helpers;
+
+#[macro_use]
 pub mod logger;
 
-use crate::APPLICATION_CONFIG as CONFIG;
 use crate::STATUS;
 use std::path::{PathBuf, Path};
 

@@ -1,9 +1,9 @@
 use origen::core::application::target;
-use origen::{clean_mode, APPLICATION_CONFIG};
+use origen::{clean_mode, app_config};
 
 pub fn run(mname: Option<&str>) {
     if mname.is_none() {
-        println!("{}", APPLICATION_CONFIG.mode);
+        println!("{}", app_config().mode);
     } else {
         let name = mname.unwrap();
         if name == "default" {

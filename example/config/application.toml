@@ -1,6 +1,6 @@
 name = "example"
 # Define a default target that will be used by a new workspace
-target = "dut/falcon.py"
+target = ["falcon"]
 # Define a default environment that will be used by a new workspace
 #environment = "v93k"
 # To make your application workspace run in production mode by default

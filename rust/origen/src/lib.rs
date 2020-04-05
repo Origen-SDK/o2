@@ -40,7 +40,7 @@ lazy_static! {
     pub static ref ORIGEN_CONFIG: OrigenConfig = OrigenConfig::default();
     /// Provides configuration information derived from application.toml and any workspace
     /// overrides e.g. from running origen t command to set a default target
-    pub static ref APPLICATION_CONFIG: AppConfig = AppConfig::default();
+    pub static ref APPLICATION_CONFIG: Mutex<AppConfig> = Mutex::new(AppConfig::default());
     pub static ref LOGGER: Logger = Logger::default();
     /// The current device model, containing all metadata about hierarchy, regs, pins, specs,
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
@@ -99,6 +99,10 @@ pub fn producer() -> MutexGuard<'static, Producer> {
 
 pub fn services() -> MutexGuard<'static, Services> {
     SERVICES.lock().unwrap()
+}
+
+pub fn app_config() -> MutexGuard<'static, AppConfig> {
+    APPLICATION_CONFIG.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
