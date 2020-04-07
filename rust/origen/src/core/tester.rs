@@ -211,6 +211,11 @@ impl Tester {
     Ok(())
   }
 
+  pub fn end_pattern(&self) -> Result<(), Error> {
+    TEST.push(node!(PatternEnd));
+    Ok(())
+  }
+
   /// Renders the output for the target at index i.
   /// Allows the frontend to call testers in a loop.
   pub fn render_target_at(&mut self, idx: usize) -> Result<RenderStatus, Error> {

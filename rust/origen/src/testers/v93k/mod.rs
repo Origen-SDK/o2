@@ -84,7 +84,6 @@ impl Processor for Renderer {
     match &node.attrs {
         Attrs::Test(name) => {
           //self.output_file = output_file!("avc");
-          println!("{}", name);
           let mut p = output_directory();
           p.push(self.name());
           p.push(name);
@@ -126,6 +125,10 @@ impl Processor for Renderer {
         },
         Attrs::SetPinHeader(pin_header_id) => {
           self.pin_header_id = Some(*pin_header_id);
+          Ok(Return::Unmodified)
+        },
+        Attrs::PatternEnd => {
+          self.output_file.as_mut().unwrap().write_ln("SQPG STOP;");
           Ok(Return::Unmodified)
         }
         _ => Ok(Return::ProcessChildren),

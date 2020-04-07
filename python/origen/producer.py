@@ -26,23 +26,26 @@ class Producer(_origen.producer.PyProducer):
           if hasattr(origen.dut, m) and callable(getattr(origen.dut, m)) and not kwargs.get(f"skip_{m}"):
               getattr(origen.dut, m)(**kwargs)
 
-      origen.logger.info(f"  Producing Pattern with job ID {job.id}")
+      origen.logger.info(f"Producing Pattern {pat.name} with job ID {job.id}")
       callback('startup')
       yield pat
       callback('shutdown')
 
+      origen.tester.end_pattern()
       origen.tester.render()
 
-class Pattern(_origen.producer.PyPattern):
+class Pattern:
   def __init__(self, name, **kwargs):
     if name in kwargs:
       # User overwrote the pattern name, or provided one for a sourceless generation
-      name = kwargs['name']
-    
+      processed_name = kwargs['name']
+    else:
+      processed_name = name
+
     if "prefix" in kwargs:
-      name = f"{kwargs['prefix']}_{name}"
+      processed_name = f"{kwargs['prefix']}_{processed_name}"
     
     if "postfix" in kwargs:
-      name = f"{name}_{kwargs['postfix']}"
+      processed_name = f"{processed_name}_{kwargs['postfix']}"
 
-    self.name = name
+    self.name = processed_name

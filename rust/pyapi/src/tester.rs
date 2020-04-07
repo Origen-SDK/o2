@@ -205,6 +205,11 @@ impl PyTester {
     Ok(slf.to_object(py))
   }
 
+  fn end_pattern(&self) -> PyResult<()> {
+    let tester = origen::tester();
+    Ok(tester.end_pattern()?)
+  }
+
   fn issue_callbacks(&self, func: &str) -> PyResult<()> {
     // Get the current targeted testers
     let targets;

@@ -13,4 +13,3 @@ with produce_pattern() as pat:
     dut().pin("clk").drive(0)
     dut().pin("portc").drive(0)
     tester().repeat(15)
-    print(origen.test_ast())

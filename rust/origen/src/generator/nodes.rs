@@ -54,6 +54,8 @@ pub enum Attrs {
         Option<String>,
     ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
     Cycle(u32, bool), // repeat (0 not allowed), compressable
+    PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
+                // represents the end of the 'pattern vectors', for vector-based testers.
 
     //// Teradyne custom nodes
 

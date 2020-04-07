@@ -1,4 +1,4 @@
-//! A simple example processor which will combine pin actions not separated by a cycle into a single PinAction node
+//! A simple processor which will combine pin actions not separated by a cycle into a single PinAction node
 
 use crate::generator::ast::*;
 use crate::generator::processor::*;
@@ -10,7 +10,6 @@ use crate::Result;
 /// Combines adjacent pin actions into a single pin action
 pub struct PinActionCombiner {
     current_state: HashMap<String, (PinActions, u8)>,
-    //states: StateTracker,
     i: usize,
     first_pass: bool,
     updated_indices: Vec<usize>,
