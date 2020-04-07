@@ -4,6 +4,7 @@ pub mod mode;
 pub mod setup;
 pub mod target;
 pub mod version;
+pub mod web;
 
 use crate::python;
 use origen::clean_mode;

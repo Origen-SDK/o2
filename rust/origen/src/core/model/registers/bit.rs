@@ -22,9 +22,9 @@ pub struct Bit {
     /// 2 - Value is Z
     /// 3 - Bit is to be verified
     /// 4 - Bit is to be captured
-    /// 5 - Modified, sets if bits [2:0] have been changed since the last reset
+    /// 5 - Modified, sets if bits `\[`2:0`\]` have been changed since the last reset
     pub state: RwLock<u8>,
-    /// The state we think the device has, only bits [2:0] are applicable.
+    /// The state we think the device has, only bits `\[`2:0`\]` are applicable.
     /// This is updated by reseting the register or executing a transaction.
     pub device_state: RwLock<u8>,
     /// The state of the bit at the last reset

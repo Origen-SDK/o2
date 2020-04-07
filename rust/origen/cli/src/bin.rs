@@ -21,6 +21,7 @@ fn main() {
                 .help("Display the Origen and application version"),
         );
 
+
     /************************************************************************************/
     /******************** Global commands ***********************************************/
     /************************************************************************************/
@@ -38,6 +39,17 @@ fn main() {
         app = app
 
            /************************************************************************************/
+           .subcommand(SubCommand::with_name("web")
+           .about("Origen specific web commands")
+              .subcommand(SubCommand::with_name("compile")
+                 .about("Compile documentation")
+                 .arg(Arg::with_name("remote")
+                    .short("r")
+                    .long("remote")
+                    .help("Push files to a remote server")
+                  )
+               )
+            )
            .subcommand(SubCommand::with_name("interactive")
                 .about("Start an Origen console to interact with the DUT")
                 .visible_alias("i")
@@ -169,13 +181,27 @@ fn main() {
            .subcommand(SubCommand::with_name("setup")
                 .about("Setup your application's Python environment"),
            )
-    }
+   }
 
     let matches = app.get_matches();
 
     if matches.is_present("version") {
         commands::version::run();
-    } else {
+    }
+    else if matches.is_present("web") {
+       let m = matches.subcommand_matches("web").unwrap();
+        let sub_m = m.subcommand_matches("compile").unwrap();
+        if m.is_present("compile") {
+            if sub_m.is_present("remote")
+            {
+              commands::web::run(Some("compile"),Some("remote"));
+            }
+            else {
+              commands::web::run(None,None);
+            }
+    }
+    }
+    else {
         match matches.subcommand_name() {
             Some("setup") => commands::setup::run(),
             Some("interactive") => {
