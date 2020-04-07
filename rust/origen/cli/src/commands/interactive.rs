@@ -1,7 +1,7 @@
 use origen::STATUS;
 use std::fs;
 
-pub fn run(target: &Option<&str>, environment: &Option<&str>, mode: &Option<&str>) {
+pub fn run(targets: Option<Vec<&str>>, mode: &Option<&str>) {
     let dot_origen_dir = STATUS.root.join(".origen");
     if !dot_origen_dir.exists() {
         let _ = fs::create_dir(&dot_origen_dir);
@@ -14,5 +14,5 @@ pub fn run(target: &Option<&str>, environment: &Option<&str>, mode: &Option<&str
             .open(&history_file);
     }
 
-    super::launch("interactive", target, environment, mode, None);
+    super::launch("interactive", targets, mode, None);
 }

@@ -9,12 +9,12 @@ use std::fmt;
 macro_rules! node {
     ( $attr:ident, $( $x:expr ),* ) => {
         {
-            Node::new(Attrs::$attr($( $x ),*))
+            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr($( $x ),*))
         }
     };
     ( $attr:ident ) => {
         {
-            Node::new(Attrs::$attr)
+            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr)
         }
     };
 }
@@ -186,7 +186,7 @@ impl AST {
         self.nodes.push(node);
     }
 
-    pub fn process(&self, process_fn: &dyn Fn(&Node) -> Node) -> Node {
+    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Node) -> Node {
         if self.nodes.len() > 1 {
             let node = self.to_node();
             process_fn(&node)

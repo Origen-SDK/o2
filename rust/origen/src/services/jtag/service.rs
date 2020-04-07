@@ -1,7 +1,6 @@
 //! The service implements the public API exposed to Python and provides
 //! all state storage for a JTAG driver instance
 
-use crate::generator::ast::*;
 use crate::node;
 use crate::{Result, Value, TEST};
 
