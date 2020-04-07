@@ -1,81 +1,34 @@
-use origen::DUT;
 use pyo3::class::mapping::*;
-use pyo3::exceptions;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
+use indexmap::map::IndexMap;
+use crate::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter};
 
 use super::pin_collection::PinCollection;
-use super::pin_group::PinGroup;
 use origen::core::model::pins::Endianness;
 
 #[pyclass]
 pub struct PinContainer {
-    pub path: String,
     pub model_id: usize,
 }
 
 #[pymethods]
 impl PinContainer {
     fn keys(&self) -> PyResult<Vec<String>> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-        let names = &model.pins;
-
-        let mut v: Vec<String> = Vec::new();
-        for (n, _p) in names {
-            v.push(n.clone());
-        }
-        Ok(v)
+        DictLikeAPI::keys(self)
     }
 
-    fn values(&self) -> PyResult<Vec<Py<PinGroup>>> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-        let pins = &model.pins;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v: Vec<Py<PinGroup>> = Vec::new();
-        for (n, _p) in pins {
-            v.push(
-                Py::new(
-                    py,
-                    PinGroup {
-                        name: String::from(n.clone()),
-                        path: String::from(self.path.clone()),
-                        model_id: self.model_id,
-                    },
-                )
-                .unwrap(),
-            )
-        }
-        Ok(v)
+    fn values(&self) -> PyResult<Vec<PyObject>> {
+        DictLikeAPI::values(self)
     }
 
-    fn items(&self) -> PyResult<Vec<(String, Py<PinGroup>)>> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-        let pins = &model.pins;
+    fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
+        DictLikeAPI::items(self)
+    }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut items: Vec<(String, Py<PinGroup>)> = Vec::new();
-        for (n, _p) in pins {
-            items.push((
-                n.clone(),
-                Py::new(
-                    py,
-                    PinGroup {
-                        name: String::from(n.clone()),
-                        path: String::from(self.path.clone()),
-                        model_id: self.model_id,
-                    },
-                )
-                .unwrap(),
-            ));
-        }
-        Ok(items)
+    fn get(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::get(self, name)
     }
 
     #[getter]
@@ -117,86 +70,41 @@ impl PinContainer {
     }
 }
 
+impl DictLikeAPI for PinContainer {
+    fn lookup_key(&self) -> &str {
+        &"pin_groups"
+    }
+
+    fn lookup_table(
+        &self,
+        dut: &std::sync::MutexGuard<origen::core::dut::Dut>,
+    ) -> IndexMap<String, usize> {
+        dut.get_model(self.model_id).unwrap().pin_groups.clone()
+    }
+
+    fn model_id(&self) -> usize {
+        self.model_id
+    }
+
+    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> PyResult<PyObject> {
+        Ok(Py::new(py, super::pin_group::PinGroup {model_id: model_id, name: name.to_string()}).unwrap().to_object(py))
+    }
+}
+
 #[pyproto]
 impl PyMappingProtocol for PinContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<Py<PinGroup>> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let p = model.get_pin_group(name);
-        match p {
-            Some(_p) => Ok(Py::new(
-                py,
-                PinGroup {
-                    name: String::from(name),
-                    path: String::from(&self.path),
-                    model_id: self.model_id,
-                },
-            )
-            .unwrap()),
-            // Stay in sync with Python's Hash - Raise a KeyError if no pin is found.
-            None => Err(exceptions::KeyError::py_err(format!(
-                "No pin or pin alias found for {}",
-                name
-            ))),
-        }
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
     }
 
     fn __len__(&self) -> PyResult<usize> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-        Ok(model.pins.len())
+        DictLikeAPI::__len__(self)
     }
 }
 
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for PinContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinContainerIter> {
-        let dut = DUT.lock().unwrap();
-        let model = dut.get_model(slf.model_id)?;
-        Ok(PinContainerIter {
-            keys: model.pins.iter().map(|(s, _)| s.clone()).collect(),
-            i: 0,
-        })
-    }
-}
-
-#[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for PinContainer {
-    fn __contains__(&self, item: &str) -> PyResult<bool> {
-        let mut dut = DUT.lock().unwrap();
-        let model = dut.get_mut_model(self.model_id)?;
-        Ok(model.contains(item))
-    }
-}
-
-#[pyclass]
-pub struct PinContainerIter {
-    keys: Vec<String>,
-    i: usize,
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinContainerIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
-    }
-
-    /// The Iterator will be created with an index starting at 0 and the pin names at the time of its creation.
-    /// For each call to 'next', we'll create a pin object with the next value in the list, or None, if no more keys are available.
-    /// Note: this means that the iterator can become stale if the PinContainer is changed. This can happen if the iterator is stored from Python code
-    ///  directly. E.g.: i = dut.pins.__iter__() => iterator with the pin names at the time of creation,
-    /// Todo: Fix the above using iterators. My Rust skills aren't there yet though... - Coreyeng
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
-        if slf.i >= slf.keys.len() {
-            return Ok(None);
-        }
-        let name = slf.keys[slf.i].clone();
-        slf.i += 1;
-        Ok(Some(name))
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
     }
 }

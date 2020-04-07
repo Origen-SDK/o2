@@ -18,6 +18,8 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     Test(String),
     Comment(u8, String), // level, msg
+    SetTimeset(usize), // Indicates both a set or change of the current timeset
+    ClearTimeset(),
     PinWrite(Id, u128),
     PinVerify(Id, u128),
     RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str

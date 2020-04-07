@@ -10,9 +10,9 @@ macro_rules! type_error {
 }
 
 #[macro_use]
-mod timeset_container;
+pub mod timeset_container;
 #[macro_use]
-mod timeset;
+pub mod timeset;
 
 use pyo3::types::{PyAny, PyDict};
 use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};

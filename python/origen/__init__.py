@@ -5,6 +5,8 @@ import importlib
 from contextlib import contextmanager
 import pickle
 
+from origen.tester import Tester, DummyTester
+
 config = _origen.config()
 status = _origen.status()
 root = Path(status["root"])
@@ -14,7 +16,10 @@ _reg_description_parsing = False
 
 app = None
 dut = None
-tester = None
+tester = Tester()
+#tester = _origen.tester.PyTester("placeholder")
+#tester.register_generator(DummyTester)
+
 mode = "development"
 
 if status["is_app_present"]:
@@ -52,3 +57,19 @@ def standard_context():
         "dut": dut, 
         "tester": tester, 
     }
+
+# class Tester:
+#     def __init__(self, path):
+#         self.path = path
+#         self.db = _origen.tester.PyTester(path)
+
+# def instantiate_tester(path):
+#     t = Tester(path)
+#     # -- do some error checking here ---
+#     # ...
+#     tester = t
+#     return tester
+
+# Returns the dummy tester
+#def instantiate_dummy_tester():
+#    return instantiate_tester(origen.testers.dummy)
