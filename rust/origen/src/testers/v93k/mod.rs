@@ -1,4 +1,4 @@
-use crate::{DUT, TEST};
+use crate::{DUT};
 use crate::core::dut::Dut;
 use crate::core::application::output_directory;
 use crate::generator::processor::{Return, Processor};
@@ -8,8 +8,6 @@ use crate::core::file_handler::{File};
 use crate::core::model::pins::StateTracker;
 use crate::core::model::pins::pin::PinActions;
 use std::collections::HashMap;
-use indexmap::IndexMap;
-use std::path::PathBuf;
 
 use crate::generator::processors::CycleCombiner;
 use crate::generator::processors::PinActionCombiner;
@@ -40,7 +38,7 @@ impl Renderer {
   fn update_states(&mut self, pin_changes: &HashMap<String, (PinActions, u8)>, dut: &Dut) -> crate::Result<Return> {
     let s = self.states(dut);
     for (name, changes) in pin_changes.iter() {
-      s.update(name, Some(changes.0), Some(changes.1), dut);
+      s.update(name, Some(changes.0), Some(changes.1), dut)?;
     }
     Ok(Return::Unmodified)
   }

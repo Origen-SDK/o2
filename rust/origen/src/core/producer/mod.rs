@@ -1,6 +1,7 @@
+pub mod job;
+
 use crate::error::Error;
-use std::path::{PathBuf};
-use indexmap::IndexMap;
+use job::Job;
 
 pub struct Producer {
   pub jobs: Vec<Job>,
@@ -43,13 +44,3 @@ pub enum JobType {
   Program,
   Misc,
 }
-
-pub struct Job {
-
-  pub command: String,
-
-
-  pub results: Option<String>,
-  pub id: usize,
-}
-

@@ -1,17 +1,15 @@
 import _origen
 from contextlib import contextmanager, ContextDecorator
 import origen.producer
+import origen.helpers
 from pathlib import Path
 
 class Producer(_origen.producer.PyProducer):
   def issue_callback(self, c, kwargs):
-      if hasattr(origen.dut, c) and callable(getattr(origen.dut, c)) and not kwargs.get("skip_all_callbacks") and not kwargs.get(f"skip_callback_{c}"):
+      if origen.helpers.has_method(origen.dut, c) and not kwargs.get("skip_all_callbacks") and not kwargs.get(f"skip_callback_{c}"):
           getattr(origen.dut, c)(**kwargs)
           return True # Callback ran or raised an exception
       return False # Callback didn't run
-
-  def standard_callbacks(self):
-    return [(origen.dut, "startup"), (origen.dut, "shutdown")]
 
   @contextmanager
   def produce_pattern(self, job, **kwargs):
@@ -22,14 +20,10 @@ class Producer(_origen.producer.PyProducer):
       origen.target.reload()
       origen.tester.clear_dut_dependencies(ast_name=pat.name)
 
-      def callback(m):
-          if hasattr(origen.dut, m) and callable(getattr(origen.dut, m)) and not kwargs.get(f"skip_{m}"):
-              getattr(origen.dut, m)(**kwargs)
-
       origen.logger.info(f"Producing Pattern {pat.name} with job ID {job.id}")
-      callback('startup')
+      origen.producer.issue_callback('startup', kwargs)
       yield pat
-      callback('shutdown')
+      origen.producer.issue_callback('shutdown', kwargs)
 
       origen.tester.end_pattern()
       origen.tester.render()

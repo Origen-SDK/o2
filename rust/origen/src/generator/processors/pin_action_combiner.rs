@@ -3,7 +3,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
 use crate::core::model::pins::pin::PinActions;
-use crate::core::model::pins::StateTracker;
 use std::collections::HashMap;
 use crate::Result;
 
@@ -50,7 +49,6 @@ impl Processor for PinActionCombiner {
               if self.first_pass {
                 // Compare to the last seen pin actions. If these are the same, then this node can be deleted on the next pass.
                 // If they're different, then these updates must be saved.
-                let save_node = false;
                 for (n, state) in pin_changes.iter() {
                   if let Some(_state) = self.current_state.get_mut(n) {
                     if _state.0 != state.0 || _state.1 != state.1 {
