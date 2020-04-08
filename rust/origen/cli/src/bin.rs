@@ -182,19 +182,6 @@ fn main() {
            .subcommand(SubCommand::with_name("setup")
                 .about("Setup your application's Python environment"),
            )
-
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("utility")
-                .about("Various utility functions and helpers")
-                .subcommand(SubCommand::with_name("sources")
-                    .about("Locates source files for generation or compilation")
-                    .arg(Arg::with_name("pattern")
-                        .help("Locate pattern source only")
-                    // <Add more options here>
-                    )
-                )
-           )
-
       }
 
     let matches = app.get_matches();
