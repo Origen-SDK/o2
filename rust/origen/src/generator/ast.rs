@@ -19,6 +19,13 @@ macro_rules! node {
     };
 }
 
+#[macro_export]
+macro_rules! push_pin_actions {
+    ($pin_info:expr) => {{
+        crate::TEST.push(crate::node!(PinAction, $pin_info));
+    }};
+}
+
 /// An AST provides an API for constructing a node tree, when completed it can be unwrapped
 /// to a node by calling the unwrap() method
 #[derive(Clone)]

@@ -37,6 +37,12 @@ impl PinHeader {
   fn width(&self) -> PyResult<usize> {
     Ok(self.physical_names()?.len())
   }
+
+  #[allow(non_snake_case)]
+  #[getter]
+  fn get___origen__model_id__(&self) -> PyResult<usize> {
+    Ok(self.model_id)
+  }
 }
 
 #[pyproto]

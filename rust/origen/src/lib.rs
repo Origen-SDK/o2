@@ -17,6 +17,7 @@ use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
 pub use self::core::tester::Tester;
+pub use self::core::producer::Producer;
 use self::core::model::registers::BitCollection;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
@@ -47,6 +48,8 @@ lazy_static! {
     pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
     /// The global tester model.
     pub static ref TESTER: Mutex<Tester> = Mutex::new(Tester::new());
+    /// Producer
+    pub static ref PRODUCER: Mutex<Producer> = Mutex::new(Producer::new());
     /// Services owned by the current DUT, stored as a separate collection to avoid having to
     /// get a mutable ref on the DUT if the service needs mutation
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
@@ -88,6 +91,10 @@ pub fn dut() -> MutexGuard<'static, Dut> {
 
 pub fn tester() -> MutexGuard<'static, Tester> {
     TESTER.lock().unwrap()
+}
+
+pub fn producer() -> MutexGuard<'static, Producer> {
+    PRODUCER.lock().unwrap()
 }
 
 pub fn services() -> MutexGuard<'static, Services> {

@@ -13,6 +13,9 @@ use super::Model;
 use pin::{Pin, PinActions};
 use pin_collection::PinCollection;
 use pin_group::PinGroup;
+use crate::push_pin_actions;
+use std::collections::HashMap;
+use indexmap::IndexMap;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Endianness {
@@ -166,7 +169,9 @@ impl Dut {
                     ra,
                     endianness,
                 )?;
-                physical_pin.groups.insert(name.to_string(), i);
+                if names.len() > 1 {
+                    physical_pin.groups.insert(name.to_string(), i);
+                }
                 self.pin_groups.push(pin_group);
                 self.pins.push(physical_pin);
                 pin_group_id += 1;
@@ -320,6 +325,7 @@ impl Dut {
         }
 
         let mut m = (mask.unwrap_or(!(0 as usize))) as u32;
+        let mut resolved_actions: HashMap<String, (PinActions, u8)> = HashMap::new();
         for (_i, n) in names.iter().rev().enumerate() {
             let p = self._get_mut_pin(model_id, n)?;
 
@@ -329,7 +335,10 @@ impl Dut {
                 p.action = PinActions::HighZ;
             }
             m >>= 1;
+
+            resolved_actions.insert(p.name.clone(), (p.action, p.data));
         }
+        push_pin_actions!(resolved_actions);
         Ok(())
     }
 
@@ -563,5 +572,110 @@ impl Dut {
 
     pub fn _contains(&self, model_id: usize, name: &str) -> bool {
         return self.get_pin(model_id, name).is_some();
+    }
+
+    pub fn _resolve_group_to_physical_pins(&self, model_id: usize, name: &str) -> Result<Vec<&Pin>, Error> {
+        let mut retn: Vec<&Pin> = vec![];
+        let grp = self._get_pin_group(model_id, name)?;
+        for p in grp.pin_names.iter() {
+            retn.push(self._get_pin(model_id, p)?);
+        }
+        Ok(retn)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StateTracker {
+    pins: IndexMap<String, Vec<(PinActions, u8)>>,
+    model_id: usize,
+}
+
+impl StateTracker {
+
+    /// Creates a new state storage container. Creating a new instance populates the given groups with their reset data and actions.
+    pub fn new(model_id: usize, pin_header_id: Option<usize>, dut: &Dut) -> Self {
+        let mut pins: IndexMap<String, Vec<(PinActions, u8)>> = IndexMap::new();
+        if let Some(id) = pin_header_id {
+            for n in dut.pin_headers[id].pin_names.iter() {
+                let mut states: Vec<(PinActions, u8)> = vec![];
+                for p in dut._resolve_group_to_physical_pins(model_id, n).unwrap() {
+                    states.push((p.reset_action.unwrap_or(PinActions::HighZ), p.reset_data.unwrap_or(0) as u8));
+                }
+                pins.insert(n.clone(), states);
+            }
+        } else {
+            // No pin header was given. Default pins will be all physical pins on the DUT (Dut, being model ID of 0 here, not the DUT container in general)
+            for phys in dut.pins.iter() {
+                if phys.model_id == 0 {
+                    // Note: the phys name is guaranteed to be in the pin groups, as this physical's pins pin group representation
+                    pins.insert(phys.name.clone(), vec![(phys.reset_action.unwrap_or(PinActions::HighZ), phys.reset_data.unwrap_or(0) as u8)]);
+                }
+            }
+        }
+        Self {
+            pins: pins,
+            model_id: model_id
+        }
+    }
+
+    /// Given a physical pin name, action, and data, updates the state appropriately
+    pub fn update(&mut self, physical_pin: &str, action: Option<PinActions>, data: Option<u8>, dut: &Dut) -> Result<(), Error> {
+        let p = dut._get_pin(self.model_id, physical_pin)?;
+        // Check for the header pin in the aliases
+        if let Some(states) = self.pins.get_mut(physical_pin) {
+            if let Some(a) = action {
+                states[0].0 = a;
+            }
+            if let Some(d) = data {
+                states[0].1 = d;
+            }
+            return Ok(())
+        }
+
+        // Check for the header pin in the groups
+        for (grp, offset) in p.groups.iter() {
+            if let Some(states) = self.pins.get_mut(grp) {
+                if let Some(a) = action {
+                    states[*offset].0 = a;
+                }
+                if let Some(d) = data {
+                    states[*offset].1 = d;
+                }
+                return Ok(())
+            }
+        }
+
+        // Check for the header pin in the aliases
+        for alias in p.aliases.iter() {
+            if let Some(states) = self.pins.get_mut(alias) {
+                if let Some(a) = action {
+                    states[0].0 = a;
+                }
+                if let Some(d) = data {
+                    states[0].1 = d;
+                }
+                return Ok(())
+            }
+        }
+        Err(Error::new(&format!(
+            "Could not resolve physical pin {} to any pins in header {}",
+            physical_pin, 
+            self.pins.keys().map( |n| n.to_string() ).collect::<Vec<String>>().join(", ")))
+        )
+    }
+
+    /// Processes the current state into a vector of 'state strings', where each string corresponds to a tester representation of the actions and data.
+    /// E.g.: 'porta': [(PinAction::Drive), 1, (PinAction::HighZ, 0)], 'clk': [(PinAction::Drive), 1], 'reset': [(PinAction::Verify), 0]
+    ///     => ['1Z', '1', 'L']
+    /// If a header was given, the order will be identical to that from the header. If no header was given, the order will be whatever order was when the default
+    /// pins were collected.
+    pub fn as_strings(&self) -> Result<Vec<String>, Error> {
+        Ok(self.pins.iter().map( |(_n, states)| {
+            states.iter().map( |(action, data)| action.as_tester_char(*data).to_string() ).collect::<Vec<String>>().join("")
+        }).collect::<Vec<String>>())
+    }
+
+    pub fn names(&self) -> Vec<String> {
+        self.pins.keys().map( |n| n.to_string() ).collect::<Vec<String>>()
     }
 }

@@ -182,7 +182,7 @@ fn main() {
            .subcommand(SubCommand::with_name("setup")
                 .about("Setup your application's Python environment"),
            )
-    }
+      }
 
     let matches = app.get_matches();
 

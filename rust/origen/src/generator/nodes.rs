@@ -1,5 +1,8 @@
 use super::stil;
 use num_bigint::BigUint;
+use std::collections::HashMap;
+use crate::core::model::pins::pin::PinActions;
+
 type Id = usize;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -19,9 +22,10 @@ pub enum Attrs {
     Test(String),
     Comment(u8, String), // level, msg
     SetTimeset(usize), // Indicates both a set or change of the current timeset
-    ClearTimeset(),
-    PinWrite(Id, u128),
-    PinVerify(Id, u128),
+    ClearTimeset,
+    SetPinHeader(usize), // Indicates the pin header selected
+    ClearPinHeader,
+    PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, PinActions, Pin Data
     RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
     RegVerify(
         Id,
@@ -50,6 +54,8 @@ pub enum Attrs {
         Option<String>,
     ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
     Cycle(u32, bool), // repeat (0 not allowed), compressable
+    PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
+                // represents the end of the 'pattern vectors', for vector-based testers.
 
     //// Teradyne custom nodes
 

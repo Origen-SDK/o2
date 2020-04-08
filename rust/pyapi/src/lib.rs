@@ -9,6 +9,7 @@ mod services;
 #[macro_use]
 mod timesets;
 mod tester;
+mod producer;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
@@ -17,13 +18,24 @@ use origen::app_config as origen_app_config;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::types::IntoPyDict;
 use std::sync::MutexGuard;
 
 // Imported pyapi modules
 use dut::PyInit_dut;
 use tester::PyInit_tester;
 use logger::PyInit_logger;
+use producer::PyInit_producer;
 use services::PyInit_services;
+
+#[macro_export]
+macro_rules! pypath {
+    ($py:expr, $path:expr) => {{
+        let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
+        let obj = $py.eval(&format!("pathlib.Path(r\"{}\").resolve()", $path), None, Some(&locals))?;
+        obj.to_object($py)
+    }};
+}
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -36,10 +48,16 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(file_handler))?;
     m.add_wrapped(wrap_pyfunction!(test))?;
     m.add_wrapped(wrap_pyfunction!(test_ast))?;
+    m.add_wrapped(wrap_pyfunction!(output_directory))?;
+    m.add_wrapped(wrap_pyfunction!(website_output_directory))?;
+    m.add_wrapped(wrap_pyfunction!(website_source_directory))?;
+    m.add_wrapped(wrap_pyfunction!(on_windows))?;
+    m.add_wrapped(wrap_pyfunction!(on_linux))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
     m.add_wrapped(wrap_pymodule!(tester))?;
+    m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;
     Ok(())
 }
@@ -121,6 +139,9 @@ fn app_config(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("name", &app_config.name);
     let _ = ret.set_item("target", &app_config.target);
     let _ = ret.set_item("mode", &app_config.mode);
+    let _ = ret.set_item("__output_directory__", &app_config.output_directory);
+    let _ = ret.set_item("__website_output_directory__", &app_config.website_output_directory);
+    let _ = ret.set_item("__website_source_directory__", &app_config.website_source_directory);
     Ok(ret.into())
 }
 
@@ -137,4 +158,32 @@ fn clean_mode(name: &str) -> PyResult<String> {
 fn target_file(name: &str, dir: &str) -> PyResult<String> {
     let c = origen::core::application::target::clean_name(name, dir, true);
     Ok(c)
+}
+
+#[pyfunction]
+fn output_directory(py: Python) -> PyResult<PyObject> {
+    let dir = origen::core::application::output_directory();
+    Ok(pypath!(py, dir.display()))
+}
+
+#[pyfunction]
+fn website_output_directory(py: Python) -> PyResult<PyObject> {
+    let dir = origen::core::application::website_output_directory();
+    Ok(pypath!(py, dir.display()))
+}
+
+#[pyfunction]
+fn website_source_directory(py: Python) -> PyResult<PyObject> {
+    let dir = origen::core::application::website_source_directory();
+    Ok(pypath!(py, dir.display()))
+}
+
+#[pyfunction]
+fn on_windows() -> PyResult<bool> {
+    Ok(origen::core::os::on_windows())
+}
+
+#[pyfunction]
+fn on_linux() -> PyResult<bool> {
+    Ok(origen::core::os::on_linux())
 }

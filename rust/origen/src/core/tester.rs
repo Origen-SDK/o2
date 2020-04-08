@@ -1,5 +1,6 @@
 use crate::error::Error;
 use super::model::timesets::timeset::{Timeset};
+use super::model::pins::pin_header::PinHeader;
 use indexmap::IndexMap;
 use crate::testers::{instantiate_tester, available_testers};
 use crate::core::dut::{Dut};
@@ -56,6 +57,7 @@ pub struct Tester {
   /// This is the direct ID to the timeset object.
   /// The name and model ID can be found on this object.
   current_timeset_id: Option<usize>,
+  current_pin_header_id: Option<usize>,
   external_testers: IndexMap<String, TesterSource>,
   pub target_testers: Vec<TesterSource>,
 }
@@ -64,6 +66,7 @@ impl Tester {
   pub fn new() -> Self {
     Tester {
       current_timeset_id: Option::None,
+      current_pin_header_id: Option::None,
       external_testers: IndexMap::new(),
       target_testers: vec!(),
     }
@@ -76,15 +79,26 @@ impl Tester {
     }
   }
 
-  pub fn reset(&mut self) -> Result<(), Error> {
-    self.clear_dut_dependencies()?;
+  pub fn _current_pin_header_id(&self) -> Result<usize, Error> {
+    match self.current_pin_header_id {
+      Some(ph_id) => Ok(ph_id),
+      None => Err(Error::new(&format!("No pin header has been set!")))
+    }
+  }
+
+  pub fn reset(&mut self, ast_name: Option<String>) -> Result<(), Error> {
+    self.clear_dut_dependencies(ast_name)?;
     self.reset_external_testers()?;
     Ok(())
   }
 
   /// Clears all members which reference members on the current DUT.
-  pub fn clear_dut_dependencies(&mut self) -> Result<(), Error> {
-    TEST.start("ad-hoc");
+  pub fn clear_dut_dependencies(&mut self, ast_name: Option<String>) -> Result<(), Error> {
+    if let Some(ast) = ast_name {
+      TEST.start(&ast);
+    } else {
+      TEST.start("ad-hoc");
+    }
     self.current_timeset_id = Option::None;
     Ok(())
   }
@@ -131,6 +145,35 @@ impl Tester {
 
   pub fn clear_timeset(&mut self) -> Result<(), Error> {
     self.current_timeset_id = Option::None;
+    TEST.push(node!(ClearTimeset));
+    Ok(())
+  }
+
+  pub fn get_pin_header(&self, dut: &Dut) -> Option<PinHeader> {
+    if let Some(ph_id) = self.current_pin_header_id {
+      Some(dut.pin_headers[ph_id].clone())
+    } else {
+      Option::None
+    }
+  }
+
+  pub fn _get_pin_header(&self, dut: &Dut) -> Result<PinHeader, Error> {
+    if let Some(ph_id) = self.current_pin_header_id {
+      Ok(dut.pin_headers[ph_id].clone())
+    } else {
+      Err(Error::new(&format!("No pin header has been set!")))
+    }
+  }
+
+  pub fn set_pin_header(&mut self, dut: &Dut, model_id: usize, pin_header_name: &str) -> Result<(), Error> {
+    self.current_pin_header_id = Some(dut._get_pin_header(model_id, pin_header_name)?.id);
+    TEST.push(node!(SetPinHeader, self.current_pin_header_id.unwrap()));
+    Ok(())
+  }
+
+  pub fn clear_pin_header(&mut self) -> Result<(), Error> {
+    self.current_pin_header_id = Option::None;
+    TEST.push(node!(ClearPinHeader));
     Ok(())
   }
 
@@ -145,7 +188,9 @@ impl Tester {
           Attrs::Cycle(repeat, compressable) => g_.cycle(*repeat, *compressable, &last_node)?,
           Attrs::Comment(level, msg) => g_.cc(*level, &msg, &last_node)?,
           Attrs::SetTimeset(timeset_id) => g_.set_timeset(*timeset_id, &last_node)?,
-          Attrs::ClearTimeset() => g_.clear_timeset(&last_node)?,
+          Attrs::ClearTimeset => g_.clear_timeset(&last_node)?,
+          Attrs::SetPinHeader(pin_header_id) => g_.set_pin_header(*pin_header_id, &last_node)?,
+          Attrs::ClearPinHeader => g_.clear_pin_header(&last_node)?,
           _ => {}
         }
       },
@@ -166,6 +211,11 @@ impl Tester {
     Ok(())
   }
 
+  pub fn end_pattern(&self) -> Result<(), Error> {
+    TEST.push(node!(PatternEnd));
+    Ok(())
+  }
+
   /// Renders the output for the target at index i.
   /// Allows the frontend to call testers in a loop.
   pub fn render_target_at(&mut self, idx: usize) -> Result<RenderStatus, Error> {
@@ -176,7 +226,8 @@ impl Tester {
         stat.external.push(gen.to_string());
       },
       TesterSource::Internal(gen) => {
-        TEST.process(&mut |ast| gen.run(ast).unwrap());
+        let n = gen.preprocess(&TEST.ast.write().unwrap().to_node())?;
+        gen.run(&n)?;
         stat.completed.push(gen.to_string())
       }
     }
@@ -255,6 +306,14 @@ pub trait Interceptor {
   fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
     Ok(())
   }
+
+  fn set_pin_header(&mut self, _pin_header_id: usize, _node: &Node) -> Result<(), Error> {
+    Ok(())
+  }
+
+  fn clear_pin_header(&mut self, _node: &Node) -> Result<(), Error> {
+    Ok(())
+  }
 }
 impl<'a, T> Interceptor for &'a T where T: TesterAPI {}
 impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
@@ -266,6 +325,10 @@ pub trait TesterAPI: std::fmt::Debug + crate::generator::processor::Processor + 
 
   fn to_string(&self) -> String {
     format!("::{}", self.name())
+  }
+
+  fn preprocess(&mut self, node: &Node) -> Result<Node, Error> {
+    Ok(node.clone())
   }
 }
 

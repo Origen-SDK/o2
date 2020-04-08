@@ -13,6 +13,9 @@ from origen.errors import *
 class Base:
     # Returns the unique ID (name) of the app/plugin
     name =  _origen.app_config()["name"]
+    output_dir = _origen.output_directory()
+    website_output_dir = _origen.website_output_directory()
+    website_source_dir = _origen.website_source_directory()
 
     __instantiate_dut_called = False
 

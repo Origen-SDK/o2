@@ -6,19 +6,21 @@ from contextlib import contextmanager
 import pickle
 
 from origen.tester import Tester, DummyTester
+from origen.producer import Producer
 
 config = _origen.config()
 status = _origen.status()
 root = Path(status["root"])
 version = status["origen_version"]
 logger = _origen.logger
+running_on_windows = _origen.on_windows()
+running_on_linux = _origen.on_linux()
 _reg_description_parsing = False
 
 app = None
 dut = None
 tester = Tester()
-#tester = _origen.tester.PyTester("placeholder")
-#tester.register_generator(DummyTester)
+producer = Producer()
 
 mode = "development"
 
@@ -54,22 +56,6 @@ def reg_description_parsing():
 def standard_context():
     return {
         "origen": sys.modules[__name__],
-        "dut": dut, 
-        "tester": tester, 
+        "dut": lambda: __import__("origen").dut,
+        "tester": lambda: __import__("origen").tester,
     }
-
-# class Tester:
-#     def __init__(self, path):
-#         self.path = path
-#         self.db = _origen.tester.PyTester(path)
-
-# def instantiate_tester(path):
-#     t = Tester(path)
-#     # -- do some error checking here ---
-#     # ...
-#     tester = t
-#     return tester
-
-# Returns the dummy tester
-#def instantiate_dummy_tester():
-#    return instantiate_tester(origen.testers.dummy)

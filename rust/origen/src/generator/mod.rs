@@ -3,7 +3,7 @@ pub mod ast;
 mod node;
 mod nodes;
 pub mod processor;
-mod processors;
+pub mod processors;
 pub mod stil;
 mod test_manager;
 
