@@ -7,6 +7,7 @@ extern crate meta;
 extern crate pest_derive;
 
 pub mod core;
+pub mod testers;
 pub mod error;
 pub mod generator;
 pub mod services;
@@ -15,6 +16,7 @@ pub use error::Error;
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
+pub use self::core::tester::Tester;
 use self::core::model::registers::BitCollection;
 use self::core::status::Status;
 use self::core::utility::logger::Logger;
@@ -37,12 +39,14 @@ lazy_static! {
     pub static ref ORIGEN_CONFIG: OrigenConfig = OrigenConfig::default();
     /// Provides configuration information derived from application.toml and any workspace
     /// overrides e.g. from running origen t command to set a default target
-    pub static ref APPLICATION_CONFIG: AppConfig = AppConfig::default();
+    pub static ref APPLICATION_CONFIG: Mutex<AppConfig> = Mutex::new(AppConfig::default());
     pub static ref LOGGER: Logger = Logger::default();
     /// The current device model, containing all metadata about hierarchy, regs, pins, specs,
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
     /// etc.)
     pub static ref DUT: Mutex<Dut> = Mutex::new(Dut::new("placeholder"));
+    /// The global tester model.
+    pub static ref TESTER: Mutex<Tester> = Mutex::new(Tester::new());
     /// Services owned by the current DUT, stored as a separate collection to avoid having to
     /// get a mutable ref on the DUT if the service needs mutation
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
@@ -78,24 +82,20 @@ pub enum Value<'a> {
     Data(BigUint, u32),                   // value, size
 }
 
-#[macro_export]
-macro_rules! lock {
-    () => {
-        match DUT.lock() {
-            Ok(dut) => Ok(dut),
-            Err(e) => Err(origen::error::Error::new(&format!(
-                "Could not attain DUT lock!"
-            ))),
-        }
-    };
-}
-
 pub fn dut() -> MutexGuard<'static, Dut> {
     DUT.lock().unwrap()
 }
 
+pub fn tester() -> MutexGuard<'static, Tester> {
+    TESTER.lock().unwrap()
+}
+
 pub fn services() -> MutexGuard<'static, Services> {
     SERVICES.lock().unwrap()
+}
+
+pub fn app_config() -> MutexGuard<'static, AppConfig> {
+    APPLICATION_CONFIG.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

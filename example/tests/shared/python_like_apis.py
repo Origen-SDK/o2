@@ -30,7 +30,6 @@ class Fixture_DictLikeAPI(abc.ABC):
   def boot(self):
     self.expected = self.Expected(self.parameterize())
     self.dut = self.boot_dict_under_test()
-    print("Booted!")
 
   def test_keys(self, boot):
     assert self.dut.keys

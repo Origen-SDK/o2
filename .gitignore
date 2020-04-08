@@ -12,3 +12,6 @@ log/
 *.swp
 *.swo
 *~
+
+# Output files from regressions
+python/templates/dut_info.txt

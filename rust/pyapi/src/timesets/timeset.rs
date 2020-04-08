@@ -166,79 +166,85 @@ pub struct Timeset {
 
 #[pymethods]
 impl Timeset {
-    #[getter]
-    fn get_name(&self) -> PyResult<String> {
-        let dut = DUT.lock().unwrap();
-        let timeset = dut.get_timeset(self.model_id, &self.name);
-        Ok(timeset.unwrap().name.clone())
+  #[getter]
+  fn get_name(&self) -> PyResult<String> {
+    let dut = DUT.lock().unwrap();
+    let timeset = dut.get_timeset(self.model_id, &self.name);
+    Ok(timeset.unwrap().name.clone())
+  }
+
+  #[allow(non_snake_case)]
+  #[getter]
+  fn get___origen__model_id__(&self) -> PyResult<usize> {
+    Ok(self.model_id)
+  }
+
+  #[getter]
+  fn get_period(&self) -> PyResult<f64> {
+    let dut = DUT.lock().unwrap();
+    let timeset = dut._get_timeset(self.model_id, &self.name)?;
+    Ok(timeset.eval(Option::None)?)
+  }
+
+  #[getter]
+  fn get_default_period(&self) -> PyResult<PyObject> {
+    let dut = DUT.lock().unwrap();
+    let timeset = dut._get_timeset(self.model_id, &self.name)?;
+
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(match timeset.default_period {
+      Some(p) => p.to_object(py),
+      None => py.None(),
+    })
+  }
+
+  #[allow(non_snake_case)]
+  #[getter]
+  fn get___eval_str__(&self) -> PyResult<String> {
+    let dut = DUT.lock().unwrap();
+    let timeset = dut._get_timeset(self.model_id, &self.name)?;
+    Ok(timeset.eval_str().clone())
+  }
+
+  #[allow(non_snake_case)]
+  #[getter]
+  fn get___period__(&self) -> PyResult<PyObject> {
+    let dut = DUT.lock().unwrap();
+    let timeset = dut._get_timeset(self.model_id, &self.name)?;
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(match &timeset.period_as_string {
+      Some(p) => p.clone().to_object(py),
+      None => py.None(),
+    })
+  }
+
+  #[getter]
+  fn wavetables(&self) -> PyResult<Py<WavetableContainer>> {
+    let t_id;
+    {
+      t_id = self.get_origen_id()?;
     }
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    Ok(pywavetable_container!(py, self.model_id, t_id, &self.name))
+  }
 
-    #[getter]
-    fn get_period(&self) -> PyResult<f64> {
-        let dut = DUT.lock().unwrap();
-        let timeset = dut._get_timeset(self.model_id, &self.name)?;
-        Ok(timeset.eval(Option::None)?)
+  #[args(_kwargs = "**")]
+  fn add_wavetable(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    let mut dut = DUT.lock().unwrap();
+    let t_id;
+    {
+      t_id = dut._get_timeset(self.model_id, &self.name).unwrap().id;
     }
+    dut.create_wavetable(t_id, name)?;
 
-    #[getter]
-    fn get_default_period(&self) -> PyResult<PyObject> {
-        let dut = DUT.lock().unwrap();
-        let timeset = dut._get_timeset(self.model_id, &self.name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(match timeset.default_period {
-            Some(p) => p.to_object(py),
-            None => py.None(),
-        })
-    }
-
-    #[allow(non_snake_case)]
-    #[getter]
-    fn get___eval_str__(&self) -> PyResult<String> {
-        let dut = DUT.lock().unwrap();
-        let timeset = dut._get_timeset(self.model_id, &self.name)?;
-        Ok(timeset.eval_str().clone())
-    }
-
-    #[allow(non_snake_case)]
-    #[getter]
-    fn get___period__(&self) -> PyResult<PyObject> {
-        let dut = DUT.lock().unwrap();
-        let timeset = dut._get_timeset(self.model_id, &self.name)?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(match &timeset.period_as_string {
-            Some(p) => p.clone().to_object(py),
-            None => py.None(),
-        })
-    }
-
-    #[getter]
-    fn wavetables(&self) -> PyResult<Py<WavetableContainer>> {
-        let t_id;
-        {
-            t_id = self.get_origen_id()?;
-        }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(pywavetable_container!(py, self.model_id, t_id, &self.name))
-    }
-
-    #[args(_kwargs = "**")]
-    fn add_wavetable(&self, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        let mut dut = DUT.lock().unwrap();
-        let t_id;
-        {
-            t_id = dut._get_timeset(self.model_id, &self.name).unwrap().id;
-        }
-        dut.create_wavetable(t_id, name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let tset = dut._get_timeset(self.model_id, &self.name).unwrap();
-        Ok(pywavetable!(py, tset, t_id, name)?)
-    }
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let tset = dut._get_timeset(self.model_id, &self.name).unwrap();
+    Ok(pywavetable!(py, tset, t_id, name)?)
+  }
 }
 
 impl Timeset {

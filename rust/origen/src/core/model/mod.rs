@@ -5,11 +5,7 @@ use crate::error::Error;
 use crate::Dut;
 use crate::Result;
 use std::sync::MutexGuard;
-
 use indexmap::map::IndexMap;
-use pins::pin::Pin;
-use pins::pin_group::PinGroup;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Model {
@@ -22,8 +18,10 @@ pub struct Model {
     /// All registers owned by this model are arranged within memory maps
     pub memory_maps: IndexMap<String, usize>,
     // Pins
-    pub physical_pins: HashMap<String, Pin>,
-    pub pins: HashMap<String, PinGroup>,
+    pub pins: IndexMap<String, usize>,
+    pub pin_groups: IndexMap<String, usize>,
+    pub pin_headers: IndexMap<String, usize>,
+
     pub timesets: IndexMap<String, usize>,
     // TODO: Levels
     // TODO: Specs
@@ -49,8 +47,9 @@ impl Model {
             parent_id: parent_id,
             sub_blocks: IndexMap::new(),
             memory_maps: IndexMap::new(),
-            physical_pins: HashMap::new(),
-            pins: HashMap::new(),
+            pins: IndexMap::new(),
+            pin_groups: IndexMap::new(),
+            pin_headers: IndexMap::new(),
             timesets: IndexMap::new(),
             address_unit_bits: 8,
             offset: match offset {

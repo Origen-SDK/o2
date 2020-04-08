@@ -46,14 +46,10 @@ fn main() {
                     .long("target")
                     .help("Override the default target currently set by the workspace")
                     .takes_value(true)
+                    .use_delimiter(true)
+                    .multiple(true)
+                    .number_of_values(1)
                     .value_name("TARGET")
-                )
-                .arg(Arg::with_name("environment")
-                    .short("e")
-                    .long("environment")
-                    .help("Override the default environment currently set by the workspace")
-                    .takes_value(true)
-                    .value_name("ENVIRONMENT")
                 )
                 .arg(Arg::with_name("mode")
                     .short("m")
@@ -80,14 +76,10 @@ fn main() {
                     .long("target")
                     .help("Override the default target currently set by the workspace")
                     .takes_value(true)
+                    .use_delimiter(true)
+                    .multiple(true)
+                    .number_of_values(1)
                     .value_name("TARGET")
-                )
-                .arg(Arg::with_name("environment")
-                    .short("e")
-                    .long("environment")
-                    .help("Override the default environment currently set by the workspace")
-                    .takes_value(true)
-                    .value_name("ENVIRONMENT")
                 )
                 .arg(Arg::with_name("mode")
                     .short("m")
@@ -114,14 +106,10 @@ fn main() {
                     .long("target")
                     .help("Override the default target currently set by the workspace")
                     .takes_value(true)
+                    .use_delimiter(true)
+                    .multiple(true)
+                    .number_of_values(1)
                     .value_name("TARGET")
-                )
-                .arg(Arg::with_name("environment")
-                    .short("e")
-                    .long("environment")
-                    .help("Override the default environment currently set by the workspace")
-                    .takes_value(true)
-                    .value_name("ENVIRONMENT")
                 )
                 .arg(Arg::with_name("mode")
                     .short("m")
@@ -136,21 +124,46 @@ fn main() {
            .subcommand(SubCommand::with_name("target")
                 .about("Set/view the default target")
                 .visible_alias("t")
-                .arg(Arg::with_name("target")
-                    .help("The name of the file from targets/ to be set as the default target")
-                    .takes_value(true)
-                    .value_name("TARGET")
+                .subcommand(SubCommand::with_name("add")
+                    .about("Activates the given target(s)")
+                    .visible_alias("a")
+                    .arg(Arg::with_name("targets")
+                        .help("Targets to be activated")
+                        .takes_value(true)
+                        .value_name("TARGETS")
+                        .multiple(true)
+                        .required(true)
+                    )
                 )
-           )
-
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("environment")
-                .about("Set/view the default environment")
-                .visible_alias("e")
-                .arg(Arg::with_name("environment")
-                    .help("The name of the file from environments/ to be set as the default environment")
-                    .takes_value(true)
-                    .value_name("ENVIRONMENT")
+                .subcommand(SubCommand::with_name("remove")
+                    .about("Deactivates the given target(s)")
+                    .visible_alias("r")
+                    .arg(Arg::with_name("targets")
+                        .help("Targets to be deactivated")
+                        .takes_value(true)
+                        .value_name("TARGETS")
+                        .multiple(true)
+                        .required(true)
+                    )
+                )
+                .subcommand(SubCommand::with_name("set")
+                    .about("Activates the given target(s) while deactivating all others")
+                    .visible_alias("s")
+                    .arg(Arg::with_name("targets")
+                        .help("Targets to be set")
+                        .takes_value(true)
+                        .value_name("TARGETS")
+                        .multiple(true)
+                        .required(true)
+                    )
+                )
+                .subcommand(SubCommand::with_name("default")
+                    .about("Activates the default target(s) while deactivating all others")
+                    .visible_alias("d")
+                )
+                .subcommand(SubCommand::with_name("view")
+                    .about("Views the currently activated target(s)")
+                    .visible_alias("v")
                 )
            )
 
@@ -181,8 +194,11 @@ fn main() {
             Some("interactive") => {
                 let m = matches.subcommand_matches("interactive").unwrap();
                 commands::interactive::run(
-                    &m.value_of("target"),
-                    &m.value_of("environment"),
+                    if let Some(targets) = m.values_of("target") {
+                        Some(targets.collect())
+                    } else {
+                        Option::None
+                    },
                     &m.value_of("mode"),
                 );
             }
@@ -190,8 +206,11 @@ fn main() {
                 let m = matches.subcommand_matches("generate").unwrap();
                 commands::launch(
                     "generate",
-                    &m.value_of("target"),
-                    &m.value_of("environment"),
+                    if let Some(targets) = m.values_of("target") {
+                        Some(targets.collect())
+                    } else {
+                        Option::None
+                    },
                     &m.value_of("mode"),
                     Some(m.values_of("files").unwrap().collect()),
                 );
@@ -200,19 +219,29 @@ fn main() {
                 let m = matches.subcommand_matches("compile").unwrap();
                 commands::launch(
                     "compile",
-                    &m.value_of("target"),
-                    &m.value_of("environment"),
+                    if let Some(targets) = m.values_of("target") {
+                        Some(targets.collect())
+                    } else {
+                        Option::None
+                    },
                     &m.value_of("mode"),
                     Some(m.values_of("files").unwrap().collect()),
                 );
             }
             Some("target") => {
-                let matches = matches.subcommand_matches("target").unwrap();
-                commands::target::run(matches.value_of("target"));
-            }
-            Some("environment") => {
-                let matches = matches.subcommand_matches("environment").unwrap();
-                commands::environment::run(matches.value_of("environment"));
+                let m = matches.subcommand_matches("target").unwrap();
+                let subm = m.subcommand();
+                if let Some(s) = subm.1 {
+                    commands::target::run(
+                        Some(subm.0),
+                        match s.values_of("targets") {
+                            Some(targets) => Some(targets.collect()),
+                            None => None
+                        }
+                    )
+                } else {
+                    commands::target::run(None, None);
+                }
             }
             Some("mode") => {
                 let matches = matches.subcommand_matches("mode").unwrap();

@@ -2,6 +2,9 @@ use crate::core::model::registers::{
     AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
 };
 use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
+use crate::core::model::pins::pin::{Pin};
+use crate::core::model::pins::pin_group::{PinGroup};
+use crate::core::model::pins::pin_header::{PinHeader};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::meta::IdGetters;
@@ -22,7 +25,6 @@ use std::sync::RwLock;
 /// bit IDs. This approach allows bits to be easily passed around by ID to enable the creation of
 /// bit collections that are small (a subset of a register's bits) or very large (all bits in
 /// a memory map).
-//#[include_id_getters]
 #[derive(Debug, IdGetters)]
 #[id_getters_by_mapping(
     field = "timeset",
@@ -54,9 +56,27 @@ use std::sync::RwLock;
     return_type = "Event",
     field_container_name = "wave_events"
 )]
+#[id_getters_by_mapping(
+    field = "pin",
+    parent_field = "models",
+    return_type = "Pin",
+    field_container_name = "pins"
+)]
+#[id_getters_by_mapping(
+    field = "pin_group",
+    parent_field = "models",
+    return_type = "PinGroup",
+    field_container_name = "pin_groups"
+)]
+#[id_getters_by_mapping(
+    field = "pin_header",
+    parent_field = "models",
+    return_type = "PinHeader",
+    field_container_name = "pin_headers"
+)]
 pub struct Dut {
     pub name: String,
-    models: Vec<Model>,
+    pub models: Vec<Model>,
     memory_maps: Vec<MemoryMap>,
     address_blocks: Vec<AddressBlock>,
     register_files: Vec<RegisterFile>,
@@ -76,6 +96,9 @@ pub struct Dut {
     pub wave_groups: Vec<WaveGroup>,
     pub waves: Vec<Wave>,
     pub wave_events: Vec<Event>,
+    pub pins: Vec<Pin>,
+    pub pin_groups: Vec<PinGroup>,
+    pub pin_headers: Vec<PinHeader>,
     pub id_mappings: Vec<IndexMap<String, usize>>,
     /// Cache of descriptions parsed from reg definition files
     pub reg_descriptions: IndexMap<String, IndexMap<usize, String>>,
@@ -100,6 +123,9 @@ impl Dut {
             wave_groups: Vec::<WaveGroup>::new(),
             waves: Vec::<Wave>::new(),
             wave_events: Vec::<Event>::new(),
+            pins: Vec::<Pin>::new(),
+            pin_groups: Vec::<PinGroup>::new(),
+            pin_headers: Vec::<PinHeader>::new(),
             id_mappings: Vec::<IndexMap<String, usize>>::new(),
             reg_descriptions: IndexMap::new(),
         }

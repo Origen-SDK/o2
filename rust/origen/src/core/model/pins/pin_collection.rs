@@ -1,14 +1,13 @@
 use super::super::pins::Endianness;
-use super::super::Model;
 use super::pin::PinActions;
 use crate::error::Error;
+use super::super::super::dut::Dut;
 
 /// Model for a collection (or group) of pins
 #[derive(Debug, Clone)]
 pub struct PinCollection {
     pub pin_names: Vec<String>,
     pub endianness: Endianness,
-    pub path: String,
     pub mask: Option<usize>,
     pub model_id: usize,
 }
@@ -16,12 +15,10 @@ pub struct PinCollection {
 impl PinCollection {
     pub fn new(
         model_id: usize,
-        path: &str,
         pin_names: &Vec<String>,
         endianness: Option<Endianness>,
     ) -> PinCollection {
         PinCollection {
-            path: path.to_string(),
             pin_names: match endianness {
                 Some(e) => match e {
                     Endianness::LittleEndian => pin_names.iter().map(|p| String::from(p)).collect(),
@@ -61,7 +58,6 @@ impl PinCollection {
         }
         Ok(PinCollection::new(
             self.model_id,
-            &self.path,
             &sliced_names,
             Option::Some(self.endianness),
         ))
@@ -79,7 +75,7 @@ impl PinCollection {
     }
 }
 
-impl Model {
+impl Dut {
     pub fn drive_pin_collection(
         &mut self,
         pin_collection: &mut PinCollection,
@@ -119,30 +115,30 @@ impl Model {
         let pin_names = &collection.pin_names;
         let mask = collection.mask;
         collection.mask = Option::None;
-        self.set_pin_actions(pin_names, action, data, mask)
+        self.set_pin_actions(collection.model_id, pin_names, action, data, mask)
     }
 
-    pub fn get_pin_collection_data(&mut self, collection: &PinCollection) -> Result<u32, Error> {
-        let pin_names = &collection.pin_names;
-        Ok(self.get_pin_data(&pin_names))
-    }
+    // pub fn get_pin_collection_data(&mut self, collection: &PinCollection) -> Result<u32, Error> {
+    //     let pin_names = &collection.pin_names;
+    //     Ok(self.get_pin_data(&pin_names))
+    // }
 
-    pub fn get_pin_collection_reset_data(&mut self, collection: &PinCollection) -> u32 {
+    pub fn get_pin_collection_reset_data(&self, collection: &PinCollection) -> Result<u32, Error> {
         let pin_names = &collection.pin_names;
-        self.get_pin_reset_data(&pin_names)
+        self.get_pin_reset_data(collection.model_id, &pin_names)
     }
 
     pub fn get_pin_collection_reset_actions(
-        &mut self,
+        &self,
         collection: &PinCollection,
     ) -> Result<String, Error> {
         let pin_names = &collection.pin_names;
-        self.get_pin_reset_actions(&pin_names)
+        self.get_pin_reset_actions(collection.model_id, &pin_names)
     }
 
     pub fn reset_pin_collection(&mut self, collection: &PinCollection) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
-        self.reset_pin_names(&pin_names)
+        self.reset_pin_names(collection.model_id, &pin_names)
     }
 
     pub fn set_pin_collection_data(
@@ -151,7 +147,7 @@ impl Model {
         data: u32,
     ) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
-        self.set_pin_data(&pin_names, data, collection.mask)
+        self.set_pin_data(collection.model_id, &pin_names, data, collection.mask)
     }
 
     pub fn set_pin_collection_nonsticky_mask(
