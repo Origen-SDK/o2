@@ -24,9 +24,9 @@ pub fn run(_command: Option<&str>, _remote: Option<&str>) {
 
 pub fn is_compile() {
     LOGGER.info(&format!("running is_compile"));
-    let status = Command::new("ls")
-                         .arg("-l")
-                         .arg("-a")
+    let status = Command::new("origen")
+                         .arg("compile")
+                         .arg("../python/templates/dut_info.txt.mako")
                          .status()
                          .expect("ls command failed to start");
     LOGGER.info(&format!("is_compile command process exited with: {}", status));
