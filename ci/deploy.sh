@@ -8,11 +8,11 @@ main() {
     else
         source /home/travis/virtualenv/python$PYTHON_VERSION/bin/activate
     fi
-
-    cd origen
-
+    
     src=$(pwd)
     stage=$(mktemp -d)
+
+    cd origen
 
     test -f Cargo.lock || cargo generate-lockfile
     
@@ -24,8 +24,6 @@ main() {
     cd $src
 
     rm -rf $stage
-
-    cd ../
 }
 
 main

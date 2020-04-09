@@ -46,12 +46,12 @@ install:
   - bash ../ci/install.sh
 
 script:
-  - bash ../ci/script.sh
+  - bash ../ci/test.sh
 
 after_script: set +e
 
 before_deploy:
-  - bash ../ci/before_deploy.sh
+  - bash ../ci/deploy.sh
 
 deploy:
   # TODO update `api_key.secure`
