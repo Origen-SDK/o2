@@ -18,18 +18,53 @@ fn main() {
             Arg::with_name("version")
                 .short("v")
                 .long("version")
-                .help("Display the Origen and application version"),
+                .help("Display the Origen version"),
         );
 
     /************************************************************************************/
     /******************** Global commands ***********************************************/
     /************************************************************************************/
-    //app = app
-    //    //************************************************************************************/
-    //    .subcommand(
-    //        SubCommand::with_name("check")
-    //            .about("Check if your environment is setup correctly to run Origen"),
-    //    );
+    app = app
+        //************************************************************************************/
+        .subcommand(
+            SubCommand::with_name("proj")
+                .display_order(1)
+                .about("Manage multi-repository project areas and workspaces")
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .subcommand(SubCommand::with_name("init")
+                    .display_order(1)
+                    .about("Initialize a new project directory (create an initial project BOM)")
+                    .arg(Arg::with_name("path")
+                        .help("The path to the project directory to initialize (PWD will be used by default if not given)")
+                        .value_name("DIR")
+                    )
+                )
+                .subcommand(SubCommand::with_name("create")
+                    .display_order(2)
+                    .about("Create a new project workspace from the project BOM")
+                    .arg(Arg::with_name("path")
+                        .help("The path to the new workspace directory")
+                        .value_name("PATH")
+                        .required(true)
+                    )
+                )
+                .subcommand(SubCommand::with_name("update")
+                    .display_order(3)
+                    .about("Update an existing project workspace per its current BOM")
+                    .arg(Arg::with_name("packages")
+                        .value_name("PACKAGES")
+                        .multiple(true)
+                    )
+                )
+                .subcommand(SubCommand::with_name("bom")
+                    .display_order(4)
+                    .about("View the active BOM in the current or given directory")
+                    .arg(Arg::with_name("path")
+                        .help("The path to a directory (PWD will be used by default if not given)")
+                        .value_name("DIR")
+                    )
+                )
+        );
 
     /************************************************************************************/
     /******************** In application commands ***************************************/
@@ -182,7 +217,7 @@ fn main() {
            .subcommand(SubCommand::with_name("setup")
                 .about("Setup your application's Python environment"),
            )
-      }
+    }
 
     let matches = app.get_matches();
 
@@ -191,6 +226,7 @@ fn main() {
     } else {
         match matches.subcommand_name() {
             Some("setup") => commands::setup::run(),
+            Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
             Some("interactive") => {
                 let m = matches.subcommand_matches("interactive").unwrap();
                 commands::interactive::run(
@@ -236,8 +272,8 @@ fn main() {
                         Some(subm.0),
                         match s.values_of("targets") {
                             Some(targets) => Some(targets.collect()),
-                            None => None
-                        }
+                            None => None,
+                        },
                     )
                 } else {
                     commands::target::run(None, None);

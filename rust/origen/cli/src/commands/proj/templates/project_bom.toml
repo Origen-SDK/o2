@@ -1,0 +1,15 @@
+# This is a project BOM (identified as such by the file name .project.toml, so don't change it!)
+# It defines the packages and versions that new project workspaces will be created with.
+# When updating an existing workspace, all values in this BOM can be overridden by the given
+# workspace's BOM.
+# To see the final BOM that is active within an workspace run 'origen proj bom path/to/workspace'
+
+# Here is an example of a standard package definition
+[my_package]
+version = "master"
+repo = "https://my_id@bitbucket.company.com/scm/my_project/my_package.git"
+
+# Packages can also be copied from a file system directory, rather than a versioned repository.
+# The path must be an absolute path reference.
+[my_package_from_filesystem]
+path = "/data/some/package"

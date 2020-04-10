@@ -1,7 +1,7 @@
+use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
 use super::pin::PinActions;
 use crate::error::Error;
-use super::super::super::dut::Dut;
 
 /// Model for a collection (or group) of pins
 #[derive(Debug, Clone)]

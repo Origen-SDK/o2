@@ -7,7 +7,7 @@
 //! The target can be further overridden for a particular origen command invocation via
 //! the -t and -e options, or programmatically within the application code, however that is all
 //! handled on the front end in Python code.
-use crate::{STATUS, app_config};
+use crate::{app_config, STATUS};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 // Can be used to turn a relative path in an absolute
@@ -24,7 +24,10 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
     let t = dir.trim_end_matches("s");
 
     if matches.len() == 0 {
-        println!("No matching {} '{}' found, here are the available {}s:", t, name, t);
+        println!(
+            "No matching {} '{}' found, here are the available {}s:",
+            t, name, t
+        );
         for file in all(dir).iter() {
             println!(
                 "    {}",
@@ -34,8 +37,7 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
     } else if matches.len() > 1 {
         println!(
             "That {} name '{}' is ambiguous, please try again to narrow it down to one of these:",
-            t,
-            name
+            t, name
         );
         for file in matches.iter() {
             println!(
@@ -84,7 +86,10 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
     }
     // After collecting all the matches, if the size > 1 then filter again for exact matches
     if files.len() > 1 {
-        files = files.into_iter().filter(|path| path.file_name().unwrap().to_str().unwrap() == &format!("{}.py", name)).collect();
+        files = files
+            .into_iter()
+            .filter(|path| path.file_name().unwrap().to_str().unwrap() == &format!("{}.py", name))
+            .collect();
     }
     files
 }
@@ -93,14 +98,23 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
 pub fn get() -> Option<Vec<String>> {
     app_config().refresh();
     match app_config().target.as_ref() {
-        Some(targets) => Some(targets.iter().map( |t| clean_name(t, "targets", true)).collect::<Vec<String>>().clone()),
+        Some(targets) => Some(
+            targets
+                .iter()
+                .map(|t| clean_name(t, "targets", true))
+                .collect::<Vec<String>>()
+                .clone(),
+        ),
         None => None,
     }
 }
 
 /// Sets the targets, overriding any that may be present
 pub fn set(targets: Vec<&str>) {
-    let clean_targets: Vec<String> = targets.iter().map( |t| clean_name(t, "targets", true)).collect();
+    let clean_targets: Vec<String> = targets
+        .iter()
+        .map(|t| clean_name(t, "targets", true))
+        .collect();
     set_workspace_array("target", clean_targets)
 }
 
@@ -114,7 +128,10 @@ pub fn add(targets: Vec<&str>) {
     let mut current: Vec<String> = match &app_config().target {
         Some(targets) => targets.clone(),
         None => vec![],
-    }.iter().map( |t| clean_name(t, "targets", true)).collect();
+    }
+    .iter()
+    .map(|t| clean_name(t, "targets", true))
+    .collect();
 
     for t in targets.iter() {
         // Check that the targets to add are valid
@@ -122,7 +139,7 @@ pub fn add(targets: Vec<&str>) {
 
         // If the target is already added, remove it from its current position and reapply it in the order
         // given here
-        current.retain( |c| *c != clean_t);
+        current.retain(|c| *c != clean_t);
         current.push(clean_t);
     }
 
@@ -134,13 +151,16 @@ pub fn remove(targets: Vec<&str>) {
     let mut current: Vec<String> = match &app_config().target {
         Some(targets) => targets.clone(),
         None => vec![],
-    }.iter().map( |t| clean_name(t, "targets", true)).collect();
+    }
+    .iter()
+    .map(|t| clean_name(t, "targets", true))
+    .collect();
 
     for t in targets.iter() {
         let clean_t = clean_name(t, "targets", true);
 
         // Remove the target, if present
-        current.retain( |c| *c != clean_t);
+        current.retain(|c| *c != clean_t);
     }
 
     if current.len() == 0 {
@@ -210,7 +230,15 @@ fn add_val_array(key: &str, vals: Vec<String>) {
     let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
 
     // Note: use string literals here to account for Windows paths
-    let new_data = format!("{}\n{} = [{}]", data.trim(), key, vals.iter().map( |v| format!("'{}'", v)).collect::<Vec<String>>().join(", "));
+    let new_data = format!(
+        "{}\n{} = [{}]",
+        data.trim(),
+        key,
+        vals.iter()
+            .map(|v| format!("'{}'", v))
+            .collect::<Vec<String>>()
+            .join(", ")
+    );
     fs::write(
         STATUS.root.join(".origen").join("application.toml"),
         new_data,

@@ -1,5 +1,6 @@
 pub mod interactive;
 pub mod mode;
+pub mod proj;
 pub mod setup;
 pub mod target;
 pub mod version;
