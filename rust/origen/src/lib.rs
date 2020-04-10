@@ -7,19 +7,19 @@ extern crate meta;
 extern crate pest_derive;
 
 pub mod core;
-pub mod testers;
 pub mod error;
 pub mod generator;
 pub mod services;
+pub mod testers;
 pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
-pub use self::core::tester::Tester;
-pub use self::core::producer::Producer;
 use self::core::model::registers::BitCollection;
+pub use self::core::producer::Producer;
 use self::core::status::Status;
+pub use self::core::tester::Tester;
 use self::core::utility::logger::Logger;
 use self::generator::ast::*;
 pub use self::services::Services;

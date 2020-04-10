@@ -1,10 +1,10 @@
+use crate::core::model::pins::pin::Pin;
+use crate::core::model::pins::pin_group::PinGroup;
+use crate::core::model::pins::pin_header::PinHeader;
 use crate::core::model::registers::{
     AccessType, AddressBlock, Bit, MemoryMap, Register, RegisterFile,
 };
 use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
-use crate::core::model::pins::pin::{Pin};
-use crate::core::model::pins::pin_group::{PinGroup};
-use crate::core::model::pins::pin_header::{PinHeader};
 use crate::core::model::Model;
 use crate::error::Error;
 use crate::meta::IdGetters;

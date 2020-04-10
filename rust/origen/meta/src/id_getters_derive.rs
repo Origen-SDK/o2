@@ -74,28 +74,28 @@ pub fn impl_id_getters(ast: &syn::DeriveInput) -> syn::Result<TokenStream> {
                         }
                     }
 
-                let func_name = format_ident!("get_{}", config.field);
-                let mut_func_name = format_ident!("get_mut_{}", config.field);
-                let _func_name = format_ident!("_{}", func_name);
-                let _mut_func_name = format_ident!("_{}", mut_func_name);
-                let clone_func_name = format_ident!("_get_cloned_{}", config.field);
-                
-                let get_id_func = format_ident!("get_{}_id", config.field);
-                let retn = format_ident!("{}", config.return_type);
-                let field_container_name = format_ident!("{}", config.field_container_name);
-                let parent_field = format_ident!("{}", config.parent_field);
-        
-                let (lookup_type, error_message, err_str);
-                if config.getter_type == "by_index" {
-                    lookup_type = quote! { usize };
-                    err_str = format!("\"Could not find {} at index {{}}!\"", config.field);
-                } else {
-                    lookup_type = quote!{ &str };
-                    err_str = format!("\"Could not find {} named {{}}!\"", config.field);
-                }
-                error_message = quote! { &format!(#err_str, identifier) };
+                    let func_name = format_ident!("get_{}", config.field);
+                    let mut_func_name = format_ident!("get_mut_{}", config.field);
+                    let _func_name = format_ident!("_{}", func_name);
+                    let _mut_func_name = format_ident!("_{}", mut_func_name);
+                    let clone_func_name = format_ident!("_get_cloned_{}", config.field);
 
-                getter_functions.extend(quote! {
+                    let get_id_func = format_ident!("get_{}_id", config.field);
+                    let retn = format_ident!("{}", config.return_type);
+                    let field_container_name = format_ident!("{}", config.field_container_name);
+                    let parent_field = format_ident!("{}", config.parent_field);
+
+                    let (lookup_type, error_message, err_str);
+                    if config.getter_type == "by_index" {
+                        lookup_type = quote! { usize };
+                        err_str = format!("\"Could not find {} at index {{}}!\"", config.field);
+                    } else {
+                        lookup_type = quote! { &str };
+                        err_str = format!("\"Could not find {} named {{}}!\"", config.field);
+                    }
+                    error_message = quote! { &format!(#err_str, identifier) };
+
+                    getter_functions.extend(quote! {
                     impl #name {
                         pub fn #func_name (&self, parent_field_id: usize, identifier: #lookup_type) -> Option<& #retn > {
                             if let Some(i) = self.#parent_field[parent_field_id].#get_id_func(identifier) {

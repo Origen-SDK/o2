@@ -4,8 +4,8 @@ pub mod timesets;
 use crate::error::Error;
 use crate::Dut;
 use crate::Result;
-use std::sync::MutexGuard;
 use indexmap::map::IndexMap;
+use std::sync::MutexGuard;
 
 #[derive(Debug)]
 pub struct Model {

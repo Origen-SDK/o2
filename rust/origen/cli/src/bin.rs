@@ -182,7 +182,7 @@ fn main() {
            .subcommand(SubCommand::with_name("setup")
                 .about("Setup your application's Python environment"),
            )
-      }
+    }
 
     let matches = app.get_matches();
 
@@ -236,8 +236,8 @@ fn main() {
                         Some(subm.0),
                         match s.values_of("targets") {
                             Some(targets) => Some(targets.collect()),
-                            None => None
-                        }
+                            None => None,
+                        },
                     )
                 } else {
                     commands::target::run(None, None);
