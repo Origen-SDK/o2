@@ -31,24 +31,19 @@ pest = "2.1"
 pest_derive = "2.1"
 enum-utils = "0.1.2"
 shellexpand = "1.1.1"
-
+git2 = "0.13"
+rpassword = "4.0"
+num-bigint = {version = "0.2", features = ["serde"]}
+# Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
+# in origen to enable conversion of an Origen error to a PyErr.
+pyo3 = {version = "0.8.2", features = ["extension-module"]}
 # Per this SO thread: https://stackoverflow.com/questions/37296351/trait-for-numeric-functionality-in-rust
 # the num crate includes some useful traits to accept float-like and integer-like things without having to manually enumerate them all.
 num = "0.2.0"
 meta = { path = "./meta" }
 
 [build-dependencies]
-built = "0.3"
-
-[dependencies.num-bigint]
-version = "0.2"
-features = ["serde"]
-
-[dependencies.pyo3]
-version = "0.8.2"
-# Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
-# in origen to enable conversion of an Origen error to a PyErr.
-features = ["extension-module"]
+built = "0.4"
 
 [target.x86_64-unknown-linux-musl.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }

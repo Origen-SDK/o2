@@ -1,44 +1,131 @@
+mod bom;
+
+use bom::BOM;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
 use origen::core::term;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::{env, fs};
+use tera::{Tera, Context};
 
-static PROJECT_BOM: &str = ".project_bom.toml";
-static WORKSPACE_BOM: &str = ".workspace_bom.toml";
+static BOM_FILE: &str = "bom.toml";
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("init") => {
-            let m = matches.subcommand_matches("init").unwrap();
-
-            let dir = match m.value_of("path") {
-                Some(x) => PathBuf::from(x),
-                None => env::current_dir().expect("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?"),
-            };
-            validate_path(&dir, true, true);
+            let dir = get_dir_or_pwd(matches.subcommand_matches("init").unwrap());
             let mut f = dir.clone();
-            f.push(PROJECT_BOM);
+            f.push(BOM_FILE);
             if f.exists() {
                 error(
-                    &format!("Found an existing '{}' in '{}'", PROJECT_BOM, dir.display()),
+                    &format!("Found an existing '{}' in '{}'", BOM_FILE, dir.display()),
                     Some(1),
                 );
             }
             File::create(f).write(include_str!("templates/project_bom.toml"));
         }
         Some("create") => {
-            println!("create");
+            // First convert the new workspace location to an absolute path
+            let path = matches
+                .subcommand_matches("create")
+                .unwrap()
+                .value_of("path")
+                .unwrap();
+            let mut path = PathBuf::from(path);
+            if !path.is_absolute() {
+                path = env::current_dir().expect("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?")
+                        .join(path);
+            }
+            // Now find the last dir in the path that exists, that will be used to collect the BOM
+            let mut dir = path.clone();
+            while !dir.exists() {
+                dir.pop();
+            }
+            let bom = BOM::for_dir(&dir);
+            if bom.files.len() == 0 {
+                error(
+                    &format!(
+                        "No BOM files were found within the parent directories of '{}'",
+                        path.display()
+                    ),
+                    Some(1),
+                );
+            }
+            // Allow an existing directory to be specified for the new workspace, as long as it is empty
+            if path.exists() && path.is_dir() {
+                let is_empty: bool = match path.read_dir() {
+                    Ok(mut x) => x.next().is_none(),
+                    Err(_e) => {
+                        error(
+                            &format!(
+                                "There was a problem reading directory '{}', do you have permission to read it?:",
+                                path.display(),
+                            ),
+                            Some(1),
+                        );
+                        unreachable!()
+                    }
+                };
+                if !is_empty {
+                    let b = BOM::for_dir(&path);
+                    if b.meta.workspace {
+                        error(
+                            &format!("The workspace '{}' already exists, did you mean to run the 'update' command instead?", path.display()),
+                            Some(1),
+                        );
+                    } else {
+                        error(
+                            &format!("The directory '{}' already exists, though it does not appear to be a workspace, did you give the correct path?", path.display()),
+                            Some(1),
+                        );
+                    }
+                }
+            } else {
+                validate_path(&path, false, true);
+            }
+            if bom.meta.workspace {
+                error(
+                    &format!("A workspace can't be created within a workspace.\nCan't create a workspace at '{}' because '{}' is a workspace", path.display(),
+                    bom.files.last().unwrap().parent().unwrap().display()
+                ),
+                    Some(1),
+                );
+            }
+            fs::create_dir_all(&path).expect(&format!(
+                "Couldn't create '{}', do you have the required permissions?",
+                path.display()
+            ));
+            // Write out a BOM file for the new workspace
+            let mut tera = Tera::default();
+            let mut context = Context::new();
+            context.insert("bom", &bom);
+            let contents = tera.render_str(include_str!("templates/workspace_bom.toml"), &context).unwrap();
+            File::create(path.join(BOM_FILE)).write(&contents);
+            // Now populate the packages
+            for (_id, mut package) in bom.packages {
+                env::set_current_dir(&path).expect("Couldn't change working directory to the new workspace");
+                package.create();
+            }
         }
         Some("update") => {
-            println!("update");
         }
         Some("bom") => {
-            println!("bom");
+            let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap());
+            let bom = BOM::for_dir(&dir);
+            println!("{}", bom);
         }
         _ => unreachable!(),
     }
+}
+
+fn get_dir_or_pwd(matches: &ArgMatches) -> PathBuf {
+    let dir = match matches.value_of("dir") {
+        Some(x) => PathBuf::from(x),
+        None => env::current_dir().expect("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?"),
+    };
+    validate_path(&dir, true, true);
+    dir.canonicalize().unwrap()
 }
 
 fn error(msg: &str, exit_code: Option<i32>) {
@@ -69,8 +156,7 @@ fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
                 Some(1),
             );
         }
-        let md = fs::metadata(path).unwrap();
-        if is_dir && md.is_file() {
+        if is_dir && path.is_file() {
             error(
                 &format!(
                     "Expected '{}' to be a directory, but it is a file",
@@ -78,7 +164,7 @@ fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
                 ),
                 Some(1),
             );
-        } else if !is_dir && md.is_dir() {
+        } else if !is_dir && path.is_dir() {
             error(
                 &format!(
                     "Expected '{}' to be a file, but it is a directory",

@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde;
 
 mod commands;
 mod python;
@@ -34,7 +36,7 @@ fn main() {
                 .subcommand(SubCommand::with_name("init")
                     .display_order(1)
                     .about("Initialize a new project directory (create an initial project BOM)")
-                    .arg(Arg::with_name("path")
+                    .arg(Arg::with_name("dir")
                         .help("The path to the project directory to initialize (PWD will be used by default if not given)")
                         .value_name("DIR")
                     )
@@ -59,7 +61,7 @@ fn main() {
                 .subcommand(SubCommand::with_name("bom")
                     .display_order(4)
                     .about("View the active BOM in the current or given directory")
-                    .arg(Arg::with_name("path")
+                    .arg(Arg::with_name("dir")
                         .help("The path to a directory (PWD will be used by default if not given)")
                         .value_name("DIR")
                     )

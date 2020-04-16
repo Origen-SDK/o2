@@ -1,15 +1,26 @@
-# This is a project BOM (identified as such by the file name .project.toml, so don't change it!)
-# It defines the packages and versions that new project workspaces will be created with.
-# When updating an existing workspace, all values in this BOM can be overridden by the given
-# workspace's BOM.
-# To see the final BOM that is active within an workspace run 'origen proj bom path/to/workspace'
+# This is a project BOM file, identified as such by the file name 'bom.toml', so don't change it!
+# It defines the packages and versions that new project workspaces will be created and updated with.
+# When updating an existing workspace, all values in this BOM can be overridden by a workspace BOM.
+# To see the final BOM that is active within a workspace run 'origen proj bom path/to/workspace'
 
-# Here is an example of a standard package definition
-[my_package]
+# Here is the syntax of a package definition
+[[package]]
+# [Required] - A unique ID must be assigned to each package
+id = "my_package"        
+# <Optional> - By default, the package will be placed in <my_workspace>/<package_id>, if you want a
+# pacakge to be placed into a sub-directory(s), then specify the path relative to the workspace root.
+path = "vip/my_package"
+# <Optional> - If you want multiple packages to be considered as a single unit when updating - e.g.
+# if they are owned by the same team and are released and versioned as a single unit, then provide a
+# group ID to link such packages together.
+# Only one package needs to define a version within a group.
+group_id = "my_group"
+# [Required] - A package source, this can be one of a version/repo pair, a path to be copied from, 
+# or a path to be symlinked to.
 version = "master"
+# A repo can be a refereced to a Git, DesignSync, or Subversion location
 repo = "https://my_id@bitbucket.company.com/scm/my_project/my_package.git"
-
-# Packages can also be copied from a file system directory, rather than a versioned repository.
-# The path must be an absolute path reference.
-[my_package_from_filesystem]
-path = "/data/some/package"
+# Copy from a file system directory, this must be an absolute path reference
+copy = "/data/some/package"
+# Link to a file system directory, this must be an absolute path reference
+link = "/data/some/package"

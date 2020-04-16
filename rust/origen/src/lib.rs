@@ -11,7 +11,10 @@ pub mod error;
 pub mod generator;
 pub mod services;
 pub mod testers;
+pub mod revision_control;
+
 pub use error::Error;
+pub use self::core::user::User;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
@@ -55,6 +58,8 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
+    /// Provides info about the current user
+    pub static ref USER: User = User::current();
 }
 
 impl PartialEq<AST> for TEST {
