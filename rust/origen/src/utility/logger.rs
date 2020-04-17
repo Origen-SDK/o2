@@ -1,11 +1,12 @@
 extern crate time;
 
-use super::super::super::STATUS;
-use super::super::term;
+use crate::{STATUS, Result};
+use crate::core::term;
 use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::RwLock;
 
 #[macro_export]
 macro_rules! backend_fail {
@@ -42,96 +43,109 @@ macro_rules! fail {
 pub struct Logger {
     pub output_file: PathBuf,
     file_handler: fs::File,
+    level: RwLock<u8>,
 }
 
 impl Logger {
+    pub fn verbosity(&self) -> u8 {
+        *self.level.read().unwrap()
+    }
+
+    pub fn set_verbosity(&self, level: u8) -> Result<()> {
+        let mut lvl = self.level.write().unwrap();
+        *lvl = level;
+        Ok(())
+    }
+
     pub fn debug(&self, message: &str) {
-        self._log("DEBUG", message, &term::yellowln);
+        self._log(2, "DEBUG", message, &term::yellowln);
     }
 
     pub fn debug_block(&self, messages: &Vec<&str>) {
-        self._log_block("DEBUG", messages, &(term::yellowln));
+        self._log_block(2, "DEBUG", messages, &(term::yellowln));
     }
 
     pub fn deprecated(&self, message: &str) {
-        self._log("DEPRECATED", message, &term::yellowln);
+        self._log(1, "DEPRECATED", message, &term::yellowln);
     }
 
     pub fn deprecated_block(&self, messages: &Vec<&str>) {
-        self._log_block("DEPRECATED", messages, &(term::yellowln));
+        self._log_block(1, "DEPRECATED", messages, &(term::yellowln));
     }
 
     pub fn error(&self, message: &str) {
-        self._log("ERROR", message, &term::redln);
+        self._log(0, "ERROR", message, &term::redln);
     }
 
     pub fn error_block(&self, messages: &Vec<&str>) {
-        self._log_block("ERROR", messages, &(term::redln));
+        self._log_block(0, "ERROR", messages, &(term::redln));
     }
 
     pub fn info(&self, message: &str) {
-        self._log("INFO", message, &term::cyanln);
+        self._log(1, "INFO", message, &term::cyanln);
     }
 
     pub fn info_block(&self, messages: &Vec<&str>) {
-        self._log_block("INFO", messages, &(term::cyanln));
+        self._log_block(1, "INFO", messages, &(term::cyanln));
     }
 
     pub fn log(&self, message: &str) {
-        self._log("LOG", message, &term::standardln);
+        self._log(1, "LOG", message, &term::standardln);
     }
 
     pub fn log_block(&self, messages: &Vec<&str>) {
-        self._log_block("LOG", messages, &(term::standardln));
+        self._log_block(1, "LOG", messages, &(term::standardln));
     }
 
     pub fn success(&self, message: &str) {
-        self._log("SUCCESS", message, &term::greenln);
+        self._log(0, "SUCCESS", message, &term::greenln);
     }
 
     pub fn success_block(&self, messages: &Vec<&str>) {
-        self._log_block("SUCCESS", messages, &(term::greenln));
+        self._log_block(0, "SUCCESS", messages, &(term::greenln));
     }
 
     pub fn warning(&self, message: &str) {
-        self._log("WARNING", message, &term::yellowln);
+        self._log(1, "WARNING", message, &term::yellowln);
     }
 
     pub fn warning_block(&self, messages: &Vec<&str>) {
-        self._log_block("WARNING", messages, &(term::yellowln));
+        self._log_block(1, "WARNING", messages, &(term::yellowln));
     }
 
-    fn _log(&self, prefix: &str, message: &str, ref_to_print_func: &dyn Fn(&str)) {
-        self._out(
+    fn _log(&self, level: u8, prefix: &str, message: &str, ref_to_print_func: &dyn Fn(&str)) {
+        self._out(level,
             &format!("{}{}", self._prefix(prefix), message),
             ref_to_print_func,
         );
     }
 
-    fn _log_block(&self, prefix: &str, messages: &Vec<&str>, ref_to_print_func: &dyn Fn(&str)) {
+    fn _log_block(&self, level: u8, prefix: &str, messages: &Vec<&str>, ref_to_print_func: &dyn Fn(&str)) {
         if messages.len() == 0 {
-            self._out(&self._prefix(prefix), ref_to_print_func);
+            self._out(level, &self._prefix(prefix), ref_to_print_func);
         } else if messages.len() == 1 {
-            self._out(
+            self._out(level,
                 &format!("{}{}", self._prefix(prefix), messages[0]),
                 ref_to_print_func,
             );
         } else {
             let l = self._prefix(prefix);
-            self._out(&format!("{}{}", l, messages[0]), ref_to_print_func);
+            self._out(level, &format!("{}{}", l, messages[0]), ref_to_print_func);
             for m in &messages[1..] {
-                self._out(&format!("{:>1$}", m, l.len() + m.len()), ref_to_print_func);
+                self._out(level, &format!("{:>1$}", m, l.len() + m.len()), ref_to_print_func);
             }
         }
     }
 
-    fn _out(&self, s: &str, print_func: &dyn Fn(&str)) {
-        print_func(&s);
+    fn _out(&self, level: u8, s: &str, print_func: &dyn Fn(&str)) {
+        if self.verbosity() >= level {
+            print_func(&s);
+        }
         write!(&self.file_handler, "{}\n", s).expect("Could not write log file!");
     }
 
     fn _prefix(&self, prefix: &str) -> String {
-        return String::from(format!("Origen: {} ({}): ", prefix, self._timestamp()));
+        return String::from(format!("[{}] ({}): ", prefix, self._timestamp()));
     }
 
     fn _timestamp(&self) -> String {
@@ -197,6 +211,7 @@ impl Logger {
                     format!("{}", f.to_string_lossy())
                 ),
             },
+            level: RwLock::new(0),
         };
         l._write_header();
 

@@ -8,7 +8,5 @@ pub mod status;
 pub mod term;
 pub mod user;
 
-#[macro_use]
-pub mod utility;
 pub mod producer;
 pub mod tester;

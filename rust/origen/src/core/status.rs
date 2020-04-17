@@ -19,6 +19,7 @@ pub struct Status {
     pub start_time: time::Tm,
     /// The full file system path to the user's home directory
     pub home: PathBuf,
+    pub log_level: u8,
 }
 
 impl Default for Status {
@@ -34,6 +35,7 @@ impl Default for Status {
             origen_version: version,
             start_time: time::now(),
             home: get_home_dir(),
+            log_level: 1,
         }
     }
 }

@@ -3,10 +3,9 @@ pub mod mode;
 pub mod proj;
 pub mod setup;
 pub mod target;
-pub mod version;
 
 use crate::python;
-use origen::clean_mode;
+use origen::{clean_mode, LOGGER};
 
 /// Launch the given command in Python
 pub fn launch(
@@ -34,6 +33,8 @@ pub fn launch(
         let f: Vec<String> = files.unwrap().iter().map(|f| format!("'{}'", f)).collect();
         cmd += &format!(", files=[{}]", f.join(",")).to_string();
     }
+
+    cmd += &format!(", verbosity={}", LOGGER.verbosity());
 
     cmd += ");";
 

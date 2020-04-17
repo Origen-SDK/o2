@@ -1,8 +1,11 @@
 mod git;
+mod designsync;
 
 use crate::Result;
 use std::path::{Path, PathBuf};
-pub use git::Git;
+use git::Git;
+use designsync::Designsync;
+use std::env;
 
 pub struct RevisionControl {
     driver: Box<dyn RevisionControlAPI>,
@@ -10,13 +13,23 @@ pub struct RevisionControl {
 
 impl RevisionControl {
     pub fn new(local: &Path, remote: &str) -> RevisionControl {
-        RevisionControl {
-            driver: Box::new(RevisionControl::git(local, remote)),
+        if remote.ends_with(".git") {
+            RevisionControl {
+                driver: Box::new(RevisionControl::git(local, remote)),
+            }
+        } else {
+            RevisionControl {
+                driver: Box::new(RevisionControl::designsync(local, remote)),
+            }
         }
     }
 
     pub fn git(local: &Path, remote: &str) -> Git {
         Git::new(local, remote)
+    }
+
+    pub fn designsync(local: &Path, remote: &str) -> Designsync {
+        Designsync::new(local, remote)
     }
 }
 

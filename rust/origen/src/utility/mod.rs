@@ -3,8 +3,9 @@ pub mod big_uint_helpers;
 #[macro_use]
 pub mod logger;
 
-use crate::STATUS;
+use crate::{STATUS, Result};
 use std::path::{Path, PathBuf};
+use std::env;
 
 /// Resolves a directory path from the current application root.
 /// Accepts an optional 'user_val' and a default. The resulting directory will be resolved from:
@@ -29,3 +30,30 @@ pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> Pa
     dir.push(offset);
     dir
 }
+
+/// Temporarily sets the current dir to the given dir for the duration of the given
+/// function and then restores it at the end.
+/// An error will be returned if there is a problem switching to the given directory,
+/// e.g. if it doesn't exist, otherwise the result from the given function is returned.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// use origen::utility::with_dir;
+///
+/// let result = with_dir(Path::new("path/to/some/dir"), || {
+///   // Do something in that dir
+///   Ok(())
+/// });
+/// ```
+pub fn with_dir<T, F>(path: &Path, mut f: F) -> Result<T>
+where F: FnMut() -> Result<T>,
+{
+    let orig = env::current_dir()?;
+    env::set_current_dir(path)?;
+    let result = f();
+    env::set_current_dir(&orig)?;
+    result
+}
+

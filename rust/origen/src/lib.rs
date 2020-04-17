@@ -5,7 +5,10 @@ extern crate serde;
 extern crate meta;
 #[macro_use]
 extern crate pest_derive;
+#[macro_use]
+pub mod macros;
 
+pub mod utility;
 pub mod core;
 pub mod error;
 pub mod generator;
@@ -23,7 +26,7 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::Tester;
-use self::core::utility::logger::Logger;
+use self::utility::logger::Logger;
 use self::generator::ast::*;
 pub use self::services::Services;
 use num_bigint::BigUint;

@@ -13,6 +13,7 @@ fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(success))?;
     m.add_wrapped(wrap_pyfunction!(warning))?;
     m.add_wrapped(wrap_pyfunction!(output_file))?;
+    m.add_wrapped(wrap_pyfunction!(set_verbosity))?;
     Ok(())
 }
 
@@ -74,4 +75,10 @@ fn warning(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResul
 #[pyfunction]
 fn output_file(_py: Python) -> PyResult<String> {
     Ok(LOGGER.output_file.to_string_lossy().to_string())
+}
+
+#[pyfunction]
+fn set_verbosity(level: u8) -> PyResult<()> {
+    LOGGER.set_verbosity(level)?;
+    Ok(())
 }

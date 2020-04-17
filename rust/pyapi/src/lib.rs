@@ -1,3 +1,8 @@
+#[allow(unused_attributes)]
+#[macro_use]
+#[allow(unused_imports)]
+use origen::macros;
+
 mod dut;
 mod file_handler;
 mod logger;

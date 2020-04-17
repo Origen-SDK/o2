@@ -32,7 +32,7 @@ impl PyDUT {
     fn new(obj: &PyRawObject, name: &str) {
         origen::dut().change(name);
         origen::services().change();
-        obj.init({ PyDUT { metadata: vec![] } });
+        obj.init(PyDUT { metadata: vec![] });
     }
 
     /// Creates a new model at the given path

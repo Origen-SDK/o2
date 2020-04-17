@@ -14,7 +14,7 @@ use std::io::{self, Write};
 pub struct Git {
     /// Path to the local directory for the repository
     pub local: PathBuf,
-    /// A reference to the remote repository
+    /// Link to the remote repository
     pub remote: String,
 }
 
@@ -91,9 +91,8 @@ fn get_credentials(url: &str, _username_from_url: Option<&str>, _allowed_types: 
     //  None,
     //)
     let password = USER.password(Some(format!("to access repository '{}'", url)), attempts > 1).expect("FUuuuuuuu");
-    Cred::userpass_plaintext(
-        "ginty", &password
-    )
+    let id = USER.id().unwrap();
+    Cred::userpass_plaintext(&id, &password)
 }
 
 struct State {
