@@ -1,7 +1,7 @@
-use std::sync::RwLock;
-use crate::{Result, Error};
+use crate::{Error, Result};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
+use std::sync::RwLock;
 
 pub struct User {
     current: bool,
@@ -20,7 +20,7 @@ impl User {
     pub fn current() -> User {
         User {
             current: true,
-            data: RwLock::new(Data::default())
+            data: RwLock::new(Data::default()),
         }
     }
 
@@ -31,7 +31,7 @@ impl User {
                 {
                     let data = self.data.read().unwrap();
                     if let Some(p) = &data.id {
-                        return Some(p.clone())
+                        return Some(p.clone());
                     }
                 }
                 let id = whoami::username();
@@ -52,16 +52,18 @@ impl User {
                 {
                     let data = self.data.read().unwrap();
                     if let Some(p) = &data.password {
-                        return Ok(p.clone())
+                        return Ok(p.clone());
                     }
                 }
                 #[cfg(feature = "password-cache")]
-                if let Some(username) = self.id() {
-                    if let Some(x) = self.get_cached_password(&username) {
-                        // Locally cache for next time to save accessing the external service
-                        let mut data = self.data.write().unwrap();
-                        data.password = Some(x.clone());
-                        return Ok(x);
+                {
+                    if let Some(username) = self.id() {
+                        if let Some(x) = self.get_cached_password(&username) {
+                            // Locally cache for next time to save accessing the external service
+                            let mut data = self.data.write().unwrap();
+                            data.password = Some(x.clone());
+                            return Ok(x);
+                        }
                     }
                 }
             }
@@ -71,38 +73,41 @@ impl User {
             };
             let pass = rpassword::read_password_from_tty(Some(&msg)).unwrap();
             #[cfg(feature = "password-cache")]
-            if let Some(username) = self.id() {
-                self.cache_password(&username, &pass);
+            {
+                if let Some(username) = self.id() {
+                    self.cache_password(&username, &pass);
+                }
             }
             let mut data = self.data.write().unwrap();
             data.password = Some(pass.clone());
             Ok(pass)
         } else {
-            Err(Error::new("Can't get the password for a user which is not the current user"))
+            Err(Error::new(
+                "Can't get the password for a user which is not the current user",
+            ))
         }
     }
 
     #[cfg(feature = "password-cache")]
     fn cache_password(&self, username: &str, password: &str) {
-      if let Some(username) = self.id() {
-          let service = "rust-keyring";
-          let keyring = Keyring::new(&service, &username);
-          let _e = keyring.set_password(&password);
-          println!("{:?}", _e);
-      }
+        if let Some(username) = self.id() {
+            let service = "rust-keyring";
+            let keyring = Keyring::new(&service, &username);
+            let _e = keyring.set_password(&password);
+            println!("{:?}", _e);
+        }
     }
 
     #[cfg(feature = "password-cache")]
     fn get_cached_password(&self, username: &str) -> Option<String> {
-      let service = "rust-keyring";
-      let keyring = Keyring::new(&service, &username);
-      match keyring.get_password() {
-          Ok(p) => Some(p),
-          Err(_e) => {
-              println!("{:?}", _e);
-              None
-          }
-      }
+        let service = "rust-keyring";
+        let keyring = Keyring::new(&service, &username);
+        match keyring.get_password() {
+            Ok(p) => Some(p),
+            Err(_e) => {
+                println!("{:?}", _e);
+                None
+            }
+        }
     }
 }
-

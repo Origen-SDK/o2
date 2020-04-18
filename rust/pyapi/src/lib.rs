@@ -13,31 +13,35 @@ mod registers;
 mod services;
 #[macro_use]
 mod timesets;
-mod tester;
 mod producer;
+mod tester;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
 use origen::app_config as origen_app_config;
+use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
 use pyo3::types::{PyAny, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use pyo3::types::IntoPyDict;
 use std::sync::MutexGuard;
 
 // Imported pyapi modules
 use dut::PyInit_dut;
-use tester::PyInit_tester;
 use logger::PyInit_logger;
 use producer::PyInit_producer;
 use services::PyInit_services;
+use tester::PyInit_tester;
 
 #[macro_export]
 macro_rules! pypath {
     ($py:expr, $path:expr) => {{
         let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
-        let obj = $py.eval(&format!("pathlib.Path(r\"{}\").resolve()", $path), None, Some(&locals))?;
+        let obj = $py.eval(
+            &format!("pathlib.Path(r\"{}\").resolve()", $path),
+            None,
+            Some(&locals),
+        )?;
         obj.to_object($py)
     }};
 }
@@ -145,8 +149,14 @@ fn app_config(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("target", &app_config.target);
     let _ = ret.set_item("mode", &app_config.mode);
     let _ = ret.set_item("__output_directory__", &app_config.output_directory);
-    let _ = ret.set_item("__website_output_directory__", &app_config.website_output_directory);
-    let _ = ret.set_item("__website_source_directory__", &app_config.website_source_directory);
+    let _ = ret.set_item(
+        "__website_output_directory__",
+        &app_config.website_output_directory,
+    );
+    let _ = ret.set_item(
+        "__website_source_directory__",
+        &app_config.website_source_directory,
+    );
     Ok(ret.into())
 }
 

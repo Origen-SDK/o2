@@ -1,5 +1,3 @@
-
-
 #[macro_export]
 macro_rules! node {
     ( $attr:ident, $( $x:expr ),* ) => {

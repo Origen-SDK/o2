@@ -8,16 +8,16 @@ extern crate pest_derive;
 #[macro_use]
 pub mod macros;
 
-pub mod utility;
 pub mod core;
 pub mod error;
 pub mod generator;
+pub mod revision_control;
 pub mod services;
 pub mod testers;
-pub mod revision_control;
+pub mod utility;
 
-pub use error::Error;
 pub use self::core::user::User;
+pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
 use self::core::config::Config as OrigenConfig;
@@ -26,9 +26,9 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::Tester;
-use self::utility::logger::Logger;
 use self::generator::ast::*;
 pub use self::services::Services;
+use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};

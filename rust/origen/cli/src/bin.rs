@@ -7,14 +7,16 @@ mod commands;
 mod python;
 
 use clap::{App, AppSettings, Arg, SubCommand};
-use origen::{STATUS, LOGGER};
+use origen::{LOGGER, STATUS};
 
 // This is the entry point for the Origen CLI tool
 fn main() {
     let version = match STATUS.is_app_present {
         false => STATUS.origen_version.to_string(),
-        true => format!("CLI:    {}\n Origen: {}\n App:    {}",
-                        STATUS.origen_version, "TBD", "TBD"),
+        true => format!(
+            "CLI:    {}\n Origen: {}\n App:    {}",
+            STATUS.origen_version, "TBD", "TBD"
+        ),
     };
 
     let mut app = App::new("")
@@ -22,11 +24,13 @@ fn main() {
         .before_help("Origen, The Semiconductor Developer's Kit")
         .after_help("See 'origen <command> -h' for more information on a specific command.")
         .version(&*version)
-        .arg(Arg::with_name("verbose")
-             .short("v")
-             .multiple(true)
-             .global(true)
-             .help("Terminal verbosity level e.g. -v, -vv"));
+        .arg(
+            Arg::with_name("verbose")
+                .short("v")
+                .multiple(true)
+                .global(true)
+                .help("Terminal verbosity level e.g. -v, -vv"),
+        );
 
     /************************************************************************************/
     /******************** Global only commands ******************************************/

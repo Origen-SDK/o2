@@ -1,11 +1,11 @@
-mod git;
 mod designsync;
+mod git;
 
 use crate::Result;
-use std::path::{Path, PathBuf};
-use git::Git;
 use designsync::Designsync;
+use git::Git;
 use std::env;
+use std::path::{Path, PathBuf};
 
 pub struct RevisionControl {
     driver: Box<dyn RevisionControlAPI>,

@@ -3,9 +3,9 @@ pub mod big_uint_helpers;
 #[macro_use]
 pub mod logger;
 
-use crate::{STATUS, Result};
-use std::path::{Path, PathBuf};
+use crate::{Result, STATUS};
 use std::env;
+use std::path::{Path, PathBuf};
 
 /// Resolves a directory path from the current application root.
 /// Accepts an optional 'user_val' and a default. The resulting directory will be resolved from:
@@ -48,7 +48,8 @@ pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> Pa
 /// });
 /// ```
 pub fn with_dir<T, F>(path: &Path, mut f: F) -> Result<T>
-where F: FnMut() -> Result<T>,
+where
+    F: FnMut() -> Result<T>,
 {
     let orig = env::current_dir()?;
     env::set_current_dir(path)?;
@@ -56,4 +57,3 @@ where F: FnMut() -> Result<T>,
     env::set_current_dir(&orig)?;
     result
 }
-

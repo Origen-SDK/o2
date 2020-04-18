@@ -1,9 +1,9 @@
+use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use super::pin_collection::PinCollection;
 use origen::DUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
-use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 
 #[pyclass]
 #[derive(Clone)]
@@ -191,7 +191,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinGroup {
 impl ListLikeAPI for PinGroup {
     fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize> {
         let grp = dut._get_pin_group(self.model_id, &self.name).unwrap();
-        let mut pin_ids: Vec<usize> = vec!();
+        let mut pin_ids: Vec<usize> = vec![];
         for pname in grp.pin_names.iter() {
             pin_ids.push(dut._get_pin(self.model_id, pname).unwrap().id);
         }
@@ -201,7 +201,7 @@ impl ListLikeAPI for PinGroup {
     // Grabs a single pin and puts it in an anonymous pin collection
     fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let collection = dut.slice_pin_group(self.model_id, &self.name, idx, idx+1, 1)?;
+        let collection = dut.slice_pin_group(self.model_id, &self.name, idx, idx + 1, 1)?;
         Ok(Py::new(py, PinCollection::from(collection))
             .unwrap()
             .to_object(py))
@@ -215,13 +215,13 @@ impl ListLikeAPI for PinGroup {
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
-        let mut names: Vec<String> = vec!();
+        let mut names: Vec<String> = vec![];
         {
             let (indices, pin_names);
             let dut = DUT.lock().unwrap();
             pin_names = &dut._get_pin_group(self.model_id, &self.name)?.pin_names;
             indices = slice.indices((pin_names.len() as i32).into())?;
-    
+
             let mut i = indices.start;
             if indices.step > 0 {
                 while i < indices.stop {
@@ -238,8 +238,8 @@ impl ListLikeAPI for PinGroup {
         let gil = Python::acquire_gil();
         let py = gil.python();
         Ok(Py::new(py, PinCollection::new(self.model_id, names, None)?)
-                .unwrap()
-                .to_object(py))
+            .unwrap()
+            .to_object(py))
     }
 }
 

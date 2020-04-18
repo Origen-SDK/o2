@@ -1,8 +1,8 @@
 use super::RevisionControlAPI;
-use std::path::{Path, PathBuf};
-use crate::{Result, Error, USER};
-use std::fs;
 use crate::utility::with_dir;
+use crate::{Error, Result, USER};
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub struct Designsync {
@@ -35,8 +35,6 @@ impl RevisionControlAPI for Designsync {
         //self.set_vault()?;
         Ok(())
     }
-
-
 }
 
 impl Designsync {
@@ -44,9 +42,10 @@ impl Designsync {
         with_dir(&self.local, || {
             let output = dssc(&["setvault", &self.remote, "."])?;
             if !output.passed {
-                return Err(
-                    Error::new(&format!("Something went wrong setting the vault in '{}'",
-                                       self.local.display())));
+                return Err(Error::new(&format!(
+                    "Something went wrong setting the vault in '{}'",
+                    self.local.display()
+                )));
             }
             for line in output.stdout.lines() {
                 log_debug!("{}", line);
@@ -58,7 +57,6 @@ impl Designsync {
             Ok(())
         })
     }
-
 }
 
 fn dssc<I, S>(args: I) -> Result<Output>
@@ -66,9 +64,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
 {
-    let output = Command::new("dssc")
-        .args(args)
-        .output()?;
+    let output = Command::new("dssc").args(args).output()?;
     Ok(Output {
         passed: output.status.success(),
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),

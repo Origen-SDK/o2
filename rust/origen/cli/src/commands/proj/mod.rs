@@ -7,7 +7,7 @@ use origen::core::term;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::{env, fs};
-use tera::{Tera, Context};
+use tera::{Context, Tera};
 
 static BOM_FILE: &str = "bom.toml";
 
@@ -100,16 +100,18 @@ pub fn run(matches: &ArgMatches) {
             let mut tera = Tera::default();
             let mut context = Context::new();
             context.insert("bom", &bom);
-            let contents = tera.render_str(include_str!("templates/workspace_bom.toml"), &context).unwrap();
+            let contents = tera
+                .render_str(include_str!("templates/workspace_bom.toml"), &context)
+                .unwrap();
             File::create(path.join(BOM_FILE)).write(&contents);
             // Now populate the packages
             for (_id, mut package) in bom.packages {
-                env::set_current_dir(&path).expect("Couldn't change working directory to the new workspace");
+                env::set_current_dir(&path)
+                    .expect("Couldn't change working directory to the new workspace");
                 package.create();
             }
         }
-        Some("update") => {
-        }
+        Some("update") => {}
         Some("bom") => {
             let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap());
             let bom = BOM::for_dir(&dir);

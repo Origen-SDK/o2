@@ -1,7 +1,7 @@
 extern crate time;
 
-use crate::{STATUS, Result};
 use crate::core::term;
+use crate::{Result, STATUS};
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -114,17 +114,25 @@ impl Logger {
     }
 
     fn _log(&self, level: u8, prefix: &str, message: &str, ref_to_print_func: &dyn Fn(&str)) {
-        self._out(level,
+        self._out(
+            level,
             &format!("{}{}", self._prefix(prefix), message),
             ref_to_print_func,
         );
     }
 
-    fn _log_block(&self, level: u8, prefix: &str, messages: &Vec<&str>, ref_to_print_func: &dyn Fn(&str)) {
+    fn _log_block(
+        &self,
+        level: u8,
+        prefix: &str,
+        messages: &Vec<&str>,
+        ref_to_print_func: &dyn Fn(&str),
+    ) {
         if messages.len() == 0 {
             self._out(level, &self._prefix(prefix), ref_to_print_func);
         } else if messages.len() == 1 {
-            self._out(level,
+            self._out(
+                level,
                 &format!("{}{}", self._prefix(prefix), messages[0]),
                 ref_to_print_func,
             );
@@ -132,7 +140,11 @@ impl Logger {
             let l = self._prefix(prefix);
             self._out(level, &format!("{}{}", l, messages[0]), ref_to_print_func);
             for m in &messages[1..] {
-                self._out(level, &format!("{:>1$}", m, l.len() + m.len()), ref_to_print_func);
+                self._out(
+                    level,
+                    &format!("{:>1$}", m, l.len() + m.len()),
+                    ref_to_print_func,
+                );
             }
         }
     }

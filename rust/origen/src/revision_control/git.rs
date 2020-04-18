@@ -1,13 +1,12 @@
-use crate::Result as OrigenResult;
 use super::RevisionControlAPI;
-use std::path::{Path, PathBuf};
+use crate::Result as OrigenResult;
+use crate::USER;
 use git2::Repository;
 use std::env;
-use crate::USER;
-
+use std::path::{Path, PathBuf};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
-use git2::{FetchOptions, Progress, RemoteCallbacks, Cred};
+use git2::{Cred, FetchOptions, Progress, RemoteCallbacks};
 use std::cell::RefCell;
 use std::io::{self, Write};
 
@@ -70,14 +69,20 @@ impl RevisionControlAPI for Git {
         RepoBuilder::new()
             .fetch_options(fo)
             .with_checkout(co)
-            .clone(&self.remote, &self.local).expect("It went OK");
+            .clone(&self.remote, &self.local)
+            .expect("It went OK");
         println!();
 
         Ok(())
     }
 }
 
-fn get_credentials(url: &str, _username_from_url: Option<&str>, _allowed_types: git2::CredentialType, attempts: i32) -> Result<Cred, git2::Error> {
+fn get_credentials(
+    url: &str,
+    _username_from_url: Option<&str>,
+    _allowed_types: git2::CredentialType,
+    attempts: i32,
+) -> Result<Cred, git2::Error> {
     //println!("************************************************************");
     //println!("{:?}", url);
     //println!("{:?}", _username_from_url);
@@ -90,7 +95,12 @@ fn get_credentials(url: &str, _username_from_url: Option<&str>, _allowed_types: 
     //  std::path::Path::new(&format!("{}/.ssh/id_rsa", env::var("HOME").unwrap())),
     //  None,
     //)
-    let password = USER.password(Some(format!("to access repository '{}'", url)), attempts > 1).expect("FUuuuuuuu");
+    let password = USER
+        .password(
+            Some(format!("to access repository '{}'", url)),
+            attempts > 1,
+        )
+        .expect("FUuuuuuuu");
     let id = USER.id().unwrap();
     Cred::userpass_plaintext(&id, &password)
 }

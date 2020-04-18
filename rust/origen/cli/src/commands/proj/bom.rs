@@ -1,9 +1,9 @@
 use super::{error, BOM_FILE};
+use origen::revision_control::{RevisionControl, RevisionControlAPI};
 use origen::{Error, Result};
 use std::collections::HashMap;
-use std::{fmt, fs, env};
 use std::path::{Path, PathBuf};
-use origen::revision_control::{RevisionControl, RevisionControlAPI};
+use std::{env, fmt, fs};
 
 #[derive(Debug, Deserialize)]
 // This is a temporary structure to make the BOM file syntax nicer for users.
@@ -168,7 +168,6 @@ impl fmt::Display for Package {
 }
 
 impl Package {
-
     // Creates the package view in the current workspace, if any errors occurred there will be an error
     // message present in the package which can be examined by the caller.
     pub fn create(&mut self) {
@@ -178,9 +177,12 @@ impl Package {
             Some(x) => path.push(x),
         }
         match fs::create_dir_all(&path) {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(_e) => {
-                self.error_msg = Some(format!("Couldn't create '{}', do you have the required permissions?", path.display()));
+                self.error_msg = Some(format!(
+                    "Couldn't create '{}', do you have the required permissions?",
+                    path.display()
+                ));
                 return;
             }
         }
