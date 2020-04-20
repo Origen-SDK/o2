@@ -1,13 +1,14 @@
 use crate::{Error, Result};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock};
 
 pub struct User {
     current: bool,
     // All user data is stored behind a RW lock so that it can be lazily loaded
     // from the environment and cached behind the scenes
     data: RwLock<Data>,
+    password_semaphore: Mutex<u8>,
 }
 
 #[derive(Default, Debug)]
@@ -21,6 +22,7 @@ impl User {
         User {
             current: true,
             data: RwLock::new(Data::default()),
+            password_semaphore: Mutex::new(0),
         }
     }
 
@@ -45,25 +47,46 @@ impl User {
         }
     }
 
-    pub fn password(&self, reason: Option<String>, force: bool) -> Result<String> {
+    pub fn password(&self, reason: Option<&str>, failed_password: Option<&str>) -> Result<String> {
         if self.current {
-            if !force {
-                // Important, this is to release the read lock
-                {
-                    let data = self.data.read().unwrap();
-                    if let Some(p) = &data.password {
-                        return Ok(p.clone());
+            // In a multi-threaded scenario, this prevents concurrent threads from prompting the user for
+            // the password at the same time.
+            // Instead the first thread to arrive will do it, then by the time the lock is released awaiting
+            // threads will be able to used the cached value instead of prompting the user.
+            let _lock = self.password_semaphore.lock().unwrap();
+            // Important, this is to release the read lock
+            {
+                let data = self.data.read().unwrap();
+                if let Some(p) = &data.password {
+                    match failed_password {
+                        None => return Ok(p.clone()),
+                        Some(fp) => {
+                            if p != fp {
+                                return Ok(p.clone());
+                            }
+                        }
                     }
                 }
-                #[cfg(feature = "password-cache")]
-                {
-                    if let Some(username) = self.id() {
-                        if let Some(x) = self.get_cached_password(&username) {
-                            // Locally cache for next time to save accessing the external service
-                            let mut data = self.data.write().unwrap();
-                            data.password = Some(x.clone());
-                            return Ok(x);
+            }
+            #[cfg(feature = "password-cache")]
+            {
+                let mut password: Some<String> = None;
+                if let Some(username) = self.id() {
+                    if let Some(p) = self.get_cached_password(&username) {
+                        match failed_password {
+                            None => password = Some(p),
+                            Some(fp) => {
+                                if p != fp {
+                                    password = Some(p)
+                                }
+                            }
                         }
+                    }
+                    if let Some(p) = password {
+                        // Locally cache for next time to save accessing the external service
+                        let mut data = self.data.write().unwrap();
+                        data.password = Some(p.clone());
+                        return Ok(p);
                     }
                 }
             }

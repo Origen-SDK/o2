@@ -11,25 +11,31 @@ pub struct RevisionControl {
     driver: Box<dyn RevisionControlAPI>,
 }
 
+#[derive(Clone, Default)]
+pub struct Credentials {
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
 impl RevisionControl {
-    pub fn new(local: &Path, remote: &str) -> RevisionControl {
+    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> RevisionControl {
         if remote.ends_with(".git") {
             RevisionControl {
-                driver: Box::new(RevisionControl::git(local, remote)),
+                driver: Box::new(RevisionControl::git(local, remote, credentials)),
             }
         } else {
             RevisionControl {
-                driver: Box::new(RevisionControl::designsync(local, remote)),
+                driver: Box::new(RevisionControl::designsync(local, remote, credentials)),
             }
         }
     }
 
-    pub fn git(local: &Path, remote: &str) -> Git {
-        Git::new(local, remote)
+    pub fn git(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
+        Git::new(local, remote, credentials)
     }
 
-    pub fn designsync(local: &Path, remote: &str) -> Designsync {
-        Designsync::new(local, remote)
+    pub fn designsync(local: &Path, remote: &str, credentials: Option<Credentials>) -> Designsync {
+        Designsync::new(local, remote, credentials)
     }
 }
 

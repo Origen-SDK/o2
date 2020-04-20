@@ -1,4 +1,4 @@
-use super::RevisionControlAPI;
+use super::{Credentials, RevisionControlAPI};
 use crate::utility::with_dir;
 use crate::{Error, Result, USER};
 use std::fs;
@@ -10,6 +10,7 @@ pub struct Designsync {
     pub local: PathBuf,
     /// Link to the remote vault
     pub remote: String,
+    credentials: Option<Credentials>,
 }
 
 struct Output {
@@ -19,10 +20,11 @@ struct Output {
 }
 
 impl Designsync {
-    pub fn new(local: &Path, remote: &str) -> Designsync {
+    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Designsync {
         Designsync {
             local: local.to_path_buf(),
             remote: remote.to_string(),
+            credentials: credentials,
         }
     }
 }

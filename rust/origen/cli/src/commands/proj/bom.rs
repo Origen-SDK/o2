@@ -1,5 +1,5 @@
 use super::{error, BOM_FILE};
-use origen::revision_control::{RevisionControl, RevisionControlAPI};
+use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
 use origen::{Error, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -158,6 +158,7 @@ pub struct Package {
     copy: Option<PathBuf>,
     link: Option<PathBuf>,
     update: Option<bool>,
+    username: Option<String>,
     error_msg: Option<String>,
 }
 
@@ -186,7 +187,14 @@ impl Package {
                 return;
             }
         }
-        let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap());
+        let credentials = match &self.username {
+            None => None,
+            Some(x) => Some(Credentials {
+                username: Some(x.clone()),
+                password: None,
+            }),
+        };
+        let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), credentials);
         rc.populate(self.version.clone());
     }
 
@@ -204,6 +212,9 @@ impl Package {
         }
         if let Some(x) = &self.repo {
             s += &format!("{}  repo:     {}\n", i, x);
+        }
+        if let Some(x) = &self.username {
+            s += &format!("{}  username: {}\n", i, x);
         }
         if let Some(x) = &self.copy {
             s += &format!("{}  copy:     {}\n", i, x.display());
@@ -241,6 +252,12 @@ impl Package {
         match &p.update {
             Some(x) => {
                 self.update = Some(x.clone());
+            }
+            None => {}
+        }
+        match &p.username {
+            Some(x) => {
+                self.username = Some(x.clone());
             }
             None => {}
         }

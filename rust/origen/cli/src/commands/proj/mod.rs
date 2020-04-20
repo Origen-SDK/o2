@@ -6,7 +6,7 @@ use origen::core::file_handler::File;
 use origen::core::term;
 use std::path::{Path, PathBuf};
 use std::process::exit;
-use std::{env, fs};
+use std::{env, fs, thread};
 use tera::{Context, Tera};
 
 static BOM_FILE: &str = "bom.toml";
@@ -104,11 +104,17 @@ pub fn run(matches: &ArgMatches) {
                 .render_str(include_str!("templates/workspace_bom.toml"), &context)
                 .unwrap();
             File::create(path.join(BOM_FILE)).write(&contents);
+            let mut threads = vec![];
             // Now populate the packages
+            env::set_current_dir(&path)
+                .expect("Couldn't change working directory to the new workspace");
             for (_id, mut package) in bom.packages {
-                env::set_current_dir(&path)
-                    .expect("Couldn't change working directory to the new workspace");
-                package.create();
+                threads.push(thread::spawn(move || {
+                    package.create();
+                }));
+            }
+            for t in threads {
+                t.join();
             }
         }
         Some("update") => {}
@@ -182,9 +188,3 @@ fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
         );
     }
 }
-
-fn is_project_dir() {}
-
-fn is_workspace_dir() {}
-
-fn package_name() {}

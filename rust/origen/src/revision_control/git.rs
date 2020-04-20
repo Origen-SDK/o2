@@ -1,4 +1,4 @@
-use super::RevisionControlAPI;
+use super::{Credentials, RevisionControlAPI};
 use crate::Result as OrigenResult;
 use crate::USER;
 use git2::Repository;
@@ -15,13 +15,19 @@ pub struct Git {
     pub local: PathBuf,
     /// Link to the remote repository
     pub remote: String,
+    credentials: Option<Credentials>,
+    // There doesn't seem to be anything like an 'on_credentials_failed' callback, so have to keep track of
+    // what password was attempted last so that it can be used to blow the caching of a bad password
+    last_password: RefCell<Option<String>>,
 }
 
 impl Git {
-    pub fn new(local: &Path, remote: &str) -> Git {
+    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
         Git {
             local: local.to_path_buf(),
             remote: remote.to_string(),
+            credentials: credentials,
+            last_password: RefCell::new(None),
         }
     }
 }
@@ -50,10 +56,23 @@ impl RevisionControlAPI for Git {
             print(&mut *state);
             true
         });
-        let mut attempts = 0;
         cb.credentials(|url, username_from_url, allowed_types| {
-            attempts += 1;
-            get_credentials(url, username_from_url, allowed_types, attempts)
+            let password;
+            let cred;
+            {
+                let lastpass = self.last_password.borrow();
+                let (c, p) = get_credentials(
+                    url,
+                    username_from_url,
+                    allowed_types,
+                    &*lastpass,
+                    self.credentials.clone().unwrap_or_default(),
+                )?;
+                password = p;
+                cred = c;
+            }
+            self.last_password.replace(Some(password));
+            Ok(cred)
         });
         let mut co = CheckoutBuilder::new();
         co.progress(|path, cur, total| {
@@ -81,13 +100,13 @@ fn get_credentials(
     url: &str,
     _username_from_url: Option<&str>,
     _allowed_types: git2::CredentialType,
-    attempts: i32,
-) -> Result<Cred, git2::Error> {
+    last_attempt: &Option<String>,
+    credentials: Credentials,
+) -> Result<(Cred, String), git2::Error> {
     //println!("************************************************************");
     //println!("{:?}", url);
     //println!("{:?}", _username_from_url);
     //println!("{:?}", _allowed_types);
-    //println!("{:?}", attempts);
     //println!("************************************************************");
     //Cred::ssh_key(
     //  username_from_url.unwrap(),
@@ -95,14 +114,16 @@ fn get_credentials(
     //  std::path::Path::new(&format!("{}/.ssh/id_rsa", env::var("HOME").unwrap())),
     //  None,
     //)
-    let password = USER
-        .password(
-            Some(format!("to access repository '{}'", url)),
-            attempts > 1,
+
+    let password = credentials.password.unwrap_or_else(|| {
+        USER.password(
+            Some(&format!("to access repository '{}'", url)),
+            last_attempt.as_deref(),
         )
-        .expect("FUuuuuuuu");
-    let id = USER.id().unwrap();
-    Cred::userpass_plaintext(&id, &password)
+        .expect("Couldn't prompt for password")
+    });
+    let username = credentials.username.unwrap_or_else(|| USER.id().unwrap());
+    Ok((Cred::userpass_plaintext(&username, &password)?, password))
 }
 
 struct State {
