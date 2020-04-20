@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::{env, fs, thread};
 use tera::{Context, Tera};
+use origen::LOGGER;
 
 static BOM_FILE: &str = "bom.toml";
 
@@ -110,6 +111,7 @@ pub fn run(matches: &ArgMatches) {
                 .expect("Couldn't change working directory to the new workspace");
             for (_id, mut package) in bom.packages {
                 threads.push(thread::spawn(move || {
+                    LOGGER.open(None, true);
                     package.create();
                 }));
             }

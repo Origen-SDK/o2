@@ -3,7 +3,8 @@ use crate::utility::with_dir;
 use crate::{Error, Result, USER};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Stdio, Command};
+use std::io::{BufRead, BufReader};
 
 pub struct Designsync {
     /// Path to the local directory for the repository
@@ -34,7 +35,7 @@ impl RevisionControlAPI for Designsync {
         log_info!("Started populating {}...", &self.remote);
         fs::create_dir_all(&self.local)?;
         self.set_vault()?;
-        //self.set_vault()?;
+        self.pop()?;
         Ok(())
     }
 }
@@ -42,24 +43,72 @@ impl RevisionControlAPI for Designsync {
 impl Designsync {
     fn set_vault(&self) -> Result<()> {
         with_dir(&self.local, || {
-            let output = dssc(&["setvault", &self.remote, "."])?;
-            if !output.passed {
-                return Err(Error::new(&format!(
-                    "Something went wrong setting the vault in '{}'",
-                    self.local.display()
-                )));
-            }
-            for line in output.stdout.lines() {
-                log_debug!("{}", line);
-            }
-            log_error!("STDERR");
-            for line in output.stderr.lines() {
-                log_error!("{}", line);
-            }
+            let mut child = Command::new("dssc")
+                .args(&["setvault", &self.remote, "."])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?;
+            
+            let stdout = child.stdout.take().unwrap();
+
+            let reader = BufReader::new(stdout);
+            reader.lines()
+                .filter_map(|line| line.ok())
+                .for_each(|line|
+                          log_debug!("{}", line)
+                          );
+
+            let stderr = child.stderr.take().unwrap();
+
+            let reader2 = BufReader::new(stderr);
+            reader2.lines()
+                .filter_map(|line| line.ok())
+                .for_each(|line|
+                          log_error!("{}", line)
+                          );
+            //child.try_wait();
+
+            println!("Exit status: {:?}", child.wait()?.success());
+
+            Ok(())
+        })
+    }
+
+    fn pop(&self) -> Result<()> {
+        with_dir(&self.local, || {
+            let mut child = Command::new("dssc")
+                .args(&["pop", "-rec", "-uni", "-force"])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?;
+            
+            let stdout = child.stdout.take().unwrap();
+
+            let reader = BufReader::new(stdout);
+            reader.lines()
+                .filter_map(|line| line.ok())
+                .for_each(|line|
+                          log_debug!("{}", line)
+                          );
+
+            let stderr = child.stderr.take().unwrap();
+
+            let reader2 = BufReader::new(stderr);
+            reader2.lines()
+                .filter_map(|line| line.ok())
+                .for_each(|line|
+                          log_error!("{}", line)
+                          );
+            //child.try_wait();
+
+            println!("Exit status: {:?}", child.wait()?.success());
+
             Ok(())
         })
     }
 }
+
+
 
 fn dssc<I, S>(args: I) -> Result<Output>
 where

@@ -5,8 +5,14 @@ use crate::{Result, STATUS};
 use std::env;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::RwLock;
+use std::cell::RefCell;
+use std::thread;
+
+// Thread specific files, a log request will write to the last log in this vector, if
+// none are present then it will fall back to the global/shared files in Logger.inner.files
+thread_local!(static FILES: RefCell<Vec<fs::File>> = RefCell::new(vec![]));
 
 #[macro_export]
 macro_rules! backend_fail {
@@ -41,19 +47,30 @@ macro_rules! fail {
 }
 
 pub struct Logger {
-    pub output_file: PathBuf,
-    file_handler: fs::File,
-    level: RwLock<u8>,
+    // All attributes that could be mutated are in here
+    inner: RwLock<Inner>
+}
+
+#[derive(Default)]
+pub struct Inner {
+    level: u8,
+    // The currently open log files, the last one is the one that will be written to
+    // (unless there is an open thread-specific log file)
+    files: Vec<fs::File>,
+    // Paths to all log files that have been created by the current run
+    logs: Vec<PathBuf>,
+    // A counter used to generate unique default log file names
+    counter: u32,
 }
 
 impl Logger {
     pub fn verbosity(&self) -> u8 {
-        *self.level.read().unwrap()
+        self.inner.read().unwrap().level
     }
 
     pub fn set_verbosity(&self, level: u8) -> Result<()> {
-        let mut lvl = self.level.write().unwrap();
-        *lvl = level;
+        let mut inner = self.inner.write().unwrap();
+        inner.level = level;
         Ok(())
     }
 
@@ -153,7 +170,7 @@ impl Logger {
         if self.verbosity() >= level {
             print_func(&s);
         }
-        write!(&self.file_handler, "{}\n", s).expect("Could not write log file!");
+        self.write(&format!("{}\n", s));
     }
 
     fn _prefix(&self, prefix: &str) -> String {
@@ -175,7 +192,7 @@ impl Logger {
         );
     }
 
-    fn _write_header(&self) {
+    fn write_header(&self) {
         let mut out = String::from("### Origen Log File\n");
         out += &format!("### Version: {}\n", STATUS.origen_version);
         out += &format!(
@@ -192,41 +209,83 @@ impl Logger {
             "### Command: {}\n\n",
             env::args().collect::<Vec<_>>().join(" ")
         );
-        write!(&self.file_handler, "{}", out).expect("Unable to write data to log file!");
+        self.write(&out);
     }
 
-    pub fn default_output_dir() -> PathBuf {
-        let pb;
-        if STATUS.is_app_present {
-            pb = (STATUS.root).to_path_buf().join("log");
-        } else {
-            pb = (STATUS.home).to_path_buf().join(".origen").join("log");
-        }
+    fn write(&self, msg: &str) {
+        FILES.with(|files| {
+            let files = files.borrow();
+            match files.last() {
+                Some(mut f) => {
+                    write!(f, "{}", msg).expect("Unable to write data to thread log file!");
+                },
+                None => {
+                    let inner = self.inner.read().unwrap();
+                    let mut f = inner.files.last().unwrap();
+                    write!(f, "{}", msg).expect("Unable to write data to global log file!");
+                },
+            }
+        });
+    }
+
+    pub fn open(&self, path: Option<&Path>, thread_local: bool) -> Result<()> {
+        let p = match path {
+            None => {
+                let mut inner = self.inner.write().unwrap();
+                inner.counter += 1;
+                default_log_file(Some(inner.counter))
+            },
+            Some(p) => match p.is_absolute() {
+                true => p.to_path_buf(),
+                false => log_dir().join(p),
+            },
+        };
+
         // create all missing directories to avoid panics
-        fs::create_dir_all(pb.as_path())
-            .expect(&(format!("Could not create the log directory {}", pb.display())));
-        pb
-    }
+        fs::create_dir_all(&p.parent().unwrap())?;
 
-    pub fn default_output_file() -> PathBuf {
-        return Logger::default_output_dir().join("out.log");
+        // Open the file for write
+        let f = fs::File::create(&p)?;
+
+        {
+            let mut inner = self.inner.write().unwrap();
+            inner.logs.push(p);
+            if !thread_local {
+                inner.files.push(f);
+            } else {
+                FILES.with(|files| {
+                    let mut files = files.borrow_mut();
+                    files.push(f);
+                });
+            }
+        }
+        self.write_header();
+        Ok(())
     }
 
     pub fn default() -> Logger {
-        let ref f = Logger::default_output_file();
-        let l = Logger {
-            output_file: f.to_path_buf(),
-            file_handler: match fs::File::create(f) {
-                Ok(f) => f,
-                Err(_e) => panic!(
-                    "Could not open log file at {}",
-                    format!("{}", f.to_string_lossy())
-                ),
-            },
-            level: RwLock::new(0),
+        let logger = Logger {
+            inner: RwLock::new(Inner::default())
         };
-        l._write_header();
 
-        return l;
+        logger.open(Some(&default_log_file(None)), false)
+            .expect(&format!("Couldn't open default log file '{}'", default_log_file(None).display()));
+        logger
     }
 }
+
+fn default_log_file(index: Option<u32>) -> PathBuf {
+    match index {
+        None => log_dir().join("out.log"),
+        Some(i) => log_dir().join(&format!("out.log.{}", i)),
+    }
+}
+
+
+pub fn log_dir() -> PathBuf {
+    match STATUS.is_app_present {
+        true => STATUS.root.clone().join("log"),
+        false => STATUS.home.clone().join(".origen").join("log"),
+    }
+}
+
