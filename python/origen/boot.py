@@ -89,7 +89,7 @@ if sys.platform == "win32":
 
 # Called by the Origen CLI to boot the Origen Python env, not for application use
 # Any target/env overrides given to the command line will be passed in here
-def __origen__(command, target=None, environment=None, mode=None, files=None):
+def __origen__(command, target=None, environment=None, mode=None, files=None, args=None):
     import origen
     import _origen
     import origen.application
@@ -135,6 +135,18 @@ def __origen__(command, target=None, environment=None, mode=None, files=None):
         import code
         from origen import dut, tester
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
+
+    elif command == "web:build":
+        from origen.web import run_cmd
+        return run_cmd("build", args)
+    
+    elif command == "web:view":
+        from origen.web import run_cmd
+        return run_cmd("view", args)
+    
+    elif command == "web:clean":
+        from origen.web import run_cmd
+        return run_cmd("clean", args)
 
     else:
         print(f"Unknown command: {command}")

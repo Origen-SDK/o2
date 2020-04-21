@@ -13,6 +13,10 @@ bs4 = "0.0.1"
 beautifulsoup4 = "4.8.2"
 lxml = "4.4.2"
 mako = "1.1.0"
+sphinx = "2.4.3"
+#autoapi = ">= 0"
+autoapi = {git = "https://github.com/coreyeng/autoapi.git", branch = "master"}
+recommonmark = ">= 0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

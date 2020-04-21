@@ -10,10 +10,21 @@ use origen::{APPLICATION_CONFIG, ORIGEN_CONFIG, STATUS};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use std::path::PathBuf;
+use pyo3::types::IntoPyDict;
 
 // Imported pyapi modules
 use dut::PyInit_dut;
 use logger::PyInit_logger;
+
+#[macro_export]
+macro_rules! pypath {
+    ($py:expr, $path:expr) => {{
+        let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
+        let obj = $py.eval(&format!("pathlib.Path(r\"{}\").resolve()", $path), None, Some(&locals))?;
+        obj.to_object($py)
+    }};
+}
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -24,6 +35,11 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
     m.add_wrapped(wrap_pyfunction!(target_file))?;
     m.add_wrapped(wrap_pyfunction!(file_handler))?;
+    m.add_wrapped(wrap_pyfunction!(output_directory))?;
+    m.add_wrapped(wrap_pyfunction!(website_output_directory))?;
+    m.add_wrapped(wrap_pyfunction!(website_source_directory))?;
+    m.add_wrapped(wrap_pyfunction!(on_windows))?;
+    m.add_wrapped(wrap_pyfunction!(on_linux))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
@@ -72,9 +88,13 @@ fn app_config(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("target", &APPLICATION_CONFIG.target);
     let _ = ret.set_item("environment", &APPLICATION_CONFIG.environment);
     let _ = ret.set_item("mode", &APPLICATION_CONFIG.mode);
+    let _ = ret.set_item("__output_directory__", &APPLICATION_CONFIG.output_directory);
+    let _ = ret.set_item("__website_output_directory__", &APPLICATION_CONFIG.website_output_directory);
+    let _ = ret.set_item("__website_source_directory__", &APPLICATION_CONFIG.website_source_directory);
     Ok(ret.into())
 }
 
+/// clean_mode(name)
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
 #[pyfunction]
 fn clean_mode(name: &str) -> PyResult<String> {
@@ -83,9 +103,38 @@ fn clean_mode(name: &str) -> PyResult<String> {
 }
 
 #[pyfunction]
+/// target_file(name, dir)
 /// Sanitizes the given target/env name and returns the matching file, but will exit the process
 /// if it does not uniquely identify a single target/env file.
 fn target_file(name: &str, dir: &str) -> PyResult<String> {
     let c = origen::core::application::target::clean_name(name, dir, true);
     Ok(c)
+}
+
+#[pyfunction]
+fn output_directory(py: Python) -> PyResult<PyObject> {
+    let dir = origen::core::application::output_directory();
+    Ok(pypath!(py, dir.display()))
+}
+
+#[pyfunction]
+fn website_output_directory(py: Python) -> PyResult<PyObject> {
+    let dir = origen::core::application::website_output_directory();
+    Ok(pypath!(py, dir.display()))
+}
+
+#[pyfunction]
+fn website_source_directory(py: Python) -> PyResult<PyObject> {
+    let dir = origen::core::application::website_source_directory();
+    Ok(pypath!(py, dir.display()))
+}
+
+#[pyfunction]
+fn on_windows() -> PyResult<bool> {
+    Ok(origen::core::os::on_windows())
+}
+
+#[pyfunction]
+fn on_linux() -> PyResult<bool> {
+    Ok(origen::core::os::on_linux())
 }

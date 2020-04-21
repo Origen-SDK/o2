@@ -166,6 +166,66 @@ fn main() {
            )
 
            /************************************************************************************/
+           .subcommand(SubCommand::with_name("web")
+                .about("Create, Build, and View Web Documentation")
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .visible_alias("w")
+                .subcommand(SubCommand::with_name("build") // What I think this command should be called
+                    .about("Builds the web documentation")
+                    .visible_alias("b")
+                    .visible_alias("compile") // What O1 thinks it should be called
+                    .visible_alias("html") // What sphinx thinks it should be called
+                    .arg(Arg::with_name("view")
+                        .long("view")
+                        .short("v")
+                        .help("Launch your web browswer after the build")
+                        .takes_value(false)
+                    )
+                    .arg(Arg::with_name("clean")
+                        .long("clean")
+                        .help("Clean up directories from previous builds and force a rebuild")
+                        .takes_value(false)
+                    )
+                    // .arg(Arg::with_name("release")
+                    //     .long("release")
+                    //     .short("r")
+                    //     .help("Release (deploy) the resulting web pages")
+                    //     .takes_value(false)
+                    // )
+                    // .arg(Arg::with_name("archive")
+                    //     .long("archive")
+                    //     .short("a")
+                    //     .help("Archive the resulting web pages after building")
+                    //     .takes_value(true)
+                    //     .multiple(false)
+                    // )
+                    .arg(Arg::with_name("no-api")
+                        .long("no-api")
+                        .help("Skip building the API")
+                        .takes_value(false)
+                    )
+                    // .arg(Arg::with_name("sphinx-config")
+                    //     .long("sphinx-config")
+                    //     .help("Options to pass to the 'sphinx-build' commmand")
+                    //     .takes_value(true)
+                    //     .multiple(true)
+                    // )
+                    // .arg(Arg::with_name("pdf")
+                    //     .long("pdf")
+                    //     .help("Create a PDF of resulting web pages")
+                    //     .takes_value(false)
+                    // )
+                )
+                .subcommand(SubCommand::with_name("view")
+                    .about("Launches your web browser to view previously built documentation")
+                    .visible_alias("v")
+                )
+                .subcommand(SubCommand::with_name("clean")
+                    .about("Cleans the output directory and all cached files")
+                )
+            )
+
+           /************************************************************************************/
            .subcommand(SubCommand::with_name("setup")
                 .about("Setup your application's Python environment"),
            )
@@ -217,6 +277,51 @@ fn main() {
             Some("mode") => {
                 let matches = matches.subcommand_matches("mode").unwrap();
                 commands::mode::run(matches.value_of("mode"));
+            }
+            Some("web") => {
+                let cmd = matches.subcommand_matches("web").unwrap();
+                //let subcommand = matches.get_matches();
+                let subcmd = cmd.subcommand();
+                let sub = subcmd.1.unwrap();
+                match subcmd.0 {
+                    "build" => {
+                        let mut args = "from origen.boot import __origen__; __origen__('web:build', args={".to_string();
+                        if sub.is_present("view") {
+                            args.push_str("'view': True, ")
+                        }
+                        if sub.is_present("clean") {
+                            args.push_str("'clean': True, ")
+                        }
+                        if sub.is_present("no-api") {
+                            args.push_str("'no-api': True, ")
+                        }
+                        // if let Some(v) = sub.values_of("sphinx-options") {
+                        //     // ...
+                        // }
+                        args.push_str("}");
+                        args.push_str(");");
+                        python::run(&args);
+                    },
+                    "view" => {
+                        commands::launch(
+                            "web:view",
+                            &None,
+                            &None,
+                            &None,
+                            None
+                        )
+                    },
+                    "clean" => {
+                        commands::launch(
+                            "web:clean",
+                            &None,
+                            &None,
+                            &None,
+                            None
+                        )
+                    }
+                    _ => {}
+                }
             }
             // Should never hit these
             None => {}

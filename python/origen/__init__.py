@@ -8,6 +8,8 @@ status = _origen.status()
 root = Path(status["root"])
 version = status["origen_version"]
 logger = _origen.logger
+running_on_windows = _origen.on_windows()
+running_on_linux = _origen.on_linux()
 
 app = None
 dut = None
@@ -20,6 +22,7 @@ if status["is_app_present"]:
     app = a.Application()
 
 def set_mode(val):
+    """ Sets the current mode """
     global mode
     if val:
         mode = _origen.clean_mode(val)

@@ -18,6 +18,7 @@ pub fn dut(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+/// The PyDUT object, through which DUT-related interactions between the Python frontend and the Rust backend take place.
 #[pyclass]
 #[derive(Debug)]
 pub struct PyDUT {
@@ -49,6 +50,8 @@ impl PyDUT {
         Ok(model.console_display(&dut)?)
     }
 
+    /// push_metadata(self, item)
+    /// Pushes metadata object onto the current DUT
     pub fn push_metadata(&mut self, item: &PyAny) -> usize {
         let gil = Python::acquire_gil();
         let py = gil.python();
