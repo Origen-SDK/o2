@@ -220,7 +220,11 @@ impl Logger {
                     write!(f, "{}", msg).expect("Unable to write data to thread log file!");
                 },
                 None => {
-                    let inner = self.inner.read().unwrap();
+                    // Took a write lock here to ensure exclusivity, not sure if really required or
+                    // not, is the write! macro threadsafe?
+                    // No concern from the above write since that is to a thread-specific log file,
+                    // so no worries about multiple writes at the same time.
+                    let inner = self.inner.write().unwrap();
                     let mut f = inner.files.last().unwrap();
                     write!(f, "{}", msg).expect("Unable to write data to global log file!");
                 },
