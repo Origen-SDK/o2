@@ -2,9 +2,7 @@ use super::super::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter}
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use super::super::timesets::*;
 use indexmap::map::IndexMap;
-use origen::error::Error;
 use pyo3::class::mapping::*;
-use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 
 #[macro_export]
@@ -60,7 +58,7 @@ impl DictLikeAPI for TimesetContainer {
         self.model_id
     }
 
-    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error> {
+    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> PyResult<PyObject> {
         Ok(Py::new(py, super::timeset::Timeset::new(name, model_id))
             .unwrap()
             .to_object(py))
@@ -143,7 +141,7 @@ impl DictLikeAPI for WavetableContainer {
         self.model_id
     }
 
-    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error> {
+    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> PyResult<PyObject> {
         Ok(Py::new(
             py,
             super::timeset::Wavetable::new(model_id, self.timeset_id, name),
@@ -231,7 +229,7 @@ impl DictLikeAPI for WaveGroupContainer {
         self.model_id
     }
 
-    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error> {
+    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> PyResult<PyObject> {
         Ok(Py::new(
             py,
             super::timeset::WaveGroup::new(model_id, self.timeset_id, self.wavetable_id, name),
@@ -334,7 +332,7 @@ impl DictLikeAPI for WaveContainer {
         self.model_id
     }
 
-    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> Result<PyObject, Error> {
+    fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> PyResult<PyObject> {
         Ok(Py::new(
             py,
             super::timeset::Wave::new(
@@ -406,7 +404,7 @@ impl ListLikeAPI for EventContainer {
         dut.waves[self.wave_id].events.clone()
     }
 
-    fn new_pyitem(&self, py: Python, idx: usize) -> Result<PyObject, Error> {
+    fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject> {
         Ok(Py::new(
             py,
             super::timeset::Event::new(

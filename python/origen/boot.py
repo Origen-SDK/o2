@@ -89,7 +89,7 @@ if sys.platform == "win32":
 
 # Called by the Origen CLI to boot the Origen Python env, not for application use
 # Any target/env overrides given to the command line will be passed in here
-def __origen__(command, target=None, environment=None, mode=None, files=None, args=None):
+def __origen__(command, targets=None, environment=None, mode=None, files=None, args=None):
     import origen
     import _origen
     import origen.application
@@ -103,10 +103,21 @@ def __origen__(command, target=None, environment=None, mode=None, files=None, ar
     if files is not None:
         _origen.file_handler().init(files)
 
-    origen.target.load(target=target, environment=environment)
+    origen.target.load(targets=targets)
 
+    # Future: Add options to generate patterns concurrently, or send them off to LSF.
+    # For now, just looping over the patterns.
+    # Future: Add flow options.
     if command == "generate":
-        print("Generate command called!")
+        for (i, f) in enumerate(_origen.file_handler()):
+            # For each pattern, instantiate the DUT and reset the AST
+            origen.tester.reset()
+            origen.target.load(targets=targets)
+            origen.logger.info(f"Generating source {i+1} of {len(_origen.file_handler())}: {f}")
+            
+            j = origen.producer.create_pattern_job(f)
+            j.run()
+        # Print a summary here...
 
     elif command == "compile":
         for file in _origen.file_handler():
@@ -134,6 +145,7 @@ def __origen__(command, target=None, environment=None, mode=None, files=None, ar
 
         import code
         from origen import dut, tester
+        from origen.registers.actions import write, verify, write_transaction, verify_transaction
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
 
     elif command == "web:build":

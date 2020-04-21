@@ -23,11 +23,15 @@ config = "0.9"
 serde = {version = "1.0", features = ["derive"]}
 path-clean = "0.1.0"
 time = "0.1.42"
-pyo3 = "^0.8"
 indexmap = "1.3.0"
 eval = "0.4.3"
-num-bigint = "0.2"
 cargo-expand = "0.4.17"
+num-traits = "0.2.0"
+serde-pickle = "0.6"
+pest = "2.1"
+pest_derive = "2.1"
+enum-utils = "0.1.2"
+shellexpand = "1.1.1"
 
 # Per this SO thread: https://stackoverflow.com/questions/37296351/trait-for-numeric-functionality-in-rust
 # the num crate includes some useful traits to accept float-like and integer-like things without having to manually enumerate them all.
@@ -36,3 +40,16 @@ meta = { path = "./meta" }
 
 [build-dependencies]
 built = "0.3"
+
+[dependencies.num-bigint]
+version = "0.2"
+features = ["serde"]
+
+[dependencies.pyo3]
+version = "0.8.2"
+# Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
+# in origen to enable conversion of an Origen error to a PyErr.
+features = ["extension-module"]
+
+[target.x86_64-unknown-linux-musl.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }

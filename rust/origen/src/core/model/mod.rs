@@ -4,12 +4,8 @@ pub mod timesets;
 use crate::error::Error;
 use crate::Dut;
 use crate::Result;
-use std::sync::MutexGuard;
-
 use indexmap::map::IndexMap;
-use pins::pin::Pin;
-use pins::pin_group::PinGroup;
-use std::collections::HashMap;
+use std::sync::MutexGuard;
 
 #[derive(Debug)]
 pub struct Model {
@@ -22,46 +18,58 @@ pub struct Model {
     /// All registers owned by this model are arranged within memory maps
     pub memory_maps: IndexMap<String, usize>,
     // Pins
-    pub physical_pins: HashMap<String, Pin>,
-    pub pins: HashMap<String, PinGroup>,
+    pub pins: IndexMap<String, usize>,
+    pub pin_groups: IndexMap<String, usize>,
+    pub pin_headers: IndexMap<String, usize>,
+
     pub timesets: IndexMap<String, usize>,
     // TODO: Levels
     // TODO: Specs
-    /// Represents the number of bits of an address increment between two
+    /// Represents the number of bits in an address increment between two
     /// consecutive addressable units within the block.
-    /// Its value defaults to 8 indicating a byte addressable memory map.
-    /// This attribute can be overridden by MemoryMaps defined within the block.
-    /// Since this attribute is intrinsically linked to the definitions within block,
-    /// it cannot be overridden by instantiation.
+    /// Its value defaults to 8 indicating that the address offsets of its sub-blocks
+    /// will be expressed as byte addresses.
+    /// This attribute can be overridden by individual MemoryMaps defined within the block.
+    /// Since this attribute is intrinsically linked to the address definitions made
+    /// within the block, it cannot be overridden by instantiation.
     pub address_unit_bits: u32,
-    /// The starting address of the address block expressed in address_unit_bits
-    /// from the parent block.
+    /// The starting address of the block expressed in address_unit_bits of the parent block.
     /// This defaults to 0 but can be overridden by instantiation.
-    pub base_address: u64,
+    pub offset: u128,
+    pub services: IndexMap<String, usize>,
 }
 
 impl Model {
-    pub fn new(
-        id: usize,
-        name: String,
-        parent_id: Option<usize>,
-        base_address: Option<u64>,
-    ) -> Model {
+    pub fn new(id: usize, name: String, parent_id: Option<usize>, offset: Option<u128>) -> Model {
         Model {
             id: id,
             name: name,
             parent_id: parent_id,
             sub_blocks: IndexMap::new(),
             memory_maps: IndexMap::new(),
-            physical_pins: HashMap::new(),
-            pins: HashMap::new(),
+            pins: IndexMap::new(),
+            pin_groups: IndexMap::new(),
+            pin_headers: IndexMap::new(),
             timesets: IndexMap::new(),
             address_unit_bits: 8,
-            base_address: match base_address {
+            offset: match offset {
                 Some(x) => x,
                 None => 0,
             },
+            services: IndexMap::new(),
         }
+    }
+
+    pub fn add_service(&mut self, name: &str, id: usize) -> Result<()> {
+        if self.services.contains_key(name) {
+            return Err(Error::new(&format!(
+                "The model '{}' already has a service called '{}'",
+                self.name, name
+            )));
+        } else {
+            self.services.insert(name.to_string(), id);
+        }
+        Ok(())
     }
 
     pub fn lookup(&self, key: &str) -> Result<&IndexMap<String, usize>> {
@@ -143,5 +151,42 @@ impl Model {
             output += &format!("{}└── sub_blocks []\n", offset);
         }
         Ok(output)
+    }
+
+    /// Returns the parent of this model or None, normally meaning that this is the top-level model
+    pub fn parent<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<&'a Model>> {
+        match self.parent_id {
+            Some(p) => return Ok(Some(dut.get_model(p)?)),
+            None => return Ok(None),
+        }
+    }
+
+    /// Returns the fully resolved address of the block which is comprised of the sum of
+    /// it's own offset and that of it's parent(s).
+    pub fn address(&self, dut: &MutexGuard<Dut>) -> Result<u128> {
+        match self.parent(dut)? {
+            Some(p) => return Ok(p.address(dut)? + self.offset),
+            None => return Ok(self.offset),
+        }
+    }
+
+    /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierachy.
+    /// The returned address is with an address_unit_bits size of 1.
+    pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> Result<u128> {
+        match self.parent(dut)? {
+            None => Ok(0),
+            Some(x) => {
+                let base = x.bit_address(dut)?;
+                Ok(base + (self.offset * x.address_unit_bits as u128))
+            }
+        }
+    }
+
+    /// Returns a path to this block like "dut.my_block"
+    pub fn friendly_path(&self, dut: &MutexGuard<Dut>) -> Result<String> {
+        match self.parent(dut)? {
+            None => Ok("dut".to_string()),
+            Some(x) => Ok(format!("{}.{}", x.friendly_path(dut)?, self.name)),
+        }
     }
 }

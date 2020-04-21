@@ -2,7 +2,7 @@ import origen
 import _origen
 from origen import pins
 from origen import timesets
-from origen.registers import Loader as RegLoader
+from origen.registers.loader import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
 from contextlib import contextmanager
 
@@ -52,7 +52,8 @@ class Base:
         self.regs_loaded = False
         self.sub_blocks_loaded = False
         self.pins_loaded = False
-        self.timesets_loaded= False
+        self.timesets_loaded = False
+        self.services_loaded = False
 
     def __repr__(self):
         self._load_regs()
@@ -62,11 +63,9 @@ class Base:
     # This lazy-loads the block's files the first time a given resource is referenced
     def __getattr__(self, name):
         #print(f"Looking for attribute {name}")
-        if name == "base_address":
-            self.model().base_address
         # regs called directly on the controller means only the regs in the default
         # memory map and address block
-        elif name == "regs":
+        if name == "regs":
             self._load_regs()
             if self._default_default_address_block:
                 return self._default_default_address_block.regs
@@ -76,6 +75,10 @@ class Base:
         elif name == "sub_blocks":
             self._load_sub_blocks()
             return self.sub_blocks
+
+        elif name == "services":
+            self._load_services()
+            return self.services
 
         elif name in pins.Proxy.api():
             from origen.pins import Proxy
@@ -99,6 +102,9 @@ class Base:
             self._load_timesets()
             return eval(f"self.{name}")
 
+        elif name in self.services:
+            return self.services[name]
+
         else:
             self._load_sub_blocks()
 
@@ -116,7 +122,10 @@ class Base:
                 if r:
                     return r
 
-            raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
+            try:
+                return getattr(self.model(), name)
+            except AttributeError:
+                raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
         print(self.tree_as_str())
@@ -138,7 +147,7 @@ class Base:
                 t += "\n" + leader + f"├── {key}"
             else:
                 t += "\n" + leader + f"└── {key}"
-            if self.sub_blocks[key].sub_blocks.len() > 0:
+            if len(self.sub_blocks[key].sub_blocks) > 0:
                 if i != last:
                     l = leader + '│    '
                 else:
@@ -158,6 +167,7 @@ class Base:
             raise AttributeError(f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)")
 
     def add_simple_reg(self, *args, **kwargs):
+        kwargs["_called_from_controller"] = True
         RegLoader(self).SimpleReg(*args, **kwargs)
 
     def model(self):
@@ -166,6 +176,7 @@ class Base:
     @contextmanager
     def add_reg(self, *args, **kwargs):
         self._load_regs()
+        kwargs["_called_from_controller"] = True
         with RegLoader(self).Reg(*args, **kwargs) as reg:
             yield reg
 
@@ -180,8 +191,7 @@ class Base:
 
     def _load_sub_blocks(self):
         if not self.sub_blocks_loaded:
-            from origen.sub_blocks import Proxy
-            self.sub_blocks = Proxy(self)
+            self.sub_blocks = {}
             self.app.load_block_files(self, "sub_blocks.py")
             self.sub_blocks_loaded = True
     
@@ -194,6 +204,18 @@ class Base:
         if not self.timesets_loaded:
             self.app.load_block_files(self, "timing.py")
             self.timesets_loaded = True
+
+    def _load_services(self):
+        if not self.services_loaded:
+            self.services_loaded = True
+            self.services = {}
+            self.app.load_block_files(self, "services.py")
+
+    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
+        pass
+
+    def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
+        pass
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

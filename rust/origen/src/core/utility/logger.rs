@@ -7,6 +7,38 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
+#[macro_export]
+macro_rules! backend_fail {
+    ($message:expr) => {
+        origen::LOGGER.error(&format!(
+            "A problem occurred in the Origen backend: '{}'",
+            $message
+        ));
+        std::process::exit(1);
+    };
+}
+
+#[macro_export]
+macro_rules! backend_expect {
+    ($obj:expr, $message:expr) => {{
+        match $obj {
+            Some(o) => o,
+            None => {
+                origen::LOGGER.error(&format!("A problem occurred in the Origen backend as an Error or None value was unwrapped: '{}'", $message));
+                std::process::exit(1);
+            }
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! fail {
+    ($message:expr) => {
+        origen::LOGGER.error($message);
+        std::process::exit(1);
+    };
+}
+
 pub struct Logger {
     pub output_file: PathBuf,
     file_handler: fs::File,

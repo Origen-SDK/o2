@@ -4,11 +4,67 @@
 //! at once and seamlessly opens up lists to get to the inidividual files inside.
 
 use crate::{Error, Result};
+use std::fs::create_dir_all;
+use std::fs::File as StdFile;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 lazy_static! {
     static ref FILES: Mutex<Files> = Mutex::new(Files::new());
+}
+
+#[derive(Debug)]
+pub struct File {
+    pub file_obj: StdFile,
+    pub path: PathBuf,
+}
+
+impl std::clone::Clone for File {
+    fn clone(&self) -> Self {
+        Self::open(self.path.clone()).unwrap()
+    }
+}
+
+impl File {
+    /// Creates or overrides the given file and panics if the creation fails
+    pub fn create(f: PathBuf) -> Self {
+        Self::mkdir_p(
+            &f.parent()
+                .expect(&format!("Unable to locate parent of {:?}", f)),
+        );
+        let file = StdFile::create(f.clone()).expect(&format!("Unable to create file at {:?}", f));
+        Self {
+            file_obj: file,
+            path: f.clone(),
+        }
+    }
+
+    /// Attempts to open the given file for reading, returning an error if the open fails
+    pub fn open(f: PathBuf) -> Result<Self> {
+        let file = StdFile::open(f.clone()).expect(&format!("Unable to open file at {:?}", f));
+        Ok(Self {
+            file_obj: file,
+            path: f,
+        })
+    }
+
+    pub fn mkdir_p(path: &Path) {
+        create_dir_all(path).expect(&format!("Unable to create all directories at {:?}", path));
+    }
+
+    /// Writes content to the underlying file and panics if the write failed
+    pub fn write(&mut self, content: &str) {
+        self.file_obj
+            .write_all(content.as_bytes())
+            .expect(&format!("Error writing file {:?}", self.path));
+    }
+
+    pub fn write_ln(&mut self, content: &str) {
+        self.file_obj
+            .write_all(format!("{}\n", content).as_bytes())
+            .expect(&format!("Error writing file {:?}", self.path));
+    }
 }
 
 #[derive(Debug)]

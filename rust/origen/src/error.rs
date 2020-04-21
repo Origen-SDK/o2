@@ -57,3 +57,9 @@ impl std::convert::From<std::io::Error> for Error {
         Error::new(&err.to_string())
     }
 }
+
+impl std::convert::From<shellexpand::LookupError<std::env::VarError>> for Error {
+    fn from(err: shellexpand::LookupError<std::env::VarError>) -> Self {
+        Error::new(&err.to_string())
+    }
+}

@@ -7,7 +7,7 @@
 //! The target can be further overridden for a particular origen command invocation via
 //! the -t and -e options, or programmatically within the application code, however that is all
 //! handled on the front end in Python code.
-use crate::STATUS;
+use crate::{app_config, STATUS};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 // Can be used to turn a relative path in an absolute
@@ -24,7 +24,10 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
     let t = dir.trim_end_matches("s");
 
     if matches.len() == 0 {
-        println!("No matching {} found, here are the available {}s:", t, t);
+        println!(
+            "No matching {} '{}' found, here are the available {}s:",
+            t, name, t
+        );
         for file in all(dir).iter() {
             println!(
                 "    {}",
@@ -33,8 +36,8 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
         }
     } else if matches.len() > 1 {
         println!(
-            "That {} name is ambiguous, please try again to narrow it down to one of these:",
-            t
+            "That {} name '{}' is ambiguous, please try again to narrow it down to one of these:",
+            t, name
         );
         for file in matches.iter() {
             println!(
@@ -81,7 +84,91 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
             }
         }
     }
+    // After collecting all the matches, if the size > 1 then filter again for exact matches
+    if files.len() > 1 {
+        files = files
+            .into_iter()
+            .filter(|path| path.file_name().unwrap().to_str().unwrap() == &format!("{}.py", name))
+            .collect();
+    }
     files
+}
+
+/// Gets the currently enabled targets
+pub fn get() -> Option<Vec<String>> {
+    app_config().refresh();
+    match app_config().target.as_ref() {
+        Some(targets) => Some(
+            targets
+                .iter()
+                .map(|t| clean_name(t, "targets", true))
+                .collect::<Vec<String>>()
+                .clone(),
+        ),
+        None => None,
+    }
+}
+
+/// Sets the targets, overriding any that may be present
+pub fn set(targets: Vec<&str>) {
+    let clean_targets: Vec<String> = targets
+        .iter()
+        .map(|t| clean_name(t, "targets", true))
+        .collect();
+    set_workspace_array("target", clean_targets)
+}
+
+/// Resets (deletes) the target back to its default value
+pub fn reset() {
+    delete_val("target")
+}
+
+/// Enables additional targets in the workspace
+pub fn add(targets: Vec<&str>) {
+    let mut current: Vec<String> = match &app_config().target {
+        Some(targets) => targets.clone(),
+        None => vec![],
+    }
+    .iter()
+    .map(|t| clean_name(t, "targets", true))
+    .collect();
+
+    for t in targets.iter() {
+        // Check that the targets to add are valid
+        let clean_t = clean_name(t, "targets", true);
+
+        // If the target is already added, remove it from its current position and reapply it in the order
+        // given here
+        current.retain(|c| *c != clean_t);
+        current.push(clean_t);
+    }
+
+    set_workspace_array("target", current);
+}
+
+/// Disables currently enables targets in the workspace
+pub fn remove(targets: Vec<&str>) {
+    let mut current: Vec<String> = match &app_config().target {
+        Some(targets) => targets.clone(),
+        None => vec![],
+    }
+    .iter()
+    .map(|t| clean_name(t, "targets", true))
+    .collect();
+
+    for t in targets.iter() {
+        let clean_t = clean_name(t, "targets", true);
+
+        // Remove the target, if present
+        current.retain(|c| *c != clean_t);
+    }
+
+    if current.len() == 0 {
+        println!("All targets were removed. Resetting to the default target.");
+        reset();
+    } else {
+        set_workspace_array("target", current);
+    }
 }
 
 /// Returns all files from the given directory
@@ -105,6 +192,13 @@ pub fn set_workspace(key: &str, val: &str) {
     add_val(key, val);
 }
 
+/// Sets an Array-of-Strings workspace variable
+pub fn set_workspace_array(key: &str, vals: Vec<String>) {
+    ensure_app_dot_toml();
+    delete_val(key);
+    add_val_array(key, vals);
+}
+
 /// Deletes the given key (and its val) from .origen/application.toml if it exists
 pub fn delete_val(key: &str) {
     let path = STATUS.root.join(".origen").join("application.toml");
@@ -123,6 +217,28 @@ fn add_val(key: &str, val: &str) {
     let path = STATUS.root.join(".origen").join("application.toml");
     let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
     let new_data = format!("{}\n{} = \"{}\"", data.trim(), key, val);
+    fs::write(
+        STATUS.root.join(".origen").join("application.toml"),
+        new_data,
+    )
+    .expect("Unable to write file .origen/application.toml!");
+}
+
+/// Appends the given key/val pair to the end of .origen/application.toml
+fn add_val_array(key: &str, vals: Vec<String>) {
+    let path = STATUS.root.join(".origen").join("application.toml");
+    let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
+
+    // Note: use string literals here to account for Windows paths
+    let new_data = format!(
+        "{}\n{} = [{}]",
+        data.trim(),
+        key,
+        vals.iter()
+            .map(|v| format!("'{}'", v))
+            .collect::<Vec<String>>()
+            .join(", ")
+    );
     fs::write(
         STATUS.root.join(".origen").join("application.toml"),
         new_data,

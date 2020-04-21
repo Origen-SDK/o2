@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 /// List of supported pin actions.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PinActions {
     Drive,
     Verify,
@@ -47,6 +47,21 @@ impl PinActions {
             PinActions::HighZ => 'Z',
         }
     }
+
+    pub fn as_tester_char(&self, data: u8) -> char {
+        match self {
+            PinActions::Drive => match data {
+                0 => '0',
+                _ => '1',
+            },
+            PinActions::Verify => match data {
+                0 => 'L',
+                _ => 'H',
+            },
+            PinActions::Capture => 'C',
+            PinActions::HighZ => 'Z',
+        }
+    }
 }
 
 impl TryFrom<u8> for PinActions {
@@ -71,7 +86,7 @@ impl TryFrom<u8> for PinActions {
 }
 
 /// Available Pin Roles
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum PinRoles {
     Standard,
     Power,
@@ -81,12 +96,13 @@ pub enum PinRoles {
 }
 
 /// Model for single pin.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pin {
+    pub model_id: usize,
+    pub id: usize,
     // Since pins will be added from the add_pin function of Pins,
     // just reuse that String instance instead of creating a new one.
     pub name: String,
-    pub path: String,
     pub data: u8,
 
     /// The pin's current action. If no action is desired, the pin will be HighZ.
@@ -181,14 +197,16 @@ impl Pin {
     }
 
     pub fn new(
+        model_id: usize,
+        id: usize,
         name: String,
-        path: String,
         reset_data: Option<u32>,
         reset_action: Option<PinActions>,
     ) -> Pin {
         let mut p = Pin {
+            model_id: model_id,
+            id: id,
             name: name,
-            path: path,
             data: 0,
             action: PinActions::HighZ,
             reset_data: reset_data,
@@ -205,11 +223,6 @@ impl Pin {
 
 impl Default for Pin {
     fn default() -> Pin {
-        Self::new(
-            String::from("default"),
-            String::from(""),
-            Option::None,
-            Option::None,
-        )
+        Self::new(0, 0, String::from("default"), Option::None, Option::None)
     }
 }

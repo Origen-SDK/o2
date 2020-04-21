@@ -1,6 +1,7 @@
-use super::register::Field;
-use super::{Bit, Register};
-use crate::{Dut, Error, Result};
+use super::{Bit, Field, Register};
+use crate::core::model::registers::AccessType;
+use crate::node;
+use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
@@ -13,20 +14,20 @@ const UNKNOWN_CHAR: &str = "?";
 #[derive(Debug, Clone)]
 pub struct BitCollection<'a> {
     /// Optionally contains the ID of the reg that owns the bits
-    reg_id: Option<usize>,
+    pub reg_id: Option<usize>,
     /// Optionally contains the name of the field that owns the bits
-    field: Option<String>,
+    pub field: Option<String>,
     /// When true the BitCollection contains all bits of the register defined
     /// by reg_id
-    whole_reg: bool,
+    pub whole_reg: bool,
     /// When true the BitCollection contains all bits of the field defined
     /// by field
-    whole_field: bool,
+    pub whole_field: bool,
     pub bits: Vec<&'a Bit>,
     /// Iterator index and vars
-    i: usize,
-    shift_left: bool,
-    shift_logical: bool,
+    pub i: usize,
+    pub shift_left: bool,
+    pub shift_logical: bool,
 }
 
 impl<'a> Default for BitCollection<'a> {
@@ -134,6 +135,29 @@ impl<'a> BitCollection<'a> {
         }
     }
 
+    /// Sort the bits in the collection by their position property
+    pub fn sort_bits(&mut self) {
+        self.bits.sort_by_key(|bit| bit.position);
+    }
+
+    /// If the BitCollection contains > 1 bits, then this will return the lowest position
+    pub fn position(&self) -> usize {
+        self.bits[0].position
+    }
+
+    /// Returns the access attribute of the BitCollection. This will raise an error if
+    /// the collection is comprised of bits with a different access attribute value.
+    pub fn access(&self) -> Result<AccessType> {
+        let val = self.bits[0].access;
+        if !self.bits.iter().all(|&bit| bit.access == val) {
+            Err(Error::new(
+                "The bits in the collection have different access values",
+            ))
+        } else {
+            Ok(val)
+        }
+    }
+
     pub fn set_data(&self, value: BigUint) {
         let mut bytes = value.to_bytes_be();
         let mut byte = bytes.pop().unwrap();
@@ -171,14 +195,23 @@ impl<'a> BitCollection<'a> {
     /// Returns the overlay value of the BitCollection. This will return an error if
     /// not all bits return the same value.
     pub fn get_overlay(&self) -> Result<Option<String>> {
-        let val = self.bits[0].get_overlay();
-        if !self.bits.iter().all(|&bit| bit.get_overlay() == val) {
-            Err(Error::new(
-                "The bits in the collection have different overlay values",
-            ))
-        } else {
-            Ok(val)
+        let mut result: Option<String> = None;
+        for &bit in self.bits.iter() {
+            match &bit.get_overlay() {
+                None => {}
+                Some(val) => match &result {
+                    None => result = Some(val.to_string()),
+                    Some(existing) => {
+                        if val != existing {
+                            return Err(Error::new(
+                                format!("The bits in the collection have different overlay values, found: '{}' and '{}'", val, existing).as_str(),
+                            ));
+                        }
+                    }
+                },
+            }
         }
+        Ok(result)
     }
 
     /// Set the overlay value of the BitCollection.
@@ -214,9 +247,17 @@ impl<'a> BitCollection<'a> {
         }
     }
 
-    /// Returns true if any bits in the collection has their read flag set
-    pub fn is_to_be_read(&self) -> bool {
-        self.bits.iter().any(|bit| bit.is_to_be_read())
+    /// Clears the verify flag on all bits in the collection
+    pub fn clear_verify_flag(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.clear_verify_flag();
+        }
+        self
+    }
+
+    /// Returns true if any bits in the collection has their verify flag set
+    pub fn is_to_be_verified(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_to_be_verified())
     }
 
     /// Returns true if any bits in the collection has their capture flag set
@@ -293,13 +334,155 @@ impl<'a> BitCollection<'a> {
         }
     }
 
-    //pub fn read(&self, dut: &'a MutexGuard<'a, Dut>) -> Result<&'a BitCollection> {
-    pub fn read(&self) -> Result<&BitCollection> {
-        for &bit in self.bits.iter() {
-            bit.read()?;
+    /// Returns the data value of the given reset type. This will return None if
+    /// any of the bits in the collection do not have a value for the given reset type.
+    /// An error will be returned if the bits can't be resolved to a parent register.
+    pub fn reset_val(&self, name: &str, dut: &'a MutexGuard<'a, Dut>) -> Result<Option<BigUint>> {
+        let reg = self.reg(dut)?;
+        let mut bytes: Vec<u8> = Vec::new();
+        let mut byte: u8 = 0;
+        for (i, &bit) in self.bits.iter().enumerate() {
+            match reg.reset_val_for_bit(name, bit.position)? {
+                None => return Ok(None),
+                Some(x) => byte = byte | x << i % 8,
+            }
+            if i % 8 == 7 {
+                bytes.push(byte);
+                byte = 0;
+            }
         }
-        // TODO: Record the read in the AST here
+        if self.bits.len() % 8 != 0 {
+            bytes.push(byte);
+        }
+        Ok(Some(BigUint::from_bytes_le(&bytes)))
+    }
+
+    /// Returns true if the data value of any of the bits has been changed since
+    /// the last reset. It returns true even if the current data value matches the
+    /// default reset value and it will only be returned to false upon a reset operation.
+    pub fn is_modified_since_reset(&self) -> bool {
+        self.bits.iter().any(|bit| bit.is_modified_since_reset())
+    }
+
+    /// Returns true if the data value of all bits matches that of the given
+    /// reset type ("hard", by default).
+    /// If no data is defined for the given reset type then the result will be false.
+    pub fn is_in_reset_state(
+        &self,
+        name: Option<&str>,
+        dut: &'a MutexGuard<'a, Dut>,
+    ) -> Result<bool> {
+        let reset_name = match name {
+            None => "hard",
+            Some(x) => x,
+        };
+        match self.reset_val(reset_name, dut)? {
+            None => Ok(false),
+            Some(x) => Ok(x == self.data()?),
+        }
+    }
+
+    /// Take a snapshot of the current state of all bits, the state can be rolled
+    /// back in future by supplying the same name to the rollback method
+    pub fn snapshot(&self, name: &str) -> Result<&BitCollection> {
+        for &bit in self.bits.iter() {
+            bit.snapshot(name);
+        }
         Ok(self)
+    }
+
+    /// Returns true if the state of any bits has changed vs. the given snapshot
+    /// reference. An error will be raised if no snapshot with the given name is found.
+    pub fn is_changed(&self, name: &str) -> Result<bool> {
+        for &bit in self.bits.iter() {
+            if bit.is_changed(name)? {
+                return Ok(true);
+            };
+        }
+        Ok(false)
+    }
+
+    /// Rollback the state of all bits to the given snapshot.
+    /// An error will be raised if no snapshot with the given name is found.
+    pub fn rollback(&self, name: &str) -> Result<&BitCollection> {
+        for &bit in self.bits.iter() {
+            bit.rollback(name)?;
+        }
+        Ok(self)
+    }
+
+    /// Trigger a verify operation on the register
+    pub fn verify(
+        &self,
+        enable: Option<BigUint>,
+        preset: bool,
+        dut: &'a MutexGuard<Dut>,
+    ) -> Result<Option<usize>> {
+        if !preset {
+            self.set_verify_flag(enable)?;
+        }
+        // Record the verify in the AST
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?.bits(dut);
+            let n = node!(
+                RegVerify,
+                id,
+                reg.data()?,
+                Some(reg.verify_enables()),
+                Some(reg.capture_enables()),
+                Some(reg.overlay_enables()),
+                reg.get_overlay()?
+            );
+            Ok(Some(TEST.push_and_open(n)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Equivalent to calling verify() but without invoking a register transaction at the end,
+    /// i.e. it will set the verify flag on the bits and optionally apply an enable mask when
+    /// deciding what bit flags to set.
+    pub fn set_verify_flag(&self, enable: Option<BigUint>) -> Result<&BitCollection> {
+        if enable.is_some() {
+            let enable = enable.unwrap();
+            let mut bytes = enable.to_bytes_be();
+            let mut byte = bytes.pop().unwrap();
+
+            for (i, &bit) in self.bits.iter().enumerate() {
+                if (byte >> i % 8) & 1 == 1 {
+                    bit.verify()?;
+                }
+                if i % 8 == 7 {
+                    match bytes.pop() {
+                        Some(x) => byte = x,
+                        None => byte = 0,
+                    }
+                }
+            }
+        } else {
+            for &bit in self.bits.iter() {
+                bit.verify()?;
+            }
+        }
+        Ok(self)
+    }
+
+    /// Trigger a write operation on the register
+    pub fn write(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<usize>> {
+        // Record the write in the AST
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?.bits(dut);
+            let n = node!(
+                RegWrite,
+                id,
+                reg.data()?,
+                Some(reg.overlay_enables()),
+                reg.get_overlay()?
+            );
+            Ok(Some(TEST.push_and_open(n)))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Returns the Register object associated with the BitCollection. Note that this will
@@ -366,11 +549,11 @@ impl<'a> BitCollection<'a> {
         self.bits.len()
     }
 
-    pub fn read_enables(&self) -> BigUint {
+    pub fn verify_enables(&self) -> BigUint {
         let mut bytes: Vec<u8> = Vec::new();
         let mut byte: u8 = 0;
         for (i, &bit) in self.bits.iter().enumerate() {
-            byte = byte | bit.read_enable_flag() << i % 8;
+            byte = byte | bit.verify_enable_flag() << i % 8;
             if i % 8 == 7 {
                 bytes.push(byte);
                 byte = 0;
@@ -416,11 +599,11 @@ impl<'a> BitCollection<'a> {
 
     pub fn status_str(&mut self, operation: &str) -> Result<String> {
         let mut ss = "".to_string();
-        if operation == "read" || operation == "r" {
+        if operation == "verify" || operation == "r" {
             for bit in self.shift_out_left() {
                 if bit.is_to_be_captured() {
                     ss += STORE_CHAR;
-                } else if bit.is_to_be_read() {
+                } else if bit.is_to_be_verified() {
                     if bit.has_overlay() {
                         //&& options[:mark_overlays]
                         ss += OVERLAY_CHAR
@@ -458,7 +641,7 @@ impl<'a> BitCollection<'a> {
             }
         } else {
             return Err(Error::new(&format!(
-                "Unknown operation argument '{}', must be \"read\" or \"write\"",
+                "Unknown operation argument '{}', must be \"verify\" or \"write\"",
                 operation
             )));
         }
