@@ -1,4 +1,5 @@
 use std::process::Command;
+use std::ffi::OsString;
 
 pub fn on_windows() -> bool {
     if cfg!(windows) {
@@ -21,8 +22,10 @@ pub fn on_linux() -> bool {
 #[allow(unused_mut)]
 pub fn cmd(cmd: &str) -> std::process::Command {
     if on_windows() {
-        let mut c = Command::new("cmd");
-        c.arg("/C").arg(&cmd);
+        //let mut c = Command::new("cmd");
+        //c.arg("/C").arg(&cmd);
+        //return c;
+        let mut c = Command::new(OsString::from(cmd));
         return c;
     } else {
         let mut c = Command::new(&cmd);

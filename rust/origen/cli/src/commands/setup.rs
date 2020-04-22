@@ -2,11 +2,13 @@ extern crate time;
 
 use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
 use online::online;
-use origen::core::os;
+//use origen::core::os;
 use origen::core::term::*;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
+use std::ffi::OsString;
+use std::process::Command;
 
 const POETRY_INSTALLER: &str =
     "https://raw.githubusercontent.com/sdispater/poetry/1.0.0b7/get-poetry.py";
@@ -64,13 +66,15 @@ pub fn run() {
                 fs::read_to_string(&get_poetry_file).expect("Unable to read Poetry install file");
             let new_data = data.replace(
                 "/bin/env python",
-                &format!("/bin/env {}", PYTHON_CONFIG.command),
+                &format!("/bin/env {}", PYTHON_CONFIG.command.clone().into_string().unwrap()),
             );
             fs::write(&get_poetry_file, new_data).expect("Unable to write Poetry install file");
 
             // Install Poetry
-            os::cmd(&PYTHON_CONFIG.command)
-                .arg(format!("{}", get_poetry_file.display()))
+            //os::cmd(&PYTHON_CONFIG.command)
+            Command::new(&PYTHON_CONFIG.command)
+                //.arg(format!("{}", get_poetry_file.display()))
+                .arg(get_poetry_file)
                 .arg("--yes")
                 .status()
                 .expect("Something went wrong install Poetry");
@@ -78,9 +82,10 @@ pub fn run() {
             if poetry_version().unwrap().major != 1 {
                 // Have to use --preview here to get a 1.0.0 pre version, can only use versions for
                 // official releases
-                os::cmd(&PYTHON_CONFIG.poetry_command)
-                    .arg("self:update")
-                    .arg("--preview")
+                //os::cmd(&PYTHON_CONFIG.poetry_command)
+                Command::new(&PYTHON_CONFIG.poetry_command)
+                    .arg(OsString::from("self:update"))
+                    .arg(OsString::from("--preview"))
                     .status()
                     .expect("Something wend wrong updating Poetry");
             }
@@ -90,9 +95,10 @@ pub fn run() {
 
     print!("Are the app's deps. installed?  ... ");
 
-    let status = os::cmd(&PYTHON_CONFIG.poetry_command)
-        .arg("install")
-        .arg("--no-root")
+    //let status = os::cmd(&PYTHON_CONFIG.poetry_command)
+    let status = Command::new(&PYTHON_CONFIG.poetry_command)
+        .arg(OsString::from("install"))
+        .arg(OsString::from("--no-root"))
         .status();
 
     if status.is_ok() {
