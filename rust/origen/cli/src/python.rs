@@ -102,7 +102,6 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) {
-    //let _status = os::cmd(&PYTHON_CONFIG.poetry_command)
     let _status = Command::new(&PYTHON_CONFIG.poetry_command)
         .arg("run")
         .arg(&PYTHON_CONFIG.command)
