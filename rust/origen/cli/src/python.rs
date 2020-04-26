@@ -1,6 +1,5 @@
 // Responsible for managing Python execution
 
-//use origen::core::os;
 use std::process::Command;
 use std::ffi::OsString;
 use origen::STATUS;
