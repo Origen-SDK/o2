@@ -10,7 +10,11 @@ Implementations of core constructs like registers, pins, dut models, etc.
 
 ### generator
 
-Output generators.
+AST structures for pattern and program generation.
+
+### services
+
+Protocol drivers.
 
 ### testers
 
