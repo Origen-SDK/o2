@@ -2,7 +2,7 @@
 
 ### commands
 
-This folder contains the implementators of the available commands, "generate", "interactive", etc.
+This folder contains the implementors of the available commands, "generate", "interactive", etc.
 
 ### bins.rs
 
