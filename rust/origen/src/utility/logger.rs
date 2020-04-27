@@ -2,17 +2,16 @@ extern crate time;
 
 use crate::core::term;
 use crate::{Result, STATUS};
+use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
-use std::cell::RefCell;
-use std::thread;
 
 // Thread specific files, a log request will write to the last log in this vector, if
 // none are present then it will fall back to the global/shared files in Logger.inner.files
-thread_local!(static FILES: RefCell<Vec<fs::File>> = RefCell::new(vec![]));
+thread_local!(static FILES: RefCell<Vec<(PathBuf, fs::File)>> = RefCell::new(vec![]));
 
 #[macro_export]
 macro_rules! backend_fail {
@@ -38,17 +37,9 @@ macro_rules! backend_expect {
     }};
 }
 
-#[macro_export]
-macro_rules! fail {
-    ($message:expr) => {
-        origen::LOGGER.error($message);
-        std::process::exit(1);
-    };
-}
-
 pub struct Logger {
     // All attributes that could be mutated are in here
-    inner: RwLock<Inner>
+    inner: RwLock<Inner>,
 }
 
 #[derive(Default)]
@@ -56,7 +47,7 @@ pub struct Inner {
     level: u8,
     // The currently open log files, the last one is the one that will be written to
     // (unless there is an open thread-specific log file)
-    files: Vec<fs::File>,
+    files: Vec<(PathBuf, fs::File)>,
     // Paths to all log files that have been created by the current run
     logs: Vec<PathBuf>,
     // A counter used to generate unique default log file names
@@ -69,63 +60,106 @@ impl Logger {
     }
 
     pub fn set_verbosity(&self, level: u8) -> Result<()> {
+        log_debug!("Setting logger verbosity to '{}'", level);
         let mut inner = self.inner.write().unwrap();
         inner.level = level;
         Ok(())
     }
 
+    /// Use for displaying output to the terminal when creating CLI tools. The given message will always
+    /// be output to the console and without a timestamp.
+    /// It will also appear in the log file with a timestamp.
+    pub fn display(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|msg| {
+            println!("{}", message);
+        });
+    }
+
+    /// See display
+    pub fn display_green(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|msg| {
+            term::greenln(message);
+        });
+    }
+
+    /// See display
+    pub fn display_red(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|_msg| {
+            term::redln(message);
+        });
+    }
+
+    /// See display
+    pub fn display_block(&self, messages: &Vec<&str>) {
+        self._log_block(0, "DISPLAY", messages, &(term::yellowln));
+    }
+
+    /// Log a debug message, this will be displayed in the terminal when running with -vv
     pub fn debug(&self, message: &str) {
         self._log(2, "DEBUG", message, &term::yellowln);
     }
 
+    /// Log a debug message, this will be displayed in the terminal when running with -vv
     pub fn debug_block(&self, messages: &Vec<&str>) {
         self._log_block(2, "DEBUG", messages, &(term::yellowln));
     }
 
+    /// Log a trace (very low level) debug message, this will be displayed in the terminal when running with -vvv
+    pub fn trace(&self, message: &str) {
+        self._log(3, "TRACE", message, &term::yellowln);
+    }
+
+    /// Log a trace (very low level) debug message, this will be displayed in the terminal when running with -vvv
+    pub fn trace_block(&self, messages: &Vec<&str>) {
+        self._log_block(3, "TRACE", messages, &(term::yellowln));
+    }
+
+    /// Log a deprecation warning message, this will be displayed in the terminal when running with -v
     pub fn deprecated(&self, message: &str) {
         self._log(1, "DEPRECATED", message, &term::yellowln);
     }
 
+    /// Log a deprecation warning message, this will be displayed in the terminal when running with -v
     pub fn deprecated_block(&self, messages: &Vec<&str>) {
         self._log_block(1, "DEPRECATED", messages, &(term::yellowln));
     }
 
+    /// Log an error message, this will always be displayed in the terminal
     pub fn error(&self, message: &str) {
         self._log(0, "ERROR", message, &term::redln);
     }
 
+    /// Log an error message, this will always be displayed in the terminal
     pub fn error_block(&self, messages: &Vec<&str>) {
         self._log_block(0, "ERROR", messages, &(term::redln));
     }
 
+    /// Log an info message, this will be displayed in the terminal when running with -v
     pub fn info(&self, message: &str) {
         self._log(1, "INFO", message, &term::cyanln);
     }
 
+    /// Log an info message, this will be displayed in the terminal when running with -v
     pub fn info_block(&self, messages: &Vec<&str>) {
         self._log_block(1, "INFO", messages, &(term::cyanln));
     }
 
-    pub fn log(&self, message: &str) {
-        self._log(1, "LOG", message, &term::standardln);
-    }
-
-    pub fn log_block(&self, messages: &Vec<&str>) {
-        self._log_block(1, "LOG", messages, &(term::standardln));
-    }
-
+    /// Log a success message, this will be displayed in the terminal when running with -v
     pub fn success(&self, message: &str) {
-        self._log(0, "SUCCESS", message, &term::greenln);
+        self._log(1, "SUCCESS", message, &term::greenln);
     }
 
+    /// Log a success message, this will be displayed in the terminal when running with -v
     pub fn success_block(&self, messages: &Vec<&str>) {
-        self._log_block(0, "SUCCESS", messages, &(term::greenln));
+        self._log_block(1, "SUCCESS", messages, &(term::greenln));
     }
 
+    /// Log a warning message, this will be displayed in the terminal when running with -v
     pub fn warning(&self, message: &str) {
         self._log(1, "WARNING", message, &term::yellowln);
     }
 
+    /// Log a warning message, this will be displayed in the terminal when running with -v
     pub fn warning_block(&self, messages: &Vec<&str>) {
         self._log_block(1, "WARNING", messages, &(term::yellowln));
     }
@@ -214,31 +248,46 @@ impl Logger {
 
     fn write(&self, msg: &str) {
         FILES.with(|files| {
-            let files = files.borrow();
-            match files.last() {
-                Some(mut f) => {
+            let mut files = files.borrow_mut();
+            match files.last_mut() {
+                Some((_path, f)) => {
                     write!(f, "{}", msg).expect("Unable to write data to thread log file!");
-                },
+                }
                 None => {
                     // Took a write lock here to ensure exclusivity, not sure if really required or
                     // not, is the write! macro threadsafe?
                     // No concern from the above write since that is to a thread-specific log file,
                     // so no worries about multiple writes at the same time.
-                    let inner = self.inner.write().unwrap();
-                    let mut f = inner.files.last().unwrap();
+                    let mut inner = self.inner.write().unwrap();
+                    let (_path, f) = inner.files.last_mut().unwrap();
                     write!(f, "{}", msg).expect("Unable to write data to global log file!");
-                },
+                }
             }
         });
     }
 
-    pub fn open(&self, path: Option<&Path>, thread_local: bool) -> Result<()> {
+    /// Returns the path to the current log file
+    pub fn output_file(&self) -> PathBuf {
+        FILES.with(|files| {
+            let files = files.borrow();
+            match files.last() {
+                Some((path, _f)) => path.clone(),
+                None => {
+                    let inner = self.inner.read().unwrap();
+                    let (path, _f) = inner.files.last().unwrap();
+                    path.clone()
+                }
+            }
+        })
+    }
+
+    pub fn open_logfile(&self, path: Option<&Path>, thread_local: bool) -> Result<PathBuf> {
         let p = match path {
             None => {
                 let mut inner = self.inner.write().unwrap();
                 inner.counter += 1;
                 default_log_file(Some(inner.counter))
-            },
+            }
             Some(p) => match p.is_absolute() {
                 true => p.to_path_buf(),
                 false => log_dir().join(p),
@@ -253,27 +302,61 @@ impl Logger {
 
         {
             let mut inner = self.inner.write().unwrap();
-            inner.logs.push(p);
+            inner.logs.push(p.clone());
             if !thread_local {
-                inner.files.push(f);
+                inner.files.push((p.clone(), f));
             } else {
                 FILES.with(|files| {
                     let mut files = files.borrow_mut();
-                    files.push(f);
+                    files.push((p.clone(), f));
                 });
             }
         }
         self.write_header();
-        Ok(())
+        Ok(p)
+    }
+
+    pub fn close_logfile(&self) {
+        FILES.with(|files| {
+            let mut files = files.borrow_mut();
+            if files.len() > 0 {
+                files.pop();
+            } else {
+                let mut inner = self.inner.write().unwrap();
+                // Never pop the last log file
+                if inner.files.len() > 1 {
+                    inner.files.pop();
+                }
+            }
+        });
+    }
+
+    pub fn with_logfile<F>(
+        &self,
+        path: Option<&Path>,
+        thread_local: bool,
+        mut f: F,
+    ) -> Result<PathBuf>
+    where
+        F: FnMut() -> Result<()>,
+    {
+        let p = self.open_logfile(path, thread_local)?;
+        f()?;
+        self.close_logfile();
+        Ok(p)
     }
 
     pub fn default() -> Logger {
         let logger = Logger {
-            inner: RwLock::new(Inner::default())
+            inner: RwLock::new(Inner::default()),
         };
 
-        logger.open(Some(&default_log_file(None)), false)
-            .expect(&format!("Couldn't open default log file '{}'", default_log_file(None).display()));
+        logger
+            .open_logfile(Some(&default_log_file(None)), false)
+            .expect(&format!(
+                "Couldn't open default log file '{}'",
+                default_log_file(None).display()
+            ));
         logger
     }
 }
@@ -285,11 +368,9 @@ fn default_log_file(index: Option<u32>) -> PathBuf {
     }
 }
 
-
 pub fn log_dir() -> PathBuf {
     match STATUS.is_app_present {
         true => STATUS.root.clone().join("log"),
         false => STATUS.home.clone().join(".origen").join("log"),
     }
 }
-

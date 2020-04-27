@@ -1,4 +1,4 @@
-use super::{Credentials, RevisionControlAPI};
+use super::{Credentials, Progress, RevisionControlAPI};
 use crate::Result as OrigenResult;
 use crate::USER;
 use git2::Repository;
@@ -6,7 +6,8 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
-use git2::{Cred, FetchOptions, Progress, RemoteCallbacks};
+use git2::Progress as G2Progress;
+use git2::{Cred, FetchOptions, RemoteCallbacks};
 use std::cell::RefCell;
 use std::io::{self, Write};
 
@@ -40,6 +41,50 @@ impl RevisionControlAPI for Git {
     //    };
     //    Ok(())
     //}
+
+    fn populate_with_progress(
+        &self,
+        version: Option<String>,
+        callback: &mut dyn FnMut(&Progress),
+    ) -> OrigenResult<Progress> {
+        let state = RefCell::new(Progress::default());
+        let mut cb = RemoteCallbacks::new();
+        cb.transfer_progress(|stats| {
+            let mut state = state.borrow_mut();
+            state.total_objects = Some(stats.total_objects());
+            state.received_objects = stats.received_objects();
+            state.completed_objects = stats.indexed_objects();
+            callback(&*state);
+            true
+        });
+        cb.credentials(|url, username_from_url, allowed_types| {
+            let password;
+            let cred;
+            {
+                let lastpass = self.last_password.borrow();
+                let (c, p) = get_credentials(
+                    url,
+                    username_from_url,
+                    allowed_types,
+                    &*lastpass,
+                    self.credentials.clone().unwrap_or_default(),
+                )?;
+                password = p;
+                cred = c;
+            }
+            self.last_password.replace(Some(password));
+            Ok(cred)
+        });
+        let co = CheckoutBuilder::new();
+        let mut fo = FetchOptions::new();
+        fo.remote_callbacks(cb);
+        RepoBuilder::new()
+            .fetch_options(fo)
+            .with_checkout(co)
+            .clone(&self.remote, &self.local)?;
+
+        Ok(state.into_inner())
+    }
 
     fn populate(&self, version: Option<String>) -> OrigenResult<()> {
         let state = RefCell::new(State {
@@ -127,7 +172,7 @@ fn get_credentials(
 }
 
 struct State {
-    progress: Option<Progress<'static>>,
+    progress: Option<G2Progress<'static>>,
     total: usize,
     current: usize,
     path: Option<PathBuf>,

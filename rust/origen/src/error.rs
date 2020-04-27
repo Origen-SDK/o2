@@ -68,3 +68,9 @@ impl std::convert::From<Error> for git2::Error {
         git2::Error::from_str(&err.msg)
     }
 }
+
+impl std::convert::From<git2::Error> for Error {
+    fn from(err: git2::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}

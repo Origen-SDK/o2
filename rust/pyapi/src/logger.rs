@@ -9,7 +9,6 @@ fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(deprecated))?;
     m.add_wrapped(wrap_pyfunction!(error))?;
     m.add_wrapped(wrap_pyfunction!(info))?;
-    m.add_wrapped(wrap_pyfunction!(log))?;
     m.add_wrapped(wrap_pyfunction!(success))?;
     m.add_wrapped(wrap_pyfunction!(warning))?;
     m.add_wrapped(wrap_pyfunction!(output_file))?;
@@ -55,12 +54,6 @@ fn info(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<(
 }
 
 #[pyfunction(messages = "*", _kwargs = "**")]
-fn log(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
-    LOGGER.log_block(&pytuple_to_vector_str!(messages));
-    Ok(())
-}
-
-#[pyfunction(messages = "*", _kwargs = "**")]
 fn success(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.success_block(&pytuple_to_vector_str!(messages));
     Ok(())
@@ -74,7 +67,7 @@ fn warning(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResul
 
 #[pyfunction]
 fn output_file(_py: Python) -> PyResult<String> {
-    Ok(LOGGER.output_file.to_string_lossy().to_string())
+    Ok(LOGGER.output_file().to_string_lossy().to_string())
 }
 
 #[pyfunction]

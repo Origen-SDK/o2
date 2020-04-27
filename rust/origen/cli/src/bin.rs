@@ -2,6 +2,8 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate serde;
+#[macro_use]
+extern crate origen;
 
 mod commands;
 mod python;
@@ -29,7 +31,7 @@ fn main() {
                 .short("v")
                 .multiple(true)
                 .global(true)
-                .help("Terminal verbosity level e.g. -v, -vv"),
+                .help("Terminal verbosity level e.g. -v, -vv, -vvv"),
         );
 
     /************************************************************************************/

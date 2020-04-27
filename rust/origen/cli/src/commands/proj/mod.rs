@@ -4,13 +4,20 @@ use bom::BOM;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
 use origen::core::term;
+use origen::revision_control::Progress;
+use origen::LOGGER;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
+use std::sync::RwLock;
 use std::{env, fs, thread};
 use tera::{Context, Tera};
-use origen::LOGGER;
 
 static BOM_FILE: &str = "bom.toml";
+
+lazy_static! {
+    pub static ref PROGRESS: RwLock<HashMap<String, Progress>> = RwLock::new(HashMap::new());
+}
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
@@ -105,19 +112,18 @@ pub fn run(matches: &ArgMatches) {
                 .render_str(include_str!("templates/workspace_bom.toml"), &context)
                 .unwrap();
             File::create(path.join(BOM_FILE)).write(&contents);
-            let mut threads = vec![];
             // Now populate the packages
             env::set_current_dir(&path)
                 .expect("Couldn't change working directory to the new workspace");
-            for (_id, mut package) in bom.packages {
-                threads.push(thread::spawn(move || {
-                    LOGGER.open(None, true);
-                    package.create();
-                }));
+            log_info!("Fetching {} packages...", bom.packages.len());
+            for (id, mut package) in bom.packages {
+                display!("Populating package '{}'", id);
+                match package.create() {
+                    Ok(()) => display_green!("OK"),
+                    Err(e) => error(&format!("{}", e), None),
+                }
             }
-            for t in threads {
-                t.join();
-            }
+            log_info!("Creating links...");
         }
         Some("update") => {}
         Some("bom") => {
@@ -125,6 +131,7 @@ pub fn run(matches: &ArgMatches) {
             let bom = BOM::for_dir(&dir);
             println!("{}", bom);
         }
+        None => unreachable!(),
         _ => unreachable!(),
     }
 }
@@ -140,14 +147,6 @@ fn get_dir_or_pwd(matches: &ArgMatches) -> PathBuf {
 
 fn error(msg: &str, exit_code: Option<i32>) {
     term::red("error: ");
-    println!("{}", msg);
-    if let Some(c) = exit_code {
-        exit(c);
-    }
-}
-
-fn success(msg: &str, exit_code: Option<i32>) {
-    term::green("success: ");
     println!("{}", msg);
     if let Some(c) = exit_code {
         exit(c);

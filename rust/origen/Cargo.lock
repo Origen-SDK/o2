@@ -291,6 +291,7 @@ name = "cli"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "indexmap",
  "lazy_static 1.4.0",
  "online",
  "origen",
@@ -949,6 +950,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "076f042c5b7b98f31d205f1249267e12a6518c1481e9dae9764af19b707d2292"
 dependencies = [
  "autocfg 1.0.0",
+ "serde 1.0.106",
 ]
 
 [[package]]

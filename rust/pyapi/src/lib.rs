@@ -1,7 +1,6 @@
-#[allow(unused_attributes)]
-#[macro_use]
 #[allow(unused_imports)]
-use origen::macros;
+#[macro_use]
+extern crate origen;
 
 mod dut;
 mod file_handler;

@@ -1,10 +1,10 @@
-use super::{Credentials, RevisionControlAPI};
+use super::{Credentials, Progress, RevisionControlAPI};
 use crate::utility::with_dir;
 use crate::{Error, Result, USER};
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Stdio, Command};
 use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 pub struct Designsync {
     /// Path to the local directory for the repository
@@ -38,6 +38,14 @@ impl RevisionControlAPI for Designsync {
         self.pop()?;
         Ok(())
     }
+
+    fn populate_with_progress(
+        &self,
+        version: Option<String>,
+        callback: &mut dyn FnMut(&Progress),
+    ) -> Result<Progress> {
+        Ok(Progress::default())
+    }
 }
 
 impl Designsync {
@@ -48,24 +56,22 @@ impl Designsync {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
-            
+
             let stdout = child.stdout.take().unwrap();
 
             let reader = BufReader::new(stdout);
-            reader.lines()
+            reader
+                .lines()
                 .filter_map(|line| line.ok())
-                .for_each(|line|
-                          log_debug!("{}", line)
-                          );
+                .for_each(|line| log_debug!("{}", line));
 
             let stderr = child.stderr.take().unwrap();
 
             let reader2 = BufReader::new(stderr);
-            reader2.lines()
+            reader2
+                .lines()
                 .filter_map(|line| line.ok())
-                .for_each(|line|
-                          log_error!("{}", line)
-                          );
+                .for_each(|line| log_error!("{}", line));
             //child.try_wait();
 
             println!("Exit status: {:?}", child.wait()?.success());
@@ -81,24 +87,22 @@ impl Designsync {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
-            
+
             let stdout = child.stdout.take().unwrap();
 
             let reader = BufReader::new(stdout);
-            reader.lines()
+            reader
+                .lines()
                 .filter_map(|line| line.ok())
-                .for_each(|line|
-                          log_debug!("{}", line)
-                          );
+                .for_each(|line| log_debug!("{}", line));
 
             let stderr = child.stderr.take().unwrap();
 
             let reader2 = BufReader::new(stderr);
-            reader2.lines()
+            reader2
+                .lines()
                 .filter_map(|line| line.ok())
-                .for_each(|line|
-                          log_error!("{}", line)
-                          );
+                .for_each(|line| log_error!("{}", line));
             //child.try_wait();
 
             println!("Exit status: {:?}", child.wait()?.success());
@@ -107,8 +111,6 @@ impl Designsync {
         })
     }
 }
-
-
 
 fn dssc<I, S>(args: I) -> Result<Output>
 where

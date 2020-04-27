@@ -1,7 +1,7 @@
 use super::{error, BOM_FILE};
-use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
+use indexmap::IndexMap;
+use origen::revision_control::{Credentials, Progress, RevisionControl, RevisionControlAPI};
 use origen::{Error, Result};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::{env, fmt, fs};
 
@@ -21,7 +21,7 @@ impl TempBOM {
                 None => Meta::default(),
             },
             files: vec![],
-            packages: HashMap::new(),
+            packages: IndexMap::new(),
         };
         if let Some(packages) = &self.package {
             for p in packages.iter() {
@@ -55,7 +55,7 @@ impl Meta {
 pub struct BOM {
     pub meta: Meta,
     pub files: Vec<PathBuf>,
-    pub packages: HashMap<String, Package>,
+    pub packages: IndexMap<String, Package>,
 }
 
 impl fmt::Display for BOM {
@@ -75,7 +75,7 @@ impl BOM {
         let mut bom = BOM {
             meta: Meta::default(),
             files: vec![],
-            packages: HashMap::new(),
+            packages: IndexMap::new(),
         };
 
         let mut bom_files: Vec<PathBuf> = vec![];
@@ -159,7 +159,6 @@ pub struct Package {
     link: Option<PathBuf>,
     update: Option<bool>,
     username: Option<String>,
-    error_msg: Option<String>,
 }
 
 impl fmt::Display for Package {
@@ -169,9 +168,8 @@ impl fmt::Display for Package {
 }
 
 impl Package {
-    // Creates the package view in the current workspace, if any errors occurred there will be an error
-    // message present in the package which can be examined by the caller.
-    pub fn create(&mut self) {
+    // Creates the package view in the current workspace
+    pub fn create(&mut self) -> Result<()> {
         let mut path = env::current_dir().expect("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?");
         match &self.path {
             None => path.push(self.id.clone()),
@@ -180,11 +178,10 @@ impl Package {
         match fs::create_dir_all(&path) {
             Ok(()) => {}
             Err(_e) => {
-                self.error_msg = Some(format!(
+                return Err(Error::new(&format!(
                     "Couldn't create '{}', do you have the required permissions?",
                     path.display()
-                ));
-                return;
+                )));
             }
         }
         let credentials = match &self.username {
@@ -195,7 +192,30 @@ impl Package {
             }),
         };
         let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), credentials);
-        rc.populate(self.version.clone());
+        let final_progress = rc.populate_with_progress(self.version.clone(), &mut |progress| {
+            Package::print_progress(progress, false);
+        })?;
+        Package::print_progress(&final_progress, true);
+        log_success!("Successfully fetched package '{}'", self.id);
+        Ok(())
+    }
+
+    fn print_progress(progress: &Progress, last: bool) {
+        let msg = match progress.total_objects {
+            None => format!(
+                "Received Objects: {}, Completed Objects: {}",
+                progress.received_objects, progress.completed_objects
+            ),
+            Some(n) => format!(
+                "Received Objects: {}/{}, Completed Objects: {}/{}",
+                progress.received_objects, n, progress.completed_objects, n
+            ),
+        };
+        if last {
+            println!("{}", msg);
+        } else {
+            print!("{}\r", msg);
+        }
     }
 
     fn to_string(&self, indent: usize) -> String {
