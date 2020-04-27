@@ -1,12 +1,16 @@
 from sphinx.errors import ExtensionError
 from sphinx.util.logging import getLogger
-import origen, shutil, copy, subprocess, pathlib
+import origen, origen.web, shutil, copy, subprocess, pathlib
+import sphinxbootstrap4theme
+from recommonmark.transform import AutoStructify
+
 
 logger = getLogger('Origen Sphinx Ext')
 
 root = ""
 static_root = ""
 templates_root = ""
+theme_dir = origen.frontend_root.joinpath("web/sphinx_ext/theme")
 
 class SubProject:
   def __init__(self, proj, config):
@@ -45,6 +49,11 @@ class SubProject:
       shutil.move(str(self.subproject_output_dir), str(self.final_output_dir))
     else:
       logger.error(f"Could not find resulting docs for project {self.proj} at {self.subproject_output_dir}")
+  
+  def clean(self):
+    if self.final_output_dir:
+      logger.info(f"  Cleaning subproject {self.proj}")
+      shutil.rmtree(str(self.final_output_dir))
 
 def setup(sphinx):
   sphinx.add_config_value("origen_deploy_function", None, '')
@@ -55,6 +64,37 @@ def setup(sphinx):
 
   sphinx.connect("config-inited", apply_origen_config)
   sphinx.connect("builder-inited", build_subprojects)
+  sphinx.config.html_theme_path += [sphinxbootstrap4theme.get_path()]
+  sphinx.add_html_theme('origen', str(theme_dir))
+
+  # Bootstrap 4 setup: https://getbootstrap.com/docs/4.0/getting-started/introduction/
+  # Note that JS is already included by Sphinx so the jquery-3.2.1.slim.min.js is not included here
+  # If it is included, it doesn't seem to have any conspicuous impact, but it'll produce errors in the browser console
+    # sphinx.add_js_file("https://code.jquery.com/jquery-3.2.1.slim.min.js")
+  # Same goes for hte below items. The sphinxbootstrap extensions brings in the distributable package, so we'll have those.
+  #  Might as well use them.
+  #sphinx.add_js_file("https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js")
+  #sphinx.add_js_file("https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js")
+  #sphinx.add_css_file("https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css")
+
+  sphinx.add_js_file('bootstrap-4.3.1-dist/js/bootstrap.min.js')
+  sphinx.add_js_file('sphinxbootstrap4.js')
+  sphinx.add_css_file('bootstrap-4.3.1-dist/css/bootstrap.min.css')
+  sphinx.add_css_file('sphinxbootstrap4.css')
+  # Experimenting with some Dark themes
+  #sphinx.add_css_file("https://stackpath.bootstrapcdn.com/bootswatch/4.4.1/cyborg/bootstrap.min.css")
+  #sphinx.add_css_file("https://stackpath.bootstrapcdn.com/bootswatch/4.4.1/darkly/bootstrap.min.css")
+  sphinx.add_css_file('origen.css')
+
+  # Note: Origen includes the recommomark module, so even if the user removes it from the extensions list in their own config,
+  #  this will still be safe. It'll just have no usage.
+  # Setup taken from: https://recommonmark.readthedocs.io/en/latest/auto_structify.html
+  github_doc_root = 'https://github.com/rtfd/recommonmark/tree/master/doc/'
+  sphinx.add_config_value('recommonmark_config', {
+            'url_resolver': lambda url: github_doc_root + url,
+            'auto_toc_tree_section': 'Contents',
+            }, True)
+  sphinx.add_transform(AutoStructify)
 
 def apply_origen_config(sphinx, config):
   if config.origen_no_api:
@@ -93,3 +133,9 @@ def deploy():
 
 def archive():
   raise NotImplementedError("Web-archive is not implemented yet!")
+
+def clean(partial_config):
+  logger.info("Cleaning origen_sphinx_ext...")
+  if hasattr(partial_config, 'origen_subprojects'):
+    for subp, _config in partial_config.origen_subprojects.items():
+      SubProject(subp, _config).clean()

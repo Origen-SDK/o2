@@ -12,7 +12,7 @@ which maintains the device, tester, and other various models.
 Development Installation
 ------------------------
 
-Follow as shown `the installation guide here <developers/installation>`_ to setup your
+Follow as shown `the installation guide here <developers/installation.html>`_ to setup your
 development environment.
 
 User API

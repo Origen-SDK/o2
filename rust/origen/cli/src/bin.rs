@@ -199,30 +199,39 @@ fn main() {
                         .help("Clean up directories from previous builds and force a rebuild")
                         .takes_value(false)
                     )
-                    // .arg(Arg::with_name("release")
-                    //     .long("release")
-                    //     .short("r")
-                    //     .help("Release (deploy) the resulting web pages")
-                    //     .takes_value(false)
-                    // )
-                    // .arg(Arg::with_name("archive")
-                    //     .long("archive")
-                    //     .short("a")
-                    //     .help("Archive the resulting web pages after building")
-                    //     .takes_value(true)
-                    //     .multiple(false)
-                    // )
+                    .arg(Arg::with_name("release")
+                        .long("release")
+                        .short("r")
+                        .help("Release (deploy) the resulting web pages")
+                        .takes_value(false)
+                    )
+                    .arg(Arg::with_name("archive")
+                        .long("archive")
+                        .short("a")
+                        .help(
+"Archive the resulting web pages after building"
+                    )
+                        .takes_value(true)
+                        .multiple(false)
+                        .min_values(0)
+                    )
                     .arg(Arg::with_name("no-api")
                         .long("no-api")
                         .help("Skip building the API")
                         .takes_value(false)
                     )
-                    // .arg(Arg::with_name("sphinx-config")
-                    //     .long("sphinx-config")
-                    //     .help("Options to pass to the 'sphinx-build' commmand")
-                    //     .takes_value(true)
-                    //     .multiple(true)
-                    // )
+                    .arg(Arg::with_name("sphinx-args")
+                        .long("sphinx-args")
+                        .help(
+"Additional arguments to pass to the 'sphinx-build' commmand
+  Argument will passed as a single string and appended to the build command
+  E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
+     -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'"
+                        )
+                        .takes_value(true)
+                        .multiple(false)
+                        .allow_hyphen_values(true)
+                    )
                     // .arg(Arg::with_name("pdf")
                     //     .long("pdf")
                     //     .help("Create a PDF of resulting web pages")
@@ -316,17 +325,32 @@ fn main() {
                     "build" => {
                         let mut args = "from origen.boot import __origen__; __origen__('web:build', args={".to_string();
                         if sub.is_present("view") {
-                            args.push_str("'view': True, ")
+                            args.push_str("'view': True, ");
                         }
                         if sub.is_present("clean") {
-                            args.push_str("'clean': True, ")
+                            args.push_str("'clean': True, ");
                         }
                         if sub.is_present("no-api") {
-                            args.push_str("'no-api': True, ")
+                            args.push_str("'no-api': True, ");
                         }
-                        // if let Some(v) = sub.values_of("sphinx-options") {
-                        //     // ...
+                        // if sub.is_present("pdf") {
+                        //     args.push_str("'pdf': True, ");
                         // }
+                        if sub.is_present("release") {
+                            args.push_str("'release': True, ");
+                        }
+                        if sub.is_present("archive") {
+                            if let Some(archive) = sub.value_of("archive") {
+                                args.push_str(&format!("'archive': '{}', ", archive));
+                            } else {
+                                args.push_str(&format!("'archive': True"));
+                            }
+                        }
+                        if let Some(s_args) = sub.value_of("sphinx-args") {
+                            // Recall that this comes in as a single argument, potentially quoted to mimic multiple,
+                            // but a single argument from the perspective here nonetheless
+                            args.push_str(&format!("'sphinx-args': '{}', ", s_args));
+                        }
                         args.push_str("}");
                         args.push_str(");");
                         python::run(&args);

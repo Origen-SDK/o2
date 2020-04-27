@@ -16,6 +16,7 @@ logger = _origen.logger
 running_on_windows = _origen.on_windows()
 running_on_linux = _origen.on_linux()
 _reg_description_parsing = False
+frontend_root = Path(__file__).parent.absolute()
 
 app = None
 dut = None

@@ -11,7 +11,8 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-import sys
+import sys, pathlib
+import sphinxbootstrap4theme
 import origen
 import origen.web
 
@@ -69,7 +70,10 @@ origen_subprojects = {
 }
 
 # Add any paths that contain templates here, relative to this directory.
+s = str(pathlib.Path(sphinxbootstrap4theme.get_path()).joinpath("sphinxbootstrap4theme"))
+print(s)
 templates_path = ['_templates']
+#exit()
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -81,17 +85,21 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'origen'
+#html_theme = 'sphinxbootstrap4theme'
+#html_theme_path = [sphinxbootstrap4theme.get_path()]
+#html_logo = "_static/origen-device.png" #"dummy.png"
+#html_favicon =  None #"https://origen-sdk.org/favicon-32x32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-github_doc_root = 'https://github.com/rtfd/recommonmark/tree/master/doc/'
-def setup(app):
-    app.add_config_value('recommonmark_config', {
-            'url_resolver': lambda url: github_doc_root + url,
-            'auto_toc_tree_section': 'Contents',
-            }, True)
-    app.add_transform(AutoStructify)
+# github_doc_root = 'https://github.com/rtfd/recommonmark/tree/master/doc/'
+# def setup(app):
+#     app.add_config_value('recommonmark_config', {
+#             'url_resolver': lambda url: github_doc_root + url,
+#             'auto_toc_tree_section': 'Contents',
+#             }, True)
+#     app.add_transform(AutoStructify)
