@@ -193,26 +193,26 @@ impl Package {
         };
         let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), credentials);
         let final_progress = rc.populate_with_progress(self.version.clone(), &mut |progress| {
-            Package::print_progress(progress, false);
+            self.print_progress(progress, false);
         })?;
-        Package::print_progress(&final_progress, true);
+        self.print_progress(&final_progress, true);
         log_success!("Successfully fetched package '{}'", self.id);
         Ok(())
     }
 
-    fn print_progress(progress: &Progress, last: bool) {
+    fn print_progress(&self, progress: &Progress, last: bool) {
         let msg = match progress.total_objects {
             None => format!(
-                "Received Objects: {}, Completed Objects: {}",
-                progress.received_objects, progress.completed_objects
+                "Populating package '{}', fetched {} objects", self.id,
+                progress.completed_objects
             ),
             Some(n) => format!(
-                "Received Objects: {}/{}, Completed Objects: {}/{}",
-                progress.received_objects, n, progress.completed_objects, n
+                "Populating package '{}', fetched {}/{} objects", self.id,
+                progress.completed_objects, n
             ),
         };
         if last {
-            println!("{}", msg);
+            print!("{} ", msg);
         } else {
             print!("{}\r", msg);
         }

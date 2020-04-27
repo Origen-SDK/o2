@@ -9,15 +9,10 @@ use origen::LOGGER;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
-use std::sync::RwLock;
-use std::{env, fs, thread};
+use std::{env, fs};
 use tera::{Context, Tera};
 
 static BOM_FILE: &str = "bom.toml";
-
-lazy_static! {
-    pub static ref PROGRESS: RwLock<HashMap<String, Progress>> = RwLock::new(HashMap::new());
-}
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
@@ -117,10 +112,10 @@ pub fn run(matches: &ArgMatches) {
                 .expect("Couldn't change working directory to the new workspace");
             log_info!("Fetching {} packages...", bom.packages.len());
             for (id, mut package) in bom.packages {
-                display!("Populating package '{}'", id);
                 match package.create() {
                     Ok(()) => display_green!("OK"),
-                    Err(e) => error(&format!("{}", e), None),
+                    //Err(e) => error(&format!("{}", e), None),
+                    Err(e) => display_red!("ERROR"),
                 }
             }
             log_info!("Creating links...");

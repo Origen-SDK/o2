@@ -5,6 +5,7 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use regex::Regex;
 
 pub struct Designsync {
     /// Path to the local directory for the repository
@@ -12,12 +13,6 @@ pub struct Designsync {
     /// Link to the remote vault
     pub remote: String,
     credentials: Option<Credentials>,
-}
-
-struct Output {
-    passed: bool,
-    stdout: String,
-    stderr: String,
 }
 
 impl Designsync {
@@ -35,7 +30,7 @@ impl RevisionControlAPI for Designsync {
         log_info!("Started populating {}...", &self.remote);
         fs::create_dir_all(&self.local)?;
         self.set_vault()?;
-        self.pop()?;
+        self.pop(None)?;
         Ok(())
     }
 
@@ -44,7 +39,10 @@ impl RevisionControlAPI for Designsync {
         version: Option<String>,
         callback: &mut dyn FnMut(&Progress),
     ) -> Result<Progress> {
-        Ok(Progress::default())
+        log_info!("Started populating {}...", &self.remote);
+        fs::create_dir_all(&self.local)?;
+        self.set_vault()?;
+        Ok(self.pop(Some(callback))?)
     }
 }
 
@@ -72,15 +70,19 @@ impl Designsync {
                 .lines()
                 .filter_map(|line| line.ok())
                 .for_each(|line| log_error!("{}", line));
-            //child.try_wait();
 
-            println!("Exit status: {:?}", child.wait()?.success());
-
-            Ok(())
+            if child.wait()?.success() {
+                Ok(())
+            } else {
+                Err(Error::new(&format!("Something went wrong setting the vault in '{}', see log for details", self.local.display())))
+            }
         })
     }
 
-    fn pop(&self) -> Result<()> {
+    fn pop(&self,
+          mut callback: Option<&mut dyn FnMut(&Progress)>,
+          ) -> Result<Progress> {
+        let mut progress = Progress::default();
         with_dir(&self.local, || {
             let mut child = Command::new("dssc")
                 .args(&["pop", "-rec", "-uni", "-force"])
@@ -91,10 +93,40 @@ impl Designsync {
             let stdout = child.stdout.take().unwrap();
 
             let reader = BufReader::new(stdout);
-            reader
-                .lines()
-                .filter_map(|line| line.ok())
-                .for_each(|line| log_debug!("{}", line));
+            lazy_static! {
+                static ref POP_REGEX : Regex = Regex::new(
+                    r": Success - (Fetched|Created symbolic)"
+                ).unwrap();
+            }
+            // Sorry about the duplication here, couldn't work out how to unwrap
+            // the optional callback without it :-(
+            match &mut callback {
+                Some(f) => {
+                    reader
+                        .lines()
+                        .filter_map(|line| line.ok())
+                        .for_each(|line| {
+                            log_debug!("{}", line);
+                            if POP_REGEX.is_match(&line) {
+                                progress.received_objects += 1;
+                                progress.completed_objects += 1;
+                                f(&progress);
+                            }
+                        });
+                },
+                None => {
+                    reader
+                        .lines()
+                        .filter_map(|line| line.ok())
+                        .for_each(|line| {
+                            log_debug!("{}", line);
+                            if POP_REGEX.is_match(&line) {
+                                progress.received_objects += 1;
+                                progress.completed_objects += 1;
+                            }
+                        });
+                }
+            }
 
             let stderr = child.stderr.take().unwrap();
 
@@ -103,24 +135,12 @@ impl Designsync {
                 .lines()
                 .filter_map(|line| line.ok())
                 .for_each(|line| log_error!("{}", line));
-            //child.try_wait();
 
-            println!("Exit status: {:?}", child.wait()?.success());
-
-            Ok(())
+            if child.wait()?.success() {
+                Ok(progress.clone())
+            } else {
+                Err(Error::new(&format!("Something went wrong populating '{}', see log for details", self.remote)))
+            }
         })
     }
-}
-
-fn dssc<I, S>(args: I) -> Result<Output>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<std::ffi::OsStr>,
-{
-    let output = Command::new("dssc").args(args).output()?;
-    Ok(Output {
-        passed: output.status.success(),
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-    })
 }
