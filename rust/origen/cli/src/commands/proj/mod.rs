@@ -37,8 +37,7 @@ pub fn run(matches: &ArgMatches) {
                 .unwrap();
             let mut path = PathBuf::from(path);
             if !path.is_absolute() {
-                path = env::current_dir().expect("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?")
-                        .join(path);
+                path = pwd().join(path);
             }
             // Now find the last dir in the path that exists, that will be used to collect the BOM
             let mut dir = path.clone();
@@ -120,7 +119,23 @@ pub fn run(matches: &ArgMatches) {
             }
             log_info!("Creating links...");
         }
-        Some("update") => {}
+        Some("update") => {
+            let mut packages: Vec<PathBuf> = match matches.values_of("packages") {
+                Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
+                None => vec![],
+            };
+            let bom = BOM::for_dir(&pwd());
+            if !bom.is_workspace() {
+                error("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+            }
+            if packages.len() == 0 {
+                for (id, mut package) in bom.packages {
+                    package.update();
+                }
+            } else {
+            }
+        
+        }
         Some("bom") => {
             let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap());
             let bom = BOM::for_dir(&dir);
@@ -131,10 +146,21 @@ pub fn run(matches: &ArgMatches) {
     }
 }
 
+fn pwd() -> PathBuf {
+    let dir = match env::current_dir() {
+        Err(_e) => { 
+            error("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?", Some(1));
+            unreachable!();
+        },
+        Ok(d) => d
+    };
+    dir
+}
+
 fn get_dir_or_pwd(matches: &ArgMatches) -> PathBuf {
     let dir = match matches.value_of("dir") {
         Some(x) => PathBuf::from(x),
-        None => env::current_dir().expect("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?"),
+        None => pwd(),
     };
     validate_path(&dir, true, true);
     dir.canonicalize().unwrap()

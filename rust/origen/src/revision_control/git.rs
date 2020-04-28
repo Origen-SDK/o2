@@ -22,31 +22,13 @@ pub struct Git {
     last_password: RefCell<Option<String>>,
 }
 
-impl Git {
-    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
-        Git {
-            local: local.to_path_buf(),
-            remote: remote.to_string(),
-            credentials: credentials,
-            last_password: RefCell::new(None),
-        }
-    }
-}
-
 impl RevisionControlAPI for Git {
-    //fn populate(&self, version: Option<String>) -> Result<()> {
-    //    let repo = match Repository::clone(&self.remote, &self.local) {
-    //        Ok(repo) => repo,
-    //        Err(e) => panic!("failed to clone: {}", e),
-    //    };
-    //    Ok(())
-    //}
-
     fn populate(
         &self,
-        version: Option<String>,
+        version: Option<&str>,
         mut callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> OrigenResult<Progress> {
+        log_info!("Started populating {}...", &self.remote);
         let state = RefCell::new(Progress::default());
         let mut cb = RemoteCallbacks::new();
         cb.transfer_progress(|stats| {
@@ -77,7 +59,14 @@ impl RevisionControlAPI for Git {
             self.last_password.replace(Some(password));
             Ok(cred)
         });
-        let co = CheckoutBuilder::new();
+        let mut co = CheckoutBuilder::new();
+        // This is called for every file, cur is the current file number, and total
+        // is the total number of files that are being checked out
+        co.progress(|path, _cur, _total| {
+            if let Some(p) = path {
+                log_debug!("{}  : Success", p.display());
+            }
+        });
         let mut fo = FetchOptions::new();
         fo.remote_callbacks(cb);
         RepoBuilder::new()
@@ -87,6 +76,28 @@ impl RevisionControlAPI for Git {
 
         Ok(state.into_inner())
     }
+
+    fn checkout(&self, force: bool, path: Option<&Path>, version: Option<&str>,
+        callback: Option<&mut dyn FnMut(&Progress)>,
+    ) -> OrigenResult<Progress> {
+        let repo = Repository::open(&self.local);
+        Ok(Progress::default())
+    }
+}
+
+
+impl Git {
+    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
+        Git {
+            local: local.to_path_buf(),
+            remote: remote.to_string(),
+            credentials: credentials,
+            last_password: RefCell::new(None),
+        }
+    }
+
+    //pub fn fetch(&self) -> OrigenResult<()> {
+    //}
 }
 
 fn get_credentials(

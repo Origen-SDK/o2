@@ -30,13 +30,19 @@ impl Designsync {
 impl RevisionControlAPI for Designsync {
     fn populate(
         &self,
-        version: Option<String>,
+        version: Option<&str>,
         callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> Result<Progress> {
         log_info!("Started populating {}...", &self.remote);
         fs::create_dir_all(&self.local)?;
         self.set_vault()?;
-        Ok(self.pop(version, callback)?)
+        Ok(self.pop(true, Some(Path::new(".")), version, callback)?)
+    }
+
+    fn checkout(&self, force: bool, path: Option<&Path>, version: Option<&str>,
+        callback: Option<&mut dyn FnMut(&Progress)>,
+    ) -> Result<Progress> {
+        Ok(self.pop(true, path, version, callback)?)
     }
 }
 
@@ -100,16 +106,25 @@ impl Designsync {
     }
 
     fn pop(&self,
-          version: Option<String>,
+          force: bool,
+          path: Option<&Path>,
+          version: Option<&str>,
           mut callback: Option<&mut dyn FnMut(&Progress)>,
           ) -> Result<Progress> {
         let mut progress = Progress::default();
         with_dir(&self.local, || {
-            let mut args = vec!["pop", "-rec", "-uni", "-force", "-version"];
-            match &version {
+            let mut args = vec!["pop", "-rec", "-uni", "-version"];
+            match version {
                 Some(x) => args.push(x),
                 None => args.push(DEFAULT_VERSION),
             }
+            if force {
+                args.push("-force");
+            }
+            if let Some(p) = path {
+                args.push(p.to_str().unwrap());
+            }
+            log_debug!("Running DesignSync command: dssc {}", args.join(" "));
             let mut process = Command::new("dssc")
                 .args(&args)
                 .stdout(Stdio::piped())

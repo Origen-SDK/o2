@@ -146,6 +146,16 @@ impl BOM {
             p.validate();
         }
     }
+
+    /// Returns true if the BOM belongs to a workspace
+    pub fn is_workspace(&self) -> bool {
+        self.meta.workspace
+    }
+
+    /// Returns an absolute path to the workspace top-level directory
+    pub fn root(&self) -> &Path {
+        self.files.last().unwrap().parent().unwrap()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -192,7 +202,7 @@ impl Package {
             }),
         };
         let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), credentials);
-        let final_progress = rc.populate(self.version.clone(), Some(&mut |progress| {
+        let final_progress = rc.populate(self.version.as_deref(), Some(&mut |progress| {
             self.print_progress(progress, false);
         }))?;
         self.print_progress(&final_progress, true);
@@ -216,6 +226,9 @@ impl Package {
         } else {
             print!("{}\r", msg);
         }
+    }
+
+    pub fn update(&self) {
     }
 
     fn to_string(&self, indent: usize) -> String {

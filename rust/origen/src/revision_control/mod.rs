@@ -62,17 +62,27 @@ pub trait RevisionControlAPI {
     /// on the progress during the operation.
     fn populate(
         &self,
-        version: Option<String>,
+        version: Option<&str>,
         callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> Result<Progress>;
+
+    fn checkout(&self, force: bool, path: Option<&Path>, version: Option<&str>,
+        callback: Option<&mut dyn FnMut(&Progress)>,
+    ) -> Result<Progress>; 
 }
 
 impl RevisionControlAPI for RevisionControl {
     fn populate(
         &self,
-        version: Option<String>,
+        version: Option<&str>,
         callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> Result<Progress> {
         self.driver.populate(version, callback)
+    }
+
+    fn checkout(&self, force: bool, path: Option<&Path>, version: Option<&str>,
+        callback: Option<&mut dyn FnMut(&Progress)>,
+    ) -> Result<Progress> {
+        self.driver.checkout(force, path, version, callback)
     }
 }

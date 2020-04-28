@@ -51,9 +51,11 @@ pub fn with_dir<T, F>(path: &Path, mut f: F) -> Result<T>
 where
     F: FnMut() -> Result<T>,
 {
+    log_debug!("Changing directory to '{}'", path.display());
     let orig = env::current_dir()?;
     env::set_current_dir(path)?;
     let result = f();
+    log_debug!("Restoring directory to '{}'", orig.display());
     env::set_current_dir(&orig)?;
     result
 }
