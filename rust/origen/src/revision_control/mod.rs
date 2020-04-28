@@ -51,41 +51,28 @@ impl RevisionControl {
     pub fn designsync(local: &Path, remote: &str, credentials: Option<Credentials>) -> Designsync {
         Designsync::new(local, remote, credentials)
     }
-
-    //pub fn with_dir<T, F>(path: &Path, mut f: F) -> Result<T>
-    //where
-    //    F: FnMut() -> Result<T>,
-    //{
-    //    let orig = env::current_dir()?;
-    //    env::set_current_dir(path)?;
-    //    let result = f();
-    //    env::set_current_dir(&orig)?;
-    //    result
-    //}
 }
 
 /// Defines a common minimum API that all revision control system drivers should support
 pub trait RevisionControlAPI {
-    /// Initially populate the local directory with the remote
-    fn populate(&self, version: Option<String>) -> Result<()>;
-
-    fn populate_with_progress(
+    /// Initially populate the local directory with the remote, this is equivalent to a 'git clone'
+    /// or a 'dssc pop' operation.
+    /// A progress instance will be returned indicating how many objects were fetched.
+    /// A callback can be given which will be called periodically if the caller wants to be updated
+    /// on the progress during the operation.
+    fn populate(
         &self,
         version: Option<String>,
-        callback: &mut dyn FnMut(&Progress),
+        callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> Result<Progress>;
 }
 
 impl RevisionControlAPI for RevisionControl {
-    fn populate(&self, version: Option<String>) -> Result<()> {
-        self.driver.populate(version)
-    }
-
-    fn populate_with_progress(
+    fn populate(
         &self,
         version: Option<String>,
-        callback: &mut dyn FnMut(&Progress),
+        callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> Result<Progress> {
-        self.driver.populate_with_progress(version, callback)
+        self.driver.populate(version, callback)
     }
 }

@@ -192,9 +192,9 @@ impl Package {
             }),
         };
         let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), credentials);
-        let final_progress = rc.populate_with_progress(self.version.clone(), &mut |progress| {
+        let final_progress = rc.populate(self.version.clone(), Some(&mut |progress| {
             self.print_progress(progress, false);
-        })?;
+        }))?;
         self.print_progress(&final_progress, true);
         log_success!("Successfully fetched package '{}'", self.id);
         Ok(())

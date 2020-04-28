@@ -42,10 +42,10 @@ impl RevisionControlAPI for Git {
     //    Ok(())
     //}
 
-    fn populate_with_progress(
+    fn populate(
         &self,
         version: Option<String>,
-        callback: &mut dyn FnMut(&Progress),
+        mut callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> OrigenResult<Progress> {
         let state = RefCell::new(Progress::default());
         let mut cb = RemoteCallbacks::new();
@@ -54,7 +54,9 @@ impl RevisionControlAPI for Git {
             state.total_objects = Some(stats.total_objects());
             state.received_objects = stats.received_objects();
             state.completed_objects = stats.indexed_objects();
-            callback(&*state);
+            if let Some(f) = &mut callback {
+                f(&*state);
+            }
             true
         });
         cb.credentials(|url, username_from_url, allowed_types| {
@@ -84,60 +86,6 @@ impl RevisionControlAPI for Git {
             .clone(&self.remote, &self.local)?;
 
         Ok(state.into_inner())
-    }
-
-    fn populate(&self, version: Option<String>) -> OrigenResult<()> {
-        let state = RefCell::new(State {
-            progress: None,
-            total: 0,
-            current: 0,
-            path: None,
-            newline: false,
-        });
-        let mut cb = RemoteCallbacks::new();
-        cb.transfer_progress(|stats| {
-            let mut state = state.borrow_mut();
-            state.progress = Some(stats.to_owned());
-            print(&mut *state);
-            true
-        });
-        cb.credentials(|url, username_from_url, allowed_types| {
-            let password;
-            let cred;
-            {
-                let lastpass = self.last_password.borrow();
-                let (c, p) = get_credentials(
-                    url,
-                    username_from_url,
-                    allowed_types,
-                    &*lastpass,
-                    self.credentials.clone().unwrap_or_default(),
-                )?;
-                password = p;
-                cred = c;
-            }
-            self.last_password.replace(Some(password));
-            Ok(cred)
-        });
-        let mut co = CheckoutBuilder::new();
-        co.progress(|path, cur, total| {
-            let mut state = state.borrow_mut();
-            state.path = path.map(|p| p.to_path_buf());
-            state.current = cur;
-            state.total = total;
-            print(&mut *state);
-        });
-
-        let mut fo = FetchOptions::new();
-        fo.remote_callbacks(cb);
-        RepoBuilder::new()
-            .fetch_options(fo)
-            .with_checkout(co)
-            .clone(&self.remote, &self.local)
-            .expect("It went OK");
-        println!();
-
-        Ok(())
     }
 }
 
@@ -169,56 +117,4 @@ fn get_credentials(
     });
     let username = credentials.username.unwrap_or_else(|| USER.id().unwrap());
     Ok((Cred::userpass_plaintext(&username, &password)?, password))
-}
-
-struct State {
-    progress: Option<G2Progress<'static>>,
-    total: usize,
-    current: usize,
-    path: Option<PathBuf>,
-    newline: bool,
-}
-
-fn print(state: &mut State) {
-    let stats = state.progress.as_ref().unwrap();
-    let network_pct = (100 * stats.received_objects()) / stats.total_objects();
-    let index_pct = (100 * stats.indexed_objects()) / stats.total_objects();
-    let co_pct = if state.total > 0 {
-        (100 * state.current) / state.total
-    } else {
-        0
-    };
-    let kbytes = stats.received_bytes() / 1024;
-    if stats.received_objects() == stats.total_objects() {
-        if !state.newline {
-            println!();
-            state.newline = true;
-        }
-        print!(
-            "Resolving deltas {}/{}\r",
-            stats.indexed_deltas(),
-            stats.total_deltas()
-        );
-    } else {
-        print!(
-            "net {:3}% ({:4} kb, {:5}/{:5})  /  idx {:3}% ({:5}/{:5})  \
-             /  chk {:3}% ({:4}/{:4}) {}\r",
-            network_pct,
-            kbytes,
-            stats.received_objects(),
-            stats.total_objects(),
-            index_pct,
-            stats.indexed_objects(),
-            stats.total_objects(),
-            co_pct,
-            state.current,
-            state.total,
-            state
-                .path
-                .as_ref()
-                .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_default()
-        )
-    }
-    io::stdout().flush().unwrap();
 }
