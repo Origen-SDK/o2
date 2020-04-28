@@ -58,7 +58,7 @@ This folder contains the implementors of the available commands, "generate", "in
 
 ### bins.rs
 
-This is the main entry point which uses (a popular Rust crate called Clap)[https://docs.rs/clap] to define
+This is the main entry point which uses [a popular Rust crate called Clap](https://docs.rs/clap) to define
 the available Origen commands, this is split into commands which are available globally (when running standalone)
 and those which are only made available when executing inside an application workspace.
 
