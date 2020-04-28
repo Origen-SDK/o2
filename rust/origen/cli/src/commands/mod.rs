@@ -30,7 +30,8 @@ pub fn launch(
     }
 
     if files.is_some() {
-        let f: Vec<String> = files.unwrap().iter().map(|f| format!("'{}'", f)).collect();
+        // added r prefix to the string to force python to interpret as a string literal
+        let f: Vec<String> = files.unwrap().iter().map(|f| format!("r'{}'", f)).collect();
         cmd += &format!(", files=[{}]", f.join(",")).to_string();
     }
 
