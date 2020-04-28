@@ -105,11 +105,11 @@ is performed:
 3) The CLI's work is now done and it simply sits and waits for the above process to finish and when it does it
    will exit and return the exit code from the Python process.
 
-3) The Python process is kicked off by the `__origen__` function in `python/origen/boot.py`. This will load the
+4) The Python process is kicked off by the `__origen__` function in `python/origen/boot.py`. This will load the
    Origen extension which creates a new instance of Origen's Rust runtime. Many of the arguments originally given
    to the CLI are then provided to this new Rust instance, for example the files argument in the example above.
  
-4) The Python code will then continue to execute the requested command, offloading to Rust code whenever possible.
+5) The Python code will then continue to execute the requested command, offloading to Rust code whenever possible.
    For example, the de-composing of any lists or directories in file arguments is done in Rust so that the same code
    can be used by standalone and application commands. It is for this reason that the file argument is passed from
    the CLI into Python and then immediately handed over to the new Rust process.
