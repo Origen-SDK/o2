@@ -20,7 +20,8 @@ pub fn launch(
     );
 
     if let Some(t) = targets {
-        let _t: Vec<String> = t.iter().map(|__t| format!("'{}'", __t)).collect();
+        // added r prefix to the string to force python to interpret as a string literal
+        let _t: Vec<String> = t.iter().map(|__t| format!("r'{}'", __t)).collect();
         cmd += &format!(", targets=[{}]", &_t.join(",")).to_string();
     }
 

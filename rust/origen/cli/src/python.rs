@@ -1,7 +1,6 @@
 // Responsible for managing Python execution
 
 use std::process::Command;
-use std::ffi::OsString;
 use origen::STATUS;
 use semver::Version;
 use std::path::PathBuf;
@@ -22,7 +21,7 @@ lazy_static! {
 
 pub struct Config {
     pub available: bool,
-    pub command: OsString,
+    pub command: String,
     pub version: Version,
     pub error: String,
     pub poetry_command: PathBuf,
@@ -41,7 +40,7 @@ impl Default for Config {
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         return Config {
                             available: true,
-                            command: OsString::from(cmd.to_string()),
+                            command: cmd.to_string(),
                             version: version,
                             error: "".to_string(),
                             poetry_command: poetry_cmd,
@@ -57,7 +56,7 @@ impl Default for Config {
         }
         Config {
             available: false,
-            command: OsString::new(),
+            command: String::new(),
             version: Version::parse("0.0.0").unwrap(),
             error: msg,
             poetry_command: PathBuf::new(),
@@ -67,7 +66,7 @@ impl Default for Config {
 
 /// Get the Python version from the given command
 fn get_version(command: &str) -> Option<Version> {
-    match Command::new(OsString::from(command)).arg("--version").output() {
+    match Command::new(command).arg("--version").output() {
         Ok(output) => return extract_version(std::str::from_utf8(&output.stdout).unwrap()),
         Err(_e) => return None,
     }
@@ -105,7 +104,7 @@ pub fn run(code: &str) {
         .arg("run")
         .arg(&PYTHON_CONFIG.command)
         .arg("-c")
-        .arg(OsString::from(&code))
+        .arg(&code)
         .status();
 }
 

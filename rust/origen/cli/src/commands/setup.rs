@@ -6,7 +6,6 @@ use origen::core::term::*;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
-use std::ffi::OsString;
 use std::process::Command;
 
 const POETRY_INSTALLER: &str =
@@ -65,7 +64,7 @@ pub fn run() {
                 fs::read_to_string(&get_poetry_file).expect("Unable to read Poetry install file");
             let new_data = data.replace(
                 "/bin/env python",
-                &format!("/bin/env {}", PYTHON_CONFIG.command.clone().into_string().unwrap()),
+                &format!("/bin/env {}", PYTHON_CONFIG.command),
             );
             fs::write(&get_poetry_file, new_data).expect("Unable to write Poetry install file");
 
@@ -80,8 +79,8 @@ pub fn run() {
                 // Have to use --preview here to get a 1.0.0 pre version, can only use versions for
                 // official releases
                 Command::new(&PYTHON_CONFIG.poetry_command)
-                    .arg(OsString::from("self:update"))
-                    .arg(OsString::from("--preview"))
+                    .arg("self:update")
+                    .arg("--preview")
                     .status()
                     .expect("Something wend wrong updating Poetry");
             }
@@ -92,8 +91,8 @@ pub fn run() {
     print!("Are the app's deps. installed?  ... ");
 
     let status = Command::new(&PYTHON_CONFIG.poetry_command)
-        .arg(OsString::from("install"))
-        .arg(OsString::from("--no-root"))
+        .arg("install")
+        .arg("--no-root")
         .status();
 
     if status.is_ok() {
