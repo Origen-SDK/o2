@@ -71,7 +71,7 @@ pub fn run(matches: &ArgMatches) {
                 };
                 if !is_empty {
                     let b = BOM::for_dir(&path);
-                    if b.meta.workspace {
+                    if b.is_workspace() {
                         error(
                             &format!("The workspace '{}' already exists, did you mean to run the 'update' command instead?", path.display()),
                             Some(1),
@@ -86,7 +86,7 @@ pub fn run(matches: &ArgMatches) {
             } else {
                 validate_path(&path, false, true);
             }
-            if bom.meta.workspace {
+            if bom.is_workspace() {
                 error(
                     &format!("A workspace can't be created within a workspace.\nCan't create a workspace at '{}' because '{}' is a workspace", path.display(),
                     bom.files.last().unwrap().parent().unwrap().display()
@@ -107,11 +107,9 @@ pub fn run(matches: &ArgMatches) {
                 .unwrap();
             File::create(path.join(BOM_FILE)).write(&contents);
             // Now populate the packages
-            env::set_current_dir(&path)
-                .expect("Couldn't change working directory to the new workspace");
             log_info!("Fetching {} packages...", bom.packages.len());
             for (id, mut package) in bom.packages {
-                match package.create() {
+                match package.create(&path) {
                     Ok(()) => display_green!("OK"),
                     //Err(e) => error(&format!("{}", e), None),
                     Err(e) => display_red!("ERROR"),
@@ -128,11 +126,16 @@ pub fn run(matches: &ArgMatches) {
             if !bom.is_workspace() {
                 error("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
-            if packages.len() == 0 {
-                for (id, mut package) in bom.packages {
-                    package.update();
+            if packages.is_empty() {
+                log_info!("Updating {} packages...", bom.packages.len());
+                for (_id, package) in &bom.packages {
+                    match package.update(bom.root()) {
+                        Ok(()) => display_green!("OK"),
+                        Err(e) => log_error!("{}", e),
+                    }
                 }
             } else {
+                log_info!("Updating {} packages...", packages.len());
             }
         
         }

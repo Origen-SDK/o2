@@ -25,7 +25,7 @@ pub struct Git {
 impl RevisionControlAPI for Git {
     fn populate(
         &self,
-        version: Option<&str>,
+        version: &str,
         mut callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> OrigenResult<Progress> {
         log_info!("Started populating {}...", &self.remote);
@@ -77,10 +77,64 @@ impl RevisionControlAPI for Git {
         Ok(state.into_inner())
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: Option<&str>,
+    // This was inspired by:
+    // https://stackoverflow.com/questions/55141013/how-to-get-the-behaviour-of-git-checkout-in-rust-git2
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str,
         callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> OrigenResult<Progress> {
-        let repo = Repository::open(&self.local);
+        let repo = Repository::open(&self.local)?;
+
+        let mut commit: Option<git2::Commit> = None;
+
+        // TODO: Do a fetch here
+
+        if let Ok(_branch) = repo.find_branch(version, git2::BranchType::Local) {
+            log_debug!("Checking out branch '{}'", version);
+            let head = repo.head()?;
+            let oid = head.target().unwrap();
+            commit = Some(repo.find_commit(oid)?);
+
+        } else if self.tag_exists_locally(&repo, version) {
+            log_debug!("Checking out tag '{}'", version);
+            let references = repo.references()?;
+            for reference in references {
+                if let Ok(r) = reference {
+                    if r.is_tag() {
+                        if let Some(name) = r.name() {
+                            if name.ends_with(&format!("tags/{}", version)) {
+                                let oid = r.target().unwrap();
+                                commit = Some(repo.find_commit(oid)?);
+                            }
+                        }
+                    }
+                }
+            }
+            // TODO: Should check that a commit was found here
+
+        } else if let Ok(oid) = git2::Oid::from_str(version) {
+            log_debug!("Checking out commit '{}'", version);
+            match repo.find_commit(oid) {
+                Ok(c) => commit = Some(c),
+                // TODO: generate a meaningful error
+                Err(_e) => {},
+            }
+        }
+
+        if let Some(commit) = commit {
+            let branch = repo.branch(version, &commit, false);
+            let obj = repo.revparse_single(&format!("refs/heads/{}", version)).unwrap();
+            repo.checkout_tree(
+                &obj,
+                None
+            );
+            let head = format!("refs/heads/{}", version);
+            log_debug!("Setting head to '{}'", &head);
+            repo.set_head(&head)?;
+        } else {
+        }
+
+        // TODO: Do a pull here if the version is a branch
+
         Ok(Progress::default())
     }
 }
@@ -96,8 +150,25 @@ impl Git {
         }
     }
 
+    /// Returns true if the given tag name exists in the local repo
+    pub fn tag_exists_locally(&self, repo: &Repository, tag: &str) -> bool {
+        if let Ok(tags) = repo.tag_names(None) {
+            if tags.iter().any(|topt| {
+                if let Some(t) = topt {
+                    t == tag
+                } else {
+                    false
+                }
+            }) {
+                return true;
+            }
+        }
+        false
+    }
+
     //pub fn fetch(&self) -> OrigenResult<()> {
     //}
+
 }
 
 fn get_credentials(

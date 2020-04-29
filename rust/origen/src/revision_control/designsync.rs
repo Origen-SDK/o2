@@ -7,8 +7,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use regex::Regex;
 
-const DEFAULT_VERSION: &str = "Trunk";
-
 pub struct Designsync {
     /// Path to the local directory for the repository
     pub local: PathBuf,
@@ -30,7 +28,7 @@ impl Designsync {
 impl RevisionControlAPI for Designsync {
     fn populate(
         &self,
-        version: Option<&str>,
+        version: &str,
         callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> Result<Progress> {
         log_info!("Started populating {}...", &self.remote);
@@ -39,10 +37,11 @@ impl RevisionControlAPI for Designsync {
         Ok(self.pop(true, Some(Path::new(".")), version, callback)?)
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: Option<&str>,
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str,
         callback: Option<&mut dyn FnMut(&Progress)>,
     ) -> Result<Progress> {
-        Ok(self.pop(true, path, version, callback)?)
+        //Ok(self.pop(true, path, version, callback)?)
+        Ok(Progress::default())
     }
 }
 
@@ -108,16 +107,13 @@ impl Designsync {
     fn pop(&self,
           force: bool,
           path: Option<&Path>,
-          version: Option<&str>,
+          version: &str,
           mut callback: Option<&mut dyn FnMut(&Progress)>,
           ) -> Result<Progress> {
         let mut progress = Progress::default();
         with_dir(&self.local, || {
             let mut args = vec!["pop", "-rec", "-uni", "-version"];
-            match version {
-                Some(x) => args.push(x),
-                None => args.push(DEFAULT_VERSION),
-            }
+            args.push(version);
             if force {
                 args.push("-force");
             }

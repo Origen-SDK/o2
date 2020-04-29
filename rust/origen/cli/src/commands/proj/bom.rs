@@ -4,6 +4,7 @@ use origen::revision_control::{Credentials, Progress, RevisionControl, RevisionC
 use origen::{Error, Result};
 use std::path::{Path, PathBuf};
 use std::{env, fmt, fs};
+use origen::utility::with_dir;
 
 #[derive(Debug, Deserialize)]
 // This is a temporary structure to make the BOM file syntax nicer for users.
@@ -178,9 +179,10 @@ impl fmt::Display for Package {
 }
 
 impl Package {
-    // Creates the package view in the current workspace
-    pub fn create(&mut self) -> Result<()> {
-        let mut path = env::current_dir().expect("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?");
+    /// Creates the package in the given workspace directory, will return an error
+    /// if something goes wrong with the revision control populate operation
+    pub fn create(&mut self, workspace_dir: &Path) -> Result<()> {
+        let mut path = workspace_dir.to_path_buf();
         match &self.path {
             None => path.push(self.id.clone()),
             Some(x) => path.push(x),
@@ -194,23 +196,16 @@ impl Package {
                 )));
             }
         }
-        let credentials = match &self.username {
-            None => None,
-            Some(x) => Some(Credentials {
-                username: Some(x.clone()),
-                password: None,
-            }),
-        };
-        let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), credentials);
-        let final_progress = rc.populate(self.version.as_deref(), Some(&mut |progress| {
-            self.print_progress(progress, false);
+        let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
+        let final_progress = rc.populate(self.version.as_ref().unwrap(), Some(&mut |progress| {
+            self.print_create_progress(progress, false);
         }))?;
-        self.print_progress(&final_progress, true);
-        log_success!("Successfully fetched package '{}'", self.id);
+        self.print_create_progress(&final_progress, true);
+        log_success!("Successfully created package '{}'", self.id);
         Ok(())
     }
 
-    fn print_progress(&self, progress: &Progress, last: bool) {
+    fn print_create_progress(&self, progress: &Progress, last: bool) {
         let msg = match progress.total_objects {
             None => format!(
                 "Populating package '{}', fetched {} objects", self.id,
@@ -228,7 +223,35 @@ impl Package {
         }
     }
 
-    pub fn update(&self) {
+    /// Updates the package in the given workspace directory, will return an error
+    /// if something goes wrong with the underlying revision control checkout operation,
+    /// or if the package dir resolved from the BOM does not exist
+    pub fn update(&self, workspace_dir: &Path) -> Result<()> {
+        let mut path = workspace_dir.to_path_buf();
+        match &self.path {
+            None => path.push(self.id.clone()),
+            Some(x) => path.push(x),
+        }
+        if !path.exists() {
+            return Err(Error::new(&format!(
+                "Expected to find package '{}' at '{}', but it doesn't exist",
+                self.id,
+                path.display()
+            )));
+        }
+        let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
+        rc.checkout(false, None, self.version.as_ref().unwrap(), None)?;
+        Ok(())
+    }
+
+    fn credentials(&self) -> Option<Credentials> {
+        match &self.username {
+            None => None,
+            Some(x) => Some(Credentials {
+                username: Some(x.clone()),
+                password: None,
+            }),
+        }
     }
 
     fn to_string(&self, indent: usize) -> String {
