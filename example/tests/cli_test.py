@@ -3,7 +3,7 @@
 # https://docs.python.org/3/library/subprocess.html#subprocess.call
 # https://docs.python.org/3/library/subprocess.html#subprocess.run
 
-# This is just a starter example, will be cleaned up and streamlined
+# This is just a starter/proof of concept example, will be cleaned up and streamlined
 #
 # These tests may not be what you really want to test
 #
@@ -23,6 +23,9 @@
 
 import pytest
 import subprocess
+import os
+
+origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
 def test_origen_v():
   # process = subprocess.Popen(['origen', '-v']),
@@ -34,7 +37,7 @@ def test_origen_v():
   # process.stdin.write("yes\n")
   # process.stdin.close()
                 
-  process = subprocess.Popen(['origen', '-v'], stdout=subprocess.PIPE, universal_newlines=True)
+  process = subprocess.Popen([f'{origen_cli}', '-v'], stdout=subprocess.PIPE, universal_newlines=True)
 
   # wait for the process to finish and read the result
   while True:
@@ -49,7 +52,7 @@ def test_origen_v():
       break
 
 def test_bad_command():
-  process = subprocess.Popen(['origen', 'thisisnotacommand'], stderr=subprocess.PIPE, universal_newlines=True)
+  process = subprocess.Popen([f'{origen_cli}', 'thisisnotacommand'], stderr=subprocess.PIPE, universal_newlines=True)
 
   # wait for the process to finish and read the result
   while True:
@@ -63,7 +66,7 @@ def test_bad_command():
       break
 
 def test_origen_g():
-  process = subprocess.Popen(['origen', 'g', r'.\example\patterns\toggle.py', '-t', r'.\targets\dut\eagle.py'])
+  process = subprocess.Popen([f'{origen_cli}', 'g', r'.\example\patterns\toggle.py', '-t', r'.\targets\dut\eagle.py'])
   # wait for completion and get the outputs
   return_code = process.wait()
   assert return_code == 0

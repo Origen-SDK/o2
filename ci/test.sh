@@ -38,6 +38,8 @@ main() {
         cargo test --target $TARGET
         cd ../
     else
+        # pass the path for the CLI tests to work
+        export TRAVIS_ORIGEN_CLI="../rust/origen/target/$TARGET/debug/origen"
         cd ../example
         ../rust/origen/target/$TARGET/debug/origen -v
         ../rust/origen/target/$TARGET/debug/origen setup
