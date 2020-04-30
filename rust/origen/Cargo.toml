@@ -46,6 +46,7 @@ num = "0.2.0"
 meta = { path = "./meta" }
 whoami = "0.8"
 keyring = {version = "0.8", optional = true}
+dirs = "2.0"
 
 [build-dependencies]
 built = "0.4"

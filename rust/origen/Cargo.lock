@@ -1431,6 +1431,7 @@ version = "2.0.0-pre0"
 dependencies = [
  "built",
  "config",
+ "dirs",
  "enum-utils",
  "eval",
  "git2",

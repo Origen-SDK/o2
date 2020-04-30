@@ -1,3 +1,9 @@
+//!
+//! Level 0 - display, log_error
+//! Level 1 - log_info, log_success, log_warning, log_deprecated
+//! Level 2 - log_debug
+//! Level 3 - log_trace
+//!
 extern crate time;
 
 use crate::core::term;
