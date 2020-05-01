@@ -12,30 +12,27 @@ pub struct Designsync {
     pub local: PathBuf,
     /// Link to the remote vault
     pub remote: String,
-    credentials: Option<Credentials>,
 }
 
 impl Designsync {
-    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Designsync {
+    pub fn new(local: &Path, remote: &str, _credentials: Option<Credentials>) -> Designsync {
         Designsync {
             local: local.to_path_buf(),
             remote: remote.to_string(),
-            credentials: credentials,
         }
     }
 }
 
 impl RevisionControlAPI for Designsync {
     fn populate(&self, version: &str) -> Result<()> {
-        log_info!("Started populating {}...", &self.remote);
+        log_info!("Populating {}", &self.local.display());
         fs::create_dir_all(&self.local)?;
         self.set_vault()?;
-        Ok(self.pop(true, Some(Path::new(".")), version)?)
+        self.pop(true, Some(Path::new(".")), version)
     }
 
     fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
-        //Ok(self.pop(true, path, version, callback)?)
-        Ok(())
+        self.pop(force, path, version)
     }
 }
 
@@ -99,15 +96,16 @@ impl Designsync {
     }
 
     fn pop(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
+        let path = path.unwrap_or(Path::new("."));
         with_dir(&self.local, || {
             let mut args = vec!["pop", "-rec", "-uni", "-version"];
             args.push(version);
             if force {
                 args.push("-force");
+            } else {
+                args.push("-merge");
             }
-            if let Some(p) = path {
-                args.push(p.to_str().unwrap());
-            }
+            args.push(path.to_str().unwrap());
             log_debug!("Running DesignSync command: dssc {}", args.join(" "));
             let mut process = Command::new("dssc")
                 .args(&args)

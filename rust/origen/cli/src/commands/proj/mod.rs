@@ -10,13 +10,13 @@ use std::{env, fs};
 use tera::{Context, Tera};
 
 static BOM_FILE: &str = "bom.toml";
+static README_FILE: &str = "README.md";
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("init") => {
             let dir = get_dir_or_pwd(matches.subcommand_matches("init").unwrap());
-            let mut f = dir.clone();
-            f.push(BOM_FILE);
+            let f = dir.join(BOM_FILE);
             if f.exists() {
                 error(
                     &format!("Found an existing '{}' in '{}'", BOM_FILE, dir.display()),
@@ -24,6 +24,10 @@ pub fn run(matches: &ArgMatches) {
                 );
             }
             File::create(f).write(include_str!("templates/project_bom.toml"));
+            let f = dir.join(README_FILE);
+            if !f.exists() {
+                File::create(f).write(include_str!("templates/project_README.md"));
+            }
         }
         Some("create") => {
             // First convert the new workspace location to an absolute path
@@ -104,15 +108,26 @@ pub fn run(matches: &ArgMatches) {
                 .unwrap();
             File::create(path.join(BOM_FILE)).write(&contents);
             // Now populate the packages
-            log_info!("Fetching {} packages...", bom.packages.len());
-            for (id, mut package) in bom.packages {
+            log_info!("Fetching {} packages", bom.packages.len());
+            let mut errors = false;
+            for (id, package) in &bom.packages {
                 match package.create(&path) {
                     Ok(()) => display_green!("OK"),
-                    //Err(e) => error(&format!("{}", e), None),
-                    Err(e) => display_red!("ERROR"),
+                    Err(e) => {
+                        log_error!("{}", e);
+                        log_error!("Failed to create package '{}'", id);
+                        errors = true;
+                    }
                 }
             }
-            log_info!("Creating links...");
+            if bom.create_links().is_err() {
+                errors = true;
+            };
+            if errors {
+                exit_error!();
+            } else {
+                exit_success!();
+            }
         }
         Some("update") => {
             let mut packages: Vec<PathBuf> = match matches.values_of("packages") {
@@ -125,7 +140,7 @@ pub fn run(matches: &ArgMatches) {
             }
             let mut errors = false;
             if packages.is_empty() {
-                log_info!("Updating {} packages...", bom.packages.len());
+                log_info!("Updating {} packages...", &bom.packages.len());
                 for (id, package) in &bom.packages {
                     match package.update(bom.root()) {
                         Ok(()) => display_green!("OK"),
@@ -139,6 +154,9 @@ pub fn run(matches: &ArgMatches) {
             } else {
                 log_info!("Updating {} packages...", packages.len());
             }
+            if bom.create_links().is_err() {
+                errors = true;
+            };
             if errors {
                 exit_error!();
             } else {

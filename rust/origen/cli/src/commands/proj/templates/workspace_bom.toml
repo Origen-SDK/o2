@@ -3,30 +3,13 @@
 workspace = true
 
 # Here are the packages that were defined by the project BOM at the time this workspace was created.
-# All values below can be uncommented and edited to modify the BOM for this workspace only, e.g. to
-# pull in an alternative version of some package(s).
+# Additional attributes can be added below to override the project BOM for this workspace only,
+# e.g. to pull in an alternative version of some package(s).
 # Run 'origen proj update' from the root of this workspace to apply the updates after making changes.
 {% for id, package in bom.packages -%}
 [[package]]
 id = "{{id}}"
-# Set this to false if you want this package to be excluded by default when running 'origen proj update'        
-{%if package.update -%}
-update = true
-{% endif -%}
-update = false
+# Set this to true if you want this package to be excluded by default when running 'origen proj update'        
+exclude = false
+
 {% endfor %}
-#path = "vip/my_package"
-## <Optional> - If you want multiple packages to be considered as a single unit when updating - e.g.
-## if they are owned by the same team and are released and versioned as a single unit, then provide a
-## group ID to link such packages together.
-## Only one package needs to define a version within a group.
-#group_id = "my_group"
-## [Required] - A package source, this can be one of a version/repo pair, a path to be copied from, 
-## or a path to be symlinked to.
-#version = "master"
-## A repo can be a refereced to a Git, DesignSync, or Subversion location
-#repo = "https://my_id@bitbucket.company.com/scm/my_project/my_package.git"
-## Copy from a file system directory, this must be an absolute path reference
-#copy = "/data/some/package"
-## Link to a file system directory, this must be an absolute path reference
-#link = "/data/some/package"

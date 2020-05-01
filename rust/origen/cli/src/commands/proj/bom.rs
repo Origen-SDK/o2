@@ -2,6 +2,7 @@ use super::{error, BOM_FILE};
 use indexmap::IndexMap;
 use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
 use origen::{Error, Result};
+use origen::utility::with_dir;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
@@ -11,6 +12,7 @@ use std::{fmt, fs};
 pub struct TempBOM {
     meta: Option<Meta>,
     package: Option<Vec<Package>>,
+    links: Option<IndexMap<String, String>>,
 }
 
 impl TempBOM {
@@ -22,6 +24,7 @@ impl TempBOM {
             },
             files: vec![],
             packages: IndexMap::new(),
+            links: IndexMap::new(),
         };
         if let Some(packages) = &self.package {
             for p in packages.iter() {
@@ -32,6 +35,17 @@ impl TempBOM {
                     )));
                 }
                 bom.packages.insert(p.id.clone(), p.clone());
+            }
+        }
+        if let Some(links) = &self.links {
+            for (k,v) in links.iter() {
+                if bom.links.contains_key(k) {
+                    return Err(Error::new(&format!(
+                        "Duplicate link definition found: '{}'",
+                        k
+                    )));
+                }
+                bom.links.insert(k.clone(), v.clone());
             }
         }
         Ok(bom)
@@ -56,13 +70,21 @@ pub struct BOM {
     pub meta: Meta,
     pub files: Vec<PathBuf>,
     pub packages: IndexMap<String, Package>,
+    pub links: IndexMap<String, String>,
 }
 
 impl fmt::Display for BOM {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut s = "Packages:\n".to_string();
+        let mut s = "".to_string();
+        if self.links.len() > 0 { 
+            s += "[links]\n";
+            for (k,v) in self.links.iter() {
+                s += &format!("\"{}\" = \"{}\"\n", k, v);
+            }
+            s+= "\n";
+        }
         for (_id, p) in self.packages.iter() {
-            s += &p.to_string(2);
+            s += &p.to_string(0);
         }
         write!(f, "{}", s)
     }
@@ -76,6 +98,7 @@ impl BOM {
             meta: Meta::default(),
             files: vec![],
             packages: IndexMap::new(),
+            links: IndexMap::new(),
         };
 
         let mut bom_files: Vec<PathBuf> = vec![];
@@ -138,6 +161,9 @@ impl BOM {
                 self.packages.insert(id.clone(), p.clone());
             }
         }
+        for (k, v) in bom.links.iter() {
+            let _ = self.links.insert(k.clone(), v.clone());
+        }
         self.meta.merge(&bom.meta);
     }
 
@@ -156,18 +182,44 @@ impl BOM {
     pub fn root(&self) -> &Path {
         self.files.last().unwrap().parent().unwrap()
     }
+
+    pub fn create_links(&self) -> Result<()> {
+        with_dir(self.root(), || {
+            for (dest, source) in self.links.iter() {
+                let dest = Path::new(dest);
+                let source = Path::new(source);
+                if !dest.exists() {
+                    if source.exists() {
+                        //if cfg!(target_os = "windows") {
+                        //    if source.is_dir() {
+                        //       std::os::windows::fs::symlink_dir(source, dest)?;
+                        //    } else {
+                        //       std::os::windows::fs::symlink_file(source, dest)?;
+                        //    }
+                        //} else {
+                           std::os::unix::fs::symlink(source, dest)?;
+                        //}
+
+                    } else {
+                        return Err(Error::new(&format!("The target of link '{}' does not exist - '{}'",
+                                                      dest.display(), source.display())));
+                    }
+                }
+            }
+            Ok(())
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct Package {
     id: String,
     path: Option<PathBuf>,
-    group_id: Option<String>,
     version: Option<String>,
     repo: Option<String>,
     copy: Option<PathBuf>,
     link: Option<PathBuf>,
-    update: Option<bool>,
+    exclude: Option<bool>,
     username: Option<String>,
 }
 
@@ -180,7 +232,7 @@ impl fmt::Display for Package {
 impl Package {
     /// Creates the package in the given workspace directory, will return an error
     /// if something goes wrong with the revision control populate operation
-    pub fn create(&mut self, workspace_dir: &Path) -> Result<()> {
+    pub fn create(&self, workspace_dir: &Path) -> Result<()> {
         let mut path = workspace_dir.to_path_buf();
         match &self.path {
             None => path.push(self.id.clone()),
@@ -196,7 +248,7 @@ impl Package {
             }
         }
         let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
-        let final_progress = rc.populate(self.version.as_ref().unwrap())?;
+        rc.populate(self.version.as_ref().unwrap())?;
         log_success!("Successfully created package '{}'", self.id);
         Ok(())
     }
@@ -234,33 +286,27 @@ impl Package {
 
     fn to_string(&self, indent: usize) -> String {
         let i = " ".repeat(indent);
-        let mut s = format!("{}'{}':\n", i, self.id);
+        let mut s = format!("{}[[package]]\n", i);
+        s += &format!("{}id = \"{}\"\n", i, self.id);
         if let Some(x) = &self.path {
-            s += &format!("{}  path:     {}\n", i, x.display());
-        }
-        if let Some(x) = &self.group_id {
-            s += &format!("{}  proup_id: {}\n", i, x);
+            s += &format!("{}path = \"{}\"\n", i, x.display());
         }
         if let Some(x) = &self.version {
-            s += &format!("{}  version:  {}\n", i, x);
+            s += &format!("{}version = \"{}\"\n", i, x);
         }
         if let Some(x) = &self.repo {
-            s += &format!("{}  repo:     {}\n", i, x);
+            s += &format!("{}repo = \"{}\"\n", i, x);
         }
         if let Some(x) = &self.username {
-            s += &format!("{}  username: {}\n", i, x);
+            s += &format!("{}username = \"{}\"\n", i, x);
         }
         if let Some(x) = &self.copy {
-            s += &format!("{}  copy:     {}\n", i, x.display());
+            s += &format!("{}copy = \"{}\"\n", i, x.display());
         }
         if let Some(x) = &self.link {
-            s += &format!("{}  link:     {}\n", i, x.display());
+            s += &format!("{}link = \"{}\"\n", i, x.display());
         }
-        if let Some(x) = &self.update {
-            s += &format!("{}  update:   {}\n", i, x);
-        } else {
-            s += &format!("{}  update:   true\n", i);
-        }
+        s += "\n";
         s
     }
 
@@ -271,21 +317,15 @@ impl Package {
             }
             None => {}
         }
-        match &p.group_id {
-            Some(x) => {
-                self.group_id = Some(x.clone());
-            }
-            None => {}
-        }
         match &p.version {
             Some(x) => {
                 self.version = Some(x.clone());
             }
             None => {}
         }
-        match &p.update {
+        match &p.exclude {
             Some(x) => {
-                self.update = Some(x.clone());
+                self.exclude = Some(x.clone());
             }
             None => {}
         }
@@ -308,6 +348,7 @@ impl Package {
                 self.copy = Some(x.clone());
                 self.repo = None;
                 self.link = None;
+                self.version = None;
             }
             None => {}
         }
@@ -316,6 +357,7 @@ impl Package {
                 self.link = Some(x.clone());
                 self.repo = None;
                 self.copy = None;
+                self.version = None;
             }
             None => {}
         }
