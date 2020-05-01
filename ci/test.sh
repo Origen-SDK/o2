@@ -36,7 +36,7 @@ main() {
         cd origen
         #cargo test --target $TARGET --release
         cargo test --target $TARGET
-        # cli tests were skipped, trying with --all
+        # cli tests were skipped above
         cd cli
         export TRAVIS_ORIGEN_CLI="../target/$TARGET/debug/origen"
         cargo test --target $TARGET

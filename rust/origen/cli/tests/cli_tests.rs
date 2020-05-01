@@ -45,7 +45,7 @@ fn origen_bad_arg() -> Result<(), Box<dyn std::error::Error>> {
         .arg("invalid_cmd_here")
         .output()?;
 
-    assert!(output.status.success());
+    assert!(!output.status.success());
 
     Ok(())
 }
