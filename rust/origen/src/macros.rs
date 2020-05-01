@@ -12,8 +12,9 @@ macro_rules! node {
     };
 }
 
+/// Exit the origen process with a passing exit code and a big SUCCESS banner
 #[macro_export]
-macro_rules! success {
+macro_rules! exit_success {
     () => {
         display_green!(
             r#"     _______. __    __    ______   ______  _______      _______.     _______."#
@@ -37,8 +38,9 @@ macro_rules! success {
     };
 }
 
+/// Exit the origen process with a passing exit code and a big PASS banner
 #[macro_export]
-macro_rules! pass {
+macro_rules! exit_pass {
     () => {
         display_green!(r#".______      ___           _______.     _______."#);
         display_green!(r#"|   _  \    /   \         /       |    /       |"#);
@@ -50,8 +52,9 @@ macro_rules! pass {
     };
 }
 
+/// Exit the origen process with a failing exit code and a big FAIL banner
 #[macro_export]
-macro_rules! fail {
+macro_rules! exit_fail {
     () => {
         display_red!(r#" _______    ___       __   __      "#);
         display_red!(r#"|   ____|  /   \     |  | |  |     "#);
@@ -63,8 +66,9 @@ macro_rules! fail {
     };
 }
 
+/// Exit the origen process with a failing exit code and a big ERROR banner
 #[macro_export]
-macro_rules! error {
+macro_rules! exit_error {
     () => {
         display_red!(r#" _______ .______      .______        ______   .______      "#);
         display_red!(r#"|   ____||   _  \     |   _  \      /  __  \  |   _  \     "#);
@@ -74,6 +78,15 @@ macro_rules! error {
         display_red!(r#"|_______|| _| `._____|| _| `._____| \______/  | _| `._____|"#);
         std::process::exit(1);
     };
+}
+
+/// Returns an Err<OrigenError> with the given error message
+#[macro_export]
+macro_rules! error {
+    ($($arg:tt)*) => {{
+        let formatted = std::fmt::format(format_args!($($arg)*));
+        Err(crate::Error::new(&formatted))
+    }}
 }
 
 #[macro_export]

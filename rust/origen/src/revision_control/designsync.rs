@@ -1,11 +1,11 @@
-use super::{Credentials, Progress, RevisionControlAPI};
+use super::{Credentials, RevisionControlAPI};
 use crate::utility::with_dir;
-use crate::{Error, Result, USER};
-use std::{fs};
+use crate::{Error, Result};
+use regex::Regex;
+use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use regex::Regex;
 
 pub struct Designsync {
     /// Path to the local directory for the repository
@@ -26,42 +26,35 @@ impl Designsync {
 }
 
 impl RevisionControlAPI for Designsync {
-    fn populate(
-        &self,
-        version: &str,
-        callback: Option<&mut dyn FnMut(&Progress)>,
-    ) -> Result<Progress> {
+    fn populate(&self, version: &str) -> Result<()> {
         log_info!("Started populating {}...", &self.remote);
         fs::create_dir_all(&self.local)?;
         self.set_vault()?;
-        Ok(self.pop(true, Some(Path::new(".")), version, callback)?)
+        Ok(self.pop(true, Some(Path::new(".")), version)?)
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str,
-        callback: Option<&mut dyn FnMut(&Progress)>,
-    ) -> Result<Progress> {
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
         //Ok(self.pop(true, path, version, callback)?)
-        Ok(Progress::default())
+        Ok(())
     }
 }
 
-fn log_stdout_and_stderr(process: &mut std::process::Child,
-      stdout_callback: Option<&mut dyn FnMut(&str)>,
-      stderr_callback: Option<&mut dyn FnMut(&str)>
-  ) {
+fn log_stdout_and_stderr(
+    process: &mut std::process::Child,
+    stdout_callback: Option<&mut dyn FnMut(&str)>,
+    stderr_callback: Option<&mut dyn FnMut(&str)>,
+) {
     log_stdout(process, stdout_callback);
     log_stderr(process, stderr_callback);
 }
 
-fn log_stdout(process: &mut std::process::Child,
-              mut callback: Option<&mut dyn FnMut(&str)>
-              ) {
+fn log_stdout(process: &mut std::process::Child, mut callback: Option<&mut dyn FnMut(&str)>) {
     let stdout = process.stdout.take().unwrap();
     let reader = BufReader::new(stdout);
     reader
         .lines()
         .filter_map(|line| line.ok())
-        .for_each(|line| { 
+        .for_each(|line| {
             log_debug!("{}", line);
             if let Some(f) = &mut callback {
                 f(&line);
@@ -69,9 +62,7 @@ fn log_stdout(process: &mut std::process::Child,
         });
 }
 
-fn log_stderr(process: &mut std::process::Child,
-              mut callback: Option<&mut dyn FnMut(&str)>
-              ) {
+fn log_stderr(process: &mut std::process::Child, mut callback: Option<&mut dyn FnMut(&str)>) {
     let stdout = process.stderr.take().unwrap();
     let reader = BufReader::new(stdout);
     reader
@@ -99,18 +90,15 @@ impl Designsync {
             if process.wait()?.success() {
                 Ok(())
             } else {
-                Err(Error::new(&format!("Something went wrong setting the vault in '{}', see log for details", self.local.display())))
+                Err(Error::new(&format!(
+                    "Something went wrong setting the vault in '{}', see log for details",
+                    self.local.display()
+                )))
             }
         })
     }
 
-    fn pop(&self,
-          force: bool,
-          path: Option<&Path>,
-          version: &str,
-          mut callback: Option<&mut dyn FnMut(&Progress)>,
-          ) -> Result<Progress> {
-        let mut progress = Progress::default();
+    fn pop(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
         with_dir(&self.local, || {
             let mut args = vec!["pop", "-rec", "-uni", "-version"];
             args.push(version);
@@ -128,25 +116,30 @@ impl Designsync {
                 .spawn()?;
 
             lazy_static! {
-                static ref POP_REGEX : Regex = Regex::new(
-                    r": Success - (Fetched|Created symbolic)"
-                ).unwrap();
+                static ref POP_REGEX: Regex =
+                    Regex::new(r": Success - (Fetched|Created symbolic)").unwrap();
             }
 
-            log_stdout_and_stderr(&mut process, Some(&mut |line: &str| {
-                if POP_REGEX.is_match(&line) {
-                    progress.received_objects += 1;
-                    progress.completed_objects += 1;
-                    if let Some(f) = &mut callback {
-                        f(&progress);
-                    }
-                }
-            }), None);
+            log_stdout_and_stderr(
+                &mut process,
+                None,
+                // Example of a callback
+                //Some(&mut |line: &str| {
+                //    if POP_REGEX.is_match(&line) {
+                //        progress.received_objects += 1;
+                //        progress.completed_objects += 1;
+                //    }
+                //}),
+                None,
+            );
 
             if process.wait()?.success() {
-                Ok(progress.clone())
+                Ok(())
             } else {
-                Err(Error::new(&format!("Something went wrong populating '{}', see log for details", self.remote)))
+                Err(Error::new(&format!(
+                    "Something went wrong populating '{}', see log for details",
+                    self.remote
+                )))
             }
         })
     }

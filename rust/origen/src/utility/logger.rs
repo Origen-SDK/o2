@@ -76,14 +76,14 @@ impl Logger {
     /// be output to the console and without a timestamp.
     /// It will also appear in the log file with a timestamp.
     pub fn display(&self, message: &str) {
-        self._log(0, "DISPLAY", message, &|msg| {
+        self._log(0, "DISPLAY", message, &|_msg| {
             println!("{}", message);
         });
     }
 
     /// See display
     pub fn display_green(&self, message: &str) {
-        self._log(0, "DISPLAY", message, &|msg| {
+        self._log(0, "DISPLAY", message, &|_msg| {
             term::greenln(message);
         });
     }

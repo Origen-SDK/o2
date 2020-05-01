@@ -1,10 +1,9 @@
 use super::{error, BOM_FILE};
 use indexmap::IndexMap;
-use origen::revision_control::{Credentials, Progress, RevisionControl, RevisionControlAPI};
+use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
 use origen::{Error, Result};
 use std::path::{Path, PathBuf};
-use std::{env, fmt, fs};
-use origen::utility::with_dir;
+use std::{fmt, fs};
 
 #[derive(Debug, Deserialize)]
 // This is a temporary structure to make the BOM file syntax nicer for users.
@@ -197,30 +196,9 @@ impl Package {
             }
         }
         let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
-        let final_progress = rc.populate(self.version.as_ref().unwrap(), Some(&mut |progress| {
-            self.print_create_progress(progress, false);
-        }))?;
-        self.print_create_progress(&final_progress, true);
+        let final_progress = rc.populate(self.version.as_ref().unwrap())?;
         log_success!("Successfully created package '{}'", self.id);
         Ok(())
-    }
-
-    fn print_create_progress(&self, progress: &Progress, last: bool) {
-        let msg = match progress.total_objects {
-            None => format!(
-                "Populating package '{}', fetched {} objects", self.id,
-                progress.completed_objects
-            ),
-            Some(n) => format!(
-                "Populating package '{}', fetched {}/{} objects", self.id,
-                progress.completed_objects, n
-            ),
-        };
-        if last {
-            print!("{} ", msg);
-        } else {
-            print!("{}\r", msg);
-        }
     }
 
     /// Updates the package in the given workspace directory, will return an error
@@ -240,7 +218,7 @@ impl Package {
             )));
         }
         let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
-        rc.checkout(false, None, self.version.as_ref().unwrap(), None)?;
+        rc.checkout(false, None, self.version.as_ref().unwrap())?;
         Ok(())
     }
 

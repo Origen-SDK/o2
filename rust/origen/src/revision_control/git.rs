@@ -1,13 +1,20 @@
-use super::{Credentials, Progress, RevisionControlAPI};
+use super::{Credentials, RevisionControlAPI};
 use crate::Result as OrigenResult;
 use crate::USER;
 use git2::Repository;
-use std::{env,fs};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
-use git2::{Cred, FetchOptions, RemoteCallbacks, CredentialType};
+use git2::{Cred, CredentialType, FetchOptions, RemoteCallbacks};
 use std::cell::RefCell;
+
+enum VersionType {
+    Branch,
+    Tag,
+    Commit,
+    Unknown,
+}
 
 pub struct Git {
     /// Path to the local directory for the repository
@@ -25,19 +32,12 @@ pub struct Git {
     ssh_attempts: RefCell<usize>,
 }
 
-
 impl RevisionControlAPI for Git {
-    fn populate(
-        &self,
-        version: &str,
-        mut callback: Option<&mut dyn FnMut(&Progress)>,
-    ) -> OrigenResult<Progress> {
+    fn populate(&self, version: &str) -> OrigenResult<()> {
         log_info!("Populating {}", &self.local.display());
         self.reset_temps();
         let mut cb = RemoteCallbacks::new();
-        cb.transfer_progress(|stats| {
-            self.transfer_progress_callback(&stats)
-        });
+        cb.transfer_progress(|stats| self.transfer_progress_callback(&stats));
         cb.credentials(|url, username_from_url, allowed_types| {
             self.credentials_callback(url, username_from_url, allowed_types)
         });
@@ -45,38 +45,49 @@ impl RevisionControlAPI for Git {
         fo.remote_callbacks(cb);
         match RepoBuilder::new()
             .fetch_options(fo)
-            .clone(&self.remote, &self.local) {
-            Ok(_) => {},
+            .clone(&self.remote, &self.local)
+        {
+            Ok(_) => {}
             Err(e) => {
-                log_error!("{}", e);
                 return Err(e.into());
             }
         }
 
-        self.checkout(true, None, version, None)?;
+        self.checkout(true, None, version)?;
 
-        Ok(Progress::default())
+        Ok(())
     }
 
-    // This was inspired by:
-    // https://stackoverflow.com/questions/55141013/how-to-get-the-behaviour-of-git-checkout-in-rust-git2
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str,
-        callback: Option<&mut dyn FnMut(&Progress)>,
-    ) -> OrigenResult<Progress> {
-        let repo = Repository::open(&self.local)?;
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> OrigenResult<()> {
+        log_info!(
+            "Checking out version '{}' in '{}'",
+            version,
+            &self.local.display()
+        );
         self.reset_temps();
-
-        let mut commit: Option<git2::Commit> = None;
 
         // Make sure we have all the latest tags/commits/branches available locally
         self.fetch(None)?;
 
-        if let Ok(_branch) = repo.find_branch(version, git2::BranchType::Local) {
-            log_debug!("Checking out branch '{}'", version);
-            let head = repo.head()?;
-            let oid = head.target().unwrap();
-            commit = Some(repo.find_commit(oid)?);
+        // Now the first part of this operation is to find the SHA (Oid) corresponding to the given version
+        // reference, and identify whether it is a reference to branch, tag or commit
 
+        let repo = Repository::open(&self.local)?;
+        let mut oid: Option<git2::Oid> = None;
+        let mut version_type = VersionType::Unknown;
+
+        // If the version reference is a branch...
+        if let Ok(branch) =
+            repo.find_branch(&format!("origin/{}", version), git2::BranchType::Remote)
+        {
+            //if self.remote_branch_exists(&repo, version) {
+            log_debug!("Checking out branch '{}'", version);
+            let head = branch.get();
+            // This gets a reference to the tip of the remote branch in question
+            oid = Some(head.target().unwrap());
+            version_type = VersionType::Branch;
+
+        // If the version reference is a tag...
         } else if self.tag_exists_locally(&repo, version) {
             log_debug!("Checking out tag '{}'", version);
             let references = repo.references()?;
@@ -85,25 +96,29 @@ impl RevisionControlAPI for Git {
                     if r.is_tag() {
                         if let Some(name) = r.name() {
                             if name.ends_with(&format!("tags/{}", version)) {
-                                let oid = r.target().unwrap();
-                                commit = Some(repo.find_commit(oid)?);
+                                oid = Some(r.target().unwrap());
+                                version_type = VersionType::Tag;
                             }
                         }
                     }
                 }
             }
-            // TODO: Should check that a commit was found here
-
-        } else if let Ok(oid) = git2::Oid::from_str(version) {
-            log_debug!("Checking out commit '{}'", version);
-            match repo.find_commit(oid) {
-                Ok(c) => commit = Some(c),
-                // TODO: generate a meaningful error
-                Err(_e) => {},
+            if oid.is_none() {
+                return error!(
+                    "Something went wrong, the commit for tag '{}' was not found",
+                    version
+                );
             }
+        // If the version reference is a commit SHA...
+        } else if let Ok(oid_) = git2::Oid::from_str(version) {
+            log_debug!("Checking out commit '{}'", version);
+            oid = Some(oid_);
+            version_type = VersionType::Commit;
         }
 
-        if let Some(commit) = commit {
+        // If a SHA and reference type was successfully found, now do the checkout
+
+        if let Some(oid) = oid {
             let mut co = CheckoutBuilder::new();
             // This is called for every file, cur is the current file number, and total
             // is the total number of files that are being checked out
@@ -119,24 +134,48 @@ impl RevisionControlAPI for Git {
                 co.path(p);
             }
 
-            let branch = repo.branch(version, &commit, false);
-            let obj = repo.revparse_single(&format!("refs/heads/{}", version)).unwrap();
-            repo.checkout_tree(
-                &obj,
-                Some(&mut co)
-            );
-            let head = format!("refs/heads/{}", version);
-            log_debug!("Setting head to '{}'", &head);
-            repo.set_head(&head)?;
+            match version_type {
+                VersionType::Branch => {
+                    // This checkout makes sure that we have the target commit on disk in the workspace
+                    let commit = repo.find_commit(oid)?;
+                    repo.checkout_tree(commit.as_object(), Some(&mut co))?;
+                    // This forces the target of the local version of the requested branch to the target commit,
+                    // creating the local branch if it doesn't already exist
+                    repo.set_head_detached(oid)?; // Need to do this otherwise the force can fail if the
+                                                  // branch is the current HEAD
+                    repo.branch(version, &commit, true)?;
+                    // Finally, this switches the current workspace branch to the requested branch
+                    let head = format!("refs/heads/{}", version);
+                    repo.set_head(&head)?;
+                }
+                VersionType::Tag => {
+                    let object = repo.find_object(oid, None)?;
+                    repo.checkout_tree(&object, Some(&mut co))?;
+                    // May want to use set_head_detached_from_annotated in future (not available in current version),
+                    // as it may give a better indication of sitting at a tag when 'git status' is run
+                    repo.set_head_detached(oid)?;
+                }
+                VersionType::Commit => match repo.find_commit(oid) {
+                    Ok(commit) => {
+                        repo.checkout_tree(commit.as_object(), Some(&mut co))?;
+                        repo.set_head_detached(oid)?;
+                    }
+                    Err(_e) => {
+                        return error!("No matching commit found for version '{}'", version);
+                    }
+                },
+                _ => unreachable!(),
+            }
         } else {
+            return error!(
+                "Could not resolve version '{}' to a commit, tag or branch reference",
+                version
+            );
         }
 
-        // TODO: Do a pull here if the version is a branch
-
-        Ok(Progress::default())
+        Ok(())
     }
 }
-
 
 impl Git {
     pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
@@ -152,7 +191,12 @@ impl Git {
         }
     }
 
-    fn credentials_callback(&self, url: &str, username: Option<&str>, allowed_types: CredentialType) -> Result<Cred, git2::Error> {
+    fn credentials_callback(
+        &self,
+        url: &str,
+        username: Option<&str>,
+        allowed_types: CredentialType,
+    ) -> Result<Cred, git2::Error> {
         if allowed_types.contains(CredentialType::SSH_KEY) {
             let mut ssh_attempts = self.ssh_attempts.borrow_mut();
             let ssh_keys = ssh_keys();
@@ -161,12 +205,7 @@ impl Git {
                 //if key.is_ok() {
                 //    return key;
                 //}
-                let key = Cred::ssh_key(
-                    username.unwrap(),
-                  None,
-                  &ssh_keys[*ssh_attempts],
-                  None,
-                )
+                let key = Cred::ssh_key(username.unwrap(), None, &ssh_keys[*ssh_attempts], None);
                 *ssh_attempts += 1;
                 return key;
             }
@@ -174,8 +213,16 @@ impl Git {
         if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
             let last_password_attempt = self.last_password_attempt.borrow();
             let password = {
-                if self.credentials.is_some() && self.credentials.as_ref().unwrap().password.is_some() {
-                    self.credentials.as_ref().unwrap().password.as_ref().unwrap().clone()
+                if self.credentials.is_some()
+                    && self.credentials.as_ref().unwrap().password.is_some()
+                {
+                    self.credentials
+                        .as_ref()
+                        .unwrap()
+                        .password
+                        .as_ref()
+                        .unwrap()
+                        .clone()
                 } else {
                     USER.password(
                         Some(&format!("to access repository '{}'", url)),
@@ -185,18 +232,30 @@ impl Git {
                 }
             };
             let username = {
-                if self.credentials.is_some() && self.credentials.as_ref().unwrap().username.is_some() {
-                    self.credentials.as_ref().unwrap().username.as_ref().unwrap().clone()
+                if self.credentials.is_some()
+                    && self.credentials.as_ref().unwrap().username.is_some()
+                {
+                    self.credentials
+                        .as_ref()
+                        .unwrap()
+                        .username
+                        .as_ref()
+                        .unwrap()
+                        .clone()
                 } else {
                     USER.id().unwrap()
                 }
             };
-            self.last_password_attempt.replace(Some(password.to_string()));
+            self.last_password_attempt
+                .replace(Some(password.to_string()));
             return Ok(Cred::userpass_plaintext(&username, &password)?);
         }
 
         // We tried our best
-        log_warning!("Unhandled Git credential type requested '{:?}'",  allowed_types);
+        log_warning!(
+            "Unhandled Git credential type requested '{:?}'",
+            allowed_types
+        );
         Err(git2::Error::from_str("no authentication available"))
     }
 
@@ -239,26 +298,43 @@ impl Git {
     /// Returns true if the given tag name exists in the local repo
     pub fn tag_exists_locally(&self, repo: &Repository, tag: &str) -> bool {
         if let Ok(tags) = repo.tag_names(None) {
-            if tags.iter().any(|topt| {
-                if let Some(t) = topt {
-                    t == tag
-                } else {
-                    false
-                }
-            }) {
+            if tags
+                .iter()
+                .any(|topt| if let Some(t) = topt { t == tag } else { false })
+            {
                 return true;
             }
         }
         false
     }
 
-    /// Equivalent to calling 'git fetch' within a repo
+    /// Returns true if the given branch name exists in the remote repo
+    pub fn remote_branch_exists(&self, repo: &Repository, name: &str) -> bool {
+        let branches = repo.branches(Some(git2::BranchType::Remote)).unwrap();
+        for branch in branches {
+            if let Ok((branch, _branch_type)) = branch {
+                if let Ok(Some(branch_name)) = branch.name() {
+                    if branch_name == format!("origin/{}", name) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Equivalent to calling 'git fetch' within a repo, this will download all available remote
+    /// branches, tags and commits
     pub fn fetch(&self, remote_name: Option<&str>) -> OrigenResult<()> {
         let repo = Repository::open(&self.local)?;
         let remote = remote_name.unwrap_or("origin");
 
         // Figure out whether it's a named remote or a URL
-        log_debug!("Fetching '{}' for Git repo in '{}'", remote, self.local.display());
+        log_debug!(
+            "Fetching '{}' for Git repo in '{}'",
+            remote,
+            self.local.display()
+        );
         let mut cb = RemoteCallbacks::new();
         let mut remote = repo
             .find_remote(remote)
@@ -284,9 +360,7 @@ impl Git {
             true
         });
 
-        cb.transfer_progress(|stats| {
-            self.transfer_progress_callback(&stats)
-        });
+        cb.transfer_progress(|stats| self.transfer_progress_callback(&stats));
 
         // Download the packfile and index it. This function updates the amount of
         // received data and the indexer stats which lets you inform the user about
@@ -305,7 +379,7 @@ impl Git {
         // needed objects are available locally.
         remote.update_tips(None, true, git2::AutotagOption::Unspecified, None)?;
 
-        log_debug!("Fetch completed");
+        log_debug!("Fetch completed successfully");
 
         Ok(())
     }
@@ -323,17 +397,16 @@ fn ssh_keys() -> Vec<PathBuf> {
     let dir = home.join(".ssh");
     if dir.exists() {
         let paths = fs::read_dir(dir).unwrap();
-        paths.filter_map(|p| p.ok())
+        paths
+            .filter_map(|p| p.ok())
             .map(|p| p.path())
-            .for_each(|path| {
-                match path.extension() {
-                    None => {},
-                    Some(x) => {
-                        if x == "pub" {
-                            let key = path.parent().unwrap().join(path.file_stem().unwrap());
-                            if key.exists() {
-                                keys.push(key);
-                            }
+            .for_each(|path| match path.extension() {
+                None => {}
+                Some(x) => {
+                    if x == "pub" {
+                        let key = path.parent().unwrap().join(path.file_stem().unwrap());
+                        if key.exists() {
+                            keys.push(key);
                         }
                     }
                 }

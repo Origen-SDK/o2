@@ -4,9 +4,6 @@ use bom::BOM;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
 use origen::core::term;
-use origen::revision_control::Progress;
-use origen::LOGGER;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::{env, fs};
@@ -126,18 +123,27 @@ pub fn run(matches: &ArgMatches) {
             if !bom.is_workspace() {
                 error("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
+            let mut errors = false;
             if packages.is_empty() {
                 log_info!("Updating {} packages...", bom.packages.len());
-                for (_id, package) in &bom.packages {
+                for (id, package) in &bom.packages {
                     match package.update(bom.root()) {
                         Ok(()) => display_green!("OK"),
-                        Err(e) => log_error!("{}", e),
+                        Err(e) => {
+                            log_error!("{}", e);
+                            log_error!("Failed to update package '{}'", id);
+                            errors = true;
+                        }
                     }
                 }
             } else {
                 log_info!("Updating {} packages...", packages.len());
             }
-        
+            if errors {
+                exit_error!();
+            } else {
+                exit_success!();
+            }
         }
         Some("bom") => {
             let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap());
@@ -151,11 +157,11 @@ pub fn run(matches: &ArgMatches) {
 
 fn pwd() -> PathBuf {
     let dir = match env::current_dir() {
-        Err(_e) => { 
+        Err(_e) => {
             error("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?", Some(1));
             unreachable!();
-        },
-        Ok(d) => d
+        }
+        Ok(d) => d,
     };
     dir
 }
