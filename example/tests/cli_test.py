@@ -64,7 +64,8 @@ def test_bad_command():
       break
 
 def test_origen_g():
-  process = subprocess.Popen([f'{origen_cli}', 'g', r'.\example\patterns\toggle.py', '-t', r'.\targets\dut\eagle.py'])
+  process = subprocess.Popen([f'{origen_cli}', 'g', r'.\example\patterns\toggle.py', '-t', r'.\targets\dut\eagle.py'], universal_newlines=True)
   # wait for completion and get the outputs
   return_code = process.wait()
   assert return_code == 0
+  
