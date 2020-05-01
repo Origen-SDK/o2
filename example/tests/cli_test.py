@@ -12,14 +12,21 @@
 # is available before running).
 #
 # The flow appears to be working, had my doubts
-# poetry run pytest -> subprocess -> origen cli -> Python run time
+# poetry run pytest -> subprocess -> origen cli -> poetry -> Python run time
 #
 # Global commands could go here if the working dir is changed first.
-# Otherwise Rust cli tests can be used. See the following:
-# https://rust-cli.github.io/book/tutorial/testing.html#testing-cli-applications-by-running-them
-# https://docs.rs/predicates/1.0.4/predicates/
-# https://docs.rs/assert_cmd/1.0.1/assert_cmd/
-# https://crates.io/crates/rexpect
+# Otherwise Rust cli tests can be used. See the rust/origen/cli/test directory
+#
+# an interactive command test write to stdin like this:
+#   process = subprocess.Popen(['origen', '-v']),
+#                stdin=subprocess.PIPE,
+#                stdout=subprocess.PIPE,
+#                stderr=subprocess.PIPE,
+#                universal_newlines=True,
+#                bufsize=0)
+#  process.stdin.write("yes\n")
+#  process.stdin.close()
+
 
 import pytest
 import subprocess
@@ -27,16 +34,7 @@ import os
 
 origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
-def test_origen_v():
-  # process = subprocess.Popen(['origen', '-v']),
-                # stdin=subprocess.PIPE,
-                # stdout=subprocess.PIPE,
-                # stderr=subprocess.PIPE,
-                # universal_newlines=True,
-                # bufsize=0)
-  # process.stdin.write("yes\n")
-  # process.stdin.close()
-                
+def test_origen_v():                
   process = subprocess.Popen([f'{origen_cli}', '-v'], stdout=subprocess.PIPE, universal_newlines=True)
 
   # wait for the process to finish and read the result

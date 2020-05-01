@@ -36,8 +36,8 @@ main() {
         cd origen
         #cargo test --target $TARGET --release
         # cli tests were skipped, think --workspace is needed here to also run tests in the bin dirs
-        export TRAVIS_ORIGEN_CLI="./target/$TARGET/debug/origen"
-        cargo test --target $TARGET --workspace
+        export TRAVIS_ORIGEN_CLI="target/$TARGET/debug/origen"
+        cargo test  --workspace --target $TARGET
         cd ../
     else
         # pass the path for the CLI tests to work
