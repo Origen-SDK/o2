@@ -37,9 +37,10 @@ main() {
         #cargo test --target $TARGET --release
         cargo test --target $TARGET
         # cli tests were skipped, trying with --all
-        #export TRAVIS_ORIGEN_CLI="./target/$TARGET/debug/origen"
-        cargo test --all
-        cd ../
+        cd cli
+        export TRAVIS_ORIGEN_CLI="../target/$TARGET/debug/origen"
+        cargo test --target $TARGET
+        cd ../../
     else
         # pass the path for the CLI tests to work
         export TRAVIS_ORIGEN_CLI="../rust/origen/target/$TARGET/debug/origen"
