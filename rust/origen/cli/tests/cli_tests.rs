@@ -15,9 +15,19 @@
 
 use std::process::Command;
 
+fn ogn_cmd() -> String {
+    // There's probably a prettier way to do this, but don't feel like fighting at the moment
+    let retval;
+    match option_env!("CARGO_BIN_EXE_ORIGEN"){
+        Some(x) => retval = x,
+        None => retval = option_env!("TRAVIS_ORIGEN_CLI").unwrap(),
+    }
+    String::from(retval)
+}
+
 #[test]
 fn origen_v_responds() -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(option_env!("CARGO_BIN_EXE_ORIGEN").unwrap())
+    let output = Command::new(ogn_cmd())
         .arg("-v")
         .output()?;
     
@@ -31,7 +41,7 @@ fn origen_v_responds() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn origen_bad_arg() -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(option_env!("CARGO_BIN_EXE_ORIGEN").unwrap())
+    let output = Command::new(ogn_cmd())
         .arg("invalid_cmd_here")
         .output()?;
 
