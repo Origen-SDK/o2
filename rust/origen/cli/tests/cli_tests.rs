@@ -10,7 +10,7 @@
 // https://docs.rs/assert_cmd/1.0.1/assert_cmd/
 // https://crates.io/crates/rexpect
 //
-// helpful examples of using Command, also can do interactive tests if needed
+// helpful examples of using Command. Also possible to do interactive tests if needed
 // https://rust-lang-nursery.github.io/rust-cookbook/os/external.html
 
 use std::process::Command;
@@ -56,7 +56,7 @@ fn origen_bad_arg() -> Result<(), Box<dyn std::error::Error>> {
     // check that an error (not success) result was returned
     assert!(!output.status.success());
 
-    // get stdout from the command execution in String format for testing
+    // get stderr from the command execution in String format for testing
     let stderr = String::from_utf8(output.stderr)?;
     assert!(stderr.contains("error:"));
 
