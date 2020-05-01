@@ -35,9 +35,10 @@ main() {
     if [ "$O2_REGRESSION" = "BACKEND" ]; then
         cd origen
         #cargo test --target $TARGET --release
-        # cli tests were skipped, think --workspace is needed here to also run tests in the bin dirs
-        export TRAVIS_ORIGEN_CLI="target/$TARGET/debug/origen"
-        cargo test  --workspace --target $TARGET
+        cargo test --target $TARGET
+        # cli tests were skipped, trying with --all
+        #export TRAVIS_ORIGEN_CLI="./target/$TARGET/debug/origen"
+        cargo test --all
         cd ../
     else
         # pass the path for the CLI tests to work
