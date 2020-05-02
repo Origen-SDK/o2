@@ -31,9 +31,8 @@ pest = "2.1"
 pest_derive = "2.1"
 enum-utils = "0.1.2"
 shellexpand = "1.1.1"
-# Need to be careful with this version, couldn't build on RHEL6 with versions
-# greater than this. Can probably drop this constraint once NXP transitions to
-# RHEL7.
+# Need to be careful with this version, couldn't build on RHEL6 with versions greater
+# than this. Can probably drop this constraint once NXP transitions to RHEL7.
 git2 = "0.8"
 rpassword = "4.0"
 num-bigint = {version = "0.2", features = ["serde"]}
@@ -47,6 +46,7 @@ meta = { path = "./meta" }
 whoami = "0.8"
 keyring = {version = "0.8", optional = true}
 dirs = "2.0"
+fs_extra = "1.0"
 
 [build-dependencies]
 built = "0.4"

@@ -1,4 +1,5 @@
 mod bom;
+mod package;
 
 use bom::BOM;
 use clap::ArgMatches;

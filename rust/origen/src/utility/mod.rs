@@ -59,3 +59,41 @@ where
     env::set_current_dir(&orig)?;
     result
 }
+
+/// Create a symlink, works on Linux or Windows.
+/// The dst path will be a symbolic link pointing to the src path.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// use origen::utility::symlink;
+///
+/// // Create a symlink from my_file.rs to proj/files/my_file.rs
+/// symlink(Path::new("my_file.rs"), Path::new("proj/files/my_file.rs"));
+/// ```
+pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> Result<()> {
+    #[cfg(windows)]
+    {
+        if source.is_dir() {
+            Ok(std::os::windows::fs::symlink_dir(src, dst)?)
+        } else {
+            Ok(std::os::windows::fs::symlink_file(src, dst)?)
+        }
+    }
+    #[cfg(unix)]
+    {
+        Ok(std::os::unix::fs::symlink(src, dst)?)
+    }
+}
+
+/// Recursively copy the given directory from the source to the destination
+pub fn copy_dir(source: &Path, dest: &Path) -> Result<()> {
+    let mut options = fs_extra::dir::CopyOptions::new(); //Initialize default values for CopyOptions
+    options.copy_inside = true;
+
+    let mut from_paths = Vec::new();
+    from_paths.push(source);
+    fs_extra::copy_items(&from_paths, dest, &options)?;
+    Ok(())
+}

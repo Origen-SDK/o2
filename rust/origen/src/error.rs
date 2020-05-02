@@ -74,3 +74,15 @@ impl std::convert::From<git2::Error> for Error {
         Error::new(&err.to_string())
     }
 }
+
+impl std::convert::From<walkdir::Error> for Error {
+    fn from(err: walkdir::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<fs_extra::error::Error> for Error {
+    fn from(err: fs_extra::error::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}

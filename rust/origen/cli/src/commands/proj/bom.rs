@@ -1,8 +1,8 @@
+use super::package::Package;
 use super::{error, BOM_FILE};
 use indexmap::IndexMap;
-use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
+use origen::utility::{symlink, with_dir};
 use origen::{Error, Result};
-use origen::utility::with_dir;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
@@ -38,7 +38,7 @@ impl TempBOM {
             }
         }
         if let Some(links) = &self.links {
-            for (k,v) in links.iter() {
+            for (k, v) in links.iter() {
                 if bom.links.contains_key(k) {
                     return Err(Error::new(&format!(
                         "Duplicate link definition found: '{}'",
@@ -76,12 +76,12 @@ pub struct BOM {
 impl fmt::Display for BOM {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = "".to_string();
-        if self.links.len() > 0 { 
+        if self.links.len() > 0 {
             s += "[links]\n";
-            for (k,v) in self.links.iter() {
+            for (k, v) in self.links.iter() {
                 s += &format!("\"{}\" = \"{}\"\n", k, v);
             }
-            s+= "\n";
+            s += "\n";
         }
         for (_id, p) in self.packages.iter() {
             s += &p.to_string(0);
@@ -190,228 +190,17 @@ impl BOM {
                 let source = Path::new(source);
                 if !dest.exists() {
                     if source.exists() {
-                        //if cfg!(target_os = "windows") {
-                        //    if source.is_dir() {
-                        //       std::os::windows::fs::symlink_dir(source, dest)?;
-                        //    } else {
-                        //       std::os::windows::fs::symlink_file(source, dest)?;
-                        //    }
-                        //} else {
-                           std::os::unix::fs::symlink(source, dest)?;
-                        //}
-
+                        symlink(source, dest)?;
                     } else {
-                        return Err(Error::new(&format!("The target of link '{}' does not exist - '{}'",
-                                                      dest.display(), source.display())));
+                        return Err(Error::new(&format!(
+                            "The target of link '{}' does not exist - '{}'",
+                            dest.display(),
+                            source.display()
+                        )));
                     }
                 }
             }
             Ok(())
         })
-    }
-}
-
-#[derive(Debug, Deserialize, Clone, Serialize)]
-pub struct Package {
-    id: String,
-    path: Option<PathBuf>,
-    version: Option<String>,
-    repo: Option<String>,
-    copy: Option<PathBuf>,
-    link: Option<PathBuf>,
-    exclude: Option<bool>,
-    username: Option<String>,
-}
-
-impl fmt::Display for Package {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string(0))
-    }
-}
-
-impl Package {
-    /// Creates the package in the given workspace directory, will return an error
-    /// if something goes wrong with the revision control populate operation
-    pub fn create(&self, workspace_dir: &Path) -> Result<()> {
-        let mut path = workspace_dir.to_path_buf();
-        match &self.path {
-            None => path.push(self.id.clone()),
-            Some(x) => path.push(x),
-        }
-        match fs::create_dir_all(&path) {
-            Ok(()) => {}
-            Err(_e) => {
-                return Err(Error::new(&format!(
-                    "Couldn't create '{}', do you have the required permissions?",
-                    path.display()
-                )));
-            }
-        }
-        let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
-        rc.populate(self.version.as_ref().unwrap())?;
-        log_success!("Successfully created package '{}'", self.id);
-        Ok(())
-    }
-
-    /// Updates the package in the given workspace directory, will return an error
-    /// if something goes wrong with the underlying revision control checkout operation,
-    /// or if the package dir resolved from the BOM does not exist
-    pub fn update(&self, workspace_dir: &Path) -> Result<()> {
-        let mut path = workspace_dir.to_path_buf();
-        match &self.path {
-            None => path.push(self.id.clone()),
-            Some(x) => path.push(x),
-        }
-        if !path.exists() {
-            return Err(Error::new(&format!(
-                "Expected to find package '{}' at '{}', but it doesn't exist",
-                self.id,
-                path.display()
-            )));
-        }
-        let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
-        rc.checkout(false, None, self.version.as_ref().unwrap())?;
-        Ok(())
-    }
-
-    fn credentials(&self) -> Option<Credentials> {
-        match &self.username {
-            None => None,
-            Some(x) => Some(Credentials {
-                username: Some(x.clone()),
-                password: None,
-            }),
-        }
-    }
-
-    fn to_string(&self, indent: usize) -> String {
-        let i = " ".repeat(indent);
-        let mut s = format!("{}[[package]]\n", i);
-        s += &format!("{}id = \"{}\"\n", i, self.id);
-        if let Some(x) = &self.path {
-            s += &format!("{}path = \"{}\"\n", i, x.display());
-        }
-        if let Some(x) = &self.version {
-            s += &format!("{}version = \"{}\"\n", i, x);
-        }
-        if let Some(x) = &self.repo {
-            s += &format!("{}repo = \"{}\"\n", i, x);
-        }
-        if let Some(x) = &self.username {
-            s += &format!("{}username = \"{}\"\n", i, x);
-        }
-        if let Some(x) = &self.copy {
-            s += &format!("{}copy = \"{}\"\n", i, x.display());
-        }
-        if let Some(x) = &self.link {
-            s += &format!("{}link = \"{}\"\n", i, x.display());
-        }
-        s += "\n";
-        s
-    }
-
-    fn merge(&mut self, p: &Package) {
-        match &p.path {
-            Some(x) => {
-                self.path = Some(x.clone());
-            }
-            None => {}
-        }
-        match &p.version {
-            Some(x) => {
-                self.version = Some(x.clone());
-            }
-            None => {}
-        }
-        match &p.exclude {
-            Some(x) => {
-                self.exclude = Some(x.clone());
-            }
-            None => {}
-        }
-        match &p.username {
-            Some(x) => {
-                self.username = Some(x.clone());
-            }
-            None => {}
-        }
-        match &p.repo {
-            Some(x) => {
-                self.repo = Some(x.clone());
-                self.copy = None;
-                self.link = None;
-            }
-            None => {}
-        }
-        match &p.copy {
-            Some(x) => {
-                self.copy = Some(x.clone());
-                self.repo = None;
-                self.link = None;
-                self.version = None;
-            }
-            None => {}
-        }
-        match &p.link {
-            Some(x) => {
-                self.link = Some(x.clone());
-                self.repo = None;
-                self.copy = None;
-                self.version = None;
-            }
-            None => {}
-        }
-    }
-
-    fn validate(&self) {
-        if self.has_no_source() {
-            error(
-                &format!(
-                    "Malformed BOM, package '{}' has no source defined:\n{}",
-                    self.id, self
-                ),
-                Some(1),
-            );
-        }
-        if self.has_missing_version() {
-            error(
-                &format!(
-                    "Malformed BOM, package '{}' has a repository defined, but no version:\n{}",
-                    self.id, self
-                ),
-                Some(1),
-            );
-        }
-        if self.has_multiple_sources() {
-            error(
-                &format!(
-                    "Malformed BOM, package '{}' has multiple sources defined:\n{}",
-                    self.id, self
-                ),
-                Some(1),
-            );
-        }
-    }
-
-    fn has_no_source(&self) -> bool {
-        self.repo.is_none() && self.copy.is_none() && self.link.is_none()
-    }
-
-    fn has_missing_version(&self) -> bool {
-        self.repo.is_some() && self.version.is_none()
-    }
-
-    fn has_multiple_sources(&self) -> bool {
-        let mut sources = 0;
-        if self.repo.is_some() {
-            sources += 1;
-        }
-        if self.copy.is_some() {
-            sources += 1;
-        }
-        if self.link.is_some() {
-            sources += 1;
-        }
-        sources > 1
     }
 }
