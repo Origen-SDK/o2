@@ -38,7 +38,8 @@ main() {
         cargo test --target $TARGET
         # cli tests were skipped above
         cd cli
-        export TRAVIS_ORIGEN_CLI="../target/$TARGET/debug/origen"
+        # don't know why this isn't set by cargo in the ci env
+        export CARGO_BIN_EXE_ORIGEN="../target/$TARGET/debug/origen"
         cargo test --target $TARGET
         cd ../../
     else

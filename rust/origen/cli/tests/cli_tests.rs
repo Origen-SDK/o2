@@ -1,7 +1,7 @@
 
 // Global commands could go here the working dir is the target/debug dir.
 //
-// I initially tried using predicates and assert_cmd and didn't
+// Initially tried using predicates and assert_cmd, but didn't
 // find them especially helpful. They can be added as dev dependencies.
 //
 // See the following:
@@ -20,12 +20,13 @@ use std::process::Command;
 // wasn't happening. So, I'm setting another env and checking for it if the cargo
 // env isn't set. Probably could have just used the same env var name...
 fn ogn_cmd() -> String {
-    let retval;
-    match option_env!("CARGO_BIN_EXE_ORIGEN"){
-        Some(x) => retval = x,
-        None => retval = option_env!("TRAVIS_ORIGEN_CLI").unwrap(),
-    }
-    String::from(retval)
+    option_env!("CARGO_BIN_EXE_ORIGEN").unwrap().to_string()
+    // let retval;
+    // match option_env!("CARGO_BIN_EXE_ORIGEN"){
+    //     Some(x) => retval = x,
+    //     None => retval = option_env!("TRAVIS_ORIGEN_CLI").unwrap(),
+    // }
+    // String::from(retval)
 }
 
 #[test]
