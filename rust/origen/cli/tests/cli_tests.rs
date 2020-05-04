@@ -15,18 +15,9 @@
 
 use std::process::Command;
 
-// There's probably a prettier way to do this, but don't feel like fighting at the moment
-// Cargo sets an env var to point to the executable for testing. In the CI env that
-// wasn't happening. So, I'm setting another env and checking for it if the cargo
-// env isn't set. Probably could have just used the same env var name...
+// Cargo sets an env var to point to the executable for testing.
 fn ogn_cmd() -> String {
-    option_env!("CARGO_BIN_EXE_ORIGEN").unwrap().to_string()
-    // let retval;
-    // match option_env!("CARGO_BIN_EXE_ORIGEN"){
-    //     Some(x) => retval = x,
-    //     None => retval = option_env!("TRAVIS_ORIGEN_CLI").unwrap(),
-    // }
-    // String::from(retval)
+    env!("CARGO_BIN_EXE_ORIGEN").to_string()
 }
 
 #[test]
