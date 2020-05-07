@@ -1,13 +1,17 @@
 {% extends "basic/layout.html" %}
 
-{% set logo = "origen-device.png" %}
-{% set favicon = "favicon-32x32.png" %}
-
 {% block htmltitle %}
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     {{ super() }}
+{% endblock %}
+
+{% block extrahead %}
+{{ super() }}
+{%- if theme_favicon and not favicon %}
+<link rel="shortcut icon" href="{{ theme_favicon if theme_favicon_raw_src else pathto('_static/' + theme_favicon, 1) }}"/>
+{%- endif %}
 {% endblock %}
 
 {%- macro sphinxsidebar() %}

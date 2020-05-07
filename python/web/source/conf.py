@@ -37,6 +37,11 @@ extensions = [
   'origen.web.sphinx_ext.sphinx',
   'rustdoc',
   'sphinx.ext.autodoc',
+
+  # Causes a bunch of warnings with the APIs. Need to look into this first
+  # It works, but the build output is ugly
+  #'sphinx.ext.autosectionlabel',
+
   'sphinx.ext.inheritance_diagram',
   'autoapi.sphinx',
   'recommonmark',
@@ -70,11 +75,16 @@ origen_subprojects = {
 }
 
 # Add any paths that contain templates here, relative to this directory.
-s = str(pathlib.Path(sphinxbootstrap4theme.get_path()).joinpath("sphinxbootstrap4theme"))
-print(s)
 templates_path = ['_templates']
-#exit()
 
+# Theme customizations
+html_theme_options = {
+  'navbar_links': [
+    ('Github', 'https://github.com/Origen-SDK/o2', True),
+    ('O1', 'https://origen-sdk.org/', True),
+    ('Example App', '_static/build/origen_sphinx_ext/example/sphinx_build/index', False)
+  ],
+}
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.

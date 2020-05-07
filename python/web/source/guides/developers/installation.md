@@ -1,5 +1,5 @@
 ```eval_rst
-:orphan:
+:name: installation
 ```
 
 ## Installation

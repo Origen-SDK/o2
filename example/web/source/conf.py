@@ -16,6 +16,9 @@
 import origen
 import origen.web
 
+import sys, os
+sys.path.insert(0, os.path.abspath('../../'))
+
 # -- Project information -----------------------------------------------------
 
 project = 'example'
@@ -33,8 +36,14 @@ release = '0.0.0'
 # ones.
 extensions = [
   'origen.web.sphinx_ext.sphinx',
+  'autoapi.sphinx',
   'recommonmark',
 ]
+autoapi_modules = {
+  'example.application': None
+}
+autoapi_output_dir = origen.web.interbuild_dir.joinpath('autoapi')
+autodoc_default_flags = ['members', 'undoc-members', 'inherited-members']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -48,8 +57,18 @@ exclude_patterns = []
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#
-html_theme = 'origen'
+html_theme_options = {
+  'navbar_links': [
+    ('Github', 'https://github.com/Origen-SDK/o2/tree/master/example', True)
+  ],
+  'logos': [
+    {
+      'src': '_static/example_logo.png',
+      'alt': 'Example',
+      'rel_src': True,
+    }
+  ]
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

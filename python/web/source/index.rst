@@ -18,6 +18,7 @@ Welcome to origen's documentation!
    guides/introduction
    guides/first_steps
    guides/device_modeling
+   guides/documenting/documenting
    guides/developers
 
 Indices and tables

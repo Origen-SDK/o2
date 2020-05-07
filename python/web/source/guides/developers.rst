@@ -3,6 +3,8 @@
 .. toctree::
   :hidden:
 
+  developers/installation
+
 Developers
 ==================================
 

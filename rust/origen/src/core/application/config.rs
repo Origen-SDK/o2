@@ -4,6 +4,7 @@ use crate::core::term;
 use crate::STATUS;
 use config::File;
 use std::path::PathBuf;
+use crate::core::utility::location::Location;
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -17,6 +18,8 @@ pub struct Config {
     pub output_directory: Option<String>,
     pub website_output_directory: Option<String>,
     pub website_source_directory: Option<String>,
+    pub website_release_location: Option<Location>,
+    pub website_release_name: Option<String>,
 }
 
 impl Config {
@@ -28,6 +31,8 @@ impl Config {
         self.output_directory = latest.output_directory;
         self.website_output_directory = latest.website_output_directory;
         self.website_source_directory = latest.website_source_directory;
+        self.website_release_location = latest.website_release_location;
+        self.website_release_name = latest.website_release_name;
     }
 }
 
@@ -65,6 +70,21 @@ impl Default for Config {
                 }
             }
         }
-        s.try_into().unwrap()
+
+        // Couldn't figure out how to get the config::Config to recongize the Location struct since the
+        // underlying converter to config::value::ValueKind is private.
+        // Instead, just pluck it out as string and set it to none before casting to our Config (Self)
+        // Then, after the cast, put it back in as the type we want (Location)
+        let loc;
+        match s.get_str("website_release_location") {
+            Ok(l) => loc = Some(l),
+            Err(_) => loc = None
+        }
+        s.set("website_release_location", None::<String>).unwrap();
+        let mut c: Self = s.try_into().unwrap();
+        if let Some(l) = loc {
+            c.website_release_location = Some(Location::new(&l));
+        }
+        c
     }
 }

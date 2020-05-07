@@ -10,6 +10,7 @@ mod services;
 mod timesets;
 mod producer;
 mod tester;
+mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
@@ -27,6 +28,8 @@ use logger::PyInit_logger;
 use producer::PyInit_producer;
 use services::PyInit_services;
 use tester::PyInit_tester;
+use utility::PyInit_utility;
+use utility::location::Location;
 
 #[macro_export]
 macro_rules! pypath {
@@ -63,6 +66,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(tester))?;
     m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;
+    m.add_wrapped(wrap_pymodule!(utility))?;
     Ok(())
 }
 
@@ -151,6 +155,17 @@ fn app_config(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item(
         "__website_source_directory__",
         &app_config.website_source_directory,
+    );
+    let _ = ret.set_item(
+        "website_release_location",
+        match &app_config.website_release_location {
+            Some(loc) => Py::new(py, Location {location: (*loc).clone()}).unwrap().to_object(py),
+            None => py.None()
+        }
+    );
+    let _ = ret.set_item(
+        "website_release_name",
+        &app_config.website_release_name,
     );
     Ok(ret.into())
 }

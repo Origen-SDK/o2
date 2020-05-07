@@ -10,7 +10,7 @@ Welcome to example's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   interbuild/autoapi/example.application/example.application
 
 Indices and tables
 ==================

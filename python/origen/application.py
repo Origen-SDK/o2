@@ -16,6 +16,8 @@ class Base:
     output_dir = _origen.output_directory()
     website_output_dir = _origen.website_output_directory()
     website_source_dir = _origen.website_source_directory()
+    website_release_location = _origen.app_config()['website_release_location']
+    website_release_name = _origen.app_config()['website_release_name']
     root = origen.root
     templates_dir = root.joinpath("templates")
 

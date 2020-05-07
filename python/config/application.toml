@@ -5,3 +5,5 @@ name = "core"
 #environment = "v93k"
 # To make your application workspace run in production mode by default
 #mode = "production"
+website_release_location = "https://github.com/Origen-SDK/Origen-SDK.github.io.git"
+website_release_name = "o2"
