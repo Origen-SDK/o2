@@ -103,26 +103,3 @@ A quick solution to this is running the following commands in your WSL environme
 
 
 All being well, you now have a booted Origen console and an app instance available. e.g. `origen.app.config` should return a DICT from the values defined in `config/application.toml`.
-
-
-
-
-### Screenshots of the above process
-
-![image](https://user-images.githubusercontent.com/3895377/69558867-95aa3300-0f6e-11ea-9b80-ae9cd7fb8e81.png)
-![image](https://user-images.githubusercontent.com/3895377/69559347-6647f600-0f6f-11ea-97d6-0414de2339d5.png)
-![image](https://user-images.githubusercontent.com/3895377/69559358-6c3dd700-0f6f-11ea-8ee3-af2fe0bd318d.png)
-![image](https://user-images.githubusercontent.com/3895377/69559433-90011d00-0f6f-11ea-9704-baf195b97daa.png)
-![image](https://user-images.githubusercontent.com/3895377/69559492-a6a77400-0f6f-11ea-8b7d-46a95d3b6573.png)
-![image](https://user-images.githubusercontent.com/3895377/69559551-c8a0f680-0f6f-11ea-9e40-d971b0a36afb.png)
-![image](https://user-images.githubusercontent.com/3895377/69559574-cfc80480-0f6f-11ea-9053-7a037b67cbb6.png)
-![image](https://user-images.githubusercontent.com/3895377/69559585-d5bde580-0f6f-11ea-9392-ea9622b03551.png)
-![image](https://user-images.githubusercontent.com/3895377/69559611-dd7d8a00-0f6f-11ea-96c1-56a3ec4b9c23.png)
-![image](https://user-images.githubusercontent.com/3895377/69559629-e9694c00-0f6f-11ea-9dde-d6158a51bf8d.png)
-![image](https://user-images.githubusercontent.com/3895377/69559691-0867de00-0f70-11ea-96bf-e2cd680d87d5.png)
-![image](https://user-images.githubusercontent.com/3895377/69559712-13bb0980-0f70-11ea-867f-c8012268ab06.png)
-![image](https://user-images.githubusercontent.com/3895377/69559744-23d2e900-0f70-11ea-9da5-3e7bd7320104.png)
-![image](https://user-images.githubusercontent.com/3895377/69559758-2c2b2400-0f70-11ea-829a-1268404321b0.png)
-![image](https://user-images.githubusercontent.com/3895377/69559897-6dbbcf00-0f70-11ea-9b7d-f6a1e8b3de10.png)
-![image](https://user-images.githubusercontent.com/3895377/69559928-79a79100-0f70-11ea-9641-1728ec7ea31f.png)
-![image](https://user-images.githubusercontent.com/3895377/69560272-1c600f80-0f71-11ea-9951-d326591847b0.png)
