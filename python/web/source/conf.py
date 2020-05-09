@@ -48,6 +48,7 @@ extensions = [
 ]
 
 rustdoc_output_dir = origen.web.static_dir.joinpath('rustdoc')
+rustdoc_apply_svg_workarounds = True
 rustdoc_projects = {
   'pyapi': {
     'source': origen.root.joinpath('../rust/pyapi'),
