@@ -16,22 +16,22 @@ macro_rules! node {
 #[macro_export]
 macro_rules! exit_success {
     () => {
-        display_green!(
+        display_greenln!(
             r#"     _______. __    __    ______   ______  _______      _______.     _______."#
         );
-        display_green!(
+        display_greenln!(
             r#"    /       ||  |  |  |  /      | /      ||   ____|    /       |    /       |"#
         );
-        display_green!(
+        display_greenln!(
             r#"   |   (----`|  |  |  | |  ,----'|  ,----'|  |__      |   (----`   |   (----`"#
         );
-        display_green!(
+        display_greenln!(
             r#"    \   \    |  |  |  | |  |     |  |     |   __|      \   \        \   \    "#
         );
-        display_green!(
+        display_greenln!(
             r#".----)   |   |  `--'  | |  `----.|  `----.|  |____ .----)   |   .----)   |   "#
         );
-        display_green!(
+        display_greenln!(
             r#"|_______/     \______/   \______| \______||_______||_______/    |_______/    "#
         );
         std::process::exit(0);
@@ -42,12 +42,12 @@ macro_rules! exit_success {
 #[macro_export]
 macro_rules! exit_pass {
     () => {
-        display_green!(r#".______      ___           _______.     _______."#);
-        display_green!(r#"|   _  \    /   \         /       |    /       |"#);
-        display_green!(r#"|  |_)  |  /  ^  \       |   (----`   |   (----`"#);
-        display_green!(r#"|   ___/  /  /_\  \       \   \        \   \    "#);
-        display_green!(r#"|  |     /  _____  \  .----)   |   .----)   |   "#);
-        display_green!(r#"| _|    /__/     \__\ |_______/    |_______/    "#);
+        display_greenln!(r#".______      ___           _______.     _______."#);
+        display_greenln!(r#"|   _  \    /   \         /       |    /       |"#);
+        display_greenln!(r#"|  |_)  |  /  ^  \       |   (----`   |   (----`"#);
+        display_greenln!(r#"|   ___/  /  /_\  \       \   \        \   \    "#);
+        display_greenln!(r#"|  |     /  _____  \  .----)   |   .----)   |   "#);
+        display_greenln!(r#"| _|    /__/     \__\ |_______/    |_______/    "#);
         std::process::exit(0);
     };
 }
@@ -56,12 +56,12 @@ macro_rules! exit_pass {
 #[macro_export]
 macro_rules! exit_fail {
     () => {
-        display_red!(r#" _______    ___       __   __      "#);
-        display_red!(r#"|   ____|  /   \     |  | |  |     "#);
-        display_red!(r#"|  |__    /  ^  \    |  | |  |     "#);
-        display_red!(r#"|   __|  /  /_\  \   |  | |  |     "#);
-        display_red!(r#"|  |    /  _____  \  |  | |  `----."#);
-        display_red!(r#"|__|   /__/     \__\ |__| |_______|"#);
+        display_redln!(r#" _______    ___       __   __      "#);
+        display_redln!(r#"|   ____|  /   \     |  | |  |     "#);
+        display_redln!(r#"|  |__    /  ^  \    |  | |  |     "#);
+        display_redln!(r#"|   __|  /  /_\  \   |  | |  |     "#);
+        display_redln!(r#"|  |    /  _____  \  |  | |  `----."#);
+        display_redln!(r#"|__|   /__/     \__\ |__| |_______|"#);
         std::process::exit(1);
     };
 }
@@ -70,12 +70,12 @@ macro_rules! exit_fail {
 #[macro_export]
 macro_rules! exit_error {
     () => {
-        display_red!(r#" _______ .______      .______        ______   .______      "#);
-        display_red!(r#"|   ____||   _  \     |   _  \      /  __  \  |   _  \     "#);
-        display_red!(r#"|  |__   |  |_)  |    |  |_)  |    |  |  |  | |  |_)  |    "#);
-        display_red!(r#"|   __|  |      /     |      /     |  |  |  | |      /     "#);
-        display_red!(r#"|  |____ |  |\  \----.|  |\  \----.|  `--'  | |  |\  \----."#);
-        display_red!(r#"|_______|| _| `._____|| _| `._____| \______/  | _| `._____|"#);
+        display_redln!(r#" _______ .______      .______        ______   .______      "#);
+        display_redln!(r#"|   ____||   _  \     |   _  \      /  __  \  |   _  \     "#);
+        display_redln!(r#"|  |__   |  |_)  |    |  |_)  |    |  |  |  | |  |_)  |    "#);
+        display_redln!(r#"|   __|  |      /     |      /     |  |  |  | |      /     "#);
+        display_redln!(r#"|  |____ |  |\  \----.|  |\  \----.|  `--'  | |  |\  \----."#);
+        display_redln!(r#"|_______|| _| `._____|| _| `._____| \______/  | _| `._____|"#);
         std::process::exit(1);
     };
 }
@@ -98,6 +98,14 @@ macro_rules! display {
 }
 
 #[macro_export]
+macro_rules! displayln {
+    ($($arg:tt)*) => {{
+        let formatted = std::fmt::format(format_args!($($arg)*));
+        crate::LOGGER.displayln(&formatted);
+    }}
+}
+
+#[macro_export]
 macro_rules! display_green {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
@@ -106,10 +114,26 @@ macro_rules! display_green {
 }
 
 #[macro_export]
+macro_rules! display_greenln {
+    ($($arg:tt)*) => {{
+        let formatted = std::fmt::format(format_args!($($arg)*));
+        crate::LOGGER.display_greenln(&formatted);
+    }}
+}
+
+#[macro_export]
 macro_rules! display_red {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
         crate::LOGGER.display_red(&formatted);
+    }}
+}
+
+#[macro_export]
+macro_rules! display_redln {
+    ($($arg:tt)*) => {{
+        let formatted = std::fmt::format(format_args!($($arg)*));
+        crate::LOGGER.display_redln(&formatted);
     }}
 }
 

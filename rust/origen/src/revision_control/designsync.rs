@@ -1,9 +1,9 @@
 use super::{Credentials, RevisionControlAPI};
-use crate::utility::with_dir;
+use crate::utility::command_helpers::log_stdout_and_stderr;
+use crate::utility::file_utils::with_dir;
 use crate::{Error, Result};
 use regex::Regex;
 use std::fs;
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -34,43 +34,6 @@ impl RevisionControlAPI for Designsync {
     fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
         self.pop(force, path, version)
     }
-}
-
-fn log_stdout_and_stderr(
-    process: &mut std::process::Child,
-    stdout_callback: Option<&mut dyn FnMut(&str)>,
-    stderr_callback: Option<&mut dyn FnMut(&str)>,
-) {
-    log_stdout(process, stdout_callback);
-    log_stderr(process, stderr_callback);
-}
-
-fn log_stdout(process: &mut std::process::Child, mut callback: Option<&mut dyn FnMut(&str)>) {
-    let stdout = process.stdout.take().unwrap();
-    let reader = BufReader::new(stdout);
-    reader
-        .lines()
-        .filter_map(|line| line.ok())
-        .for_each(|line| {
-            log_debug!("{}", line);
-            if let Some(f) = &mut callback {
-                f(&line);
-            }
-        });
-}
-
-fn log_stderr(process: &mut std::process::Child, mut callback: Option<&mut dyn FnMut(&str)>) {
-    let stdout = process.stderr.take().unwrap();
-    let reader = BufReader::new(stdout);
-    reader
-        .lines()
-        .filter_map(|line| line.ok())
-        .for_each(|line| {
-            log_error!("{}", line);
-            if let Some(f) = &mut callback {
-                f(&line);
-            }
-        });
 }
 
 impl Designsync {

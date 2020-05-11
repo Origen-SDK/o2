@@ -112,8 +112,9 @@ pub fn run(matches: &ArgMatches) {
             log_info!("Fetching {} packages", bom.packages.len());
             let mut errors = false;
             for (id, package) in &bom.packages {
+                display!("Populating '{}' ... ", id);
                 match package.create(&path) {
-                    Ok(()) => display_green!("OK"),
+                    Ok(()) => display_greenln!("OK"),
                     Err(e) => {
                         log_error!("{}", e);
                         log_error!("Failed to create package '{}'", id);
@@ -127,7 +128,7 @@ pub fn run(matches: &ArgMatches) {
             if errors {
                 exit_error!();
             } else {
-                exit_success!();
+                exit(0);
             }
         }
         Some("update") => {
@@ -161,7 +162,7 @@ pub fn run(matches: &ArgMatches) {
             if errors {
                 exit_error!();
             } else {
-                exit_success!();
+                exit(0);
             }
         }
         Some("bom") => {

@@ -72,26 +72,54 @@ impl Logger {
         Ok(())
     }
 
+    /// This is the same as calling 'print!' but with it also being captured to the log.
     /// Use for displaying output to the terminal when creating CLI tools. The given message will always
     /// be output to the console and without a timestamp.
     /// It will also appear in the log file with a timestamp.
     pub fn display(&self, message: &str) {
         self._log(0, "DISPLAY", message, &|_msg| {
+            print!("{}", message);
+            std::io::stdout().flush().unwrap();
+        });
+    }
+
+    /// Like display!, but appends a newline, this is like calling println! but it also appears in the log.
+    pub fn displayln(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|_msg| {
             println!("{}", message);
+            std::io::stdout().flush().unwrap();
         });
     }
 
     /// See display
     pub fn display_green(&self, message: &str) {
         self._log(0, "DISPLAY", message, &|_msg| {
+            term::green(message);
+            std::io::stdout().flush().unwrap();
+        });
+    }
+
+    /// See displayln
+    pub fn display_greenln(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|_msg| {
             term::greenln(message);
+            std::io::stdout().flush().unwrap();
         });
     }
 
     /// See display
     pub fn display_red(&self, message: &str) {
         self._log(0, "DISPLAY", message, &|_msg| {
+            term::red(message);
+            std::io::stdout().flush().unwrap();
+        });
+    }
+
+    /// See displayln
+    pub fn display_redln(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|_msg| {
             term::redln(message);
+            std::io::stdout().flush().unwrap();
         });
     }
 

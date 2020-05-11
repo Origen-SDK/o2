@@ -2,7 +2,7 @@ pub mod config;
 pub mod target;
 
 use crate::app_config;
-use crate::utility::resolve_dir_from_app_root;
+use crate::utility::file_utils::resolve_dir_from_app_root;
 use std::path::PathBuf;
 
 pub fn output_directory() -> PathBuf {

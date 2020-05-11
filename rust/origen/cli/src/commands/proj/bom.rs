@@ -1,7 +1,7 @@
 use super::package::Package;
 use super::{error, BOM_FILE};
 use indexmap::IndexMap;
-use origen::utility::{symlink, with_dir};
+use origen::utility::file_utils::{symlink, with_dir};
 use origen::{Error, Result};
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};

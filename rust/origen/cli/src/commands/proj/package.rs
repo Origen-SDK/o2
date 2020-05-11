@@ -1,9 +1,13 @@
 use super::error;
+use flate2::read::GzDecoder;
 use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
-use origen::utility::{copy_dir, symlink, with_dir};
+use origen::utility::file_utils::{copy, copy_contents, mv, symlink};
 use origen::{Error, Result};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
+use tar::Archive;
+use tempfile::tempdir;
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct Package {
@@ -119,7 +123,37 @@ impl Package {
         let is_empty = dest.read_dir()?.next().is_none();
         if is_empty {
             if source.exists() {
-                copy_dir(source, dest)?;
+                if source.is_file() {
+                    fs::remove_dir_all(dest)?;
+                    let temp = tempdir()?;
+                    let temp_file = temp.path().join("temp_file");
+                    copy(source, &temp_file)?;
+                    let f = File::open(&temp_file)?;
+                    let gz = GzDecoder::new(f.try_clone()?);
+                    // If the file is g-zipped
+                    let result;
+                    let unpacked = temp.path().join("unpacked");
+                    if gz.header().is_some() {
+                        let mut archive = Archive::new(gz);
+                        result = archive.unpack(&unpacked);
+                    } else {
+                        let mut archive = Archive::new(f);
+                        result = archive.unpack(&unpacked);
+                    }
+                    if result.is_ok() && unpacked.exists() {
+                        let paths = fs::read_dir(&unpacked).unwrap();
+                        if paths.count() == 1 {
+                            let paths = fs::read_dir(&unpacked).unwrap();
+                            mv(&paths.last().unwrap()?.path(), dest)?;
+                        } else {
+                            mv(&unpacked, dest)?;
+                        }
+                    } else {
+                        mv(&temp_file, dest)?;
+                    }
+                } else {
+                    copy_contents(source, dest)?;
+                }
             } else {
                 return Err(Error::new(&format!(
                     "The copy target for package '{}' does not exist - '{}'",
