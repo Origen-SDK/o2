@@ -2,12 +2,12 @@
 macro_rules! node {
     ( $attr:ident, $( $x:expr ),* ) => {
         {
-            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr($( $x ),*))
+            $crate::generator::ast::Node::new($crate::generator::ast::Attrs::$attr($( $x ),*))
         }
     };
     ( $attr:ident ) => {
         {
-            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr)
+            $crate::generator::ast::Node::new($crate::generator::ast::Attrs::$attr)
         }
     };
 }
@@ -85,7 +85,7 @@ macro_rules! exit_error {
 macro_rules! error {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        Err(crate::Error::new(&formatted))
+        Err($crate::Error::new(&formatted))
     }}
 }
 
@@ -93,7 +93,7 @@ macro_rules! error {
 macro_rules! display {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.display(&formatted);
+        $crate::LOGGER.display(&formatted);
     }}
 }
 
@@ -101,7 +101,7 @@ macro_rules! display {
 macro_rules! displayln {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.displayln(&formatted);
+        $crate::LOGGER.displayln(&formatted);
     }}
 }
 
@@ -109,7 +109,7 @@ macro_rules! displayln {
 macro_rules! display_green {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.display_green(&formatted);
+        $crate::LOGGER.display_green(&formatted);
     }}
 }
 
@@ -117,7 +117,7 @@ macro_rules! display_green {
 macro_rules! display_greenln {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.display_greenln(&formatted);
+        $crate::LOGGER.display_greenln(&formatted);
     }}
 }
 
@@ -125,7 +125,7 @@ macro_rules! display_greenln {
 macro_rules! display_red {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.display_red(&formatted);
+        $crate::LOGGER.display_red(&formatted);
     }}
 }
 
@@ -133,7 +133,7 @@ macro_rules! display_red {
 macro_rules! display_redln {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.display_redln(&formatted);
+        $crate::LOGGER.display_redln(&formatted);
     }}
 }
 
@@ -141,7 +141,7 @@ macro_rules! display_redln {
 macro_rules! log_debug {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.debug(&formatted);
+        $crate::LOGGER.debug(&formatted);
     }}
 }
 
@@ -149,7 +149,7 @@ macro_rules! log_debug {
 macro_rules! log_info {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.info(&formatted);
+        $crate::LOGGER.info(&formatted);
     }}
 }
 
@@ -157,7 +157,7 @@ macro_rules! log_info {
 macro_rules! log_deprecated {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.deprecated(&formatted);
+        $crate::LOGGER.deprecated(&formatted);
     }}
 }
 
@@ -165,7 +165,7 @@ macro_rules! log_deprecated {
 macro_rules! log_error {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.error(&formatted);
+        $crate::LOGGER.error(&formatted);
     }}
 }
 
@@ -173,7 +173,7 @@ macro_rules! log_error {
 macro_rules! log_success {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.success(&formatted);
+        $crate::LOGGER.success(&formatted);
     }}
 }
 
@@ -181,7 +181,7 @@ macro_rules! log_success {
 macro_rules! log_warning {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.warning(&formatted);
+        $crate::LOGGER.warning(&formatted);
     }}
 }
 
@@ -189,6 +189,6 @@ macro_rules! log_warning {
 macro_rules! log_trace {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
-        crate::LOGGER.trace(&formatted);
+        $crate::LOGGER.trace(&formatted);
     }}
 }

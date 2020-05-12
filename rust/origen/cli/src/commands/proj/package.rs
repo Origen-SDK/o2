@@ -1,8 +1,8 @@
-use super::error;
+use super::error_and_exit;
 use flate2::read::GzDecoder;
 use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
 use origen::utility::file_utils::{copy, copy_contents, mv, symlink};
-use origen::{Error, Result};
+use origen::Result;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
@@ -35,10 +35,10 @@ impl Package {
         match fs::create_dir_all(&path) {
             Ok(()) => {}
             Err(_e) => {
-                return Err(Error::new(&format!(
+                return error!(
                     "Couldn't create '{}', do you have the required permissions?",
                     path.display()
-                )));
+                );
             }
         }
         if self.link.is_some() {
@@ -56,22 +56,25 @@ impl Package {
     /// Updates the package in the given workspace directory, will return an error
     /// if something goes wrong with the underlying revision control checkout operation,
     /// or if the package dir resolved from the BOM does not exist
-    pub fn update(&self, workspace_dir: &Path) -> Result<()> {
+    pub fn update(&self, workspace_dir: &Path, force: bool) -> Result<()> {
         let path = self.path(workspace_dir);
         if !path.exists() {
-            return Err(Error::new(&format!(
+            return error!(
                 "Expected to find package '{}' at '{}', but it doesn't exist",
                 self.id,
                 path.display()
-            )));
+            );
         }
+        // If the package is currently defined as a link
         if self.link.is_some() {
             self.create_from_link(&path)?;
+        // If the package is currently defined as copy
         } else if self.copy.is_some() {
             self.create_from_copy(&path, false)?;
+        // If the package is currently defined as a revision control reference
         } else {
             let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
-            rc.checkout(false, None, self.version.as_ref().unwrap())?;
+            rc.checkout(force, None, self.version.as_ref().unwrap())?;
         }
         Ok(())
     }
@@ -84,6 +87,10 @@ impl Package {
             Some(x) => path.push(x),
         }
         path
+    }
+
+    pub fn is_excluded(&self) -> bool {
+        self.exclude.unwrap_or(false)
     }
 
     fn create_from_link(&self, dest: &Path) -> Result<()> {
@@ -100,12 +107,12 @@ impl Package {
             if source.exists() {
                 symlink(source, dest)?;
             } else {
-                return Err(Error::new(&format!(
+                return error!(
                     "The target of link '{}' for package '{}' does not exist - '{}'",
                     dest.display(),
                     self.id,
                     source.display()
-                )));
+                );
             }
         }
         Ok(())
@@ -155,11 +162,11 @@ impl Package {
                     copy_contents(source, dest)?;
                 }
             } else {
-                return Err(Error::new(&format!(
+                return error!(
                     "The copy target for package '{}' does not exist - '{}'",
                     self.id,
                     source.display()
-                )));
+                );
             }
         } else {
             // What to do if it exists and not empty?
@@ -258,7 +265,7 @@ impl Package {
 
     pub fn validate(&self) {
         if self.has_no_source() {
-            error(
+            error_and_exit(
                 &format!(
                     "Malformed BOM, package '{}' has no source defined:\n{}",
                     self.id, self
@@ -267,7 +274,7 @@ impl Package {
             );
         }
         if self.has_missing_version() {
-            error(
+            error_and_exit(
                 &format!(
                     "Malformed BOM, package '{}' has a repository defined, but no version:\n{}",
                     self.id, self
@@ -276,7 +283,7 @@ impl Package {
             );
         }
         if self.has_multiple_sources() {
-            error(
+            error_and_exit(
                 &format!(
                     "Malformed BOM, package '{}' has multiple sources defined:\n{}",
                     self.id, self

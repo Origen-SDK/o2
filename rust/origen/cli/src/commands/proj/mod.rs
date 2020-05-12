@@ -19,7 +19,7 @@ pub fn run(matches: &ArgMatches) {
             let dir = get_dir_or_pwd(matches.subcommand_matches("init").unwrap());
             let f = dir.join(BOM_FILE);
             if f.exists() {
-                error(
+                error_and_exit(
                     &format!("Found an existing '{}' in '{}'", BOM_FILE, dir.display()),
                     Some(1),
                 );
@@ -48,7 +48,7 @@ pub fn run(matches: &ArgMatches) {
             }
             let bom = BOM::for_dir(&dir);
             if bom.files.len() == 0 {
-                error(
+                error_and_exit(
                     &format!(
                         "No BOM files were found within the parent directories of '{}'",
                         path.display()
@@ -61,7 +61,7 @@ pub fn run(matches: &ArgMatches) {
                 let is_empty: bool = match path.read_dir() {
                     Ok(mut x) => x.next().is_none(),
                     Err(_e) => {
-                        error(
+                        error_and_exit(
                             &format!(
                                 "There was a problem reading directory '{}', do you have permission to read it?:",
                                 path.display(),
@@ -74,12 +74,12 @@ pub fn run(matches: &ArgMatches) {
                 if !is_empty {
                     let b = BOM::for_dir(&path);
                     if b.is_workspace() {
-                        error(
+                        error_and_exit(
                             &format!("The workspace '{}' already exists, did you mean to run the 'update' command instead?", path.display()),
                             Some(1),
                         );
                     } else {
-                        error(
+                        error_and_exit(
                             &format!("The directory '{}' already exists, though it does not appear to be a workspace, did you give the correct path?", path.display()),
                             Some(1),
                         );
@@ -89,7 +89,7 @@ pub fn run(matches: &ArgMatches) {
                 validate_path(&path, false, true);
             }
             if bom.is_workspace() {
-                error(
+                error_and_exit(
                     &format!("A workspace can't be created within a workspace.\nCan't create a workspace at '{}' because '{}' is a workspace", path.display(),
                     bom.files.last().unwrap().parent().unwrap().display()
                 ),
@@ -132,29 +132,66 @@ pub fn run(matches: &ArgMatches) {
             }
         }
         Some("update") => {
-            let mut packages: Vec<PathBuf> = match matches.values_of("packages") {
+            let matches = matches.subcommand_matches("update").unwrap();
+            let force = matches.is_present("force");
+            let package_args: Vec<PathBuf> = match matches.values_of("packages") {
                 Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
                 None => vec![],
             };
             let bom = BOM::for_dir(&pwd());
             if !bom.is_workspace() {
-                error("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+                error_and_exit("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
             let mut errors = false;
-            if packages.is_empty() {
+            if package_args.is_empty() {
                 log_info!("Updating {} packages...", &bom.packages.len());
                 for (id, package) in &bom.packages {
-                    match package.update(bom.root()) {
-                        Ok(()) => display_green!("OK"),
-                        Err(e) => {
-                            log_error!("{}", e);
-                            log_error!("Failed to update package '{}'", id);
-                            errors = true;
+                    if package.is_excluded() {
+                        displayln!("Skipping '{}'", id);
+                    } else {
+                        display!("Updating '{}' ... ", id);
+                        match package.update(bom.root(), force) {
+                            Ok(()) => display_greenln!("OK"),
+                            Err(e) => {
+                                log_error!("{}", e);
+                                log_error!("Failed to update package '{}'", id);
+                                errors = true;
+                            }
                         }
                     }
                 }
             } else {
-                log_info!("Updating {} packages...", packages.len());
+                log_info!("Updating {} packages...", package_args.len());
+                for pkg_ref in package_args {
+                    match bom.packages_from_ref(&pkg_ref) {
+                        Err(e) => {
+                            log_error!("{}", e);
+                            log_error!("The package referece '{}' is invalid", pkg_ref.display());
+                            errors = true;
+                        }
+                        Ok(packages) => {
+                            if packages.is_empty() {
+                                log_error!(
+                                    "No package was found corresponding to '{}'",
+                                    pkg_ref.display()
+                                );
+                                errors = true;
+                            } else {
+                                for package in packages {
+                                    display!("Updating '{}' ... ", package.id);
+                                    match package.update(bom.root(), force) {
+                                        Ok(()) => display_greenln!("OK"),
+                                        Err(e) => {
+                                            log_error!("{}", e);
+                                            log_error!("Failed to update package '{}'", package.id);
+                                            errors = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             if bom.create_links().is_err() {
                 errors = true;
@@ -178,7 +215,7 @@ pub fn run(matches: &ArgMatches) {
 fn pwd() -> PathBuf {
     let dir = match env::current_dir() {
         Err(_e) => {
-            error("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?", Some(1));
+            error_and_exit("Something has gone wrong trying to resolve the PWD, is it stale or do you not have read access to it?", Some(1));
             unreachable!();
         }
         Ok(d) => d,
@@ -195,7 +232,7 @@ fn get_dir_or_pwd(matches: &ArgMatches) -> PathBuf {
     dir.canonicalize().unwrap()
 }
 
-fn error(msg: &str, exit_code: Option<i32>) {
+fn error_and_exit(msg: &str, exit_code: Option<i32>) {
     term::red("error: ");
     println!("{}", msg);
     if let Some(c) = exit_code {
@@ -210,13 +247,13 @@ fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
     if is_present {
         let t = if is_dir { "directory" } else { "file" }.to_string();
         if !path.exists() {
-            error(
+            error_and_exit(
                 &format!("The {} '{}' does not exist", t, path.display()),
                 Some(1),
             );
         }
         if is_dir && path.is_file() {
-            error(
+            error_and_exit(
                 &format!(
                     "Expected '{}' to be a directory, but it is a file",
                     path.display()
@@ -224,7 +261,7 @@ fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
                 Some(1),
             );
         } else if !is_dir && path.is_dir() {
-            error(
+            error_and_exit(
                 &format!(
                     "Expected '{}' to be a file, but it is a directory",
                     path.display()
@@ -233,7 +270,7 @@ fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
             );
         }
     } else if path.exists() {
-        error(
+        error_and_exit(
             &format!("The path '{}' already exists", path.display()),
             Some(1),
         );

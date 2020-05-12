@@ -1,8 +1,8 @@
 use super::package::Package;
-use super::{error, BOM_FILE};
+use super::{error_and_exit, BOM_FILE};
 use indexmap::IndexMap;
 use origen::utility::file_utils::{symlink, with_dir};
-use origen::{Error, Result};
+use origen::Result;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
@@ -29,10 +29,7 @@ impl TempBOM {
         if let Some(packages) = &self.package {
             for p in packages.iter() {
                 if bom.packages.contains_key(&p.id) {
-                    return Err(Error::new(&format!(
-                        "Duplicate package definition found: '{}'",
-                        p.id
-                    )));
+                    return error!("Duplicate package definition found: '{}'", p.id);
                 }
                 bom.packages.insert(p.id.clone(), p.clone());
             }
@@ -40,10 +37,7 @@ impl TempBOM {
         if let Some(links) = &self.links {
             for (k, v) in links.iter() {
                 if bom.links.contains_key(k) {
-                    return Err(Error::new(&format!(
-                        "Duplicate link definition found: '{}'",
-                        k
-                    )));
+                    return error!("Duplicate link definition found: '{}'", k);
                 }
                 bom.links.insert(k.clone(), v.clone());
             }
@@ -116,7 +110,7 @@ impl BOM {
             let content = match fs::read_to_string(&f) {
                 Ok(x) => x,
                 Err(e) => {
-                    error(
+                    error_and_exit(
                         &format!(
                             "There was a problem reading BOM file '{}':\n{}",
                             f.display(),
@@ -130,7 +124,7 @@ impl BOM {
             let new_bom: TempBOM = match toml::from_str(&content) {
                 Ok(x) => x,
                 Err(e) => {
-                    error(
+                    error_and_exit(
                         &format!("Malformed BOM file '{}':\n{}", f.display(), e),
                         Some(1),
                     );
@@ -140,7 +134,7 @@ impl BOM {
             match new_bom.to_bom() {
                 Ok(x) => bom.merge(x, &f),
                 Err(e) => {
-                    error(
+                    error_and_exit(
                         &format!("Malformed BOM file '{}': \n{}", f.display(), e.msg),
                         Some(1),
                     );
@@ -150,6 +144,34 @@ impl BOM {
         }
         bom.validate();
         bom
+    }
+
+    /// Returns the package(s) matching the given reference, where the reference can be either
+    /// a package ID, or a path to a directory within the BOM's workspace.
+    /// If a directory is given then a package is considered matched if the given directory is
+    /// a parent of the package's directory OR if the given directory is within the package's
+    /// top-level directory.
+    pub fn packages_from_ref(&self, pkg_ref: &Path) -> Result<Vec<&Package>> {
+        if let Some(id) = pkg_ref.to_str() {
+            if let Some(pkg) = self.packages.get(id) {
+                return Ok(vec![pkg]);
+            }
+        }
+        let pkg_ref = pkg_ref.canonicalize()?;
+        Ok(self
+            .packages
+            .iter()
+            .filter_map(|(_id, pkg)| {
+                let pkg_root = pkg.path(self.root());
+                if pkg_ref.strip_prefix(&pkg_root).is_ok()
+                    || pkg_root.strip_prefix(&pkg_ref).is_ok()
+                {
+                    Some(pkg)
+                } else {
+                    None
+                }
+            })
+            .collect())
     }
 
     fn merge(&mut self, bom: BOM, source: &Path) {
@@ -192,11 +214,11 @@ impl BOM {
                     if source.exists() {
                         symlink(source, dest)?;
                     } else {
-                        return Err(Error::new(&format!(
+                        return error!(
                             "The target of link '{}' does not exist - '{}'",
                             dest.display(),
                             source.display()
-                        )));
+                        );
                     }
                 }
             }
