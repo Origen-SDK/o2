@@ -745,6 +745,24 @@ impl StateTracker {
             .collect::<Vec<String>>())
     }
 
+    /// Return an iterator over the pins so the Renderer can map states to characters
+    /// The Renderer should map pin states to characters and construct the final
+    /// vector string like this:
+    ///
+    /// let my_vector_line = state_tracker_var.pin_iter()
+    ///                  .map(|(_pin, states)| {                     // (&String, &Vec<(PinActions, u8)>)
+    ///                      states.iter()                           // Iter<(PinActions, u8)>
+    ///                          .map(|(action, data)| {
+    ///                              match action { return a char }  // mapping to a tester char given data happens here
+    ///                          })
+    ///                          .collect::<Vec<String>>()           // this and next turns the pin group of pin characters into a string
+    ///                          .join("")
+    ///                   })
+    ///                   .collect::<Vec<String>>()                  // collects the pin group strings into a Vec of strings
+    pub fn pin_iter(&self) -> indexmap::map::Iter<String, Vec<(PinActions, u8)>> {
+        self.pins.iter()
+    }
+
     pub fn names(&self) -> Vec<String> {
         self.pins
             .keys()

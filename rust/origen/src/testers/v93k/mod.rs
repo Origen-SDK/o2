@@ -46,6 +46,21 @@ impl Renderer {
         }
         Ok(Return::Unmodified)
     }
+
+    fn char_mapper(&self, action: PinActions, data: u8) -> char {
+        match action {
+            PinActions::Drive => match data {
+                0 => '0',
+                _ => '1',
+            },
+            PinActions::Verify => match data {
+                0 => 'L',
+                _ => 'H',
+            },
+            PinActions::Capture => 'C',
+            PinActions::HighZ => 'Z',
+        }
+    }
 }
 
 impl Default for Renderer {
@@ -89,7 +104,7 @@ impl Processor for Renderer {
                 let mut p = output_directory();
                 p.push(self.name());
                 p.push(name);
-                p.set_extension(".avc");
+                p.set_extension("avc");
                 self.output_file = Some(File::create(p));
                 //self.output_file.write(PRODUCER.pattern_header());
                 Ok(Return::ProcessChildren)
@@ -118,17 +133,25 @@ impl Processor for Renderer {
                     self.pin_header_printed = true;
                 }
 
+                // The pin states should have been previously updated from the PinAction node, or just has default values
+                let vec_line = self.states
+                    .as_ref()
+                    .unwrap()
+                    .pin_iter()
+                    .map(|(_name, states)| {
+                        states
+                            .iter()
+                            .map(|(action, data)| self.char_mapper(*action, *data))
+                            .collect::<String>()
+                    })
+                    .collect::<Vec<String>>()
+                    .join(" ");
+
                 self.output_file.as_mut().unwrap().write_ln(&format!(
                     "R{} {} {} # <EoL Comment>;",
                     repeat,
                     t.name,
-                    // The pin states should have been previously updated from the PinAction node, or just has default values
-                    self.states
-                        .as_ref()
-                        .unwrap()
-                        .as_strings()
-                        .unwrap()
-                        .join(" ")
+                    vec_line
                 ));
                 Ok(Return::Unmodified)
             }
