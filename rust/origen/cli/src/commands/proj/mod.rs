@@ -126,15 +126,17 @@ pub fn run(matches: &ArgMatches) {
                     }
                 }
             }
-            display!("Creating links ... ");
-            // Create a new BOM instance for the new workspace so that create_links runs on the right root dir
-            let bom = BOM::for_dir(&path);
-            match bom.create_links(false) {
-                Ok(_) => display_greenln!("OK"),
-                Err(e) => {
-                    log_error!("There was a problem creating the workspace's links:");
-                    log_error!("{}", e);
-                    errors = true;
+            if !bom.links.is_empty() {
+                display!("Creating links ... ");
+                // Create a new BOM instance for the new workspace so that create_links runs on the right root dir
+                let bom = BOM::for_dir(&path);
+                match bom.create_links(false) {
+                    Ok(_) => display_greenln!("OK"),
+                    Err(e) => {
+                        log_error!("There was a problem creating the workspace's links:");
+                        log_error!("{}", e);
+                        errors = true;
+                    }
                 }
             }
             if errors {
@@ -267,19 +269,21 @@ pub fn run(matches: &ArgMatches) {
                 }
             }
             let mut links_force_required = false;
-            display!("Updating links ... ");
-            match bom.create_links(force) {
-                Ok(force_required) => {
-                    if !force_required {
-                        display_greenln!("OK");
-                    } else {
-                        links_force_required = true;
+            if !bom.links.is_empty() {
+                display!("Updating links ... ");
+                match bom.create_links(force) {
+                    Ok(force_required) => {
+                        if !force_required {
+                            display_greenln!("OK");
+                        } else {
+                            links_force_required = true;
+                        }
                     }
-                }
-                Err(e) => {
-                    log_error!("There was a problem creating the workspace's links:");
-                    log_error!("{}", e);
-                    errors = true;
+                    Err(e) => {
+                        log_error!("There was a problem creating the workspace's links:");
+                        log_error!("{}", e);
+                        errors = true;
+                    }
                 }
             }
             if errors {

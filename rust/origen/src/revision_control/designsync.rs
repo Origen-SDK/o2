@@ -65,9 +65,9 @@ impl Designsync {
             args.push(version);
             if force {
                 args.push("-force");
-            } else {
-                args.push("-merge");
             }
+            //    args.push("-merge");
+            //}
             args.push(path.to_str().unwrap());
             log_debug!("Running DesignSync command: dssc {}", args.join(" "));
             let mut process = Command::new("dssc")
