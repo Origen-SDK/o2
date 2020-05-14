@@ -27,6 +27,12 @@ impl fmt::Display for Package {
     }
 }
 
+impl PartialEq for Package {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl Package {
     /// Creates the package in the given workspace directory, will return an error
     /// if something goes wrong with the revision control populate operation
@@ -42,9 +48,9 @@ impl Package {
             }
         }
         if self.link.is_some() {
-            self.create_from_link(&path)?;
+            self.create_from_link(&path, true)?;
         } else if self.copy.is_some() {
-            self.create_from_copy(&path, false)?;
+            self.create_from_copy(&path, true)?;
         } else {
             let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
             rc.populate(self.version.as_ref().unwrap())?;
@@ -56,27 +62,38 @@ impl Package {
     /// Updates the package in the given workspace directory, will return an error
     /// if something goes wrong with the underlying revision control checkout operation,
     /// or if the package dir resolved from the BOM does not exist
-    pub fn update(&self, workspace_dir: &Path, force: bool) -> Result<()> {
+    pub fn update(&self, workspace_dir: &Path, force: bool) -> Result<bool> {
+        let mut force_required = false;
         let path = self.path(workspace_dir);
-        if !path.exists() {
-            return error!(
-                "Expected to find package '{}' at '{}', but it doesn't exist",
-                self.id,
-                path.display()
-            );
-        }
         // If the package is currently defined as a link
         if self.link.is_some() {
-            self.create_from_link(&path)?;
+            force_required = self.create_from_link(&path, force)?;
         // If the package is currently defined as copy
         } else if self.copy.is_some() {
-            self.create_from_copy(&path, false)?;
+            force_required = self.create_from_copy(&path, force)?;
         // If the package is currently defined as a revision control reference
         } else {
+            // If currently defined as a symlink, then delete it
+            if path.exists() && path.read_link().is_ok() {
+                fs::remove_file(&path)?;
+                fs::create_dir_all(&path)?;
+            }
+            if !path.exists() {
+                return error!(
+                    "Expected to find package '{}' at '{}', but it doesn't exist",
+                    self.id,
+                    path.display()
+                );
+            }
             let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
-            rc.checkout(force, None, self.version.as_ref().unwrap())?;
+            let is_empty = path.read_dir()?.next().is_none();
+            if is_empty {
+                rc.populate(self.version.as_ref().unwrap())?;
+            } else {
+                rc.checkout(force, None, self.version.as_ref().unwrap())?;
+            }
         }
-        Ok(())
+        Ok(force_required)
     }
 
     /// Returns a path to the package dir within the given workspace
@@ -93,14 +110,31 @@ impl Package {
         self.exclude.unwrap_or(false)
     }
 
-    fn create_from_link(&self, dest: &Path) -> Result<()> {
+    fn create_from_link(&self, dest: &Path, force: bool) -> Result<bool> {
+        let mut force_required = false;
         let source = self.link.as_ref().unwrap();
-        // If the package is currently implemented in some other way, then delete it
-        if dest.exists() && dest.read_link().is_err() {
-            if dest.is_dir() {
-                fs::remove_dir_all(dest)?;
-            } else {
-                fs::remove_file(dest)?;
+        if dest.exists() {
+            match dest.read_link() {
+                // If a symlink, just delete and re-create it to ensure it matches the latest target, don't
+                // need to worry about losing data in this case so don't bother the user about forcing
+                Ok(_) => {
+                    fs::remove_file(dest)?;
+                }
+                Err(_) => {
+                    if force {
+                        if dest.is_dir() {
+                            fs::remove_dir_all(dest)?;
+                        } else {
+                            fs::remove_file(dest)?;
+                        }
+                    } else {
+                        display_redln!("ERROR");
+                        log_error!(
+                            "Package is currently defined as a link but a previous (non-linked) definition exists in the workspace, --force is required to replace it"
+                        );
+                        force_required = true;
+                    }
+                }
             }
         }
         if !dest.exists() {
@@ -115,63 +149,68 @@ impl Package {
                 );
             }
         }
-        Ok(())
+        Ok(force_required)
     }
 
-    fn create_from_copy(&self, dest: &Path, recopy: bool) -> Result<()> {
+    fn create_from_copy(&self, dest: &Path, _force: bool) -> Result<bool> {
         let source = self.copy.as_ref().unwrap();
-        // If the package is currently implemented as a symlink, then delete it
-        if dest.exists() && (dest.read_link().is_ok() || dest.is_file()) {
+        // If the package is currently implemented as a symlink then delete it, don't
+        // need to worry about losing data in this case so don't bother the user about forcing
+        if dest.exists() && dest.read_link().is_ok() {
             fs::remove_file(dest)?;
         }
         if !dest.exists() {
             fs::create_dir_all(&dest)?;
         }
-        let is_empty = dest.read_dir()?.next().is_none();
-        if is_empty {
-            if source.exists() {
-                if source.is_file() {
-                    fs::remove_dir_all(dest)?;
-                    let temp = tempdir()?;
-                    let temp_file = temp.path().join("temp_file");
-                    copy(source, &temp_file)?;
-                    let f = File::open(&temp_file)?;
-                    let gz = GzDecoder::new(f.try_clone()?);
-                    // If the file is g-zipped
-                    let result;
-                    let unpacked = temp.path().join("unpacked");
-                    if gz.header().is_some() {
-                        let mut archive = Archive::new(gz);
-                        result = archive.unpack(&unpacked);
-                    } else {
-                        let mut archive = Archive::new(f);
-                        result = archive.unpack(&unpacked);
-                    }
-                    if result.is_ok() && unpacked.exists() {
-                        let paths = fs::read_dir(&unpacked).unwrap();
-                        if paths.count() == 1 {
-                            let paths = fs::read_dir(&unpacked).unwrap();
-                            mv(&paths.last().unwrap()?.path(), dest)?;
+        if dest.is_dir() {
+            let is_empty = dest.read_dir()?.next().is_none();
+            if is_empty {
+                if source.exists() {
+                    if source.is_file() {
+                        fs::remove_dir_all(dest)?;
+                        let temp = tempdir()?;
+                        let temp_file = temp.path().join("temp_file");
+                        copy(source, &temp_file)?;
+                        let f = File::open(&temp_file)?;
+                        let gz = GzDecoder::new(f.try_clone()?);
+                        // If the file is g-zipped
+                        let result;
+                        let unpacked = temp.path().join("unpacked");
+                        if gz.header().is_some() {
+                            let mut archive = Archive::new(gz);
+                            result = archive.unpack(&unpacked);
                         } else {
-                            mv(&unpacked, dest)?;
+                            let mut archive = Archive::new(f);
+                            result = archive.unpack(&unpacked);
+                        }
+                        if result.is_ok() && unpacked.exists() {
+                            let paths = fs::read_dir(&unpacked).unwrap();
+                            if paths.count() == 1 {
+                                let paths = fs::read_dir(&unpacked).unwrap();
+                                mv(&paths.last().unwrap()?.path(), dest)?;
+                            } else {
+                                mv(&unpacked, dest)?;
+                            }
+                        } else {
+                            mv(&temp_file, dest)?;
                         }
                     } else {
-                        mv(&temp_file, dest)?;
+                        copy_contents(source, dest)?;
                     }
                 } else {
-                    copy_contents(source, dest)?;
+                    return error!(
+                        "The copy target for package '{}' does not exist - '{}'",
+                        self.id,
+                        source.display()
+                    );
                 }
             } else {
-                return error!(
-                    "The copy target for package '{}' does not exist - '{}'",
-                    self.id,
-                    source.display()
-                );
+                // What to do when updating a copied directory?
             }
         } else {
-            // What to do if it exists and not empty?
+            // What to do when updating a copied file?
         }
-        Ok(())
+        Ok(false)
     }
 
     fn credentials(&self) -> Option<Credentials> {

@@ -5,6 +5,7 @@ use bom::BOM;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
 use origen::core::term;
+use package::Package;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::{env, fs};
@@ -103,7 +104,10 @@ pub fn run(matches: &ArgMatches) {
             // Write out a BOM file for the new workspace
             let mut tera = Tera::default();
             let mut context = Context::new();
-            context.insert("bom", &bom);
+            // Converting this to a vector here as the template was printing out the package list
+            // in reverse order when given the index map
+            let packages: Vec<&Package> = bom.packages.iter().map(|(_id, pkg)| pkg).collect();
+            context.insert("packages", &packages);
             let contents = tera
                 .render_str(include_str!("templates/workspace_bom.toml"), &context)
                 .unwrap();
@@ -122,9 +126,17 @@ pub fn run(matches: &ArgMatches) {
                     }
                 }
             }
-            if bom.create_links().is_err() {
-                errors = true;
-            };
+            display!("Creating links ... ");
+            // Create a new BOM instance for the new workspace so that create_links runs on the right root dir
+            let bom = BOM::for_dir(&path);
+            match bom.create_links(false) {
+                Ok(_) => display_greenln!("OK"),
+                Err(e) => {
+                    log_error!("There was a problem creating the workspace's links:");
+                    log_error!("{}", e);
+                    errors = true;
+                }
+            }
             if errors {
                 exit_error!();
             } else {
@@ -134,7 +146,12 @@ pub fn run(matches: &ArgMatches) {
         Some("update") => {
             let matches = matches.subcommand_matches("update").unwrap();
             let force = matches.is_present("force");
+            let links_only = matches.is_present("links");
             let package_args: Vec<PathBuf> = match matches.values_of("packages") {
+                Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
+                None => vec![],
+            };
+            let exclude_args: Vec<PathBuf> = match matches.values_of("exclude") {
                 Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
                 None => vec![],
             };
@@ -142,16 +159,59 @@ pub fn run(matches: &ArgMatches) {
             if !bom.is_workspace() {
                 error_and_exit("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
+            // Clean the package args to remove any overly broad references, such as a reference to "." (meaning
+            // the current workspace).
+            // References will override a package's exclude state from the BOM, however a user entering
+            // `origen proj update .` would probably expect it to behave like `origen proj update` and apply
+            // the default excludes. So we throwaway any references to the workspace and above to play it safe.
+            let package_args: Vec<&PathBuf> = package_args
+                .iter()
+                .filter(|pkg_ref| {
+                    let root = bom.root();
+                    match pkg_ref.canonicalize() {
+                        Err(_e) => true,
+                        Ok(p) => {
+                            let is_root = match p.strip_prefix(&root) {
+                                Err(_) => false,
+                                Ok(res) => res.to_str() == Some(""),
+                            };
+                            let above_workspace = root.strip_prefix(&p).is_ok();
+                            !is_root && !above_workspace
+                        }
+                    }
+                })
+                .collect();
+            // Turn any exclude args into package references
+            let mut exclude_packages: Vec<&Package> = vec![];
+            for pkg_ref in exclude_args {
+                match bom.packages_from_ref(&pkg_ref) {
+                    Err(_e) => log_warning!("Exclude reference '{}' did not resolve to any packages in the current workspace", pkg_ref.display()),
+                    Ok(packages) => {
+                        for pkg in packages {
+                            if !exclude_packages.contains(&pkg) {
+                                exclude_packages.push(&pkg);
+                            }
+                        }
+                    }
+                }
+            }
             let mut errors = false;
+            let mut packages_requiring_force: Vec<&str> = vec![];
             if package_args.is_empty() {
                 log_info!("Updating {} packages...", &bom.packages.len());
                 for (id, package) in &bom.packages {
-                    if package.is_excluded() {
+                    if package.is_excluded() || exclude_packages.contains(&package) || links_only {
                         displayln!("Skipping '{}'", id);
                     } else {
                         display!("Updating '{}' ... ", id);
                         match package.update(bom.root(), force) {
-                            Ok(()) => display_greenln!("OK"),
+                            Ok(force_required) => {
+                                if !force_required {
+                                    display_greenln!("OK");
+                                } else {
+                                    packages_requiring_force.push(id);
+                                }
+                            }
                             Err(e) => {
                                 log_error!("{}", e);
                                 log_error!("Failed to update package '{}'", id);
@@ -178,13 +238,26 @@ pub fn run(matches: &ArgMatches) {
                                 errors = true;
                             } else {
                                 for package in packages {
-                                    display!("Updating '{}' ... ", package.id);
-                                    match package.update(bom.root(), force) {
-                                        Ok(()) => display_greenln!("OK"),
-                                        Err(e) => {
-                                            log_error!("{}", e);
-                                            log_error!("Failed to update package '{}'", package.id);
-                                            errors = true;
+                                    if exclude_packages.contains(&package) || links_only {
+                                        displayln!("Skipping '{}'", package.id);
+                                    } else {
+                                        display!("Updating '{}' ... ", package.id);
+                                        match package.update(bom.root(), force) {
+                                            Ok(force_required) => {
+                                                if !force_required {
+                                                    display_greenln!("OK");
+                                                } else {
+                                                    packages_requiring_force.push(&package.id);
+                                                }
+                                            }
+                                            Err(e) => {
+                                                log_error!("{}", e);
+                                                log_error!(
+                                                    "Failed to update package '{}'",
+                                                    package.id
+                                                );
+                                                errors = true;
+                                            }
                                         }
                                     }
                                 }
@@ -193,13 +266,41 @@ pub fn run(matches: &ArgMatches) {
                     }
                 }
             }
-            if bom.create_links().is_err() {
-                errors = true;
-            };
+            let mut links_force_required = false;
+            display!("Updating links ... ");
+            match bom.create_links(force) {
+                Ok(force_required) => {
+                    if !force_required {
+                        display_greenln!("OK");
+                    } else {
+                        links_force_required = true;
+                    }
+                }
+                Err(e) => {
+                    log_error!("There was a problem creating the workspace's links:");
+                    log_error!("{}", e);
+                    errors = true;
+                }
+            }
             if errors {
                 exit_error!();
             } else {
-                exit(0);
+                if links_force_required || !packages_requiring_force.is_empty() {
+                    displayln!("");
+                    display_redln!("The update was not completed successfully due to the possibility of losing local work, you can run the following command to force alignment with the current BOM:");
+                    displayln!("");
+                    let mut command = "  origen proj update --force".to_string();
+                    if packages_requiring_force.is_empty() {
+                        command += " --links";
+                    } else {
+                        command += " ";
+                        command += &packages_requiring_force.join(" ");
+                    }
+                    displayln!("{}", command);
+                    exit(1);
+                } else {
+                    exit(0);
+                }
             }
         }
         Some("bom") => {

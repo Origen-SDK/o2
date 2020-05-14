@@ -205,11 +205,38 @@ impl BOM {
         self.files.last().unwrap().parent().unwrap()
     }
 
-    pub fn create_links(&self) -> Result<()> {
+    pub fn create_links(&self, force: bool) -> Result<bool> {
+        let mut force_required = false;
         with_dir(self.root(), || {
             for (dest, source) in self.links.iter() {
                 let dest = Path::new(dest);
                 let source = Path::new(source);
+                if dest.exists() {
+                    match dest.read_link() {
+                        // Means it is not a symlink
+                        Err(_) => {
+                            if force {
+                                if dest.is_file() {
+                                    std::fs::remove_file(dest)?;
+                                } else {
+                                    std::fs::remove_dir_all(dest)?;
+                                }
+                            } else {
+                                display_redln!("ERROR");
+                                log_error!(
+                                    "Could not create link '{}' as something already exists at that location, run again with --force to replace it",
+                                    dest.display()
+                                );
+                                force_required = true;
+                            }
+                        }
+                        Ok(_target) => {
+                            // Just delete any existing symlink and re-create it, don't need to worry about checking if it current
+                            // points to a different location - links are cheap and no risk of losing data
+                            std::fs::remove_file(dest)?;
+                        }
+                    }
+                }
                 if !dest.exists() {
                     if source.exists() {
                         symlink(source, dest)?;
@@ -222,7 +249,7 @@ impl BOM {
                     }
                 }
             }
-            Ok(())
+            Ok(force_required)
         })
     }
 }
