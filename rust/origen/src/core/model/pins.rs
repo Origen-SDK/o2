@@ -755,8 +755,7 @@ impl StateTracker {
     ///                          .map(|(action, data)| {
     ///                              match action { return a char }  // mapping to a tester char given data happens here
     ///                          })
-    ///                          .collect::<Vec<String>>()           // this and next turns the pin group of pin characters into a string
-    ///                          .join("")
+    ///                          .collect::<String>()                // this and next turns the pin group of pin characters into a string
     ///                   })
     ///                   .collect::<Vec<String>>()                  // collects the pin group strings into a Vec of strings
     pub fn pin_iter(&self) -> indexmap::map::Iter<String, Vec<(PinActions, u8)>> {
