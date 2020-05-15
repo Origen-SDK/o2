@@ -630,19 +630,20 @@ impl Dut {
 
 #[derive(Debug, Clone)]
 pub struct StateTracker {
-    pins: IndexMap<String, Vec<(PinActions, u8)>>,
+    pins: IndexMap<String, Vec<(String, PinActions, u8)>>,
     model_id: usize,
 }
 
 impl StateTracker {
     /// Creates a new state storage container. Creating a new instance populates the given groups with their reset data and actions.
     pub fn new(model_id: usize, pin_header_id: Option<usize>, dut: &Dut) -> Self {
-        let mut pins: IndexMap<String, Vec<(PinActions, u8)>> = IndexMap::new();
+        let mut pins: IndexMap<String, Vec<(String, PinActions, u8)>> = IndexMap::new();
         if let Some(id) = pin_header_id {
             for n in dut.pin_headers[id].pin_names.iter() {
-                let mut states: Vec<(PinActions, u8)> = vec![];
+                let mut states: Vec<(String, PinActions, u8)> = vec![];
                 for p in dut._resolve_group_to_physical_pins(model_id, n).unwrap() {
                     states.push((
+                        p.name.clone(),
                         p.reset_action.unwrap_or(PinActions::HighZ),
                         p.reset_data.unwrap_or(0) as u8,
                     ));
@@ -657,6 +658,8 @@ impl StateTracker {
                     pins.insert(
                         phys.name.clone(),
                         vec![(
+                            // unsure if this could be a group or guaranteed to be individual pin
+                            phys.name.clone(),
                             phys.reset_action.unwrap_or(PinActions::HighZ),
                             phys.reset_data.unwrap_or(0) as u8,
                         )],
@@ -682,10 +685,10 @@ impl StateTracker {
         // Check for the header pin in the aliases
         if let Some(states) = self.pins.get_mut(physical_pin) {
             if let Some(a) = action {
-                states[0].0 = a;
+                states[0].1 = a;
             }
             if let Some(d) = data {
-                states[0].1 = d;
+                states[0].2 = d;
             }
             return Ok(());
         }
@@ -694,10 +697,10 @@ impl StateTracker {
         for (grp, offset) in p.groups.iter() {
             if let Some(states) = self.pins.get_mut(grp) {
                 if let Some(a) = action {
-                    states[*offset].0 = a;
+                    states[*offset].1 = a;
                 }
                 if let Some(d) = data {
-                    states[*offset].1 = d;
+                    states[*offset].2 = d;
                 }
                 return Ok(());
             }
@@ -707,10 +710,10 @@ impl StateTracker {
         for alias in p.aliases.iter() {
             if let Some(states) = self.pins.get_mut(alias) {
                 if let Some(a) = action {
-                    states[0].0 = a;
+                    states[0].1 = a;
                 }
                 if let Some(d) = data {
-                    states[0].1 = d;
+                    states[0].2 = d;
                 }
                 return Ok(());
             }
@@ -731,19 +734,19 @@ impl StateTracker {
     ///     => ['1Z', '1', 'L']
     /// If a header was given, the order will be identical to that from the header. If no header was given, the order will be whatever order was when the default
     /// pins were collected.
-    pub fn as_strings(&self) -> Result<Vec<String>, Error> {
-        Ok(self
-            .pins
-            .iter()
-            .map(|(_n, states)| {
-                states
-                    .iter()
-                    .map(|(action, data)| action.as_tester_char(*data).to_string())
-                    .collect::<Vec<String>>()
-                    .join("")
-            })
-            .collect::<Vec<String>>())
-    }
+    // pub fn as_strings(&self) -> Result<Vec<String>, Error> {
+    //     Ok(self
+    //         .pins
+    //         .iter()
+    //         .map(|(_n, states)| {
+    //             states
+    //                 .iter()
+    //                 .map(|(action, data)| action.as_tester_char(*data).to_string())
+    //                 .collect::<Vec<String>>()
+    //                 .join("")
+    //         })
+    //         .collect::<Vec<String>>())
+    // }
 
     /// Return an iterator over the pins so the Renderer can map states to characters
     /// The Renderer should map pin states to characters and construct the final
@@ -758,10 +761,12 @@ impl StateTracker {
     ///                          .collect::<String>()                // this and next turns the pin group of pin characters into a string
     ///                   })
     ///                   .collect::<Vec<String>>()                  // collects the pin group strings into a Vec of strings
-    pub fn pin_iter(&self) -> indexmap::map::Iter<String, Vec<(PinActions, u8)>> {
+    ///                   .join(" ")                                 // joins into a full vector line
+    pub fn pin_state_iter(&self) -> indexmap::map::Iter<String, Vec<(String, PinActions, u8)>> {
         self.pins.iter()
     }
 
+    /// returns the pin (or group) names included in the vector data
     pub fn names(&self) -> Vec<String> {
         self.pins
             .keys()

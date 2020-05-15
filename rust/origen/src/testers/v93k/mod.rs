@@ -47,11 +47,17 @@ impl Renderer {
         Ok(Return::Unmodified)
     }
 
-    fn char_mapper(&self, action: PinActions, data: u8) -> char {
+    fn char_mapper(&self, name: &str, action: PinActions, data: u8) -> char {
         match action {
             PinActions::Drive => match data {
                 0 => '0',
-                _ => '1',
+                _ => {
+                    if name == "clk" {
+                        'P'
+                    } else {
+                        '1'
+                    }
+                },
             },
             PinActions::Verify => match data {
                 0 => 'L',
@@ -137,11 +143,11 @@ impl Processor for Renderer {
                 let vec_line = self.states
                     .as_ref()
                     .unwrap()
-                    .pin_iter()
-                    .map(|(_name, states)| {
+                    .pin_state_iter()
+                    .map(|(_grp_name, states)| {
                         states
                             .iter()
-                            .map(|(action, data)| self.char_mapper(*action, *data))
+                            .map(|(name, action, data)| self.char_mapper(name, *action, *data))
                             .collect::<String>()
                     })
                     .collect::<Vec<String>>()
