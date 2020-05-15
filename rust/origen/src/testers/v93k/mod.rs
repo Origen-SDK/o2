@@ -47,17 +47,14 @@ impl Renderer {
         Ok(Return::Unmodified)
     }
 
-    fn char_mapper(&self, name: &str, action: PinActions, data: u8) -> char {
+    /// Returns a char representation of the given pin name, PinActions, and data
+    /// TODO: This was copied from PinActions.as_tester_char() method, it should
+    ///       be modified as appropriate for V93K
+    fn char_mapper(&self, _name: &str, action: PinActions, data: u8) -> char {
         match action {
             PinActions::Drive => match data {
                 0 => '0',
-                _ => {
-                    if name == "clk" {
-                        'P'
-                    } else {
-                        '1'
-                    }
-                },
+                _ => '1',
             },
             PinActions::Verify => match data {
                 0 => 'L',

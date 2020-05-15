@@ -753,7 +753,7 @@ impl StateTracker {
     /// vector string like this:
     ///
     /// let my_vector_line = state_tracker_var.pin_iter()
-    ///                  .map(|(_pin, states)| {                     // (&String, &Vec<(PinActions, u8)>)
+    ///                  .map(|(_pin, states)| {                     // (&String, &Vec<(String, PinActions, u8)>)
     ///                      states.iter()                           // Iter<(PinActions, u8)>
     ///                          .map(|(pin_name, action, data)| {
     ///                              match action { return a char }  // mapping to a tester char given data happens here
@@ -766,7 +766,7 @@ impl StateTracker {
         self.pins.iter()
     }
 
-    /// returns the pin (or group) names included in the vector data
+    /// returns the pin (and/or group) names included in the vector data
     pub fn names(&self) -> Vec<String> {
         self.pins
             .keys()
