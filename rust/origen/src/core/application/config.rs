@@ -3,7 +3,7 @@ use crate::core::term;
 /// which will include the currently selected target settings form the workspace
 use crate::STATUS;
 use config::File;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:

@@ -1,7 +1,7 @@
 use super::stil;
+use crate::core::model::pins::pin::PinActions;
 use num_bigint::BigUint;
 use std::collections::HashMap;
-use crate::core::model::pins::pin::PinActions;
 
 type Id = usize;
 
@@ -21,7 +21,7 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     Test(String),
     Comment(u8, String), // level, msg
-    SetTimeset(usize), // Indicates both a set or change of the current timeset
+    SetTimeset(usize),   // Indicates both a set or change of the current timeset
     ClearTimeset,
     SetPinHeader(usize), // Indicates the pin header selected
     ClearPinHeader,

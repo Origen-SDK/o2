@@ -1,10 +1,10 @@
 //! A simple processor which will combine pin actions not separated by a cycle into a single PinAction node
 
+use crate::core::model::pins::pin::PinActions;
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::core::model::pins::pin::PinActions;
-use std::collections::HashMap;
 use crate::Result;
+use std::collections::HashMap;
 
 /// Combines adjacent pin actions into a single pin action
 pub struct PinActionCombiner {
@@ -23,10 +23,10 @@ pub struct PinActionCombiner {
 impl PinActionCombiner {
     pub fn run(node: &Node) -> Result<Node> {
         let mut p = PinActionCombiner {
-          current_state: HashMap::new(),
-          i: 0,
-          first_pass: true,
-          updated_indices: vec![],
+            current_state: HashMap::new(),
+            i: 0,
+            first_pass: true,
+            updated_indices: vec![],
         };
 
         node.process(&mut p)?.unwrap();
@@ -36,8 +36,8 @@ impl PinActionCombiner {
     }
 
     pub fn advance_to_second_pass(&mut self) {
-      self.i = 0;
-      self.first_pass = false;
+        self.i = 0;
+        self.first_pass = false;
     }
 }
 
@@ -46,35 +46,35 @@ impl Processor for PinActionCombiner {
         match &node.attrs {
             // Grab the pins and push them into the running vectors, then delete this node.
             Attrs::PinAction(pin_changes) => {
-              if self.first_pass {
-                // Compare to the last seen pin actions. If these are the same, then this node can be deleted on the next pass.
-                // If they're different, then these updates must be saved.
-                for (n, state) in pin_changes.iter() {
-                  if let Some(_state) = self.current_state.get_mut(n) {
-                    if _state.0 != state.0 || _state.1 != state.1 {
-                      // Update both in case they both changed. Quicker just to do the update than to add a bunch of conditionals.
-                      _state.0 = state.0;
-                      _state.1 = state.1;
-                      self.updated_indices.push(self.i);
+                if self.first_pass {
+                    // Compare to the last seen pin actions. If these are the same, then this node can be deleted on the next pass.
+                    // If they're different, then these updates must be saved.
+                    for (n, state) in pin_changes.iter() {
+                        if let Some(_state) = self.current_state.get_mut(n) {
+                            if _state.0 != state.0 || _state.1 != state.1 {
+                                // Update both in case they both changed. Quicker just to do the update than to add a bunch of conditionals.
+                                _state.0 = state.0;
+                                _state.1 = state.1;
+                                self.updated_indices.push(self.i);
+                            }
+                        } else {
+                            self.current_state.insert(n.to_string(), *state);
+                            self.updated_indices.push(self.i);
+                        }
                     }
-                  } else {
-                    self.current_state.insert(n.to_string(), *state);
-                    self.updated_indices.push(self.i);
-                  }
-                }
-                self.i += 1;
-                Ok(Return::Unmodified)
-              } else {
-                // Delete any pin action nodes whose indice is not presetn in the saved indices
-                if self.updated_indices.contains(&self.i) {
-                  self.i += 1;
-                  Ok(Return::Unmodified)
+                    self.i += 1;
+                    Ok(Return::Unmodified)
                 } else {
-                  self.i += 1;
-                  Ok(Return::None)
+                    // Delete any pin action nodes whose indice is not presetn in the saved indices
+                    if self.updated_indices.contains(&self.i) {
+                        self.i += 1;
+                        Ok(Return::Unmodified)
+                    } else {
+                        self.i += 1;
+                        Ok(Return::None)
+                    }
                 }
-              }
-            },
+            }
             _ => {
                 // For all other nodes, just advance.
                 self.i += 1;

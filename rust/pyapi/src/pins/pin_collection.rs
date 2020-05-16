@@ -1,3 +1,4 @@
+use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use origen::core::model::pins::pin_collection::PinCollection as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
@@ -5,7 +6,6 @@ use origen::{dut, DUT};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
-use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 
 #[pyclass]
 #[derive(Clone)]
@@ -162,7 +162,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinCollection {
 
 impl ListLikeAPI for PinCollection {
     fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize> {
-        let mut pin_ids: Vec<usize> = vec!();
+        let mut pin_ids: Vec<usize> = vec![];
         for pname in self.pin_collection.pin_names.iter() {
             pin_ids.push(dut._get_pin(self.model_id, pname).unwrap().id);
         }
@@ -171,10 +171,16 @@ impl ListLikeAPI for PinCollection {
 
     // Grabs a single pin and puts it in an anonymous pin collection
     fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject> {
-        Ok(Py::new(py, 
-            PinCollection::new(self.model_id, vec!(self.pin_collection.pin_names[idx].clone()), None)?)
-            .unwrap()
-            .to_object(py))
+        Ok(Py::new(
+            py,
+            PinCollection::new(
+                self.model_id,
+                vec![self.pin_collection.pin_names[idx].clone()],
+                None,
+            )?,
+        )
+        .unwrap()
+        .to_object(py))
     }
 
     fn __iter__(&self) -> PyResult<ListLikeIter> {
@@ -185,7 +191,7 @@ impl ListLikeAPI for PinCollection {
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
-        let mut names: Vec<String> = vec!();
+        let mut names: Vec<String> = vec![];
         {
             let indices = slice.indices((self.pin_collection.pin_names.len() as i32).into())?;
             let mut i = indices.start;
@@ -204,8 +210,8 @@ impl ListLikeAPI for PinCollection {
         let gil = Python::acquire_gil();
         let py = gil.python();
         Ok(Py::new(py, PinCollection::new(self.model_id, names, None)?)
-                .unwrap()
-                .to_object(py))
+            .unwrap()
+            .to_object(py))
     }
 }
 
