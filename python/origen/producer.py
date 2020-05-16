@@ -19,6 +19,7 @@ class Producer(_origen.producer.PyProducer):
       origen.tester.reset()
       origen.target.reload()
       origen.tester.clear_dut_dependencies(ast_name=pat.name)
+      origen.tester.generate_pattern_header(pat.header_comments)
 
       origen.logger.info(f"Producing Pattern {pat.name} with job ID {job.id}")
       origen.producer.issue_callback('startup', kwargs)
@@ -28,6 +29,7 @@ class Producer(_origen.producer.PyProducer):
       origen.tester.end_pattern()
       origen.tester.render()
 
+# (_origen.producer.PyPattern)
 class Pattern:
   def __init__(self, name, **kwargs):
     if name in kwargs:
@@ -43,3 +45,15 @@ class Pattern:
       processed_name = f"{processed_name}_{kwargs['postfix']}"
 
     self.name = processed_name
+
+    # Collect the header comments from:
+    #  * The application
+    #  * <To-do> Current plugin
+    #  * <To-do> Other plugins (if necessary)
+    #  * Pattern specifics given in the header
+    self.header_comments = {}
+    if origen.helpers.has_method(origen.app, "pattern_header"):
+      self.header_comments["app"] = origen.app.pattern_header(self)
+    
+    if "header_comments" in kwargs:
+      self.header_comments["pattern"] = kwargs["header_comments"]

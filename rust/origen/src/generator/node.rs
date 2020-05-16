@@ -90,6 +90,13 @@ impl Node {
         self.children.push(Box::new(node));
     }
 
+    pub fn add_children(&mut self, nodes: Vec<Node>) -> &Self {
+        for n in nodes {
+            self.add_child(n);
+        }
+        self
+    }
+
     pub fn insert_child(&mut self, node: Node, offset: usize) -> Result<()> {
         let len = self.children.len();
         if offset > len {
@@ -163,6 +170,19 @@ impl Node {
                 nodes.into_iter().map(|n| Box::new(n)).collect(),
             ))),
             Return::InlineBoxed(nodes) => Ok(Some(Node::inline(nodes))),
+            Return::UnwrapWithProcessedChildren => {
+                let nodes = self.process_children(processor)?;
+                Ok(Some(Node::inline(
+                    nodes.into_iter().map(|n| Box::new(n)).collect(),
+                )))
+            },
+            Return::InlineWithProcessedChildren(nodes) => {
+                let mut nodes_ = nodes.clone();
+                nodes_.append(&mut self.process_children(processor)?);
+                Ok(Some(Node::inline(
+                    nodes_.into_iter().map(|n| Box::new(n)).collect(),
+                )))
+            },
         }
     }
 

@@ -6,7 +6,7 @@ use crate::testers::{instantiate_tester, available_testers};
 use crate::core::dut::{Dut};
 use crate::generator::ast::{Attrs, Node};
 use crate::TEST;
-use crate::node;
+use crate::{node, text_line, add_children, text};
 
 #[derive(Debug)]
 pub enum TesterSource {
@@ -208,6 +208,71 @@ impl Tester {
   pub fn cycle(&mut self, repeat: Option<usize>) -> Result<(), Error> {
     let cycle_node = node!(Cycle, repeat.unwrap_or(1) as u32, true);
     TEST.push(cycle_node);
+    Ok(())
+  }
+
+  pub fn generate_pattern_header(
+    &self,
+    app_comments: Option<Vec<String>>,
+    pattern_comments: Option<Vec<String>>
+  ) -> Result<(), Error> {
+    let mut header = node!(PatternHeader);
+    let mut section = node!(TextSection, Some("Generated".to_string()), Some(0));
+    section.add_children(vec!(
+      text_line!(text!("Time: "), node!(Timestamp)),
+      text_line!(text!("By: "), node!(User)),
+      text_line!(text!("Command: "), node!(CurrentCommand))
+    ));
+    header.add_child(section);
+
+    section = node!(TextSection, Some("Workspace".to_string()), Some(0));
+    section.add_children(vec!(
+      add_children!(
+        node!(TextSection, Some("Environment".to_string()), Some(1)),
+        text_line!(text!("OS: "), node!(OS)),
+        text_line!(text!("Mode: "), node!(Mode)),
+        add_children!(
+          node!(TextSection, Some("Targets".to_string()), Some(1)),
+          node!(TargetsStacked)
+        )
+      ),
+      add_children!(
+        node!(TextSection, Some("Application".to_string()), Some(1)),
+
+        // To-do: Add this
+        //text_line!(text!("Version: "), node!(AppVersion)),
+        text_line!(text!("Local Path: "), node!(AppRoot))
+      ),
+      add_children!(
+        node!(TextSection, Some("Origen Core".to_string()), Some(1)),
+        text_line!(text!("Version: "), node!(OrigenVersion)),
+        text_line!(text!("Executable Path: "), node!(OrigenRoot))
+      )
+
+      // To-do: Add these as well
+      // node!(TextSection, Some("Application".to_string()), Some(1)).add_children(vec!(
+      // )),
+      // node!(TextSection, Some("Origen Core".to_string()), Some(1)).add_children(vec!(
+      // ))
+    ));
+    header.add_child(section);
+
+    if app_comments.is_some() || pattern_comments.is_some() {
+      section = node!(TextSection, Some("Header Comments".to_string()), Some(1));
+      if let Some(comments) = app_comments {
+        let mut s = node!(TextSection, Some("From the Application".to_string()), Some(1));
+        s.add_children(comments.iter().map(|c| text!(c)).collect::<Vec<Node>>());
+        section.add_child(s);
+      }
+      if let Some(comments) = pattern_comments {
+        let mut s = node!(TextSection, Some("From the Pattern".to_string()), Some(1));
+        s.add_children(comments.iter().map(|c| text!(c)).collect::<Vec<Node>>());
+        section.add_child(s);
+      }
+      header.add_child(section);
+    }
+
+    TEST.push(header);
     Ok(())
   }
 
