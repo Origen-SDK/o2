@@ -55,31 +55,31 @@ pub enum Attrs {
     ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
     Cycle(u32, bool), // repeat (0 not allowed), compressable
     PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
-                // represents the end of the 'pattern vectors', for vector-based testers.
+    // represents the end of the 'pattern vectors', for vector-based testers.
     PatternHeader,
 
     //// Text (Comment) nodes
     //// Useful for formatting comment blocks in the AST.
     TextSection(Option<String>, Option<u8>), // The start of a new section.
-                            // How exactly this will look in the output is up to the render, but there should be some sort of
-                            // delimiter or otherwise obvious 'break' in the text
-                            // This node optionally accepts a 'title', which can be handled however the renderer sees fit.
-                            // It also optionally accetps a 'level', which the renderer can use to decide how to delimit it
+    // How exactly this will look in the output is up to the render, but there should be some sort of
+    // delimiter or otherwise obvious 'break' in the text
+    // This node optionally accepts a 'title', which can be handled however the renderer sees fit.
+    // It also optionally accetps a 'level', which the renderer can use to decide how to delimit it
     TextLine, // Content that should appear on the same line. This is only a single node so that other nodes can be used in its children.
-                        // For example:
-                        //   TextLine
-                        //     Text("Hi ")
-                        //     Author
-                        //     Text("!")
-                        // Should render something like: Hi coreyeng!
-                        // Note: nested TextLines are not supported and exact output is dependent on the renderer.
+    // For example:
+    //   TextLine
+    //     Text("Hi ")
+    //     Author
+    //     Text("!")
+    // Should render something like: Hi coreyeng!
+    // Note: nested TextLines are not supported and exact output is dependent on the renderer.
     Text(String),
 
     //// Content Nodes
-    User, // Inserts the current user
+    User,           // Inserts the current user
     CurrentCommand, // Inserts the current command
-    Timestamp, // Inserts a timestamp
-    Mode, // Inserts the current mode
+    Timestamp,      // Inserts a timestamp
+    Mode,           // Inserts the current mode
     TargetsStacked, // Inserts the current targets as several "Text" nodes
     // TargetsLinearized, // Inserts the targets as a comma-separated list
     OS, // Inserts the OS

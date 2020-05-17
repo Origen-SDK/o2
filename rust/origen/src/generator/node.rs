@@ -175,14 +175,14 @@ impl Node {
                 Ok(Some(Node::inline(
                     nodes.into_iter().map(|n| Box::new(n)).collect(),
                 )))
-            },
+            }
             Return::InlineWithProcessedChildren(nodes) => {
                 let mut nodes_ = nodes.clone();
                 nodes_.append(&mut self.process_children(processor)?);
                 Ok(Some(Node::inline(
                     nodes_.into_iter().map(|n| Box::new(n)).collect(),
                 )))
-            },
+            }
         }
     }
 

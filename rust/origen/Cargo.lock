@@ -1192,6 +1192,7 @@ name = "origen"
 version = "2.0.0-pre0"
 dependencies = [
  "built",
+ "chrono",
  "config",
  "enum-utils",
  "eval",
@@ -1215,6 +1216,7 @@ dependencies = [
  "termcolor",
  "time",
  "walkdir",
+ "whoami",
 ]
 
 [[package]]
@@ -2311,6 +2313,12 @@ name = "wasi"
 version = "0.9.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
+
+[[package]]
+name = "whoami"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a08eb844b158ea881e81b94556eede7f7e306e4c7b976aad88f49e6e36dec391"
 
 [[package]]
 name = "winapi"
