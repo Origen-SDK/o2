@@ -99,9 +99,7 @@ impl Processor for FlattenText {
                 self.in_text_line = true;
                 Ok(Return::UnwrapWithProcessedChildren)
             }
-            Attrs::TextBoundaryLine => {
-              Ok(Return::Inline(vec![self.section_boundary()]))
-            }
+            Attrs::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
             Attrs::User => {
                 self.current_line += &whoami::username();
                 Ok(Return::None)
@@ -160,11 +158,11 @@ impl Processor for FlattenText {
                 Ok(Return::Inline(vec![n]))
             }
             Attrs::TextSection(_, lvl) => {
-              self.section_depth -= 1;
-              if lvl.is_some() && lvl.unwrap() == 0 {
-                  Ok(Return::Inline(vec![self.section_boundary()]))
+                self.section_depth -= 1;
+                if lvl.is_some() && lvl.unwrap() == 0 {
+                    Ok(Return::Inline(vec![self.section_boundary()]))
                 } else {
-                  Ok(Return::None)
+                    Ok(Return::None)
                 }
             }
             _ => Ok(Return::None),

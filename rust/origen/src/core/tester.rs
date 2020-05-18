@@ -252,7 +252,7 @@ impl Tester {
                 )
             ),
             add_children!(
-                node!(TextSection, Some("Application".to_string()),None),
+                node!(TextSection, Some("Application".to_string()), None),
                 // To-do: Add this
                 //text_line!(text!("Version: "), node!(AppVersion)),
                 text_line!(text!("Local Path: "), node!(AppRoot))
@@ -273,11 +273,7 @@ impl Tester {
             header.add_child(node!(TextBoundaryLine));
             section = node!(TextSection, Some("Header Comments".to_string()), None);
             if let Some(comments) = app_comments {
-                let mut s = node!(
-                    TextSection,
-                    Some("From the Application".to_string()),
-                    None
-                );
+                let mut s = node!(TextSection, Some("From the Application".to_string()), None);
                 s.add_children(comments.iter().map(|c| text!(c)).collect::<Vec<Node>>());
                 section.add_child(s);
             }
@@ -289,7 +285,6 @@ impl Tester {
             header.add_child(section);
         }
         header.add_child(node!(TextBoundaryLine));
-
 
         TEST.push(header);
         Ok(())
