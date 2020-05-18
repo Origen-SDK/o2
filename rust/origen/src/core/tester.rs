@@ -230,7 +230,8 @@ impl Tester {
         pattern_comments: Option<Vec<String>>,
     ) -> Result<(), Error> {
         let mut header = node!(PatternHeader);
-        let mut section = node!(TextSection, Some("Generated".to_string()), Some(0));
+        header.add_child(node!(TextBoundaryLine));
+        let mut section = node!(TextSection, Some("Generated".to_string()), None);
         section.add_children(vec![
             text_line!(text!("Time: "), node!(Timestamp)),
             text_line!(text!("By: "), node!(User)),
@@ -238,53 +239,57 @@ impl Tester {
         ]);
         header.add_child(section);
 
-        section = node!(TextSection, Some("Workspace".to_string()), Some(0));
+        header.add_child(node!(TextBoundaryLine));
+        section = node!(TextSection, Some("Workspace".to_string()), None);
         section.add_children(vec![
             add_children!(
-                node!(TextSection, Some("Environment".to_string()), Some(1)),
+                node!(TextSection, Some("Environment".to_string()), None),
                 text_line!(text!("OS: "), node!(OS)),
                 text_line!(text!("Mode: "), node!(Mode)),
                 add_children!(
-                    node!(TextSection, Some("Targets".to_string()), Some(1)),
+                    node!(TextSection, Some("Targets".to_string()), None),
                     node!(TargetsStacked)
                 )
             ),
             add_children!(
-                node!(TextSection, Some("Application".to_string()), Some(1)),
+                node!(TextSection, Some("Application".to_string()),None),
                 // To-do: Add this
                 //text_line!(text!("Version: "), node!(AppVersion)),
                 text_line!(text!("Local Path: "), node!(AppRoot))
             ),
             add_children!(
-                node!(TextSection, Some("Origen Core".to_string()), Some(1)),
+                node!(TextSection, Some("Origen Core".to_string()), None),
                 text_line!(text!("Version: "), node!(OrigenVersion)),
                 text_line!(text!("Executable Path: "), node!(OrigenRoot))
             ), // To-do: Add these as well
-               // node!(TextSection, Some("Application".to_string()), Some(1)).add_children(vec!(
+               // node!(TextSection, Some("Application".to_string()), None).add_children(vec!(
                // )),
-               // node!(TextSection, Some("Origen Core".to_string()), Some(1)).add_children(vec!(
+               // node!(TextSection, Some("Origen Core".to_string()), None).add_children(vec!(
                // ))
         ]);
         header.add_child(section);
 
         if app_comments.is_some() || pattern_comments.is_some() {
-            section = node!(TextSection, Some("Header Comments".to_string()), Some(1));
+            header.add_child(node!(TextBoundaryLine));
+            section = node!(TextSection, Some("Header Comments".to_string()), None);
             if let Some(comments) = app_comments {
                 let mut s = node!(
                     TextSection,
                     Some("From the Application".to_string()),
-                    Some(1)
+                    None
                 );
                 s.add_children(comments.iter().map(|c| text!(c)).collect::<Vec<Node>>());
                 section.add_child(s);
             }
             if let Some(comments) = pattern_comments {
-                let mut s = node!(TextSection, Some("From the Pattern".to_string()), Some(1));
+                let mut s = node!(TextSection, Some("From the Pattern".to_string()), None);
                 s.add_children(comments.iter().map(|c| text!(c)).collect::<Vec<Node>>());
                 section.add_child(s);
             }
             header.add_child(section);
         }
+        header.add_child(node!(TextBoundaryLine));
+
 
         TEST.push(header);
         Ok(())

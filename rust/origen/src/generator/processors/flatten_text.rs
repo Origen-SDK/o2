@@ -64,7 +64,7 @@ impl FlattenText {
 impl Processor for FlattenText {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
-            Attrs::TextSection(header, _lvl) => {
+            Attrs::TextSection(header, lvl) => {
                 // When adding a new section, if we aren't nested then we'll print a 'boundary', which will be
                 // something like "<comment char>******..."
                 // We'll also print the header immediately below, if one is given
@@ -72,7 +72,7 @@ impl Processor for FlattenText {
                 // If we're already in a nested section, then do the same but without the section boundary
                 //   Nested sections are more like 'subsections' than a bonafide section
                 let mut nodes: Vec<Node> = vec![];
-                if self.section_depth == 0 {
+                if lvl.is_some() && lvl.unwrap() == 0 {
                     nodes.push(self.section_boundary());
                 }
                 if let Some(h) = header {
@@ -98,6 +98,9 @@ impl Processor for FlattenText {
                 // If extra content is present in this node, its a bug elsewhere in the processor
                 self.in_text_line = true;
                 Ok(Return::UnwrapWithProcessedChildren)
+            }
+            Attrs::TextBoundaryLine => {
+              Ok(Return::Inline(vec![self.section_boundary()]))
             }
             Attrs::User => {
                 self.current_line += &whoami::username();
@@ -156,9 +159,13 @@ impl Processor for FlattenText {
                 self.current_line.clear();
                 Ok(Return::Inline(vec![n]))
             }
-            Attrs::TextSection(_, _) => {
-                self.section_depth -= 1;
-                Ok(Return::None)
+            Attrs::TextSection(_, lvl) => {
+              self.section_depth -= 1;
+              if lvl.is_some() && lvl.unwrap() == 0 {
+                  Ok(Return::Inline(vec![self.section_boundary()]))
+                } else {
+                  Ok(Return::None)
+                }
             }
             _ => Ok(Return::None),
         }

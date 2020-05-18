@@ -61,6 +61,7 @@ pub enum Attrs {
     //// Text (Comment) nodes
     //// Useful for formatting comment blocks in the AST.
     TextSection(Option<String>, Option<u8>), // The start of a new section.
+    TextBoundaryLine, // Inserts a 'boundary'. This will be resolve to a line of '*'
     // How exactly this will look in the output is up to the render, but there should be some sort of
     // delimiter or otherwise obvious 'break' in the text
     // This node optionally accepts a 'title', which can be handled however the renderer sees fit.
