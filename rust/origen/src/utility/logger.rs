@@ -1,8 +1,56 @@
+//! The Origen logger is implemented as a singleton and data is logged via globally available macros.
 //!
-//! Level 0 - display, log_error
-//! Level 1 - log_info, log_success, log_warning, log_deprecated
-//! Level 2 - log_debug
-//! Level 3 - log_trace
+//! All log macros operate similar to the println! macro, accepting a string argument and optionally
+//! some variables to be substituted into the message.
+//!
+//! ## Examples
+//!
+//! Display is like a log aware print, the data will always appear in the console without any timestamp
+//! or other decoration and will be written to the log file with timestamp info.
+//!
+//! ```no_run
+//! # #[macro_use] extern crate origen;
+//! # fn main() {
+//! display!("Some msg");       // This one is equivalent to print! but appears in the log
+//! displayln!("Some msg");     // Like println!
+//!
+//! let x = 10;
+//! displayln!("The value of x is {}", x);
+//!
+//! // There are also red/green versions of display:
+//! display_green!("The value of x is {}", x);
+//! display_redln!("The value of x is {}", x);
+//!
+//! # }
+//! ```
+//!
+//! Similar macros exist to display messages at different log levels, all of these appear with timestamps
+//! in both the console and the log file:
+//!
+//! ```no_run
+//! # #[macro_use] extern crate origen;
+//! # fn main() {
+//! let x = 10;
+//!
+//! log_error!("The value of x is {}", x);
+//! log_info!("The value of x is {}", x);
+//! log_success!("The value of x is {}", x);
+//! log_warning!("The value of x is {}", x);
+//! log_deprecated!("The value of x is {}", x);
+//! log_debug!("The value of x is {}", x);
+//! log_trace!("The value of x is {}", x);
+//! # }
+//! ```
+//!
+//! ## Log Levels
+//!
+//! The log verbosity mapping is shown below, level 0 is equivalent to running with no verbosity switch,
+//! level 1 is -v, level 2 is -vv, etc.
+//!
+//! * Level 0 - display, log_error
+//! * Level 1 - log_info, log_success, log_warning, log_deprecated
+//! * Level 2 - log_debug
+//! * Level 3 - log_trace
 //!
 extern crate time;
 
@@ -315,6 +363,8 @@ impl Logger {
         })
     }
 
+    /// See with_log which is the equivalent to calling open_logfile followed by close_logfile
+    /// manually.
     pub fn open_logfile(&self, path: Option<&Path>, thread_local: bool) -> Result<PathBuf> {
         let p = match path {
             None => {
@@ -365,6 +415,32 @@ impl Logger {
         });
     }
 
+    /// Send all logging to the given log file for the duration of the given function,
+    /// returning all logging to the previous log file at the end.
+    ///
+    /// If thread_local is set to true this will apply only to the current thread.
+    ///
+    /// If no path is given for the new log file (normally just the name of it), then
+    /// a new logfile will be created with a unique index number appended to the current
+    /// logfile name, e.g. out.log.1, out.log.2, etc.
+    ///
+    /// An error will be returned if there is a problem creating the given log file,
+    /// otherwise the result from the given function is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[macro_use] extern crate origen;
+    /// # fn main() {
+    /// use origen::LOGGER;
+    /// use std::path::Path;
+    ///
+    /// let result = LOGGER.with_logfile(Some(Path::new("my_log")), false, || {
+    ///   log_debug!("This will appear in 'my_log'");
+    ///   Ok(())
+    /// });
+    /// # }
+    /// ```
     pub fn with_logfile<F>(
         &self,
         path: Option<&Path>,

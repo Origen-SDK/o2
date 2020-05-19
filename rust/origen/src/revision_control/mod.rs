@@ -17,6 +17,10 @@ pub struct Credentials {
 }
 
 impl RevisionControl {
+    /// Returns a generic revision control driver which implements the RevisionControlAPI, it will work with any
+    /// supported revision control tool and will work out which one to target from the remote argument.
+    /// If you want to use some of the tool-specific APIs, then you should instantiate the relevant driver
+    /// directly.
     pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> RevisionControl {
         if remote.ends_with(".git") {
             RevisionControl {
