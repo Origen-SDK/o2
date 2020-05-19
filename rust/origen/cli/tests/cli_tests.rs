@@ -1,4 +1,3 @@
-
 // Global commands could go here the working dir is the target/debug dir.
 //
 // Initially tried using predicates and assert_cmd, but didn't
@@ -17,17 +16,17 @@ use std::process::Command;
 
 // Cargo sets an env var to point to the executable for testing.
 fn ogn_cmd() -> String {
-    option_env!("CARGO_BIN_EXE_ORIGEN").unwrap_or("origen").to_string()
+    option_env!("CARGO_BIN_EXE_ORIGEN")
+        .unwrap_or("origen")
+        .to_string()
 }
 
 #[test]
 fn origen_v_responds() -> Result<(), Box<dyn std::error::Error>> {
     // .output()? will wait for completion and return an Output struct
     // see https://doc.rust-lang.org/std/process/struct.Output.html
-    let output = Command::new(ogn_cmd())
-        .arg("-v")
-        .output()?;
-    
+    let output = Command::new(ogn_cmd()).arg("-v").output()?;
+
     // check no error was returned
     assert!(output.status.success());
 
@@ -40,9 +39,7 @@ fn origen_v_responds() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn origen_bad_arg() -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(ogn_cmd())
-        .arg("invalid_cmd_here")
-        .output()?;
+    let output = Command::new(ogn_cmd()).arg("invalid_cmd_here").output()?;
 
     // check that an error (not success) result was returned
     assert!(!output.status.success());
