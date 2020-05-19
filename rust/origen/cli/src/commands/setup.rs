@@ -2,11 +2,11 @@ extern crate time;
 
 use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
 use online::online;
-use origen::core::os;
 use origen::core::term::*;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
+use std::process::Command;
 
 const POETRY_INSTALLER: &str =
     "https://raw.githubusercontent.com/sdispater/poetry/1.0.0b7/get-poetry.py";
@@ -69,8 +69,8 @@ pub fn run() {
             fs::write(&get_poetry_file, new_data).expect("Unable to write Poetry install file");
 
             // Install Poetry
-            os::cmd(&PYTHON_CONFIG.command)
-                .arg(format!("{}", get_poetry_file.display()))
+            Command::new(&PYTHON_CONFIG.command)
+                .arg(get_poetry_file)
                 .arg("--yes")
                 .status()
                 .expect("Something went wrong install Poetry");
@@ -78,7 +78,7 @@ pub fn run() {
             if poetry_version().unwrap().major != 1 {
                 // Have to use --preview here to get a 1.0.0 pre version, can only use versions for
                 // official releases
-                os::cmd(&PYTHON_CONFIG.poetry_command)
+                Command::new(&PYTHON_CONFIG.poetry_command)
                     .arg("self:update")
                     .arg("--preview")
                     .status()
@@ -90,7 +90,7 @@ pub fn run() {
 
     print!("Are the app's deps. installed?  ... ");
 
-    let status = os::cmd(&PYTHON_CONFIG.poetry_command)
+    let status = Command::new(&PYTHON_CONFIG.poetry_command)
         .arg("install")
         .arg("--no-root")
         .status();
