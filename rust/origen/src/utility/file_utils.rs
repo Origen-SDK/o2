@@ -72,7 +72,7 @@ where
 pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> Result<()> {
     #[cfg(windows)]
     {
-        if src.is_dir() {
+        if src.as_ref().is_dir() {
             Ok(std::os::windows::fs::symlink_dir(src, dst)?)
         } else {
             Ok(std::os::windows::fs::symlink_file(src, dst)?)
