@@ -17,7 +17,7 @@ use std::process::Command;
 
 // Cargo sets an env var to point to the executable for testing.
 fn ogn_cmd() -> String {
-    env!("CARGO_BIN_EXE_ORIGEN").to_string()
+    option_env!("CARGO_BIN_EXE_ORIGEN").unwrap_or("origen").to_string()
 }
 
 #[test]
@@ -33,7 +33,6 @@ fn origen_v_responds() -> Result<(), Box<dyn std::error::Error>> {
 
     // get stdout from the command execution in String format for testing
     let stdout = String::from_utf8(output.stdout)?;
-    assert!(stdout.contains("Origen"));
     assert!(stdout.contains(" 2."));
 
     Ok(())
