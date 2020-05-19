@@ -31,5 +31,5 @@
 # of making some files from the package 'proj_files' available at the top-level:
 #
 #    [links]
-#    “tools.list” = “proj_files/tools.list”
-#    “.settings”  = “proj_files/.settings”
+#    "tools.list" = "proj_files/tools.list"
+#    ".settings"  = "proj_files/.settings"
