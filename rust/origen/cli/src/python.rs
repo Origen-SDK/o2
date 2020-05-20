@@ -1,9 +1,9 @@
 // Responsible for managing Python execution
 
-use std::process::Command;
 use origen::STATUS;
 use semver::Version;
 use std::path::PathBuf;
+use std::process::Command;
 
 const PYTHONS: &[&str] = &[
     "python",
@@ -35,8 +35,12 @@ impl Default for Config {
                 Some(version) => {
                     available = true;
                     let mut poetry_cmd = PathBuf::from(&STATUS.home);
-                    for d in [".poetry", "bin", "poetry"].iter() { poetry_cmd.push(d) }
-                    if cfg!(windows) { poetry_cmd.set_extension("bat"); }
+                    for d in [".poetry", "bin", "poetry"].iter() {
+                        poetry_cmd.push(d)
+                    }
+                    if cfg!(windows) {
+                        poetry_cmd.set_extension("bat");
+                    }
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         return Config {
                             available: true,

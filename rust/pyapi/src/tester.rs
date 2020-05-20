@@ -220,6 +220,20 @@ impl PyTester {
         Ok(slf.to_object(py))
     }
 
+    fn generate_pattern_header(&self, header_comments: &PyDict) -> PyResult<()> {
+        let tester = origen::tester();
+        Ok(tester.generate_pattern_header(
+            match header_comments.get_item("app") {
+                Some(comments) => Some(comments.extract::<Vec<String>>()?),
+                None => None,
+            },
+            match header_comments.get_item("pattern") {
+                Some(comments) => Some(comments.extract::<Vec<String>>()?),
+                None => None,
+            },
+        )?)
+    }
+
     fn end_pattern(&self) -> PyResult<()> {
         let tester = origen::tester();
         Ok(tester.end_pattern()?)

@@ -31,6 +31,8 @@ pest = "2.1"
 pest_derive = "2.1"
 enum-utils = "0.1.2"
 shellexpand = "1.1.1"
+chrono = "0.4.11"
+whoami = "0.8.1"
 
 # Per this SO thread: https://stackoverflow.com/questions/37296351/trait-for-numeric-functionality-in-rust
 # the num crate includes some useful traits to accept float-like and integer-like things without having to manually enumerate them all.
