@@ -39,6 +39,7 @@ num-bigint = {version = "0.2", features = ["serde"]}
 # Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
 # in origen to enable conversion of an Origen error to a PyErr.
 pyo3 = {version = "0.8.2", features = ["extension-module"]}
+chrono = "0.4.11"
 # Per this SO thread: https://stackoverflow.com/questions/37296351/trait-for-numeric-functionality-in-rust
 # the num crate includes some useful traits to accept float-like and integer-like things without having to manually enumerate them all.
 num = "0.2.0"

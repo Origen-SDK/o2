@@ -26,6 +26,12 @@ pub enum Return {
     Inline(Vec<Node>),
     /// Same as Inline, but accepts a vector of boxed nodes
     InlineBoxed(Vec<Box<Node>>),
+    /// A combination of Unwrap and ProcessChildren, which will unwrap the current node
+    /// but leave processed children in its place
+    UnwrapWithProcessedChildren,
+    /// A combinatin of Inline and ProcessChildren which will add the given nodes
+    /// then proceed to process the original node's children
+    InlineWithProcessedChildren(Vec<Node>),
 }
 
 pub trait Processor {
