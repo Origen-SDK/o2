@@ -7,10 +7,13 @@ extern crate meta;
 extern crate pest_derive;
 #[macro_use]
 pub mod macros;
+#[macro_use]
+extern crate indexmap;
 
 pub mod core;
 pub mod error;
 pub mod generator;
+pub mod prog_gen;
 pub mod revision_control;
 pub mod services;
 pub mod testers;
@@ -30,6 +33,7 @@ use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
+use prog_gen::Interface;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
@@ -61,6 +65,8 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
+    /// Storage for the current program generation run, can include multiple flows
+    pub static ref INTERFACE: Interface = Interface::new();
     /// Provides info about the current user
     pub static ref USER: User = User::current();
 }

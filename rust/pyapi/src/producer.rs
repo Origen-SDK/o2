@@ -32,8 +32,12 @@ impl PyJob {
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
         py.eval(
       &format!(
-        "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{'produce_pattern': lambda **kwargs : __import__(\"origen\").producer.produce_pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs)}}}})",
+        "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{ \
+            'Pattern': lambda **kwargs : __import__(\"origen\").producer.Pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs), \
+            'Flow': lambda **kwargs : __import__(\"origen\").producer.Flow(__import__(\"origen\").producer.get_job_by_id({}), **kwargs) \
+         }}}})",
         &cmd,
+        self.id,
         self.id),
       None,
       Some(locals)
@@ -65,9 +69,9 @@ impl PyProducer {
         obj.init(PyProducer {});
     }
 
-    fn create_pattern_job(&self, command: &str) -> PyResult<Py<PyJob>> {
+    fn create_job(&self, command: &str) -> PyResult<Py<PyJob>> {
         let mut p = origen::producer();
-        let j = p.create_pattern_job(command)?;
+        let j = p.create_job(command)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();

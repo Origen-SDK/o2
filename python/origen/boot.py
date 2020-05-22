@@ -108,9 +108,9 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
 
     origen.target.load(targets=targets)
 
+    # The generate command handles patterns and flows.
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
-    # Future: Add flow options.
     if command == "generate":
         for (i, f) in enumerate(_origen.file_handler()):
             # For each pattern, instantiate the DUT and reset the AST
@@ -118,7 +118,7 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
             origen.target.load(targets=targets)
             origen.logger.info(f"Generating source {i+1} of {len(_origen.file_handler())}: {f}")
             
-            j = origen.producer.create_pattern_job(f)
+            j = origen.producer.create_job(f)
             j.run()
         # Print a summary here...
 

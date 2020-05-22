@@ -20,7 +20,8 @@ impl Producer {
         }
     }
 
-    pub fn create_pattern_job(&mut self, command: &str) -> Result<&Job, Error> {
+    /// Creates a new generate job (for either a pattern or a flow)
+    pub fn create_job(&mut self, command: &str) -> Result<&Job, Error> {
         let id = self.jobs.len();
         let j = Job {
             command: command.to_string(),
