@@ -213,6 +213,17 @@ impl AST {
         }
     }
 
+    /// Execute the given function which receives the a reference to the AST (as a Node) as
+    /// its input, returning the result of the function
+    pub fn with_node(&self, process_fn: &mut dyn FnMut(&Node) -> Result<()>) -> Result<()> {
+        if self.nodes.len() > 1 {
+            let node = self.to_node();
+            process_fn(&node)
+        } else {
+            process_fn(&self.nodes[0])
+        }
+    }
+
     pub fn to_string(&self) -> String {
         if self.nodes.len() > 1 {
             let node = self.to_node();

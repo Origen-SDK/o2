@@ -6,23 +6,23 @@ use crate::error::Error;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 
-pub fn available_testers() -> Vec<String> {
-    vec![
-        "::DummyRenderer".to_string(),
-        "::DummyRendererWithInterceptors".to_string(),
-        "::V93K::ST7".to_string(),
-        "::Simulator".to_string(),
-    ]
-}
+pub const AVAILABLE_TESTERS: &[&str] = &[
+    "::DummyRenderer",
+    "::DummyRendererWithInterceptors",
+    "::V93K::SMT7",
+    "UltraFlex",
+    "::Simulator",
+];
 
 pub fn instantiate_tester(g: &str) -> Option<Box<dyn TesterAPI + std::marker::Send>> {
-    match &g {
-        &"::DummyRenderer" => Some(Box::new(DummyRenderer::default())),
-        &"::DummyRendererWithInterceptors" => {
+    match g {
+        "::DummyRenderer" => Some(Box::new(DummyRenderer::default())),
+        "::DummyRendererWithInterceptors" => {
             Some(Box::new(DummyRendererWithInterceptors::default()))
         }
-        &"::V93K::ST7" => Some(Box::new(v93k::Renderer::default())),
-        &"::Simulator" => Some(Box::new(simulator::Renderer::default())),
+        "::V93K::SMT7" => Some(Box::new(v93k::smt7::SMT7::default())),
+        "::Simulator" => Some(Box::new(simulator::Renderer::default())),
+        //"UltraFlex" | "ULTRAFLEX" | "Ultraflex" | "UFlex" | "Uflex" => Some(Box::)
         _ => None,
     }
 }
@@ -53,8 +53,9 @@ impl TesterAPI for DummyRenderer {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn run(&mut self, node: &Node) -> crate::Result<Node> {
-        Ok(node.process(self)?.unwrap())
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<()> {
+        ast.process(self)?;
+        Ok(())
     }
 }
 
@@ -110,10 +111,11 @@ impl TesterAPI for DummyRendererWithInterceptors {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn run(&mut self, node: &Node) -> crate::Result<Node> {
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<()> {
         //let mut slf = Self::default();
-        Ok(node.process(self)?.unwrap())
+        ast.process(self)?;
         //node.clone()
+        Ok(())
     }
 }
 

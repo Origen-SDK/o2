@@ -3,7 +3,7 @@ use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::error::Error;
 use crate::generator::ast::{Attrs, Node};
-use crate::testers::{available_testers, instantiate_tester};
+use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
 use crate::TEST;
 use crate::{add_children, node, text, text_line};
 use indexmap::IndexMap;
@@ -305,8 +305,10 @@ impl Tester {
                 stat.external.push(gen.to_string());
             }
             TesterSource::Internal(gen) => {
-                let n = gen.preprocess(&TEST.ast.write().unwrap().to_node())?;
-                gen.run(&n)?;
+                //let n = gen.preprocess(&TEST.ast.write().unwrap().to_node())?;
+                //gen.run(&n)?;
+                //gen.render_pattern(TEST.)
+                TEST.with_ast(&mut |ast| gen.render_pattern(ast));
                 stat.completed.push(gen.to_string())
             }
         }
@@ -320,7 +322,11 @@ impl Tester {
         } else if let Some(_g) = self.external_testers.get(tester) {
             g = (*_g).clone();
         } else {
-            return Err(Error::new(&format!("Could not find tester '{}'!", tester)));
+            return error!(
+                "Could not find tester '{}', must be one of: \n  {}",
+                tester,
+                AVAILABLE_TESTERS.join("\n  ")
+            );
         }
 
         if self.target_testers.contains(&g) {
@@ -348,7 +354,7 @@ impl Tester {
     }
 
     pub fn testers(&self) -> Vec<String> {
-        let mut gens: Vec<String> = available_testers();
+        let mut gens: Vec<String> = AVAILABLE_TESTERS.iter().map(|t| t.to_string()).collect();
         gens.extend(
             self.external_testers
                 .iter()
@@ -405,20 +411,19 @@ pub trait Interceptor {
 impl<'a, T> Interceptor for &'a T where T: TesterAPI {}
 impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
 
-pub trait TesterAPI:
-    std::fmt::Debug + crate::generator::processor::Processor + Interceptor
-{
+pub trait TesterAPI: std::fmt::Debug + Interceptor {
     fn name(&self) -> String;
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
-    fn run(&mut self, node: &Node) -> crate::Result<Node>;
+    /// Render the given AST to an output, returning OK if it completed successfully
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<()>;
 
     fn to_string(&self) -> String {
         format!("::{}", self.name())
     }
 
-    fn preprocess(&mut self, node: &Node) -> Result<Node, Error> {
-        Ok(node.clone())
-    }
+    //fn preprocess(&mut self, node: &Node) -> Result<Node, Error> {
+    //    Ok(node.clone())
+    //}
 }
 
 impl PartialEq<TesterSource> for dyn TesterAPI {
