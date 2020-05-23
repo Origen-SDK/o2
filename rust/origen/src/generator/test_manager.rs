@@ -87,7 +87,10 @@ impl TestManager {
 
     /// Execute the given function which receives the a reference to the AST (as a Node) as
     /// an input, returning the result of the function
-    pub fn with_ast(&self, process_fn: &mut dyn FnMut(&Node) -> Result<()>) -> Result<()> {
+    pub fn with_ast<T, F>(&self, mut process_fn: F) -> Result<T>
+    where
+        F: FnMut(&Node) -> Result<T>,
+    {
         let ast = self.ast.read().unwrap();
         ast.with_node(process_fn)
     }

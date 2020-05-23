@@ -116,7 +116,7 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
             # For each pattern, instantiate the DUT and reset the AST
             origen.tester.reset()
             origen.target.load(targets=targets)
-            origen.logger.info(f"Generating source {i+1} of {len(_origen.file_handler())}: {f}")
+            origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
             
             j = origen.producer.create_job(f)
             j.run()

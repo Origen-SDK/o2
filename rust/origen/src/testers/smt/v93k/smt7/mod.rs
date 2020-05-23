@@ -3,6 +3,7 @@ pub mod pattern_renderer;
 use crate::core::tester::{Interceptor, TesterAPI};
 use crate::generator::ast::Node;
 use crate::Result;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct SMT7 {}
@@ -23,7 +24,7 @@ impl TesterAPI for SMT7 {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, node: &Node) -> Result<()> {
+    fn render_pattern(&mut self, node: &Node) -> Result<Option<PathBuf>> {
         pattern_renderer::Renderer::run(self, node)
     }
 }

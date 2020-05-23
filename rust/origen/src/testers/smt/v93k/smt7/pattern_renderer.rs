@@ -9,6 +9,7 @@ use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::{Result, DUT};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
 
@@ -16,6 +17,7 @@ use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner
 pub struct Renderer<'a> {
     tester: &'a SMT7,
     current_timeset_id: Option<usize>,
+    path: Option<PathBuf>,
     output_file: Option<File>,
     states: Option<StateTracker>,
     pin_header_printed: bool,
@@ -23,18 +25,20 @@ pub struct Renderer<'a> {
 }
 
 impl<'a> Renderer<'a> {
-    pub fn run(tester: &'a SMT7, ast: &Node) -> Result<()> {
+    pub fn run(tester: &'a SMT7, ast: &Node) -> Result<Option<PathBuf>> {
         let mut n = PinActionCombiner::run(ast)?;
         n = CycleCombiner::run(&n)?;
         n = FlattenText::run(&n)?;
-        n.process(&mut Self::new(tester))?;
-        Ok(())
+        let mut p = Self::new(tester);
+        n.process(&mut p)?;
+        Ok(p.path.clone())
     }
 
     fn new(tester: &'a SMT7) -> Self {
         Self {
             tester: tester,
             current_timeset_id: None,
+            path: None,
             output_file: None,
             states: None,
             pin_header_printed: false,
@@ -76,6 +80,7 @@ impl<'a> Processor for Renderer<'a> {
                 p.push(self.tester.name());
                 p.push(name);
                 p.set_extension("avc");
+                self.path = Some(p.clone());
                 self.output_file = Some(File::create(p));
                 Ok(Return::ProcessChildren)
             }

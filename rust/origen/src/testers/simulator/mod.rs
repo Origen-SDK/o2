@@ -2,6 +2,7 @@ use crate::core::tester::{Interceptor, TesterAPI};
 use crate::error::Error;
 use crate::generator::ast::Node;
 use crate::generator::processor::Processor;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct Renderer {}
@@ -43,8 +44,8 @@ impl TesterAPI for Renderer {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<()> {
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Option<PathBuf>> {
         ast.process(self)?;
-        Ok(())
+        Ok(None)
     }
 }

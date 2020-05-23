@@ -7,6 +7,7 @@ use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
 use crate::TEST;
 use crate::{add_children, node, text, text_line};
 use indexmap::IndexMap;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum TesterSource {
@@ -305,10 +306,10 @@ impl Tester {
                 stat.external.push(gen.to_string());
             }
             TesterSource::Internal(gen) => {
-                //let n = gen.preprocess(&TEST.ast.write().unwrap().to_node())?;
-                //gen.run(&n)?;
-                //gen.render_pattern(TEST.)
-                TEST.with_ast(&mut |ast| gen.render_pattern(ast));
+                let path = TEST.with_ast(|ast| gen.render_pattern(ast))?;
+                if let Some(p) = path {
+                    displayln!("Created: {}", p.display());
+                }
                 stat.completed.push(gen.to_string())
             }
         }
@@ -414,8 +415,14 @@ impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
 pub trait TesterAPI: std::fmt::Debug + Interceptor {
     fn name(&self) -> String;
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
-    /// Render the given AST to an output, returning OK if it completed successfully
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<()>;
+
+    /// Render the given AST to an output, returning the path to the created file
+    /// if successful
+    // A default implementation is given since some testers may only support prog gen
+    // and not patgen and vice versa
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Option<PathBuf>> {
+        Ok(None)
+    }
 
     fn to_string(&self) -> String {
         format!("::{}", self.name())

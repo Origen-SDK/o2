@@ -1,10 +1,12 @@
+pub mod igxl;
 pub mod simulator;
-pub mod v93k;
+pub mod smt;
 use crate::core::tester::{Interceptor, TesterAPI};
 use crate::dut;
 use crate::error::Error;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
+use std::path::PathBuf;
 
 pub const AVAILABLE_TESTERS: &[&str] = &[
     "::DummyRenderer",
@@ -20,9 +22,11 @@ pub fn instantiate_tester(g: &str) -> Option<Box<dyn TesterAPI + std::marker::Se
         "::DummyRendererWithInterceptors" => {
             Some(Box::new(DummyRendererWithInterceptors::default()))
         }
-        "::V93K::SMT7" => Some(Box::new(v93k::smt7::SMT7::default())),
+        "::V93K::SMT7" => Some(Box::new(smt::V93K_SMT7::default())),
         "::Simulator" => Some(Box::new(simulator::Renderer::default())),
-        //"UltraFlex" | "ULTRAFLEX" | "Ultraflex" | "UFlex" | "Uflex" => Some(Box::)
+        "UltraFlex" | "ULTRAFLEX" | "Ultraflex" | "UFlex" | "Uflex" => {
+            Some(Box::new(igxl::UltraFlex::default()))
+        }
         _ => None,
     }
 }
@@ -53,9 +57,9 @@ impl TesterAPI for DummyRenderer {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<()> {
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Option<PathBuf>> {
         ast.process(self)?;
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -111,11 +115,11 @@ impl TesterAPI for DummyRendererWithInterceptors {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<()> {
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Option<PathBuf>> {
         //let mut slf = Self::default();
         ast.process(self)?;
         //node.clone()
-        Ok(())
+        Ok(None)
     }
 }
 

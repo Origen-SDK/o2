@@ -23,7 +23,7 @@ class Producer(_origen.producer.PyProducer):
       origen.tester.clear_dut_dependencies(ast_name=pat.name)
       origen.tester.generate_pattern_header(pat.header_comments)
 
-      origen.logger.info(f"Generating pattern {pat.name} with job ID {job.id}")
+      origen.logger.debug(f"Producing pattern {pat.name} with job ID {job.id}")
       origen.producer.issue_callback('startup', kwargs)
       yield pat
       origen.producer.issue_callback('shutdown', kwargs)
