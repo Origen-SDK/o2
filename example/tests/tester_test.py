@@ -4,6 +4,7 @@ from tests.shared import clean_eagle, clean_tester, check_last_node_type, get_la
 from tests.shared.python_like_apis import Fixture_ListLikeAPI # pylint: disable=import-error
 from origen.generator.tester_api import TesterAPI # pylint: disable=import-error
 from origen.generator.processor import Return # pylint: disable=import-error
+import pdb
 
 # Test tester used to test the frontend <-> backend tester hooks
 class PyTestRenderer(TesterAPI):
@@ -79,7 +80,7 @@ def test_init_state(clean_eagle, clean_tester):
   # but just in case those change unbeknownst to this method, double check the initial state here.
   assert origen.tester
   assert origen.tester.targets == []
-  assert origen.tester.testers == ["::DummyRenderer", "::DummyRendererWithInterceptors", "::V93K::ST7", "::Simulator"]
+  assert origen.tester.testers == ["::DummyRenderer", "::DummyRendererWithInterceptors", "::V93K::SMT7", "UltraFlex", "::Simulator"]
   assert origen.tester.timeset is None
 
 def test_setting_a_timeset(clean_eagle, clean_tester):
@@ -192,7 +193,7 @@ class TestBackendRenderer:
   def test_tester(self, capfd, clean_eagle, clean_tester, tester_target_backend_dummy):
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.render()
+    origen.tester.render_pattern()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Printing StubAST to console...",
@@ -207,7 +208,7 @@ class TestBackendRenderer:
     origen.tester.target("::DummyRendererWithInterceptors")
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.render()
+    origen.tester.render_pattern()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Comment intercepted by DummyRendererWithInterceptors!",
@@ -225,7 +226,7 @@ class TestFrontendRenderer:
   def test_tester(self, capfd, clean_eagle, clean_tester, tester_target_frontend_dummy):
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.render()
+    origen.tester.render_pattern()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Printing StubPyAST to console...",
@@ -241,7 +242,7 @@ class TestFrontendRenderer:
     origen.tester.target(PyTestRendererWithInterceptor)
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.render()
+    origen.tester.render_pattern()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern Start!",
@@ -259,7 +260,7 @@ class TestFrontendRenderer:
     origen.tester.target(PyTestMetaRenderer)
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.render()
+    origen.tester.render_pattern()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Printing StubPyAST to console...",
@@ -276,7 +277,7 @@ def test_targeted_renderer_ordering(capfd, clean_eagle, clean_tester):
     origen.tester.target("::DummyRendererWithInterceptors")
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.render()
+    origen.tester.render_pattern()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Intercepted By PyTestRendererWithInterceptor: Comment - Content: Pattern Start!",
@@ -303,7 +304,7 @@ def test_targeted_renderer_reverse_ordering(capfd, clean_eagle, clean_tester):
     origen.tester.target(PyTestRendererWithInterceptor)
     origen.tester.set_timeset("simple")
     run_pattern()
-    origen.tester.render()
+    origen.tester.render_pattern()
     out, err = capfd.readouterr()
     assert out == "\n".join([
       "Comment intercepted by DummyRendererWithInterceptors!",

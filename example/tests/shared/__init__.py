@@ -1,5 +1,6 @@
 import pytest
 import origen, _origen # pylint: disable=import-error
+import pdb
 
 @pytest.fixture
 def clean_eagle():
@@ -19,7 +20,7 @@ def clean_tester():
   origen.tester.reset()
   assert len(origen.test_ast()["children"]) == 0
   assert origen.tester.targets == []
-  assert origen.tester.testers == ["::DummyRenderer", "::DummyRendererWithInterceptors", "::V93K::ST7", "::Simulator"]
+  assert origen.tester.testers == ["::DummyRenderer", "::DummyRendererWithInterceptors", "::V93K::SMT7", "UltraFlex", "::Simulator"]
   assert origen.tester.timeset is None
 
 def check_last_node_type(t):

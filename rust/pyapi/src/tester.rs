@@ -377,7 +377,7 @@ impl PyTester {
         Ok(slf.to_object(py))
     }
 
-    fn render(&self) -> PyResult<()> {
+    fn render_pattern(&self) -> PyResult<()> {
         let targets;
         {
             let tester = origen::tester();
@@ -393,7 +393,7 @@ impl PyTester {
                             // Instantiate it and call its render method with the AST.
                             let gil = Python::acquire_gil();
                             let py = gil.python();
-                            inst.call_method0(py, "render")?;
+                            inst.call_method0(py, "render_pattern")?;
                         }
                         None => {
                             return Err(PyErr::from(Error::new(&format!(

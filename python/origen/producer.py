@@ -29,7 +29,7 @@ class Producer(_origen.producer.PyProducer):
       origen.producer.issue_callback('shutdown', kwargs)
 
       origen.tester.end_pattern()
-      origen.tester.render()
+      origen.tester.render_pattern()
 
   @contextmanager
   def Flow(self, job, **kwargs):

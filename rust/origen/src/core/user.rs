@@ -70,7 +70,7 @@ impl User {
             }
             #[cfg(feature = "password-cache")]
             {
-                let mut password: Some<String> = None;
+                let mut password: Option<String> = None;
                 if let Some(username) = self.id() {
                     if let Some(p) = self.get_cached_password(&username) {
                         match failed_password {
