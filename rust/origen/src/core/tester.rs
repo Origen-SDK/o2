@@ -5,7 +5,7 @@ use crate::error::Error;
 use crate::generator::ast::{Attrs, Node};
 use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
 use crate::TEST;
-use crate::{add_children, node, text, text_line};
+use crate::{add_children, node, text, text_line, with_current_job};
 use indexmap::IndexMap;
 use std::path::PathBuf;
 
@@ -236,7 +236,13 @@ impl Tester {
         section.add_children(vec![
             text_line!(text!("Time: "), node!(Timestamp)),
             text_line!(text!("By: "), node!(User)),
-            text_line!(text!("Command: "), node!(CurrentCommand)),
+            with_current_job(|job| {
+                Ok(text_line!(
+                    text!("Command: "),
+                    node!(OrigenCommand, job.command())
+                ))
+            })
+            .unwrap(),
         ]);
         header.add_child(section);
 

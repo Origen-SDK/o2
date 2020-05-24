@@ -15,7 +15,7 @@ class Producer(_origen.producer.PyProducer):
 
   @contextmanager
   def Pattern(self, job, **kwargs):
-      name = Path(job.command).stem
+      name = Path(job.source_file).stem
       pat = PatternClass(name, **kwargs)
 
       origen.tester.reset()
@@ -33,7 +33,7 @@ class Producer(_origen.producer.PyProducer):
 
   @contextmanager
   def Flow(self, job, **kwargs):
-      name = Path(job.command).stem
+      name = Path(job.source_file).stem
       flow = FlowClass(name, **kwargs)
 
       origen.tester.reset()
@@ -41,13 +41,13 @@ class Producer(_origen.producer.PyProducer):
       #origen.tester.clear_dut_dependencies(ast_name=flow.name)
       #origen.tester.generate_pattern_header(flow.header_comments)
 
-      origen.logger.info(f"Generating flow {flow.name} with job ID {job.id}")
-      origen.producer.issue_callback('startup', kwargs)
+      origen.logger.info(f"Producing flow {flow.name} with job ID {job.id}")
+      #origen.producer.issue_callback('startup', kwargs)
       yield flow.interface
-      origen.producer.issue_callback('shutdown', kwargs)
+      #origen.producer.issue_callback('shutdown', kwargs)
 
-      origen.tester.end_pattern()
-      origen.tester.render()
+      #origen.tester.end_pattern()
+      #origen.tester.render()
 
 # (_origen.producer.PyPattern)
 class PatternClass:
@@ -109,12 +109,11 @@ class FlowClass:
 
 
     # Instantiate the app interface
-    #path = f'{_origen.app_config()["name"]}.interface.default'
-    #origen.logger.trace(f"Looking for application default interface at {path}")
-    #try:
-    #    m = importlib.import_module(path)
-    #except ModuleNotFoundError:
-    origen.logger.trace(f"Not found")
-    origen.logger.trace(f"Instantiating Origen's basic interface instead")
-    m = importlib.import_module("origen.interface")
-    self.interface = m.BasicInterface()
+    path = f'{_origen.app_config()["name"]}.interface.default'
+    origen.logger.trace(f"Looking for application default interface at {path}")
+    try:
+        m = importlib.import_module(path)
+    except ModuleNotFoundError:
+        origen.logger.trace(f"Not found, instantiating Origen's basic interface instead")
+        m = importlib.import_module("origen.interface")
+        self.interface = m.BasicInterface()

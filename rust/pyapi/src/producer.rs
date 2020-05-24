@@ -1,6 +1,7 @@
 use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
+use std::path::Path;
 
 #[pymodule]
 pub fn producer(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -19,30 +20,16 @@ pub struct PyJob {
 
 #[pymethods]
 impl PyJob {
+    /// Execute the job's file. There is currently no checking that this is called on a job
+    /// which has a file component and it will panic if not.
     pub fn run(&self) -> PyResult<()> {
-        let cmd;
+        let file;
         {
             let p = origen::producer();
             let j = &p.jobs[self.id];
-            cmd = j.command.clone();
+            file = j.source_file().unwrap().to_path_buf();
         }
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        py.eval(
-      &format!(
-        "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{ \
-            'Pattern': lambda **kwargs : __import__(\"origen\").producer.Pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs), \
-            'Flow': lambda **kwargs : __import__(\"origen\").producer.Flow(__import__(\"origen\").producer.get_job_by_id({}), **kwargs) \
-         }}}})",
-        &cmd,
-        self.id,
-        self.id),
-      None,
-      Some(locals)
-    )?;
-        Ok(())
+        self.exec_file(&file)
     }
 
     #[getter]
@@ -51,10 +38,33 @@ impl PyJob {
     }
 
     #[getter]
-    pub fn command(&self) -> PyResult<String> {
+    pub fn source_file(&self) -> PyResult<String> {
         let p = origen::producer();
         let j = &p.jobs[self.id];
-        Ok(j.command.clone())
+        Ok(j.source_file().unwrap().to_str().unwrap().to_string())
+    }
+}
+
+impl PyJob {
+    /// Executes a pattern or flow source file
+    pub fn exec_file(&self, path: &Path) -> PyResult<()> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+        py.eval(
+            &format!(
+                "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{ \
+                    'Pattern': lambda **kwargs : __import__(\"origen\").producer.Pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs), \
+                    'Flow': lambda **kwargs : __import__(\"origen\").producer.Flow(__import__(\"origen\").producer.get_job_by_id({}), **kwargs) \
+                 }}}})",
+                path.display(),
+                self.id,
+                self.id
+            ),
+            None,
+            Some(locals)
+        )?;
+        Ok(())
     }
 }
 
@@ -69,9 +79,12 @@ impl PyProducer {
         obj.init(PyProducer {});
     }
 
-    fn create_job(&self, command: &str) -> PyResult<Py<PyJob>> {
+    fn create_job(&self, command: &str, file: Option<&str>) -> PyResult<Py<PyJob>> {
         let mut p = origen::producer();
-        let j = p.create_job(command)?;
+        let j = match file {
+            None => p.create_job(command, None)?,
+            Some(f) => p.create_job(command, Some(Path::new(f)))?,
+        };
 
         let gil = Python::acquire_gil();
         let py = gil.python();

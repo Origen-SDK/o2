@@ -173,7 +173,9 @@ impl Logger {
 
     /// See display
     pub fn display_block(&self, messages: &Vec<&str>) {
-        self._log_block(0, "DISPLAY", messages, &(term::yellowln));
+        for m in messages {
+            self.displayln(m)
+        }
     }
 
     /// Log a debug message, this will be displayed in the terminal when running with -vv

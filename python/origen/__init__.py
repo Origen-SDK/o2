@@ -13,6 +13,7 @@ status = _origen.status()
 root = Path(status["root"])
 version = status["origen_version"]
 logger = _origen.logger
+log = _origen.logger
 running_on_windows = _origen.on_windows()
 running_on_linux = _origen.on_linux()
 _reg_description_parsing = False

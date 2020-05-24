@@ -31,7 +31,7 @@ macro_rules! add_children {
 #[macro_export]
 macro_rules! text_line {
     ( $( $elem:expr ),* ) => {{
-        let mut n = crate::generator::ast::Node::new(crate::generator::ast::Attrs::TextLine);
+        let mut n = node!(TextLine);
         $( n.add_child($elem); )*
         n
     }};

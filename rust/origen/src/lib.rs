@@ -111,6 +111,18 @@ pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
 }
 
+/// Execute the given function with a reference to the current job.
+/// Returns an error if there is no current job, otherwise the result of the given function.
+pub fn with_current_job<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&core::producer::job::Job) -> Result<T>,
+{
+    match producer().current_job() {
+        None => error!("Something has gone wrong, a reference has been made to the current job when there is none"),
+        Some(j) => func(j),
+    }
+}
+
 pub fn services() -> MutexGuard<'static, Services> {
     SERVICES.lock().unwrap()
 }

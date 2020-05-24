@@ -118,7 +118,7 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
             origen.target.load(targets=targets)
             origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
             
-            j = origen.producer.create_job(f)
+            j = origen.producer.create_job("generate", f)
             j.run()
         # Print a summary here...
 
