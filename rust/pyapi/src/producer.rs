@@ -29,7 +29,7 @@ impl PyJob {
             let j = &p.jobs[self.id];
             file = j.source_file().unwrap().to_path_buf();
         }
-        self.exec_file(&file)
+        exec_file(&file, self.id)
     }
 
     #[getter]
@@ -45,27 +45,25 @@ impl PyJob {
     }
 }
 
-impl PyJob {
-    /// Executes a pattern or flow source file
-    pub fn exec_file(&self, path: &Path) -> PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        py.eval(
-            &format!(
-                "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{ \
-                    'Pattern': lambda **kwargs : __import__(\"origen\").producer.Pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs), \
-                    'Flow': lambda **kwargs : __import__(\"origen\").producer.Flow(__import__(\"origen\").producer.get_job_by_id({}), **kwargs) \
-                 }}}})",
-                path.display(),
-                self.id,
-                self.id
-            ),
-            None,
-            Some(locals)
-        )?;
-        Ok(())
-    }
+/// Executes a pattern or flow source file
+pub fn exec_file(path: &Path, job_id: usize) -> PyResult<()> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let locals = [("origen", py.import("origen")?)].into_py_dict(py);
+    py.eval(
+        &format!(
+            "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{ \
+                'Pattern': lambda **kwargs : __import__(\"origen\").producer.Pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs), \
+                'Flow': lambda **kwargs : __import__(\"origen\").producer.Flow(__import__(\"origen\").producer.get_job_by_id({}), **kwargs) \
+             }}}})",
+            path.display(),
+            job_id,
+            job_id
+        ),
+        None,
+        Some(locals)
+    )?;
+    Ok(())
 }
 
 #[pyclass(subclass)]

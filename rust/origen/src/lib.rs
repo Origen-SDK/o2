@@ -131,6 +131,14 @@ pub fn app_config() -> MutexGuard<'static, AppConfig> {
     APPLICATION_CONFIG.lock().unwrap()
 }
 
+/// Execute the given function with a reference to the application config.
+pub fn with_app_config<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&AppConfig) -> Result<T>,
+{
+    func(&app_config())
+}
+
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
 pub fn clean_mode(name: &str) -> String {
     let mut matches: Vec<String> = Vec::new();

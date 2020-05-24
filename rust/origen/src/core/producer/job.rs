@@ -1,3 +1,4 @@
+use crate::Result;
 use std::path::{Path, PathBuf};
 
 /// A job represents the execution of an Origen application source file.
@@ -22,6 +23,7 @@ impl Job {
         }
     }
 
+    /// Rerturns the origen command that would be run to replicate the job, e.g. "origen g some_file.py"
     pub fn command(&self) -> String {
         let mut cmd = "origen ".to_string();
         cmd += &self.command;
@@ -32,5 +34,72 @@ impl Job {
             }
         }
         cmd
+    }
+
+    /// Tries to resolve a reference to a file by the following rules:
+    ///   * Its an absolute file reference
+    ///   * Its a relative reference from the job's latest file
+    ///   * Its a relative reference from the job's original source file
+    ///   * Its a relative reference from the app's app dir
+    ///   * Its a relative reference from the app's root
+    ///
+    /// Optionally a list of possible extensions can be given and the above will be retried
+    /// with the given extension(s) appended if required.
+    pub fn resolve_file_reference(
+        &self,
+        file: &Path,
+        extensions: Option<Vec<&str>>,
+    ) -> Result<PathBuf> {
+        let f = self._resolve_file_reference(file);
+        if let Some(f) = f {
+            return Ok(f);
+        }
+        if let Some(exts) = extensions {
+            for ext in exts {
+                let f = self._resolve_file_reference(&file.with_extension(ext));
+                if let Some(f) = f {
+                    return Ok(f);
+                }
+            }
+        }
+        error!("Could not find '{}'", file.display())
+    }
+
+    fn _resolve_file_reference(&self, file: &Path) -> Option<PathBuf> {
+        if file.is_absolute() {
+            if file.exists() {
+                return Some(file.to_path_buf());
+            }
+        } else {
+            if let Some(root) = self.files.last() {
+                if let Some(dir) = root.parent() {
+                    let f = dir.join(file);
+                    if f.exists() {
+                        return Some(f.to_path_buf());
+                    }
+                }
+            }
+            if let Some(root) = self.files.first() {
+                if let Some(dir) = root.parent() {
+                    let f = dir.join(file);
+                    if f.exists() {
+                        return Some(f.to_path_buf());
+                    }
+                }
+            }
+            if crate::STATUS.is_app_present {
+                let dir = crate::core::application::app_dir().unwrap();
+                let f = dir.join(file);
+                if f.exists() {
+                    return Some(f.to_path_buf());
+                }
+                let dir = crate::core::application::root().unwrap();
+                let f = dir.join(file);
+                if f.exists() {
+                    return Some(f.to_path_buf());
+                }
+            }
+        }
+        None
     }
 }
