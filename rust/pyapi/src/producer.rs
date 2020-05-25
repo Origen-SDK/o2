@@ -1,6 +1,5 @@
 use origen::STATUS;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use std::path::{Path, PathBuf};
 
 #[pymodule]

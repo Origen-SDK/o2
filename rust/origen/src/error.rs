@@ -80,3 +80,9 @@ impl std::convert::From<walkdir::Error> for Error {
         Error::new(&err.to_string())
     }
 }
+
+impl std::convert::From<regex::Error> for Error {
+    fn from(err: regex::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}

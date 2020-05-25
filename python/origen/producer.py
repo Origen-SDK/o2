@@ -35,7 +35,7 @@ class Producer(_origen.producer.PyProducer):
       pat = PatternClass(name, **kwargs)
 
       # This initializes a new AST for the pattern we are about to generate
-      origen.start_new_test(pat.name)
+      _origen.start_new_test(pat.name)
       origen.tester.generate_pattern_header(pat.header_comments)
 
       origen.logger.debug(f"Producing pattern {pat.name} in job {job.id}")
