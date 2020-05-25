@@ -35,12 +35,13 @@ fn main() {
     /******************** Origen dev commands *******************************************/
     /************************************************************************************/
     if STATUS.is_origen_present || STATUS.is_app_present {
+        let msg = match STATUS.is_origen_present {
+            true => "Nicely format all Rust and Python files",
+            false => "Nicely format all of your application's Python files",
+        };
         app = app
             //************************************************************************************/
-            .subcommand(
-                SubCommand::with_name("fmt")
-                    .about("Check if your environment is setup correctly to run Origen"),
-            );
+            .subcommand(SubCommand::with_name("fmt").about(msg));
     }
 
     /************************************************************************************/
