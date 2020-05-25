@@ -1,7 +1,9 @@
+pub mod fmt;
 pub mod interactive;
 pub mod mode;
 pub mod setup;
 pub mod target;
+pub mod update;
 pub mod version;
 
 use crate::python;

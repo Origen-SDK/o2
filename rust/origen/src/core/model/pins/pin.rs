@@ -208,12 +208,6 @@ impl Pin {
 
 impl Default for Pin {
     fn default() -> Pin {
-        Self::new(
-            0,
-            0,
-            String::from("default"),
-            Option::None,
-            Option::None,
-        )
+        Self::new(0, 0, String::from("default"), Option::None, Option::None)
     }
 }

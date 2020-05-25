@@ -14,42 +14,48 @@ if sys.platform == "win32":
     #necessary for rlcompleter since it relies on the existance
     #of a readline module
     from pyreadline.rlmain import Readline
-    __all__ = [ 'parse_and_bind',
-                'get_line_buffer',
-                'insert_text',
-                'clear_history',
-                'read_init_file',
-                'read_history_file',
-                'write_history_file',
-                'get_current_history_length',
-                'get_history_length',
-                'get_history_item',
-                'set_history_length',
-                'set_startup_hook',
-                'set_pre_input_hook',
-                'set_completer',
-                'get_completer',
-                'get_begidx',
-                'get_endidx',
-                'set_completer_delims',
-                'get_completer_delims',
-                'add_history',
-                'callback_handler_install',
-                'callback_handler_remove',
-                'callback_read_char',] #Some other objects are added below
+    __all__ = [
+        'parse_and_bind',
+        'get_line_buffer',
+        'insert_text',
+        'clear_history',
+        'read_init_file',
+        'read_history_file',
+        'write_history_file',
+        'get_current_history_length',
+        'get_history_length',
+        'get_history_item',
+        'set_history_length',
+        'set_startup_hook',
+        'set_pre_input_hook',
+        'set_completer',
+        'get_completer',
+        'get_begidx',
+        'get_endidx',
+        'set_completer_delims',
+        'get_completer_delims',
+        'add_history',
+        'callback_handler_install',
+        'callback_handler_remove',
+        'callback_read_char',
+    ]  #Some other objects are added below
 
     # create a Readline object to contain the state
     rl = Readline()
 
     if rl.disable_readline:
+
         def dummy(completer=""):
             pass
+
         for funk in __all__:
             globals()[funk] = dummy
     else:
+
         def GetOutputFile():
             '''Return the console object used by readline so that it can be used for printing in color.'''
             return rl.console
+
         __all__.append("GetOutputFile")
 
         import pyreadline.console as console
@@ -79,13 +85,14 @@ if sys.platform == "win32":
         set_pre_input_hook = rl.set_pre_input_hook
         set_startup_hook = rl.set_startup_hook
 
-        callback_handler_install=rl.callback_handler_install
-        callback_handler_remove=rl.callback_handler_remove
-        callback_read_char=rl.callback_read_char
+        callback_handler_install = rl.callback_handler_install
+        callback_handler_remove = rl.callback_handler_remove
+        callback_read_char = rl.callback_read_char
 
         console.install_readline(rl.readline)
 
     __all__.append("rl")
+
 
 # Called by the Origen CLI to boot the Origen Python env, not for application use
 # Any target/env overrides given to the command line will be passed in here
@@ -120,7 +127,8 @@ def __origen__(command, targets=None, environment=None, mode=None, files=None):
         # Also, its a known issue that powershell doesn't display yellow text correctly. The standard command prompt will
         # though.
         colorama.init()
-        historyPath = origen.root.joinpath(".origen").joinpath("console_history")
+        historyPath = origen.root.joinpath(".origen").joinpath(
+            "console_history")
 
         def save_history(historyPath=historyPath):
             import readline
@@ -135,7 +143,9 @@ def __origen__(command, targets=None, environment=None, mode=None, files=None):
         import code
         from origen import dut, tester
         from origen.registers.actions import write, verify, write_transaction, verify_transaction
-        code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
+        code.interact(banner=f"Origen {origen.version}",
+                      local=locals(),
+                      exitmsg="")
 
     else:
         print(f"Unknown command: {command}")

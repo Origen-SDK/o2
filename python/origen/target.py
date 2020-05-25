@@ -1,6 +1,7 @@
 import origen
 import _origen
 
+
 # Load the target if one is currently set by the application
 def load(targets=None):
     if targets == None:

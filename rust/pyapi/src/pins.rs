@@ -135,13 +135,7 @@ impl PyDUT {
     fn pins(&self, model_id: usize) -> PyResult<Py<PinContainer>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(
-            py,
-            PinContainer {
-                model_id: model_id,
-            },
-        )
-        .unwrap())
+        Ok(Py::new(py, PinContainer { model_id: model_id }).unwrap())
     }
 
     #[args(pins = "*", options = "**")]
@@ -194,13 +188,7 @@ impl PyDUT {
     fn physical_pins(&self, model_id: usize) -> PyResult<Py<PhysicalPinContainer>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(
-            py,
-            PhysicalPinContainer {
-                model_id: model_id,
-            },
-        )
-        .unwrap())
+        Ok(Py::new(py, PhysicalPinContainer { model_id: model_id }).unwrap())
     }
 
     fn physical_pin(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
@@ -223,7 +211,12 @@ impl PyDUT {
     }
 
     #[args(pins = "*")]
-    fn add_pin_header(&self, model_id: usize, name: &str, pins: &PyTuple) -> PyResult<Py<PinHeader>> {
+    fn add_pin_header(
+        &self,
+        model_id: usize,
+        name: &str,
+        pins: &PyTuple,
+    ) -> PyResult<Py<PinHeader>> {
         let mut dut = DUT.lock().unwrap();
         dut.create_pin_header(model_id, name, pins.extract::<Vec<String>>()?)?;
 
@@ -242,13 +235,7 @@ impl PyDUT {
     fn pin_headers(&self, model_id: usize) -> PyResult<Py<PinHeaderContainer>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(
-            py,
-            PinHeaderContainer {
-                model_id: model_id,
-            },
-        )
-        .unwrap())
+        Ok(Py::new(py, PinHeaderContainer { model_id: model_id }).unwrap())
     }
 
     fn pin_header(&self, model_id: usize, name: &str) -> PyResult<PyObject> {

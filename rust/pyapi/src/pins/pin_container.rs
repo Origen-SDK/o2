@@ -1,9 +1,9 @@
+use crate::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter};
+use indexmap::map::IndexMap;
 use pyo3::class::mapping::*;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
-use indexmap::map::IndexMap;
-use crate::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter};
 
 use super::pin_collection::PinCollection;
 use origen::core::model::pins::Endianness;
@@ -87,7 +87,15 @@ impl DictLikeAPI for PinContainer {
     }
 
     fn new_pyitem(&self, py: Python, name: &str, model_id: usize) -> PyResult<PyObject> {
-        Ok(Py::new(py, super::pin_group::PinGroup {model_id: model_id, name: name.to_string()}).unwrap().to_object(py))
+        Ok(Py::new(
+            py,
+            super::pin_group::PinGroup {
+                model_id: model_id,
+                name: name.to_string(),
+            },
+        )
+        .unwrap()
+        .to_object(py))
     }
 }
 

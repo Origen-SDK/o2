@@ -32,6 +32,18 @@ fn main() {
     //    );
 
     /************************************************************************************/
+    /******************** Origen dev commands *******************************************/
+    /************************************************************************************/
+    if STATUS.is_origen_present || STATUS.is_app_present {
+        app = app
+            //************************************************************************************/
+            .subcommand(
+                SubCommand::with_name("fmt")
+                    .about("Check if your environment is setup correctly to run Origen"),
+            );
+    }
+
+    /************************************************************************************/
     /******************** In application commands ***************************************/
     /************************************************************************************/
     if STATUS.is_app_present {
@@ -180,7 +192,12 @@ fn main() {
 
            /************************************************************************************/
            .subcommand(SubCommand::with_name("setup")
-                .about("Setup your application's Python environment"),
+                .about("Setup your application's Python environment in a new workspace, this will install dependencies per the poetry.lock file"),
+           )
+
+           /************************************************************************************/
+           .subcommand(SubCommand::with_name("update")
+                .about("Update your application's Python dependencies according to the latest pyproject.toml file"),
            )
     }
 
@@ -191,6 +208,8 @@ fn main() {
     } else {
         match matches.subcommand_name() {
             Some("setup") => commands::setup::run(),
+            Some("update") => commands::update::run(),
+            Some("fmt") => commands::fmt::run(),
             Some("interactive") => {
                 let m = matches.subcommand_matches("interactive").unwrap();
                 commands::interactive::run(
@@ -236,8 +255,8 @@ fn main() {
                         Some(subm.0),
                         match s.values_of("targets") {
                             Some(targets) => Some(targets.collect()),
-                            None => None
-                        }
+                            None => None,
+                        },
                     )
                 } else {
                     commands::target::run(None, None);

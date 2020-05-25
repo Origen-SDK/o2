@@ -12,8 +12,8 @@ mod tester;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
 use origen::app_config as origen_app_config;
+use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
@@ -21,9 +21,9 @@ use std::sync::MutexGuard;
 
 // Imported pyapi modules
 use dut::PyInit_dut;
-use tester::PyInit_tester;
 use logger::PyInit_logger;
 use services::PyInit_services;
+use tester::PyInit_tester;
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python

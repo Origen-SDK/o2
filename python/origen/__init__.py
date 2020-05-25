@@ -27,10 +27,12 @@ if status["is_app_present"]:
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
     app = a.Application()
 
+
 def set_mode(val):
     global mode
     if val:
         mode = _origen.clean_mode(val)
+
 
 def load_file(path, globals={}, locals={}):
     context = {**standard_context(), **locals}
@@ -38,8 +40,10 @@ def load_file(path, globals={}, locals={}):
         code = compile(f.read(), path, 'exec')
         exec(code, globals, context)
 
+
 def test_ast():
     return pickle.loads(bytes(_origen.test_ast()))
+
 
 @contextmanager
 def reg_description_parsing():
@@ -49,14 +53,16 @@ def reg_description_parsing():
     yield
     _reg_description_parsing = orig
 
+
 # Returns the context (locals) that are available by default within files
 # loaded by Origen, e.g. dut, tester, origen, etc.
 def standard_context():
     return {
         "origen": sys.modules[__name__],
-        "dut": dut, 
-        "tester": tester, 
+        "dut": dut,
+        "tester": tester,
     }
+
 
 # class Tester:
 #     def __init__(self, path):

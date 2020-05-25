@@ -10,7 +10,10 @@ use std::path::PathBuf;
 #[macro_export]
 macro_rules! backend_fail {
     ($message:expr) => {
-        origen::LOGGER.error(&format!("A problem occurred in the Origen backend: '{}'", $message));
+        origen::LOGGER.error(&format!(
+            "A problem occurred in the Origen backend: '{}'",
+            $message
+        ));
         std::process::exit(1);
     };
 }

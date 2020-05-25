@@ -3,9 +3,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PySlice};
 
 pub trait ListLikeAPI {
-  fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize>;
-  fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject>;
-  fn __iter__(&self) -> PyResult<ListLikeIter>;
+    fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize>;
+    fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject>;
+    fn __iter__(&self) -> PyResult<ListLikeIter>;
 
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
         if let Ok(slice) = idx.cast_as::<PySlice>() {
@@ -16,40 +16,44 @@ pub trait ListLikeAPI {
         }
     }
 
-  fn ___getitem__(&self, idx: isize) -> PyResult<PyObject> {
-    let item_ids;
-    {
-      let dut = DUT.lock().unwrap();
-      item_ids = self.item_ids(&dut);
-    }
-    if idx >= (item_ids.len() as isize) {
-      return Err(pyo3::exceptions::IndexError::py_err(format!(
-        "Index {} is out range of container of size {}", idx, item_ids.len()
-      )));
-    } else if idx.abs() > (item_ids.len() as isize) {
-      return Err(pyo3::exceptions::IndexError::py_err(format!(
-        "Index {} is out range of container of size {}", idx, item_ids.len()
-      )));
-    }
-    let _idx;
-    if idx >= 0 {
-      _idx = idx as usize;
-    } else {
-      _idx = ((item_ids.len() as isize) + idx) as usize ;
-    }
+    fn ___getitem__(&self, idx: isize) -> PyResult<PyObject> {
+        let item_ids;
+        {
+            let dut = DUT.lock().unwrap();
+            item_ids = self.item_ids(&dut);
+        }
+        if idx >= (item_ids.len() as isize) {
+            return Err(pyo3::exceptions::IndexError::py_err(format!(
+                "Index {} is out range of container of size {}",
+                idx,
+                item_ids.len()
+            )));
+        } else if idx.abs() > (item_ids.len() as isize) {
+            return Err(pyo3::exceptions::IndexError::py_err(format!(
+                "Index {} is out range of container of size {}",
+                idx,
+                item_ids.len()
+            )));
+        }
+        let _idx;
+        if idx >= 0 {
+            _idx = idx as usize;
+        } else {
+            _idx = ((item_ids.len() as isize) + idx) as usize;
+        }
 
         let gil = Python::acquire_gil();
         let py = gil.python();
         Ok(self.new_pyitem(py, _idx)?)
     }
 
-  fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
-    let indices;
-    {
-      let dut = DUT.lock().unwrap();
-      let item_ids = self.item_ids(&dut);
-      indices = slice.indices((item_ids.len() as i32).into())?;
-    }
+    fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
+        let indices;
+        {
+            let dut = DUT.lock().unwrap();
+            let item_ids = self.item_ids(&dut);
+            indices = slice.indices((item_ids.len() as i32).into())?;
+        }
 
         let gil = Python::acquire_gil();
         let py = gil.python();

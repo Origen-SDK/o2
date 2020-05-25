@@ -2,9 +2,9 @@ pub mod pin;
 pub mod pin_collection;
 pub mod pin_group;
 pub mod pin_header;
+use super::super::dut::Dut;
 use crate::error::Error;
 use std::convert::TryFrom;
-use super::super::dut::Dut;
 
 extern crate regex;
 use regex::Regex;
@@ -30,8 +30,20 @@ impl Model {
         reset_action: Option<PinActions>,
         endianness: Option<Endianness>,
     ) -> Result<(PinGroup, Pin), Error> {
-        let pin_group = PinGroup::new(self.id, pin_group_id, name.to_string(), vec!(name.to_string()), endianness);
-        let physical_pin = Pin::new(self.id, physical_pin_id, name.to_string(), reset_data, reset_action);
+        let pin_group = PinGroup::new(
+            self.id,
+            pin_group_id,
+            name.to_string(),
+            vec![name.to_string()],
+            endianness,
+        );
+        let physical_pin = Pin::new(
+            self.id,
+            physical_pin_id,
+            name.to_string(),
+            reset_data,
+            reset_action,
+        );
         self.pin_groups.insert(name.to_string(), pin_group_id);
         self.pins.insert(name.to_string(), physical_pin_id);
         Ok((pin_group, physical_pin))
@@ -42,7 +54,7 @@ impl Model {
         pin_group_id: usize,
         name: &str,
         pins: Vec<String>,
-        endianness: Option<Endianness>
+        endianness: Option<Endianness>,
     ) -> Result<PinGroup, Error> {
         let pin_group = PinGroup::new(self.id, pin_group_id, name.to_string(), pins, endianness);
         self.pin_groups.insert(name.to_string(), pin_group_id);
@@ -85,8 +97,7 @@ impl Dut {
         } else if self.get_pin_group(model_id, name).is_some() {
             return Err(Error::new(&format!(
                 "Pin '{}' already exists on model '{}'!",
-                name,
-                self.models[model_id].name
+                name, self.models[model_id].name
             )));
         }
 
@@ -115,7 +126,7 @@ impl Dut {
         // to the frontend, which should end the progrma. Howvever, the user could catch the exception, which would leave the
         // backend here in half-complete state.
         // Just to be safe, resolve and check the names first before adding anything.
-        let mut names: Vec<String> = vec!();
+        let mut names: Vec<String> = vec![];
         if let Some(w) = width {
             if w < 1 {
                 return Err(Error::new(&format!(
@@ -158,14 +169,8 @@ impl Dut {
                 if raction.is_some() {
                     ra = Some(PinActions::try_from(raction.clone().unwrap()[i])?);
                 }
-                let (pin_group, mut physical_pin) = model.register_pin(
-                    pin_group_id, 
-                    physical_pin_id,
-                    &n,
-                    rd,
-                    ra,
-                    endianness,
-                )?;
+                let (pin_group, mut physical_pin) =
+                    model.register_pin(pin_group_id, physical_pin_id, &n, rd, ra, endianness)?;
                 physical_pin.groups.insert(name.to_string(), i);
                 self.pin_groups.push(pin_group);
                 self.pins.push(physical_pin);
@@ -180,7 +185,7 @@ impl Dut {
             self.group_pins_by_name(model_id, name, names, endianness)?;
             Ok(&self.pin_groups[pin_group_id])
         } else {
-            Ok(&self.pin_groups[pin_group_id-1])
+            Ok(&self.pin_groups[pin_group_id - 1])
         }
     }
 
@@ -212,10 +217,12 @@ impl Dut {
             )));
         }
         for n in names.iter() {
-             let pin = self._get_mut_pin(model_id, n)?;
-             pin.aliases.push(String::from(alias));
+            let pin = self._get_mut_pin(model_id, n)?;
+            pin.aliases.push(String::from(alias));
         }
-        self.models[model_id].pin_groups.insert(alias.to_string(), id);
+        self.models[model_id]
+            .pin_groups
+            .insert(alias.to_string(), id);
         self.pin_groups.push(grp);
         Ok(())
     }
@@ -225,7 +232,7 @@ impl Dut {
         model_id: usize,
         name: &str,
         pins: Vec<String>,
-        endianness: Option<Endianness>
+        endianness: Option<Endianness>,
     ) -> Result<&PinGroup, Error> {
         let id;
         {
@@ -239,7 +246,8 @@ impl Dut {
 
         let model = &mut self.models[model_id];
         //self.pin_groups.push(model.register_pin_group(id, name, physical_names, endianness)?);
-        self.pin_groups.push(model.register_pin_group(id, name, pnames, endianness)?);
+        self.pin_groups
+            .push(model.register_pin_group(id, name, pnames, endianness)?);
         Ok(&self.pin_groups[id])
     }
 
@@ -298,7 +306,11 @@ impl Dut {
         Ok(s)
     }
 
-    pub fn get_pin_reset_actions(&self, model_id: usize, names: &Vec<String>) -> Result<String, Error> {
+    pub fn get_pin_reset_actions(
+        &self,
+        model_id: usize,
+        names: &Vec<String>,
+    ) -> Result<String, Error> {
         let mut s = String::from("");
         for n in names.iter() {
             let p = self._get_pin(model_id, n)?;
@@ -353,11 +365,21 @@ impl Dut {
         self.set_pin_actions(model_id, names, PinActions::Verify, data, mask)
     }
 
-    pub fn capture_pins(&mut self, model_id: usize, names: &Vec<String>, mask: Option<usize>) -> Result<(), Error> {
+    pub fn capture_pins(
+        &mut self,
+        model_id: usize,
+        names: &Vec<String>,
+        mask: Option<usize>,
+    ) -> Result<(), Error> {
         self.set_pin_actions(model_id, names, PinActions::Capture, Option::None, mask)
     }
 
-    pub fn highz_pins(&mut self, model_id: usize, names: &Vec<String>, mask: Option<usize>) -> Result<(), Error> {
+    pub fn highz_pins(
+        &mut self,
+        model_id: usize,
+        names: &Vec<String>,
+        mask: Option<usize>,
+    ) -> Result<(), Error> {
         self.set_pin_actions(model_id, names, PinActions::HighZ, Option::None, mask)
     }
 
@@ -377,7 +399,7 @@ impl Dut {
                 let mut _pin_names: Vec<String> = vec![];
                 for (name_str, grp_id) in self.models[model_id].pin_groups.iter() {
                     if regex.is_match(name_str) {
-                        let grp  = &self.pin_groups[*grp_id];
+                        let grp = &self.pin_groups[*grp_id];
                         for _name_str in grp.pin_names.iter() {
                             if physical_names.contains(_name_str) {
                                 return Err(Error::new(&format!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", name_str, regex_str, _name_str)));
@@ -452,7 +474,12 @@ impl Dut {
     }
 
     /// Given a pin or alias name, finds either its name or alias in the group.
-    pub fn index_of(&self, model_id: usize, name: &str, query_name: &str) -> Result<Option<usize>, Error> {
+    pub fn index_of(
+        &self,
+        model_id: usize,
+        name: &str,
+        query_name: &str,
+    ) -> Result<Option<usize>, Error> {
         if !self.models[model_id].pin_groups.contains_key(name) {
             // Pin group doesn't exists. Raise an error.
             return Err(Error::new(&format!(
@@ -492,7 +519,7 @@ impl Dut {
         match self.get_pin_group(model_id, name) {
             Some(grp) => {
                 n = grp.pin_names[0].clone();
-            },
+            }
             None => return Option::None,
         }
         self.get_mut_pin(model_id, &n)
@@ -505,8 +532,12 @@ impl Dut {
         }
     }
 
-    pub fn resolve_pin_names(&self, model_id: usize, names: &Vec<String>) -> Result<Vec<String>, Error> {
-        let mut physical_names: Vec<String> = vec!();
+    pub fn resolve_pin_names(
+        &self,
+        model_id: usize,
+        names: &Vec<String>,
+    ) -> Result<Vec<String>, Error> {
+        let mut physical_names: Vec<String> = vec![];
         for (_i, n) in names.iter().enumerate() {
             let p = self._resolve_to_physical_pin(model_id, n)?;
             physical_names.push(p.name.clone());
@@ -539,7 +570,11 @@ impl Dut {
         }
     }
 
-    pub fn verify_action_string_fits(&self, width: u32, action_string: &Vec<u8>) -> Result<(), Error> {
+    pub fn verify_action_string_fits(
+        &self,
+        width: u32,
+        action_string: &Vec<u8>,
+    ) -> Result<(), Error> {
         if action_string.len() != (width as usize) {
             Err(Error::new(&format!(
                 "Action string of length {} must match width {}!",
@@ -552,7 +587,12 @@ impl Dut {
     }
 
     /// Given a pin name, check if the pin or any of its aliases are present in pin group.
-    pub fn pin_group_contains(&self, model_id: usize, name: &str, query_name: &str) -> Result<bool, Error> {
+    pub fn pin_group_contains(
+        &self,
+        model_id: usize,
+        name: &str,
+        query_name: &str,
+    ) -> Result<bool, Error> {
         let result = self.index_of(model_id, name, query_name)?.is_some();
         Ok(result)
     }
