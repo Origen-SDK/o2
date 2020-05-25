@@ -12,6 +12,9 @@ pub struct Producer {
     pub running: Vec<usize>,
     pub completed: Vec<usize>,
     pub queued: Vec<usize>,
+    /// Will be set to true if any flow source files (with Flow() blocks) are encountered
+    /// during a generation run
+    pub flow_generated: bool,
 }
 
 impl Producer {
@@ -21,6 +24,7 @@ impl Producer {
             running: vec![],
             completed: vec![],
             queued: vec![],
+            flow_generated: false,
         }
     }
 
@@ -42,6 +46,10 @@ impl Producer {
 
     pub fn current_job(&self) -> Option<&Job> {
         self.jobs.last()
+    }
+
+    pub fn current_job_mut(&mut self) -> Option<&mut Job> {
+        self.jobs.last_mut()
     }
 }
 

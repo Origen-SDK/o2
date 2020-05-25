@@ -180,22 +180,22 @@ impl Logger {
 
     /// Log a debug message, this will be displayed in the terminal when running with -vv
     pub fn debug(&self, message: &str) {
-        self._log(2, "DEBUG", message, &term::yellowln);
+        self._log(2, "DEBUG", message, &term::tealln);
     }
 
     /// Log a debug message, this will be displayed in the terminal when running with -vv
     pub fn debug_block(&self, messages: &Vec<&str>) {
-        self._log_block(2, "DEBUG", messages, &(term::yellowln));
+        self._log_block(2, "DEBUG", messages, &(term::tealln));
     }
 
     /// Log a trace (very low level) debug message, this will be displayed in the terminal when running with -vvv
     pub fn trace(&self, message: &str) {
-        self._log(3, "TRACE", message, &term::yellowln);
+        self._log(3, "TRACE", message, &term::greyln);
     }
 
     /// Log a trace (very low level) debug message, this will be displayed in the terminal when running with -vvv
     pub fn trace_block(&self, messages: &Vec<&str>) {
-        self._log_block(3, "TRACE", messages, &(term::yellowln));
+        self._log_block(3, "TRACE", messages, &(term::greyln));
     }
 
     /// Log a deprecation warning message, this will be displayed in the terminal when running with -v

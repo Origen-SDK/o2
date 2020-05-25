@@ -1,15 +1,15 @@
 # These are the tests from o1's reg_spec.rb, converted to o2
 
 import origen
-import pdb
 import pytest
 from origen.registers.actions import *
+from tests.shared import *
 
 @pytest.fixture(autouse=True)
 def run_around_tests():
     global dut
     # Code that will run before each test
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     dut = origen.dut
     yield
     # Code that will run after each test

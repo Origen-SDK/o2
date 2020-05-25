@@ -1,11 +1,11 @@
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
-use crate::error::Error;
 use crate::generator::ast::{Attrs, Node};
 use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
 use crate::TEST;
 use crate::{add_children, node, text, text_line, with_current_job};
+use crate::{Error, Result};
 use indexmap::IndexMap;
 use std::path::PathBuf;
 
@@ -55,7 +55,12 @@ pub struct Tester {
     /// The name and model ID can be found on this object.
     current_timeset_id: Option<usize>,
     current_pin_header_id: Option<usize>,
+    /// This stores additional testers provided by the Python domain, effectively adding them
+    /// to AVAILABLE_TESTERS. It never needs to be cleared.
     external_testers: IndexMap<String, TesterSource>,
+    /// This is the testers that have been selected by the current target, it will be cleared
+    /// and new testers will be pushed to it during a target load.
+    /// It contains references to both Rust and Python domain testers.
     pub target_testers: Vec<TesterSource>,
 }
 
@@ -69,51 +74,28 @@ impl Tester {
         }
     }
 
-    pub fn _current_timeset_id(&self) -> Result<usize, Error> {
+    pub fn _current_timeset_id(&self) -> Result<usize> {
         match self.current_timeset_id {
             Some(t_id) => Ok(t_id),
             None => Err(Error::new(&format!("No timeset has been set!"))),
         }
     }
 
-    pub fn _current_pin_header_id(&self) -> Result<usize, Error> {
+    pub fn _current_pin_header_id(&self) -> Result<usize> {
         match self.current_pin_header_id {
             Some(ph_id) => Ok(ph_id),
             None => Err(Error::new(&format!("No pin header has been set!"))),
         }
     }
 
-    pub fn reset(&mut self, ast_name: Option<String>) -> Result<(), Error> {
-        self.clear_dut_dependencies(ast_name)?;
-        self.reset_external_testers()?;
-        Ok(())
-    }
-
-    /// Clears all members which reference members on the current DUT.
-    pub fn clear_dut_dependencies(&mut self, ast_name: Option<String>) -> Result<(), Error> {
-        if let Some(ast) = ast_name {
-            TEST.start(&ast);
-        } else {
-            TEST.start("ad-hoc");
-        }
+    /// This will be called by Origen immediately before it is about to load the target, it unloads
+    /// all tester targets and all other state making it ready to accept a new set of targets
+    pub fn reset(&mut self) {
+        self.target_testers.clear();
         self.current_timeset_id = Option::None;
-        Ok(())
     }
 
-    // Resets the external testers.
-    // Also clears the targeted testers, as it may point to an external one that will be cleared.
-    pub fn reset_external_testers(&mut self) -> Result<(), Error> {
-        self.target_testers.clear();
-        self.external_testers.clear();
-        Ok(())
-    }
-
-    pub fn reset_targets(&mut self) -> Result<(), Error> {
-        self.target_testers.clear();
-        Ok(())
-    }
-
-    pub fn register_external_tester(&mut self, tester: &str) -> Result<(), Error> {
+    pub fn register_external_tester(&mut self, tester: &str) -> Result<()> {
         self.external_testers.insert(
             tester.to_string(),
             TesterSource::External(tester.to_string()),
@@ -129,7 +111,7 @@ impl Tester {
         }
     }
 
-    pub fn _get_timeset(&self, dut: &Dut) -> Result<Timeset, Error> {
+    pub fn _get_timeset(&self, dut: &Dut) -> Result<Timeset> {
         if let Some(t_id) = self.current_timeset_id {
             Ok(dut.timesets[t_id].clone())
         } else {
@@ -137,18 +119,13 @@ impl Tester {
         }
     }
 
-    pub fn set_timeset(
-        &mut self,
-        dut: &Dut,
-        model_id: usize,
-        timeset_name: &str,
-    ) -> Result<(), Error> {
+    pub fn set_timeset(&mut self, dut: &Dut, model_id: usize, timeset_name: &str) -> Result<()> {
         self.current_timeset_id = Some(dut._get_timeset(model_id, timeset_name)?.id);
         TEST.push(node!(SetTimeset, self.current_timeset_id.unwrap()));
         Ok(())
     }
 
-    pub fn clear_timeset(&mut self) -> Result<(), Error> {
+    pub fn clear_timeset(&mut self) -> Result<()> {
         self.current_timeset_id = Option::None;
         TEST.push(node!(ClearTimeset));
         Ok(())
@@ -162,7 +139,7 @@ impl Tester {
         }
     }
 
-    pub fn _get_pin_header(&self, dut: &Dut) -> Result<PinHeader, Error> {
+    pub fn _get_pin_header(&self, dut: &Dut) -> Result<PinHeader> {
         if let Some(ph_id) = self.current_pin_header_id {
             Ok(dut.pin_headers[ph_id].clone())
         } else {
@@ -175,19 +152,19 @@ impl Tester {
         dut: &Dut,
         model_id: usize,
         pin_header_name: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.current_pin_header_id = Some(dut._get_pin_header(model_id, pin_header_name)?.id);
         TEST.push(node!(SetPinHeader, self.current_pin_header_id.unwrap()));
         Ok(())
     }
 
-    pub fn clear_pin_header(&mut self) -> Result<(), Error> {
+    pub fn clear_pin_header(&mut self) -> Result<()> {
         self.current_pin_header_id = Option::None;
         TEST.push(node!(ClearPinHeader));
         Ok(())
     }
 
-    pub fn issue_callback_at(&mut self, idx: usize) -> Result<(), Error> {
+    pub fn issue_callback_at(&mut self, idx: usize) -> Result<()> {
         let g = &mut self.target_testers[idx];
 
         // Grab the last node and immutably pass it to the interceptor
@@ -213,13 +190,13 @@ impl Tester {
         Ok(())
     }
 
-    pub fn cc(&mut self, comment: &str) -> Result<(), Error> {
+    pub fn cc(&mut self, comment: &str) -> Result<()> {
         let comment_node = node!(Comment, 1, comment.to_string());
         TEST.push(comment_node);
         Ok(())
     }
 
-    pub fn cycle(&mut self, repeat: Option<usize>) -> Result<(), Error> {
+    pub fn cycle(&mut self, repeat: Option<usize>) -> Result<()> {
         let cycle_node = node!(Cycle, repeat.unwrap_or(1) as u32, true);
         TEST.push(cycle_node);
         Ok(())
@@ -229,7 +206,7 @@ impl Tester {
         &self,
         app_comments: Option<Vec<String>>,
         pattern_comments: Option<Vec<String>>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let mut header = node!(PatternHeader);
         header.add_child(node!(TextBoundaryLine));
         let mut section = node!(TextSection, Some("Generated".to_string()), None);
@@ -297,14 +274,14 @@ impl Tester {
         Ok(())
     }
 
-    pub fn end_pattern(&self) -> Result<(), Error> {
+    pub fn end_pattern(&self) -> Result<()> {
         TEST.push(node!(PatternEnd));
         Ok(())
     }
 
     /// Renders the output for the target at index i.
     /// Allows the frontend to call testers in a loop.
-    pub fn render_target_at(&mut self, idx: usize) -> Result<RenderStatus, Error> {
+    pub fn render_target_at(&mut self, idx: usize) -> Result<RenderStatus> {
         let mut stat = RenderStatus::new();
         let g = &mut self.target_testers[idx];
         match g {
@@ -322,7 +299,7 @@ impl Tester {
         Ok(stat)
     }
 
-    pub fn target(&mut self, tester: &str) -> Result<&TesterSource, Error> {
+    pub fn target(&mut self, tester: &str) -> Result<&TesterSource> {
         let g;
         if let Some(_g) = instantiate_tester(tester) {
             g = TesterSource::Internal(_g);
@@ -353,11 +330,6 @@ impl Tester {
 
     pub fn targets_as_strs(&self) -> Vec<String> {
         self.target_testers.iter().map(|g| g.to_string()).collect()
-    }
-
-    pub fn clear_targets(&mut self) -> Result<(), Error> {
-        self.target_testers.clear();
-        Ok(())
     }
 
     pub fn testers(&self) -> Vec<String> {
@@ -391,27 +363,27 @@ impl RenderStatus {
 /// Each method will be given the resulting node after processing.
 /// Note: the node given is only a clone of what will be stored in the AST.
 pub trait Interceptor {
-    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
+    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Result<(), Error> {
+    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn clear_timeset(&mut self, _node: &Node) -> Result<(), Error> {
+    fn clear_timeset(&mut self, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
+    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn set_pin_header(&mut self, _pin_header_id: usize, _node: &Node) -> Result<(), Error> {
+    fn set_pin_header(&mut self, _pin_header_id: usize, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn clear_pin_header(&mut self, _node: &Node) -> Result<(), Error> {
+    fn clear_pin_header(&mut self, _node: &Node) -> Result<()> {
         Ok(())
     }
 }

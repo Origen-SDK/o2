@@ -25,7 +25,7 @@ pub struct PyTester {
 impl PyTester {
     #[new]
     fn new(obj: &PyRawObject) {
-        origen::tester().reset(None).unwrap();
+        origen::tester().reset();
         obj.init({
             PyTester {
                 python_testers: HashMap::new(),
@@ -35,50 +35,12 @@ impl PyTester {
         });
     }
 
-    #[args(kwargs = "**")]
-    fn reset(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        let mut ast_name = None;
-        if let Some(args) = kwargs {
-            if let Some(ast) = args.get_item("ast_name") {
-                ast_name = Some(ast.extract::<String>()?);
-            }
-        }
-        origen::tester().reset(ast_name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
-    }
-
-    #[args(kwargs = "**")]
-    fn clear_dut_dependencies(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        let mut ast_name = None;
-        if let Some(args) = kwargs {
-            if let Some(ast) = args.get_item("ast_name") {
-                ast_name = Some(ast.extract::<String>()?);
-            }
-        }
-        origen::tester().clear_dut_dependencies(ast_name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
-    }
-
-    fn reset_external_testers(slf: PyRef<Self>) -> PyResult<PyObject> {
-        origen::tester().reset_external_testers()?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
-    }
-
-    fn reset_targets(slf: PyRef<Self>) -> PyResult<PyObject> {
-        origen::tester().reset_targets()?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    /// This resets the tester, clearing all loaded targets and any other state, making
+    /// it ready for a fresh target load.
+    /// This should only be called from Python code for testing, it will be called automatically
+    /// by Origen before loading targets.
+    fn reset(_self: PyRef<Self>) {
+        origen::tester().reset();
     }
 
     #[getter]
@@ -366,15 +328,6 @@ impl PyTester {
     fn targets(&self) -> PyResult<Vec<String>> {
         let tester = origen::tester();
         Ok(tester.targets_as_strs().clone())
-    }
-
-    fn clear_targets(slf: PyRef<Self>) -> PyResult<PyObject> {
-        let mut tester = origen::tester();
-        tester.clear_targets()?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
     }
 
     fn render_pattern(&self) -> PyResult<()> {

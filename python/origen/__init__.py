@@ -8,6 +8,8 @@ import pickle
 from origen.tester import Tester, DummyTester
 from origen.producer import Producer
 
+import origen.target
+
 config = _origen.config()
 status = _origen.status()
 root = Path(status["root"])
@@ -22,6 +24,12 @@ app = None
 dut = None
 tester = Tester()
 producer = Producer()
+# The application's test program interface, this will be lazily instantiated
+# the first time a test program Flow() block is encountered
+interface = None
+
+# These vars are used to indenfify when a target load is taking place
+_target_loading = False
 
 mode = "development"
 
@@ -36,6 +44,7 @@ def set_mode(val):
         mode = _origen.clean_mode(val)
 
 def load_file(path, globals={}, locals={}):
+    log.trace(f"Loading file '{path}'")
     context = {**standard_context(), **locals}
     with open(path) as f:
         code = compile(f.read(), path, 'exec')

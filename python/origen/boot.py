@@ -106,20 +106,20 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
     if verbosity is not None:
         _origen.logger.set_verbosity(verbosity)
 
-    origen.target.load(targets=targets)
-
+    origen.target.setup(targets=targets)
+    
     # The generate command handles patterns and flows.
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
     if command == "generate":
         for (i, f) in enumerate(_origen.file_handler()):
-            # For each pattern, instantiate the DUT and reset the AST
-            origen.tester.reset()
-            origen.target.load(targets=targets)
             origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
-            
-            j = origen.producer.create_job("generate", f)
-            j.run()
+            # Starts a new JOB in Origen which provides some long term storage and tracking
+            # of files that are referenced on the Rust side 
+            # The JOB API can be accessed via origen.producer.current_job
+            origen.producer.create_job("generate", f)
+            context = origen.producer.api()
+            origen.load_file(f, locals=context)
         # Print a summary here...
 
     elif command == "compile":
@@ -127,6 +127,7 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
             origen.app.compile(pathlib.Path(file))
 
     elif command == "interactive":
+        origen.target.load()
         import atexit, os, sys, colorama, termcolor, readline, rlcompleter
 
         # Colorama init only required on windows, but place it here to keep consistent with all platforms, or in case options

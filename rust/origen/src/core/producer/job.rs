@@ -15,12 +15,16 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn source_file(&self) -> Option<&Path> {
-        if self.files.is_empty() {
-            None
-        } else {
-            Some(&self.files[0])
-        }
+    /// Returns the file at the root of the job or None if the job has no file association.
+    pub fn source_file(&self) -> Option<&PathBuf> {
+        self.files.first()
+    }
+
+    /// Returns the current file being processed by the job or None if the job has no file association.
+    /// This can be the same as source_file() or it can be different, for example if a flow job has
+    /// included a sub-flow which is currently being processed.
+    pub fn current_file(&self) -> Option<&PathBuf> {
+        self.files.last()
     }
 
     /// Rerturns the origen command that would be run to replicate the job, e.g. "origen g some_file.py"

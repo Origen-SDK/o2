@@ -63,6 +63,8 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(website_source_directory))?;
     m.add_wrapped(wrap_pyfunction!(on_windows))?;
     m.add_wrapped(wrap_pyfunction!(on_linux))?;
+    m.add_wrapped(wrap_pyfunction!(prepare_for_target_load))?;
+    m.add_wrapped(wrap_pyfunction!(start_new_test))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
@@ -203,4 +205,18 @@ fn on_windows() -> PyResult<bool> {
 #[pyfunction]
 fn on_linux() -> PyResult<bool> {
     Ok(origen::core::os::on_linux())
+}
+
+#[pyfunction]
+/// This will be called by Origen immediately before loading a fresh set of targets
+fn prepare_for_target_load() -> PyResult<()> {
+    origen::prepare_for_target_load();
+    Ok(())
+}
+
+#[pyfunction]
+/// Clears the current test (pattern) AST and starts a new one
+fn start_new_test(name: Option<String>) -> PyResult<()> {
+    origen::start_new_test(name);
+    Ok(())
 }

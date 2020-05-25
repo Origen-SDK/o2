@@ -1,10 +1,9 @@
 import pytest
 import origen, _origen # pylint: disable=import-error
-from tests.shared import clean_eagle, clean_tester, check_last_node_type, get_last_node # pylint: disable=import-error
+from tests.shared import *
 from tests.shared.python_like_apis import Fixture_ListLikeAPI # pylint: disable=import-error
 from origen.generator.tester_api import TesterAPI # pylint: disable=import-error
 from origen.generator.processor import Return # pylint: disable=import-error
-import pdb
 
 # Test tester used to test the frontend <-> backend tester hooks
 class PyTestRenderer(TesterAPI):
@@ -113,7 +112,7 @@ def test_setting_targets(clean_eagle, clean_tester):
 
 def test_resetting_targets():
   assert origen.tester.targets == ["::DummyRenderer"]
-  origen.tester.clear_targets()
+  origen.tester.reset()
   assert origen.tester.targets == []
 
 def test_exception_on_duplicate_targets(clean_eagle, clean_tester):
@@ -158,14 +157,14 @@ def test_adding_frontend_renderer(clean_eagle, clean_tester):
   assert "tester_test.PyTestRenderer" in origen.tester.testers
 
 def test_frontend_testers_can_be_targeted():
-  origen.tester.clear_targets()
+  origen.tester.reset()
   assert "tester_test.PyTestRenderer" in origen.tester.testers
   assert origen.tester.targets == []
   origen.tester.target("tester_test.PyTestRenderer")
   assert origen.tester.targets == ["tester_test.PyTestRenderer"]
 
 def test_frontend_testers_can_be_targeted_as_class():
-  origen.tester.clear_targets()
+  origen.tester.reset()
   assert "tester_test.PyTestRenderer" in origen.tester.testers
   assert origen.tester.targets == []
   origen.tester.target(PyTestRenderer)

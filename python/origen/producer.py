@@ -4,7 +4,9 @@ import origen.producer
 import origen.helpers
 from pathlib import Path
 import importlib
+from origen.interface import BasicInterface
 
+top_level_flow_open = False
 
 class Producer(_origen.producer.PyProducer):
   def issue_callback(self, c, kwargs):
@@ -12,18 +14,31 @@ class Producer(_origen.producer.PyProducer):
           getattr(origen.dut, c)(**kwargs)
           return True # Callback ran or raised an exception
       return False # Callback didn't run
+      
+  # Defines the methods that are accessible within blocks/<block>/registers.py
+  def api(self):
+      return {
+          "Pattern": self.Pattern, 
+          "Flow": self.Flow, 
+      }
 
   @contextmanager
-  def Pattern(self, job, **kwargs):
+  def Pattern(self, **kwargs):
+      # Always freshly load the target when generating a pattern, no matter how much anyone
+      # complains about this!
+      # It guarantees that produced patterns are always the same regardless of generation
+      # order by clearing all DUT state.
+      origen.target.load()
+
+      job = origen.producer.current_job
       name = Path(job.source_file).stem
       pat = PatternClass(name, **kwargs)
 
-      origen.tester.reset()
-      origen.target.reload()
-      origen.tester.clear_dut_dependencies(ast_name=pat.name)
+      # This initializes a new AST for the pattern we are about to generate
+      origen.start_new_test(pat.name)
       origen.tester.generate_pattern_header(pat.header_comments)
 
-      origen.logger.debug(f"Producing pattern {pat.name} with job ID {job.id}")
+      origen.logger.debug(f"Producing pattern {pat.name} in job {job.id}")
       origen.producer.issue_callback('startup', kwargs)
       yield pat
       origen.producer.issue_callback('shutdown', kwargs)
@@ -32,19 +47,51 @@ class Producer(_origen.producer.PyProducer):
       origen.tester.render_pattern()
 
   @contextmanager
-  def Flow(self, job, **kwargs):
-      name = Path(job.source_file).stem
+  def Flow(self, **kwargs):
+
+
+
+
+      # Instantiate the app interface
+      if origen.interface is None:
+          path = f'{_origen.app_config()["name"]}.interface.interface'
+          origen.logger.trace(f"Looking for application test program interface at {path}")
+          try:
+              origen.logger.trace(f"Found application interface module, instantiating the Interface class")
+              m = importlib.import_module(path)
+              origen.interface = m.Interface()
+          except ModuleNotFoundError:
+              origen.logger.trace(f"Not found, instantiating Origen's basic interface instead")
+              origen.interface = BasicInterface()
+          except AttributeError:
+              origen.logger.trace(f"Not found, instantiating Origen's basic interface instead")
+              origen.interface = BasicInterface()
+
+      global top_level_flow_open
+
+      job = origen.producer.current_job
+      name = Path(job.current_file).stem
       flow = FlowClass(name, **kwargs)
 
-      origen.tester.reset()
-      origen.target.reload()
+      if top_level_flow_open:
+          top_level = False
+          origen.logger.debug(f"Producing sub-flow '{flow.name}' in job '{job.id}'")
+      else:
+          origen.logger.debug(f"Producing flow '{flow.name}' in job '{job.id}'")
+          top_level = True
+          top_level_flow_open = True
+
+      #origen.tester.reset()
+      #origen.target.reload()
       #origen.tester.clear_dut_dependencies(ast_name=flow.name)
       #origen.tester.generate_pattern_header(flow.header_comments)
 
-      origen.logger.info(f"Producing flow {flow.name} with job ID {job.id}")
       #origen.producer.issue_callback('startup', kwargs)
-      yield flow.interface
+      yield origen.interface
       #origen.producer.issue_callback('shutdown', kwargs)
+
+      if top_level:
+        top_level_flow_open = False
 
       #origen.tester.end_pattern()
       #origen.tester.render()
@@ -107,13 +154,3 @@ class FlowClass:
     if "header_comments" in kwargs:
       self.header_comments["flow"] = kwargs["header_comments"]
 
-
-    # Instantiate the app interface
-    path = f'{_origen.app_config()["name"]}.interface.default'
-    origen.logger.trace(f"Looking for application default interface at {path}")
-    try:
-        m = importlib.import_module(path)
-    except ModuleNotFoundError:
-        origen.logger.trace(f"Not found, instantiating Origen's basic interface instead")
-        m = importlib.import_module("origen.interface")
-        self.interface = m.BasicInterface()

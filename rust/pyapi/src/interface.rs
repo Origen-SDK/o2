@@ -1,4 +1,3 @@
-use super::producer::exec_file;
 use pyo3::prelude::*;
 use std::path::Path;
 
@@ -23,14 +22,11 @@ impl PyInterface {
         obj.init(PyInterface {});
     }
 
-    fn include(&self, path: &str) -> PyResult<()> {
+    fn resolve_file_reference(&self, path: &str) -> PyResult<String> {
         let file = origen::with_current_job(|job| {
             job.resolve_file_reference(Path::new(path), Some(vec!["py"]))
         })?;
-        log_trace!("Found include file '{}'", file.display());
-        let job_id = origen::with_current_job(|job| Ok(job.id))?;
-        exec_file(&file, job_id)?;
-        Ok(())
+        Ok(file.to_str().unwrap().to_string())
     }
 
     /// Add a test to the flow

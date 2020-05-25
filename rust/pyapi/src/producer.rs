@@ -1,7 +1,7 @@
 use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[pymodule]
 pub fn producer(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -20,50 +20,49 @@ pub struct PyJob {
 
 #[pymethods]
 impl PyJob {
-    /// Execute the job's file. There is currently no checking that this is called on a job
-    /// which has a file component and it will panic if not.
-    pub fn run(&self) -> PyResult<()> {
-        let file;
-        {
-            let p = origen::producer();
-            let j = &p.jobs[self.id];
-            file = j.source_file().unwrap().to_path_buf();
-        }
-        exec_file(&file, self.id)
-    }
-
     #[getter]
     pub fn id(&self) -> PyResult<usize> {
         Ok(self.id)
     }
 
     #[getter]
-    pub fn source_file(&self) -> PyResult<String> {
-        let p = origen::producer();
-        let j = &p.jobs[self.id];
-        Ok(j.source_file().unwrap().to_str().unwrap().to_string())
+    /// Returns the source file at the root of the job
+    pub fn source_file(&self) -> PyResult<Option<String>> {
+        Ok(origen::with_current_job(|job| {
+            Ok(match job.source_file() {
+                None => None,
+                Some(f) => Some(format!("{}", f.display())),
+            })
+        })?)
     }
-}
 
-/// Executes a pattern or flow source file
-pub fn exec_file(path: &Path, job_id: usize) -> PyResult<()> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-    py.eval(
-        &format!(
-            "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{ \
-                'Pattern': lambda **kwargs : __import__(\"origen\").producer.Pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs), \
-                'Flow': lambda **kwargs : __import__(\"origen\").producer.Flow(__import__(\"origen\").producer.get_job_by_id({}), **kwargs) \
-             }}}})",
-            path.display(),
-            job_id,
-            job_id
-        ),
-        None,
-        Some(locals)
-    )?;
-    Ok(())
+    #[getter]
+    /// Returns the current file being executed by the job. This may be the same as the
+    /// source_file or it could be different, for example if a flow has included a sub-flow file.
+    pub fn current_file(&self) -> PyResult<Option<String>> {
+        Ok(origen::with_current_job(|job| {
+            Ok(match job.current_file() {
+                None => None,
+                Some(f) => Some(format!("{}", f.display())),
+            })
+        })?)
+    }
+
+    /// Add the given file to the job's files stack
+    fn add_file(&self, file: String) -> PyResult<()> {
+        Ok(origen::with_current_job_mut(|job| {
+            job.files.push(PathBuf::from(file.clone()));
+            Ok(())
+        })?)
+    }
+
+    /// Pop a file off the job's files stack
+    fn pop_file(&self) -> PyResult<()> {
+        Ok(origen::with_current_job_mut(|job| {
+            job.files.pop();
+            Ok(())
+        })?)
+    }
 }
 
 #[pyclass(subclass)]
@@ -77,22 +76,19 @@ impl PyProducer {
         obj.init(PyProducer {});
     }
 
-    fn create_job(&self, command: &str, file: Option<&str>) -> PyResult<Py<PyJob>> {
+    fn create_job(&self, command: &str, file: Option<&str>) -> PyResult<PyJob> {
         let mut p = origen::producer();
         let j = match file {
             None => p.create_job(command, None)?,
             Some(f) => p.create_job(command, Some(Path::new(f)))?,
         };
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(py, PyJob { id: j.id }).unwrap())
+        Ok(PyJob { id: j.id })
     }
 
-    fn get_job_by_id(&self, id: usize) -> PyResult<Py<PyJob>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(py, PyJob { id: id }).unwrap())
+    #[getter]
+    fn current_job(&self) -> PyResult<PyJob> {
+        let id = origen::with_current_job(|job| Ok(job.id))?;
+        Ok(PyJob { id: id })
     }
 
     // Hard-coded for now

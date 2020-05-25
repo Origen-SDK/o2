@@ -123,6 +123,18 @@ where
     }
 }
 
+/// Execute the given function with a mutable reference to the current job.
+/// Returns an error if there is no current job, otherwise the result of the given function.
+pub fn with_current_job_mut<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&mut core::producer::job::Job) -> Result<T>,
+{
+    match producer().current_job_mut() {
+        None => error!("Something has gone wrong, a reference has been made to the current job when there is none"),
+        Some(j) => func(j),
+    }
+}
+
 pub fn services() -> MutexGuard<'static, Services> {
     SERVICES.lock().unwrap()
 }
@@ -169,4 +181,20 @@ pub fn clean_mode(name: &str) -> String {
         return matches[0].to_string();
     }
     std::process::exit(1);
+}
+
+/// This will be called immediately before loading a fresh set of targets. Everything
+/// required to clear previous state from the existing targets should be initiated from here.
+pub fn prepare_for_target_load() {
+    tester().reset();
+}
+
+/// Clears the current test (pattern) AST and starts a new one, this will be called by the
+/// producer before loading the next pattern source file
+pub fn start_new_test(name: Option<String>) {
+    if let Some(name) = name {
+        TEST.start(&name);
+    } else {
+        TEST.start("ad-hoc");
+    }
 }
