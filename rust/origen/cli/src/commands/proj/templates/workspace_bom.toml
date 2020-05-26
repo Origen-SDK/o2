@@ -1,0 +1,18 @@
+# Do not modify the meta section by hand, this is used by the proj command itself
+[meta]
+workspace = true
+
+# Here are the packages that were defined by the project BOM at the time this workspace was created.
+# Additional attributes can be added below to override the project BOM for this workspace only,
+# e.g. to pull in an alternative version of some package(s).
+# Run 'origen proj update' from the root of this workspace to apply the updates after making changes.
+{% for package in packages -%}
+[[package]]
+id = "{{package.id}}"
+# Set this to true if you want this package to be excluded by default when running 'origen proj update'        
+exclude = false
+# Common workspace modifications are to change/hardcode the version, or link to another package instance
+# version = "some_version"
+# link = "/path/to/some/location"
+
+{% endfor %}

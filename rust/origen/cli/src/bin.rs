@@ -1,35 +1,113 @@
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde;
+#[macro_use]
+extern crate origen;
 
 mod commands;
 mod python;
 
 use clap::{App, AppSettings, Arg, SubCommand};
-use origen::STATUS;
+use origen::{LOGGER, STATUS};
 
 // This is the entry point for the Origen CLI tool
 fn main() {
-    let about = format!("CLI {}", STATUS.origen_version);
-    let mut app = App::new("Origen, The Semiconductor Developer's Kit")
+    let version = match STATUS.is_app_present {
+        false => STATUS.origen_version.to_string(),
+        true => format!(
+            "CLI:    {}\n Origen: {}\n App:    {}",
+            STATUS.origen_version, "TBD", "TBD"
+        ),
+    };
+
+    let mut app = App::new("")
         .setting(AppSettings::ArgRequiredElseHelp)
+        .before_help("Origen, The Semiconductor Developer's Kit")
         .after_help("See 'origen <command> -h' for more information on a specific command.")
-        .about(&*about)
+        .version(&*version)
         .arg(
-            Arg::with_name("version")
+            Arg::with_name("verbose")
                 .short("v")
-                .long("version")
-                .help("Display the Origen and application version"),
+                .multiple(true)
+                .global(true)
+                .help("Terminal verbosity level e.g. -v, -vv, -vvv"),
         );
 
     /************************************************************************************/
-    /******************** Global commands ***********************************************/
+    /******************** Global only commands ******************************************/
     /************************************************************************************/
-    //app = app
-    //    //************************************************************************************/
-    //    .subcommand(
-    //        SubCommand::with_name("check")
-    //            .about("Check if your environment is setup correctly to run Origen"),
-    //    );
+    if !STATUS.is_app_present {
+        app = app
+            //************************************************************************************/
+            .subcommand(
+                SubCommand::with_name("proj")
+                    .display_order(1)
+                    .about("Manage multi-repository project areas and workspaces")
+                    .setting(AppSettings::ArgRequiredElseHelp)
+                    .subcommand(SubCommand::with_name("init")
+                        .display_order(1)
+                        .about("Initialize a new project directory (create an initial project BOM)")
+                        .arg(Arg::with_name("dir")
+                            .help("The path to the project directory to initialize (PWD will be used by default if not given)")
+                            .value_name("DIR")
+                        )
+                    )
+                    .subcommand(SubCommand::with_name("create")
+                        .display_order(2)
+                        .about("Create a new project workspace from the project BOM")
+                        .arg(Arg::with_name("path")
+                            .help("The path to the new workspace directory")
+                            .value_name("PATH")
+                            .required(true)
+                        )
+                    )
+                    .subcommand(SubCommand::with_name("update")
+                        .display_order(3)
+                        .about("Update an existing project workspace per its current BOM")
+                        .arg(Arg::with_name("force")
+                            .short("f")
+                            .long("force")
+                            .required(false)
+                            .takes_value(false)
+                            .help("Force the update and potentially lose any local modifications")
+                        )
+                        .arg(Arg::with_name("links")
+                            .short("l")
+                            .long("links")
+                            .required(false)
+                            .takes_value(false)
+                            .help("Update the workspace links only, leaving all packages unmodified")
+                        )
+                        .arg(Arg::with_name("exclude")
+                            .short("e")
+                            .long("exclude")
+                            .help("Exclude the given package reference, supply either a package ID or a path to a workspace directory")
+                            .takes_value(true)
+                            .multiple(true)
+                            .number_of_values(1)
+                            .value_name("PACKAGE")
+                        )
+                        .arg(Arg::with_name("packages")
+                            .value_name("PACKAGES")
+                            .multiple(true)
+                            .help("The packages to be updated, supply either package IDs or paths to workspace directories")
+                        )
+                    )
+                    .subcommand(SubCommand::with_name("bom")
+                        .display_order(4)
+                        .about("View the active BOM in the current or given directory")
+                        .arg(Arg::with_name("dir")
+                            .help("The path to a directory (PWD will be used by default if not given)")
+                            .value_name("DIR")
+                        )
+                    )
+            );
+    }
+
+    /************************************************************************************/
+    /******************** Global and app commands ***************************************/
+    /************************************************************************************/
 
     /************************************************************************************/
     /******************** In application commands ***************************************/
@@ -186,12 +264,11 @@ fn main() {
                 .subcommand(SubCommand::with_name("build") // What I think this command should be called
                     .about("Builds the web documentation")
                     .visible_alias("b")
-                    .visible_alias("compile") // What O1 thinks it should be called
-                    .visible_alias("html") // What sphinx thinks it should be called
+                    .visible_alias("compile") // If coming from O1
+                    .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
                     .arg(Arg::with_name("view")
                         .long("view")
-                        .short("v")
-                        .help("Launch your web browswer after the build")
+                        .help("Launch your web browser after the build")
                         .takes_value(false)
                     )
                     .arg(Arg::with_name("clean")
@@ -223,7 +300,7 @@ fn main() {
                     .arg(Arg::with_name("sphinx-args")
                         .long("sphinx-args")
                         .help(
-"Additional arguments to pass to the 'sphinx-build' commmand
+"Additional arguments to pass to the 'sphinx-build' command
   Argument will passed as a single string and appended to the build command
   E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
      -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'"
@@ -255,128 +332,128 @@ fn main() {
 
     let matches = app.get_matches();
 
-    if matches.is_present("version") {
-        commands::version::run();
-    } else {
-        match matches.subcommand_name() {
-            Some("setup") => commands::setup::run(),
-            Some("interactive") => {
-                let m = matches.subcommand_matches("interactive").unwrap();
-                commands::interactive::run(
-                    if let Some(targets) = m.values_of("target") {
-                        Some(targets.collect())
-                    } else {
-                        Option::None
-                    },
-                    &m.value_of("mode"),
-                );
-            }
-            Some("generate") => {
-                let m = matches.subcommand_matches("generate").unwrap();
-                commands::launch(
-                    "generate",
-                    if let Some(targets) = m.values_of("target") {
-                        Some(targets.collect())
-                    } else {
-                        Option::None
-                    },
-                    &m.value_of("mode"),
-                    Some(m.values_of("files").unwrap().collect()),
-                );
-            }
-            Some("compile") => {
-                let m = matches.subcommand_matches("compile").unwrap();
-                commands::launch(
-                    "compile",
-                    if let Some(targets) = m.values_of("target") {
-                        Some(targets.collect())
-                    } else {
-                        Option::None
-                    },
-                    &m.value_of("mode"),
-                    Some(m.values_of("files").unwrap().collect()),
-                );
-            }
-            Some("target") => {
-                let m = matches.subcommand_matches("target").unwrap();
-                let subm = m.subcommand();
-                if let Some(s) = subm.1 {
-                    commands::target::run(
-                        Some(subm.0),
-                        match s.values_of("targets") {
-                            Some(targets) => Some(targets.collect()),
-                            None => None,
-                        },
-                    )
+    let _ = LOGGER.set_verbosity(matches.occurrences_of("verbose") as u8);
+
+    match matches.subcommand_name() {
+        Some("setup") => commands::setup::run(),
+        Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
+        Some("interactive") => {
+            let m = matches.subcommand_matches("interactive").unwrap();
+            commands::interactive::run(
+                if let Some(targets) = m.values_of("target") {
+                    Some(targets.collect())
                 } else {
-                    commands::target::run(None, None);
-                }
-            }
-            Some("mode") => {
-                let matches = matches.subcommand_matches("mode").unwrap();
-                commands::mode::run(matches.value_of("mode"));
-            }
-            Some("web") => {
-                let cmd = matches.subcommand_matches("web").unwrap();
-                //let subcommand = matches.get_matches();
-                let subcmd = cmd.subcommand();
-                let sub = subcmd.1.unwrap();
-                match subcmd.0 {
-                    "build" => {
-                        let mut args = "from origen.boot import __origen__; __origen__('web:build', args={".to_string();
-                        if sub.is_present("view") {
-                            args.push_str("'view': True, ");
-                        }
-                        if sub.is_present("clean") {
-                            args.push_str("'clean': True, ");
-                        }
-                        if sub.is_present("no-api") {
-                            args.push_str("'no-api': True, ");
-                        }
-                        // if sub.is_present("pdf") {
-                        //     args.push_str("'pdf': True, ");
-                        // }
-                        if sub.is_present("release") {
-                            args.push_str("'release': True, ");
-                        }
-                        if sub.is_present("archive") {
-                            if let Some(archive) = sub.value_of("archive") {
-                                args.push_str(&format!("'archive': '{}', ", archive));
-                            } else {
-                                args.push_str(&format!("'archive': True"));
-                            }
-                        }
-                        if let Some(s_args) = sub.value_of("sphinx-args") {
-                            // Recall that this comes in as a single argument, potentially quoted to mimic multiple,
-                            // but a single argument from the perspective here nonetheless
-                            args.push_str(&format!("'sphinx-args': '{}', ", s_args));
-                        }
-                        args.push_str("}");
-                        args.push_str(");");
-                        python::run(&args);
-                    },
-                    "view" => {
-                        commands::launch(
-                            "web:view",
-                            None,
-                            &None,
-                            None
-                        )
-                    },
-                    "clean" => {
-                        commands::launch(
-                            "web:clean",
-                            None,
-                            &None,
-                            None
-                        )
-                    }
-                    _ => {}
-                }
-            }
-            // Should never hit these
-            None => {}
-            _ => {}
+                    Option::None
+                },
+                &m.value_of("mode"),
+            );
         }
+        Some("generate") => {
+            let m = matches.subcommand_matches("generate").unwrap();
+            commands::launch(
+                "generate",
+                if let Some(targets) = m.values_of("target") {
+                    Some(targets.collect())
+                } else {
+                    Option::None
+                },
+                &m.value_of("mode"),
+                Some(m.values_of("files").unwrap().collect()),
+            );
+        }
+        Some("compile") => {
+            let m = matches.subcommand_matches("compile").unwrap();
+            commands::launch(
+                "compile",
+                if let Some(targets) = m.values_of("target") {
+                    Some(targets.collect())
+                } else {
+                    Option::None
+                },
+                &m.value_of("mode"),
+                Some(m.values_of("files").unwrap().collect()),
+            );
+        }
+        Some("target") => {
+            let m = matches.subcommand_matches("target").unwrap();
+            let subm = m.subcommand();
+            if let Some(s) = subm.1 {
+                commands::target::run(
+                    Some(subm.0),
+                    match s.values_of("targets") {
+                        Some(targets) => Some(targets.collect()),
+                        None => None,
+                    },
+                )
+            } else {
+                commands::target::run(None, None);
+            }
+        }
+        Some("web") => {
+            let cmd = matches.subcommand_matches("web").unwrap();
+            //let subcommand = matches.get_matches();
+            let subcmd = cmd.subcommand();
+            let sub = subcmd.1.unwrap();
+            match subcmd.0 {
+                "build" => {
+                    let mut args = "from origen.boot import __origen__; __origen__('web:build', args={".to_string();
+                    if sub.is_present("view") {
+                        args.push_str("'view': True, ");
+                    }
+                    if sub.is_present("clean") {
+                        args.push_str("'clean': True, ");
+                    }
+                    if sub.is_present("no-api") {
+                        args.push_str("'no-api': True, ");
+                    }
+                    // if sub.is_present("pdf") {
+                    //     args.push_str("'pdf': True, ");
+                    // }
+                    if sub.is_present("release") {
+                        args.push_str("'release': True, ");
+                    }
+                    if sub.is_present("archive") {
+                        if let Some(archive) = sub.value_of("archive") {
+                            args.push_str(&format!("'archive': '{}', ", archive));
+                        } else {
+                            args.push_str(&format!("'archive': True"));
+                        }
+                    }
+                    if let Some(s_args) = sub.value_of("sphinx-args") {
+                        // Recall that this comes in as a single argument, potentially quoted to mimic multiple,
+                        // but a single argument from the perspective here nonetheless
+                        args.push_str(&format!("'sphinx-args': '{}', ", s_args));
+                    }
+                    args.push_str("}");
+                    args.push_str(");");
+                    python::run(&args);
+                },
+                "view" => {
+                    commands::launch(
+                        "web:view",
+                        None,
+                        &None,
+                        None
+                    )
+                },
+                "clean" => {
+                    commands::launch(
+                        "web:clean",
+                        None,
+                        &None,
+                        None
+                    )
+                }
+                _ => {}
+            }
+        }
+        Some("mode") => {
+            let matches = matches.subcommand_matches("mode").unwrap();
+            commands::mode::run(matches.value_of("mode"));
+        }
+        // To get here means the user has typed "origen -v", which officially means
+        // verbosity level 1 with no command, but this is what they really mean
+        None => println!(" {}", version),
+        _ => unreachable!(),
     }
 }

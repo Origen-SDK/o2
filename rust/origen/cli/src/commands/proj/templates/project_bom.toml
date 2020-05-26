@@ -1,0 +1,35 @@
+# This is an Origen project BOM file, identified as such by the file name 'bom.toml',
+# so please don't change it!
+# It defines the packages and versions that new project workspaces will be created and updated with.
+# When updating an existing workspace, all values in this BOM can be overridden by a workspace BOM.
+# Run 'origen proj bom' to see the final BOM that is active within a given workspace.
+#
+# Here is the syntax of a package definition
+#
+#    [[package]]
+#    # [Required] - A unique ID must be assigned to each package
+#    id = "my_package"        
+#    # <Optional> - By default, the package will be placed in <my_workspace>/<package_id>, if you want a
+#    # package to be placed into a sub-directory(s), then specify the path relative to the workspace root.
+#    path = "vip/my_package"
+#    # [Required] - A package source, this can be one of a version/repo pair, a path to be copied from, 
+#    # or a path to be sym-linked to.
+#    # Only one source type can be defined per BOM file, however a workspace BOM file can define a different
+#    # source type from the project BOM and the definition from the workspace BOM will have priority.
+#    # A repo can be referenced to a Git or DesignSync location
+#    repo = "https://my_id@bitbucket.company.com/scm/my_project/my_package.git"
+#    version = "master"
+#    # Copy from a file system directory, this must be an absolute path reference
+#    # If the source is a tarball then this will be automatically extracted into a new workspace
+#    copy = "/data/some/package"
+#    # Link to a file system directory, this must be an absolute path reference
+#    link = "/data/some/package"
+#
+# Additional symlinks can also be defined in a links section. Unlike a package link, the destination
+# does not have to be an absolute path reference. In fact, one of the main use cases for this is to
+# make files from one of the packages available at the top-level of the workspace, here is an example
+# of making some files from the package 'proj_files' available at the top-level:
+#
+#    [links]
+#    "tools.list" = "proj_files/tools.list"
+#    ".settings"  = "proj_files/.settings"

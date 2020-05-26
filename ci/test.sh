@@ -36,8 +36,15 @@ main() {
         cd origen
         #cargo test --target $TARGET --release
         cargo test --target $TARGET
-        cd ../
+        # cli tests were skipped above
+        cd cli
+        # don't know why this isn't set by cargo in the ci env
+        export CARGO_BIN_EXE_ORIGEN="../target/$TARGET/debug/origen"
+        cargo test --target $TARGET
+        cd ../../
     else
+        # pass the path for the CLI tests to work
+        export TRAVIS_ORIGEN_CLI="../rust/origen/target/$TARGET/debug/origen"
         cd ../example
         ../rust/origen/target/$TARGET/debug/origen -v
         ../rust/origen/target/$TARGET/debug/origen setup

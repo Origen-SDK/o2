@@ -5,3 +5,6 @@ from origen.application import Base
 class Application(Base):
     def yo(self):
         print("hello from the app")
+
+    def pattern_header(self, pattern):
+        return ["Hello pattern from the application!"]

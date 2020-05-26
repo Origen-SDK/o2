@@ -9,8 +9,7 @@ use crate::generator::processor::{Processor, Return};
 use crate::DUT;
 use std::collections::HashMap;
 
-use crate::generator::processors::CycleCombiner;
-use crate::generator::processors::PinActionCombiner;
+use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
 
 #[derive(Debug, Clone)]
 pub struct Renderer {
@@ -77,6 +76,7 @@ impl TesterAPI for Renderer {
     fn preprocess(&mut self, node: &Node) -> crate::Result<Node> {
         let mut n = PinActionCombiner::run(node)?;
         n = CycleCombiner::run(&n)?;
+        n = FlattenText::run(&n)?;
         Ok(n)
     }
 }
@@ -85,13 +85,11 @@ impl Processor for Renderer {
     fn on_node(&mut self, node: &Node) -> crate::Result<Return> {
         match &node.attrs {
             Attrs::Test(name) => {
-                //self.output_file = output_file!("avc");
                 let mut p = output_directory();
                 p.push(self.name());
                 p.push(name);
-                p.set_extension(".avc");
+                p.set_extension("avc");
                 self.output_file = Some(File::create(p));
-                //self.output_file.write(PRODUCER.pattern_header());
                 Ok(Return::ProcessChildren)
             }
             Attrs::Comment(_level, msg) => {
@@ -101,6 +99,14 @@ impl Processor for Renderer {
                     .write_ln(&format!("# {}", msg));
                 Ok(Return::Unmodified)
             }
+            Attrs::Text(text) => {
+                self.output_file
+                    .as_mut()
+                    .unwrap()
+                    .write_ln(&format!("# {}", text));
+                Ok(Return::Unmodified)
+            }
+            Attrs::PatternHeader => Ok(Return::ProcessChildren),
             Attrs::PinAction(pin_changes) => {
                 let dut = DUT.lock().unwrap();
                 return self.update_states(pin_changes, &dut);
@@ -108,6 +114,15 @@ impl Processor for Renderer {
             Attrs::Cycle(repeat, _compressable) => {
                 let dut = DUT.lock().unwrap();
                 let t = &dut.timesets[self.current_timeset_id.unwrap()];
+
+                if !self.pin_header_printed {
+                    let pins = self.states(&dut).names().join(" ");
+                    self.output_file
+                        .as_mut()
+                        .unwrap()
+                        .write_ln(&format!("FORMAT {}", pins));
+                    self.pin_header_printed = true;
+                }
 
                 if !self.pin_header_printed {
                     let pins = self.states(&dut).names().join(" ");

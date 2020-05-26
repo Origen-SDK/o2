@@ -36,8 +36,7 @@ pub fn raises_error(yes: bool) -> Result<()> {
     }
 }
 
-// To add a conversion from another type of error
-
+// To add a conversion from other type of errors
 use pyo3::{exceptions, PyErr};
 
 //impl std::convert::Into<PyErr> for Error {
@@ -60,6 +59,24 @@ impl std::convert::From<std::io::Error> for Error {
 
 impl std::convert::From<shellexpand::LookupError<std::env::VarError>> for Error {
     fn from(err: shellexpand::LookupError<std::env::VarError>) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<Error> for git2::Error {
+    fn from(err: Error) -> Self {
+        git2::Error::from_str(&err.msg)
+    }
+}
+
+impl std::convert::From<git2::Error> for Error {
+    fn from(err: git2::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<walkdir::Error> for Error {
+    fn from(err: walkdir::Error) -> Self {
         Error::new(&err.to_string())
     }
 }

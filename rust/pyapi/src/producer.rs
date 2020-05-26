@@ -62,7 +62,7 @@ pub struct PyProducer {}
 impl PyProducer {
     #[new]
     fn new(obj: &PyRawObject) {
-        obj.init({ PyProducer {} });
+        obj.init(PyProducer {});
     }
 
     fn create_pattern_job(&self, command: &str) -> PyResult<Py<PyJob>> {
@@ -96,6 +96,6 @@ pub struct PyPattern {
 impl PyPattern {
     #[new]
     fn new(obj: &PyRawObject) {
-        obj.init({ PyPattern {} });
+        obj.init(PyPattern {});
     }
 }

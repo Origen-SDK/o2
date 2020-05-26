@@ -1,4 +1,4 @@
-use origen::core::utility::location::Location as OrigenLoc;
+use origen::utility::location::Location as OrigenLoc;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use crate::pypath;

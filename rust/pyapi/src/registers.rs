@@ -9,7 +9,7 @@ use std::sync::RwLock;
 
 use origen::core::model::registers::bit::{UNDEFINED, ZERO};
 use origen::core::model::registers::{Bit, BitOrder, SummaryField};
-use origen::core::utility::big_uint_helpers::*;
+use origen::utility::big_uint_helpers::*;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use register::{Field, FieldEnum, ResetVal};

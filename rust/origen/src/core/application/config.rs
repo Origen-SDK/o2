@@ -4,7 +4,7 @@ use crate::core::term;
 use crate::STATUS;
 use config::File;
 use std::path::PathBuf;
-use crate::core::utility::location::Location;
+use crate::utility::location::Location;
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:

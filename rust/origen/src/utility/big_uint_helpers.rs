@@ -97,7 +97,7 @@ pub fn bit_slice(value: &BigUint, start_bit: usize, stop_bit: usize) -> Result<B
 
 #[cfg(test)]
 mod tests {
-    use crate::core::utility::big_uint_helpers::*;
+    use crate::utility::big_uint_helpers::*;
     use num_bigint::ToBigUint;
 
     #[test]

@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use config;
 
 /// Stores a location and implements some helpers for discerning where its pointing
 /// Support types so far:
