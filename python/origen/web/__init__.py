@@ -30,8 +30,8 @@ def run_cmd(subcommand, args):
     for d in [static_dir, templates_dir, output_build_dir, interbuild_dir]:
       if not d.exists():
         d.mkdir(parents=True)
-    _origen.logger.log("Running web:buld command...")
-    _origen.logger.log(f"\t{sphinx_cmd(args)}")
+    _origen.logger.info("Running web:buld command...")
+    _origen.logger.info(f"\t{sphinx_cmd(args)}")
     run_sphinx(args)
 
     if "view" in args:
@@ -40,7 +40,7 @@ def run_cmd(subcommand, args):
     clean(args)
   elif subcommand == "view":
     if site_built():
-      _origen.logger.log(f"Launching web browser with command: \"{view_cmd()}\"")
+      _origen.logger.info(f"Launching web browser with command: \"{view_cmd()}\"")
       subprocess.run(view_cmd())
     else:
       _origen.logger.error(f"Could not find built website at {output_build_dir}. Please run 'origen web build --view' to build the site and view the results.")
@@ -74,7 +74,6 @@ def run_sphinx(args):
 
 def sphinx_cmd(args):
   build_opts = []
-  print(args)
   if 'no-api' in args:
     # no-api is achieved by overriding the autoapi, autodoc, and rustdoc configs to
     # all be empty
@@ -111,13 +110,13 @@ def clean(args=None):
  
   # Remove any existing output
   if origen.app.website_output_dir.exists:
-    _origen.logger.log(f"Removing built website at {str(origen.app.website_output_dir)}")
+    _origen.logger.info(f"Removing built website at {str(origen.app.website_output_dir)}")
     shutil.rmtree(origen.app.website_output_dir, ignore_errors=True)
   else:
-      _origen.logger.log("No built website to clean!")
+      _origen.logger.info("No built website to clean!")
 
   # Run any extension which has a 'clean' method
   for ext in sphinx_extension_mods():
     if origen.helpers.has_method(ext, "clean"):
-      _origen.logger.log(f"Cleaning extension {ext.__name__}")
+      _origen.logger.info(f"Cleaning extension {ext.__name__}")
       ext.clean(config)
