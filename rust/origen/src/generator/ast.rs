@@ -6,20 +6,6 @@ use crate::{Error, Result};
 use std::fmt;
 
 #[macro_export]
-macro_rules! node {
-    ( $attr:ident, $( $x:expr ),* ) => {
-        {
-            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr($( $x ),*))
-        }
-    };
-    ( $attr:ident ) => {
-        {
-            crate::generator::ast::Node::new(crate::generator::ast::Attrs::$attr)
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! push_pin_actions {
     ($pin_info:expr) => {{
         crate::TEST.push(crate::node!(PinAction, $pin_info));

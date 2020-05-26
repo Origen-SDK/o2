@@ -31,26 +31,30 @@ pest = "2.1"
 pest_derive = "2.1"
 enum-utils = "0.1.2"
 shellexpand = "1.1.1"
+# Need to be careful with this version, couldn't build on RHEL6 with versions greater
+# than this. Can probably drop this constraint once NXP transitions to RHEL7.
+git2 = "0.8"
+rpassword = "4.0"
+num-bigint = {version = "0.2", features = ["serde"]}
+# Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
+# in origen to enable conversion of an Origen error to a PyErr.
+pyo3 = {version = "0.8.2", features = ["extension-module"]}
 chrono = "0.4.11"
-whoami = "0.8.1"
-
 # Per this SO thread: https://stackoverflow.com/questions/37296351/trait-for-numeric-functionality-in-rust
 # the num crate includes some useful traits to accept float-like and integer-like things without having to manually enumerate them all.
 num = "0.2.0"
 meta = { path = "./meta" }
+whoami = "0.8"
+keyring = {version = "0.8", optional = true}
+dirs = "2.0"
 
 [build-dependencies]
-built = "0.3"
+built = "0.4"
 
-[dependencies.num-bigint]
-version = "0.2"
-features = ["serde"]
-
-[dependencies.pyo3]
-version = "0.8.2"
-# Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
-# in origen to enable conversion of an Origen error to a PyErr.
-features = ["extension-module"]
-
+# Additional items required to build a full self-contained origen CLI binary for Linux
 [target.x86_64-unknown-linux-musl.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
+
+[features]
+default = []
+password-cache = ["keyring"]

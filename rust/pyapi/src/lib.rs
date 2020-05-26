@@ -1,3 +1,7 @@
+#[allow(unused_imports)]
+#[macro_use]
+extern crate origen;
+
 mod dut;
 mod file_handler;
 mod logger;

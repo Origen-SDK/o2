@@ -35,7 +35,7 @@ def test_origen_v():
   # Process is done
   # Read std out
   first_stdout_line = process.stdout.readline()
-  assert "Origen" in first_stdout_line
+  assert "CLI" in first_stdout_line
   assert " 2." in first_stdout_line
 
 def test_bad_command():

@@ -5,12 +5,18 @@ extern crate serde;
 extern crate meta;
 #[macro_use]
 extern crate pest_derive;
+#[macro_use]
+pub mod macros;
 
 pub mod core;
 pub mod error;
 pub mod generator;
+pub mod revision_control;
 pub mod services;
 pub mod testers;
+pub mod utility;
+
+pub use self::core::user::User;
 pub use error::Error;
 
 use self::core::application::config::Config as AppConfig;
@@ -20,9 +26,9 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::Tester;
-use self::core::utility::logger::Logger;
 use self::generator::ast::*;
 pub use self::services::Services;
+use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
@@ -55,6 +61,8 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
+    /// Provides info about the current user
+    pub static ref USER: User = User::current();
 }
 
 impl PartialEq<AST> for TEST {
