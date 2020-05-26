@@ -1,10 +1,6 @@
 ```eval_rst
-:name: installation
+:name: development_setup
 ```
-
-## Installation
-
-...
 
 ## Development Environment Setup
 
