@@ -12,12 +12,11 @@ use tempfile::tempdir;
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct Package {
     pub id: String,
-    path: Option<PathBuf>,
+    pub path: Option<PathBuf>,
     version: Option<String>,
     repo: Option<String>,
     copy: Option<PathBuf>,
     link: Option<PathBuf>,
-    exclude: Option<bool>,
     username: Option<String>,
 }
 
@@ -34,6 +33,11 @@ impl PartialEq for Package {
 }
 
 impl Package {
+    /// Returns true if the pacakge is currently defined as a repo
+    pub fn is_repo(&self) -> bool {
+        self.repo.is_some()
+    }
+
     /// Creates the package in the given workspace directory, will return an error
     /// if something goes wrong with the revision control populate operation
     pub fn create(&self, workspace_dir: &Path) -> Result<()> {
@@ -52,7 +56,7 @@ impl Package {
         } else if self.copy.is_some() {
             self.create_from_copy(&path, true)?;
         } else {
-            let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
+            let rc = self.rc(workspace_dir).unwrap();
             rc.populate(self.version.as_ref().unwrap())?;
         }
         log_success!("Successfully created package '{}'", self.id);
@@ -67,14 +71,20 @@ impl Package {
         let path = self.path(workspace_dir);
         // If the package is currently defined as a link
         if self.link.is_some() {
+            log_trace!("Package '{}' is currently defined as a link", self.id);
             force_required = self.create_from_link(&path, force)?;
         // If the package is currently defined as copy
         } else if self.copy.is_some() {
+            log_trace!("Package '{}' is currently defined as a copy", self.id);
             force_required = self.create_from_copy(&path, force)?;
         // If the package is currently defined as a revision control reference
         } else {
             // If currently defined as a symlink, then delete it
             if path.exists() && path.read_link().is_ok() {
+                log_trace!(
+                    "Package '{}' is currently defined as a symlink, deleting it",
+                    self.id
+                );
                 fs::remove_file(&path)?;
                 fs::create_dir_all(&path)?;
             }
@@ -85,15 +95,31 @@ impl Package {
                     path.display()
                 );
             }
-            let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
+            let rc = self.rc(workspace_dir).unwrap();
             let is_empty = path.read_dir()?.next().is_none();
             if is_empty {
+                log_trace!("Populating package '{}' from revision control", self.id);
                 rc.populate(self.version.as_ref().unwrap())?;
             } else {
+                log_trace!("Checking out package '{}' from revision control", self.id);
                 rc.checkout(force, None, self.version.as_ref().unwrap())?;
             }
         }
         Ok(force_required)
+    }
+
+    /// Returns a revision control driver for the package, if applicable
+    pub fn rc(&self, workspace_dir: &Path) -> Option<RevisionControl> {
+        if self.is_repo() {
+            let path = self.path(workspace_dir);
+            Some(RevisionControl::new(
+                &path,
+                self.repo.as_ref().unwrap(),
+                self.credentials(),
+            ))
+        } else {
+            None
+        }
     }
 
     /// Returns a path to the package dir within the given workspace
@@ -104,10 +130,6 @@ impl Package {
             Some(x) => path.push(x),
         }
         path
-    }
-
-    pub fn is_excluded(&self) -> bool {
-        self.exclude.unwrap_or(false)
     }
 
     fn create_from_link(&self, dest: &Path, force: bool) -> Result<bool> {
@@ -259,12 +281,6 @@ impl Package {
         match &p.version {
             Some(x) => {
                 self.version = Some(x.clone());
-            }
-            None => {}
-        }
-        match &p.exclude {
-            Some(x) => {
-                self.exclude = Some(x.clone());
             }
             None => {}
         }

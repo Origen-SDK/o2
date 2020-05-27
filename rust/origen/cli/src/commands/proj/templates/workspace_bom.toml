@@ -9,9 +9,7 @@ workspace = true
 {% for package in packages -%}
 [[package]]
 id = "{{package.id}}"
-# Set this to true if you want this package to be excluded by default when running 'origen proj update'        
-exclude = false
-# Common workspace modifications are to change/hardcode the version, or link to another package instance
+# Common workspace modifications are to change/hardcode the version, or link to another workspace view
 # version = "some_version"
 # link = "/path/to/some/location"
 

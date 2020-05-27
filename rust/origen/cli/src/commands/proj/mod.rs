@@ -1,6 +1,8 @@
 mod bom;
+mod group;
 mod package;
 
+use crate::origen::revision_control::RevisionControlAPI;
 use bom::BOM;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
@@ -149,122 +151,29 @@ pub fn run(matches: &ArgMatches) {
             let matches = matches.subcommand_matches("update").unwrap();
             let force = matches.is_present("force");
             let links_only = matches.is_present("links");
-            let package_args: Vec<PathBuf> = match matches.values_of("packages") {
-                Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
-                None => vec![],
-            };
-            let exclude_args: Vec<PathBuf> = match matches.values_of("exclude") {
-                Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
-                None => vec![],
-            };
+            let package_ids = get_package_ids_from_args(matches, false);
             let bom = BOM::for_dir(&pwd());
             if !bom.is_workspace() {
                 error_and_exit("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
-            // Clean the package args to remove any overly broad references, such as a reference to "." (meaning
-            // the current workspace).
-            // References will override a package's exclude state from the BOM, however a user entering
-            // `origen proj update .` would probably expect it to behave like `origen proj update` and apply
-            // the default excludes. So we throwaway any references to the workspace and above to play it safe.
-            let package_args: Vec<&PathBuf> = package_args
-                .iter()
-                .filter(|pkg_ref| {
-                    let root = bom.root();
-                    match pkg_ref.canonicalize() {
-                        Err(_e) => true,
-                        Ok(p) => {
-                            let is_root = match p.strip_prefix(&root) {
-                                Err(_) => false,
-                                Ok(res) => res.to_str() == Some(""),
-                            };
-                            let above_workspace = root.strip_prefix(&p).is_ok();
-                            !is_root && !above_workspace
-                        }
-                    }
-                })
-                .collect();
-            // Turn any exclude args into package references
-            let mut exclude_packages: Vec<&Package> = vec![];
-            for pkg_ref in exclude_args {
-                match bom.packages_from_ref(&pkg_ref) {
-                    Err(_e) => log_warning!("Exclude reference '{}' did not resolve to any packages in the current workspace", pkg_ref.display()),
-                    Ok(packages) => {
-                        for pkg in packages {
-                            if !exclude_packages.contains(&pkg) {
-                                exclude_packages.push(&pkg);
-                            }
-                        }
-                    }
-                }
-            }
             let mut errors = false;
             let mut packages_requiring_force: Vec<&str> = vec![];
-            if package_args.is_empty() {
-                log_info!("Updating {} packages...", &bom.packages.len());
-                for (id, package) in &bom.packages {
-                    if package.is_excluded() || exclude_packages.contains(&package) || links_only {
-                        displayln!("Skipping '{}'", id);
-                    } else {
-                        display!("Updating '{}' ... ", id);
-                        match package.update(bom.root(), force) {
-                            Ok(force_required) => {
-                                if !force_required {
-                                    display_greenln!("OK");
-                                } else {
-                                    packages_requiring_force.push(id);
-                                }
-                            }
-                            Err(e) => {
-                                log_error!("{}", e);
-                                log_error!("Failed to update package '{}'", id);
-                                errors = true;
-                            }
+            log_info!("Updating {} packages...", &package_ids.len());
+            for id in package_ids {
+                let package = &bom.packages[&id];
+                display!("Updating '{}' ... ", package.id);
+                match package.update(bom.root(), force) {
+                    Ok(force_required) => {
+                        if !force_required {
+                            display_greenln!("OK");
+                        } else {
+                            packages_requiring_force.push(&package.id);
                         }
                     }
-                }
-            } else {
-                log_info!("Updating {} packages...", package_args.len());
-                for pkg_ref in package_args {
-                    match bom.packages_from_ref(&pkg_ref) {
-                        Err(e) => {
-                            log_error!("{}", e);
-                            log_error!("The package referece '{}' is invalid", pkg_ref.display());
-                            errors = true;
-                        }
-                        Ok(packages) => {
-                            if packages.is_empty() {
-                                log_error!(
-                                    "No package was found corresponding to '{}'",
-                                    pkg_ref.display()
-                                );
-                                errors = true;
-                            } else {
-                                for package in packages {
-                                    if exclude_packages.contains(&package) || links_only {
-                                        displayln!("Skipping '{}'", package.id);
-                                    } else {
-                                        display!("Updating '{}' ... ", package.id);
-                                        match package.update(bom.root(), force) {
-                                            Ok(force_required) => {
-                                                if !force_required {
-                                                    display_greenln!("OK");
-                                                } else {
-                                                    packages_requiring_force.push(&package.id);
-                                                }
-                                            }
-                                            Err(e) => {
-                                                log_error!("{}", e);
-                                                log_error!(
-                                                    "Failed to update package '{}'",
-                                                    package.id
-                                                );
-                                                errors = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    Err(e) => {
+                        log_error!("{}", e);
+                        log_error!("Failed to update package '{}'", package.id);
+                        errors = true;
                     }
                 }
             }
@@ -307,6 +216,48 @@ pub fn run(matches: &ArgMatches) {
                 }
             }
         }
+        Some("mods") => {
+            let matches = matches.subcommand_matches("mods").unwrap();
+            let package_ids = get_package_ids_from_args(matches, true);
+            let bom = BOM::for_dir(&pwd());
+            if !bom.is_workspace() {
+                error_and_exit("The mods command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+            }
+            for id in package_ids {
+                let package = &bom.packages[&id];
+                if package.is_repo() {
+                    let rc = package.rc(bom.root()).unwrap();
+                    match rc.status(None) {
+                        Err(e) => {
+                            error_and_exit(&e.to_string(), Some(1));
+                        }
+                        Ok(status) => {
+                            //for file in mods {
+                            //    println!("{}", file.display());
+                            //}
+                            dbg!(status);
+                        }
+                    }
+                }
+            }
+        }
+        Some("packages") => {
+            let dir = get_dir_or_pwd(matches.subcommand_matches("packages").unwrap());
+            let bom = BOM::for_dir(&dir);
+            println!("PACKAGE GROUPS");
+            for (id, g) in &bom.groups {
+                println!("  {}  ({})", id, g.packages.join(", "));
+            }
+            println!("");
+            println!("PACKAGES");
+            for (id, p) in &bom.packages {
+                if let Some(path) = &p.path {
+                    println!("  {}  ({})", id, path.display());
+                } else {
+                    println!("  {}", id);
+                }
+            }
+        }
         Some("bom") => {
             let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap());
             let bom = BOM::for_dir(&dir);
@@ -315,6 +266,25 @@ pub fn run(matches: &ArgMatches) {
         None => unreachable!(),
         _ => unreachable!(),
     }
+}
+
+/// Resolves package and group IDs in the args to a vector of package IDs.
+/// If a given ID does not match a known package or group the process will be exited with an error.
+/// Optionally return all packages if no packages arg given.
+fn get_package_ids_from_args(matches: &ArgMatches, return_all_if_none: bool) -> Vec<String> {
+    let mut package_args: Vec<&str> = match matches.values_of("packages") {
+        Some(pkgs) => pkgs.map(|p| p).collect(),
+        None => vec![],
+    };
+    if package_args.is_empty() && return_all_if_none {
+        package_args = vec!["all"];
+    }
+    let bom = BOM::for_dir(&pwd());
+    let package_ids = bom.resolve_ids(package_args);
+    if let Err(e) = &package_ids {
+        error_and_exit(&e.to_string(), Some(1));
+    }
+    package_ids.unwrap()
 }
 
 fn pwd() -> PathBuf {

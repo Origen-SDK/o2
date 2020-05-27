@@ -16,6 +16,15 @@ pub struct Credentials {
     pub password: Option<String>,
 }
 
+#[derive(Clone, Default, Debug)]
+pub struct Status {
+    pub is_modified: bool,
+    pub added: Vec<PathBuf>,
+    pub removed: Vec<PathBuf>,
+    pub changed: Vec<PathBuf>,
+    pub renamed: Vec<(PathBuf, PathBuf)>,
+}
+
 impl RevisionControl {
     /// Returns a generic revision control driver which implements the RevisionControlAPI, it will work with any
     /// supported revision control tool and will work out which one to target from the remote argument.
@@ -56,12 +65,7 @@ pub trait RevisionControlAPI {
     /// Returns a vector of files which have local modifications. Optionally a path to a directory
     /// within the local workspace can be given and in that case only mods within that directory
     /// will be returned.
-    fn local_mods(&self, path: Option<&Path>) -> Result<Vec<PathBuf>>;
-
-    /// Returns true if the local workspace contains modifications
-    fn has_local_mods(&self) -> Result<bool> {
-        Ok(!self.local_mods(None)?.is_empty())
-    }
+    fn status(&self, path: Option<&Path>) -> Result<Status>;
 }
 
 impl RevisionControlAPI for RevisionControl {
@@ -73,7 +77,7 @@ impl RevisionControlAPI for RevisionControl {
         self.driver.checkout(force, path, version)
     }
 
-    fn local_mods(&self, path: Option<&Path>) -> Result<Vec<PathBuf>> {
-        self.driver.local_mods(path)
+    fn status(&self, path: Option<&Path>) -> Result<Status> {
+        self.driver.status(path)
     }
 }

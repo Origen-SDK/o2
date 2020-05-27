@@ -1,4 +1,4 @@
-use super::{Credentials, RevisionControlAPI};
+use super::{Credentials, RevisionControlAPI, Status};
 use crate::Result as OrigenResult;
 use crate::USER;
 use git2::Repository;
@@ -34,7 +34,7 @@ pub struct Git {
 
 impl RevisionControlAPI for Git {
     fn populate(&self, version: &str) -> OrigenResult<()> {
-        log_info!("Populating {}", &self.local.display());
+        log_info!("Populating '{}'", &self.local.display());
         self.reset_temps();
         let mut cb = RemoteCallbacks::new();
         cb.transfer_progress(|stats| self.transfer_progress_callback(&stats));
@@ -176,8 +176,38 @@ impl RevisionControlAPI for Git {
         Ok(())
     }
 
-    fn local_mods(&self, path: Option<&Path>) -> OrigenResult<Vec<PathBuf>> {
-        Ok(vec![])
+    fn status(&self, path: Option<&Path>) -> OrigenResult<Status> {
+        let mut status = Status::default();
+        log_trace!("Checking status of '{}'", &self.local.display());
+        let repo = Repository::open(&self.local)?;
+        let stat = repo.statuses(None)?;
+        for entry in stat.iter() {
+            if entry.status() == git2::Status::CURRENT || entry.index_to_workdir().is_none() {
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::WT_MODIFIED)
+                || entry.status().contains(git2::Status::WT_DELETED)
+                || entry.status().contains(git2::Status::WT_RENAMED)
+                || entry.status().contains(git2::Status::WT_TYPECHANGE)
+            {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+
+                if entry.status().contains(git2::Status::WT_RENAMED) {
+                    status
+                        .renamed
+                        .push((self.local.join(old.unwrap()), self.local.join(new.unwrap())));
+                    continue;
+                }
+                if entry.status().contains(git2::Status::WT_DELETED) {
+                    status.removed.push(self.local.join(old.or(new).unwrap()));
+                    continue;
+                }
+                status.changed.push(self.local.join(old.or(new).unwrap()));
+            }
+        }
+        Ok(status)
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{Credentials, RevisionControlAPI};
+use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::utility::file_utils::with_dir;
 use crate::{Error, Result};
@@ -35,8 +35,8 @@ impl RevisionControlAPI for Designsync {
         self.pop(force, path, version)
     }
 
-    fn local_mods(&self, path: Option<&Path>) -> Result<Vec<PathBuf>> {
-        Ok(vec![])
+    fn status(&self, path: Option<&Path>) -> Result<Status> {
+        Ok(Status::default())
     }
 }
 
