@@ -34,6 +34,10 @@ impl RevisionControlAPI for Designsync {
     fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
         self.pop(force, path, version)
     }
+
+    fn local_mods(&self, path: Option<&Path>) -> Result<Vec<PathBuf>> {
+        Ok(vec![])
+    }
 }
 
 impl Designsync {

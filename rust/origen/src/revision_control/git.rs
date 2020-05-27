@@ -175,6 +175,10 @@ impl RevisionControlAPI for Git {
 
         Ok(())
     }
+
+    fn local_mods(&self, path: Option<&Path>) -> OrigenResult<Vec<PathBuf>> {
+        Ok(vec![])
+    }
 }
 
 impl Git {
