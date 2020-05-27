@@ -4,13 +4,43 @@ use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::path::{Path, PathBuf};
 
-/// A utility for diffing two different files
-struct Differ {
+/// A utility for diffing two different files, with the ability to ignore code in comments,
+/// and to specify character strings within the file to suspend and resume diffing.
+/// By default blank lines will be ignored.
+///
+/// # Example
+///
+/// ```
+/// use std::io::Write;
+/// use tempfile::NamedTempFile;
+/// use origen::utility::differ::Differ;
+///
+/// let mut file_a = NamedTempFile::new().unwrap();
+/// let mut file_b = NamedTempFile::new().unwrap();
+///
+/// let _ = writeln!(file_a, "This part is the same // But this is different");
+/// let _ = writeln!(file_b, "This part is the same // But this is not");
+/// let _ = writeln!(file_b, "");   // An extra blank line in file B
+///
+/// let mut differ = Differ::new(file_a.path(), file_b.path());
+///
+/// assert!(differ.has_diffs().unwrap(), true);
+///
+/// differ.ignore_comments("//");
+///
+/// assert!(differ.has_diffs().unwrap(), false);
+///
+/// differ.ignore_blank_lines = false;
+///
+/// assert!(differ.has_diffs().unwrap(), true);
+/// ```
+pub struct Differ {
     file_a: PathBuf,
     file_b: PathBuf,
-    ignore_blank_lines: bool,
+    pub ignore_blank_lines: bool,
+    /// The tuple is the comment identifier, the regex to find a full line comment and a
+    /// regex to find a partial line comment and capture the non-commented portion
     comment_chars: Vec<(String, Regex, Regex)>,
-    suspended: bool,
     /// Suspend diffing when this string is encountered
     suspend_on: Option<Regex>,
     /// Resume diffing when this string is encountered
@@ -24,7 +54,6 @@ impl Differ {
             file_b: file_b.to_path_buf(),
             ignore_blank_lines: true,
             comment_chars: vec![],
-            suspended: false,
             suspend_on: None,
             resume_on: None,
         }
@@ -55,7 +84,7 @@ impl Differ {
         Ok(())
     }
 
-    /// Returns true if diffs are found between the two files based on the differs current
+    /// Returns true if diffs are found between the two files based on the differ's current
     /// configuration.
     /// An error will be returned if either of the files doesn't exist or if there is some
     /// other problem with reading them.

@@ -13,6 +13,8 @@ pub fn launch(
     targets: Option<Vec<&str>>,
     mode: &Option<&str>,
     files: Option<Vec<&str>>,
+    output_dir: Option<&str>,
+    reference_dir: Option<&str>,
 ) {
     let mut cmd = format!(
         "from origen.boot import __origen__; __origen__('{}'",
@@ -34,6 +36,14 @@ pub fn launch(
         // added r prefix to the string to force python to interpret as a string literal
         let f: Vec<String> = files.unwrap().iter().map(|f| format!("r'{}'", f)).collect();
         cmd += &format!(", files=[{}]", f.join(",")).to_string();
+    }
+
+    if let Some(dir) = output_dir {
+        cmd += &format!(", output_dir='{}'", dir);
+    }
+
+    if let Some(dir) = reference_dir {
+        cmd += &format!(", reference_dir='{}'", dir);
     }
 
     cmd += &format!(", verbosity={}", LOGGER.verbosity());

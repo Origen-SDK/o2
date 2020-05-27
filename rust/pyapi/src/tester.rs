@@ -2,7 +2,7 @@ use super::pins::pin_header::PinHeader;
 use super::timesets::timeset::Timeset;
 use origen::core::tester::TesterSource;
 use origen::error::Error;
-use origen::TEST;
+use origen::{STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use std::collections::HashMap;
@@ -330,7 +330,14 @@ impl PyTester {
         Ok(tester.targets_as_strs().clone())
     }
 
-    fn render_pattern(&self) -> PyResult<()> {
+    /// Attempts to render the pattern on all targeted testers and returns paths to the
+    /// output files that have been created.
+    /// There is no need for the Python side to do anything with those, but they are returned
+    /// in case they are useful in future.
+    /// Continue on fail means that any errors will be logged but Origen will continue, if false
+    /// it will blow up and immediately return an error to Python.
+    fn render_pattern(&self, continue_on_fail: bool) -> PyResult<Vec<String>> {
+        let mut rendered_patterns: Vec<String> = vec![];
         let targets;
         {
             let tester = origen::tester();
@@ -346,24 +353,42 @@ impl PyTester {
                             // Instantiate it and call its render method with the AST.
                             let gil = Python::acquire_gil();
                             let py = gil.python();
-                            inst.call_method0(py, "render_pattern")?;
+                            let _pat = inst.call_method0(py, "render_pattern")?;
+                            // TODO - How do we convert this to a path to do the diffing?
                         }
                         None => {
-                            return Err(PyErr::from(Error::new(&format!(
+                            // Don't bother masking this type of error, this should be fatal
+                            let msg = format!(
                                 "Something's gone wrong and Python tester {} cannot be found!",
                                 g
-                            ))))
+                            );
+                            return Err(PyErr::from(Error::new(&msg)));
                         }
                     }
                 }
                 _ => {
                     let mut tester = origen::tester();
-                    //let dut = origen::DUT.lock().unwrap();
-                    tester.render_target_at(i)?;
+                    let pat = tester.render_pattern_for_target_at(i, true);
+                    match pat {
+                        Err(e) => {
+                            let msg = e.to_string();
+                            if continue_on_fail {
+                                STATUS.inc_unhandled_error_count();
+                                log_error!("{}", &msg);
+                            } else {
+                                return Err(PyErr::from(Error::new(&msg)));
+                            }
+                        }
+                        Ok(paths) => {
+                            for path in &paths {
+                                rendered_patterns.push(format!("{}", path.display()));
+                            }
+                        }
+                    }
                 }
             }
         }
-        Ok(())
+        Ok(rendered_patterns)
     }
 
     #[getter]

@@ -1,4 +1,3 @@
-use origen::STATUS;
 use pyo3::prelude::*;
 use std::path::{Path, PathBuf};
 
@@ -88,11 +87,6 @@ impl PyProducer {
     fn current_job(&self) -> PyResult<PyJob> {
         let id = origen::with_current_job(|job| Ok(job.id))?;
         Ok(PyJob { id: id })
-    }
-
-    // Hard-coded for now
-    fn output_dir(&self) -> PyResult<String> {
-        Ok(format!("{}", STATUS.root.display()))
     }
 }
 

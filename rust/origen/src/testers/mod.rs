@@ -57,9 +57,9 @@ impl TesterAPI for DummyRenderer {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Option<PathBuf>> {
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
-        Ok(None)
+        Ok(vec![])
     }
 }
 
@@ -115,11 +115,11 @@ impl TesterAPI for DummyRendererWithInterceptors {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Option<PathBuf>> {
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         //let mut slf = Self::default();
         ast.process(self)?;
         //node.clone()
-        Ok(None)
+        Ok(vec![])
     }
 }
 

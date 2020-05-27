@@ -44,7 +44,9 @@ class Producer(_origen.producer.PyProducer):
       origen.producer.issue_callback('shutdown', kwargs)
 
       origen.tester.end_pattern()
-      origen.tester.render_pattern()
+      # True means continue on fail, should make this dynamic in future so that the user can
+      # decide whether to blow up upon an error or continue to the next pattern.
+      origen.tester.render_pattern(True)
 
   @contextmanager
   def Flow(self, **kwargs):

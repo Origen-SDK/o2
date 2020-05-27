@@ -24,6 +24,7 @@ use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyAny, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use std::path::Path;
 use std::sync::MutexGuard;
 
 // Imported pyapi modules
@@ -65,6 +66,9 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(on_linux))?;
     m.add_wrapped(wrap_pyfunction!(prepare_for_target_load))?;
     m.add_wrapped(wrap_pyfunction!(start_new_test))?;
+    m.add_wrapped(wrap_pyfunction!(unhandled_error_count))?;
+    m.add_wrapped(wrap_pyfunction!(set_output_dir))?;
+    m.add_wrapped(wrap_pyfunction!(set_reference_dir))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
@@ -94,6 +98,29 @@ fn extract_value<'a>(
         };
     }
     Err(Error::new("Illegal bits/value argument"))
+}
+
+#[pyfunction]
+/// Set the output directory to be used instead of <APP ROOT>/output
+fn set_output_dir(dir: &str) -> PyResult<()> {
+    STATUS.set_output_dir(Path::new(dir));
+    Ok(())
+}
+
+#[pyfunction]
+/// Set the output directory to be used instead of <APP ROOT>/output
+fn set_reference_dir(dir: &str) -> PyResult<()> {
+    STATUS.set_reference_dir(Path::new(dir));
+    Ok(())
+}
+
+#[pyfunction]
+/// Returns the number of unhandled errors that have been encountered since the Origen
+/// invocation started.
+/// An unhandled error is something that ultimately resulted in a pattern not being generated
+/// or something equally serious.
+fn unhandled_error_count() -> PyResult<usize> {
+    Ok(STATUS.unhandled_error_count())
 }
 
 /// Prints out the AST for the current test to the console

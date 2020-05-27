@@ -44,8 +44,8 @@ impl TesterAPI for Renderer {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Option<PathBuf>> {
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
-        Ok(None)
+        Ok(vec![])
     }
 }

@@ -25,13 +25,13 @@ pub struct Renderer<'a> {
 }
 
 impl<'a> Renderer<'a> {
-    pub fn run(tester: &'a SMT7, ast: &Node) -> Result<Option<PathBuf>> {
+    pub fn run(tester: &'a SMT7, ast: &Node) -> Result<Vec<PathBuf>> {
         let mut n = PinActionCombiner::run(ast)?;
         n = CycleCombiner::run(&n)?;
         n = FlattenText::run(&n)?;
         let mut p = Self::new(tester);
         n.process(&mut p)?;
-        Ok(p.path.clone())
+        Ok(vec![p.path.unwrap()])
     }
 
     fn new(tester: &'a SMT7) -> Self {

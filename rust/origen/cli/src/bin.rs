@@ -166,6 +166,20 @@ fn main() {
                     .takes_value(true)
                     .value_name("MODE")
                 )
+                .arg(Arg::with_name("output_dir")
+                    .short("o")
+                    .long("output-dir")
+                    .help("Override the default output directory (<APP ROOT>/output)")
+                    .takes_value(true)
+                    .value_name("OUTPUT_DIR")
+                )
+                .arg(Arg::with_name("reference_dir")
+                    .short("r")
+                    .long("reference-dir")
+                    .help("Override the default reference directory (<APP ROOT>/.ref)")
+                    .takes_value(true)
+                    .value_name("REFERENCE_DIR")
+                )
            )
 
            /************************************************************************************/
@@ -291,6 +305,8 @@ fn main() {
                 },
                 &m.value_of("mode"),
                 Some(m.values_of("files").unwrap().collect()),
+                m.value_of("output_dir"),
+                m.value_of("reference_dir"),
             );
         }
         Some("compile") => {
@@ -304,6 +320,8 @@ fn main() {
                 },
                 &m.value_of("mode"),
                 Some(m.values_of("files").unwrap().collect()),
+                m.value_of("output_dir"),
+                m.value_of("reference_dir"),
             );
         }
         Some("target") => {

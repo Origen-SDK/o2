@@ -1471,6 +1471,7 @@ dependencies = [
  "serde 1.0.110",
  "serde-pickle",
  "shellexpand",
+ "tempfile",
  "termcolor",
  "time",
  "walkdir",

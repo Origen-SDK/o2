@@ -47,6 +47,7 @@ meta = { path = "./meta" }
 whoami = "0.8"
 keyring = {version = "0.8", optional = true}
 dirs = "2.0"
+tempfile = "3"
 
 [build-dependencies]
 built = "0.4"
