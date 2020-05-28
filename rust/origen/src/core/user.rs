@@ -15,6 +15,8 @@ pub struct User {
 struct Data {
     password: Option<String>,
     id: Option<String>,
+    name: Option<String>,
+    email: Option<String>,
 }
 
 impl User {
@@ -23,6 +25,7 @@ impl User {
             current: true,
             data: RwLock::new(Data::default()),
             password_semaphore: Mutex::new(0),
+
         }
     }
 

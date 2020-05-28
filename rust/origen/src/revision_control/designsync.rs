@@ -35,8 +35,52 @@ impl RevisionControlAPI for Designsync {
         self.pop(force, path, version)
     }
 
-    fn status(&self, path: Option<&Path>) -> Result<Status> {
-        Ok(Status::default())
+    fn status(&self, _path: Option<&Path>) -> Result<Status> {
+        with_dir(&self.local, || {
+            let mut status = Status::default();
+            let mut process = Command::new("dssc")
+                .args(&["compare", "-rec", "-path", "-report", "silent", "."])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?;
+
+            // We need to parse the following data from the output, ignore everything else
+            //
+            // Unmanaged                        First only         some_new.file
+            // 1.7 (Reference)        1.7       Different states   some_deleted.file
+            // 1.32 (Locally Modified) 1.32     Different states   some_modified.file
+
+            lazy_static! {
+                static ref NEW_FILE_REGEX: Regex =
+                    Regex::new(r"\s*Unmanaged\s+First only\s+(\S+)").unwrap();
+                static ref DELETED_FILE_REGEX: Regex =
+                    Regex::new(r"\s*\d+\.*\d*\s*\(Reference\)\s+\d+\.*\d*\s*Different states\s*(\S+)").unwrap();
+                static ref MODIFIED_FILE_REGEX: Regex =
+                    Regex::new(r"\s*\d+\.*\d*\s*\(Locally Modified\)\s+\d+\.*\d*\s*Different states\s*(\S+)").unwrap();
+            }
+
+            log_stdout_and_stderr(
+                &mut process,
+                Some(&mut |line: &str| {
+                    if let Some(captures) = NEW_FILE_REGEX.captures(&line) {
+                        status.added.push(self.local.join(&captures[1]));
+                    } else if let Some(captures) = DELETED_FILE_REGEX.captures(&line) {
+                        status.removed.push(self.local.join(&captures[1]));
+                    } else if let Some(captures) = MODIFIED_FILE_REGEX.captures(&line) {
+                        status.changed.push(self.local.join(&captures[1]));
+                    }
+                }),
+                None,
+            );
+
+            if process.wait()?.success() {
+                Ok(status)
+            } else {
+                error!("Something went wrong reporting the dssc status for '{}', see log for details",
+                    self.local.display()
+                )
+            }
+        })
     }
 }
 

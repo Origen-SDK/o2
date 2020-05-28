@@ -1,9 +1,11 @@
 use super::{Credentials, RevisionControlAPI, Status};
+use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::Result as OrigenResult;
 use crate::USER;
 use git2::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{Cred, CredentialType, FetchOptions, RemoteCallbacks};
@@ -14,6 +16,48 @@ enum VersionType {
     Tag,
     Commit,
     Unknown,
+}
+
+/// Attempts to get the given attribute from the Git config.
+/// Not sure if it's possible to do this via libgit2, so this currently
+/// uses regular Git unlike most of this driver.
+/// If Git is not available, or any other issue, then it will silently
+/// fail and simply return None.
+/// e.g. call Git::config("email") to get the user's email address.
+pub fn config(attr_name: &str) -> Option<String> {
+    let process = Command::new("git")
+        .args(&["config", &format!("user.{}", attr_name)])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+
+    let mut result: Option<String> = None;
+
+    if let Ok(mut p) = process {
+        log_stdout_and_stderr(
+            &mut p,
+            Some(&mut |line: &str| {
+                if result.is_none() {
+                    result = Some(line.trim().to_string());
+                }
+            }),
+            Some(&mut |_line: &str| {
+                // Just swallow stderr
+            }),
+        );
+        let r = p.wait();
+        if r.is_ok() {
+            if r.unwrap().success() {
+                result
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 pub struct Git {
@@ -180,7 +224,7 @@ impl RevisionControlAPI for Git {
     /// mainly that there is no differentiation between changes that are staged vs unstaged.
     /// It also doesn't bother to track renamed files, simply reporting them as a deleted file
     /// and an added file.
-    fn status(&self, path: Option<&Path>) -> OrigenResult<Status> {
+    fn status(&self, _path: Option<&Path>) -> OrigenResult<Status> {
         let mut status = Status::default();
         log_trace!("Checking status of '{}'", &self.local.display());
         let repo = Repository::open(&self.local)?;
