@@ -23,7 +23,7 @@ enum VersionType {
 /// uses regular Git unlike most of this driver.
 /// If Git is not available, or any other issue, then it will silently
 /// fail and simply return None.
-/// e.g. call Git::config("email") to get the user's email address.
+/// e.g. call git::config("email") to get the user's email address.
 pub fn config(attr_name: &str) -> Option<String> {
     let process = Command::new("git")
         .args(&["config", &format!("user.{}", attr_name)])

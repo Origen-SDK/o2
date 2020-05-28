@@ -1,5 +1,5 @@
-mod designsync;
-mod git;
+pub mod designsync;
+pub mod git;
 
 use crate::Result;
 use designsync::Designsync;

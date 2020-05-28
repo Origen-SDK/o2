@@ -2,6 +2,7 @@ use crate::{Error, Result};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
 use std::sync::{Mutex, RwLock};
+use crate::revision_control::git;
 
 pub struct User {
     current: bool,
@@ -16,7 +17,13 @@ struct Data {
     password: Option<String>,
     id: Option<String>,
     name: Option<String>,
+    // Will be set after trying to get a missing name, e.g. from the
+    // Git config to differentiate between an name which has not been
+    // looked up and name which has been looked up but which could not
+    // be found.
+    name_tried: bool,
     email: Option<String>,
+    email_tried: bool,
 }
 
 impl User {
@@ -48,6 +55,60 @@ impl User {
             let data = self.data.read().unwrap();
             data.id.clone()
         }
+    }
+
+    pub fn name(&self) -> Option<String> {
+        if self.current {
+            {
+                let mut data = self.data.write().unwrap();
+
+                if let Some(name) = &data.name {
+                    return Some(name.to_string());
+                }
+                if data.name_tried {
+                    return None;
+                }
+                let name = git::config("name");
+                data.name_tried = true;
+                data.name = name.clone();
+                return name;
+            }
+        } else {
+            let data = self.data.read().unwrap();
+            data.name.clone()
+        }
+    }
+
+    pub fn set_name(&self, name: &str) {
+        let mut data = self.data.write().unwrap();
+        data.name = Some(name.to_string());
+    }
+
+    pub fn email(&self) -> Option<String> {
+        if self.current {
+            {
+                let mut data = self.data.write().unwrap();
+
+                if let Some(email) = &data.email {
+                    return Some(email.to_string());
+                }
+                if data.email_tried {
+                    return None;
+                }
+                let email = git::config("email");
+                data.email_tried = true;
+                data.email = email.clone();
+                return email;
+            }
+        } else {
+            let data = self.data.read().unwrap();
+            data.email.clone()
+        }
+    }
+
+    pub fn set_email(&self, email: &str) {
+        let mut data = self.data.write().unwrap();
+        data.email = Some(email.to_string());
     }
 
     pub fn password(&self, reason: Option<&str>, failed_password: Option<&str>) -> Result<String> {
