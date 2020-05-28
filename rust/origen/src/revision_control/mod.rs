@@ -18,11 +18,16 @@ pub struct Credentials {
 
 #[derive(Clone, Default, Debug)]
 pub struct Status {
-    pub is_modified: bool,
     pub added: Vec<PathBuf>,
     pub removed: Vec<PathBuf>,
     pub changed: Vec<PathBuf>,
-    pub renamed: Vec<(PathBuf, PathBuf)>,
+}
+
+impl Status {
+    /// Returns true if the workspace status is modified in any way
+    pub fn is_modified(&self) -> bool {
+        !self.added.is_empty() || !self.removed.is_empty() || !self.changed.is_empty()
+    }
 }
 
 impl RevisionControl {
@@ -62,9 +67,9 @@ pub trait RevisionControlAPI {
 
     fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()>;
 
-    /// Returns a vector of files which have local modifications. Optionally a path to a directory
-    /// within the local workspace can be given and in that case only mods within that directory
-    /// will be returned.
+    /// Returns a Status object which contains lists of all files which have local modifications.
+    /// Supplying a path to a directory may be supported to limit the results to files that fall withing
+    /// the given directory.
     fn status(&self, path: Option<&Path>) -> Result<Status>;
 }
 

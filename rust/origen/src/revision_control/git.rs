@@ -176,35 +176,62 @@ impl RevisionControlAPI for Git {
         Ok(())
     }
 
+    /// Returns an Origen RC status, which does not go into as much detail as a full Git status,
+    /// mainly that there is no differentiation between changes that are staged vs unstaged.
+    /// It also doesn't bother to track renamed files, simply reporting them as a deleted file
+    /// and an added file.
     fn status(&self, path: Option<&Path>) -> OrigenResult<Status> {
         let mut status = Status::default();
         log_trace!("Checking status of '{}'", &self.local.display());
         let repo = Repository::open(&self.local)?;
         let stat = repo.statuses(None)?;
         for entry in stat.iter() {
-            if entry.status() == git2::Status::CURRENT || entry.index_to_workdir().is_none() {
+            //dbg!(entry.status());
+
+            if entry.status().contains(git2::Status::WT_NEW) {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.added.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_NEW) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.added.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::WT_DELETED) {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.removed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_DELETED) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.removed.push(self.local.join(old.or(new).unwrap()));
                 continue;
             }
 
             if entry.status().contains(git2::Status::WT_MODIFIED)
-                || entry.status().contains(git2::Status::WT_DELETED)
-                || entry.status().contains(git2::Status::WT_RENAMED)
                 || entry.status().contains(git2::Status::WT_TYPECHANGE)
             {
                 let old = entry.index_to_workdir().unwrap().old_file().path();
                 let new = entry.index_to_workdir().unwrap().new_file().path();
-
-                if entry.status().contains(git2::Status::WT_RENAMED) {
-                    status
-                        .renamed
-                        .push((self.local.join(old.unwrap()), self.local.join(new.unwrap())));
-                    continue;
-                }
-                if entry.status().contains(git2::Status::WT_DELETED) {
-                    status.removed.push(self.local.join(old.or(new).unwrap()));
-                    continue;
-                }
                 status.changed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_MODIFIED)
+                || entry.status().contains(git2::Status::INDEX_TYPECHANGE)
+            {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.changed.push(self.local.join(old.or(new).unwrap()));
+                continue;
             }
         }
         Ok(status)
