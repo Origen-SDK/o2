@@ -226,16 +226,36 @@ pub fn run(matches: &ArgMatches) {
             for id in package_ids {
                 let package = &bom.packages[&id];
                 if package.is_repo() {
+                    display!("{} ... ", package.id);
                     let rc = package.rc(bom.root()).unwrap();
                     match rc.status(None) {
                         Err(e) => {
                             error_and_exit(&e.to_string(), Some(1));
                         }
                         Ok(status) => {
-                            //for file in mods {
-                            //    println!("{}", file.display());
-                            //}
-                            dbg!(status);
+                            if status.is_modified() {
+                                display_redln!("Modified");
+                                if !status.added.is_empty() {
+                                    displayln!("  ADDED");
+                                    for file in &status.added {
+                                        displayln!("    {}", file.display());
+                                    }
+                                }
+                                if !status.removed.is_empty() {
+                                    displayln!("  DELETED");
+                                    for file in &status.removed {
+                                        displayln!("    {}", file.display());
+                                    }
+                                }
+                                if !status.changed.is_empty() {
+                                    displayln!("  CHANGED");
+                                    for file in &status.changed {
+                                        displayln!("    {}", file.display());
+                                    }
+                                }
+                            } else {
+                                display_greenln!("Clean");
+                            }
                         }
                     }
                 }
