@@ -31,8 +31,13 @@ impl RevisionControlAPI for Designsync {
         self.pop(true, Some(Path::new(".")), version)
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
-        self.pop(force, path, version)
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<bool> {
+        self.pop(force, path, version)?;
+        Ok(false)
+    }
+
+    fn revert(&self, path: Option<&Path>) -> Result<()> {
+        Ok(())
     }
 
     fn status(&self, _path: Option<&Path>) -> Result<Status> {
@@ -53,10 +58,14 @@ impl RevisionControlAPI for Designsync {
             lazy_static! {
                 static ref NEW_FILE_REGEX: Regex =
                     Regex::new(r"\s*Unmanaged\s+First only\s+(\S+)").unwrap();
-                static ref DELETED_FILE_REGEX: Regex =
-                    Regex::new(r"\s*\d+\.*\d*\s*\(Reference\)\s+\d+\.*\d*\s*Different states\s*(\S+)").unwrap();
-                static ref MODIFIED_FILE_REGEX: Regex =
-                    Regex::new(r"\s*\d+\.*\d*\s*\(Locally Modified\)\s+\d+\.*\d*\s*Different states\s*(\S+)").unwrap();
+                static ref DELETED_FILE_REGEX: Regex = Regex::new(
+                    r"\s*\d+\.*\d*\s*\(Reference\)\s+\d+\.*\d*\s*Different states\s*(\S+)"
+                )
+                .unwrap();
+                static ref MODIFIED_FILE_REGEX: Regex = Regex::new(
+                    r"\s*\d+\.*\d*\s*\(Locally Modified\)\s+\d+\.*\d*\s*Different states\s*(\S+)"
+                )
+                .unwrap();
             }
 
             log_stdout_and_stderr(
@@ -76,11 +85,16 @@ impl RevisionControlAPI for Designsync {
             if process.wait()?.success() {
                 Ok(status)
             } else {
-                error!("Something went wrong reporting the dssc status for '{}', see log for details",
+                error!(
+                    "Something went wrong reporting the dssc status for '{}', see log for details",
                     self.local.display()
                 )
             }
         })
+    }
+
+    fn tag(&self, tagname: &str, message: Option<&str>) -> Result<()> {
+        Ok(())
     }
 }
 

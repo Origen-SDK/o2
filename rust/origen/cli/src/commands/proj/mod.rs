@@ -158,13 +158,17 @@ pub fn run(matches: &ArgMatches) {
             }
             let mut errors = false;
             let mut packages_requiring_force: Vec<&str> = vec![];
+            let mut packages_with_conflicts: Vec<&str> = vec![];
             log_info!("Updating {} packages...", &package_ids.len());
             for id in package_ids {
                 let package = &bom.packages[&id];
                 display!("Updating '{}' ... ", package.id);
                 match package.update(bom.root(), force) {
-                    Ok(force_required) => {
-                        if !force_required {
+                    Ok((force_required, conflicts)) => {
+                        if conflicts {
+                            display_redln!("CONFLICTS");
+                            packages_with_conflicts.push(&package.id);
+                        } else if !force_required {
                             display_greenln!("OK");
                         } else {
                             packages_requiring_force.push(&package.id);
@@ -198,18 +202,32 @@ pub fn run(matches: &ArgMatches) {
             if errors {
                 exit_error!();
             } else {
-                if links_force_required || !packages_requiring_force.is_empty() {
-                    displayln!("");
-                    display_redln!("The update was not completed successfully due to the possibility of losing local work, you can run the following command to force alignment with the current BOM:");
-                    displayln!("");
-                    let mut command = "  origen proj update --force".to_string();
-                    if packages_requiring_force.is_empty() {
-                        command += " --links";
-                    } else {
-                        command += " ";
-                        command += &packages_requiring_force.join(" ");
+                if links_force_required
+                    || !packages_requiring_force.is_empty()
+                    || !packages_with_conflicts.is_empty()
+                {
+                    if links_force_required || !packages_requiring_force.is_empty() {
+                        displayln!("");
+                        display_redln!("The following packages were not updated successfully due to the possibility of losing local work, you can run the following command to force alignment with the current BOM:");
+                        displayln!("");
+                        let mut command = "  origen proj update --force".to_string();
+                        if packages_requiring_force.is_empty() {
+                            command += " --links";
+                        } else {
+                            command += " ";
+                            command += &packages_requiring_force.join(" ");
+                        }
+                        displayln!("{}", command);
                     }
-                    displayln!("{}", command);
+                    if !packages_with_conflicts.is_empty() {
+                        displayln!("");
+                        display_redln!("The following packages were not updated successfully due to conflicts when trying to merge local work, you can run the following command to force alignment with the current BOM:");
+                        displayln!("");
+                        let mut command = "  origen proj update --force".to_string();
+                        command += " ";
+                        command += &packages_with_conflicts.join(" ");
+                        displayln!("{}", command);
+                    }
                     exit(1);
                 } else {
                     exit(0);
@@ -251,6 +269,12 @@ pub fn run(matches: &ArgMatches) {
                                     displayln!("  CHANGED");
                                     for file in &status.changed {
                                         displayln!("    {}", file.display());
+                                    }
+                                }
+                                if !status.conflicted.is_empty() {
+                                    displayln!("  CONFLICTED");
+                                    for file in &status.conflicted {
+                                        display_redln!("    {}", file.display());
                                     }
                                 }
                             } else {

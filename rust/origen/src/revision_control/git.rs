@@ -102,7 +102,11 @@ impl RevisionControlAPI for Git {
         Ok(())
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> OrigenResult<()> {
+    fn revert(&self, path: Option<&Path>) -> OrigenResult<()> {
+        Ok(())
+    }
+
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> OrigenResult<bool> {
         log_info!(
             "Checking out version '{}' in '{}'",
             version,
@@ -116,9 +120,10 @@ impl RevisionControlAPI for Git {
         // Now the first part of this operation is to find the SHA (Oid) corresponding to the given version
         // reference, and identify whether it is a reference to branch, tag or commit
 
-        let repo = Repository::open(&self.local)?;
+        let mut repo = Repository::open(&self.local)?;
         let mut oid: Option<git2::Oid> = None;
         let mut version_type = VersionType::Unknown;
+        let mut stash_pop_required = false;
 
         // If the version reference is a branch...
         if let Ok(branch) =
@@ -171,8 +176,22 @@ impl RevisionControlAPI for Git {
                     log_debug!("{}  : Success", p.display());
                 }
             });
+            // We always force, which means make the local view look exactly like the target version
+            co.force();
             if force {
-                co.force();
+                // Also remove new files when forcing
+                co.remove_untracked(true);
+            } else if self.status(None)?.is_modified() {
+                // If we want to preserve local edits then we will stash them and merge afterwards
+                let signature = repo
+                    .signature()
+                    .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?);
+                repo.stash_save(
+                    &signature,
+                    "Preserving during checkout",
+                    Some(git2::StashFlags::INCLUDE_UNTRACKED),
+                )?;
+                stash_pop_required = true;
             }
             if let Some(p) = path {
                 co.path(p);
@@ -199,25 +218,40 @@ impl RevisionControlAPI for Git {
                     // as it may give a better indication of sitting at a tag when 'git status' is run
                     repo.set_head_detached(oid)?;
                 }
-                VersionType::Commit => match repo.find_commit(oid) {
-                    Ok(commit) => {
-                        repo.checkout_tree(commit.as_object(), Some(&mut co))?;
-                        repo.set_head_detached(oid)?;
+                VersionType::Commit => {
+                    let error = match repo.find_commit(oid) {
+                        Ok(commit) => {
+                            repo.checkout_tree(commit.as_object(), Some(&mut co))?;
+                            repo.set_head_detached(oid)?;
+                            None
+                        }
+                        Err(_e) => {
+                            Some(error!("No matching commit found for version '{}'", version))
+                        }
+                    };
+                    if let Some(e) = error {
+                        if stash_pop_required {
+                            repo.stash_pop(0, None)?;
+                        }
+                        return e;
                     }
-                    Err(_e) => {
-                        return error!("No matching commit found for version '{}'", version);
-                    }
-                },
+                }
                 _ => unreachable!(),
             }
         } else {
+            if stash_pop_required {
+                repo.stash_pop(0, None)?;
+            }
             return error!(
                 "Could not resolve version '{}' to a commit, tag or branch reference",
                 version
             );
         }
 
-        Ok(())
+        if stash_pop_required {
+            repo.stash_pop(0, None)?;
+        }
+        Ok(!self.status(None)?.conflicted.is_empty())
     }
 
     /// Returns an Origen RC status, which does not go into as much detail as a full Git status,
@@ -277,8 +311,21 @@ impl RevisionControlAPI for Git {
                 status.changed.push(self.local.join(old.or(new).unwrap()));
                 continue;
             }
+            if entry.status().contains(git2::Status::CONFLICTED) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status
+                    .conflicted
+                    .push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+            dbg!(entry.status());
         }
         Ok(status)
+    }
+
+    fn tag(&self, tagname: &str, message: Option<&str>) -> OrigenResult<()> {
+        Ok(())
     }
 }
 
@@ -488,6 +535,10 @@ impl Git {
 
         Ok(())
     }
+}
+
+fn reset_head() -> OrigenResult<()> {
+    Ok(())
 }
 
 fn ssh_keys() -> Vec<PathBuf> {

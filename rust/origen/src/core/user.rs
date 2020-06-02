@@ -1,8 +1,8 @@
+use crate::revision_control::git;
 use crate::{Error, Result};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
 use std::sync::{Mutex, RwLock};
-use crate::revision_control::git;
 
 pub struct User {
     current: bool,
@@ -32,7 +32,6 @@ impl User {
             current: true,
             data: RwLock::new(Data::default()),
             password_semaphore: Mutex::new(0),
-
         }
     }
 

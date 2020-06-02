@@ -21,12 +21,17 @@ pub struct Status {
     pub added: Vec<PathBuf>,
     pub removed: Vec<PathBuf>,
     pub changed: Vec<PathBuf>,
+    /// Files with merge conflicts
+    pub conflicted: Vec<PathBuf>,
 }
 
 impl Status {
     /// Returns true if the workspace status is modified in any way
     pub fn is_modified(&self) -> bool {
-        !self.added.is_empty() || !self.removed.is_empty() || !self.changed.is_empty()
+        !self.added.is_empty()
+            || !self.removed.is_empty()
+            || !self.changed.is_empty()
+            || !self.conflicted.is_empty()
     }
 }
 
@@ -65,12 +70,24 @@ pub trait RevisionControlAPI {
     /// on the progress during the operation.
     fn populate(&self, version: &str) -> Result<()>;
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()>;
+    /// Checkout the given version of the repository.
+    /// If force is false then local modifications will be preserved and merged with any upstream changes.
+    /// If merge conflicts are encountered then this method will return Ok(true)
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<bool>;
+
+    /// Reverts any local changes.
+    /// Supplying a path to a directory may be supported to limit the results to files that fall withing
+    /// the given directory.
+    fn revert(&self, path: Option<&Path>) -> Result<()>;
 
     /// Returns a Status object which contains lists of all files which have local modifications.
     /// Supplying a path to a directory may be supported to limit the results to files that fall withing
     /// the given directory.
     fn status(&self, path: Option<&Path>) -> Result<Status>;
+
+    /// Tag the view in the local workspace. A tag message can be supplied, but this may or may not be
+    /// applied to the repo depending on whether the underlying system supports it.
+    fn tag(&self, tagname: &str, message: Option<&str>) -> Result<()>;
 }
 
 impl RevisionControlAPI for RevisionControl {
@@ -78,11 +95,19 @@ impl RevisionControlAPI for RevisionControl {
         self.driver.populate(version)
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<()> {
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<bool> {
         self.driver.checkout(force, path, version)
+    }
+
+    fn revert(&self, path: Option<&Path>) -> Result<()> {
+        self.driver.revert(path)
     }
 
     fn status(&self, path: Option<&Path>) -> Result<Status> {
         self.driver.status(path)
+    }
+
+    fn tag(&self, tagname: &str, message: Option<&str>) -> Result<()> {
+        self.driver.tag(tagname, message)
     }
 }

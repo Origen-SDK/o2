@@ -66,8 +66,9 @@ impl Package {
     /// Updates the package in the given workspace directory, will return an error
     /// if something goes wrong with the underlying revision control checkout operation,
     /// or if the package dir resolved from the BOM does not exist
-    pub fn update(&self, workspace_dir: &Path, force: bool) -> Result<bool> {
+    pub fn update(&self, workspace_dir: &Path, force: bool) -> Result<(bool, bool)> {
         let mut force_required = false;
+        let mut conflicts = false;
         let path = self.path(workspace_dir);
         // If the package is currently defined as a link
         if self.link.is_some() {
@@ -102,10 +103,10 @@ impl Package {
                 rc.populate(self.version.as_ref().unwrap())?;
             } else {
                 log_trace!("Checking out package '{}' from revision control", self.id);
-                rc.checkout(force, None, self.version.as_ref().unwrap())?;
+                conflicts = rc.checkout(force, None, self.version.as_ref().unwrap())?;
             }
         }
-        Ok(force_required)
+        Ok((force_required, conflicts))
     }
 
     /// Returns a revision control driver for the package, if applicable
