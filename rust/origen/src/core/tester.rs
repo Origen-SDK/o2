@@ -4,6 +4,7 @@ use crate::core::dut::Dut;
 use crate::generator::ast::{Attrs, Node};
 use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
 use crate::utility::differ::Differ;
+use crate::utility::file_utils::to_relative_path;
 use crate::TEST;
 use crate::{add_children, node, text, text_line, with_current_job};
 use crate::{Error, Result};
@@ -300,7 +301,22 @@ impl Tester {
                     for path in &paths {
                         log_debug!("Tester '{}' created file '{}'", gen.name(),  path.display());
                         if diff_and_display {
-                            displayln!("Created: {}", path.display());
+                            if let Ok(p) = to_relative_path(path, None) {
+                                display!("Created: {}", p.display());
+                            } else {
+                                display!("Created: {}", path.display());
+                            }
+                            if let Some(differ) = gen.pattern_differ(path, path) {
+                                display!(" - ");
+                                if differ.has_diffs()? {
+                                    display_redln!("Diffs found");
+                                } else {
+                                    display_greenln!("No diffs");
+                                }
+                            } else {
+                                displayln!("");
+                                log_debug!("No differ defined for tester '{}'", gen.name());
+                            }
                             //origen::with_current_job(|job| {
                             //    let ref_file = job.reference_version_of(&path);
 

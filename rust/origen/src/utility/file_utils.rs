@@ -4,6 +4,57 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+/// Returns the given abs path as a relative path. By default it will be made relative to the
+/// PWD, but an alternative path to make it relative to can be supplied.
+/// Can return an error if
+///  * There is a problem resolving the PWD
+///  * If the given abs_path or relative_to is not absolute
+pub fn to_relative_path(abs_path: &Path, relative_to: Option<&Path>) -> Result<PathBuf> {
+    let base = match relative_to {
+        None => env::current_dir()?,
+        Some(p) => p.to_path_buf(),
+    };
+    if !abs_path.is_absolute() {
+        return error!("An absolute path must be given to to_relative_path, this is relative: '{}'", abs_path.display());
+    }
+    if !base.is_absolute() {
+        return error!("An absolute path must be given to to_relative_path, this is relative: '{}'", base.display());
+    }
+
+    // This code came from here: https://stackoverflow.com/a/39343127/220679
+
+    use std::path::Component;
+
+    let mut ita = abs_path.components();
+    let mut itb = base.components();
+    let mut comps: Vec<Component> = vec![];
+    loop {
+        match (ita.next(), itb.next()) {
+            (None, None) => break,
+            (Some(a), None) => {
+                comps.push(a);
+                comps.extend(ita.by_ref());
+                break;
+            }
+            (None, _) => comps.push(Component::ParentDir),
+            (Some(a), Some(b)) if comps.is_empty() && a == b => (),
+            (Some(a), Some(b)) if b == Component::CurDir => comps.push(a),
+            (Some(_), Some(b)) if b == Component::ParentDir =>
+                return error!("Could not work out relative path from '{}' to '{}'", base.display(), abs_path.display()),
+            (Some(a), Some(_)) => {
+                comps.push(Component::ParentDir);
+                for _ in itb {
+                    comps.push(Component::ParentDir);
+                }
+                comps.push(a);
+                comps.extend(ita.by_ref());
+                break;
+            }
+        }
+    }
+    Ok(comps.iter().map(|c| c.as_os_str()).collect())
+}
+
 /// Resolves a directory path from the current application root.
 /// Accepts an optional 'user_val' and a default. The resulting directory will be resolved from:
 /// 1. If a user value is given, and its absolute, this is the final path.

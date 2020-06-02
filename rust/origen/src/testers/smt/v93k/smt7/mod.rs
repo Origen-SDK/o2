@@ -30,6 +30,8 @@ impl TesterAPI for SMT7 {
     }
 
     fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Differ> {
-        None
+        let mut d = Differ::new(pat_a, pat_b);
+        d.ignore_comments("#");
+        Some(d)
     }
 }
