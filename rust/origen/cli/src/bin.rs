@@ -24,12 +24,10 @@ fn main() {
         }
     }
     origen::initialize(Some(verbosity));
+
     let version = match STATUS.is_app_present {
-        false => STATUS.origen_version.to_string(),
-        true => format!(
-            "CLI:    {}\n Origen: {}\n App:    {}",
-            STATUS.origen_version, "TBD", "TBD"
-        ),
+        true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
+        false => format!("Origen: {}", STATUS.origen_version.to_string()),
     };
 
     let mut app = App::new("")
@@ -357,7 +355,36 @@ fn main() {
         }
         // To get here means the user has typed "origen -v", which officially means
         // verbosity level 1 with no command, but this is what they really mean
-        None => println!(" {}", version),
+        None => {
+            if STATUS.is_app_present {
+                // Run a short command line operation to get the Origen version back from the Python domain
+                let cmd = "from origen.boot import __origen__; __origen__('_version_');";
+                let mut origen_version = "".to_string();
+
+                let res = python::run_with_callbacks(
+                    cmd,
+                    Some(&mut |line| {
+                        origen_version += line;
+                    }),
+                    None,
+                );
+
+                if let Err(e) = res {
+                    log_error!("{}", e);
+                    log_error!("Couldn't boot app to determine the in-application Origen version");
+                    origen_version = "Uknown".to_string();
+                }
+
+                let app_version = "TBD";
+
+                println!(
+                    "App:    {}\nOrigen: {}\nCLI:    {}",
+                    app_version, origen_version, STATUS.origen_version
+                );
+            } else {
+                println!("Origen: {}", STATUS.origen_version);
+            }
+        }
         _ => unreachable!(),
     }
 }

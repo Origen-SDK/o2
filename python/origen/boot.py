@@ -160,6 +160,10 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None, out
         from origen.registers.actions import write, verify, write_transaction, verify_transaction
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
 
+    # Internal command to give the Origen version loaded by the application to the CLI
+    elif command == "_version_":
+        print(f"{origen.status['origen_version']}")
+
     else:
         print(f"Unknown command: {command}")
         exit(1)
