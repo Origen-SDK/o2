@@ -1,4 +1,5 @@
 extern crate time;
+use crate::core::application::Application;
 use crate::utility::file_utils::with_dir;
 use crate::{built_info, Result};
 use semver::Version;
@@ -16,8 +17,8 @@ use std::sync::RwLock;
 pub struct Status {
     /// When true, Origen is executing within an application workspace
     pub is_app_present: bool,
-    /// The full file system path to the application root (when applicable)
-    pub root: PathBuf,
+    /// When Origen is executing with the context of an application, this represents it
+    pub app: Option<Application>,
     /// The Origen version in a Semver object
     pub origen_version: Version,
     pub start_time: time::Tm,
@@ -25,11 +26,11 @@ pub struct Status {
     pub home: PathBuf,
     pub log_level: u8,
     unhandled_error_count: RwLock<usize>,
-    /// This must remain private, forcing it to be accessed by with_output_dir. That ensures
+    /// This must remain private, forcing it to be accessed by a function. That ensures
     /// that it will always be created if it doesn't exist and all other code can forget about
     /// checking for that.
     output_dir: RwLock<Option<PathBuf>>,
-    /// This must remain private, forcing it to be accessed by with_reference_dir. That ensures
+    /// This must remain private, forcing it to be accessed by a function. That ensures
     /// that it will always be created if it doesn't exist and all other code can forget about
     /// checking for that.
     reference_dir: RwLock<Option<PathBuf>>,
@@ -37,30 +38,28 @@ pub struct Status {
 
 impl Default for Status {
     fn default() -> Status {
+        log_trace!("Building STATUS");
         let (p, r) = search_for_app_root();
         let version = match Version::parse(built_info::PKG_VERSION) {
             Ok(v) => v,
             Err(_e) => Version::parse("0.0.0").unwrap(),
         };
-        let default_output_dir = match p {
-            true => Some(r.clone().join("output")),
-            false => None,
-        };
-        let default_ref_dir = match p {
-            true => Some(r.clone().join(".ref")),
-            false => None,
-        };
-        Status {
+        let s = Status {
             is_app_present: p,
-            root: r,
+            app: match p {
+                true => Some(Application::new(r)),
+                false => None,
+            },
             origen_version: version,
             start_time: time::now(),
             home: get_home_dir(),
             log_level: 1,
             unhandled_error_count: RwLock::new(0),
-            output_dir: RwLock::new(default_output_dir),
-            reference_dir: RwLock::new(default_ref_dir),
-        }
+            output_dir: RwLock::new(None),
+            reference_dir: RwLock::new(None),
+        };
+        log_trace!("Status built successfully");
+        s
     }
 }
 
@@ -91,6 +90,33 @@ impl Status {
         *dir = Some(path.to_path_buf());
     }
 
+    /// This is the main method to get the current output directory, accounting for all
+    /// possible ways to set it, from current command, the app, default, etc.
+    /// If nothing has been set (only possible when running globally), then it will default
+    /// to the PWD.
+    /// It will ensure that the directory exists before returning it.
+    pub fn output_dir(&self) -> PathBuf {
+        let mut dir = self.output_dir.read().unwrap().to_owned();
+        // If it hasn't been set by the current command
+        if dir.is_none() {
+            if let Some(app) = &self.app {
+                dir = Some(app._output_directory());
+            } else {
+                dir = Some(env::current_dir().expect(
+                    "Can't read the current directory when trying to set the output directory",
+                ));
+            }
+        }
+        let dir = dir.unwrap();
+        if !dir.exists() {
+            std::fs::create_dir_all(&dir).expect(&format!(
+                "Couldn't create the output directory '{}'",
+                dir.display()
+            ));
+        }
+        dir
+    }
+
     /// Execute the given function with a reference to the current output directory (<APP ROOT>/output by default).
     /// Optionally, the current working directory can be switched to the output dir before executing
     /// the function and then restored at the end by setting change_to to True.
@@ -98,18 +124,38 @@ impl Status {
     /// return None unless it has been previously set by calling set_output_dir().
     pub fn with_output_dir<T, F>(&self, change_dir: bool, mut f: F) -> Result<T>
     where
-        F: FnMut(Option<&PathBuf>) -> Result<T>,
+        F: FnMut(&Path) -> Result<T>,
     {
-        let dir = &*self.output_dir.read().unwrap();
-        if let Some(d) = dir {
-            if !d.exists() {
-                std::fs::create_dir_all(&d)?;
+        let dir = self.output_dir();
+        if change_dir {
+            with_dir(&dir, || f(&dir))
+        } else {
+            f(&dir)
+        }
+    }
+
+    /// This is the main method to get the current reference directory, accounting for all
+    /// possible ways to set it, from current command, the app, default, etc.
+    /// If nothing has been set (only possible when running globally), then it will return None.
+    /// It will ensure that the directory exists before returning it.
+    pub fn reference_dir(&self) -> Option<PathBuf> {
+        let mut dir = self.reference_dir.read().unwrap().to_owned();
+        // If it hasn't been set by the current command
+        if dir.is_none() {
+            if let Some(app) = &self.app {
+                dir = Some(app._reference_directory());
             }
         }
-        if change_dir && dir.is_some() {
-            with_dir(dir.as_ref().unwrap(), || f(dir.as_ref()))
+        if let Some(dir) = dir {
+            if !dir.exists() {
+                std::fs::create_dir_all(&dir).expect(&format!(
+                    "Couldn't create the reference directory '{}'",
+                    dir.display()
+                ));
+            }
+            Some(dir)
         } else {
-            f(dir.as_ref())
+            None
         }
     }
 
@@ -122,14 +168,10 @@ impl Status {
     where
         F: FnMut(Option<&PathBuf>) -> Result<T>,
     {
-        let dir = &*self.reference_dir.read().unwrap();
-        if let Some(d) = dir {
-            if !d.exists() {
-                std::fs::create_dir_all(&d)?;
-            }
-        }
+        let dir = self.reference_dir();
         if change_dir && dir.is_some() {
-            with_dir(dir.as_ref().unwrap(), || f(dir.as_ref()))
+            let dir = dir.unwrap();
+            with_dir(&dir, || f(Some(&dir)))
         } else {
             f(dir.as_ref())
         }
@@ -137,6 +179,7 @@ impl Status {
 }
 
 fn search_for_app_root() -> (bool, PathBuf) {
+    log_trace!("Searching for app");
     let mut aborted = false;
     let path = env::current_dir();
     let mut path = match path {
@@ -153,8 +196,10 @@ fn search_for_app_root() -> (bool, PathBuf) {
     }
 
     if aborted {
+        log_debug!("No app found");
         (false, PathBuf::new())
     } else {
+        log_debug!("App found at '{}'", path.display());
         (true, path)
     }
 }

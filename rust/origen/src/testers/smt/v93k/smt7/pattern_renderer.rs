@@ -1,5 +1,4 @@
 use super::SMT7;
-use crate::core::application::output_directory;
 use crate::core::dut::Dut;
 use crate::core::file_handler::File;
 use crate::core::model::pins::pin::PinActions;
@@ -7,6 +6,7 @@ use crate::core::model::pins::StateTracker;
 use crate::core::tester::TesterAPI;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
+use crate::STATUS;
 use crate::{Result, DUT};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -76,12 +76,15 @@ impl<'a> Processor for Renderer<'a> {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
             Attrs::Test(name) => {
-                let mut p = output_directory();
-                p.push(self.tester.name());
-                p.push(name);
-                p.set_extension("avc");
-                self.path = Some(p.clone());
-                self.output_file = Some(File::create(p));
+                let _ = STATUS.with_output_dir(false, |dir| {
+                    let mut p = dir.to_path_buf();
+                    p.push(self.tester.name());
+                    p.push(name);
+                    p.set_extension("avc");
+                    self.path = Some(p.clone());
+                    self.output_file = Some(File::create(p));
+                    Ok(())
+                });
                 Ok(Return::ProcessChildren)
             }
             Attrs::Comment(_level, msg) => {

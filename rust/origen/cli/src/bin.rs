@@ -13,6 +13,17 @@ use origen::{LOGGER, STATUS};
 
 // This is the entry point for the Origen CLI tool
 fn main() {
+    // Set the verbosity immediately, this is to allow log statements to work in really
+    // low level stuff, e.g. when building the STATUS
+    let re = regex::Regex::new(r"-([vV]+)").unwrap();
+    let mut verbosity: u8 = 0;
+    for arg in std::env::args() {
+        if let Some(captures) = re.captures(&arg) {
+            let x = captures.get(1).unwrap().as_str();
+            verbosity = x.chars().count() as u8;
+        }
+    }
+    origen::initialize(Some(verbosity));
     let version = match STATUS.is_app_present {
         false => STATUS.origen_version.to_string(),
         true => format!(
@@ -284,6 +295,7 @@ fn main() {
         Some("setup") => commands::setup::run(),
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some("interactive") => {
+            log_trace!("Launching interactive session");
             let m = matches.subcommand_matches("interactive").unwrap();
             commands::interactive::run(
                 if let Some(targets) = m.values_of("target") {

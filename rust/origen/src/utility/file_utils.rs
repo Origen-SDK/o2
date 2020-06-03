@@ -1,5 +1,5 @@
 use super::command_helpers::log_stdout_and_stderr;
-use crate::{Result, STATUS};
+use crate::Result;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -15,10 +15,16 @@ pub fn to_relative_path(abs_path: &Path, relative_to: Option<&Path>) -> Result<P
         Some(p) => p.to_path_buf(),
     };
     if !abs_path.is_absolute() {
-        return error!("An absolute path must be given to to_relative_path, this is relative: '{}'", abs_path.display());
+        return error!(
+            "An absolute path must be given to to_relative_path, this is relative: '{}'",
+            abs_path.display()
+        );
     }
     if !base.is_absolute() {
-        return error!("An absolute path must be given to to_relative_path, this is relative: '{}'", base.display());
+        return error!(
+            "An absolute path must be given to to_relative_path, this is relative: '{}'",
+            base.display()
+        );
     }
 
     // This code came from here: https://stackoverflow.com/a/39343127/220679
@@ -39,8 +45,13 @@ pub fn to_relative_path(abs_path: &Path, relative_to: Option<&Path>) -> Result<P
             (None, _) => comps.push(Component::ParentDir),
             (Some(a), Some(b)) if comps.is_empty() && a == b => (),
             (Some(a), Some(b)) if b == Component::CurDir => comps.push(a),
-            (Some(_), Some(b)) if b == Component::ParentDir =>
-                return error!("Could not work out relative path from '{}' to '{}'", base.display(), abs_path.display()),
+            (Some(_), Some(b)) if b == Component::ParentDir => {
+                return error!(
+                    "Could not work out relative path from '{}' to '{}'",
+                    base.display(),
+                    abs_path.display()
+                )
+            }
             (Some(a), Some(_)) => {
                 comps.push(Component::ParentDir);
                 for _ in itb {
@@ -53,30 +64,6 @@ pub fn to_relative_path(abs_path: &Path, relative_to: Option<&Path>) -> Result<P
         }
     }
     Ok(comps.iter().map(|c| c.as_os_str()).collect())
-}
-
-/// Resolves a directory path from the current application root.
-/// Accepts an optional 'user_val' and a default. The resulting directory will be resolved from:
-/// 1. If a user value is given, and its absolute, this is the final path.
-/// 2. If a user value is given but its not absolute, then the final path is the user path relative to the application root.
-/// 3. If no user value is given, the final path is the default path relative to the root.
-/// Notes:
-///   A default is required, but an empty default will point to the application root.
-///   The default is assumed to be relative. Absolute defaults are not supported.
-pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> PathBuf {
-    let offset;
-    if let Some(user_str) = user_val {
-        if Path::new(&user_str).is_absolute() {
-            return PathBuf::from(user_str);
-        } else {
-            offset = user_str.to_string();
-        }
-    } else {
-        offset = default.to_string();
-    }
-    let mut dir = STATUS.root.clone();
-    dir.push(offset);
-    dir
 }
 
 /// Temporarily sets the current dir to the given dir for the duration of the given

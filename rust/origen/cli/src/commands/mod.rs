@@ -50,5 +50,7 @@ pub fn launch(
 
     cmd += ");";
 
+    log_debug!("Launching Python: '{}'", &cmd);
+
     python::run(&cmd);
 }

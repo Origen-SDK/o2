@@ -92,6 +92,7 @@ if sys.platform == "win32":
 def __origen__(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None):
     import origen
     import _origen
+
     import origen.application
     import origen.target
 
@@ -133,6 +134,7 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None, out
             origen.app.compile(pathlib.Path(file))
 
     elif command == "interactive":
+        origen.logger.trace("Starting interactive session (on Python side)")
         origen.target.load()
         import atexit, os, sys, colorama, termcolor, readline, rlcompleter
 

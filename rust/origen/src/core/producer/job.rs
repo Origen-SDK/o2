@@ -91,13 +91,13 @@ impl Job {
                     }
                 }
             }
-            if crate::STATUS.is_app_present {
-                let dir = crate::core::application::app_dir().unwrap();
+            if let Some(app) = crate::app() {
+                let dir = app.app_dir();
                 let f = dir.join(file);
                 if f.exists() {
                     return Some(f.to_path_buf());
                 }
-                let dir = crate::core::application::root().unwrap();
+                let dir = app.root.clone();
                 let f = dir.join(file);
                 if f.exists() {
                     return Some(f.to_path_buf());

@@ -7,7 +7,7 @@
 //! The target can be further overridden for a particular origen command invocation via
 //! the -t and -e options, or programmatically within the application code, however that is all
 //! handled on the front end in Python code.
-use crate::{app_config, STATUS};
+use crate::app;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 // Can be used to turn a relative path in an absolute
@@ -31,7 +31,9 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
         for file in all(dir).iter() {
             println!(
                 "    {}",
-                diff_paths(&file, &STATUS.root.join(dir)).unwrap().display()
+                diff_paths(&file, &app().unwrap().root.join(dir))
+                    .unwrap()
+                    .display()
             );
         }
     } else if matches.len() > 1 {
@@ -42,7 +44,9 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
         for file in matches.iter() {
             println!(
                 "    {}",
-                diff_paths(&file, &STATUS.root.join(dir)).unwrap().display()
+                diff_paths(&file, &app().unwrap().root.join(dir))
+                    .unwrap()
+                    .display()
             );
         }
     } else {
@@ -51,7 +55,7 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
         } else {
             let clean = format!(
                 "{}",
-                diff_paths(&matches[0], &STATUS.root.join(dir))
+                diff_paths(&matches[0], &app().unwrap().root.join(dir))
                     .unwrap()
                     .display()
             );
@@ -65,12 +69,14 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
 pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
 
-    for file in WalkDir::new(format!("{}", STATUS.root.join(dir).display())) {
+    for file in WalkDir::new(format!("{}", app().unwrap().root.join(dir).display())) {
         let path = file.unwrap().into_path();
         if path.is_file() {
             let path_str = format!(
                 "{}",
-                diff_paths(&path, &STATUS.root.join(dir)).unwrap().display()
+                diff_paths(&path, &app().unwrap().root.join(dir))
+                    .unwrap()
+                    .display()
             );
             if path_str.contains(name) {
                 files.push(path);
@@ -96,17 +102,22 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
 
 /// Gets the currently enabled targets
 pub fn get() -> Option<Vec<String>> {
-    app_config().refresh();
-    match app_config().target.as_ref() {
-        Some(targets) => Some(
-            targets
-                .iter()
-                .map(|t| clean_name(t, "targets", true))
-                .collect::<Vec<String>>()
-                .clone(),
-        ),
-        None => None,
-    }
+    app()
+        .unwrap()
+        .with_config_mut(|config| {
+            config.refresh();
+            match config.target.as_ref() {
+                Some(targets) => Ok(Some(
+                    targets
+                        .iter()
+                        .map(|t| clean_name(t, "targets", true))
+                        .collect::<Vec<String>>()
+                        .clone(),
+                )),
+                None => Ok(None),
+            }
+        })
+        .unwrap()
 }
 
 /// Sets the targets, overriding any that may be present
@@ -125,13 +136,19 @@ pub fn reset() {
 
 /// Enables additional targets in the workspace
 pub fn add(targets: Vec<&str>) {
-    let mut current: Vec<String> = match &app_config().target {
-        Some(targets) => targets.clone(),
-        None => vec![],
-    }
-    .iter()
-    .map(|t| clean_name(t, "targets", true))
-    .collect();
+    let mut current: Vec<String> = app()
+        .unwrap()
+        .with_config(|config| {
+            let c = match &config.target {
+                Some(targets) => targets.clone(),
+                None => vec![],
+            }
+            .iter()
+            .map(|t| clean_name(t, "targets", true))
+            .collect();
+            Ok(c)
+        })
+        .unwrap();
 
     for t in targets.iter() {
         // Check that the targets to add are valid
@@ -148,13 +165,19 @@ pub fn add(targets: Vec<&str>) {
 
 /// Disables currently enables targets in the workspace
 pub fn remove(targets: Vec<&str>) {
-    let mut current: Vec<String> = match &app_config().target {
-        Some(targets) => targets.clone(),
-        None => vec![],
-    }
-    .iter()
-    .map(|t| clean_name(t, "targets", true))
-    .collect();
+    let mut current: Vec<String> = app()
+        .unwrap()
+        .with_config(|config| {
+            let c: Vec<String> = match &config.target {
+                Some(targets) => targets.clone(),
+                None => vec![],
+            }
+            .iter()
+            .map(|t| clean_name(t, "targets", true))
+            .collect();
+            Ok(c)
+        })
+        .unwrap();
 
     for t in targets.iter() {
         let clean_t = clean_name(t, "targets", true);
@@ -175,7 +198,7 @@ pub fn remove(targets: Vec<&str>) {
 pub fn all(dir: &str) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
 
-    for file in WalkDir::new(format!("{}", STATUS.root.join(dir).display())) {
+    for file in WalkDir::new(format!("{}", app().unwrap().root.join(dir).display())) {
         let path = file.unwrap().into_path();
         if path.is_file() {
             files.push(path);
@@ -201,12 +224,12 @@ pub fn set_workspace_array(key: &str, vals: Vec<String>) {
 
 /// Deletes the given key (and its val) from .origen/application.toml if it exists
 pub fn delete_val(key: &str) {
-    let path = STATUS.root.join(".origen").join("application.toml");
+    let path = app().unwrap().root.join(".origen").join("application.toml");
     let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
     let re = Regex::new(format!(r#"{}\s?=.*(\r\n|\n)?"#, escape(key)).as_str()).unwrap();
     let new_data: String = re.replace_all(&data, "").into();
     fs::write(
-        STATUS.root.join(".origen").join("application.toml"),
+        app().unwrap().root.join(".origen").join("application.toml"),
         new_data,
     )
     .expect("Unable to write file .origen/application.toml!");
@@ -214,11 +237,11 @@ pub fn delete_val(key: &str) {
 
 /// Appends the given key/val pair to the end of .origen/application.toml
 fn add_val(key: &str, val: &str) {
-    let path = STATUS.root.join(".origen").join("application.toml");
+    let path = app().unwrap().root.join(".origen").join("application.toml");
     let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
     let new_data = format!("{}\n{} = \"{}\"", data.trim(), key, val);
     fs::write(
-        STATUS.root.join(".origen").join("application.toml"),
+        app().unwrap().root.join(".origen").join("application.toml"),
         new_data,
     )
     .expect("Unable to write file .origen/application.toml!");
@@ -226,7 +249,7 @@ fn add_val(key: &str, val: &str) {
 
 /// Appends the given key/val pair to the end of .origen/application.toml
 fn add_val_array(key: &str, vals: Vec<String>) {
-    let path = STATUS.root.join(".origen").join("application.toml");
+    let path = app().unwrap().root.join(".origen").join("application.toml");
     let data = fs::read_to_string(path).expect("Unable to read file .origen/application.toml");
 
     // Note: use string literals here to account for Windows paths
@@ -240,7 +263,7 @@ fn add_val_array(key: &str, vals: Vec<String>) {
             .join(", ")
     );
     fs::write(
-        STATUS.root.join(".origen").join("application.toml"),
+        app().unwrap().root.join(".origen").join("application.toml"),
         new_data,
     )
     .expect("Unable to write file .origen/application.toml!");
@@ -248,7 +271,7 @@ fn add_val_array(key: &str, vals: Vec<String>) {
 
 /// Verifies that .origen/application.toml exists and if not creates one
 fn ensure_app_dot_toml() {
-    let path = STATUS.root.join(".origen");
+    let path = app().unwrap().root.join(".origen");
     if !path.exists() {
         fs::create_dir(&path).expect("Unable to create directory .origen!");
     }
@@ -256,7 +279,10 @@ fn ensure_app_dot_toml() {
     if !path.exists() {
         let data =
             "# This file is generated by Origen and should not be checked into revision control";
-        fs::write(STATUS.root.join(".origen").join("application.toml"), data)
-            .expect("Unable to write file .origen/application.toml!");
+        fs::write(
+            app().unwrap().root.join(".origen").join("application.toml"),
+            data,
+        )
+        .expect("Unable to write file .origen/application.toml!");
     }
 }

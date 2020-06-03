@@ -1,8 +1,8 @@
-use origen::STATUS;
+use origen::app;
 use std::fs;
 
 pub fn run(targets: Option<Vec<&str>>, mode: &Option<&str>) {
-    let dot_origen_dir = STATUS.root.join(".origen");
+    let dot_origen_dir = app().unwrap().root.join(".origen");
     if !dot_origen_dir.exists() {
         let _ = fs::create_dir(&dot_origen_dir);
     }

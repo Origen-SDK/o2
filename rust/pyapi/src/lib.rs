@@ -18,7 +18,6 @@ mod tester;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::app_config as origen_app_config;
 use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
@@ -51,6 +50,7 @@ macro_rules! pypath {
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
 fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(initialize))?;
     m.add_wrapped(wrap_pyfunction!(status))?;
     m.add_wrapped(wrap_pyfunction!(config))?;
     m.add_wrapped(wrap_pyfunction!(app_config))?;
@@ -98,6 +98,13 @@ fn extract_value<'a>(
         };
     }
     Err(Error::new("Illegal bits/value argument"))
+}
+
+/// Called automatically when Origen is first loaded
+#[pyfunction]
+fn initialize(log_verbosity: Option<u8>) -> PyResult<()> {
+    origen::initialize(log_verbosity);
+    Ok(())
 }
 
 #[pyfunction]
@@ -150,7 +157,7 @@ fn status(py: Python) -> PyResult<PyObject> {
     let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
     let _ = ret.set_item("is_app_present", &STATUS.is_app_present);
-    let _ = ret.set_item("root", format!("{}", STATUS.root.display()));
+    let _ = ret.set_item("root", format!("{}", origen::app().unwrap().root.display()));
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     let _ = ret.set_item("on_windows", cfg!(windows));
@@ -175,19 +182,21 @@ fn config(py: Python) -> PyResult<PyObject> {
 fn app_config(py: Python) -> PyResult<PyObject> {
     let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
-    let app_config = origen_app_config();
-    let _ = ret.set_item("name", &app_config.name);
-    let _ = ret.set_item("target", &app_config.target);
-    let _ = ret.set_item("mode", &app_config.mode);
-    let _ = ret.set_item("__output_directory__", &app_config.output_directory);
-    let _ = ret.set_item(
-        "__website_output_directory__",
-        &app_config.website_output_directory,
-    );
-    let _ = ret.set_item(
-        "__website_source_directory__",
-        &app_config.website_source_directory,
-    );
+    let _ = origen::app().unwrap().with_config(|config| {
+        let _ = ret.set_item("name", &config.name);
+        let _ = ret.set_item("target", &config.target);
+        let _ = ret.set_item("mode", &config.mode);
+        let _ = ret.set_item("__output_directory__", &config.output_directory);
+        let _ = ret.set_item(
+            "__website_output_directory__",
+            &config.website_output_directory,
+        );
+        let _ = ret.set_item(
+            "__website_source_directory__",
+            &config.website_source_directory,
+        );
+        Ok(())
+    });
     Ok(ret.into())
 }
 
@@ -208,19 +217,19 @@ fn target_file(name: &str, dir: &str) -> PyResult<String> {
 
 #[pyfunction]
 fn output_directory(py: Python) -> PyResult<PyObject> {
-    let dir = origen::core::application::output_directory();
+    let dir = origen::STATUS.output_dir();
     Ok(pypath!(py, dir.display()))
 }
 
 #[pyfunction]
 fn website_output_directory(py: Python) -> PyResult<PyObject> {
-    let dir = origen::core::application::website_output_directory();
+    let dir = origen::app().unwrap().website_output_directory();
     Ok(pypath!(py, dir.display()))
 }
 
 #[pyfunction]
 fn website_source_directory(py: Python) -> PyResult<PyObject> {
-    let dir = origen::core::application::website_source_directory();
+    let dir = origen::app().unwrap().website_source_directory();
     Ok(pypath!(py, dir.display()))
 }
 

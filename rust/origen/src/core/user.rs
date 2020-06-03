@@ -113,12 +113,10 @@ impl User {
 
     #[cfg(feature = "password-cache")]
     fn cache_password(&self, username: &str, password: &str) {
-        if let Some(username) = self.id() {
-            let service = "rust-keyring";
-            let keyring = Keyring::new(&service, &username);
-            let _e = keyring.set_password(&password);
-            println!("{:?}", _e);
-        }
+        let service = "rust-keyring";
+        let keyring = Keyring::new(&service, &username);
+        let _e = keyring.set_password(&password);
+        println!("{:?}", _e);
     }
 
     #[cfg(feature = "password-cache")]

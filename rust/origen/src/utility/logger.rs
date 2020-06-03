@@ -55,7 +55,7 @@
 extern crate time;
 
 use crate::core::term;
-use crate::{Result, STATUS};
+use crate::{app, Result, STATUS};
 use std::cell::RefCell;
 use std::env;
 use std::fs;
@@ -106,6 +106,10 @@ pub struct Inner {
     logs: Vec<PathBuf>,
     // A counter used to generate unique default log file names
     counter: u32,
+    // If log statements are issued while booting up we won't know where the logfile
+    // should live, so this is used to inhibit writes to the file until Origen has got
+    // far enough along the boot process
+    status_ready: bool,
 }
 
 impl Logger {
@@ -118,6 +122,20 @@ impl Logger {
         let mut inner = self.inner.write().unwrap();
         inner.level = level;
         Ok(())
+    }
+
+    /// This is called automatically by Origen during the boot process to inform when the logger
+    /// can start looking for a log file to use
+    pub fn set_status_ready(&self) {
+        {
+            let mut inner = self.inner.write().unwrap();
+            inner.status_ready = true;
+        }
+        self.open_logfile(Some(&default_log_file(None)), false)
+            .expect(&format!(
+                "Couldn't open default log file '{}'",
+                default_log_file(None).display()
+            ));
     }
 
     /// This is the same as calling 'print!' but with it also being captured to the log.
@@ -288,6 +306,11 @@ impl Logger {
         if self.verbosity() >= level {
             print_func(&s);
         }
+        {
+            if !self.inner.read().unwrap().status_ready {
+                return;
+            }
+        }
         self.write(&format!("{}\n", s));
     }
 
@@ -295,19 +318,25 @@ impl Logger {
         return String::from(format!("[{}] ({}): ", prefix, self._timestamp()));
     }
 
+    // Returns 0 while Origen is initially booting since STATUS may not be available yet
     fn _timestamp(&self) -> String {
-        let dur = time::now() - STATUS.start_time;
-        return format!(
-            "{:0>2}:{:0>2}:{:0>2}.{:0>3}",
-            // This will take the whole hours, leaving off the minutes, seconds, and milliseconds. Totals hours will still be displayed,
-            // just won't be cleaned up. For example, a script that runs 2 days exactly, will display 48:00:00.000.
-            dur.num_hours(),
-            // Quite verbose way to do this, but the only way I could find without just doing the math  myself. Granted, that's what
-            // the functions are doing underneath, but seems safer to have Rust do it.
-            dur.num_minutes() - time::Duration::hours(dur.num_hours()).num_minutes(),
-            dur.num_seconds() - time::Duration::minutes(dur.num_minutes()).num_seconds(),
-            dur.num_milliseconds() - time::Duration::seconds(dur.num_seconds()).num_milliseconds(),
-        );
+        if self.inner.read().unwrap().status_ready {
+            let dur = time::now() - STATUS.start_time;
+            return format!(
+                "{:0>2}:{:0>2}:{:0>2}.{:0>3}",
+                // This will take the whole hours, leaving off the minutes, seconds, and milliseconds. Totals hours will still be displayed,
+                // just won't be cleaned up. For example, a script that runs 2 days exactly, will display 48:00:00.000.
+                dur.num_hours(),
+                // Quite verbose way to do this, but the only way I could find without just doing the math  myself. Granted, that's what
+                // the functions are doing underneath, but seems safer to have Rust do it.
+                dur.num_minutes() - time::Duration::hours(dur.num_hours()).num_minutes(),
+                dur.num_seconds() - time::Duration::minutes(dur.num_minutes()).num_seconds(),
+                dur.num_milliseconds()
+                    - time::Duration::seconds(dur.num_seconds()).num_milliseconds(),
+            );
+        } else {
+            "".to_string()
+        }
     }
 
     fn write_header(&self) {
@@ -399,6 +428,7 @@ impl Logger {
             }
         }
         self.write_header();
+        log_debug!("Logging to '{}'", p.display());
         Ok(p)
     }
 
@@ -415,6 +445,7 @@ impl Logger {
                 }
             }
         });
+        log_debug!("Logging to '{}'", self.output_file().display());
     }
 
     /// Send all logging to the given log file for the duration of the given function,
@@ -462,13 +493,6 @@ impl Logger {
         let logger = Logger {
             inner: RwLock::new(Inner::default()),
         };
-
-        logger
-            .open_logfile(Some(&default_log_file(None)), false)
-            .expect(&format!(
-                "Couldn't open default log file '{}'",
-                default_log_file(None).display()
-            ));
         logger
     }
 }
@@ -481,8 +505,9 @@ fn default_log_file(index: Option<u32>) -> PathBuf {
 }
 
 pub fn log_dir() -> PathBuf {
-    match STATUS.is_app_present {
-        true => STATUS.root.clone().join("log"),
-        false => STATUS.home.clone().join(".origen").join("log"),
+    if let Some(app) = app() {
+        app.root.clone().join("log")
+    } else {
+        STATUS.home.clone().join(".origen").join("log")
     }
 }

@@ -109,6 +109,8 @@ pub fn run(code: &str) {
         .arg(&PYTHON_CONFIG.command)
         .arg("-c")
         .arg(&code)
+        .arg("-")
+        .arg(&format!("verbosity={}", origen::LOGGER.verbosity()))
         .status();
 }
 
