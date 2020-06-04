@@ -158,7 +158,12 @@ pub fn run(matches: &ArgMatches) {
         Some("update") => {
             let matches = matches.subcommand_matches("update").unwrap();
             let force = matches.is_present("force");
-            let links_only = matches.is_present("links");
+            let mut links = matches.is_present("links");
+            if let Some(packages) = matches.values_of("packages") {
+                if packages.map(|p| p).collect::<Vec<&str>>().contains(&"all") {
+                    links = true;
+                }
+            }
             let package_ids = get_package_ids_from_args(matches, false);
             let bom = BOM::for_dir(&pwd());
             if !bom.is_workspace() {
@@ -190,20 +195,22 @@ pub fn run(matches: &ArgMatches) {
                 }
             }
             let mut links_force_required = false;
-            if !bom.links.is_empty() {
-                display!("Updating links ... ");
-                match bom.create_links(force) {
-                    Ok(force_required) => {
-                        if !force_required {
-                            display_greenln!("OK");
-                        } else {
-                            links_force_required = true;
+            if links {
+                if !bom.links.is_empty() {
+                    display!("Updating links ... ");
+                    match bom.create_links(force) {
+                        Ok(force_required) => {
+                            if !force_required {
+                                display_greenln!("OK");
+                            } else {
+                                links_force_required = true;
+                            }
                         }
-                    }
-                    Err(e) => {
-                        log_error!("There was a problem creating the workspace's links:");
-                        log_error!("{}", e);
-                        errors = true;
+                        Err(e) => {
+                            log_error!("There was a problem creating the workspace's links:");
+                            log_error!("{}", e);
+                            errors = true;
+                        }
                     }
                 }
             }
@@ -331,7 +338,7 @@ pub fn run(matches: &ArgMatches) {
                         Err(e) => {
                             error_and_exit(&e.to_string(), Some(1));
                         }
-                        Ok(status) => {
+                        Ok(_status) => {
                             display_greenln!("OK");
                         }
                     }
@@ -361,7 +368,7 @@ pub fn run(matches: &ArgMatches) {
                                 display_yellowln!("Tag already exists");
                             }
                         }
-                        Ok(status) => {
+                        Ok(_status) => {
                             display_greenln!("OK");
                         }
                     }
