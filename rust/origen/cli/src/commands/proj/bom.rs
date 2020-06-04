@@ -1,4 +1,4 @@
-use super::group::Group;
+use super::group::{Group, TempGroup};
 use super::package::Package;
 use super::{error_and_exit, BOM_FILE};
 use indexmap::IndexMap;
@@ -14,7 +14,7 @@ pub struct TempBOM {
     meta: Option<Meta>,
     package: Option<Vec<Package>>,
     links: Option<IndexMap<String, String>>,
-    group: Option<Vec<Group>>,
+    group: Option<Vec<TempGroup>>,
 }
 
 impl TempBOM {
@@ -49,7 +49,7 @@ impl TempBOM {
                 if bom.groups.contains_key(&g.id) {
                     return error!("Duplicate group definition found: '{}'", g.id);
                 }
-                bom.groups.insert(g.id.clone(), g.clone());
+                bom.groups.insert(g.id.clone(), g.to_group());
             }
         }
         if let Some(links) = &self.links {
@@ -157,7 +157,11 @@ impl BOM {
                 }
             };
             match new_bom.to_bom() {
-                Ok(x) => bom.merge(x, &f),
+                Ok(mut x) => {
+                    x.copy_group_packages(&bom);
+                    x.apply_group_versions();
+                    bom.merge(x, &f);
+                }
                 Err(e) => {
                     error_and_exit(
                         &format!("Malformed BOM file '{}': \n{}", f.display(), e.msg),
@@ -241,9 +245,38 @@ impl BOM {
         self.meta.merge(&bom.meta);
     }
 
+    /// Applies the version from a group to any of its child packages that doesn't have one
+    fn apply_group_versions(&mut self) {
+        for (_id, group) in &self.groups {
+            if let Some(group_version) = &group.version {
+                for pid in &group.packages {
+                    if let Some(package) = self.packages.get_mut(pid) {
+                        if package.version.is_none() {
+                            package.version = Some(group_version.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Child BOMs are not allowed to redefine what packages are in a group, this is used
+    /// to copy the existing definitions from a parent BOM.
+    /// It is done separately from merging to support the version resolution flow.
+    fn copy_group_packages(&mut self, bom: &BOM) {
+        for (gid, parent_group) in &bom.groups {
+            if let Some(group) = self.groups.get_mut(gid) {
+                group.packages = parent_group.packages.clone();
+            }
+        }
+    }
+
     fn validate(&self) {
         for (_id, p) in self.packages.iter() {
             p.validate();
+        }
+        for (_id, g) in self.groups.iter() {
+            g.validate();
         }
     }
 

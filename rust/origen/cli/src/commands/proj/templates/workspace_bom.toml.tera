@@ -2,10 +2,19 @@
 [meta]
 workspace = true
 
-# Here are the packages that were defined by the project BOM at the time this workspace was created.
+# Here are the packages and groups that were defined by the project BOM.
 # Additional attributes can be added below to override the project BOM for this workspace only,
-# e.g. to pull in an alternative version of some package(s).
+# e.g. to pull in an alternative version of some package(s)/group(s).
 # Run 'origen proj update' from the root of this workspace to apply the updates after making changes.
+
+{% for group in groups -%}
+[[group]]
+id = "{{group.id}}"
+# To override the group version, this will override any package-specific version from the project BOM,
+# but any package-specific version declared below will override ths group version
+# version = "some_version"
+
+{% endfor %}
 {% for package in packages -%}
 [[package]]
 id = "{{package.id}}"

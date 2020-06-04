@@ -1,10 +1,13 @@
 mod bom;
 mod group;
 mod package;
+#[cfg(test)]
+mod tests;
 
 use crate::origen::revision_control::RevisionControlAPI;
 use bom::BOM;
 use clap::ArgMatches;
+use group::Group;
 use origen::core::file_handler::File;
 use origen::core::term;
 use package::Package;
@@ -118,8 +121,10 @@ pub fn run(matches: &ArgMatches) {
             // in reverse order when given the index map
             let packages: Vec<&Package> = bom.packages.iter().map(|(_id, pkg)| pkg).collect();
             context.insert("packages", &packages);
+            let groups: Vec<&Group> = bom.groups.iter().map(|(_id, grp)| grp).collect();
+            context.insert("groups", &groups);
             let contents = tera
-                .render_str(include_str!("templates/workspace_bom.toml"), &context)
+                .render_str(include_str!("templates/workspace_bom.toml.tera"), &context)
                 .unwrap();
             File::create(path.join(BOM_FILE)).write(&contents);
             // Now populate the packages

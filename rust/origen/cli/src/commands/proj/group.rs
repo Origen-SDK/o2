@@ -5,8 +5,32 @@ pub struct Group {
     pub version: Option<String>,
 }
 
+/// This is used to make the packages optional when parsing a BOM (e.g. it doesn't
+/// need to be defined in the workspace BOM), but it is quickly converted to a real group
+/// where the pacakges field is required
+#[derive(Debug, Deserialize)]
+pub struct TempGroup {
+    pub id: String,
+    pub packages: Option<Vec<String>>,
+    pub version: Option<String>,
+}
+
+impl TempGroup {
+    pub fn to_group(&self) -> Group {
+        Group {
+            id: self.id.clone(),
+            packages: match &self.packages {
+                None => vec![],
+                Some(packages) => packages.clone(),
+            },
+            version: self.version.clone(),
+        }
+    }
+}
+
 impl Group {
     pub fn merge(&mut self, g: &Group) {
+        // Take the newer groups version if it has one, otherwise keep the existing
         match &g.version {
             Some(x) => {
                 self.version = Some(x.clone());
@@ -31,4 +55,6 @@ impl Group {
         s += "\n";
         s
     }
+
+    pub fn validate(&self) {}
 }

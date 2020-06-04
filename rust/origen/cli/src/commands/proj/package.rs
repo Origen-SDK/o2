@@ -13,7 +13,7 @@ use tempfile::tempdir;
 pub struct Package {
     pub id: String,
     pub path: Option<PathBuf>,
-    version: Option<String>,
+    pub version: Option<String>,
     repo: Option<String>,
     copy: Option<PathBuf>,
     link: Option<PathBuf>,
