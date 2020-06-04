@@ -19,7 +19,15 @@ static README_FILE: &str = "README.md";
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("init") => {
-            let dir = get_dir_or_pwd(matches.subcommand_matches("init").unwrap());
+            let dir = get_dir_or_pwd(matches.subcommand_matches("init").unwrap(), false);
+            if !dir.exists() {
+                fs::create_dir_all(&dir).expect(&format!(
+                    "Couldn't create '{}', do you have the required permissions?",
+                    dir.display()
+                ));
+            }
+            validate_path(&dir, true, true);
+            let dir = dir.canonicalize().unwrap();
             let f = dir.join(BOM_FILE);
             if f.exists() {
                 error_and_exit(
@@ -286,7 +294,7 @@ pub fn run(matches: &ArgMatches) {
             }
         }
         Some("packages") => {
-            let dir = get_dir_or_pwd(matches.subcommand_matches("packages").unwrap());
+            let dir = get_dir_or_pwd(matches.subcommand_matches("packages").unwrap(), true);
             let bom = BOM::for_dir(&dir);
             println!("PACKAGE GROUPS");
             for (id, g) in &bom.groups {
@@ -303,9 +311,79 @@ pub fn run(matches: &ArgMatches) {
             }
         }
         Some("bom") => {
-            let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap());
+            let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap(), true);
             let bom = BOM::for_dir(&dir);
             println!("{}", bom);
+        }
+        Some("clean") => {
+            let matches = matches.subcommand_matches("clean").unwrap();
+            let package_ids = get_package_ids_from_args(matches, true);
+            let bom = BOM::for_dir(&pwd());
+            if !bom.is_workspace() {
+                error_and_exit("The clean command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+            }
+            for id in package_ids {
+                let package = &bom.packages[&id];
+                if package.is_repo() {
+                    display!("{} ... ", package.id);
+                    let rc = package.rc(bom.root()).unwrap();
+                    match rc.revert(None) {
+                        Err(e) => {
+                            error_and_exit(&e.to_string(), Some(1));
+                        }
+                        Ok(status) => {
+                            display_greenln!("OK");
+                        }
+                    }
+                }
+            }
+        }
+        Some("tag") => {
+            let matches = matches.subcommand_matches("tag").unwrap();
+            let force = matches.is_present("force");
+            let tagname = matches.value_of("name").unwrap();
+            let message = matches.value_of("message");
+            let package_ids = get_package_ids_from_args(matches, true);
+            let mut packages_with_existing_tag: Vec<&str> = vec![];
+            let bom = BOM::for_dir(&pwd());
+            if !bom.is_workspace() {
+                error_and_exit("The tag command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+            }
+            for id in package_ids {
+                let package = &bom.packages[&id];
+                if package.is_repo() {
+                    display!("{} ... ", package.id);
+                    let rc = package.rc(bom.root()).unwrap();
+                    match rc.tag(tagname, force, message) {
+                        Err(e) => {
+                            if e.to_string().contains("tag already exists") {
+                                packages_with_existing_tag.push(&package.id);
+                                display_yellowln!("Tag already exists");
+                            }
+                        }
+                        Ok(status) => {
+                            display_greenln!("OK");
+                        }
+                    }
+                }
+            }
+            if !packages_with_existing_tag.is_empty() {
+                displayln!("");
+                display_yellowln!("Some packages were not tagged successfully due to the tag already existing, but not necessarily in the same place as your current workspace view.");
+                display_yellowln!(
+                    "You can run the following command to force the tag onto your current view:"
+                );
+                displayln!("");
+                let mut command = format!("  origen proj tag {} ", &tagname);
+                command += &packages_with_existing_tag.join(" ");
+                command += " --force";
+                if let Some(msg) = message {
+                    command += &format!(" --message \"{}\" ", msg);
+                }
+                displayln!("{}", command);
+                displayln!("");
+                exit(1);
+            }
         }
         None => unreachable!(),
         _ => unreachable!(),
@@ -342,13 +420,19 @@ fn pwd() -> PathBuf {
     dir
 }
 
-fn get_dir_or_pwd(matches: &ArgMatches) -> PathBuf {
+/// If validate is not true then the path returned may not be absolute and the caller
+/// is responsible for handling that (if required) after then have created it
+fn get_dir_or_pwd(matches: &ArgMatches, validate: bool) -> PathBuf {
     let dir = match matches.value_of("dir") {
         Some(x) => PathBuf::from(x),
         None => pwd(),
     };
-    validate_path(&dir, true, true);
-    dir.canonicalize().unwrap()
+    if validate {
+        validate_path(&dir, true, true);
+        dir.canonicalize().unwrap()
+    } else {
+        dir
+    }
 }
 
 fn error_and_exit(msg: &str, exit_code: Option<i32>) {
@@ -359,9 +443,9 @@ fn error_and_exit(msg: &str, exit_code: Option<i32>) {
     }
 }
 
-// Will exit and print an error message if the given path reference is invalid.
-// Caller must specify whether they want the path to exist or not and whether they expect it
-// to be a file or a dir (if applicable).
+/// Will exit and print an error message if the given path reference is invalid.
+/// Caller must specify whether they want the path to exist or not and whether they expect it
+/// to be a file or a dir (if applicable).
 fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
     if is_present {
         let t = if is_dir { "directory" } else { "file" }.to_string();

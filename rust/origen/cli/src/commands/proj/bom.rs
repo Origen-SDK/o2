@@ -96,6 +96,11 @@ impl fmt::Display for BOM {
             }
             s += "\n";
         }
+        for (id, g) in self.groups.iter() {
+            if id != "all" {
+                s += &g.to_string(0);
+            }
+        }
         for (_id, p) in self.packages.iter() {
             s += &p.to_string(0);
         }

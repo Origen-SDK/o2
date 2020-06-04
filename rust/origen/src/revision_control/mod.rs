@@ -87,7 +87,8 @@ pub trait RevisionControlAPI {
 
     /// Tag the view in the local workspace. A tag message can be supplied, but this may or may not be
     /// applied to the repo depending on whether the underlying system supports it.
-    fn tag(&self, tagname: &str, message: Option<&str>) -> Result<()>;
+    /// Supplying force: true will replace any existing tag with the same name.
+    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> Result<()>;
 }
 
 impl RevisionControlAPI for RevisionControl {
@@ -107,7 +108,7 @@ impl RevisionControlAPI for RevisionControl {
         self.driver.status(path)
     }
 
-    fn tag(&self, tagname: &str, message: Option<&str>) -> Result<()> {
-        self.driver.tag(tagname, message)
+    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> Result<()> {
+        self.driver.tag(tagname, force, message)
     }
 }

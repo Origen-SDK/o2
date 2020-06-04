@@ -20,11 +20,11 @@ pub fn redln(msg: &str) {
 }
 
 pub fn yellow(msg: &str) {
-    print(msg, Color::Yellow);
+    print(msg, Color::Rgb(215, 135, 0));
 }
 
 pub fn yellowln(msg: &str) {
-    println(msg, Color::Yellow);
+    println(msg, Color::Rgb(215, 135, 0));
 }
 
 pub fn cyan(msg: &str) {

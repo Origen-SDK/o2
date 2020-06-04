@@ -15,6 +15,7 @@ enum VersionType {
     Branch,
     Tag,
     Commit,
+    Head,
     Unknown,
 }
 
@@ -103,10 +104,121 @@ impl RevisionControlAPI for Git {
     }
 
     fn revert(&self, path: Option<&Path>) -> OrigenResult<()> {
+        let _ = self._checkout(true, path, "HEAD", false)?;
         Ok(())
     }
 
     fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> OrigenResult<bool> {
+        self._checkout(force, path, version, true)
+    }
+
+    /// Returns an Origen RC status, which does not go into as much detail as a full Git status,
+    /// mainly that there is no differentiation between changes that are staged vs unstaged.
+    /// It also doesn't bother to track renamed files, simply reporting them as a deleted file
+    /// and an added file.
+    fn status(&self, _path: Option<&Path>) -> OrigenResult<Status> {
+        let mut status = Status::default();
+        log_trace!("Checking status of '{}'", &self.local.display());
+        let repo = Repository::open(&self.local)?;
+        let stat = repo.statuses(None)?;
+        for entry in stat.iter() {
+            //dbg!(entry.status());
+
+            if entry.status().contains(git2::Status::WT_NEW) {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.added.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_NEW) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.added.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::WT_DELETED) {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.removed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_DELETED) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.removed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::WT_MODIFIED)
+                || entry.status().contains(git2::Status::WT_TYPECHANGE)
+            {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.changed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_MODIFIED)
+                || entry.status().contains(git2::Status::INDEX_TYPECHANGE)
+            {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.changed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+            if entry.status().contains(git2::Status::CONFLICTED) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status
+                    .conflicted
+                    .push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+        }
+        Ok(status)
+    }
+
+    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> OrigenResult<()> {
+        log_trace!("Tagging '{}' with '{}'", &self.local.display(), tagname);
+        let repo = Repository::open(&self.local)?;
+        let target = "HEAD";
+        let obj = repo.revparse_single(target)?;
+
+        if let Some(ref msg) = message {
+            let sig = Git::signature(&repo)?;
+            repo.tag(tagname, &obj, &sig, msg, force)?;
+        } else {
+            repo.tag_lightweight(tagname, &obj, force)?;
+        }
+        Ok(())
+    }
+}
+
+impl Git {
+    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
+        Git {
+            local: local.to_path_buf(),
+            remote: remote.to_string(),
+            credentials: credentials,
+            last_password_attempt: RefCell::new(None),
+            network_pct: RefCell::new(0),
+            index_pct: RefCell::new(0),
+            deltas_pct: RefCell::new(0),
+            ssh_attempts: RefCell::new(0),
+        }
+    }
+
+    // Returns Ok(true) if merge conflicts are encountered when force = false.
+    fn _checkout(
+        &self,
+        force: bool,
+        path: Option<&Path>,
+        version: &str,
+        prefetch: bool,
+    ) -> OrigenResult<bool> {
         log_info!(
             "Checking out version '{}' in '{}'",
             version,
@@ -114,8 +226,10 @@ impl RevisionControlAPI for Git {
         );
         self.reset_temps();
 
-        // Make sure we have all the latest tags/commits/branches available locally
-        self.fetch(None)?;
+        if prefetch {
+            // Make sure we have all the latest tags/commits/branches available locally
+            self.fetch(None)?;
+        }
 
         // Now the first part of this operation is to find the SHA (Oid) corresponding to the given version
         // reference, and identify whether it is a reference to branch, tag or commit
@@ -125,8 +239,14 @@ impl RevisionControlAPI for Git {
         let mut version_type = VersionType::Unknown;
         let mut stash_pop_required = false;
 
+        // Means (re)checkout the current version, used for blowing away local edits
+        if version == "HEAD" || version == "head" || version == "Head" {
+            version_type = VersionType::Head;
+            let head = repo.head().unwrap();
+            oid = Some(head.target().unwrap());
+
         // If the version reference is a branch...
-        if let Ok(branch) =
+        } else if let Ok(branch) =
             repo.find_branch(&format!("origin/{}", version), git2::BranchType::Remote)
         {
             //if self.remote_branch_exists(&repo, version) {
@@ -211,6 +331,10 @@ impl RevisionControlAPI for Git {
                     let head = format!("refs/heads/{}", version);
                     repo.set_head(&head)?;
                 }
+                VersionType::Head => {
+                    let object = repo.find_object(oid, None)?;
+                    repo.checkout_tree(&object, Some(&mut co))?;
+                }
                 VersionType::Tag => {
                     let object = repo.find_object(oid, None)?;
                     repo.checkout_tree(&object, Some(&mut co))?;
@@ -254,93 +378,12 @@ impl RevisionControlAPI for Git {
         Ok(!self.status(None)?.conflicted.is_empty())
     }
 
-    /// Returns an Origen RC status, which does not go into as much detail as a full Git status,
-    /// mainly that there is no differentiation between changes that are staged vs unstaged.
-    /// It also doesn't bother to track renamed files, simply reporting them as a deleted file
-    /// and an added file.
-    fn status(&self, _path: Option<&Path>) -> OrigenResult<Status> {
-        let mut status = Status::default();
-        log_trace!("Checking status of '{}'", &self.local.display());
-        let repo = Repository::open(&self.local)?;
-        let stat = repo.statuses(None)?;
-        for entry in stat.iter() {
-            //dbg!(entry.status());
-
-            if entry.status().contains(git2::Status::WT_NEW) {
-                let old = entry.index_to_workdir().unwrap().old_file().path();
-                let new = entry.index_to_workdir().unwrap().new_file().path();
-                status.added.push(self.local.join(old.or(new).unwrap()));
-                continue;
-            }
-
-            if entry.status().contains(git2::Status::INDEX_NEW) {
-                let old = entry.head_to_index().unwrap().old_file().path();
-                let new = entry.head_to_index().unwrap().new_file().path();
-                status.added.push(self.local.join(old.or(new).unwrap()));
-                continue;
-            }
-
-            if entry.status().contains(git2::Status::WT_DELETED) {
-                let old = entry.index_to_workdir().unwrap().old_file().path();
-                let new = entry.index_to_workdir().unwrap().new_file().path();
-                status.removed.push(self.local.join(old.or(new).unwrap()));
-                continue;
-            }
-
-            if entry.status().contains(git2::Status::INDEX_DELETED) {
-                let old = entry.head_to_index().unwrap().old_file().path();
-                let new = entry.head_to_index().unwrap().new_file().path();
-                status.removed.push(self.local.join(old.or(new).unwrap()));
-                continue;
-            }
-
-            if entry.status().contains(git2::Status::WT_MODIFIED)
-                || entry.status().contains(git2::Status::WT_TYPECHANGE)
-            {
-                let old = entry.index_to_workdir().unwrap().old_file().path();
-                let new = entry.index_to_workdir().unwrap().new_file().path();
-                status.changed.push(self.local.join(old.or(new).unwrap()));
-                continue;
-            }
-
-            if entry.status().contains(git2::Status::INDEX_MODIFIED)
-                || entry.status().contains(git2::Status::INDEX_TYPECHANGE)
-            {
-                let old = entry.head_to_index().unwrap().old_file().path();
-                let new = entry.head_to_index().unwrap().new_file().path();
-                status.changed.push(self.local.join(old.or(new).unwrap()));
-                continue;
-            }
-            if entry.status().contains(git2::Status::CONFLICTED) {
-                let old = entry.head_to_index().unwrap().old_file().path();
-                let new = entry.head_to_index().unwrap().new_file().path();
-                status
-                    .conflicted
-                    .push(self.local.join(old.or(new).unwrap()));
-                continue;
-            }
-            dbg!(entry.status());
-        }
-        Ok(status)
-    }
-
-    fn tag(&self, tagname: &str, message: Option<&str>) -> OrigenResult<()> {
-        Ok(())
-    }
-}
-
-impl Git {
-    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
-        Git {
-            local: local.to_path_buf(),
-            remote: remote.to_string(),
-            credentials: credentials,
-            last_password_attempt: RefCell::new(None),
-            network_pct: RefCell::new(0),
-            index_pct: RefCell::new(0),
-            deltas_pct: RefCell::new(0),
-            ssh_attempts: RefCell::new(0),
-        }
+    // Returns a signature (to attribute commits etc.) for the current user, falling
+    // back to a default Origen signature if necessary
+    fn signature(repo: &Repository) -> OrigenResult<git2::Signature> {
+        Ok(repo
+            .signature()
+            .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?))
     }
 
     fn credentials_callback(
@@ -535,10 +578,6 @@ impl Git {
 
         Ok(())
     }
-}
-
-fn reset_head() -> OrigenResult<()> {
-    Ok(())
 }
 
 fn ssh_keys() -> Vec<PathBuf> {

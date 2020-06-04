@@ -93,7 +93,7 @@ impl RevisionControlAPI for Designsync {
         })
     }
 
-    fn tag(&self, tagname: &str, message: Option<&str>) -> Result<()> {
+    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> Result<()> {
         Ok(())
     }
 }
