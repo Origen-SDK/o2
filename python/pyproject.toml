@@ -15,7 +15,7 @@ lxml = "4.4.2"
 mako = "1.1.0"
 sphinx = "3.0.2"
 #autoapi = ">= 0"
-autoapi = {git = "https://github.com/coreyeng/autoapi.git", branch = "master"}
+autoapi = {git = "https://github.com/coreyeng/autoapi.git", tag = "dev1"}
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
 

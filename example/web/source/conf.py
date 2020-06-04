@@ -35,15 +35,22 @@ release = '0.0.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-  'origen.web.sphinx_ext.sphinx',
+  'origen.web.origen_sphinx_extension',
   'autoapi.sphinx',
+  'sphinx.ext.autodoc',
+  'sphinx.ext.napoleon',
+  'sphinx.ext.autosectionlabel',
   'recommonmark',
 ]
+
+autosectionlabel_prefix_document = True
 autoapi_modules = {
-  'example.application': None
+  'example.application': {
+    'module-members': ['undoc-members'],
+    'class-members': ['members', 'undoc-members']
+  }
 }
 autoapi_output_dir = origen.web.interbuild_dir.joinpath('autoapi')
-autodoc_default_flags = ['members', 'undoc-members', 'inherited-members']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

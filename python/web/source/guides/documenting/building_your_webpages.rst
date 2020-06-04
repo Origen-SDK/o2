@@ -1,6 +1,3 @@
-.. include:: ../../_common_defs.rst
-  :start-after: start_content
-
 Building Your Webpages
 ======================
 

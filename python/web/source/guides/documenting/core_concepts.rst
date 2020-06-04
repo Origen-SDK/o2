@@ -1,6 +1,3 @@
-.. include:: ../../_common_defs.rst
-  :start-after: start_content
-
 Core Concepts
 =============
 
@@ -22,7 +19,7 @@ The :ref:`previous section <guides/documenting/introduction:Introduction>` menti
               <li>A fully-functioning <i>Sphinx app</i> out-of-the-box.</li>
             </ul>
         </p>
-        <cite><a href="{{ path_to('documenting_introduction') }}">The Introduction</a></cite>
+        <cite>{{ anchor_for('documenting_introduction', 'The Introduction') }}</cite>
       </blockquote>
     </div>
   </div>
@@ -101,7 +98,7 @@ The key points from this are:
 * This custom extension is responsible for integrating Origen's CLI and your *Origen application*
   with the *Sphinx app* itself.
 * Although ``origen new`` builds an initial *Sphinx app* for you, with some Origen-specifics
-  ({{ ref_for('origen-s_sphinx_app', 'discussed a bit later') }}), it does not impede
+  ({{ ref_for('documenting:origen-s_sphinx_app', 'discussed a bit later') }}), it does not impede
   Sphinx's general operations, nor does it discourage integrating other extensions you may need
   for your project.
 * Writing docs for your *Origen application* amounts to writing docs like you would any

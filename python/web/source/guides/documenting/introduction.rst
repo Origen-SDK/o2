@@ -1,6 +1,3 @@
-.. include:: ../../_common_defs.rst
-  :start-after: start_content
-
 Introduction
 ============
 
@@ -38,7 +35,7 @@ following in your workspace to get an idea of the initial state of your applicat
 
   origen web build --view
 
-This command will build the webpages, placing them in your {{ ref_for('web_output_dir') }} and launch
+This command will build the webpages, placing them in your {{ ref_for('documenting:web_output_dir') }} and launch
 your system's web-browser to view the resulting contents. This will yield webpages specific
 to your application which have the same look and feel as the Origen documentation.
 

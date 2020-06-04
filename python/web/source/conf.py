@@ -29,7 +29,8 @@ import rustdoc
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-  'origen.web.sphinx_ext.sphinx',
+  'origen.web.origen_sphinx_extension',
+  'origen.web.rst_shared_defs',
   'rustdoc',
   'sphinx.ext.autodoc',
   'sphinx.ext.autosectionlabel',
@@ -95,28 +96,110 @@ extlinks = {
   'o2_github_root': ('https://github.com/Origen-SDK/o2%s', ''),
   'static_website': ('https://en.wikipedia.org/wiki/Static_web_page%s', ''),
   'python_docs': ('https://docs.python.org/3.8/index.html%s', ''),
+  'python_exception_hierarchy': ('https://docs.python.org/3/library/exceptions.html#exception-hierarchy%s', ''),
+  'ticket_mako_multiple_newlines': ('https://stackoverflow.com/questions/22558067/how-to-convert-multiple-newlines-in-mako-template-to-one-newline%s', ''),
+}
+
+origen_content_header = {
+  "insert-rst-shared-defs": True
 }
 
 doc_root = "guides/documenting"
 pattern_api_root = 'guides/testers/pattern_generation/pattern_api'
 program_api_root = 'guides/testers/program_generation/program_api'
 utility_root = 'guides/runtime/utilities'
-origen_refs_for = {
-  'web_output_dir': f"{doc_root}/further_customizing_your_sphinx_app:Application Customizations",
-  'ose': f"{doc_root}/the_origen_sphinx_extension:The Origen Sphinx Extension",
-  'origen-s_sphinx_app': f"{doc_root}/your_sphinx_app:Origen's Sphinx App",
-  'ose_theme_opts': f"{doc_root}/the_origen_sphinx_extension:Origen Theme Options",
-  'ose_config_vars': f"{doc_root}/the_origen_sphinx_extension:Configuration Variables",
-  'documenting_introduction': f"{doc_root}/introduction:Introduction",
-  'documenting_core_concepts': f"{doc_root}/core_concepts:Core Concepts",
-  'api_generation': f"{doc_root}/your_sphinx_app:Automatic API Generation",
-  'ose_favicon': f"{doc_root}/the_origen_sphinx_extension:Favicon",
-  'ose_logos': f"{doc_root}/the_origen_sphinx_extension:Logos",
-  'ose_subprojects': f"{doc_root}/the_origen_sphinx_extension:SubProjects",
-  'origen_sphinx_app_extensions': f"{doc_root}/your_sphinx_app/Extensions",
-  'pattern_api_comments': f'{pattern_api_root}:Comments',
-  'program_api_comments': f'{program_api_root}:Comments',
-  'logger': f'{utility_root}/logger:Logger',
+rst_shared_defs = {
+  'output_dir': origen.web.interbuild_dir.joinpath('rst_shared_defs'),
+  # 'api': {
+  #   'class': {
+  #     "origen-compiler": (
+  #       "Origen's Compiler",
+  #       'origen.compiler.Compiler'
+  #     ),
+  #     "origen-translator": (
+  #       "Origen's Translator",
+  #       'origen.translator.Translator'
+  #     )
+  #   }
+  # },
+
+  'refs': {
+    'documenting_introduction': (
+      'Documenting: Introduction',
+      f"{doc_root}/introduction:Introduction"
+    ),
+    'documenting_core_concepts': (
+      'Documenting: Core Concept',
+      f"{doc_root}/core_concepts:Core Concepts"
+    ),
+    'pattern_api_comments': (
+      'commenting pattern source',
+      f'{pattern_api_root}:Comments'
+    ),
+    'program_api_comments': (
+      'commenting program source',
+      f'{program_api_root}:Comments'
+    ),
+    'logger': (
+      'logger',
+      f'{utility_root}/logger:Logger'
+    ),
+
+    'documenting': {
+      'web_output_dir': (
+        'web output directory',
+        f"{doc_root}/further_customizing_your_sphinx_app:Application Customizations"
+      ),
+      'web_cmd': (
+        'origen web',
+        f"{doc_root}/building_your_webpages:Origen Web"
+      ),
+      'block_diagram': (
+        'block diagram',
+        f"{doc_root}/core_concepts:Doc System Block Diagram"
+      ),
+      'ose': (
+        'origen sphinx extension',
+        f"{doc_root}/the_origen_sphinx_extension:The Origen Sphinx Extension"
+      ),
+      'origen-s_sphinx_app': (
+        'Origen\'s sphinx app',
+        f"{doc_root}/your_sphinx_app:Origen's Sphinx App"
+      ),
+      'ose_theme': (
+        'origen theme',
+        f"{doc_root}/the_origen_sphinx_extension:The Origen Theme"
+      ),
+      'ose_theme_opts': (
+        'origen sphinx extension theme options',
+        f"{doc_root}/the_origen_sphinx_extension:Origen Theme Options"
+      ),
+      'ose_config_vars': (
+        'origen sphinx extension config variables',
+        f"{doc_root}/the_origen_sphinx_extension:Configuration Variables"
+      ),
+      'api_generation': (
+        'API generation',
+        f"{doc_root}/your_sphinx_app:Automatic API Generation"
+      ),
+      'ose_favicon': (
+        'OSE favicon',
+        f"{doc_root}/the_origen_sphinx_extension:Favicon"
+      ),
+      'ose_logos': (
+        'OSE logos',
+        f"{doc_root}/the_origen_sphinx_extension:Logos"
+      ),
+      'ose_subprojects': (
+        'OSE SubProjects',
+        f"{doc_root}/the_origen_sphinx_extension:SubProjects"
+      ),
+      'origen_included_extensions': (
+        'Origen included extensions',
+        f"{doc_root}/your_sphinx_app:Extensions"
+      ),
+    }
+  },
 }
 
 rustdoc_output_dir = origen.web.static_dir.joinpath('rustdoc')
@@ -163,7 +246,7 @@ html_theme_options = {
   'navbar_links': [
     ('Github', 'https://github.com/Origen-SDK/o2', True),
     ('O1', 'https://origen-sdk.org/', True),
-    ('Example App', '_static/build/origen_sphinx_ext/example/sphinx_build/index', False)
+    ('Example App', '_static/build/origen_sphinx_extension/example/sphinx_build/index', False)
   ],
 }
 

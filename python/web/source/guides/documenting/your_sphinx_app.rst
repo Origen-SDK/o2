@@ -1,6 +1,3 @@
-.. include:: ../../_common_defs.rst
-  :start-after: start_content
-
 Your Sphinx App
 ===============
 
@@ -24,7 +21,7 @@ From {{ ref_for('documenting_core_concepts', 'the previous section') }}:
           At its heart, your <i>Origen application's</i> documentation 'engine' is just
           a <i>Sphinx app</i> with a custom extension thrown in.
         </p>
-        <cite><a href="{{ path_to('documenting_core_concepts') }}">Core Concepts</a></cite>
+        <cite>{{ anchor_for('documenting_core_concepts', 'Core Concepts') }}</cite>
       </blockquote>
     </div>
   </div>
@@ -38,7 +35,7 @@ From {{ ref_for('documenting_core_concepts', 'the previous section') }}:
           Writing docs for your <i>Origen application</i> amounts to writing
           docs like you would any other <i>Sphinx app</i>.
         </p>
-        <cite><a href="{{ path_to('documenting_core_concepts') }}">Core Concepts</a></cite>
+        <cite>{{ anchor_for('documenting_core_concepts', 'Core Concepts') }}</cite>
       </blockquote>
     </div>
   </div>
@@ -87,13 +84,13 @@ To quickly define these files:
 
 A key addition to note is the automatic inclusion of the ``origen_sphinx_ext`` as the
 first (topmost) extension in ``conf.py``. This extension will be
-{{ ref_for('ose', 'covered in much more detail later') }}, but just know for now that it is responsible
+{{ ref_for('documenting:ose', 'covered in much more detail later') }}, but just know for now that it is responsible
 for all of the *Origen specifics* which separate a standard Sphinx app from one used in
 an Origen application.
 
 Other extensions, such as :autoapi_home:`autoapi` and :autodoc_home:`autodoc` are also included,
 but those are more for convenience.
-{{ ref_for('api_generation', 'Notes on these will also be covered later') }}.
+{{ ref_for('documenting:api_generation', 'Notes on these will also be covered later') }}.
 
 .. raw:: html
 
@@ -109,7 +106,7 @@ but those are more for convenience.
 
     The <code>origen_sphinx_ext</code> has a number of customizations available and can be inherited
     or overridden like any other Sphinx extension. This will be
-    <a href="{{ path_to('ose') }}">covered in more detail later</a>, but this mentality should be
+    <a href="{{ path_to('documenting:ose') }}">covered in more detail later</a>, but this mentality should be
     preferred to removing the extension entirely.
   </div>
 

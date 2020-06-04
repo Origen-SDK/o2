@@ -9,6 +9,7 @@ mod commands;
 mod python;
 
 use clap::{App, AppSettings, Arg, SubCommand};
+use indexmap::map::IndexMap;
 use origen::{LOGGER, STATUS};
 
 // This is the entry point for the Origen CLI tool
@@ -359,6 +360,7 @@ fn main() {
                 },
                 &m.value_of("mode"),
                 Some(m.values_of("files").unwrap().collect()),
+                None,
             );
         }
         Some("compile") => {
@@ -372,6 +374,7 @@ fn main() {
                 },
                 &m.value_of("mode"),
                 Some(m.values_of("files").unwrap().collect()),
+                None,
             );
         }
         Some("target") => {
@@ -391,48 +394,56 @@ fn main() {
         }
         Some("web") => {
             let cmd = matches.subcommand_matches("web").unwrap();
-            //let subcommand = matches.get_matches();
             let subcmd = cmd.subcommand();
             let sub = subcmd.1.unwrap();
             match subcmd.0 {
                 "build" => {
-                    let mut args = "from origen.boot import __origen__; __origen__('web:build', args={".to_string();
+                    let mut args = IndexMap::new();
                     if sub.is_present("view") {
-                        args.push_str("'view': True, ");
+                        args.insert("view", "True".to_string());
                     }
                     if sub.is_present("clean") {
-                        args.push_str("'clean': True, ");
+                        args.insert("clean", "True".to_string());
                     }
                     if sub.is_present("no-api") {
-                        args.push_str("'no-api': True, ");
+                        args.insert("no-api", "True".to_string());
                     }
                     // if sub.is_present("pdf") {
                     //     args.push_str("'pdf': True, ");
                     // }
                     if sub.is_present("release") {
-                        args.push_str("'release': True, ");
+                        args.insert("release", "True".to_string());
                     }
                     if sub.is_present("archive") {
                         if let Some(archive) = sub.value_of("archive") {
-                            args.push_str(&format!("'archive': '{}', ", archive));
+                            args.insert("archive", format!("'{}'", archive));
                         } else {
-                            args.push_str(&format!("'archive': True"));
+                            args.insert("archive", "True".to_string());
                         }
                     }
                     if let Some(s_args) = sub.value_of("sphinx-args") {
                         // Recall that this comes in as a single argument, potentially quoted to mimic multiple,
                         // but a single argument from the perspective here nonetheless
-                        args.push_str(&format!("'sphinx-args': '{}', ", s_args));
+                        args.insert("sphinx-args", format!("'{}'", s_args));
                     }
-                    args.push_str("}");
-                    args.push_str(");");
-                    python::run(&args);
+                    commands::launch(
+                        "web:build",
+                        if let Some(targets) = cmd.values_of("target") {
+                            Some(targets.collect())
+                        } else {
+                            Option::None
+                        },
+                        &None,
+                        None,
+                        Some(args)
+                    )
                 },
                 "view" => {
                     commands::launch(
                         "web:view",
                         None,
                         &None,
+                        None,
                         None
                     )
                 },
@@ -441,6 +452,7 @@ fn main() {
                         "web:clean",
                         None,
                         &None,
+                        None,
                         None
                     )
                 }

@@ -1,6 +1,3 @@
-.. include:: ../../_common_defs.rst
-  :start-after: start_content
-
 The Origen Sphinx Extension
 ===========================
 
@@ -138,29 +135,29 @@ Origen Theme Options
   Default:
     False
 
-  >> html_theme_options['bypass_main_logo'] = False
+  >>> html_theme_options['bypass_main_logo'] = False
 
   .. versionadded:: 0.0.0
 
 .. py:data:: favicon_raw_src
 
   If set to True, the favicon 'src' will be whatever the value given is, verbatim.
-  If False, then the favicon is assumed to reside in '_static/', which is Sphinx's default.
-  This item has no effect if 'config.html_favicon' is set
+  If False, then the favicon is assumed to reside in ``_static/``, which is Sphinx's default.
+  This item has no effect if ``config.html_favicon`` is set
 
   Default:
     False
 
-  >> html_theme_options['favicon_raw_src'] = False
+  >>> html_theme_options['favicon_raw_src'] = False
 
   .. versionadded:: 0.0.0
 
 .. py:data:: favicon
 
   Sphinx's favicon, :sphinx_confval_html_favicon:`shown here <>`,
-  doesn't allow for one located outside of '_static'
+  doesn't allow for one located outside of ``_static``
   
-  The favicon provided here can reside outside of '_static', or
+  The favicon provided here can reside outside of ``_static``, or
   as a URL if 'favicon_raw_src' is set to True.
   
   Websites can only display one favicon and Sphinx's 'config.html_favicon' takes priority.
@@ -181,10 +178,7 @@ Origen Theme Options
     # URL
     html_theme_options['favicon'] = "https://url/for/your/favicon.png"
   
-  Notes
-  -----
-
-  Be sure not confuse ``html_theme_options['favicon']``, the *theme config*, with ``conf.html_favicon``,
+  **Note:** Be sure not tp confuse ``html_theme_options['favicon']``, the *theme config*, with ``conf.html_favicon``,
   which is a Sphinx global config variable and takes precedence over ``html_theme_options['favicon']``.
 
   .. versionadded:: 0.0.0
@@ -195,7 +189,7 @@ To maintain some semblance across Origen applications, a few logos will be prefi
 The settings for these logos are shown below:
 
 {% set json = importlib.import_module('json') %}
-{% set ext = importlib.import_module('origen.web.sphinx_ext.sphinx') %}
+{% set ext = ose %}
 
 .. code:: json
 
@@ -208,12 +202,12 @@ The *origen_sphinx_ext*:
 
 * is the bridge between your *Origen application*, Origen itself, and your *Sphinx app*.
 * will setup several aspects of your *Sphinx app* for you at runtime.
-* has its own set of {{ ref_for('ose_config_vars', 'configuration variables') }}.
+* has its own set of {{ ref_for('documenting:ose_config_vars', 'configuration variables') }}.
 * also comes with support for |ref_ose_subprojects|
 * contains the |ref_ose_theme|
 
 * The |ref_ose_theme|, though part of the *origen_sphinx_ext*, contains its own
-  {{ ref_for('ose_theme_opts', 'configuration options') }}, which follows Sphinx's rules for
+  {{ ref_for('documenting:ose_theme_opts', 'configuration options') }}, which follows Sphinx's rules for
   configuring themes, but is also accessible in your ``config.py`` via
   :sphinx_confval_html_theme_options:`html_theme_options`.
 

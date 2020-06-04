@@ -1,6 +1,3 @@
-.. include:: ../../_common_defs.rst
-  :start-after: start_content
-
 Reference
 =========
 
@@ -32,8 +29,8 @@ Sphinx Guides
 * :sphinx_app:`Sphinx App <>`
 * :sphinx_conf:`Sphinx's conf.py <>`
 * :sphinx_extensions:`Sphinx Extensions <>`
-* |ref_origen_sphinx_app|
-* |ref_origen_sphinx_app_extensions|
+* |ref_origen-s_sphinx_app|
+* |ref_origen_included_extensions|
    * :autodoc_home:`Autodoc <>`
    * :autoapi_home:`AutoAPI <>`
 * The |ref_ose|
@@ -87,8 +84,8 @@ Customizations
 
 * Adding a :py:data:`favicon`
 * Adding :py:data:`logos`
-* {{ ref_for('ose_subprojects', 'Adding a subproject') }}
-* {{ ref_for('ose_config_vars', 'Configuration Variables') }}
+* {{ ref_for('documenting:ose_subprojects', 'Adding a subproject') }}
+* {{ ref_for('documenting:ose_config_vars', 'Configuration Variables') }}
 
 Other
 ^^^^^

@@ -1,6 +1,3 @@
-.. include:: ../../_common_defs.rst
-  :start-after: start_content
-
 Advanced Customizations
 =======================
 
@@ -30,7 +27,7 @@ webpages their look and enables :bootstrap4_widgets:`Bootstrap4 widgets <>`
 out of the box.
 
 The *Bootstrap4 theme* also has its own set of
-:bootstrap4_sphinx_theme_options:`html_them_options <>`.
+:bootstrap4_sphinx_theme_options:`html_theme_options <>`.
 Most of the user-facing ones have been hijacked by the *origen theme* (See the |ref_ose_theme_opts| for more), but some additional ones
 but others supported by the *Bootstrap4 theme* are also fair game for customization.
 
@@ -71,7 +68,7 @@ than break away from it entirely, the latter of which will maintain the highest 
   <div class="alert alert-info" role="alert">
     Setting the theme to <code>None</code> in your <code>conf.py</code> will revert your
     <i>Sphinx app's</i> theme to Sphinx's default: 
-    <a href="{{ app.config.extlinks['sphinx_alabaster_theme'][0] }}">the Alabaster theme</a>.
+    <a href="{{ app.config.extlinks['sphinx_alabaster_theme'][0]|replace('%s', '') }}">the Alabaster theme</a>.
   </div>
 
 Recap

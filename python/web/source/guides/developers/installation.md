@@ -2,7 +2,7 @@
 :name: development_setup
 ```
 
-## Development Environment Setup
+# Development Environment Setup
 
 1) [Install Rust](https://www.rust-lang.org/tools/install)
 
@@ -20,7 +20,7 @@ rustup override set nightly
 export PATH="$HOME/.cargo/bin:$PATH"
 ~~~
 
-4) Compile the Rust code (you will repeat this step everytime you change it):
+4) Compile the Rust code (you will repeat this step every time you change it):
 
 To compile the core and CLI:
 ~~~

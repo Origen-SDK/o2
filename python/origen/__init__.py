@@ -93,7 +93,7 @@ frontend_root = Path(__file__).parent.absolute()
 app = None
 ''' Pointer to the current application instance, or ``None``, if Origen was not invoked from within an application workspace.
 
-    If ``app`` is not ``None``, it should be chld of the base class :class:`origen.application.Base`
+    If ``app`` is not ``None``, it should be child of the base class :class:`origen.application.Base`
 
     See Also
     --------
