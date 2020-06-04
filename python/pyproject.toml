@@ -17,6 +17,7 @@ sphinx = "3.0.2"
 autoapi = {git = "https://github.com/coreyeng/autoapi.git", tag = "dev2"}
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
+yapf = "0.30"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
