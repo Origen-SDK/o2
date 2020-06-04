@@ -40,7 +40,7 @@ version = "2.0.1"
 sphinx = "*"
 
 [package.source]
-reference = "ba75a79238cb1d28545647bbfb7cec1e05798c09"
+reference = "b1ed744b5a322b7c6e4812ccd34ce8a9ba510941"
 type = "git"
 url = "https://github.com/coreyeng/autoapi.git"
 [[package]]
@@ -219,7 +219,7 @@ python-versions = "^3.6"
 version = "0.1.0"
 
 [package.dependencies]
-autoapi = "tag dev1"
+autoapi = "tag dev2"
 beautifulsoup4 = "4.8.2"
 bs4 = "0.0.1"
 colorama = "^0.4"

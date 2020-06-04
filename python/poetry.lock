@@ -40,7 +40,7 @@ version = "2.0.1"
 sphinx = "*"
 
 [package.source]
-reference = "ba75a79238cb1d28545647bbfb7cec1e05798c09"
+reference = "b1ed744b5a322b7c6e4812ccd34ce8a9ba510941"
 type = "git"
 url = "https://github.com/coreyeng/autoapi.git"
 [[package]]
@@ -498,7 +498,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "9f0e44f61c260dd76a48f0ccc8806f4aaef231f13d4a9cd4d9c26c771d022260"
+content-hash = "fc2f74b488eefd8f40e6b9b6dd351179e59bc535873523d356406faad710d25a"
 python-versions = "^3.6"
 
 [metadata.files]
