@@ -10,10 +10,15 @@ use std::path::PathBuf;
 // * pyapi/src/lib.rs to convert it to Python
 // * default function below to define the default value (no nils in Rust)
 pub struct Status {
+    /// When true, Origen is executing within an origen development workspace
+    pub is_origen_present: bool,
     /// When true, Origen is executing within an application workspace
     pub is_app_present: bool,
     /// The full file system path to the application root (when applicable)
     pub root: PathBuf,
+    /// When Origen is running within an Origen development workspace, this will
+    /// point to the root of the workspace
+    pub origen_wksp_root: PathBuf,
     /// The Origen version in a Semver object
     pub origen_version: Version,
     pub start_time: time::Tm,
@@ -24,14 +29,17 @@ pub struct Status {
 
 impl Default for Status {
     fn default() -> Status {
-        let (p, r) = search_for_app_root();
+        let (p, r) = search_for(vec!["config", "origen.toml"]);
+        let (o, r2) = search_for(vec![".origen_dev_workspace"]);
         let version = match Version::parse(built_info::PKG_VERSION) {
             Ok(v) => v,
             Err(_e) => Version::parse("0.0.0").unwrap(),
         };
         Status {
+            is_origen_present: o,
             is_app_present: p,
             root: r,
+            origen_wksp_root: r2,
             origen_version: version,
             start_time: time::now(),
             home: get_home_dir(),
@@ -40,18 +48,23 @@ impl Default for Status {
     }
 }
 
-fn search_for_app_root() -> (bool, PathBuf) {
+fn search_for(paths: Vec<&str>) -> (bool, PathBuf) {
     let mut aborted = false;
-    let path = env::current_dir();
-    let mut path = match path {
+    let base = env::current_dir();
+    let mut base = match base {
         Ok(p) => p,
         Err(_e) => {
             return (false, PathBuf::new());
         }
     };
 
-    while !path.join("config").join("origen.toml").is_file() && !aborted {
-        if !path.pop() {
+    while !paths
+        .iter()
+        .fold(base.clone(), |acc, p| acc.join(p))
+        .is_file()
+        && !aborted
+    {
+        if !base.pop() {
             aborted = true;
         }
     }
@@ -59,7 +72,7 @@ fn search_for_app_root() -> (bool, PathBuf) {
     if aborted {
         (false, PathBuf::new())
     } else {
-        (true, path)
+        (true, base)
     }
 }
 
