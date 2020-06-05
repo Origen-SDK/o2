@@ -8,13 +8,15 @@ workspace = true
 # Run 'origen proj update' from the root of this workspace to apply the updates after making changes.
 
 {% for group in groups -%}
+{% if group.id != "all" -%}
 [[group]]
 id = "{{group.id}}"
 # To override the group version, this will override any package-specific version from the project BOM,
 # but any package-specific version declared below will override ths group version
 # version = "some_version"
 
-{% endfor %}
+{% endif -%}
+{% endfor -%}
 {% for package in packages -%}
 [[package]]
 id = "{{package.id}}"
@@ -22,4 +24,4 @@ id = "{{package.id}}"
 # version = "some_version"
 # link = "/path/to/some/location"
 
-{% endfor %}
+{% endfor -%}

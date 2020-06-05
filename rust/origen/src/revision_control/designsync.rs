@@ -59,11 +59,11 @@ impl RevisionControlAPI for Designsync {
                 static ref NEW_FILE_REGEX: Regex =
                     Regex::new(r"\s*Unmanaged\s+First only\s+(\S+)").unwrap();
                 static ref DELETED_FILE_REGEX: Regex = Regex::new(
-                    r"\s*\d+\.*\d*\s*\(Reference\)\s+\d+\.*\d*\s*Different states\s*(\S+)"
+                    r"\s*\d+\.*\d*\s*\(Reference\)\s+\d+\.*\d*\s*Different \w+\s*(\S+)"
                 )
                 .unwrap();
                 static ref MODIFIED_FILE_REGEX: Regex = Regex::new(
-                    r"\s*\d+\.*\d*\s*\(Locally Modified\)\s+\d+\.*\d*\s*Different states\s*(\S+)"
+                    r"\s*\d+\.*\d*\s*\(Locally Modified\)\s+\d+\.*\d*\s*Different \w+\s*(\S+)"
                 )
                 .unwrap();
             }
@@ -71,6 +71,7 @@ impl RevisionControlAPI for Designsync {
             log_stdout_and_stderr(
                 &mut process,
                 Some(&mut |line: &str| {
+                    log_debug!("{}", line);
                     if let Some(captures) = NEW_FILE_REGEX.captures(&line) {
                         status.added.push(self.local.join(&captures[1]));
                     } else if let Some(captures) = DELETED_FILE_REGEX.captures(&line) {
@@ -93,8 +94,50 @@ impl RevisionControlAPI for Designsync {
         })
     }
 
-    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> Result<()> {
-        Ok(())
+    fn tag(&self, tagname: &str, force: bool, _message: Option<&str>) -> Result<()> {
+        with_dir(&self.local, || {
+            let replace = match force {
+                false => "",
+                true => "-replace",
+            };
+            let mut process = Command::new("dssc")
+                .args(&["tag", tagname, replace, "-rec", "."])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?;
+
+            let mut err_msg: Option<String> = None;
+
+            lazy_static! {
+                static ref TAG_EXISTS_REGEX: Regex =
+                    Regex::new(r"This tag is already in use").unwrap();
+            }
+
+            log_stdout_and_stderr(&mut process, 
+                Some(&mut |line: &str| {
+                    log_debug!("{}", line);
+                    if TAG_EXISTS_REGEX.is_match(&line) {
+                        if err_msg.is_none() {
+                            err_msg = Some("tag already exists".to_string());
+                        }
+                    }
+                }),
+                None
+            );
+
+            let p = process.wait()?;
+
+            if let Some(msg) = err_msg {
+                error!("{}", msg)
+            } else if p.success() {
+                Ok(())
+            } else {
+                error!(
+                    "Something went wrong tagging '{}', see log for details",
+                    self.local.display()
+                )
+            }
+        })
     }
 }
 
