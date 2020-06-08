@@ -154,8 +154,8 @@ impl User {
                 }
             }
             let msg = match reason {
-                Some(x) => format!("Please enter your password {}: ", x),
-                None => "Please enter your password: ".to_string(),
+                Some(x) => format!("\nPlease enter your password {}: ", x),
+                None => "\nPlease enter your password: ".to_string(),
             };
             let pass = rpassword::read_password_from_tty(Some(&msg)).unwrap();
             #[cfg(feature = "password-cache")]

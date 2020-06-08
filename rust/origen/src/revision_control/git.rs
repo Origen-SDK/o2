@@ -79,7 +79,7 @@ pub struct Git {
 
 impl RevisionControlAPI for Git {
     fn populate(&self, version: &str) -> OrigenResult<()> {
-        log_info!("Populating '{}'", &self.local.display());
+        log_info!("Populating '{}' from '{}'", &self.local.display(), &self.remote);
         self.reset_temps();
         let mut cb = RemoteCallbacks::new();
         cb.transfer_progress(|stats| self.transfer_progress_callback(&stats));
@@ -92,7 +92,9 @@ impl RevisionControlAPI for Git {
             .fetch_options(fo)
             .clone(&self.remote, &self.local)
         {
-            Ok(_) => {}
+            Ok(_) => {
+                self.password_was_good();
+            }
             Err(e) => {
                 return Err(e.into());
             }
@@ -386,6 +388,10 @@ impl Git {
             .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?))
     }
 
+    fn password_was_good(&self) {
+        self.last_password_attempt.replace(None);
+    }
+
     fn credentials_callback(
         &self,
         url: &str,
@@ -406,41 +412,45 @@ impl Git {
             }
         }
         if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
-            let last_password_attempt = self.last_password_attempt.borrow();
-            let password = {
-                if self.credentials.is_some()
-                    && self.credentials.as_ref().unwrap().password.is_some()
-                {
-                    self.credentials
-                        .as_ref()
-                        .unwrap()
-                        .password
-                        .as_ref()
-                        .unwrap()
-                        .clone()
-                } else {
-                    USER.password(
-                        Some(&format!("to access repository '{}'", url)),
-                        last_password_attempt.as_deref(),
-                    )
-                    .expect("Couldn't prompt for password")
-                }
-            };
-            let username = {
-                if self.credentials.is_some()
-                    && self.credentials.as_ref().unwrap().username.is_some()
-                {
-                    self.credentials
-                        .as_ref()
-                        .unwrap()
-                        .username
-                        .as_ref()
-                        .unwrap()
-                        .clone()
-                } else {
-                    USER.id().unwrap()
-                }
-            };
+            let username;
+            let password;
+            {
+                let last_password_attempt = self.last_password_attempt.borrow();
+                password = {
+                    if self.credentials.is_some()
+                        && self.credentials.as_ref().unwrap().password.is_some()
+                    {
+                        self.credentials
+                            .as_ref()
+                            .unwrap()
+                            .password
+                            .as_ref()
+                            .unwrap()
+                            .clone()
+                    } else {
+                        USER.password(
+                            Some(&format!("to access repository '{}'", url)),
+                            last_password_attempt.as_deref(),
+                        )
+                        .expect("Couldn't prompt for password")
+                    }
+                };
+                username = {
+                    if self.credentials.is_some()
+                        && self.credentials.as_ref().unwrap().username.is_some()
+                    {
+                        self.credentials
+                            .as_ref()
+                            .unwrap()
+                            .username
+                            .as_ref()
+                            .unwrap()
+                            .clone()
+                    } else {
+                        USER.id().unwrap()
+                    }
+                };
+            }
             self.last_password_attempt
                 .replace(Some(password.to_string()));
             return Ok(Cred::userpass_plaintext(&username, &password)?);
@@ -575,6 +585,8 @@ impl Git {
         remote.update_tips(None, true, git2::AutotagOption::Unspecified, None)?;
 
         log_debug!("Fetch completed successfully");
+
+        self.password_was_good();
 
         Ok(())
     }

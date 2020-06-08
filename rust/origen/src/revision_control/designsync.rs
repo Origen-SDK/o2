@@ -6,6 +6,7 @@ use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use chrono::offset::Utc;
 
 pub struct Designsync {
     /// Path to the local directory for the repository
@@ -37,6 +38,13 @@ impl RevisionControlAPI for Designsync {
     }
 
     fn revert(&self, path: Option<&Path>) -> Result<()> {
+        // It seems like there is no simple way to checkout the current view without
+        // potentially pulling in additional updates from the server.
+        // This works by generating a throwaway tag to record the current versions of all
+        // files, then forcing a re-pop of that tag.
+        let timestamp = format!("ts{}", Utc::now().timestamp_millis());
+        self._tag(&timestamp, false, None, true)?;
+        self.pop(true, None, &timestamp)?;
         Ok(())
     }
 
@@ -95,13 +103,44 @@ impl RevisionControlAPI for Designsync {
     }
 
     fn tag(&self, tagname: &str, force: bool, _message: Option<&str>) -> Result<()> {
+        self._tag(tagname, force, _message, true)
+    }
+}
+
+impl Designsync {
+    fn set_vault(&self) -> Result<()> {
+        with_dir(&self.local, || {
+            let mut process = Command::new("dssc")
+                .args(&["setvault", &self.remote, "."])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()?;
+
+            log_stdout_and_stderr(&mut process, None, None);
+
+            if process.wait()?.success() {
+                Ok(())
+            } else {
+                Err(Error::new(&format!(
+                    "Something went wrong setting the vault in '{}', see log for details",
+                    self.local.display()
+                )))
+            }
+        })
+    }
+
+    fn _tag(&self, tagname: &str, force: bool, _message: Option<&str>, modified: bool) -> Result<()> {
         with_dir(&self.local, || {
             let replace = match force {
                 false => "",
                 true => "-replace",
             };
+            let modified = match modified {
+                false => "",
+                true => "-modified",
+            };
             let mut process = Command::new("dssc")
-                .args(&["tag", tagname, replace, "-rec", "."])
+                .args(&["tag", tagname, replace, modified, "-rec", "."])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
@@ -136,29 +175,6 @@ impl RevisionControlAPI for Designsync {
                     "Something went wrong tagging '{}', see log for details",
                     self.local.display()
                 )
-            }
-        })
-    }
-}
-
-impl Designsync {
-    fn set_vault(&self) -> Result<()> {
-        with_dir(&self.local, || {
-            let mut process = Command::new("dssc")
-                .args(&["setvault", &self.remote, "."])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()?;
-
-            log_stdout_and_stderr(&mut process, None, None);
-
-            if process.wait()?.success() {
-                Ok(())
-            } else {
-                Err(Error::new(&format!(
-                    "Something went wrong setting the vault in '{}', see log for details",
-                    self.local.display()
-                )))
             }
         })
     }
