@@ -12,7 +12,7 @@ workspace = true
 [[group]]
 id = "{{group.id}}"
 # To override the group version, this will override any package-specific version from the project BOM,
-# but any package-specific version declared below will override ths group version
+# but any package-specific version declared below will override this group version
 # version = "some_version"
 
 {% endif -%}

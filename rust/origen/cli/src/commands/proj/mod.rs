@@ -177,26 +177,29 @@ pub fn run(matches: &ArgMatches) {
             let mut errors = false;
             let mut packages_requiring_force: Vec<&str> = vec![];
             let mut packages_with_conflicts: Vec<&str> = vec![];
-            log_info!("Updating {} packages...", &package_ids.len());
+            log_info!("Updating packages: {}", &package_ids.join(" ,"));
             for id in package_ids {
-                let package = &bom.packages[&id];
-                display!("Updating '{}' ... ", package.id);
-                match package.update(bom.root(), force) {
-                    Ok((force_required, conflicts)) => {
-                        if conflicts {
-                            display_redln!("CONFLICTS");
-                            packages_with_conflicts.push(&package.id);
-                        } else if !force_required {
-                            display_greenln!("OK");
-                        } else {
-                            packages_requiring_force.push(&package.id);
+                if let Some(package) = bom.packages.get(&id) {
+                    display!("Updating '{}' ... ", package.id);
+                    match package.update(bom.root(), force) {
+                        Ok((force_required, conflicts)) => {
+                            if conflicts {
+                                display_redln!("CONFLICTS");
+                                packages_with_conflicts.push(&package.id);
+                            } else if !force_required {
+                                display_greenln!("OK");
+                            } else {
+                                packages_requiring_force.push(&package.id);
+                            }
+                        }
+                        Err(e) => {
+                            log_error!("{}", e);
+                            log_error!("Failed to update package '{}'", package.id);
+                            errors = true;
                         }
                     }
-                    Err(e) => {
-                        log_error!("{}", e);
-                        log_error!("Failed to update package '{}'", package.id);
-                        errors = true;
-                    }
+                } else {
+                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
                 }
             }
             let mut links_force_required = false;
@@ -262,46 +265,49 @@ pub fn run(matches: &ArgMatches) {
                 error_and_exit("The mods command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
             for id in package_ids {
-                let package = &bom.packages[&id];
-                if package.is_repo() {
-                    display!("{} ... ", package.id);
-                    let rc = package.rc(bom.root()).unwrap();
-                    match rc.status(None) {
-                        Err(e) => {
-                            error_and_exit(&e.to_string(), Some(1));
-                        }
-                        Ok(status) => {
-                            if status.is_modified() {
-                                display_redln!("Modified");
-                                if !status.added.is_empty() {
-                                    displayln!("  ADDED");
-                                    for file in &status.added {
-                                        displayln!("    {}", file.display());
+                if let Some(package) = bom.packages.get(&id) {
+                    if package.is_repo() {
+                        display!("{} ... ", package.id);
+                        let rc = package.rc(bom.root()).unwrap();
+                        match rc.status(None) {
+                            Err(e) => {
+                                error_and_exit(&e.to_string(), Some(1));
+                            }
+                            Ok(status) => {
+                                if status.is_modified() {
+                                    display_redln!("Modified");
+                                    if !status.added.is_empty() {
+                                        displayln!("  ADDED");
+                                        for file in &status.added {
+                                            displayln!("    {}", file.display());
+                                        }
                                     }
-                                }
-                                if !status.removed.is_empty() {
-                                    displayln!("  DELETED");
-                                    for file in &status.removed {
-                                        displayln!("    {}", file.display());
+                                    if !status.removed.is_empty() {
+                                        displayln!("  DELETED");
+                                        for file in &status.removed {
+                                            displayln!("    {}", file.display());
+                                        }
                                     }
-                                }
-                                if !status.changed.is_empty() {
-                                    displayln!("  CHANGED");
-                                    for file in &status.changed {
-                                        displayln!("    {}", file.display());
+                                    if !status.changed.is_empty() {
+                                        displayln!("  CHANGED");
+                                        for file in &status.changed {
+                                            displayln!("    {}", file.display());
+                                        }
                                     }
-                                }
-                                if !status.conflicted.is_empty() {
-                                    displayln!("  CONFLICTED");
-                                    for file in &status.conflicted {
-                                        display_redln!("    {}", file.display());
+                                    if !status.conflicted.is_empty() {
+                                        displayln!("  CONFLICTED");
+                                        for file in &status.conflicted {
+                                            display_redln!("    {}", file.display());
+                                        }
                                     }
+                                } else {
+                                    display_greenln!("Clean");
                                 }
-                            } else {
-                                display_greenln!("Clean");
                             }
                         }
                     }
+                } else {
+                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
                 }
             }
         }
@@ -335,18 +341,21 @@ pub fn run(matches: &ArgMatches) {
                 error_and_exit("The clean command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
             for id in package_ids {
-                let package = &bom.packages[&id];
-                if package.is_repo() {
-                    display!("{} ... ", package.id);
-                    let rc = package.rc(bom.root()).unwrap();
-                    match rc.revert(None) {
-                        Err(e) => {
-                            error_and_exit(&e.to_string(), Some(1));
-                        }
-                        Ok(_status) => {
-                            display_greenln!("OK");
+                if let Some(package) = bom.packages.get(&id) {
+                    if package.is_repo() {
+                        display!("{} ... ", package.id);
+                        let rc = package.rc(bom.root()).unwrap();
+                        match rc.revert(None) {
+                            Err(e) => {
+                                error_and_exit(&e.to_string(), Some(1));
+                            }
+                            Ok(_status) => {
+                                display_greenln!("OK");
+                            }
                         }
                     }
+                } else {
+                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
                 }
             }
         }
@@ -362,21 +371,24 @@ pub fn run(matches: &ArgMatches) {
                 error_and_exit("The tag command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
             for id in package_ids {
-                let package = &bom.packages[&id];
-                if package.is_repo() {
-                    display!("{} ... ", package.id);
-                    let rc = package.rc(bom.root()).unwrap();
-                    match rc.tag(tagname, force, message) {
-                        Err(e) => {
-                            if e.to_string().contains("tag already exists") {
-                                packages_with_existing_tag.push(&package.id);
-                                display_yellowln!("Tag already exists");
+                if let Some(package) = bom.packages.get(&id) {
+                    if package.is_repo() {
+                        display!("{} ... ", package.id);
+                        let rc = package.rc(bom.root()).unwrap();
+                        match rc.tag(tagname, force, message) {
+                            Err(e) => {
+                                if e.to_string().contains("tag already exists") {
+                                    packages_with_existing_tag.push(&package.id);
+                                    display_yellowln!("Tag already exists");
+                                }
+                            }
+                            Ok(_status) => {
+                                display_greenln!("OK");
                             }
                         }
-                        Ok(_status) => {
-                            display_greenln!("OK");
-                        }
                     }
+                } else {
+                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
                 }
             }
             if !packages_with_existing_tag.is_empty() {
