@@ -12,6 +12,7 @@ mod registers;
 mod services;
 #[macro_use]
 mod timesets;
+mod application;
 mod interface;
 mod producer;
 mod tester;
@@ -27,6 +28,7 @@ use std::path::Path;
 use std::sync::MutexGuard;
 
 // Imported pyapi modules
+use application::PyInit_application;
 use dut::PyInit_dut;
 use interface::PyInit_interface;
 use logger::PyInit_logger;
@@ -73,6 +75,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
     m.add_wrapped(wrap_pymodule!(tester))?;
+    m.add_wrapped(wrap_pymodule!(application))?;
     m.add_wrapped(wrap_pymodule!(interface))?;
     m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;

@@ -17,6 +17,7 @@ from origen.tester import Tester, DummyTester
 from origen.producer import Producer
 
 import origen.target
+import semver
 
 config = _origen.config()
 status = _origen.status()

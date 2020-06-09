@@ -395,7 +395,13 @@ fn main() {
                     origen_version = "Uknown".to_string();
                 }
 
-                let app_version = "TBD";
+                let app_version = match origen::app().unwrap().version() {
+                    Err(e) => {
+                        log_error!("{}", e);
+                        "Error".to_string()
+                    }
+                    Ok(v) => format!("{}", v),
+                };
 
                 println!(
                     "App:    {}\nOrigen: {}\nCLI:    {}",

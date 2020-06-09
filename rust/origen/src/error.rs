@@ -86,3 +86,9 @@ impl std::convert::From<regex::Error> for Error {
         Error::new(&err.to_string())
     }
 }
+
+impl std::convert::From<semver::SemVerError> for Error {
+    fn from(err: semver::SemVerError) -> Self {
+        Error::new(&err.to_string())
+    }
+}

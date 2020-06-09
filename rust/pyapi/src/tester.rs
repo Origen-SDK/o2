@@ -336,6 +336,7 @@ impl PyTester {
     /// in case they are useful in future.
     /// Continue on fail means that any errors will be logged but Origen will continue, if false
     /// it will blow up and immediately return an error to Python.
+    #[args(continue_on_fail = false)]
     fn render_pattern(&self, continue_on_fail: bool) -> PyResult<Vec<String>> {
         let mut rendered_patterns: Vec<String> = vec![];
         let targets;

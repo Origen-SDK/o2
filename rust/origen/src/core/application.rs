@@ -3,6 +3,8 @@ pub mod target;
 
 use super::application::config::Config;
 use crate::Result;
+use semver::Version;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
@@ -14,6 +16,14 @@ pub struct Application {
     config: RwLock<Config>,
 }
 
+#[derive(Debug, Deserialize)]
+struct AppVersion {
+    major: u32,
+    minor: u32,
+    patch: u32,
+    pre: Option<u32>,
+}
+
 impl Application {
     pub fn new(root: PathBuf) -> Application {
         log_trace!("Building new Application");
@@ -21,6 +31,36 @@ impl Application {
         Application {
             root: root,
             config: RwLock::new(config),
+        }
+    }
+
+    pub fn version(&self) -> Result<Version> {
+        let version_file = self.root.join("config").join("version.toml");
+        log_trace!("Reading app version");
+        if !version_file.exists() {
+            return error!(
+                "App version file does not exist at '{}'",
+                version_file.display()
+            );
+        }
+        let content = match fs::read_to_string(&version_file) {
+            Ok(x) => x,
+            Err(e) => return error!("There was a problem reading the app version file: {}", e),
+        };
+        let app_ver: AppVersion = match toml::from_str(&content) {
+            Ok(x) => x,
+            Err(e) => return error!("Malformed app version file: {}", e),
+        };
+        if let Some(pre) = app_ver.pre {
+            Ok(Version::parse(&format!(
+                "{}.{}.{}-pre{}",
+                app_ver.major, app_ver.minor, app_ver.patch, pre
+            ))?)
+        } else {
+            Ok(Version::parse(&format!(
+                "{}.{}.{}",
+                app_ver.major, app_ver.minor, app_ver.patch
+            ))?)
         }
     }
 

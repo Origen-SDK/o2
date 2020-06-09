@@ -1474,6 +1474,7 @@ dependencies = [
  "tempfile",
  "termcolor",
  "time",
+ "toml 0.5.6",
  "walkdir",
  "whoami",
 ]

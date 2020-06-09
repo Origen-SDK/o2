@@ -9,7 +9,7 @@ from origen.compiler import Compiler
 from origen.errors import *
 
 # The base class of all application classes
-class Base:
+class Base(_origen.application.PyApplication):
     # Returns the unique ID (name) of the app/plugin
     name =  _origen.app_config()["name"]
     output_dir = _origen.output_directory()
