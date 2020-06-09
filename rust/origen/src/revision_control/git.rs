@@ -64,8 +64,8 @@ pub fn config(attr_name: &str) -> Option<String> {
 pub struct Git {
     /// Path to the local directory for the repository
     pub local: PathBuf,
-    /// Link to the remote repository
-    pub remote: String,
+    /// Link(s) to the remote repository
+    pub remotes: Vec<String>,
     credentials: Option<Credentials>,
     // There doesn't seem to be anything like an 'on_credentials_failed' callback, so have to keep track of
     // what password was attempted last so that it can be used to blow the caching of a bad password
@@ -79,30 +79,32 @@ pub struct Git {
 
 impl RevisionControlAPI for Git {
     fn populate(&self, version: &str) -> OrigenResult<()> {
-        log_info!("Populating '{}' from '{}'", &self.local.display(), &self.remote);
-        self.reset_temps();
-        let mut cb = RemoteCallbacks::new();
-        cb.transfer_progress(|stats| self.transfer_progress_callback(&stats));
-        cb.credentials(|url, username_from_url, allowed_types| {
-            self.credentials_callback(url, username_from_url, allowed_types)
-        });
-        let mut fo = FetchOptions::new();
-        fo.remote_callbacks(cb);
-        match RepoBuilder::new()
-            .fetch_options(fo)
-            .clone(&self.remote, &self.local)
-        {
-            Ok(_) => {
-                self.password_was_good();
-            }
-            Err(e) => {
-                return Err(e.into());
+        let mut ssh_remotes: Vec<&str> = vec![];
+        let mut https_remotes: Vec<&str> = vec![];
+        for remote in &self.remotes {
+            if remote.contains("https") {
+                https_remotes.push(remote);
+            } else {
+                ssh_remotes.push(remote);
             }
         }
-
-        self.checkout(true, None, version)?;
-
-        Ok(())
+        let mut result = error!(
+            "Can't populate a Git workspace at '{}' because no remote has been supplied",
+            self.local.display()
+        );
+        for remote in ssh_remotes {
+            result = self._populate(version, remote);
+            if result.is_ok() {
+                return Ok(());
+            }
+        }
+        for remote in https_remotes {
+            result = self._populate(version, remote);
+            if result.is_ok() {
+                return Ok(());
+            }
+        }
+        result
     }
 
     fn revert(&self, path: Option<&Path>) -> OrigenResult<()> {
@@ -200,10 +202,10 @@ impl RevisionControlAPI for Git {
 }
 
 impl Git {
-    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
+    pub fn new(local: &Path, remotes: Vec<&str>, credentials: Option<Credentials>) -> Git {
         Git {
             local: local.to_path_buf(),
-            remote: remote.to_string(),
+            remotes: remotes.iter().map(|r| r.to_string()).collect(),
             credentials: credentials,
             last_password_attempt: RefCell::new(None),
             network_pct: RefCell::new(0),
@@ -213,7 +215,34 @@ impl Git {
         }
     }
 
-    // Returns Ok(true) if merge conflicts are encountered when force = false.
+    fn _populate(&self, version: &str, remote: &str) -> OrigenResult<()> {
+        log_info!("Populating '{}' from '{}'", &self.local.display(), remote);
+        self.reset_temps();
+        let mut cb = RemoteCallbacks::new();
+        cb.transfer_progress(|stats| self.transfer_progress_callback(&stats));
+        cb.credentials(|url, username_from_url, allowed_types| {
+            self.credentials_callback(url, username_from_url, allowed_types)
+        });
+        let mut fo = FetchOptions::new();
+        fo.remote_callbacks(cb);
+        match RepoBuilder::new()
+            .fetch_options(fo)
+            .clone(remote, &self.local)
+        {
+            Ok(_) => {
+                self.password_was_good();
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        }
+
+        self.checkout(true, None, version)?;
+
+        Ok(())
+    }
+
+    /// Returns Ok(true) if merge conflicts are encountered when force = false.
     fn _checkout(
         &self,
         force: bool,

@@ -40,24 +40,37 @@ impl RevisionControl {
     /// supported revision control tool and will work out which one to target from the remote argument.
     /// If you want to use some of the tool-specific APIs, then you should instantiate the relevant driver
     /// directly.
-    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> RevisionControl {
-        if remote.ends_with(".git") {
+    /// Mutliple remotes can be accepted, for example for Git the ssh and https urls can be given, then it is up
+    /// to the driver to select the first one that works for the current user at runtime.
+    pub fn new(
+        local: &Path,
+        remotes: Vec<&str>,
+        credentials: Option<Credentials>,
+    ) -> RevisionControl {
+        if remotes.iter().any(|r| r.ends_with(".git")) {
             RevisionControl {
-                driver: Box::new(RevisionControl::git(local, remote, credentials)),
+                driver: Box::new(RevisionControl::git(local, remotes, credentials)),
             }
         } else {
             RevisionControl {
-                driver: Box::new(RevisionControl::designsync(local, remote, credentials)),
+                driver: Box::new(RevisionControl::designsync(local, remotes, credentials)),
             }
         }
     }
 
-    pub fn git(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
-        Git::new(local, remote, credentials)
+    pub fn git(local: &Path, remotes: Vec<&str>, credentials: Option<Credentials>) -> Git {
+        Git::new(local, remotes, credentials)
     }
 
-    pub fn designsync(local: &Path, remote: &str, credentials: Option<Credentials>) -> Designsync {
-        Designsync::new(local, remote, credentials)
+    pub fn designsync(
+        local: &Path,
+        remotes: Vec<&str>,
+        credentials: Option<Credentials>,
+    ) -> Designsync {
+        if remotes.len() > 1 {
+            log_warning!("Multiple remotes were given to the DesignSync driver, but only the first one is currently used");
+        }
+        Designsync::new(local, remotes[0], credentials)
     }
 }
 

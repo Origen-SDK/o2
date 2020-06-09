@@ -15,6 +15,7 @@ pub struct Package {
     pub path: Option<PathBuf>,
     pub version: Option<String>,
     repo: Option<String>,
+    repos: Option<Vec<String>>,
     copy: Option<PathBuf>,
     link: Option<PathBuf>,
     username: Option<String>,
@@ -33,11 +34,6 @@ impl PartialEq for Package {
 }
 
 impl Package {
-    /// Returns true if the pacakge is currently defined as a repo
-    pub fn is_repo(&self) -> bool {
-        self.repo.is_some()
-    }
-
     /// Creates the package in the given workspace directory, will return an error
     /// if something goes wrong with the revision control populate operation
     pub fn create(&self, workspace_dir: &Path) -> Result<()> {
@@ -111,16 +107,30 @@ impl Package {
 
     /// Returns a revision control driver for the package, if applicable
     pub fn rc(&self, workspace_dir: &Path) -> Option<RevisionControl> {
-        if self.is_repo() {
+        if self.has_repo() {
             let path = self.path(workspace_dir);
             Some(RevisionControl::new(
                 &path,
-                self.repo.as_ref().unwrap(),
+                self.all_repos(),
                 self.credentials(),
             ))
         } else {
             None
         }
+    }
+
+    /// Consolidates the repo and repos fields into a single vector
+    fn all_repos(&self) -> Vec<&str> {
+        let mut repos: Vec<&str> = vec![];
+        if let Some(r) = &self.repo {
+            repos.push(r);
+        }
+        if let Some(rs) = &self.repos {
+            for r in rs {
+                repos.push(r);
+            }
+        }
+        repos
     }
 
     /// Returns a path to the package dir within the given workspace
@@ -259,6 +269,13 @@ impl Package {
         if let Some(x) = &self.repo {
             s += &format!("{}repo = \"{}\"\n", i, x);
         }
+        if let Some(repos) = &self.repos {
+            s += &format!("{}repos = [\n", i);
+            for repo in repos {
+                s += &format!("{}  \"{}\"\n", i, repo);
+            }
+            s += &format!("{}]\n", i);
+        }
         if let Some(x) = &self.username {
             s += &format!("{}username = \"{}\"\n", i, x);
         }
@@ -299,10 +316,19 @@ impl Package {
             }
             None => {}
         }
+        match &p.repos {
+            Some(x) => {
+                self.repos = Some(x.clone());
+                self.copy = None;
+                self.link = None;
+            }
+            None => {}
+        }
         match &p.copy {
             Some(x) => {
                 self.copy = Some(x.clone());
                 self.repo = None;
+                self.repos = None;
                 self.link = None;
                 self.version = None;
             }
@@ -312,6 +338,7 @@ impl Package {
             Some(x) => {
                 self.link = Some(x.clone());
                 self.repo = None;
+                self.repos = None;
                 self.copy = None;
                 self.version = None;
             }
@@ -349,17 +376,27 @@ impl Package {
         }
     }
 
+    /// Returns true if the package has a repo defined
+    pub fn has_repo(&self) -> bool {
+        self.repo.is_some()
+            || if let Some(repos) = &self.repos {
+                !repos.is_empty()
+            } else {
+                false
+            }
+    }
+
     fn has_no_source(&self) -> bool {
-        self.repo.is_none() && self.copy.is_none() && self.link.is_none()
+        !self.has_repo() && self.copy.is_none() && self.link.is_none()
     }
 
     fn has_missing_version(&self) -> bool {
-        self.repo.is_some() && self.version.is_none()
+        self.has_repo() && self.version.is_none()
     }
 
     fn has_multiple_sources(&self) -> bool {
         let mut sources = 0;
-        if self.repo.is_some() {
+        if self.has_repo() {
             sources += 1;
         }
         if self.copy.is_some() {

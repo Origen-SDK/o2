@@ -2,11 +2,11 @@ use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::utility::file_utils::with_dir;
 use crate::{Error, Result};
+use chrono::offset::Utc;
 use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use chrono::offset::Utc;
 
 pub struct Designsync {
     /// Path to the local directory for the repository
@@ -70,10 +70,9 @@ impl RevisionControlAPI for Designsync {
             lazy_static! {
                 static ref NEW_FILE_REGEX: Regex =
                     Regex::new(r"\s*Unmanaged\s+First only\s+(\S+)").unwrap();
-                static ref DELETED_FILE_REGEX: Regex = Regex::new(
-                    r"\s*\d+\.*\d*\s*\(Reference\)\s+\d+\.*\d*\s*Different \w+\s*(\S+)"
-                )
-                .unwrap();
+                static ref DELETED_FILE_REGEX: Regex =
+                    Regex::new(r"\s*\d+\.*\d*\s*\(Reference\)\s+\d+\.*\d*\s*Different \w+\s*(\S+)")
+                        .unwrap();
                 static ref MODIFIED_FILE_REGEX: Regex = Regex::new(
                     r"\s*\d+\.*\d*\s*\(Locally Modified\)\s+\d+\.*\d*\s*Different \w+\s*(\S+)"
                 )
@@ -143,13 +142,14 @@ impl Designsync {
 
         let mut selector = "".to_string();
 
-        log_stdout_and_stderr(&mut process, 
-            // The last line captured will contain the selector                  
+        log_stdout_and_stderr(
+            &mut process,
+            // The last line captured will contain the selector
             Some(&mut |line: &str| {
                 log_debug!("{}", line);
                 selector = line.to_string();
             }),
-            None
+            None,
         );
 
         if process.wait()?.success() {
@@ -183,7 +183,11 @@ impl Designsync {
     fn set_selector(&self, selector: &str) -> Result<()> {
         log_debug!("Setting workspace selector to '{}'", selector);
         let mut process = Command::new("dssc")
-            .args(&["setselector", selector, &format!("{}", self.local.display())])
+            .args(&[
+                "setselector",
+                selector,
+                &format!("{}", self.local.display()),
+            ])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
@@ -201,7 +205,13 @@ impl Designsync {
         }
     }
 
-    fn _tag(&self, tagname: &str, force: bool, _message: Option<&str>, modified: bool) -> Result<()> {
+    fn _tag(
+        &self,
+        tagname: &str,
+        force: bool,
+        _message: Option<&str>,
+        modified: bool,
+    ) -> Result<()> {
         with_dir(&self.local, || {
             let replace = match force {
                 false => "",
@@ -224,7 +234,8 @@ impl Designsync {
                     Regex::new(r"This tag is already in use").unwrap();
             }
 
-            log_stdout_and_stderr(&mut process, 
+            log_stdout_and_stderr(
+                &mut process,
                 Some(&mut |line: &str| {
                     log_debug!("{}", line);
                     if TAG_EXISTS_REGEX.is_match(&line) {
@@ -233,7 +244,7 @@ impl Designsync {
                         }
                     }
                 }),
-                None
+                None,
             );
 
             let p = process.wait()?;
@@ -294,11 +305,7 @@ impl Designsync {
                 .stderr(Stdio::piped())
                 .spawn()?;
 
-            log_stdout_and_stderr(
-                &mut process,
-                None,
-                None,
-            );
+            log_stdout_and_stderr(&mut process, None, None);
 
             if process.wait()?.success() {
                 Ok(())

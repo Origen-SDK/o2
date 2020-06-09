@@ -199,7 +199,10 @@ pub fn run(matches: &ArgMatches) {
                         }
                     }
                 } else {
-                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
                 }
             }
             let mut links_force_required = false;
@@ -266,7 +269,7 @@ pub fn run(matches: &ArgMatches) {
             }
             for id in package_ids {
                 if let Some(package) = bom.packages.get(&id) {
-                    if package.is_repo() {
+                    if package.has_repo() {
                         display!("{} ... ", package.id);
                         let rc = package.rc(bom.root()).unwrap();
                         match rc.status(None) {
@@ -307,7 +310,10 @@ pub fn run(matches: &ArgMatches) {
                         }
                     }
                 } else {
-                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
                 }
             }
         }
@@ -342,7 +348,7 @@ pub fn run(matches: &ArgMatches) {
             }
             for id in package_ids {
                 if let Some(package) = bom.packages.get(&id) {
-                    if package.is_repo() {
+                    if package.has_repo() {
                         display!("{} ... ", package.id);
                         let rc = package.rc(bom.root()).unwrap();
                         match rc.revert(None) {
@@ -355,7 +361,10 @@ pub fn run(matches: &ArgMatches) {
                         }
                     }
                 } else {
-                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
                 }
             }
         }
@@ -372,7 +381,7 @@ pub fn run(matches: &ArgMatches) {
             }
             for id in package_ids {
                 if let Some(package) = bom.packages.get(&id) {
-                    if package.is_repo() {
+                    if package.has_repo() {
                         display!("{} ... ", package.id);
                         let rc = package.rc(bom.root()).unwrap();
                         match rc.tag(tagname, force, message) {
@@ -388,7 +397,10 @@ pub fn run(matches: &ArgMatches) {
                         }
                     }
                 } else {
-                    log_warning!("A group refers to package '{}' but no package with that ID is defined", id);
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
                 }
             }
             if !packages_with_existing_tag.is_empty() {
