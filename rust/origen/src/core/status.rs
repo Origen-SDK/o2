@@ -15,10 +15,15 @@ use std::sync::RwLock;
 // * pyapi/src/lib.rs to convert it to Python
 // * default function below to define the default value (no nils in Rust)
 pub struct Status {
+    /// When true, Origen is executing within an origen development workspace
+    pub is_origen_present: bool,
     /// When true, Origen is executing within an application workspace
     pub is_app_present: bool,
     /// When Origen is executing with the context of an application, this represents it
     pub app: Option<Application>,
+    /// When Origen is running within an Origen development workspace, this will
+    /// point to the root of the workspace
+    pub origen_wksp_root: PathBuf,
     /// The Origen version in a Semver object
     pub origen_version: Version,
     pub start_time: time::Tm,
@@ -39,7 +44,8 @@ pub struct Status {
 impl Default for Status {
     fn default() -> Status {
         log_trace!("Building STATUS");
-        let (p, r) = search_for_app_root();
+        let (p, r) = search_for(vec!["config", "origen.toml"], true);
+        let (o, r2) = search_for(vec![".origen_dev_workspace"], false);
         let version = match Version::parse(built_info::PKG_VERSION) {
             Ok(v) => v,
             Err(_e) => Version::parse("0.0.0").unwrap(),
@@ -50,6 +56,8 @@ impl Default for Status {
                 true => Some(Application::new(r)),
                 false => None,
             },
+            is_origen_present: o,
+            origen_wksp_root: r2,
             origen_version: version,
             start_time: time::now(),
             home: get_home_dir(),
@@ -178,29 +186,40 @@ impl Status {
     }
 }
 
-fn search_for_app_root() -> (bool, PathBuf) {
-    log_trace!("Searching for app");
+fn search_for(paths: Vec<&str>, searching_for_app: bool) -> (bool, PathBuf) {
+    if searching_for_app {
+        log_trace!("Searching for app");
+    }
     let mut aborted = false;
-    let path = env::current_dir();
-    let mut path = match path {
+    let base = env::current_dir();
+    let mut base = match base {
         Ok(p) => p,
         Err(_e) => {
             return (false, PathBuf::new());
         }
     };
 
-    while !path.join("config").join("origen.toml").is_file() && !aborted {
-        if !path.pop() {
+    while !paths
+        .iter()
+        .fold(base.clone(), |acc, p| acc.join(p))
+        .is_file()
+        && !aborted
+    {
+        if !base.pop() {
             aborted = true;
         }
     }
 
     if aborted {
-        log_debug!("No app found");
+        if searching_for_app {
+            log_debug!("No app found");
+        }
         (false, PathBuf::new())
     } else {
-        log_debug!("App found at '{}'", path.display());
-        (true, path)
+        if searching_for_app {
+            log_debug!("App found at '{}'", base.display());
+        }
+        (true, base)
     }
 }
 

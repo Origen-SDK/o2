@@ -1,8 +1,10 @@
+pub mod fmt;
 pub mod interactive;
 pub mod mode;
 pub mod proj;
 pub mod setup;
 pub mod target;
+pub mod update;
 
 use crate::python;
 use origen::{clean_mode, LOGGER};
