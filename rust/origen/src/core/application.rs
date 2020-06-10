@@ -2,6 +2,7 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
+use crate::core::file_handler::File;
 use crate::Result;
 use semver::Version;
 use std::fs;
@@ -18,10 +19,10 @@ pub struct Application {
 
 #[derive(Debug, Deserialize)]
 struct AppVersion {
-    major: u32,
-    minor: u32,
-    patch: u32,
-    pre: Option<u32>,
+    major: u64,
+    minor: u64,
+    patch: u64,
+    pre: Option<String>,
 }
 
 impl Application {
@@ -34,6 +35,7 @@ impl Application {
         }
     }
 
+    /// Returns the application version, read from config/version.toml
     pub fn version(&self) -> Result<Version> {
         let version_file = self.root.join("config").join("version.toml");
         log_trace!("Reading app version");
@@ -53,15 +55,30 @@ impl Application {
         };
         if let Some(pre) = app_ver.pre {
             Ok(Version::parse(&format!(
-                "{}.{}.{}-pre{}",
+                "{}.{}.{}-{}",
                 app_ver.major, app_ver.minor, app_ver.patch, pre
             ))?)
         } else {
-            Ok(Version::parse(&format!(
-                "{}.{}.{}",
-                app_ver.major, app_ver.minor, app_ver.patch
-            ))?)
+            Ok(Version::new(app_ver.major, app_ver.minor, app_ver.patch))
         }
+    }
+
+    /// Sets the application version by writing it out to config/version.toml
+    /// The normal way to do this is to call app.version(), bump the returned version object
+    /// as required, then return it back to this function.
+    /// See here for the API - https://docs.rs/semver
+    pub fn set_version(&self, version: &Version) -> Result<()> {
+        let mut content =
+            "# This file will be overwritten by Origen during an app release\n".to_string();
+        content += &format!(
+            "major = {}\nminor = {}\npatch = {}\n",
+            version.major, version.minor, version.patch
+        );
+        if version.pre.len() > 0 {
+            content += &format!("pre   = \"{}\"", &version.pre[0]);
+        }
+        File::create(self.root.join("config").join("version.toml")).write(&content);
+        Ok(())
     }
 
     /// Execute the given function with a reference to the application config.
@@ -144,5 +161,26 @@ impl Application {
             Ok(self.resolve_path(config.website_source_directory.as_ref(), "web/source"))
         })
         .unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::application::Application;
+    use crate::STATUS;
+    use semver::Version;
+
+    #[test]
+    fn reading_and_writing_version() {
+        let app_root = STATUS.origen_wksp_root.join("example");
+        let app = Application::new(app_root);
+
+        let v = Version::parse("2.21.5-pre7").unwrap();
+        let _res = app.set_version(&v);
+        assert_eq!(app.version().unwrap(), v);
+
+        let v = Version::new(1, 2, 3);
+        let _res = app.set_version(&v);
+        assert_eq!(app.version().unwrap(), v);
     }
 }
