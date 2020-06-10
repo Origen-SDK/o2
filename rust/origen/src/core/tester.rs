@@ -306,7 +306,7 @@ impl Tester {
                             } else {
                                 display!("Created: {}", path.display());
                             }
-                            if let Some(differ) = gen.pattern_differ(path, path) {
+                            if let Some(mut differ) = gen.pattern_differ(path, path) {
                                 display!(" - ");
                                 if differ.has_diffs()? {
                                     display_redln!("Diffs found");
