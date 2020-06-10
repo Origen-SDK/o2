@@ -1,4 +1,5 @@
 use crate::revision_control::git;
+use crate::utility::command_helpers::exec_and_capture;
 use crate::{Error, Result};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
@@ -45,7 +46,26 @@ impl User {
                         return Some(p.clone());
                     }
                 }
-                let id = whoami::username();
+                // The whoami crate returned a garbage user name when compiled into a release binary,
+                // so doing it the old fashioned way. Hopefully it still works on Windows!
+                let mut id = "".to_string();
+                if cfg!(unix) {
+                    let output = exec_and_capture("whoami", None);
+                    if let Ok((status, mut lines, _stderr)) = output {
+                        if status.success() {
+                            id = lines.pop().unwrap();
+                        } else {
+                            log_debug!("Failed to run 'whoami'");
+                        }
+                    } else {
+                        log_debug!("Failed to run 'whoami'");
+                        return None;
+                    }
+                    log_debug!("User ID read from the system: '{}'", &id);
+                } else {
+                    id = whoami::username();
+                    log_debug!("User ID read from whoami: '{}'", &id);
+                }
                 let mut data = self.data.write().unwrap();
                 data.id = Some(id.clone());
                 Some(id)
