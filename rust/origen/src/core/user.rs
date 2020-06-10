@@ -56,6 +56,7 @@ impl User {
                             id = lines.pop().unwrap();
                         } else {
                             log_debug!("Failed to run 'whoami'");
+                            return None;
                         }
                     } else {
                         log_debug!("Failed to run 'whoami'");
