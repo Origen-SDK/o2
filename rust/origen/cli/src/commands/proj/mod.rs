@@ -1,8 +1,13 @@
 mod bom;
+mod group;
 mod package;
+#[cfg(test)]
+mod tests;
 
+use crate::origen::revision_control::RevisionControlAPI;
 use bom::BOM;
 use clap::ArgMatches;
+use group::Group;
 use origen::core::file_handler::File;
 use origen::core::term;
 use package::Package;
@@ -17,7 +22,15 @@ static README_FILE: &str = "README.md";
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("init") => {
-            let dir = get_dir_or_pwd(matches.subcommand_matches("init").unwrap());
+            let dir = get_dir_or_pwd(matches.subcommand_matches("init").unwrap(), false);
+            if !dir.exists() {
+                fs::create_dir_all(&dir).expect(&format!(
+                    "Couldn't create '{}', do you have the required permissions?",
+                    dir.display()
+                ));
+            }
+            validate_path(&dir, true, true);
+            let dir = dir.canonicalize().unwrap();
             let f = dir.join(BOM_FILE);
             if f.exists() {
                 error_and_exit(
@@ -108,8 +121,10 @@ pub fn run(matches: &ArgMatches) {
             // in reverse order when given the index map
             let packages: Vec<&Package> = bom.packages.iter().map(|(_id, pkg)| pkg).collect();
             context.insert("packages", &packages);
+            let groups: Vec<&Group> = bom.groups.iter().map(|(_id, grp)| grp).collect();
+            context.insert("groups", &groups);
             let contents = tera
-                .render_str(include_str!("templates/workspace_bom.toml"), &context)
+                .render_str(include_str!("templates/workspace_bom.toml.tera"), &context)
                 .unwrap();
             File::create(path.join(BOM_FILE)).write(&contents);
             // Now populate the packages
@@ -148,173 +163,286 @@ pub fn run(matches: &ArgMatches) {
         Some("update") => {
             let matches = matches.subcommand_matches("update").unwrap();
             let force = matches.is_present("force");
-            let links_only = matches.is_present("links");
-            let package_args: Vec<PathBuf> = match matches.values_of("packages") {
-                Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
-                None => vec![],
-            };
-            let exclude_args: Vec<PathBuf> = match matches.values_of("exclude") {
-                Some(pkgs) => pkgs.map(|p| PathBuf::from(p)).collect(),
-                None => vec![],
-            };
+            let mut links = matches.is_present("links");
+            if let Some(packages) = matches.values_of("packages") {
+                if packages.map(|p| p).collect::<Vec<&str>>().contains(&"all") {
+                    links = true;
+                }
+            }
+            let package_ids = get_package_ids_from_args(matches, false);
             let bom = BOM::for_dir(&pwd());
             if !bom.is_workspace() {
                 error_and_exit("The update command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
             }
-            // Clean the package args to remove any overly broad references, such as a reference to "." (meaning
-            // the current workspace).
-            // References will override a package's exclude state from the BOM, however a user entering
-            // `origen proj update .` would probably expect it to behave like `origen proj update` and apply
-            // the default excludes. So we throwaway any references to the workspace and above to play it safe.
-            let package_args: Vec<&PathBuf> = package_args
-                .iter()
-                .filter(|pkg_ref| {
-                    let root = bom.root();
-                    match pkg_ref.canonicalize() {
-                        Err(_e) => true,
-                        Ok(p) => {
-                            let is_root = match p.strip_prefix(&root) {
-                                Err(_) => false,
-                                Ok(res) => res.to_str() == Some(""),
-                            };
-                            let above_workspace = root.strip_prefix(&p).is_ok();
-                            !is_root && !above_workspace
-                        }
-                    }
-                })
-                .collect();
-            // Turn any exclude args into package references
-            let mut exclude_packages: Vec<&Package> = vec![];
-            for pkg_ref in exclude_args {
-                match bom.packages_from_ref(&pkg_ref) {
-                    Err(_e) => log_warning!("Exclude reference '{}' did not resolve to any packages in the current workspace", pkg_ref.display()),
-                    Ok(packages) => {
-                        for pkg in packages {
-                            if !exclude_packages.contains(&pkg) {
-                                exclude_packages.push(&pkg);
-                            }
-                        }
-                    }
-                }
-            }
             let mut errors = false;
             let mut packages_requiring_force: Vec<&str> = vec![];
-            if package_args.is_empty() {
-                log_info!("Updating {} packages...", &bom.packages.len());
-                for (id, package) in &bom.packages {
-                    if package.is_excluded() || exclude_packages.contains(&package) || links_only {
-                        displayln!("Skipping '{}'", id);
-                    } else {
-                        display!("Updating '{}' ... ", id);
-                        match package.update(bom.root(), force) {
-                            Ok(force_required) => {
-                                if !force_required {
-                                    display_greenln!("OK");
-                                } else {
-                                    packages_requiring_force.push(id);
-                                }
-                            }
-                            Err(e) => {
-                                log_error!("{}", e);
-                                log_error!("Failed to update package '{}'", id);
-                                errors = true;
+            let mut packages_with_conflicts: Vec<&str> = vec![];
+            log_info!("Updating packages: {}", &package_ids.join(" ,"));
+            for id in package_ids {
+                if let Some(package) = bom.packages.get(&id) {
+                    display!("Updating '{}' ... ", package.id);
+                    match package.update(bom.root(), force) {
+                        Ok((force_required, conflicts)) => {
+                            if conflicts {
+                                display_redln!("CONFLICTS");
+                                packages_with_conflicts.push(&package.id);
+                            } else if !force_required {
+                                display_greenln!("OK");
+                            } else {
+                                packages_requiring_force.push(&package.id);
                             }
                         }
-                    }
-                }
-            } else {
-                log_info!("Updating {} packages...", package_args.len());
-                for pkg_ref in package_args {
-                    match bom.packages_from_ref(&pkg_ref) {
                         Err(e) => {
                             log_error!("{}", e);
-                            log_error!("The package referece '{}' is invalid", pkg_ref.display());
+                            log_error!("Failed to update package '{}'", package.id);
                             errors = true;
                         }
-                        Ok(packages) => {
-                            if packages.is_empty() {
-                                log_error!(
-                                    "No package was found corresponding to '{}'",
-                                    pkg_ref.display()
-                                );
-                                errors = true;
-                            } else {
-                                for package in packages {
-                                    if exclude_packages.contains(&package) || links_only {
-                                        displayln!("Skipping '{}'", package.id);
-                                    } else {
-                                        display!("Updating '{}' ... ", package.id);
-                                        match package.update(bom.root(), force) {
-                                            Ok(force_required) => {
-                                                if !force_required {
-                                                    display_greenln!("OK");
-                                                } else {
-                                                    packages_requiring_force.push(&package.id);
-                                                }
-                                            }
-                                            Err(e) => {
-                                                log_error!("{}", e);
-                                                log_error!(
-                                                    "Failed to update package '{}'",
-                                                    package.id
-                                                );
-                                                errors = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
+                } else {
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
                 }
             }
             let mut links_force_required = false;
-            if !bom.links.is_empty() {
-                display!("Updating links ... ");
-                match bom.create_links(force) {
-                    Ok(force_required) => {
-                        if !force_required {
-                            display_greenln!("OK");
-                        } else {
-                            links_force_required = true;
+            if links {
+                if !bom.links.is_empty() {
+                    display!("Updating links ... ");
+                    match bom.create_links(force) {
+                        Ok(force_required) => {
+                            if !force_required {
+                                display_greenln!("OK");
+                            } else {
+                                links_force_required = true;
+                            }
                         }
-                    }
-                    Err(e) => {
-                        log_error!("There was a problem creating the workspace's links:");
-                        log_error!("{}", e);
-                        errors = true;
+                        Err(e) => {
+                            log_error!("There was a problem creating the workspace's links:");
+                            log_error!("{}", e);
+                            errors = true;
+                        }
                     }
                 }
             }
             if errors {
                 exit_error!();
             } else {
-                if links_force_required || !packages_requiring_force.is_empty() {
-                    displayln!("");
-                    display_redln!("The update was not completed successfully due to the possibility of losing local work, you can run the following command to force alignment with the current BOM:");
-                    displayln!("");
-                    let mut command = "  origen proj update --force".to_string();
-                    if packages_requiring_force.is_empty() {
-                        command += " --links";
-                    } else {
-                        command += " ";
-                        command += &packages_requiring_force.join(" ");
+                if links_force_required
+                    || !packages_requiring_force.is_empty()
+                    || !packages_with_conflicts.is_empty()
+                {
+                    if links_force_required || !packages_requiring_force.is_empty() {
+                        displayln!("");
+                        display_redln!("The following packages were not updated successfully due to the possibility of losing local work, you can run the following command to force alignment with the current BOM:");
+                        displayln!("");
+                        let mut command = "  origen proj update --force".to_string();
+                        if packages_requiring_force.is_empty() {
+                            command += " --links";
+                        } else {
+                            command += " ";
+                            command += &packages_requiring_force.join(" ");
+                        }
+                        displayln!("{}", command);
                     }
-                    displayln!("{}", command);
+                    if !packages_with_conflicts.is_empty() {
+                        displayln!("");
+                        display_redln!("The following packages were not updated successfully due to conflicts when trying to merge local work, you can run the following command to force alignment with the current BOM:");
+                        displayln!("");
+                        let mut command = "  origen proj update --force".to_string();
+                        command += " ";
+                        command += &packages_with_conflicts.join(" ");
+                        displayln!("{}", command);
+                    }
                     exit(1);
                 } else {
                     exit(0);
                 }
             }
         }
+        Some("mods") => {
+            let matches = matches.subcommand_matches("mods").unwrap();
+            let package_ids = get_package_ids_from_args(matches, true);
+            let bom = BOM::for_dir(&pwd());
+            if !bom.is_workspace() {
+                error_and_exit("The mods command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+            }
+            for id in package_ids {
+                if let Some(package) = bom.packages.get(&id) {
+                    if package.has_repo() {
+                        display!("{} ... ", package.id);
+                        let rc = package.rc(bom.root()).unwrap();
+                        match rc.status(None) {
+                            Err(e) => {
+                                error_and_exit(&e.to_string(), Some(1));
+                            }
+                            Ok(status) => {
+                                if status.is_modified() {
+                                    display_redln!("Modified");
+                                    if !status.added.is_empty() {
+                                        displayln!("  ADDED");
+                                        for file in &status.added {
+                                            displayln!("    {}", file.display());
+                                        }
+                                    }
+                                    if !status.removed.is_empty() {
+                                        displayln!("  DELETED");
+                                        for file in &status.removed {
+                                            displayln!("    {}", file.display());
+                                        }
+                                    }
+                                    if !status.changed.is_empty() {
+                                        displayln!("  CHANGED");
+                                        for file in &status.changed {
+                                            displayln!("    {}", file.display());
+                                        }
+                                    }
+                                    if !status.conflicted.is_empty() {
+                                        displayln!("  CONFLICTED");
+                                        for file in &status.conflicted {
+                                            display_redln!("    {}", file.display());
+                                        }
+                                    }
+                                } else {
+                                    display_greenln!("Clean");
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
+                }
+            }
+        }
+        Some("packages") => {
+            let dir = get_dir_or_pwd(matches.subcommand_matches("packages").unwrap(), true);
+            let bom = BOM::for_dir(&dir);
+            println!("PACKAGE GROUPS");
+            for (id, g) in &bom.groups {
+                println!("  {}  ({})", id, g.packages.join(", "));
+            }
+            println!("");
+            println!("PACKAGES");
+            for (id, p) in &bom.packages {
+                if let Some(path) = &p.path {
+                    println!("  {}  ({})", id, path.display());
+                } else {
+                    println!("  {}", id);
+                }
+            }
+        }
         Some("bom") => {
-            let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap());
+            let dir = get_dir_or_pwd(matches.subcommand_matches("bom").unwrap(), true);
             let bom = BOM::for_dir(&dir);
             println!("{}", bom);
+        }
+        Some("clean") => {
+            let matches = matches.subcommand_matches("clean").unwrap();
+            let package_ids = get_package_ids_from_args(matches, true);
+            let bom = BOM::for_dir(&pwd());
+            if !bom.is_workspace() {
+                error_and_exit("The clean command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+            }
+            for id in package_ids {
+                if let Some(package) = bom.packages.get(&id) {
+                    if package.has_repo() {
+                        display!("{} ... ", package.id);
+                        let rc = package.rc(bom.root()).unwrap();
+                        match rc.revert(None) {
+                            Err(e) => {
+                                error_and_exit(&e.to_string(), Some(1));
+                            }
+                            Ok(_status) => {
+                                display_greenln!("OK");
+                            }
+                        }
+                    }
+                } else {
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
+                }
+            }
+        }
+        Some("tag") => {
+            let matches = matches.subcommand_matches("tag").unwrap();
+            let force = matches.is_present("force");
+            let tagname = matches.value_of("name").unwrap();
+            let message = matches.value_of("message");
+            let package_ids = get_package_ids_from_args(matches, true);
+            let mut packages_with_existing_tag: Vec<&str> = vec![];
+            let bom = BOM::for_dir(&pwd());
+            if !bom.is_workspace() {
+                error_and_exit("The tag command must be run from within an existing workspace, please cd to your target workspace and try again", Some(1));
+            }
+            for id in package_ids {
+                if let Some(package) = bom.packages.get(&id) {
+                    if package.has_repo() {
+                        display!("{} ... ", package.id);
+                        let rc = package.rc(bom.root()).unwrap();
+                        match rc.tag(tagname, force, message) {
+                            Err(e) => {
+                                if e.to_string().contains("tag already exists") {
+                                    packages_with_existing_tag.push(&package.id);
+                                    display_yellowln!("Tag already exists");
+                                }
+                            }
+                            Ok(_status) => {
+                                display_greenln!("OK");
+                            }
+                        }
+                    }
+                } else {
+                    log_warning!(
+                        "A group refers to package '{}' but no package with that ID is defined",
+                        id
+                    );
+                }
+            }
+            if !packages_with_existing_tag.is_empty() {
+                displayln!("");
+                display_yellowln!("Some packages were not tagged successfully due to the tag already existing, but not necessarily in the same place as your current workspace view.");
+                display_yellowln!(
+                    "You can run the following command to force the tag onto your current view:"
+                );
+                displayln!("");
+                let mut command = format!("  origen proj tag {} ", &tagname);
+                command += &packages_with_existing_tag.join(" ");
+                command += " --force";
+                if let Some(msg) = message {
+                    command += &format!(" --message \"{}\" ", msg);
+                }
+                displayln!("{}", command);
+                displayln!("");
+                exit(1);
+            }
         }
         None => unreachable!(),
         _ => unreachable!(),
     }
+}
+
+/// Resolves package and group IDs in the args to a vector of package IDs.
+/// If a given ID does not match a known package or group the process will be exited with an error.
+/// Optionally return all packages if no packages arg given.
+fn get_package_ids_from_args(matches: &ArgMatches, return_all_if_none: bool) -> Vec<String> {
+    let mut package_args: Vec<&str> = match matches.values_of("packages") {
+        Some(pkgs) => pkgs.map(|p| p).collect(),
+        None => vec![],
+    };
+    if package_args.is_empty() && return_all_if_none {
+        package_args = vec!["all"];
+    }
+    let bom = BOM::for_dir(&pwd());
+    let package_ids = bom.resolve_ids(package_args);
+    if let Err(e) = &package_ids {
+        error_and_exit(&e.to_string(), Some(1));
+    }
+    package_ids.unwrap()
 }
 
 fn pwd() -> PathBuf {
@@ -328,13 +456,19 @@ fn pwd() -> PathBuf {
     dir
 }
 
-fn get_dir_or_pwd(matches: &ArgMatches) -> PathBuf {
+/// If validate is not true then the path returned may not be absolute and the caller
+/// is responsible for handling that (if required) after then have created it
+fn get_dir_or_pwd(matches: &ArgMatches, validate: bool) -> PathBuf {
     let dir = match matches.value_of("dir") {
         Some(x) => PathBuf::from(x),
         None => pwd(),
     };
-    validate_path(&dir, true, true);
-    dir.canonicalize().unwrap()
+    if validate {
+        validate_path(&dir, true, true);
+        dir.canonicalize().unwrap()
+    } else {
+        dir
+    }
 }
 
 fn error_and_exit(msg: &str, exit_code: Option<i32>) {
@@ -345,9 +479,9 @@ fn error_and_exit(msg: &str, exit_code: Option<i32>) {
     }
 }
 
-// Will exit and print an error message if the given path reference is invalid.
-// Caller must specify whether they want the path to exist or not and whether they expect it
-// to be a file or a dir (if applicable).
+/// Will exit and print an error message if the given path reference is invalid.
+/// Caller must specify whether they want the path to exist or not and whether they expect it
+/// to be a file or a dir (if applicable).
 fn validate_path(path: &Path, is_present: bool, is_dir: bool) {
     if is_present {
         let t = if is_dir { "directory" } else { "file" }.to_string();

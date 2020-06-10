@@ -156,6 +156,22 @@ impl Logger {
     }
 
     /// See display
+    pub fn display_yellow(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|_msg| {
+            term::yellow(message);
+            std::io::stdout().flush().unwrap();
+        });
+    }
+
+    /// See displayln
+    pub fn display_yellowln(&self, message: &str) {
+        self._log(0, "DISPLAY", message, &|_msg| {
+            term::yellowln(message);
+            std::io::stdout().flush().unwrap();
+        });
+    }
+
+    /// See display
     pub fn display_red(&self, message: &str) {
         self._log(0, "DISPLAY", message, &|_msg| {
             term::red(message);

@@ -1,3 +1,4 @@
+use super::group::{Group, TempGroup};
 use super::package::Package;
 use super::{error_and_exit, BOM_FILE};
 use indexmap::IndexMap;
@@ -13,6 +14,7 @@ pub struct TempBOM {
     meta: Option<Meta>,
     package: Option<Vec<Package>>,
     links: Option<IndexMap<String, String>>,
+    group: Option<Vec<TempGroup>>,
 }
 
 impl TempBOM {
@@ -25,6 +27,7 @@ impl TempBOM {
             files: vec![],
             packages: IndexMap::new(),
             links: IndexMap::new(),
+            groups: IndexMap::new(),
         };
         if let Some(packages) = &self.package {
             for p in packages.iter() {
@@ -32,6 +35,21 @@ impl TempBOM {
                     return error!("Duplicate package definition found: '{}'", p.id);
                 }
                 bom.packages.insert(p.id.clone(), p.clone());
+            }
+        }
+        // Add a default group called "all" to all BOMs
+        let all = Group {
+            id: "all".to_string(),
+            packages: bom.packages.iter().map(|(id, _p)| id.clone()).collect(),
+            version: None,
+        };
+        bom.groups.insert("all".to_string(), all);
+        if let Some(groups) = &self.group {
+            for g in groups.iter() {
+                if bom.groups.contains_key(&g.id) {
+                    return error!("Duplicate group definition found: '{}'", g.id);
+                }
+                bom.groups.insert(g.id.clone(), g.to_group());
             }
         }
         if let Some(links) = &self.links {
@@ -65,6 +83,7 @@ pub struct BOM {
     pub files: Vec<PathBuf>,
     pub packages: IndexMap<String, Package>,
     pub links: IndexMap<String, String>,
+    pub groups: IndexMap<String, Group>,
 }
 
 impl fmt::Display for BOM {
@@ -76,6 +95,11 @@ impl fmt::Display for BOM {
                 s += &format!("\"{}\" = \"{}\"\n", k, v);
             }
             s += "\n";
+        }
+        for (id, g) in self.groups.iter() {
+            if id != "all" {
+                s += &g.to_string(0);
+            }
         }
         for (_id, p) in self.packages.iter() {
             s += &p.to_string(0);
@@ -93,6 +117,7 @@ impl BOM {
             files: vec![],
             packages: IndexMap::new(),
             links: IndexMap::new(),
+            groups: IndexMap::new(),
         };
 
         let mut bom_files: Vec<PathBuf> = vec![];
@@ -132,7 +157,11 @@ impl BOM {
                 }
             };
             match new_bom.to_bom() {
-                Ok(x) => bom.merge(x, &f),
+                Ok(mut x) => {
+                    x.copy_group_packages(&bom);
+                    x.apply_group_versions();
+                    bom.merge(x, &f);
+                }
                 Err(e) => {
                     error_and_exit(
                         &format!("Malformed BOM file '{}': \n{}", f.display(), e.msg),
@@ -146,33 +175,53 @@ impl BOM {
         bom
     }
 
-    /// Returns the package(s) matching the given reference, where the reference can be either
-    /// a package ID, or a path to a directory within the BOM's workspace.
-    /// If a directory is given then a package is considered matched if the given directory is
-    /// a parent of the package's directory OR if the given directory is within the package's
-    /// top-level directory.
-    pub fn packages_from_ref(&self, pkg_ref: &Path) -> Result<Vec<&Package>> {
-        if let Some(id) = pkg_ref.to_str() {
-            if let Some(pkg) = self.packages.get(id) {
-                return Ok(vec![pkg]);
+    /// Returns the package IDs matching the given package or group IDs.
+    /// An error will be returned if one of the given IDs does not
+    /// match a known package or group.
+    pub fn resolve_ids(&self, ids: Vec<&str>) -> Result<Vec<String>> {
+        let mut packages: Vec<String> = vec![];
+
+        for id in ids {
+            let id = id.to_string();
+            if self.packages.contains_key(&id) {
+                if !packages.contains(&id) {
+                    packages.push(id);
+                }
+            } else if self.groups.contains_key(&id) {
+                for pid in &self.groups[&id].packages {
+                    if !packages.contains(pid) {
+                        packages.push(pid.to_string());
+                    }
+                }
+            } else {
+                return error!("No package or group was found matching ID '{}'", id);
             }
         }
-        let pkg_ref = pkg_ref.canonicalize()?;
-        Ok(self
-            .packages
-            .iter()
-            .filter_map(|(_id, pkg)| {
-                let pkg_root = pkg.path(self.root());
-                if pkg_ref.strip_prefix(&pkg_root).is_ok()
-                    || pkg_root.strip_prefix(&pkg_ref).is_ok()
-                {
-                    Some(pkg)
-                } else {
-                    None
-                }
-            })
-            .collect())
+        Ok(packages)
     }
+
+    //pub fn packages_from_path(&self, path: &Path) -> Result<Vec<&Package>> {
+    //    if let Some(id) = pkg_ref.to_str() {
+    //        if let Some(pkg) = self.packages.get(id) {
+    //            return Ok(vec![pkg]);
+    //        }
+    //    }
+    //    let pkg_ref = pkg_ref.canonicalize()?;
+    //    Ok(self
+    //        .packages
+    //        .iter()
+    //        .filter_map(|(_id, pkg)| {
+    //            let pkg_root = pkg.path(self.root());
+    //            if pkg_ref.strip_prefix(&pkg_root).is_ok()
+    //                || pkg_root.strip_prefix(&pkg_ref).is_ok()
+    //            {
+    //                Some(pkg)
+    //            } else {
+    //                None
+    //            }
+    //        })
+    //        .collect())
+    //}
 
     fn merge(&mut self, bom: BOM, source: &Path) {
         self.files.push(source.to_path_buf());
@@ -183,15 +232,51 @@ impl BOM {
                 self.packages.insert(id.clone(), p.clone());
             }
         }
+        for (id, g) in bom.groups.iter() {
+            if self.groups.contains_key(id) {
+                self.groups.get_mut(id).unwrap().merge(g);
+            } else {
+                self.groups.insert(id.clone(), g.clone());
+            }
+        }
         for (k, v) in bom.links.iter() {
             let _ = self.links.insert(k.clone(), v.clone());
         }
         self.meta.merge(&bom.meta);
     }
 
+    /// Applies the version from a group to any of its child packages that doesn't have one
+    fn apply_group_versions(&mut self) {
+        for (_id, group) in &self.groups {
+            if let Some(group_version) = &group.version {
+                for pid in &group.packages {
+                    if let Some(package) = self.packages.get_mut(pid) {
+                        if package.version.is_none() {
+                            package.version = Some(group_version.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Child BOMs are not allowed to redefine what packages are in a group, this is used
+    /// to copy the existing definitions from a parent BOM.
+    /// It is done separately from merging to support the version resolution flow.
+    fn copy_group_packages(&mut self, bom: &BOM) {
+        for (gid, parent_group) in &bom.groups {
+            if let Some(group) = self.groups.get_mut(gid) {
+                group.packages = parent_group.packages.clone();
+            }
+        }
+    }
+
     fn validate(&self) {
         for (_id, p) in self.packages.iter() {
             p.validate();
+        }
+        for (_id, g) in self.groups.iter() {
+            g.validate();
         }
     }
 

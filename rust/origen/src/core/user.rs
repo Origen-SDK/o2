@@ -1,3 +1,4 @@
+use crate::revision_control::git;
 use crate::{Error, Result};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
@@ -15,6 +16,14 @@ pub struct User {
 struct Data {
     password: Option<String>,
     id: Option<String>,
+    name: Option<String>,
+    // Will be set after trying to get a missing name, e.g. from the
+    // Git config to differentiate between an name which has not been
+    // looked up and name which has been looked up but which could not
+    // be found.
+    name_tried: bool,
+    email: Option<String>,
+    email_tried: bool,
 }
 
 impl User {
@@ -47,6 +56,60 @@ impl User {
         }
     }
 
+    pub fn name(&self) -> Option<String> {
+        if self.current {
+            {
+                let mut data = self.data.write().unwrap();
+
+                if let Some(name) = &data.name {
+                    return Some(name.to_string());
+                }
+                if data.name_tried {
+                    return None;
+                }
+                let name = git::config("name");
+                data.name_tried = true;
+                data.name = name.clone();
+                return name;
+            }
+        } else {
+            let data = self.data.read().unwrap();
+            data.name.clone()
+        }
+    }
+
+    pub fn set_name(&self, name: &str) {
+        let mut data = self.data.write().unwrap();
+        data.name = Some(name.to_string());
+    }
+
+    pub fn email(&self) -> Option<String> {
+        if self.current {
+            {
+                let mut data = self.data.write().unwrap();
+
+                if let Some(email) = &data.email {
+                    return Some(email.to_string());
+                }
+                if data.email_tried {
+                    return None;
+                }
+                let email = git::config("email");
+                data.email_tried = true;
+                data.email = email.clone();
+                return email;
+            }
+        } else {
+            let data = self.data.read().unwrap();
+            data.email.clone()
+        }
+    }
+
+    pub fn set_email(&self, email: &str) {
+        let mut data = self.data.write().unwrap();
+        data.email = Some(email.to_string());
+    }
+
     pub fn password(&self, reason: Option<&str>, failed_password: Option<&str>) -> Result<String> {
         if self.current {
             // In a multi-threaded scenario, this prevents concurrent threads from prompting the user for
@@ -70,7 +133,7 @@ impl User {
             }
             #[cfg(feature = "password-cache")]
             {
-                let mut password: Some<String> = None;
+                let mut password: Option<String> = None;
                 if let Some(username) = self.id() {
                     if let Some(p) = self.get_cached_password(&username) {
                         match failed_password {
@@ -91,8 +154,8 @@ impl User {
                 }
             }
             let msg = match reason {
-                Some(x) => format!("Please enter your password {}: ", x),
-                None => "Please enter your password: ".to_string(),
+                Some(x) => format!("\nPlease enter your password {}: ", x),
+                None => "\nPlease enter your password: ".to_string(),
             };
             let pass = rpassword::read_password_from_tty(Some(&msg)).unwrap();
             #[cfg(feature = "password-cache")]
@@ -113,12 +176,10 @@ impl User {
 
     #[cfg(feature = "password-cache")]
     fn cache_password(&self, username: &str, password: &str) {
-        if let Some(username) = self.id() {
-            let service = "rust-keyring";
-            let keyring = Keyring::new(&service, &username);
-            let _e = keyring.set_password(&password);
-            println!("{:?}", _e);
-        }
+        let service = "rust-keyring";
+        let keyring = Keyring::new(&service, &username);
+        let _e = keyring.set_password(&password);
+        println!("{:?}", _e);
     }
 
     #[cfg(feature = "password-cache")]

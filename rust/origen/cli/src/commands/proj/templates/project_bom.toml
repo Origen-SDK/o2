@@ -33,3 +33,13 @@
 #    [links]
 #    "tools.list" = "proj_files/tools.list"
 #    ".settings"  = "proj_files/.settings"
+#
+# Package groups can be defined as shown below, allowing multiple packages to be treated as one
+# when working with them via the 'origen proj' command.
+#
+#    [[group]]
+#    # [Required] - A unique ID must be assigned to each group
+#    id = "my_group"        
+#    # [Required] - The IDs of the packages in this group
+#    packages = ["my_package_1", "my_package_2"]
+
