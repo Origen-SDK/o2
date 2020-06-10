@@ -12,12 +12,12 @@ use tempfile::tempdir;
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct Package {
     pub id: String,
-    path: Option<PathBuf>,
-    version: Option<String>,
+    pub path: Option<PathBuf>,
+    pub version: Option<String>,
     repo: Option<String>,
+    repos: Option<Vec<String>>,
     copy: Option<PathBuf>,
     link: Option<PathBuf>,
-    exclude: Option<bool>,
     username: Option<String>,
 }
 
@@ -52,7 +52,7 @@ impl Package {
         } else if self.copy.is_some() {
             self.create_from_copy(&path, true)?;
         } else {
-            let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
+            let rc = self.rc(workspace_dir).unwrap();
             rc.populate(self.version.as_ref().unwrap())?;
         }
         log_success!("Successfully created package '{}'", self.id);
@@ -62,19 +62,26 @@ impl Package {
     /// Updates the package in the given workspace directory, will return an error
     /// if something goes wrong with the underlying revision control checkout operation,
     /// or if the package dir resolved from the BOM does not exist
-    pub fn update(&self, workspace_dir: &Path, force: bool) -> Result<bool> {
+    pub fn update(&self, workspace_dir: &Path, force: bool) -> Result<(bool, bool)> {
         let mut force_required = false;
+        let mut conflicts = false;
         let path = self.path(workspace_dir);
         // If the package is currently defined as a link
         if self.link.is_some() {
+            log_trace!("Package '{}' is currently defined as a link", self.id);
             force_required = self.create_from_link(&path, force)?;
         // If the package is currently defined as copy
         } else if self.copy.is_some() {
+            log_trace!("Package '{}' is currently defined as a copy", self.id);
             force_required = self.create_from_copy(&path, force)?;
         // If the package is currently defined as a revision control reference
         } else {
             // If currently defined as a symlink, then delete it
             if path.exists() && path.read_link().is_ok() {
+                log_trace!(
+                    "Package '{}' is currently defined as a symlink, deleting it",
+                    self.id
+                );
                 fs::remove_file(&path)?;
                 fs::create_dir_all(&path)?;
             }
@@ -85,15 +92,45 @@ impl Package {
                     path.display()
                 );
             }
-            let rc = RevisionControl::new(&path, self.repo.as_ref().unwrap(), self.credentials());
+            let rc = self.rc(workspace_dir).unwrap();
             let is_empty = path.read_dir()?.next().is_none();
             if is_empty {
+                log_trace!("Populating package '{}' from revision control", self.id);
                 rc.populate(self.version.as_ref().unwrap())?;
             } else {
-                rc.checkout(force, None, self.version.as_ref().unwrap())?;
+                log_trace!("Checking out package '{}' from revision control", self.id);
+                conflicts = rc.checkout(force, None, self.version.as_ref().unwrap())?;
             }
         }
-        Ok(force_required)
+        Ok((force_required, conflicts))
+    }
+
+    /// Returns a revision control driver for the package, if applicable
+    pub fn rc(&self, workspace_dir: &Path) -> Option<RevisionControl> {
+        if self.has_repo() {
+            let path = self.path(workspace_dir);
+            Some(RevisionControl::new(
+                &path,
+                self.all_repos(),
+                self.credentials(),
+            ))
+        } else {
+            None
+        }
+    }
+
+    /// Consolidates the repo and repos fields into a single vector
+    fn all_repos(&self) -> Vec<&str> {
+        let mut repos: Vec<&str> = vec![];
+        if let Some(r) = &self.repo {
+            repos.push(r);
+        }
+        if let Some(rs) = &self.repos {
+            for r in rs {
+                repos.push(r);
+            }
+        }
+        repos
     }
 
     /// Returns a path to the package dir within the given workspace
@@ -104,10 +141,6 @@ impl Package {
             Some(x) => path.push(x),
         }
         path
-    }
-
-    pub fn is_excluded(&self) -> bool {
-        self.exclude.unwrap_or(false)
     }
 
     fn create_from_link(&self, dest: &Path, force: bool) -> Result<bool> {
@@ -236,6 +269,13 @@ impl Package {
         if let Some(x) = &self.repo {
             s += &format!("{}repo = \"{}\"\n", i, x);
         }
+        if let Some(repos) = &self.repos {
+            s += &format!("{}repos = [\n", i);
+            for repo in repos {
+                s += &format!("{}  \"{}\"\n", i, repo);
+            }
+            s += &format!("{}]\n", i);
+        }
         if let Some(x) = &self.username {
             s += &format!("{}username = \"{}\"\n", i, x);
         }
@@ -262,12 +302,6 @@ impl Package {
             }
             None => {}
         }
-        match &p.exclude {
-            Some(x) => {
-                self.exclude = Some(x.clone());
-            }
-            None => {}
-        }
         match &p.username {
             Some(x) => {
                 self.username = Some(x.clone());
@@ -282,10 +316,19 @@ impl Package {
             }
             None => {}
         }
+        match &p.repos {
+            Some(x) => {
+                self.repos = Some(x.clone());
+                self.copy = None;
+                self.link = None;
+            }
+            None => {}
+        }
         match &p.copy {
             Some(x) => {
                 self.copy = Some(x.clone());
                 self.repo = None;
+                self.repos = None;
                 self.link = None;
                 self.version = None;
             }
@@ -295,6 +338,7 @@ impl Package {
             Some(x) => {
                 self.link = Some(x.clone());
                 self.repo = None;
+                self.repos = None;
                 self.copy = None;
                 self.version = None;
             }
@@ -332,17 +376,27 @@ impl Package {
         }
     }
 
+    /// Returns true if the package has a repo defined
+    pub fn has_repo(&self) -> bool {
+        self.repo.is_some()
+            || if let Some(repos) = &self.repos {
+                !repos.is_empty()
+            } else {
+                false
+            }
+    }
+
     fn has_no_source(&self) -> bool {
-        self.repo.is_none() && self.copy.is_none() && self.link.is_none()
+        !self.has_repo() && self.copy.is_none() && self.link.is_none()
     }
 
     fn has_missing_version(&self) -> bool {
-        self.repo.is_some() && self.version.is_none()
+        self.has_repo() && self.version.is_none()
     }
 
     fn has_multiple_sources(&self) -> bool {
         let mut sources = 0;
-        if self.repo.is_some() {
+        if self.has_repo() {
             sources += 1;
         }
         if self.copy.is_some() {
