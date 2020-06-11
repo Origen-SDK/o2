@@ -5,11 +5,32 @@ extern crate serde;
 #[macro_use]
 extern crate origen;
 
+mod app_commands;
 mod commands;
 mod python;
 
+use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use origen::{LOGGER, STATUS};
+
+#[derive(Clone)]
+pub struct CommandHelp {
+    name: String,
+    help: String,
+    shortcut: Option<String>,
+}
+
+impl CommandHelp {
+    fn render(&self, width: usize) -> String {
+        let mut msg = "".to_string();
+        msg += &format!("{:width$} {}", self.name, self.help, width = width + 3);
+        if let Some(a) = &self.shortcut {
+            msg += &format!(" [aliases: {}]", a);
+        }
+        msg += "\n";
+        msg
+    }
+}
 
 // This is the entry point for the Origen CLI tool
 fn main() {
@@ -43,16 +64,29 @@ fn main() {
                 .help("Terminal verbosity level e.g. -v, -vv, -vvv"),
         );
 
+    // The main help message is going to be automatically generated to allow us to handle and clearly
+    // separate commands added by the app and plugins.
+    // When a command is added below it must also be added to these vectors.
+    let mut origen_commands: Vec<CommandHelp> = vec![];
+    let mut app_commands: Vec<CommandHelp> = vec![];
+
     /************************************************************************************/
     /******************** Global only commands ******************************************/
     /************************************************************************************/
     if !STATUS.is_app_present {
+        let proj_help = "Manage multi-repository project areas and workspaces";
+        origen_commands.push(CommandHelp {
+            name: "proj".to_string(),
+            help: proj_help.to_string(),
+            shortcut: None,
+        });
+
         app = app
             //************************************************************************************/
             .subcommand(
                 SubCommand::with_name("proj")
                     .display_order(1)
-                    .about("Manage multi-repository project areas and workspaces")
+                    .about(proj_help)
                     .setting(AppSettings::ArgRequiredElseHelp)
                     .subcommand(SubCommand::with_name("init")
                         .display_order(5)
@@ -174,186 +208,356 @@ fn main() {
     /******************** Origen dev commands *******************************************/
     /************************************************************************************/
     if STATUS.is_origen_present || STATUS.is_app_present {
-        let msg = match STATUS.is_origen_present {
+        let fmt_help = match STATUS.is_origen_present {
             true => "Nicely format all Rust and Python files",
             false => "Nicely format all of your application's Python files",
         };
+
+        origen_commands.push(CommandHelp {
+            name: "fmt".to_string(),
+            help: fmt_help.to_string(),
+            shortcut: None,
+        });
+
         app = app
             //************************************************************************************/
-            .subcommand(SubCommand::with_name("fmt").about(msg));
+            .subcommand(SubCommand::with_name("fmt").about(fmt_help));
     }
 
     /************************************************************************************/
     /******************** In application commands ***************************************/
     /************************************************************************************/
     if STATUS.is_app_present {
-        app = app
-
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("interactive")
-                .about("Start an Origen console to interact with the DUT")
+        /************************************************************************************/
+        let i_help = "Start an Origen console to interact with the DUT";
+        origen_commands.push(CommandHelp {
+            name: "interactive".to_string(),
+            help: i_help.to_string(),
+            shortcut: Some("i".to_string()),
+        });
+        app = app.subcommand(
+            SubCommand::with_name("interactive")
+                .about(i_help)
                 .visible_alias("i")
-                .arg(Arg::with_name("target")
-                    .short("t")
-                    .long("target")
-                    .help("Override the default target currently set by the workspace")
-                    .takes_value(true)
-                    .use_delimiter(true)
-                    .multiple(true)
-                    .number_of_values(1)
-                    .value_name("TARGET")
+                .arg(
+                    Arg::with_name("target")
+                        .short("t")
+                        .long("target")
+                        .help("Override the default target currently set by the workspace")
+                        .takes_value(true)
+                        .use_delimiter(true)
+                        .multiple(true)
+                        .number_of_values(1)
+                        .value_name("TARGET"),
                 )
-                .arg(Arg::with_name("mode")
-                    .short("m")
-                    .long("mode")
-                    .help("Override the default execution mode currently set by the workspace")
-                    .takes_value(true)
-                    .value_name("MODE")
-                )
-           )
+                .arg(
+                    Arg::with_name("mode")
+                        .short("m")
+                        .long("mode")
+                        .help("Override the default execution mode currently set by the workspace")
+                        .takes_value(true)
+                        .value_name("MODE"),
+                ),
+        );
 
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("generate")
-                .about("Generate patterns or test programs")
+        /************************************************************************************/
+        let g_help = "Generate patterns or test programs";
+        origen_commands.push(CommandHelp {
+            name: "generate".to_string(),
+            help: g_help.to_string(),
+            shortcut: Some("g".to_string()),
+        });
+        app = app.subcommand(
+            SubCommand::with_name("generate")
+                .about(g_help)
                 .visible_alias("g")
-                .arg(Arg::with_name("files")
-                    .help("The name of the file(s) to be generated")
-                    .takes_value(true)
-                    .value_name("FILES")
-                    .multiple(true)
-                    .required(true)
+                .arg(
+                    Arg::with_name("files")
+                        .help("The name of the file(s) to be generated")
+                        .takes_value(true)
+                        .value_name("FILES")
+                        .multiple(true)
+                        .required(true),
                 )
-                .arg(Arg::with_name("target")
-                    .short("t")
-                    .long("target")
-                    .help("Override the default target currently set by the workspace")
-                    .takes_value(true)
-                    .use_delimiter(true)
-                    .multiple(true)
-                    .number_of_values(1)
-                    .value_name("TARGET")
+                .arg(
+                    Arg::with_name("target")
+                        .short("t")
+                        .long("target")
+                        .help("Override the default target currently set by the workspace")
+                        .takes_value(true)
+                        .use_delimiter(true)
+                        .multiple(true)
+                        .number_of_values(1)
+                        .value_name("TARGET"),
                 )
-                .arg(Arg::with_name("mode")
-                    .short("m")
-                    .long("mode")
-                    .help("Override the default execution mode currently set by the workspace")
-                    .takes_value(true)
-                    .value_name("MODE")
+                .arg(
+                    Arg::with_name("mode")
+                        .short("m")
+                        .long("mode")
+                        .help("Override the default execution mode currently set by the workspace")
+                        .takes_value(true)
+                        .value_name("MODE"),
                 )
-                .arg(Arg::with_name("output_dir")
-                    .short("o")
-                    .long("output-dir")
-                    .help("Override the default output directory (<APP ROOT>/output)")
-                    .takes_value(true)
-                    .value_name("OUTPUT_DIR")
+                .arg(
+                    Arg::with_name("output_dir")
+                        .short("o")
+                        .long("output-dir")
+                        .help("Override the default output directory (<APP ROOT>/output)")
+                        .takes_value(true)
+                        .value_name("OUTPUT_DIR"),
                 )
-                .arg(Arg::with_name("reference_dir")
-                    .short("r")
-                    .long("reference-dir")
-                    .help("Override the default reference directory (<APP ROOT>/.ref)")
-                    .takes_value(true)
-                    .value_name("REFERENCE_DIR")
-                )
-           )
+                .arg(
+                    Arg::with_name("reference_dir")
+                        .short("r")
+                        .long("reference-dir")
+                        .help("Override the default reference directory (<APP ROOT>/.ref)")
+                        .takes_value(true)
+                        .value_name("REFERENCE_DIR"),
+                ),
+        );
 
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("compile")
-                .about("Compile templates")
+        /************************************************************************************/
+        let c_help = "Compile templates";
+        origen_commands.push(CommandHelp {
+            name: "compile".to_string(),
+            help: c_help.to_string(),
+            shortcut: Some("c".to_string()),
+        });
+        app = app.subcommand(
+            SubCommand::with_name("compile")
+                .about(c_help)
                 .visible_alias("c")
-                .arg(Arg::with_name("files")
-                    .help("The name of the file(s) to be generated")
-                    .takes_value(true)
-                    .value_name("FILES")
-                    .multiple(true)
-                    .required(true)
+                .arg(
+                    Arg::with_name("files")
+                        .help("The name of the file(s) to be generated")
+                        .takes_value(true)
+                        .value_name("FILES")
+                        .multiple(true)
+                        .required(true),
                 )
-                .arg(Arg::with_name("target")
-                    .short("t")
-                    .long("target")
-                    .help("Override the default target currently set by the workspace")
-                    .takes_value(true)
-                    .use_delimiter(true)
-                    .multiple(true)
-                    .number_of_values(1)
-                    .value_name("TARGET")
+                .arg(
+                    Arg::with_name("target")
+                        .short("t")
+                        .long("target")
+                        .help("Override the default target currently set by the workspace")
+                        .takes_value(true)
+                        .use_delimiter(true)
+                        .multiple(true)
+                        .number_of_values(1)
+                        .value_name("TARGET"),
                 )
-                .arg(Arg::with_name("mode")
-                    .short("m")
-                    .long("mode")
-                    .help("Override the default execution mode currently set by the workspace")
-                    .takes_value(true)
-                    .value_name("MODE")
-                )
-           )
+                .arg(
+                    Arg::with_name("mode")
+                        .short("m")
+                        .long("mode")
+                        .help("Override the default execution mode currently set by the workspace")
+                        .takes_value(true)
+                        .value_name("MODE"),
+                ),
+        );
 
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("target")
-                .about("Set/view the default target")
+        /************************************************************************************/
+        let t_help = "Set/view the default target";
+        origen_commands.push(CommandHelp {
+            name: "target".to_string(),
+            help: t_help.to_string(),
+            shortcut: Some("t".to_string()),
+        });
+        app = app.subcommand(
+            SubCommand::with_name("target")
+                .about(t_help)
                 .visible_alias("t")
-                .subcommand(SubCommand::with_name("add")
-                    .about("Activates the given target(s)")
-                    .visible_alias("a")
-                    .arg(Arg::with_name("targets")
-                        .help("Targets to be activated")
-                        .takes_value(true)
-                        .value_name("TARGETS")
-                        .multiple(true)
-                        .required(true)
-                    )
+                .subcommand(
+                    SubCommand::with_name("add")
+                        .about("Activates the given target(s)")
+                        .visible_alias("a")
+                        .arg(
+                            Arg::with_name("targets")
+                                .help("Targets to be activated")
+                                .takes_value(true)
+                                .value_name("TARGETS")
+                                .multiple(true)
+                                .required(true),
+                        ),
                 )
-                .subcommand(SubCommand::with_name("remove")
-                    .about("Deactivates the given target(s)")
-                    .visible_alias("r")
-                    .arg(Arg::with_name("targets")
-                        .help("Targets to be deactivated")
-                        .takes_value(true)
-                        .value_name("TARGETS")
-                        .multiple(true)
-                        .required(true)
-                    )
+                .subcommand(
+                    SubCommand::with_name("remove")
+                        .about("Deactivates the given target(s)")
+                        .visible_alias("r")
+                        .arg(
+                            Arg::with_name("targets")
+                                .help("Targets to be deactivated")
+                                .takes_value(true)
+                                .value_name("TARGETS")
+                                .multiple(true)
+                                .required(true),
+                        ),
                 )
-                .subcommand(SubCommand::with_name("set")
-                    .about("Activates the given target(s) while deactivating all others")
-                    .visible_alias("s")
-                    .arg(Arg::with_name("targets")
-                        .help("Targets to be set")
-                        .takes_value(true)
-                        .value_name("TARGETS")
-                        .multiple(true)
-                        .required(true)
-                    )
+                .subcommand(
+                    SubCommand::with_name("set")
+                        .about("Activates the given target(s) while deactivating all others")
+                        .visible_alias("s")
+                        .arg(
+                            Arg::with_name("targets")
+                                .help("Targets to be set")
+                                .takes_value(true)
+                                .value_name("TARGETS")
+                                .multiple(true)
+                                .required(true),
+                        ),
                 )
-                .subcommand(SubCommand::with_name("default")
-                    .about("Activates the default target(s) while deactivating all others")
-                    .visible_alias("d")
+                .subcommand(
+                    SubCommand::with_name("default")
+                        .about("Activates the default target(s) while deactivating all others")
+                        .visible_alias("d"),
                 )
-                .subcommand(SubCommand::with_name("view")
-                    .about("Views the currently activated target(s)")
-                    .visible_alias("v")
-                )
-           )
+                .subcommand(
+                    SubCommand::with_name("view")
+                        .about("Views the currently activated target(s)")
+                        .visible_alias("v"),
+                ),
+        );
 
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("mode")
-                .about("Set/view the default execution mode")
+        /************************************************************************************/
+        let mode_help = "Set/view the default execution mode";
+        origen_commands.push(CommandHelp {
+            name: "mode".to_string(),
+            help: mode_help.to_string(),
+            shortcut: Some("m".to_string()),
+        });
+        app = app.subcommand(
+            SubCommand::with_name("mode")
+                .about(mode_help)
                 .visible_alias("m")
-                .arg(Arg::with_name("mode")
-                    .help("The name of the mode to be set as the default mode")
-                    .takes_value(true)
-                    .value_name("MODE")
-                )
-           )
+                .arg(
+                    Arg::with_name("mode")
+                        .help("The name of the mode to be set as the default mode")
+                        .takes_value(true)
+                        .value_name("MODE"),
+                ),
+        );
 
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("setup")
-                .about("Setup your application's Python environment in a new workspace, this will install dependencies per the poetry.lock file"),
-           )
+        /************************************************************************************/
+        let setup_help = "Setup your application's Python environment in a new workspace, this will install dependencies per the poetry.lock file";
+        origen_commands.push(CommandHelp {
+            name: "setup".to_string(),
+            help: setup_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(SubCommand::with_name("setup").about(setup_help));
 
-           /************************************************************************************/
-           .subcommand(SubCommand::with_name("update")
-                .about("Update your application's Python dependencies according to the latest pyproject.toml file"),
-           )
+        /************************************************************************************/
+        let update_help = "Update your application's Python dependencies according to the latest pyproject.toml file";
+        origen_commands.push(CommandHelp {
+            name: "update".to_string(),
+            help: update_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(SubCommand::with_name("update").about(update_help));
     }
+
+    // This is used to justify the command names in the help
+    let mut name_width = origen_commands
+        .iter()
+        .map(|c| c.name.chars().count())
+        .max()
+        .unwrap();
+
+    let cmds;
+
+    if STATUS.is_app_present {
+        let mut ac = AppCommands::new(&origen::app().unwrap().root);
+        ac.parse_commands();
+        // Need to hold this in a long-lived immutable reference for referencing in clap args
+        cmds = ac.commands.clone();
+
+        if let Some(width) = ac.max_name_width() {
+            if width > name_width {
+                name_width = width;
+            }
+        }
+        for command in ac.command_helps {
+            app_commands.push(command.clone());
+        }
+        // This defines the application commands, some crazy references here since the string
+        // args to clap need the right lifetime
+        // For each command
+        for i in 0..cmds.len() {
+            let mut cmd = SubCommand::with_name(&cmds[i].name).about(cmds[i].help.as_str());
+            if cmds[i].short.is_some() {
+                cmd = cmd.visible_alias(cmds[i].short.as_ref().unwrap().as_str());
+            }
+            if cmds[i].arg.is_some() {
+                // For each arg
+                for j in 0..cmds[i].arg.as_ref().unwrap().len() {
+                    let arg_def = &cmds[i].arg.as_ref().unwrap()[j];
+                    let mut arg = Arg::with_name(&arg_def.name)
+                        .help(&arg_def.help)
+                        .long(&arg_def.name);
+                    if arg_def.short.is_some() {
+                        arg = arg.short(arg_def.short.as_ref().unwrap())
+                    }
+                    if arg_def.takes_value.is_some() {
+                        arg = arg.takes_value(arg_def.takes_value.unwrap())
+                    }
+                    if arg_def.multiple.is_some() {
+                        arg = arg.multiple(arg_def.multiple.unwrap())
+                    }
+                    if arg_def.required.is_some() {
+                        arg = arg.required(arg_def.required.unwrap())
+                    }
+                    if arg_def.value_name.is_some() {
+                        arg = arg.value_name(arg_def.value_name.as_ref().unwrap())
+                    }
+                    if arg_def.use_delimiter.is_some() {
+                        arg = arg.use_delimiter(arg_def.use_delimiter.unwrap())
+                    }
+                    if arg_def.hidden.is_some() {
+                        arg = arg.hidden(arg_def.hidden.unwrap())
+                    }
+
+                    cmd = cmd.arg(arg);
+                }
+            }
+            app = app.subcommand(cmd);
+        }
+    }
+
+    // Clap is great, but its generated help doesn't give the flexibility needed to handle things
+    // like app and plugin command additions, so we make our own
+
+    let mut help_message = format!(
+        "Origen, The Semiconductor Developer's Kit
+
+{}
+
+USAGE:
+    origen [FLAGS] [COMMAND]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+    -v               Terminal verbosity level e.g. -v, -vv, -vvv
+
+CORE COMMANDS:
+",
+        version
+    );
+
+    for command in &origen_commands {
+        help_message += &command.render(name_width);
+    }
+
+    if !app_commands.is_empty() {
+        help_message += "\nAPP COMMANDS:\n";
+        for command in &app_commands {
+            help_message += &command.render(name_width);
+        }
+    }
+
+    help_message += "\nSee 'origen <command> -h' for more information on a specific command.";
+
+    app = app.help(help_message.as_str());
 
     let matches = app.get_matches();
 

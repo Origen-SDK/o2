@@ -306,22 +306,32 @@ impl Tester {
                             } else {
                                 display!("Created: {}", path.display());
                             }
-                            if let Some(mut differ) = gen.pattern_differ(path, path) {
-                                display!(" - ");
-                                if differ.has_diffs()? {
-                                    display_redln!("Diffs found");
-                                } else {
-                                    display_greenln!("No diffs");
+                            if let Some(ref_dir) = crate::STATUS.reference_dir() {
+                                match path.strip_prefix(crate::STATUS.output_dir()) {
+                                    Err(e) => log_error!("{}", e),
+                                    Ok(stem) => {
+                                        let ref_pat = ref_dir.join(&stem);
+                                        display!(" - ");
+                                        if ref_pat.exists() {
+                                            if let Some(mut differ) = gen.pattern_differ(path, &ref_pat) {
+                                                if differ.has_diffs()? {
+                                                    display_red!("Diffs found");
+                                                } else {
+                                                    display_green!("No diffs");
+                                                }
+                                            } else {
+                                                log_debug!("No differ defined for tester '{}'", gen.name());
+                                                display_yellow!("Diff not checked");
+                                            }
+                                        } else {
+                                            display_cyanln!("New pattern");
+                                            display!("  origen save_ref {}", stem.display());
+
+                                        }
+                                    }
                                 }
-                            } else {
-                                displayln!("");
-                                log_debug!("No differ defined for tester '{}'", gen.name());
                             }
-                            //origen::with_current_job(|job| {
-                            //    let ref_file = job.reference_version_of(&path);
-
-
-                            //});
+                            displayln!("");
                         }
                     }
                 } else {

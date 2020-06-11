@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 ///
 /// assert_eq!(differ.has_diffs().unwrap(), true);
 ///
-/// differ.ignore_comments("//");
+/// differ.ignore_comments("//").expect("Valid comment char");
 ///
 /// assert_eq!(differ.has_diffs().unwrap(), false);
 ///

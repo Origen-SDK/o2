@@ -18,7 +18,7 @@ impl Default for SMT7 {
 impl Interceptor for SMT7 {}
 impl TesterAPI for SMT7 {
     fn name(&self) -> String {
-        "V93K_ST7".to_string()
+        "V93K_SMT7".to_string()
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
@@ -31,7 +31,7 @@ impl TesterAPI for SMT7 {
 
     fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Differ> {
         let mut d = Differ::new(pat_a, pat_b);
-        d.ignore_comments("#");
+        let _ = d.ignore_comments("#");
         Some(d)
     }
 }
