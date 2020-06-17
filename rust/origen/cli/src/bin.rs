@@ -12,6 +12,7 @@ mod python;
 use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use origen::{LOGGER, STATUS};
+use std::path::Path;
 
 #[derive(Clone)]
 pub struct CommandHelp {
@@ -463,62 +464,27 @@ fn main() {
         .max()
         .unwrap();
 
+    let mut app_command_defs = AppCommands::new(Path::new("/"));
     let cmds;
-
     if STATUS.is_app_present {
-        let mut ac = AppCommands::new(&origen::app().unwrap().root);
-        ac.parse_commands();
+        app_command_defs = AppCommands::new(&origen::app().unwrap().root);
+        app_command_defs.parse_commands();
         // Need to hold this in a long-lived immutable reference for referencing in clap args
-        cmds = ac.commands.clone();
+        cmds = app_command_defs.commands.clone();
 
-        if let Some(width) = ac.max_name_width() {
+        if let Some(width) = app_command_defs.max_name_width() {
             if width > name_width {
                 name_width = width;
             }
         }
-        for command in ac.command_helps {
+        for command in &app_command_defs.command_helps {
             app_commands.push(command.clone());
         }
         // This defines the application commands, some crazy references here since the string
         // args to clap need the right lifetime
         // For each command
         for i in 0..cmds.len() {
-            let mut cmd = SubCommand::with_name(&cmds[i].name).about(cmds[i].help.as_str());
-            if cmds[i].short.is_some() {
-                cmd = cmd.visible_alias(cmds[i].short.as_ref().unwrap().as_str());
-            }
-            if cmds[i].arg.is_some() {
-                // For each arg
-                for j in 0..cmds[i].arg.as_ref().unwrap().len() {
-                    let arg_def = &cmds[i].arg.as_ref().unwrap()[j];
-                    let mut arg = Arg::with_name(&arg_def.name)
-                        .help(&arg_def.help)
-                        .long(&arg_def.name);
-                    if arg_def.short.is_some() {
-                        arg = arg.short(arg_def.short.as_ref().unwrap())
-                    }
-                    if arg_def.takes_value.is_some() {
-                        arg = arg.takes_value(arg_def.takes_value.unwrap())
-                    }
-                    if arg_def.multiple.is_some() {
-                        arg = arg.multiple(arg_def.multiple.unwrap())
-                    }
-                    if arg_def.required.is_some() {
-                        arg = arg.required(arg_def.required.unwrap())
-                    }
-                    if arg_def.value_name.is_some() {
-                        arg = arg.value_name(arg_def.value_name.as_ref().unwrap())
-                    }
-                    if arg_def.use_delimiter.is_some() {
-                        arg = arg.use_delimiter(arg_def.use_delimiter.unwrap())
-                    }
-                    if arg_def.hidden.is_some() {
-                        arg = arg.hidden(arg_def.hidden.unwrap())
-                    }
-
-                    cmd = cmd.arg(arg);
-                }
-            }
+            let cmd = build_command(&cmds[i]);
             app = app.subcommand(cmd);
         }
     }
@@ -667,6 +633,65 @@ CORE COMMANDS:
                 println!("Origen: {}", STATUS.origen_version);
             }
         }
-        _ => unreachable!(),
+        _ => {
+            // To get here we must be dealing with a command added by an app/plugin
+            app_command_defs.dispatch(&matches);
+        }
     }
+}
+
+fn build_command(cmd_def: &app_commands::Command) -> App {
+    let mut cmd = SubCommand::with_name(&cmd_def.name).about(cmd_def.help.as_str());
+    if cmd_def.alias.is_some() {
+        cmd = cmd.visible_alias(cmd_def.alias.as_ref().unwrap().as_str());
+    }
+    if cmd_def.arg.is_some() {
+        // For each arg
+        for j in 0..cmd_def.arg.as_ref().unwrap().len() {
+            let arg_def = &cmd_def.arg.as_ref().unwrap()[j];
+            let mut arg = Arg::with_name(&arg_def.name).help(&arg_def.help);
+            // If this is an arg without a switch
+            if arg_def.switch.is_some() && !arg_def.switch.unwrap() {
+                // Do nothing?
+            } else {
+                if arg_def.long.is_some() {
+                    arg = arg.long(&arg_def.long.as_ref().unwrap());
+                } else {
+                    arg = arg.long(&arg_def.name);
+                }
+                if arg_def.short.is_some() {
+                    arg = arg.short(arg_def.short.as_ref().unwrap())
+                }
+            }
+            if arg_def.takes_value.is_some() {
+                arg = arg.takes_value(arg_def.takes_value.unwrap())
+            }
+            if arg_def.multiple.is_some() {
+                arg = arg.multiple(arg_def.multiple.unwrap())
+            }
+            if arg_def.required.is_some() {
+                arg = arg.required(arg_def.required.unwrap())
+            }
+            if arg_def.value_name.is_some() {
+                arg = arg.value_name(arg_def.value_name.as_ref().unwrap())
+            } else {
+                arg = arg.value_name(arg_def.upcased_name.as_ref().unwrap())
+            }
+            if arg_def.use_delimiter.is_some() {
+                arg = arg.use_delimiter(arg_def.use_delimiter.unwrap())
+            }
+            if arg_def.hidden.is_some() {
+                arg = arg.hidden(arg_def.hidden.unwrap())
+            }
+
+            cmd = cmd.arg(arg);
+        }
+    }
+    if let Some(subcommands) = &cmd_def.subcommand {
+        for c in subcommands {
+            let subcmd = build_command(&c);
+            cmd = cmd.subcommand(subcmd);
+        }
+    }
+    cmd
 }

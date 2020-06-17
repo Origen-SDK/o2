@@ -3,6 +3,7 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import sys
 import pathlib
+import importlib
 
 if sys.platform == "win32":
     # The below is needed only for pyreadline, which is needed only for Windows support.
@@ -89,7 +90,7 @@ if sys.platform == "win32":
 
 # Called by the Origen CLI to boot the Origen Python env, not for application use
 # Any target/env overrides given to the command line will be passed in here
-def __origen__(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None):
+def __origen__(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None, **kwargs):
     import origen
     import _origen
 
@@ -163,6 +164,15 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None, out
     # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":
         print(f"{origen.status['origen_version']}")
+
+    # Internal command to dispatch an app/plugin command
+    elif command == "_dispatch_":
+        path = f'{origen.app.name}.commands'
+        for cmd in kwargs["commands"]:
+            path += f'.{cmd}'
+        m = importlib.import_module(path)
+        m.run(**kwargs["args"])
+        exit(0)
 
     else:
         print(f"Unknown command: {command}")

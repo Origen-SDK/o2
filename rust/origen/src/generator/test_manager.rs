@@ -92,7 +92,7 @@ impl TestManager {
         F: FnMut(&Node) -> Result<T>,
     {
         let ast = self.ast.read().unwrap();
-        ast.with_node(process_fn)
+        ast.with_node(&mut process_fn)
     }
 
     pub fn to_node(&self) -> Node {

@@ -4,7 +4,7 @@
 
 [[command]]
     name = "playground"
-    short = "y"
+    alias = "y"
     help = "This is used to test Origen's app command definition and dispatch"
 
     [[command.arg]]
@@ -15,6 +15,7 @@
     [[command.arg]]
         name = "arg2"
         help = "A required argument accepting multiple values"
+        switch = false
         takes_value = true
         multiple = true
         required = true
@@ -37,6 +38,11 @@
         name = "start"
         help = "Start to play"
 
+        [[command.subcommand.arg]]
+            name = "arg1"
+            short = "a"
+            help = "A simple boolean flag argument"
+
     [[command.subcommand]]
         name = "stop"
-        help = "Stop to playing"
+        help = "Stop playing"
