@@ -2,7 +2,7 @@ use super::super::test::Definition;
 
 // This is called at the start of a test program generation run to define
 // all of the built-in Teradyne test templates
-pub fn define_test_lib() {
+pub fn _define_test_lib() {
     Definition {
         test_def_id: None,
         params: indexmap! {

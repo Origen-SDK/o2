@@ -110,7 +110,7 @@ impl Files {
             match Path::new(item).canonicalize() {
                 Ok(x) => {
                     if x.is_dir() {
-                        self.resolve_dir(&x);
+                        self.resolve_dir(&x)?;
                     } else {
                         self.files.push(x);
                     }

@@ -1,14 +1,14 @@
 use indexmap::IndexMap;
 
 pub enum ParamType {
-    String,
-    Integer,
+    //String,
+//Integer,
 }
 
 /// Represents an individual test in a test program flow
 pub struct Test {
-    name: String,
-    test_def_id: usize,
+    _name: String,
+    _test_def_id: usize,
 }
 
 /// Defines the args of a test instance/method/suite, including their names, data type,
@@ -22,11 +22,11 @@ pub struct Definition {
     pub defaults: IndexMap<String, Value>,
 }
 
-pub struct Param {}
+//pub struct Param {}
 
 /// A value is a storage element for test parameter values, providing storage for
 /// different data types with the one used defined by the mapping for the given
 /// parameter
 pub struct Value {
-    string: Option<String>,
+    _string: Option<String>,
 }

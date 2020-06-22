@@ -10,17 +10,17 @@ use std::collections::HashMap;
 pub struct Interface {
     /// Contains all tests referenced in all flows, accessible by their ID which is their
     /// index number
-    tests: Vec<Test>,
-    flows: HashMap<String, AST>,
-    test_definitions: Vec<Definition>,
+    _tests: Vec<Test>,
+    _flows: HashMap<String, AST>,
+    _test_definitions: Vec<Definition>,
 }
 
 impl Interface {
     pub fn new() -> Self {
         Self {
-            tests: vec![],
-            flows: HashMap::new(),
-            test_definitions: vec![],
+            _tests: vec![],
+            _flows: HashMap::new(),
+            _test_definitions: vec![],
         }
     }
 }
