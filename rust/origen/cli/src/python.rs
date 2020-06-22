@@ -3,7 +3,7 @@
 use origen::{Result, STATUS};
 use semver::Version;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 
 const PYTHONS: &[&str] = &[
     "python",
@@ -103,15 +103,15 @@ fn extract_version(text: &str) -> Option<Version> {
 }
 
 /// Execute the given Python code
-pub fn run(code: &str) {
-    let _status = Command::new(&PYTHON_CONFIG.poetry_command)
+pub fn run(code: &str) -> Result<ExitStatus> {
+    Ok(Command::new(&PYTHON_CONFIG.poetry_command)
         .arg("run")
         .arg(&PYTHON_CONFIG.command)
         .arg("-c")
         .arg(&code)
         .arg("-")
         .arg(&format!("verbosity={}", origen::LOGGER.verbosity()))
-        .status();
+        .status()?)
 }
 
 /// Run silently with all STDOUT and STDERR handled by the given callback functions

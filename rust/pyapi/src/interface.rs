@@ -30,7 +30,7 @@ impl PyInterface {
     }
 
     /// Add a test to the flow
-    fn test(&self, name: &str) -> PyResult<()> {
+    fn test(&self, _name: &str) -> PyResult<()> {
         Ok(())
     }
 }

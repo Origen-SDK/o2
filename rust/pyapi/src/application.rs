@@ -14,7 +14,7 @@ pub struct PyApplication {}
 impl PyApplication {
     #[new]
     fn new(obj: &PyRawObject) {
-        obj.init({ PyApplication {} });
+        obj.init(PyApplication {});
     }
 
     #[getter]

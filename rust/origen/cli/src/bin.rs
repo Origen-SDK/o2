@@ -455,6 +455,40 @@ fn main() {
             shortcut: None,
         });
         app = app.subcommand(SubCommand::with_name("update").about(update_help));
+
+        /************************************************************************************/
+        let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
+        origen_commands.push(CommandHelp {
+            name: "save_ref".to_string(),
+            help: save_ref_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("save_ref")
+                .about(save_ref_help)
+                .arg(
+                    Arg::with_name("files")
+                        .help("The name of the file(s) to be saved")
+                        .takes_value(true)
+                        .value_name("FILES")
+                        .multiple(true)
+                        .required_unless_one(&["new", "changed"]),
+                )
+                .arg(
+                    Arg::with_name("new")
+                        .long("new")
+                        .required(false)
+                        .takes_value(false)
+                        .help("Update all NEW file references from the last generate run"),
+                )
+                .arg(
+                    Arg::with_name("changed")
+                        .long("changed")
+                        .required(false)
+                        .takes_value(false)
+                        .help("Update all CHANGED file references from the last generate run"),
+                ),
+        );
     }
 
     // This is used to justify the command names in the help
@@ -594,6 +628,10 @@ CORE COMMANDS:
         Some("mode") => {
             let matches = matches.subcommand_matches("mode").unwrap();
             commands::mode::run(matches.value_of("mode"));
+        }
+        Some("save_ref") => {
+            let matches = matches.subcommand_matches("save_ref").unwrap();
+            commands::save_ref::run(matches);
         }
         // To get here means the user has typed "origen -v", which officially means
         // verbosity level 1 with no command, but this is what they really mean

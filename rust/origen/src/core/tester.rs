@@ -1,6 +1,7 @@
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
+use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
 use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
 use crate::utility::differ::Differ;
@@ -64,8 +65,26 @@ pub struct Tester {
     /// and new testers will be pushed to it during a target load.
     /// It contains references to both Rust and Python domain testers.
     pub target_testers: Vec<TesterSource>,
+    /// Keeps track of some stats, like how many patterns have been generated, how many with
+    /// diffs, etc.
+    pub stats: Stats,
 }
 
+#[derive(Debug, Default, Serialize)]
+pub struct Stats {
+    pub generated_pattern_files: usize,
+    pub changed_pattern_files: usize,
+    pub new_pattern_files: usize,
+    pub generated_program_files: usize,
+    pub changed_program_files: usize,
+    pub new_program_files: usize,
+}
+
+impl Stats {
+    pub fn to_pickle(&self) -> Vec<u8> {
+        serde_pickle::to_vec(self, true).unwrap()
+    }
+}
 impl Tester {
     pub fn new() -> Self {
         Tester {
@@ -73,6 +92,7 @@ impl Tester {
             current_pin_header_id: Option::None,
             external_testers: IndexMap::new(),
             target_testers: vec![],
+            stats: Stats::default(),
         }
     }
 
@@ -299,6 +319,7 @@ impl Tester {
                 let paths = TEST.with_ast(|ast| gen.render_pattern(ast))?;
                 if !paths.is_empty() {
                     for path in &paths {
+                        self.stats.generated_pattern_files += 1;
                         log_debug!("Tester '{}' created file '{}'", gen.name(),  path.display());
                         if diff_and_display {
                             if let Ok(p) = to_relative_path(path, None) {
@@ -315,7 +336,12 @@ impl Tester {
                                         if ref_pat.exists() {
                                             if let Some(mut differ) = gen.pattern_differ(path, &ref_pat) {
                                                 if differ.has_diffs()? {
-                                                    display_red!("Diffs found");
+                                                    if let Err(e) = reference_files::create_changed_ref(&stem, &path, &ref_pat) {
+                                                        log_error!("{}", e);
+                                                    }
+                                                    self.stats.changed_pattern_files += 1;
+                                                    display_redln!("Diffs found");
+                                                    display!("  origen save_ref {}", stem.display());
                                                 } else {
                                                     display_green!("No diffs");
                                                 }
@@ -324,6 +350,10 @@ impl Tester {
                                                 display_yellow!("Diff not checked");
                                             }
                                         } else {
+                                            self.stats.new_pattern_files += 1;
+                                            if let Err(e) = reference_files::create_new_ref(&stem, &path, &ref_pat) {
+                                                log_error!("{}", e);
+                                            }
                                             display_cyanln!("New pattern");
                                             display!("  origen save_ref {}", stem.display());
 
@@ -384,6 +414,17 @@ impl Tester {
                 .collect::<Vec<String>>(),
         );
         gens
+    }
+
+    /// This is called automatically at the very start of a generate command, it is invoked from Python,
+    /// so state can be established here which will persist for the rest of the command
+    pub fn prepare_for_generate(&mut self) -> Result<()> {
+        let on_lsf = crate::core::lsf::is_running_remotely();
+        // Jobs to be done before launching to the LSF
+        if !on_lsf {
+            reference_files::clear_save_refs()?;
+        }
+        Ok(())
     }
 }
 

@@ -43,6 +43,17 @@ impl PyTester {
         origen::tester().reset();
     }
 
+    /// This is called by Origen at the start of a generate command, it should never be called by
+    /// application code
+    fn _prepare_for_generate(&self) -> PyResult<()> {
+        origen::tester().prepare_for_generate()?;
+        Ok(())
+    }
+
+    fn _stats(&self) -> PyResult<Vec<u8>> {
+        Ok(origen::tester().stats.to_pickle())
+    }
+
     #[getter]
     fn get_timeset(&self) -> PyResult<PyObject> {
         let tester = origen::tester();

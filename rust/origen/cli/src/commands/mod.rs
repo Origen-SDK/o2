@@ -2,12 +2,14 @@ pub mod fmt;
 pub mod interactive;
 pub mod mode;
 pub mod proj;
+pub mod save_ref;
 pub mod setup;
 pub mod target;
 pub mod update;
 
 use crate::python;
 use origen::{clean_mode, LOGGER};
+use std::process::exit;
 
 /// Launch the given command in Python
 pub fn launch(
@@ -54,5 +56,17 @@ pub fn launch(
 
     log_debug!("Launching Python: '{}'", &cmd);
 
-    python::run(&cmd);
+    match python::run(&cmd) {
+        Err(e) => {
+            log_error!("{}", &e);
+            exit(1);
+        }
+        Ok(exit_status) => {
+            if exit_status.success() {
+                exit(0);
+            } else {
+                exit(exit_status.code().unwrap_or(1));
+            }
+        }
+    }
 }

@@ -1,2 +1,4 @@
+import os
+
 def run(**kwargs):
-    print("Hello")
+    os.system('origen g example/patterns/* -r approved')

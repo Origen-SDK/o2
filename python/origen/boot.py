@@ -120,6 +120,7 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None, out
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
     if command == "generate":
+        origen.tester._prepare_for_generate()
         for (i, f) in enumerate(_origen.file_handler()):
             origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
             # Starts a new JOB in Origen which provides some long term storage and tracking
@@ -129,6 +130,20 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None, out
             context = origen.producer.api()
             origen.load_file(f, locals=context)
         # Print a summary here...
+        stats = origen.tester.stats()
+        changes = stats['changed_pattern_files'] > 0 or stats['changed_program_files'] > 0
+        new_files = stats['new_pattern_files'] > 0 or stats['new_program_files'] > 0
+        if changes or new_files:
+            print("")
+            if changes:
+                print("To save all changed files run:")
+                print("  origen save_ref --changed")
+            if new_files:
+                print("To save all new files run:")
+                print("  origen save_ref --new")
+            if changes and new_files:
+                print("To save both run:")
+                print("  origen save_ref --new --changed")
 
     elif command == "compile":
         for file in _origen.file_handler():

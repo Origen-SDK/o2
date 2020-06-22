@@ -6,6 +6,7 @@ use clap::ArgMatches;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::exit;
 
 #[derive(Default, Clone)]
 pub struct AppCommands {
@@ -170,7 +171,19 @@ impl AppCommands {
 
         log_debug!("Launching Python: '{}'", &cmd);
 
-        python::run(&cmd);
+        match python::run(&cmd) {
+            Err(e) => {
+                log_error!("{}", &e);
+                exit(1);
+            }
+            Ok(exit_status) => {
+                if exit_status.success() {
+                    exit(0);
+                } else {
+                    exit(exit_status.code().unwrap_or(1));
+                }
+            }
+        }
     }
 }
 
