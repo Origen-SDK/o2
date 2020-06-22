@@ -25,6 +25,7 @@
 import pytest
 import subprocess
 import os
+import origen
 
 origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
@@ -47,6 +48,7 @@ def test_bad_command():
   assert "error:" in process.stderr.readline()
 
 def test_origen_g():
+  os.chdir(origen.root)
   process = subprocess.Popen([f'{origen_cli}', 'g', r'.\example\patterns\toggle.py', '-t', r'.\targets\dut\eagle.py'], universal_newlines=True)
   assert process.wait() == 0
   

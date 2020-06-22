@@ -71,6 +71,8 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(unhandled_error_count))?;
     m.add_wrapped(wrap_pyfunction!(set_output_dir))?;
     m.add_wrapped(wrap_pyfunction!(set_reference_dir))?;
+    m.add_wrapped(wrap_pyfunction!(exit_pass))?;
+    m.add_wrapped(wrap_pyfunction!(exit_fail))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
@@ -101,6 +103,18 @@ fn extract_value<'a>(
         };
     }
     Err(Error::new("Illegal bits/value argument"))
+}
+
+/// Exit with a failing status code and print a big FAIL to the console
+#[pyfunction]
+fn exit_fail() -> PyResult<()> {
+    exit_fail!();
+}
+
+/// Exit with a passing status code and print a big PASS to the console
+#[pyfunction]
+fn exit_pass() -> PyResult<()> {
+    exit_pass!();
 }
 
 /// Called automatically when Origen is first loaded

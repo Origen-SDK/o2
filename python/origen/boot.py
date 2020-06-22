@@ -120,15 +120,9 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None, out
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
     if command == "generate":
-        origen.tester._prepare_for_generate()
         for (i, f) in enumerate(_origen.file_handler()):
             origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
-            # Starts a new JOB in Origen which provides some long term storage and tracking
-            # of files that are referenced on the Rust side 
-            # The JOB API can be accessed via origen.producer.current_job
-            origen.producer.create_job("generate", f)
-            context = origen.producer.api()
-            origen.load_file(f, locals=context)
+            origen.generate(f)
         # Print a summary here...
         stats = origen.tester.stats()
         changes = stats['changed_pattern_files'] > 0 or stats['changed_program_files'] > 0

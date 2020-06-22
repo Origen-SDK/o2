@@ -42,6 +42,8 @@ _target_loading = False
 
 mode = "development"
 
+_generate_prepared = False
+
 if status["is_app_present"]:
     sys.path.insert(0, status["root"])
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
@@ -78,3 +80,15 @@ def standard_context():
         "dut": lambda: __import__("origen").dut,
         "tester": lambda: __import__("origen").tester,
     }
+
+def generate(pattern_or_flow):
+    global _generate_prepared
+    if not _generate_prepared:
+        origen.tester._prepare_for_generate()
+        _generate_prepared = True
+    # Starts a new JOB in Origen which provides some long term storage and tracking
+    # of files that are referenced on the Rust side 
+    # The JOB API can be accessed via origen.producer.current_job
+    producer.create_job("generate", pattern_or_flow)
+    context = producer.api()
+    load_file(pattern_or_flow, locals=context)

@@ -4,6 +4,7 @@
 //! at once and seamlessly opens up lists to get to the inidividual files inside.
 
 use crate::{Error, Result};
+use std::fs;
 use std::fs::create_dir_all;
 use std::fs::File as StdFile;
 use std::io::prelude::*;
@@ -104,10 +105,30 @@ impl Files {
 
     // Eventually this will open up list and directory args
     fn resolve(&mut self) -> Result<()> {
-        for item in &self.items {
+        let items = self.items.clone();
+        for item in &items {
             match Path::new(item).canonicalize() {
-                Ok(x) => self.files.push(x),
+                Ok(x) => {
+                    if x.is_dir() {
+                        self.resolve_dir(&x);
+                    } else {
+                        self.files.push(x);
+                    }
+                }
                 Err(err) => return Err(Error::new(&format!("{} - {}", err.to_string(), item))),
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_dir(&mut self, dir: &Path) -> Result<()> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                self.resolve_dir(&path)?;
+            } else {
+                self.files.push(path);
             }
         }
         Ok(())
