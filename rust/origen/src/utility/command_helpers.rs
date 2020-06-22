@@ -1,4 +1,39 @@
+use crate::Result;
 use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
+
+/// Executes the given command/args, returning all captured stdout and stderr lines and
+/// the exit code of the process.
+pub fn exec_and_capture(
+    cmd: &str,
+    args: Option<Vec<&str>>,
+) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
+    let mut command = Command::new(cmd);
+    if let Some(args) = args {
+        for arg in args {
+            command.arg(arg);
+        }
+    }
+    let mut process = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    let mut stdout_lines: Vec<String> = vec![];
+    let mut stderr_lines: Vec<String> = vec![];
+
+    log_stdout_and_stderr(
+        &mut process,
+        Some(&mut |line: &str| {
+            stdout_lines.push(line.to_owned());
+        }),
+        Some(&mut |line: &str| {
+            stderr_lines.push(line.to_owned());
+        }),
+    );
+    let exit_code = process.wait()?;
+    Ok((exit_code, stdout_lines, stderr_lines))
+}
 
 /// Log both stdout and stderr to the debug and error logs respectively, optionally
 /// calling a callback function for each line captured.

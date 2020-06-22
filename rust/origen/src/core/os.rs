@@ -7,7 +7,7 @@ pub fn on_windows() -> bool {
 }
 
 pub fn on_linux() -> bool {
-    if cfg!(linux) {
+    if cfg!(unix) {
         return true;
     } else {
         return false;
