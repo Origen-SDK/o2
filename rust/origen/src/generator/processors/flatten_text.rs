@@ -2,7 +2,7 @@ use chrono::prelude::*;
 
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::{app_config, producer, STATUS};
+use crate::{app_config, producer, STATUS, USER};
 
 /// Flattens nested text, textlines, text sections, etc. into 'text' types.
 /// Also evaluates text placeholder or shorthand nodes, such User, Timestamp, etc.
@@ -101,7 +101,13 @@ impl Processor for FlattenText {
             }
             Attrs::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
             Attrs::User => {
-                self.current_line += &whoami::username();
+                if let Some(name) = USER.name() {
+                    self.current_line += &name;
+                } else if let Some(id) = USER.id() {
+                    self.current_line += &id;
+                } else {
+                    self.current_line += "Unknown";
+                }
                 Ok(Return::None)
             }
             Attrs::Timestamp => {

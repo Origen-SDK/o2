@@ -48,7 +48,7 @@ impl User {
                 }
                 // The whoami crate returned a garbage user name when compiled into a release binary,
                 // so doing it the old fashioned way. Hopefully it still works on Windows!
-                let mut id = "".to_string();
+                let id;
                 if cfg!(unix) {
                     let output = exec_and_capture("whoami", None);
                     if let Ok((status, mut lines, _stderr)) = output {
