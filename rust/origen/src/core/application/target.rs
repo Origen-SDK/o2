@@ -66,24 +66,32 @@ pub fn clean_name(name: &str, dir: &str, return_file: bool) -> String {
 }
 
 /// Returns an array of possible target/environment files that match the given name/snippet
+// TODO: look into updating this to use the PathBuf PartialEq Trait to compare instead string compare which is prone to bugs due to OS differences
 pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
 
     for file in WalkDir::new(format!("{}", app().unwrap().root.join(dir).display())) {
         let path = file.unwrap().into_path();
         if path.is_file() {
-            let path_str = format!(
+            let mut path_str = format!(
                 "{}",
                 diff_paths(&path, &app().unwrap().root.join(dir))
                     .unwrap()
                     .display()
             );
+            // in case we're running on Windows normalize to linux style path separator character
+            path_str = path_str.replace("\\", "/").replace("//", "/");
+
             if path_str.contains(name) {
                 files.push(path);
             // Try again without the leading dir in case the user has supplied a path
             } else {
                 let re = Regex::new(format!(r#".*{}(\\|/)"#, dir).as_str()).unwrap();
-                let new_name: String = re.replace_all(&name, "").into();
+                let mut new_name: String = re.replace_all(&name, "").into();
+
+                // in case we're running on Windows normalize to linux style path separator character
+                new_name = new_name.replace("\\", "/").replace("//", "/");
+
                 if path_str.contains(&new_name) {
                     files.push(path);
                 }
