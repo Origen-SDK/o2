@@ -11,6 +11,9 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+// Trait for extending std::path::PathBuf
+use path_slash::PathBufExt;
+
 lazy_static! {
     static ref FILES: Mutex<Files> = Mutex::new(Files::new());
 }
@@ -88,6 +91,13 @@ impl Files {
 
     /// Load a new set of file arguments
     fn init(&mut self, mut files: Vec<String>) -> Result<()> {
+        // Convert any / paths to \
+        if cfg!(target_os = "windows") {
+            files = files
+                .iter()
+                .map(|f| format!("{}", PathBuf::from_slash(f).display()))
+                .collect();
+        }
         self.items.clear();
         self.items.append(&mut files);
         self.files.clear();

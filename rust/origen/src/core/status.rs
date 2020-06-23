@@ -8,6 +8,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::RwLock;
 
+// Trait for extending std::path::PathBuf
+use path_slash::PathBufExt;
+
 /// Exposes some status information about the runtime environment, e.g. whether an
 /// application workspace is present
 //
@@ -89,13 +92,13 @@ impl Status {
     /// Set the base output dir to the given path, it is <APP ROOT>/output by default
     pub fn set_output_dir(&self, path: &Path) {
         let mut dir = self.output_dir.write().unwrap();
-        *dir = Some(path.to_path_buf());
+        *dir = Some(clean_path(path));
     }
 
     /// Set the base reference dir to the given path, it is <APP ROOT>/.ref by default
     pub fn set_reference_dir(&self, path: &Path) {
         let mut dir = self.reference_dir.write().unwrap();
-        *dir = Some(path.to_path_buf());
+        *dir = Some(clean_path(path));
     }
 
     /// This is the main method to get the current output directory, accounting for all
@@ -231,4 +234,20 @@ fn get_home_dir() -> PathBuf {
             "Please set environment variable HOME to point to your home directory, then try again",
         ))
     }
+}
+
+// Convert any paths with / to \ on Windows
+fn clean_path(path: &Path) -> PathBuf {
+    let clean_path;
+    if cfg!(target_os = "windows") {
+        if let Some(p) = path.to_str() {
+            let win_path = PathBuf::from_slash(p);
+            clean_path = win_path;
+        } else {
+            clean_path = path.to_path_buf();
+        }
+    } else {
+        clean_path = path.to_path_buf();
+    }
+    clean_path
 }

@@ -52,6 +52,8 @@ def set_mode(val):
         mode = _origen.clean_mode(val)
 
 def load_file(path, globals={}, locals={}):
+    # Will convert any paths with / to \ on Windows
+    path = Path(path)
     log.trace(f"Loading file '{path}'")
     context = {**standard_context(), **locals}
     with open(path) as f:

@@ -342,18 +342,9 @@ impl Tester {
                                                     }
                                                     self.stats.changed_pattern_files += 1;
                                                     display_redln!("Diffs found");
-                                                    let old = match to_relative_path(&ref_pat, None) {
-                                                        Err(_) => ref_pat,
-                                                        Ok(p) => p,
-                                                    };
-                                                    let new = match to_relative_path(&path, None) {
-                                                        Err(_) => path.to_owned(),
-                                                        Ok(p) => p,
-                                                    };
-                                                    let diff_tool = match env::var("ORIGEN_DIFF_TOOL") {
-                                                        Err(_) => "tkdiff".to_string(),
-                                                        Ok(v) => v,
-                                                    };
+                                                    let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
+                                                    let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
+                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
                                                     displayln!("  {} {} {}", &diff_tool, old.display(), new.display());
                                                     display!("  origen save_ref {}", stem.display());
                                                 } else {
