@@ -10,6 +10,7 @@ use crate::TEST;
 use crate::{add_children, node, text, text_line, with_current_job};
 use crate::{Error, Result};
 use indexmap::IndexMap;
+use std::env;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -341,6 +342,19 @@ impl Tester {
                                                     }
                                                     self.stats.changed_pattern_files += 1;
                                                     display_redln!("Diffs found");
+                                                    let old = match to_relative_path(&ref_pat, None) {
+                                                        Err(_) => ref_pat,
+                                                        Ok(p) => p,
+                                                    };
+                                                    let new = match to_relative_path(&path, None) {
+                                                        Err(_) => path.to_owned(),
+                                                        Ok(p) => p,
+                                                    };
+                                                    let diff_tool = match env::var("ORIGEN_DIFF_TOOL") {
+                                                        Err(_) => "tkdiff".to_string(),
+                                                        Ok(v) => v,
+                                                    };
+                                                    displayln!("  {} {} {}", &diff_tool, old.display(), new.display());
                                                     display!("  origen save_ref {}", stem.display());
                                                 } else {
                                                     display_green!("No diffs");
