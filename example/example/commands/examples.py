@@ -1,11 +1,11 @@
 import origen
 import _origen
-from origen.boot import __origen__ as launch
+from origen.boot import run_cmd
 import os
 
 def run(**kwargs):
     os.chdir(origen.root)
-    launch("generate", files=["example/patterns"], reference_dir="approved")
+    run_cmd("generate", files=["example/patterns"], reference_dir="approved")
 
     stats = origen.tester.stats()
     changes = stats['changed_pattern_files'] > 0 or stats['changed_program_files'] > 0

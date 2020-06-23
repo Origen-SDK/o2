@@ -638,7 +638,7 @@ CORE COMMANDS:
         None => {
             if STATUS.is_app_present {
                 // Run a short command line operation to get the Origen version back from the Python domain
-                let cmd = "from origen.boot import __origen__; __origen__('_version_');";
+                let cmd = "from origen.boot import run_cmd; run_cmd('_version_');";
                 let mut origen_version = "".to_string();
 
                 let res = python::run_with_callbacks(

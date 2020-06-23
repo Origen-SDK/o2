@@ -20,10 +20,7 @@ pub fn launch(
     output_dir: Option<&str>,
     reference_dir: Option<&str>,
 ) {
-    let mut cmd = format!(
-        "from origen.boot import __origen__; __origen__('{}'",
-        command
-    );
+    let mut cmd = format!("from origen.boot import run_cmd; run_cmd('{}'", command);
 
     if let Some(t) = targets {
         // added r prefix to the string to force python to interpret as a string literal

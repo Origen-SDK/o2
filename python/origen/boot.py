@@ -5,6 +5,8 @@ import sys
 import pathlib
 import importlib
 
+_generate_prepared = False
+
 if sys.platform == "win32":
     # The below is needed only for pyreadline, which is needed only for Windows support.
     # This setup was taken from the pyreadline documentation:
@@ -88,9 +90,14 @@ if sys.platform == "win32":
 
     __all__.append("rl")
 
-# Called by the Origen CLI to boot the Origen Python env, not for application use
-# Any target/env overrides given to the command line will be passed in here
-def __origen__(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None, **kwargs):
+# Run an Origen command. This is the main entry method for the CLI, but it can also
+# be used in application commands to invoke Origen commands within the same thread instead of
+# making system calls.
+# See the o2 examples command for an example of usage -
+#   https://github.com/Origen-SDK/o2/blob/master/example/example/commands/examples.py
+def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None, **kwargs):
+    global _generate_prepared
+
     import origen
     import _origen
 
@@ -120,9 +127,19 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None, out
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
     if command == "generate":
+        # Just do this once, consider a case like the examples command where this is being called
+        # multiple times in the same thread of execution
+        if not _generate_prepared:
+            origen.tester._prepare_for_generate()
+            _generate_prepared = True
         for (i, f) in enumerate(_origen.file_handler()):
             origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
-            origen.generate(f)
+            # Starts a new JOB in Origen which provides some long term storage and tracking
+            # of files that are referenced on the Rust side 
+            # The JOB API can be accessed via origen.producer.current_job
+            origen.producer.create_job("generate", f)
+            context = origen.producer.api()
+            origen.load_file(f, locals=context)
         # Print a summary here...
         stats = origen.tester.stats()
         changes = stats['changed_pattern_files'] > 0 or stats['changed_program_files'] > 0

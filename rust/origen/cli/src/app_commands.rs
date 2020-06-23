@@ -140,7 +140,7 @@ impl AppCommands {
             commands.push(name.to_string());
         }
 
-        let mut cmd = "from origen.boot import __origen__; __origen__('_dispatch_', ".to_string();
+        let mut cmd = "from origen.boot import run_cmd; run_cmd('_dispatch_', ".to_string();
 
         cmd += &format!(
             "commands=[{}]",
