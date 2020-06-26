@@ -1,5 +1,5 @@
 use super::{Credentials, RevisionControlAPI, Status};
-use crate::utility::command_helpers::log_stdout_and_stderr;
+use crate::utility::command_helpers::{exec_and_capture, log_stdout_and_stderr};
 use crate::utility::file_utils::with_dir;
 use crate::{Error, Result};
 use chrono::offset::Utc;
@@ -21,6 +21,11 @@ impl Designsync {
             local: local.to_path_buf(),
             remote: remote.to_string(),
         }
+    }
+
+    pub fn from_dir(dir: &Path) -> Result<Designsync> {
+        let vault = get_vault(dir)?;
+        Ok(Designsync::new(dir, &vault, None))
     }
 }
 
@@ -52,11 +57,22 @@ impl RevisionControlAPI for Designsync {
         Ok(())
     }
 
-    fn status(&self, _path: Option<&Path>) -> Result<Status> {
+    fn status(&self, path: Option<&Path>) -> Result<Status> {
         with_dir(&self.local, || {
             let mut status = Status::default();
+            let mut target = match path {
+                None => std::env::current_dir().expect("Couldn't resolve the PWD"),
+                Some(p) => p.to_path_buf(),
+            };
+            let mut target_file = None;
+            let mut rec = "-rec";
+            if target.is_file() {
+                target_file = Some(target.clone());
+                target = target.parent().unwrap().to_path_buf();
+                rec = "";
+            }
             let mut process = Command::new("dssc")
-                .args(&["compare", "-rec", "-path", "-report", "silent", "."])
+                .args(&["compare", rec, "-path", "-report", "silent", &format!("{}", target.display())])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
@@ -84,11 +100,20 @@ impl RevisionControlAPI for Designsync {
                 Some(&mut |line: &str| {
                     log_debug!("{}", line);
                     if let Some(captures) = NEW_FILE_REGEX.captures(&line) {
-                        status.added.push(self.local.join(&captures[1]));
+                        let f = self.local.join(&captures[1]);
+                        if target_file.is_none() || target_file.as_ref().unwrap() == &f {
+                            status.added.push(f);
+                        }
                     } else if let Some(captures) = DELETED_FILE_REGEX.captures(&line) {
-                        status.removed.push(self.local.join(&captures[1]));
+                        let f = self.local.join(&captures[1]);
+                        if target_file.is_none() || target_file.as_ref().unwrap() == &f {
+                            status.removed.push(f);
+                        }
                     } else if let Some(captures) = MODIFIED_FILE_REGEX.captures(&line) {
-                        status.changed.push(self.local.join(&captures[1]));
+                        let f = self.local.join(&captures[1]);
+                        if target_file.is_none() || target_file.as_ref().unwrap() == &f {
+                            status.changed.push(f);
+                        }
                     }
                 }),
                 None,
@@ -107,6 +132,25 @@ impl RevisionControlAPI for Designsync {
 
     fn tag(&self, tagname: &str, force: bool, _message: Option<&str>) -> Result<()> {
         self._tag(tagname, force, _message, true)
+    }
+}
+
+fn get_vault(path: &Path) -> Result<String> {
+    let output = exec_and_capture("dssc", Some(vec!["url", "vault", &format!("{}", path.display())]));
+    if let Ok((status, mut lines, stderr)) = output {
+        if status.success() {
+            Ok(lines.pop().unwrap())
+        } else {
+            for line in lines {
+                log_debug!("{}", &line);
+            }
+            for line in stderr {
+                log_debug!("{}", &line);
+            }
+            error!("Failed to run 'dssc url vault {}', see log for details", path.display())
+        }
+    } else {
+        error!("Failed to run 'dssc url vault {}', see log for details", path.display())
     }
 }
 

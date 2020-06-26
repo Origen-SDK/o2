@@ -120,39 +120,52 @@ impl RevisionControlAPI for Git {
     /// mainly that there is no differentiation between changes that are staged vs unstaged.
     /// It also doesn't bother to track renamed files, simply reporting them as a deleted file
     /// and an added file.
-    fn status(&self, _path: Option<&Path>) -> OrigenResult<Status> {
+    fn status(&self, path: Option<&Path>) -> OrigenResult<Status> {
         let mut status = Status::default();
         log_trace!("Checking status of '{}'", &self.local.display());
         let repo = Repository::open(&self.local)?;
         let stat = repo.statuses(None)?;
+
         for entry in stat.iter() {
             //dbg!(entry.status());
 
             if entry.status().contains(git2::Status::WT_NEW) {
                 let old = entry.index_to_workdir().unwrap().old_file().path();
                 let new = entry.index_to_workdir().unwrap().new_file().path();
-                status.added.push(self.local.join(old.or(new).unwrap()));
+                let f = self.local.join(old.or(new).unwrap());
+                if is_included_in_path(path, &f) {
+                    status.added.push(f);
+                }
                 continue;
             }
 
             if entry.status().contains(git2::Status::INDEX_NEW) {
                 let old = entry.head_to_index().unwrap().old_file().path();
                 let new = entry.head_to_index().unwrap().new_file().path();
-                status.added.push(self.local.join(old.or(new).unwrap()));
+                let f = self.local.join(old.or(new).unwrap());
+                if is_included_in_path(path, &f) {
+                    status.added.push(f);
+                }
                 continue;
             }
 
             if entry.status().contains(git2::Status::WT_DELETED) {
                 let old = entry.index_to_workdir().unwrap().old_file().path();
                 let new = entry.index_to_workdir().unwrap().new_file().path();
-                status.removed.push(self.local.join(old.or(new).unwrap()));
+                let f = self.local.join(old.or(new).unwrap());
+                if is_included_in_path(path, &f) {
+                    status.removed.push(f);
+                }
                 continue;
             }
 
             if entry.status().contains(git2::Status::INDEX_DELETED) {
                 let old = entry.head_to_index().unwrap().old_file().path();
                 let new = entry.head_to_index().unwrap().new_file().path();
-                status.removed.push(self.local.join(old.or(new).unwrap()));
+                let f = self.local.join(old.or(new).unwrap());
+                if is_included_in_path(path, &f) {
+                    status.removed.push(f);
+                }
                 continue;
             }
 
@@ -161,7 +174,10 @@ impl RevisionControlAPI for Git {
             {
                 let old = entry.index_to_workdir().unwrap().old_file().path();
                 let new = entry.index_to_workdir().unwrap().new_file().path();
-                status.changed.push(self.local.join(old.or(new).unwrap()));
+                let f = self.local.join(old.or(new).unwrap());
+                if is_included_in_path(path, &f) {
+                    status.changed.push(f);
+                }
                 continue;
             }
 
@@ -170,15 +186,19 @@ impl RevisionControlAPI for Git {
             {
                 let old = entry.head_to_index().unwrap().old_file().path();
                 let new = entry.head_to_index().unwrap().new_file().path();
-                status.changed.push(self.local.join(old.or(new).unwrap()));
+                let f = self.local.join(old.or(new).unwrap());
+                if is_included_in_path(path, &f) {
+                    status.changed.push(f);
+                }
                 continue;
             }
             if entry.status().contains(git2::Status::CONFLICTED) {
                 let old = entry.head_to_index().unwrap().old_file().path();
                 let new = entry.head_to_index().unwrap().new_file().path();
-                status
-                    .conflicted
-                    .push(self.local.join(old.or(new).unwrap()));
+                let f = self.local.join(old.or(new).unwrap());
+                if is_included_in_path(path, &f) {
+                    status.conflicted.push(f);
+                }
                 continue;
             }
         }
@@ -213,6 +233,10 @@ impl Git {
             deltas_pct: RefCell::new(0),
             ssh_attempts: RefCell::new(0),
         }
+    }
+
+    pub fn from_dir(dir: &Path) -> OrigenResult<Git> {
+        Ok(Git::new(dir, vec![], None))
     }
 
     fn _populate(&self, version: &str, remote: &str) -> OrigenResult<()> {
@@ -651,4 +675,18 @@ fn ssh_keys() -> Vec<PathBuf> {
         log_warning!("Could not find the $HOME/.ssh directory to obtain ssh keys");
     }
     keys
+}
+
+/// Returns true if no path option is given or if the target is equal to or a
+/// child of the given path
+fn is_included_in_path(path: Option<&Path>, target: &Path) -> bool {
+    if let Some(p) = path {
+        if p.is_file() {
+            p == target
+        } else {
+            target.starts_with(p)
+        }
+    } else {
+        true
+    }
 }

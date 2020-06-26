@@ -40,7 +40,7 @@ impl RevisionControl {
     /// supported revision control tool and will work out which one to target from the remote argument.
     /// If you want to use some of the tool-specific APIs, then you should instantiate the relevant driver
     /// directly.
-    /// Mutliple remotes can be accepted, for example for Git the ssh and https urls can be given, then it is up
+    /// Multiple remotes can be accepted, for example for Git the ssh and https urls can be given, then it is up
     /// to the driver to select the first one that works for the current user at runtime.
     pub fn new(
         local: &Path,
@@ -54,6 +54,27 @@ impl RevisionControl {
         } else {
             RevisionControl {
                 driver: Box::new(RevisionControl::designsync(local, remotes, credentials)),
+            }
+        }
+    }
+
+    /// Returns a revision control object for the given dir if one can be found
+    pub fn from_dir(dir: &Path) -> Option<RevisionControl> {
+        let mut base = dir.to_path_buf();
+        loop {
+            if base.join(".SYNC").exists() {
+                match Designsync::from_dir(&base) {
+                    Ok(ds) => return Some(RevisionControl { driver: Box::new(ds) }),
+                    Err(e) => log_error!("{}", e),
+                }
+            } else if base.join(".git").exists() {
+                match Git::from_dir(&base) {
+                    Ok(git) => return Some(RevisionControl { driver: Box::new(git) }),
+                    Err(e) => log_error!("{}", e),
+                }
+            }
+            if !base.pop() {
+                return None;
             }
         }
     }

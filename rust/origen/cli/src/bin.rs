@@ -202,30 +202,6 @@ fn main() {
     }
 
     /************************************************************************************/
-    /******************** Global and app commands ***************************************/
-    /************************************************************************************/
-
-    /************************************************************************************/
-    /******************** Origen dev commands *******************************************/
-    /************************************************************************************/
-    if STATUS.is_origen_present || STATUS.is_app_present {
-        let fmt_help = match STATUS.is_origen_present {
-            true => "Nicely format all Rust and Python files",
-            false => "Nicely format all of your application's Python files",
-        };
-
-        origen_commands.push(CommandHelp {
-            name: "fmt".to_string(),
-            help: fmt_help.to_string(),
-            shortcut: None,
-        });
-
-        app = app
-            //************************************************************************************/
-            .subcommand(SubCommand::with_name("fmt").about(fmt_help));
-    }
-
-    /************************************************************************************/
     /******************** In application commands ***************************************/
     /************************************************************************************/
     if STATUS.is_app_present {
@@ -491,6 +467,52 @@ fn main() {
         );
     }
 
+    /************************************************************************************/
+    /******************** Global and app commands ***************************************/
+    /************************************************************************************/
+    let rc_help = "Revision control tool commands";
+    origen_commands.push(CommandHelp {
+        name: "rc".to_string(),
+        help: rc_help.to_string(),
+        shortcut: None,
+    });
+    app = app.subcommand(
+        SubCommand::with_name("rc")
+            .about(rc_help)
+            .setting(AppSettings::ArgRequiredElseHelp)
+            .subcommand(SubCommand::with_name("status")
+                .display_order(15)
+                .about("Show the status (new files, modifications, etc) of the PWD or a given path")
+                .arg(Arg::with_name("path")
+                    .value_name("PATH")
+                    .required(false)
+                    .takes_value(true)
+                    .help("The directory/file to show the status of, the PWD is used if not given")
+                )
+            )
+    );
+
+    /************************************************************************************/
+    /******************** Origen dev commands *******************************************/
+    /************************************************************************************/
+    if STATUS.is_origen_present || STATUS.is_app_present {
+        let fmt_help = match STATUS.is_origen_present {
+            true => "Nicely format all Rust and Python files",
+            false => "Nicely format all of your application's Python files",
+        };
+
+        origen_commands.push(CommandHelp {
+            name: "fmt".to_string(),
+            help: fmt_help.to_string(),
+            shortcut: None,
+        });
+
+        app = app
+            //************************************************************************************/
+            .subcommand(SubCommand::with_name("fmt").about(fmt_help));
+    }
+
+
     // This is used to justify the command names in the help
     let mut name_width = origen_commands
         .iter()
@@ -632,6 +654,10 @@ CORE COMMANDS:
         Some("save_ref") => {
             let matches = matches.subcommand_matches("save_ref").unwrap();
             commands::save_ref::run(matches);
+        }
+        Some("rc") => {
+            let matches = matches.subcommand_matches("rc").unwrap();
+            commands::rc::run(matches);
         }
         // To get here means the user has typed "origen -v", which officially means
         // verbosity level 1 with no command, but this is what they really mean

@@ -6,6 +6,7 @@ pub mod save_ref;
 pub mod setup;
 pub mod target;
 pub mod update;
+pub mod rc;
 
 use crate::python;
 use origen::{clean_mode, LOGGER};
