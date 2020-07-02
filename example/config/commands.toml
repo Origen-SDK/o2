@@ -1,0 +1,48 @@
+[[command]]
+    name = "examples"
+    help = "Run diff-based regression tests of the pattern and program generator"
+
+[[command]]
+    name = "playground"
+    alias = "y"
+    help = "This is used to test Origen's app command definition and dispatch"
+
+    [[command.arg]]
+        name = "arg1"
+        short = "a"
+        help = "A simple boolean flag argument"
+
+    [[command.arg]]
+        name = "arg2"
+        help = "A required argument accepting multiple values"
+        switch = false
+        takes_value = true
+        multiple = true
+        required = true
+        value_name = "MYARG"
+
+    [[command.arg]]
+        name = "arg3"
+        help = "An optional argument accepting multiple values"
+        takes_value = true
+        multiple = true
+        use_delimiter = true
+
+    [[command.arg]]
+        name = "arg4"
+        help = "A hidden argument accepting a single value"
+        takes_value = true
+        hidden = true
+
+    [[command.subcommand]]
+        name = "start"
+        help = "Start to play"
+
+        [[command.subcommand.arg]]
+            name = "arg1"
+            short = "a"
+            help = "A simple boolean flag argument"
+
+    [[command.subcommand]]
+        name = "stop"
+        help = "Stop playing"

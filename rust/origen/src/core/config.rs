@@ -47,8 +47,8 @@ impl Default for Config {
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();
 
-        if STATUS.is_app_present {
-            let mut path = STATUS.root.join("config");
+        if let Some(app) = &STATUS.app {
+            let mut path = app.root.join("config");
             let f = path.join("origen.toml");
             if f.exists() {
                 files.push(f);

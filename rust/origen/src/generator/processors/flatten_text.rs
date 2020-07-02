@@ -2,7 +2,7 @@ use chrono::prelude::*;
 
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::{app_config, producer, STATUS, USER};
+use crate::{app, STATUS, USER};
 
 /// Flattens nested text, textlines, text sections, etc. into 'text' types.
 /// Also evaluates text placeholder or shorthand nodes, such User, Timestamp, etc.
@@ -114,8 +114,8 @@ impl Processor for FlattenText {
                 self.current_line += &Local::now().to_string();
                 Ok(Return::None)
             }
-            Attrs::CurrentCommand => {
-                self.current_line += &producer().jobs.last().unwrap().command;
+            Attrs::OrigenCommand(val) => {
+                self.current_line += val;
                 Ok(Return::None)
             }
             Attrs::OS => {
@@ -123,24 +123,30 @@ impl Processor for FlattenText {
                 Ok(Return::None)
             }
             Attrs::Mode => {
-                self.current_line += &app_config().mode;
+                app().unwrap().with_config(|config| {
+                    self.current_line += &config.mode;
+                    Ok(())
+                })?;
                 Ok(Return::None)
             }
             Attrs::TargetsStacked => {
                 let mut nodes: Vec<Node> = vec![];
                 self.section_depth += 1;
-                if let Some(targets) = &app_config().target {
-                    for t in targets {
-                        nodes.push(self.to_text(&t));
+                let _ = app().unwrap().with_config(|config| {
+                    if let Some(targets) = &config.target {
+                        for t in targets {
+                            nodes.push(self.to_text(&t));
+                        }
+                    } else {
+                        nodes.push(self.to_text("No targets have been set!"));
                     }
-                } else {
-                    nodes.push(self.to_text("No targets have been set!"));
-                }
+                    Ok(())
+                });
                 self.section_depth -= 1;
                 Ok(Return::Inline(nodes))
             }
             Attrs::AppRoot => {
-                self.current_line += &STATUS.root.display().to_string();
+                self.current_line += &app().unwrap().root.display().to_string();
                 Ok(Return::None)
             }
             Attrs::OrigenVersion => {

@@ -6,7 +6,6 @@ use super::super::dut::Dut;
 use crate::error::Error;
 use std::convert::TryFrom;
 
-extern crate regex;
 use regex::Regex;
 
 use super::Model;

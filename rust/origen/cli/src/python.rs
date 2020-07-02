@@ -1,9 +1,9 @@
 // Responsible for managing Python execution
 
-use origen::STATUS;
+use origen::{Result, STATUS};
 use semver::Version;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, ExitStatus, Stdio};
 
 const PYTHONS: &[&str] = &[
     "python",
@@ -103,13 +103,48 @@ fn extract_version(text: &str) -> Option<Version> {
 }
 
 /// Execute the given Python code
-pub fn run(code: &str) {
-    let _status = Command::new(&PYTHON_CONFIG.poetry_command)
+pub fn run(code: &str) -> Result<ExitStatus> {
+    Ok(Command::new(&PYTHON_CONFIG.poetry_command)
         .arg("run")
         .arg(&PYTHON_CONFIG.command)
         .arg("-c")
         .arg(&code)
-        .status();
+        .arg("-")
+        .arg(&format!("verbosity={}", origen::LOGGER.verbosity()))
+        .status()?)
+}
+
+/// Run silently with all STDOUT and STDERR handled by the given callback functions
+pub fn run_with_callbacks(
+    code: &str,
+    stdout_callback: Option<&mut dyn FnMut(&str)>,
+    stderr_callback: Option<&mut dyn FnMut(&str)>,
+) -> Result<()> {
+    use origen::utility::command_helpers::log_stdout_and_stderr;
+
+    let mut process = Command::new(&PYTHON_CONFIG.poetry_command)
+        .arg("run")
+        .arg(&PYTHON_CONFIG.command)
+        .arg("-c")
+        .arg(&code)
+        .arg("-")
+        // Force logger to be silent, use case for this is parsing output data so keep
+        // noise to a minimum
+        .arg("verbosity=0")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
+    log_stdout_and_stderr(&mut process, stdout_callback, stderr_callback);
+
+    if process.wait()?.success() {
+        Ok(())
+    } else {
+        error!(
+            "Something went wrong running the operation '{}', the log may have more details",
+            code
+        )
+    }
 }
 
 #[cfg(test)]

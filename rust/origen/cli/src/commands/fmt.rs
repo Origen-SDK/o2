@@ -29,7 +29,7 @@ pub fn run() {
         }
         false => {
             starting("formatting ... ");
-            STATUS.root.clone()
+            origen::app().unwrap().root.clone()
         }
     };
 

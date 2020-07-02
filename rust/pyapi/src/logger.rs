@@ -11,6 +11,8 @@ fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(info))?;
     m.add_wrapped(wrap_pyfunction!(success))?;
     m.add_wrapped(wrap_pyfunction!(warning))?;
+    m.add_wrapped(wrap_pyfunction!(trace))?;
+    m.add_wrapped(wrap_pyfunction!(display))?;
     m.add_wrapped(wrap_pyfunction!(output_file))?;
     m.add_wrapped(wrap_pyfunction!(set_verbosity))?;
     Ok(())
@@ -62,6 +64,18 @@ fn success(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResul
 #[pyfunction(messages = "*", _kwargs = "**")]
 fn warning(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.warning_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages = "*", _kwargs = "**")]
+fn display(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.display_block(&pytuple_to_vector_str!(messages));
+    Ok(())
+}
+
+#[pyfunction(messages = "*", _kwargs = "**")]
+fn trace(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.trace_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 

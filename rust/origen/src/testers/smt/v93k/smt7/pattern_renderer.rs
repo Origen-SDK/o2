@@ -1,26 +1,51 @@
-use crate::core::application::output_directory;
+use super::SMT7;
 use crate::core::dut::Dut;
 use crate::core::file_handler::File;
 use crate::core::model::pins::pin::PinActions;
 use crate::core::model::pins::StateTracker;
-use crate::core::tester::{Interceptor, TesterAPI};
+use crate::core::tester::TesterAPI;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
-use crate::DUT;
+use crate::STATUS;
+use crate::{Result, DUT};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
 
 #[derive(Debug, Clone)]
-pub struct Renderer {
+pub struct Renderer<'a> {
+    tester: &'a SMT7,
     current_timeset_id: Option<usize>,
+    path: Option<PathBuf>,
     output_file: Option<File>,
     states: Option<StateTracker>,
     pin_header_printed: bool,
     pin_header_id: Option<usize>,
 }
 
-impl Renderer {
+impl<'a> Renderer<'a> {
+    pub fn run(tester: &'a SMT7, ast: &Node) -> Result<Vec<PathBuf>> {
+        let mut n = PinActionCombiner::run(ast)?;
+        n = CycleCombiner::run(&n)?;
+        n = FlattenText::run(&n)?;
+        let mut p = Self::new(tester);
+        n.process(&mut p)?;
+        Ok(vec![p.path.unwrap()])
+    }
+
+    fn new(tester: &'a SMT7) -> Self {
+        Self {
+            tester: tester,
+            current_timeset_id: None,
+            path: None,
+            output_file: None,
+            states: None,
+            pin_header_printed: false,
+            pin_header_id: None,
+        }
+    }
+
     fn states(&mut self, dut: &Dut) -> &mut StateTracker {
         if self.states.is_none() {
             let model_id;
@@ -38,7 +63,7 @@ impl Renderer {
         &mut self,
         pin_changes: &HashMap<String, (PinActions, u8)>,
         dut: &Dut,
-    ) -> crate::Result<Return> {
+    ) -> Result<Return> {
         let s = self.states(dut);
         for (name, changes) in pin_changes.iter() {
             s.update(name, Some(changes.0), Some(changes.1), dut)?;
@@ -47,49 +72,19 @@ impl Renderer {
     }
 }
 
-impl Default for Renderer {
-    fn default() -> Self {
-        Self {
-            current_timeset_id: None,
-            output_file: None,
-            states: None,
-            pin_header_printed: false,
-            pin_header_id: None,
-        }
-    }
-}
-
-impl Interceptor for Renderer {}
-impl TesterAPI for Renderer {
-    fn name(&self) -> String {
-        "V93K_ST7".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
-    fn run(&mut self, node: &Node) -> crate::Result<Node> {
-        Ok(node.process(self)?.unwrap())
-    }
-
-    fn preprocess(&mut self, node: &Node) -> crate::Result<Node> {
-        let mut n = PinActionCombiner::run(node)?;
-        n = CycleCombiner::run(&n)?;
-        n = FlattenText::run(&n)?;
-        Ok(n)
-    }
-}
-
-impl Processor for Renderer {
-    fn on_node(&mut self, node: &Node) -> crate::Result<Return> {
+impl<'a> Processor for Renderer<'a> {
+    fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
             Attrs::Test(name) => {
-                let mut p = output_directory();
-                p.push(self.name());
-                p.push(name);
-                p.set_extension("avc");
-                self.output_file = Some(File::create(p));
+                let _ = STATUS.with_output_dir(false, |dir| {
+                    let mut p = dir.to_path_buf();
+                    p.push(self.tester.name());
+                    p.push(name);
+                    p.set_extension("avc");
+                    self.path = Some(p.clone());
+                    self.output_file = Some(File::create(p));
+                    Ok(())
+                });
                 Ok(Return::ProcessChildren)
             }
             Attrs::Comment(_level, msg) => {

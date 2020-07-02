@@ -34,11 +34,6 @@ impl TestManager {
         ast.push(node);
     }
 
-    ///// Returns a copy of the last node in the AST by default, or optionally a
-    //pub fn fetch(&self, offset: Option<usize>) -> Node {
-
-    //}
-
     /// Push a new node into the AST and leave it open, meaning that all new nodes
     /// added to the AST will be inserted as children of this node until it is closed.
     /// A reference ID is returned and the caller should save this and provide it again
@@ -88,6 +83,16 @@ impl TestManager {
     pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Node) -> Node {
         let ast = self.ast.read().unwrap();
         ast.process(process_fn)
+    }
+
+    /// Execute the given function which receives the a reference to the AST (as a Node) as
+    /// an input, returning the result of the function
+    pub fn with_ast<T, F>(&self, mut process_fn: F) -> Result<T>
+    where
+        F: FnMut(&Node) -> Result<T>,
+    {
+        let ast = self.ast.read().unwrap();
+        ast.with_node(&mut process_fn)
     }
 
     pub fn to_node(&self) -> Node {

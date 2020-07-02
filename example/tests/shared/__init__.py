@@ -3,13 +3,13 @@ import origen, _origen # pylint: disable=import-error
 
 @pytest.fixture
 def clean_eagle():
-  origen.app.instantiate_dut("dut.eagle")
+  instantiate_dut("dut.eagle")
   assert origen.dut
   return origen.dut
 
 @pytest.fixture
 def clean_falcon():
-  origen.app.instantiate_dut("dut.falcon")
+  instantiate_dut("dut.falcon")
   assert origen.dut
   return origen.dut
 
@@ -17,9 +17,9 @@ def clean_falcon():
 def clean_tester():
   assert origen.tester
   origen.tester.reset()
+  _origen.start_new_test()
   assert len(origen.test_ast()["children"]) == 0
   assert origen.tester.targets == []
-  assert origen.tester.testers == ["::DummyRenderer", "::DummyRendererWithInterceptors", "::V93K::ST7", "::Simulator"]
   assert origen.tester.timeset is None
 
 def check_last_node_type(t):
@@ -27,3 +27,6 @@ def check_last_node_type(t):
 
 def get_last_node():
   return origen.test_ast()["children"][-1]
+
+def instantiate_dut(name):
+    origen.target.load(lambda: origen.app.instantiate_dut(name))

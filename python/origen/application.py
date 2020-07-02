@@ -3,14 +3,13 @@ import _origen
 import importlib
 import os.path
 import re
-import pdb
 from origen.controller import TopLevel
 from origen.translator import Translator
 from origen.compiler import Compiler
 from origen.errors import *
 
 # The base class of all application classes
-class Base:
+class Base(_origen.application.PyApplication):
     # Returns the unique ID (name) of the app/plugin
     name =  _origen.app_config()["name"]
     output_dir = _origen.output_directory()
@@ -35,15 +34,15 @@ class Base:
     # Instantiate the given DUT and return it, this must be called first before any
     # sub-blocks can be instantiated
     def instantiate_dut(self, path):
-        #pdb.set_trace()
+        if origen.dut is not None:
+            raise RuntimeError("Only one DUT target can be loaded, your current target selection instantiates multiple DUTs")
+        if origen._target_loading is not True:
+            raise RuntimeError("A DUT can only be instantiated within a target load sequence")
         self.__instantiate_dut_called = True
         dut = self.instantiate_block(path)
         if not isinstance(dut, TopLevel):
             raise RuntimeError("The DUT object is not an instance of origen.application::TopLevel")
         origen.dut = dut
-        if origen.tester:
-            # Clear the tester as it may hold references to a previous DUT's backend which was just wiped out.
-            origen.tester.clear_dut_dependencies()
         return dut
 
     # Instantiate the given block and return it

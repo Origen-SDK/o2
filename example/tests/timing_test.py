@@ -1,16 +1,17 @@
 import pytest, abc
 import origen, _origen # pylint: disable=import-error
 from shared.python_like_apis import Fixture_DictLikeAPI, Fixture_ListLikeAPI
+from shared import *
 
 @pytest.fixture
 def clean_eagle():
-  origen.app.instantiate_dut("dut.eagle")
+  instantiate_dut("dut.eagle")
   assert origen.dut
   return origen.dut
 
 @pytest.fixture
 def clean_falcon():
-  origen.app.instantiate_dut("dut.falcon")
+  instantiate_dut("dut.falcon")
   assert origen.dut
   return origen.dut
 
@@ -132,7 +133,7 @@ class TestTimesetsDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     dut = origen.dut
     dut.add_timeset("t0")
     dut.add_timeset("t1")
@@ -148,7 +149,7 @@ class TestWaveTablesDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     t = origen.dut.add_timeset("t")
     t.add_wavetable("wtbl1")
     t.add_wavetable("wtbl2")
@@ -163,7 +164,7 @@ class TestWaveGroupDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     wt = origen.dut.add_timeset("t").add_wavetable("wt")
     wt.add_wave("w1")
     wt.add_wave("w2")
@@ -179,7 +180,7 @@ class TestWavesDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     wgrp = origen.dut.add_timeset("t").add_wavetable("wt").add_waves("wgrp")
     wgrp.add_wave("1")
     wgrp.add_wave("0")
@@ -202,7 +203,7 @@ class TestEventsListLike(Fixture_ListLikeAPI):
     assert i.__at__ == "period*0.75"
 
   def boot_list_under_test(self):
-    origen.app.instantiate_dut("dut.eagle")
+    instantiate_dut("dut.eagle")
     w = origen.dut.add_timeset("t").add_wavetable("wt").add_waves("w1").add_wave("1")
 
     w.push_event(at="period*0.25", unit="ns", action=w.DriveHigh)
@@ -229,7 +230,7 @@ class TestEventsListLike(Fixture_ListLikeAPI):
 #     }
 
   # def boot_dict_under_test(self):
-  #   origen.app.instantiate_dut("dut.eagle")
+  #   instantiate_dut("dut.eagle")
   #   w = origen.dut.add_timeset("t").add_wavetable("wt").add_wave("w")
   #   w.add_event("drive 1", "0")
   #   w.add_event("drive 0", "period*0.25")

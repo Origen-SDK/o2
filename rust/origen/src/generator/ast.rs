@@ -31,7 +31,7 @@ macro_rules! add_children {
 #[macro_export]
 macro_rules! text_line {
     ( $( $elem:expr ),* ) => {{
-        let mut n = crate::generator::ast::Node::new(crate::generator::ast::Attrs::TextLine);
+        let mut n = node!(TextLine);
         $( n.add_child($elem); )*
         n
     }};
@@ -205,6 +205,20 @@ impl AST {
     }
 
     pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Node) -> Node {
+        if self.nodes.len() > 1 {
+            let node = self.to_node();
+            process_fn(&node)
+        } else {
+            process_fn(&self.nodes[0])
+        }
+    }
+
+    /// Execute the given function which receives the a reference to the AST (as a Node) as
+    /// its input, returning the result of the function
+    pub fn with_node<T, F>(&self, mut process_fn: F) -> Result<T>
+    where
+        F: FnMut(&Node) -> Result<T>,
+    {
         if self.nodes.len() > 1 {
             let node = self.to_node();
             process_fn(&node)

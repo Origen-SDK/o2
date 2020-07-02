@@ -138,6 +138,22 @@ macro_rules! display_yellowln {
 }
 
 #[macro_export]
+macro_rules! display_cyan {
+    ($($arg:tt)*) => {{
+        let formatted = std::fmt::format(format_args!($($arg)*));
+        $crate::LOGGER.display_cyan(&formatted);
+    }}
+}
+
+#[macro_export]
+macro_rules! display_cyanln {
+    ($($arg:tt)*) => {{
+        let formatted = std::fmt::format(format_args!($($arg)*));
+        $crate::LOGGER.display_cyanln(&formatted);
+    }}
+}
+
+#[macro_export]
 macro_rules! display_red {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));
