@@ -97,4 +97,10 @@ A quick solution to this is running the following commands in your WSL environme
 All being well, you now have a booted Origen console and an app instance available. e.g. `origen.app.config` should return a DICT from the values defined in `config/application.toml`.
 
 
+# Python Package Dependencies for Development
+
+~~~
+pip3 install maturin
+pip3 install twine
+~~~
 

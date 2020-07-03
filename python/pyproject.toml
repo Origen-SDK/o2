@@ -5,6 +5,9 @@ description = ""
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 
 [tool.poetry.dependencies]
+# This MUST be uncommented before the final build, though the build/release scripts will take care of that.
+# It must be left out during development so that the example app picks up the local version of the pyapi instead.
+#origen_pyapi = "2.0.0-pre0"
 python = "^3.6"
 termcolor = ">= 1.1.0"
 pyreadline = { version = "^2.1",  platform = "win32" }
@@ -14,7 +17,6 @@ beautifulsoup4 = "4.8.2"
 lxml = "4.4.2"
 mako = "1.1.0"
 yapf = "0.30"
-#origen_pyapi = { path = "../rust/pyapi/target/wheels" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

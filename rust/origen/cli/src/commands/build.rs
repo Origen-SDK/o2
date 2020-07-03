@@ -66,28 +66,133 @@ pub fn run(matches: &ArgMatches) {
             .expect("failed to execute process");
         display!("");
     } else {
-        cd(&STATUS.origen_wksp_root.join("example"));
-        display!("");
-        Command::new("poetry")
-            .args(&[
-                "run",
-                "maturin",
-                "develop",
-                "--manifest-path",
-                &format!(
-                    "{}",
-                    STATUS
-                        .origen_wksp_root
-                        .join("rust")
-                        .join("pyapi")
-                        .join("Cargo.toml")
-                        .display()
-                ),
-            ])
-            .status()
-            .expect("failed to execute process");
-        display!("");
+        // A release build will do the following:
+        //   1) Build a release version of the pyapi package and publish it to PyPI
+        //   2) Build and publish the origen Python package
+        if matches.is_present("release") {
+            let wheel_dir = &STATUS
+                .origen_wksp_root
+                .join("rust")
+                .join("pyapi")
+                .join("target")
+                .join("wheels");
+            // Make sure we are not about to upload any stale/old artifacts
+            if wheel_dir.exists() {
+                std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing wheel dir");
+            }
+            cd(&STATUS.origen_wksp_root.join("rust").join("pyapi"));
+            Command::new("maturin")
+                .args(&[
+                    "build",
+                    "--no-sdist", // Local building of the pyapi will not be supported
+                    "--release",
+                    "--manifest-path",
+                ])
+                .status()
+                .expect("failed to build pyapi for release");
+
+            if matches.is_present("publish") {
+                let pypi_token =
+                    std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
+
+                let args: Vec<&str> = vec![
+                    "upload",
+                    //"-r",
+                    //"testpypi",
+                    "--username",
+                    "__token__",
+                    "--password",
+                    &pypi_token,
+                    "--non-interactive",
+                    "target/wheels/*",
+                ];
+
+                Command::new("twine")
+                    .args(&args)
+                    .status()
+                    .expect("failed to publish pyapi");
+            }
+
+            let wheel_dir = &STATUS.origen_wksp_root.join("python").join("dist");
+            // Make sure we are not about to upload any stale/old artifacts
+            if wheel_dir.exists() {
+                std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing wheel dir");
+            }
+            cd(&STATUS.origen_wksp_root.join("python"));
+
+            dependency_on_pyapi(true).expect("Couldn't enable dependency on origen_pyapi");
+
+            Command::new("poetry")
+                .args(&["build", "--no-interaction"])
+                .status()
+                .expect("failed to build origen for release");
+
+            dependency_on_pyapi(false).expect("Couldn't disable dependency on origen_pyapi");
+
+            if matches.is_present("publish") {
+                let pypi_token =
+                    std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
+
+                let args: Vec<&str> = vec![
+                    "upload",
+                    //"-r",
+                    //"testpypi",
+                    "--username",
+                    "__token__",
+                    "--password",
+                    &pypi_token,
+                    "--non-interactive",
+                    "dist/*",
+                ];
+
+                Command::new("twine")
+                    .args(&args)
+                    .status()
+                    .expect("failed to publish origen");
+            }
+        } else {
+            // The default build will compile the latest PyAPI and copy it into
+            // the example app's Python env
+            cd(&STATUS.origen_wksp_root.join("example"));
+            display!("");
+            Command::new("poetry")
+                .args(&[
+                    "run",
+                    "maturin",
+                    "develop",
+                    "--manifest-path",
+                    &format!(
+                        "{}",
+                        STATUS
+                            .origen_wksp_root
+                            .join("rust")
+                            .join("pyapi")
+                            .join("Cargo.toml")
+                            .display()
+                    ),
+                ])
+                .status()
+                .expect("failed to execute process");
+            display!("");
+        }
     }
+}
+
+// Enables/disables the dependency on origen_pyapi for the main origen Python package
+fn dependency_on_pyapi(enable: bool) -> Result<()> {
+    let filepath = &STATUS
+        .origen_wksp_root
+        .join("python")
+        .join("pyproject.toml");
+    let contents = std::fs::read_to_string(&filepath)?;
+
+    let new_content = match enable {
+        true => contents.replace("#origen_pyapi", "origen_pyapi"),
+        false => contents.replace("origen_pyapi", "#origen_pyapi"),
+    };
+
+    File::create(filepath.to_path_buf()).write(&new_content);
+    Ok(())
 }
 
 fn write_version(filepath: &Path, version: &str) -> Result<()> {
@@ -107,6 +212,8 @@ fn write_version(filepath: &Path, version: &str) -> Result<()> {
             Regex::new(r"^\s*\[\s*(package|tool.poetry)\s*\]\s*$").unwrap();
         static ref SECTION_HEADER: Regex = Regex::new(r"^\s*\[\s*.*\s*\]\s*$").unwrap();
         static ref VERSION_LINE: Regex = Regex::new(r#"^\s*version\s*=\s*".*"\s*$"#).unwrap();
+        static ref PYAPI_VERSION_LINE: Regex =
+            Regex::new(r#"^\s*#?\s*origen_pyapi\s*=\s*".*"\s*$"#).unwrap();
     }
 
     for line in lines {
@@ -125,7 +232,11 @@ fn write_version(filepath: &Path, version: &str) -> Result<()> {
                 }
             }
         }
-        file.write_ln(line);
+        if PYAPI_VERSION_LINE.is_match(&line) {
+            file.write_ln(&format!("#origen_pyapi = \"{}\"", version));
+        } else {
+            file.write_ln(line);
+        }
     }
     Ok(())
 }
