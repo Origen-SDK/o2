@@ -132,6 +132,7 @@ extlinks = {
   'origen_app_shorthand_defs_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/web/source/guides/_conf/shorthand.py%s', ''),
   'origen_core_dev_guides_root_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/web/source/guides/developers%s', ''),
   'origen_src_origen.application': (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/python/origen/application.py%s', ''),
+  'origen_src_example_commands': (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/example/example/commands/examples.py%s', ''),
 
   # Other
   'mvc_dp_wiki': ('https://en.wikipedia.org/wiki/Model–view–controller%s', None),

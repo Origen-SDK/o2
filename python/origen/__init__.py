@@ -1,5 +1,13 @@
 import sys
+import re
+init_verbosity = 0
+for arg in sys.argv:
+    regexp = re.compile(r'verbosity=(\d+)')
+    matches = regexp.search(arg)
+    if matches:
+        init_verbosity = int(matches.group(1))
 import _origen
+_origen.initialize(init_verbosity)
 from pathlib import Path
 import importlib
 from contextlib import contextmanager
@@ -9,6 +17,8 @@ from typing import List, Dict
 
 from origen.tester import Tester, DummyTester
 from origen.producer import Producer
+
+import origen.target
 
 config = _origen.config()
 ''' Dictionary of configurable workspace settings.
@@ -50,7 +60,7 @@ version = status["origen_version"]
 '''
 
 logger = _origen.logger
-''' Direct access to the build-in logger module for logging and displaying user-friendly output.
+''' Direct access to the build-in logger module for logging and displaying user-friendly output. Also available as :func:`log`
 
     Returns:
         logger: Pointer to _origen.logger
@@ -60,6 +70,10 @@ logger = _origen.logger
     
     * :mod:`_origen.logger`
     * :link-to:`Logging Output <logger>`
+'''
+
+log = _origen.logger
+''' Alias of :data:`logger`
 '''
 
 running_on_windows = _origen.on_windows()
@@ -110,10 +124,18 @@ dut = None
 tester = Tester()
 ''' Pointer to the global tester object, :class:`origen.tester.Tester`
 '''
+producer = Producer()
+# The application's test program interface, this will be lazily instantiated
+# the first time a test program Flow() block is encountered
+interface = None
+
+# These vars are used to identify when a target load is taking place
+_target_loading = False
 
 producer = Producer()
 ''' Pointer to the global producer object, :py:class:`origen.producer.Producer`
 '''
+
 mode = "development"
 
 if status["is_app_present"]:
@@ -128,6 +150,9 @@ def set_mode(val: str) -> None:
         mode = _origen.clean_mode(val)
 
 def load_file(path, globals={}, locals={}):
+    # Will convert any paths with / to \ on Windows
+    path = Path(path)
+    log.trace(f"Loading file '{path}'")
     context = {**standard_context(), **locals}
     with open(path) as f:
         code = compile(f.read(), path, 'exec')
@@ -163,6 +188,7 @@ __all__ = [
     'root',
     'version',
     'logger',
+    'log',
     'running_on_windows',
     'running_on_linux',
     'frontend_root',

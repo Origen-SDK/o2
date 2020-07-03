@@ -99,13 +99,13 @@ is performed:
    be something like: 
 
    ~~~
-   ~/.poetry/bin/poetry run python3 -c "from origen.boot import __origen__; __origen__('generate', files=['my_pat.py'])"
+   ~/.poetry/bin/poetry run python3 -c "from origen.boot import run_cmd; run_cmd('generate', files=['my_pat.py'])"
    ~~~
 
 3) The CLI's work is now done and it simply sits and waits for the above process to finish and when it does it
    will exit and return the exit code from the Python process.
 
-4) The Python process is kicked off by the `__origen__` function in `python/origen/boot.py`. This will load the
+4) The Python process is kicked off by the `run_cmd` function in `python/origen/boot.py`. This will load the
    Origen extension which creates a new instance of Origen's Rust runtime. Many of the arguments originally given
    to the CLI are then provided to this new Rust instance, for example the files argument in the example above.
  

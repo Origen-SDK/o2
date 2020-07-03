@@ -1,0 +1,40 @@
+# ******************************************************************************************
+# Generated
+#   Time: 2020-06-22 19:01:02.875376700 +01:00
+#   By: stephen
+#   Command: origen generate /home/stephen/Code/github/o2/example/example/patterns/toggle.py
+# ******************************************************************************************
+# Workspace
+#   Environment
+#     OS: Ubuntu 18.04.2 LTS
+#     Mode: development
+#     Targets
+#         /home/stephen/Code/github/o2/example/targets/dut/eagle.py
+#         /home/stephen/Code/github/o2/example/targets/tester/v93k_smt7.py
+#         /home/stephen/Code/github/o2/example/targets/tester/uflex.py
+#   Application
+#     Local Path: /home/stephen/Code/github/o2/example
+#   Origen Core
+#     Version: 2.0.0-pre1
+#     Executable Path: /usr/bin/python3.6
+# ******************************************************************************************
+# Header Comments
+#   From the Application
+#     Hello pattern from the application!
+#   From the Pattern
+#     Hello pattern from the, well, pattern!
+# ******************************************************************************************
+FORMAT clk portc
+R100 simple 0 ZZ # <EoL Comment>;
+R16 simple 1 10 # <EoL Comment>;
+R1 simple 0 10 # <EoL Comment>;
+R1 simple 1 10 # <EoL Comment>;
+R1 simple 0 10 # <EoL Comment>;
+R1 simple 1 10 # <EoL Comment>;
+R1 simple 0 10 # <EoL Comment>;
+R1 simple 1 10 # <EoL Comment>;
+R1 simple 0 10 # <EoL Comment>;
+R1 simple 1 10 # <EoL Comment>;
+R1 simple 0 10 # <EoL Comment>;
+R25 simple 0 00 # <EoL Comment>;
+SQPG STOP;

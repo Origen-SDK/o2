@@ -1,9 +1,11 @@
-use super::{Credentials, RevisionControlAPI};
+use super::{Credentials, RevisionControlAPI, Status};
+use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::Result as OrigenResult;
 use crate::USER;
 use git2::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{Cred, CredentialType, FetchOptions, RemoteCallbacks};
@@ -13,14 +15,57 @@ enum VersionType {
     Branch,
     Tag,
     Commit,
+    Head,
     Unknown,
+}
+
+/// Attempts to get the given attribute from the Git config.
+/// Not sure if it's possible to do this via libgit2, so this currently
+/// uses regular Git unlike most of this driver.
+/// If Git is not available, or any other issue, then it will silently
+/// fail and simply return None.
+/// e.g. call git::config("email") to get the user's email address.
+pub fn config(attr_name: &str) -> Option<String> {
+    let process = Command::new("git")
+        .args(&["config", &format!("user.{}", attr_name)])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+
+    let mut result: Option<String> = None;
+
+    if let Ok(mut p) = process {
+        log_stdout_and_stderr(
+            &mut p,
+            Some(&mut |line: &str| {
+                if result.is_none() {
+                    result = Some(line.trim().to_string());
+                }
+            }),
+            Some(&mut |_line: &str| {
+                // Just swallow stderr
+            }),
+        );
+        let r = p.wait();
+        if r.is_ok() {
+            if r.unwrap().success() {
+                result
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 pub struct Git {
     /// Path to the local directory for the repository
     pub local: PathBuf,
-    /// Link to the remote repository
-    pub remote: String,
+    /// Link(s) to the remote repository
+    pub remotes: Vec<String>,
     credentials: Option<Credentials>,
     // There doesn't seem to be anything like an 'on_credentials_failed' callback, so have to keep track of
     // what password was attempted last so that it can be used to blow the caching of a bad password
@@ -34,7 +79,144 @@ pub struct Git {
 
 impl RevisionControlAPI for Git {
     fn populate(&self, version: &str) -> OrigenResult<()> {
-        log_info!("Populating {}", &self.local.display());
+        let mut ssh_remotes: Vec<&str> = vec![];
+        let mut https_remotes: Vec<&str> = vec![];
+        for remote in &self.remotes {
+            if remote.contains("https") {
+                https_remotes.push(remote);
+            } else {
+                ssh_remotes.push(remote);
+            }
+        }
+        let mut result = error!(
+            "Can't populate a Git workspace at '{}' because no remote has been supplied",
+            self.local.display()
+        );
+        for remote in ssh_remotes {
+            result = self._populate(version, remote);
+            if result.is_ok() {
+                return Ok(());
+            }
+        }
+        for remote in https_remotes {
+            result = self._populate(version, remote);
+            if result.is_ok() {
+                return Ok(());
+            }
+        }
+        result
+    }
+
+    fn revert(&self, path: Option<&Path>) -> OrigenResult<()> {
+        let _ = self._checkout(true, path, "HEAD", false)?;
+        Ok(())
+    }
+
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> OrigenResult<bool> {
+        self._checkout(force, path, version, true)
+    }
+
+    /// Returns an Origen RC status, which does not go into as much detail as a full Git status,
+    /// mainly that there is no differentiation between changes that are staged vs unstaged.
+    /// It also doesn't bother to track renamed files, simply reporting them as a deleted file
+    /// and an added file.
+    fn status(&self, _path: Option<&Path>) -> OrigenResult<Status> {
+        let mut status = Status::default();
+        log_trace!("Checking status of '{}'", &self.local.display());
+        let repo = Repository::open(&self.local)?;
+        let stat = repo.statuses(None)?;
+        for entry in stat.iter() {
+            //dbg!(entry.status());
+
+            if entry.status().contains(git2::Status::WT_NEW) {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.added.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_NEW) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.added.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::WT_DELETED) {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.removed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_DELETED) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.removed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::WT_MODIFIED)
+                || entry.status().contains(git2::Status::WT_TYPECHANGE)
+            {
+                let old = entry.index_to_workdir().unwrap().old_file().path();
+                let new = entry.index_to_workdir().unwrap().new_file().path();
+                status.changed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+
+            if entry.status().contains(git2::Status::INDEX_MODIFIED)
+                || entry.status().contains(git2::Status::INDEX_TYPECHANGE)
+            {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status.changed.push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+            if entry.status().contains(git2::Status::CONFLICTED) {
+                let old = entry.head_to_index().unwrap().old_file().path();
+                let new = entry.head_to_index().unwrap().new_file().path();
+                status
+                    .conflicted
+                    .push(self.local.join(old.or(new).unwrap()));
+                continue;
+            }
+        }
+        Ok(status)
+    }
+
+    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> OrigenResult<()> {
+        log_trace!("Tagging '{}' with '{}'", &self.local.display(), tagname);
+        let repo = Repository::open(&self.local)?;
+        let target = "HEAD";
+        let obj = repo.revparse_single(target)?;
+
+        if let Some(ref msg) = message {
+            let sig = Git::signature(&repo)?;
+            repo.tag(tagname, &obj, &sig, msg, force)?;
+        } else {
+            repo.tag_lightweight(tagname, &obj, force)?;
+        }
+        Ok(())
+    }
+}
+
+impl Git {
+    pub fn new(local: &Path, remotes: Vec<&str>, credentials: Option<Credentials>) -> Git {
+        Git {
+            local: local.to_path_buf(),
+            remotes: remotes.iter().map(|r| r.to_string()).collect(),
+            credentials: credentials,
+            last_password_attempt: RefCell::new(None),
+            network_pct: RefCell::new(0),
+            index_pct: RefCell::new(0),
+            deltas_pct: RefCell::new(0),
+            ssh_attempts: RefCell::new(0),
+        }
+    }
+
+    fn _populate(&self, version: &str, remote: &str) -> OrigenResult<()> {
+        log_info!("Populating '{}' from '{}'", &self.local.display(), remote);
         self.reset_temps();
         let mut cb = RemoteCallbacks::new();
         cb.transfer_progress(|stats| self.transfer_progress_callback(&stats));
@@ -45,9 +227,11 @@ impl RevisionControlAPI for Git {
         fo.remote_callbacks(cb);
         match RepoBuilder::new()
             .fetch_options(fo)
-            .clone(&self.remote, &self.local)
+            .clone(remote, &self.local)
         {
-            Ok(_) => {}
+            Ok(_) => {
+                self.password_was_good();
+            }
             Err(e) => {
                 return Err(e.into());
             }
@@ -58,7 +242,14 @@ impl RevisionControlAPI for Git {
         Ok(())
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> OrigenResult<()> {
+    /// Returns Ok(true) if merge conflicts are encountered when force = false.
+    fn _checkout(
+        &self,
+        force: bool,
+        path: Option<&Path>,
+        version: &str,
+        prefetch: bool,
+    ) -> OrigenResult<bool> {
         log_info!(
             "Checking out version '{}' in '{}'",
             version,
@@ -66,18 +257,27 @@ impl RevisionControlAPI for Git {
         );
         self.reset_temps();
 
-        // Make sure we have all the latest tags/commits/branches available locally
-        self.fetch(None)?;
+        if prefetch {
+            // Make sure we have all the latest tags/commits/branches available locally
+            self.fetch(None)?;
+        }
 
         // Now the first part of this operation is to find the SHA (Oid) corresponding to the given version
         // reference, and identify whether it is a reference to branch, tag or commit
 
-        let repo = Repository::open(&self.local)?;
+        let mut repo = Repository::open(&self.local)?;
         let mut oid: Option<git2::Oid> = None;
         let mut version_type = VersionType::Unknown;
+        let mut stash_pop_required = false;
+
+        // Means (re)checkout the current version, used for blowing away local edits
+        if version == "HEAD" || version == "head" || version == "Head" {
+            version_type = VersionType::Head;
+            let head = repo.head().unwrap();
+            oid = Some(head.target().unwrap());
 
         // If the version reference is a branch...
-        if let Ok(branch) =
+        } else if let Ok(branch) =
             repo.find_branch(&format!("origin/{}", version), git2::BranchType::Remote)
         {
             //if self.remote_branch_exists(&repo, version) {
@@ -127,8 +327,22 @@ impl RevisionControlAPI for Git {
                     log_debug!("{}  : Success", p.display());
                 }
             });
+            // We always force, which means make the local view look exactly like the target version
+            co.force();
             if force {
-                co.force();
+                // Also remove new files when forcing
+                co.remove_untracked(true);
+            } else if self.status(None)?.is_modified() {
+                // If we want to preserve local edits then we will stash them and merge afterwards
+                let signature = repo
+                    .signature()
+                    .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?);
+                repo.stash_save(
+                    &signature,
+                    "Preserving during checkout",
+                    Some(git2::StashFlags::INCLUDE_UNTRACKED),
+                )?;
+                stash_pop_required = true;
             }
             if let Some(p) = path {
                 co.path(p);
@@ -148,6 +362,10 @@ impl RevisionControlAPI for Git {
                     let head = format!("refs/heads/{}", version);
                     repo.set_head(&head)?;
                 }
+                VersionType::Head => {
+                    let object = repo.find_object(oid, None)?;
+                    repo.checkout_tree(&object, Some(&mut co))?;
+                }
                 VersionType::Tag => {
                     let object = repo.find_object(oid, None)?;
                     repo.checkout_tree(&object, Some(&mut co))?;
@@ -155,40 +373,52 @@ impl RevisionControlAPI for Git {
                     // as it may give a better indication of sitting at a tag when 'git status' is run
                     repo.set_head_detached(oid)?;
                 }
-                VersionType::Commit => match repo.find_commit(oid) {
-                    Ok(commit) => {
-                        repo.checkout_tree(commit.as_object(), Some(&mut co))?;
-                        repo.set_head_detached(oid)?;
+                VersionType::Commit => {
+                    let error = match repo.find_commit(oid) {
+                        Ok(commit) => {
+                            repo.checkout_tree(commit.as_object(), Some(&mut co))?;
+                            repo.set_head_detached(oid)?;
+                            None
+                        }
+                        Err(_e) => {
+                            Some(error!("No matching commit found for version '{}'", version))
+                        }
+                    };
+                    if let Some(e) = error {
+                        if stash_pop_required {
+                            repo.stash_pop(0, None)?;
+                        }
+                        return e;
                     }
-                    Err(_e) => {
-                        return error!("No matching commit found for version '{}'", version);
-                    }
-                },
+                }
                 _ => unreachable!(),
             }
         } else {
+            if stash_pop_required {
+                repo.stash_pop(0, None)?;
+            }
             return error!(
                 "Could not resolve version '{}' to a commit, tag or branch reference",
                 version
             );
         }
 
-        Ok(())
-    }
-}
-
-impl Git {
-    pub fn new(local: &Path, remote: &str, credentials: Option<Credentials>) -> Git {
-        Git {
-            local: local.to_path_buf(),
-            remote: remote.to_string(),
-            credentials: credentials,
-            last_password_attempt: RefCell::new(None),
-            network_pct: RefCell::new(0),
-            index_pct: RefCell::new(0),
-            deltas_pct: RefCell::new(0),
-            ssh_attempts: RefCell::new(0),
+        if stash_pop_required {
+            repo.stash_pop(0, None)?;
         }
+        Ok(!self.status(None)?.conflicted.is_empty())
+    }
+
+    // Returns a signature (to attribute commits etc.) for the current user, falling
+    // back to a default Origen signature if necessary
+    fn signature(repo: &Repository) -> OrigenResult<git2::Signature> {
+        Ok(repo
+            .signature()
+            .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?))
+    }
+
+    fn password_was_good(&self) {
+        self.last_password_attempt.replace(None);
     }
 
     fn credentials_callback(
@@ -211,41 +441,45 @@ impl Git {
             }
         }
         if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
-            let last_password_attempt = self.last_password_attempt.borrow();
-            let password = {
-                if self.credentials.is_some()
-                    && self.credentials.as_ref().unwrap().password.is_some()
-                {
-                    self.credentials
-                        .as_ref()
-                        .unwrap()
-                        .password
-                        .as_ref()
-                        .unwrap()
-                        .clone()
-                } else {
-                    USER.password(
-                        Some(&format!("to access repository '{}'", url)),
-                        last_password_attempt.as_deref(),
-                    )
-                    .expect("Couldn't prompt for password")
-                }
-            };
-            let username = {
-                if self.credentials.is_some()
-                    && self.credentials.as_ref().unwrap().username.is_some()
-                {
-                    self.credentials
-                        .as_ref()
-                        .unwrap()
-                        .username
-                        .as_ref()
-                        .unwrap()
-                        .clone()
-                } else {
-                    USER.id().unwrap()
-                }
-            };
+            let username;
+            let password;
+            {
+                let last_password_attempt = self.last_password_attempt.borrow();
+                password = {
+                    if self.credentials.is_some()
+                        && self.credentials.as_ref().unwrap().password.is_some()
+                    {
+                        self.credentials
+                            .as_ref()
+                            .unwrap()
+                            .password
+                            .as_ref()
+                            .unwrap()
+                            .clone()
+                    } else {
+                        USER.password(
+                            Some(&format!("to access repository '{}'", url)),
+                            last_password_attempt.as_deref(),
+                        )
+                        .expect("Couldn't prompt for password")
+                    }
+                };
+                username = {
+                    if self.credentials.is_some()
+                        && self.credentials.as_ref().unwrap().username.is_some()
+                    {
+                        self.credentials
+                            .as_ref()
+                            .unwrap()
+                            .username
+                            .as_ref()
+                            .unwrap()
+                            .clone()
+                    } else {
+                        USER.id().unwrap()
+                    }
+                };
+            }
             self.last_password_attempt
                 .replace(Some(password.to_string()));
             return Ok(Cred::userpass_plaintext(&username, &password)?);
@@ -380,6 +614,8 @@ impl Git {
         remote.update_tips(None, true, git2::AutotagOption::Unspecified, None)?;
 
         log_debug!("Fetch completed successfully");
+
+        self.password_was_good();
 
         Ok(())
     }

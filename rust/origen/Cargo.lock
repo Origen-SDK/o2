@@ -1736,7 +1736,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "2.0.0-pre0"
+version = "2.0.0-pre1"
 dependencies = [
  "built",
  "cargo-expand",
@@ -1755,6 +1755,7 @@ dependencies = [
  "num-traits 0.2.11",
  "openssl",
  "path-clean",
+ "path-slash",
  "pathdiff",
  "pest",
  "pest_derive",
@@ -1765,8 +1766,10 @@ dependencies = [
  "serde 1.0.110",
  "serde-pickle",
  "shellexpand",
+ "tempfile",
  "termcolor",
  "time",
+ "toml 0.5.6",
  "walkdir",
  "whoami",
 ]
@@ -1857,6 +1860,12 @@ name = "path-clean"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecba01bf2678719532c5e3059e0b5f0811273d94b397088b82e3bd0a78c78fdd"
+
+[[package]]
+name = "path-slash"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddf9566c1063a197427135fb518ed42f2be18630fc2401aa267ed2dc95e9c85d"
 
 [[package]]
 name = "pathdiff"

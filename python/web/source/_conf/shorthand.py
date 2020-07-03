@@ -86,6 +86,7 @@ origen_shorthand_defs = {
       'pytester': 'origen_core_pytester_src',
       'dev_guides_root': 'origen_core_dev_guides_root_src',
       'origen.application': 'origen_src_origen.application',
+      'example_commands': 'origen_src_example_commands',
     }
   },
 

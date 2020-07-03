@@ -1,4 +1,5 @@
 pub mod big_uint_helpers;
+pub mod differ;
 pub mod file_utils;
 pub mod location;
 #[macro_use]
@@ -27,7 +28,7 @@ pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> Pa
     } else {
         offset = default.to_string();
     }
-    let mut dir = STATUS.root.clone();
+    let mut dir = STATUS.origen_wksp_root.clone();
     dir.push(offset);
     dir
 }

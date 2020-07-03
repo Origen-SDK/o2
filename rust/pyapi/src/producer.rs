@@ -1,6 +1,5 @@
-use origen::STATUS;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use std::path::{Path, PathBuf};
 
 #[pymodule]
 pub fn producer(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -19,38 +18,48 @@ pub struct PyJob {
 
 #[pymethods]
 impl PyJob {
-    pub fn run(&self) -> PyResult<()> {
-        let cmd;
-        {
-            let p = origen::producer();
-            let j = &p.jobs[self.id];
-            cmd = j.command.clone();
-        }
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        py.eval(
-      &format!(
-        "origen.load_file(r\"{}\", locals={{**origen.standard_context(), **{{'produce_pattern': lambda **kwargs : __import__(\"origen\").producer.produce_pattern(__import__(\"origen\").producer.get_job_by_id({}), **kwargs)}}}})",
-        &cmd,
-        self.id),
-      None,
-      Some(locals)
-    )?;
-        Ok(())
-    }
-
     #[getter]
     pub fn id(&self) -> PyResult<usize> {
         Ok(self.id)
     }
 
     #[getter]
-    pub fn command(&self) -> PyResult<String> {
-        let p = origen::producer();
-        let j = &p.jobs[self.id];
-        Ok(j.command.clone())
+    /// Returns the source file at the root of the job
+    pub fn source_file(&self) -> PyResult<Option<String>> {
+        Ok(origen::with_current_job(|job| {
+            Ok(match job.source_file() {
+                None => None,
+                Some(f) => Some(format!("{}", f.display())),
+            })
+        })?)
+    }
+
+    #[getter]
+    /// Returns the current file being executed by the job. This may be the same as the
+    /// source_file or it could be different, for example if a flow has included a sub-flow file.
+    pub fn current_file(&self) -> PyResult<Option<String>> {
+        Ok(origen::with_current_job(|job| {
+            Ok(match job.current_file() {
+                None => None,
+                Some(f) => Some(format!("{}", f.display())),
+            })
+        })?)
+    }
+
+    /// Add the given file to the job's files stack
+    fn add_file(&self, file: String) -> PyResult<()> {
+        Ok(origen::with_current_job_mut(|job| {
+            job.files.push(PathBuf::from(file.clone()));
+            Ok(())
+        })?)
+    }
+
+    /// Pop a file off the job's files stack
+    fn pop_file(&self) -> PyResult<()> {
+        Ok(origen::with_current_job_mut(|job| {
+            job.files.pop();
+            Ok(())
+        })?)
     }
 }
 
@@ -65,24 +74,19 @@ impl PyProducer {
         obj.init(PyProducer {});
     }
 
-    fn create_pattern_job(&self, command: &str) -> PyResult<Py<PyJob>> {
+    fn create_job(&self, command: &str, file: Option<&str>) -> PyResult<PyJob> {
         let mut p = origen::producer();
-        let j = p.create_pattern_job(command)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(py, PyJob { id: j.id }).unwrap())
+        let j = match file {
+            None => p.create_job(command, None)?,
+            Some(f) => p.create_job(command, Some(Path::new(f)))?,
+        };
+        Ok(PyJob { id: j.id })
     }
 
-    fn get_job_by_id(&self, id: usize) -> PyResult<Py<PyJob>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(py, PyJob { id: id }).unwrap())
-    }
-
-    // Hard-coded for now
-    fn output_dir(&self) -> PyResult<String> {
-        Ok(format!("{}", STATUS.root.display()))
+    #[getter]
+    fn current_job(&self) -> PyResult<PyJob> {
+        let id = origen::with_current_job(|job| Ok(job.id))?;
+        Ok(PyJob { id: id })
     }
 }
 

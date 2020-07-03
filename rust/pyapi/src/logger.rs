@@ -13,6 +13,7 @@ fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(warning))?;
     m.add_wrapped(wrap_pyfunction!(display))?;
     m.add_wrapped(wrap_pyfunction!(log))?;
+    m.add_wrapped(wrap_pyfunction!(trace))?;
     m.add_wrapped(wrap_pyfunction!(output_file))?;
     m.add_wrapped(wrap_pyfunction!(set_verbosity))?;
     Ok(())
@@ -76,6 +77,12 @@ fn display(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResul
 #[pyfunction(messages = "*", _kwargs = "**")]
 fn log(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     display(_py, messages, _kwargs)
+}
+
+#[pyfunction(messages = "*", _kwargs = "**")]
+fn trace(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
+    LOGGER.trace_block(&pytuple_to_vector_str!(messages));
+    Ok(())
 }
 
 #[pyfunction]

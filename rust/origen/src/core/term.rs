@@ -1,4 +1,5 @@
 // Responsible for writing to the terminal
+// Good web page for picking colors - https://jonasjacek.github.io/colors/
 
 use std::io::Write;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -20,11 +21,27 @@ pub fn redln(msg: &str) {
 }
 
 pub fn yellow(msg: &str) {
-    print(msg, Color::Yellow);
+    print(msg, Color::Rgb(215, 135, 0));
 }
 
 pub fn yellowln(msg: &str) {
-    println(msg, Color::Yellow);
+    println(msg, Color::Rgb(215, 135, 0));
+}
+
+pub fn grey(msg: &str) {
+    print(msg, Color::Rgb(128, 128, 128));
+}
+
+pub fn greyln(msg: &str) {
+    println(msg, Color::Rgb(128, 128, 128));
+}
+
+pub fn teal(msg: &str) {
+    print(msg, Color::Rgb(0, 128, 128));
+}
+
+pub fn tealln(msg: &str) {
+    println(msg, Color::Rgb(0, 128, 128));
 }
 
 pub fn cyan(msg: &str) {

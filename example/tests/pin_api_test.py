@@ -1,6 +1,6 @@
 import pytest
 import origen, _origen # pylint: disable=import-error
-from tests.shared import clean_eagle, clean_falcon, clean_tester # pylint: disable=import-error
+from tests.shared import *
 from tests.shared.python_like_apis import Fixture_DictLikeAPI, Fixture_ListLikeAPI # pylint: disable=import-error
 
 class MyRandomClass:
@@ -34,7 +34,7 @@ class TestPinContainerDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     dut = origen.dut
     dut.add_pin("p0")
     dut.add_pin("p1")
@@ -51,7 +51,7 @@ class TestPhysicalPinContainerDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     dut = origen.dut
     dut.add_pin("p0")
     dut.add_pin("p1")
@@ -78,7 +78,7 @@ class TestPinGroupListLike(Fixture_ListLikeAPI):
     assert i.pin_names == ["pins2"]
 
   def boot_list_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     origen.dut.add_pin("pins", width=3)
     return origen.dut.pin("pins")
 
@@ -101,7 +101,7 @@ class TestPinCollectionListLike(Fixture_ListLikeAPI):
     assert i.pin_names == ["pins2"]
 
   def boot_list_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     origen.dut.add_pin("pins", width=3)
     return origen.dut.pins.collect("pins0", "pins1", "pins2")
 
@@ -847,7 +847,7 @@ class TestPinHeadersDictLikeAPI(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     origen.dut.add_pin("p", width=3)
     origen.dut.add_pin_header("h0", "p0")
     origen.dut.add_pin_header("h1", "p0", "p1")

@@ -1,12 +1,12 @@
 import origen
 import pytest
-import pdb
+from tests.shared import *
 
 @pytest.fixture(autouse=True)
 def run_around_tests():
     global dut
     # Code that will run before each test
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     dut = origen.dut
     yield
     # Code that will run after each test
