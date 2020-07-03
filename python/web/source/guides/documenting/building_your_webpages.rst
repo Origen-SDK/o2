@@ -30,7 +30,7 @@ Running ``build`` with ``--help`` gives us the following options:
 
 {{ insert_cmd_output(origen_exec + " web build --help") }}
 
-``--no-api`` was mentioned when discussing |ref_api_generation| but to recap: this option will bypass
+``--no-api`` was mentioned when discussing |documenting:api_generation| but to recap: this option will bypass
 generating any API contents. Existing contents will persist though, so this option can be used without
 any ill-effects provided the API source hasn't changed. However, this also means that continuously running
 with ``--no-api`` during development could result in stale API documentation.

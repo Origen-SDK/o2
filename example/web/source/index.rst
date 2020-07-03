@@ -12,6 +12,8 @@ Welcome to example's documentation!
 
    interbuild/autoapi/example.application/example.application
 
+This is an example website to trial Origen :link-to:`documentation features <origen~guides:documenting>`.
+
 Indices and tables
 ==================
 

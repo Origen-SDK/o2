@@ -41,6 +41,7 @@ extensions = [
   'sphinx.ext.napoleon',
   'sphinx.ext.autosectionlabel',
   'recommonmark',
+  'origen.web.shorthand'
 ]
 
 autosectionlabel_prefix_document = True

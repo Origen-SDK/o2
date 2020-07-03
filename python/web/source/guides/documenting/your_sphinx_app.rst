@@ -4,13 +4,13 @@ Your Sphinx App
 Writing docs for your *Origen application* amounts to writing docs as you would for any other *Sphinx app*.
 
 You may or may not have experience using Sphinx, but if you're an experienced or intermediate
-Sphinx user, you could skip to the |ref_ose| which covers the heart of the Origen-Sphinx connection.
+Sphinx user, you could skip to the |ose| which covers the heart of the Origen-Sphinx connection.
 Although this section covers some Origen-specifics, the changes described here will be apparent
 to any seasoned Sphinx users.
 
 ----
 
-From {{ ref_for('documenting_core_concepts', 'the previous section') }}:
+From :link-to:`the previous section <documenting:core_concepts>`:
 
 .. raw:: html
 
@@ -21,7 +21,7 @@ From {{ ref_for('documenting_core_concepts', 'the previous section') }}:
           At its heart, your <i>Origen application's</i> documentation 'engine' is just
           a <i>Sphinx app</i> with a custom extension thrown in.
         </p>
-        <cite>{{ anchor_for('documenting_core_concepts', 'Core Concepts') }}</cite>
+        <cite>{{ anchor_to('documenting:core_concepts', 'Core Concepts') }}</cite>
       </blockquote>
     </div>
   </div>
@@ -35,7 +35,7 @@ From {{ ref_for('documenting_core_concepts', 'the previous section') }}:
           Writing docs for your <i>Origen application</i> amounts to writing
           docs like you would any other <i>Sphinx app</i>.
         </p>
-        <cite>{{ anchor_for('documenting_core_concepts', 'Core Concepts') }}</cite>
+        <cite>{{ anchor_to('documenting:core_concepts', 'Core Concepts') }}</cite>
       </blockquote>
     </div>
   </div>
@@ -84,13 +84,13 @@ To quickly define these files:
 
 A key addition to note is the automatic inclusion of the ``origen_sphinx_ext`` as the
 first (topmost) extension in ``conf.py``. This extension will be
-{{ ref_for('documenting:ose', 'covered in much more detail later') }}, but just know for now that it is responsible
+:link-to:`covered in much more detail later <ose>`, but just know for now that it is responsible
 for all of the *Origen specifics* which separate a standard Sphinx app from one used in
 an Origen application.
 
 Other extensions, such as :autoapi_home:`autoapi` and :autodoc_home:`autodoc` are also included,
 but those are more for convenience.
-{{ ref_for('documenting:api_generation', 'Notes on these will also be covered later') }}.
+:link-to:`Notes on these will also be covered later <documenting:api_generation>`.
 
 .. raw:: html
 
@@ -106,7 +106,7 @@ but those are more for convenience.
 
     The <code>origen_sphinx_ext</code> has a number of customizations available and can be inherited
     or overridden like any other Sphinx extension. This will be
-    <a href="{{ path_to('documenting:ose') }}">covered in more detail later</a>, but this mentality should be
+    {{ anchor_to('ose', 'covered in more detail later') }} but this mentality should be
     preferred to removing the extension entirely.
   </div>
 

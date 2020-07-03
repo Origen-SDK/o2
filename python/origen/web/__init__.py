@@ -1,8 +1,25 @@
+'''
+Wrappers, helpers, and utilities for Origen's :link-to:`documentation system <documenting:introduction>`
+
+Web commands invoked from the |web_cmd| will end up at :meth:run_cmd, which wraps the |sphinx_build_cmd| or
+whatever else the command is. :func:`run_cmd` can also be invoked directly to kick of
+website compilations, etc. from scripts.
+
+Functions in this module are, themselves, not tied to a Sphinx runtime but instead defer
+all *sphinx-interfacing* to the |ose|.
+
+Assuming |origen-s_sphinx_app| is used, the settings here will be loaded during
+:func:`origen_sphinx_extension.setup` and applied during :func:`origen_sphinx_extension.apply_origen_config`
+'''
+
 import _origen #pylint:disable=import-error
 import origen, origen.helpers #pylint:disable=import-error
 import subprocess, shutil
 from typing import List
 from types import ModuleType
+
+ORIGEN_CORE_HOMEPAGE = 'https://origen-sdk.org/o2/'
+''' Hard-coded path to the Origen core's homepage - usable by applications to link to'''
 
 OUTPUT_INDEX_FILE = 'index.html'
 ''' Sphinx's ``index.html`` file (the assumed homepage) '''
@@ -26,12 +43,55 @@ SPHINX_TEMPLATE = '_templates'
 '''
 
 source_dir = origen.app.website_source_dir
+''' Resolved source directory in which the |sphinx_app| lives '''
+
 static_dir = source_dir.joinpath(SPHINX_STATIC).joinpath('build')
+'''
+  Resolved/default |sphinx_static_dir|
+
+  This path will be automatically added in the |ose|, as other plugins which operate outside
+  of Sphinx but generate *web content* may rely on this path begin part of the Sphinx project.
+
+  Note
+  ----
+
+    * Although Sphinx can contain multiple :link-to:`static directories <sphinx_static_dir>`,
+      this only points to a single one - which Origen will use.
+'''
+
 templates_dir = source_dir.joinpath(SPHINX_TEMPLATE).joinpath('origen')
+'''
+  Resolved/default |sphinx_templates_dir|
+
+  This path will be automatically added in the |ose|, as other plugins which operate outside
+  of Sphinx but generate *web content* may rely on this path begin part of the Sphinx project.
+
+  Note
+  ----
+
+    * Although Sphinx can contain multiple :link-to:`template directories <sphinx_templates_dir>`,
+      this only points to a single one - which Origen will use.
+'''
+
 interbuild_dir = source_dir.joinpath('interbuild')
+'''
+  Points to |origen-s_sphinx_app| ``interbuild`` directory.
+
+  This directory houses dynamic content generated from Sphinx (such as AutoAPI) which doesn't
+  require check-in (is ignored by the |.gitignore| by default) but is part of the Sphinx project.
+
+  Assuming a full-rebuild (no ``--no-api`` or similar options), this directory will always be rebuilt
+  and can safely be deleted between runs.
+'''
+
 output_build_dir = origen.app.website_output_dir.joinpath(SPHINX_OUTPUT)
+''' Resolved location for the final output '''
+
 output_index_file = output_build_dir.joinpath(OUTPUT_INDEX_FILE)
+''' Resolved output index file path '''
+
 sphinx_config = origen.app.website_source_dir.joinpath(SPHINX_CONFIG)
+''' Resolved source directory in which the |sphinx_app| lives '''
 
 def run_cmd(subcommand, args):
   '''

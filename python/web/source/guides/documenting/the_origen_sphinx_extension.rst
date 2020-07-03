@@ -21,10 +21,10 @@ into your *Sphinx app* in various phases.
 The ``origen_sphinx_ext`` is responsible for, but not limited to:
 
 * Listening for and enacting options from ``origen build``.
-* Setting up the |ref_ose_theme|
+* Setting up the |ose_theme|
 * Configuring :recommonmark_home:`recommonmark <>` to accept embedded RST.
 * Allowing Jinja templating in all RST files.
-* Building and including |ref_ose_subprojects|
+* Building and including |ose_subprojects|
 
 All of that is 'behind-the-scenes' though. The ``origen_sphinx_ext`` also provides some helpful
 features and additional config variables.
@@ -37,7 +37,7 @@ The Origen extension adds these configuration variables:
 .. py:data:: origen_subprojects
 
   Any Origen applications whose documentation should be built and encompassed in this. See
-  |ref_ose_subprojects| for more details.
+  |ose_subprojects| for more details.
 
   .. versionadded:: 0.0.0
 
@@ -202,12 +202,12 @@ The *origen_sphinx_ext*:
 
 * is the bridge between your *Origen application*, Origen itself, and your *Sphinx app*.
 * will setup several aspects of your *Sphinx app* for you at runtime.
-* has its own set of {{ ref_for('documenting:ose_config_vars', 'configuration variables') }}.
-* also comes with support for |ref_ose_subprojects|
-* contains the |ref_ose_theme|
+* has its own set of :link-to:`configuration variables <ose_config_vars>`.
+* also comes with support for |ose_subprojects|
+* contains the |ose_theme|
 
-* The |ref_ose_theme|, though part of the *origen_sphinx_ext*, contains its own
-  {{ ref_for('documenting:ose_theme_opts', 'configuration options') }}, which follows Sphinx's rules for
+* The |ose_theme|, though part of the *origen_sphinx_ext*, contains its own
+  :link-to:`configuration options <ose_theme_opts>`, which follows Sphinx's rules for
   configuring themes, but is also accessible in your ``config.py`` via
   :sphinx_confval_html_theme_options:`html_theme_options`.
 

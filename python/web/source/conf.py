@@ -13,6 +13,7 @@
 import os, sys, pathlib
 import origen
 import origen.web
+from origen.web.shorthand.dev import add_shorthand_dev_defs
 
 sys.path.insert(0, os.path.abspath('../../'))
 
@@ -23,15 +24,15 @@ copyright = '2020, Origen Core Team'
 author = 'Origen Core Team'
 
 # -- General configuration ---------------------------------------------------
-import rustdoc
+from web.source._conf import origen_extlinks, origen_shorthand_defs
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
   'origen.web.origen_sphinx_extension',
-  'origen.web.rst_shared_defs',
-  'rustdoc',
+  'origen.web.shorthand',
+  'origen.web.rustdoc',
   'sphinx.ext.autodoc',
   'sphinx.ext.autosectionlabel',
   'sphinx.ext.inheritance_diagram',
@@ -45,162 +46,12 @@ extensions = [
 # Silver lining to the verbosity is they're also crystal clear as to where they're going.
 autosectionlabel_prefix_document = True
 
-extlinks = {
-  'sphinx_homepage': ('https://www.sphinx-doc.org/en/master/index.html%s', ''),
-  'sphinx_app': ('https://www.sphinx-doc.org/en/master/usage/quickstart.html#getting-started%s', ''),
-  'sphinx_docs': ('https://www.sphinx-doc.org/en/master/contents.html%s', ''),
-  'sphinx_extensions': ('https://www.sphinx-doc.org/en/master/usage/extensions/index.html%s', ''),
-  'sphinx_themes': ('https://www.sphinx-doc.org/en/master/usage/theming.html#themes%s', ''),
-  'sphinx_using_a_theme': ('https://www.sphinx-doc.org/en/master/usage/theming.html#using-a-theme%s', ''),
-  'sphinx_builtin_themes': ('https://www.sphinx-doc.org/en/master/usage/theming.html#builtin-themes%s', ''),
-  'sphinx_add_theme': ('https://www.sphinx-doc.org/en/master/extdev/appapi.html#sphinx.application.Sphinx.add_html_theme%s', ''),
-  'sphinx_creating_themes': ('https://www.sphinx-doc.org/en/master/theming.html#creating-themes%s', ''),
-  'sphinx_available_themes': ('https://sphinx-themes.org/%s', ''),
-  'sphinx_project_examples': ('https://www.sphinx-doc.org/en/master/examples.html#projects-using-sphinx%s', ''),
-  'sphinx_conf': ('https://www.sphinx-doc.org/en/master/usage/configuration.html#module-conf%s', ''),
-  'sphinx_add_config_var': ('https://www.sphinx-doc.org/en/master/extdev/appapi.html#sphinx.application.Sphinx.add_config_value%s', ''),
-  'sphinx_confval_html_logo': ('https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-html_logo%s', ''),
-  'sphinx_confval_html_favicon': ('https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-html_favicon%s', ''),
-  'sphinx_confval_html_theme_options': ('https://www.sphinx-doc.org/en/3.x/usage/configuration.html#confval-html_theme_options%s', ''),
-  'sphinx_rst': ('https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html%s', ''),
-  'sphinx_rst_primer': ('https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html%s', ''),
-  'sphinx_rst_directives': ('https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html%s', ''),
-  'sphinx_templating': ('https://www.sphinx-doc.org/en/master/templating.html#templating%s', ''),
-  'sphinx_manpages': ('https://www.sphinx-doc.org/en/master/man/index.html%s', ''),
-  'sphinx_build_phases': ('https://www.sphinx-doc.org/en/master/extdev/index.html#build-phases%s', ''),
-  'sphinx_connect': ('https://www.sphinx-doc.org/en/master/extdev/appapi.html#sphinx.application.Sphinx.connect%s',''),
-  'sphinx_event_config_inited': ('https://www.sphinx-doc.org/en/master/extdev/appapi.html#event-config-inited%s', ''),
-  'sphinx_event_builder_inited': ('https://www.sphinx-doc.org/en/master/extdev/appapi.html#event-builder-inited%s', ''),
-  'sphinx_alabaster_theme': ('https://alabaster.readthedocs.io/en/latest/%s', ''),
-  'rst_quickstart': ('https://docutils.sourceforge.io/docs/user/rst/quickstart.html%s', ''),
-  'rst_cheatsheet': ('https://docutils.sourceforge.io/docs/user/rst/cheatsheet.txt%s', ''),
-  'rst_docs': ('https://docutils.sourceforge.io/rst.html%s', ''),
-  'rst_spec': ('https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html%s', ''),
-  'rst_cokelaer_cheatsheet': ('https://thomas-cokelaer.info/tutorials/sphinx/rest_syntax.html#contents-directives%s', ''),
-  'rst_guide_zephyr': ('https://docs.zephyrproject.org/latest/guides/documentation/index.html%s', ''),
-  'jinja_home': ('https://palletsprojects.com/p/jinja/%s', ''),
-  'jinja_docs': ('https://jinja.palletsprojects.com/en/master/%s', ''),
-  'recommonmark_home': ('https://recommonmark.readthedocs.io/en/latest/%s', ''),
-  'recommonmark_embedded_rst': ('https://recommonmark.readthedocs.io/en/latest/auto_structify.html#embed-restructuredtext%s', ''),
-  'markdown_home': ('https://www.markdownguide.org/%s', ''),
-  'autoapi_home': ('https://autoapi.readthedocs.io/%s', ''),
-  'autoapi_usage': ('https://autoapi.readthedocs.io/#usage%s', ''),
-  'autodoc_home': ('https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html%s', ''),
-  'bootstrap4': ('https://getbootstrap.com/docs/4.5/getting-started/introduction/%s', ''),
-  'bootstrap4_widgets': ('https://getbootstrap.com/docs/4.0/components/alerts/%s', ''),
-  'bootstrap4_sphinx_theme': ('http://myyasuda.github.io/sphinxbootstrap4theme/%s', ''),
-  'bootstrap4_sphinx_theme_options': ('http://myyasuda.github.io/sphinxbootstrap4theme/setup.html#html-theme-options%s', ''),
-  'bootstrap4_sphinx_theme_templates': ('https://github.com/myyasuda/sphinxbootstrap4theme/tree/master/themes/sphinxbootstrap4theme%s', ''),
-  'darkly': ('https://bootswatch.com/darkly/%s', ''),
-  'dracula_pygments': ('https://draculatheme.com/pygments%s', ''),
-  'o2_github_root': ('https://github.com/Origen-SDK/o2%s', ''),
-  'static_website': ('https://en.wikipedia.org/wiki/Static_web_page%s', ''),
-  'python_docs': ('https://docs.python.org/3.8/index.html%s', ''),
-  'python_exception_hierarchy': ('https://docs.python.org/3/library/exceptions.html#exception-hierarchy%s', ''),
-  'ticket_mako_multiple_newlines': ('https://stackoverflow.com/questions/22558067/how-to-convert-multiple-newlines-in-mako-template-to-one-newline%s', ''),
-}
+extlinks = origen_extlinks
 
 origen_content_header = {
   "insert-rst-shared-defs": True
 }
-
-doc_root = "guides/documenting"
-pattern_api_root = 'guides/testers/pattern_generation/pattern_api'
-program_api_root = 'guides/testers/program_generation/program_api'
-utility_root = 'guides/runtime/utilities'
-rst_shared_defs = {
-  'output_dir': origen.web.interbuild_dir.joinpath('rst_shared_defs'),
-  # 'api': {
-  #   'class': {
-  #     "origen-compiler": (
-  #       "Origen's Compiler",
-  #       'origen.compiler.Compiler'
-  #     ),
-  #     "origen-translator": (
-  #       "Origen's Translator",
-  #       'origen.translator.Translator'
-  #     )
-  #   }
-  # },
-
-  'refs': {
-    'documenting_introduction': (
-      'Documenting: Introduction',
-      f"{doc_root}/introduction:Introduction"
-    ),
-    'documenting_core_concepts': (
-      'Documenting: Core Concept',
-      f"{doc_root}/core_concepts:Core Concepts"
-    ),
-    'pattern_api_comments': (
-      'commenting pattern source',
-      f'{pattern_api_root}:Comments'
-    ),
-    'program_api_comments': (
-      'commenting program source',
-      f'{program_api_root}:Comments'
-    ),
-    'logger': (
-      'logger',
-      f'{utility_root}/logger:Logger'
-    ),
-
-    'documenting': {
-      'web_output_dir': (
-        'web output directory',
-        f"{doc_root}/further_customizing_your_sphinx_app:Application Customizations"
-      ),
-      'web_cmd': (
-        'origen web',
-        f"{doc_root}/building_your_webpages:Origen Web"
-      ),
-      'block_diagram': (
-        'block diagram',
-        f"{doc_root}/core_concepts:Doc System Block Diagram"
-      ),
-      'ose': (
-        'origen sphinx extension',
-        f"{doc_root}/the_origen_sphinx_extension:The Origen Sphinx Extension"
-      ),
-      'origen-s_sphinx_app': (
-        'Origen\'s sphinx app',
-        f"{doc_root}/your_sphinx_app:Origen's Sphinx App"
-      ),
-      'ose_theme': (
-        'origen theme',
-        f"{doc_root}/the_origen_sphinx_extension:The Origen Theme"
-      ),
-      'ose_theme_opts': (
-        'origen sphinx extension theme options',
-        f"{doc_root}/the_origen_sphinx_extension:Origen Theme Options"
-      ),
-      'ose_config_vars': (
-        'origen sphinx extension config variables',
-        f"{doc_root}/the_origen_sphinx_extension:Configuration Variables"
-      ),
-      'api_generation': (
-        'API generation',
-        f"{doc_root}/your_sphinx_app:Automatic API Generation"
-      ),
-      'ose_favicon': (
-        'OSE favicon',
-        f"{doc_root}/the_origen_sphinx_extension:Favicon"
-      ),
-      'ose_logos': (
-        'OSE logos',
-        f"{doc_root}/the_origen_sphinx_extension:Logos"
-      ),
-      'ose_subprojects': (
-        'OSE SubProjects',
-        f"{doc_root}/the_origen_sphinx_extension:SubProjects"
-      ),
-      'origen_included_extensions': (
-        'Origen included extensions',
-        f"{doc_root}/your_sphinx_app:Extensions"
-      ),
-    }
-  },
-}
+shorthand_defs = origen_shorthand_defs
 
 rustdoc_output_dir = origen.web.static_dir.joinpath('rustdoc')
 rustdoc_apply_svg_workarounds = True
@@ -246,7 +97,8 @@ html_theme_options = {
   'navbar_links': [
     ('Github', 'https://github.com/Origen-SDK/o2', True),
     ('O1', 'https://origen-sdk.org/', True),
-    ('Example App', '_static/build/origen_sphinx_extension/example/sphinx_build/index', False)
+    ('Example App', '_static/build/origen_sphinx_extension/example/sphinx_build/index', False),
+    ('Community', 'community', False)
   ],
 }
 
@@ -279,3 +131,6 @@ def setup(app):
     if node.name == 'origen':
       node.variables['logger'] = (getattr(origen, 'logger'), node.default_variable_opts())
   app.connect('autoapi-process-node', replace_origen_logger)
+
+  # Insert shorthand's own defs for its guides.
+  origen.web.shorthand.dev.add_shorthand_dev_defs()

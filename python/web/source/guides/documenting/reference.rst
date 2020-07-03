@@ -17,7 +17,20 @@ Origen Web
 
   ``origen web build --clean --view``
 
-Run ``origen web --help`` or see the |ref_web_cmd| section for further details.
+Run ``origen web --help`` or see the |web_cmd| section for further details.
+
+Origen's Shorthand Defs
+-----------------------
+
+Origen includes a set of :link-to:`Shorthand Defs <shorthand~basic_usage>` (namespaced as ``origen``) for quick referencing
+to common places application documentation may point to, especially where new-user or installation guides
+are concerned:
+
+{% set m = importlib.import_module('origen.web.origen_sphinx_extension.shorthand_defs') %}
+
+.. code:: python
+
+  {{ m.defs | pprint }}
 
 Reference Materials
 -------------------
@@ -29,13 +42,13 @@ Sphinx Guides
 * :sphinx_app:`Sphinx App <>`
 * :sphinx_conf:`Sphinx's conf.py <>`
 * :sphinx_extensions:`Sphinx Extensions <>`
-* |ref_origen-s_sphinx_app|
-* |ref_origen_included_extensions|
+* |origen-s_sphinx_app|
+* |documenting:origen_included_extensions|
    * :autodoc_home:`Autodoc <>`
    * :autoapi_home:`AutoAPI <>`
-* The |ref_ose|
+* The |ose|
 * :sphinx_themes:`Sphinx Themes <>`
-* |ref_ose_theme|
+* |ose_theme|
 
 Jinja
 ^^^^^
@@ -84,8 +97,8 @@ Customizations
 
 * Adding a :py:data:`favicon`
 * Adding :py:data:`logos`
-* {{ ref_for('documenting:ose_subprojects', 'Adding a subproject') }}
-* {{ ref_for('documenting:ose_config_vars', 'Configuration Variables') }}
+* :link-to:`Adding a subproject <ose_subprojects>`
+* :link-to:`Configuration Variables <ose_config_vars>`
 
 Other
 ^^^^^

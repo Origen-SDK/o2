@@ -9,7 +9,7 @@ or from the workspace.
 Application Customizations
 --------------------------
 
-The settings below reside in the *Origen application* but are used by |ref_ose|.
+The settings below reside in the *Origen application* but are used by |ose|.
 The settings below can be set in the application's `.toml` configuration file.
 
 * ``website_output_directory``: Directory where the final built webpages should reside,

@@ -57,8 +57,9 @@ logger = _origen.logger
 
     See Also
     --------
-    :mod:`_origen.logger`
-    {{ ref_for('logger', 'Logging Output') }}
+    
+    * :mod:`_origen.logger`
+    * :link-to:`Logging Output <logger>`
 '''
 
 running_on_windows = _origen.on_windows()

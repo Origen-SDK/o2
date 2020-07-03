@@ -10,3 +10,4 @@ Getting Started
    getting_started/workspaces
    getting_started/creating_a_new_application
    getting_started/configuring_your_workspace
+   getting_started/the_origen_app

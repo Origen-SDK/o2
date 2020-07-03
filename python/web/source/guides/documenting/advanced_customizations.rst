@@ -28,7 +28,7 @@ out of the box.
 
 The *Bootstrap4 theme* also has its own set of
 :bootstrap4_sphinx_theme_options:`html_theme_options <>`.
-Most of the user-facing ones have been hijacked by the *origen theme* (See the |ref_ose_theme_opts| for more), but some additional ones
+Most of the user-facing ones have been hijacked by the *origen theme* (See the |ose_theme_opts| for more), but some additional ones
 but others supported by the *Bootstrap4 theme* are also fair game for customization.
 
 Overriding Origen's Theme
@@ -47,7 +47,7 @@ Extending Themes
 
 Sphinx allows for :sphinx_creating_themes:`one theme to extend another <>`. The Origen theme is
 no exception, allowing for alterations without entirely breaking away from it - maintaining
-|ref_ose| features which rely on the theme.
+|ose| features which rely on the theme.
 
 Choosing A Different Theme
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -55,7 +55,7 @@ Choosing A Different Theme
 Although picked for you during the Origen application creation, the Origen theme is completely optional.
 :sphinx_using_a_theme:`Setting the theme <>` in your config will override and decouple your webpages
 from the Origen theme entirely but at the expense of the aforementioned
-|ref_ose_theme_opts| (or at least in their current form).
+|ose_theme_opts| (or at least in their current form).
 
 All of the Origen-theme specifics are contained within the ``html_theme_options`` configuration setting,
 so breaking away from the Origen theme will only impact those options. 
@@ -74,13 +74,13 @@ than break away from it entirely, the latter of which will maintain the highest 
 Recap
 -----
 
-* Origen and the |ref_ose| aim to allow for as much flexibility as possible while maintaining the highest
+* Origen and the |ose| aim to allow for as much flexibility as possible while maintaining the highest
   degree of functionality.
-* The |ref_ose_theme| can be extended, allowing for a project-specific vibe without having to entirely
+* The |ose_theme| can be extended, allowing for a project-specific vibe without having to entirely
   ditch the features Origen's theme provides.
-* The |ref_ose_theme| itself :sphinx_creating_themes:`extends <>` the
+* The |ose_theme| itself :sphinx_creating_themes:`extends <>` the
   :bootstrap4_sphinx_theme:`sphinxbootstrap4 theme <>`.
-* If you do opt to move away from Origen's theme entirely, some of the |ref_ose| features will not
+* If you do opt to move away from Origen's theme entirely, some of the |ose| features will not
   work properly but the general integration between the
   *Origen application*, *Sphinx app*, and Origen CLI will still be maintained.
 

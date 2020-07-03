@@ -104,11 +104,9 @@ impl PyTester {
     ///
     /// See Also
     /// --------
-    /// :meth:`set_timeset`
-    ///
-    /// :class:`_origen.dut.timesets.Timeset`
-    ///
-    /// :ref:`Timing <guides/testers/timing:Timing>`
+    /// * :meth:`set_timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn get_timeset(&self) -> PyResult<PyObject> {
         let tester = origen::tester();
         let dut = origen::dut();
@@ -184,11 +182,9 @@ impl PyTester {
     ///
     /// See Also
     /// --------
-    /// :meth:`timeset`
-    ///
-    /// :class:`_origen.dut.timesets.Timeset`
-    ///
-    /// :ref:`Timing <guides/testers/timing:Timing>`
+    /// * :meth:`timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
         self.timeset(timeset)
     }
@@ -264,8 +260,8 @@ impl PyTester {
     ///
     /// See Also
     /// --------
-    /// {{ ref_for('pattern_api_comments', 'Commenting pattern source') }}
-    /// {{ ref_for('program_api_comments', 'Commenting program source') }}
+    /// * {{ link_to('prog-gen:comments', 'Commenting pattern source') }}
+    /// * {{ link_to('pat-gen:comments', 'Commenting program source') }}
     fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<PyObject> {
         {
             let mut tester = origen::tester();

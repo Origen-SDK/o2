@@ -19,7 +19,7 @@ The :ref:`previous section <guides/documenting/introduction:Introduction>` menti
               <li>A fully-functioning <i>Sphinx app</i> out-of-the-box.</li>
             </ul>
         </p>
-        <cite>{{ anchor_for('documenting_introduction', 'The Introduction') }}</cite>
+        <cite>{{ anchor_to('documenting:introduction', 'The Introduction') }}</cite>
       </blockquote>
     </div>
   </div>
@@ -37,8 +37,8 @@ you're coming from a Python-heavy background there's a high chance you've viewed
 :sphinx_project_examples:`documentation source generated from Sphinx <>` or even used it yourself.
 Sphinx will be the key to generating your *Origen application's* docs.
 
-  If you're already familiar with Sphinx, glancing at the |ref_block_diagram| and jumping to the |ref_ose|
-  will give you the most pertinent information.
+If you're already familiar with Sphinx, glancing at the |documenting:block_diagram| and jumping to the |ose|
+will give you the most pertinent information.
 
 Nomenclature and Glossary
 -------------------------
@@ -75,7 +75,7 @@ of the website.
 
 Sphinx allows for :sphinx_extensions:`extensions <>`, which can add additional
 functionality to an existing *Sphinx app*. Origen ties into Sphinx through a custom extension,
-called the |ref_ose|. *Extensions* will be covered later but for now all you need to know is
+called the |ose|. *Extensions* will be covered later but for now all you need to know is
 the `origen_sphinx_ext` *exists* and is instrumental is hooking your *Origen application*
 and *Sphinx app* together. That said, to add documentation to your project,
 the view below is sufficient to get started:
@@ -98,7 +98,7 @@ The key points from this are:
 * This custom extension is responsible for integrating Origen's CLI and your *Origen application*
   with the *Sphinx app* itself.
 * Although ``origen new`` builds an initial *Sphinx app* for you, with some Origen-specifics
-  ({{ ref_for('documenting:origen-s_sphinx_app', 'discussed a bit later') }}), it does not impede
+  (:link-to:`discussed a bit later <origen-s_sphinx_app>`), it does not impede
   Sphinx's general operations, nor does it discourage integrating other extensions you may need
   for your project.
 * Writing docs for your *Origen application* amounts to writing docs like you would any

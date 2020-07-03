@@ -18,6 +18,7 @@ log/
 *.swp
 *.swo
 *~
+*.pylintrc
 
 # Output files from regressions
 python/templates/dut_info.txt

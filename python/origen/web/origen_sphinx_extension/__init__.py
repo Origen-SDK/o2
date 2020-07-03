@@ -1,5 +1,14 @@
+'''
+|sphinx_ext| which ties together the |sphinx_app| and the |origen_app|.
+
+The :meth:setup nethod is called by Sphinx early on but much of the actual setup
+occurs in :meth:apply_origen_config, which is delayed until the
+:sphinx_event_config_inited:`config-inited event <>` - allowing
+the user's setup to initialize completely before Origen post-processes it.
+'''
+
 # from sphinx.errors import ExtensionError
-import origen, origen.web, shutil, copy, subprocess, pathlib
+import origen, origen.web, shutil, copy, subprocess, pathlib, importlib
 from sphinx.util.logging import getLogger
 logger = getLogger('Origen Sphinx Extension')
 
@@ -7,21 +16,21 @@ import sphinxbootstrap4theme
 from recommonmark.parser import CommonMarkParser
 from recommonmark.transform import AutoStructify
 
-from . import templating, subprojects, misc
+from . import templating, subprojects, misc, shorthand_defs
 
-''' The defaults here can merged item-by-item by Python '''
 ORIGEN_THEME_DEFAULTS = {
   'bypass_main_logo': True
 }
+''' The defaults here can be merged item-by-item by Python '''
 
 ORIGEN_FAVICON_URL = 'https://origen-sdk.org/favicon-32x32.png'
+''' Origen's favicon and the default one for applications '''
 
-''' Default navbar links which must be merged manually '''
 ORIGEN_THEME_NAVBAR_LINKS = [
   # release notes
 ]
+''' Default navbar links included by Origen '''
 
-''' Default logos which must be merged manually '''
 ORIGEN_THEME_LOGOS = [
   {
     'src': 'https://origen-sdk.org/img/origen-device.png',
@@ -36,15 +45,20 @@ ORIGEN_THEME_LOGOS = [
     'rel_src': True,
   },
 ]
+''' Default logos included by Origen '''
 
 root = ""
 static_root = ""
 templates_root = ""
 theme_dir = origen.frontend_root.joinpath("web/origen_sphinx_extension/theme")
 
+def sphinx_ext(app, ext_name):
+  if ext_name in app.extensions:
+    return importlib.import_module(app.extensions[ext_name].module.__name__)
+
 def setup(sphinx):
   '''
-    Set up the |ose|
+    Sets up the |ose|
 
     This will:
 
@@ -53,6 +67,10 @@ def setup(sphinx):
       * Set the theme to 'origen' (overridable by the user later)
       * Configure :recommonmark_home:`recommonmark <>`
   
+    Changes to the Sphinx environment here are benign though - that is,
+    changes here either have no effect if not used (such as adding paths or adding markdown support)
+    or can be overridden in the user's ``conf`` (such as the ``theme``)
+
   '''
   sphinx.add_config_value("origen_subprojects", {}, '')
   sphinx.add_config_value("origen_no_api", None, 'env')
@@ -60,6 +78,7 @@ def setup(sphinx):
   sphinx.add_config_value("origen_api_module_data_clashes", {}, '')
   sphinx.add_config_value("origen_refs_for", {}, '')
   sphinx.add_config_value("origen_content_header", {}, '')
+  sphinx.add_config_value("include_origen_shorthand_defs", True, '')
 
   sphinx.connect("config-inited", apply_origen_config)
   sphinx.connect("builder-inited", subprojects.build_subprojects)
@@ -67,7 +86,9 @@ def setup(sphinx):
   sphinx.add_html_theme('origen', str(theme_dir))
 
   for ext in origen.app.compiler.supported_extensions:
-    #  supported extensions include the '.'
+    # Register files that will use Origen's compiler to be found by Sphinx.
+    # Otherwise, Sphinx will skip these.
+    # For example, this will register .rst.mako as a file Sphinx will pickup.
     sphinx.add_source_suffix(f'.rst{ext}', 'restructuredtext')
     sphinx.add_source_suffix(f'.md{ext}', 'markdown')
 
@@ -78,7 +99,7 @@ def setup(sphinx):
   #  this will still be safe. It'll just have no usage.
   # Setup taken from: https://recommonmark.readthedocs.io/en/latest/auto_structify.html
   # Adding the config here so users get it for free - its not particularly obvious what this does so want to abstract this as much as possible.
-  # It can be overridden in the their own 'setup' method
+  # It can be overridden in the their own 'setup' method as well.
   github_doc_root = 'https://github.com/rtfd/recommonmark/tree/master/doc/'
   sphinx.add_config_value('recommonmark_config', {
             'url_resolver': lambda url: github_doc_root + url,
@@ -113,6 +134,12 @@ def apply_origen_config(sphinx, config):
     Regarding theme options:
       We'll set the 'html_theme' to 'origen' by default, but if its overridden then all our theme stuff is skipped.
   '''
+
+  ext = sphinx_ext(sphinx, 'origen.web.shorthand')
+  if ext:
+    origen.web.shorthand.set_default_output_dir(origen.web.interbuild_dir.joinpath('shorthand'))
+    if config.include_origen_shorthand_defs:
+      ext.add_defs(origen.web.origen_sphinx_extension.shorthand_defs.defs)
 
   if config.origen_no_api:
     # Skip all the API generation by just clearing the appropriate config variables.
@@ -152,12 +179,17 @@ def apply_origen_config(sphinx, config):
     # CSS Files
     sphinx.add_css_file('bootstrap-4.3.1-dist/css/bootstrap.min.css')
     # sphinx.add_css_file("https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css")
+
+    # Dark Theme
     # Experimenting with some Dark themes - personally, I like darkly the most, but some other good candidates are below
     # sphinx.add_css_file("https://stackpath.bootstrapcdn.com/bootswatch/4.3.1/cyborg/bootstrap.min.css")
     # sphinx.add_css_file("https://stackpath.bootstrapcdn.com/bootswatch/4.3.1/slate/bootstrap.min.css")
     sphinx.add_css_file("https://stackpath.bootstrapcdn.com/bootswatch/4.4.1/darkly/bootstrap.min.css")
     sphinx.add_css_file('sphinxbootstrap4.css')
-    sphinx.add_css_file('https://gitcdn.link/repo/dracula/pygments/master/dracula.css') # ('dracula.css')
+    
+    # Tried to use a CDN but this one, and its mirror, go down far too often.
+    # sphinx.add_css_file('https://gitcdn.link/repo/dracula/pygments/master/dracula.css') # ('dracula.css')
+    sphinx.add_css_file('dracula.css')
     sphinx.add_css_file('quote_card.css')
     sphinx.add_css_file('origen.css')
 

@@ -11,3 +11,4 @@ Documenting
   documenting/further_customizing_your_sphinx_app
   documenting/advanced_customizations
   documenting/reference
+  documenting/shorthand_ext
