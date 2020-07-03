@@ -45,7 +45,7 @@ SPHINX_TEMPLATE = '_templates'
 source_dir = origen.app.website_source_dir
 ''' Resolved source directory in which the |sphinx_app| lives '''
 
-static_dir = source_dir.joinpath(SPHINX_STATIC).joinpath('build')
+static_dir = source_dir.joinpath(SPHINX_STATIC)
 '''
   Resolved/default |sphinx_static_dir|
 
@@ -59,7 +59,17 @@ static_dir = source_dir.joinpath(SPHINX_STATIC).joinpath('build')
       this only points to a single one - which Origen will use.
 '''
 
-templates_dir = source_dir.joinpath(SPHINX_TEMPLATE).joinpath('origen')
+unmanaged_static_dir = static_dir.joinpath('build')
+'''
+  Resolved/default |sphinx_static_dir| which is automically unmanaged by revision control (e.g., |.gitignore|). Can be used
+  to store *"static content that is dynamically generated"* or, put another way, content that is dynamically generated but
+  due to Sphinx's build flow/assumptions or ease-of-use, needs to be placed in a 'static' location.
+
+  This path will be automatically added in the |ose|, as other plugins which operate outside
+  of Sphinx but generate *web content* may rely on this path begin part of the Sphinx project.
+'''
+
+templates_dir = source_dir.joinpath(SPHINX_TEMPLATE)
 '''
   Resolved/default |sphinx_templates_dir|
 

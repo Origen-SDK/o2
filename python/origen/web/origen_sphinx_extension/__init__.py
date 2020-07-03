@@ -135,6 +135,34 @@ def apply_origen_config(sphinx, config):
       We'll set the 'html_theme' to 'origen' by default, but if its overridden then all our theme stuff is skipped.
   '''
 
+  def cmp_path(p1, p2):
+    p = pathlib.Path(p1)
+    if p.is_absolute():
+      return p == pathlib.Path(p2)
+    else:
+      return pathlib.Path(sphinx.srcdir).joinpath(p) == pathlib.Path(p2)
+
+  # Templates and static directories from the Origen app, if not already included.
+  if config.html_static_path and isinstance(config.html_static_path, list):
+    if not any([cmp_path(p, origen.web.static_dir) for p in config.html_static_path]):
+      config.html_static_path.append(str(origen.web.static_dir))
+    if not any([cmp_path(p, origen.web.unmanaged_static_dir) for p in config.html_static_path]):
+      config.html_static_path.append(str(origen.web.unmanaged_static_dir))
+  elif config.html_static_path and isinstance(config.html_static_path, str):
+    if not cmp_path(config.html_static_path, origen.web.static_dir):
+      config.html_static_path = [config.html_static_path, str(origen.web.static_dir), str(origen.web.unmanaged_static_dir)]
+  else:
+    config.html_static_path = [str(origen.web.static_dir), str(origen.web.unmanaged_static_dir)]
+
+  if config.templates_path and isinstance(config.templates_path, list):
+    if not any([cmp_path(p, origen.web.templates_dir) for p in config.templates_path]):
+      config.templates_path.append(origen.web.templates_dir)
+  elif config.templates_path and isinstance(config.templates_path, str):
+    if not cmp_path(config.templates_path, origen.web.templates_dir):
+      config.templates_path = [config.templates_path, str(origen.web.templates_dir)]
+  else:
+    config.templates_path = [str(origen.web.templates_dir)]
+
   ext = sphinx_ext(sphinx, 'origen.web.shorthand')
   if ext:
     origen.web.shorthand.set_default_output_dir(origen.web.interbuild_dir.joinpath('shorthand'))

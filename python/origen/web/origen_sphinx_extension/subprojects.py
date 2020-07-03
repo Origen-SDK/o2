@@ -14,7 +14,7 @@ class SubProject:
     config = copy.deepcopy(config)
     self.proj = proj
     self.source = config.pop("source", None)
-    self.final_output_dir = config.pop("output_dir", origen.web.static_dir).joinpath("origen_sphinx_extension").joinpath(proj)
+    self.final_output_dir = config.pop("output_dir", origen.web.unmanaged_static_dir).joinpath("origen_sphinx_extension").joinpath(proj)
     self.subproject_output_dir = self.get_subproject_output_dir()
 
   def get_subproject_output_dir_cmd(self):

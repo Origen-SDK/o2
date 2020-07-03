@@ -53,7 +53,7 @@ origen_content_header = {
 }
 shorthand_defs = origen_shorthand_defs
 
-rustdoc_output_dir = origen.web.static_dir.joinpath('rustdoc')
+rustdoc_output_dir = origen.web.unmanaged_static_dir.joinpath('rustdoc')
 rustdoc_apply_svg_workarounds = True
 rustdoc_projects = {
   'pyapi': {
