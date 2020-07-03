@@ -759,6 +759,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "origen_pyapi"
+version = "2.0.0-pre1"
+dependencies = [
+ "indexmap",
+ "itertools",
+ "libz-sys",
+ "num-bigint",
+ "num-traits 0.2.11",
+ "origen",
+ "pyo3",
+]
+
+[[package]]
 name = "paste"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -878,18 +891,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53f5ffe53a6b28e37c9c1ce74893477864d64f74778a93a4beb43c8fa167f639"
 dependencies = [
  "unicode-xid",
-]
-
-[[package]]
-name = "pyapi"
-version = "0.0.0"
-dependencies = [
- "indexmap",
- "itertools",
- "num-bigint",
- "num-traits 0.2.11",
- "origen",
- "pyo3",
 ]
 
 [[package]]

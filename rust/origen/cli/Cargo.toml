@@ -1,6 +1,6 @@
 [package]
 name = "cli"
-version = "0.0.0"  # Runtime version defined by top-level Cargo.toml
+version = "2.0.0-pre0"
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 edition = "2018"
 workspace = ".."

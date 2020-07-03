@@ -82,6 +82,6 @@ fn cargo_fmt() {
     redln("NO");
 }
 
-fn cd(dir: &Path) {
+pub fn cd(dir: &Path) {
     env::set_current_dir(&dir).expect(&format!("Couldn't cd to '{}'", dir.display()));
 }

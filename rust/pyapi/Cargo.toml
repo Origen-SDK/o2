@@ -1,6 +1,6 @@
 [package]
-name = "pyapi"
-version = "0.0.0"  # Runtime version defined by the origen package's Cargo.toml
+name = "origen_pyapi"
+version = "2.0.0-pre0"
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 edition = "2018"
 
@@ -19,6 +19,8 @@ num-bigint = "0.2"
 num-traits = "0.2.0"
 indexmap = "1.3.0"
 itertools = "0.8.0"
+# Statically links this lib to make the Python extension more portable
+libz-sys = { version = "1.0.25", features = ["static"] }
 #syn = "1.0.13"
 #quote = "1.0.2"
 

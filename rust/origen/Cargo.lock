@@ -288,7 +288,7 @@ dependencies = [
 
 [[package]]
 name = "cli"
-version = "0.0.0"
+version = "2.0.0-pre0"
 dependencies = [
  "clap",
  "flate2",
@@ -1443,7 +1443,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "2.0.0-pre1"
+version = "2.0.0-pre0"
 dependencies = [
  "built",
  "chrono",

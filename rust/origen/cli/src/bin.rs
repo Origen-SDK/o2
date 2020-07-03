@@ -225,6 +225,35 @@ fn main() {
             .subcommand(SubCommand::with_name("fmt").about(fmt_help));
     }
 
+    if STATUS.is_origen_present {
+        let build_help = "Build and deploy Origen";
+
+        origen_commands.push(CommandHelp {
+            name: "build".to_string(),
+            help: build_help.to_string(),
+            shortcut: None,
+        });
+
+        app = app
+            //************************************************************************************/
+            .subcommand(
+                SubCommand::with_name("build").about(build_help)
+                .arg(Arg::with_name("cli")
+                        .long("cli")
+                        .required(false)
+                        .takes_value(false)
+                        .help("Build the CLI (instead of the Python API)")
+                )
+                .arg(Arg::with_name("version")
+                        .long("version")
+                        .required(false)
+                        .takes_value(true)
+                        .value_name("VERSION")
+                        .help("Set the version (of all components) to the given value before building")
+                )
+            );
+    }
+
     /************************************************************************************/
     /******************** In application commands ***************************************/
     /************************************************************************************/
@@ -567,6 +596,7 @@ CORE COMMANDS:
         Some("setup") => commands::setup::run(),
         Some("update") => commands::update::run(),
         Some("fmt") => commands::fmt::run(),
+        Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap()),
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some("interactive") => {
             log_trace!("Launching interactive session");
