@@ -124,7 +124,7 @@ dut = None
 tester = Tester()
 ''' Pointer to the global tester object, :class:`origen.tester.Tester`
 '''
-producer = Producer()
+
 # The application's test program interface, this will be lazily instantiated
 # the first time a test program Flow() block is encountered
 interface = None

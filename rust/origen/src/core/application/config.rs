@@ -89,10 +89,5 @@ impl Config {
         }
         log_trace!("Completed building app config");
         c
-
-        // let mut config: Config = s.try_into().unwrap();
-        // config.root = Some(root.to_path_buf());
-        // log_trace!("Completed building app config");
-        // config
     }
 }
