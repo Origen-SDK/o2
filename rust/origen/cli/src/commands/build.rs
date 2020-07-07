@@ -153,7 +153,7 @@ pub fn run(matches: &ArgMatches) {
         } else {
             // The default build will compile the latest PyAPI and copy it into
             // the example app's Python env
-            cd(&STATUS.origen_wksp_root.join("example"));
+            cd(&STATUS.origen_wksp_root.join("test_apps").join("python_app"));
             display!("");
             Command::new("poetry")
                 .args(&[

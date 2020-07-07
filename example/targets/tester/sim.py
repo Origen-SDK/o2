@@ -1,1 +1,0 @@
-origen.tester.target("::Simulator")

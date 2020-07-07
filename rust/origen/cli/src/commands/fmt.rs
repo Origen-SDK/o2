@@ -24,8 +24,8 @@ pub fn run() {
 
     let root = match STATUS.is_origen_present {
         true => {
-            starting("example ... ");
-            STATUS.origen_wksp_root.join("example")
+            starting("python_app ... ");
+            STATUS.origen_wksp_root.join("test_apps").join("python_app")
         }
         false => {
             starting("formatting ... ");
