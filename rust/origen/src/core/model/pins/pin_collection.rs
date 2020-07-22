@@ -118,6 +118,17 @@ impl Dut {
         self.set_pin_actions(collection.model_id, pin_names, action, data, mask)
     }
 
+    pub fn set_per_pin_collection_actions(
+        &mut self,
+        collection: &mut PinCollection,
+        actions: &Vec<PinActions>,
+    ) -> Result<(), Error> {
+        let pin_names = &collection.pin_names;
+        let mask = collection.mask;
+        collection.mask = Option::None;
+        self.set_per_pin_actions(collection.model_id, pin_names, &actions, mask)
+    }
+
     // pub fn get_pin_collection_data(&mut self, collection: &PinCollection) -> Result<u32, Error> {
     //     let pin_names = &collection.pin_names;
     //     Ok(self.get_pin_data(&pin_names))
@@ -131,7 +142,7 @@ impl Dut {
     pub fn get_pin_collection_reset_actions(
         &self,
         collection: &PinCollection,
-    ) -> Result<String, Error> {
+    ) -> Result<Vec<PinActions>, Error> {
         let pin_names = &collection.pin_names;
         self.get_pin_reset_actions(collection.model_id, &pin_names)
     }

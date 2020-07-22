@@ -41,7 +41,7 @@ impl Renderer {
     ) -> crate::Result<Return> {
         let s = self.states(dut);
         for (name, changes) in pin_changes.iter() {
-            s.update(name, Some(changes.0), Some(changes.1), dut)?;
+            s.update(name, Some(changes.0.clone()), Some(changes.1), dut)?;
         }
         Ok(Return::Unmodified)
     }
@@ -141,7 +141,7 @@ impl Processor for Renderer {
                     self.states
                         .as_ref()
                         .unwrap()
-                        .as_strings()
+                        .to_symbols(&dut, &t)
                         .unwrap()
                         .join(" ")
                 ));

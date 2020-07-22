@@ -6,6 +6,7 @@ use origen::{dut, DUT};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
+use super::pin_actions::PinActions;
 
 #[pyclass]
 #[derive(Clone)]
@@ -21,7 +22,6 @@ impl PinCollection {
         endianness: Option<Endianness>,
     ) -> Result<PinCollection, Error> {
         let mut dut = dut();
-        //let model = dut.get_mut_model(model_id)?;
         let collection = dut.collect(model_id, names, endianness)?;
         Ok(PinCollection {
             pin_collection: collection,
@@ -78,10 +78,32 @@ impl PinCollection {
         return self.set_data(data);
     }
 
+    #[setter]
+    fn pin_actions(&mut self, actions: &PyAny) -> PyResult<()> {
+        let mut dut = DUT.lock().unwrap();
+        dut.set_per_pin_collection_actions(
+            &mut self.pin_collection,
+            &extract_pinactions!(actions)?
+        )?;
+        Ok(())
+    }
+
+    fn set_actions(mut slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<PyObject> {
+        slf.pin_actions(actions)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(slf.to_object(py))
+    }
+
     #[getter]
-    fn get_pin_actions(&self) -> PyResult<String> {
+    fn get_pin_actions(&self) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_actions(self.model_id, &self.pin_collection.pin_names)?)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let pin_actions = dut.get_pin_actions(self.model_id, &self.pin_collection.pin_names)?;
+        Ok(PinActions {actions: pin_actions}.into_py(py))
     }
 
     fn drive(&mut self, data: Option<u32>) -> PyResult<()> {
@@ -131,9 +153,12 @@ impl PinCollection {
     }
 
     #[getter]
-    fn get_reset_actions(&self) -> PyResult<String> {
+    fn get_reset_actions(&self) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_collection_reset_actions(&self.pin_collection)?)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let pin_actions = dut.get_pin_collection_reset_actions(&self.pin_collection)?;
+        Ok(PinActions {actions: pin_actions}.into_py(py))
     }
 
     #[getter]
@@ -144,6 +169,29 @@ impl PinCollection {
     #[getter]
     fn get_little_endian(&self) -> PyResult<bool> {
         Ok(self.pin_collection.is_little_endian())
+    }
+
+    #[args(kwargs = "**")]
+    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?)?;
+        locals.set_item("kwargs", kwargs.to_object(py))?;
+
+        py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
+        Ok(slf.to_object(py))
+    }
+
+    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?)?;
+        py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
+        Ok(slf.to_object(py))
     }
 }
 

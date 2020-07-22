@@ -99,6 +99,10 @@ class Base:
             self.__proxies__["timesets"] = proxy
             for method in timesets.Proxy.api():
                 self.__setattr__(method, getattr(proxy, method))
+            
+            # Timesets may use pin references (as strings) for wavetable and wave
+            # instantiations. Need to ensure pins are loaded.
+            self.pins
             self._load_timesets()
             return eval(f"self.{name}")
 

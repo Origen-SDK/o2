@@ -58,12 +58,10 @@ impl Pin {
             .downcast_mut::<PyDUT>()?;
         match pin.get_metadata_id(id_str) {
             Some(idx) => {
-                println!("override!");
                 dut.override_metadata_at(idx, obj)?;
                 Ok(true)
             }
             None => {
-                println!("adding!");
                 let idx = dut.push_metadata(obj);
                 pin.add_metadata_id(id_str, idx)?;
                 Ok(false)
@@ -119,7 +117,7 @@ impl Pin {
     fn get_action(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-        Ok(String::from(pin.action.as_str()))
+        Ok(String::from(pin.action.long_name()))
     }
 
     #[getter]
@@ -149,8 +147,8 @@ impl Pin {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        match pin.reset_action {
-            Some(a) => Ok(String::from(a.as_char().to_string()).to_object(py)),
+        match pin.reset_action.as_ref() {
+            Some(a) => Ok(a.to_string().into_py(py)),
             None => Ok(py.None()),
         }
     }

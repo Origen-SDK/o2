@@ -405,7 +405,6 @@ impl PyTester {
                 }
                 _ => {
                     let mut tester = origen::tester();
-                    //let dut = origen::DUT.lock().unwrap();
                     tester.render_target_at(i)?;
                 }
             }

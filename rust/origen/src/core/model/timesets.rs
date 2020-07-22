@@ -5,8 +5,8 @@ use super::Model;
 use crate::error::Error;
 use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 
-/// Returns an Origen Error with pre-formatted message comlaining that
-/// someting already exists.
+/// Returns an Origen Error with pre-formatted message complaining that
+/// something already exists.
 #[macro_export]
 macro_rules! duplicate_error {
     ($container:expr, $model_name:expr, $duplicate_name:expr) => {
@@ -177,7 +177,7 @@ impl Dut {
                 //  * pins
                 //  * events
                 let w = &mut self.waves[id];
-                w.pins = base_wave.pins.clone();
+                //w.pins = base_wave.pins.clone();
             }
         }
         Ok(&self.waves[id])

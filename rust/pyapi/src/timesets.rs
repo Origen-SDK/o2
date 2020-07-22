@@ -15,7 +15,7 @@ pub mod timeset_container;
 pub mod timeset;
 
 use pyo3::types::{PyAny, PyDict};
-use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
+use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable, SymbolMap};
 use timeset_container::{
     EventContainer, TimesetContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
 };
@@ -32,6 +32,7 @@ pub fn timesets(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<WaveGroup>()?;
     m.add_class::<Wave>()?;
     m.add_class::<Event>()?;
+    m.add_class::<SymbolMap>()?;
     Ok(())
 }
 

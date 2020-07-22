@@ -1,6 +1,8 @@
 import pytest, abc
 import origen, _origen # pylint: disable=import-error
+from origen.pins import PinActions
 from shared.python_like_apis import Fixture_DictLikeAPI, Fixture_ListLikeAPI
+from tests.pins import ports, clk_pins
 
 @pytest.fixture
 def clean_eagle():
@@ -249,7 +251,7 @@ class TestComplexTimingScenerios:
   #     }
   #   }
   @pytest.fixture
-  def define_complex_timeset(self, clean_falcon):
+  def define_complex_timeset(self, clean_falcon, clk_pins, ports):
     t = origen.dut.add_timeset("complex")
     wtbl = t.add_wavetable("w1")
     wtbl.period = "40"
@@ -387,7 +389,10 @@ class TestComplexTimingScenerios:
     # Given a single waveform, retrieve its events
     wave = wtbl.waves["Ports"].waves["1"]
     assert wave.indicator == "1"
-    assert wave.applied_to == ["porta", "portb"]
+    assert isinstance(wave.applied_to, list)
+    applied_pins = ["porta0", "porta1", "porta2", "porta3", "portb0", "portb1"]
+    for (i, p) in enumerate(wave.applied_to):
+      assert p.name == applied_pins[i]
     assert len(wave.events) == 1
     e = wave.events[0]
     assert isinstance(e, _origen.dut.timesets.Event)
@@ -468,7 +473,7 @@ class TestComplexTimingScenerios:
       w.push_event(action="blah!", at="period/2")
 
 def test_loader_api(clean_eagle):
-  assert len(origen.dut.timesets) == 2
+  assert len(origen.dut.timesets) == 4
 
   # Test adding some more waveforms. The updated Waveform Table should now look like:
   #   WaveformTable w1 {
@@ -496,3 +501,130 @@ def test_loader_api(clean_eagle):
 # class TestDummy:
 #   def test_dummy_class(self):
 #     assert False
+
+# def test_setting_waveform_symbols():
+#     t = origen.dut.add_timeset("test_symbols")
+#     wtbl = t.add_wavetable("w1")
+#     wtbl.period = "40"
+#     wgrp = wtbl.add_waves("Ports")
+
+#     # Add drive data waves
+#     # This wave should tranlate into STIL as:
+#     #   1 { DriveHigh: '10ns', U; }
+#     w = wgrp.add_wave("1")
+#     #w.indicator = "1"
+#     w.apply_to("porta", "portb")
+#     w.push_event(at="period*0.25", unit="ns", action=w.DriveHigh)
+
+#     # This wave should tranlate into STIL as:
+#     #   0 { DriveLow: '10ns', D; }
+#     w = wgrp.add_wave("0")
+#     #w.indicator = "0"
+#     w.apply_to("porta", "portb")
+#     w.push_event(at="period*0.25", unit="ns", action=w.DriveLow)
+
+#     # Add highZ wave
+#     # This wave should tranlate into STIL as:
+#     #   Z { HighZ: '10ns', Z; }
+#     w = wgrp.add_wave("Z")
+#     #w.indicator = "Z"
+#     w.apply_to("porta", "portb")
+#     w.push_event(at="period*0.25", unit="ns", action=w.HighZ)
+
+#     # Add comparison waves
+#     # This wave should tranlate into STIL as:
+#     #   H { CompareHigh: '4ns', H; }
+#     w = wgrp.add_wave("H")
+#     #w.indicator = "H"
+#     w.apply_to("porta", "portb")
+#     w.push_event(at="period*0.10", unit="ns", action=w.VerifyHigh)
+
+#     # This wave should tranlate into STIL as:
+#     #   L { CompareLow: '4ns', L; }
+#     w = wgrp.add_wave("L")
+#     #w.indicator = "L"
+#     w.apply_to("porta", "portb")
+#     w.push_event(at="period*0.10", unit="ns", action=w.VerifyLow)
+
+#     wgrp = wtbl.add_waves("Clk")
+
+#     # This wave should tranlate into STIL as:
+#     #   1 { StartClk: '0ns', U; "@/2", D; }
+#     w = wgrp.add_wave("1")
+#     #w.indicator = "1"
+#     w.apply_to("clk")
+#     w.push_event(at=0, unit="ns", action=w.DriveHigh)
+#     w.push_event(at="period/2", unit="ns", action=w.DriveLow)
+
+#     # This wave should tranlate into STIL as:
+#     #   0 { StopClk: '0ns', D; }
+#     w = wgrp.add_wave("0")
+#     #w.indicator = "0"
+#     w.apply_to("clk")
+#     w.push_event(at=0, unit="ns", action=w.DriveLow)
+
+class TestSymbolMapDictLikeAPI(Fixture_DictLikeAPI):
+  def parameterize(self):
+    return {
+      "keys": ['1', '0', 'H', 'L', 'C', 'Z'],
+      "klass": str,
+      "not_in_dut": "blah"
+    }
+
+  def boot_dict_under_test(self):
+    origen.app.instantiate_dut("dut.eagle")
+    return origen.dut.timeset('simple').symbol_map
+
+def test_default_symbol_map(clean_eagle):
+  assert dict(origen.dut.timeset('simple').symbol_map) == {
+    '1': '1', '0': '0',
+    'H': 'H', 'L': 'L',
+    'C': 'C', 'Z': 'Z'
+  }
+
+def test_setting_symbol(clean_eagle):
+  assert origen.dut.timeset('simple').symbol_map['1'] == '1'
+  origen.dut.timeset('simple').symbol_map['1'] = '0'
+  assert origen.dut.timeset('simple').symbol_map['1'] == '0'
+  origen.dut.timeset('simple').symbol_map['1'] = 'Hi'
+  assert origen.dut.timeset('simple').symbol_map['1'] == 'Hi'
+
+def test_adding_custom_symbols(clean_eagle):
+  assert 'a' not in origen.dut.timeset('simple').symbol_map
+  origen.dut.timeset('simple').symbol_map['a'] = 'b'
+  assert 'a' in origen.dut.timeset('simple').symbol_map
+  assert origen.dut.timeset('simple').symbol_map['a'] == 'b'
+
+  # Custom symbols should also be retrievable via the "action string" syntax
+  assert '|a|' in origen.dut.timeset('simple').symbol_map
+  assert origen.dut.timeset('simple').symbol_map['|a|'] == 'b'
+
+def test_getting_symbols_from_pin_actions(clean_eagle):
+  assert origen.dut.timeset('simple').symbol_map['1'] == '1'
+  assert origen.dut.timeset('simple').symbol_map[PinActions.DriveHigh()] == '1'
+
+def test_setting_symbols_from_pin_actions( clean_eagle):
+  assert origen.dut.timeset('simple').symbol_map['1'] == '1'
+  origen.dut.timeset('simple').symbol_map[PinActions.DriveHigh()] = '2'
+  assert origen.dut.timeset('simple').symbol_map[PinActions.DriveHigh()] == '2'
+
+def test_exception_on_setting_symbols_from_invalid_pin_actions_size(clean_eagle):
+  with pytest.raises(ValueError):
+    origen.dut.timeset('simple').symbol_map[PinActions("111")]
+  with pytest.raises(ValueError):
+    origen.dut.timeset('simple').symbol_map[PinActions("")]
+  with pytest.raises(TypeError):
+    origen.dut.timeset('simple').symbol_map[{}]
+
+def test_long_names(clean_eagle):
+  assert origen.dut.timeset('simple').symbol_map.long_names == ['DriveHigh', 'DriveLow', 'VerifyHigh', 'VerifyLow', 'Capture', 'HighZ']
+
+def test_long_names_with_custom_symbols(clean_eagle):
+  origen.dut.timeset('simple').symbol_map['a'] = 'a'
+  assert origen.dut.timeset('simple').symbol_map.long_names == ['DriveHigh', 'DriveLow', 'VerifyHigh', 'VerifyLow', 'Capture', 'HighZ', 'Other(a)']
+
+def test_corner_case__setting_custom_action_with_same_symbol_as_standard_action(clean_eagle):
+  assert origen.dut.timeset('simple').symbol_map['1'] == '1'
+  origen.dut.timeset('simple').symbol_map['|1|'] = '2'
+  assert origen.dut.timeset('simple').symbol_map['1'] == '1'
+  assert origen.dut.timeset('simple').symbol_map['|1|'] == '2'

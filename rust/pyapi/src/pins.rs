@@ -3,7 +3,9 @@ use origen::DUT;
 use pyo3::prelude::*;
 
 #[macro_use]
-mod pin;
+pub mod pin_actions;
+#[macro_use]
+pub mod pin;
 #[macro_use]
 mod pin_group;
 #[macro_use]
@@ -19,6 +21,7 @@ use pin_collection::PinCollection;
 use pin_container::PinContainer;
 use pin_group::PinGroup;
 use pin_header::{PinHeader, PinHeaderContainer};
+use pin_actions::PinActions;
 
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
@@ -32,7 +35,36 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PinCollection>()?;
     m.add_class::<PinHeader>()?;
     m.add_class::<PinHeaderContainer>()?;
+    m.add_class::<PinActions>()?;
     Ok(())
+}
+
+/// Given a vector of PyAny's, assumed to be either a String, Pin, or PinGroup object,
+/// return a vector with each item mapped as (model_id<usize>, name<String>) pairs.
+/// This pair is sufficient to lookup the pin group object in the backend.
+///  - This doesn't resolve any pin groups.
+///  - If a String is given, its model_id is assumed to be 0 (on the DUT).
+pub fn pins_to_backend_lookup_fields(py: Python, pins: &PyTuple) -> Result<Vec<(usize, String)>, PyErr> {
+    let mut retn: Vec<(usize, String)> = vec!();
+    for (i, p) in pins.iter().enumerate() {
+        if let Ok(s) = p.extract::<String>() {
+            // item is a String (or extract-able as a String)
+            // Model ID is 0.
+            retn.push((0, s.clone()));
+        } else if p.get_type().name().to_string() == "Pin" || p.get_type().name().to_string() == "PinGroup" {
+            let obj = p.to_object(py);
+            let model_id = obj.getattr(py, "__origen__model_id__")?.extract::<usize>(py)?;
+            let name = obj.getattr(py, "name")?.extract::<String>(py)?;
+            retn.push((model_id, name.to_string()));
+        } else {
+            return Err(PyErr::from(origen::error::Error::new(&format!(
+                "Could not resolve object at index {} as String, Pin, or Pin Group. Got: {}",
+                i,
+                p.get_type().name()
+            ))));
+        }
+    }
+    Ok(retn)
 }
 
 #[pymethods]
@@ -42,7 +74,7 @@ impl PyDUT {
         let mut dut = DUT.lock().unwrap();
         let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (
             Option<u32>,
-            Option<String>,
+            Option<Vec<origen::core::model::pins::pin::PinActions>>,
             Option<u32>,
             Option<u32>,
             Option<Endianness>,
@@ -59,7 +91,7 @@ impl PyDUT {
                     reset_data = Option::Some(arg.extract::<u32>()?);
                 }
                 if let Some(arg) = args.get_item("reset_action") {
-                    reset_action = Option::Some(arg.extract::<String>()?);
+                    reset_action = Some(extract_pinactions!(arg)?);
                 }
                 if let Some(arg) = args.get_item("width") {
                     width = Option::Some(arg.extract::<u32>()?);

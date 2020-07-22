@@ -85,9 +85,10 @@ impl Dut {
         name: &str,
         data: u32,
     ) -> Result<(), Error> {
-        let grp = self._get_pin_group(model_id, name)?;
+        let grp = self._get_mut_pin_group(model_id, name)?;
         let m = grp.mask;
         let pin_names = grp.pin_names.clone();
+        grp.mask = None;
         self.set_pin_data(model_id, &pin_names, data, m)
     }
 
@@ -103,7 +104,7 @@ impl Dut {
     /// Returns the pin actions as a string.
     /// E.g.: for an 8-pin bus where the two MSBits are driving, the next two are capturing, then next wo are verifying, and the
     ///   two LSBits are HighZ, the return value will be "DDCCVVZZ"
-    pub fn get_pin_group_actions(&self, model_id: usize, name: &str) -> Result<String, Error> {
+    pub fn get_pin_group_actions(&self, model_id: usize, name: &str) -> Result<Vec<PinActions>, Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
         self.get_pin_actions(model_id, &pin_names)
     }
@@ -112,7 +113,7 @@ impl Dut {
         &self,
         model_id: usize,
         name: &str,
-    ) -> Result<String, Error> {
+    ) -> Result<Vec<PinActions>, Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
         self.get_pin_reset_actions(model_id, &pin_names)
     }
@@ -125,10 +126,49 @@ impl Dut {
         data: Option<u32>,
         mask: Option<usize>,
     ) -> Result<(), Error> {
-        let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
-        self.set_pin_actions(model_id, &pin_names, action, data, mask)
+        let grp = self._get_mut_pin_group(model_id, name)?;
+        let pin_names = grp.pin_names.clone();
+        let m;
+        if let Some(_m) = mask {
+            m = Some(_m);
+        } else {
+            if let Some(_m) = grp.mask {
+                m = Some(_m);
+            } else {
+                m = None;
+            }
+        }
+        grp.mask = None;
+        self.set_pin_actions(model_id, &pin_names, action, data, m)
     }
 
+    pub fn set_pin_group_symbols(
+        &mut self,
+        model_id: usize,
+        name: &str,
+        symbols: &Vec<PinActions>,
+        mask: Option<usize>
+    ) -> Result<(), Error> {
+        let grp = self._get_mut_pin_group(model_id, name)?;
+        let pin_names = grp.pin_names.clone();
+        let m;
+        if let Some(_m) = mask {
+            m = Some(_m);
+        } else {
+            if let Some(_m) = grp.mask {
+                m = Some(_m);
+            } else {
+                m = None;
+            }
+        }
+        grp.mask = None;
+        self.set_per_pin_actions(
+            model_id,
+            &pin_names,
+            symbols,
+            m,
+        )
+    }
     pub fn drive_pin_group(
         &mut self,
         model_id: usize,
@@ -213,9 +253,9 @@ impl Dut {
         }
     }
 
-    //     pub fn set_pin_group_nonsticky_mask(&mut self, name: &str, mask: usize) -> Result<(), Error> {
-    //         let grp = self._get_mut_pin_group(name)?;
-    //         grp.mask = Some(mask);
-    //         Ok(())
-    //     }
+    pub fn set_pin_group_nonsticky_mask(&mut self, model_id: usize, name: &str, mask: usize) -> Result<(), Error> {
+        let grp = self._get_mut_pin_group(model_id, name)?;
+        grp.mask = Some(mask);
+        Ok(())
+    }
 }

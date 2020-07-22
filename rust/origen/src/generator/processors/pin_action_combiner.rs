@@ -53,12 +53,12 @@ impl Processor for PinActionCombiner {
                         if let Some(_state) = self.current_state.get_mut(n) {
                             if _state.0 != state.0 || _state.1 != state.1 {
                                 // Update both in case they both changed. Quicker just to do the update than to add a bunch of conditionals.
-                                _state.0 = state.0;
+                                _state.0 = state.0.clone();
                                 _state.1 = state.1;
                                 self.updated_indices.push(self.i);
                             }
                         } else {
-                            self.current_state.insert(n.to_string(), *state);
+                            self.current_state.insert(n.to_string(), state.clone());
                             self.updated_indices.push(self.i);
                         }
                     }

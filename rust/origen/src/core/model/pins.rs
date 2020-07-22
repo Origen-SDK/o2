@@ -4,7 +4,6 @@ pub mod pin_group;
 pub mod pin_header;
 use super::super::dut::Dut;
 use crate::error::Error;
-use std::convert::TryFrom;
 
 extern crate regex;
 use regex::Regex;
@@ -12,7 +11,7 @@ use regex::Regex;
 use super::Model;
 use crate::push_pin_actions;
 use indexmap::IndexMap;
-use pin::{Pin, PinActions};
+use pin::{Pin, PinActions, ResolvePinActions};
 use pin_collection::PinCollection;
 use pin_group::PinGroup;
 use std::collections::HashMap;
@@ -87,7 +86,7 @@ impl Dut {
         width: Option<u32>,
         offset: Option<u32>,
         reset_data: Option<u32>,
-        reset_action: Option<String>,
+        reset_action: Option<Vec<PinActions>>,
         endianness: Option<Endianness>,
     ) -> Result<&PinGroup, Error> {
         // Check some of the parameters before we go much further. We can error out quickly if something is awry.
@@ -103,9 +102,7 @@ impl Dut {
                 name, self.models[model_id].name
             )));
         }
-
         let mut rdata = None;
-        let mut raction: Option<Vec<u8>> = None;
 
         // Check that the given reset data fits within the width of the pins to add.
         if let Some(r) = reset_data {
@@ -113,20 +110,20 @@ impl Dut {
             rdata = Some(r);
         }
 
-        // // Check that the given reset pin actions fit within the width of the pins to add and that they
-        // // are valid pin action characters.
-        if let Some(r) = reset_action {
-            let mut temp = r.into_bytes();
-            temp.reverse();
-            raction = Some(temp.clone());
+        // Check that the given reset pin actions fit within the width of the pins to add and that they
+        // are valid pin action characters.
+        if let Some(ref r) = reset_action {
+            if r.len() != (width.unwrap_or(1) as usize) {
+                return Err(Error::new(&format!(
+                    "PinActions of length {} must match width {}!",
+                    r.len(),
+                    width.unwrap_or(1)
+                )))
+            }
         }
-        if raction.is_some() {
-            self.verify_action_string_fits(width.unwrap_or(1), &raction.clone().unwrap())?;
-        }
-        //raction2 = raction.clone();
 
         // Resolve the names first - if there's a problem with one of the names, an error will generated here but passed up
-        // to the frontend, which should end the progrma. Howvever, the user could catch the exception, which would leave the
+        // to the frontend, which should end the program. However, the user could catch the exception, which would leave the
         // backend here in half-complete state.
         // Just to be safe, resolve and check the names first before adding anything.
         let mut names: Vec<String> = vec![];
@@ -169,11 +166,38 @@ impl Dut {
                     rd = Some(r & 0x1);
                     rdata = Some(r >> 1);
                 }
-                if raction.is_some() {
-                    ra = Some(PinActions::try_from(raction.clone().unwrap()[i])?);
+                if let Some(ref r) = reset_action {
+                    ra = Some(r[i].clone());
+                    if let Some(ref _rd) = rd {
+                        match ra.as_ref().unwrap() {
+                            PinActions::DriveHigh | PinActions::VerifyHigh => {
+                                if *_rd == 0 {
+                                    return Err(Error::new(&format!(
+                                        "Given reset action at position {} conflicts with given reset data",
+                                        i,
+                                    )));
+                                }
+                            },
+                            PinActions::DriveLow | PinActions::VerifyLow => {
+                                if *_rd == 1 {
+                                    return Err(Error::new(&format!(
+                                        "Given reset action at position {} conflicts with given reset data",
+                                        i,
+                                    )));
+                                }
+                            },
+                            _ => {}
+                        }
+                    } else {
+                        match ra.as_ref().unwrap() {
+                            PinActions::DriveHigh | PinActions::VerifyHigh => rd = Some(1),
+                            PinActions::DriveLow | PinActions::VerifyLow => rd = Some(0),
+                            _ => {}
+                        }
+                    }
                 }
                 let (pin_group, mut physical_pin) =
-                    model.register_pin(pin_group_id, physical_pin_id, &n, rd, ra, endianness)?;
+                    model.register_pin(pin_group_id, physical_pin_id, &n, rd, ra.clone(), endianness)?;
                 if names.len() > 1 {
                     physical_pin.groups.insert(name.to_string(), i);
                 }
@@ -181,6 +205,7 @@ impl Dut {
                 self.pins.push(physical_pin);
                 pin_group_id += 1;
                 physical_pin_id += 1;
+                rd = Option::None;
             }
         }
         if offset.is_some() || width.is_some() {
@@ -250,7 +275,6 @@ impl Dut {
         }
 
         let model = &mut self.models[model_id];
-        //self.pin_groups.push(model.register_pin_group(id, name, physical_names, endianness)?);
         self.pin_groups
             .push(model.register_pin_group(id, name, pnames, endianness)?);
         Ok(&self.pin_groups[id])
@@ -302,26 +326,26 @@ impl Dut {
         Ok(())
     }
 
-    pub fn get_pin_actions(&self, model_id: usize, names: &Vec<String>) -> Result<String, Error> {
-        let mut s = String::from("");
+    pub fn get_pin_actions(&self, model_id: usize, names: &Vec<String>) -> Result<Vec<PinActions>, Error> {
+        let mut retn: Vec<PinActions> = vec!();
         for n in names.iter() {
             let p = self._get_pin(model_id, n)?;
-            s += &(p.action.as_char()).to_string();
+            retn.push(p.action.clone());
         }
-        Ok(s)
+        Ok(retn)
     }
 
     pub fn get_pin_reset_actions(
         &self,
         model_id: usize,
         names: &Vec<String>,
-    ) -> Result<String, Error> {
-        let mut s = String::from("");
+    ) -> Result<Vec<PinActions>, Error> {
+        let mut retn: Vec<PinActions> = vec!();
         for n in names.iter() {
             let p = self._get_pin(model_id, n)?;
-            s += &(p.reset_action.unwrap_or(PinActions::HighZ).as_char()).to_string();
+            retn.push(p.reset_action.clone().unwrap_or(PinActions::HighZ));
         }
-        Ok(s)
+        Ok(retn)
     }
 
     pub fn set_pin_actions(
@@ -338,17 +362,70 @@ impl Dut {
 
         let mut m = (mask.unwrap_or(!(0 as usize))) as u32;
         let mut resolved_actions: HashMap<String, (PinActions, u8)> = HashMap::new();
-        for (_i, n) in names.iter().rev().enumerate() {
+        for (_i, n) in names.iter().enumerate() {
             let p = self._get_mut_pin(model_id, n)?;
 
             if m & 0x1 == 1 {
-                p.action = action;
+                match action {
+                    PinActions::DriveHigh | PinActions::VerifyHigh => p.data = 1,
+                    PinActions::DriveLow | PinActions::VerifyLow => p.data = 0,
+                    _ => {}
+                }
+                p.action = action.apply_state(p.data);
             } else {
                 p.action = PinActions::HighZ;
             }
             m >>= 1;
 
-            resolved_actions.insert(p.name.clone(), (p.action, p.data));
+            resolved_actions.insert(p.name.clone(), (p.action.clone(), p.data));
+        }
+        push_pin_actions!(resolved_actions);
+        Ok(())
+    }
+
+    pub fn set_per_pin_actions(
+        &mut self,
+        model_id: usize,
+        names: &Vec<String>,
+        actions: &Vec<PinActions>,
+        mask: Option<usize>,
+    ) -> Result<(), Error> {
+        if names.len() != actions.len() {
+            return Err(Error::new(&format!(
+                "PinActions of length {} must match width {}!",
+                actions.len(),
+                names.len()
+            )))
+        }
+
+        let mut m = (mask.unwrap_or(!(0 as usize))) as u32;
+        let mut resolved_actions: HashMap<String, (PinActions, u8)> = HashMap::new();
+        for (i, n) in names.iter().enumerate() {
+            let p = self._get_mut_pin(model_id, n)?;
+
+            if m & 0x1 == 1 {
+                // If a single action was given, apply that to all pins
+                if actions.len() == 1 {
+                    match actions[0] {
+                        PinActions::DriveHigh | PinActions::VerifyHigh => p.data = 1,
+                        PinActions::DriveLow | PinActions::VerifyLow => p.data = 0,
+                        _ => {}
+                    }
+                    p.action = actions[0].apply_state(p.data);
+                } else {
+                    match actions[i] {
+                        PinActions::DriveHigh | PinActions::VerifyHigh => p.data = 1,
+                        PinActions::DriveLow | PinActions::VerifyLow => p.data = 0,
+                        _ => {}
+                    }
+                    p.action = actions[i].apply_state(p.data);
+                }
+            } else {
+                p.action = PinActions::HighZ;
+            }
+            m >>= 1;
+
+            resolved_actions.insert(p.name.clone(), (p.action.clone(), p.data));
         }
         push_pin_actions!(resolved_actions);
         Ok(())
@@ -537,7 +614,7 @@ impl Dut {
     pub fn _resolve_to_physical_pin(&self, model_id: usize, name: &str) -> Result<&Pin, Error> {
         match self.resolve_to_physical_pin(model_id, name) {
             Some(p) => Ok(p),
-            None => Err(Error::new(&format!("Cannot find phyiscal pin '{}'!", name))),
+            None => Err(Error::new(&format!("Cannot find physical pin '{}'!", name))),
         }
     }
 
@@ -626,6 +703,15 @@ impl Dut {
         }
         Ok(retn)
     }
+
+    pub fn _resolve_groups_to_physical_pin_ids(&self, pins: &Vec<(usize, String)>) -> Result<Vec<Vec<usize>>, Error> {
+        let mut retn: Vec<Vec<usize>> = vec!();
+        for lookup in pins.iter() {
+            let ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
+            retn.push(ppins.iter().map(|p| p.id).collect::<Vec<usize>>());
+        }
+        Ok(retn)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -643,7 +729,7 @@ impl StateTracker {
                 let mut states: Vec<(PinActions, u8)> = vec![];
                 for p in dut._resolve_group_to_physical_pins(model_id, n).unwrap() {
                     states.push((
-                        p.reset_action.unwrap_or(PinActions::HighZ),
+                        p.reset_action.clone().unwrap_or(PinActions::HighZ),
                         p.reset_data.unwrap_or(0) as u8,
                     ));
                 }
@@ -657,7 +743,7 @@ impl StateTracker {
                     pins.insert(
                         phys.name.clone(),
                         vec![(
-                            phys.reset_action.unwrap_or(PinActions::HighZ),
+                            phys.reset_action.clone().unwrap_or(PinActions::HighZ),
                             phys.reset_data.unwrap_or(0) as u8,
                         )],
                     );
@@ -731,18 +817,16 @@ impl StateTracker {
     ///     => ['1Z', '1', 'L']
     /// If a header was given, the order will be identical to that from the header. If no header was given, the order will be whatever order was when the default
     /// pins were collected.
-    pub fn as_strings(&self) -> Result<Vec<String>, Error> {
-        Ok(self
-            .pins
-            .iter()
-            .map(|(_n, states)| {
-                states
-                    .iter()
-                    .map(|(action, data)| action.as_tester_char(*data).to_string())
-                    .collect::<Vec<String>>()
-                    .join("")
-            })
-            .collect::<Vec<String>>())
+    pub fn to_symbols(&self, dut: &Dut, t: &super::timesets::timeset::Timeset) -> Result<Vec<String>, Error> {
+        let mut syms: Vec<String> = vec!();
+        for (_n, states) in self.pins.iter() {
+            let mut s: Vec<String> = vec!();
+            for (action, _) in states.iter() {
+                s.push(t._resolve_pin_action(action)?.to_string());
+            }
+            syms.push(s.join(""));
+        }
+        Ok(syms)
     }
 
     pub fn names(&self) -> Vec<String> {

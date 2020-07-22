@@ -7,6 +7,7 @@ mod file_handler;
 mod logger;
 mod meta;
 mod model;
+#[macro_use]
 mod pins;
 mod registers;
 mod services;

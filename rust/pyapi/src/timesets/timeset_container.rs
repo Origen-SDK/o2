@@ -3,7 +3,7 @@ use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter}
 use super::super::timesets::*;
 use indexmap::map::IndexMap;
 use pyo3::class::mapping::*;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::PyAny;
 
 #[macro_export]
 macro_rules! pytimeset_container {
@@ -300,19 +300,6 @@ impl WaveContainer {
 
     fn get(&self, name: &str) -> PyResult<PyObject> {
         DictLikeAPI::get(self, name)
-    }
-
-    fn applied_to(&self, pin: String) -> PyResult<PyObject> {
-        let dut = DUT.lock().unwrap();
-        let wgrp = &dut.wave_groups[self.wave_group_id];
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let rtn = PyDict::new(py);
-        for name in wgrp.get_waves_applied_to(&dut, &pin).iter() {
-            rtn.set_item(name.clone(), self.new_pyitem(py, &name, self.model_id)?)?;
-        }
-        Ok(rtn.to_object(py))
     }
 }
 
