@@ -40,7 +40,7 @@ function origen_patch_pydata_anchors(targets) {
 
 $(function() {
   // Due to dynamic loading of the submenus in the 'Pages' heading, straight CSS is dumped down the order
-  // and gets overriden by some JS.
+  // and gets overridden by some JS.
   // Its possible to extend that specific class, but then the values need to be hard-coded, but it'd be
   // more preferable if we can instead inherit from a couple levels up
   // This'll still work as expected even if the theme is changed or if custom CSS to change some
@@ -67,6 +67,20 @@ $(function() {
     }, 100);
   });
 
+  // Some of the other fixes break some stuff that was already working.
+  // With the dynamic jumping introduced here, clicking on the same anchor twice, whose target
+  // is within the same page, won't jump to the proper location. Reason is that the fix
+  // for jumping to anchors from across pages relies on changes to the URL hash, which now
+  // doesn't detect such a change.
+  // So, another fix - instead of relying on the browser to append and jump to the hash,
+  // we'll pretend like we just clicked on the anchor, which resolves this (and doesn't conflict
+  // with the other issue)
+  $('[class="reference internal"][href^="#"]').click(function(e) {
+    e.preventDefault();
+    console.log(this);
+    $($($(this).attr("href").replace(/\./g, "\\.")).find('.headerlink')[0])[0].click();
+  });
+
   // Patch any pydata anchors we need to.
   {%- if origen_module_pydata_clashes_js %}
   origen_patch_pydata_anchors({{ origen_module_pydata_clashes_js }});
@@ -80,7 +94,14 @@ $(function() {
   if(window.location.hash) {
     e = document.getElementById(window.location.hash.substring(1));
 
-    // Prepend that the click event occurred. This'll add the highlighting to dynamically added API objects as well.
+    // Pretend that the click event occurred. This'll add the highlighting to dynamically added API objects as well.
     $($(e).find('.headerlink')[0])[0].click();
   }
+
+  // // The above handles if a page comes in with a hash already in the URL. This will handle if the hash is changed from
+  // // an internal anchor.
+  // window.addEventListener("hashchange", function(e) {
+  //   e = document.getElementById(window.location.hash.substring(1));
+  //   $($(e).find('.headerlink')[0])[0].click();
+  // });
 });

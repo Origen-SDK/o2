@@ -2,11 +2,11 @@ The Origen Sphinx Extension
 ===========================
 
 Now that you've been exposed to :sphinx_extensions:`extensions <>`, we can talk about the
-*origen_sphinx_ext*, which bridges the gap between the Origen application and the Sphinx app.
+|inline_ose|, which bridges the gap between the *Origen application* and the *Sphinx app*.
 
 ----
 
-As you may have seen on the Sphinx docs, extensions are capable of making certain customization including:
+As you may have seen on the Sphinx docs, extensions are capable of making certain customizations, including:
 
 * :sphinx_add_config_var:`Registering config variables <>`
 * Setting up config values for itself **and** for other extensions
@@ -15,10 +15,10 @@ As you may have seen on the Sphinx docs, extensions are capable of making certai
   or when :sphinx_event_builder_inited:`the builder is first initialized <>`
 * :sphinx_add_theme:`Setting up themes <>`
 
-All of the Origen specifics, or the 'behind the scenes work',is done by this extension - hooked
+All of the Origen specifics, or the 'behind the scenes work,' is done by this extension - hooked
 into your *Sphinx app* in various phases.
 
-The ``origen_sphinx_ext`` is responsible for, but not limited to:
+The |inline_ose| is responsible for, but not limited to:
 
 * Listening for and enacting options from ``origen build``.
 * Setting up the |ose_theme|
@@ -26,7 +26,7 @@ The ``origen_sphinx_ext`` is responsible for, but not limited to:
 * Allowing Jinja templating in all RST files.
 * Building and including |ose_subprojects|
 
-All of that is 'behind-the-scenes' though. The ``origen_sphinx_ext`` also provides some helpful
+All of that is 'behind-the-scenes' though. The |inline_ose| also provides some helpful
 features and additional config variables.
 
 Configuration Variables
@@ -37,7 +37,7 @@ The Origen extension adds these configuration variables:
 .. py:data:: origen_subprojects
 
   Any Origen applications whose documentation should be built and encompassed in this. See
-  |ose_subprojects| for more details.
+  :link-to:`Subproject <ose_subprojects>` for more details.
 
   .. versionadded:: 0.0.0
 
@@ -58,7 +58,7 @@ In applications where it is expected that one application will encompass some ot
 it may be more fluid for the documentation to do the same, but without actually *containing*
 that other's *Sphinx app* (or *Origen application* for that matter).
 
-The ``origen_sphinx_ext`` has a means for one project to automate building and capturing the static
+The |inline_ose| has a means for one project to automate building and capturing the static
 webpages of one *Origen application* into another. This is setup
 by registering to-be-encompassed projects in the ``origen_subprojects`` configuration variable.
 Registering a project here will, during the top application's
@@ -94,9 +94,9 @@ Origen Theme Options
 
 .. py:data:: logos
 
-  Given logos will line the top of the Navbar, starting on the left-hand side.
+  Given logos will line the top of the navbar, starting on the left-hand side.
 
-  Base Sphinx only allows a single logo that must reside in '_static' and can only link to
+  Base Sphinx only allows a single logo that must reside in ``_static`` and can only link to
   the project's homepage. See: :sphinx_confval_html_logo:`config.html_logo <>`
 
   Origen's theme offers the ability to use multiple logos with more flexibility per logo.
@@ -135,20 +135,24 @@ Origen Theme Options
   Default:
     False
 
-  >>> html_theme_options['bypass_main_logo'] = False
+  .. code-block:: python
+
+    html_theme_options['bypass_main_logo'] = False
 
   .. versionadded:: 0.0.0
 
 .. py:data:: favicon_raw_src
 
-  If set to True, the favicon 'src' will be whatever the value given is, verbatim.
-  If False, then the favicon is assumed to reside in ``_static/``, which is Sphinx's default.
+  If set to ``True``, the favicon ``src`` will be whatever the value given is, verbatim.
+  If ``False``, then the favicon is assumed to reside in ``_static/``, which is Sphinx's default.
   This item has no effect if ``config.html_favicon`` is set
 
   Default:
     False
 
-  >>> html_theme_options['favicon_raw_src'] = False
+  .. code-block:: python
+
+    html_theme_options['favicon_raw_src'] = False
 
   .. versionadded:: 0.0.0
 
@@ -158,11 +162,11 @@ Origen Theme Options
   doesn't allow for one located outside of ``_static``
   
   The favicon provided here can reside outside of ``_static``, or
-  as a URL if 'favicon_raw_src' is set to True.
+  as a URL if ``favicon_raw_src`` is set to ``True``.
   
-  Websites can only display one favicon and Sphinx's 'config.html_favicon' takes priority.
-  If 'config.html_favicon' is set to anything other than ``None`` or ``False``
-  (or, technically, anything else that *resolve* to ``False``),
+  Websites can only display one favicon and Sphinx's ``config.html_favicon`` takes priority.
+  If ``config.html_favicon`` is set to anything other than ``None`` or ``False``
+  (or, technically, anything else that *resolves* to ``False``),
   it will be used in place of anything given here.
 
   Default:
@@ -198,21 +202,15 @@ The settings for these logos are shown below:
 Recap
 -----
 
-The *origen_sphinx_ext*:
+The |inline_ose|:
 
 * is the bridge between your *Origen application*, Origen itself, and your *Sphinx app*.
 * will setup several aspects of your *Sphinx app* for you at runtime.
 * has its own set of :link-to:`configuration variables <ose_config_vars>`.
-* also comes with support for |ose_subprojects|
+* also comes with support for :link-to:`SubProjects <ose_subprojects>`
 * contains the |ose_theme|
 
-* The |ose_theme|, though part of the *origen_sphinx_ext*, contains its own
+* The |ose_theme|, though part of the |inline_ose|, contains its own
   :link-to:`configuration options <ose_theme_opts>`, which follows Sphinx's rules for
   configuring themes, but is also accessible in your ``config.py`` via
   :sphinx_confval_html_theme_options:`html_theme_options`.
-
-Up Next
--------
-
-Almost there! The next section will cover some remaining customizations features that are 
-derived from outside the *Sphinx app* itself (and therefore also outside the *origen_sphinx_ext*).

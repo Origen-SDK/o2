@@ -65,6 +65,42 @@ Likewise, the commands:
 
 Can all be mashed into the same command as ``origen web build --clean --view``
 
+Releasing
+^^^^^^^^^
+
+When the documentation is complete, it can be *released* by using the ``-r``, or ``--release`` switch.
+The release procedure and location is dependent on options in the *Origen application*.
+
+.. raw:: html
+
+  <div class="alert alert-warning" role="alert">
+  <i>Releasing</i> is a feature still in development. Pieces are working, but documentation is
+  purposefully left scarce as certain aspects are either still in development or subject to change.
+  </div>
+
+When building your docs, you may see various *warnings* pop up. In general, it is not good practice
+to leave build warnings hanging around for released content. *Releasing* will interpret all warnings
+as errors and will **fail to release** the docs, even if the build previously succeeded without the
+``--release`` switch. However, this can be overridden by also using the ``release-with-warnings`` switch.
+
+*Releasing* will also add other, long-running checks into the mix - such as checking for the validity of
+external links, which can take several minutes to complete for large projects. These checks can be
+run during a development build by applying the switch ``--as-release`` to the build command.
+
+Archiving
+^^^^^^^^^
+
+In conjunction with, or as an alternative to, releasing your docs, you can choose to *archive* them instead,
+the intent being to provide a snapshot of the documentation corresponding to a particular
+*Origen application* version.
+
+*Archiving* is very similar to *releasing* except that the resulting build is released as a "sub-site*,
+meaning that the *latest* content, as well as other *archives* are unchanged and the resulting build
+is instead placed somewhere within the currently released site.
+
+For example, using the ``archive <archive_id>`` option during ``origen web build`` will place the built docs
+at ``<release_path>/archive/<archive_id>`` but keep the remaining ``<release_path>`` unaffected.
+
 Recap
 -----
 
@@ -72,8 +108,6 @@ Recap
 * Cleaning, building, and viewing your webpages can all be streamlined with the single
   command ``origen web build --clean --view``.
 * In some circumstances, the webpages can still be viewed even on a failing build.
-
-Up Next
--------
-
-The next section will cover some more advanced customization options.
+* Once the docs are complete, the ``-r``, or ``--release``, switch can be used to release the documentation.
+* Similarly, the ``--archive <archive_id>`` switch can be used to instead release a snapshot of the current documentation
+  with a particular ``archive id`` without affecting the *latest* or other *archives*.

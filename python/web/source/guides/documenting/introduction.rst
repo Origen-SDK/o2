@@ -15,7 +15,7 @@ topics for documenting pattern and program sources, respectively.
 
 Any application created with ``origen new`` will already have the pieces in place to generate a
 :static_website:`static website <>`, which itself allows for self-contained
-webpages which can easily by served by a web server or packaged up and distributed without introducing any
+webpages which can easily be served by a web server or packaged up and distributed without introducing any
 dependencies on the end users.
 
 Your Origen application documentation engine features:
@@ -36,13 +36,7 @@ following in your workspace to get an idea of the initial state of your applicat
   origen web build --view
 
 This command will build the webpages, placing them in your |web_output_dir| and launch
-your system's web-browser to view the resulting contents. This will yield webpages specific
+your system's web browser to view the resulting contents. This will yield webpages specific
 to your application which have the same look and feel as the Origen documentation.
 
-See the |web_cmd| section, or run ``origen web -h`` from your terminal, for more details.
-
-Up Next
--------
-
-The next section will introduce you to the core concepts of documenting your
-*Origen application* - including the technologies used.
+See the |web_cmd| section or run ``origen web -h`` from your terminal for more details.

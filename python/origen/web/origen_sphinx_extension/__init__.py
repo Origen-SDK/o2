@@ -80,6 +80,10 @@ def setup(sphinx):
   sphinx.add_config_value("origen_content_header", {}, '')
   sphinx.add_config_value("include_origen_shorthand_defs", True, '')
 
+  sphinx.add_config_value('origen_bypass_rustdoc', False, '')
+  sphinx.add_config_value('origen_bypass_subprojects', False, '')
+  sphinx.add_config_value('origen_releasing_build', False, '')
+
   sphinx.connect("config-inited", apply_origen_config)
   sphinx.connect("builder-inited", subprojects.build_subprojects)
   sphinx.config.html_theme_path += [sphinxbootstrap4theme.get_path()]
@@ -177,6 +181,11 @@ def apply_origen_config(sphinx, config):
       config.autoapi_modules.clear()
     if "autodoc_modules" in config.__dict__:
       config.autodoc_modules.clear()
+  if config.origen_bypass_rustdoc:
+    if "rustdoc_projects" in config.__dict__:
+      config.rustdoc_projects.clear()
+  if config.origen_bypass_subprojects:
+    config.origen_subprojects.clear()
   sphinx.connect("autodoc-process-docstring", templating.process_docstring)
 
   if len(config.origen_api_module_data_clashes) > 0:
@@ -185,6 +194,9 @@ def apply_origen_config(sphinx, config):
     for v in config.origen_api_module_data_clashes.values():
       vars += [f'"{n}"' for n in v]
     sphinx.config.html_context['origen_module_pydata_clashes_js'] = "[" + ', '.join(vars) + "]"
+
+  if config.origen_releasing_build:
+    config.shorthand_check_links = True
 
   # Theme specific setup - assuming Origen's theme is used (set by default, but overridable in their config)
   if ('html_theme' in config) and (config.html_theme == 'origen'):

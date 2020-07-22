@@ -18,7 +18,7 @@ import subprocess, shutil
 from typing import List
 from types import ModuleType
 
-ORIGEN_CORE_HOMEPAGE = 'https://origen-sdk.org/o2/'
+ORIGEN_CORE_HOMEPAGE = 'https://origen-sdk.org/o2'
 ''' Hard-coded path to the Origen core's homepage - usable by applications to link to'''
 
 OUTPUT_INDEX_FILE = 'index.html'
@@ -40,6 +40,12 @@ SPHINX_TEMPLATE = '_templates'
 '''
   Default location of explicit templates, assumed to be relative to the
   :data:source_dir
+'''
+
+RELEASE_ARGS = ['-W', '--keep-going', '-D origen_releasing_build=1']
+'''
+  Arguments passed to the |sphinx_app| when releasing webpages. Going for only allowing clean builds to be released.
+  The option ``--release-with-warnings`` can be used to release the build regardless.
 '''
 
 source_dir = origen.app.website_source_dir
@@ -115,13 +121,13 @@ def run_cmd(subcommand, args):
     if "clean" in args:
       run_cmd("clean", args)
 
-    for d in [static_dir, templates_dir, output_build_dir, interbuild_dir]:
+    for d in [static_dir, unmanaged_static_dir, templates_dir, output_build_dir, interbuild_dir]:
       if not d.exists():
         d.mkdir(parents=True)
     origen.logger.info("Running web:build command...")
     origen.logger.info(f"\t{sphinx_cmd(args)}")
     if run_sphinx(args).returncode:
-      origen.logger.error("Failed to build the webpages! Exting...")
+      origen.logger.error("Failed to build the webpages! Exiting...")
       exit()
     
     if "release" in args:
@@ -178,8 +184,11 @@ def sphinx_cmd(args):
     # no-api is achieved by overriding the autoapi, autodoc, and rustdoc configs to
     # all be empty
     build_opts.append("-D origen_no_api=True")
-  if 'pdf' in args:
-    raise NotImplementedError
+  if 'release' in args or 'as-release' in args:
+    if 'release-with-warnings' in args:
+      build_opts.extend(RELEASE_ARGS[2:])
+    else:
+      build_opts.extend(RELEASE_ARGS)
   if 'sphinx-args' in args:
     # Add an user arguments
     build_opts.append(args['sphinx-args'])

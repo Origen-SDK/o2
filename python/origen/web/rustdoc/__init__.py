@@ -1,3 +1,48 @@
+'''
+Simple |sphinx_ext| for building a |Rust| project's documentation, via |cargo_doc|, and moving it
+into the |sphinx_app|.
+
+Rust projects are added through the ``rustdoc_projects`` |sphinx_config_var| - a |dict| whose
+keys are the project names and whose values are a second |dict| containing that project's configuration:
+
+.. code:: python
+
+  # conf.py
+  rustdoc_projects = {
+    'project1': {
+      'opt a': 'value',
+      'opt b': 'value',
+      # ...
+    },
+    'project2': {
+      'opt a': 'value',
+      'opt b': 'value',
+      # ...
+    }
+    # ...
+  }
+
+The following configuration options are available per-project:
+
+* ``source`` - **Required** - The Rust project's source location.
+* ``default_build_options`` (``True``) - Adds default build options ``no-deps`` and ``workspace`` to the ``cargo doc`` command.
+* ``rustdoc_output_dir`` (``./``) - Directory to move the resulting documentation to. Defaults to the current directory.
+* ``apply_svg_workarounds`` (``False``) - Applies a fix for SVG images needed if releasing to ``github.io``. See :meth:`here <origen.web.rustdoc.RustDocProject.fix_svg>` for more details.
+* ``build_options`` (``{}``) - Additional key-value pairs passed as arguments to ``cargo doc``.
+
+These |sphinx_conf_vars| are also available:
+
+* ``rustdoc_apply_svg_workarounds`` (``None``) - Applies SVG workaround to all ``Rustdoc Projects``, unless overridden by the project's config.
+* ``rustdoc_output_dir`` (``None``) - Applies this output directory to all ``Rustdoc Projects`` unless overridden by the project's config.
+
+See Also
+--------
+
+  * Example setup in the |src_code:core_conf|
+
+'''
+
+
 import subprocess, pathlib, copy, shutil, os
 from sphinx.errors import ExtensionError
 from sphinx.util.logging import getLogger
@@ -47,6 +92,11 @@ class RustDocProject:
       raise ExtensionError(f"Could not find path {self.source} given by RustDoc project {self.proj}")
   
   def cmd(self):
+    ''' Returns the ``cargo doc`` command to build the project's documentation
+
+        Returns:
+          str: ``cargo doc`` command
+    '''
     opt_str = ""
     for opt, val in self.build_options.items():
       if val:
@@ -56,7 +106,10 @@ class RustDocProject:
     return f"cargo doc {opt_str}"
 
   def build(self):
-    print(self.cmd())
+    ''' Runs the build :meth:`command <cmd>` and :meth:`moves the resulting docs <mv_docs>`
+        into the Sphinx project space
+    '''
+    logger.debug(f"Running Rustdoc command: {self.cmd()}")
     subprocess.run(self.cmd(), cwd=self.source)
     if self.output_dir:
       self.mv_docs()
@@ -65,19 +118,16 @@ class RustDocProject:
   
   def mv_docs(self):
     '''
-      Copy the resulting docs from the target/doc directory and into the 
-      output directory.
-      Note: these are copied since the --target-dir option will actually rebuild
+      Copy the resulting docs from the target/doc directory into the output directory.
+      Note: these are copied since the ``--target-dir`` option will actually rebuild
       the project in the new directory, which isn't what we want. We just want
       the output docs.
     '''
     s = self.source.joinpath("target/doc")
     if self.output_dir:
       if not self.output_dir.exists():
-        # shutil will get mad if the directory doesn't exists.
         self.output_dir.mkdir(parents=True)
       else:
-        # shutil will also get mad if the directory does exists.
         shutil.rmtree(str(self.output_dir))
         self.output_dir.mkdir(parents=True)
       if s.exists:
@@ -90,13 +140,15 @@ class RustDocProject:
 
   def fix_svg(self):
     '''
-      At the time of this implementation, github.io pages seem to not like rendering local svg files. It doesn't seem to have a problem
-      with SVG in the general sense, nor a problem with the SVGs Rust docs actually use - just the way its referenced.
+      At the time of this implementation, ``github.io`` pages seem to dislike rendering local svg files.
+      It doesn't seem to have a problem with SVG in general, nor a problem with the SVGs Rust docs
+      actually uses - just the way its referenced.
 
-      A quick workaround for this was just to convert Rust's SVGs to PNGs and post-process the resulting html files to reference the PNGs instead.
-      This will be done for all html files and the SVGs: 'brush.svg', 'wheel.svg', and 'down-arrow.svg'.
+      A quick workaround for this is just to convert Rust's SVGs into PNGs and post-process the resulting
+      html files to reference the PNGs instead. This will be done for all html files and the
+      SVGs: ``brush.svg``, ``wheel.svg``, and ``down-arrow.svg``.
 
-      SVGs were converted using this site: https://svgtopng.com/
+      SVGs were converted using :svg_to_png_converter:`this site <>`.
     '''
     shutil.copy2(str(self.BRUSH_FILE), str(self.output_dir.joinpath('doc')))
     shutil.copy2(str(self.WHEEL_FILE), str(self.output_dir.joinpath('doc')))
@@ -111,16 +163,18 @@ class RustDocProject:
       open(html, "w", encoding='utf8').writelines(lines)
 
 def setup(sphinx):
-  # Hook into the sphinx just before it starts to read all the templates.
-  # Add this point, we'll build the Rust docs using 'cargo doc', parse the resulting contents,
-  #   and create our own templates for Python-based calls.
-  # https://www.sphinx-doc.org/en/master/extdev/appapi.html#event-env-before-read-docs
+  ''' Hook into sphinx just before it starts to read all the templates.
+      Add this point, we'll build the Rust docs using 'cargo doc', parse the resulting contents,
+      and create our own templates for Python-based calls.
+  '''
   sphinx.connect("builder-inited", build)
   sphinx.add_config_value("rustdoc_projects", {}, '')
   sphinx.add_config_value("rustdoc_output_dir", None, '')
   sphinx.add_config_value("rustdoc_apply_svg_workarounds", None, '')
 
 def build(sphinx):
+  ''' Build each Rustdoc project
+  '''
   for proj, config in sphinx.config.rustdoc_projects.items():
     logger.info(f"Building docs for project {proj}")
     if sphinx.config.rustdoc_output_dir:

@@ -1,22 +1,29 @@
+import pathlib, sys, requests
 from typing import Any, Dict, List, Tuple
-
-from sphinx.util.typing import RoleFunction
 from sphinx.util.nodes import split_explicit_title, _make_id
 from docutils import nodes, utils
 from docutils.nodes import Node, system_message
 from docutils.parsers.rst.states import Inliner
-from sphinx.transforms import DefaultSubstitutions
 from sphinx.addnodes import pending_xref
-
 from . import shorthand
 from .shorthand import all_include_rsts
-import pathlib, sys
+
 app = None
 _unchecked_targets = set()
 
-# class ShorthandSubstitutions(DefaultSubstitutions):
-#   def apply(self, **kwargs):
-#     ...
+def check_link(link, *, warning_prefix=None):
+  ''' Checks if the given link points to *somewhere* '''
+  try:
+    req = requests.get(link) # = urllib.request.urlopen(link)
+    if not (200 <= req.status_code < 300):
+      if warning_prefix:
+        shorthand.logger.warn(f"{warning_prefix}: Invalid link '{link}' - Received non-2xx status code: {req.status_code}")
+      return (False, req.status_code)
+  except requests.exceptions.BaseHTTPError as e: # urllib.error.URLError as e:
+    if warning_prefix:
+      shorthand.logger.warn(f"{warning_prefix}: Invalid link '{link}' - Received error {e.__class__} with message {str(e)}")
+    return (False, e)
+  return (True, req.status_code)
 
 def update_unchecked_targets(target):
   _unchecked_targets.add(target)
@@ -39,8 +46,6 @@ def check_consistency(app, env):
       if not t.target in app.env.get_domain('std').labels:
         shorthand.logger.warning(f"{t.name} - Undefined label '{t.target}'")
     elif t.is_doc or t.is_static:
-      #import pdb
-      #pdb.set_trace()
       # Check that any docs or other statics exist in the workspace at the path specified,
       # relative to the src dir.
       # For these, the target URI would have been updated as a relative path from the doc,
@@ -49,8 +54,21 @@ def check_consistency(app, env):
         shorthand.logger.warning(f"{t.name} - Undefined doc or static asset '{t.target}'")
     else:
       shorthand.logger.error(f"Cannot check consistency for target '{t.name}' category '{t.category}'")
-    #import pdb
-    #pdb.set_trace()
+
+  if app.config.shorthand_check_links:
+    # Check extlinks and abslinks
+    if 'sphinx.ext.extlinks' in app.extensions and app.config.extlinks:
+      shorthand.logger.info("Checking extlinks consistency...")
+      for name, target in app.config.extlinks.items():
+        t = target[0] % target[1]
+        shorthand.logger.info(f"-- {name}: {t}")
+        check_link(t, warning_prefix=f"(extlink - {name})")
+    
+    shorthand.logger.info("Checking abslinks consistency...")
+    for _nspace, abslinks in shorthand.all_from_category('abslinks').items():
+      for name, target in abslinks.items():
+        shorthand.logger.info(f"-- {name}: {target.target}")
+        check_link(target.target, warning_prefix=f"(target {name} of category 'abslinks')")
 
 def href_to(target, *, docname=None):
   '''
@@ -151,8 +169,6 @@ def _link_to(typ: str, rawtext: str, text: str, lineno: int, inliner: Inliner, o
     n = nodes.reference(title, title, internal=False, refuri=href_to(target))
   elif t.is_api:
     n = pending_xref('', nodes.Text(title or t.target), refdomain='py', reftype='obj', reftarget=t.target)
-    #import pdb
-    #pdb.set_trace()
   else:
     shorthand.logger.error(f"Shorthand target '{target}' of category '{t.category}' does not support shorthand links")
     n = nodes.reference(title, title, internal=True, refuri='')
@@ -192,7 +208,7 @@ def setup(sphinx):
   app = sphinx
 
   sphinx.add_config_value('shorthand_defs', None, '')
-  #sphinx.add_transform(ShorthandSubstitutions)
+  sphinx.add_config_value('shorthand_check_links', False, '')
   sphinx.connect('builder-inited', shorthand.generate)
   sphinx.connect('env-check-consistency', check_consistency)
 

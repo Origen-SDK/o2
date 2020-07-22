@@ -93,7 +93,8 @@ extlinks = {
   'python_docs_list': (f'https://docs.python.org/{python_doc_version}/library/stdtypes.html#lists%s', ''),
   'python_docs_tuple': (f'https://docs.python.org/{python_doc_version}/library/stdtypes.html#tuples%s', ''),
   'python_docs_dict': (f'https://docs.python.org/{python_doc_version}/library/stdtypes.html#mapping-types-dict%s', ''),
-  'python_exception_hierarchy': ('https://docs.python.org/3/library/exceptions.html#exception-hierarchy%s', ''),
+  'python_exception_hierarchy': (f'https://docs.python.org/{python_doc_version}/library/exceptions.html#exception-hierarchy%s', ''),
+  'python_docs_pathlib': (f'https://docs.python.org/{python_doc_version}/library/pathlib.html%s', ''),
   'ticket_mako_multiple_newlines': ('https://stackoverflow.com/questions/22558067/how-to-convert-multiple-newlines-in-mako-template-to-one-newline%s', ''),
   'docstrings_spec': ('https://www.python.org/dev/peps/pep-0257/%s', ''),
   'docstrings_intro': ('https://www.programiz.com/python-programming/docstrings%s', ''),
@@ -111,6 +112,8 @@ extlinks = {
   'pyo3_pymodule': (f'https://pyo3.rs/v{pyo3_version}/module.html%s', ''),
 
   # Rust Stuff
+  'rust_homepage': ('https://www.rust-lang.org%s', ''),
+  'rust_cargo_doc': ('https://doc.rust-lang.org/cargo/commands/cargo-doc.html%s', ''),
   'rust_docstrings': ('https://doc.rust-lang.org/stable/rust-by-example/meta/doc.html#doc-comments%s', ''),
 
   # Origen Github links
@@ -126,6 +129,7 @@ extlinks = {
   'origen_core_pytester_src': (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/rust/pyapi/src/tester.rs%s', ''),
   'origen_core_guides_root_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/web/source/guides%s', ''),
   'origen_core_guides__conf_dir_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/web/source/_conf%s', ''),
+  'origen_core_guides_conf_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/web/source/conf.py%s', ''),
   'origen_core_guides_shorthand_defs_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/web/source/_conf/shorthand_defs.py%s', ''),
   'origen_core_shorthand_init_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/origen/web/shorthand/__init__.py%s', ''),
   'origen_core_web_init_src': (f'https://github.com/Origen-SDK/o2/tree/{core_github_branch}/python/origen/web/__init__.py%s', ''),
@@ -135,6 +139,7 @@ extlinks = {
   'origen_src_example_commands': (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/example/example/commands/examples.py%s', ''),
 
   # Other
-  'mvc_dp_wiki': ('https://en.wikipedia.org/wiki/Model–view–controller%s', None),
-  'git_pull_requests': ('https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests%s', None),
+  'mvc_dp_wiki': ('https://en.wikipedia.org/wiki/Model–view–controller%s', ''),
+  'git_pull_requests': ('https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests%s', ''),
+  'svg_to_png_converter': ('https://svgtopng.com/%s', ''),
 }

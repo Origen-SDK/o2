@@ -45,7 +45,7 @@ root = Path(status["root"])
 ''' If applicable, returns the application's root.
 
     Returns:
-        pathlib.OSPath: Application's root as an OS-specific path object.
+        pathlib.Path: Application's root as an OS-specific path object.
         None: If not in an application's workspace.
 '''
 
@@ -60,10 +60,10 @@ version = status["origen_version"]
 '''
 
 logger = _origen.logger
-''' Direct access to the build-in logger module for logging and displaying user-friendly output. Also available as :func:`log`
+''' Direct access to the build-in logger module for logging and displaying user-friendly output. Also available as :data:`log`
 
     Returns:
-        logger: Pointer to _origen.logger
+        _origen.logger: Pointer to _origen.logger
 
     See Also
     --------
@@ -80,8 +80,7 @@ running_on_windows = _origen.on_windows()
 ''' Indicates if Origen is currently running on Windows.
 
     Returns:
-        True: Origen is currently executing on Windows
-        False: origen is currently __not__ executing on Windows
+        bool:
 
     >>> origen.running_on_windows
     False
@@ -91,8 +90,7 @@ running_on_linux = _origen.on_linux()
 ''' Indicates if Origen is currently running on Linux.
 
     Returns:
-        True: Origen is currently executing on Linux
-        False: origen is currently __not__ executing on Linux
+        bool:
 
     >>> origen.running_on_linux
     True

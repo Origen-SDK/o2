@@ -9,8 +9,8 @@ or from the workspace.
 Application Customizations
 --------------------------
 
-The settings below reside in the *Origen application* but are used by |ose|.
-The settings below can be set in the application's `.toml` configuration file.
+The settings below reside in the *Origen application* but are used by the |ose|.
+The settings below can be set in the application's ``.toml`` configuration file.
 
 * ``website_output_directory``: Directory where the final built webpages should reside,
   relative to the application's root directory. Defaults to ``output/web``.
@@ -20,11 +20,6 @@ The settings below can be set in the application's `.toml` configuration file.
 Recap
 -----
 
-* Some settings for the *Sphinx app*, or for how Origen's CLI runs Shpinx, are derived from outside
+* Some settings for the *Sphinx app*, or for how Origen's CLI runs Sphinx, are derived from outside
   of the *Sphinx app* itself.
 * These settings can be set in the *Origen application's* ``.toml`` config file.
-
-Up Next
--------
-
-The next section will cover the ``origen web`` command in more detail.

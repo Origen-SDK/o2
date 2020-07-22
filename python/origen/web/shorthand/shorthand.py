@@ -57,6 +57,12 @@ def generate(app):
   for _nspace, defs in shorthand_defs.items():
     defs.generate()
 
+def all_from_category(category):
+  targets = {}
+  for nspace, defs in shorthand_defs.items():
+    targets[nspace] = defs.all_from_category(category)
+  return targets
+
 class Target:
   ''' Represents a single, unresolved target, in any namespace '''
 
@@ -132,7 +138,7 @@ class Target:
       if self.text:
         f.write(f'.. |{n}| replace:: :shorthand-link-to:`{self.text} <{n}>`\n')
       else:
-        f.write(f'.. |{n}| replace:: :shorthand-link-to:`{n}, <{n}>`\n')
+        f.write(f'.. |{n}| replace:: :shorthand-link-to:`{self.name}, <{n}>`\n')
     elif self.is_abslink:
       if self.text:
         f.write(f'.. |{n}| replace:: `{self.text} <{self.target}>`\n')
@@ -213,3 +219,6 @@ class ShorthandDefs:
     for _name, target in self.flattened_targets.items():
       target.generate_substitution(rst)
     rst.close()
+
+  def all_from_category(self, category):
+    return {n:t for (n, t) in self.flattened_targets.items() if t.category == category}

@@ -10,16 +10,16 @@ Basic Usage
 ``Shorthand`` is configured via the ``shorthand_defs`` |sphinx_config_var|, which defaults to ``None``.
 The configuration maps ``the shorthand definitions`` - or the user-friendly names - to ``targets``.
 ``Shorthand`` supports various target interpretations, which are denoted by placing the
-``definition`` into enumerated :shorthand~categories:`categories <>` - a commonly used ``category`` being
-``refs``, which provides shorthand syntaxes for |sphinx_refs|.
+``definition`` into enumerated :link-to:`categories <shorthand~categories>` - a commonly used
+``category`` being ``refs``, which provides shorthand syntaxes for |sphinx_refs|.
 
 |sphinx_refs| are themselves already a type of shortcut, but using something like |autosectionlabel| 
 with |autosectionlabel_prefix_document| in a large project can yield long, difficult to track paths.
 ``Shorthand`` can help by shortening these paths and providing a single source where large scale
 updates can be easily made.
 
-In its simplest form, |shorthand~config_var| can just be a |dict| of nested |dicts|, where the nested
-|dict| corresponds to a specific :shorthand~categories:`category <>`:
+In its simplest form, the |shorthand~config_var| can just be a |dict| of nested |dicts|, where the nested
+|dict| corresponds to a specific :link-to:`category <shorthand~categories>`:
 
 .. code:: python
 
@@ -130,7 +130,7 @@ also available:
   ``docs`` are defined similarly to ``statics`` and should be defined
   relative to the ``Sphinx app root.``
 * ``abslinks`` - Absolute URLs, usable in HTML anchors
-  (see also :link-to:`usage in templating <shorthand~templating>`.
+  (see also :link-to:`usage in templating <shorthand~templating>`).
 * ``extlinks`` - Similar to ``abslinks`` but targets are pulled from
   :extlinks_home:`Sphinx's extlinks extension <>` defined in the app.
 * ``substitutions`` - Resolved as straight |rst_subs|.
@@ -145,7 +145,7 @@ The categories above will dictate how the |rst_subs| and the ``:link-to:`` roles
       'my_page': ('my page', 'root/section1/section2/my_page:My Title'),
     },
     'docs': {
-      'my_pdf: '_static/my_pdf'
+      'my_pdf': '_static/my_pdf.pfd'
     },
     'substitutions': {
       'title': 'My Page Title'
@@ -155,7 +155,7 @@ The categories above will dictate how the |rst_subs| and the ``:link-to:`` roles
 .. code::
 
   .. |my_page| replace:: :ref:`My Page <root/section1/section2/my_page:My Title>`
-  .. |my_pdf| replace:: :link-to:`My Page <_static/my_pdf>`
+  .. |my_pdf| replace:: :link-to:`My Page <_static/my_pdf.pfd>`
   .. |title| replace:: My Page Title
 
 See the :link-to:`API <shorthand~categories_var>` for a full list of the
@@ -165,7 +165,7 @@ Definition Organization
 -----------------------
 
 A definition within a category can also be a |dict| of nested *definitions* to
-more easily organize large lists of definitions:
+more easily organize large lists:
 
 .. code:: python
 

@@ -2,33 +2,33 @@ Advanced Customizations
 =======================
 
 This section will cover some advanced customizations - the concept being that the *Sphinx app* and
-*origen_sphinx_ext* are flexible enough to allow overriding aspects which are not to your
+the |ose| are flexible enough to allow overriding aspects which are not to your
 liking without having to start from scratch or abandoning all of what Origen provides.
 
 ----
 
-Obviously, removal or deactivation of certain things will have consequences, but if those consequences
+The removal or deactivation of certain things will have consequences, but if those consequences
 can be enumerated and understood, then it'll make advanced customization all the easier.
 
 Themes
 ------
 
-You may not like the theme Origen has chosen for you - that's fine! To each their own.
-This section will cover what Origen's theme contains, how it can be extended, and the consequences
+You may not like the theme Origen has chosen for you - and that's quite alright.
+This section will cover what Origen's theme contains, how it can be extended, but also the consequences
 of axing it entirely out of your *Sphinx app*.
 
 The Origen Theme's Parent
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-First, recall that Origen's theme is not built from scratch. Actually, its an 
+First, recall that Origen's theme is not built from scratch but an 
 :sphinx_creating_themes:`extension <>` of another theme, the
-:bootstrap4_sphinx_theme:`Sphinx Bootstrap4 Theme <>`, which gives the
+:bootstrap4_sphinx_theme:`Sphinx Bootstrap4 Theme <>`, which partially gives the
 webpages their look and enables :bootstrap4_widgets:`Bootstrap4 widgets <>`
 out of the box.
 
 The *Bootstrap4 theme* also has its own set of
 :bootstrap4_sphinx_theme_options:`html_theme_options <>`.
-Most of the user-facing ones have been hijacked by the *origen theme* (See the |ose_theme_opts| for more), but some additional ones
+Most of the user-facing ones have been hijacked by the *origen theme* (See the |ose_theme_opts| for more),
 but others supported by the *Bootstrap4 theme* are also fair game for customization.
 
 Overriding Origen's Theme
@@ -40,7 +40,7 @@ templates, only overriding aspects given by your project's template,
 :sphinx_creating_themes:`inherit from <>` ``origen/web/sphinx_ext/theme/<template>.html``.
 
 Since Origen inherits from the :bootstrap4_sphinx_theme:`sphinxbootstrap4 <>` theme,
-templates to extend may :bootstrap4_sphinx_theme_templates:`reside there as well <>`.
+templates to extend that may :bootstrap4_sphinx_theme_templates:`reside there as well <>`.
 
 Extending Themes
 ^^^^^^^^^^^^^^^^
@@ -61,13 +61,13 @@ All of the Origen-theme specifics are contained within the ``html_theme_options`
 so breaking away from the Origen theme will only impact those options. 
 
 Though a bit more involved, it is encouraged to inherit from Origen's theme where possible rather
-than break away from it entirely, the latter of which will maintain the highest degree of functionality.
+than break away from it entirely, the former of which will maintain the highest degree of functionality.
 
 .. raw:: html
 
   <div class="alert alert-info" role="alert">
     Setting the theme to <code>None</code> in your <code>conf.py</code> will revert your
-    <i>Sphinx app's</i> theme to Sphinx's default: 
+    theme to Sphinx's default: 
     <a href="{{ app.config.extlinks['sphinx_alabaster_theme'][0]|replace('%s', '') }}">the Alabaster theme</a>.
   </div>
 
@@ -85,9 +85,3 @@ Recap
   *Origen application*, *Sphinx app*, and Origen CLI will still be maintained.
 
   That is to say, ``origen web build`` will still work.
-
-Up Next
--------
-
-That's it! The last section will give you a listing of the reference materials and guides pointed
-at by these documents. It'll also show you tips and tricks which you may find helpful.

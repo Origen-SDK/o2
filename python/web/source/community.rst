@@ -22,7 +22,7 @@ and apply the label ``bug``, as well as any other appropriate labels. When openi
 Subsequent discussions may further refine the problem or spawn other issues. Once work has begun on a particular issue,
 its progress can be tracked on the |project_tracker|.
 
-Even |so_tag| questions or :origen_issues_bugs:`bug_reports <>` which end up as false-positives can be useful as they may indicate
+Even |so_tag| questions or :origen_issues_bugs:`bug reports <>` which end up as false-positives can be useful as they may indicate
 confusing features or insufficient documentation. Additionally, the report will be recorded and viewable by all, which may
 help others contemplating the same issue - so please don't hesitate!
 

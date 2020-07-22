@@ -463,6 +463,16 @@ fn main() {
                         .multiple(false)
                         .min_values(0)
                     )
+                    .arg(Arg::with_name("as-release")
+                        .long("as-release")
+                        .help("Build webpages with release checks")
+                        .takes_value(false)
+                    )
+                    .arg(Arg::with_name("release-with-warnings")
+                        .long("release-with-warnings")
+                        .help("Release webpages even if warnings persists")
+                        .takes_value(false)
+                    )
                     .arg(Arg::with_name("no-api")
                         .long("no-api")
                         .help("Skip building the API")
@@ -718,9 +728,12 @@ CORE COMMANDS:
                     if sub.is_present("no-api") {
                         args.insert("no-api", "True".to_string());
                     }
-                    // if sub.is_present("pdf") {
-                    //     args.push_str("'pdf': True, ");
-                    // }
+                    if sub.is_present("as-release") {
+                        args.insert("as-release", "True".to_string());
+                    }
+                    if sub.is_present("release-with-warnings") {
+                        args.insert("release-with-warnings", "True".to_string());
+                    }
                     if sub.is_present("release") {
                         args.insert("release", "True".to_string());
                     }

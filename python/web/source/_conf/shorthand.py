@@ -52,6 +52,7 @@ origen_shorthand_defs = {
     'inheritance_diagram': ('inheritance diagram', 'inheritance_diagram_home'),
     'napoleon': 'napoleon_home',
     'extlinks': 'extlinks_home',
+    'recommonmark': 'recommonmark_home',
 
     'markdown': 'markdown_home',
     'rst_subs': ('RST substitutions', 'rst_substitutions'),
@@ -77,6 +78,7 @@ origen_shorthand_defs = {
     'tuples': 'python_docs_tuple',
     'list': 'python_docs_list',
     'lists': 'python_docs_list',
+    'pathlib.Path': 'python_docs_pathlib',
 
     'src_code': {
       'origen_init': 'origen_core_init_src',
@@ -87,14 +89,19 @@ origen_shorthand_defs = {
       'dev_guides_root': 'origen_core_dev_guides_root_src',
       'origen.application': 'origen_src_origen.application',
       'example_commands': 'origen_src_example_commands',
-    }
+      'core_conf': ('Origen core conf.py', 'origen_core_guides__conf'),
+      '_conf_dir': 'origen_core_guides__conf_dir_src',
+    },
+
+    # Rust stuff
+    'rust': 'rust_homepage',
+    'Rust': 'rust_homepage',
+    'cargo_doc': ('cargo doc', 'rust_cargo_doc'),
   },
 
   'substitutions': {
     'conf.py': '``conf.py``',
-    'developers': {
-      '_conf_dir': f'web/source/_conf'
-    }
+    'inline_ose': '``origen sphinx extensions``',
   },
 
   'statics': {
@@ -162,6 +169,10 @@ origen_shorthand_defs = {
     'origen_app': (
       'Origen app',
       f'{getting_started_root}/the_origen_app:The Origen App'
+    ),
+    'origen_cli': (
+      'Origen CLI',
+      f'{getting_started_root}/core_concepts:The Origen CLI'
     ),
     'timesets': (
       'Timesets',

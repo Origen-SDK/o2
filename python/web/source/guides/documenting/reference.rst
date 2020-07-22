@@ -1,9 +1,6 @@
 Reference
 =========
 
-.. Quick Recap
-.. -----------
-
 Origen Web
 -----------
 
@@ -22,9 +19,9 @@ Run ``origen web --help`` or see the |web_cmd| section for further details.
 Origen's Shorthand Defs
 -----------------------
 
-Origen includes a set of :link-to:`Shorthand Defs <shorthand~basic_usage>` (namespaced as ``origen``) for quick referencing
-to common places application documentation may point to, especially where new-user or installation guides
-are concerned:
+Origen includes a set of :link-to:`Shorthand Defs <shorthand~basic_usage>` (namespaced as ``origen``) for quick
+referencing to common places your application documentation may point to, especially where new-user or
+installation guides are concerned:
 
 {% set m = importlib.import_module('origen.web.origen_sphinx_extension.shorthand_defs') %}
 
@@ -44,9 +41,10 @@ Sphinx Guides
 * :sphinx_extensions:`Sphinx Extensions <>`
 * |origen-s_sphinx_app|
 * |documenting:origen_included_extensions|
+
    * :autodoc_home:`Autodoc <>`
    * :autoapi_home:`AutoAPI <>`
-* The |ose|
+* :link-to:`The origen Sphinx Extension <ose>`
 * :sphinx_themes:`Sphinx Themes <>`
 * |ose_theme|
 
@@ -67,6 +65,7 @@ RST Guides
 * :rst_quickstart:`RST Quickstart <>`
 * :rst_spec:`RST Docs <>`
 * Other Useful RST/Sphinx Guides
+
    * :rst_guide_zephyr:`RST guide from the Zephyr project <>`
    * :rst_cheatsheet:`RST cheatsheet <>`
    * :rst_cokelaer_cheatsheet:`RST/Sphinx cheatsheet from Thomas Cokelaer <>`
@@ -103,6 +102,14 @@ Customizations
 Other
 ^^^^^
 
-* Markdown
+* :link-to:`Markdown <markdown>`
+
    * :markdown_home:`Markdown Introduction <>`
    * :recommonmark_home:`Recommonmark Extension <>`
+* :link-to:`The Napoleon Extension <napoleon>`
+
+   * |google_docstring_spec|
+   * |numpy_docstring_spec|
+* :link-to:`The Autosectionlabel Extension <autosectionlabel>`
+
+   * :link-to:`Prefix document config <autosectionlabel_prefix_document>`
