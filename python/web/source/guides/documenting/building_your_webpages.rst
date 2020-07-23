@@ -99,7 +99,7 @@ meaning that the *latest* content, as well as other *archives* are unchanged and
 is instead placed somewhere within the currently released site.
 
 For example, using the ``archive <archive_id>`` option during ``origen web build`` will place the built docs
-at ``<release_path>/archive/<archive_id>`` but keep the remaining ``<release_path>`` unaffected.
+at ``<release_path>/archive/<app name>/<archive_id>`` but keep the remaining ``<release_path>`` unaffected.
 
 Recap
 -----

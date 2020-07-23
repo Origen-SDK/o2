@@ -134,6 +134,9 @@ also available:
 * ``extlinks`` - Similar to ``abslinks`` but targets are pulled from
   :extlinks_home:`Sphinx's extlinks extension <>` defined in the app.
 * ``substitutions`` - Resolved as straight |rst_subs|.
+* ``api`` - Points to an object in the :sphinx_python_domain:`Sphinx Python domain <>`.
+  The ``target`` should be the object's full path, such as ``origen.web.shorthand`` for the
+  :link-to:`Shorthand module <shorthand~api>`.
 
 The categories above will dictate how the |rst_subs| and the ``:link-to:`` roles are resolved:
 
