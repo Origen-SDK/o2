@@ -1,5 +1,6 @@
 import origen
 import _origen
+import pickle
 
 class Tester(_origen.tester.PyTester):
   def __init__(self):
@@ -16,6 +17,9 @@ class Tester(_origen.tester.PyTester):
       origen.dut.timesets
     return _origen.tester.PyTester.set_timeset(self, tset)
 
+  # Returns stats on the number of patterns generated, etc.
+  def stats(self):
+    return pickle.loads(bytes(self._stats()))
 
 class DummyTester:
   def __init__(self):

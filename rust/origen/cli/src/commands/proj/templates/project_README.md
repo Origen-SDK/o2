@@ -15,13 +15,19 @@ within your workspace (this can also be used to update open-ended package versio
 such as any references to 'Trunk' or another branch name):
 
 ~~~
-origen proj update
+origen proj update <PACKAGE_OR_GROUP_ID>
 ~~~
 
 To see the additional options for the update command run:
 
 ~~~
 origen proj update -h
+~~~
+
+To see a list of package IDs run:
+
+~~~
+origen proj packages
 ~~~
 
 To see what other project commands are available run:

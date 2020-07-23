@@ -77,11 +77,11 @@ pub enum Attrs {
     Text(String),
 
     //// Content Nodes
-    User,           // Inserts the current user
-    CurrentCommand, // Inserts the current command
-    Timestamp,      // Inserts a timestamp
-    Mode,           // Inserts the current mode
-    TargetsStacked, // Inserts the current targets as several "Text" nodes
+    User,                  // Inserts the current user
+    OrigenCommand(String), // The origen command being executed
+    Timestamp,             // Inserts a timestamp
+    Mode,                  // Inserts the current mode
+    TargetsStacked,        // Inserts the current targets as several "Text" nodes
     // TargetsLinearized, // Inserts the targets as a comma-separated list
     OS, // Inserts the OS
     // AppVersion, <- Currently not supported

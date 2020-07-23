@@ -1,0 +1,29 @@
+# ******************************************************************************************
+# Generated
+#   Time: 2020-06-22 18:58:02.729135600 +01:00
+#   By: stephen
+#   Command: origen generate /home/stephen/Code/github/o2/example/example/patterns/looped_produce_pattern.py
+# ******************************************************************************************
+# Workspace
+#   Environment
+#     OS: Ubuntu 18.04.2 LTS
+#     Mode: development
+#     Targets
+#         /home/stephen/Code/github/o2/example/targets/dut/eagle.py
+#         /home/stephen/Code/github/o2/example/targets/tester/v93k_smt7.py
+#         /home/stephen/Code/github/o2/example/targets/tester/uflex.py
+#   Application
+#     Local Path: /home/stephen/Code/github/o2/example
+#   Origen Core
+#     Version: 2.0.0-pre1
+#     Executable Path: /usr/bin/python3.6
+# ******************************************************************************************
+# Header Comments
+#   From the Application
+#     Hello pattern from the application!
+# ******************************************************************************************
+FORMAT clk portc
+R100 simple 0 ZZ # <EoL Comment>;
+# Producing pattern at index 0
+R20 simple 0 ZZ # <EoL Comment>;
+SQPG STOP;

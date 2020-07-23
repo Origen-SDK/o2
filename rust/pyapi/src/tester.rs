@@ -2,7 +2,7 @@ use super::pins::pin_header::PinHeader;
 use super::timesets::timeset::Timeset;
 use origen::core::tester::TesterSource;
 use origen::error::Error;
-use origen::TEST;
+use origen::{STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use std::collections::HashMap;
@@ -15,6 +15,7 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyclass(subclass)]
 #[derive(Debug)]
+/// Python interface for the tester backend.
 pub struct PyTester {
     python_testers: HashMap<String, PyObject>,
     instantiated_testers: HashMap<String, PyObject>,
@@ -25,7 +26,7 @@ pub struct PyTester {
 impl PyTester {
     #[new]
     fn new(obj: &PyRawObject) {
-        origen::tester().reset(None).unwrap();
+        origen::tester().reset();
         obj.init({
             PyTester {
                 python_testers: HashMap::new(),
@@ -35,53 +36,50 @@ impl PyTester {
         });
     }
 
-    #[args(kwargs = "**")]
-    fn reset(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        let mut ast_name = None;
-        if let Some(args) = kwargs {
-            if let Some(ast) = args.get_item("ast_name") {
-                ast_name = Some(ast.extract::<String>()?);
-            }
-        }
-        origen::tester().reset(ast_name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    /// This resets the tester, clearing all loaded targets and any other state, making
+    /// it ready for a fresh target load.
+    /// This should only be called from Python code for testing, it will be called automatically
+    /// by Origen before loading targets.
+    fn reset(_self: PyRef<Self>) {
+        origen::tester().reset();
     }
 
-    #[args(kwargs = "**")]
-    fn clear_dut_dependencies(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        let mut ast_name = None;
-        if let Some(args) = kwargs {
-            if let Some(ast) = args.get_item("ast_name") {
-                ast_name = Some(ast.extract::<String>()?);
-            }
-        }
-        origen::tester().clear_dut_dependencies(ast_name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    /// This is called by Origen at the start of a generate command, it should never be called by
+    /// application code
+    fn _prepare_for_generate(&self) -> PyResult<()> {
+        origen::tester().prepare_for_generate()?;
+        Ok(())
     }
 
-    fn reset_external_testers(slf: PyRef<Self>) -> PyResult<PyObject> {
-        origen::tester().reset_external_testers()?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
-    }
-
-    fn reset_targets(slf: PyRef<Self>) -> PyResult<PyObject> {
-        origen::tester().reset_targets()?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    fn _stats(&self) -> PyResult<Vec<u8>> {
+        Ok(origen::tester().stats.to_pickle())
     }
 
     #[getter]
+    /// Property for the current :class:`_origen.dut.timesets.Timeset` or None, if no timeset has been set.
+    /// Set to ``None`` to clear the current timeset.
+    ///
+    /// Returns:
+    ///     :class:`_origen.dut.timesets.Timeset` or ``None``
+    ///
+    /// >>> # Initially no timeset has been set
+    /// >>> origen.tester.timeset
+    /// None
+    /// >>> origen.tester.timeset = origen.dut.timesets.Timeset['my_timeset']
+    /// origen.dut.timesets.Timeset['my_timeset']
+    /// >>> origen.tester.timeset
+    /// origen.dut.timesets.Timeset['my_timeset']
+    /// >>> # Clear the current timeset
+    /// >>> origen.tester.timeset = None
+    /// None
+    /// >>> origen.tester.timeset
+    /// None
+    ///
+    /// See Also
+    /// --------
+    /// * :meth:`set_timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn get_timeset(&self) -> PyResult<PyObject> {
         let tester = origen::tester();
         let dut = origen::dut();
@@ -103,6 +101,7 @@ impl PyTester {
     }
 
     #[setter]
+    // Note - do not add doc strings here. Add to get_timeset above.
     fn timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
         let (model_id, timeset_name);
 
@@ -144,6 +143,21 @@ impl PyTester {
         self.get_timeset()
     }
 
+    /// set_timeset(timeset)
+    ///
+    /// Sets the timeset.
+    ///
+    /// >>> origen.tester.set_timeset(origen.dut.timesets['my_timeset'])
+    /// origen.tester.timesets['my_timeset']
+    ///
+    /// Parameters:
+    ///     timeset (_origen.dut.timesets.Timeset, None): Timeset to set as current, or ``None`` to clear
+    ///
+    /// See Also
+    /// --------
+    /// * :meth:`timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
         self.timeset(timeset)
     }
@@ -208,6 +222,19 @@ impl PyTester {
         self.pin_header(pin_header)
     }
 
+    /// cc(comment: str) -> self
+    ///
+    /// Inserts a single-line comment into the AST.
+    ///
+    /// >>> origen.tester.cc("my comment")
+    /// <self>
+    /// >>> origen.tester.cc("my first comment").cc("my second comment")
+    /// <self>
+    ///
+    /// See Also
+    /// --------
+    /// * {{ link_to('prog-gen:comments', 'Commenting pattern source') }}
+    /// * {{ link_to('pat-gen:comments', 'Commenting program source') }}
     fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<PyObject> {
         {
             let mut tester = origen::tester();
@@ -284,7 +311,7 @@ impl PyTester {
         Ok(())
     }
 
-    /// Expecting more arguments/options to eventually be added here.
+    /// cycle(**kwargs) -> self
     #[args(kwargs = "**")]
     fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         {
@@ -368,16 +395,15 @@ impl PyTester {
         Ok(tester.targets_as_strs().clone())
     }
 
-    fn clear_targets(slf: PyRef<Self>) -> PyResult<PyObject> {
-        let mut tester = origen::tester();
-        tester.clear_targets()?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
-    }
-
-    fn render(&self) -> PyResult<()> {
+    /// Attempts to render the pattern on all targeted testers and returns paths to the
+    /// output files that have been created.
+    /// There is no need for the Python side to do anything with those, but they are returned
+    /// in case they are useful in future.
+    /// Continue on fail means that any errors will be logged but Origen will continue, if false
+    /// it will blow up and immediately return an error to Python.
+    #[args(continue_on_fail = false)]
+    fn render_pattern(&self, continue_on_fail: bool) -> PyResult<Vec<String>> {
+        let mut rendered_patterns: Vec<String> = vec![];
         let targets;
         {
             let tester = origen::tester();
@@ -393,23 +419,42 @@ impl PyTester {
                             // Instantiate it and call its render method with the AST.
                             let gil = Python::acquire_gil();
                             let py = gil.python();
-                            inst.call_method0(py, "render")?;
+                            let _pat = inst.call_method0(py, "render_pattern")?;
+                            // TODO - How do we convert this to a path to do the diffing?
                         }
                         None => {
-                            return Err(PyErr::from(Error::new(&format!(
+                            // Don't bother masking this type of error, this should be fatal
+                            let msg = format!(
                                 "Something's gone wrong and Python tester {} cannot be found!",
                                 g
-                            ))))
+                            );
+                            return Err(PyErr::from(Error::new(&msg)));
                         }
                     }
                 }
                 _ => {
                     let mut tester = origen::tester();
-                    tester.render_target_at(i)?;
+                    let pat = tester.render_pattern_for_target_at(i, true);
+                    match pat {
+                        Err(e) => {
+                            let msg = e.to_string();
+                            if continue_on_fail {
+                                STATUS.inc_unhandled_error_count();
+                                log_error!("{}", &msg);
+                            } else {
+                                return Err(PyErr::from(Error::new(&msg)));
+                            }
+                        }
+                        Ok(paths) => {
+                            for path in &paths {
+                                rendered_patterns.push(format!("{}", path.display()));
+                            }
+                        }
+                    }
                 }
             }
         }
-        Ok(())
+        Ok(rendered_patterns)
     }
 
     #[getter]

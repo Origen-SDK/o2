@@ -5,7 +5,6 @@ pub mod pin_header;
 use super::super::dut::Dut;
 use crate::error::Error;
 
-extern crate regex;
 use regex::Regex;
 
 use super::Model;

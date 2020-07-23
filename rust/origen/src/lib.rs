@@ -7,10 +7,13 @@ extern crate meta;
 extern crate pest_derive;
 #[macro_use]
 pub mod macros;
+#[macro_use]
+extern crate indexmap;
 
 pub mod core;
 pub mod error;
 pub mod generator;
+pub mod prog_gen;
 pub mod revision_control;
 pub mod services;
 pub mod testers;
@@ -19,7 +22,7 @@ pub mod utility;
 pub use self::core::user::User;
 pub use error::Error;
 
-use self::core::application::config::Config as AppConfig;
+use self::core::application::Application;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
 use self::core::model::registers::BitCollection;
@@ -30,6 +33,7 @@ use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
+use prog_gen::Interface;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
@@ -40,13 +44,12 @@ pub const MODES: &'static [&'static str] = &["production", "development"];
 
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present
+    /// If an app is present then its Application struct is stored in here.
+    /// Things like the current output and reference directories should be derived from here.
     pub static ref STATUS: Status = Status::default();
     /// Provides configuration information derived from origen.toml files found in the Origen
     /// installation and application file system paths
     pub static ref ORIGEN_CONFIG: OrigenConfig = OrigenConfig::default();
-    /// Provides configuration information derived from application.toml and any workspace
-    /// overrides e.g. from running origen t command to set a default target
-    pub static ref APPLICATION_CONFIG: Mutex<AppConfig> = Mutex::new(AppConfig::default());
     pub static ref LOGGER: Logger = Logger::default();
     /// The current device model, containing all metadata about hierarchy, regs, pins, specs,
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
@@ -61,6 +64,8 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
+    /// Storage for the current program generation run, can include multiple flows
+    pub static ref INTERFACE: Interface = Interface::new();
     /// Provides info about the current user
     pub static ref USER: User = User::current();
 }
@@ -93,6 +98,20 @@ pub enum Value<'a> {
     Data(BigUint, u32),                   // value, size
 }
 
+/// This is called immediately upon Origen booting
+pub fn initialize(verbosity: Option<u8>) {
+    if let Some(v) = verbosity {
+        let _ = LOGGER.set_verbosity(v);
+    }
+    // Always keep this, as it is a way of forcing the STATUS object to be instantiated
+    log_debug!("Initialized Origen {}", STATUS.origen_version);
+    LOGGER.set_status_ready();
+}
+
+pub fn app() -> Option<&'static Application> {
+    STATUS.app.as_ref()
+}
+
 pub fn dut() -> MutexGuard<'static, Dut> {
     DUT.lock().unwrap()
 }
@@ -105,12 +124,32 @@ pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
 }
 
-pub fn services() -> MutexGuard<'static, Services> {
-    SERVICES.lock().unwrap()
+/// Execute the given function with a reference to the current job.
+/// Returns an error if there is no current job, otherwise the result of the given function.
+pub fn with_current_job<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&core::producer::job::Job) -> Result<T>,
+{
+    match producer().current_job() {
+        None => error!("Something has gone wrong, a reference has been made to the current job when there is none"),
+        Some(j) => func(j),
+    }
 }
 
-pub fn app_config() -> MutexGuard<'static, AppConfig> {
-    APPLICATION_CONFIG.lock().unwrap()
+/// Execute the given function with a mutable reference to the current job.
+/// Returns an error if there is no current job, otherwise the result of the given function.
+pub fn with_current_job_mut<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&mut core::producer::job::Job) -> Result<T>,
+{
+    match producer().current_job_mut() {
+        None => error!("Something has gone wrong, a reference has been made to the current job when there is none"),
+        Some(j) => func(j),
+    }
+}
+
+pub fn services() -> MutexGuard<'static, Services> {
+    SERVICES.lock().unwrap()
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
@@ -143,4 +182,20 @@ pub fn clean_mode(name: &str) -> String {
         return matches[0].to_string();
     }
     std::process::exit(1);
+}
+
+/// This will be called immediately before loading a fresh set of targets. Everything
+/// required to clear previous state from the existing targets should be initiated from here.
+pub fn prepare_for_target_load() {
+    tester().reset();
+}
+
+/// Clears the current test (pattern) AST and starts a new one, this will be called by the
+/// producer before loading the next pattern source file
+pub fn start_new_test(name: Option<String>) {
+    if let Some(name) = name {
+        TEST.start(&name);
+    } else {
+        TEST.start("ad-hoc");
+    }
 }

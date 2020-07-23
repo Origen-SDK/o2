@@ -1,41 +1,83 @@
-import origen
-import pathlib
-import re
-import mako
-import os
+import origen, pathlib, re, mako, os, abc
 from mako.template import Template
 from os import access, W_OK, X_OK, R_OK
 from origen.errors import *
 
+class UnknownSyntaxError(Exception):
+    ''' Raised when an unknown syntax if given '''
+    def __init__(self, syntax):
+        self.message = f"Origen's compiler cannot does not know how to compiler syntax '{syntax}''"
+
+class ExplicitSyntaxRequiredError(Exception):
+    ''' Raised when an explicit syntax is required, but none was given '''
+    def __init__(self, src, *, direct_src):
+        if direct_src:
+            if len(src) > 80:
+                chars = src[0:80]
+            else:
+                chars = src
+            self.message = f"Origen's Compiler requires an explicit syntax for direct source starting with {chars}"
+        else:
+            self.message = f"Origen's Compiler cannot discern syntax for file {src}"
+
+class Renderer(abc.ABC):
+
+    @property
+    @abc.abstractclassmethod
+    def file_extensions(cls):
+        return [] #raise NotImplementedError
+
+    @abc.abstractmethod
+    def render_file(self, file):
+        pass
+
+    @abc.abstractmethod
+    def render_str(self, file):
+        pass
+
+    def __init__(self, compiler, renderer_opts={}):
+        self.compiler = compiler
+        self.renderer_opts = renderer_opts
+        #self.file_extensions = [f if f.startswith('.') else f".{f}" for f in self._file_extensions]
+
+    @classmethod
+    def resolve_filename(cls, src):
+        s = pathlib.Path(src).parts[-1]
+        for ext in cls.file_extensions:
+            s = s.replace(ext if ext.startswith('.') else f".{ext}", '')
+        return pathlib.Path(src).parent.joinpath(s)
+
 class Compiler:
-    class MakoSyntax:
-        var_sub = re.compile('\$\{.*\}')
-        ctrl_struct =  re.compile('^\s*\%.*\%')
-        module_block = re.compile('\<\%\!.*\%\>')
-        tag = re.compile('\<\%.*\>')
-        expresions = [var_sub, ctrl_struct, module_block, tag]
-
-        def inspect(self, arg):
-            for regex in self.expresions:
-                if regex.search(arg):
-                    return True
-            return False
-
-    # Use a class variable as the syntax should be viewed
-    # as immutable by Compiler instances
-    syntax = MakoSyntax()
-
     def __init__(self, *args, **options):
-        self.__check_args(*args)
         self.stack = list(args) if args else []
         self.renders, self.output_files = [], []
+        self.renderers = {
+            'mako': MakoRenderer,
+            # 'jinja': JinjaRenderer
+        }
+
+    @property
+    def supported_extensions(self):
+        exts = []
+        for r in self.renderers.values():
+            exts += [(ext if ext.startswith('.') else f".{ext}") for ext in r.file_extensions]
+        return exts
+    
+    @property
+    def syntaxes(self):
+        return self.renderers.keys()
 
     # Allow the stack to be incremented, enabling compile at a later time
     def push(self, *args, **options):
         if not args:
             raise TypeError('No compiler arguments passed, cannot push them to the stack!')
-        self.__check_args(*args)
-        self.stack += list(args)
+        if 'direct_src' in options:
+            self.stack.append((list(args), options))
+        elif 'templates_dir' in options:
+            t = options.get('templates_dir', None) or self.templates_dir
+            self.stack.append((list([self.templates_dir.joinpath(f) for f in args]), options))
+        else:
+            self.stack.append((list([pathlib.Path(f) for f in args]), options))
 
     # Pop the first item of the stack
     def pop(self):
@@ -50,54 +92,25 @@ class Compiler:
         
     # Run the compiler with the stack as-is or with new args
     def run(self, *args, **options):
-        self.__check_args(*args)
-        opts = {
-            # TODO: Hook up to origen.app.output_directory
-            'output_dir':    self.templates_dir(),
-            'templates_dir': self.templates_dir()
-        }
-        # This was much easier in Ruby as the dict method 'update' acts
-        # like Ruby's hash 'merge' method
-        for k, v in options.items():
-            if k in opts:
-                opts[k] = v
-        opts = self.__make_pathlibs_if_necessary(opts)
         if args:
             self.push(*args, **options)
-        if self.stack:
-            for arg in self.stack:
-                if isinstance(arg, pathlib.Path):
-                    # Compile the file
-                    curr_template = Template(filename=str(arg))
-                    self.__write_output_file(curr_template.render(dut=origen.standard_context()['dut'], tester=origen.standard_context()['tester'], origen=origen.standard_context()['origen']), arg)
+        for (batch, opts) in self.stack:
+            for job in batch:
+                rendered = self.render(job, **opts)
+                self.renders.append(rendered)
+                if isinstance(rendered, pathlib.Path):
+                    self.output_files.append(rendered)
                 else:
-                    # Could be a file name, a file path, or templated text
-                    if self.syntax.inspect(arg):
-                        # Need to check that the user passed in a dictionary
-                        # that contains the metadata needed to render
-                        # arg is valid Mako, compile the text directly
-                        curr_template = Template(arg)
-                        # NOTE: If the options dict does not contain every pieces 
-                        # of metadata needed by the templated string, it will fail
-                        self.renders.append(curr_template.render(dut=origen.standard_context()['dut'], tester=origen.standard_context()['tester'], origen=origen.standard_context()['origen'], **options))
-                    else:
-                        # Check if the str is a file located in the templates directory
-                        # or if it is direct path to a templated file
-                        template_path = opts['templates_dir'] / arg
-                        self.__check_template(template_path)
-                        curr_template = Template(filename=f"{template_path}")
-                        # TODO: Figure out how to get the current DUT and app loaded 
-                        # automatically for all templates
-                        self.__write_output_file(curr_template.render(dut=origen.standard_context()['dut'], tester=origen.standard_context()['tester'], origen=origen.standard_context()['origen']), template_path)  
-                self.stack.pop()
-        else:
-            raise TypeError('Compiler stack is empty, cannot run!')
+                    self.output_files.append(None)
+        self.stack.clear()
 
+    @property
     def last_render(self):
         return self.renders[-1] if self.renders else None
     
+    @property
     def templates_dir(self):
-        templates_dir = pathlib.Path(f"{origen.root}/{origen.app.name}/templates")
+        templates_dir = pathlib.Path(f"{origen.app.root}/{origen.app.name}/templates")
         if not templates_dir.exists():
             raise FileNotFoundError(f"Application templates directory does not exist at {templates_dir}")
         elif not templates_dir.is_dir():
@@ -107,37 +120,130 @@ class Compiler:
         else:
             return templates_dir
 
-    def __write_output_file(self, template_output, template_path):
-        origen.logger.info(f"Compiling mako template {template_path}")
-        output_path = str(template_path)
-        output_path = output_path.replace('.mako','')
-        output_path = pathlib.Path(output_path)
-        if output_path.exists():
-            output_path.unlink()
-        with open(output_path, 'w+') as f:
-            f.write(template_output)
-        # TODO: Figure out why this doesn't work
-        output_path.chmod(0o755)
-        self.output_files.append(output_path)
-        origen.logger.info(f"Compiler output created at {output_path}")     
-    
-    def __check_args(self, *args):
-        # Args must be either a pathlib or a str
-        for arg in args:
-            if not isinstance(arg, (str, pathlib.Path)):
-                raise TypeError('Compiler arguments must be of type str or pathlib.Path')   
-            if isinstance(arg, pathlib.Path):
-                if not arg.suffix == '.mako':
-                    raise FileExtensionError('.mako')
+    def select_syntax(self, filename, syntax=None):
+        f = pathlib.Path(filename)
+        if f.suffix == '.mako':
+            return 'mako'
+        elif f.suffix == '.jinja':
+            return 'jinja'
 
-    def __make_pathlibs_if_necessary(self, opts):
-        for k,v in dict(filter(lambda k: '_dir' in k[0] , opts.items())).items():
-            opts[k] = v if isinstance(v, pathlib.PurePath) else pathlib.Path(v)
-            opts[k].resolve()
-        return opts
+    def render(self, src, *, direct_src=False, syntax=None, context={}, use_standard_context=True, renderer_opts={}, output_dir=None, output_name=None, file_to_string=False, **options):
+        ''' Direct access to compling templates. '''
+        r = self.renderer_for(src, direct_src=direct_src, syntax=syntax)(self, renderer_opts)
+        c = context.copy()
+        if use_standard_context:
+            c = {**c, **origen.standard_context()}
+        if direct_src:
+            return r.render_str(src, c)
+        else:
+            origen.logger.info(f"Compiling template {src}")
+            if file_to_string:
+                return r.render_str(open(src, r).readlines(), c)
+            else:
+                rendered = r.render_file(
+                    src,
+                    self.resolve_filename(
+                        src,
+                        output_dir=output_dir,
+                        output_name=output_name,
+                        renderer=r
+                    ),
+                    c
+                )
+                origen.logger.info(f"Compiler output created at {rendered}")     
+                return rendered
+
+    def renderer_for(self, src, direct_src=False, syntax=None):
+        # If given a file, try to discern the renderer, unless a syntax was given
+        s = syntax or (self.select_syntax(src) if not direct_src else None)
+
+        # Either wasn't given a syntax or couldn't discern based on the filename.
+        # Raise an error
+        if not s:
+            if direct_src:
+                # Need to specify the syntax if a direct source was given.
+                raise ExplicitSyntaxRequiredError(src, direct_src=True)
+            else:
+                # Given a file, but it didn't match any available renderers
+                raise ExplicitSyntaxRequiredError(src, direct_src=False)
+        if s in self.renderers:
+            return self.renderers[s]
+        else:
+            # Given an unrecognized error. Complain.
+            raise UnknownSyntaxError(syntax)
+
+    def resolve_filename(self, src, *, output_dir=None, output_name=None, renderer=None):
+        '''
+            Resolves the output name from the source, syntax, and given options.
+
+            Resolution rules:
+
+            * if no output_dir or output_name is given, the resolved filename will end up in
+                ``<app_output_dir>/renders/<syntax>/<file.x>`` where the filename is equivalent except
+                that the syntax-specific extension is removed.
+            * if an output name is given, the name and extension is changed to the output name, but the
+                output_dir remains as above.
+            * if the output_dir is given, the templates are written to that location. Same rules for
+                output_name apply
+        '''
+        src = pathlib.Path(src)
+        r = renderer or self.renderer_for(src)
+        output = pathlib.Path(output_dir or origen.app.output_dir.joinpath(f'renders/{r.__name__.lower()}'))
+        output = output.joinpath(output_name or r.resolve_filename(src.name))
+        return output
+
+    def _write_output_file(self, contents, output_file):
+        out = pathlib.Path(output_file)
+        pathlib.Path.mkdir(out.parent, parents=True, exist_ok=True)
+        with open(out, 'w') as f:
+            f.write(contents)
+        # TODO: Figure out why this doesn't work
+        out.chmod(0o755)
+        return out
 
     def __check_template(self, t):
         if not t.exists():
             raise FileNotFoundError(f"Template file does not exist at {t}")
         elif not access(t, R_OK):
             raise PermissionError(f"Template file exists at {t} but is not readable!")
+
+class MakoRenderer(Renderer):
+    class MakoSyntax:
+        var_sub = re.compile(r'\$\{.*\}')
+        ctrl_struct =  re.compile(r'^\s*\%.*\%')
+        module_block = re.compile(r'\<\%\!.*\%\>')
+        tag = re.compile(r'\<\%.*\>')
+        expresions = [var_sub, ctrl_struct, module_block, tag]
+
+        def inspect(self, arg):
+            for regex in self.expresions:
+                if regex.search(arg):
+                    return True
+            return False
+
+    # Use a class variable as the syntax should be viewed
+    # as immutable by Compiler instances
+    syntax = MakoSyntax()
+    file_extensions = ['mako']
+    preprocessor = [lambda x: x.replace("\r\n", "\n")]
+    '''
+        Preprocessor to remove double newlines from Windows sources
+
+        See Also
+        --------
+        * :ticket_mako_multiple_newlines:`Relevant Stack-Overflow Question <>`
+    '''
+
+    def render_str(self, src, context):
+        return Template(src, preprocessor=self.preprocessor).render(**context)
+
+    def render_file(self, src, output_file, context):
+        print(src)
+        return self.compiler._write_output_file(
+            Template(filename=str(src), preprocessor=self.preprocessor).render(**context),
+            output_file
+        )
+
+# TODO: Add Jinja wrapper to Origen's compiler, especially since we'll get it for free via Sphinx
+# class JinjaRenderer(Renderer):
+#     pass

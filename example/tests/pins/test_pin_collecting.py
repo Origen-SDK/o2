@@ -1,7 +1,7 @@
 import pytest
 import origen, _origen # pylint: disable=import-error
 from origen.pins import PinActions # pylint: disable=import-error
-from tests.shared import clean_falcon # pylint: disable=import-error
+from tests.shared import instantiate_dut, clean_falcon # pylint: disable=import-error
 from tests.shared.python_like_apis import Fixture_ListLikeAPI # pylint: disable=import-error
 from tests.pins import is_pin_collection, pins, ports, grp # pylint: disable=import-error
 
@@ -24,7 +24,7 @@ class TestPinCollectionListLike(Fixture_ListLikeAPI):
     assert i.pin_names == ["pins2"]
 
   def boot_list_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     origen.dut.add_pin("pins", width=3)
     return origen.dut.pins.collect("pins0", "pins1", "pins2")
 

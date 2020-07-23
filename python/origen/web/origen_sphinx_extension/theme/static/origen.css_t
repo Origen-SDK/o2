@@ -1,0 +1,39 @@
+/* Origen specific overrides */
+
+/* 
+  TODO:
+  Despite the comments in origen.js, hardcoding here because a simple lookup didn't quite work
+  as the other did.
+  Need to fix this longer term - coreyeng
+
+  Lighten the arrows in the dropdowns to be more discernable
+*/
+#navbar-pages .arrow:after{border-left-color: rgb(236, 238, 239, 0.4) }
+div.sphinxsidebarwrapper > div.sidebartoctree > ul a.arrow.collapsed{ border-top-color: rgb(236, 238, 239, 0.4) }
+div.sphinxsidebarwrapper > div.sidebartoctree > ul a.arrow:not(.collapsed){ border-bottom-color: rgb(236, 238, 239, 0.4) }
+
+/*
+  The CSS solution to this problem:
+  https://stackoverflow.com/questions/49331572/offset-scroll-anchor-in-html-with-bootstrap-4-fixed-navbar
+  leaves yields a highlighting issue. More details in ./origen.js, but the sphinxbootstrap4theme implements the CSS solution,
+  which is deactivated here.
+*/
+*[id]:before {
+  display: none;
+}
+
+/*
+  Darkly's theme slightly enlarges the navbar but Sphinx's bootstrap4 assumes the standard bootstrap4 size of 54px.
+  Update the hard-coded size to account for the 72px-high navbar
+*/
+.related[role="navigation"] {
+  margin-top: 72px;
+}
+
+/*
+  Darkly doesn't do anything with hr tags and they remain very dark.
+  They are barely discernable, so make them stand out a bit more so they actually serve their purpose.
+*/
+hr {
+  border-top-color: #fff;
+}

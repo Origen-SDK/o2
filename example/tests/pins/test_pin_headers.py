@@ -1,6 +1,6 @@
 import pytest
 import origen, _origen # pylint: disable=import-error
-from tests.shared import clean_eagle, clean_falcon, clean_tester # pylint: disable=import-error
+from tests.shared import instantiate_dut, clean_eagle, clean_falcon, clean_tester # pylint: disable=import-error
 from tests.shared.python_like_apis import Fixture_DictLikeAPI # pylint: disable=import-error
 from tests.pins import ports, pins # pylint: disable=import-error
 
@@ -14,7 +14,7 @@ class TestPinHeaders:
       }
 
     def boot_dict_under_test(self):
-      origen.app.instantiate_dut("dut.falcon")
+      instantiate_dut("dut.falcon")
       origen.dut.add_pin("p", width=3)
       origen.dut.add_pin_header("h0", "p0")
       origen.dut.add_pin_header("h1", "p0", "p1")

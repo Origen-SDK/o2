@@ -1,12 +1,17 @@
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
-use crate::error::Error;
+use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
-use crate::testers::{available_testers, instantiate_tester};
+use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
+use crate::utility::differ::Differ;
+use crate::utility::file_utils::to_relative_path;
 use crate::TEST;
-use crate::{add_children, node, text, text_line};
+use crate::{add_children, node, text, text_line, with_current_job};
+use crate::{Error, Result};
 use indexmap::IndexMap;
+use std::env;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum TesterSource {
@@ -54,10 +59,33 @@ pub struct Tester {
     /// The name and model ID can be found on this object.
     current_timeset_id: Option<usize>,
     current_pin_header_id: Option<usize>,
+    /// This stores additional testers provided by the Python domain, effectively adding them
+    /// to AVAILABLE_TESTERS. It never needs to be cleared.
     external_testers: IndexMap<String, TesterSource>,
+    /// This is the testers that have been selected by the current target, it will be cleared
+    /// and new testers will be pushed to it during a target load.
+    /// It contains references to both Rust and Python domain testers.
     pub target_testers: Vec<TesterSource>,
+    /// Keeps track of some stats, like how many patterns have been generated, how many with
+    /// diffs, etc.
+    pub stats: Stats,
 }
 
+#[derive(Debug, Default, Serialize)]
+pub struct Stats {
+    pub generated_pattern_files: usize,
+    pub changed_pattern_files: usize,
+    pub new_pattern_files: usize,
+    pub generated_program_files: usize,
+    pub changed_program_files: usize,
+    pub new_program_files: usize,
+}
+
+impl Stats {
+    pub fn to_pickle(&self) -> Vec<u8> {
+        serde_pickle::to_vec(self, true).unwrap()
+    }
+}
 impl Tester {
     pub fn new() -> Self {
         Tester {
@@ -65,54 +93,32 @@ impl Tester {
             current_pin_header_id: Option::None,
             external_testers: IndexMap::new(),
             target_testers: vec![],
+            stats: Stats::default(),
         }
     }
 
-    pub fn _current_timeset_id(&self) -> Result<usize, Error> {
+    pub fn _current_timeset_id(&self) -> Result<usize> {
         match self.current_timeset_id {
             Some(t_id) => Ok(t_id),
             None => Err(Error::new(&format!("No timeset has been set!"))),
         }
     }
 
-    pub fn _current_pin_header_id(&self) -> Result<usize, Error> {
+    pub fn _current_pin_header_id(&self) -> Result<usize> {
         match self.current_pin_header_id {
             Some(ph_id) => Ok(ph_id),
             None => Err(Error::new(&format!("No pin header has been set!"))),
         }
     }
 
-    pub fn reset(&mut self, ast_name: Option<String>) -> Result<(), Error> {
-        self.clear_dut_dependencies(ast_name)?;
-        self.reset_external_testers()?;
-        Ok(())
-    }
-
-    /// Clears all members which reference members on the current DUT.
-    pub fn clear_dut_dependencies(&mut self, ast_name: Option<String>) -> Result<(), Error> {
-        if let Some(ast) = ast_name {
-            TEST.start(&ast);
-        } else {
-            TEST.start("ad-hoc");
-        }
+    /// This will be called by Origen immediately before it is about to load the target, it unloads
+    /// all tester targets and all other state making it ready to accept a new set of targets
+    pub fn reset(&mut self) {
+        self.target_testers.clear();
         self.current_timeset_id = Option::None;
-        Ok(())
     }
 
-    // Resets the external testers.
-    // Also clears the targeted testers, as it may point to an external one that will be cleared.
-    pub fn reset_external_testers(&mut self) -> Result<(), Error> {
-        self.target_testers.clear();
-        self.external_testers.clear();
-        Ok(())
-    }
-
-    pub fn reset_targets(&mut self) -> Result<(), Error> {
-        self.target_testers.clear();
-        Ok(())
-    }
-
-    pub fn register_external_tester(&mut self, tester: &str) -> Result<(), Error> {
+    pub fn register_external_tester(&mut self, tester: &str) -> Result<()> {
         self.external_testers.insert(
             tester.to_string(),
             TesterSource::External(tester.to_string()),
@@ -128,7 +134,7 @@ impl Tester {
         }
     }
 
-    pub fn _get_timeset(&self, dut: &Dut) -> Result<Timeset, Error> {
+    pub fn _get_timeset(&self, dut: &Dut) -> Result<Timeset> {
         if let Some(t_id) = self.current_timeset_id {
             Ok(dut.timesets[t_id].clone())
         } else {
@@ -136,18 +142,13 @@ impl Tester {
         }
     }
 
-    pub fn set_timeset(
-        &mut self,
-        dut: &Dut,
-        model_id: usize,
-        timeset_name: &str,
-    ) -> Result<(), Error> {
+    pub fn set_timeset(&mut self, dut: &Dut, model_id: usize, timeset_name: &str) -> Result<()> {
         self.current_timeset_id = Some(dut._get_timeset(model_id, timeset_name)?.id);
         TEST.push(node!(SetTimeset, self.current_timeset_id.unwrap()));
         Ok(())
     }
 
-    pub fn clear_timeset(&mut self) -> Result<(), Error> {
+    pub fn clear_timeset(&mut self) -> Result<()> {
         self.current_timeset_id = Option::None;
         TEST.push(node!(ClearTimeset));
         Ok(())
@@ -161,7 +162,7 @@ impl Tester {
         }
     }
 
-    pub fn _get_pin_header(&self, dut: &Dut) -> Result<PinHeader, Error> {
+    pub fn _get_pin_header(&self, dut: &Dut) -> Result<PinHeader> {
         if let Some(ph_id) = self.current_pin_header_id {
             Ok(dut.pin_headers[ph_id].clone())
         } else {
@@ -174,19 +175,19 @@ impl Tester {
         dut: &Dut,
         model_id: usize,
         pin_header_name: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.current_pin_header_id = Some(dut._get_pin_header(model_id, pin_header_name)?.id);
         TEST.push(node!(SetPinHeader, self.current_pin_header_id.unwrap()));
         Ok(())
     }
 
-    pub fn clear_pin_header(&mut self) -> Result<(), Error> {
+    pub fn clear_pin_header(&mut self) -> Result<()> {
         self.current_pin_header_id = Option::None;
         TEST.push(node!(ClearPinHeader));
         Ok(())
     }
 
-    pub fn issue_callback_at(&mut self, idx: usize) -> Result<(), Error> {
+    pub fn issue_callback_at(&mut self, idx: usize) -> Result<()> {
         let g = &mut self.target_testers[idx];
 
         // Grab the last node and immutably pass it to the interceptor
@@ -212,13 +213,13 @@ impl Tester {
         Ok(())
     }
 
-    pub fn cc(&mut self, comment: &str) -> Result<(), Error> {
+    pub fn cc(&mut self, comment: &str) -> Result<()> {
         let comment_node = node!(Comment, 1, comment.to_string());
         TEST.push(comment_node);
         Ok(())
     }
 
-    pub fn cycle(&mut self, repeat: Option<usize>) -> Result<(), Error> {
+    pub fn cycle(&mut self, repeat: Option<usize>) -> Result<()> {
         let cycle_node = node!(Cycle, repeat.unwrap_or(1) as u32, true);
         TEST.push(cycle_node);
         Ok(())
@@ -228,14 +229,20 @@ impl Tester {
         &self,
         app_comments: Option<Vec<String>>,
         pattern_comments: Option<Vec<String>>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let mut header = node!(PatternHeader);
         header.add_child(node!(TextBoundaryLine));
         let mut section = node!(TextSection, Some("Generated".to_string()), None);
         section.add_children(vec![
             text_line!(text!("Time: "), node!(Timestamp)),
             text_line!(text!("By: "), node!(User)),
-            text_line!(text!("Command: "), node!(CurrentCommand)),
+            with_current_job(|job| {
+                Ok(text_line!(
+                    text!("Command: "),
+                    node!(OrigenCommand, job.command())
+                ))
+            })
+            .unwrap(),
         ]);
         header.add_child(section);
 
@@ -290,37 +297,98 @@ impl Tester {
         Ok(())
     }
 
-    pub fn end_pattern(&self) -> Result<(), Error> {
+    pub fn end_pattern(&self) -> Result<()> {
         TEST.push(node!(PatternEnd));
         Ok(())
     }
 
     /// Renders the output for the target at index i.
     /// Allows the frontend to call testers in a loop.
-    pub fn render_target_at(&mut self, idx: usize) -> Result<RenderStatus, Error> {
-        let mut stat = RenderStatus::new();
+    /// When diff_and_display is true the generated files will be displayed to the console
+    /// and checked for diffs.
+    pub fn render_pattern_for_target_at(
+        &mut self,
+        idx: usize,
+        diff_and_display: bool,
+    ) -> Result<Vec<PathBuf>> {
         let g = &mut self.target_testers[idx];
         match g {
             TesterSource::External(gen) => {
-                stat.external.push(gen.to_string());
+                error!("Tester '{}' is Python-based and pattern rendering must be invoked from Python code", &gen)
             }
             TesterSource::Internal(gen) => {
-                let n = gen.preprocess(&TEST.ast.write().unwrap().to_node())?;
-                gen.run(&n)?;
-                stat.completed.push(gen.to_string())
+                let paths = TEST.with_ast(|ast| gen.render_pattern(ast))?;
+                if !paths.is_empty() {
+                    for path in &paths {
+                        self.stats.generated_pattern_files += 1;
+                        log_debug!("Tester '{}' created file '{}'", gen.name(),  path.display());
+                        if diff_and_display {
+                            if let Ok(p) = to_relative_path(path, None) {
+                                display!("Created: {}", p.display());
+                            } else {
+                                display!("Created: {}", path.display());
+                            }
+                            if let Some(ref_dir) = crate::STATUS.reference_dir() {
+                                match path.strip_prefix(crate::STATUS.output_dir()) {
+                                    Err(e) => log_error!("{}", e),
+                                    Ok(stem) => {
+                                        let ref_pat = ref_dir.join(&stem);
+                                        display!(" - ");
+                                        if ref_pat.exists() {
+                                            if let Some(mut differ) = gen.pattern_differ(path, &ref_pat) {
+                                                if differ.has_diffs()? {
+                                                    if let Err(e) = reference_files::create_changed_ref(&stem, &path, &ref_pat) {
+                                                        log_error!("{}", e);
+                                                    }
+                                                    self.stats.changed_pattern_files += 1;
+                                                    display_redln!("Diffs found");
+                                                    let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
+                                                    let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
+                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
+                                                    displayln!("  {} {} {}", &diff_tool, old.display(), new.display());
+                                                    display!("  origen save_ref {}", stem.display());
+                                                } else {
+                                                    display_green!("No diffs");
+                                                }
+                                            } else {
+                                                log_debug!("No differ defined for tester '{}'", gen.name());
+                                                display_yellow!("Diff not checked");
+                                            }
+                                        } else {
+                                            self.stats.new_pattern_files += 1;
+                                            if let Err(e) = reference_files::create_new_ref(&stem, &path, &ref_pat) {
+                                                log_error!("{}", e);
+                                            }
+                                            display_cyanln!("New pattern");
+                                            display!("  origen save_ref {}", stem.display());
+
+                                        }
+                                    }
+                                }
+                            }
+                            displayln!("");
+                        }
+                    }
+                } else {
+                    log_debug!("No files generated by tester '{}", gen.name());
+                }
+                Ok(paths)
             }
         }
-        Ok(stat)
     }
 
-    pub fn target(&mut self, tester: &str) -> Result<&TesterSource, Error> {
+    pub fn target(&mut self, tester: &str) -> Result<&TesterSource> {
         let g;
         if let Some(_g) = instantiate_tester(tester) {
             g = TesterSource::Internal(_g);
         } else if let Some(_g) = self.external_testers.get(tester) {
             g = (*_g).clone();
         } else {
-            return Err(Error::new(&format!("Could not find tester '{}'!", tester)));
+            return error!(
+                "Could not find tester '{}', must be one of: \n  {}",
+                tester,
+                AVAILABLE_TESTERS.join("\n  ")
+            );
         }
 
         if self.target_testers.contains(&g) {
@@ -342,13 +410,8 @@ impl Tester {
         self.target_testers.iter().map(|g| g.to_string()).collect()
     }
 
-    pub fn clear_targets(&mut self) -> Result<(), Error> {
-        self.target_testers.clear();
-        Ok(())
-    }
-
     pub fn testers(&self) -> Vec<String> {
-        let mut gens: Vec<String> = available_testers();
+        let mut gens: Vec<String> = AVAILABLE_TESTERS.iter().map(|t| t.to_string()).collect();
         gens.extend(
             self.external_testers
                 .iter()
@@ -357,19 +420,16 @@ impl Tester {
         );
         gens
     }
-}
 
-pub struct RenderStatus {
-    pub completed: Vec<String>,
-    pub external: Vec<String>,
-}
-
-impl RenderStatus {
-    pub fn new() -> Self {
-        Self {
-            completed: vec![],
-            external: vec![],
+    /// This is called automatically at the very start of a generate command, it is invoked from Python,
+    /// so state can be established here which will persist for the rest of the command
+    pub fn prepare_for_generate(&mut self) -> Result<()> {
+        let on_lsf = crate::core::lsf::is_running_remotely();
+        // Jobs to be done before launching to the LSF
+        if !on_lsf {
+            reference_files::clear_save_refs()?;
         }
+        Ok(())
     }
 }
 
@@ -378,46 +438,60 @@ impl RenderStatus {
 /// Each method will be given the resulting node after processing.
 /// Note: the node given is only a clone of what will be stored in the AST.
 pub trait Interceptor {
-    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
+    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Result<(), Error> {
+    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn clear_timeset(&mut self, _node: &Node) -> Result<(), Error> {
+    fn clear_timeset(&mut self, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
+    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn set_pin_header(&mut self, _pin_header_id: usize, _node: &Node) -> Result<(), Error> {
+    fn set_pin_header(&mut self, _pin_header_id: usize, _node: &Node) -> Result<()> {
         Ok(())
     }
 
-    fn clear_pin_header(&mut self, _node: &Node) -> Result<(), Error> {
+    fn clear_pin_header(&mut self, _node: &Node) -> Result<()> {
         Ok(())
     }
 }
 impl<'a, T> Interceptor for &'a T where T: TesterAPI {}
 impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
 
-pub trait TesterAPI:
-    std::fmt::Debug + crate::generator::processor::Processor + Interceptor
-{
+pub trait TesterAPI: std::fmt::Debug + Interceptor {
     fn name(&self) -> String;
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
-    fn run(&mut self, node: &Node) -> crate::Result<Node>;
+
+    /// Render the given AST to an output, returning the path(s) to the created file(s)
+    /// if successfull.
+    /// A default implementation is given since some testers may only support prog gen
+    /// and not patgen and vice versa, in that case they will return an empty vector.
+    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
+        let _ = ast;
+        Ok(vec![])
+    }
 
     fn to_string(&self) -> String {
         format!("::{}", self.name())
     }
 
-    fn preprocess(&mut self, node: &Node) -> Result<Node, Error> {
-        Ok(node.clone())
+    /// The tester should implement this to return a differ instance which is configured
+    /// per the tester's pattern format, e.g. to define the command char(s).
+    /// If diff'ing is not applicable to the tester, e.g. the pattern is in binary format,
+    /// then the tester does not need to implement this.
+    /// If only some patterns can be diffed then then test should return None in the case
+    /// where the pattern is one that cannot be diffed.
+    fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Differ> {
+        let _ = pat_a;
+        let _ = pat_b;
+        None
     }
 }
 

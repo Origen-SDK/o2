@@ -3,6 +3,9 @@ from __future__ import print_function, unicode_literals, absolute_import
 
 import sys
 import pathlib
+import importlib
+
+_generate_prepared = False
 
 if sys.platform == "win32":
     # The below is needed only for pyreadline, which is needed only for Windows support.
@@ -85,13 +88,22 @@ if sys.platform == "win32":
 
         console.install_readline(rl.readline)
 
-    __all__.append("rl")
+    __all__ += ["rl", "run_cmd"]
 
-# Called by the Origen CLI to boot the Origen Python env, not for application use
-# Any target/env overrides given to the command line will be passed in here
-def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
+def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None, args=None, **kwargs):
+    ''' Run an Origen command. This is the main entry method for the CLI, but it can also
+        be used in application commands to invoke Origen commands within the same thread instead of
+        making system calls.
+        
+        See Also
+        --------
+        * :link-to:`Example Application Commands <src_code:example_commands>`
+    '''
+    global _generate_prepared
+
     import origen
     import _origen
+
     import origen.application
     import origen.target
 
@@ -106,27 +118,54 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
     if verbosity is not None:
         _origen.logger.set_verbosity(verbosity)
 
-    origen.target.load(targets=targets)
+    if output_dir is not None:
+        _origen.set_output_dir(output_dir)
 
+    if reference_dir is not None:
+        _origen.set_reference_dir(reference_dir)
+
+    origen.target.setup(targets=targets)
+    
+    # The generate command handles patterns and flows.
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
-    # Future: Add flow options.
     if command == "generate":
+        # Just do this once, consider a case like the examples command where this is being called
+        # multiple times in the same thread of execution
+        if not _generate_prepared:
+            origen.tester._prepare_for_generate()
+            _generate_prepared = True
         for (i, f) in enumerate(_origen.file_handler()):
-            # For each pattern, instantiate the DUT and reset the AST
-            origen.tester.reset()
-            origen.target.load(targets=targets)
-            origen.logger.info(f"Generating source {i+1} of {len(_origen.file_handler())}: {f}")
-            
-            j = origen.producer.create_pattern_job(f)
-            j.run()
+            origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
+            # Starts a new JOB in Origen which provides some long term storage and tracking
+            # of files that are referenced on the Rust side 
+            # The JOB API can be accessed via origen.producer.current_job
+            origen.producer.create_job("generate", f)
+            context = origen.producer.api()
+            origen.load_file(f, locals=context)
         # Print a summary here...
+        stats = origen.tester.stats()
+        changes = stats['changed_pattern_files'] > 0 or stats['changed_program_files'] > 0
+        new_files = stats['new_pattern_files'] > 0 or stats['new_program_files'] > 0
+        if changes or new_files:
+            print("")
+            if changes:
+                print("To save all changed files run:")
+                print("  origen save_ref --changed")
+            if new_files:
+                print("To save all new files run:")
+                print("  origen save_ref --new")
+            if changes and new_files:
+                print("To save both run:")
+                print("  origen save_ref --new --changed")
 
     elif command == "compile":
         for file in _origen.file_handler():
             origen.app.compile(pathlib.Path(file))
 
     elif command == "interactive":
+        origen.logger.trace("Starting interactive session (on Python side)")
+        origen.target.load()
         import atexit, os, sys, colorama, termcolor, readline, rlcompleter
 
         # Colorama init only required on windows, but place it here to keep consistent with all platforms, or in case options
@@ -150,6 +189,31 @@ def __origen__(command, targets=None, verbosity=None, mode=None, files=None):
         from origen import dut, tester
         from origen.registers.actions import write, verify, write_transaction, verify_transaction
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
+
+    elif command == "web:build":
+        from origen.web import run_cmd
+        return run_cmd("build", args)
+    
+    elif command == "web:view":
+        from origen.web import run_cmd
+        return run_cmd("view", args)
+    
+    elif command == "web:clean":
+        from origen.web import run_cmd
+        return run_cmd("clean", args)
+    # Internal command to give the Origen version loaded by the application to the CLI
+
+    elif command == "_version_":
+        print(f"{origen.status['origen_version']}")
+
+    # Internal command to dispatch an app/plugin command
+    elif command == "_dispatch_":
+        path = f'{origen.app.name}.commands'
+        for cmd in kwargs["commands"]:
+            path += f'.{cmd}'
+        m = importlib.import_module(path)
+        m.run(**(args or {}))
+        exit(0)
 
     else:
         print(f"Unknown command: {command}")

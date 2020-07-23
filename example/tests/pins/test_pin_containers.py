@@ -1,7 +1,7 @@
 import pytest
 import origen, _origen # pylint: disable=import-error
 from tests.shared.python_like_apis import Fixture_DictLikeAPI # pylint: disable=import-error
-from tests.shared import clean_falcon # pylint: disable=import-error
+from tests.shared import instantiate_dut, clean_falcon # pylint: disable=import-error
 
 def test_empty_pins(clean_falcon):
   assert len(origen.dut.pins) == 0
@@ -16,7 +16,7 @@ class TestPinContainerDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     dut = origen.dut
     dut.add_pin("p0")
     dut.add_pin("p1")
@@ -33,7 +33,7 @@ class TestPhysicalPinContainerDictLike(Fixture_DictLikeAPI):
     }
 
   def boot_dict_under_test(self):
-    origen.app.instantiate_dut("dut.falcon")
+    instantiate_dut("dut.falcon")
     dut = origen.dut
     dut.add_pin("p0")
     dut.add_pin("p1")

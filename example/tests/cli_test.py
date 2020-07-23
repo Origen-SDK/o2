@@ -25,6 +25,7 @@
 import pytest
 import subprocess
 import os
+import origen
 
 origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
@@ -35,8 +36,11 @@ def test_origen_v():
   # Process is done
   # Read std out
   first_stdout_line = process.stdout.readline()
-  assert "CLI" in first_stdout_line
-  assert " 2." in first_stdout_line
+  assert "App:" in first_stdout_line
+  second_stdout_line = process.stdout.readline()
+  third_stdout_line = process.stdout.readline()
+  assert " 2." in second_stdout_line
+  assert " 2." in third_stdout_line
 
 def test_bad_command():
   process = subprocess.Popen([f'{origen_cli}', 'thisisnotacommand'], stderr=subprocess.PIPE, universal_newlines=True)
@@ -44,6 +48,7 @@ def test_bad_command():
   assert "error:" in process.stderr.readline()
 
 def test_origen_g():
-  process = subprocess.Popen([f'{origen_cli}', 'g', r'.\example\patterns\toggle.py', '-t', r'.\targets\dut\eagle.py'], universal_newlines=True)
+  os.chdir(origen.root)
+  process = subprocess.Popen([f'{origen_cli}', 'g', r'./example/patterns/toggle.py', '-t', r'./targets/dut/eagle.py'], universal_newlines=True)
   assert process.wait() == 0
   
