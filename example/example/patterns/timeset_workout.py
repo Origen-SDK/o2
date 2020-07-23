@@ -24,7 +24,7 @@ with Pattern(pin_header="all") as pat:
 
     tester().cc("Set the clk to an arbitrary symbol")
     # This should not cycle the tester
-    dut().pin("clk").set_actions("|9|")
+    dut().pin("clk").set_actions("|8|")
     tester().cycle()
 
     tester().cc("Set porta to various symbols")
