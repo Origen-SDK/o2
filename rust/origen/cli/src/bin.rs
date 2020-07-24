@@ -245,13 +245,6 @@ fn main() {
                         .display_order(1)
                         .help("Build the CLI (instead of the Python API)")
                 )
-                .arg(Arg::with_name("all")
-                        .long("all")
-                        .required(false)
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Build the Python package into all development apps")
-                )
                 .arg(Arg::with_name("release")
                         .long("release")
                         .required(false)
@@ -273,7 +266,7 @@ fn main() {
                         .takes_value(true)
                         .value_name("VERSION")
                         .display_order(1)
-                        .help("Set the version (of all components) to the given value before building")
+                        .help("Set the version (of all components) to the given value")
                 )
             );
     }

@@ -53,6 +53,7 @@ pub fn run(matches: &ArgMatches) {
             version,
         )
         .expect("Couldn't write version");
+        return;
     }
     if matches.is_present("cli") {
         cd(&STATUS
@@ -154,41 +155,46 @@ pub fn run(matches: &ArgMatches) {
                     .status()
                     .expect("failed to publish origen");
             }
+
+        // A standard (non-release) build
         } else {
             // The default build will compile the latest PyAPI and copy it into
             // the example app's Python env
-            let mut apps = vec![STATUS.origen_wksp_root.join("test_apps").join("python_app")];
-            if matches.is_present("all") {
-                apps.push(
-                    STATUS
-                        .origen_wksp_root
-                        .join("test_apps")
-                        .join("python_no_app"),
-                );
+
+            // If this command is launched within a different test app, then the build will apply
+            // to that app instead.
+            let mut app = STATUS.origen_wksp_root.join("test_apps").join("python_app");
+            let apps_dir = STATUS.origen_wksp_root.join("test_apps");
+            if let Ok(pwd) = std::env::current_dir() {
+                if pwd.starts_with(&apps_dir) {
+                    app = pwd;
+                    while app.parent().unwrap() != apps_dir {
+                        app.pop();
+                    }
+                }
             }
-            for app in &apps {
-                cd(app);
-                display!("");
-                Command::new("poetry")
-                    .args(&[
-                        "run",
-                        "maturin",
-                        "develop",
-                        "--manifest-path",
-                        &format!(
-                            "{}",
-                            STATUS
-                                .origen_wksp_root
-                                .join("rust")
-                                .join("pyapi")
-                                .join("Cargo.toml")
-                                .display()
-                        ),
-                    ])
-                    .status()
-                    .expect("failed to execute process");
-                display!("");
-            }
+
+            cd(&app);
+            display!("");
+            Command::new("poetry")
+                .args(&[
+                    "run",
+                    "maturin",
+                    "develop",
+                    "--manifest-path",
+                    &format!(
+                        "{}",
+                        STATUS
+                            .origen_wksp_root
+                            .join("rust")
+                            .join("pyapi")
+                            .join("Cargo.toml")
+                            .display()
+                    ),
+                ])
+                .status()
+                .expect("failed to execute process");
+            display!("");
         }
     }
 }
