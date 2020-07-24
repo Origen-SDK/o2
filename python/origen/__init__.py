@@ -20,7 +20,8 @@ import origen.target
 
 config = _origen.config()
 status = _origen.status()
-root = Path(status["root"])
+if status["is_app_present"]:
+    root = Path(status["root"])
 version = status["origen_version"]
 logger = _origen.logger
 log = _origen.logger

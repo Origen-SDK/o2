@@ -4,6 +4,7 @@ use origen::core::file_handler::File;
 use origen::{Result, STATUS};
 use regex::Regex;
 use semver::Version;
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
 
@@ -123,9 +124,12 @@ pub fn run(matches: &ArgMatches) {
             dependency_on_pyapi(true).expect("Couldn't enable dependency on origen_pyapi");
 
             Command::new("poetry")
-                .args(&["build", "--no-interaction"])
+                .args(&["build", "--no-interaction", "--format", "wheel"])
                 .status()
                 .expect("failed to build origen for release");
+
+            fix_wheel_version(wheel_dir);
+            cd(&STATUS.origen_wksp_root.join("python"));
 
             dependency_on_pyapi(false).expect("Couldn't disable dependency on origen_pyapi");
 
@@ -153,29 +157,149 @@ pub fn run(matches: &ArgMatches) {
         } else {
             // The default build will compile the latest PyAPI and copy it into
             // the example app's Python env
-            cd(&STATUS.origen_wksp_root.join("test_apps").join("python_app"));
-            display!("");
-            Command::new("poetry")
-                .args(&[
-                    "run",
-                    "maturin",
-                    "develop",
-                    "--manifest-path",
-                    &format!(
-                        "{}",
-                        STATUS
-                            .origen_wksp_root
-                            .join("rust")
-                            .join("pyapi")
-                            .join("Cargo.toml")
-                            .display()
-                    ),
-                ])
-                .status()
-                .expect("failed to execute process");
-            display!("");
+            let mut apps = vec![STATUS.origen_wksp_root.join("test_apps").join("python_app")];
+            if matches.is_present("all") {
+                apps.push(
+                    STATUS
+                        .origen_wksp_root
+                        .join("test_apps")
+                        .join("python_no_app"),
+                );
+            }
+            for app in &apps {
+                cd(app);
+                display!("");
+                Command::new("poetry")
+                    .args(&[
+                        "run",
+                        "maturin",
+                        "develop",
+                        "--manifest-path",
+                        &format!(
+                            "{}",
+                            STATUS
+                                .origen_wksp_root
+                                .join("rust")
+                                .join("pyapi")
+                                .join("Cargo.toml")
+                                .display()
+                        ),
+                    ])
+                    .status()
+                    .expect("failed to execute process");
+                display!("");
+            }
         }
     }
+}
+
+/// Poetry is too opinionated about the versioning and wants to call a pre-release version
+/// a release candidate. This fixes the generated version by putting it back to the original
+/// Origen version within the wheel package.
+fn fix_wheel_version(dist_dir: &Path) {
+    if STATUS.origen_version.pre.is_empty() {
+        return;
+    }
+    let paths = std::fs::read_dir(dist_dir).unwrap();
+
+    for path in paths {
+        let wheel_file_name;
+        let old_version;
+        let new_version = STATUS.origen_version.to_string();
+        let underscored_new_version = new_version.replace("-", "_");
+
+        // Get the mangled version from the whl file name
+        if let Some(file) = path.unwrap().path().file_name() {
+            if let Some(file) = file.to_str() {
+                if !file.ends_with(".whl") {
+                    continue;
+                }
+                wheel_file_name = file.to_string();
+                let re = regex::Regex::new(r"origen-(\d+\.\d+\.\d+.+\d+)-py3.*").unwrap();
+                let captures = re.captures(&wheel_file_name).unwrap();
+                old_version = captures.get(1).unwrap().as_str().to_string();
+            } else {
+                continue;
+            }
+        } else {
+            continue;
+        }
+
+        cd(dist_dir);
+
+        // Unzip the wheel and replace all occurrences of the mangled version
+        Command::new("unzip")
+            .arg(&wheel_file_name)
+            .status()
+            .expect("failed to unzip wheel file");
+
+        std::fs::remove_file(&wheel_file_name).expect("Couldn't delete the original wheel file");
+
+        let new_wheel_file_name = wheel_file_name.replace(&old_version, &underscored_new_version);
+
+        let old_info_dir_name = format!("origen-{}.dist-info", &old_version);
+        let new_info_dir_name = format!("origen-{}.dist-info", &underscored_new_version);
+
+        std::fs::rename(&old_info_dir_name, &new_info_dir_name).expect("couldn't rename info file");
+
+        let metadata_file = Path::new(&new_info_dir_name).join("METADATA");
+        let record_file = Path::new(&new_info_dir_name).join("RECORD");
+
+        // Update the package version in the METADATA file
+        let mut contents = std::fs::read_to_string(&metadata_file).expect("Couldn't read METADATA");
+        contents = contents.replace(
+            &format!("Version: {}", &old_version),
+            &format!("Version: {}", &new_version),
+        );
+        File::create(metadata_file.clone()).write(&contents);
+
+        // Update the dir names and hash of the METADATA file in the RECORD file
+        let mut contents = std::fs::read_to_string(&record_file).expect("Couldn't read RECORD");
+        contents = contents.replace(
+            &format!("origen-{}.dist", &old_version),
+            &format!("origen-{}.dist", &underscored_new_version),
+        );
+
+        let sha = hash(&metadata_file);
+        let new_meta_line = format!(
+            "origen-{}.dist-info/METADATA,sha256={},{}",
+            &underscored_new_version, sha.0, sha.1
+        );
+
+        let lines: Vec<&str> = contents
+            .split("\n")
+            .into_iter()
+            .map(|line| {
+                if line.contains("dist-info/METADATA") {
+                    &new_meta_line
+                } else {
+                    line
+                }
+            })
+            .collect();
+
+        File::create(record_file).write(&lines.join("\n"));
+
+        // Finally, zip up the new wheel and clean up
+        Command::new("zip")
+            .args(&["-r", &new_wheel_file_name, "origen", &new_info_dir_name])
+            .status()
+            .expect("failed to zip wheel file");
+
+        std::fs::remove_dir_all("origen").expect("Couldn't delete origen dir");
+        std::fs::remove_dir_all(&new_info_dir_name)
+            .expect(&format!("Couldn't delete {} dir", &new_info_dir_name));
+    }
+}
+
+fn hash(file: &Path) -> (String, usize) {
+    let contents =
+        std::fs::read_to_string(file).expect(&format!("Couldn't read {}", file.display()));
+    let mut hasher = Sha256::new();
+    hasher.update(&contents);
+    let hash = hasher.finalize();
+    let b = base64_url::encode(&hash);
+    (b, contents.as_bytes().len())
 }
 
 // Enables/disables the dependency on origen_pyapi for the main origen Python package

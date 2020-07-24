@@ -42,7 +42,7 @@ def test_compiler_renders_text():
     assert origen.app.compiler.renders[-1] == origen.app.compiler.last_render()
     
 def test_compiler_renders_files():
-    templates_dir = pathlib.Path(f"{origen.root}/../python/templates")
+    templates_dir = pathlib.Path(f"{origen.root}/{origen.app.name}/templates")
     origen.app.compile('dut_info.txt.mako', templates_dir=templates_dir)
     assert len(origen.app.compiler.stack) == 0
     assert len(origen.app.compiler.output_files) == 1
