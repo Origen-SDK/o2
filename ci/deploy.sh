@@ -30,6 +30,8 @@ main() {
     # This publishes the Python package (for the current Python version and platform) to PyPI
     else
         pip3 install maturin
+        pip3 install poetry
+        pip3 install twine
 
         # Make the CLI available
         cd origen
