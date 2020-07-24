@@ -32,12 +32,12 @@ defs = {
     'guides': {
       'api': (
         'Origen API',
-        f'{origen.web.ORIGEN_CORE_HOMEPAGE}/origen/origen'
+        f'{origen.web.ORIGEN_CORE_HOMEPAGE}/interbuild/autoapi/origen/origen'
       ),
       'documenting': f'{origen.web.ORIGEN_CORE_HOMEPAGE}/guides/documenting',
-      'pattern_api': f'{origen.web.ORIGEN_CORE_HOMEPAGE}/guides/pattern_api',
-      'program_api': f'{origen.web.ORIGEN_CORE_HOMEPAGE}/guides/program_api',
-      'logger': f'{origen.web.ORIGEN_CORE_HOMEPAGE}/logger',
+      'pattern_api': f'{origen.web.ORIGEN_CORE_HOMEPAGE}/guides/testers/pattern_generation/pattern_api',
+      'program_api': f'{origen.web.ORIGEN_CORE_HOMEPAGE}/guides/testers/program_generation/program_api',
+      'logger': f'{origen.web.ORIGEN_CORE_HOMEPAGE}/guides/runtime/utilities/logger',
     }
   },
 }
