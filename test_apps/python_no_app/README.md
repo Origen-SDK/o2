@@ -11,8 +11,14 @@ Setup the app:
 poetry install
 ~~~
 
-Install the latest Origen build:
+To install the latest Origen build run this command **from within this application directory**:
 
 ~~~
-origen build --all
+origen build
+~~~
+
+To run the tests:
+
+~~~
+poetry run pytest
 ~~~
