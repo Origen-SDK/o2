@@ -3,14 +3,14 @@
 set -ex
 
 main() {
+    if [ "$TRAVIS_OS_NAME" = "windows" ]; then
+        export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
+    else
+        source /home/travis/virtualenv/python$PYTHON_VERSION/bin/activate
+    fi
+        
     # This publishes the CLI to the Github releases page
     if [ "$O2_REGRESSION" = "BACKEND" ]; then
-        if [ "$TRAVIS_OS_NAME" = "windows" ]; then
-            export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
-        else
-            source /home/travis/virtualenv/python$PYTHON_VERSION/bin/activate
-        fi
-        
         src=$(pwd)
         stage=$(mktemp -d)
 
@@ -27,10 +27,19 @@ main() {
 
         rm -rf $stage
 
-    # This publishes the Python package (for the current Python version) to PyPI
+    # This publishes the Python package (for the current Python version and platform) to PyPI
     else
+        pip3 install maturin
 
+        # Make the CLI available
+        cd origen
+        cargo build --target $TARGET --workspace --bins
 
+        target/$TARGET/debug/origen build --release --publish
+
+        if [ $BUILD_ORIGEN_PYTHON ]; then
+            target/$TARGET/debug/origen build --release --publish --python
+        fi
     fi
 }
 

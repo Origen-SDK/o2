@@ -1,106 +1,97 @@
-## Development Environment Setup
+These instructions are for how to setup an environment for development of Origen, they should not be followed by
+anyone who only wants to use Origen - if that's you, then follow the guides at https://origen-sdk.org instead.
+
+## 1st Time Development Environment Setup
 
 1) [Install Rust](https://www.rust-lang.org/tools/install)
 
 2) Enable Rust nightly version (this must be done for every o2 workspace):
 
-~~~
-rustup install nightly or rustup default nightly (this will make rust nightly the default version being run)
-cd path/to/o2
-rustup override set nightly
-~~~
+   ~~~
+   rustup install nightly or rustup default nightly (this will make rust nightly the default version being run)
+   cd path/to/o2
+   rustup override set nightly
+   ~~~
 
 3) By this point make sure your $PATH contains the following to make the `cargo` command available:
 
-~~~
-export PATH="$HOME/.cargo/bin:$PATH"
-~~~
+   ~~~
+   export PATH="$HOME/.cargo/bin:$PATH"
+   ~~~
 
-4) Compile the Rust code (you will repeat this step everytime you change it):
+4) Make sure you have Python >= 3.6 available via either the `python` or `python3` commands, 
 
-To compile the core and CLI:
-~~~
-cd o2/rust/origen
-cargo build --workspace --bins
-~~~
+   ~~~
+   $ python3 --version
+   Python 3.6.9
+   ~~~
 
-To compile the Python extension:
-~~~
-cd o2/rust/pyapi
-cargo build
-~~~
+   If you need to install a suitable Python version, here is one of many available guides on it: https://realpython.com/installing-python/
 
-To build it all:
+5) Install the following Python packages which are required to build Origen:
 
-~~~
-cd o2/rust
-cd origen && cargo build --workspace --bins && cd ../pyapi && cargo build
-~~~
+   ~~~
+   pip3 install poetry
+   pip3 install maturin
+   pip3 install twine
+   pip3 install pyfs
+   pip3 install -U keyrings.alt
+   ~~~
 
-Or, using powershell:
+6) Add this dir to your $PATH, ahead of any other dir that provides an `origen` command so that you will be using
+   the version of Origen Command Line Interface (CLI) built from this workspace:
 
-~~~
-cd o2\rust
-cd origen ; cargo build --workspace --bins ; cd ..\pyapi  ; cargo build
-~~~
+   ~~~
+   export PATH="</path/to/your>/o2/rust/origen/target/debug:$PATH"
+   ~~~
 
-4a) Missing Ubuntu Packages
+7) Build the CLI:
 
-On Ubuntu, the following packages may need to be installed if you get errors:
+   ~~~
+   cd o2/rust/origen
+   cargo build --workspace --bins
+   ~~~
 
-~~~
-sudo apt install libssl-dev
-sudo apt install pkg-config
-sudo apt install python3-distutils
-sudo apt install python3-venv
-~~~
+8) Verify that you now have the `origen` command available:
 
-4b) Windows Compiled Libary
+   ~~~
+   $ origen -v
+   Origen: 2.0.0-pre0
+   ~~~
 
-On Windows, in addition to `4)`, the resulting `_origen.dll` must be moved and renamed to a `.pyd`:
+9) Missing Ubuntu Packages:
 
-~~~
-cp .\target\debug\_origen.dll ..\..\python\_origen.pyd
-~~~
+   On Ubuntu, the following packages may need to be installed if you get errors:
+   
+   ~~~
+   sudo apt install libssl-dev
+   sudo apt install pkg-config
+   sudo apt install python3-distutils
+   sudo apt install python3-venv
+   ~~~
 
-5) Add this dir to your $PATH, ahead of any other dir that provides an `origen` command:
-~~~
-export PATH="</path/to/your>/o2/rust/origen/target/debug:$PATH"
-~~~
+## 1st Time Python App Setup
 
-6) Verify that you now have the new `origen` command available:
-~~~
-$ origen -v
-Origen: 2.0.0-pre0
-~~~
-
-7) Make sure your system has at least Python 3.5 available
-
-8) Now that you have the Origen CLI available and Python, you can try booting the example app:
+Whenever a new workspace is created for an Origen Python application its local environment needs to be setup and the test
+application embedded within the Origen 2 environment is no exception.
+This can be done simply by executing the `origen setup` command within the application directory:
 
 ~~~
-cd o2/example
+cd o2/test_apps/python_app
 origen setup
-origen i
 ~~~
 
-8a) If you are running this on the **Windows Sub-System Linux (WSL)** like I am, you might run into the following issues:
-    **I was running Ubuntu 18.04 LTS as my WSL environment.**
+## Regular Workflow
 
-A quick solution to this is running the following commands in your WSL environment
-- **sudo pip install pyfs**
-- **sudo pip install --upgrade keyrings.alt**
-
-9) You should now be able to access the Origen interactive environment without issues
-
-
-All being well, you now have a booted Origen console and an app instance available. e.g. `origen.app.config` should return a DICT from the values defined in `config/application.toml`.
-
-
-# Python Package Dependencies for Development
+To build Origen core and its Python bindings and plug it into the example application (the most common build during
+development), simply run:
 
 ~~~
-pip3 install maturin
-pip3 install twine
+origen build
 ~~~
 
+To re-build the CLI run:
+
+~~~
+origen build --cli
+~~~

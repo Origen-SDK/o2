@@ -226,7 +226,7 @@ fn main() {
     }
 
     if STATUS.is_origen_present {
-        let build_help = "Build and deploy Origen";
+        let build_help = "Build and publish Origen";
 
         origen_commands.push(CommandHelp {
             name: "build".to_string(),
@@ -237,37 +237,49 @@ fn main() {
         app = app
             //************************************************************************************/
             .subcommand(
-                SubCommand::with_name("build").about(build_help)
-                .arg(Arg::with_name("cli")
-                        .long("cli")
-                        .required(false)
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Build the CLI (instead of the Python API)")
-                )
-                .arg(Arg::with_name("release")
-                        .long("release")
-                        .required(false)
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Build a release version of all Python packages")
-                )
-                .arg(Arg::with_name("publish")
-                        .long("publish")
-                        .required(false)
-                        .requires("release")
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Publish all Python packages to PyPI after building a release")
-                )
-                .arg(Arg::with_name("version")
-                        .long("version")
-                        .required(false)
-                        .takes_value(true)
-                        .value_name("VERSION")
-                        .display_order(1)
-                        .help("Set the version (of all components) to the given value")
-                )
+                SubCommand::with_name("build")
+                    .about(build_help)
+                    .arg(
+                        Arg::with_name("cli")
+                            .long("cli")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Build the CLI (instead of the Python API)"),
+                    )
+                    .arg(
+                        Arg::with_name("python")
+                            .long("python")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Build the pure Python package (instead of the Python API)"),
+                    )
+                    .arg(
+                        Arg::with_name("release")
+                            .long("release")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Build a release version (only applicable to Rust builds)"),
+                    )
+                    .arg(
+                        Arg::with_name("publish")
+                            .long("publish")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Publish packages to (e.g. to PyPI) after building a release"),
+                    )
+                    .arg(
+                        Arg::with_name("version")
+                            .long("version")
+                            .required(false)
+                            .takes_value(true)
+                            .value_name("VERSION")
+                            .display_order(1)
+                            .help("Set the version (of all components) to the given value"),
+                    ),
             );
     }
 

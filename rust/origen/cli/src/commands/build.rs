@@ -55,6 +55,8 @@ pub fn run(matches: &ArgMatches) {
         .expect("Couldn't write version");
         return;
     }
+
+    // Build the latest CLI
     if matches.is_present("cli") {
         cd(&STATUS
             .origen_wksp_root
@@ -62,16 +64,64 @@ pub fn run(matches: &ArgMatches) {
             .join("origen")
             .join("cli"));
         display!("");
+        let mut args = vec!["build"];
+        if matches.is_present("release") || matches.is_present("publish") {
+            args.push("--release");
+        }
         Command::new("cargo")
-            .args(&["build"])
+            .args(&args)
             .status()
             .expect("failed to execute process");
         display!("");
+
+    // Builds the top-level 'origen' Python package, no rust involvement
+    } else if matches.is_present("python") {
+        let wheel_dir = &STATUS.origen_wksp_root.join("python").join("dist");
+        // Make sure we are not about to upload any stale/old artifacts
+        if wheel_dir.exists() {
+            std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing wheel dir");
+        }
+        cd(&STATUS.origen_wksp_root.join("python"));
+
+        dependency_on_pyapi(true).expect("Couldn't enable dependency on origen_pyapi");
+
+        Command::new("poetry")
+            .args(&["build", "--no-interaction", "--format", "wheel"])
+            .status()
+            .expect("failed to build origen for release");
+
+        fix_wheel_version(wheel_dir);
+        cd(&STATUS.origen_wksp_root.join("python"));
+
+        dependency_on_pyapi(false).expect("Couldn't disable dependency on origen_pyapi");
+
+        if matches.is_present("publish") {
+            let pypi_token =
+                std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
+
+            let args: Vec<&str> = vec![
+                "upload",
+                //"-r",
+                //"testpypi",
+                "--username",
+                "__token__",
+                "--password",
+                &pypi_token,
+                "--non-interactive",
+                "dist/*",
+            ];
+
+            Command::new("twine")
+                .args(&args)
+                .status()
+                .expect("failed to publish origen");
+        }
+
+    // Build the PyAPI by default
     } else {
-        // A release build will do the following:
-        //   1) Build a release version of the pyapi package and publish it to PyPI
-        //   2) Build and publish the origen Python package
-        if matches.is_present("release") {
+        // A release build will also build the origen_pyapi Python package and optionally
+        // publish is to PyPI
+        if matches.is_present("release") || matches.is_present("publish") {
             let wheel_dir = &STATUS
                 .origen_wksp_root
                 .join("rust")
@@ -113,47 +163,6 @@ pub fn run(matches: &ArgMatches) {
                     .args(&args)
                     .status()
                     .expect("failed to publish pyapi");
-            }
-
-            let wheel_dir = &STATUS.origen_wksp_root.join("python").join("dist");
-            // Make sure we are not about to upload any stale/old artifacts
-            if wheel_dir.exists() {
-                std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing wheel dir");
-            }
-            cd(&STATUS.origen_wksp_root.join("python"));
-
-            dependency_on_pyapi(true).expect("Couldn't enable dependency on origen_pyapi");
-
-            Command::new("poetry")
-                .args(&["build", "--no-interaction", "--format", "wheel"])
-                .status()
-                .expect("failed to build origen for release");
-
-            fix_wheel_version(wheel_dir);
-            cd(&STATUS.origen_wksp_root.join("python"));
-
-            dependency_on_pyapi(false).expect("Couldn't disable dependency on origen_pyapi");
-
-            if matches.is_present("publish") {
-                let pypi_token =
-                    std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
-
-                let args: Vec<&str> = vec![
-                    "upload",
-                    //"-r",
-                    //"testpypi",
-                    "--username",
-                    "__token__",
-                    "--password",
-                    &pypi_token,
-                    "--non-interactive",
-                    "dist/*",
-                ];
-
-                Command::new("twine")
-                    .args(&args)
-                    .status()
-                    .expect("failed to publish origen");
             }
 
         // A standard (non-release) build
