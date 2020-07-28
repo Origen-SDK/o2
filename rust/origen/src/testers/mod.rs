@@ -1,3 +1,4 @@
+pub mod vector_based;
 pub mod igxl;
 pub mod simulator;
 pub mod smt;
@@ -12,7 +13,8 @@ pub const AVAILABLE_TESTERS: &[&str] = &[
     "::DummyRenderer",
     "::DummyRendererWithInterceptors",
     "::V93K::SMT7",
-    "UltraFlex",
+    "::Teradyne::UltraFlex",
+    "::Teradyne::J750",
     "::Simulator",
 ];
 
@@ -24,9 +26,8 @@ pub fn instantiate_tester(g: &str) -> Option<Box<dyn TesterAPI + std::marker::Se
         }
         "::V93K::SMT7" => Some(Box::new(smt::V93K_SMT7::default())),
         "::Simulator" => Some(Box::new(simulator::Renderer::default())),
-        "UltraFlex" | "ULTRAFLEX" | "Ultraflex" | "UFlex" | "Uflex" => {
-            Some(Box::new(igxl::UltraFlex::default()))
-        }
+        "::Teradyne::UltraFlex" => Some(Box::new(igxl::UltraFlex::default())),
+        "::Teradyne::J750" => Some(Box::new(igxl::j750::J750::default())),
         _ => None,
     }
 }
@@ -116,9 +117,7 @@ impl TesterAPI for DummyRendererWithInterceptors {
     }
 
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
-        //let mut slf = Self::default();
         ast.process(self)?;
-        //node.clone()
         Ok(vec![])
     }
 }

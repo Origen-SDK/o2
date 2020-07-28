@@ -1,6 +1,7 @@
 use super::dut::PyDUT;
-use origen::DUT;
+use origen::{DUT, TESTER};
 use pyo3::prelude::*;
+use origen::core::tester::TesterSource;
 
 #[macro_export]
 macro_rules! type_error {
@@ -47,6 +48,7 @@ impl PyDUT {
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
+        let tester = TESTER.lock().unwrap();
 
         dut.create_timeset(
             model_id,
@@ -66,6 +68,18 @@ impl PyDUT {
                     None => Option::None,
                 },
                 None => Option::None,
+            },
+            {
+                if let Some(t) = tester.target_testers.first() {
+                    match t {
+                        TesterSource::Internal(tester_struct) => {
+                            tester_struct.pin_action_resolver()
+                        },
+                        _ => None
+                    }
+                } else {
+                    None
+                }
             },
         )?;
 

@@ -1,9 +1,7 @@
-use super::SMT7;
 use crate::core::dut::Dut;
 use crate::core::file_handler::File;
 use crate::core::model::pins::pin::PinActions;
 use crate::core::model::pins::StateTracker;
-use crate::core::tester::TesterAPI;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::STATUS;
@@ -13,19 +11,35 @@ use std::path::PathBuf;
 
 use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
 
+pub trait RendererAPI: std::fmt::Debug {
+    fn name(&self) -> String;
+    fn file_ext(&self) -> &str;
+    fn comment_str(&self) -> &str;
+    fn print_vector(&self, renderer: &mut Renderer, repeat: u32, compressable: bool) -> Option<Result<String>>;
+    fn print_pinlist(&self, renderer: &mut Renderer) -> Option<Result<String>>;
+
+    fn override_node(&self, _renderer: &mut Renderer, _node: &Node) -> Option<Result<Return>> {
+        None
+    }
+
+    fn print_pattern_end(&self, _renderer: &mut Renderer) -> Option<Result<String>> {
+        None
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Renderer<'a> {
-    tester: &'a SMT7,
-    current_timeset_id: Option<usize>,
-    path: Option<PathBuf>,
-    output_file: Option<File>,
-    states: Option<StateTracker>,
-    pin_header_printed: bool,
-    pin_header_id: Option<usize>,
+    pub tester: &'a dyn RendererAPI,
+    pub current_timeset_id: Option<usize>,
+    pub path: Option<PathBuf>,
+    pub output_file: Option<File>,
+    pub states: Option<StateTracker>,
+    pub pin_header_printed: bool,
+    pub pin_header_id: Option<usize>,
 }
 
 impl<'a> Renderer<'a> {
-    pub fn run(tester: &'a SMT7, ast: &Node) -> Result<Vec<PathBuf>> {
+    pub fn run(tester: &'a dyn RendererAPI, ast: &Node) -> Result<Vec<PathBuf>> {
         let mut n = PinActionCombiner::run(ast)?;
         n = CycleCombiner::run(&n)?;
         n = FlattenText::run(&n)?;
@@ -34,7 +48,7 @@ impl<'a> Renderer<'a> {
         Ok(vec![p.path.unwrap()])
     }
 
-    fn new(tester: &'a SMT7) -> Self {
+    fn new(tester: &'a dyn RendererAPI) -> Self {
         Self {
             tester: tester,
             current_timeset_id: None,
@@ -46,7 +60,7 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    fn states(&mut self, dut: &Dut) -> &mut StateTracker {
+    pub fn states(&mut self, dut: &Dut) -> &mut StateTracker {
         if self.states.is_none() {
             let model_id;
             if let Some(id) = self.pin_header_id {
@@ -59,7 +73,7 @@ impl<'a> Renderer<'a> {
         self.states.as_mut().unwrap()
     }
 
-    fn update_states(
+    pub fn update_states(
         &mut self,
         pin_changes: &HashMap<String, (PinActions, u8)>,
         dut: &Dut,
@@ -70,17 +84,40 @@ impl<'a> Renderer<'a> {
         }
         Ok(Return::Unmodified)
     }
+
+    pub fn render_states(&self) -> Result<String> {
+        let dut = DUT.lock().unwrap();
+        let t = &dut.timesets[self.current_timeset_id.unwrap()];
+        Ok(self.states
+            .as_ref()
+            .unwrap()
+            .to_symbols(&dut, &t)
+            .unwrap()
+            .join(" ")
+        )
+    }
+
+    pub fn timeset_name(&self) -> Result<String> {
+        let dut = DUT.lock().unwrap();
+        let t = &dut.timesets[self.current_timeset_id.unwrap()];
+        Ok(t.name.clone())
+    }
 }
 
 impl<'a> Processor for Renderer<'a> {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
+        match self.tester.override_node(self, &node) {
+            Some(retn) => return retn,
+            None => {},
+        }
+
         match &node.attrs {
             Attrs::Test(name) => {
                 let _ = STATUS.with_output_dir(false, |dir| {
                     let mut p = dir.to_path_buf();
                     p.push(self.tester.name());
                     p.push(name);
-                    p.set_extension("avc");
+                    p.set_extension(self.tester.file_ext());
                     self.path = Some(p.clone());
                     self.output_file = Some(File::create(p));
                     Ok(())
@@ -91,14 +128,14 @@ impl<'a> Processor for Renderer<'a> {
                 self.output_file
                     .as_mut()
                     .unwrap()
-                    .write_ln(&format!("# {}", msg));
+                    .write_ln(&format!("{} {}", self.tester.comment_str(), msg));
                 Ok(Return::Unmodified)
             }
             Attrs::Text(text) => {
                 self.output_file
                     .as_mut()
                     .unwrap()
-                    .write_ln(&format!("# {}", text));
+                    .write_ln(&format!("{} {}", self.tester.comment_str(), text));
                 Ok(Return::Unmodified)
             }
             Attrs::PatternHeader => Ok(Return::ProcessChildren),
@@ -106,40 +143,23 @@ impl<'a> Processor for Renderer<'a> {
                 let dut = DUT.lock().unwrap();
                 return self.update_states(pin_changes, &dut);
             }
-            Attrs::Cycle(repeat, _compressable) => {
-                let dut = DUT.lock().unwrap();
-                let t = &dut.timesets[self.current_timeset_id.unwrap()];
-
+            Attrs::Cycle(repeat, compressable) => {
                 if !self.pin_header_printed {
-                    let pins = self.states(&dut).names().join(" ");
-                    self.output_file
-                        .as_mut()
-                        .unwrap()
-                        .write_ln(&format!("FORMAT {}", pins));
+                    match self.tester.print_pinlist(self) {
+                        Some(pinlist) => {
+                            self.output_file.as_mut().unwrap().write_ln(&pinlist?);
+                        },
+                        None => {},
+                    }
                     self.pin_header_printed = true;
                 }
 
-                if !self.pin_header_printed {
-                    let pins = self.states(&dut).names().join(" ");
-                    self.output_file
-                        .as_mut()
-                        .unwrap()
-                        .write_ln(&format!("FORMAT {}", pins));
-                    self.pin_header_printed = true;
+                match self.tester.print_vector(self, *repeat, *compressable) {
+                    Some(vector) => {
+                        self.output_file.as_mut().unwrap().write_ln(&vector?);
+                    },
+                    None => {},
                 }
-
-                self.output_file.as_mut().unwrap().write_ln(&format!(
-                    "R{} {} {} # <EoL Comment>;",
-                    repeat,
-                    t.name,
-                    // The pin states should have been previously updated from the PinAction node, or just has default values
-                    self.states
-                        .as_ref()
-                        .unwrap()
-                        .to_symbols(&dut, &t)
-                        .unwrap()
-                        .join(" ")
-                ));
                 Ok(Return::Unmodified)
             }
             Attrs::SetTimeset(timeset_id) => {
@@ -151,7 +171,12 @@ impl<'a> Processor for Renderer<'a> {
                 Ok(Return::Unmodified)
             }
             Attrs::PatternEnd => {
-                self.output_file.as_mut().unwrap().write_ln("SQPG STOP;");
+                match self.tester.print_pattern_end(self) {
+                    Some(end) => {
+                        self.output_file.as_mut().unwrap().write_ln(&end?);
+                    }
+                    None => {}
+                }
                 Ok(Return::Unmodified)
             }
             _ => Ok(Return::ProcessChildren),

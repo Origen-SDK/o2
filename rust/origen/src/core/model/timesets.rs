@@ -4,6 +4,7 @@ use super::super::dut::Dut;
 use super::Model;
 use crate::error::Error;
 use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
+use super::pins::pin::Resolver;
 
 /// Returns an Origen Error with pre-formatted message complaining that
 /// something already exists.
@@ -48,8 +49,9 @@ impl Model {
         name: &str,
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
+        pin_action_resolver: Option<Resolver>,
     ) -> Result<Timeset, Error> {
-        let t = Timeset::new(model_id, instance_id, name, period, default_period);
+        let t = Timeset::new(model_id, instance_id, name, period, default_period, pin_action_resolver);
         self.timesets.insert(String::from(name), instance_id);
         Ok(t)
     }
@@ -73,6 +75,7 @@ impl Dut {
         name: &str,
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
+        pin_action_resolver: Option<Resolver>
     ) -> Result<&Timeset, Error> {
         let id;
         {
@@ -86,7 +89,7 @@ impl Dut {
                 return duplicate_error!("timeset", model.name, name);
             }
 
-            t = model.add_timeset(model_id, id, name, period, default_period)?;
+            t = model.add_timeset(model_id, id, name, period, default_period, pin_action_resolver)?;
         }
         self.timesets.push(t);
         Ok(&self.timesets[id])

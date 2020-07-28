@@ -1,0 +1,30 @@
+# ******************************************************************************************
+# Generated
+#   Time: 2020-07-28 07:53:43.693960 -05:00
+#   By: nxa13790
+#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\example\example\patterns\captures.py
+# ******************************************************************************************
+# Workspace
+#   Environment
+#     OS: Windows Unknown
+#     Mode: development
+#     Targets
+#         C:\Users\nxa13790\Documents\origen\o2\example\targets\dut\eagle.py
+#         C:\Users\nxa13790\Documents\origen\o2\example\targets\tester\v93k_smt7.py
+#   Application
+#     Local Path: C:\Users\nxa13790\Documents\origen\o2\example
+#   Origen Core
+#     Version: 2.0.0-pre1
+#     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
+# ******************************************************************************************
+# Header Comments
+#   From the Application
+#     Hello pattern from the application!
+# ******************************************************************************************
+FORMAT clk portc
+R100 simple 0 ZZ # <EoL Comment>;
+R1 simple 0 CC # <EoL Comment>;
+R5 simple 0 ZZ # <EoL Comment>;
+R1 simple 0 CC # <EoL Comment>;
+R20 simple 0 ZZ # <EoL Comment>;
+SQPG STOP;

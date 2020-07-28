@@ -79,7 +79,7 @@ def test_init_state(clean_eagle, clean_tester):
   # but just in case those change unbeknownst to this method, double check the initial state here.
   assert origen.tester
   assert origen.tester.targets == []
-  assert origen.tester.testers == ["::DummyRenderer", "::DummyRendererWithInterceptors", "::V93K::SMT7", "UltraFlex", "::Simulator"]
+  assert origen.tester.testers == backend_testers
   assert origen.tester.timeset is None
 
 def test_setting_a_timeset(clean_eagle, clean_tester):

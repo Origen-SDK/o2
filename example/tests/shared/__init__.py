@@ -1,6 +1,15 @@
 import pytest, pathlib, inspect
 import origen, _origen # pylint: disable=import-error
 
+backend_testers = [
+    "::DummyRenderer",
+    "::DummyRendererWithInterceptors",
+    "::V93K::SMT7",
+    "::Teradyne::UltraFlex",
+    "::Teradyne::J750",
+    "::Simulator"
+  ]
+
 @pytest.fixture
 def clean_eagle():
   instantiate_dut("dut.eagle")

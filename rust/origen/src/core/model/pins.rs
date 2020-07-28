@@ -834,4 +834,13 @@ impl StateTracker {
             .map(|n| n.to_string())
             .collect::<Vec<String>>()
     }
+
+    pub fn contains_action(&self, action: PinActions) -> bool {
+        for (_pin, actions) in self.pins.iter() {
+            if actions.iter().any(|a| a.0 == action) {
+                return true;
+            }
+        }
+        false
+    }
 }

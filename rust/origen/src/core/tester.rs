@@ -1,4 +1,5 @@
 use super::model::pins::pin_header::PinHeader;
+use super::model::pins::pin::Resolver;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::core::reference_files;
@@ -470,7 +471,7 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor {
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
 
     /// Render the given AST to an output, returning the path(s) to the created file(s)
-    /// if successfull.
+    /// if successful.
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
@@ -491,6 +492,10 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor {
     fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Differ> {
         let _ = pat_a;
         let _ = pat_b;
+        None
+    }
+
+    fn pin_action_resolver(&self) -> Option<Resolver> {
         None
     }
 }
