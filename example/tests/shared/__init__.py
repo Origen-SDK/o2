@@ -62,8 +62,9 @@ def _get_calling_file_stem():
 
 def tmp_dir():
   t = pathlib.Path(__file__).parent.parent.parent.joinpath('tmp/pytest')
+  return t
   if not t.exists():
-    t.mkdir_p(t)
+    pathlib.mkdir_p(t)
   return t
 
 def instantiate_dut(name):
