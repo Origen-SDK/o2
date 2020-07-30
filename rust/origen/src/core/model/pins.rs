@@ -816,12 +816,12 @@ impl StateTracker {
     ///     => ['1Z', '1', 'L']
     /// If a header was given, the order will be identical to that from the header. If no header was given, the order will be whatever order was when the default
     /// pins were collected.
-    pub fn to_symbols(&self, dut: &Dut, t: &super::timesets::timeset::Timeset) -> Result<Vec<String>, Error> {
+    pub fn to_symbols(&self, target: String, dut: &Dut, t: &super::timesets::timeset::Timeset) -> Result<Vec<String>, Error> {
         let mut syms: Vec<String> = vec!();
         for (_n, states) in self.pins.iter() {
             let mut s: Vec<String> = vec!();
             for (action, _) in states.iter() {
-                s.push(t._resolve_pin_action(action)?.to_string());
+                s.push(t._resolve_pin_action(target.clone(), action)?.to_string());
             }
             syms.push(s.join(""));
         }

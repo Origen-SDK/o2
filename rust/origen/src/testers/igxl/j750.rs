@@ -26,6 +26,10 @@ impl VectorBased for J750 {
         "Teradyne_J750".to_string()
     }
 
+    fn id(&self) -> String {
+        "::Teradyne::J750".to_string()
+    }
+
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
         Box::new(std::clone::Clone::clone(self))
     }

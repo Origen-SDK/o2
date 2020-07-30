@@ -54,6 +54,10 @@ impl TesterAPI for DummyRenderer {
         "DummyRenderer".to_string()
     }
 
+    fn id(&self) -> String {
+        "::DummyRenderer".to_string()
+    }
+
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
         Box::new(std::clone::Clone::clone(self))
     }
@@ -110,6 +114,10 @@ impl DummyRendererWithInterceptors {}
 impl TesterAPI for DummyRendererWithInterceptors {
     fn name(&self) -> String {
         "DummyRendererWithInterceptors".to_string()
+    }
+
+    fn id(&self) -> String {
+        "::DummyRendererWithInterceptors".to_string()
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {

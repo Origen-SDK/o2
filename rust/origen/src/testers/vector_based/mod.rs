@@ -9,6 +9,7 @@ use crate::generator::ast::Node;
 
 pub trait VectorBased: std::fmt::Debug + std::default::Default + crate::core::tester::Interceptor {
     fn name(&self) -> String;
+    fn id(&self) -> String;
     fn clone(&self) ->  Box<dyn TesterAPI + std::marker::Send>;
     fn comment_str(&self) -> &str;
     fn file_ext(&self) -> &str;
@@ -27,6 +28,10 @@ pub trait VectorBased: std::fmt::Debug + std::default::Default + crate::core::te
 impl <T> pattern_renderer::RendererAPI for T where T: VectorBased {
     fn name(&self) -> String {
         VectorBased::name(self)
+    }
+
+    fn id(&self) -> String {
+        VectorBased::id(self)
     }
 
     fn file_ext(&self) -> &str {
@@ -53,6 +58,10 @@ impl <T> pattern_renderer::RendererAPI for T where T: VectorBased {
 impl <T> crate::core::tester::TesterAPI for T where T: VectorBased {
     fn name(&self) -> String {
         VectorBased::name(self)
+    }
+
+    fn id(&self) -> String {
+        VectorBased::id(self)
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {

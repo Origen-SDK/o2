@@ -70,16 +70,14 @@ impl PyDUT {
                 None => Option::None,
             },
             {
-                if let Some(t) = tester.target_testers.first() {
-                    match t {
-                        TesterSource::Internal(tester_struct) => {
-                            tester_struct.pin_action_resolver()
-                        },
-                        _ => None
-                    }
-                } else {
-                    None
-                }
+                // if let Some(t) = tester.target_testers.first() {
+                //     match t {
+                //         TesterSource::Internal(tester_struct) => {
+                //             tester_struct.pin_action_resolver()
+                //         },
+                //         _ => None
+                //     }
+                tester.target_testers.iter().map( |t| t).collect::<Vec<&TesterSource>>()
             },
         )?;
 

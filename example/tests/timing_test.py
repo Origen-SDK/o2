@@ -1,21 +1,9 @@
 import pytest, abc
 import origen, _origen # pylint: disable=import-error
 from origen.pins import PinActions
-from shared import instantiate_dut
+from shared import instantiate_dut, clean_dummy, clean_eagle, clean_tester, clean_falcon
 from shared.python_like_apis import Fixture_DictLikeAPI, Fixture_ListLikeAPI
 from tests.pins import ports, clk_pins
-
-@pytest.fixture
-def clean_eagle():
-  instantiate_dut("dut.eagle")
-  assert origen.dut
-  return origen.dut
-
-@pytest.fixture
-def clean_falcon():
-  instantiate_dut("dut.falcon")
-  assert origen.dut
-  return origen.dut
 
 def test_empty_timesets(clean_falcon):
   assert len(origen.dut.timesets) == 0
@@ -206,6 +194,7 @@ class TestEventsListLike(Fixture_ListLikeAPI):
 
   def boot_list_under_test(self):
     instantiate_dut("dut.eagle")
+    origen.tester.target("::DummyRenderer")
     w = origen.dut.add_timeset("t").add_wavetable("wt").add_waves("w1").add_wave("1")
 
     w.push_event(at="period*0.25", unit="ns", action=w.DriveHigh)
@@ -473,7 +462,7 @@ class TestComplexTimingScenerios:
     with pytest.raises(OSError):
       w.push_event(action="blah!", at="period/2")
 
-def test_loader_api(clean_eagle):
+def test_loader_api(clean_eagle, clean_dummy):
   assert len(origen.dut.timesets) == 4
 
   # Test adding some more waveforms. The updated Waveform Table should now look like:
@@ -574,23 +563,24 @@ class TestSymbolMapDictLikeAPI(Fixture_DictLikeAPI):
 
   def boot_dict_under_test(self):
     instantiate_dut("dut.eagle")
+    origen.tester.target("::DummyRenderer")
     return origen.dut.timeset('simple').symbol_map
 
-def test_default_symbol_map(clean_eagle):
+def test_default_symbol_map(clean_eagle, clean_dummy):
   assert dict(origen.dut.timeset('simple').symbol_map) == {
     '1': '1', '0': '0',
     'H': 'H', 'L': 'L',
     'C': 'C', 'Z': 'Z'
   }
 
-def test_setting_symbol(clean_eagle):
+def test_setting_symbol(clean_eagle, clean_dummy):
   assert origen.dut.timeset('simple').symbol_map['1'] == '1'
   origen.dut.timeset('simple').symbol_map['1'] = '0'
   assert origen.dut.timeset('simple').symbol_map['1'] == '0'
   origen.dut.timeset('simple').symbol_map['1'] = 'Hi'
   assert origen.dut.timeset('simple').symbol_map['1'] == 'Hi'
 
-def test_adding_custom_symbols(clean_eagle):
+def test_adding_custom_symbols(clean_eagle, clean_dummy):
   assert 'a' not in origen.dut.timeset('simple').symbol_map
   origen.dut.timeset('simple').symbol_map['a'] = 'b'
   assert 'a' in origen.dut.timeset('simple').symbol_map
@@ -600,16 +590,16 @@ def test_adding_custom_symbols(clean_eagle):
   assert '|a|' in origen.dut.timeset('simple').symbol_map
   assert origen.dut.timeset('simple').symbol_map['|a|'] == 'b'
 
-def test_getting_symbols_from_pin_actions(clean_eagle):
+def test_getting_symbols_from_pin_actions(clean_eagle, clean_dummy):
   assert origen.dut.timeset('simple').symbol_map['1'] == '1'
   assert origen.dut.timeset('simple').symbol_map[PinActions.DriveHigh()] == '1'
 
-def test_setting_symbols_from_pin_actions( clean_eagle):
+def test_setting_symbols_from_pin_actions( clean_eagle, clean_dummy):
   assert origen.dut.timeset('simple').symbol_map['1'] == '1'
   origen.dut.timeset('simple').symbol_map[PinActions.DriveHigh()] = '2'
   assert origen.dut.timeset('simple').symbol_map[PinActions.DriveHigh()] == '2'
 
-def test_exception_on_setting_symbols_from_invalid_pin_actions_size(clean_eagle):
+def test_exception_on_setting_symbols_from_invalid_pin_actions_size(clean_eagle, clean_dummy):
   with pytest.raises(ValueError):
     origen.dut.timeset('simple').symbol_map[PinActions("111")]
   with pytest.raises(ValueError):
@@ -617,15 +607,59 @@ def test_exception_on_setting_symbols_from_invalid_pin_actions_size(clean_eagle)
   with pytest.raises(TypeError):
     origen.dut.timeset('simple').symbol_map[{}]
 
-def test_long_names(clean_eagle):
+def test_long_names(clean_eagle, clean_dummy):
   assert origen.dut.timeset('simple').symbol_map.long_names == ['DriveHigh', 'DriveLow', 'VerifyHigh', 'VerifyLow', 'Capture', 'HighZ']
 
-def test_long_names_with_custom_symbols(clean_eagle):
+def test_long_names_with_custom_symbols(clean_eagle, clean_dummy):
   origen.dut.timeset('simple').symbol_map['a'] = 'a'
   assert origen.dut.timeset('simple').symbol_map.long_names == ['DriveHigh', 'DriveLow', 'VerifyHigh', 'VerifyLow', 'Capture', 'HighZ', 'Other(a)']
 
-def test_corner_case__setting_custom_action_with_same_symbol_as_standard_action(clean_eagle):
+def test_corner_case__setting_custom_action_with_same_symbol_as_standard_action(clean_eagle, clean_dummy):
   assert origen.dut.timeset('simple').symbol_map['1'] == '1'
   origen.dut.timeset('simple').symbol_map['|1|'] = '2'
   assert origen.dut.timeset('simple').symbol_map['1'] == '1'
   assert origen.dut.timeset('simple').symbol_map['|1|'] == '2'
+
+def test_retrieving_all_symbol_maps(clean_tester, clean_eagle):
+  origen.tester.target('::Teradyne::J750')
+  origen.tester.target('::V93K::SMT7')
+  symbol_maps = origen.dut.timeset('simple').symbol_maps
+  assert isinstance(symbol_maps, list)
+  assert len(symbol_maps) == 3
+  assert isinstance(symbol_maps[0], _origen.dut.timesets.SymbolMap)
+
+def test_retreiving_symbol_map_for_a_particular_target(clean_tester, clean_eagle):
+  origen.tester.target('::Teradyne::J750')
+  origen.tester.target('::V93K::SMT7')
+  assert isinstance(origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750'), _origen.dut.timesets.SymbolMap)
+  assert isinstance(origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7'), _origen.dut.timesets.SymbolMap)
+
+def test_retrieving_symbols_for_a_particular_target(clean_tester, clean_eagle):
+  origen.tester.target('::Teradyne::J750')
+  origen.tester.target('::V93K::SMT7')
+  assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == 'X'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+
+def test_setting_symbols_sets_for_all_targets(clean_tester, clean_eagle):
+  origen.tester.target('::Teradyne::J750')
+  origen.tester.target('::V93K::SMT7')
+  assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == 'X'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+  origen.dut.timeset('simple').symbol_map.set_symbol('Z', '|abc|')
+  assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == '|abc|'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == '|abc|'
+
+def test_setting_symbols_for_a_particular_target(clean_tester, clean_eagle):
+  origen.tester.target('::Teradyne::J750')
+  origen.tester.target('::V93K::SMT7')
+  assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == 'X'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+  origen.dut.timeset('simple').symbol_map.set_symbol('Z', '|abc|', '::Teradyne::J750')
+  assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == '|abc|'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+
+def test_exception_on_invalid_symbol_map_target(clean_tester, clean_eagle):
+  with pytest.raises(KeyError):
+    origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')
+  with pytest.raises(KeyError):
+    origen.dut.timeset('simple').symbol_map.set_symbol('Z', '|abc|', '::Teradyne::J750')

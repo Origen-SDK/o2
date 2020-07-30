@@ -6,6 +6,7 @@ use crate::core::dut::Dut;
 use std::collections::HashMap;
 use super::super::pins::pin::{PinActions, ResolvePinActions};
 use super::super::pins::pin::Resolver as PinActionsResolver;
+use crate::core::tester::TesterSource;
 
 pub fn default_resolver() -> PinActionsResolver {
     let mut map = PinActionsResolver::new();
@@ -32,7 +33,7 @@ pub struct Timeset {
     pub period_as_string: Option<String>,
     pub default_period: Option<f64>,
     pub wavetable_ids: IndexMap<String, usize>,
-    pub pin_action_resolver: PinActionsResolver,
+    pub pin_action_resolvers: IndexMap<String, PinActionsResolver>,
 
     active_wavetable: Option<String>,
 }
@@ -44,7 +45,7 @@ impl Timeset {
         name: &str,
         period_as_string: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
-        pin_action_resolver: Option<PinActionsResolver>,
+        targets: Vec<&TesterSource>,
     ) -> Self {
         Timeset {
             model_id: model_id,
@@ -58,12 +59,23 @@ impl Timeset {
             wavetable_ids: IndexMap::new(),
             active_wavetable: Option::None,
             //allow_implicit_pin_lookups: false,
-            pin_action_resolver: {
-                if pin_action_resolver.is_some() {
-                    pin_action_resolver.unwrap()
-                } else {
-                    default_resolver()
+            pin_action_resolvers: {
+                let mut i = IndexMap::new();
+                for target in targets {
+                    match target {
+                        TesterSource::External(tester_name) => {
+                            i.insert(tester_name.to_string(), default_resolver());
+                        },
+                        TesterSource::Internal(t) => {
+                            if let Some(r) = t.pin_action_resolver() {
+                                i.insert(t.id(), r);
+                            } else {
+                                i.insert(t.id(), default_resolver());
+                            }
+                        }
+                    }
                 }
+                i
             }
         }
     }
@@ -140,17 +152,17 @@ impl Timeset {
 
 impl Default for Timeset {
     fn default() -> Self {
-        Self::new(0, 0, "dummy", Option::None, Option::None, None)
+        Self::new(0, 0, "dummy", Option::None, Option::None, vec![])
     }
 }
 
 impl ResolvePinActions for Timeset {
-    fn pin_action_resolver(&self) -> &PinActionsResolver {
-        &self.pin_action_resolver
+    fn pin_action_resolver(&self, target: String) -> &PinActionsResolver {
+        &self.pin_action_resolvers[&target]
     }
 
-    fn mut_pin_action_resolver(&mut self) -> &mut PinActionsResolver {
-        &mut self.pin_action_resolver
+    fn mut_pin_action_resolver(&mut self, target: String) -> &mut PinActionsResolver {
+        &mut self.pin_action_resolvers[&target]
     }
 }
 
@@ -577,10 +589,10 @@ impl Dut {
 
 #[test]
 fn test() {
-    let t = Timeset::new(0, 0, "t1", Some(Box::new("1.0 + 1")), Option::None, None);
+    let t = Timeset::new(0, 0, "t1", Some(Box::new("1.0 + 1")), Option::None, vec![]);
     assert!(t.eval(None).is_err());
 
-    let t = Timeset::new(0, 0, "t1", Some(Box::new("period")), Some(1.0 as f64), None);
+    let t = Timeset::new(0, 0, "t1", Some(Box::new("period")), Some(1.0 as f64), vec![]);
     assert_eq!(t.eval(Some(1.0 as f64)).unwrap(), 1.0 as f64);
 
     let t = Timeset::new(
@@ -589,7 +601,7 @@ fn test() {
         "t1",
         Some(Box::new("period + 0.25")),
         Some(1.0 as f64),
-        None,
+        vec![],
     );
     assert_eq!(t.eval(Some(1.0 as f64)).unwrap(), 1.25 as f64);
 }

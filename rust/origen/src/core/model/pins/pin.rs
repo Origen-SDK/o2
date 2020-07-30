@@ -4,15 +4,15 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 pub trait ResolvePinActions {
-    fn pin_action_resolver(&self) -> &Resolver;
-    fn mut_pin_action_resolver(&mut self) -> &mut Resolver;
+    fn pin_action_resolver(&self, target: String) -> &Resolver;
+    fn mut_pin_action_resolver(&mut self, target: String) -> &mut Resolver;
 
-    fn resolve_pin_action(&self, action: &PinActions) -> Option<String> {
-        self.pin_action_resolver().resolve(action)
+    fn resolve_pin_action(&self, target: String, action: &PinActions) -> Option<String> {
+        self.pin_action_resolver(target).resolve(action)
     }
 
-    fn _resolve_pin_action(&self, action: &PinActions) -> Result<String, Error> {
-        match self.resolve_pin_action(action) {
+    fn _resolve_pin_action(&self, target: String, action: &PinActions) -> Result<String, Error> {
+        match self.resolve_pin_action(target, action) {
             Some(a) => Ok(a),
             None => Err(Error::new(&format!(
                 "No resolution provided for pin action {}",
@@ -21,12 +21,12 @@ pub trait ResolvePinActions {
         }
     }
 
-    fn resolve_pin_actions(&self, actions: &Vec<PinActions>) -> Vec<Option<String>> {
-        self.pin_action_resolver().resolve_all(&actions)
+    fn resolve_pin_actions(&self, target: String, actions: &Vec<PinActions>) -> Vec<Option<String>> {
+        self.pin_action_resolver(target).resolve_all(&actions)
     }
 
-    fn update_mapping(&mut self, action: PinActions, new_resolution: String) {
-        self.mut_pin_action_resolver().update_mapping(action, new_resolution)
+    fn update_mapping(&mut self, target: String, action: PinActions, new_resolution: String) {
+        self.mut_pin_action_resolver(target).update_mapping(action, new_resolution)
     }
 }
 

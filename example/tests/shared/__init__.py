@@ -13,6 +13,8 @@ backend_testers = [
 @pytest.fixture
 def clean_eagle():
   instantiate_dut("dut.eagle")
+  if len(origen.tester.targets) == 0:
+    origen.tester.target("::DummyRenderer")
   assert origen.dut
   return origen.dut
 
@@ -29,6 +31,16 @@ def clean_tester():
   _origen.start_new_test()
   assert len(origen.test_ast()["children"]) == 0
   assert origen.tester.targets == []
+  assert origen.tester.timeset is None
+
+@pytest.fixture
+def clean_dummy():
+  assert origen.tester
+  origen.tester.reset()
+  origen.tester.target("::DummyRenderer")
+  _origen.start_new_test()
+  assert len(origen.test_ast()["children"]) == 0
+  assert origen.tester.targets == ["::DummyRenderer"]
   assert origen.tester.timeset is None
 
 @pytest.fixture
@@ -50,9 +62,8 @@ def _get_calling_file_stem():
 
 def tmp_dir():
   t = pathlib.Path(__file__).parent.parent.parent.joinpath('tmp/pytest')
-  return t
   if not t.exists():
-    pathlib.mkdir_p(t)
+    t.mkdir_p(t)
   return t
 
 def instantiate_dut(name):

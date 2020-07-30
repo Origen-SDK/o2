@@ -255,6 +255,7 @@ impl Timeset {
         {
             t_id = dut._get_timeset(self.model_id, &self.name).unwrap().id;
         }
+        let tester = origen::tester();
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -262,10 +263,41 @@ impl Timeset {
             py,
             crate::timesets::timeset::SymbolMap {
                 timeset_id: t_id,
+                target_name: {
+                    match tester.focused_tester_name() {
+                        Some(n) => n,
+                        None => return Ok(py.None())
+                    }
+                }
             },
         )
         .unwrap()
         .to_object(py))
+    }
+
+    #[getter]
+    fn symbol_maps(&self) -> PyResult<Vec<PyObject>> {
+        let dut = DUT.lock().unwrap();
+        let t = dut._get_timeset(self.model_id, &self.name).unwrap();
+        let t_id;
+        {
+            t_id = t.id;
+        }
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let retn = t.pin_action_resolvers.keys().map({ |target| 
+            Py::new(
+                py,
+                crate::timesets::timeset::SymbolMap {
+                    timeset_id: t_id,
+                    target_name: target.to_string()
+                },
+            )
+            .unwrap()
+            .to_object(py)
+        }).collect::<Vec<PyObject>>();
+        Ok(retn)
     }
 }
 
@@ -378,9 +410,15 @@ impl Wavetable {
     fn get_symbol_map(&self) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(py, SymbolMap::new(self.timeset_id))
-            .unwrap()
-            .to_object(py))
+        let tester = origen::tester();
+        match tester.focused_tester_name() {
+            Some(name) => {
+                Ok(Py::new(py, SymbolMap::new(self.timeset_id, name))
+                    .unwrap()
+                    .to_object(py))
+            },
+            None => Ok(py.None())
+        }
     }
 
     #[getter]
@@ -871,59 +909,6 @@ impl Event {
     }
 }
 
-#[pyclass]
-pub struct SymbolMap {
-    timeset_id: usize
-}
-
-impl SymbolMap {
-    pub fn new(timeset_id: usize) -> Self {
-        Self {
-            timeset_id: timeset_id
-        }
-    }
-}
-
-#[pymethods]
-impl SymbolMap {
-    fn keys(&self) -> PyResult<Vec<String>> {
-        let dut = DUT.lock().unwrap();
-        let resolver = &dut.timesets[self.timeset_id].pin_action_resolver;
-        Ok(resolver.mapping().iter().map(|(k, _)| k.to_string()).collect())
-    }
-
-    #[getter]
-    fn long_names(&self) -> PyResult<Vec<String>> {
-        let dut = DUT.lock().unwrap();
-        let resolver = &dut.timesets[self.timeset_id].pin_action_resolver;
-        Ok(resolver.mapping().iter().map(|(k, _)| k.long_name()).collect())
-    }
-
-    fn values(&self) -> PyResult<Vec<String>> {
-        let dut = DUT.lock().unwrap();
-        let resolver = &dut.timesets[self.timeset_id].pin_action_resolver;
-        Ok(resolver.mapping().iter().map(|(_, v)| v.to_string()).collect::<Vec<String>>())
-    }
-
-    fn items(&self) -> PyResult<Vec<(String, String)>> {
-        let dut = DUT.lock().unwrap();
-        let resolver = &dut.timesets[self.timeset_id].pin_action_resolver;
-
-        Ok(resolver.mapping().iter().map(
-            |(k, v)| (k.to_string(), v.to_string())
-        ).collect::<Vec<(String, String)>>())
-    }
-
-    fn get(&self, action: &PyAny) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        match self.__getitem__(action) {
-            Ok(a) => Ok(a.into_py(py)),
-            Err(_) => Ok(py.None())
-        }
-    }
-}
-
 macro_rules! action_from_pyany {
     ($action:ident) => {
         origen::core::model::pins::pin::PinActions::from_delimiter_optional(
@@ -952,12 +937,115 @@ macro_rules! action_from_pyany {
     };
 }
 
+#[pyclass]
+pub struct SymbolMap {
+    timeset_id: usize,
+    target_name: String,
+}
+
+impl SymbolMap {
+    pub fn new(timeset_id: usize, target_name: String) -> Self {
+        Self {
+            timeset_id: timeset_id,
+            target_name: target_name
+        }
+    }
+}
+
+#[pymethods]
+impl SymbolMap {
+    fn keys(&self) -> PyResult<Vec<String>> {
+        let dut = DUT.lock().unwrap();
+        let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
+        Ok(resolver.mapping().iter().map(|(k, _)| k.to_string()).collect())
+    }
+
+    #[getter]
+    fn long_names(&self) -> PyResult<Vec<String>> {
+        let dut = DUT.lock().unwrap();
+        let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
+        Ok(resolver.mapping().iter().map(|(k, _)| k.long_name()).collect())
+    }
+
+    fn values(&self) -> PyResult<Vec<String>> {
+        let dut = DUT.lock().unwrap();
+        let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
+        Ok(resolver.mapping().iter().map(|(_, v)| v.to_string()).collect::<Vec<String>>())
+    }
+
+    fn items(&self) -> PyResult<Vec<(String, String)>> {
+        let dut = DUT.lock().unwrap();
+        let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
+
+        Ok(resolver.mapping().iter().map(
+            |(k, v)| (k.to_string(), v.to_string())
+        ).collect::<Vec<(String, String)>>())
+    }
+
+    fn get(&self, action: &PyAny) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        match self.__getitem__(action) {
+            Ok(a) => Ok(a.into_py(py)),
+            Err(_) => Ok(py.None())
+        }
+    }
+
+    fn set_symbol(&mut self, action: &PyAny, new_resolution: String, target: Option<String>) -> PyResult<()> {
+        if let Some(t) = target {
+            let mut dut = DUT.lock().unwrap();
+            let tset = &mut dut.timesets[self.timeset_id];
+            if let Some(resolver) = tset.pin_action_resolvers.get_mut(&t) {
+                resolver.update_mapping(
+                    action_from_pyany!(action),
+                    new_resolution.clone()
+                );
+                Ok(())
+            } else {
+                Err(pyo3::exceptions::KeyError::py_err(format!(
+                    "Timeset '{}' does not have a symbol map targeting '{}' (The target must be set prior to timeset creation)",
+                    tset.name,
+                    t
+                )))
+            }
+        } else {
+            self.__setitem__(action, new_resolution)
+        }
+    }
+
+    fn for_target(&self, target: String) -> PyResult<PyObject> {
+        let dut = DUT.lock().unwrap();
+        {
+            let t = &dut.timesets[self.timeset_id];
+            if !t.pin_action_resolvers.contains_key(&target) {
+                return Err(pyo3::exceptions::KeyError::py_err(format!(
+                    "Timeset '{}' does not have a symbol map targeting '{}' (The target must be set prior to timeset creation)",
+                    t.name,
+                    target
+                )))
+            }
+        }
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(
+            py,
+            crate::timesets::timeset::SymbolMap {
+                timeset_id: self.timeset_id,
+                target_name: target
+            },
+        )
+        .unwrap()
+        .to_object(py))
+    }
+}
+
 #[pyproto]
 impl PyMappingProtocol for SymbolMap {
 
     fn __getitem__(&self, action: &PyAny) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
-        let resolver = &dut.timesets[self.timeset_id].pin_action_resolver;
+        let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
 
         if let Some(r) = resolver.resolve(&action_from_pyany!(action)) {
             Ok(r)
@@ -971,16 +1059,21 @@ impl PyMappingProtocol for SymbolMap {
 
     fn __setitem__(&mut self, action: &PyAny, new_resolution: String) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolver;
-        Ok(resolver.update_mapping(
-            action_from_pyany!(action),
-            new_resolution
-        ))
+        let tester = origen::tester();
+        for target in tester.targets_as_strs().iter() {
+            // let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
+            let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[target];
+            resolver.update_mapping(
+                action_from_pyany!(action),
+                new_resolution.clone()
+            )
+        }
+        Ok(())
     }
 
     fn __len__(&self) -> PyResult<usize> {
         let dut = DUT.lock().unwrap();
-        let resolver = &dut.timesets[self.timeset_id].pin_action_resolver;
+        let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
         Ok(resolver.mapping().len())
     }
 }

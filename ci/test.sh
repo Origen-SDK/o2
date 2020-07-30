@@ -49,9 +49,7 @@ main() {
         ../rust/origen/target/$TARGET/debug/origen -v
         ../rust/origen/target/$TARGET/debug/origen setup
         $HOME/.poetry/bin/poetry run pytest -vv
-        ../rust/origen/target/$TARGET/debug/origen t s eagle_with_smt7
-        ../rust/origen/target/$TARGET/debug/origen examples
-        ../rust/origen/target/$TARGET/debug/origen t s eagle j750
+        ../rust/origen/target/$TARGET/debug/origen t s eagle_with_smt7 j750
         ../rust/origen/target/$TARGET/debug/origen examples
         cd ../rust
     fi

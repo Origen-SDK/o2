@@ -13,6 +13,7 @@ use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner
 
 pub trait RendererAPI: std::fmt::Debug {
     fn name(&self) -> String;
+    fn id(&self) -> String;
     fn file_ext(&self) -> &str;
     fn comment_str(&self) -> &str;
     fn print_vector(&self, renderer: &mut Renderer, repeat: u32, compressable: bool) -> Option<Result<String>>;
@@ -91,7 +92,7 @@ impl<'a> Renderer<'a> {
         Ok(self.states
             .as_ref()
             .unwrap()
-            .to_symbols(&dut, &t)
+            .to_symbols(self.tester.id(), &dut, &t)
             .unwrap()
             .join(" ")
         )
