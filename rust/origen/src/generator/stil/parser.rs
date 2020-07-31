@@ -657,35 +657,46 @@ mod tests {
     use std::path::Path;
 
     fn read(example: &str) -> String {
-        fs::read_to_string(format!("../../example/vendor/stil/{}.stil", example))
-            .expect("cannot read file")
+        fs::read_to_string(format!(
+            "../../test_apps/python_app/vendor/stil/{}.stil",
+            example
+        ))
+        .expect("cannot read file")
     }
 
     #[test]
     fn test_example1_to_ast() {
-        let _stil = STIL::from_file(Path::new("../../example/vendor/stil/example1.stil"))
-            .expect("Imported example1");
+        let _stil = STIL::from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example1.stil",
+        ))
+        .expect("Imported example1");
         //println!("{:?}", _stil.ast);
     }
 
     #[test]
     fn test_example2_to_ast() {
-        let _stil = STIL::from_file(Path::new("../../example/vendor/stil/example2.stil"))
-            .expect("Imported example2");
+        let _stil = STIL::from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example2.stil",
+        ))
+        .expect("Imported example2");
         //println!("{:?}", _stil.ast);
     }
 
     #[test]
     fn test_example3_to_ast() {
-        let _stil = STIL::from_file(Path::new("../../example/vendor/stil/example3.stil"))
-            .expect("Imported example3");
+        let _stil = STIL::from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example3.stil",
+        ))
+        .expect("Imported example3");
         //println!("{:?}", _stil.ast);
     }
 
     #[test]
     fn test_example4_to_ast() {
-        let _stil = STIL::from_file(Path::new("../../example/vendor/stil/example4.stil"))
-            .expect("Imported example4");
+        let _stil = STIL::from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example4.stil",
+        ))
+        .expect("Imported example4");
         //println!("{:?}", _stil.ast);
     }
 

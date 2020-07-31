@@ -225,6 +225,64 @@ fn main() {
             .subcommand(SubCommand::with_name("fmt").about(fmt_help));
     }
 
+    if STATUS.is_origen_present {
+        let build_help = "Build and publish Origen";
+
+        origen_commands.push(CommandHelp {
+            name: "build".to_string(),
+            help: build_help.to_string(),
+            shortcut: None,
+        });
+
+        app = app
+            //************************************************************************************/
+            .subcommand(
+                SubCommand::with_name("build")
+                    .about(build_help)
+                    .arg(
+                        Arg::with_name("cli")
+                            .long("cli")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Build the CLI (instead of the Python API)"),
+                    )
+                    .arg(
+                        Arg::with_name("python")
+                            .long("python")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Build the pure Python package (instead of the Python API)"),
+                    )
+                    .arg(
+                        Arg::with_name("release")
+                            .long("release")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Build a release version (only applicable to Rust builds)"),
+                    )
+                    .arg(
+                        Arg::with_name("publish")
+                            .long("publish")
+                            .required(false)
+                            .takes_value(false)
+                            .display_order(1)
+                            .help("Publish packages to (e.g. to PyPI) after building a release"),
+                    )
+                    .arg(
+                        Arg::with_name("version")
+                            .long("version")
+                            .required(false)
+                            .takes_value(true)
+                            .value_name("VERSION")
+                            .display_order(1)
+                            .help("Set the version (of all components) to the given value"),
+                    ),
+            );
+    }
+
     /************************************************************************************/
     /******************** In application commands ***************************************/
     /************************************************************************************/
@@ -567,6 +625,7 @@ CORE COMMANDS:
         Some("setup") => commands::setup::run(),
         Some("update") => commands::update::run(),
         Some("fmt") => commands::fmt::run(),
+        Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap()),
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some("interactive") => {
             log_trace!("Launching interactive session");

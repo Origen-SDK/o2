@@ -12,23 +12,32 @@ addons:
   apt:
     packages:
       - musl-tools
+      - zip
 
 rust: nightly
 
 matrix:
   include:
 
+  # Used for running Rust tests and building/publishing the CLI
   - name: Linux Backend
     env: TARGET=x86_64-unknown-linux-musl PYTHON_VERSION=3.6 O2_REGRESSION=BACKEND
+  # These run the Python tests on the given Python version and also build and publish
+  # the 'origen_pyapi' Python package (which is Python version and platform specific)
   - name: Linux Frontend Python 3.6
-    env: TARGET=x86_64-unknown-linux-gnu PYTHON_VERSION=3.6 O2_REGRESSION=FRONTEND
+    env: TARGET=x86_64-unknown-linux-gnu PYTHON_VERSION=3.6 O2_REGRESSION=FRONTEND 
   - name: Linux Frontend Python 3.7
     env: TARGET=x86_64-unknown-linux-gnu PYTHON_VERSION=3.7 O2_REGRESSION=FRONTEND
+  # Additionally, this one also builds and publishes the 'origen' Python package, this
+  # is Python version and platform agnostic and only needs to be done once
   - name: Linux Frontend Python 3.8
-    env: TARGET=x86_64-unknown-linux-gnu PYTHON_VERSION=3.8 O2_REGRESSION=FRONTEND
+    env: TARGET=x86_64-unknown-linux-gnu PYTHON_VERSION=3.8 O2_REGRESSION=FRONTEND BUILD_ORIGEN_PYTHON=1
+  # Used for running Rust tests and building/publishing the CLI
   - name: Windows Backend
     os: windows
     env: TARGET=x86_64-pc-windows-gnu PYTHON_VERSION=3.6.8 O2_REGRESSION=BACKEND
+  # These run the Python tests on the given Python version and also build and publish
+  # the origen_pyapi package
   - name: Windows Frontend Python 3.6
     os: windows
     env: TARGET=x86_64-pc-windows-gnu PYTHON_VERSION=3.6.8 O2_REGRESSION=FRONTEND
@@ -64,11 +73,8 @@ deploy:
   file_glob: true
   file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
   on:
-    # TODO Here you can pick which targets will generate binary releases
-    # In this example, there are some targets that are tested using the stable
-    # and nightly channels. This condition makes sure there is only one release
-    # for such targets and that's generated using the stable channel
-    condition: $O2_REGRESSION = BACKEND
+    # Deploy when running on a new tag
+    #condition: $O2_REGRESSION = BACKEND
     tags: true
   provider: releases
   skip_cleanup: true

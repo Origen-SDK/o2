@@ -6,7 +6,8 @@ pip-wheel-metadata/
 _origen.pyd
 log/
 .vscode
-/python/templates/dut_info.txt
+/test_apps/python_app/example/templates/dut_info.txt
+/python/dist
 
 # Editor cruft
 *.swp

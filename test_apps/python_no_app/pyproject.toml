@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "python_no_app"
+version = "0.1.0"
+description = ""
+authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+origen = { path = "../../python" }
+pytest = "^3.0"
