@@ -44,14 +44,14 @@ main() {
         cd ../../
     else
         # pass the path for the CLI tests to work
-        export TRAVIS_ORIGEN_CLI="../rust/origen/target/$TARGET/debug/origen"
-        cd ../example
-        ../rust/origen/target/$TARGET/debug/origen -v
-        ../rust/origen/target/$TARGET/debug/origen setup
+        export TRAVIS_ORIGEN_CLI="../../rust/origen/target/$TARGET/debug/origen"
+        cd ../test_apps/python_app
+        ../../rust/origen/target/$TARGET/debug/origen -v
+        ../../rust/origen/target/$TARGET/debug/origen setup
         $HOME/.poetry/bin/poetry run pytest -vv
-        ../rust/origen/target/$TARGET/debug/origen t s eagle_with_smt7 j750
-        ../rust/origen/target/$TARGET/debug/origen examples
-        cd ../rust
+        ../../rust/origen/target/$TARGET/debug/origen t s eagle_with_smt7 j750
+        ../../rust/origen/target/$TARGET/debug/origen examples
+        cd ../../rust
     fi
 }
 

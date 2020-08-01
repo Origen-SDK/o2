@@ -212,6 +212,34 @@ version = "8.4.0"
 
 [[package]]
 category = "main"
+description = ""
+develop = true
+name = "origen"
+optional = false
+python-versions = "^3.6"
+version = "2.0.0-pre1"
+
+[package.dependencies]
+autoapi = "tag dev3"
+beautifulsoup4 = "4.8.2"
+bs4 = "0.0.1"
+colorama = "^0.4"
+lxml = "4.4.2"
+mako = "1.1.0"
+pyreadline = "^2.1"
+recommonmark = ">= 0"
+sphinx = "3.0.2"
+sphinxbootstrap4theme = ">= 0"
+termcolor = ">= 1.1.0"
+yapf = "0.30"
+
+[package.source]
+reference = ""
+type = "directory"
+url = "../../python"
+
+[[package]]
+category = "main"
 description = "Core utilities for Python packages"
 name = "packaging"
 optional = false
@@ -506,7 +534,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "8fbc16c982e3e1b4f95cb947da1223dae35d018c5f5135d2589e0b804ba706ac"
+content-hash = "0a0d4d062acf55b517c292c6239ee929117f738ce39d879a484d553b0d001f9e"
 lock-version = "1.0"
 python-versions = "^3.6"
 
@@ -642,6 +670,7 @@ more-itertools = [
     {file = "more-itertools-8.4.0.tar.gz", hash = "sha256:68c70cc7167bdf5c7c9d8f6954a7837089c6a36bf565383919bb595efb8a17e5"},
     {file = "more_itertools-8.4.0-py3-none-any.whl", hash = "sha256:b78134b2063dd214000685165d81c154522c3ee0a1c0d4d113c80361c234c5a2"},
 ]
+origen = []
 packaging = [
     {file = "packaging-20.4-py2.py3-none-any.whl", hash = "sha256:998416ba6962ae7fbd6596850b80e17859a5753ba17c32284f67bfff33784181"},
     {file = "packaging-20.4.tar.gz", hash = "sha256:4357f74f47b9c12db93624a82154e9b120fa8293699949152b22065d556079f8"},

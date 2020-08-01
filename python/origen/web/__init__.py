@@ -143,7 +143,7 @@ def run_cmd(subcommand, args):
   elif subcommand == "view":
     if site_built():
       origen.logger.info(f"Launching web browser with command: \"{view_cmd()}\"")
-      subprocess.run(view_cmd())
+      subprocess.run(view_cmd(), shell=True)
     else:
       origen.logger.error(f"Could not find built website at {output_build_dir}. Please run 'origen web build --view' to build the site and view the results.")
       exit()
@@ -171,7 +171,7 @@ def run_sphinx(args):
     Launches the Sphinx-build command with the necessary options and monitors the output.
     If the build is successful, returns the output path. Otherwise, returns the output.
   '''
-  out = subprocess.run(sphinx_cmd(args))
+  out = subprocess.run(sphinx_cmd(args), shell=True)
   return out
 
 def sphinx_cmd(args):

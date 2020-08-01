@@ -19,8 +19,6 @@ impl Location {
     ///     str: Location's target as a ``str``
     #[getter]
     fn target(&self) -> PyResult<String> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(self.location.location.clone())
     }
 
