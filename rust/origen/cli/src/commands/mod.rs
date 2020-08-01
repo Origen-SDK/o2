@@ -1,3 +1,4 @@
+pub mod build;
 pub mod fmt;
 pub mod interactive;
 pub mod mode;

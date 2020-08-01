@@ -10,10 +10,13 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os, sys, pathlib
+import os, sys, pathlib, subprocess
 import origen
 import origen.web
 from origen.web.shorthand.dev import add_shorthand_dev_defs
+
+from sphinx.util.logging import getLogger
+logger = getLogger("origen")
 
 sys.path.insert(0, os.path.abspath('../../'))
 
@@ -35,12 +38,16 @@ extensions = [
   'origen.web.rustdoc',
   'sphinx.ext.autodoc',
   'sphinx.ext.autosectionlabel',
-  'sphinx.ext.inheritance_diagram',
   'autoapi.sphinx',
   'recommonmark',
   'sphinx.ext.napoleon',
   'sphinx.ext.extlinks'
 ]
+
+if subprocess.run("dot -V", shell=True, capture_output=True).returncode == 0:
+  extensions.append('sphinx.ext.inheritance_diagram')
+else:
+  logger.info("INFO: dot command 'dot' cannot be run (needed for graphviz output), check the graphviz_dot setting")
 
 # Makes the references more verbose, but fixes a lot duplicated references resulting from autodoc.
 # Silver lining to the verbosity is they're also crystal clear as to where they're going.
@@ -85,7 +92,7 @@ autoapi_output_dir = origen.web.interbuild_dir.joinpath('autoapi')
 # Build the example project's docs into this one.
 origen_subprojects = {
   'example': {
-    'source': origen.root.joinpath('../example'),
+    'source': origen.root.joinpath('../test_apps/python_app'),
   }
 }
 

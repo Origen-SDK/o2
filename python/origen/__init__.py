@@ -41,7 +41,9 @@ status = _origen.status()
         dict: Application and/or workspace attributes as key-value pairs.
 '''
 
-root = Path(status["root"])
+# root = Path(status["root"])
+if status["is_app_present"]:
+    root = Path(status["root"])
 ''' If applicable, returns the application's root.
 
     Returns:

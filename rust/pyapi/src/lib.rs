@@ -178,7 +178,9 @@ fn status(py: Python) -> PyResult<PyObject> {
     let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
     let _ = ret.set_item("is_app_present", &STATUS.is_app_present);
-    let _ = ret.set_item("root", format!("{}", origen::app().unwrap().root.display()));
+    if let Some(app) = origen::app() {
+        let _ = ret.set_item("root", format!("{}", app.root.display()));
+    }
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     let _ = ret.set_item("on_windows", cfg!(windows));

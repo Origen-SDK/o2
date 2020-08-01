@@ -22,16 +22,22 @@ class SubProject:
 
   def get_subproject_output_dir(self):
     out = subprocess.run(self.get_subproject_output_dir_cmd(), shell=True, cwd=self.source, capture_output=True)
-    out = pathlib.Path(out.stdout.decode('utf-8').strip())
-    return out
+    content = pathlib.Path(out.stdout.decode('utf-8').strip())
+    if out.returncode == 0:
+      return content
+    else:
+      logger.error(f"Unable to get subproject output directory for '{self.proj}'. Unable to build this project!")
+      logger.error(f"  Stdout: {content}")
+      return False
 
   def build_cmd(self):
     return "poetry run python -c \"from origen.web import run_cmd; run_cmd('build', {})\""
 
   def build(self):
-    logger.info(f"Building docs for subproject '{self.proj}' - {self.build_cmd()}")
-    subprocess.run(self.build_cmd(), shell=True, cwd=self.source)
-    self.mv_docs()
+    if self.subproject_output_dir is not False:
+      logger.info(f"Building docs for subproject '{self.proj}' - {self.build_cmd()}")
+      subprocess.run(self.build_cmd(), shell=True, cwd=self.source)
+      self.mv_docs()
 
   def mv_docs(self):
     if self.subproject_output_dir.exists():

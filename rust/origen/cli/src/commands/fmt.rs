@@ -24,8 +24,8 @@ pub fn run() {
 
     let root = match STATUS.is_origen_present {
         true => {
-            starting("example ... ");
-            STATUS.origen_wksp_root.join("example")
+            starting("python_app ... ");
+            STATUS.origen_wksp_root.join("test_apps").join("python_app")
         }
         false => {
             starting("formatting ... ");
@@ -82,6 +82,6 @@ fn cargo_fmt() {
     redln("NO");
 }
 
-fn cd(dir: &Path) {
+pub fn cd(dir: &Path) {
     env::set_current_dir(&dir).expect(&format!("Couldn't cd to '{}'", dir.display()));
 }

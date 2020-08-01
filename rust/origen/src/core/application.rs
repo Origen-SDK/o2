@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn reading_and_writing_version() {
-        let app_root = STATUS.origen_wksp_root.join("example");
+        let app_root = STATUS.origen_wksp_root.join("test_apps").join("python_app");
         let app = Application::new(app_root);
 
         let v = Version::parse("2.21.5-pre7").unwrap();
