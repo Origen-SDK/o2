@@ -37,3 +37,11 @@ div.sphinxsidebarwrapper > div.sidebartoctree > ul a.arrow:not(.collapsed){ bord
 hr {
   border-top-color: #fff;
 }
+
+li > p {
+  margin-bottom: 0;
+}
+
+li > blockquote {
+  margin-bottom: 0;
+}
