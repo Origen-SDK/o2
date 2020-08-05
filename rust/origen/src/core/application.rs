@@ -28,7 +28,7 @@ struct AppVersion {
 impl Application {
     pub fn new(root: PathBuf) -> Application {
         log_trace!("Building new Application");
-        let config = Config::build(&root);
+        let config = Config::build(&root, false);
         Application {
             root: root,
             config: RwLock::new(config),

@@ -52,6 +52,7 @@ fn main() {
         true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
         false => format!("Origen: {}", STATUS.origen_version.to_string()),
     };
+    origen::core::application::config::Config::check_defaults(&STATUS.app.as_ref().unwrap().root);
 
     let mut app = App::new("")
         .setting(AppSettings::ArgRequiredElseHelp)
@@ -427,6 +428,12 @@ fn main() {
             SubCommand::with_name("target")
                 .about(t_help)
                 .visible_alias("t")
+                .arg(Arg::with_name("full-paths")
+                    .long("full-paths")
+                    .short("f")
+                    .help("Display targets' full paths")
+                    .takes_value(false)
+                )
                 .subcommand(
                     SubCommand::with_name("add")
                         .about("Activates the given target(s)")
@@ -438,6 +445,12 @@ fn main() {
                                 .value_name("TARGETS")
                                 .multiple(true)
                                 .required(true),
+                        )
+                        .arg(Arg::with_name("full-paths")
+                            .long("full-paths")
+                            .short("f")
+                            .help("Display targets' full paths")
+                            .takes_value(false)
                         ),
                 )
                 .subcommand(
@@ -451,6 +464,12 @@ fn main() {
                                 .value_name("TARGETS")
                                 .multiple(true)
                                 .required(true),
+                        )
+                        .arg(Arg::with_name("full-paths")
+                            .long("full-paths")
+                            .short("f")
+                            .help("Display targets' full paths")
+                            .takes_value(false)
                         ),
                 )
                 .subcommand(
@@ -464,17 +483,35 @@ fn main() {
                                 .value_name("TARGETS")
                                 .multiple(true)
                                 .required(true),
+                        )
+                        .arg(Arg::with_name("full-paths")
+                            .long("full-paths")
+                            .short("f")
+                            .help("Display targets' full paths")
+                            .takes_value(false)
                         ),
                 )
                 .subcommand(
                     SubCommand::with_name("default")
                         .about("Activates the default target(s) while deactivating all others")
-                        .visible_alias("d"),
+                        .visible_alias("d")
+                        .arg(Arg::with_name("full-paths")
+                            .long("full-paths")
+                            .short("f")
+                            .help("Display targets' full paths")
+                            .takes_value(false)
+                        ),
                 )
                 .subcommand(
                     SubCommand::with_name("view")
                         .about("Views the currently activated target(s)")
-                        .visible_alias("v"),
+                        .visible_alias("v")
+                        .arg(Arg::with_name("full-paths")
+                            .long("full-paths")
+                            .short("f")
+                            .help("Display targets' full paths")
+                            .takes_value(false)
+                        ),
                 ),
         );
 
@@ -766,9 +803,10 @@ CORE COMMANDS:
                         Some(targets) => Some(targets.collect()),
                         None => None,
                     },
+                    s.is_present("full-paths"),
                 )
             } else {
-                commands::target::run(None, None);
+                commands::target::run(None, None, m.is_present("full-paths"));
             }
         }
         Some("web") => {

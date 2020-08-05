@@ -10,6 +10,9 @@ def setup(targets=None):
     global current_targets
     if targets == None:
         targets = _origen.app_config()["target"]
+        if targets == None:
+            current_targets = []
+            return None
     if not isinstance(targets, list):
         targets = [targets]
     current_targets = targets

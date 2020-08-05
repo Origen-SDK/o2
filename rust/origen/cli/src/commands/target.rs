@@ -1,7 +1,7 @@
 use origen::core::application::target;
 use origen::{backend_expect, backend_fail};
 
-pub fn run(subcmd: Option<&str>, tnames: Option<Vec<&str>>) {
+pub fn run(subcmd: Option<&str>, tnames: Option<Vec<&str>>, full_paths: bool) {
     if let Some(cmd) = subcmd {
         match cmd {
             "add" => {
@@ -26,7 +26,7 @@ pub fn run(subcmd: Option<&str>, tnames: Option<Vec<&str>>) {
                 ));
             }
             "view" => {
-                if let Some(targets) = target::get() {
+                if let Some(targets) = target::get(full_paths) {
                     println!("The targets currently enabled are:");
                     println!("{}", targets.join("\n"))
                 } else {
@@ -40,5 +40,5 @@ pub fn run(subcmd: Option<&str>, tnames: Option<Vec<&str>>) {
             }
         }
     }
-    run(Some("view"), None)
+    run(Some("view"), None, full_paths)
 }
