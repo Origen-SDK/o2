@@ -52,7 +52,9 @@ fn main() {
         true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
         false => format!("Origen: {}", STATUS.origen_version.to_string()),
     };
-    origen::core::application::config::Config::check_defaults(&STATUS.app.as_ref().unwrap().root);
+    if STATUS.app.is_some() {
+        origen::core::application::config::Config::check_defaults(&STATUS.app.as_ref().unwrap().root);
+    }
 
     let mut app = App::new("")
         .setting(AppSettings::ArgRequiredElseHelp)
