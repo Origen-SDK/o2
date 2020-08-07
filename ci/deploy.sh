@@ -5,7 +5,7 @@ set -ex
 main() {
     if [ "$TRAVIS_OS_NAME" = "windows" ]; then
         export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
-        export RUSTFLAGS ="-C target-feature=+crt-static"
+        export RUSTFLAGS="-C target-feature=+crt-static"
     else
         source /home/travis/virtualenv/python$PYTHON_VERSION/bin/activate
     fi
