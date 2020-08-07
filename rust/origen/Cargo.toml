@@ -1,6 +1,6 @@
 [package]
 name = "origen"
-version = "0.0.4"
+version = "2.0.0-pre2"
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 license = "MIT"
 edition = "2018"
