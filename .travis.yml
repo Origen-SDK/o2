@@ -35,18 +35,18 @@ matrix:
   # Used for running Rust tests and building/publishing the CLI
   - name: Windows Backend
     os: windows
-    env: TARGET=x86_64-pc-windows-gnu PYTHON_VERSION=3.6.8 O2_REGRESSION=BACKEND
+    env: TARGET=x86_64-pc-windows-msvc PYTHON_VERSION=3.6.8 O2_REGRESSION=BACKEND
   # These run the Python tests on the given Python version and also build and publish
   # the origen_pyapi package
   - name: Windows Frontend Python 3.6
     os: windows
-    env: TARGET=x86_64-pc-windows-gnu PYTHON_VERSION=3.6.8 O2_REGRESSION=FRONTEND
+    env: TARGET=x86_64-pc-windows-msvc PYTHON_VERSION=3.6.8 O2_REGRESSION=FRONTEND
   - name: Windows Frontend Python 3.7
     os: windows
-    env: TARGET=x86_64-pc-windows-gnu PYTHON_VERSION=3.7.6 O2_REGRESSION=FRONTEND
+    env: TARGET=x86_64-pc-windows-msvc PYTHON_VERSION=3.7.6 O2_REGRESSION=FRONTEND
   - name: Windows Frontend Python 3.8
     os: windows
-    env: TARGET=x86_64-pc-windows-gnu PYTHON_VERSION=3.8.1 O2_REGRESSION=FRONTEND
+    env: TARGET=x86_64-pc-windows-msvc PYTHON_VERSION=3.8.1 O2_REGRESSION=FRONTEND
 
 install:
   - cd rust
