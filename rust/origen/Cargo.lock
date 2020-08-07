@@ -312,7 +312,7 @@ dependencies = [
 
 [[package]]
 name = "cli"
-version = "0.0.2"
+version = "0.0.4"
 dependencies = [
  "base64-url",
  "clap",
@@ -1500,7 +1500,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "0.0.2"
+version = "0.0.4"
 dependencies = [
  "built",
  "chrono",

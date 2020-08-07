@@ -25,7 +25,7 @@ main() {
 
         cd $stage
         if [ "$TRAVIS_OS_NAME" = "windows" ]; then
-            zip $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.zip *
+            7z a -tzip $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.zip *
         else
             tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
         fi
