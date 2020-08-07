@@ -5,6 +5,7 @@ set -ex
 main() {
     if [ "$TRAVIS_OS_NAME" = "windows" ]; then
         export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
+        export PYTHON_INTERPRETER="C:\PythonForO2\python.exe"
         export RUSTFLAGS="-C target-feature=+crt-static"
     else
         source /home/travis/virtualenv/python$PYTHON_VERSION/bin/activate
@@ -23,7 +24,11 @@ main() {
         cp target/$TARGET/release/origen $stage/
 
         cd $stage
-        tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
+        if [ "$TRAVIS_OS_NAME" = "windows" ]; then
+            zip $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.zip *
+        else
+            tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
+        fi
         cd $src
 
         rm -rf $stage
