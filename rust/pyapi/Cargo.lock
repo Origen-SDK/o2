@@ -722,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "0.0.2"
+version = "2.0.0-pre2"
 dependencies = [
  "built",
  "chrono",
@@ -760,7 +760,7 @@ dependencies = [
 
 [[package]]
 name = "origen_pyapi"
-version = "0.0.2"
+version = "2.0.0-pre2"
 dependencies = [
  "curl-sys",
  "indexmap",
