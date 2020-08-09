@@ -15,6 +15,7 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyclass(subclass)]
 #[derive(Debug)]
+/// Python interface for the tester backend.
 pub struct PyTester {
     python_testers: HashMap<String, PyObject>,
     instantiated_testers: HashMap<String, PyObject>,
@@ -55,6 +56,30 @@ impl PyTester {
     }
 
     #[getter]
+    /// Property for the current :class:`_origen.dut.timesets.Timeset` or None, if no timeset has been set.
+    /// Set to ``None`` to clear the current timeset.
+    ///
+    /// Returns:
+    ///     :class:`_origen.dut.timesets.Timeset` or ``None``
+    ///
+    /// >>> # Initially no timeset has been set
+    /// >>> origen.tester.timeset
+    /// None
+    /// >>> origen.tester.timeset = origen.dut.timesets.Timeset['my_timeset']
+    /// origen.dut.timesets.Timeset['my_timeset']
+    /// >>> origen.tester.timeset
+    /// origen.dut.timesets.Timeset['my_timeset']
+    /// >>> # Clear the current timeset
+    /// >>> origen.tester.timeset = None
+    /// None
+    /// >>> origen.tester.timeset
+    /// None
+    ///
+    /// See Also
+    /// --------
+    /// * :meth:`set_timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn get_timeset(&self) -> PyResult<PyObject> {
         let tester = origen::tester();
         let dut = origen::dut();
@@ -76,6 +101,7 @@ impl PyTester {
     }
 
     #[setter]
+    // Note - do not add doc strings here. Add to get_timeset above.
     fn timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
         let (model_id, timeset_name);
 
@@ -117,6 +143,21 @@ impl PyTester {
         self.get_timeset()
     }
 
+    /// set_timeset(timeset)
+    ///
+    /// Sets the timeset.
+    ///
+    /// >>> origen.tester.set_timeset(origen.dut.timesets['my_timeset'])
+    /// origen.tester.timesets['my_timeset']
+    ///
+    /// Parameters:
+    ///     timeset (_origen.dut.timesets.Timeset, None): Timeset to set as current, or ``None`` to clear
+    ///
+    /// See Also
+    /// --------
+    /// * :meth:`timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
         self.timeset(timeset)
     }
@@ -181,6 +222,19 @@ impl PyTester {
         self.pin_header(pin_header)
     }
 
+    /// cc(comment: str) -> self
+    ///
+    /// Inserts a single-line comment into the AST.
+    ///
+    /// >>> origen.tester.cc("my comment")
+    /// <self>
+    /// >>> origen.tester.cc("my first comment").cc("my second comment")
+    /// <self>
+    ///
+    /// See Also
+    /// --------
+    /// * {{ link_to('prog-gen:comments', 'Commenting pattern source') }}
+    /// * {{ link_to('pat-gen:comments', 'Commenting program source') }}
     fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<PyObject> {
         {
             let mut tester = origen::tester();
@@ -257,7 +311,7 @@ impl PyTester {
         Ok(())
     }
 
-    /// Expecting more arguments/options to eventually be added here.
+    /// cycle(**kwargs) -> self
     #[args(kwargs = "**")]
     fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         {

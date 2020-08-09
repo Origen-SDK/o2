@@ -8,21 +8,66 @@ from origen.translator import Translator
 from origen.compiler import Compiler
 from origen.errors import *
 
-# The base class of all application classes
-class Base(_origen.application.PyApplication):
-    # Returns the unique ID (name) of the app/plugin
-    name =  _origen.app_config()["name"]
-    output_dir = _origen.output_directory()
-    website_output_dir = _origen.website_output_directory()
-    website_source_dir = _origen.website_source_directory()
+class Base:
+    '''
+        The base class of all Origen ``applications``.
+    '''
+
+    @property
+    def name(self):
+        ''' Returns the unique ID (name) of the app/plugin '''
+        return _origen.app_config()["name"]
+
+    @property
+    def output_dir(self):
+        ''' Returns the directory in which generated content should be placed '''
+        return _origen.output_directory()
+
+    @property
+    def website_output_dir(self):
+        ''' Returns the output directory offset from :meth:`output_dir` in which
+            generated web content should be placed '''
+        return _origen.website_output_directory()
+
+    @property
+    def website_source_dir(self):
+        ''' Returns the source directory for |origen-s_sphinx_app| '''
+        return _origen.website_source_directory()
+
+    @property
+    def website_release_location(self):
+        ''' Returns the release location (URL, system-path, etc.) which the resulting
+            website should be placed upon using the ``--release`` option of |web_cmd|'''
+        return _origen.app_config()['website_release_location']
+
+    @property
+    def website_release_name(self):
+        ''' Returns the name under which to release the website '''
+        return _origen.app_config()['website_release_name']
+
+    @property
+    def root(self):
+        ''' Returns the application's root directory '''
+        return origen.root
 
     __instantiate_dut_called = False
 
-    translator = Translator()
-    compiler = Compiler()
+    @property
+    def translator(self):
+        ''' Returns the application's instance of :class:`Origen's Translator <origen.translator.Translator>` '''
+        return self._translator
 
-    # Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon
+    @property
+    def compiler(self):
+        ''' Returns the application's instance of :class:`Origen's Compiler <origen.compiler.Compiler>` '''
+        return self._compiler
+
+    def __init__(self, *args, **options):
+        self._compiler = Compiler()
+        self._translator = Translator()
+
     def block_path_to_filepath(self, path):
+        ''' Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon '''
         fields = path.split(".")
         filepath = origen.root.joinpath(self.name).joinpath('blocks')
         for i, field in enumerate(fields):
@@ -31,9 +76,9 @@ class Base(_origen.application.PyApplication):
             filepath = filepath.joinpath(field)
         return filepath
 
-    # Instantiate the given DUT and return it, this must be called first before any
-    # sub-blocks can be instantiated
     def instantiate_dut(self, path):
+        ''' Instantiate the given DUT and return it, this must be called first before any
+            sub-blocks can be instantiated '''
         if origen.dut is not None:
             raise RuntimeError("Only one DUT target can be loaded, your current target selection instantiates multiple DUTs")
         if origen._target_loading is not True:
@@ -45,11 +90,13 @@ class Base(_origen.application.PyApplication):
         origen.dut = dut
         return dut
 
-    # Instantiate the given block and return it
-    #
-    #   origen.app.instantiate_block("dut.falcon")
-    #   origen.app.instantiate_block("nvm.flash.f2mb")
     def instantiate_block(self, path):
+        '''
+            Instantiate the given block and return it
+        
+            >>> origen.app.instantiate_block("dut.falcon")
+            >>> origen.app.instantiate_block("nvm.flash.f2mb")
+        '''
         if not self.__instantiate_dut_called:
             raise RuntimeError(f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{path}\")' instead?")
 
@@ -80,9 +127,12 @@ class Base(_origen.application.PyApplication):
 
         return block
 
-    # Load the given block filetype to the given controller
-    #   origen.app.load_block_files(dut.flash, "registers.py")
     def load_block_files(self, controller, filename):
+        '''
+            Load the given block filetype to the given controller
+        
+            >>> origen.app.load_block_files(dut.flash, "registers.py")
+        '''
         fields = controller.block_path.split(".")
         for i, field in enumerate(fields):
             if i == 0:
@@ -119,8 +169,25 @@ class Base(_origen.application.PyApplication):
         return controller
 
     def translate(self, remote_file):
+        '''
+            Runs :class:`Origen's Translator <origen.translator.Translator>`
+
+            See Also
+            --------
+            * :class:`origen.translator.Translator`
+            * :meth:`origen.translator.Translator.translate`
+        '''
         self.translator.translate(remote_file)
 
     def compile(self, *args, **options):
+        '''
+            Runs :class:`Origen's Compiler <origen.compiler.Compiler>`.
+            **Note that** this will also run any existing jobs in the compiler's stack.
+        
+            See Also
+            --------
+            * :class:`origen.compiler.Compiler`
+            * :meth:`origen.compiler.Compiler.run`
+        '''
         self.compiler.run(*args, **options)
         return self.compiler

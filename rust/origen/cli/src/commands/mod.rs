@@ -9,6 +9,7 @@ pub mod target;
 pub mod update;
 
 use crate::python;
+use indexmap::map::IndexMap;
 use origen::{clean_mode, LOGGER};
 use std::process::exit;
 
@@ -20,6 +21,7 @@ pub fn launch(
     files: Option<Vec<&str>>,
     output_dir: Option<&str>,
     reference_dir: Option<&str>,
+    cmd_args: Option<IndexMap<&str, String>>,
 ) {
     let mut cmd = format!("from origen.boot import run_cmd; run_cmd('{}'", command);
 
@@ -38,6 +40,12 @@ pub fn launch(
         // added r prefix to the string to force python to interpret as a string literal
         let f: Vec<String> = files.unwrap().iter().map(|f| format!("r'{}'", f)).collect();
         cmd += &format!(", files=[{}]", f.join(",")).to_string();
+    }
+
+    if let Some(args) = cmd_args {
+        cmd += ", args={";
+        cmd += &args.iter().map(|(arg, val)| format!("'{}': {}", arg, val)).collect::<Vec<String>>().join(",");
+        cmd += "}";
     }
 
     if let Some(dir) = output_dir {

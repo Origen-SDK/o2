@@ -88,14 +88,17 @@ if sys.platform == "win32":
 
         console.install_readline(rl.readline)
 
-    __all__.append("rl")
+    __all__ += ["rl", "run_cmd"]
 
-# Run an Origen command. This is the main entry method for the CLI, but it can also
-# be used in application commands to invoke Origen commands within the same thread instead of
-# making system calls.
-# See the o2 examples command for an example of usage -
-#   https://github.com/Origen-SDK/o2/blob/master/example/example/commands/examples.py
-def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None, **kwargs):
+def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None, args=None, **kwargs):
+    ''' Run an Origen command. This is the main entry method for the CLI, but it can also
+        be used in application commands to invoke Origen commands within the same thread instead of
+        making system calls.
+        
+        See Also
+        --------
+        * :link-to:`Example Application Commands <src_code:example_commands>`
+    '''
     global _generate_prepared
 
     import origen
@@ -187,7 +190,19 @@ def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output
         from origen.registers.actions import write, verify, write_transaction, verify_transaction
         code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
 
+    elif command == "web:build":
+        from origen.web import run_cmd
+        return run_cmd("build", args)
+    
+    elif command == "web:view":
+        from origen.web import run_cmd
+        return run_cmd("view", args)
+    
+    elif command == "web:clean":
+        from origen.web import run_cmd
+        return run_cmd("clean", args)
     # Internal command to give the Origen version loaded by the application to the CLI
+
     elif command == "_version_":
         print(f"{origen.status['origen_version']}")
 
@@ -197,7 +212,7 @@ def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output
         for cmd in kwargs["commands"]:
             path += f'.{cmd}'
         m = importlib.import_module(path)
-        m.run(**kwargs["args"])
+        m.run(**(args or {}))
         exit(0)
 
     else:

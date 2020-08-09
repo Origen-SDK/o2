@@ -9,10 +9,17 @@ log/
 /test_apps/python_app/example/templates/dut_info.txt
 /python/dist
 
+# Output directories
+/python/output
+/python/.origen
+/python/web/source/_static/build
+/python/web/source/interbuild
+
 # Editor cruft
 *.swp
 *.swo
 *~
+*.pylintrc
 
 # Output files from regressions
 python/templates/dut_info.txt

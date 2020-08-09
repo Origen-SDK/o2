@@ -16,6 +16,7 @@ def setup(targets=None):
 
 # Load the target(s) previously registered by setup or as given
 def load(targets=None):
+    global first_load_done
     if targets is not None:
         setup(targets)
     first_load_done = True

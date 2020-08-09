@@ -16,6 +16,7 @@ mod application;
 mod interface;
 mod producer;
 mod tester;
+mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
@@ -35,6 +36,8 @@ use logger::PyInit_logger;
 use producer::PyInit_producer;
 use services::PyInit_services;
 use tester::PyInit_tester;
+use utility::PyInit_utility;
+use utility::location::Location;
 
 #[macro_export]
 macro_rules! pypath {
@@ -81,6 +84,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(interface))?;
     m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;
+    m.add_wrapped(wrap_pymodule!(utility))?;
     Ok(())
 }
 
@@ -199,8 +203,34 @@ fn config(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen application configuration (as defined in application.toml)
 #[pyfunction]
 fn app_config(py: Python) -> PyResult<PyObject> {
+    // let ret = PyDict::new(py);
+    // // Don't think an error can really happen here, so not handled
+    // let app_config = origen_app_config();
+    // let _ = ret.set_item("name", &app_config.name);
+    // let _ = ret.set_item("target", &app_config.target);
+    // let _ = ret.set_item("mode", &app_config.mode);
+    // let _ = ret.set_item("__output_directory__", &app_config.output_directory);
+    // let _ = ret.set_item(
+    //     "__website_output_directory__",
+    //     &app_config.website_output_directory,
+    // );
+    // let _ = ret.set_item(
+    //     "__website_source_directory__",
+    //     &app_config.website_source_directory,
+    // );
+    // let _ = ret.set_item(
+    //     "website_release_location",
+    //     match &app_config.website_release_location {
+    //         Some(loc) => Py::new(py, Location {location: (*loc).clone()}).unwrap().to_object(py),
+    //         None => py.None()
+    //     }
+    // );
+    // let _ = ret.set_item(
+    //     "website_release_name",
+    //     &app_config.website_release_name,
+    // );
+
     let ret = PyDict::new(py);
-    // Don't think an error can really happen here, so not handled
     let _ = origen::app().unwrap().with_config(|config| {
         let _ = ret.set_item("name", &config.name);
         let _ = ret.set_item("target", &config.target);
@@ -214,11 +244,23 @@ fn app_config(py: Python) -> PyResult<PyObject> {
             "__website_source_directory__",
             &config.website_source_directory,
         );
+        let _ = ret.set_item(
+            "website_release_location",
+            match &config.website_release_location {
+                Some(loc) => Py::new(py, Location {location: (*loc).clone()}).unwrap().to_object(py),
+                None => py.None()
+            }
+        );
+        let _ = ret.set_item(
+            "website_release_name",
+            &config.website_release_name,
+        );
         Ok(())
     });
     Ok(ret.into())
 }
 
+/// clean_mode(name)
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
 #[pyfunction]
 fn clean_mode(name: &str) -> PyResult<String> {
@@ -227,6 +269,7 @@ fn clean_mode(name: &str) -> PyResult<String> {
 }
 
 #[pyfunction]
+/// target_file(name, dir)
 /// Sanitizes the given target/env name and returns the matching file, but will exit the process
 /// if it does not uniquely identify a single target/env file.
 fn target_file(name: &str, dir: &str) -> PyResult<String> {
