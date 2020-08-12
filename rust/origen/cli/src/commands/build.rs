@@ -134,9 +134,9 @@ pub fn run(matches: &ArgMatches) {
             }
             cd(&STATUS.origen_wksp_root.join("rust").join("pyapi"));
             let mut maturin_args = vec![
-                    "build",
-                    "--no-sdist", // Local building of the pyapi will not be supported
-                    "--release",
+                "build",
+                "--no-sdist", // Local building of the pyapi will not be supported
+                "--release",
             ];
             let python_interpreter;
             if let Ok(ver) = std::env::var("PYTHON_INTERPRETER") {

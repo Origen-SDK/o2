@@ -1,6 +1,7 @@
 import origen
 import _origen
 
+
 # Base class for all test program flow interfaces
 class BaseInterface(_origen.interface.PyInterface):
     def include(self, path):
@@ -11,6 +12,7 @@ class BaseInterface(_origen.interface.PyInterface):
         context = origen.producer.api()
         origen.load_file(file, locals=context)
         origen.producer.current_job.pop_file()
+
 
 # This interface will be used by Origen when generating a test program flow unless:
 # 1) The application defines <app>.interface.default

@@ -44,7 +44,11 @@ pub fn launch(
 
     if let Some(args) = cmd_args {
         cmd += ", args={";
-        cmd += &args.iter().map(|(arg, val)| format!("'{}': {}", arg, val)).collect::<Vec<String>>().join(",");
+        cmd += &args
+            .iter()
+            .map(|(arg, val)| format!("'{}': {}", arg, val))
+            .collect::<Vec<String>>()
+            .join(",");
         cmd += "}";
     }
 

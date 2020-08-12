@@ -3,8 +3,9 @@ import enum
 import re
 import pdb
 
+
 # All procesor handler methods must return one of these
-class Return(enum.Enum): 
+class Return(enum.Enum):
     # Deletes the node from the output AST.
     #   return Return.none
     none = 1
@@ -29,8 +30,8 @@ class Return(enum.Enum):
     #   return Return.inline, [new_node1, new_node2,...]
     inline = 6
 
-class Processor:
 
+class Processor:
     def __init__(self):
         self.snakecaser = re.compile(r'(?<!^)(?=[A-Z])')
 
@@ -42,11 +43,15 @@ class Processor:
         if hasattr(self, on_handler):
             result = getattr(self, on_handler)(node)
             if result is None:
-                raise RuntimeError(f"Node handler '{on_handler}' returned None, must return a valid Return code")
+                raise RuntimeError(
+                    f"Node handler '{on_handler}' returned None, must return a valid Return code"
+                )
         elif hasattr(self, "on_all"):
             result = self.on_all(node)
             if result is None:
-                raise RuntimeError(f"Node handler 'on_all' returned None, must return a valid Return code")
+                raise RuntimeError(
+                    f"Node handler 'on_all' returned None, must return a valid Return code"
+                )
 
         if result is None:
             return self.process_children(orig_node)
@@ -78,7 +83,9 @@ class Processor:
         if hasattr(self, "on_end_of_block"):
             result = self.on_end_of_block(node)
             if result is None:
-                raise RuntimeError(f"Node handler 'on_end_of_block' returned None, must return a valid Return code")
+                raise RuntimeError(
+                    f"Node handler 'on_end_of_block' returned None, must return a valid Return code"
+                )
 
             new_node = self._process_return_code(result, orig_node)
             if new_node is not None:
@@ -111,23 +118,27 @@ class Processor:
         else:
             raise RuntimeError(f"Unhanded return code: '{code[0].name}'")
 
+
 def clone(node):
     new_node = copy.copy(node)
     new_node["attrs"] = copy.deepcopy(node["attrs"])
     return new_node
-            
+
+
 # Update the attribute at the given index with the given value
 def update_attribute(node, index, new_value):
     attrs = list(node["attrs"])
     attrs[1][index] = new_value
     node["attrs"] = tuple(attrs)
-            
+
+
 # Returns a new node which is a copy of the given node with its children replaced
 # by the given collection of nodes.
 def replace_children(node, nodes):
     new_node = clone(node)
     new_node["children"] = nodes
     return new_node
+
 
 # Returns a new node which is a copy of the given node with its attrs replaced
 # by the given attrs.
@@ -136,13 +147,19 @@ def replace_attrs(attrs):
     new_node["attrs"] = attrs
     return new_node
 
+
 def node(*args):
     if len(args) == 1:
-        return {'attrs': (args[0],), 'meta': None, 'children': []}
+        return {'attrs': (args[0], ), 'meta': None, 'children': []}
     elif len(args) == 2:
-        return {'attrs': (args[0],args[1]), 'meta': None, 'children': []}
+        return {'attrs': (args[0], args[1]), 'meta': None, 'children': []}
     else:
-        return {'attrs': (args[0], list(args[1:])), 'meta': None, 'children': []}
+        return {
+            'attrs': (args[0], list(args[1:])),
+            'meta': None,
+            'children': []
+        }
+
 
 def inline(nodes):
     return {'attrs': ('_Inline'), 'meta': None, 'children': nodes}

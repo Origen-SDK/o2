@@ -1,7 +1,7 @@
+use crate::pypath;
 use origen::utility::location::Location as OrigenLoc;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use crate::pypath;
 
 /// Helper class to store and query "location" types, which could be local paths, git URLs, as either SSH or HTTPS, or something else.
 /// The location need not be valid to create an instance of this class.
@@ -12,7 +12,6 @@ pub struct Location {
 
 #[pymethods]
 impl Location {
-
     /// Returns the location's target, regardless of what it may be.
     ///
     /// Returns:
@@ -33,7 +32,7 @@ impl Location {
         let py = gil.python();
         Ok(match self.location.url() {
             Some(url) => url.to_object(py),
-            None => py.None()
+            None => py.None(),
         })
     }
 
@@ -52,7 +51,7 @@ impl Location {
         let py = gil.python();
         Ok(match self.location.git() {
             Some(git) => git.to_object(py),
-            None => py.None()
+            None => py.None(),
         })
     }
 
@@ -67,7 +66,7 @@ impl Location {
         let py = gil.python();
         Ok(match self.location.git_https() {
             Some(git) => git.to_object(py),
-            None => py.None()
+            None => py.None(),
         })
     }
 
@@ -82,10 +81,9 @@ impl Location {
         let py = gil.python();
         Ok(match self.location.git_ssh() {
             Some(git) => git.to_object(py),
-            None => py.None()
+            None => py.None(),
         })
     }
-
 
     /// If the location points to an OS path, return that path.
     ///
@@ -98,8 +96,7 @@ impl Location {
         let py = gil.python();
         Ok(match self.location.path() {
             Some(_path) => pypath!(py, self.location.location),
-            None => py.None()
+            None => py.None(),
         })
     }
-
 }

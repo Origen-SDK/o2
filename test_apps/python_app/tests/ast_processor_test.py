@@ -15,10 +15,12 @@ class MyProcessor(Processor):
         self.count += 1
         return Return.process_children
 
+
 class CommentUpcaser(Processor):
     def on_comment(self, node):
         update_attribute(node, 1, node["attrs"][1][1].upper())
         return Return.replace, node
+
 
 class CycleCombiner(Processor):
     def __init__(self):
@@ -58,8 +60,9 @@ class CycleCombiner(Processor):
             new_node = self.process_children(node)
             return Return.inline, [cyc, new_node]
 
+
 def test_is_alive():
-    p = MyProcessor() 
+    p = MyProcessor()
 
     test = node("Test", "trim_vbgap")
     c = node("Comment", 1, "Hello")
@@ -68,11 +71,13 @@ def test_is_alive():
     p.process(test)
     assert p.count == 2
 
+
 def test_comment_upcaser_processor():
     ast = node("Test", "trim_vbgap")
     ast["children"].append(node("Comment", 1, "Hello"))
     reg_trans = node("RegWrite", 10, 0x12345678, None, None)
-    reg_trans["children"].append(node("Comment", 1, "Should be inside reg transaction"))
+    reg_trans["children"].append(
+        node("Comment", 1, "Should be inside reg transaction"))
     for i in range(5):
         reg_trans["children"].append(node("Cycle", 1, True))
     ast["children"].append(reg_trans)
@@ -84,7 +89,8 @@ def test_comment_upcaser_processor():
     ast2 = node("Test", "trim_vbgap")
     ast2["children"].append(node("Comment", 1, "HELLO"))
     reg_trans = node("RegWrite", 10, 0x12345678, None, None)
-    reg_trans["children"].append(node("Comment", 1, "SHOULD BE INSIDE REG TRANSACTION"))
+    reg_trans["children"].append(
+        node("Comment", 1, "SHOULD BE INSIDE REG TRANSACTION"))
     for i in range(5):
         reg_trans["children"].append(node("Cycle", 1, True))
     ast2["children"].append(reg_trans)
@@ -93,11 +99,13 @@ def test_comment_upcaser_processor():
     assert ast2 == CommentUpcaser().process(ast)
     assert orig == ast
 
+
 def test_cycle_combiner_processor():
     ast = node("Test", "trim_vbgap")
     ast["children"].append(node("Comment", 1, "Hello"))
     reg_trans = node("RegWrite", 10, 0x12345678, None, None)
-    reg_trans["children"].append(node("Comment", 1, "Should be inside reg transaction"))
+    reg_trans["children"].append(
+        node("Comment", 1, "Should be inside reg transaction"))
     for i in range(5):
         reg_trans["children"].append(node("Cycle", 1, True))
     ast["children"].append(reg_trans)
@@ -109,7 +117,8 @@ def test_cycle_combiner_processor():
     ast2 = node("Test", "trim_vbgap")
     ast2["children"].append(node("Comment", 1, "Hello"))
     reg_trans = node("RegWrite", 10, 0x12345678, None, None)
-    reg_trans["children"].append(node("Comment", 1, "Should be inside reg transaction"))
+    reg_trans["children"].append(
+        node("Comment", 1, "Should be inside reg transaction"))
     reg_trans["children"].append(node("Cycle", 5, True))
     ast2["children"].append(reg_trans)
 

@@ -6,11 +6,12 @@ from origen.registers.loader import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
 from contextlib import contextmanager
 
+
 class Proxies:
     def __init__(self, controller):
         self.controller = controller
         self.proxies = {}
-    
+
     def __getitem__(self, name):
         p = self.proxies.get(name)
         if (p):
@@ -18,14 +19,17 @@ class Proxies:
         else:
             origen.logger.error(f"No proxy for '{name}' has been set!")
             exit()
-    
+
     def __setitem__(self, name, proxy):
         if proxy in self.proxies:
-            origen.logger.error(f"A proxy for '{proxy}' has already been set! Cannot set the same proxy again!")
+            origen.logger.error(
+                f"A proxy for '{proxy}' has already been set! Cannot set the same proxy again!"
+            )
             exit()
         else:
             self.proxies[name] = proxy
             return proxy
+
 
 # The base class of all Origen controller objects
 class Base:
@@ -88,7 +92,7 @@ class Base:
                 self.__setattr__(method, getattr(proxy, method))
             self._load_pins()
             return eval(f"self.{name}")
-        
+
         elif name == "memory_maps":
             self._load_regs()
             return origen.dut.db.memory_maps(self.model_id)
@@ -125,7 +129,8 @@ class Base:
             try:
                 return getattr(self.model(), name)
             except AttributeError:
-                raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
+                raise AttributeError(
+                    f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
         print(self.tree_as_str())
@@ -164,7 +169,9 @@ class Base:
         if self._default_default_address_block:
             return self._default_default_address_block.reg(name)
         else:
-            raise AttributeError(f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)")
+            raise AttributeError(
+                f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)"
+            )
 
     def add_simple_reg(self, *args, **kwargs):
         kwargs["_called_from_controller"] = True
@@ -194,7 +201,7 @@ class Base:
             self.sub_blocks = {}
             self.app.load_block_files(self, "sub_blocks.py")
             self.sub_blocks_loaded = True
-    
+
     def _load_pins(self):
         if not self.pins_loaded:
             self.app.load_block_files(self, "pins.py")
@@ -216,6 +223,7 @@ class Base:
 
     def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
+
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
