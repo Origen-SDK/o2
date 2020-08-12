@@ -76,6 +76,7 @@ fn main() {
     /******************** Global only commands ******************************************/
     /************************************************************************************/
     if !STATUS.is_app_present {
+        //************************************************************************************/
         let proj_help = "Manage multi-repository project areas and workspaces";
         origen_commands.push(CommandHelp {
             name: "proj".to_string(),
@@ -84,7 +85,6 @@ fn main() {
         });
 
         app = app
-            //************************************************************************************/
             .subcommand(
                 SubCommand::with_name("proj")
                     .display_order(1)
@@ -200,6 +200,24 @@ fn main() {
                         )
                     )
             );
+
+        //************************************************************************************/
+        let new_help = "Create a new Origen application";
+        origen_commands.push(CommandHelp {
+            name: "new".to_string(),
+            help: new_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("new").about(new_help).arg(
+                Arg::with_name("name")
+                    .help("The lowercased and underscored name of the new application")
+                    .takes_value(true)
+                    .required(true)
+                    .number_of_values(1)
+                    .value_name("NAME"),
+            ),
+        );
     }
 
     /************************************************************************************/
@@ -720,6 +738,7 @@ CORE COMMANDS:
         Some("setup") => commands::setup::run(),
         Some("update") => commands::update::run(),
         Some("fmt") => commands::fmt::run(),
+        Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
         Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap()),
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some("interactive") => {

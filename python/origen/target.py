@@ -30,7 +30,8 @@ def load(targets=None):
             if callable(t):
                 t()
             else:
-                origen.load_file(_origen.target_file(t, "targets"))
+                if t is not None:
+                    origen.load_file(_origen.target_file(t, "targets"))
     origen._target_loading = False
 
 
