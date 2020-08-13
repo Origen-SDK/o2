@@ -216,6 +216,12 @@ fn main() {
                     .required(true)
                     .number_of_values(1)
                     .value_name("NAME"),
+            )
+            .arg(Arg::with_name("setup")
+                .help("Don't create the new app's virtual environment after building (need to manually run 'origen setup' within the new app workspace before using it in that case)")
+                .long("no-setup")
+                .required(false)
+                .takes_value(false)
             ),
         );
     }

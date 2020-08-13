@@ -1,5 +1,7 @@
 use clap::ArgMatches;
+use phf::map::Map;
 use phf::phf_map;
+use std::path::PathBuf;
 use tera::{Context, Tera};
 
 // This includes a map of all template files, it is built by cli/build.rs at compile time.
@@ -10,6 +12,11 @@ use tera::{Context, Tera};
 // Doing it this way means that we can just drop new files into the templates dirs and they will
 // automatically be picked up and included in the new app.
 include!(concat!(env!("OUT_DIR"), "/new_app_templates.rs"));
+
+struct App {
+    name: String,
+    dir: PathBuf,
+}
 
 pub fn run(matches: &ArgMatches) {
     let name = matches.value_of("name").unwrap();
@@ -31,7 +38,6 @@ pub fn run(matches: &ArgMatches) {
             .expect("Could you create the new application directory, do you have permission?");
     }
 
-    let mut tera = Tera::default();
     let mut context = Context::new();
     //// Converting this to a vector here as the template was printing out the package list
     //// in reverse order when given the index map
@@ -47,17 +53,44 @@ pub fn run(matches: &ArgMatches) {
     }
     context.insert("user_info", &user_info);
 
-    for (file, content) in PYTHON_APP.entries() {
-        let contents = tera.render_str(content, &context).unwrap();
+    let new_app = App {
+        name: name.to_string(),
+        dir: app_dir,
+    };
 
-        let file = file.replace("app_namespace_dir", name);
-        let file = app_dir.join(file);
+    new_app.apply_template(&PYTHON_APP, &context);
 
-        if !file.parent().unwrap().exists() {
-            std::fs::create_dir_all(&file.parent().unwrap())
-                .expect("Couldn't create dir within the new app");
+    if !matches.is_present("no-setup") {
+        new_app.setup();
+    }
+}
+
+impl App {
+    fn apply_template(&self, template: &Map<&str, &str>, context: &Context) {
+        let mut tera = Tera::default();
+
+        for (file, content) in template.entries() {
+            let contents = tera.render_str(content, &context).unwrap();
+
+            let file = file.replace("app_namespace_dir", &self.name);
+            let file = self.dir.join(file);
+
+            if !file.parent().unwrap().exists() {
+                std::fs::create_dir_all(&file.parent().unwrap())
+                    .expect("Couldn't create dir within the new app");
+            }
+
+            std::fs::write(&file, &contents).expect("Couldn't create a file within the new app");
         }
+    }
 
-        std::fs::write(&file, &contents).expect("Couldn't create a file within the new app");
+    fn setup(&self) {
+        std::env::set_current_dir(&self.dir).expect("Couldn't cd to the new app");
+
+        let _ = std::process::Command::new("origen")
+            .arg("setup")
+            .spawn()
+            .expect("Couldn't execute origen setup")
+            .wait();
     }
 }
