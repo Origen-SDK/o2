@@ -1,4 +1,10 @@
+// This implements the new application command, for the code generators, e.g. 'origen new dut' etc.,
+// see new_resource.rs
+
+mod new_resource;
+
 use clap::ArgMatches;
+use origen::STATUS;
 use phf::map::Map;
 use phf::phf_map;
 use std::path::PathBuf;
@@ -19,6 +25,10 @@ struct App {
 }
 
 pub fn run(matches: &ArgMatches) {
+    if STATUS.is_app_present {
+        new_resource::run(matches);
+        return;
+    }
     let name = matches.value_of("name").unwrap();
     if name.to_lowercase() != name {
         display_red!("ERROR: ");
@@ -58,7 +68,7 @@ pub fn run(matches: &ArgMatches) {
         dir: app_dir,
     };
 
-    new_app.apply_template(&PYTHON_APP, &context);
+    new_app.apply_template(&PY_APP, &context);
 
     if !matches.is_present("no-setup") {
         new_app.setup();
@@ -73,14 +83,17 @@ impl App {
             let contents = tera.render_str(content, &context).unwrap();
 
             let file = file.replace("app_namespace_dir", &self.name);
-            let file = self.dir.join(file);
+            let path = self.dir.join(file.clone());
 
-            if !file.parent().unwrap().exists() {
-                std::fs::create_dir_all(&file.parent().unwrap())
+            if !path.parent().unwrap().exists() {
+                std::fs::create_dir_all(&path.parent().unwrap())
                     .expect("Couldn't create dir within the new app");
             }
 
-            std::fs::write(&file, &contents).expect("Couldn't create a file within the new app");
+            display_green!("      create  ");
+            displayln!("{}", &file);
+
+            std::fs::write(&path, &contents).expect("Couldn't create a file within the new app");
         }
     }
 

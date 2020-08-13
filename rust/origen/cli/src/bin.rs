@@ -345,6 +345,39 @@ fn main() {
         );
 
         /************************************************************************************/
+        let new_help = "Generate a new block, flow, pattern, etc. for your application";
+        origen_commands.push(CommandHelp {
+            name: "new".to_string(),
+            help: new_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("new").about(new_help)
+            .subcommand(SubCommand::with_name("dut")
+                .display_order(5)
+                .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
+                .long_about(
+"This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
+controller, target, timesets, pins, etc.
+
+The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
+by a forward slash.
+
+Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
+
+Examples:
+  origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
+  origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
+                .arg(Arg::with_name("name")
+                    .takes_value(true)
+                    .required(true)
+                    .help("The name of the new DUT")
+                    .value_name("NAME")
+                )
+            )
+        );
+
+        /************************************************************************************/
         let g_help = "Generate patterns or test programs";
         origen_commands.push(CommandHelp {
             name: "generate".to_string(),
