@@ -47,7 +47,7 @@ fn main() {
                     .to_string()
                     .replace(".tera", "");
                 let contents = std::fs::read_to_string(path).unwrap();
-                data += &format!("\"{}\" => r#\"{}\"#,\n", &file, &contents);
+                data += &format!("r#\"{}\"# => r#\"{}\"#,\n", &file, &contents);
             }
         }
         data += "};\n\n";

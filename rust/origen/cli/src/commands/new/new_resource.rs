@@ -53,7 +53,7 @@ pub fn run(matches: &ArgMatches) {
                         .display()
                 );
                 if !target_file.parent().unwrap().exists() {
-                    std::fs::create_dir_all(target_file.parent().unwrap());
+                    let _ = std::fs::create_dir_all(target_file.parent().unwrap());
                 }
                 std::fs::write(&target_file, &content)
                     .expect(&format!("Couldn't create '{}'", &target_file.display()));
