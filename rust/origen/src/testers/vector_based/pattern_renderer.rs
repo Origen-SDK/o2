@@ -8,6 +8,8 @@ use crate::STATUS;
 use crate::{Result, DUT};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use crate::services::swd::processor::SWDToPinStates;
+use crate::standard_sub_blocks::arm_debug::process_transactions::ArmDebugMemAPsToProtocol;
 
 use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
 
@@ -41,9 +43,20 @@ pub struct Renderer<'a> {
 
 impl<'a> Renderer<'a> {
     pub fn run(tester: &'a dyn RendererAPI, ast: &Node) -> Result<Vec<PathBuf>> {
-        let mut n = PinActionCombiner::run(ast)?;
+        // Transform Arm Debug register transactions to protocol drivers
+        let mut n = ArmDebugMemAPsToProtocol::run(ast)?;
+
+        // Transform the services into vectors
+        n = SWDToPinStates::run(&n, "swdclk", "swdio", None)?;
+
+        // Optimize the vectors
+        n = PinActionCombiner::run(&n)?;
         n = CycleCombiner::run(&n)?;
+
+        // Generate comments
         n = FlattenText::run(&n)?;
+
+        // Finally, generate the output
         let mut p = Self::new(tester);
         n.process(&mut p)?;
         Ok(vec![p.path.unwrap()])

@@ -111,7 +111,7 @@ def test_adding_timeset_with_equation(clean_falcon):
 #   swdio_wave.apply_to("swdio")
 #   swdio_wave.add_event("swd_io_drive1")
 
-# Before we go into consuming Timeset-specifics and adding addtional waves, ensure that the dict-like API is working.
+# Before we go into consuming Timeset-specifics and adding additional waves, ensure that the dict-like API is working.
 # Otherwise, we'll get a bunch of failures that have nothing to do with the actual timeset.
 
 class TestTimesetsDictLike(Fixture_DictLikeAPI):
@@ -352,10 +352,315 @@ class TestComplexTimingScenerios:
   def define_waves_derived_from(self, clean_falcon):
     wgrp = origen.dut.add_timeset("complex").add_wavetable("w1", period="40").add_waves("PortOperations")
     origen.dut.timesets["complex"].wavetables["w1"].period = 40
+    # Add a base wave
     w = wgrp.add_wave("1")
     w.push_event(at="period*0.25", unit="ns", action=w.DriveHigh)
+    # Derive from the above wave
     w = wgrp.add_wave("0", derived_from="1")
     w.events[0].action = w.DriveLow
+
+  @pytest.mark.skip
+  def test_wavetable_inheritance(self, define_complex_timeset):
+    ''' STIL:
+
+        Timing {
+          WaveformTable w1 {
+            Waveforms {
+              all { 01ZLH { '0' D/U/Z/L/H } }
+            }
+          }
+          WaveformTable backwards {
+            InheritWaveformTable w1;
+            Waveforms {
+              backwards_pins { 01ZLH { '0' U/D/Z/H/L } }
+            }
+          }
+        }
+    '''
+    w1 = origen.dut.timeset("complex").wavetable('w1')
+    backwards = origen.dut.timeset("complex").add_wavetable("backwards", inherit="w1").add_wavegroup("BackwardsPorts")
+    backwards.add_wave('0').push_action('0', DriveHigh)
+    backwards.add_wave('1').push_action('0', DriveLow)
+    backwards.add_wave('L').push_action('0', CompareHigh)
+    backwards.add_wave('H').push_action('0', CompareLow)
+    assert origen.dut.timeset("complex").wavetable("backwards").wavegroup("Ports") is not None
+    forwards = origen.dut.timeset("complex").wavetable("backwards").wavegroup("Ports")
+
+    # Check that "Ports" was inherited
+    assert origen.dut.timeset("complex").wavetable("backwards").period == 40
+    assert forwards.waves["Ports"].waves["1"].events[0].action == "U"
+    assert forwards.waves["Ports"].waves["Z"].events[0].action == "Z"
+    assert forwards.waves["Ports"].waves["L"].events[0].action == "L"
+
+    # Check that "BackwardsPorts" was applied correctly
+    assert backwards.waves["BackwardsPorts"].waves["1"].events[0].action == "D"
+    assert backwards.waves["BackwardsPorts"].waves["Z"].events[0].action == "Z"
+    assert backwards.waves["BackwardsPorts"].waves["L"].events[0].action == "H"
+
+    # Check that inheritance works with an instance
+    w2 = origen.dut.add_timeset("complex").add_wavetable("w2", inherit=w1)
+    assert w2.waves["Ports"].waves["1"].events[0].action == "U"
+    assert w2.waves["Ports"].waves["Z"].events[0].action == "Z"
+    assert w2.waves["Ports"].waves["L"].events[0].action == "L"
+
+  @pytest.mark.skip
+  def test_wavetable_inheritance_override(self, define_complex_timeset):
+    ''' STIL:
+
+        Timing {
+          WaveformTable w1 {
+            Waveforms {
+              all { 01ZLH { '0' D/U/Z/L/H } }
+            }
+          }
+          WaveformTable w2 {
+            InheritWaveformTable w1;
+            Waveforms {
+              all { ZC { '0' X/X } }
+            }
+          }
+        }
+    '''
+    w1 = origen.dut.timeset("complex").wavetable('w1')
+    w2 = origen.dut.timeset("complex").add_wavetable("w2", inherit="w1")
+    assert w2.waves["all"].waves["1"].events[0].action == "U"
+    assert w2.waves["all"].waves["0"].events[0].action == "D"
+    assert w2.waves["all"].waves["Z"].events[0].action == "Z"
+    assert "X" not in w2.waves["all"].waves
+    wgrp = w2.add_wavegroup('all')
+    wgrp.add_wave('Z').push_action('0', Unknown)
+    wgrp.add_wave('C').push_action('0', Unknown)
+    assert w2.waves["all"].waves["1"].events[0].action == "U"
+    assert w2.waves["all"].waves["0"].events[0].action == "D"
+    assert w2.waves["all"].waves["Z"].events[0].action == "X"
+    assert w2.waves["all"].waves["X"].events[0].action == "X"
+
+  @pytest.mark.skip
+  def test_waveform_inheritance(self, define_complex_timeset):
+    ''' STIL:
+
+        Timing {
+          WaveformTable w1 {
+            Waveforms {
+              all { 01ZLH { Start: '0' D/U/Z/L/H } }
+            }
+          }
+          WaveformTable w2 {
+            Waveforms {
+              support_compare_z {
+                InheritWaveform w1.all;
+                X { '0' X }
+              }
+            }
+          }
+        }
+    '''
+    w1 = origen.dut.add_timeset("complex").wavetable('w1')
+    w2 = origen.dut.add_timeset("complex").add_wavetable("w2", period=40)
+    wgrp = w2.add_waves("support_compare_x", inherit=('w1', 'all'))
+    assert w2.wavegroups.get('all') is None
+    assert w2.wavegroups.get('support_compare_x') is not None
+    wgrp.add_wave('X').push_event(at="0", unit="ns", action=w.CompareUnknown)
+    assert set(wgrp.waves.keys) == ('0', '1', 'Z', 'H', 'L', 'X')
+    assert wgrp.waves['0'].events[0].action == wave.DriveLow
+    assert wgrp.waves['H'].events[0].action == wave.CompareHigh
+    assert wgrp.waves['X'].events[0].action == wave.CompareUnknown
+
+  @pytest.mark.skip
+  def test_waveform_inheritance_override(self, define_complex_timeset):
+    ''' STIL:
+
+        Timing {
+          WaveformTable w1 {
+            Waveforms {
+              all { 01ZLH { Start: '0' D/U/Z/L/H } }
+            }
+          }
+          WaveformTable w2 {
+            Waveforms {
+              backwards_drives {
+                InheritWaveform w1.all;
+                01 { '0' U/D }
+              }
+            }
+          }
+        }
+    '''
+    w1 = origen.dut.add_timeset("complex").wavetable('w1')
+    w2 = origen.dut.add_timeset("complex").add_wavetable("w2", period=40)
+    wgrp = w1.add_waves("backwards", inherit=('w1', 'all'))
+    assert w2.wavegroups.get('all') is None
+    assert w2.wavegroups.get('backwards') is not None
+    wgrp.add_wave('0').push_event(at="0", unit="ns", action=w.DriveHigh)
+    wgrp.add_wave('1').push_event(at="0", unit="ns", action=w.DriveLow)
+    assert set(wgrp.waves.keys) == ('0', '1', 'Z', 'H', 'L', 'X')
+    assert wgrp.waves['1'].events[0].action == wave.DriveLow
+    assert wgrp.waves['0'].events[0].action == wave.DriveHigh
+    assert wgrp.waves['Z'].events[0].action == wave.HighZ
+    assert wgrp.waves['H'].events[0].action == wave.CompareHigh
+    assert wgrp.waves['L'].events[0].action == wave.CompareLow
+
+  @pytest.mark.skip
+  def test_creating_abstract_waves(self):
+    w1 = origen.dut.add_timeset("complex").add_wavetable('shape')
+    wgrp = w1.add_wavegroup('surround_z')
+    w = wgrp.add_wave('0')
+    w.push_abstract_event(HighZ)
+    w.push_abstract_event(DriveLow)
+    w.push_abstract_event(HighZ)
+    assert w.is_abstract
+    assert w.waves['0'].action == HighZ
+    assert w.waves['1'].action == DriveLow
+    assert w.waves['2'].action == HighZ
+    w = wgrp.add_wave('1', derive_from='0')
+    w.waves['1'].action = DriveHigh
+    assert w.is_abstract
+    assert w.waves['0'].action == HighZ
+    assert w.waves['1'].action == DriveHigh
+    assert w.waves['2'].action == HighZ
+
+  @pytest.mark.skip
+  def test_wavetable_inheritance_with_abstract_events(self, define_complex_timeset):
+    ''' STIL:
+
+        Timing {
+          WaveformTable shape {
+            Waveforms {
+              surround_z { 01 { Z; U/D; Z } }
+              clk { C { U; D } }
+            }
+          }
+          WaveformTable application {
+            period = '50ns'
+            InheritWaveformTable shape;
+            Waveforms {
+              pins { 01 {'0', 'period/10', 'period - period/10'} }
+              clock { C { '0', 'period/2' } }
+            }
+          }
+        }
+    '''
+    w1 = origen.dut.add_timeset("complex").add_wavetable('shape')
+    w2 = origen.dut.add_timeset("complex").add_wavetable("application", period=50, inherit="shape")
+    wgrp_pins = w2.add_wavegroup('pins')
+    wgrp_clk = w2.add_wavegroup('clock')
+    w = wgrp_pins.add_wave('0')
+    w.apply_events(("shape", "surround_z"), "0", "period/10", "period - period/10")
+    assert len(w.events) == 3
+    assert w.events[0].action == HighZ
+    assert w.events[0].at == 0
+    assert w.events[1].action == DriveLow
+    assert w.events[1].at == 5
+    assert w.events[2].action == HighZ
+    assert w.events[2].at == 45
+    
+    w = wgrp.add_wave('1', derive_from='0')
+    assert len(w.events == 3)
+    assert w.events[0].action == HighZ
+    assert w.events[0].at == 0
+    assert w.events[1].action == DriveHigh
+    assert w.events[1].at == 5
+    assert w.events[2].action == HighZ
+    assert w.events[2].at == 45
+
+    w = wgrp_clk.add_wave("C")
+    w.apply_events(("shape", "clock"), "0", "period/2")
+    assert len(w.events == 2)
+    assert w.events[0].action == DriveHigh
+    assert w.events[0].at == 0
+    assert w.events[1].action == DriveLow
+    assert w.events[1].at == 25
+
+  @pytest.mark.skip
+  def test_mixing_concrete_and_abstract_events(self):
+    w1 = origen.dut.add_timeset("complex").add_wavetable('shape')
+    w = w1.add_wavegroup('pins').add_wave('0')
+    w.push_event("0", "Z")
+    w.push_event("period/10", "1")
+    w.push_abstract_event("0")
+    assert w.is_abstract
+    w2 = origen.dut.add_timeset("complex").add_wavetable("application", period=50, inherit="shape")
+    w.add_wavegroup("pins").add_wave("0")
+    w.apply_events(("shape", "pins"), "period/2")
+    assert w.events[0].action == HighZ
+    assert w.events[0].at == 0
+    assert w.events[1].action == DriveHigh
+    assert w.events[1].at == 5
+    assert w.events[2].action == DriveLow
+    assert w.events[2].at == 25
+
+  @pytest.mark.skip
+  def test_exception_on_missing_event_applications(self, abstract_waves):
+    ''' Given a wavetable
+
+          WaveformTable shape {
+            Waveforms {
+              surround_z { 01 { Z; U/D; Z } }
+              clk { C { U; D } }
+            }
+          }
+
+        In order to apply the a wave from, say, 'surround_z' - which has three abstract events,
+        the inheriting wave must supply exactly three events. No more, no less.
+    '''
+    w2 = origen.dut.add_timeset("complex").add_wavetable("application", period=50, inherit="shape")
+    w.add_wavegroup("pins").add_wave("0")
+    with pytest.raises(OSError):
+      w.apply_events(("shape", "pins"), 0)
+    with pytest.raises(OSError):
+      w.apply_events(("shape", "pins"), 0, 5, 10, 15)
+
+  @pytest.mark.skip
+  def test_exception_on_unknown_wave_application(self, abstract_waves):
+    w2 = origen.dut.add_timeset("complex").add_wavetable("application", period=50, inherit="shape")
+    w.add_wavegroup("pins").add_wave("0")
+    with pytest.raises(OSError):
+      w.apply_events(("blah", "pins"), 0, 5, 10)
+    with pytest.raises(OSError):
+      w.apply_events(("shape", "blah"), 0, 5, 10)
+
+  @pytest.mark.skip
+  def test_exception_when_consuming_abstract_event_data(self):
+    w1 = origen.dut.add_timeset("complex").add_wavetable('shape')
+    wgrp = w1.add_wavegroup('surround_z')
+    w = wgrp.add_wave('0')
+    w.push_abstract_event(HighZ)
+    assert w.action == HighZ
+    with pytest.raises(OSError):
+      w.at
+
+  @pytest.mark.skip
+  def test_exception_on_unknown_wave_inheritance(self):
+    w2 = origen.dut.add_timeset("complex").add_wavetable("w2", period=40)
+    with pytest.raises(OSError):
+      w2.add_wavegroup("pins").add_wave("0", inherit=("blah", "0"))
+    with pytest.raises(OSError):
+      w2.add_wavegroup("pins").add_wave("0", inherit=("w1", "blah"))
+
+  @pytest.mark.skip
+  def test_exception_on_unknown_wavetable_inheritance(self):
+    with pytest.raises(OSError):
+      origen.dut.add_timeset("complex").add_wavetable("w2", period=40, inherit="blah!")
+
+# class TestBuildingWavesWithBlocks
+
+#   @pytest.mark.xfail
+#   def test_with_static_timing(self):
+
+#   @pytest.mark.xfail
+#   def test_with_single_dynamic_applied_timing(self):
+
+#   @pytest.mark.xfail
+#   def test_with_multiple_dynamic_timing(self):
+
+#   @pytest.mark.xfail
+#   def test_with_mixed_timing(self):
+
+#   @pytest.mark.xfail
+#   def test_exception_on_unknown_wave(self):
+
+#   @pytest.mark.xfail
+#   def test_exception_when_using_abstract_waves(self):
 
   # We're assuming timesets, wavetable, etc. have already passed their appropriate dict/list-like_api test, so assuming that
   # interface is good there and just filling in some missing pieces.
@@ -404,6 +709,21 @@ class TestComplexTimingScenerios:
     assert e.at == 20
 
   def test_retrieving_timeset_data_derived_from(self, define_waves_derived_from):
+    ''' STIL:
+
+        waveforms {
+          PortOperations { 1 { 'period*0.25' 1; } }
+        }
+        =>
+        waveforms {
+          PortOperations { 10 { 'period*0.25' 1/0; } }
+        }
+        Or the equivalent:
+        waveforms {
+          PortOperations { 1 { 'period*0.25' 1; } }
+          PortOperations { 0 { 'period*0.25' 0; } }
+        }
+    '''
     wgrp = origen.dut.timesets["complex"].wavetables["w1"].waves["PortOperations"]
     w1 = wgrp.waves['1']
     w2 = wgrp.waves['0']

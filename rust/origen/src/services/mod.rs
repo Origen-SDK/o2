@@ -1,4 +1,5 @@
 pub mod jtag;
+pub mod swd;
 
 use crate::{Error, Result};
 
@@ -6,6 +7,7 @@ use crate::{Error, Result};
 pub enum Service {
     None, // Not used, but removes a compiler warning until we have more service types
     JTAG(jtag::Service),
+    SWD(swd::Service),
 }
 
 impl Service {}

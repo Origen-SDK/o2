@@ -1,4 +1,5 @@
 import origen
+from types import ModuleType
 
 # This defines the methods for defining sub-blocks in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
@@ -6,8 +7,11 @@ class Loader:
     def __init__(self, controller):
         self.controller = controller
 
-    def sub_block(self, name, block_path=None, offset=None):
-        b = self.controller.app.instantiate_block(block_path)
+    def sub_block(self, name, block_path=None, mod_path=None, offset=None, sb_options=None):
+        if mod_path is not None:
+            b = self.controller.app.instantiate_block_from_mod(mod_path)
+        else:
+            b = self.controller.app.instantiate_block(block_path)
         b.name = name
         b.path = f"{self.controller.path}.{name}"
         # Add the python representation of this block to its parent
@@ -15,6 +19,11 @@ class Loader:
         self.controller.sub_blocks[name] = b
         # Create a new representation of it in the internal database
         b.model_id = origen.dut.db.create_model(self.controller.model_id, name, offset)
+        for base in b.__class__.__bases__:
+            if hasattr(base, "model_init"):
+                base.model_init(b, block_options=sb_options)
+        if hasattr(b, "model_init"):
+            b.model_init(b, block_options=sb_options)
         return b
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py

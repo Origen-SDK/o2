@@ -1,7 +1,10 @@
 use super::stil;
 use crate::core::model::pins::pin::PinActions;
+use crate::services::swd::Acknowledgements;
+use crate::standard_sub_blocks::arm_debug::mem_ap::MemAP;
 use num_bigint::BigUint;
 use std::collections::HashMap;
+use indexmap::IndexMap;
 
 type Id = usize;
 
@@ -21,11 +24,28 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     Test(String),
     Comment(u8, String), // level, msg
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Timeset nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
     SetTimeset(usize),   // Indicates both a set or change of the current timeset
     ClearTimeset,
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Pinheader nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
     SetPinHeader(usize), // Indicates the pin header selected
     ClearPinHeader,
-    PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, PinActions, Pin Data
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Pattern generation nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, (PinActions, Pin Data)
+    Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
+    Cycle(u32, bool), // repeat (0 not allowed), compressable
+    PatternHeader,
+    PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
+                // represents the end of the 'pattern vectors', for vector-based testers.
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Register transaction nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
     RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
     RegVerify(
         Id,
@@ -35,6 +55,9 @@ pub enum Attrs {
         Option<BigUint>,
         Option<String>,
     ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// JTAG nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
     JTAGWriteIR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
     JTAGVerifyIR(
         u32,
@@ -53,10 +76,30 @@ pub enum Attrs {
         Option<BigUint>,
         Option<String>,
     ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    Cycle(u32, bool), // repeat (0 not allowed), compressable
-    PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
-    // represents the end of the 'pattern vectors', for vector-based testers.
-    PatternHeader,
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// SWD nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    SWDWriteAP(BigUint, u32, Acknowledgements),
+    // SWDBufferedWriteAP(),
+    SWDVerifyAP(BigUint, u32, Acknowledgements, Option<bool>),
+    SWDWriteDP(BigUint, u32, Acknowledgements),
+    // SWDBufferedWriteDP(),
+    SWDVerifyDP(BigUint, u32, Acknowledgements, Option<bool>),
+    SWDLineReset,
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Arm Debug nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ArmDebugMemAPWrite(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
+    // ArmDebugMemAPRead(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
+    // ArmDebugMemAPCapture(MemAP, BigUint), // mem_ap_id, addr
+    ArmDebugMemAPWriteReg(MemAP), // mem_ap_id, addr, data
+    // ArmDebugMemAPRead(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
+    // ArmDebugMemAPCapture(MemAP, BigUint), // mem_ap_id, addr
+    ArmDebugSwjJTAGToSWD,
+    ArmDebugSwjSWDToJTAG,
+    // ArmDebugSWJ__EnterDormant,
+    // ArmDebugSWJ__ExitDormant
 
     //// Text (Comment) nodes
     //// Useful for formatting comment blocks in the AST.
@@ -65,7 +108,7 @@ pub enum Attrs {
     // How exactly this will look in the output is up to the render, but there should be some sort of
     // delimiter or otherwise obvious 'break' in the text
     // This node optionally accepts a 'title', which can be handled however the renderer sees fit.
-    // It also optionally accetps a 'level', which the renderer can use to decide how to delimit it
+    // It also optionally accepts a 'level', which the renderer can use to decide how to delimit it
     TextLine, // Content that should appear on the same line. This is only a single node so that other nodes can be used in its children.
     // For example:
     //   TextLine

@@ -159,6 +159,9 @@ class Base:
                 t += self.sub_blocks[key].tree_as_str(l, False)
         return t
 
+    def _set_as_default_address_block(self, mem_map_name, addr_block_name):
+        self._default_default_address_block = self.memory_maps[mem_map_name].address_blocks[addr_block_name]
+
     def memory_map(self, name):
         self._load_regs()
         return origen.dut.db.memory_map(self.model_id, name)

@@ -29,7 +29,7 @@ pub enum Return {
     /// A combination of Unwrap and ProcessChildren, which will unwrap the current node
     /// but leave processed children in its place
     UnwrapWithProcessedChildren,
-    /// A combinatin of Inline and ProcessChildren which will add the given nodes
+    /// A combination of Inline and ProcessChildren which will add the given nodes
     /// then proceed to process the original node's children
     InlineWithProcessedChildren(Vec<Node>),
 }

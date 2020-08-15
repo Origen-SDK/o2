@@ -1,4 +1,5 @@
 pub mod pattern_renderer;
+pub mod api_macros;
 
 use crate::utility::differ::Differ;
 use crate::Result;

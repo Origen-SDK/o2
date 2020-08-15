@@ -1,0 +1,301 @@
+# ******************************************************************************************
+# Generated
+#   Time: 2020-08-14 15:57:51.849739400 -05:00
+#   By: nxa13790
+#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\swd_workout.py
+# ******************************************************************************************
+# Workspace
+#   Environment
+#     OS: Windows Unknown
+#     Mode: development
+#     Targets
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\dut\eagle.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\v93k_smt7.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\j750.py
+#   Application
+#     Local Path: C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app
+#   Origen Core
+#     Version: 2.0.0-pre1
+#     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
+# ******************************************************************************************
+# Header Comments
+#   From the Application
+#     Hello pattern from the application!
+# ******************************************************************************************
+FORMAT reset swdclk swdio
+R100 simple Z 0 Z # <EoL Comment>;
+# Reset SWD
+# SWD: Line Reset
+R50 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 Z # <EoL Comment>;
+# Write AP to 0xCECE_ECEC
+# SWD: Write AP - AP: 0, Data: 0xCECEECEC
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R5 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Acknowledge Ok: target -> host
+R1 simple Z 1 H # <EoL Comment>;
+R3 simple Z 1 L # <EoL Comment>;
+#   SWD: Drive data
+R2 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Drive data's parity bit
+R1 simple Z 1 0 # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Verify AP
+# SWD: Verify AP - AP: 0, Data: 0xCECEECEC
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R5 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Acknowledge Ok: target -> host
+R1 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+#   SWD: Verify data
+R2 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R3 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R3 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R3 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R3 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+#   SWD: Ignoring parity bit on SWD READ operation
+R2 simple Z 1 Z # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Write DP to 0x1234_ABCD
+# SWD: Write DP - DP: 0, Data: 0x1234ABCD
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R5 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Acknowledge Ok: target -> host
+R1 simple Z 1 H # <EoL Comment>;
+R3 simple Z 1 L # <EoL Comment>;
+#   SWD: Drive data
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 0 # <EoL Comment>;
+R4 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R3 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R3 simple Z 1 0 # <EoL Comment>;
+#   SWD: Drive data's parity bit
+R1 simple Z 1 1 # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Verify DP
+# SWD: Verify DP - DP: 0, Data: 0x1234ABCD
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R5 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Acknowledge Ok: target -> host
+R1 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+#   SWD: Verify data
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+R4 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R3 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R2 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R3 simple Z 1 L # <EoL Comment>;
+#   SWD: Ignoring parity bit on SWD READ operation
+R2 simple Z 1 Z # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Write AP with AP address expecting OK response
+# SWD: Write AP - AP: 1, Data: 0xBADC0DE
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R4 simple Z 1 1 # <EoL Comment>;
+R2 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Acknowledge Ok: target -> host
+R1 simple Z 1 H # <EoL Comment>;
+R3 simple Z 1 L # <EoL Comment>;
+#   SWD: Drive data
+R1 simple Z 1 0 # <EoL Comment>;
+R4 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R6 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R4 simple Z 1 0 # <EoL Comment>;
+#   SWD: Drive data's parity bit
+R1 simple Z 1 0 # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Verify AP with AP address, expecting WAIT response, and verifying the parity bit
+# SWD: Verify AP - AP: 2, Data: 0xBADC0DE
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Acknowledge Wait: target -> host
+R1 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+#   SWD: Verify data
+R1 simple Z 1 L # <EoL Comment>;
+R4 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R6 simple Z 1 L # <EoL Comment>;
+R3 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R3 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R4 simple Z 1 L # <EoL Comment>;
+#   SWD: Expecting parity bit of 0
+R2 simple Z 1 L # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Write DP with DP address expecting FAULT response
+# SWD: Write DP - DP: 3, Data: 0xC0DE1BAD
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R3 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Acknowledge Fault: target -> host
+R2 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+#   SWD: Drive data
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R4 simple Z 1 0 # <EoL Comment>;
+R4 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+R6 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Drive data's parity bit
+R1 simple Z 1 1 # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Verify DP with DP address, ignoring the target's acknowledgement, and verifying the parity bit
+# SWD: Verify DP - DP: 3, Data: 0xC0DE1BAD
+#   SWD: Header: host -> target
+R1 simple Z 1 Z # <EoL Comment>;
+R1 simple Z 1 1 # <EoL Comment>;
+R1 simple Z 1 0 # <EoL Comment>;
+R3 simple Z 1 1 # <EoL Comment>;
+R3 simple Z 1 0 # <EoL Comment>;
+R2 simple Z 1 1 # <EoL Comment>;
+#   SWD: Do not check acknowledgement
+R3 simple Z 1 Z # <EoL Comment>;
+#   SWD: Verify data
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R1 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R3 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R4 simple Z 1 L # <EoL Comment>;
+R4 simple Z 1 H # <EoL Comment>;
+R1 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+R6 simple Z 1 L # <EoL Comment>;
+R2 simple Z 1 H # <EoL Comment>;
+#   SWD: Ignoring parity bit on SWD READ operation
+R2 simple Z 1 Z # <EoL Comment>;
+#   SWD: Disable SWDCLK and SWDIO
+R10 simple Z 0 Z # <EoL Comment>;
+# Reset SWD
+# SWD: Line Reset
+R50 simple Z 1 1 # <EoL Comment>;
+R12 simple Z 1 Z # <EoL Comment>;
+SQPG STOP;

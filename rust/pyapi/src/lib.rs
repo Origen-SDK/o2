@@ -18,6 +18,7 @@ mod interface;
 mod producer;
 mod tester;
 mod utility;
+mod standard_sub_blocks;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
@@ -39,6 +40,7 @@ use services::PyInit_services;
 use tester::PyInit_tester;
 use utility::PyInit_utility;
 use utility::location::Location;
+use standard_sub_blocks::PyInit_standard_sub_blocks;
 
 #[macro_export]
 macro_rules! pypath {
@@ -86,6 +88,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;
     m.add_wrapped(wrap_pymodule!(utility))?;
+    m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     Ok(())
 }
 

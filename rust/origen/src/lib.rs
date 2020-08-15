@@ -16,6 +16,7 @@ pub mod generator;
 pub mod prog_gen;
 pub mod revision_control;
 pub mod services;
+pub mod standard_sub_blocks;
 pub mod testers;
 pub mod utility;
 

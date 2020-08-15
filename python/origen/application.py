@@ -90,6 +90,18 @@ class Base:
         origen.dut = dut
         return dut
 
+    def instantiate_block_from_mod(self, mod):
+        if not self.__instantiate_dut_called:
+            raise RuntimeError(f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{path}\")' instead?")
+
+        # Load the module and try to find its controller.
+        m = importlib.import_module(mod + ".controller")
+        block = m.Controller()
+        block.app = self
+        block.block_path = mod
+        block.from_mod_path = True
+        return block
+
     def instantiate_block(self, path):
         '''
             Instantiate the given block and return it

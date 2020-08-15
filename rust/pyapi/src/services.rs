@@ -1,3 +1,5 @@
+mod swd;
+
 use crate::extract_value;
 use crate::model::Model;
 use origen::services::{jtag, Service};
@@ -8,6 +10,7 @@ use pyo3::types::PyAny;
 /// Implements the module _origen.services in Python
 pub fn services(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<JTAG>()?;
+    m.add_class::<swd::SWD>()?;
 
     Ok(())
 }
