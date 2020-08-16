@@ -133,13 +133,23 @@ pub fn run(matches: &ArgMatches) {
                 std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing wheel dir");
             }
             cd(&STATUS.origen_wksp_root.join("rust").join("pyapi"));
+            let mut maturin_args = vec![
+                "build",
+                "--no-sdist", // Local building of the pyapi will not be supported
+                "--release",
+            ];
+            let python_interpreter;
+            if let Ok(ver) = std::env::var("PYTHON_INTERPRETER") {
+                maturin_args.push("--interpreter");
+                python_interpreter = format!("{}", ver);
+                maturin_args.push(&python_interpreter);
+            } else if let Ok(ver) = std::env::var("PYTHON_VERSION") {
+                maturin_args.push("--interpreter");
+                python_interpreter = format!("python{}", ver);
+                maturin_args.push(&python_interpreter);
+            }
             Command::new("maturin")
-                .args(&[
-                    "build",
-                    "--no-sdist", // Local building of the pyapi will not be supported
-                    "--release",
-                    "--manifest-path",
-                ])
+                .args(&maturin_args)
                 .status()
                 .expect("failed to build pyapi for release");
 

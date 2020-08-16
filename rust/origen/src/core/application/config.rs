@@ -1,7 +1,7 @@
 use crate::core::term;
+use crate::utility::location::Location;
 use config::File;
 use std::path::{Path, PathBuf};
-use crate::utility::location::Location;
 use crate::core::application::target::matches;
 
 #[derive(Debug, Deserialize)]
@@ -104,7 +104,7 @@ impl Config {
         let loc;
         match s.get_str("website_release_location") {
             Ok(l) => loc = Some(l),
-            Err(_) => loc = None
+            Err(_) => loc = None,
         }
         s.set("website_release_location", None::<String>).unwrap();
         let mut c: Self = s.try_into().unwrap();

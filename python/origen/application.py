@@ -8,11 +8,11 @@ from origen.translator import Translator
 from origen.compiler import Compiler
 from origen.errors import *
 
+
 class Base:
     '''
         The base class of all Origen ``applications``.
     '''
-
     @property
     def name(self):
         ''' Returns the unique ID (name) of the app/plugin '''
@@ -80,13 +80,18 @@ class Base:
         ''' Instantiate the given DUT and return it, this must be called first before any
             sub-blocks can be instantiated '''
         if origen.dut is not None:
-            raise RuntimeError("Only one DUT target can be loaded, your current target selection instantiates multiple DUTs")
+            raise RuntimeError(
+                "Only one DUT target can be loaded, your current target selection instantiates multiple DUTs"
+            )
         if origen._target_loading is not True:
-            raise RuntimeError("A DUT can only be instantiated within a target load sequence")
+            raise RuntimeError(
+                "A DUT can only be instantiated within a target load sequence")
         self.__instantiate_dut_called = True
         dut = self.instantiate_block(path)
         if not isinstance(dut, TopLevel):
-            raise RuntimeError("The DUT object is not an instance of origen.application::TopLevel")
+            raise RuntimeError(
+                "The DUT object is not an instance of origen.application::TopLevel"
+            )
         origen.dut = dut
         return dut
 
@@ -110,18 +115,21 @@ class Base:
             >>> origen.app.instantiate_block("nvm.flash.f2mb")
         '''
         if not self.__instantiate_dut_called:
-            raise RuntimeError(f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{path}\")' instead?")
+            raise RuntimeError(
+                f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{path}\")' instead?"
+            )
 
         orig_path = path
         done = False
         # If no controller class is defined then look up the nearest available parent
-        while not self.block_path_to_filepath(path).joinpath('controller.py').exists() and not done:
+        while not self.block_path_to_filepath(path).joinpath(
+                'controller.py').exists() and not done:
             p = path
             path = re.sub(r'\.[^\.]+$', "", path)
             done = p == path
 
         # If no controller was found in the app, fall back to the Origen Base controller
-        if done: 
+        if done:
             if path == "dut":
                 from origen.controller import TopLevel
                 block = TopLevel()
@@ -148,7 +156,8 @@ class Base:
         fields = controller.block_path.split(".")
         for i, field in enumerate(fields):
             if i == 0:
-                filepath = origen.root.joinpath(self.name).joinpath("blocks").joinpath(fields[i])
+                filepath = origen.root.joinpath(
+                    self.name).joinpath("blocks").joinpath(fields[i])
             else:
                 filepath = filepath.joinpath("derivatives").joinpath(fields[i])
             p = filepath.joinpath(filename)
@@ -156,7 +165,7 @@ class Base:
                 if filename == "registers.py":
                     from origen.registers.loader import Loader
                     context = Loader(controller).api()
-                    
+
                 elif filename == "sub_blocks.py":
                     from origen.sub_blocks import Loader
                     context = Loader(controller).api()
@@ -164,11 +173,11 @@ class Base:
                 elif filename == "pins.py":
                     from origen.pins import Loader
                     context = Loader(controller).api()
-                
+
                 elif filename == "timing.py":
                     from origen.timesets import Loader
                     context = Loader(controller).api()
-                    
+
                 elif filename == "services.py":
                     from origen.services import Loader
                     context = Loader(controller).api()

@@ -8,6 +8,7 @@ from origen.interface import BasicInterface
 
 top_level_flow_open = False
 
+
 class Producer(_origen.producer.PyProducer):
   def issue_callback(self, c, kwargs):
       if origen.helpers.has_method(origen.dut, c) and not kwargs.get("skip_all_callbacks") and not kwargs.get(f"skip_callback_{c}"):
@@ -96,59 +97,59 @@ class Producer(_origen.producer.PyProducer):
 
 # (_origen.producer.PyPattern)
 class PatternClass:
-  def __init__(self, name, **kwargs):
-    if name in kwargs:
-      # User overwrote the pattern name, or provided one for a sourceless generation
-      processed_name = kwargs['name']
-    else:
-      processed_name = name
+    def __init__(self, name, **kwargs):
+        if name in kwargs:
+            # User overwrote the pattern name, or provided one for a sourceless generation
+            processed_name = kwargs['name']
+        else:
+            processed_name = name
 
-    if "prefix" in kwargs:
-      processed_name = f"{kwargs['prefix']}_{processed_name}"
-    
-    if "postfix" in kwargs:
-      processed_name = f"{processed_name}_{kwargs['postfix']}"
+        if "prefix" in kwargs:
+            processed_name = f"{kwargs['prefix']}_{processed_name}"
 
-    self.name = processed_name
+        if "postfix" in kwargs:
+            processed_name = f"{processed_name}_{kwargs['postfix']}"
 
-    # Collect the header comments from:
-    #  * The application
-    #  * <To-do> Current plugin
-    #  * <To-do> Other plugins (if necessary)
-    #  * Pattern specifics given in the header
-    self.header_comments = {}
-    if origen.helpers.has_method(origen.app, "pattern_header"):
-      self.header_comments["app"] = origen.app.pattern_header(self)
-    
-    if "header_comments" in kwargs:
-      self.header_comments["pattern"] = kwargs["header_comments"]
+        self.name = processed_name
+
+        # Collect the header comments from:
+        #  * The application
+        #  * <To-do> Current plugin
+        #  * <To-do> Other plugins (if necessary)
+        #  * Pattern specifics given in the header
+        self.header_comments = {}
+        if origen.helpers.has_method(origen.app, "pattern_header"):
+            self.header_comments["app"] = origen.app.pattern_header(self)
+
+        if "header_comments" in kwargs:
+            self.header_comments["pattern"] = kwargs["header_comments"]
+
 
 # (_origen.producer.PyFlow)
 class FlowClass:
-  def __init__(self, name, **kwargs):
-    if name in kwargs:
-      # User overwrote the pattern name, or provided one for a sourceless generation
-      processed_name = kwargs['name']
-    else:
-      processed_name = name
+    def __init__(self, name, **kwargs):
+        if name in kwargs:
+            # User overwrote the pattern name, or provided one for a sourceless generation
+            processed_name = kwargs['name']
+        else:
+            processed_name = name
 
-    if "prefix" in kwargs:
-      processed_name = f"{kwargs['prefix']}_{processed_name}"
-    
-    if "postfix" in kwargs:
-      processed_name = f"{processed_name}_{kwargs['postfix']}"
+        if "prefix" in kwargs:
+            processed_name = f"{kwargs['prefix']}_{processed_name}"
 
-    self.name = processed_name
+        if "postfix" in kwargs:
+            processed_name = f"{processed_name}_{kwargs['postfix']}"
 
-    # Collect the header comments from:
-    #  * The application
-    #  * <To-do> Current plugin
-    #  * <To-do> Other plugins (if necessary)
-    #  * Pattern specifics given in the header
-    self.header_comments = {}
-    if origen.helpers.has_method(origen.app, "flow_header"):
-      self.header_comments["app"] = origen.app.flow_header(self)
-    
-    if "header_comments" in kwargs:
-      self.header_comments["flow"] = kwargs["header_comments"]
+        self.name = processed_name
 
+        # Collect the header comments from:
+        #  * The application
+        #  * <To-do> Current plugin
+        #  * <To-do> Other plugins (if necessary)
+        #  * Pattern specifics given in the header
+        self.header_comments = {}
+        if origen.helpers.has_method(origen.app, "flow_header"):
+            self.header_comments["app"] = origen.app.flow_header(self)
+
+        if "header_comments" in kwargs:
+            self.header_comments["flow"] = kwargs["header_comments"]

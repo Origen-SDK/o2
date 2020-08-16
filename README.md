@@ -35,6 +35,7 @@ anyone who only wants to use Origen - if that's you, then follow the guides at h
    pip3 install maturin
    pip3 install twine
    pip3 install pyfs
+   pip3 install yapf
    pip3 install -U keyrings.alt
    ~~~
 

@@ -17,42 +17,48 @@ if sys.platform == "win32":
     #necessary for rlcompleter since it relies on the existance
     #of a readline module
     from pyreadline.rlmain import Readline
-    __all__ = [ 'parse_and_bind',
-                'get_line_buffer',
-                'insert_text',
-                'clear_history',
-                'read_init_file',
-                'read_history_file',
-                'write_history_file',
-                'get_current_history_length',
-                'get_history_length',
-                'get_history_item',
-                'set_history_length',
-                'set_startup_hook',
-                'set_pre_input_hook',
-                'set_completer',
-                'get_completer',
-                'get_begidx',
-                'get_endidx',
-                'set_completer_delims',
-                'get_completer_delims',
-                'add_history',
-                'callback_handler_install',
-                'callback_handler_remove',
-                'callback_read_char',] #Some other objects are added below
+    __all__ = [
+        'parse_and_bind',
+        'get_line_buffer',
+        'insert_text',
+        'clear_history',
+        'read_init_file',
+        'read_history_file',
+        'write_history_file',
+        'get_current_history_length',
+        'get_history_length',
+        'get_history_item',
+        'set_history_length',
+        'set_startup_hook',
+        'set_pre_input_hook',
+        'set_completer',
+        'get_completer',
+        'get_begidx',
+        'get_endidx',
+        'set_completer_delims',
+        'get_completer_delims',
+        'add_history',
+        'callback_handler_install',
+        'callback_handler_remove',
+        'callback_read_char',
+    ]  #Some other objects are added below
 
     # create a Readline object to contain the state
     rl = Readline()
 
     if rl.disable_readline:
+
         def dummy(completer=""):
             pass
+
         for funk in __all__:
             globals()[funk] = dummy
     else:
+
         def GetOutputFile():
             '''Return the console object used by readline so that it can be used for printing in color.'''
             return rl.console
+
         __all__.append("GetOutputFile")
 
         import pyreadline.console as console
@@ -82,15 +88,24 @@ if sys.platform == "win32":
         set_pre_input_hook = rl.set_pre_input_hook
         set_startup_hook = rl.set_startup_hook
 
-        callback_handler_install=rl.callback_handler_install
-        callback_handler_remove=rl.callback_handler_remove
-        callback_read_char=rl.callback_read_char
+        callback_handler_install = rl.callback_handler_install
+        callback_handler_remove = rl.callback_handler_remove
+        callback_read_char = rl.callback_read_char
 
         console.install_readline(rl.readline)
 
     __all__ += ["rl", "run_cmd"]
 
-def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output_dir=None, reference_dir=None, args=None, **kwargs):
+
+def run_cmd(command,
+            targets=None,
+            verbosity=None,
+            mode=None,
+            files=None,
+            output_dir=None,
+            reference_dir=None,
+            args=None,
+            **kwargs):
     ''' Run an Origen command. This is the main entry method for the CLI, but it can also
         be used in application commands to invoke Origen commands within the same thread instead of
         making system calls.
@@ -125,7 +140,7 @@ def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output
         _origen.set_reference_dir(reference_dir)
 
     origen.target.setup(targets=targets)
-    
+
     # The generate command handles patterns and flows.
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
@@ -136,17 +151,21 @@ def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output
             origen.tester._prepare_for_generate()
             _generate_prepared = True
         for (i, f) in enumerate(_origen.file_handler()):
-            origen.logger.info(f"Executing source {i+1} of {len(_origen.file_handler())}: {f}")
+            origen.logger.info(
+                f"Executing source {i+1} of {len(_origen.file_handler())}: {f}"
+            )
             # Starts a new JOB in Origen which provides some long term storage and tracking
-            # of files that are referenced on the Rust side 
+            # of files that are referenced on the Rust side
             # The JOB API can be accessed via origen.producer.current_job
             origen.producer.create_job("generate", f)
             context = origen.producer.api()
             origen.load_file(f, locals=context)
         # Print a summary here...
         stats = origen.tester.stats()
-        changes = stats['changed_pattern_files'] > 0 or stats['changed_program_files'] > 0
-        new_files = stats['new_pattern_files'] > 0 or stats['new_program_files'] > 0
+        changes = stats['changed_pattern_files'] > 0 or stats[
+            'changed_program_files'] > 0
+        new_files = stats['new_pattern_files'] > 0 or stats[
+            'new_program_files'] > 0
         if changes or new_files:
             print("")
             if changes:
@@ -173,7 +192,8 @@ def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output
         # Also, its a known issue that powershell doesn't display yellow text correctly. The standard command prompt will
         # though.
         colorama.init()
-        historyPath = origen.root.joinpath(".origen").joinpath("console_history")
+        historyPath = origen.root.joinpath(".origen").joinpath(
+            "console_history")
 
         def save_history(historyPath=historyPath):
             import readline
@@ -188,16 +208,18 @@ def run_cmd(command, targets=None, verbosity=None, mode=None, files=None, output
         import code
         from origen import dut, tester
         from origen.registers.actions import write, verify, write_transaction, verify_transaction
-        code.interact(banner=f"Origen {origen.version}", local=locals(), exitmsg="")
+        code.interact(banner=f"Origen {origen.version}",
+                      local=locals(),
+                      exitmsg="")
 
     elif command == "web:build":
         from origen.web import run_cmd
         return run_cmd("build", args)
-    
+
     elif command == "web:view":
         from origen.web import run_cmd
         return run_cmd("view", args)
-    
+
     elif command == "web:clean":
         from origen.web import run_cmd
         return run_cmd("clean", args)

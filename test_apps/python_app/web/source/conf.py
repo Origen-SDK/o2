@@ -28,28 +28,23 @@ author = 'Origen Core Team'
 # The full version, including alpha/beta/rc tags
 release = '0.0.0'
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-  'origen.web.origen_sphinx_extension',
-  'autoapi.sphinx',
-  'sphinx.ext.autodoc',
-  'sphinx.ext.napoleon',
-  'sphinx.ext.autosectionlabel',
-  'recommonmark',
-  'origen.web.shorthand'
+    'origen.web.origen_sphinx_extension', 'autoapi.sphinx',
+    'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autosectionlabel',
+    'recommonmark', 'origen.web.shorthand'
 ]
 
 autosectionlabel_prefix_document = True
 autoapi_modules = {
-  'example.application': {
-    'module-members': ['undoc-members'],
-    'class-members': ['members', 'undoc-members']
-  }
+    'example.application': {
+        'module-members': ['undoc-members'],
+        'class-members': ['members', 'undoc-members']
+    }
 }
 autoapi_output_dir = origen.web.interbuild_dir.joinpath('autoapi')
 
@@ -66,16 +61,13 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme_options = {
-  'navbar_links': [
-    ('Github', 'https://github.com/Origen-SDK/o2/tree/master/example', True)
-  ],
-  'logos': [
-    {
-      'src': '_static/example_logo.png',
-      'alt': 'Example',
-      'rel_src': True,
-    }
-  ]
+    'navbar_links':
+    [('Github', 'https://github.com/Origen-SDK/o2/tree/master/example', True)],
+    'logos': [{
+        'src': '_static/example_logo.png',
+        'alt': 'Example',
+        'rel_src': True,
+    }]
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

@@ -38,9 +38,9 @@ use logger::PyInit_logger;
 use producer::PyInit_producer;
 use services::PyInit_services;
 use tester::PyInit_tester;
-use utility::PyInit_utility;
 use utility::location::Location;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
+use utility::PyInit_utility;
 
 #[macro_export]
 macro_rules! pypath {
@@ -252,14 +252,18 @@ fn app_config(py: Python) -> PyResult<PyObject> {
         let _ = ret.set_item(
             "website_release_location",
             match &config.website_release_location {
-                Some(loc) => Py::new(py, Location {location: (*loc).clone()}).unwrap().to_object(py),
-                None => py.None()
-            }
+                Some(loc) => Py::new(
+                    py,
+                    Location {
+                        location: (*loc).clone(),
+                    },
+                )
+                .unwrap()
+                .to_object(py),
+                None => py.None(),
+            },
         );
-        let _ = ret.set_item(
-            "website_release_name",
-            &config.website_release_name,
-        );
+        let _ = ret.set_item("website_release_name", &config.website_release_name);
         Ok(())
     });
     Ok(ret.into())

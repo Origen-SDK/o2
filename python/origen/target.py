@@ -4,6 +4,7 @@ import _origen
 current_targets = []
 first_load_done = False
 
+
 # Setup the targets to be applied at future calls to target.load, but without
 # actually loading them at this time
 def setup(targets=None):
@@ -16,6 +17,7 @@ def setup(targets=None):
     if not isinstance(targets, list):
         targets = [targets]
     current_targets = targets
+
 
 # Load the target(s) previously registered by setup or as given
 def load(targets=None):
@@ -33,6 +35,7 @@ def load(targets=None):
             else:
                 origen.load_file(_origen.target_file(t, "targets"))
     origen._target_loading = False
+
 
 # Load the target(s) previously registered by setup but only if they
 # have not been loaded yet

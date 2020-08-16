@@ -529,77 +529,87 @@ fn main() {
                 .about(t_help)
                 .setting(AppSettings::ArgRequiredElseHelp)
                 .visible_alias("w")
-                .subcommand(SubCommand::with_name("build") // What I think this command should be called
-                    .about("Builds the web documentation")
-                    .visible_alias("b")
-                    .visible_alias("compile") // If coming from O1
-                    .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
-                    .arg(Arg::with_name("view")
-                        .long("view")
-                        .help("Launch your web browser after the build")
-                        .takes_value(false)
-                    )
-                    .arg(Arg::with_name("clean")
-                        .long("clean")
-                        .help("Clean up directories from previous builds and force a rebuild")
-                        .takes_value(false)
-                    )
-                    .arg(Arg::with_name("release")
-                        .long("release")
-                        .short("r")
-                        .help("Release (deploy) the resulting web pages")
-                        .takes_value(false)
-                    )
-                    .arg(Arg::with_name("archive")
-                        .long("archive")
-                        .short("a")
-                        .help(
-"Archive the resulting web pages after building"
-                    )
-                        .takes_value(true)
-                        .multiple(false)
-                        .min_values(0)
-                    )
-                    .arg(Arg::with_name("as-release")
-                        .long("as-release")
-                        .help("Build webpages with release checks")
-                        .takes_value(false)
-                    )
-                    .arg(Arg::with_name("release-with-warnings")
-                        .long("release-with-warnings")
-                        .help("Release webpages even if warnings persists")
-                        .takes_value(false)
-                    )
-                    .arg(Arg::with_name("no-api")
-                        .long("no-api")
-                        .help("Skip building the API")
-                        .takes_value(false)
-                    )
-                    .arg(Arg::with_name("sphinx-args")
-                        .long("sphinx-args")
-                        .help(
-"Additional arguments to pass to the 'sphinx-build' command
+                .subcommand(
+                    SubCommand::with_name("build") // What I think this command should be called
+                        .about("Builds the web documentation")
+                        .visible_alias("b")
+                        .visible_alias("compile") // If coming from O1
+                        .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
+                        .arg(
+                            Arg::with_name("view")
+                                .long("view")
+                                .help("Launch your web browser after the build")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("clean")
+                                .long("clean")
+                                .help(
+                                    "Clean up directories from previous builds and force a rebuild",
+                                )
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("release")
+                                .long("release")
+                                .short("r")
+                                .help("Release (deploy) the resulting web pages")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("archive")
+                                .long("archive")
+                                .short("a")
+                                .help("Archive the resulting web pages after building")
+                                .takes_value(true)
+                                .multiple(false)
+                                .min_values(0),
+                        )
+                        .arg(
+                            Arg::with_name("as-release")
+                                .long("as-release")
+                                .help("Build webpages with release checks")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("release-with-warnings")
+                                .long("release-with-warnings")
+                                .help("Release webpages even if warnings persists")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("no-api")
+                                .long("no-api")
+                                .help("Skip building the API")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("sphinx-args")
+                                .long("sphinx-args")
+                                .help(
+                                    "Additional arguments to pass to the 'sphinx-build' command
   Argument will passed as a single string and appended to the build command
   E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
-     -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'"
-                        )
-                        .takes_value(true)
-                        .multiple(false)
-                        .allow_hyphen_values(true)
-                    )
-                    // .arg(Arg::with_name("pdf")
-                    //     .long("pdf")
-                    //     .help("Create a PDF of resulting web pages")
-                    //     .takes_value(false)
-                    // )
+     -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'",
+                                )
+                                .takes_value(true)
+                                .multiple(false)
+                                .allow_hyphen_values(true),
+                        ), // .arg(Arg::with_name("pdf")
+                           //     .long("pdf")
+                           //     .help("Create a PDF of resulting web pages")
+                           //     .takes_value(false)
+                           // )
                 )
-                .subcommand(SubCommand::with_name("view")
-                    .about("Launches your web browser to view previously built documentation")
-                    .visible_alias("v")
+                .subcommand(
+                    SubCommand::with_name("view")
+                        .about("Launches your web browser to view previously built documentation")
+                        .visible_alias("v"),
                 )
-                .subcommand(SubCommand::with_name("clean")
-                    .about("Cleans the output directory and all cached files")
-                )
+                .subcommand(
+                    SubCommand::with_name("clean")
+                        .about("Cleans the output directory and all cached files"),
+                ),
         );
 
         /************************************************************************************/
@@ -859,31 +869,11 @@ CORE COMMANDS:
                         None,
                         None,
                         None,
-                        Some(args)
-                    )
-                },
-                "view" => {
-                    commands::launch(
-                        "web:view",
-                        None,
-                        &None,
-                        None,
-                        None,
-                        None,
-                        None
-                    )
-                },
-                "clean" => {
-                    commands::launch(
-                        "web:clean",
-                        None,
-                        &None,
-                        None,
-                        None,
-                        None,
-                        None
+                        Some(args),
                     )
                 }
+                "view" => commands::launch("web:view", None, &None, None, None, None, None),
+                "clean" => commands::launch("web:clean", None, &None, None, None, None, None),
                 _ => {}
             }
         }

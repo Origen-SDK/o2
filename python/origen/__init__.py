@@ -143,11 +143,13 @@ if status["is_app_present"]:
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
     app = a.Application()
 
+
 def set_mode(val: str) -> None:
     """ Sets the current mode """
     global mode
     if val:
         mode = _origen.clean_mode(val)
+
 
 def load_file(path, globals={}, locals={}):
     # Will convert any paths with / to \ on Windows
@@ -158,9 +160,11 @@ def load_file(path, globals={}, locals={}):
         code = compile(f.read(), path, 'exec')
         exec(code, globals, context)
 
+
 def test_ast() -> List[str]:
     ''' Returns a serialized representation of the AST '''
     return pickle.loads(bytes(_origen.test_ast()))
+
 
 @contextmanager
 def reg_description_parsing():
@@ -169,6 +173,7 @@ def reg_description_parsing():
     _reg_description_parsing = True
     yield
     _reg_description_parsing = orig
+
 
 def standard_context():
     ''' Returns the context (locals) that are available by default within files
@@ -181,19 +186,9 @@ def standard_context():
         "tester": lambda: __import__("origen").tester,
     }
 
+
 __all__ = [
-    *internal_members(sys.modules[__name__]),
-    'config',
-    'status',
-    'root',
-    'version',
-    'logger',
-    'log',
-    'running_on_windows',
-    'running_on_linux',
-    'frontend_root',
-    'app',
-    'dut',
-    'tester',
-    'producer'
+    *internal_members(sys.modules[__name__]), 'config', 'status', 'root',
+    'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
+    'frontend_root', 'app', 'dut', 'tester', 'producer'
 ]

@@ -3,6 +3,7 @@ from origen.errors import *
 import pytest
 from tests.shared import *
 
+
 @pytest.fixture(autouse=True)
 def run_around_tests():
     global dut
@@ -11,6 +12,7 @@ def run_around_tests():
     dut = origen.dut
     yield
     # Code that will run after each test
+
 
 def test_memory_maps():
     assert dut.memory_maps
@@ -42,9 +44,11 @@ def test_memory_maps():
 
     assert dut.memory_maps.user.regs.len() == 2
 
+
 def test_address_blocks():
     assert dut.default.address_blocks
-    assert dut.default.address_block("default") == dut.default.address_blocks["default"]
+    assert dut.default.address_block(
+        "default") == dut.default.address_blocks["default"]
     #assert len(dut.memory_maps) == 3
     #assert len(dut.core0.memory_maps) == 0
     #assert len(dut.core0.adc0.memory_maps) == 1
@@ -74,6 +78,7 @@ def test_address_blocks():
     #
     #assert dut.memory_maps.test.bank0.regs.len() == 2
 
+
 def test_regs_can_be_added():
     base = dut.regs.len()
     dut.add_simple_reg("treg1", 0x1000)
@@ -82,14 +87,17 @@ def test_regs_can_be_added():
         reg.Field('trim', offset=0, width=8)
     assert dut.regs.len() == base + 2
 
+
 def test_address_blocks_can_be_fetched():
     assert dut
     pass
+
 
 def test_regs_can_be_fetched():
     assert dut.reg("reg1")
     assert dut.reg("no_reg") == None
     #assert dut.regs["reg1"]
+
 
 def test_register_reset_values():
     with dut.add_reg("t1", 0) as reg:
@@ -97,19 +105,28 @@ def test_register_reset_values():
     assert dut.t1.f1.data() == 0x55
 
     with dut.add_reg("t2", 0) as reg:
-        reg.Field("f1", offset=0, width=8, resets={
-            "hard": 0xAA,
-            "soft": 0xFF,
-        })
+        reg.Field("f1",
+                  offset=0,
+                  width=8,
+                  resets={
+                      "hard": 0xAA,
+                      "soft": 0xFF,
+                  })
     assert dut.t2.f1.data() == 0xAA
 
     with dut.add_reg("t3", 0) as reg:
-        reg.Field("f1", offset=0, width=8, resets={
-            "hard": { "value": 0xAA, "mask": 0xF0 },
-            "soft": 0xFF,
-        })
+        reg.Field("f1",
+                  offset=0,
+                  width=8,
+                  resets={
+                      "hard": {
+                          "value": 0xAA,
+                          "mask": 0xF0
+                      },
+                      "soft": 0xFF,
+                  })
     assert dut.t3.f1.data() == 0xA0
-        
+
 
 def test_reading_undefined_data_raises_error():
     dut.add_simple_reg("t1", 0)
@@ -118,6 +135,7 @@ def test_reading_undefined_data_raises_error():
         reg.data()
     reg.set_data(0)
     assert reg.data() == 0
+
 
 def test_reg_bits_attr_returns_a_list():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
@@ -132,6 +150,7 @@ def test_reg_bits_attr_returns_a_list():
     reg.bits[6].set_data(1)  # is an unimplemented bit
     assert reg.data() == 0b101
 
+
 def test_reg_fields_attr_returns_a_dict():
     with dut.add_reg("tr1", 0x0, size=8) as reg:
         reg.Field("b0", offset=5, reset=1)
@@ -144,6 +163,7 @@ def test_reg_fields_attr_returns_a_dict():
     reg.fields["b0"].set_data(0b1)
     reg.fields["b1"].set_data(0b1100)
     assert reg.data() == 0b101100
+
 
 def test_msb0_behavior():
     with dut.add_reg("tr1", 0, size=16, bit_order="msb0") as reg:
@@ -171,6 +191,7 @@ def test_msb0_behavior():
     reg.with_msb0()[2:4].set_data(7)
     assert reg.adch.data() == 7
 
+
 def test_filename_and_lineno():
     if origen.status["on_windows"]:
         assert "example\\blocks\\dut\\registers.py" in dut.breg0.filename
@@ -192,6 +213,7 @@ def test_filename_and_lineno():
         assert "tests/registers_test.py" in dut.tr1.filename
         assert "tests/registers_test.py" in dut.tr2.filename
 
+
 def test_register_dirty_tracking():
     dut.add_simple_reg("treg1", 0x1000, reset=0)
     reg = dut.treg1
@@ -208,6 +230,7 @@ def test_register_dirty_tracking():
     reg.reset()
     assert reg.is_modified_since_reset() == False
     assert reg.is_in_reset_state() == True
+
 
 def test_snapshots():
     dut.add_simple_reg("treg1", 0x1000, reset=0)
@@ -233,12 +256,14 @@ def test_snapshots():
     reg.rollback("snap1")
     assert reg.overlay() == "blah"
 
+
 def test_x_bits_reset_correctly():
     assert dut.areg0.aien.has_known_value() == False
     assert dut.areg0.set_data(0)
     assert dut.areg0.aien.has_known_value() == True
     assert dut.areg0.reset()
     assert dut.areg0.aien.has_known_value() == False
+
 
 def test_reg_dirty_collection():
     dut.add_simple_reg("tr1", 0x1000, reset=0)

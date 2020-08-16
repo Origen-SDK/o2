@@ -1,6 +1,7 @@
 import origen
 from types import ModuleType
 
+
 # This defines the methods for defining sub-blocks in Python and then handles serializing
 # the definitions and handing them over to the Rust model for instantiation.
 class Loader:
@@ -29,5 +30,5 @@ class Loader:
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py
     def api(self):
         return {
-            "SubBlock": self.sub_block, 
+            "SubBlock": self.sub_block,
         }

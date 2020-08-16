@@ -3,10 +3,12 @@ from mako.template import Template
 from os import access, W_OK, X_OK, R_OK
 from origen.errors import *
 
+
 class UnknownSyntaxError(Exception):
     ''' Raised when an unknown syntax if given '''
     def __init__(self, syntax):
         self.message = f"Origen's compiler cannot does not know how to compiler syntax '{syntax}''"
+
 
 class ExplicitSyntaxRequiredError(Exception):
     ''' Raised when an explicit syntax is required, but none was given '''
@@ -20,12 +22,12 @@ class ExplicitSyntaxRequiredError(Exception):
         else:
             self.message = f"Origen's Compiler cannot discern syntax for file {src}"
 
-class Renderer(abc.ABC):
 
+class Renderer(abc.ABC):
     @property
     @abc.abstractclassmethod
     def file_extensions(cls):
-        return [] #raise NotImplementedError
+        return []  #raise NotImplementedError
 
     @abc.abstractmethod
     def render_file(self, file):
@@ -47,6 +49,7 @@ class Renderer(abc.ABC):
             s = s.replace(ext if ext.startswith('.') else f".{ext}", '')
         return pathlib.Path(src).parent.joinpath(s)
 
+
 class Compiler:
     def __init__(self, *args, **options):
         self.stack = list(args) if args else []
@@ -60,9 +63,10 @@ class Compiler:
     def supported_extensions(self):
         exts = []
         for r in self.renderers.values():
-            exts += [(ext if ext.startswith('.') else f".{ext}") for ext in r.file_extensions]
+            exts += [(ext if ext.startswith('.') else f".{ext}")
+                     for ext in r.file_extensions]
         return exts
-    
+
     @property
     def syntaxes(self):
         return self.renderers.keys()
@@ -70,12 +74,15 @@ class Compiler:
     # Allow the stack to be incremented, enabling compile at a later time
     def push(self, *args, **options):
         if not args:
-            raise TypeError('No compiler arguments passed, cannot push them to the stack!')
+            raise TypeError(
+                'No compiler arguments passed, cannot push them to the stack!')
         if 'direct_src' in options:
             self.stack.append((list(args), options))
         elif 'templates_dir' in options:
             t = options.get('templates_dir', None) or self.templates_dir
-            self.stack.append((list([self.templates_dir.joinpath(f) for f in args]), options))
+            self.stack.append(
+                (list([self.templates_dir.joinpath(f)
+                       for f in args]), options))
         else:
             self.stack.append((list([pathlib.Path(f) for f in args]), options))
 
@@ -89,7 +96,7 @@ class Compiler:
     # Clear the stack
     def clear(self):
         self.stack, self.renders, self.output_files = [], [], []
-        
+
     # Run the compiler with the stack as-is or with new args
     def run(self, *args, **options):
         if args:
@@ -107,16 +114,23 @@ class Compiler:
     @property
     def last_render(self):
         return self.renders[-1] if self.renders else None
-    
+
     @property
     def templates_dir(self):
-        templates_dir = pathlib.Path(f"{origen.app.root}/{origen.app.name}/templates")
+        templates_dir = pathlib.Path(
+            f"{origen.app.root}/{origen.app.name}/templates")
         if not templates_dir.exists():
-            raise FileNotFoundError(f"Application templates directory does not exist at {templates_dir}")
+            raise FileNotFoundError(
+                f"Application templates directory does not exist at {templates_dir}"
+            )
         elif not templates_dir.is_dir():
-            raise NotADirectoryError(f"Application templates directory exists at {templates_dir} but it is not a real directory!")
+            raise NotADirectoryError(
+                f"Application templates directory exists at {templates_dir} but it is not a real directory!"
+            )
         elif not access(templates_dir, W_OK):
-            raise PermissionError(f"Application templates directory exists at {templates_dir} but is not writeable!")
+            raise PermissionError(
+                f"Application templates directory exists at {templates_dir} but is not writeable!"
+            )
         else:
             return templates_dir
 
@@ -127,9 +141,21 @@ class Compiler:
         elif f.suffix == '.jinja':
             return 'jinja'
 
-    def render(self, src, *, direct_src=False, syntax=None, context={}, use_standard_context=True, renderer_opts={}, output_dir=None, output_name=None, file_to_string=False, **options):
+    def render(self,
+               src,
+               *,
+               direct_src=False,
+               syntax=None,
+               context={},
+               use_standard_context=True,
+               renderer_opts={},
+               output_dir=None,
+               output_name=None,
+               file_to_string=False,
+               **options):
         ''' Direct access to compling templates. '''
-        r = self.renderer_for(src, direct_src=direct_src, syntax=syntax)(self, renderer_opts)
+        r = self.renderer_for(src, direct_src=direct_src,
+                              syntax=syntax)(self, renderer_opts)
         c = context.copy()
         if use_standard_context:
             c = {**c, **origen.standard_context()}
@@ -142,15 +168,11 @@ class Compiler:
             else:
                 rendered = r.render_file(
                     src,
-                    self.resolve_filename(
-                        src,
-                        output_dir=output_dir,
-                        output_name=output_name,
-                        renderer=r
-                    ),
-                    c
-                )
-                origen.logger.info(f"Compiler output created at {rendered}")     
+                    self.resolve_filename(src,
+                                          output_dir=output_dir,
+                                          output_name=output_name,
+                                          renderer=r), c)
+                origen.logger.info(f"Compiler output created at {rendered}")
                 return rendered
 
     def renderer_for(self, src, direct_src=False, syntax=None):
@@ -172,7 +194,12 @@ class Compiler:
             # Given an unrecognized error. Complain.
             raise UnknownSyntaxError(syntax)
 
-    def resolve_filename(self, src, *, output_dir=None, output_name=None, renderer=None):
+    def resolve_filename(self,
+                         src,
+                         *,
+                         output_dir=None,
+                         output_name=None,
+                         renderer=None):
         '''
             Resolves the output name from the source, syntax, and given options.
 
@@ -188,7 +215,9 @@ class Compiler:
         '''
         src = pathlib.Path(src)
         r = renderer or self.renderer_for(src)
-        output = pathlib.Path(output_dir or origen.app.output_dir.joinpath(f'renders/{r.__name__.lower()}'))
+        output = pathlib.Path(
+            output_dir
+            or origen.app.output_dir.joinpath(f'renders/{r.__name__.lower()}'))
         output = output.joinpath(output_name or r.resolve_filename(src.name))
         return output
 
@@ -205,12 +234,14 @@ class Compiler:
         if not t.exists():
             raise FileNotFoundError(f"Template file does not exist at {t}")
         elif not access(t, R_OK):
-            raise PermissionError(f"Template file exists at {t} but is not readable!")
+            raise PermissionError(
+                f"Template file exists at {t} but is not readable!")
+
 
 class MakoRenderer(Renderer):
     class MakoSyntax:
         var_sub = re.compile(r'\$\{.*\}')
-        ctrl_struct =  re.compile(r'^\s*\%.*\%')
+        ctrl_struct = re.compile(r'^\s*\%.*\%')
         module_block = re.compile(r'\<\%\!.*\%\>')
         tag = re.compile(r'\<\%.*\>')
         expresions = [var_sub, ctrl_struct, module_block, tag]
@@ -240,9 +271,10 @@ class MakoRenderer(Renderer):
     def render_file(self, src, output_file, context):
         print(src)
         return self.compiler._write_output_file(
-            Template(filename=str(src), preprocessor=self.preprocessor).render(**context),
-            output_file
-        )
+            Template(filename=str(src),
+                     preprocessor=self.preprocessor).render(**context),
+            output_file)
+
 
 # TODO: Add Jinja wrapper to Origen's compiler, especially since we'll get it for free via Sphinx
 # class JinjaRenderer(Renderer):
