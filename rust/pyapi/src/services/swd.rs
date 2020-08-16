@@ -15,7 +15,7 @@ pub struct SWD {
 #[pymethods]
 impl SWD {
     #[new]
-    fn new(_obj: &PyRawObject) -> Self {
+    fn new() -> Self {
         Self { id: 0 }
     }
 

@@ -11,7 +11,7 @@ macro_rules! extract_pinactions {
       acts.reverse(); 
       Ok(acts)
     } else if $actions.get_type().name() == "PinActions" {
-      let acts = $actions.downcast_ref::<crate::pins::pin_actions::PinActions>()?;
+      let acts = $actions.extract::<PyRef<crate::pins::pin_actions::PinActions>>()?;
       Ok(acts.actions.clone())
     } else {
       Err(pyo3::exceptions::TypeError::py_err(format!(
@@ -148,14 +148,14 @@ impl PinActions {
 
   #[new]
   #[args(actions="*", _kwargs="**")]
-  fn new(obj: &PyRawObject, actions: Option<&PyTuple>, _kwargs: Option<&PyDict>) -> PyResult<()> {
+  fn new(actions: Option<&PyTuple>, _kwargs: Option<&PyDict>) -> PyResult<Self> {
     let mut temp: Vec<OrigenPinActions> = vec!();
     if let Some(actions_) = actions {
       for a in actions_.iter() {
         if let Ok(s) = a.extract::<String>() {
           temp.extend(OrigenPinActions::from_symbol_str(&s)?);
         } else if a.get_type().name() == "PinActions" {
-          let s = a.downcast_ref::<Self>().unwrap();
+          let s = a.extract::<PyRef<Self>>().unwrap();
           let mut s_ = s.actions.clone();
           s_.reverse();
           temp.extend(s_);
@@ -168,12 +168,10 @@ impl PinActions {
       }
     }
     temp.reverse();
-    obj.init({
-      Self {
+    let obj = Self {
         actions: temp
-      }
-    });
-    Ok(())
+      };
+    Ok(obj)
   }
 
   #[getter]
@@ -207,7 +205,7 @@ impl pyo3::class::basic::PyObjectProtocol for PinActions {
     if let Ok(s) = other.extract::<String>() {
       other_string = s;
     } else if other.get_type().name() == "PinActions" {
-      let other_actions = other.downcast_ref::<Self>()?;
+      let other_actions = other.extract::<PyRef<Self>>()?;
       other_string = OrigenPinActions::to_action_string(&other_actions.actions);
     } else {
       return Ok(false.to_object(py))
@@ -312,10 +310,8 @@ pub struct PinActionsIter {
 
 #[pyproto]
 impl<'p> pyo3::class::iter::PyIterProtocol<'p> for PinActionsIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        Ok(slf.into())
     }
 
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {

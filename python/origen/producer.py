@@ -50,10 +50,6 @@ class Producer(_origen.producer.PyProducer):
 
   @contextmanager
   def Flow(self, **kwargs):
-
-
-
-
       # Instantiate the app interface
       if origen.interface is None:
           path = f'{_origen.app_config()["name"]}.interface.interface'

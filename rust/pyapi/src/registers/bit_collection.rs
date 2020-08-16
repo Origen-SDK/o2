@@ -12,6 +12,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyInt, PyList, PySlice, PyString, PyTuple};
 use std::iter::FromIterator;
 use std::sync::MutexGuard;
+use num::ToPrimitive;
 
 import_exception!(origen.errors, UndefinedDataError);
 
@@ -430,12 +431,24 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn reset_val(&self, name: Option<&str>) -> PyResult<Option<BigUint>> {
+    fn reset_val(&self, name: Option<&str>) -> PyResult<Option<u128>> {
         let dut = origen::dut();
-        match name {
-            Some(n) => Ok(self.materialize(&dut)?.reset_val(n, &dut)?),
-            None => Ok(self.materialize(&dut)?.reset_val("hard", &dut)?),
-        }
+        Ok(match name {
+            Some(n) => {
+                let v = self.materialize(&dut)?.reset_val(n, &dut)?;
+                match v {
+                    Some(val) => Some(val.to_u128().unwrap()),
+                    None => None
+                }
+            },
+            None => {
+                let v = self.materialize(&dut)?.reset_val("hard", &dut)?;
+                match v {
+                    Some(val) => Some(val.to_u128().unwrap()),
+                    None => None,
+                }
+            }
+        })
     }
 
     /// Returns true if the data value of any of the bits has been changed since
@@ -489,14 +502,14 @@ impl BitCollection {
     }
 
     /// An alias for get_data()
-    fn data(&self) -> PyResult<BigUint> {
+    fn data(&self) -> PyResult<u128> {
         self.get_data()
     }
 
-    fn get_data(&self) -> PyResult<BigUint> {
+    fn get_data(&self) -> PyResult<u128> {
         let dut = origen::dut();
         match self.materialize(&dut)?.data() {
-            Ok(v) => Ok(v),
+            Ok(v) => Ok(v.to_u128().unwrap()),
             Err(_) => {
                 if self.reg_id.is_some() {
                     match dut.get_register(self.reg_id.unwrap()) {
@@ -512,10 +525,10 @@ impl BitCollection {
         }
     }
 
-    fn set_data(&self, value: BigUint) -> PyResult<BitCollection> {
+    fn set_data(&self, value: u128) -> PyResult<BitCollection> {
         let dut = origen::dut();
         let rbc = self.materialize(&dut)?;
-        rbc.set_data(value);
+        rbc.set_data(BigUint::from(value));
         if self.is_verify_transaction_open() {
             rbc.set_verify_flag(None)?;
         }
@@ -566,7 +579,7 @@ impl BitCollection {
     /// Trigger a verify transaction on the register
     pub fn _internal_verify(
         &self,
-        enable: Option<BigUint>,
+        enable: Option<u128>,
         preset: bool,
     ) -> PyResult<Option<usize>> {
         if self.transaction != 0 {
@@ -574,7 +587,16 @@ impl BitCollection {
             Ok(None)
         } else {
             let dut = origen::dut();
-            let ref_id = self.materialize(&dut)?.verify(enable, preset, &dut)?;
+            let ref_id = self.materialize(&dut)?.verify(
+                {
+                    match enable {
+                        Some(v) => Some(BigUint::from(v)),
+                        None => None
+                    }
+                },
+                preset,
+                &dut
+            )?;
             Ok(ref_id)
         }
     }
@@ -588,9 +610,14 @@ impl BitCollection {
     /// Equivalent to calling verify() but without invoking a register transaction at the end,
     /// i.e. it will set the verify flag on the bits and optionally apply an enable mask when
     /// deciding what bit flags to set.
-    pub fn set_verify_flag(&self, enable: Option<BigUint>) -> PyResult<BitCollection> {
+    pub fn set_verify_flag(&self, enable: Option<u128>) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        self.materialize(&dut)?.set_verify_flag(enable)?;
+        self.materialize(&dut)?.set_verify_flag({
+            match enable {
+                Some(v) => Some(BigUint::from(v)),
+                None => None
+            }
+        })?;
         Ok(self.clone())
     }
 
@@ -832,16 +859,16 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn verify_enables(&self) -> PyResult<BigUint> {
-        Ok(self.materialize(&origen::dut())?.verify_enables())
+    fn verify_enables(&self) -> PyResult<u128> {
+        Ok(self.materialize(&origen::dut())?.verify_enables().to_u128().unwrap())
     }
 
-    fn capture_enables(&self) -> PyResult<BigUint> {
-        Ok(self.materialize(&origen::dut())?.capture_enables())
+    fn capture_enables(&self) -> PyResult<u128> {
+        Ok(self.materialize(&origen::dut())?.capture_enables().to_u128().unwrap())
     }
 
-    fn overlay_enables(&self) -> PyResult<BigUint> {
-        Ok(self.materialize(&origen::dut())?.overlay_enables())
+    fn overlay_enables(&self) -> PyResult<u128> {
+        Ok(self.materialize(&origen::dut())?.overlay_enables().to_u128().unwrap())
     }
 
     /// Returns true if no contained bits are in X or Z state

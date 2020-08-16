@@ -30,10 +30,14 @@ impl PinGroup {
     }
 
     #[setter]
-    fn set_data(&self, data: u32) -> PyResult<Py<Self>> {
+    fn set_data(&self, data: u32) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
         dut.set_pin_group_data(self.model_id, &self.name, data)?;
+        Ok(())
+    }
 
+    fn set(&self, data: u32) -> PyResult<Py<Self>> {
+        self.set_data(data)?;
         let gil = Python::acquire_gil();
         let py = gil.python();
         Ok(Py::new(
@@ -44,10 +48,6 @@ impl PinGroup {
             },
         )
         .unwrap())
-    }
-
-    fn set(&self, data: u32) -> PyResult<Py<Self>> {
-        return self.set_data(data);
     }
 
     fn with_mask(&self, mask: usize) -> PyResult<Py<Self>> {
@@ -113,44 +113,44 @@ impl PinGroup {
         Ok(PinActions {actions: pin_actions}.into_py(py))
     }
 
-    fn drive(slf: PyRef<Self>, data: Option<u32>) -> PyResult<PyObject> {
+    fn drive(slf: PyRef<Self>, data: Option<u32>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.drive_pin_group(slf.model_id, &slf.name, data, Option::None)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn verify(slf: PyRef<Self>, data: Option<u32>) -> PyResult<PyObject> {
+    fn verify(slf: PyRef<Self>, data: Option<u32>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.verify_pin_group(slf.model_id, &slf.name, data, Option::None)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn capture(slf: PyRef<Self>) -> PyResult<PyObject> {
+    fn capture(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.capture_pin_group(slf.model_id, &slf.name, Option::None)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn highz(slf: PyRef<Self>) -> PyResult<PyObject> {
+    fn highz(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.highz_pin_group(slf.model_id, &slf.name, Option::None)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
     #[args(kwargs = "**")]
-    fn set_actions(slf: PyRef<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn set_actions(slf: PyRef<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         let mut mask = None;
         if let Some(args) = kwargs {
@@ -167,16 +167,16 @@ impl PinGroup {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn reset(slf: PyRef<Self>) -> PyResult<PyObject> {
+    fn reset(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.reset_pin_group(slf.model_id, &slf.name)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
     #[getter]
@@ -222,7 +222,7 @@ impl PinGroup {
     }
 
     #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -231,17 +231,17 @@ impl PinGroup {
         locals.set_item("kwargs", kwargs.to_object(py))?;
 
         py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<PyObject> {
+    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 }
 

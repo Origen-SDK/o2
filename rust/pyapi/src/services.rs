@@ -24,7 +24,7 @@ struct JTAG {
 #[pymethods]
 impl JTAG {
     #[new]
-    fn new(_obj: &PyRawObject) -> Self {
+    fn new() -> Self {
         JTAG { id: 0 }
     }
 

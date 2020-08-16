@@ -39,23 +39,24 @@ impl PinCollection {
     }
 
     #[setter]
-    fn set_data(&self, data: u32) -> PyResult<Py<Self>> {
+    fn set_data(&self, data: u32) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
         dut.set_pin_collection_data(&self.pin_collection, data)?;
+        Ok(())
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        // let gil = Python::acquire_gil();
+        // let py = gil.python();
 
-        // I'm sure there's a better way to return self, but I wasn't able to get anything to work.
-        // Just copying self and returning that for now.
-        Ok(Py::new(
-            py,
-            PinCollection {
-                pin_collection: self.pin_collection.clone(),
-                model_id: self.model_id,
-            },
-        )
-        .unwrap())
+        // // I'm sure there's a better way to return self, but I wasn't able to get anything to work.
+        // // Just copying self and returning that for now.
+        // Ok(Py::new(
+        //     py,
+        //     PinCollection {
+        //         pin_collection: self.pin_collection.clone(),
+        //         model_id: self.model_id,
+        //     },
+        // )
+        // .unwrap())
     }
 
     fn with_mask(&mut self, mask: usize) -> PyResult<Py<Self>> {
@@ -75,7 +76,21 @@ impl PinCollection {
     }
 
     fn set(&self, data: u32) -> PyResult<Py<Self>> {
-        return self.set_data(data);
+        self.set_data(data)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // I'm sure there's a better way to return self, but I wasn't able to get anything to work.
+        // Just copying self and returning that for now.
+        Ok(Py::new(
+            py,
+            PinCollection {
+                pin_collection: self.pin_collection.clone(),
+                model_id: self.model_id,
+            },
+        )
+        .unwrap())
     }
 
     #[setter]
@@ -88,12 +103,9 @@ impl PinCollection {
         Ok(())
     }
 
-    fn set_actions(mut slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<PyObject> {
+    fn set_actions(mut slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<Py<Self>> {
         slf.pin_actions(actions)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
     #[getter]
@@ -172,7 +184,7 @@ impl PinCollection {
     }
 
     #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
@@ -181,17 +193,17 @@ impl PinCollection {
         locals.set_item("kwargs", kwargs.to_object(py))?;
 
         py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<PyObject> {
+    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 }
 

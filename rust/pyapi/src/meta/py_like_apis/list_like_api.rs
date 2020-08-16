@@ -82,16 +82,14 @@ pub trait ListLikeAPI {
 
 #[pyclass]
 pub struct ListLikeIter {
-    pub parent: Box<dyn ListLikeAPI>,
+    pub parent: Box<dyn ListLikeAPI + std::marker::Send>,
     pub i: usize,
 }
 
 #[pyproto]
 impl<'p> pyo3::class::iter::PyIterProtocol<'p> for ListLikeIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        Ok(slf.into())
     }
 
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
@@ -146,22 +144,22 @@ pub trait GeneralizedListLikeAPI {
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
-        let indices = slice.indices((self.items().len() as i32).into())?;
+        // let indices = slice.indices((self.items().len() as i32).into())?;
         let gil = Python::acquire_gil();
         let py = gil.python();
         let mut rtn: Vec<PyObject> = vec![];
-        let mut i = indices.start;
-        if indices.step > 0 {
-            while i < indices.stop {
-                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
-                i += indices.step;
-            }
-        } else if indices.step < 0 {
-            while i > indices.stop {
-                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
-                i += indices.step;
-            }
-        }
+        // let mut i = indices.start;
+        // if indices.step > 0 {
+        //     while i < indices.stop {
+        //         rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+        //         i += indices.step;
+        //     }
+        // } else if indices.step < 0 {
+        //     while i > indices.stop {
+        //         rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+        //         i += indices.step;
+        //     }
+        // }
         Ok(rtn.to_object(py))
     }
 

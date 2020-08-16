@@ -37,11 +37,11 @@ fn create(
     offset: usize,
     size: Option<usize>,
     bit_order: String,
-    mut fields: Vec<&Field>,
+    mut fields: Vec<PyRef<Field>>,
     filename: Option<String>,
     lineno: Option<usize>,
     description: Option<String>,
-    resets: Option<Vec<&ResetVal>>,
+    resets: Option<Vec<PyRef<ResetVal>>>,
     access: Option<String>,
 ) -> PyResult<usize> {
     let reg_id;

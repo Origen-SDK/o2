@@ -19,17 +19,16 @@ pub struct Field {
 impl Field {
     #[new]
     fn new(
-        obj: &PyRawObject,
         name: String,
         description: Option<String>,
         offset: usize,
         width: usize,
         access: Option<String>,
-        resets: Option<Vec<&ResetVal>>,
-        enums: Vec<&FieldEnum>,
+        resets: Option<Vec<PyRef<ResetVal>>>,
+        enums: Vec<PyRef<FieldEnum>>,
         filename: Option<String>,
         lineno: Option<usize>,
-    ) {
+    ) -> Self {
         let mut enum_objs: Vec<FieldEnum> = Vec::new();
         for e in &enums {
             enum_objs.push(FieldEnum {
@@ -53,7 +52,6 @@ impl Field {
         } else {
             rsts = None;
         }
-        obj.init({
             Field {
                 name: name,
                 description: description,
@@ -65,7 +63,6 @@ impl Field {
                 filename: filename,
                 lineno: lineno,
             }
-        });
     }
 }
 
@@ -82,20 +79,17 @@ pub struct FieldEnum {
 impl FieldEnum {
     #[new]
     fn new(
-        obj: &PyRawObject,
         name: String,
         description: String,
         //usage: String,
-        value: BigUint,
-    ) {
-        obj.init({
+        value: u128,
+    ) -> Self {
             FieldEnum {
                 name: name,
                 description: description,
                 //usage: usage,
-                value: value,
+                value: BigUint::from(value),
             }
-        });
     }
 }
 
@@ -110,13 +104,14 @@ pub struct ResetVal {
 #[pymethods]
 impl ResetVal {
     #[new]
-    fn new(obj: &PyRawObject, name: String, value: BigUint, mask: Option<BigUint>) {
-        obj.init({
+    fn new(name: String, value: u128, mask: Option<u128>) -> Self {
             ResetVal {
                 name: name,
-                value: value,
-                mask: mask,
+                value: BigUint::from(value),
+                mask: match mask {
+                    Some(m) => Some(BigUint::from(m)),
+                    None => None
+                },
             }
-        });
     }
 }

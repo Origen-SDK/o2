@@ -917,7 +917,7 @@ macro_rules! action_from_pyany {
                 if let Ok(a) = $action.extract::<String>() {
                     t = a.clone();
                 } else if $action.get_type().name() == "PinActions" {
-                    let pin_actions = $action.downcast_ref::<super::super::pins::pin_actions::PinActions>().unwrap();
+                    let pin_actions = $action.extract::<PyRef<super::super::pins::pin_actions::PinActions>>().unwrap();
                     if pin_actions.actions.len() == 1 {
                         t = pin_actions.actions.first().unwrap().to_string();
                     } else {
@@ -1096,10 +1096,8 @@ pub struct SymbolMapIter {
 
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for SymbolMapIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        Ok(slf.into())
     }
 
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {

@@ -22,8 +22,8 @@ class Loader:
         for base in b.__class__.__bases__:
             if hasattr(base, "model_init"):
                 base.model_init(b, block_options=sb_options)
-        if hasattr(b, "model_init"):
-            b.model_init(b, block_options=sb_options)
+        # if hasattr(b, "model_init"):
+        #     b.model_init(b, block_options=sb_options)
         return b
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py

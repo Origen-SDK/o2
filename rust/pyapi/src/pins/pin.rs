@@ -34,10 +34,10 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        let dut = py
+        let mut dut = py
             .eval("origen.dut.db", None, Some(&locals))
             .unwrap()
-            .downcast_mut::<PyDUT>()?;
+            .extract::<PyRefMut<PyDUT>>()?;
         let idx = dut.push_metadata(obj);
 
         // Store the index of this object, returning an error if the
@@ -52,10 +52,10 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        let dut = py
+        let mut dut = py
             .eval("origen.dut.db", None, Some(&locals))
             .unwrap()
-            .downcast_mut::<PyDUT>()?;
+            .extract::<PyRefMut<PyDUT>>()?;
         match pin.get_metadata_id(id_str) {
             Some(idx) => {
                 dut.override_metadata_at(idx, obj)?;
