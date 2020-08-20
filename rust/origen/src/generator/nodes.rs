@@ -93,13 +93,19 @@ pub enum Attrs {
     // ArmDebugMemAPWrite(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
     // ArmDebugMemAPRead(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
     // ArmDebugMemAPCapture(MemAP, BigUint), // mem_ap_id, addr
-    ArmDebugMemAPWriteReg(MemAP), // mem_ap_id, addr, data
+    ArmDebugMemAPWriteReg(MemAP), // mem_ap_id - 
     // ArmDebugMemAPRead(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
     // ArmDebugMemAPCapture(MemAP, BigUint), // mem_ap_id, addr
-    ArmDebugSwjJTAGToSWD,
-    ArmDebugSwjSWDToJTAG,
-    // ArmDebugSWJ__EnterDormant,
-    // ArmDebugSWJ__ExitDormant
+    ArmDebugMemAPVerifyIDR(MemAP), // mem_ap_id - Verifies the IDR for the given MemAP
+    ArmDebugWriteDP(usize), // arm_debug_id - Generic write of a DP register
+    ArmDebugVerifyDP(usize), // arm_debug_id - Generic verify of a DP register
+    // ArmDebugVerifyDPIDR(usize), // arm_debug_id - Verify the DP's IDR
+    // ArmDebugPowerUp(usize), // arm_debug_id - Write power up bits in DP ctrl/stat
+    // ArmDebugVerifyPowerUp(usize), // arm_debug_id - Verify the DP ctrl/stat power up bits are set
+    ArmDebugSwjJTAGToSWD(usize), // arm_debug_id - Switch DP from JTAG to SWD
+    ArmDebugSwjSWDToJTAG(usize), // arm_debug_id - Switch DP from SWD to JTAG
+    // ArmDebugSWJ__EnterDormant, // Switch DP to dormant
+    // ArmDebugSWJ__ExitDormant, // Switch DP from dormant back to whatever it was prior to entering dormant.
 
     //// Text (Comment) nodes
     //// Useful for formatting comment blocks in the AST.

@@ -9,6 +9,7 @@ pub mod field;
 pub mod memory_map;
 pub mod register;
 pub mod register_file;
+pub mod macro_api;
 
 pub use address_block::AddressBlock;
 pub use bit::Bit;

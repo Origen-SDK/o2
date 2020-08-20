@@ -116,36 +116,24 @@ impl PinGroup {
     fn drive(slf: PyRef<Self>, data: Option<u32>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.drive_pin_group(slf.model_id, &slf.name, data, Option::None)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(slf.into())
     }
 
     fn verify(slf: PyRef<Self>, data: Option<u32>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.verify_pin_group(slf.model_id, &slf.name, data, Option::None)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(slf.into())
     }
 
     fn capture(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.capture_pin_group(slf.model_id, &slf.name, Option::None)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(slf.into())
     }
 
     fn highz(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.highz_pin_group(slf.model_id, &slf.name, Option::None)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(slf.into())
     }
 
@@ -164,18 +152,12 @@ impl PinGroup {
             &extract_pinactions!(actions)?,
             mask
         )?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(slf.into())
     }
 
     fn reset(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         dut.reset_pin_group(slf.model_id, &slf.name)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(slf.into())
     }
 

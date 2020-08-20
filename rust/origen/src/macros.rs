@@ -224,3 +224,12 @@ macro_rules! log_trace {
         $crate::LOGGER.trace(&formatted);
     }}
 }
+
+#[macro_export]
+macro_rules! hashmap {
+    ( $( $name:expr => $value:expr ),+ ) => {{
+        let mut h = std::collections::HashMap::new();
+        $( h.insert($name, $value); )+
+        h
+    }};
+}

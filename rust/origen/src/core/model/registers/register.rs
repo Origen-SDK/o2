@@ -6,6 +6,11 @@ use crate::{Error, Result};
 use indexmap::map::IndexMap;
 use std::cmp;
 use std::sync::MutexGuard;
+use super::bit::{Bit, UNDEFINED, ZERO};
+use std::sync::RwLock;
+use std::collections::HashMap;
+use num_bigint::BigUint;
+use crate::utility::big_uint_helpers::bit_slice;
 
 #[derive(Debug)]
 pub struct Register {
@@ -775,4 +780,305 @@ impl Register {
     //  'X'
     //end
     //end
+
+    pub fn add_reg(
+        dut: &mut crate::Dut,
+        address_block_id: usize,
+        register_file_id: Option<usize>,
+        name: &str,
+        offset: usize,
+        size: Option<usize>,
+        bit_order: &str,
+        filename: Option<String>,
+        lineno: Option<usize>,
+        description: Option<String>,
+        access: Option<&str>,
+        resets: Option<Vec<ResetVal>>,
+        fields: Vec<FieldContainer>
+    ) -> Result<usize> {
+        let r_id = dut.create_reg(
+            address_block_id,
+            register_file_id,
+            name,
+            offset,
+            size,
+            bit_order,
+            filename,
+            lineno,
+            description
+        )?;
+        crate::core::model::registers::register::Register::materialize(dut, r_id, access, resets, fields)?;
+        Ok(r_id)
+    }
+
+    pub fn materialize(
+        dut: &mut crate::Dut,
+        reg_id: usize,
+        access: Option<&str>,
+        resets: Option<Vec<ResetVal>>,
+        mut fields: Vec<FieldContainer>
+    ) -> Result<()> {
+        let reg_fields;
+        let base_bit_id;
+        let mut reset_vals: Vec<Option<(BigUint, Option<BigUint>)>> = Vec::new();
+        let mut non_zero_reset = false;
+        let lsb0;
+
+        fields.sort_by_key(|field| field.offset);
+        {
+            base_bit_id = dut.bits.len();
+        }
+
+        {
+            let reg = dut.get_mut_register(reg_id)?;
+            lsb0 = reg.bit_order == BitOrder::LSB0;
+            for f in fields {
+                let acc = match &f.access {
+                    Some(x) => x,
+                    None => match access {
+                        Some(y) => y,
+                        None => "rw",
+                    },
+                };
+                let field = reg.add_field(
+                    &f.name,
+                    f.description.as_ref(),
+                    f.offset,
+                    f.width,
+                    acc,
+                    f.filename.as_ref(),
+                    f.lineno,
+                )?;
+                for e in &f.enums {
+                    field.add_enum(&e.name, &e.description, &e.value)?;
+                }
+                if f.resets.is_none() && resets.is_none() {
+                    reset_vals.push(None);
+                } else {
+                    let mut val_found = false;
+                    // Store any resets defined on the field
+                    if !f.resets.is_none() {
+                        for r in f.resets.as_ref().unwrap() {
+                            field.add_reset(&r.name, &r.value, r.mask.as_ref())?;
+                            // Apply this state to the register at time 0
+                            if r.name == "hard" {
+                                //TODO: Need to handle the mask here too
+                                reset_vals.push(Some((r.value.clone(), r.mask.clone())));
+                                non_zero_reset = true;
+                                val_found = true;
+                            }
+                        }
+                    }
+                    // Store the field's portion of any top-level register resets
+                    if !resets.is_none() {
+                        for r in resets.as_ref().unwrap() {
+                            // Allow a reset of the same name defined on a field to override
+                            // it's portion of a top-level register reset value - i.e. if the field
+                            // already has a value for this reset then do nothing here
+                            if !field.resets.contains_key(&r.name) {
+                                // Work out the portion of the reset for this field
+                                let value =
+                                    bit_slice(&r.value, field.offset, field.width + field.offset - 1)?;
+                                let mask = match &r.mask {
+                                    None => None,
+                                    Some(x) => Some(bit_slice(
+                                        &x,
+                                        field.offset,
+                                        field.width + field.offset - 1,
+                                    )?),
+                                };
+                                field.add_reset(&r.name, &value, mask.as_ref())?;
+                                // Apply this state to the register at time 0
+                                if r.name == "hard" {
+                                    //TODO: Need to handle the mask here too
+                                    reset_vals.push(Some((value, mask)));
+                                    non_zero_reset = true;
+                                    val_found = true;
+                                }
+                            }
+                        }
+                    }
+                    if !val_found {
+                        reset_vals.push(None);
+                    }
+                }
+            }
+            for i in 0..reg.size as usize {
+                reg.bit_ids.push((base_bit_id + i) as usize);
+            }
+            reg_fields = reg.fields(true).collect::<Vec<SummaryField>>();
+        }
+
+        // Create the bits now that we know which ones are implemented
+        if lsb0 {
+            reset_vals.reverse();
+        }
+        for field in reg_fields {
+            // Intention here is to skip decomposing the BigUint unless required
+            if !non_zero_reset || field.spacer || reset_vals.last().unwrap().is_none() {
+                for i in 0..field.width {
+                    let val;
+                    if field.spacer {
+                        val = ZERO;
+                    } else {
+                        val = UNDEFINED;
+                    }
+                    let id;
+                    {
+                        id = dut.bits.len();
+                    }
+                    dut.bits.push(Bit {
+                        id: id,
+                        overlay: RwLock::new(None),
+                        overlay_snapshots: RwLock::new(HashMap::new()),
+                        register_id: reg_id,
+                        state: RwLock::new(val),
+                        device_state: RwLock::new(val),
+                        state_snapshots: RwLock::new(HashMap::new()),
+                        access: field.access,
+                        position: field.offset + i,
+                    });
+                }
+            } else {
+                let reset_val = reset_vals.last().unwrap().as_ref().unwrap();
+    
+                // If no reset mask to apply. There is a lot of duplication here but ran
+                // into borrow issues that I couldn't resolve and had to move on.
+                if reset_val.1.as_ref().is_none() {
+                    let mut bytes = reset_val.0.to_bytes_be();
+                    let mut byte = bytes.pop().unwrap();
+                    for i in 0..field.width {
+                        let state = (byte >> i % 8) & 1;
+                        let id;
+                        {
+                            id = dut.bits.len();
+                        }
+                        dut.bits.push(Bit {
+                            id: id,
+                            overlay: RwLock::new(None),
+                            overlay_snapshots: RwLock::new(HashMap::new()),
+                            register_id: reg_id,
+                            state: RwLock::new(state),
+                            device_state: RwLock::new(state),
+                            state_snapshots: RwLock::new(HashMap::new()),
+                            access: field.access,
+                            position: field.offset + i,
+                        });
+                        if i % 8 == 7 {
+                            match bytes.pop() {
+                                Some(x) => byte = x,
+                                None => byte = 0,
+                            }
+                        }
+                    }
+                } else {
+                    let mut bytes = reset_val.0.to_bytes_be();
+                    let mut byte = bytes.pop().unwrap();
+                    let mut mask_bytes = reset_val.1.as_ref().unwrap().to_bytes_be();
+                    let mut mask_byte = mask_bytes.pop().unwrap();
+                    for i in 0..field.width {
+                        let state = (byte >> i % 8) & (mask_byte >> i % 8) & 1;
+                        let id;
+                        {
+                            id = dut.bits.len();
+                        }
+                        dut.bits.push(Bit {
+                            id: id,
+                            overlay: RwLock::new(None),
+                            overlay_snapshots: RwLock::new(HashMap::new()),
+                            register_id: reg_id,
+                            state: RwLock::new(state),
+                            device_state: RwLock::new(state),
+                            state_snapshots: RwLock::new(HashMap::new()),
+                            access: field.access,
+                            position: field.offset + i,
+                        });
+                        if i % 8 == 7 {
+                            match bytes.pop() {
+                                Some(x) => byte = x,
+                                None => byte = 0,
+                            }
+                            match mask_bytes.pop() {
+                                Some(x) => mask_byte = x,
+                                None => mask_byte = 0,
+                            }
+                        }
+                    }
+                }
+            }
+            if !field.spacer {
+                reset_vals.pop();
+            }
+        }
+        Ok(())
+    }
+}
+
+pub struct FieldContainer {
+    pub name: String,
+    pub description: Option<String>,
+    pub offset: usize,
+    pub width: usize,
+    pub access: Option<String>,
+    pub resets: Option<Vec<ResetVal>>,
+    pub enums: Vec<FieldEnum>,
+    pub filename: Option<String>,
+    pub lineno: Option<usize>,
+}
+
+impl FieldContainer {
+    pub fn internal_new(name: &str, offset: usize, width: usize, access: &str, enums: Vec<FieldEnum>, resets: Option<Vec<ResetVal>>, description: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            description: Some(description.to_string()),
+            offset: offset,
+            width: width,
+            access: Some(access.to_string()),
+            resets: resets,
+            enums: enums,
+            filename: None,
+            lineno: None,
+        }
+    }
+}
+
+pub struct ResetVal {
+    pub name: String,
+    pub value: BigUint,
+    pub mask: Option<BigUint>,
+}
+
+impl ResetVal {
+    pub fn new(name: &str, val: u128, mask: Option<u128>) -> Self {
+        Self {
+            name: name.to_string(),
+            value: BigUint::from(val),
+            mask: {
+                match mask {
+                    Some(m) => Some(BigUint::from(m)),
+                    None => None
+                }
+            }
+        }
+    }
+}
+
+pub struct FieldEnum {
+    pub name: String,
+    pub description: String,
+    pub value: BigUint,
+}
+
+impl FieldEnum {
+    pub fn new(
+        name: String,
+        description: String,
+        value: u128,
+    ) -> Self {
+            FieldEnum {
+                name: name,
+                description: description,
+                value: BigUint::from(value),
+            }
+    }
 }

@@ -144,22 +144,22 @@ pub trait GeneralizedListLikeAPI {
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
-        // let indices = slice.indices((self.items().len() as i32).into())?;
+        let indices = slice.indices((self.items().len() as i32).into())?;
         let gil = Python::acquire_gil();
         let py = gil.python();
         let mut rtn: Vec<PyObject> = vec![];
-        // let mut i = indices.start;
-        // if indices.step > 0 {
-        //     while i < indices.stop {
-        //         rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
-        //         i += indices.step;
-        //     }
-        // } else if indices.step < 0 {
-        //     while i > indices.stop {
-        //         rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
-        //         i += indices.step;
-        //     }
-        // }
+        let mut i = indices.start;
+        if indices.step > 0 {
+            while i < indices.stop {
+                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+                i += indices.step;
+            }
+        } else if indices.step < 0 {
+            while i > indices.stop {
+                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+                i += indices.step;
+            }
+        }
         Ok(rtn.to_object(py))
     }
 

@@ -1,4 +1,5 @@
 use origen::standard_sub_blocks::ArmDebug as OrigenArmDebug;
+use origen::standard_sub_blocks::arm_debug::DP as OrigenDP;
 use origen::standard_sub_blocks::arm_debug::mem_ap::MemAP as OrigenMemAP;
 use pyo3::prelude::*;
 use crate::registers::bit_collection::BitCollection;
@@ -10,6 +11,7 @@ use pyo3::ToPyObject;
 /// Implements the module _origen.standard_sub_blocks in Python
 pub fn arm_debug(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ArmDebug>()?;
+    m.add_class::<DP>()?;
     m.add_class::<MemAP>()?;
     Ok(())
 }
@@ -20,7 +22,9 @@ pub fn arm_debug(_py: Python, m: &PyModule) -> PyResult<()> {
 /// with the :link-to:`origen::standard_sub_blocks::ArmDebug` model.
 /// The controller here is responsible for instantiating and initializing the
 /// ArmDebug model.
-pub struct ArmDebug {}
+pub struct ArmDebug {
+    arm_debug: Option<OrigenArmDebug>,
+}
 
 #[pymethods]
 impl ArmDebug {
@@ -32,18 +36,29 @@ impl ArmDebug {
 
     #[new]
     fn new() -> Self {
-            Self {}
+            Self {
+                arm_debug: None
+            }
     }
 
     #[classmethod]
     fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
+
+        // Create the Arm Debug instance
+        let arm_debug;
         {
             let mut dut = origen::dut();
             let model_id = instance.getattr("model_id")?.extract::<usize>()?;
-            OrigenArmDebug::model_init(&mut dut, model_id)?;
+            arm_debug = OrigenArmDebug::model_init(&mut dut, model_id)?;
         }
+
+        // Add the DP subblock
+        let args = PyTuple::new(py, &["dp".to_object(py)]);
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("mod_path", "origen.standard_sub_blocks.arm_debug.dp".to_object(py))?;
+        instance.downcast::<PyCell<Self>>()?.call_method("add_sub_block", args, Some(kwargs))?;
 
         if let Some(opts) = block_options {
             if let Some(mem_aps) = opts.get_item("mem_aps") {
@@ -71,6 +86,8 @@ impl ArmDebug {
                 }
             }
         }
+        let mut slf = instance.extract::<PyRefMut<Self>>()?;
+        slf.arm_debug = Some(arm_debug);
         Ok(())
     }
 
@@ -93,6 +110,106 @@ impl ArmDebug {
         slf.call_method("add_sub_block", args, Some(kwargs))?;
         Ok(())
     }
+
+    #[args(line_reset="true")]
+    fn switch_to_swd(mut slf: PyRefMut<Self>, line_reset: bool) -> PyResult<Py<Self>> {
+        slf.arm_debug.as_mut().expect("Arm Debug hasn't been initialized yet!").switch_to_swd(line_reset)?;
+        Ok(slf.into())
+    }
+
+    // #[args(data="None")]
+    // fn verify_dp_idcode(&self, data: Option<&PyAny>) -> PyResult<()> {
+    //     Ok(())
+    // }
+
+    fn power_up(slf: &PyCell<Self>) -> PyResult<()> {
+        let dp = slf.getattr("dp")?.extract::<DP>()?;
+        dp.power_up()
+    }
+
+    fn verify_powered_up(slf: &PyCell<Self>) -> PyResult<()> {
+        let dp = slf.getattr("dp")?.extract::<DP>()?;
+        dp.verify_powered_up()
+    }
+}
+
+macro_rules! get_dp {
+    ( $slf:expr ) => {
+        $slf.dp.as_ref().expect("DP has not been initialized yet!")
+    };
+}
+
+#[pyclass(subclass)]
+#[text_signature = "()"]
+#[derive(Clone)]
+struct DP {
+    pub dp: Option<OrigenDP>,
+}
+
+#[pymethods]
+impl DP {
+    #[classmethod]
+    fn __init__(_cls: &PyType, _instance: &PyAny) -> PyResult<()> {
+        Ok(())
+    }
+
+    #[new]
+    fn new() -> Self {
+        Self {
+            dp: None,
+        }
+    }
+
+    #[classmethod]
+    #[args(_block_options="**")]
+    fn model_init(_cls: &PyType, instance: &PyAny, _block_options: Option<&PyDict>) -> PyResult<()> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = instance.to_object(py);
+        let args = PyTuple::new(py, &["default".to_object(py), "default".to_object(py)]);
+        let dp;
+        {
+            let mut dut = origen::dut();
+            let model_id = obj.getattr(py, "model_id")?.extract::<usize>(py)?;
+            dp = OrigenDP::model_init(&mut dut, model_id)?;
+        }
+        let mut slf = instance.extract::<PyRefMut<Self>>()?;
+        slf.dp = Some(dp);
+        obj.call_method1(py, "_set_as_default_address_block", args)?;
+        Ok(())
+    }
+
+    fn write_register(&self, bits: &PyAny) -> PyResult<()> {
+        let bc = bits.extract::<PyRef<BitCollection>>()?;
+        let dut = origen::dut();
+        get_dp!(self).write_register(&dut, &bc.materialize(&dut)?)?;
+        Ok(())
+    }
+
+    fn verify_register(&self, bits: &PyAny) -> PyResult<()> {
+        let bc = bits.extract::<PyRef<BitCollection>>()?;
+        let dut = origen::dut();
+        get_dp!(self).verify_register(&dut, &bc.materialize(&dut)?)?;
+        Ok(())
+    }
+
+    fn power_up(&self) -> PyResult<()> {
+        let mut dut = origen::dut();
+        get_dp!(self).power_up(&mut dut)?;
+        Ok(())
+    }
+
+    fn verify_powered_up(&self) -> PyResult<()> {
+        let mut dut = origen::dut();
+        get_dp!(self).verify_powered_up(&mut dut)?;
+        Ok(())
+    }
+}
+
+macro_rules! get_mem_ap {
+    ( $slf:expr ) => {
+        $slf.mem_ap.as_ref().expect("MemAP has not been initialized yet!")
+    };
 }
 
 #[pyclass(subclass)]
@@ -149,10 +266,10 @@ impl MemAP {
     /// a BitCollection).
     /// Assumes that all posturing has been completed - that is, the bits' data, overlay
     /// status, etc. is current.
-    fn write_register(&self, bits: &PyAny, latency: Option<u32>) -> PyResult<()> {
+    fn write_register(&self, bits: &PyAny, _latency: Option<u32>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
-        self.mem_ap.as_ref().unwrap().write_register(&dut, &bc.materialize(&dut)?)?;
+        get_mem_ap!(self).write_register(&dut, &bc.materialize(&dut)?)?;
         Ok(())
     }
 }

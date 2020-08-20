@@ -1,5 +1,8 @@
 use num_bigint::BigUint;
 use pyo3::prelude::*;
+use origen::core::model::registers::register::ResetVal as OrigenResetVal;
+use origen::core::model::registers::register::FieldEnum as OrigenFieldEnum;
+use origen::core::model::registers::register::FieldContainer as OrigenField;
 
 #[pyclass]
 #[derive(Debug)]
@@ -66,6 +69,28 @@ impl Field {
     }
 }
 
+impl Field {
+    pub fn to_origen_field(&self) -> OrigenField {
+        OrigenField {
+            name: self.name.clone(),
+            description: self.description.clone(),
+            offset: self.offset,
+            width: self.width,
+            access: self.access.clone(),
+            resets: {
+                if let Some(_resets) = &self.resets {
+                    Some(_resets.iter().map( |res| res.to_origen_reset_val()).collect())
+                } else {
+                    None
+                }
+            },
+            enums: self.enums.iter().map ( |e| e.to_origen_field_enum()).collect(),
+            filename: self.filename.clone(),
+            lineno: self.lineno,
+        }
+    }
+}
+
 #[pyclass]
 #[derive(Debug)]
 pub struct FieldEnum {
@@ -93,6 +118,16 @@ impl FieldEnum {
     }
 }
 
+impl FieldEnum {
+    pub fn to_origen_field_enum(&self) -> OrigenFieldEnum {
+        OrigenFieldEnum {
+            name: self.name.clone(),
+            description: self.name.clone(),
+            value: self.value.clone()
+        }
+    }
+}
+
 #[pyclass]
 #[derive(Debug)]
 pub struct ResetVal {
@@ -113,5 +148,15 @@ impl ResetVal {
                     None => None
                 },
             }
+    }
+}
+
+impl ResetVal {
+    pub fn to_origen_reset_val(&self) -> OrigenResetVal {
+        OrigenResetVal {
+            name: self.name.clone(),
+            value: self.value.clone(),
+            mask: self.mask.clone(),
+        }
     }
 }

@@ -1,6 +1,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::{set_drive_high, drive_high, drive_low, drive_pin, cycle, drive_data, verify_high, verify_low, set_highz, set_drive_low, generate_even_parity, comment, verify_pin, highz, set_verify_low, verify_data};
+use crate::{set_drive_high, drive_high, drive_low, drive_pin, cycle, drive_data, verify_high, verify_low, set_highz, set_drive_low, generate_even_parity, comment, verify_pin, highz, verify_data};
 use super::Acknowledgements;
 use num::ToPrimitive;
 

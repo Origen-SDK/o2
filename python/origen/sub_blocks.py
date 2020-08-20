@@ -8,9 +8,10 @@ class Loader:
     def __init__(self, controller):
         self.controller = controller
 
-    def sub_block(self, name, block_path=None, mod_path=None, offset=None, sb_options=None):
+    def sub_block(self, name, block_path=None, mod_path=None, class_name="Controller", offset=None, sb_options={}):
         if mod_path is not None:
-            b = self.controller.app.instantiate_block_from_mod(mod_path)
+            sb_options["offset"] = offset
+            b = self.controller.app.instantiate_block_from_mod(mod_path, class_name, sb_options)
         else:
             b = self.controller.app.instantiate_block(block_path)
         b.name = name

@@ -1,13 +1,13 @@
 import origen
 import _origen
-import importlib
+import importlib, inspect
 import os.path
 import re
 from origen.controller import TopLevel
 from origen.translator import Translator
 from origen.compiler import Compiler
 from origen.errors import *
-
+from types import ModuleType
 
 class Base:
     '''
@@ -95,13 +95,20 @@ class Base:
         origen.dut = dut
         return dut
 
-    def instantiate_block_from_mod(self, mod):
+    def instantiate_block_from_mod(self, mod, class_name="Controller", sb_options={}):
         if not self.__instantiate_dut_called:
-            raise RuntimeError(f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{path}\")' instead?")
+            raise RuntimeError(f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{mod}\")' instead?")
 
         # Load the module and try to find its controller.
-        m = importlib.import_module(mod + ".controller")
-        block = m.Controller()
+        if isinstance(mod, ModuleType):
+            m = mod
+        else:
+            m = importlib.import_module(mod + ".controller")
+        c = getattr(m, class_name)
+        if 'kwargs' in inspect.signature(c).parameters:
+            block = c(**sb_options)
+        else:
+            block = c()
         block.app = self
         block.block_path = mod
         block.from_mod_path = True
@@ -153,6 +160,8 @@ class Base:
         
             >>> origen.app.load_block_files(dut.flash, "registers.py")
         '''
+        if isinstance(controller.block_path, ModuleType):
+            return controller
         fields = controller.block_path.split(".")
         for i, field in enumerate(fields):
             if i == 0:
