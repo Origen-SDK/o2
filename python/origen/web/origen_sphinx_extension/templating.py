@@ -101,7 +101,7 @@ def jinja_context(app):
 
 def insert_cmd_output(app, cmd, **opts):
     # Run the command and gather the output
-    out = subprocess.run(cmd, capture_output=True)
+    out = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     out = out.stdout.decode('utf-8').strip()
 
     # Embed the output in a code block

@@ -11,14 +11,14 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os, sys, pathlib, subprocess
+sys.path.insert(0, os.path.abspath('../../'))
+
 import origen
 import origen.web
 from origen.web.shorthand.dev import add_shorthand_dev_defs
 
 from sphinx.util.logging import getLogger
 logger = getLogger("origen")
-
-sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
@@ -39,7 +39,10 @@ extensions = [
     'sphinx.ext.extlinks'
 ]
 
-if subprocess.run("dot -V", shell=True, capture_output=True).returncode == 0:
+if subprocess.run("dot -V",
+                  shell=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE).returncode == 0:
     extensions.append('sphinx.ext.inheritance_diagram')
 else:
     logger.info(
