@@ -20,7 +20,7 @@ macro_rules! extract_reg32_params {
     }};
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ArmDebug {
     // This SWD instance's model ID
     pub model_id: usize,
@@ -32,36 +32,31 @@ pub struct ArmDebug {
     // Store this just as a bool:
     //  true -> JTAG
     //  false -> SWD
-    pub jtagdp: bool,
+    pub jtagnswd: bool,
+    //pub swd_id: usize,
 }
 
 impl ArmDebug {
 
     pub fn model_init(_dut: &mut crate::Dut, model_id: usize) -> Result<Self> {
-        // Add the DP as an address block within this instance
-        //let mut r = reg_32bit!(dut, dp_id, "IDCODE", 0xC, "");
         Ok(Self {
             model_id: model_id,
-            // memory_map_id: memory_map_id,
-            // dp_id: dp_id,
-            jtagdp: true,
+            jtagnswd: true,
+            //swd_id: swd_id,
         })
     }
 
-    pub fn switch_to_swd(&mut self, line_reset: bool) -> Result<()> {
-        if line_reset {
-            crate::TEST.push(crate::node!(SWDLineReset));
-        }
-        crate::TEST.push(crate::node!(ArmDebugSwjJTAGToSWD, self.model_id));
-        self.jtagdp = false;
+    pub fn switch_to_swd(&mut self) -> Result<()> {
+        crate::TEST.push(crate::node!(ArmDebugSwjJTAGToSWD, self.clone()));
+        self.jtagnswd = false;
         Ok(())
     }
 
-    /// Discerns how the register should be written (AP vs. DP) and adds the appropriate nodes
-    pub fn write_register(&self, dut: &MutexGuard<Dut>, bc: &BitCollection) -> Result<()> {
-        // ...
-        Ok(())
-    }
+    // /// Discerns how the register should be written (AP vs. DP) and adds the appropriate nodes
+    // pub fn write_register(&self, dut: &MutexGuard<Dut>, bc: &BitCollection) -> Result<()> {
+    //     // ...
+    //     Ok(())
+    // }
 
     // pub fn model(&self) -> &crate::core::model::Model {
     //     // ...
@@ -99,7 +94,8 @@ impl DP {
                 field!("PARTNO", 20, 8, "RO", vec!(), None, ""),
                 field!("MIN,", 16, 1, "RO", vec!(), None, ""),
                 field!("VERSION", 12, 4, "RO", vec!(), None, ""),
-                field!("DESIGNER", 1, 11, "RO", vec!(), None, "")
+                field!("DESIGNER", 1, 11, "RO", vec!(), None, ""),
+                field!("RES", 0, 1, "RO", vec!(), some_hard_reset_val!(0), "")
             ),
             "Provides information about the Debug Port."
         );
@@ -142,10 +138,30 @@ impl DP {
     }
 
     pub fn verify_powered_up(&self, dut: &mut MutexGuard<Dut>) -> Result<()> {
+        let reg = get_reg!(dut, self.dp_id, "ctrlstat");
+
+        let bc = get_bc_for!(dut, reg, "CSYSPWRUPREQ")?;
+        bc.set_data(BigUint::from(1 as u8));
+        bc.set_verify_flag(None)?;
+        let bc = get_bc_for!(dut, reg, "CDBGPWRUPREQ")?;
+        bc.set_data(BigUint::from(1 as u8));
+        bc.set_verify_flag(None)?;
+
+        let bc = get_bc_for!(dut, reg, "CSYSPWRUPREQ")?;
+        bc.set_data(BigUint::from(1 as u8));
+        bc.set_verify_flag(None)?;
+        let bc = get_bc_for!(dut, reg, "CDBGPWRUPREQ")?;
+        bc.set_data(BigUint::from(1 as u8));
+        bc.set_verify_flag(None)?;
         let bc = get_bc_for!(dut, self.dp_id, "ctrlstat", "CSYSPWRUPACK")?;
         bc.set_data(BigUint::from(1 as u8));
+        bc.set_verify_flag(None)?;
         let bc = get_bc_for!(dut, self.dp_id, "ctrlstat", "CDBGPWRUPACK")?;
         bc.set_data(BigUint::from(1 as u8));
+        bc.set_verify_flag(None)?;
+        let bc = reg.bits(dut);
+        self.verify_register(dut, &bc)?;
+        bc.clear_flags();
         Ok(())
     }
 
@@ -192,12 +208,36 @@ impl DP {
         if let Some(sel) = select {
             let bc = get_reg_as_bc!(dut, self.dp_id, "select");
             bc.set_data(BigUint::from(1 as u8));
-            TEST.push(node!(SWDWriteDP, BigUint::from(sel as u8), 0x2, crate::swd_ok!()))
+            TEST.push(node!(
+                SWDWriteDP,
+                BigUint::from(sel as u8),
+                0x2,
+                crate::swd_ok!(),
+                Some(bc.overlay_enables()),
+                bc.get_overlay()?
+            ))
         }
         if readnwrite {
-            TEST.push(node!(SWDVerifyDP, reg_data, dp_addr, crate::swd_ok!(), None));
+            TEST.push(node!(
+                SWDVerifyDP,
+                reg_data,
+                dp_addr,
+                crate::swd_ok!(),
+                None,
+                Some(bc.verify_enables()),
+                Some(bc.capture_enables()),
+                Some(bc.overlay_enables()),
+                bc.get_overlay()?
+            ));
         } else {
-            TEST.push(node!(SWDWriteDP, reg_data, dp_addr, crate::swd_ok!()));
+            TEST.push(node!(
+                SWDWriteDP,
+                reg_data,
+                dp_addr,
+                crate::swd_ok!(),
+                Some(bc.overlay_enables()),
+                bc.get_overlay()?
+            ));
         }
         Ok(())
     }

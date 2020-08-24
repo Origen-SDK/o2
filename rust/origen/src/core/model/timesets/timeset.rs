@@ -15,7 +15,7 @@ pub fn default_resolver() -> PinActionsResolver {
     map.update_mapping(PinActions::VerifyHigh, "H".to_string());
     map.update_mapping(PinActions::VerifyLow, "L".to_string());
     map.update_mapping(PinActions::Capture, "C".to_string());
-    map.update_mapping(PinActions::HighZ, "Z".to_string());
+    map.update_mapping(PinActions::HighZ, "X".to_string());
     map
 }
 

@@ -1,4 +1,4 @@
-mod swd;
+pub mod swd;
 
 use crate::extract_value;
 use crate::model::Model;

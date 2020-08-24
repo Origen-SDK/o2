@@ -986,6 +986,7 @@ impl BitCollection {
         if let Some(d) = data {
             bc.set_data(d)?;
         }
+        bc.set_verify_flag(None);
 
         // Attempt to find a controller which implements "verify_register"
         match bc._controller_for(Some("verify_register"))? {

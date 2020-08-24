@@ -57,7 +57,7 @@ impl VectorBased for SMT7 {
     fn print_pinlist(&self, renderer: &mut Renderer) -> Option<Result<String>> {
         let dut = DUT.lock().unwrap();
         let pins = renderer.states(&dut).names().join(" ");
-        Some(Ok(format!("FORMAT {}", pins)))
+        Some(Ok(format!("FORMAT {};", pins)))
     }
 
     fn print_pattern_end(&self, _renderer: &mut Renderer) -> Option<Result<String>> {

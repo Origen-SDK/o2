@@ -8,6 +8,12 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 use pyo3::wrap_pymodule;
 
+pub fn get_pydut(py: Python) -> PyResult<&PyAny> {
+    let locals = PyDict::new(py);
+    locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+    Ok(py.eval("origen.dut", Some(locals), None)?)
+}
+
 /// Implements the module _origen.dut in Python which exposes all
 /// DUT-related APIs
 #[pymodule]

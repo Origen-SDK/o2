@@ -49,8 +49,23 @@ impl ArmDebug {
         // Create the Arm Debug instance
         let arm_debug;
         {
-            let mut dut = origen::dut();
             let model_id = instance.getattr("model_id")?.extract::<usize>()?;
+            // // Extract the ARM debug service
+            // let swd_id = 0;
+            // // if let Some(opts) = block_options {
+            // //     if let Some(s) = opts.get_item("swd") {
+            // //         // ...
+            // //     }
+            // // } else {
+            //     // println!("pydut!");
+            //     // let pydut = crate::dut::get_pydut(py)?;
+            //     // let pyswd = pydut.call_method0("swd")?;
+            //     // println!("swd!");
+            //     // let swd = pyswd.extract::<crate::services::swd::SWD>()?;
+            //     // swd_id= swd.id()?;
+            //     // println!("swd_id {}", swd_id);
+            // // }
+            let mut dut = origen::dut();
             arm_debug = OrigenArmDebug::model_init(&mut dut, model_id)?;
         }
 
@@ -111,9 +126,8 @@ impl ArmDebug {
         Ok(())
     }
 
-    #[args(line_reset="true")]
-    fn switch_to_swd(mut slf: PyRefMut<Self>, line_reset: bool) -> PyResult<Py<Self>> {
-        slf.arm_debug.as_mut().expect("Arm Debug hasn't been initialized yet!").switch_to_swd(line_reset)?;
+    fn switch_to_swd(mut slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        slf.arm_debug.as_mut().expect("Arm Debug hasn't been initialized yet!").switch_to_swd()?;
         Ok(slf.into())
     }
 

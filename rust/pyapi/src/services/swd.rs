@@ -128,6 +128,10 @@ impl SWD {
         Ok(self.clone())
     }
 
+    pub fn id(&self) -> PyResult<usize> {
+        Ok(self.id)
+    }
+
     // Enum-like Acknowledgments
 
     #[allow(non_snake_case)]

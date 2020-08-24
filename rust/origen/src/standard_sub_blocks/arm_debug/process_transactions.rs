@@ -1,63 +1,31 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
 use super::mem_ap::MemAP;
-use crate::services::swd::Acknowledgements;
-use crate::{Result, Error};
-
-macro_rules! biguint32 {
-    ( $num:expr ) => {{
-        num_bigint::BigUint::from($num as u32)
-    }};
-}
+use crate::{Result, Error, swd_ok};
+use num::ToPrimitive;
+use crate::testers::vector_based::api::{read_data, drive_data, set_drive_high, set_highz};
 
 /// Transforms ArmDebugMemAP read & write transactions into SWD/JTAG transactions
 pub struct ArmDebugMemAPsToProtocol {
     processing_mem_ap: bool,
+    processing_internal_reg: bool,
     current_mem_ap: Option<MemAP>,
-    swdnjtag: bool,
+    jtagnswd: bool,
 }
 
 impl ArmDebugMemAPsToProtocol {
     pub fn run(node: &Node) -> Result<Node> {
         Ok(node.process(&mut Self{
             processing_mem_ap: false,
+            processing_internal_reg: false,
             current_mem_ap: None,
-            swdnjtag: true,
+            jtagnswd: true,
         })?.unwrap())
-    }
-
-    pub fn select_dp_reg(&self, reg: &str) -> Result<Vec<Node>> {
-        let mut dp_trans = vec![];
-        self.write_dp_reg(
-            "SELECT",
-            match reg {
-                "CTRL/STAT" => 0,
-                "DLCR" => 1,
-                "TARGETID" => 2,
-                "DLPIDR" => 3,
-                "EVENTSTAT" => 4,
-                _ => return Err(Error::new(&format!("Arm Debug: Unknown DP register '{}'", reg)))
-            },
-        )?;
-        Ok(dp_trans)
-    }
-
-    pub fn write_dp_reg(&self, reg: &str, data: u32) -> Result<Vec<Node>> {
-        let mut dp_trans = vec![];
-        match reg {
-            "DPIDR" => dp_trans.push(node!(SWDWriteAP, biguint32!(0), 0, Acknowledgements::Ok)),
-            "SELECT" => dp_trans.push(node!(SWDWriteDP, biguint32!(0x8), data, Acknowledgements::Ok)),
-            "RDBUFF" => return Err(Error::new(&format!("Arm Debug DP register 'RDBUFF' is RO (read-only)! Cannot write this register."))),
-            _ => {
-                dp_trans.append(&mut self.select_dp_reg(reg)?);
-                dp_trans.push(node!(SWDWriteDP, biguint32!(0x4), data, Acknowledgements::Ok));
-            }
-        }
-        Ok(dp_trans)
     }
 }
 
 impl Processor for ArmDebugMemAPsToProtocol {
+    #[allow(non_snake_case)]
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
             Attrs::ArmDebugMemAPWriteReg(mem_ap) => {
@@ -65,25 +33,52 @@ impl Processor for ArmDebugMemAPsToProtocol {
                 self.current_mem_ap = Some(mem_ap.clone());
                 Ok(Return::ProcessChildren)
             },
+            Attrs::ArmDebugMemAPWriteInternalReg(_mem_ap) => {
+                self.processing_mem_ap = true;
+                self.processing_internal_reg = true;
+                Ok(Return::ProcessChildren)
+            },
             Attrs::RegWrite(reg_id, data, overlay, overlay_name) => {
                 if self.processing_mem_ap {
-                    // Prototype only - coreyeng
                     let mut nodes: Vec<Node> = vec!();
-                    let addr;
-                    {
-                        let dut = crate::dut();
-                        let r = dut.get_register(*reg_id)?;
-                        addr = num_bigint::BigUint::from(r.address(&dut, None)?);
+                    if self.processing_internal_reg {
+                        let addr;
+                        {
+                            let dut = crate::dut();
+                            let r = dut.get_register(*reg_id)?;
+                            addr = num_bigint::BigUint::from(r.address(&dut, None)?);
+                        }
+                        let select = addr.to_u32().unwrap() & 0xFFFF_FFF0;
+                        let A = (addr.to_u32().unwrap() & 0xF) >> 2;
+
+                        nodes.push(node!(
+                            SWDWriteDP,
+                            num_bigint::BigUint::from(select),
+                            0x2,
+                            swd_ok!(),
+                            None,
+                            None
+                        ));
                     }
+            //         // Prototype only - coreyeng
+            //         let mut nodes: Vec<Node> = vec!();
+            //         let addr;
+            //         {
+            //             let dut = crate::dut();
+            //             let r = dut.get_register(*reg_id)?;
+            //             addr = num_bigint::BigUint::from(r.address(&dut, None)?);
+            //         }
 
-                    // Use DP access to set the CSW
-                    // Use DP access to set the TAR
-                    //nodes.append(&mut self.write_dp_reg("SELECT", 0x4));
+            //         // Use DP access to set the CSW
+            //         // Use DP access to set the TAR
+            //         //nodes.append(&mut self.write_dp_reg("SELECT", 0x4));
 
-                    // 
-                    nodes.push(crate::comment!("ArmDebug MemAP Register Write"));
-                    nodes.push(node!(SWDWriteAP, addr, 0, Acknowledgements::Ok)); // Test write
-                    nodes.push(node!(SWDWriteAP, data.clone(), 0, Acknowledgements::Ok)); // Test write
+            //         // 
+            //         nodes.push(crate::comment!("ArmDebug MemAP Register Write"));
+                    
+
+            //         nodes.push(node!(SWDWriteAP, addr, 0, Acknowledgements::Ok)); // Test write
+            //         nodes.push(node!(SWDWriteAP, data.clone(), 0, Acknowledgements::Ok)); // Test write
                     Ok(Return::Inline(nodes))
                 } else {
                     Ok(Return::ProcessChildren)
@@ -93,13 +88,39 @@ impl Processor for ArmDebugMemAPsToProtocol {
             // Attrs::ArmDebugPowerUp(mem_ap) => {
             //     Ok(Return::Inline(self.write_dp_reg("CTRLSTAT", 0x5000_0000)?))
             // },
+            Attrs::ArmDebugSwjJTAGToSWD(arm_debug) => {
+                let swdio;
+                let swdclk;
+                {
+                    let dut = crate::DUT.lock().unwrap();
+                    swdio = dut._resolve_group_to_physical_pins(0, "swdio")?.first().unwrap().name.to_string();
+                    swdclk = dut._resolve_group_to_physical_pins(0, "swdclk")?.first().unwrap().name.to_string();
+                }
+                let mut nodes: Vec<Node> = vec!();
+                nodes.push(set_drive_high(vec!(&swdclk))?);
+                nodes.push(set_drive_high(vec!(&swdio))?);
+                nodes.push(crate::cycle!(50));
+                nodes.append(&mut drive_data(
+                    vec!(&swdio),
+                    &num::BigUint::from(0xE79E as u32),
+                    16,
+                    true,
+                    None::<&u8>,
+                    None
+                )?);
+                nodes.push(crate::cycle!(55));
+                nodes.push(crate::comment!("Move to IDLE"));
+                nodes.push(crate::set_drive_low!(&swdio));
+                nodes.push(crate::cycle!(4));
+                Ok(Return::Inline(nodes))
+            }
             _ => Ok(Return::ProcessChildren)
         }
     }
 
     fn on_end_of_block(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
-            Attrs::ArmDebugMemAPWriteReg(mem_ap) => {
+            Attrs::ArmDebugMemAPWriteReg(_mem_ap) => {
                 self.processing_mem_ap = false;
                 Ok(Return::None)
             },

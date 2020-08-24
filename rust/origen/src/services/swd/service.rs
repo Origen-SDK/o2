@@ -41,87 +41,117 @@ macro_rules! swd_ok {
 
 #[derive(Clone, Debug)]
 pub struct Service {
+    swdclk: String,
+    swdio: String,
 }
 
+#[allow(non_snake_case)]
 impl Service {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            swdclk: "swdclk".to_string(),
+            swdio: "swdio".to_string()
+        }
     }
 
-    pub fn write_ap(&self, value: Value, ap_addr: u32, ack: Acknowledgements) -> Result<()> {
+    pub fn write_ap(&self, value: Value, A: u32, ack: Acknowledgements) -> Result<()> {
         let trans = match value {
             Value::Bits(bits, _size) => node!(
                 SWDWriteAP,
                 bits.data()?,
-                ap_addr,
-                ack
+                A,
+                ack,
+                Some(bits.overlay_enables()),
+                bits.get_overlay()?
             ),
             Value::Data(value, _size) => node!(
                 SWDWriteAP,
                 value,
-                ap_addr,
-                ack
+                A,
+                ack,
+                None,
+                None
             )
         };
         TEST.push(trans);
         Ok(())
     }
 
-    pub fn verify_ap(&self, value: Value, ap_addr: u32, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
+    pub fn verify_ap(&self, value: Value, A: u32, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
         let trans = match value {
             Value::Bits(bits, _size) => node!(
                 SWDVerifyAP,
                 bits.data()?,
-                ap_addr,
+                A,
                 ack,
-                parity
+                parity,
+                Some(bits.verify_enables()),
+                Some(bits.capture_enables()),
+                Some(bits.overlay_enables()),
+                bits.get_overlay()?
             ),
             Value::Data(value, _size) => node!(
                 SWDVerifyAP,
                 value,
-                ap_addr,
+                A,
                 ack,
-                parity
+                parity,
+                Some(num::BigUint::from(0xFFFF_FFFF as usize)),
+                None,
+                None,
+                None
             )
         };
         TEST.push(trans);
         Ok(())
     }
 
-    pub fn write_dp(&self, value: Value, dp_addr: u32, ack: Acknowledgements) -> Result<()> {
+    pub fn write_dp(&self, value: Value, A: u32, ack: Acknowledgements) -> Result<()> {
         let trans = match value {
             Value::Bits(bits, _size) => node!(
                 SWDWriteDP,
                 bits.data()?,
-                dp_addr,
-                ack
+                A,
+                ack,
+                Some(bits.overlay_enables()),
+                bits.get_overlay()?
             ),
             Value::Data(value, _size) => node!(
                 SWDWriteDP,
                 value,
-                dp_addr,
-                ack
+                A,
+                ack,
+                None,
+                None
             )
         };
         TEST.push(trans);
         Ok(())
     }
 
-    pub fn verify_dp(&self, value: Value, dp_addr: u32, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
+    pub fn verify_dp(&self, value: Value, A: u32, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
         let trans = match value {
             Value::Bits(bits, _size) => node!(
                 SWDVerifyDP,
                 bits.data()?,
-                dp_addr,
+                A,
                 ack,
-                parity
+                parity,
+                Some(bits.verify_enables()),
+                Some(bits.capture_enables()),
+                Some(bits.overlay_enables()),
+                bits.get_overlay()?
             ),
             Value::Data(value, _size) => node!(
                 SWDVerifyDP,
                 value,
-                dp_addr,
+                A,
                 ack,
-                parity
+                parity,
+                Some(num::BigUint::from(0xFFFF_FFFF as usize)),
+                None,
+                None,
+                None
             )
         };
         TEST.push(trans);
