@@ -1,39 +1,41 @@
 # ******************************************************************************************
 # Generated
-#   Time: 2020-07-23 07:38:32.636704600 -05:00
+#   Time: 2020-08-24 21:36:44.549620400 -05:00
 #   By: nxa13790
-#   Command: origen generate \\?\C:\Users\nxa13790\origen\o2\o2_1_15_2020\example\example\patterns\timeset_workout.py
+#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\timeset_workout.py
 # ******************************************************************************************
 # Workspace
 #   Environment
 #     OS: Windows Unknown
 #     Mode: development
 #     Targets
-#         C:\Users\nxa13790\origen\o2\o2_1_15_2020\example\targets\eagle_with_smt7.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\dut\eagle.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\v93k_smt7.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\j750.py
 #   Application
-#     Local Path: C:\Users\nxa13790\origen\o2\o2_1_15_2020\example
+#     Local Path: C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app
 #   Origen Core
-#     Version: 2.0.0-pre1
-#     Executable Path: C:\Python\Python38\python.exe
+#     Version: 2.0.0-pre2
+#     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
 # ******************************************************************************************
 # Header Comments
 #   From the Application
 #     Hello pattern from the application!
 # ******************************************************************************************
-FORMAT clk porta portb portc
-R100 simple 0 ZZ ZZZZ ZZ # <EoL Comment>;
+FORMAT clk porta portb portc;
+R100 simple 0 XX XXXX XX # <EoL Comment>;
 # Toggle 'clk' for a few pulses with the 'simple' timeset
-R1 simple 1 ZZ ZZZZ ZZ # <EoL Comment>;
-R1 simple 0 ZZ ZZZZ ZZ # <EoL Comment>;
-R1 simple 1 ZZ ZZZZ ZZ # <EoL Comment>;
-R1 simple 0 ZZ ZZZZ ZZ # <EoL Comment>;
+R1 simple 1 XX XXXX XX # <EoL Comment>;
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+R1 simple 1 XX XXXX XX # <EoL Comment>;
+R1 simple 0 XX XXXX XX # <EoL Comment>;
 # Toggle 'clk' for a few pulses with the 'backwards' timeset
-R1 backwards 0 ZZ ZZZZ ZZ # <EoL Comment>;
-R1 backwards 1 ZZ ZZZZ ZZ # <EoL Comment>;
-R1 backwards 0 ZZ ZZZZ ZZ # <EoL Comment>;
-R1 backwards 1 ZZ ZZZZ ZZ # <EoL Comment>;
+R1 backwards 0 XX XXXX XX # <EoL Comment>;
+R1 backwards 1 XX XXXX XX # <EoL Comment>;
+R1 backwards 0 XX XXXX XX # <EoL Comment>;
+R1 backwards 1 XX XXXX XX # <EoL Comment>;
 # Set the clk to an arbitrary symbol
-R1 simple 9 ZZ ZZZZ ZZ # <EoL Comment>;
+R1 simple 9 XX XXXX XX # <EoL Comment>;
 # Set porta to various symbols
-R11 simple 9 ab ZZZZ ZZ # <EoL Comment>;
+R11 simple 9 ab XXXX XX # <EoL Comment>;
 SQPG STOP;

@@ -1,27 +1,27 @@
 # ******************************************************************************************
 # Generated
-#   Time: 2020-06-22 18:58:02.910574700 +01:00
-#   By: stephen
-#   Command: origen generate /home/stephen/Code/github/o2/example/example/patterns/startup.py
+#   Time: 2020-08-24 21:36:44.392358400 -05:00
+#   By: nxa13790
+#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\startup.py
 # ******************************************************************************************
 # Workspace
 #   Environment
-#     OS: Ubuntu 18.04.2 LTS
+#     OS: Windows Unknown
 #     Mode: development
 #     Targets
-#         /home/stephen/Code/github/o2/example/targets/dut/eagle.py
-#         /home/stephen/Code/github/o2/example/targets/tester/v93k_smt7.py
-#         /home/stephen/Code/github/o2/example/targets/tester/uflex.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\dut\eagle.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\v93k_smt7.py
+#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\j750.py
 #   Application
-#     Local Path: /home/stephen/Code/github/o2/example
+#     Local Path: C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app
 #   Origen Core
-#     Version: 2.0.0-pre1
-#     Executable Path: /usr/bin/python3.6
+#     Version: 2.0.0-pre2
+#     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
 # ******************************************************************************************
 # Header Comments
 #   From the Application
 #     Hello pattern from the application!
 # ******************************************************************************************
-FORMAT clk portc
-R110 simple 0 ZZ # <EoL Comment>;
+FORMAT clk portc;
+R110 simple 0 XX # <EoL Comment>;
 SQPG STOP;

@@ -890,7 +890,7 @@ def test_default_symbol_map(clean_eagle, clean_dummy):
   assert dict(origen.dut.timeset('simple').symbol_map) == {
     '1': '1', '0': '0',
     'H': 'H', 'L': 'L',
-    'C': 'C', 'Z': 'Z'
+    'C': 'C', 'Z': 'X'
   }
 
 def test_setting_symbol(clean_eagle, clean_dummy):
@@ -958,13 +958,13 @@ def test_retrieving_symbols_for_a_particular_target(clean_tester, clean_eagle):
   origen.tester.target('::Teradyne::J750')
   origen.tester.target('::V93K::SMT7')
   assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == 'X'
-  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'X'
 
 def test_setting_symbols_sets_for_all_targets(clean_tester, clean_eagle):
   origen.tester.target('::Teradyne::J750')
   origen.tester.target('::V93K::SMT7')
   assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == 'X'
-  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'X'
   origen.dut.timeset('simple').symbol_map.set_symbol('Z', '|abc|')
   assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == '|abc|'
   assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == '|abc|'
@@ -973,10 +973,10 @@ def test_setting_symbols_for_a_particular_target(clean_tester, clean_eagle):
   origen.tester.target('::Teradyne::J750')
   origen.tester.target('::V93K::SMT7')
   assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == 'X'
-  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'X'
   origen.dut.timeset('simple').symbol_map.set_symbol('Z', '|abc|', '::Teradyne::J750')
   assert origen.dut.timeset('simple').symbol_map.for_target('::Teradyne::J750')['Z'] == '|abc|'
-  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'Z'
+  assert origen.dut.timeset('simple').symbol_map.for_target('::V93K::SMT7')['Z'] == 'X'
 
 def test_exception_on_invalid_symbol_map_target(clean_tester, clean_eagle):
   with pytest.raises(KeyError):

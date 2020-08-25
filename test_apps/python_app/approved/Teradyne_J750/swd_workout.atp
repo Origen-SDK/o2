@@ -1,6 +1,6 @@
 // ******************************************************************************************
 // Generated
-//   Time: 2020-08-14 15:57:51.867738900 -05:00
+//   Time: 2020-08-24 21:36:44.474620 -05:00
 //   By: nxa13790
 //   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\swd_workout.py
 // ******************************************************************************************
@@ -15,7 +15,7 @@
 //   Application
 //     Local Path: C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app
 //   Origen Core
-//     Version: 2.0.0-pre1
+//     Version: 2.0.0-pre2
 //     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
 // ******************************************************************************************
 // Header Comments
@@ -33,10 +33,11 @@ repeat 2 > simple X 1 X ;
 // Write AP to 0xCECE_ECEC
 // SWD: Write AP - AP: 0, Data: 0xCECEECEC
 //   SWD: Header: host -> target
- > simple X 1 X ;
 repeat 3 > simple X 1 1 ;
-repeat 5 > simple X 1 0 ;
-repeat 2 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Acknowledge Ok: target -> host
  > simple X 1 H ;
 repeat 3 > simple X 1 L ;
@@ -58,16 +59,15 @@ repeat 3 > simple X 1 1 ;
 repeat 2 > simple X 1 0 ;
 repeat 2 > simple X 1 1 ;
 //   SWD: Drive data's parity bit
- > simple X 1 0 ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 11 > simple X 1 0 ;
 // Verify AP
 // SWD: Verify AP - AP: 0, Data: 0xCECEECEC
 //   SWD: Header: host -> target
- > simple X 1 X ;
 repeat 3 > simple X 1 1 ;
-repeat 5 > simple X 1 0 ;
-repeat 2 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Acknowledge Ok: target -> host
  > simple X 1 H ;
 repeat 2 > simple X 1 L ;
@@ -89,18 +89,18 @@ repeat 3 > simple X 1 H ;
 repeat 2 > simple X 1 L ;
 repeat 2 > simple X 1 H ;
 //   SWD: Ignoring parity bit on SWD READ operation
-repeat 2 > simple X 1 X ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 12 > simple X 1 X ;
 // Write DP to 0x1234_ABCD
 // SWD: Write DP - DP: 0, Data: 0x1234ABCD
 //   SWD: Header: host -> target
- > simple X 1 X ;
  > simple X 1 1 ;
  > simple X 1 0 ;
  > simple X 1 1 ;
-repeat 5 > simple X 1 0 ;
-repeat 2 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Acknowledge Ok: target -> host
  > simple X 1 H ;
 repeat 3 > simple X 1 L ;
@@ -126,18 +126,18 @@ repeat 2 > simple X 1 0 ;
  > simple X 1 1 ;
 repeat 3 > simple X 1 0 ;
 //   SWD: Drive data's parity bit
- > simple X 1 1 ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 11 > simple X 1 1 ;
 // Verify DP
 // SWD: Verify DP - DP: 0, Data: 0x1234ABCD
 //   SWD: Header: host -> target
- > simple X 1 X ;
  > simple X 1 1 ;
  > simple X 1 0 ;
  > simple X 1 1 ;
-repeat 5 > simple X 1 0 ;
-repeat 2 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Acknowledge Ok: target -> host
  > simple X 1 H ;
 repeat 2 > simple X 1 L ;
@@ -163,18 +163,16 @@ repeat 2 > simple X 1 L ;
  > simple X 1 H ;
 repeat 3 > simple X 1 L ;
 //   SWD: Ignoring parity bit on SWD READ operation
-repeat 2 > simple X 1 X ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 12 > simple X 1 X ;
 // Write AP with AP address expecting OK response
 // SWD: Write AP - AP: 1, Data: 0xBADC0DE
 //   SWD: Header: host -> target
- > simple X 1 X ;
 repeat 4 > simple X 1 1 ;
-repeat 2 > simple X 1 0 ;
+ > simple X 1 0 ;
  > simple X 1 1 ;
  > simple X 1 0 ;
-repeat 2 > simple X 1 1 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Acknowledge Ok: target -> host
  > simple X 1 H ;
 repeat 3 > simple X 1 L ;
@@ -195,20 +193,16 @@ repeat 3 > simple X 1 1 ;
  > simple X 1 1 ;
 repeat 4 > simple X 1 0 ;
 //   SWD: Drive data's parity bit
- > simple X 1 0 ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 11 > simple X 1 0 ;
 // Verify AP with AP address, expecting WAIT response, and verifying the parity bit
 // SWD: Verify AP - AP: 2, Data: 0xBADC0DE
 //   SWD: Header: host -> target
- > simple X 1 X ;
 repeat 3 > simple X 1 1 ;
  > simple X 1 0 ;
- > simple X 1 1 ;
- > simple X 1 0 ;
- > simple X 1 1 ;
- > simple X 1 0 ;
 repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Acknowledge Wait: target -> host
  > simple X 1 L ;
  > simple X 1 H ;
@@ -230,18 +224,16 @@ repeat 3 > simple X 1 H ;
  > simple X 1 H ;
 repeat 4 > simple X 1 L ;
 //   SWD: Expecting parity bit of 0
-repeat 2 > simple X 1 L ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 12 > simple X 1 L ;
 // Write DP with DP address expecting FAULT response
 // SWD: Write DP - DP: 3, Data: 0xC0DE1BAD
 //   SWD: Header: host -> target
- > simple X 1 X ;
  > simple X 1 1 ;
  > simple X 1 0 ;
-repeat 3 > simple X 1 1 ;
-repeat 3 > simple X 1 0 ;
-repeat 2 > simple X 1 1 ;
+repeat 4 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Acknowledge Fault: target -> host
 repeat 2 > simple X 1 L ;
 repeat 2 > simple X 1 H ;
@@ -262,18 +254,16 @@ repeat 2 > simple X 1 1 ;
 repeat 6 > simple X 1 0 ;
 repeat 2 > simple X 1 1 ;
 //   SWD: Drive data's parity bit
- > simple X 1 1 ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 11 > simple X 1 1 ;
 // Verify DP with DP address, ignoring the target's acknowledgement, and verifying the parity bit
 // SWD: Verify DP - DP: 3, Data: 0xC0DE1BAD
 //   SWD: Header: host -> target
- > simple X 1 X ;
  > simple X 1 1 ;
  > simple X 1 0 ;
-repeat 3 > simple X 1 1 ;
-repeat 3 > simple X 1 0 ;
-repeat 2 > simple X 1 1 ;
+repeat 4 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 X ;
 //   SWD: Do not check acknowledgement
 repeat 3 > simple X 1 X ;
 //   SWD: Verify data
@@ -293,9 +283,7 @@ repeat 2 > simple X 1 H ;
 repeat 6 > simple X 1 L ;
 repeat 2 > simple X 1 H ;
 //   SWD: Ignoring parity bit on SWD READ operation
-repeat 2 > simple X 1 X ;
-//   SWD: Disable SWDCLK and SWDIO
-repeat 10 > simple X 0 X ;
+repeat 12 > simple X 1 X ;
 // Reset SWD
 // SWD: Line Reset
 repeat 50 > simple X 1 1 ;
