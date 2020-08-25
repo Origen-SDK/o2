@@ -8,6 +8,7 @@ log/
 .vscode
 /test_apps/python_app/example/templates/dut_info.txt
 /python/dist
+rls/
 
 # Output directories
 /python/output

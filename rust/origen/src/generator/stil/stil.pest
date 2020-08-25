@@ -64,7 +64,7 @@ signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo") }
 termination = {
     "Termination" ~ termination_val ~ EOS
 }
-termination_val = { ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUknown") }
+termination_val = { ("TerminateHigh" | "TerminateLow" | "TerminateOff" | "TerminateUnknown") }
 
 default_state = {
     "DefaultState" ~ state_val ~ EOS
