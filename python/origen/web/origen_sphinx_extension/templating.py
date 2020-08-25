@@ -101,10 +101,14 @@ def jinja_context(app):
     }
 
 
-def insert_cmd_output(app, cmd, **opts):
+def insert_cmd_output(app, cmd, *, shell=True, **opts):
     # Run the command and gather the output
-    out = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    out = out.stdout.decode('utf-8').strip()
+    out = subprocess.run(cmd, shell=shell, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    stdout = out.stdout.decode('utf-8').strip()
+    if out.returncode == 1:
+        ose.logger.warning(f"Failed to insert command \"{cmd}\". Command failed to run:")
+        ose.logger.warning(f"STDOUT: {stdout}")
+        ose.logger.warning(f"STDERR: {out.stderr.decode('utf-8').strip()}")
 
     # Embed the output in a code block
     # Need to also shift the spacing of the output so its all under the code block
@@ -112,7 +116,7 @@ def insert_cmd_output(app, cmd, **opts):
     #   inside another block
     spacing = " " * opts['prepend_spaces'] if 'prepend_spaces' in opts else ""
     retn = [f"{spacing}.. code:: none", ""]
-    retn += [f"{spacing}  {l}" for l in out.split("\n")]
+    retn += [f"{spacing}  {l}" for l in stdout.split("\n")]
     return "\n".join(retn)
 
 
