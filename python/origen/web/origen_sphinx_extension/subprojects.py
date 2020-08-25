@@ -30,7 +30,8 @@ class SubProject:
         out = subprocess.run(self.get_subproject_output_dir_cmd(),
                              shell=True,
                              cwd=self.source,
-                             capture_output=True,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
                              env=env)
         content = pathlib.Path(out.stdout.decode('utf-8').strip())
         if out.returncode == 0:

@@ -36,9 +36,11 @@ def insert_header(app, docname, source):
             includes = ext.all_include_rsts()
             # Make sure we aren't including the shared file in the shared files themselves
             if not any(i.match(str(doc)) for i in includes):
+                depth = len(doc.relative_to(origen.web.source_dir).parents) - 1
+                incs = ["../"*depth + str(i.relative_to(origen.web.source_dir)) for i in includes]
                 source[0] = "\n".join([
                     f".. include:: {i}\n  :start-after: start-content\n\n"
-                    for i in includes
+                    for i in incs
                 ]) + source[0]
                 return True
     return False
@@ -101,7 +103,7 @@ def jinja_context(app):
 
 def insert_cmd_output(app, cmd, **opts):
     # Run the command and gather the output
-    out = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    out = subprocess.run(cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     out = out.stdout.decode('utf-8').strip()
 
     # Embed the output in a code block

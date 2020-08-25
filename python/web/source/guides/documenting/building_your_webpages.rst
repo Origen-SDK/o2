@@ -17,7 +17,7 @@ The ``build`` command is actually a subcommand in the larger ``origen web`` comm
 
 Running ``origen web --help`` will show you what can be done with the *Sphinx app* from the CLI:
 
-{% set origen_exec = '../rust/origen/target/debug/origen.exe' -%}
+{% set origen_exec = '../rust/origen/target/debug/origen.exe' if origen.running_on_windows else '../rust/origen/target/debug/origen' -%}
 
 {{ insert_cmd_output(origen_exec + " web --help") }}
 
