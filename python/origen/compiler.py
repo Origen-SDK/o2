@@ -24,7 +24,6 @@ class ExplicitSyntaxRequiredError(Exception):
 
 
 class Renderer(abc.ABC):
-    @property
     @abc.abstractclassmethod
     def file_extensions(cls):
         return []  #raise NotImplementedError
@@ -45,7 +44,7 @@ class Renderer(abc.ABC):
     @classmethod
     def resolve_filename(cls, src):
         s = pathlib.Path(src).parts[-1]
-        for ext in cls.file_extensions:
+        for ext in cls.file_extensions():
             s = s.replace(ext if ext.startswith('.') else f".{ext}", '')
         return pathlib.Path(src).parent.joinpath(s)
 
@@ -64,7 +63,7 @@ class Compiler:
         exts = []
         for r in self.renderers.values():
             exts += [(ext if ext.startswith('.') else f".{ext}")
-                     for ext in r.file_extensions]
+                     for ext in r.file_extensions()]
         return exts
 
     @property
@@ -255,7 +254,11 @@ class MakoRenderer(Renderer):
     # Use a class variable as the syntax should be viewed
     # as immutable by Compiler instances
     syntax = MakoSyntax()
-    file_extensions = ['mako']
+
+    @classmethod
+    def file_extensions(cls):
+        return ['mako']
+
     preprocessor = [lambda x: x.replace("\r\n", "\n")]
     '''
         Preprocessor to remove double newlines from Windows sources
