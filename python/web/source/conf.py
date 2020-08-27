@@ -140,7 +140,13 @@ def setup(app):
             node.variables['logger'] = (getattr(origen, 'logger'),
                                         node.default_variable_opts())
 
+    def preprocess_docstring(app, what, name, obj, options, lines):
+        if name == "origen.compiler.Renderer.file_extensions":
+            lines.clear()
+            lines.append("File extensions which this compiler recognizes.")
+
     app.connect('autoapi-process-node', replace_origen_logger)
+    app.connect('origen-preprocess-docstring', preprocess_docstring)
 
     # Insert shorthand's own defs for its guides.
     origen.web.shorthand.dev.add_shorthand_dev_defs()

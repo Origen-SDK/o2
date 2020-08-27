@@ -123,6 +123,7 @@ def insert_cmd_output(app, cmd, *, shell=True, **opts):
 @origen.helpers.continue_on_exception(ose.logger)
 def process_docstring(app, what, name, obj, options, lines):
     ''' Runs the template engine on docstrings, allowing for jinja syntax inside docstrings. '''
+    app.emit("origen-preprocess-docstring", what, name, obj, options, lines)
     try:
         _lines = jinja_render_string(app, "\n".join(lines))
     except Exception as e:

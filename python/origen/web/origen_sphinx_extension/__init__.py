@@ -90,6 +90,8 @@ def setup(sphinx):
     sphinx.config.html_theme_path += [sphinxbootstrap4theme.get_path()]
     sphinx.add_html_theme('origen', str(theme_dir))
 
+    sphinx.add_event("origen-preprocess-docstring")
+
     for ext in origen.app.compiler.supported_extensions:
         # Register files that will use Origen's compiler to be found by Sphinx.
         # Otherwise, Sphinx will skip these.
