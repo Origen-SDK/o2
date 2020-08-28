@@ -25,7 +25,7 @@
       <!-- Additional logos-->
         {%- for l in theme_logos %}
           <a class="navbar-brand py-1" href="{{ l['href'] or pathto(master_doc) }}">
-            <img class="logo" src="{{ pathto(l['src'], 1) if l['rel_src'] else l['src'] }}" alt="{{ l['alt'] }}"/>
+            <img class="logo" src="{{ pathto(l['src'], 1) if l['rel_src'] else l['src'] }}" alt="{{ l['alt'] }}" style="{{ l['style'] }}"/>
           </a>
         {%- endfor %}
         <ul class="navbar-nav mr-auto">

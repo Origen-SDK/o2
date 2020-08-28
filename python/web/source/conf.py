@@ -105,11 +105,15 @@ templates_path = ['_templates']
 # Theme customizations
 html_theme_options = {
     'navbar_links':
-    [('Github', 'https://github.com/Origen-SDK/o2', True),
-     ('O1', 'https://origen-sdk.org/', True),
-     ('Example App',
-      '_static/build/origen_sphinx_extension/example/sphinx_build/index',
-      False), ('Community', 'community', False)],
+    [
+        ('Github', 'https://github.com/Origen-SDK/o2', True),
+        # Took this out, it's good to keep the page around for O2 developers, but adds
+        # clutter that the majority of users will not care about
+        #('Example App',
+        # '_static/build/origen_sphinx_extension/example/sphinx_build/index',
+        # False),
+        ('Community', 'community', False)
+    ],
 }
 
 # List of patterns, relative to source directory, that match files and

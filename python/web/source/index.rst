@@ -1,5 +1,5 @@
-Welcome to origen's documentation!
-==================================
+Welcome to The Origen Guides!
+=============================
 
 .. toctree::
    :caption: Contents

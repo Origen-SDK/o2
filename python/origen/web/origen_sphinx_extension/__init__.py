@@ -32,15 +32,18 @@ ORIGEN_THEME_NAVBAR_LINKS = [
 ORIGEN_THEME_LOGOS = [
     {
         'src': 'https://origen-sdk.org/img/origen-device.png',
-        'href': 'https://origen-sdk.org/',
-        'alt': 'o1',
+        'href': 'https://origen-sdk.org',
+        'alt': 'Origen-SDK',
         'rel_src': False,
     },
     {
-        'src': '_static/o2_zero_effort_logo.png',
-        'href': 'https://origen-sdk.org/o2',
-        'alt': 'o2',
-        'rel_src': True,
+        #'src': '_static/o2_zero_effort_logo.png',
+        'src': 'https://origen-sdk.org/img/origen-text.png',
+        'href': 'https://origen-sdk.org',
+        'alt': 'Origen-SDK',
+        #'rel_src': True,
+        'rel_src': False,
+        'style': 'height: 25px;',
     },
 ]
 ''' Default logos included by Origen '''
