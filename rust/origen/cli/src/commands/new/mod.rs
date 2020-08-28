@@ -101,6 +101,7 @@ impl App {
         std::env::set_current_dir(&self.dir).expect("Couldn't cd to the new app");
 
         let _ = std::process::Command::new("origen")
+            .arg("env")
             .arg("setup")
             .spawn()
             .expect("Couldn't execute origen setup")

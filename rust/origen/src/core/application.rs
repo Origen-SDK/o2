@@ -11,6 +11,7 @@ use std::sync::RwLock;
 
 /// Represents the current application, an instance of this is returned by
 /// origen::app().
+#[derive(Debug)]
 pub struct Application {
     /// The full file system path to the application root (when applicable)
     pub root: PathBuf,

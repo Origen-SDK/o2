@@ -68,6 +68,27 @@ impl Default for Config {
     }
 }
 
+/// Returns a path to the virtual env for the current (application) directory.
+/// The caller is responsible for setting the current directory before calling this.
+pub fn virtual_env() -> Result<PathBuf> {
+    let (_code, stdout, stderr) =
+        origen::utility::command_helpers::exec_and_capture("poetry", Some(vec!["env", "info"]))?;
+    let r = regex::Regex::new(r"^Path:\s*(.*)").unwrap();
+    for line in &stdout {
+        log_trace!("{}", line);
+        if let Some(captures) = r.captures(line) {
+            return Ok(PathBuf::from(captures.get(1).unwrap().as_str()));
+        }
+    }
+    for line in stdout {
+        log_debug!("{}", line);
+    }
+    for line in stderr {
+        log_debug!("[STDERR] {}", line);
+    }
+    error!("Could not read the path info from Poetry's output, run with full verbosity to see what happened")
+}
+
 /// Get the Python version from the given command
 fn get_version(command: &str) -> Option<Version> {
     match Command::new(command).arg("--version").output() {

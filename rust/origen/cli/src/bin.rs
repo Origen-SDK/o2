@@ -218,7 +218,7 @@ fn main() {
                     .value_name("NAME"),
             )
             .arg(Arg::with_name("setup")
-                .help("Don't create the new app's virtual environment after building (need to manually run 'origen setup' within the new app workspace before using it in that case)")
+                .help("Don't create the new app's virtual environment after building (need to manually run 'origen env setup' within the new app workspace before using it in that case)")
                 .long("no-setup")
                 .required(false)
                 .takes_value(false)
@@ -250,8 +250,11 @@ fn main() {
             .subcommand(SubCommand::with_name("fmt").about(fmt_help));
     }
 
-    if STATUS.is_origen_present {
-        let build_help = "Build and publish Origen";
+    if STATUS.is_origen_present || STATUS.is_app_in_origen_dev_mode {
+        let build_help = match STATUS.is_origen_present {
+            true => "Build and publish Origen",
+            false => "Build Origen",
+        };
 
         origen_commands.push(CommandHelp {
             name: "build".to_string(),
@@ -259,53 +262,54 @@ fn main() {
             shortcut: None,
         });
 
-        app = app
-            //************************************************************************************/
-            .subcommand(
-                SubCommand::with_name("build")
-                    .about(build_help)
-                    .arg(
-                        Arg::with_name("cli")
-                            .long("cli")
-                            .required(false)
-                            .takes_value(false)
-                            .display_order(1)
-                            .help("Build the CLI (instead of the Python API)"),
-                    )
-                    .arg(
-                        Arg::with_name("python")
-                            .long("python")
-                            .required(false)
-                            .takes_value(false)
-                            .display_order(1)
-                            .help("Build the pure Python package (instead of the Python API)"),
-                    )
-                    .arg(
-                        Arg::with_name("release")
-                            .long("release")
-                            .required(false)
-                            .takes_value(false)
-                            .display_order(1)
-                            .help("Build a release version (only applicable to Rust builds)"),
-                    )
-                    .arg(
-                        Arg::with_name("publish")
-                            .long("publish")
-                            .required(false)
-                            .takes_value(false)
-                            .display_order(1)
-                            .help("Publish packages to (e.g. to PyPI) after building a release"),
-                    )
-                    .arg(
-                        Arg::with_name("version")
-                            .long("version")
-                            .required(false)
-                            .takes_value(true)
-                            .value_name("VERSION")
-                            .display_order(1)
-                            .help("Set the version (of all components) to the given value"),
-                    ),
-            );
+        //************************************************************************************/
+        let mut sub = SubCommand::with_name("build").about(build_help).arg(
+            Arg::with_name("cli")
+                .long("cli")
+                .required(false)
+                .takes_value(false)
+                .display_order(1)
+                .help("Build the CLI (instead of the Python API)"),
+        );
+
+        if STATUS.is_origen_present {
+            sub = sub
+                .arg(
+                    Arg::with_name("release")
+                        .long("release")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Build a release version (only applicable to Rust builds)"),
+                )
+                .arg(
+                    Arg::with_name("python")
+                        .long("python")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Build the pure Python package (instead of the Python API)"),
+                )
+                .arg(
+                    Arg::with_name("publish")
+                        .long("publish")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Publish packages to (e.g. to PyPI) after building a release"),
+                )
+                .arg(
+                    Arg::with_name("version")
+                        .long("version")
+                        .required(false)
+                        .takes_value(true)
+                        .value_name("VERSION")
+                        .display_order(1)
+                        .help("Set the version (of all components) to the given value"),
+                );
+        }
+
+        app = app.subcommand(sub);
     }
 
     /************************************************************************************/
@@ -650,22 +654,27 @@ Examples:
         );
 
         /************************************************************************************/
-        let setup_help = "Setup your application's Python environment in a new workspace, this will install dependencies per the poetry.lock file";
+        let env_help = "Manage your application's Origen/Python environment (dependencies, etc.)";
         origen_commands.push(CommandHelp {
-            name: "setup".to_string(),
-            help: setup_help.to_string(),
+            name: "env".to_string(),
+            help: env_help.to_string(),
             shortcut: None,
         });
-        app = app.subcommand(SubCommand::with_name("setup").about(setup_help));
-
-        /************************************************************************************/
-        let update_help = "Update your application's Python dependencies according to the latest pyproject.toml file";
-        origen_commands.push(CommandHelp {
-            name: "update".to_string(),
-            help: update_help.to_string(),
-            shortcut: None,
-        });
-        app = app.subcommand(SubCommand::with_name("update").about(update_help));
+        app = app.subcommand(SubCommand::with_name("env").about(env_help)
+            .subcommand(
+                SubCommand::with_name("setup")
+                    .about("Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file")
+                    .arg(Arg::with_name("origen")
+                            .long("origen")
+                            .help("The path to a local version of Origen to use (to develop Origen)")
+                            .takes_value(true),
+                    ),
+            )
+            .subcommand(
+                SubCommand::with_name("update")
+                    .about("Update your application's Python dependencies according to the latest pyproject.toml file"),
+            )
+        );
 
         /************************************************************************************/
         let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
@@ -774,8 +783,7 @@ CORE COMMANDS:
     let _ = LOGGER.set_verbosity(matches.occurrences_of("verbose") as u8);
 
     match matches.subcommand_name() {
-        Some("setup") => commands::setup::run(),
-        Some("update") => commands::update::run(),
+        Some("env") => commands::env::run(matches.subcommand_matches("env").unwrap()),
         Some("fmt") => commands::fmt::run(),
         Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
         Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap()),
@@ -933,10 +941,20 @@ CORE COMMANDS:
                     Ok(v) => format!("{}", v),
                 };
 
-                println!(
-                    "App:    {}\nOrigen: {}\nCLI:    {}",
-                    app_version, origen_version, STATUS.origen_version
-                );
+                if STATUS.is_app_in_origen_dev_mode {
+                    println!(
+                        "App:    {}\nOrigen: {} (from {})\nCLI:    {}",
+                        app_version,
+                        origen_version,
+                        STATUS.origen_wksp_root.display(),
+                        STATUS.origen_version
+                    );
+                } else {
+                    println!(
+                        "App:    {}\nOrigen: {}\nCLI:    {}",
+                        app_version, origen_version, STATUS.origen_version
+                    );
+                }
             } else {
                 println!("Origen: {}", STATUS.origen_version);
             }

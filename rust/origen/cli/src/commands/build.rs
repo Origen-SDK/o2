@@ -56,7 +56,8 @@ pub fn run(matches: &ArgMatches) {
         return;
     }
 
-    // Build the latest CLI
+    // Build the latest CLI, this can be requested from an Origen workspace or an app workspace that is
+    // locally referencing an Origen workspace
     if matches.is_present("cli") {
         cd(&STATUS
             .origen_wksp_root
@@ -74,7 +75,7 @@ pub fn run(matches: &ArgMatches) {
             .expect("failed to execute process");
         display!("");
 
-    // Builds the top-level 'origen' Python package, no rust involvement
+    // Builds the top-level 'origen' Python package, no rust involvement, only available within an Origen workspace
     } else if matches.is_present("python") {
         let wheel_dir = &STATUS.origen_wksp_root.join("python").join("dist");
         // Make sure we are not about to upload any stale/old artifacts
@@ -120,7 +121,7 @@ pub fn run(matches: &ArgMatches) {
     // Build the PyAPI by default
     } else {
         // A release build will also build the origen_pyapi Python package and optionally
-        // publish is to PyPI
+        // publish it to PyPI, only available within an Origen workspace
         if matches.is_present("release") || matches.is_present("publish") {
             let wheel_dir = &STATUS
                 .origen_wksp_root
@@ -175,20 +176,46 @@ pub fn run(matches: &ArgMatches) {
                     .expect("failed to publish pyapi");
             }
 
-        // A standard (non-release) build
+        // A standard (non-release) build, this can be requested from an Origen workspace or an app workspace that
+        // is locally referencing an Origen workspace
         } else {
             // The default build will compile the latest PyAPI and copy it into
             // the example app's Python env
+            let mut app = STATUS.origen_wksp_root.join("test_apps").join("python_app");
+
+            // If running in an app with a local reference to Origen, then use that app as the target instead
+            if STATUS.is_app_in_origen_dev_mode {
+                app = origen::app().unwrap().root.clone();
+                std::env::set_current_dir(&app).expect("Couldn't cd to the app root");
+
+                // Make sure Rust nightly is enabled in the app dir, just do this quietly if it succeeds
+                match origen::utility::command_helpers::exec_and_capture(
+                    "rustup",
+                    Some(vec!["override", "set", "nightly"]),
+                ) {
+                    Err(e) => log_error!("{}", e),
+                    Ok((code, stdout, stderr)) => {
+                        if !code.success() {
+                            for line in stdout {
+                                displayln!("{}", line);
+                            }
+                            for line in stderr {
+                                display_redln!("{}", line);
+                            }
+                        }
+                    }
+                }
 
             // If this command is launched within a different test app, then the build will apply
             // to that app instead.
-            let mut app = STATUS.origen_wksp_root.join("test_apps").join("python_app");
-            let apps_dir = STATUS.origen_wksp_root.join("test_apps");
-            if let Ok(pwd) = std::env::current_dir() {
-                if pwd.starts_with(&apps_dir) {
-                    app = pwd;
-                    while app.parent().unwrap() != apps_dir {
-                        app.pop();
+            } else {
+                let apps_dir = STATUS.origen_wksp_root.join("test_apps");
+                if let Ok(pwd) = std::env::current_dir() {
+                    if pwd.starts_with(&apps_dir) {
+                        app = pwd;
+                        while app.parent().unwrap() != apps_dir {
+                            app.pop();
+                        }
                     }
                 }
             }
