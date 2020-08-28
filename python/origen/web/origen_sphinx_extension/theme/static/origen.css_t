@@ -69,8 +69,8 @@ div.sphinxsidebarwrapper a.reference.current {
   background-color: #197CBD !important;
 }
 
-body .main {
-  margin-top: 50px;
+body {
+  padding-top: 50px;
 }
 
 /* Corner Ribbon */
