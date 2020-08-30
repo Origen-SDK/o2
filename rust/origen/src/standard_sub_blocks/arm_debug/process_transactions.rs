@@ -3,7 +3,7 @@ use crate::generator::processor::*;
 use super::mem_ap::MemAP;
 use crate::{Result, Error, swd_ok};
 use num::ToPrimitive;
-use crate::testers::vector_based::api::{read_data, drive_data, set_drive_high, set_highz};
+use crate::testers::vector_based::api::{read_data, drive_data, set_drive_high, set_pin_drive_low, set_highz, repeat, comment};
 
 /// Transforms ArmDebugMemAP read & write transactions into SWD/JTAG transactions
 pub struct ArmDebugMemAPsToProtocol {
@@ -99,7 +99,7 @@ impl Processor for ArmDebugMemAPsToProtocol {
                 let mut nodes: Vec<Node> = vec!();
                 nodes.push(set_drive_high(vec!(&swdclk))?);
                 nodes.push(set_drive_high(vec!(&swdio))?);
-                nodes.push(crate::cycle!(50));
+                nodes.push(repeat(50)?);
                 nodes.append(&mut drive_data(
                     vec!(&swdio),
                     &num::BigUint::from(0xE79E as u32),
@@ -108,10 +108,10 @@ impl Processor for ArmDebugMemAPsToProtocol {
                     None::<&u8>,
                     None
                 )?);
-                nodes.push(crate::cycle!(55));
-                nodes.push(crate::comment!("Move to IDLE"));
-                nodes.push(crate::set_drive_low!(&swdio));
-                nodes.push(crate::cycle!(4));
+                nodes.push(repeat(55)?);
+                nodes.push(comment("Move to IDLE")?);
+                nodes.push(set_pin_drive_low(&swdio)?);
+                nodes.push(repeat(4)?);
                 Ok(Return::Inline(nodes))
             }
             _ => Ok(Return::ProcessChildren)

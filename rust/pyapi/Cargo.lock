@@ -221,7 +221,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80094f509cf8b5ae86a4966a39b3ff66cd7e2a3e594accec3743ff3fabeab5b2"
 dependencies = [
  "num-integer",
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
  "time",
 ]
 
@@ -250,15 +250,6 @@ dependencies = [
  "lazy_static 1.4.0",
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "cloudabi"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
-dependencies = [
- "bitflags",
 ]
 
 [[package]]
@@ -297,7 +288,7 @@ dependencies = [
  "encode_unicode",
  "lazy_static 1.4.0",
  "libc",
- "parking_lot 0.10.2",
+ "parking_lot",
  "regex",
  "termios",
  "unicode-width",
@@ -926,15 +917,6 @@ checksum = "8dd5a6d5999d9907cda8ed67bbd137d3af8085216c2ac62de5be860bd41f304a"
 
 [[package]]
 name = "lock_api"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4da24a77a3d8a6d4862d95f72e6fdb9c09a643ecdb402d754004a557f2bec75"
-dependencies = [
- "scopeguard",
-]
-
-[[package]]
-name = "lock_api"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28247cc5a5be2f05fbcd76dd0cf2c7d3b5400cb978a28042abcd4fa0b3f8261c"
@@ -1003,11 +985,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8536030f9fea7127f841b45bb6243b27255787fb4eb83958aa1ef9d2fdc0c36"
 dependencies = [
  "num-bigint 0.2.6",
- "num-complex",
+ "num-complex 0.2.4",
  "num-integer",
  "num-iter",
- "num-rational",
- "num-traits 0.2.11",
+ "num-rational 0.2.4",
+ "num-traits 0.2.12",
+]
+
+[[package]]
+name = "num"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab3e176191bc4faad357e3122c4747aa098ac880e88b168f106386128736cf4a"
+dependencies = [
+ "num-bigint 0.3.0",
+ "num-complex 0.3.0",
+ "num-integer",
+ "num-iter",
+ "num-rational 0.3.0",
+ "num-traits 0.2.12",
 ]
 
 [[package]]
@@ -1018,8 +1014,7 @@ checksum = "090c7f9998ee0ff65aa5b723e4009f7b217707f1fb5ea551329cc4d6231fb304"
 dependencies = [
  "autocfg",
  "num-integer",
- "num-traits 0.2.11",
- "serde 1.0.110",
+ "num-traits 0.2.12",
 ]
 
 [[package]]
@@ -1030,7 +1025,8 @@ checksum = "b7f3fc75e3697059fb1bc465e3d8cca6cf92f56854f201158b3f9c77d5a3cfa0"
 dependencies = [
  "autocfg",
  "num-integer",
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
+ "serde 1.0.110",
 ]
 
 [[package]]
@@ -1040,28 +1036,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6b19411a9719e753aff12e5187b74d60d3dc449ec3f4dc21e3989c3f554bc95"
 dependencies = [
  "autocfg",
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b05ad05bd8977050b171b3f6b48175fea6e0565b7981059b486075e1026a9fb5"
+dependencies = [
+ "num-traits 0.2.12",
 ]
 
 [[package]]
 name = "num-integer"
-version = "0.1.42"
+version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f6ea62e9d81a77cd3ee9a2a5b9b609447857f3d358704331e4ef39eb247fcba"
+checksum = "8d59457e662d541ba17869cf51cf177c0b5f0cbf476c66bdc90bf1edac4f875b"
 dependencies = [
  "autocfg",
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
 ]
 
 [[package]]
 name = "num-iter"
-version = "0.1.40"
+version = "0.1.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfb0800a0291891dd9f4fe7bd9c19384f98f7fbe0cd0f39a2c6b88b9868bbc00"
+checksum = "7a6e6b7c748f995c4c29c5f5ae0248536e04a5739927c74ec0fa564805094b9f"
 dependencies = [
  "autocfg",
  "num-integer",
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
 ]
 
 [[package]]
@@ -1073,7 +1078,19 @@ dependencies = [
  "autocfg",
  "num-bigint 0.2.6",
  "num-integer",
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5b4d7360f362cfb50dde8143501e6940b22f644be75a4cc90b2d81968908138"
+dependencies = [
+ "autocfg",
+ "num-bigint 0.3.0",
+ "num-integer",
+ "num-traits 0.2.12",
 ]
 
 [[package]]
@@ -1082,14 +1099,14 @@ version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92e5113e9fd4cc14ded8e499429f396a20f98c772a47cc8622a736e1ec843c31"
 dependencies = [
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
 ]
 
 [[package]]
 name = "num-traits"
-version = "0.2.11"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62be47e61d1842b9170f0fdeec8eba98e60e90e5446449a0545e5152acd7096"
+checksum = "ac267bcc07f48ee5f8935ab0d24f316fb722d7a1292e2913f0cc196b29ffd611"
 dependencies = [
  "autocfg",
 ]
@@ -1186,9 +1203,9 @@ dependencies = [
  "indexmap",
  "lazy_static 1.4.0",
  "meta",
- "num",
- "num-bigint 0.2.6",
- "num-traits 0.2.11",
+ "num 0.3.0",
+ "num-bigint 0.3.0",
+ "num-traits 0.2.12",
  "openssl",
  "path-clean",
  "path-slash",
@@ -1218,21 +1235,11 @@ dependencies = [
  "indexmap",
  "itertools",
  "libz-sys",
- "num",
- "num-bigint 0.2.6",
- "num-traits 0.2.11",
+ "num 0.2.1",
+ "num-bigint 0.3.0",
+ "num-traits 0.2.12",
  "origen",
  "pyo3",
-]
-
-[[package]]
-name = "parking_lot"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3a704eb390aafdc107b0e392f56a82b668e3a71366993b5340f5833fd62505e"
-dependencies = [
- "lock_api 0.3.4",
- "parking_lot_core 0.7.2",
 ]
 
 [[package]]
@@ -1242,22 +1249,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4893845fa2ca272e647da5d0e46660a314ead9c2fdd9a883aabc32e481a8733"
 dependencies = [
  "instant",
- "lock_api 0.4.1",
- "parking_lot_core 0.8.0",
-]
-
-[[package]]
-name = "parking_lot_core"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d58c7c768d4ba344e3e8d72518ac13e259d7c7ade24167003b8488e10b6740a3"
-dependencies = [
- "cfg-if",
- "cloudabi 0.0.3",
- "libc",
- "redox_syscall",
- "smallvec",
- "winapi",
+ "lock_api",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -1267,7 +1260,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c361aa727dd08437f2f1447be8b59a33b0edd15e0fcee698f935613d9efbca9b"
 dependencies = [
  "cfg-if",
- "cloudabi 0.1.0",
+ "cloudabi",
  "instant",
  "libc",
  "redox_syscall",
@@ -1476,7 +1469,7 @@ dependencies = [
  "inventory",
  "libc",
  "num-bigint 0.3.0",
- "parking_lot 0.11.0",
+ "parking_lot",
  "paste",
  "pyo3cls",
  "unindent",
@@ -1727,7 +1720,7 @@ dependencies = [
  "byteorder",
  "iter-read",
  "num-bigint 0.2.6",
- "num-traits 0.2.11",
+ "num-traits 0.2.12",
  "serde 1.0.110",
 ]
 

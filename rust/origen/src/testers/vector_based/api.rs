@@ -263,7 +263,7 @@ pub fn drive_data(
             }
         }
         pin_states.push(crate::node!(PinAction, this_cycle));
-        pin_states.push(crate::cycle!(1));
+        pin_states.push(cycle()?);
     }
     Ok(pin_states)
 }
@@ -328,7 +328,7 @@ pub fn read_data(
             }
         }
         pin_states.push(crate::node!(PinAction, this_cycle));
-        pin_states.push(crate::cycle!(1));
+        pin_states.push(cycle()?);
     }
 
     Ok(pin_states)

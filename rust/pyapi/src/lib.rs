@@ -101,11 +101,10 @@ fn extract_value<'a>(
     if bits.is_ok() {
         return Ok(Value::Bits(bits.unwrap().materialize(dut)?, size));
     }
-    //let value = bits_or_val.extract::<BigUint>();
-    let value = bits_or_val.extract::<u128>();
+    let value = bits_or_val.extract::<BigUint>();
     if value.is_ok() {
         return match size {
-            Some(x) => Ok(Value::Data(BigUint::from(value.unwrap()), x)),
+            Some(x) => Ok(Value::Data(value.unwrap(), x)),
             None => Err(Error::new(
                 "A size argument must be supplied along with a data value",
             )),

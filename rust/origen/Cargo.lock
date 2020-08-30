@@ -1644,10 +1644,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8536030f9fea7127f841b45bb6243b27255787fb4eb83958aa1ef9d2fdc0c36"
 dependencies = [
  "num-bigint 0.2.6",
- "num-complex",
+ "num-complex 0.2.4",
  "num-integer",
  "num-iter",
- "num-rational",
+ "num-rational 0.2.4",
+ "num-traits 0.2.12",
+]
+
+[[package]]
+name = "num"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab3e176191bc4faad357e3122c4747aa098ac880e88b168f106386128736cf4a"
+dependencies = [
+ "num-bigint 0.3.0",
+ "num-complex 0.3.0",
+ "num-integer",
+ "num-iter",
+ "num-rational 0.3.0",
  "num-traits 0.2.12",
 ]
 
@@ -1660,7 +1674,6 @@ dependencies = [
  "autocfg 1.0.0",
  "num-integer",
  "num-traits 0.2.12",
- "serde 1.0.114",
 ]
 
 [[package]]
@@ -1672,6 +1685,7 @@ dependencies = [
  "autocfg 1.0.0",
  "num-integer",
  "num-traits 0.2.12",
+ "serde 1.0.114",
 ]
 
 [[package]]
@@ -1681,6 +1695,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6b19411a9719e753aff12e5187b74d60d3dc449ec3f4dc21e3989c3f554bc95"
 dependencies = [
  "autocfg 1.0.0",
+ "num-traits 0.2.12",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b05ad05bd8977050b171b3f6b48175fea6e0565b7981059b486075e1026a9fb5"
+dependencies = [
  "num-traits 0.2.12",
 ]
 
@@ -1713,6 +1736,18 @@ checksum = "5c000134b5dbf44adc5cb772486d335293351644b801551abe8f75c84cfa4aef"
 dependencies = [
  "autocfg 1.0.0",
  "num-bigint 0.2.6",
+ "num-integer",
+ "num-traits 0.2.12",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5b4d7360f362cfb50dde8143501e6940b22f644be75a4cc90b2d81968908138"
+dependencies = [
+ "autocfg 1.0.0",
+ "num-bigint 0.3.0",
  "num-integer",
  "num-traits 0.2.12",
 ]
@@ -1853,8 +1888,8 @@ dependencies = [
  "keyring",
  "lazy_static 1.4.0",
  "meta",
- "num",
- "num-bigint 0.2.6",
+ "num 0.3.0",
+ "num-bigint 0.3.0",
  "num-traits 0.2.12",
  "openssl",
  "path-clean",
@@ -2148,7 +2183,6 @@ dependencies = [
  "indoc",
  "inventory",
  "libc",
- "num-bigint 0.3.0",
  "parking_lot 0.11.0",
  "paste",
  "pyo3cls",
@@ -2526,7 +2560,7 @@ dependencies = [
  "dbus",
  "hkdf",
  "lazy_static 1.4.0",
- "num",
+ "num 0.2.1",
  "rand 0.6.5",
  "sha2 0.8.2",
 ]

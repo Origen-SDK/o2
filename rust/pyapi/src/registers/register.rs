@@ -107,13 +107,13 @@ impl FieldEnum {
         name: String,
         description: String,
         //usage: String,
-        value: u128,
+        value: BigUint,
     ) -> Self {
             FieldEnum {
                 name: name,
                 description: description,
                 //usage: usage,
-                value: BigUint::from(value),
+                value: value,
             }
     }
 }
@@ -139,14 +139,11 @@ pub struct ResetVal {
 #[pymethods]
 impl ResetVal {
     #[new]
-    fn new(name: String, value: u128, mask: Option<u128>) -> Self {
+    fn new(name: String, value: BigUint, mask: Option<BigUint>) -> Self {
             ResetVal {
                 name: name,
-                value: BigUint::from(value),
-                mask: match mask {
-                    Some(m) => Some(BigUint::from(m)),
-                    None => None
-                },
+                value: value,
+                mask: mask
             }
     }
 }

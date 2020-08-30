@@ -1,4 +1,3 @@
-extern crate num;
 use crate::error::Error;
 use eval;
 use indexmap::map::IndexMap;

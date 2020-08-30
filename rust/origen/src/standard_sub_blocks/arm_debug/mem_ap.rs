@@ -50,8 +50,8 @@ impl MemAP {
                 field!("Continuation_code", 24, 4, "RO", vec!(), None, ""),
                 field!("Identity_code", 17, 7, "RO", vec!(), None, ""),
                 field!("Class", 13, 4, "RO", vec!(), None, ""),
-                field!("AP_Identificaton_Variant", 4, 4, "RO", vec!(), None, ""),
-                field!("AP_Identificaton_Type", 0, 3, "RO", vec!(), None, "")
+                field!("AP_Identification_Variant", 4, 4, "RO", vec!(), None, ""),
+                field!("AP_Identification_Type", 0, 3, "RO", vec!(), None, "")
             ),
             "Identifies the Access Port. An IDR value of zero indicates that there is no AP present."
         );

@@ -225,6 +225,13 @@ class Base:
             self.services = {}
             self.app.load_block_files(self, "services.py")
 
+    def mem(self, offset, **kwargs):
+        self._load_regs()
+        n = f"_mem_0x{offset}"
+        if n not in self.regs:
+            self.add_simple_reg(n, offset, **kwargs)
+        return self.reg(n)
+
     def write_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
 

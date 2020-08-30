@@ -4,6 +4,7 @@ use crate::Result;
 use num_bigint::BigUint;
 use num_bigint::ToBigUint;
 use num_traits::Zero;
+use std::convert::TryInto;
 
 /// Returns the value of the given BigUint for the given bit field range.
 /// Notes:
@@ -29,7 +30,7 @@ pub fn bit_slice(value: &BigUint, start_bit: usize, stop_bit: usize) -> Result<B
     }
 
     // If the whole slice is above the MSB just return 0
-    if value.bits() <= lower {
+    if value.bits() <= lower.try_into().unwrap() {
         return Ok(0.to_biguint().unwrap());
     }
 
