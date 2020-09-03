@@ -17,9 +17,10 @@ The ``build`` command is actually a subcommand in the larger ``origen web`` comm
 
 Running ``origen web --help`` will show you what can be done with the *Sphinx app* from the CLI:
 
-{% set origen_exec = '../rust/origen/target/debug/origen.exe' -%}
+{% set origen_exec = '../rust/origen/target/debug/origen.exe' if origen.running_on_windows else '../rust/origen/target/debug/origen' -%}
+{% set run_in_shell = false if origen.running_on_windows else true -%}
 
-{{ insert_cmd_output(origen_exec + " web --help") }}
+{{ insert_cmd_output(origen_exec + " web --help", shell=run_in_shell) }}
 
 Building
 ^^^^^^^^
@@ -28,7 +29,7 @@ You should now be familiar with the ``build`` command's basic usage, but what ab
 
 Running ``build`` with ``--help`` gives us the following options:
 
-{{ insert_cmd_output(origen_exec + " web build --help") }}
+{{ insert_cmd_output(origen_exec + " web build --help", shell=run_in_shell) }}
 
 ``--no-api`` was mentioned when discussing |documenting:api_generation| but to recap: this option will bypass
 generating any API contents. Existing contents will persist though, so this option can be used without

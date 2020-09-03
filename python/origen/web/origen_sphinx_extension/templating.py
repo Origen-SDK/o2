@@ -36,9 +36,11 @@ def insert_header(app, docname, source):
             includes = ext.all_include_rsts()
             # Make sure we aren't including the shared file in the shared files themselves
             if not any(i.match(str(doc)) for i in includes):
+                depth = len(doc.relative_to(origen.web.source_dir).parents) - 1
+                incs = ["../"*depth + str(i.relative_to(origen.web.source_dir)) for i in includes]
                 source[0] = "\n".join([
                     f".. include:: {i}\n  :start-after: start-content\n\n"
-                    for i in includes
+                    for i in incs
                 ]) + source[0]
                 return True
     return False
@@ -99,10 +101,14 @@ def jinja_context(app):
     }
 
 
-def insert_cmd_output(app, cmd, **opts):
+def insert_cmd_output(app, cmd, *, shell=True, **opts):
     # Run the command and gather the output
-    out = subprocess.run(cmd, capture_output=True)
-    out = out.stdout.decode('utf-8').strip()
+    out = subprocess.run(cmd, shell=shell, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    stdout = out.stdout.decode('utf-8').strip()
+    if out.returncode == 1:
+        ose.logger.warning(f"Failed to insert command \"{cmd}\". Command failed to run:")
+        ose.logger.warning(f"STDOUT: {stdout}")
+        ose.logger.warning(f"STDERR: {out.stderr.decode('utf-8').strip()}")
 
     # Embed the output in a code block
     # Need to also shift the spacing of the output so its all under the code block
@@ -110,13 +116,14 @@ def insert_cmd_output(app, cmd, **opts):
     #   inside another block
     spacing = " " * opts['prepend_spaces'] if 'prepend_spaces' in opts else ""
     retn = [f"{spacing}.. code:: none", ""]
-    retn += [f"{spacing}  {l}" for l in out.split("\n")]
+    retn += [f"{spacing}  {l}" for l in stdout.split("\n")]
     return "\n".join(retn)
 
 
 @origen.helpers.continue_on_exception(ose.logger)
 def process_docstring(app, what, name, obj, options, lines):
     ''' Runs the template engine on docstrings, allowing for jinja syntax inside docstrings. '''
+    app.emit("origen-preprocess-docstring", what, name, obj, options, lines)
     try:
         _lines = jinja_render_string(app, "\n".join(lines))
     except Exception as e:

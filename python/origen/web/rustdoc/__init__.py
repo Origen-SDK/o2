@@ -120,7 +120,7 @@ class RustDocProject:
         into the Sphinx project space
     '''
         logger.debug(f"Running Rustdoc command: {self.cmd()}")
-        subprocess.run(self.cmd(), cwd=self.source)
+        subprocess.run(self.cmd(), cwd=self.source, shell=True)
         if self.output_dir:
             self.mv_docs()
         if self.apply_svg_workarounds:

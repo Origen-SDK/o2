@@ -930,7 +930,7 @@ CORE COMMANDS:
                 if let Err(e) = res {
                     log_error!("{}", e);
                     log_error!("Couldn't boot app to determine the in-application Origen version");
-                    origen_version = "Uknown".to_string();
+                    origen_version = "Unknown".to_string();
                 }
 
                 let app_version = match origen::app().unwrap().version() {

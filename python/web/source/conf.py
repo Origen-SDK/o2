@@ -11,14 +11,14 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os, sys, pathlib, subprocess
+sys.path.insert(0, os.path.abspath('../../'))
+
 import origen
 import origen.web
 from origen.web.shorthand.dev import add_shorthand_dev_defs
 
 from sphinx.util.logging import getLogger
 logger = getLogger("origen")
-
-sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
@@ -39,7 +39,10 @@ extensions = [
     'sphinx.ext.extlinks'
 ]
 
-if subprocess.run("dot -V", shell=True, capture_output=True).returncode == 0:
+if subprocess.run("dot -V",
+                  shell=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE).returncode == 0:
     extensions.append('sphinx.ext.inheritance_diagram')
 else:
     logger.info(
@@ -102,11 +105,15 @@ templates_path = ['_templates']
 # Theme customizations
 html_theme_options = {
     'navbar_links':
-    [('Github', 'https://github.com/Origen-SDK/o2', True),
-     ('O1', 'https://origen-sdk.org/', True),
-     ('Example App',
-      '_static/build/origen_sphinx_extension/example/sphinx_build/index',
-      False), ('Community', 'community', False)],
+    [
+        ('Github', 'https://github.com/Origen-SDK/o2', True),
+        # Took this out, it's good to keep the page around for O2 developers, but adds
+        # clutter that the majority of users will not care about
+        #('Example App',
+        # '_static/build/origen_sphinx_extension/example/sphinx_build/index',
+        # False),
+        ('Community', 'community', False)
+    ],
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -137,7 +144,13 @@ def setup(app):
             node.variables['logger'] = (getattr(origen, 'logger'),
                                         node.default_variable_opts())
 
+    def preprocess_docstring(app, what, name, obj, options, lines):
+        if name == "origen.compiler.Renderer.file_extensions":
+            lines.clear()
+            lines.append("File extensions which this compiler recognizes.")
+
     app.connect('autoapi-process-node', replace_origen_logger)
+    app.connect('origen-preprocess-docstring', preprocess_docstring)
 
     # Insert shorthand's own defs for its guides.
     origen.web.shorthand.dev.add_shorthand_dev_defs()

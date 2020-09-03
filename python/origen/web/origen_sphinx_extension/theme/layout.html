@@ -66,7 +66,9 @@
 {%- endblock %}
 
 {%- block content %}
-  {%- block breadcrumb1 %}{{breadcrumb()}}{% endblock %}
+  ## Thought it looks better without the breadcrumbs bar, and kinda redunant since we have the sidebar nav
+  {#- block breadcrumb1 %}{{breadcrumb()}}{% endblock #}
+  <div class="corner-ribbon top-right sticky orange">Origen v2</div>:
   <div class="main container-fluid">
     <div class="row">
       {%- block sidebar1 %} {% if theme_show_sidebar|tobool and not theme_sidebar_right|tobool %}{{ sphinxsidebar() }}{% endif %} {% endblock %}
