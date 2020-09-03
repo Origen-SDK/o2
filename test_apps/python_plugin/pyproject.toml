@@ -5,10 +5,8 @@ description = ""
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 
 [tool.poetry.dependencies]
-origen = { path = "/home/stephen/Code/github/o2/python" }
-#origen = { path = "/home/stephen/Code/github/o2/python" }
-#origen = "2.0.0-pre2"
 python = "^3.6"
+origen = { path = "../../python" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^3"
