@@ -76,6 +76,7 @@ fn main() {
     /******************** Global only commands ******************************************/
     /************************************************************************************/
     if !STATUS.is_app_present {
+        //************************************************************************************/
         let proj_help = "Manage multi-repository project areas and workspaces";
         origen_commands.push(CommandHelp {
             name: "proj".to_string(),
@@ -84,7 +85,6 @@ fn main() {
         });
 
         app = app
-            //************************************************************************************/
             .subcommand(
                 SubCommand::with_name("proj")
                     .display_order(1)
@@ -200,6 +200,30 @@ fn main() {
                         )
                     )
             );
+
+        //************************************************************************************/
+        let new_help = "Create a new Origen application";
+        origen_commands.push(CommandHelp {
+            name: "new".to_string(),
+            help: new_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("new").about(new_help).arg(
+                Arg::with_name("name")
+                    .help("The lowercased and underscored name of the new application")
+                    .takes_value(true)
+                    .required(true)
+                    .number_of_values(1)
+                    .value_name("NAME"),
+            )
+            .arg(Arg::with_name("setup")
+                .help("Don't create the new app's virtual environment after building (need to manually run 'origen setup' within the new app workspace before using it in that case)")
+                .long("no-setup")
+                .required(false)
+                .takes_value(false)
+            ),
+        );
     }
 
     /************************************************************************************/
@@ -318,6 +342,39 @@ fn main() {
                         .takes_value(true)
                         .value_name("MODE"),
                 ),
+        );
+
+        /************************************************************************************/
+        let new_help = "Generate a new block, flow, pattern, etc. for your application";
+        origen_commands.push(CommandHelp {
+            name: "new".to_string(),
+            help: new_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("new").about(new_help)
+            .subcommand(SubCommand::with_name("dut")
+                .display_order(5)
+                .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
+                .long_about(
+"This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
+controller, target, timesets, pins, etc.
+
+The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
+by a forward slash.
+
+Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
+
+Examples:
+  origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
+  origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
+                .arg(Arg::with_name("name")
+                    .takes_value(true)
+                    .required(true)
+                    .help("The name of the new DUT")
+                    .value_name("NAME")
+                )
+            )
         );
 
         /************************************************************************************/
@@ -720,6 +777,7 @@ CORE COMMANDS:
         Some("setup") => commands::setup::run(),
         Some("update") => commands::update::run(),
         Some("fmt") => commands::fmt::run(),
+        Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
         Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap()),
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some("interactive") => {
@@ -864,7 +922,7 @@ CORE COMMANDS:
                 if let Err(e) = res {
                     log_error!("{}", e);
                     log_error!("Couldn't boot app to determine the in-application Origen version");
-                    origen_version = "Uknown".to_string();
+                    origen_version = "Unknown".to_string();
                 }
 
                 let app_version = match origen::app().unwrap().version() {

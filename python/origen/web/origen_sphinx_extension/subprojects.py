@@ -1,4 +1,4 @@
-import origen, copy, pathlib, shutil, subprocess
+import origen, copy, pathlib, shutil, subprocess, os
 from . import logger
 
 
@@ -25,11 +25,14 @@ class SubProject:
         return "poetry run python -c \"from origen.web import output_build_dir; print(str(output_build_dir))\""
 
     def get_subproject_output_dir(self):
+        env = os.environ.copy()
+        env.pop('VIRTUAL_ENV', None)
         out = subprocess.run(self.get_subproject_output_dir_cmd(),
                              shell=True,
                              cwd=self.source,
                              stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+                             stderr=subprocess.PIPE,
+                             env=env)
         content = pathlib.Path(out.stdout.decode('utf-8').strip())
         if out.returncode == 0:
             return content
@@ -38,6 +41,7 @@ class SubProject:
                 f"Unable to get subproject output directory for '{self.proj}'. Unable to build this project!"
             )
             logger.error(f"  Stdout: {content}")
+            logger.error(f"  Stderr: {out.stderr.decode('utf-8').strip()}")
             return False
 
     def build_cmd(self):
@@ -48,8 +52,15 @@ class SubProject:
             logger.info(
                 f"Building docs for subproject '{self.proj}' - {self.build_cmd()}"
             )
-            subprocess.run(self.build_cmd(), shell=True, cwd=self.source)
-            self.mv_docs()
+            env = os.environ.copy()
+            env.pop('VIRTUAL_ENV', None)
+            out = subprocess.run(self.build_cmd(), shell=True, cwd=self.source, env=env)
+            if out.returncode == 0:
+                self.mv_docs()
+            else:
+                logger.error(
+                    f"Failed to build subproject for '{self.proj}'!"
+                )
 
     def mv_docs(self):
         if self.subproject_output_dir.exists():
