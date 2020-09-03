@@ -37,7 +37,10 @@ def insert_header(app, docname, source):
             # Make sure we aren't including the shared file in the shared files themselves
             if not any(i.match(str(doc)) for i in includes):
                 depth = len(doc.relative_to(origen.web.source_dir).parents) - 1
-                incs = ["../"*depth + str(i.relative_to(origen.web.source_dir)) for i in includes]
+                incs = [
+                    "../" * depth + str(i.relative_to(origen.web.source_dir))
+                    for i in includes
+                ]
                 source[0] = "\n".join([
                     f".. include:: {i}\n  :start-after: start-content\n\n"
                     for i in incs
@@ -103,10 +106,14 @@ def jinja_context(app):
 
 def insert_cmd_output(app, cmd, *, shell=True, **opts):
     # Run the command and gather the output
-    out = subprocess.run(cmd, shell=shell, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    out = subprocess.run(cmd,
+                         shell=shell,
+                         stderr=subprocess.PIPE,
+                         stdout=subprocess.PIPE)
     stdout = out.stdout.decode('utf-8').strip()
     if out.returncode == 1:
-        ose.logger.warning(f"Failed to insert command \"{cmd}\". Command failed to run:")
+        ose.logger.warning(
+            f"Failed to insert command \"{cmd}\". Command failed to run:")
         ose.logger.warning(f"STDOUT: {stdout}")
         ose.logger.warning(f"STDERR: {out.stderr.decode('utf-8').strip()}")
 
