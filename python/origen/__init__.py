@@ -138,6 +138,13 @@ producer = Producer()
 
 mode = "development"
 
+_plugins = {}
+''' Dictionary of Origen plugins (instances of :py:class:`origen.application.Application`)
+    that have been referenced and loaded.
+    It should never be access directly since a plugin not being present in this dict may only
+    mean that it hasn't been loaded yet (via an official API) rather than it not existing.
+'''
+
 if status["is_app_present"]:
     sys.path.insert(0, status["root"])
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
@@ -192,3 +199,33 @@ __all__ = [
     'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
     'frontend_root', 'app', 'dut', 'tester', 'producer'
 ]
+
+
+def has_plugin(name):
+    '''
+        Returns true if an Origen plugin matching the given name is found in the current environment
+    '''
+    if name in _plugins:
+        return True
+    else:
+        try:
+            a = importlib.import_module(f'{name}.application')
+            app = a.Application()
+            _plugins[name] = app
+            return True
+        except ModuleNotFoundError:
+            return False
+
+
+def plugin(name):
+    '''
+        Returns an :class:`Origen application <origen.application.Application>` instance representing
+        the given Origen plugin. None is returned if no plugin is found matching the given name within the
+        current environment.
+    '''
+    if has_plugin(name):
+        return _plugins[name]
+    else:
+        raise RuntimeError(
+            f"The current Python environment does not contain a plugin named '{name}'"
+        )

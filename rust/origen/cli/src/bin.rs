@@ -362,7 +362,7 @@ fn main() {
                 .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
                 .long_about(
 "This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
-controller, target, timesets, pins, etc.
+reg file, controller, target, timesets, pins, etc.
 
 The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
 by a forward slash.
@@ -377,6 +377,47 @@ Examples:
                     .required(true)
                     .help("The name of the new DUT")
                     .value_name("NAME")
+                )
+            )
+            .subcommand(SubCommand::with_name("block")
+                .display_order(5)
+                .about("Create a new block, see 'origen new block -h' for more info")
+                .long_about(
+"This generator creates a block (e.g. to represent RAM, ATD, Flash, DAC, etc.) and all of the associated
+resources for it, e.g. a reg file, controller, timesets, etc.
+
+The NAME should be given in lower case (e.g. flash/flash2kb, adc/adc16), optionally with
+additional parent sub-block names after the initial type.
+
+Alternatively, a reference to an existing BLOCK can be added, in which case a nested block will be created
+within that block's sub_blocks directory, rather than a primary block.
+Note that nested blocks do not support derivatives or inheritance and should therefore only be used for
+relatively simple entities which are tightly coupled to a parent block.
+
+Any parent block(s) will be created if they don't exist, but they will not be modified if they do.
+
+Examples:
+  origen new block dac                  # Creates <app_name>/blocks/dac/...
+  origen new block adc/adc8bit          # Creates <app_name>/blocks/adc/derivatives/adc8bit/...
+  origen new block adc/adc16bit         # Creates <app_name>/blocks/adc/derivatives/adc16bit/...
+  origen new block nvm/flash/flash2kb   # Creates <app_name>/blocks/nvm/derivatives/flash/derivatives/flash2kb/...
+
+  # Example of creating a nested sub-block
+  origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/sub_blocks/bist/...")
+                .arg(Arg::with_name("name")
+                    .takes_value(true)
+                    .required(true)
+                    .help("The name of the new block, including its parents if applicable")
+                    .value_name("NAME")
+                )
+                .arg(
+                    Arg::with_name("parent")
+                        .short("p")
+                        .long("parent")
+                        .help("Create the new block nested within this existing block")
+                        .takes_value(true)
+                        .required(false)
+                        .value_name("PARENT")
                 )
             )
         );

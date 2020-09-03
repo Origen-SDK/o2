@@ -62,9 +62,18 @@ class Base(_origen.application.PyApplication):
         ''' Returns the application's instance of :class:`Origen's Compiler <origen.compiler.Compiler>` '''
         return self._compiler
 
+    @property
+    def plugin(self):
+        ''' Will be set to true if the app instance it not the top-level app and is therefore operating as a plugin '''
+        return self._plugin
+
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()
+        if origen.app is None:
+            self._plugin = False
+        else:
+            self._plugin = True
 
     def block_path_to_filepath(self, path):
         ''' Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon '''
