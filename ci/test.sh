@@ -47,7 +47,7 @@ main() {
         export TRAVIS_ORIGEN_CLI="../../rust/origen/target/$TARGET/debug/origen"
         cd ../test_apps/python_app
         ../../rust/origen/target/$TARGET/debug/origen -v
-        ../../rust/origen/target/$TARGET/debug/origen setup
+        ../../rust/origen/target/$TARGET/debug/origen env setup
         $HOME/.poetry/bin/poetry run pytest -vv
         cd ../../rust
     fi
