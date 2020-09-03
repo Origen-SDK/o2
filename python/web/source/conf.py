@@ -104,8 +104,7 @@ templates_path = ['_templates']
 
 # Theme customizations
 html_theme_options = {
-    'navbar_links':
-    [
+    'navbar_links': [
         ('Github', 'https://github.com/Origen-SDK/o2', True),
         # Took this out, it's good to keep the page around for O2 developers, but adds
         # clutter that the majority of users will not care about

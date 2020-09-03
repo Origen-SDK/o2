@@ -54,13 +54,14 @@ class SubProject:
             )
             env = os.environ.copy()
             env.pop('VIRTUAL_ENV', None)
-            out = subprocess.run(self.build_cmd(), shell=True, cwd=self.source, env=env)
+            out = subprocess.run(self.build_cmd(),
+                                 shell=True,
+                                 cwd=self.source,
+                                 env=env)
             if out.returncode == 0:
                 self.mv_docs()
             else:
-                logger.error(
-                    f"Failed to build subproject for '{self.proj}'!"
-                )
+                logger.error(f"Failed to build subproject for '{self.proj}'!")
 
     def mv_docs(self):
         if self.subproject_output_dir.exists():
