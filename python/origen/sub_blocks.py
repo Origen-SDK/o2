@@ -8,9 +8,6 @@ class Loader:
         self.controller = controller
 
     def sub_block(self, name, block_path=None, offset=None):
-        if name == "dac":
-            import pdb
-            pdb.set_trace()
         b = self.controller.app.instantiate_block(block_path)
         b.name = name
         b.path = f"{self.controller.path}.{name}"

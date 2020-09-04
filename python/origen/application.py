@@ -16,7 +16,7 @@ class Base(_origen.application.PyApplication):
     @property
     def name(self):
         ''' Returns the unique ID (name) of the app/plugin '''
-        return _origen.app_config()["name"]
+        return self._name
 
     @property
     def output_dir(self):
@@ -48,9 +48,7 @@ class Base(_origen.application.PyApplication):
     @property
     def root(self):
         ''' Returns the application's root directory '''
-        return origen.root
-
-    __instantiate_dut_called = False
+        return self._root
 
     @property
     def translator(self):
@@ -72,13 +70,17 @@ class Base(_origen.application.PyApplication):
         self._translator = Translator()
         if origen.app is None:
             self._plugin = False
+            self._root = origen.root
+            self._name = _origen.app_config()["name"]
         else:
             self._plugin = True
+            self._root = options["root"]
+            self._name = options["name"]
 
     def block_path_to_filepath(self, path):
         ''' Translates something like "dut.falcon" to <root>/<app>/blocks/dut/derivatives/falcon '''
         fields = path.split(".")
-        filepath = origen.root.joinpath(self.name).joinpath('blocks')
+        filepath = self.root.joinpath(self.name).joinpath('blocks')
         for i, field in enumerate(fields):
             if i > 0:
                 filepath = filepath.joinpath('derivatives')
@@ -95,7 +97,7 @@ class Base(_origen.application.PyApplication):
         if origen._target_loading is not True:
             raise RuntimeError(
                 "A DUT can only be instantiated within a target load sequence")
-        self.__instantiate_dut_called = True
+        origen.__instantiate_dut_called = True
         dut = self.instantiate_block(path)
         if not isinstance(dut, TopLevel):
             raise RuntimeError(
@@ -111,7 +113,7 @@ class Base(_origen.application.PyApplication):
             >>> origen.app.instantiate_block("dut.falcon")
             >>> origen.app.instantiate_block("nvm.flash.f2mb")
         '''
-        if not self.__instantiate_dut_called:
+        if not origen.__instantiate_dut_called:
             raise RuntimeError(
                 f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{path}\")' instead?"
             )
@@ -127,6 +129,10 @@ class Base(_origen.application.PyApplication):
 
         # If no controller was found in the app, fall back to the Origen Base controller
         if done:
+            paths = orig_path.split(".")
+            if len(paths) > 1 and origen.has_plugin(paths[0]):
+                return origen.plugin(paths[0]).instantiate_block(".".join(
+                    paths[1:]))
             if path == "dut":
                 from origen.controller import TopLevel
                 block = TopLevel()
@@ -153,7 +159,7 @@ class Base(_origen.application.PyApplication):
         fields = controller.block_path.split(".")
         for i, field in enumerate(fields):
             if i == 0:
-                filepath = origen.root.joinpath(
+                filepath = self.root.joinpath(
                     self.name).joinpath("blocks").joinpath(fields[i])
             else:
                 filepath = filepath.joinpath("derivatives").joinpath(fields[i])

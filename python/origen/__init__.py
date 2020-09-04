@@ -1,5 +1,6 @@
 import sys
 import re
+import os
 init_verbosity = 0
 for arg in sys.argv:
     regexp = re.compile(r'verbosity=(\d+)')
@@ -145,6 +146,8 @@ _plugins = {}
     mean that it hasn't been loaded yet (via an official API) rather than it not existing.
 '''
 
+__instantiate_dut_called = False
+
 if status["is_app_present"]:
     sys.path.insert(0, status["root"])
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
@@ -210,7 +213,9 @@ def has_plugin(name):
     else:
         try:
             a = importlib.import_module(f'{name}.application')
-            app = a.Application()
+            app = a.Application(root=Path(os.path.abspath(
+                a.__file__)).parent.parent,
+                                name=name)
             _plugins[name] = app
             return True
         except ModuleNotFoundError:

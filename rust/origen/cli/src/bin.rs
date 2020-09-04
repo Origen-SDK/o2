@@ -356,7 +356,9 @@ fn main() {
             shortcut: None,
         });
         app = app.subcommand(
-            SubCommand::with_name("new").about(new_help)
+            SubCommand::with_name("new")
+            .about(new_help)
+            .setting(AppSettings::ArgRequiredElseHelp)
             .subcommand(SubCommand::with_name("dut")
                 .display_order(5)
                 .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
