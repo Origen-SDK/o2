@@ -7,14 +7,14 @@ use tera::{Context, Tera};
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("dut") => {
-            let mut name = matches
+            let name = matches
                 .subcommand_matches("dut")
                 .unwrap()
                 .value_of("name")
                 .unwrap()
                 .to_string();
 
-            validate_resource_name(&name, "NAME");
+            let mut name = clean_and_validate_resource_name(&name, "NAME");
 
             // Add the leading 'dut' to the fully qualified new DUT name if missing
             if !name.starts_with("dut/") {
@@ -62,21 +62,19 @@ pub fn run(matches: &ArgMatches) {
         Some("block") => {
             let matches = matches.subcommand_matches("block").unwrap();
             let name = matches.value_of("name").unwrap().to_string();
-
             let mut nested = false;
             let parent = matches.value_of("parent");
-            let mut block_name = name.clone();
+            let mut block_name = clean_and_validate_resource_name(&name, "NAME");
 
-            validate_resource_name(&name, "NAME");
             if let Some(p) = parent {
                 nested = true;
-                block_name = p.to_string();
-                validate_resource_name(p, "PARENT");
                 if name.contains("/") {
                     display_red!("ERROR: ");
                     displayln!("The NAME '{}' is invalid, when specifying a PARENT argument the NAME cannot also contain a leading parent name(s)",  name);
                     std::process::exit(1);
                 }
+                let par = clean_and_validate_resource_name(p, "PARENT");
+                block_name = format!("{}/{}", &par, &block_name);
             }
 
             let mut top = true;
@@ -129,14 +127,15 @@ fn generate_block(dir: &Path, top: bool, nested: bool) {
     let mut context = Context::new();
 
     context.insert("top", &top);
+    context.insert("nested", &nested);
 
     if !dir.exists() {
         std::fs::create_dir_all(dir).expect(&format!("Couldn't create '{}'", dir.display()));
-        write_block_file(dir, &context, "attributes.py");
         write_block_file(dir, &context, "controller.py");
         write_block_file(dir, &context, "registers.py");
         write_block_file(dir, &context, "sub_blocks.py");
         if !nested {
+            write_block_file(dir, &context, "attributes.py");
             write_block_file(dir, &context, "levels.py");
             write_block_file(dir, &context, "services.py");
             write_block_file(dir, &context, "timing.py");
@@ -166,9 +165,17 @@ fn write_block_file(dir: &Path, context: &Context, file_name: &str) {
 ///   * doesn't contain any special characters
 ///
 /// If not an error message will be output to the console and the command will terminate
-fn validate_resource_name(name: &str, resource_id: &str) {
+///
+/// The following mods will be make to the returned value:
+///   * any '\' will be replace with '/'
+///   * 'derivatives/' or 'sub_blocks' in the name will be removed
+///   * if it leads with the app name or 'blocks' then it will be removed
+fn clean_and_validate_resource_name(name: &str, resource_id: &str) -> String {
     let contains_special_chars = Regex::new(r"[^0-9a-z_]").unwrap();
     let starts_with_number = Regex::new(r"^[0-9]").unwrap();
+
+    let name = name.replace(r#"\"#, "/");
+    let mut names: Vec<&str> = vec![];
 
     for n in name.split('/') {
         if contains_special_chars.is_match(n) || starts_with_number.is_match(n) {
@@ -176,7 +183,15 @@ fn validate_resource_name(name: &str, resource_id: &str) {
             displayln!("The {} '{}' is invalid, all resource names must be lowercased, underscored, start with a letter and contain no special characters", resource_id, name);
             std::process::exit(1);
         }
+        if n != origen::app().unwrap().name()
+            && n != "blocks"
+            && n != "sub_blocks"
+            && n != "derivatives"
+        {
+            names.push(n);
+        }
     }
+    names.join("/")
 }
 
 /// Returns a path to the block directory for the given resource name

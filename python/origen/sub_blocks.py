@@ -7,8 +7,9 @@ class Loader:
     def __init__(self, controller):
         self.controller = controller
 
-    def sub_block(self, name, block_path=None, offset=None):
-        b = self.controller.app.instantiate_block(block_path)
+    def sub_block(self, name, block, offset=None):
+        b = self.controller.app.instantiate_block(
+            block, base_path=self.controller.block_path)
         b.name = name
         b.path = f"{self.controller.path}.{name}"
         # Add the python representation of this block to its parent

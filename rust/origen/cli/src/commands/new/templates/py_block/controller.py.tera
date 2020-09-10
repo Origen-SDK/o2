@@ -1,4 +1,4 @@
-{% if top -%}
+{% if top or nested -%}
 {% if dut -%}
 from origen.controller import TopLevel as BaseController
 {% else -%}
@@ -10,7 +10,7 @@ from ...controller import Controller as Parent
 import origen
 
 
-{% if top -%}
+{% if top or nested -%}
 class Controller(BaseController):
 {% else -%}
 class Controller(Parent):

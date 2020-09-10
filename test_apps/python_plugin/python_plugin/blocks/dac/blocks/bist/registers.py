@@ -1,10 +1,11 @@
 ##########################################################################################
-# Any registers defined here will be added to all DUTs in your application
+# Any registers defined here will be added to this DUT and all of its derivative children
 ##########################################################################################
 
 # Example of a simple register definition with all bits r/w, 0x0 is the local offset address:
 #
-SimpleReg("my_dac_reg1", 0x0, size=32)  # 32 is the default size if not specified
+#     SimpleReg("my_reg1", 0x0, size=32)  # 32 is the default size if not specified
+SimpleReg("my_bist_reg1", 0x0, size=32)  # 32 is the default size if not specified
 #
 # Example of a richer definition with bitfields:
 #
