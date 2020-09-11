@@ -1,8 +1,8 @@
-from origen.controller import Base as BaseController
+from ...controller import Controller as Parent
 import origen
 
 
-class Controller(BaseController):
+class Controller(Parent):
     def write_register(self, reg_or_val, size=None, address=None, **kwargs):
         # All write register requests originated from within this block (or one of its children)
         # will be sent to the parent class by default, however you can intercept it here and do

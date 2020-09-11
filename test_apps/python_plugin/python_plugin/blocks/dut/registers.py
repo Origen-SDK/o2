@@ -1,5 +1,5 @@
 ##########################################################################################
-# Any registers defined here will be added to this DUT and all of its derivative children
+# Any registers defined here will be added to all DUTs in your application
 ##########################################################################################
 
 # Example of a simple register definition with all bits r/w, 0x0 is the local offset address:

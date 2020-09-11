@@ -217,9 +217,9 @@ class Base(_origen.application.PyApplication):
             m = importlib.import_module(f"{self.name}.{p}")
             block = m.Controller()
 
-        block.app = self
-        block.block_path = orig_path
-        block.dir = block_dir
+        block._app = self
+        block._block_path = orig_path
+        block._block_dir = block_dir
 
         return block
 
@@ -232,7 +232,7 @@ class Base(_origen.application.PyApplication):
 
         blocks_dir = self.app_dir.joinpath("blocks")
         load_dirs = []
-        load_dir = controller.dir
+        load_dir = controller.block_dir
         while load_dir != blocks_dir:
             load_dirs.insert(0, load_dir)
             load_dir = load_dir.parent

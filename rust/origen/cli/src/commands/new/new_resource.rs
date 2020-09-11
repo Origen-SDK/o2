@@ -1,7 +1,8 @@
 use super::PY_BLOCK;
 use clap::ArgMatches;
+use origen::utility::file_actions as fa;
 use regex::Regex;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tera::{Context, Tera};
 
 pub fn run(matches: &ArgMatches) {
@@ -74,6 +75,7 @@ pub fn run(matches: &ArgMatches) {
                     std::process::exit(1);
                 }
                 let par = clean_and_validate_resource_name(p, "PARENT");
+                dbg!(&par);
                 block_name = format!("{}/{}", &par, &block_name);
             }
 
@@ -81,11 +83,16 @@ pub fn run(matches: &ArgMatches) {
             let mut path = origen::app().unwrap().app_dir().join("blocks");
             let mut i = 0;
             let names = block_name.split("/").collect::<Vec<&str>>();
+            let mut sub_blocks_py = path.clone();
 
             for n in &names {
+                // Make sure the parent block has a sub_blocks.py since we will append to it later
+                if nested && i == names.len() - 1 {
+                    sub_blocks_py = path.join("sub_blocks.py");
+                }
                 if !top {
                     if nested && i == names.len() - 1 {
-                        path = path.join("sub_blocks");
+                        path = path.join("blocks");
                     } else {
                         path = path.join("derivatives");
                     }
@@ -95,6 +102,39 @@ pub fn run(matches: &ArgMatches) {
                 generate_block(&path, top, nested && i == names.len() - 1);
                 top = false;
                 i += 1;
+            }
+            // If a nested block then automatically instantiate it within its parent
+            if nested {
+                if !sub_blocks_py.exists() {
+                    let context = Context::new();
+                    write_block_file(sub_blocks_py.parent().unwrap(), &context, "sub_blocks.py");
+                }
+                let _ = fa::append(
+                    &sub_blocks_py,
+                    &format!("SubBlock(\"{}\", \"{}\")", name, name),
+                );
+
+            // Otherwise (for now?) just print a message telling the user how to add it to a block's
+            // sub_blocks.py file
+            } else {
+                displayln!("");
+                displayln!("Block created, instantiate it within an existing DUT or block within this app by adding the following code to its sub_blocks.py file:");
+                displayln!("");
+                displayln!(
+                    "  SubBlock(\"my_instance_name\", \"{}\")",
+                    &block_name.replace("/", ".")
+                );
+                displayln!("");
+                displayln!(
+                    "To instantiate it within a block defined by another application, do this:"
+                );
+                displayln!("");
+                displayln!(
+                    "  SubBlock(\"my_instance_name\", \"{}.{}\")",
+                    origen::app().unwrap().name(),
+                    &block_name.replace("/", ".")
+                );
+                displayln!("");
             }
         }
         None => unreachable!(),
@@ -131,13 +171,15 @@ fn generate_block(dir: &Path, top: bool, nested: bool) {
 
     if !dir.exists() {
         std::fs::create_dir_all(dir).expect(&format!("Couldn't create '{}'", dir.display()));
+        write_block_file(dir, &context, "attributes.py");
         write_block_file(dir, &context, "controller.py");
         write_block_file(dir, &context, "registers.py");
         write_block_file(dir, &context, "sub_blocks.py");
+        write_block_file(dir, &context, "services.py");
+        // Assume these won't be required for most cases when a block is nested within another, though
+        // the user could add them manually and they would work
         if !nested {
-            write_block_file(dir, &context, "attributes.py");
             write_block_file(dir, &context, "levels.py");
-            write_block_file(dir, &context, "services.py");
             write_block_file(dir, &context, "timing.py");
         }
     } else {
@@ -168,13 +210,16 @@ fn write_block_file(dir: &Path, context: &Context, file_name: &str) {
 ///
 /// The following mods will be make to the returned value:
 ///   * any '\' will be replace with '/'
-///   * 'derivatives/' or 'sub_blocks' in the name will be removed
-///   * if it leads with the app name or 'blocks' then it will be removed
+///   * 'derivatives/' or 'blocks' in the name will be removed
+///   * if it leads with the top-level app name or 'blocks' then it will be removed
 fn clean_and_validate_resource_name(name: &str, resource_id: &str) -> String {
     let contains_special_chars = Regex::new(r"[^0-9a-z_]").unwrap();
     let starts_with_number = Regex::new(r"^[0-9]").unwrap();
 
-    let name = name.replace(r#"\"#, "/");
+    let mut name = name.replace(r#"\"#, "/");
+    while name.ends_with("/") || name.ends_with("\\") {
+        name.truncate(name.len() - 1);
+    }
     let mut names: Vec<&str> = vec![];
 
     for n in name.split('/') {
@@ -183,28 +228,9 @@ fn clean_and_validate_resource_name(name: &str, resource_id: &str) -> String {
             displayln!("The {} '{}' is invalid, all resource names must be lowercased, underscored, start with a letter and contain no special characters", resource_id, name);
             std::process::exit(1);
         }
-        if n != origen::app().unwrap().name()
-            && n != "blocks"
-            && n != "sub_blocks"
-            && n != "derivatives"
-        {
+        if n != origen::app().unwrap().name() && n != "blocks" && n != "derivatives" {
             names.push(n);
         }
     }
     names.join("/")
-}
-
-/// Returns a path to the block directory for the given resource name
-fn block_dir(name: &str) -> PathBuf {
-    let mut path = origen::app().unwrap().app_dir().join("blocks");
-    let mut top = false;
-
-    for n in name.split("/") {
-        if !top {
-            path = path.join("derivatives");
-        }
-        path = path.join(n);
-        top = false;
-    }
-    path
 }
