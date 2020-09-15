@@ -379,11 +379,12 @@ by a forward slash.
 Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
 
 Examples:
+  origen new dut                # Creates <app_name>/blocks/dut/...
   origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
   origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
                 .arg(Arg::with_name("name")
                     .takes_value(true)
-                    .required(true)
+                    .required(false)
                     .help("The name of the new DUT")
                     .value_name("NAME")
                 )

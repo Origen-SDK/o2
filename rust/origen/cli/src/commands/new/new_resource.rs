@@ -8,19 +8,20 @@ use tera::{Context, Tera};
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("dut") => {
-            let name = matches
-                .subcommand_matches("dut")
-                .unwrap()
-                .value_of("name")
-                .unwrap()
-                .to_string();
+            let name;
 
-            let mut name = clean_and_validate_resource_name(&name, "NAME");
-
-            // Add the leading 'dut' to the fully qualified new DUT name if missing
-            if !name.starts_with("dut/") {
-                name = format!("dut/{}", &name);
+            if let Some(n) = matches.subcommand_matches("dut").unwrap().value_of("name") {
+                // Add the leading 'dut' to the fully qualified new DUT name if missing
+                if !n.starts_with("dut/") {
+                    name = format!("dut/{}", n);
+                } else {
+                    name = n.to_string();
+                }
+            } else {
+                name = "dut".to_string();
             }
+
+            let name = clean_and_validate_resource_name(&name, "NAME");
 
             let mut top = true;
             let mut path = origen::app().unwrap().app_dir().join("blocks");
