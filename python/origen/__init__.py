@@ -52,7 +52,7 @@ if status["is_app_present"]:
         None: If not in an application's workspace.
 '''
 
-version = status["origen_version"]
+version = _origen.version()
 ''' Returns the version of the Origen executable.
 
     Returns:

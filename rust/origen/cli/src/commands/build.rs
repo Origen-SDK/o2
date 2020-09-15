@@ -1,6 +1,7 @@
 use super::fmt::cd;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
+use origen::utility::version::{to_pep440, to_semver};
 use origen::{Result, STATUS};
 use regex::Regex;
 use semver::Version;
@@ -9,10 +10,19 @@ use std::path::Path;
 use std::process::Command;
 
 pub fn run(matches: &ArgMatches) {
-    if let Some(version) = matches.value_of("version") {
-        if Version::parse(&version).is_err() {
+    if let Some(v) = matches.value_of("version") {
+        let mut version_bad = false;
+        let version;
+        match to_semver(v) {
+            Ok(ver) => version = ver,
+            Err(_e) => {
+                version = v.to_string();
+                version_bad = true;
+            }
+        }
+        if version_bad || Version::parse(&version).is_err() {
             display_redln!(
-                "Invalid version: '{}', must be a semantic version like 1.2.3 or 1.2.3-pre4",
+                "Invalid version: '{}', must be a semantic version like 1.2.3 or 1.2.3.dev4 (1.2.3-dev4 also accepted)",
                 &version
             );
             std::process::exit(1);
@@ -24,7 +34,7 @@ pub fn run(matches: &ArgMatches) {
                 .join("origen")
                 .join("cli")
                 .join("Cargo.toml"),
-            version,
+            &version,
         )
         .expect("Couldn't write version");
         write_version(
@@ -33,7 +43,7 @@ pub fn run(matches: &ArgMatches) {
                 .join("rust")
                 .join("origen")
                 .join("Cargo.toml"),
-            version,
+            &version,
         )
         .expect("Couldn't write version");
         write_version(
@@ -42,7 +52,7 @@ pub fn run(matches: &ArgMatches) {
                 .join("rust")
                 .join("pyapi")
                 .join("Cargo.toml"),
-            version,
+            &version,
         )
         .expect("Couldn't write version");
         write_version(
@@ -50,7 +60,7 @@ pub fn run(matches: &ArgMatches) {
                 .origen_wksp_root
                 .join("python")
                 .join("pyproject.toml"),
-            version,
+            &to_pep440(&version).unwrap(),
         )
         .expect("Couldn't write version");
         return;
@@ -91,7 +101,6 @@ pub fn run(matches: &ArgMatches) {
             .status()
             .expect("failed to build origen for release");
 
-        fix_wheel_version(wheel_dir);
         cd(&STATUS.origen_wksp_root.join("python"));
 
         dependency_on_pyapi(false).expect("Couldn't disable dependency on origen_pyapi");
@@ -248,7 +257,7 @@ pub fn run(matches: &ArgMatches) {
 /// Poetry is too opinionated about the versioning and wants to call a pre-release version
 /// a release candidate. This fixes the generated version by putting it back to the original
 /// Origen version within the wheel package.
-fn fix_wheel_version(dist_dir: &Path) {
+fn _fix_wheel_version(dist_dir: &Path) {
     if STATUS.origen_version.pre.is_empty() {
         return;
     }
@@ -312,7 +321,7 @@ fn fix_wheel_version(dist_dir: &Path) {
             &format!("origen-{}.dist", &underscored_new_version),
         );
 
-        let sha = hash(&metadata_file);
+        let sha = _hash(&metadata_file);
         let new_meta_line = format!(
             "origen-{}.dist-info/METADATA,sha256={},{}",
             &underscored_new_version, sha.0, sha.1
@@ -344,7 +353,7 @@ fn fix_wheel_version(dist_dir: &Path) {
     }
 }
 
-fn hash(file: &Path) -> (String, usize) {
+fn _hash(file: &Path) -> (String, usize) {
     let contents =
         std::fs::read_to_string(file).expect(&format!("Couldn't read {}", file.display()));
     let mut hasher = Sha256::new();

@@ -12,6 +12,7 @@ mod python;
 use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use indexmap::map::IndexMap;
+use origen::utility::version::to_pep440;
 use origen::{LOGGER, STATUS};
 use std::path::Path;
 
@@ -49,8 +50,14 @@ fn main() {
     origen::initialize(Some(verbosity));
 
     let version = match STATUS.is_app_present {
-        true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
-        false => format!("Origen: {}", STATUS.origen_version.to_string()),
+        true => format!(
+            "Origen CLI: {}",
+            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
+        ),
+        false => format!(
+            "Origen: {}",
+            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
+        ),
     };
 
     let mut app = App::new("")
@@ -392,9 +399,7 @@ The NAME should be given in lower case (e.g. flash/flash2kb, adc/adc16), optiona
 additional parent sub-block names after the initial type.
 
 Alternatively, a reference to an existing BLOCK can be added, in which case a nested block will be created
-within that block's sub_blocks directory, rather than a primary block.
-Note that nested blocks do not support derivatives or inheritance and should therefore only be used for
-relatively simple entities which are tightly coupled to a parent block.
+within that block's 'blocks/' directory, rather than a primary top-level block.
 
 Any parent block(s) will be created if they don't exist, but they will not be modified if they do.
 
@@ -405,7 +410,7 @@ Examples:
   origen new block nvm/flash/flash2kb   # Creates <app_name>/blocks/nvm/derivatives/flash/derivatives/flash2kb/...
 
   # Example of creating a nested sub-block
-  origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/sub_blocks/bist/...")
+  origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/blocks/bist/...")
                 .arg(Arg::with_name("name")
                     .takes_value(true)
                     .required(true)
@@ -697,6 +702,23 @@ Examples:
         );
 
         /************************************************************************************/
+        let app_help = "Commands for packaging and releasing your application";
+        origen_commands.push(CommandHelp {
+            name: "app".to_string(),
+            help: app_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("app")
+                .about(app_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .subcommand(
+                    SubCommand::with_name("package")
+                        .about("Build the app into a Python package (a wheel)"),
+                ),
+        );
+
+        /************************************************************************************/
         let env_help = "Manage your application's Origen/Python environment (dependencies, etc.)";
         origen_commands.push(CommandHelp {
             name: "env".to_string(),
@@ -704,6 +726,7 @@ Examples:
             shortcut: None,
         });
         app = app.subcommand(SubCommand::with_name("env").about(env_help)
+            .setting(AppSettings::ArgRequiredElseHelp)
             .subcommand(
                 SubCommand::with_name("setup")
                     .about("Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file")
@@ -826,6 +849,7 @@ CORE COMMANDS:
     let _ = LOGGER.set_verbosity(matches.occurrences_of("verbose") as u8);
 
     match matches.subcommand_name() {
+        Some("app") => commands::app::run(matches.subcommand_matches("app").unwrap()),
         Some("env") => commands::env::run(matches.subcommand_matches("env").unwrap()),
         Some("fmt") => commands::fmt::run(),
         Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
@@ -987,19 +1011,26 @@ CORE COMMANDS:
                 if STATUS.is_app_in_origen_dev_mode {
                     println!(
                         "App:    {}\nOrigen: {} (from {})\nCLI:    {}",
-                        app_version,
-                        origen_version,
+                        to_pep440(&app_version).unwrap_or("Error".to_string()),
+                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
                         STATUS.origen_wksp_root.display(),
-                        STATUS.origen_version
+                        to_pep440(&STATUS.origen_version.to_string())
+                            .unwrap_or("Error".to_string())
                     );
                 } else {
                     println!(
                         "App:    {}\nOrigen: {}\nCLI:    {}",
-                        app_version, origen_version, STATUS.origen_version
+                        to_pep440(&app_version).unwrap_or("Error".to_string()),
+                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
+                        to_pep440(&STATUS.origen_version.to_string())
+                            .unwrap_or("Error".to_string())
                     );
                 }
             } else {
-                println!("Origen: {}", STATUS.origen_version);
+                println!(
+                    "Origen: {}",
+                    to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
+                );
             }
         }
         _ => {

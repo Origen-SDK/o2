@@ -1,3 +1,4 @@
+pub mod app;
 pub mod build;
 pub mod env;
 pub mod fmt;

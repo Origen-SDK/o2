@@ -57,6 +57,7 @@ macro_rules! pypath {
 fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(initialize))?;
     m.add_wrapped(wrap_pyfunction!(status))?;
+    m.add_wrapped(wrap_pyfunction!(version))?;
     m.add_wrapped(wrap_pyfunction!(config))?;
     m.add_wrapped(wrap_pyfunction!(app_config))?;
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
@@ -185,6 +186,14 @@ fn status(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     let _ = ret.set_item("on_windows", cfg!(windows));
     Ok(ret.into())
+}
+
+/// Returns the Origen version formatted into PEP440, e.g. "1.2.3.dev4"
+#[pyfunction]
+fn version() -> PyResult<String> {
+    Ok(origen::utility::version::to_pep440(
+        &STATUS.origen_version.to_string(),
+    )?)
 }
 
 /// Returns the Origen configuration (as defined in origen.toml files)
