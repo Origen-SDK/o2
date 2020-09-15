@@ -21,6 +21,11 @@ main() {
         ln -s /home/travis/virtualenv/python$PYTHON_VERSION/bin/pip /home/travis/bin/pip
         ln -s /home/travis/virtualenv/python$PYTHON_VERSION/bin/pip3 /home/travis/bin/pip3
     fi
+    if [ "$TRAVIS_OS_NAME" = "windows" ]; then
+        export PATH="/c/PythonForO2:/c/PythonForO2/Scripts:$PATH"
+    else
+        source /home/travis/virtualenv/python$PYTHON_VERSION/bin/activate
+    fi
     pip3 install --upgrade pip
     #python3 --version
 }
