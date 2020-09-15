@@ -22,6 +22,8 @@ main() {
         ln -s /home/travis/virtualenv/python$PYTHON_VERSION/bin/pip3 /home/travis/bin/pip3
     fi
     python --version
+
+    pip install --upgrade pip
 }
 
 main
