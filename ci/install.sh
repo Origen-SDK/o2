@@ -26,7 +26,8 @@ main() {
     else
         source /home/travis/virtualenv/python$PYTHON_VERSION/bin/activate
     fi
-    pip3 install --upgrade pip
+    # pip >= 19.1 required to fix a bug that impacts installing our python app
+    pip3 install --upgrade pip --user
     #python3 --version
 }
 
