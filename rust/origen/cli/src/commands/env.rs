@@ -231,11 +231,10 @@ pub fn run(matches: &ArgMatches) {
 
             // Lower than this version has a bug which can crash with local path dependencies
             print!("Is PIP version >= 19.1?         ... ");
-            
-            let mut args = vec!["run", "pip", "install", "pip==20.2.3"];
-            if cfg!(windows) {
-               args.push("--user");
-            }
+
+            // This gives an error that suggests it is not working when run on Windows, yet it solves the problem
+            // seen with the earlier version on CI
+            let args = vec!["run", "pip", "install", "pip==20.2.3"];
             let status = Command::new(&PYTHON_CONFIG.poetry_command)
                 .args(&args)
                 .status();

@@ -2,11 +2,13 @@ import sys
 import re
 import os
 init_verbosity = 0
+
+regexp = re.compile(r'verbosity=(\d+)')
 for arg in sys.argv:
-    regexp = re.compile(r'verbosity=(\d+)')
     matches = regexp.search(arg)
     if matches:
         init_verbosity = int(matches.group(1))
+
 import _origen
 _origen.initialize(init_verbosity)
 from pathlib import Path

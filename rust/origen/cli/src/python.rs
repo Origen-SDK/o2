@@ -125,14 +125,30 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) -> Result<ExitStatus> {
-    Ok(Command::new(&PYTHON_CONFIG.poetry_command)
-        .arg("run")
-        .arg(&PYTHON_CONFIG.command)
-        .arg("-c")
-        .arg(&code)
-        .arg("-")
-        .arg(&format!("verbosity={}", origen::LOGGER.verbosity()))
-        .status()?)
+    let mut cmd = Command::new(&PYTHON_CONFIG.poetry_command);
+    cmd.arg("run");
+    cmd.arg(&PYTHON_CONFIG.command);
+    cmd.arg("-c");
+    cmd.arg(&code);
+    cmd.arg("-");
+    cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
+
+    if origen::STATUS.is_origen_present || origen::STATUS.is_app_in_origen_dev_mode {
+        cmd.env(
+            "PYTHONPATH",
+            format!(
+                "{}",
+                origen::STATUS
+                    .origen_wksp_root
+                    .join("rust")
+                    .join("pyapi")
+                    .join("target")
+                    .display()
+            ),
+        );
+    }
+
+    Ok(cmd.status()?)
 }
 
 /// Run silently with all STDOUT and STDERR handled by the given callback functions

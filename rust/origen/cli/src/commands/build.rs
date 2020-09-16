@@ -1,6 +1,7 @@
 use super::fmt::cd;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
+use origen::utility::file_utils::{copy, symlink};
 use origen::utility::version::{to_pep440, to_semver};
 use origen::{Result, STATUS};
 use regex::Regex;
@@ -188,72 +189,51 @@ pub fn run(matches: &ArgMatches) {
         // A standard (non-release) build, this can be requested from an Origen workspace or an app workspace that
         // is locally referencing an Origen workspace
         } else {
-            // The default build will compile the latest PyAPI and copy it into
-            // the example app's Python env
-            let mut app = STATUS.origen_wksp_root.join("test_apps").join("python_app");
-
-            // If running in an app with a local reference to Origen, then use that app as the target instead
-            if STATUS.is_app_in_origen_dev_mode {
-                app = origen::app().unwrap().root.clone();
-                std::env::set_current_dir(&app).expect("Couldn't cd to the app root");
-
-                // Make sure Rust nightly is enabled in the app dir, just do this quietly if it succeeds
-                match origen::utility::command_helpers::exec_and_capture(
-                    "rustup",
-                    Some(vec!["override", "set", "nightly"]),
-                ) {
-                    Err(e) => log_error!("{}", e),
-                    Ok((code, stdout, stderr)) => {
-                        if !code.success() {
-                            for line in stdout {
-                                displayln!("{}", line);
-                            }
-                            for line in stderr {
-                                display_redln!("{}", line);
-                            }
-                        }
-                    }
-                }
-
-            // If this command is launched within a different test app, then the build will apply
-            // to that app instead.
-            } else {
-                let apps_dir = STATUS.origen_wksp_root.join("test_apps");
-                if let Ok(pwd) = std::env::current_dir() {
-                    if pwd.starts_with(&apps_dir) {
-                        app = pwd;
-                        while app.parent().unwrap() != apps_dir {
-                            app.pop();
-                        }
-                    }
-                }
-            }
-
-            cd(&app);
+            let pyapi_dir = STATUS.origen_wksp_root.join("rust").join("pyapi");
+            cd(&pyapi_dir);
             display!("");
-            Command::new("poetry")
-                .args(&[
-                    "run",
-                    "maturin",
-                    "develop",
-                    "--manifest-path",
-                    &format!(
-                        "{}",
-                        STATUS
-                            .origen_wksp_root
-                            .join("rust")
-                            .join("pyapi")
-                            .join("Cargo.toml")
-                            .display()
-                    ),
-                ])
+            Command::new("cargo")
+                .args(&["build"])
                 .status()
                 .expect("failed to execute process");
+            if cfg!(windows) {
+                let link = pyapi_dir.join("target").join("_origen.pyd");
+                let target = pyapi_dir.join("target").join("debug").join("_origen.dll");
+                if link.exists() {
+                    std::fs::remove_file(&link).expect(&format!(
+                        "Couldn't delete existing _origen.dll at '{}'",
+                        link.display()
+                    ));
+                }
+                // Copy rather than link the file for now to avoid any issues with symlinks not working in user env
+                copy(&target, &link).expect(&format!(
+                    "Couldn't copy file from '{}' to '{}",
+                    target.display(),
+                    link.display()
+                ));
+            } else {
+                let link = pyapi_dir.join("target").join("_origen.so");
+                let target = pyapi_dir.join("target").join("debug").join("lib_origen.so");
+                if link.exists() {
+                    std::fs::remove_file(&link).expect(&format!(
+                        "Couldn't delete existing _origen.so at '{}'",
+                        link.display()
+                    ));
+                }
+                symlink(&target, &link).expect(&format!(
+                    "Couldn't create symlink from '{}' to '{}",
+                    link.display(),
+                    target.display()
+                ));
+            }
             display!("");
         }
     }
 }
 
+/// This is no longer used, decided to accept the version that Poetry wants to use, however
+/// keeping it around for a while in case that decision changes.
+///
 /// Poetry is too opinionated about the versioning and wants to call a pre-release version
 /// a release candidate. This fixes the generated version by putting it back to the original
 /// Origen version within the wheel package.
