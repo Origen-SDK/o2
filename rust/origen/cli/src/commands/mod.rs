@@ -1,6 +1,7 @@
 pub mod app;
 pub mod build;
 pub mod env;
+pub mod exec;
 pub mod fmt;
 pub mod interactive;
 pub mod mode;

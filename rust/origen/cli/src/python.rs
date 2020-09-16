@@ -133,6 +133,49 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     cmd.arg("-");
     cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
 
+    add_origen_env(&mut cmd);
+
+    Ok(cmd.status()?)
+}
+
+/// Run silently with all STDOUT and STDERR handled by the given callback functions
+pub fn run_with_callbacks(
+    code: &str,
+    stdout_callback: Option<&mut dyn FnMut(&str)>,
+    stderr_callback: Option<&mut dyn FnMut(&str)>,
+) -> Result<()> {
+    use origen::utility::command_helpers::log_stdout_and_stderr;
+
+    let mut cmd = Command::new(&PYTHON_CONFIG.poetry_command);
+    cmd.arg("run");
+    cmd.arg(&PYTHON_CONFIG.command);
+    cmd.arg("-c");
+    cmd.arg(&code);
+    cmd.arg("-");
+    // Force logger to be silent, use case for this is parsing output data so keep
+    // noise to a minimum
+    cmd.arg("verbosity=0");
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    add_origen_env(&mut cmd);
+
+    let mut process = cmd.spawn()?;
+
+    log_stdout_and_stderr(&mut process, stdout_callback, stderr_callback);
+
+    if process.wait()?.success() {
+        Ok(())
+    } else {
+        error!(
+            "Something went wrong running the operation '{}', the log may have more details",
+            code
+        )
+    }
+}
+
+/// Adds any Origen-related environment settings to a command
+pub fn add_origen_env(cmd: &mut Command) {
     if origen::STATUS.is_origen_present || origen::STATUS.is_app_in_origen_dev_mode {
         cmd.env(
             "PYTHONPATH",
@@ -146,41 +189,6 @@ pub fn run(code: &str) -> Result<ExitStatus> {
                     .display()
             ),
         );
-    }
-
-    Ok(cmd.status()?)
-}
-
-/// Run silently with all STDOUT and STDERR handled by the given callback functions
-pub fn run_with_callbacks(
-    code: &str,
-    stdout_callback: Option<&mut dyn FnMut(&str)>,
-    stderr_callback: Option<&mut dyn FnMut(&str)>,
-) -> Result<()> {
-    use origen::utility::command_helpers::log_stdout_and_stderr;
-
-    let mut process = Command::new(&PYTHON_CONFIG.poetry_command)
-        .arg("run")
-        .arg(&PYTHON_CONFIG.command)
-        .arg("-c")
-        .arg(&code)
-        .arg("-")
-        // Force logger to be silent, use case for this is parsing output data so keep
-        // noise to a minimum
-        .arg("verbosity=0")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
-    log_stdout_and_stderr(&mut process, stdout_callback, stderr_callback);
-
-    if process.wait()?.success() {
-        Ok(())
-    } else {
-        error!(
-            "Something went wrong running the operation '{}', the log may have more details",
-            code
-        )
     }
 }
 

@@ -37,12 +37,46 @@ impl CommandHelp {
 
 // This is the entry point for the Origen CLI tool
 fn main() {
+    let verbosity_re = regex::Regex::new(r"-([vV]+)").unwrap();
+
+    // Intercept the 'origen exec' command immediately to prevent further parsing of it, this
+    // is so that something like 'origen exec pytest -v' will apply '-v' as an argument to pytest
+    // and not to origen
+    let mut args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "exec" {
+        args = args.drain(2..).collect();
+        if args.len() > 0 && (args[0] == "-h" || args[0] == "--help" || args[0] == "help") {
+            // Just fall through to display the help in this case
+        } else {
+            // Apply any leading -vvv to origen, any -v later in the args will be applied to the
+            // 3rd party command
+            if args.len() > 0 && verbosity_re.is_match(&args[0]) {
+                let captures = verbosity_re.captures(&args[0]).unwrap();
+                let x = captures.get(1).unwrap().as_str();
+                let verbosity = x.chars().count() as u8;
+                origen::initialize(Some(verbosity));
+                args = args.drain(1..).collect();
+            }
+            // Commmand is not actually available outside an app, so just fall through
+            // to generate the appropriate error
+            if STATUS.is_app_present {
+                if args.len() > 0 {
+                    let cmd = args[0].clone();
+                    args = args.drain(1..).collect();
+                    let cmd_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+                    commands::exec::run(&cmd, cmd_args);
+                } else {
+                    std::process::exit(0);
+                }
+            }
+        }
+    }
+
     // Set the verbosity immediately, this is to allow log statements to work in really
     // low level stuff, e.g. when building the STATUS
-    let re = regex::Regex::new(r"-([vV]+)").unwrap();
     let mut verbosity: u8 = 0;
     for arg in std::env::args() {
-        if let Some(captures) = re.captures(&arg) {
+        if let Some(captures) = verbosity_re.captures(&arg) {
             let x = captures.get(1).unwrap().as_str();
             verbosity = x.chars().count() as u8;
         }
@@ -62,6 +96,8 @@ fn main() {
 
     let mut app = App::new("")
         .setting(AppSettings::ArgRequiredElseHelp)
+        .setting(AppSettings::VersionlessSubcommands)
+        .setting(AppSettings::DisableVersion)
         .before_help("Origen, The Semiconductor Developer's Kit")
         .after_help("See 'origen <command> -h' for more information on a specific command.")
         .version(&*version)
@@ -744,6 +780,39 @@ Examples:
         );
 
         /************************************************************************************/
+        let exec_help = "Execute a command within your application's Origen/Python environment (e.g. origen exec pytest)";
+        origen_commands.push(CommandHelp {
+            name: "exec".to_string(),
+            help: exec_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("exec")
+                .about(exec_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .setting(AppSettings::DisableVersion)
+                .setting(AppSettings::AllowLeadingHyphen)
+                .arg(
+                    Arg::with_name("cmd")
+                        .help("The command to be run")
+                        .takes_value(true)
+                        .required(true)
+                        .value_name("COMMAND"),
+                )
+                .arg(
+                    Arg::with_name("args")
+                        .help("Arguments to be passed to the command")
+                        .takes_value(true)
+                        .allow_hyphen_values(true)
+                        .multiple(true)
+                        .number_of_values(1)
+                        .required(false)
+                        //.last(true)
+                        .value_name("ARGS"),
+                ),
+        );
+
+        /************************************************************************************/
         let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
         origen_commands.push(CommandHelp {
             name: "save_ref".to_string(),
@@ -801,11 +870,11 @@ Examples:
         for command in &app_command_defs.command_helps {
             app_commands.push(command.clone());
         }
-        // This defines the application commands, some crazy references here since the string
-        // args to clap need the right lifetime
+        // This defines the application commands
         // For each command
         for i in 0..cmds.len() {
-            let cmd = build_command(&cmds[i]);
+            let mut cmd = build_command(&cmds[i]);
+            cmd = cmd.setting(AppSettings::ArgRequiredElseHelp);
             app = app.subcommand(cmd);
         }
     }
@@ -822,7 +891,6 @@ USAGE:
     origen [FLAGS] [COMMAND]
 FLAGS:
     -h, --help       Prints help information
-    -V, --version    Prints version information
     -v               Terminal verbosity level e.g. -v, -vv, -vvv
 
 CORE COMMANDS:

@@ -48,7 +48,7 @@ main() {
         cd ../test_apps/python_app
         ../../rust/origen/target/$TARGET/debug/origen -v
         ../../rust/origen/target/$TARGET/debug/origen env setup
-        $HOME/.poetry/bin/poetry run pytest -vv
+        ../../rust/origen/target/$TARGET/debug/origen exec pytest -vv
         cd ../../rust
     fi
 }
