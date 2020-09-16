@@ -6,6 +6,7 @@ use online::online;
 use origen::core::status::search_for;
 use origen::core::term::*;
 use origen::utility::file_actions as fa;
+use origen::utility::command_helpers::exec_and_capture;
 use regex::Regex;
 use std::fs;
 use std::io;
@@ -227,6 +228,27 @@ pub fn run(matches: &ArgMatches) {
                     }
                     origen_source_changed = true;
                 }
+            }
+
+            // Lower than this version has a bug which can crash with local path dependencies
+            print!("Is PIP version >= 19.1?         ... ");
+            
+            //if let Ok((stat, stdout, stderr)) = exec_and_capture(&PYTHON_CONFIG.poetry_command.to_str().unwrap(), Some(vec!["run", "pip", "--version"])) {
+            //    
+            //} else {
+            //    redln("NO");
+            //}
+            let status = Command::new(&PYTHON_CONFIG.poetry_command)
+                .arg("run")
+                .arg("pip")
+                .arg("install")
+                .arg("pip==20.2.3")
+                .status();
+
+            if status.is_ok() {
+                greenln("YES");
+            } else {
+                redln("NO");
             }
 
             print!("Are the app's deps. installed?  ... ");
