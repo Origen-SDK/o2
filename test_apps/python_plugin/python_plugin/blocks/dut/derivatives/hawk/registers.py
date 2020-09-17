@@ -5,6 +5,7 @@
 # Example of a simple register definition with all bits r/w, 0x0 is the local offset address:
 #
 #     SimpleReg("my_reg1", 0x0, size=32)  # 32 is the default size if not specified
+SimpleReg("hawk_reg1", 0x0, size=32)  # 32 is the default size if not specified
 #
 # Example of a richer definition with bitfields:
 #
