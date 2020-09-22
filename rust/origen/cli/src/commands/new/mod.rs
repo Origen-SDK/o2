@@ -9,6 +9,7 @@ use phf::map::Map;
 use phf::phf_map;
 use std::path::PathBuf;
 use tera::{Context, Tera};
+use origen::utility::version::to_pep440;
 
 // This includes a map of all template files, it is built by cli/build.rs at compile time.
 // All files in each sub-directory of commands/new/templates are accessible via a map named after the
@@ -53,7 +54,7 @@ pub fn run(matches: &ArgMatches) {
     //// in reverse order when given the index map
     //let packages: Vec<&Package> = bom.packages.iter().map(|(_id, pkg)| pkg).collect();
     context.insert("app_name", name);
-    context.insert("origen_version", &origen::STATUS.origen_version.to_string());
+    context.insert("origen_version", &to_pep440(&origen::STATUS.origen_version.to_string()).unwrap());
     let mut user_info = "".to_string();
     if let Some(username) = origen::USER.name() {
         user_info += &username;
