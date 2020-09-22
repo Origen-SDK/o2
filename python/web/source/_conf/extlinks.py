@@ -292,9 +292,11 @@ extlinks = {
     ('https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests%s',
      ''),
     'svg_to_png_converter': ('https://svgtopng.com/%s', ''),
-    
+
     # Python Package Servers
-    'sonatype_nexus':('https://www.sonatype.com/nexus/repository-oss%s', ''),
-    'pypi_server':('https://github.com/pypiserver/pypiserver%s', ''),
-    'jfrog_artifactory':('https://www.jfrog.com/confluence/display/JFROG/JFrog+Artifactory%s', ''),
+    'sonatype_nexus': ('https://www.sonatype.com/nexus/repository-oss%s', ''),
+    'pypi_server': ('https://github.com/pypiserver/pypiserver%s', ''),
+    'jfrog_artifactory': (
+        'https://www.jfrog.com/confluence/display/JFROG/JFrog+Artifactory%s',
+        ''),
 }
