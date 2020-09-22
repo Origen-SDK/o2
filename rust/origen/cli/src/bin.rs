@@ -295,7 +295,7 @@ fn main() {
 
     if STATUS.is_origen_present || STATUS.is_app_in_origen_dev_mode {
         let build_help = match STATUS.is_origen_present {
-            true => "Build and publish Origen",
+            true => "Build and publish Origen, builds the pyapi Rust package by default",
             false => "Build Origen",
         };
 
@@ -323,7 +323,7 @@ fn main() {
                         .required(false)
                         .takes_value(false)
                         .display_order(1)
-                        .help("Build a release version (only applicable to Rust builds)"),
+                        .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
                 )
                 .arg(
                     Arg::with_name("python")
@@ -339,7 +339,7 @@ fn main() {
                         .required(false)
                         .takes_value(false)
                         .display_order(1)
-                        .help("Publish packages to (e.g. to PyPI) after building a release"),
+                        .help("Publish packages (e.g. to PyPI) after building"),
                 )
                 .arg(
                     Arg::with_name("version")

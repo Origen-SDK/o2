@@ -26,7 +26,8 @@ def test_block_from_a_plugin():
         type(origen.dut.dac))
     assert (origen.dut.dac.my_dac_reg1)
     assert (origen.dut.dac.bist.bist_reg1)
-    
+
+
 def test_plugin_app_access():
-    assert(origen.has_plugin("python_plugin"))
+    assert (origen.has_plugin("python_plugin"))
     assert origen.plugin("python_plugin").name == "python_plugin"

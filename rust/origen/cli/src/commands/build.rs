@@ -130,9 +130,9 @@ pub fn run(matches: &ArgMatches) {
 
     // Build the PyAPI by default
     } else {
-        // A release build will also build the origen_pyapi Python package and optionally
+        // A publish build will also build the origen_pyapi Python package and
         // publish it to PyPI, only available within an Origen workspace
-        if matches.is_present("release") || matches.is_present("publish") {
+        if matches.is_present("publish") {
             let wheel_dir = &STATUS
                 .origen_wksp_root
                 .join("rust")
@@ -186,19 +186,29 @@ pub fn run(matches: &ArgMatches) {
                     .expect("failed to publish pyapi");
             }
 
-        // A standard (non-release) build, this can be requested from an Origen workspace or an app workspace that
+        // A standard (non-published) build, this can be requested from an Origen workspace or an app workspace that
         // is locally referencing an Origen workspace
         } else {
             let pyapi_dir = STATUS.origen_wksp_root.join("rust").join("pyapi");
             cd(&pyapi_dir);
             display!("");
+
+            let mut args = vec!["build"];
+            let mut target = "debug";
+
+            if matches.is_present("release") {
+                args.push("--release");
+                target = "release";
+            }
+
             Command::new("cargo")
-                .args(&["build"])
+                .args(&args)
                 .status()
                 .expect("failed to execute process");
+
             if cfg!(windows) {
                 let link = pyapi_dir.join("target").join("_origen.pyd");
-                let target = pyapi_dir.join("target").join("debug").join("_origen.dll");
+                let target = pyapi_dir.join("target").join(target).join("_origen.dll");
                 if link.exists() {
                     std::fs::remove_file(&link).expect(&format!(
                         "Couldn't delete existing _origen.dll at '{}'",
@@ -213,7 +223,7 @@ pub fn run(matches: &ArgMatches) {
                 ));
             } else {
                 let link = pyapi_dir.join("target").join("_origen.so");
-                let target = pyapi_dir.join("target").join("debug").join("lib_origen.so");
+                let target = pyapi_dir.join("target").join(target).join("lib_origen.so");
                 if link.exists() {
                     std::fs::remove_file(&link).expect(&format!(
                         "Couldn't delete existing _origen.so at '{}'",
