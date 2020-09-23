@@ -147,15 +147,15 @@ impl PinActions {
         }
     }
 
-    pub fn to_action_string(actions: &Vec<PinActions>) -> String {
+    pub fn to_action_string(actions: &Vec<PinActions>) -> Result<String, Error> {
         let mut retn = "".to_string();
         for action in actions.iter().rev() {
-            action.push_to_string(&mut retn);
+            action.push_to_string(&mut retn)?;
         }
-        return retn
+        return Ok(retn)
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self) -> Result<String, Error> {
         Self::to_action_string(&vec!(self.clone()))
     }
 
@@ -170,6 +170,13 @@ impl PinActions {
             PinActions::Capture => 'C',
             PinActions::HighZ => 'Z',
             PinActions::Other(_) => '_',
+        }
+    }
+
+    pub fn as_sym(&self) -> String {
+        match self {
+            PinActions::Other(sym) => sym.clone(),
+            _ => self.as_char().to_string()
         }
     }
 

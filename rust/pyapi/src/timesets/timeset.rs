@@ -919,7 +919,7 @@ macro_rules! action_from_pyany {
                 } else if $action.get_type().name() == "PinActions" {
                     let pin_actions = $action.extract::<PyRef<super::super::pins::pin_actions::PinActions>>().unwrap();
                     if pin_actions.actions.len() == 1 {
-                        t = pin_actions.actions.first().unwrap().to_string();
+                        t = pin_actions.actions.first().unwrap().to_string().unwrap();
                     } else {
                         return Err(pyo3::exceptions::ValueError::py_err(
                             "SymbolMap lookups can only retrieve single symbols at a time"
@@ -957,7 +957,7 @@ impl SymbolMap {
     fn keys(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
-        Ok(resolver.mapping().iter().map(|(k, _)| k.to_string()).collect())
+        Ok(resolver.mapping().iter().map(|(k, _)| k.to_string().unwrap()).collect())
     }
 
     #[getter]
@@ -978,7 +978,7 @@ impl SymbolMap {
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
 
         Ok(resolver.mapping().iter().map(
-            |(k, v)| (k.to_string(), v.to_string())
+            |(k, v)| (k.to_string().unwrap(), v.to_string())
         ).collect::<Vec<(String, String)>>())
     }
 

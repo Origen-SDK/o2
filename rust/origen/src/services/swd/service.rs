@@ -1,4 +1,7 @@
-use crate::{Result, Error, Value, TEST};
+use crate::{Result, Error, TEST};
+use crate::core::dut::Dut;
+use indexmap::IndexMap;
+use crate::Transaction;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Acknowledgements {
@@ -41,125 +44,91 @@ macro_rules! swd_ok {
 
 #[derive(Clone, Debug)]
 pub struct Service {
-    swdclk: String,
-    swdio: String,
+    pub id: usize,
+    pub swdclk: String,
+    pub swdio: String,
+    pub swdclk_id: Vec<usize>,
+    pub swdclk_grp_id: Option<usize>,
+    pub swdio_id: Vec<usize>,
+    pub swdio_grp_id: Option<usize>,
+    pub swdio_grp: IndexMap::<usize, Vec<usize>>,
+    pub trn: u32,
 }
 
 #[allow(non_snake_case)]
 impl Service {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(dut: &Dut, id: usize, swdclk: Option<&str>, swdio: Option<&str>) -> Result<Self> {
+        let swdclk_name = swdclk.unwrap_or("swdclk");
+        let swdio_name = swdio.unwrap_or("swdio");
+        let (swdio_id, swdio_grp_id) = dut.pin_group_to_ids(0, swdio_name)?;
+        let (swdclk_id, swdclk_grp_id) = dut.pin_group_to_ids(0, swdclk_name)?;
+        let mut swd_grp = IndexMap::new();
+        swd_grp.insert(swdio_grp_id, swdio_id.clone());
+
+        Ok(Self {
+            id: id,
             swdclk: "swdclk".to_string(),
-            swdio: "swdio".to_string()
-        }
+            swdio: "swdio".to_string(),
+            swdclk_id: swdclk_id,
+            swdclk_grp_id: Some(swdclk_grp_id),
+            swdio_id: swdio_id,
+            swdio_grp_id: Some(swdio_grp_id),
+            swdio_grp: swd_grp,
+            trn: 1
+        })
     }
 
-    pub fn write_ap(&self, value: Value, A: u32, ack: Acknowledgements) -> Result<()> {
-        let trans = match value {
-            Value::Bits(bits, _size) => node!(
-                SWDWriteAP,
-                bits.data()?,
-                A,
-                ack,
-                Some(bits.overlay_enables()),
-                bits.get_overlay()?
-            ),
-            Value::Data(value, _size) => node!(
-                SWDWriteAP,
-                value,
-                A,
-                ack,
-                None,
-                None
-            )
-        };
+    pub fn write_ap(&self, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
+        let mut trans = node!(
+            SWDWriteAP,
+            self.id,
+            transaction.clone(),
+            ack,
+            None
+        );
+        self.process_transaction(&mut trans)?;
         TEST.push(trans);
         Ok(())
     }
 
-    pub fn verify_ap(&self, value: Value, A: u32, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
-        let trans = match value {
-            Value::Bits(bits, _size) => node!(
-                SWDVerifyAP,
-                bits.data()?,
-                A,
-                ack,
-                parity,
-                Some(bits.verify_enables()),
-                Some(bits.capture_enables()),
-                Some(bits.overlay_enables()),
-                bits.get_overlay()?
-            ),
-            Value::Data(value, _size) => node!(
-                SWDVerifyAP,
-                value,
-                A,
-                ack,
-                parity,
-                Some(num::BigUint::from(0xFFFF_FFFF as usize)),
-                None,
-                None,
-                None
-            )
-        };
+    pub fn verify_ap(&self, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
+        let mut trans = node!(
+            SWDVerifyAP,
+            self.id,
+            transaction.clone(),
+            ack,
+            parity,
+            None
+        );
+        self.process_transaction(&mut trans)?;
         TEST.push(trans);
         Ok(())
     }
 
-    pub fn write_dp(&self, value: Value, A: u32, ack: Acknowledgements) -> Result<()> {
-        let trans = match value {
-            Value::Bits(bits, _size) => node!(
-                SWDWriteDP,
-                bits.data()?,
-                A,
-                ack,
-                Some(bits.overlay_enables()),
-                bits.get_overlay()?
-            ),
-            Value::Data(value, _size) => node!(
-                SWDWriteDP,
-                value,
-                A,
-                ack,
-                None,
-                None
-            )
-        };
+    pub fn write_dp(&self, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
+        let mut trans = node!(
+            SWDWriteDP,
+            self.id,
+            transaction.clone(),
+            ack,
+            None
+        );
+        self.process_transaction(&mut trans)?;
         TEST.push(trans);
         Ok(())
     }
 
-    pub fn verify_dp(&self, value: Value, A: u32, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
-        let trans = match value {
-            Value::Bits(bits, _size) => node!(
-                SWDVerifyDP,
-                bits.data()?,
-                A,
-                ack,
-                parity,
-                Some(bits.verify_enables()),
-                Some(bits.capture_enables()),
-                Some(bits.overlay_enables()),
-                bits.get_overlay()?
-            ),
-            Value::Data(value, _size) => node!(
-                SWDVerifyDP,
-                value,
-                A,
-                ack,
-                parity,
-                Some(num::BigUint::from(0xFFFF_FFFF as usize)),
-                None,
-                None,
-                None
-            )
-        };
+    pub fn verify_dp(&self, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
+        let mut trans = node!(
+            SWDVerifyDP,
+            self.id,
+            transaction.clone(),
+            ack,
+            parity,
+            None
+        );
+        self.process_transaction(&mut trans)?;
         TEST.push(trans);
-        Ok(())
-    }
-
-    pub fn line_reset(&self) -> Result<()> {
-        TEST.push(node!(SWDLineReset));
         Ok(())
     }
 }

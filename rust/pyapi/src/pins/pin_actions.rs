@@ -188,7 +188,7 @@ impl PinActions {
 #[pyproto]
 impl pyo3::class::basic::PyObjectProtocol for PinActions {
   fn __repr__(&self) -> PyResult<String> {
-    Ok(OrigenPinActions::to_action_string(&self.actions))
+    Ok(OrigenPinActions::to_action_string(&self.actions)?)
   }
 
   /// Comparing PinActions boils down to comparing their current actions, which we can
@@ -206,21 +206,21 @@ impl pyo3::class::basic::PyObjectProtocol for PinActions {
       other_string = s;
     } else if other.get_type().name() == "PinActions" {
       let other_actions = other.extract::<PyRef<Self>>()?;
-      other_string = OrigenPinActions::to_action_string(&other_actions.actions);
+      other_string = OrigenPinActions::to_action_string(&other_actions.actions)?;
     } else {
       return Ok(false.to_object(py))
     }
 
     match op {
       CompareOp::Eq => {
-        if OrigenPinActions::to_action_string(&self.actions) == other_string {
+        if OrigenPinActions::to_action_string(&self.actions)? == other_string {
           Ok(true.to_object(py))
         } else {
           Ok(false.to_object(py))
         }
       }
       CompareOp::Ne => {
-        if OrigenPinActions::to_action_string(&self.actions) == other_string {
+        if OrigenPinActions::to_action_string(&self.actions)? == other_string {
           Ok(false.to_object(py))
         } else {
           Ok(true.to_object(py))

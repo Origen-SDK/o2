@@ -1,15 +1,11 @@
 use crate::core::dut::Dut;
 use crate::core::file_handler::File;
-use crate::core::model::pins::pin::PinActions;
 use crate::core::model::pins::StateTracker;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::STATUS;
 use crate::{Result, DUT};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::services::swd::processor::SWDToPinStates;
-use crate::standard_sub_blocks::arm_debug::process_transactions::ArmDebugMemAPsToProtocol;
 
 use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
 
@@ -43,14 +39,8 @@ pub struct Renderer<'a> {
 
 impl<'a> Renderer<'a> {
     pub fn run(tester: &'a dyn RendererAPI, ast: &Node) -> Result<Vec<PathBuf>> {
-        // Transform Arm Debug register transactions to protocol drivers
-        let mut n = ArmDebugMemAPsToProtocol::run(ast)?;
-
-        // Transform the services into vectors
-        n = SWDToPinStates::run(&n, "swdclk", "swdio", None)?;
-
         // Optimize the vectors
-        n = PinActionCombiner::run(&n)?;
+        let mut n = PinActionCombiner::run(ast)?;
         n = CycleCombiner::run(&n)?;
 
         // Generate comments
@@ -59,6 +49,7 @@ impl<'a> Renderer<'a> {
         // Finally, generate the output
         let mut p = Self::new(tester);
         n.process(&mut p)?;
+        // println!("{:?}", n);
         Ok(vec![p.path.unwrap()])
     }
 
@@ -89,13 +80,12 @@ impl<'a> Renderer<'a> {
 
     pub fn update_states(
         &mut self,
-        pin_changes: &HashMap<String, (PinActions, u8)>,
+        grp_id: usize,
+        actions: &Vec<String>,
         dut: &Dut,
     ) -> Result<Return> {
         let s = self.states(dut);
-        for (name, changes) in pin_changes.iter() {
-            s.update(name, Some(changes.0.clone()), Some(changes.1), dut)?;
-        }
+        s.update(grp_id, actions, dut)?;
         Ok(Return::Unmodified)
     }
 
@@ -153,10 +143,16 @@ impl<'a> Processor for Renderer<'a> {
                 Ok(Return::Unmodified)
             }
             Attrs::PatternHeader => Ok(Return::ProcessChildren),
-            Attrs::PinAction(pin_changes) => {
+            Attrs::PinGroupAction(grp_id, actions, _metadata) => {
                 let dut = DUT.lock().unwrap();
-                return self.update_states(pin_changes, &dut);
-            }
+                return self.update_states(*grp_id, actions, &dut);
+            },
+            Attrs::PinAction(pin_id, action, _metadata) => {
+                let dut = DUT.lock().unwrap();
+                let pin = &dut.pins[*pin_id];
+                let grp_id = dut.get_pin_group(pin.model_id, &pin.name).unwrap().id;
+                return self.update_states(grp_id, &vec!(action.clone()), &dut);
+            },
             Attrs::Cycle(repeat, compressable) => {
                 if !self.pin_header_printed {
                     match self.tester.print_pinlist(self) {

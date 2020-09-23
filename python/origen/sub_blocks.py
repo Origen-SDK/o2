@@ -9,6 +9,10 @@ class Loader:
         self.controller = controller
 
     def sub_block(self, name, block_path=None, mod_path=None, class_name="Controller", offset=None, sb_options={}):
+        if self.controller.__class__.is_currently_loading(name):
+            return None
+        else:
+            self.controller.__class__.currently_loading(name)
         if mod_path is not None:
             sb_options["offset"] = offset
             b = self.controller.app.instantiate_block_from_mod(mod_path, class_name, sb_options)
@@ -26,6 +30,7 @@ class Loader:
                 base.model_init(b, block_options=sb_options)
         # if hasattr(b, "model_init"):
         #     b.model_init(b, block_options=sb_options)
+        self.controller.__class__.done_loading(name)
         return b
 
     # Defines the methods that are accessible within blocks/<block>/sub_blocks.py

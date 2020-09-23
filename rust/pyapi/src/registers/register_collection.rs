@@ -46,7 +46,7 @@ impl PyObjectProtocol for RegisterCollection {
 impl PySequenceProtocol for RegisterCollection {
     fn __contains__(&self, name: &str) -> PyResult<bool> {
         match pyo3::PyMappingProtocol::__getitem__(self, name) {
-            Ok(r) => Ok(true),
+            Ok(_) => Ok(true),
             Err(_) => Ok(false)
         }
     }

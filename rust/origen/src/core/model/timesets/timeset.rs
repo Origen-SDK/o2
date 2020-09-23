@@ -102,7 +102,7 @@ impl Timeset {
         self.active_wavetable = Option::None;
     }
 
-    pub fn active_wavetable(&self, dut: Dut) -> Option<String> {
+    pub fn active_wavetable(&self, _dut: Dut) -> Option<String> {
         self.active_wavetable.clone()
     }
 

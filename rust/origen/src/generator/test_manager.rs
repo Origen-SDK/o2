@@ -34,6 +34,11 @@ impl TestManager {
         ast.push(node);
     }
 
+    pub fn append(&self, nodes: &mut Vec<Node>) {
+        let mut ast = self.ast.write().unwrap();
+        ast.append(nodes);
+    }
+
     /// Push a new node into the AST and leave it open, meaning that all new nodes
     /// added to the AST will be inserted as children of this node until it is closed.
     /// A reference ID is returned and the caller should save this and provide it again

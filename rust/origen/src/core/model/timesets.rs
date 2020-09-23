@@ -4,8 +4,6 @@ use super::super::dut::Dut;
 use super::Model;
 use crate::error::Error;
 use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
-use super::pins::pin::Resolver;
-use indexmap::IndexMap;
 use super::super::tester::TesterSource;
 
 /// Returns an Origen Error with pre-formatted message complaining that
@@ -181,8 +179,9 @@ impl Dut {
                 // If given, pull the following out of the wave:
                 //  * pins
                 //  * events
-                let w = &mut self.waves[id];
-                //w.pins = base_wave.pins.clone();
+                // Todo - add waveform inheritance
+                // let w = &mut self.waves[id];
+                // w.pins = base_wave.pins.clone();
             }
         }
         Ok(&self.waves[id])

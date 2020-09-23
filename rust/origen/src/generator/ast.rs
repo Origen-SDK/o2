@@ -38,76 +38,6 @@ macro_rules! text_line {
 }
 
 #[macro_export]
-macro_rules! comment {
-    ( $msg:expr ) => {{
-        crate::text!($msg)
-    }};
-}
-
-// Todo: Add some error handing/checking to this.
-/// Creates a Vec<bool> from the bit values in `data` of size `data_width`.
-#[macro_export]
-macro_rules! to_bits {
-    ( $data:expr, $data_width:expr ) => {{
-        let mut bits: Vec<bool> = Vec::with_capacity($data_width as usize);
-        for i in (0..$data_width) {
-            if (($data >> i) & 1) == 1 {
-                    bits.push(true);
-            } else {
-                bits.push(false);
-            }
-        }
-        bits
-    }};
-}
-
-#[macro_export]
-macro_rules! drive_data {
-    ( $pins:expr, $data:expr, $data_width:expr, $bit_order:expr ) => {{
-        // match $bit_order {
-        //     crate::LSBFirst => {},
-        //     crate::MSBFirst => {},
-        // }
-        let bits = crate::to_bits!($data, $data_width);
-        let mut pin_states: Vec<crate::generator::ast::Node> = vec!();
-        for chunk in bits.chunks($pins.len()) {
-            let mut this_cycle: std::collections::HashMap<String, (crate::core::model::pins::pin::PinActions, u8)> = std::collections::HashMap::new();
-            for (pos, bit) in chunk.iter().enumerate() {
-                if *bit {
-                    this_cycle.insert($pins[pos].to_string(), (crate::core::model::pins::pin::PinActions::DriveHigh, 1));
-                } else {
-                    this_cycle.insert($pins[pos].to_string(), (crate::core::model::pins::pin::PinActions::DriveLow, 0));
-                }
-            }
-            pin_states.push(crate::node!(PinAction, this_cycle));
-            pin_states.push(crate::cycle!(1));
-        }
-        pin_states
-    }};
-}
-
-#[macro_export]
-macro_rules! verify_data {
-    ( $pins:expr, $data:expr, $data_width:expr, $bit_order:expr ) => {{
-        let bits = crate::to_bits!($data, $data_width);
-        let mut pin_states: Vec<crate::generator::ast::Node> = vec!();
-        for chunk in bits.chunks($pins.len()) {
-            let mut this_cycle: std::collections::HashMap<String, (crate::core::model::pins::pin::PinActions, u8)> = std::collections::HashMap::new();
-            for (pos, bit) in chunk.iter().enumerate() {
-                if *bit {
-                    this_cycle.insert($pins[pos].to_string(), (crate::core::model::pins::pin::PinActions::VerifyHigh, 1));
-                } else {
-                    this_cycle.insert($pins[pos].to_string(), (crate::core::model::pins::pin::PinActions::VerifyLow, 0));
-                }
-            }
-            pin_states.push(crate::node!(PinAction, this_cycle));
-            pin_states.push(crate::cycle!(1));
-        }
-        pin_states
-    }};
-}
-
-#[macro_export]
 macro_rules! generate_even_parity {
     ( $data:expr ) => {{
         if $data.count_ones() % 2 == 0 {
@@ -147,6 +77,15 @@ impl AST {
         match self.nodes.last_mut() {
             Some(n) => n.add_child(node),
             None => self.nodes.push(node),
+        }
+    }
+
+    pub fn append(&mut self, nodes: &mut Vec<Node>) {
+        match self.nodes.last_mut() {
+            Some(n) => {
+                n.add_children(nodes.to_vec());
+            },
+            None => self.nodes.append(nodes),
         }
     }
 

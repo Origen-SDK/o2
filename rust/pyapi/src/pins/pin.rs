@@ -148,7 +148,7 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         match pin.reset_action.as_ref() {
-            Some(a) => Ok(a.to_string().into_py(py)),
+            Some(a) => Ok(a.to_string()?.into_py(py)),
             None => Ok(py.None()),
         }
     }

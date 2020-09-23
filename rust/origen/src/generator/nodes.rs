@@ -1,13 +1,12 @@
 use super::stil;
-use crate::core::model::pins::pin::PinActions;
 use crate::services::swd::Acknowledgements;
-use crate::standard_sub_blocks::arm_debug::ArmDebug;
-use crate::standard_sub_blocks::arm_debug::mem_ap::MemAP;
 use num_bigint::BigUint;
 use std::collections::HashMap;
 use indexmap::IndexMap;
+use super::utility::transaction::Transaction;
 
-type Id = usize;
+pub type Id = usize;
+type Metadata = Option<IndexMap<String, crate::Metadata>>;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Attrs {
@@ -38,7 +37,11 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Pattern generation nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, (PinActions, Pin Data)
+    //PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, (PinActions, Pin Data)
+    //SetPin(HashMap<String, String>), // Pin IDs, Waveform Symbol
+    //PinAction(IndexMap<usize, (String, Option<HashMap<String, crate::Metadata>>)>, Option<(usize, Option<HashMap<String, crate::Metadata>>)>),
+    PinGroupAction(usize, Vec<String>, Option<HashMap<String, crate::Metadata>>),
+    PinAction(usize, String, Option<HashMap<String, crate::Metadata>>),
     Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
     Cycle(u32, bool), // repeat (0 not allowed), compressable
     PatternHeader,
@@ -47,14 +50,15 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Register transaction nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
+    RegWrite(Transaction), // Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
     RegVerify(
-        Id,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
+        Transaction
+        // Id,
+        // BigUint,
+        // Option<BigUint>,
+        // Option<BigUint>,
+        // Option<BigUint>,
+        // Option<String>,
     ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// JTAG nodes
@@ -80,52 +84,73 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// SWD nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    SWDWriteAP(BigUint, u32, Acknowledgements, Option<BigUint>, Option<String>), // data, A, acknowledgement, overlay_enable, overlay_str
-    // SWDBufferedWriteAP(),
+    SWDWriteAP(
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements,
+        Metadata
+    ),
     SWDVerifyAP(
-        BigUint,
-        u32,
-        Acknowledgements,
-        Option<bool>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>
-    ), // data, A, acknowledgement, parity_compare, verify_enable, capture_enable, overlay_enable, overlay_str
-    SWDWriteDP(BigUint, u32, Acknowledgements, Option<BigUint>, Option<String>), // data, A, acknowledgement, overlay_enable, overlay_str
-    // SWDBufferedWriteDP(),
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements, // SWD Acknowledgement
+        Option<bool>, // Parity Compare
+        Metadata
+    ),
+    SWDWriteDP(
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements, // SWD Acknowledgement
+        Metadata
+    ),
     SWDVerifyDP(
-        BigUint,
-        u32,
-        Acknowledgements,
-        Option<bool>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>
-    ), // data, A, acknowledgement, parity_compare, verify_enable, capture_enable, overlay_enable, overlay_str
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements, // SWD Acknowledgement
+        Option<bool>, // Parity Compare
+        Metadata
+    ),
     SWDLineReset,
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Arm Debug nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // ArmDebugMemAPWrite(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
-    // ArmDebugMemAPRead(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
-    // ArmDebugMemAPCapture(MemAP, BigUint), // mem_ap_id, addr
-    ArmDebugMemAPWriteReg(MemAP), // mem_ap_id - 
-    ArmDebugMemAPWriteInternalReg(MemAP), // mem_ap_id - 
-    ArmDebugMemAPVerifyReg(MemAP),
-    ArmDebugMemAPVerifyInternalReg(MemAP),
-    // ArmDebugMemAPRead(MemAP, BigUint, BigUint), // mem_ap_id, addr, data
-    // ArmDebugMemAPCapture(MemAP, BigUint), // mem_ap_id, addr
-    // ArmDebugMemAPVerifyIDR(MemAP), // mem_ap_id - Verifies the IDR for the given MemAP
-    ArmDebugWriteDP(ArmDebug), // arm_debug_id - Generic write of a DP register
-    ArmDebugVerifyDP(ArmDebug), // arm_debug_id - Generic verify of a DP register
-    // ArmDebugVerifyDPIDR(usize), // arm_debug_id - Verify the DP's IDR
-    // ArmDebugPowerUp(usize), // arm_debug_id - Write power up bits in DP ctrl/stat
-    // ArmDebugVerifyPowerUp(usize), // arm_debug_id - Verify the DP ctrl/stat power up bits are set
-    ArmDebugSwjJTAGToSWD(ArmDebug), // arm_debug_id - Switch DP from JTAG to SWD
-    ArmDebugSwjSWDToJTAG(ArmDebug), // arm_debug_id - Switch DP from SWD to JTAG
+    ArmDebugMemAPWriteReg(
+        Id, // MemAP Id
+        usize, // MemAP address
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugMemAPWriteInternalReg(
+        Id, // MemAP Id
+        usize, // MemAP address
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugMemAPVerifyReg(
+        Id, // MemAP ID
+        usize, // MemAP address
+        Transaction,
+        Metadata
+    ),
+    ArmDebugMemAPVerifyInternalReg(
+        Id, // MemAP ID
+        usize, // MemAP address
+        Transaction,
+        Metadata
+    ),
+    ArmDebugWriteDP(
+        Id, // DP ID
+        Transaction,
+        Metadata
+    ),
+    ArmDebugVerifyDP(
+        Id, // DP ID
+        Transaction,
+        Metadata
+    ),
+    ArmDebugSwjJTAGToSWD(Id), // arm_debug_id - Switch DP from JTAG to SWD
+    ArmDebugSwjSWDToJTAG(Id), // arm_debug_id - Switch DP from SWD to JTAG
     // ArmDebugSWJ__EnterDormant, // Switch DP to dormant
     // ArmDebugSWJ__ExitDormant, // Switch DP from dormant back to whatever it was prior to entering dormant.
 
@@ -272,4 +297,20 @@ pub enum Attrs {
     STILBreakPoint,
     STILIDDQ,
     STILStopStatement,
+}
+
+impl std::fmt::Display for Attrs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Attrs::PinGroupAction(grp_id, _actions, _metadata) => {
+                let dut = crate::dut();
+                write!(f, "{}", format!("{:?} -> ({})", self, &dut.pin_groups[*grp_id].name))
+            },
+            Attrs::PinAction(id, _actions, _metadata) => {
+                let dut = crate::dut();
+                write!(f, "{}", format!("{:?} -> ({})", self, &dut.pins[*id].name))
+            },
+            _ => write!(f, "{}", format!("{:?}", self))
+        }
+    }
 }

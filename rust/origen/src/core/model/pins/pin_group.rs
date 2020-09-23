@@ -127,6 +127,10 @@ impl Dut {
         mask: Option<usize>,
     ) -> Result<(), Error> {
         let grp = self._get_mut_pin_group(model_id, name)?;
+        let grp_id;
+        {
+            grp_id = grp.id;
+        }
         let pin_names = grp.pin_names.clone();
         let m;
         if let Some(_m) = mask {
@@ -139,7 +143,7 @@ impl Dut {
             }
         }
         grp.mask = None;
-        self.set_pin_actions(model_id, &pin_names, action, data, m)
+        self.set_pin_actions(model_id, &pin_names, action, data, m, Some(grp_id))
     }
 
     pub fn set_pin_group_symbols(

@@ -115,7 +115,7 @@ impl Dut {
         let pin_names = &collection.pin_names;
         let mask = collection.mask;
         collection.mask = Option::None;
-        self.set_pin_actions(collection.model_id, pin_names, action, data, mask)
+        self.set_pin_actions(collection.model_id, pin_names, action, data, mask, None)
     }
 
     pub fn set_per_pin_collection_actions(

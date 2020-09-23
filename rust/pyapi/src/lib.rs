@@ -113,6 +113,26 @@ fn extract_value<'a>(
     Err(Error::new("Illegal bits/value argument"))
 }
 
+/// Unpacks/extracts common transaction options, updating the transaction directly
+/// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint), 
+fn unpack_transaction_options(trans: &mut origen::Transaction, kwargs: Option<&PyDict>) -> PyResult<()> {
+    if let Some(opts) = kwargs {
+        if let Some(address) = opts.get_item("address") {
+            trans.address = Some(address.extract::<u128>()?);
+        }
+        if let Some(_mask) = opts.get_item("mask") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(())
+}
+
 /// Exit with a failing status code and print a big FAIL to the console
 #[pyfunction]
 fn exit_fail() -> PyResult<()> {

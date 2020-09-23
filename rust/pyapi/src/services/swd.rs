@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use crate::extract_value;
 use crate::model::Model;
+use crate::unpack_transaction_options;
 use pyo3::types::{PyAny, PyType};
 
 #[pyclass]
@@ -20,10 +21,12 @@ impl SWD {
     }
 
     fn set_model(&mut self, name: &str, model: &Model) -> PyResult<Self> {
+        crate::dut::PyDUT::ensure_pins("dut")?;
         let mut dut = origen::dut();
         let mut services = origen::services();
-        let service = Service::SWD(swd::Service::new());
-        let id = services.add_service(service);
+        let id = services.next_id();
+        let service = Service::SWD(swd::Service::new(&dut, id, None, None)?);
+        services.add_service(service);
         model.materialize_mut(&mut dut)?.add_service(name, id)?;
         self.id = id;
         Ok(self.clone())
@@ -34,18 +37,17 @@ impl SWD {
         let dut = origen::dut();
         let mut services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_verify_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
         let service = services.get_mut_service(self.id)?;
-        let (mut ap_addr, mut ack) = (0 as u32, Acknowledgements::Ok);
+        let mut ack = Acknowledgements::Ok;
         if let Some(args) = kwargs {
-            if let Some(_ap_addr) = args.get_item("ap_addr") {
-                ap_addr = _ap_addr.extract::<u32>()?;
-            }
             if let Some(_ack) = args.get_item("acknowledge") {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
         }
         if let Service::SWD(swd) = service {
-            swd.write_ap(value, ap_addr, ack)?;
+            swd.write_ap(trans, ack)?;
         }
         Ok(self.clone())
     }
@@ -55,12 +57,11 @@ impl SWD {
         let dut = origen::dut();
         let mut services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_verify_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
         let service = services.get_mut_service(self.id)?;
-        let (mut ap_addr, mut ack, mut parity) = (0 as u32, Acknowledgements::Ok, None);
+        let (mut ack, mut parity) = (Acknowledgements::Ok, None);
         if let Some(args) = kwargs {
-            if let Some(_ap_addr) = args.get_item("ap_addr") {
-                ap_addr = _ap_addr.extract::<u32>()?;
-            }
             if let Some(_ack) = args.get_item("acknowledge") {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
@@ -69,7 +70,7 @@ impl SWD {
             }
         }
         if let Service::SWD(swd) = service {
-            swd.verify_ap(value, ap_addr, ack, parity)?;
+            swd.verify_ap(trans, ack, parity)?;
         }
         Ok(self.clone())
     }
@@ -79,18 +80,17 @@ impl SWD {
         let dut = origen::dut();
         let mut services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_verify_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
         let service = services.get_mut_service(self.id)?;
-        let (mut dp_addr, mut ack) = (0 as u32, Acknowledgements::Ok);
+        let mut ack = Acknowledgements::Ok;
         if let Some(args) = kwargs {
-            if let Some(_dp_addr) = args.get_item("dp_addr") {
-                dp_addr = _dp_addr.extract::<u32>()?;
-            }
             if let Some(_ack) = args.get_item("acknowledge") {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
         }
         if let Service::SWD(swd) = service {
-            swd.write_dp(value, dp_addr, ack)?;
+            swd.write_dp(trans, ack)?;
         }
         Ok(self.clone())
     }
@@ -100,12 +100,11 @@ impl SWD {
         let dut = origen::dut();
         let mut services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_verify_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
         let service = services.get_mut_service(self.id)?;
-        let (mut dp_addr, mut ack, mut parity) = (0 as u32, Acknowledgements::Ok, None);
+        let (mut ack, mut parity) = (Acknowledgements::Ok, None);
         if let Some(args) = kwargs {
-            if let Some(_dp_addr) = args.get_item("dp_addr") {
-                dp_addr = _dp_addr.extract::<u32>()?;
-            }
             if let Some(_ack) = args.get_item("acknowledge") {
                 ack = Acknowledgements::from_str(&_ack.extract::<String>()?)?;
             }
@@ -114,7 +113,7 @@ impl SWD {
             }
         }
         if let Service::SWD(swd) = service {
-            swd.verify_dp(value, dp_addr, ack, parity)?;
+            swd.verify_dp(trans, ack, parity)?;
         }
         Ok(self.clone())
     }

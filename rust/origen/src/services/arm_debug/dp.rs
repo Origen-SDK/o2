@@ -1,8 +1,10 @@
-pub mod mem_ap;
-pub mod process_transactions;
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
 use crate::core::model::registers::BitCollection;
+use super::super::super::services::Service;
+use crate::Transaction;
+
+use crate::generator::ast::Node;
 
 // Register descriptions taken from the Arm Debug RM
 use crate::{Result, TEST, Dut, 
@@ -10,73 +12,28 @@ use crate::{Result, TEST, Dut,
     get_reg
 };
 
-macro_rules! extract_reg32_params {
-    ( $dut:expr, $bc:expr) => {{
-        (
-            $bc.reg($dut).unwrap().name.clone(),
-            $bc.reg($dut).unwrap().address($dut, Some(32)).unwrap() as u32,
-            $bc.data().unwrap(),
-        )
-    }};
-}
+// macro_rules! extract_reg32_params {
+//     ( $dut:expr, $bc:expr) => {{
+//         (
+//             $bc.reg($dut).unwrap().name.clone(),
+//             $bc.reg($dut).unwrap().address($dut, Some(32)).unwrap() as u32,
+//             $bc.data().unwrap(),
+//         )
+//     }};
+// }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct ArmDebug {
-    // This SWD instance's model ID
-    pub model_id: usize,
-    //parent_id: usize,
-    // memory_map_id: usize,
-    // dp_id: usize,
-
-    // Arm debug only support JTAG or SWD.
-    // Store this just as a bool:
-    //  true -> JTAG
-    //  false -> SWD
-    pub jtagnswd: bool,
-    //pub swd_id: usize,
-}
-
-impl ArmDebug {
-
-    pub fn model_init(_dut: &mut crate::Dut, model_id: usize) -> Result<Self> {
-        Ok(Self {
-            model_id: model_id,
-            jtagnswd: true,
-            //swd_id: swd_id,
-        })
-    }
-
-    pub fn switch_to_swd(&mut self) -> Result<()> {
-        crate::TEST.push(crate::node!(ArmDebugSwjJTAGToSWD, self.clone()));
-        self.jtagnswd = false;
-        Ok(())
-    }
-
-    // /// Discerns how the register should be written (AP vs. DP) and adds the appropriate nodes
-    // pub fn write_register(&self, dut: &MutexGuard<Dut>, bc: &BitCollection) -> Result<()> {
-    //     // ...
-    //     Ok(())
-    // }
-
-    // pub fn model(&self) -> &crate::core::model::Model {
-    //     // ...
-    // }
-
-    // pub fn protocol(&self) -> Service {
-    //     // ...
-    // }
-}
-
-#[derive(Clone)]
 pub struct DP {
     model_id: usize,
     memory_map_id: usize,
     dp_id: usize,
+    arm_debug_id: usize,
+    id: usize,
 }
 
 impl DP {
-    pub fn model_init(dut: &mut crate::Dut, model_id: usize) -> Result<Self> {
-        let memory_map_id = dut.create_memory_map(model_id, "default", Some(32))?;
+    pub fn model_init(dut: &mut crate::Dut, services: &mut crate::Services, model_id: usize, arm_debug_id: usize) -> Result<usize> {
+        let memory_map_id = dut.create_memory_map(model_id, "default", None)?;
         let dp_id = dut.create_address_block(
             memory_map_id,
             "default",
@@ -99,7 +56,8 @@ impl DP {
             ),
             "Provides information about the Debug Port."
         );
-        add_reg_32bit!(dut, dp_id, "abort", 0, Some("RO"), None, vec!(), "");
+        add_reg_32bit!(dut, dp_id, "abort", 0, Some("RO"), None, vec!(
+        ), "");
 
         add_reg_32bit!(dut, dp_id, "ctrlstat", 0x4, None, some_hard_reset_val!(0),
             vec!(
@@ -117,15 +75,29 @@ impl DP {
         add_reg_32bit!(dut, dp_id, "dlpidr", 0x4, None, some_hard_reset_val!(0), vec!(), "");
         add_reg_32bit!(dut, dp_id, "eventstat", 0x4, None, some_hard_reset_val!(0), vec!(), "");
 
-        add_reg_32bit!(dut, dp_id, "select", 0x8, Some("RW"), some_hard_reset_val!(0), vec!(), "");
-        Ok(Self {
-            model_id: model_id,
-            memory_map_id: memory_map_id,
-            dp_id: dp_id,
-        })
+        add_reg_32bit!(dut, dp_id, "select", 0x8, Some("RW"), some_hard_reset_val!(0), vec!(
+            field!("SELECT", 0, 32, "RW", vec!(), some_hard_reset_val!(0), "")
+        ), "");
+
+        add_reg_32bit!(dut, dp_id, "rdbuff", 0xC, Some("RO"), some_hard_reset_val!(0), vec!(
+            field!("DATA", 0, 32, "RO", vec!(), some_hard_reset_val!(0), "")
+        ), "");
+
+        let id = services.next_id();
+        let arm_debug_id = services.get_as_arm_debug(arm_debug_id)?.id;
+        services.push_service(Service::ArmDebugDP(
+            Self {
+                model_id: model_id,
+                memory_map_id: memory_map_id,
+                dp_id: dp_id,
+                arm_debug_id: arm_debug_id,
+                id: id,
+            }
+        ));
+        Ok(id)
     }
 
-    pub fn power_up(&self, dut: &mut MutexGuard<Dut>) -> Result<()> {
+    pub fn power_up(&self, dut: &mut MutexGuard<Dut>, services: &crate::Services) -> Result<()> {
         // Set the ctrl stat bits
         let reg = get_reg!(dut, self.dp_id, "ctrlstat");
         let bc = get_bc_for!(dut, reg, "CSYSPWRUPREQ")?;
@@ -133,11 +105,11 @@ impl DP {
         let bc = get_bc_for!(dut, reg, "CDBGPWRUPREQ")?;
         bc.set_data(BigUint::from(1 as u8));
         let bc = reg.bits(dut);
-        self.write_register(dut, &bc)?;
+        self.write_register(dut, services, &bc)?;
         Ok(())
     }
 
-    pub fn verify_powered_up(&self, dut: &mut MutexGuard<Dut>) -> Result<()> {
+    pub fn verify_powered_up(&self, dut: &mut MutexGuard<Dut>, services: &crate::Services) -> Result<()> {
         let reg = get_reg!(dut, self.dp_id, "ctrlstat");
 
         let bc = get_bc_for!(dut, reg, "CSYSPWRUPREQ")?;
@@ -160,17 +132,30 @@ impl DP {
         bc.set_data(BigUint::from(1 as u8));
         bc.set_verify_flag(None)?;
         let bc = reg.bits(dut);
-        self.verify_register(dut, &bc)?;
+        self.verify_register(dut, services, &bc)?;
         bc.clear_flags();
         Ok(())
     }
 
-    pub fn write_register(&self, dut: &MutexGuard<Dut>, bc: &BitCollection) -> Result<()> {
-        self.reg_trans(dut, bc, false)
+    pub fn update_select(&self, dut: &MutexGuard<Dut>, services: &crate::Services, select: usize) -> Result<Option<Vec<Node>>> {
+        let bc = get_bc_for!(dut, self.dp_id, "select", "SELECT")?;
+        let sel = BigUint::from(select);
+        if bc.data()? == sel {
+            // Select is already at the desired value - can skip this.
+            return Ok(None);
+        } else {
+            bc.set_data(sel);
+            self.write_register(dut, services, &bc)?;
+            Ok(None)
+        }
     }
 
-    pub fn verify_register(&self, dut: &MutexGuard<Dut>, bc: &BitCollection) -> Result<()> {
-        self.reg_trans(dut, bc, true)
+    pub fn write_register(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection) -> Result<()> {
+        self.reg_trans(dut, services, bc, false)
+    }
+
+    pub fn verify_register(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection) -> Result<()> {
+        self.reg_trans(dut, services, bc, true)
     }
 
     /// Writes a DP register - detailed in chapter 2 of the ARM Debug RM.
@@ -183,9 +168,26 @@ impl DP {
     ///     * For the group of five registers which share address 0x4:
     ///         * the index (0, 1, 2, 3, 4) is stored in  SELECT.
     ///         * must write SELECT first, then write the DP register
-    pub fn reg_trans(&self, dut: &MutexGuard<Dut>, bc: &BitCollection, readnwrite: bool) -> Result<()> {
-        let (reg_name, reg_addr, reg_data) = extract_reg32_params!(dut, bc);
-        let dp_addr = (reg_addr & 0xF) >> 2;
+    pub fn reg_trans(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection, readnwrite: bool) -> Result<()> {
+        let ad_service = services.get_service(self.arm_debug_id)?;
+        let arm_debug = ad_service.as_arm_debug()?;
+        //let jtag;
+        let swd_service;
+        // let jtag_service;
+        let swd;
+        if arm_debug.jtagnswd {
+            // Temporary panic just to kill the process - JTAG isn't supported at all rn.
+            //  - coreyeng
+            panic!("JTAG not supported yet!");
+        } else {
+            swd_service = services.get_service(arm_debug.swd_id.expect(
+                "Backend Error - SWD requested but an SWD instance is not available (this should have been caught upstream, please review)"
+            ))?;
+            swd = swd_service.as_swd()?;
+        }
+        
+        //let (reg_name, reg_addr, reg_data) = extract_reg32_params!(dut, bc);
+        let reg_name = bc.reg(dut).unwrap().name.clone();
         let mut select = None;
         match reg_name.as_str() {
             "ctrlstat" => {
@@ -208,37 +210,26 @@ impl DP {
         if let Some(sel) = select {
             let bc = get_reg_as_bc!(dut, self.dp_id, "select");
             bc.set_data(BigUint::from(1 as u8));
-            TEST.push(node!(
-                SWDWriteDP,
-                BigUint::from(sel as u8),
-                0x2,
-                crate::swd_ok!(),
-                Some(bc.overlay_enables()),
-                bc.get_overlay()?
-            ))
+            TEST.push(node!(Comment, 0, format!("ArmDebugDP: select {} (DP Addr: {:X})", reg_name, sel)));
+            if arm_debug.jtagnswd {
+                // ...
+            } else {
+                swd.write_dp(Transaction::new_write_with_addr(BigUint::from(sel as u32), 32, 0x8)?, crate::swd_ok!())?;
+            }
         }
         if readnwrite {
-            TEST.push(node!(
-                SWDVerifyDP,
-                reg_data,
-                dp_addr,
+            swd.verify_dp(
+                bc.to_verify_transaction(None, true, dut)?,
                 crate::swd_ok!(),
-                None,
-                Some(bc.verify_enables()),
-                Some(bc.capture_enables()),
-                Some(bc.overlay_enables()),
-                bc.get_overlay()?
-            ));
+                None
+            )?;
         } else {
-            TEST.push(node!(
-                SWDWriteDP,
-                reg_data,
-                dp_addr,
-                crate::swd_ok!(),
-                Some(bc.overlay_enables()),
-                bc.get_overlay()?
-            ));
+            swd.write_dp(
+                bc.to_write_transaction(dut)?,
+                crate::swd_ok!()
+            )?;
         }
         Ok(())
     }
+
 }

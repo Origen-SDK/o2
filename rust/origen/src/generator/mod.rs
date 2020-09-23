@@ -6,6 +6,7 @@ pub mod processor;
 pub mod processors;
 pub mod stil;
 mod test_manager;
+pub mod utility;
 
 pub use test_manager::TestManager;
 

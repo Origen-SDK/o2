@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 use pyo3::wrap_pymodule;
 
+#[allow(dead_code)]
 pub fn get_pydut(py: Python) -> PyResult<&PyAny> {
     let locals = PyDict::new(py);
     locals.set_item("origen",  py.import("origen")?.to_object(py))?;
@@ -95,4 +96,13 @@ impl PyDUT {
     }
 }
 
-impl PyDUT {}
+impl PyDUT {
+    pub fn ensure_pins(model_path: &str) -> PyResult<()> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = PyDict::new(py);
+        locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+        py.eval(&format!("origen.{}.pins", model_path), Some(locals), None)?;
+        Ok(())
+    }
+}
