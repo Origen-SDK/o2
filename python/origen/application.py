@@ -9,7 +9,7 @@ from origen.compiler import Compiler
 from origen.errors import *
 from types import ModuleType
 
-class Base:
+class Base(_origen.application.PyApplication):
     '''
         The base class of all Origen ``applications``.
     '''

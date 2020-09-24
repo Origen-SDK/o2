@@ -32,15 +32,18 @@ ORIGEN_THEME_NAVBAR_LINKS = [
 ORIGEN_THEME_LOGOS = [
     {
         'src': 'https://origen-sdk.org/img/origen-device.png',
-        'href': 'https://origen-sdk.org/',
-        'alt': 'o1',
+        'href': 'https://origen-sdk.org',
+        'alt': 'Origen-SDK',
         'rel_src': False,
     },
     {
-        'src': '_static/o2_zero_effort_logo.png',
-        'href': 'https://origen-sdk.org/o2',
-        'alt': 'o2',
-        'rel_src': True,
+        #'src': '_static/o2_zero_effort_logo.png',
+        'src': 'https://origen-sdk.org/img/origen-text.png',
+        'href': 'https://origen-sdk.org',
+        'alt': 'Origen-SDK',
+        #'rel_src': True,
+        'rel_src': False,
+        'style': 'height: 25px;',
     },
 ]
 ''' Default logos included by Origen '''
@@ -89,6 +92,8 @@ def setup(sphinx):
     sphinx.connect("builder-inited", subprojects.build_subprojects)
     sphinx.config.html_theme_path += [sphinxbootstrap4theme.get_path()]
     sphinx.add_html_theme('origen', str(theme_dir))
+
+    sphinx.add_event("origen-preprocess-docstring")
 
     for ext in origen.app.compiler.supported_extensions:
         # Register files that will use Origen's compiler to be found by Sphinx.

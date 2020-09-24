@@ -1,0 +1,12 @@
+[tool.poetry]
+name = "{{app_name}}"
+version = "0.1.0"
+description = ""
+authors = ["{{user_info}}"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+origen = "{{origen_version}}"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3"
