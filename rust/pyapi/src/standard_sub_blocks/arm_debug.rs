@@ -28,8 +28,9 @@ fn check_for_swd() -> PyResult<Option<usize>> {
     let py = gil.python();
     let locals = PyDict::new(py);
     locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+    locals.set_item("builtins",  py.import("builtins")?.to_object(py))?;
     locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
-    let m = py.eval("hasattr(dut, \"swd\")", Some(locals), None)?;
+    let m = py.eval("builtins.hasattr(dut, \"swd\")", Some(locals), None)?;
 
     if m.extract::<bool>()? {
         let pyswd = py.eval("dut.swd", Some(locals), None)?;
