@@ -2,6 +2,7 @@ use crate::error::Error;
 use indexmap::map::IndexMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::RwLock;
 
 pub trait ResolvePinActions {
     fn pin_action_resolver(&self, target: String) -> &Resolver;
@@ -306,17 +307,18 @@ pub enum PinRoles {
 }
 
 /// Model for single pin.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Pin {
     pub model_id: usize,
     pub id: usize,
     // Since pins will be added from the add_pin function of Pins,
     // just reuse that String instance instead of creating a new one.
     pub name: String,
-    pub data: u8,
+    pub data: RwLock<u8>,
 
-    /// The pin's current action. If no action is desired, the pin will be HighZ.
-    pub action: PinActions,
+    // /// The pin's current action. If no action is desired, the pin will be HighZ.
+    // pub action: PinActions,
+    pub action: RwLock<PinActions>,
 
     /// The pin's initial action and state. This will be applied during creation and whenever the
     /// 'reset' function is called.
@@ -338,43 +340,50 @@ pub struct Pin {
 }
 
 impl Pin {
-    pub fn drive(&mut self, data: Option<u8>) -> Result<(), Error> {
+    pub fn drive(&self, data: Option<u8>) -> Result<(), Error> {
         if let Some(d) = data {
             self.set_data(d)?;
         }
-        if self.data == 0 {
-            self.action = PinActions::DriveLow;
+
+        let mut action = self.action.write().unwrap();
+        if *self.data.read().unwrap() == 0 {
+            *action = PinActions::DriveLow;
         } else {
-            self.action = PinActions::DriveHigh;
+            *action = PinActions::DriveHigh;
         }
         Ok(())
     }
 
-    pub fn verify(&mut self, data: Option<u8>) -> Result<(), Error> {
+    pub fn verify(&self, data: Option<u8>) -> Result<(), Error> {
         if let Some(d) = data {
             self.set_data(d)?;
         }
-        if self.data == 0 {
-            self.action = PinActions::VerifyLow;
+
+        let mut action = self.action.write().unwrap();
+        if *self.data.read().unwrap() == 0 {
+            *action = PinActions::VerifyLow;
         } else {
-            self.action = PinActions::VerifyHigh;
+            *action = PinActions::VerifyHigh;
         }
         Ok(())
     }
 
-    pub fn capture(&mut self) -> Result<(), Error> {
-        self.action = PinActions::Capture;
+    pub fn capture(&self) -> Result<(), Error> {
+        let mut action = self.action.write().unwrap();
+        *action = PinActions::Capture;
         Ok(())
     }
 
-    pub fn highz(&mut self) -> Result<(), Error> {
-        self.action = PinActions::HighZ;
+    pub fn highz(&self) -> Result<(), Error> {
+        let mut action = self.action.write().unwrap();
+        *action = PinActions::HighZ;
         Ok(())
     }
 
-    pub fn set_data(&mut self, data: u8) -> Result<(), Error> {
+    pub fn set_data(&self, data: u8) -> Result<(), Error> {
         if data == 0 || data == 1 {
-            self.data = data;
+            let mut pin_data = self.data.write().unwrap();
+            *pin_data = data;
             Ok(())
         } else {
             Err(Error::new(&format!(
@@ -384,16 +393,20 @@ impl Pin {
         }
     }
 
-    pub fn reset(&mut self) {
-        match self.reset_data {
-            Some(d) => self.data = d as u8,
-            None => {
-                self.data = 0;
+    pub fn reset(&self) {
+        let mut action = self.action.write().unwrap();
+        {
+            let mut data = self.data.write().unwrap();
+            match self.reset_data {
+                Some(d) => *data = d as u8,
+                None => {
+                    *data = 0;
+                }
             }
         }
         match self.reset_action.as_ref() {
-            Some(a) => self.action = a.apply_state(self.data),
-            None => self.action = PinActions::HighZ,
+            Some(a) => *action = a.apply_state(*self.data.read().unwrap()),
+            None => *action = PinActions::HighZ,
         }
     }
 
@@ -423,12 +436,12 @@ impl Pin {
         reset_data: Option<u32>,
         reset_action: Option<PinActions>,
     ) -> Pin {
-        let mut p = Pin {
+        let p = Pin {
             model_id: model_id,
             id: id,
             name: name,
-            data: 0,
-            action: PinActions::HighZ,
+            data: RwLock::new(0),
+            action: RwLock::new(PinActions::HighZ),
             reset_data: reset_data,
             reset_action: {
                 if let Some(a) = reset_action {
@@ -447,8 +460,9 @@ impl Pin {
     }
 }
 
-impl Default for Pin {
-    fn default() -> Pin {
+impl std::clone::Clone for Pin {
+    fn clone(&self) -> Self {
+        println!("Cloning pin... where is this used?");
         Self::new(0, 0, String::from("default"), Option::None, Option::None)
     }
 }

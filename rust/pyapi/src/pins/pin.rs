@@ -110,14 +110,16 @@ impl Pin {
     fn get_data(&self) -> PyResult<u8> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-        Ok(pin.data)
+        let data = pin.data.read().unwrap();
+        Ok(*data)
     }
 
     #[getter]
     fn get_action(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-        Ok(String::from(pin.action.long_name()))
+        let name = pin.action.read().unwrap().long_name();
+        Ok(name)
     }
 
     #[getter]

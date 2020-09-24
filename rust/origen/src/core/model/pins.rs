@@ -14,6 +14,12 @@ use pin::{Pin, PinActions, ResolvePinActions};
 use pin_collection::PinCollection;
 use pin_group::PinGroup;
 
+pub struct PinStore<'a> {
+    pub pins: Vec<&'a Pin>,
+}
+
+impl<'a> PinStore<'a> {}
+
 #[derive(Debug, Clone)]
 pub struct PinGroupID {
     pub id: usize,
@@ -301,7 +307,7 @@ impl Dut {
         let mut data = 0;
         for n in names.iter().rev() {
             let p = self._get_pin(model_id, n)?;
-            data = (data << 1) + p.data;
+            data = (data << 1) + *p.data.read().unwrap();
         }
         Ok(data as u32)
     }
@@ -347,7 +353,7 @@ impl Dut {
         let mut retn: Vec<PinActions> = vec!();
         for n in names.iter() {
             let p = self._get_pin(model_id, n)?;
-            retn.push(p.action.clone());
+            retn.push(p.action.read().unwrap().clone());
         }
         Ok(retn)
     }
@@ -383,21 +389,27 @@ impl Dut {
         let mut actions: Vec<String> = vec!();
         for (_i, n) in names.iter().enumerate() {
             let p = self._get_mut_pin(model_id, n)?;
+            {
+                let mut pin_action = p.action.write().unwrap();
 
-            if m & 0x1 == 1 {
-                match action {
-                    PinActions::DriveHigh | PinActions::VerifyHigh => p.data = 1,
-                    PinActions::DriveLow | PinActions::VerifyLow => p.data = 0,
-                    _ => {}
+                if m & 0x1 == 1 {
+                    {
+                        let mut data = p.data.write().unwrap();
+                        match action {
+                            PinActions::DriveHigh | PinActions::VerifyHigh => *data = 1,
+                            PinActions::DriveLow | PinActions::VerifyLow => *data = 0,
+                            _ => {}
+                        }
+                    }
+                    *pin_action = action.apply_state(*p.data.read().unwrap());
+                } else {
+                    *pin_action = PinActions::HighZ;
                 }
-                p.action = action.apply_state(p.data);
-            } else {
-                p.action = PinActions::HighZ;
+                m >>= 1;
             }
-            m >>= 1;
 
-            actions.push(p.action.as_sym());
-            nodes.push(crate::node!(PinAction, p.id, p.action.as_sym(), None));
+            actions.push(p.action.read().unwrap().as_sym());
+            nodes.push(crate::node!(PinAction, p.id, p.action.read().unwrap().as_sym(), None));
         }
         if let Some(i) = grp_id {
             let n_id = crate::TEST.push_and_open(crate::node!(PinGroupAction, i, actions, None));
@@ -427,30 +439,39 @@ impl Dut {
         let mut m = (mask.unwrap_or(!(0 as usize))) as u32;
         for (i, n) in names.iter().enumerate() {
             let p = self._get_mut_pin(model_id, n)?;
+            {
+                let mut pin_action = p.action.write().unwrap();
 
-            if m & 0x1 == 1 {
-                // If a single action was given, apply that to all pins
-                if actions.len() == 1 {
-                    match actions[0] {
-                        PinActions::DriveHigh | PinActions::VerifyHigh => p.data = 1,
-                        PinActions::DriveLow | PinActions::VerifyLow => p.data = 0,
-                        _ => {}
+                if m & 0x1 == 1 {
+                    // If a single action was given, apply that to all pins
+                    if actions.len() == 1 {
+                        {
+                            let mut data = p.data.write().unwrap();
+                            match actions[0] {
+                                PinActions::DriveHigh | PinActions::VerifyHigh => *data = 1,
+                                PinActions::DriveLow | PinActions::VerifyLow => *data = 0,
+                                _ => {}
+                            }
+                        }
+                        *pin_action = actions[0].apply_state(*p.data.read().unwrap());
+                    } else {
+                        {
+                            let mut data = p.data.write().unwrap();
+                            match actions[i] {
+                                PinActions::DriveHigh | PinActions::VerifyHigh => *data = 1,
+                                PinActions::DriveLow | PinActions::VerifyLow => *data = 0,
+                                _ => {}
+                            }
+                        }
+                        *pin_action = actions[i].apply_state(*p.data.read().unwrap());
                     }
-                    p.action = actions[0].apply_state(p.data);
                 } else {
-                    match actions[i] {
-                        PinActions::DriveHigh | PinActions::VerifyHigh => p.data = 1,
-                        PinActions::DriveLow | PinActions::VerifyLow => p.data = 0,
-                        _ => {}
-                    }
-                    p.action = actions[i].apply_state(p.data);
+                    *pin_action = PinActions::HighZ;
                 }
-            } else {
-                p.action = PinActions::HighZ;
             }
             m >>= 1;
 
-            crate::TEST.push(crate::node!(PinAction, p.id, p.action.as_sym(), None));
+            crate::TEST.push(crate::node!(PinAction, p.id, p.action.read().unwrap().as_sym(), None));
         }
         Ok(())
     }
