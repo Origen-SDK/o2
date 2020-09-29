@@ -1,0 +1,23 @@
+[[test]]
+name = "continuity"
+    [[test.param]]
+    name = "pinlist"
+    type = "String"
+    default = "@"
+    [[test.param]]
+    name = "test_current"
+    type = "Current"
+    default = 10e-06
+
+
+
+            continuity:        {
+              pinlist:               [:string, '@'],
+              test_current:          [:current, 10.uA],
+              settling_time:         [:time, 1.ms],
+              measurement_mode:      [:string, 'PPMUpar', %w(PPMUpar ProgLoad)],
+              polarity:              [:string, 'SPOL', %w(SPOL BPOL)],
+              precharge_to_zero_vol: [:string, 'ON', %w(ON OFF)],
+              test_name:             [:string, 'passVolt_mv'],
+              output:                [:string, 'None', %w(None ReportUI ShowFailOnly)]
+            },

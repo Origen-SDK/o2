@@ -1,5 +1,6 @@
-mod interface;
+mod advantest;
 mod teradyne;
-mod test;
+mod test_program;
+mod tests;
 
-pub use interface::Interface;
+pub use test_program::TestProgram;

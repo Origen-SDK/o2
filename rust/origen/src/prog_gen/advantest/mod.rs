@@ -1,6 +1,6 @@
 mod base;
-mod j750;
-mod ultraflex;
+mod smt7;
+mod smt8;
 
 use crate::Result;
 use crate::TestProgram;
@@ -9,6 +9,6 @@ use crate::TestProgram;
 // all of the built-in Teradyne test templates
 pub fn define_test_lib(prog: &mut TestProgram) -> Result<()> {
     base::define_test_lib(prog)?;
-    j750::define_test_lib(prog)?;
+    smt7::define_test_lib(prog)?;
     Ok(())
 }

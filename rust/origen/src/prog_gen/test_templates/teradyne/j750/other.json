@@ -1,0 +1,14 @@
+{
+    "parent": "test_instance",
+
+    "parameters": {
+    },
+
+    "aliases": {
+    },
+
+    "values": {
+        "proc_type":      "Other",
+        "proc_called_as": "Excel Macro"
+    }
+}
