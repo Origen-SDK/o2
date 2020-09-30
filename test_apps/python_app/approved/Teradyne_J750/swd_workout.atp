@@ -1,6 +1,6 @@
 // ******************************************************************************************
 // Generated
-//   Time: 2020-09-29 22:35:33.313745400 -05:00
+//   Time: 2020-09-29 22:57:55.115426300 -05:00
 //   By: nxa13790
 //   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\swd_workout.py
 // ******************************************************************************************
@@ -44,22 +44,22 @@ repeat 3 > simple X 1 0 ;
 repeat 2 > simple X 1 L ;
  > simple X 1 X ;
 // SWD: Drive data
-repeat 2 > simple X 1 L ;
-repeat 2 > simple X 1 H ;
- > simple X 1 L ;
-repeat 3 > simple X 1 H ;
-repeat 2 > simple X 1 L ;
-repeat 2 > simple X 1 H ;
- > simple X 1 L ;
-repeat 3 > simple X 1 H ;
- > simple X 1 L ;
-repeat 3 > simple X 1 H ;
-repeat 2 > simple X 1 L ;
-repeat 2 > simple X 1 H ;
- > simple X 1 L ;
-repeat 3 > simple X 1 H ;
-repeat 2 > simple X 1 L ;
-repeat 2 > simple X 1 H ;
+repeat 2 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
 // SWD: Drive data's parity bit
  > simple X 1 0 ;
 repeat 10 > simple X 1 0 ;
@@ -105,26 +105,26 @@ repeat 6 > simple X 1 0 ;
 repeat 2 > simple X 1 L ;
  > simple X 1 X ;
 // SWD: Drive data
- > simple X 1 H ;
- > simple X 1 L ;
-repeat 2 > simple X 1 H ;
-repeat 2 > simple X 1 L ;
-repeat 4 > simple X 1 H ;
- > simple X 1 L ;
- > simple X 1 H ;
- > simple X 1 L ;
- > simple X 1 H ;
- > simple X 1 L ;
- > simple X 1 H ;
-repeat 2 > simple X 1 L ;
- > simple X 1 H ;
- > simple X 1 L ;
-repeat 2 > simple X 1 H ;
-repeat 3 > simple X 1 L ;
- > simple X 1 H ;
-repeat 2 > simple X 1 L ;
- > simple X 1 H ;
-repeat 3 > simple X 1 L ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 2 > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 3 > simple X 1 0 ;
 // SWD: Drive data's parity bit
  > simple X 1 1 ;
 repeat 10 > simple X 1 1 ;
@@ -180,21 +180,21 @@ repeat 3 > simple X 1 0 ;
 repeat 2 > simple X 1 L ;
  > simple X 1 X ;
 // SWD: Drive data
- > simple X 1 L ;
-repeat 4 > simple X 1 H ;
- > simple X 1 L ;
-repeat 2 > simple X 1 H ;
-repeat 6 > simple X 1 L ;
-repeat 3 > simple X 1 H ;
- > simple X 1 L ;
-repeat 2 > simple X 1 H ;
- > simple X 1 L ;
- > simple X 1 H ;
- > simple X 1 L ;
-repeat 3 > simple X 1 H ;
- > simple X 1 L ;
- > simple X 1 H ;
-repeat 4 > simple X 1 L ;
+ > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 6 > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+repeat 4 > simple X 1 0 ;
 // SWD: Drive data's parity bit
  > simple X 1 0 ;
 repeat 10 > simple X 1 0 ;
@@ -245,21 +245,21 @@ repeat 2 > simple X 1 L ;
  > simple X 1 H ;
  > simple X 1 X ;
 // SWD: Drive data
- > simple X 1 H ;
- > simple X 1 L ;
-repeat 2 > simple X 1 H ;
- > simple X 1 L ;
- > simple X 1 H ;
- > simple X 1 L ;
-repeat 3 > simple X 1 H ;
- > simple X 1 L ;
-repeat 2 > simple X 1 H ;
-repeat 4 > simple X 1 L ;
-repeat 4 > simple X 1 H ;
- > simple X 1 L ;
-repeat 2 > simple X 1 H ;
-repeat 6 > simple X 1 L ;
-repeat 2 > simple X 1 H ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+ > simple X 1 0 ;
+ > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 3 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 4 > simple X 1 0 ;
+repeat 4 > simple X 1 1 ;
+ > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
+repeat 6 > simple X 1 0 ;
+repeat 2 > simple X 1 1 ;
 // SWD: Drive data's parity bit
  > simple X 1 1 ;
 repeat 10 > simple X 1 1 ;

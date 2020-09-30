@@ -1,6 +1,6 @@
 # ******************************************************************************************
 # Generated
-#   Time: 2020-09-29 22:35:33.293745 -05:00
+#   Time: 2020-09-29 22:57:55.093416300 -05:00
 #   By: nxa13790
 #   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\swd_workout.py
 # ******************************************************************************************
@@ -42,22 +42,22 @@ R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
 # SWD: Drive data
-R2 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R3 simple X 1 H # <EoL Comment>;
-R2 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R3 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R3 simple X 1 H # <EoL Comment>;
-R2 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R3 simple X 1 H # <EoL Comment>;
-R2 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
+R2 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R3 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R3 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R3 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R3 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
 # SWD: Drive data's parity bit
 R1 simple X 1 0 # <EoL Comment>;
 R10 simple X 1 0 # <EoL Comment>;
@@ -103,26 +103,26 @@ R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
 # SWD: Drive data
-R1 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R2 simple X 1 L # <EoL Comment>;
-R4 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R2 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R3 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R2 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R3 simple X 1 L # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 0 # <EoL Comment>;
+R4 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R3 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R3 simple X 1 0 # <EoL Comment>;
 # SWD: Drive data's parity bit
 R1 simple X 1 1 # <EoL Comment>;
 R10 simple X 1 1 # <EoL Comment>;
@@ -178,21 +178,21 @@ R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
 # SWD: Drive data
-R1 simple X 1 L # <EoL Comment>;
-R4 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R6 simple X 1 L # <EoL Comment>;
-R3 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R3 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R4 simple X 1 L # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R4 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R6 simple X 1 0 # <EoL Comment>;
+R3 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R3 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R4 simple X 1 0 # <EoL Comment>;
 # SWD: Drive data's parity bit
 R1 simple X 1 0 # <EoL Comment>;
 R10 simple X 1 0 # <EoL Comment>;
@@ -243,21 +243,21 @@ R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 H # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
 # SWD: Drive data
-R1 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R1 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R3 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R4 simple X 1 L # <EoL Comment>;
-R4 simple X 1 H # <EoL Comment>;
-R1 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
-R6 simple X 1 L # <EoL Comment>;
-R2 simple X 1 H # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R1 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R3 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R4 simple X 1 0 # <EoL Comment>;
+R4 simple X 1 1 # <EoL Comment>;
+R1 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
+R6 simple X 1 0 # <EoL Comment>;
+R2 simple X 1 1 # <EoL Comment>;
 # SWD: Drive data's parity bit
 R1 simple X 1 1 # <EoL Comment>;
 R10 simple X 1 1 # <EoL Comment>;

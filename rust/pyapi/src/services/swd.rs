@@ -37,7 +37,7 @@ impl SWD {
         let dut = origen::dut();
         let mut services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
-        let mut trans = value.to_verify_transaction(&dut)?;
+        let mut trans = value.to_write_transaction(&dut)?;
         unpack_transaction_options(&mut trans, kwargs)?;
         let service = services.get_mut_service(self.id)?;
         let mut ack = Acknowledgements::Ok;
@@ -80,7 +80,7 @@ impl SWD {
         let dut = origen::dut();
         let mut services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
-        let mut trans = value.to_verify_transaction(&dut)?;
+        let mut trans = value.to_write_transaction(&dut)?;
         unpack_transaction_options(&mut trans, kwargs)?;
         let service = services.get_mut_service(self.id)?;
         let mut ack = Acknowledgements::Ok;
