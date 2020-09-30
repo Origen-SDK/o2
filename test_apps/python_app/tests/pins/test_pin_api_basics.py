@@ -26,7 +26,7 @@ def test_pin_base_state(clean_falcon):
   assert isinstance(p, _origen.dut.pins.Pin)
   assert p.name == "p0"
   assert p.data == 0
-  assert p.action == "HighZ"
+  assert p.action == "Z"
   assert p.reset_data is None
   assert p.reset_action is None
   assert p.aliases == []

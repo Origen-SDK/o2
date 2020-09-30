@@ -12,16 +12,6 @@ use crate::{Result, TEST, Dut,
     get_reg
 };
 
-// macro_rules! extract_reg32_params {
-//     ( $dut:expr, $bc:expr) => {{
-//         (
-//             $bc.reg($dut).unwrap().name.clone(),
-//             $bc.reg($dut).unwrap().address($dut, Some(32)).unwrap() as u32,
-//             $bc.data().unwrap(),
-//         )
-//     }};
-// }
-
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DP {
     model_id: usize,
@@ -175,7 +165,7 @@ impl DP {
         let swd_service;
         // let jtag_service;
         let swd;
-        if arm_debug.jtagnswd {
+        if *arm_debug.jtagnswd.read().unwrap() {
             // Temporary panic just to kill the process - JTAG isn't supported at all rn.
             //  - coreyeng
             panic!("JTAG not supported yet!");
@@ -186,7 +176,6 @@ impl DP {
             swd = swd_service.as_swd()?;
         }
         
-        //let (reg_name, reg_addr, reg_data) = extract_reg32_params!(dut, bc);
         let reg_name = bc.reg(dut).unwrap().name.clone();
         let mut select = None;
         match reg_name.as_str() {
@@ -211,25 +200,27 @@ impl DP {
             let bc = get_reg_as_bc!(dut, self.dp_id, "select");
             bc.set_data(BigUint::from(1 as u8));
             TEST.push(node!(Comment, 0, format!("ArmDebugDP: select {} (DP Addr: {:X})", reg_name, sel)));
-            if arm_debug.jtagnswd {
+            if *arm_debug.jtagnswd.read().unwrap() {
                 // ...
             } else {
-                swd.write_dp(Transaction::new_write_with_addr(BigUint::from(sel as u32), 32, 0x8)?, crate::swd_ok!())?;
+                swd.write_dp(dut, Transaction::new_write_with_addr(BigUint::from(sel as u32), 32, 0x8)?, crate::swd_ok!())?;
             }
         }
         if readnwrite {
             swd.verify_dp(
+                dut,
                 bc.to_verify_transaction(None, true, dut)?,
                 crate::swd_ok!(),
                 None
             )?;
         } else {
             swd.write_dp(
+                dut,
                 bc.to_write_transaction(dut)?,
                 crate::swd_ok!()
             )?;
         }
-        Ok(())
+        swd.update_actions(dut)
     }
 
 }

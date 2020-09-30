@@ -159,9 +159,10 @@ impl ArmDebug {
     }
 
     fn switch_to_swd(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
-        let mut services = origen::services();
-        let arm_debug = services.get_as_mut_arm_debug(slf.arm_debug_id.unwrap())?;
-        arm_debug.switch_to_swd()?;
+        let services = origen::services();
+        let arm_debug = services.get_as_arm_debug(slf.arm_debug_id.unwrap())?;
+        let dut = origen::dut();
+        arm_debug.switch_to_swd(&dut, &services)?;
         Ok(slf.into())
     }
 }

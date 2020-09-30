@@ -2,6 +2,7 @@ pub mod vector_based;
 pub mod igxl;
 pub mod simulator;
 pub mod smt;
+pub mod api;
 use crate::core::tester::{Interceptor, TesterAPI};
 use crate::dut;
 use crate::error::Error;

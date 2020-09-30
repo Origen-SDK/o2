@@ -49,7 +49,6 @@ impl<'a> Renderer<'a> {
         // Finally, generate the output
         let mut p = Self::new(tester);
         n.process(&mut p)?;
-        // println!("{:?}", n);
         Ok(vec![p.path.unwrap()])
     }
 

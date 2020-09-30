@@ -79,9 +79,9 @@ class TestCollecting:
     c = origen.dut.pins.collect("p1", "p2", "p3")
     c.drive()
     assert c.pin_actions == "000"
-    assert origen.dut.physical_pin("p1").action == "DriveLow"
-    assert origen.dut.physical_pin("p2").action == "DriveLow"
-    assert origen.dut.physical_pin("p3").action == "DriveLow"
+    assert origen.dut.physical_pin("p1").action == "0"
+    assert origen.dut.physical_pin("p2").action == "0"
+    assert origen.dut.physical_pin("p3").action == "0"
 
   def test_driving_pin_collection_with_data(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p1", "p2", "p3")
@@ -93,9 +93,9 @@ class TestCollecting:
     c = origen.dut.pins.collect("p1", "p2", "p3")
     c.verify()
     assert c.pin_actions == "LLL"
-    assert origen.dut.physical_pin("p1").action == "VerifyLow"
-    assert origen.dut.physical_pin("p2").action == "VerifyLow"
-    assert origen.dut.physical_pin("p3").action == "VerifyLow"
+    assert origen.dut.physical_pin("p1").action == "L"
+    assert origen.dut.physical_pin("p2").action == "L"
+    assert origen.dut.physical_pin("p3").action == "L"
 
   def test_verifying_pin_collection_with_data(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p1", "p2", "p3")
@@ -109,17 +109,17 @@ class TestCollecting:
     assert c.pin_actions == "000"
     c.highz()
     assert c.pin_actions == "ZZZ"
-    assert origen.dut.physical_pin("p1").action == "HighZ"
-    assert origen.dut.physical_pin("p2").action == "HighZ"
-    assert origen.dut.physical_pin("p3").action == "HighZ"
+    assert origen.dut.physical_pin("p1").action == "Z"
+    assert origen.dut.physical_pin("p2").action == "Z"
+    assert origen.dut.physical_pin("p3").action == "Z"
 
   def test_capturing_pin_collection(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p1", "p2", "p3")
     c.capture()
     assert c.pin_actions == "CCC"
-    assert origen.dut.physical_pin("p1").action == "Capture"
-    assert origen.dut.physical_pin("p2").action == "Capture"
-    assert origen.dut.physical_pin("p3").action == "Capture"
+    assert origen.dut.physical_pin("p1").action == "C"
+    assert origen.dut.physical_pin("p2").action == "C"
+    assert origen.dut.physical_pin("p3").action == "C"
 
   def test_reset_values_persist_in_collections(self, clean_falcon, pins):
     origen.dut.add_pin("port", width=2, reset_data=0x3, reset_action="DD")

@@ -16,6 +16,7 @@ pub mod generator;
 pub mod prog_gen;
 pub mod revision_control;
 pub mod services;
+pub mod standards;
 pub mod testers;
 pub mod utility;
 
@@ -44,6 +45,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// The available Origen runtime modes
 pub const MODES: &'static [&'static str] = &["production", "development"];
+
+// No idea why, but lazy_static was having none of this
+// pub static BIGU1: num_bigint::BigUint = num_bigint::BigUint::from(1 as u8);
+// pub static BIGU0: num_bigint::BigUint = num_bigint::BigUint::from(0 as u8);
 
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present

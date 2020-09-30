@@ -47,7 +47,7 @@ impl SWD {
             }
         }
         if let Service::SWD(swd) = service {
-            swd.write_ap(trans, ack)?;
+            swd.write_ap(&dut, trans, ack)?;
         }
         Ok(self.clone())
     }
@@ -70,7 +70,7 @@ impl SWD {
             }
         }
         if let Service::SWD(swd) = service {
-            swd.verify_ap(trans, ack, parity)?;
+            swd.verify_ap(&dut, trans, ack, parity)?;
         }
         Ok(self.clone())
     }
@@ -90,7 +90,7 @@ impl SWD {
             }
         }
         if let Service::SWD(swd) = service {
-            swd.write_dp(trans, ack)?;
+            swd.write_dp(&dut, trans, ack)?;
         }
         Ok(self.clone())
     }
@@ -113,16 +113,17 @@ impl SWD {
             }
         }
         if let Service::SWD(swd) = service {
-            swd.verify_dp(trans, ack, parity)?;
+            swd.verify_dp(&dut, trans, ack, parity)?;
         }
         Ok(self.clone())
     }
 
     fn line_reset(&self) -> PyResult<Self> {
+        let dut = origen::dut();
         let mut services = origen::services();
         let service = services.get_mut_service(self.id)?;
         if let Service::SWD(swd) = service {
-            swd.line_reset()?;
+            swd.line_reset(&dut)?;
         }
         Ok(self.clone())
     }

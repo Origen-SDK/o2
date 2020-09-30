@@ -6,7 +6,6 @@ use super::super::super::services::Service;
 use crate::Transaction;
 
 use crate::generator::ast::*;
-use crate::testers::vector_based::api::*;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct MemAP {
@@ -102,6 +101,9 @@ impl MemAP {
     pub fn write_register(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection) -> Result<()> {
         let reg_write_node = bc.to_write_node(dut)?.unwrap();
         let n_id = TEST.push_and_open(reg_write_node.clone());
+        let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
+        let swd_id = arm_debug.swd_id.unwrap();
+        let swd = services.get_as_swd(swd_id)?;
         match &reg_write_node.attrs {
             Attrs::RegWrite(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
@@ -122,11 +124,7 @@ impl MemAP {
                         let dp = services.get_as_dp(self.dp_id)?;
                         dp.update_select(dut, services, (addr & 0xFFFF_FFF0) as usize)?;
                     }
-
-                    let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
-                    let swd_id = arm_debug.swd_id.unwrap();
-                    let swd = services.get_as_swd(swd_id)?;
-                    swd.write_ap(trans, crate::swd_ok!())?;
+                    swd.write_ap(dut, trans, crate::swd_ok!())?;
 
                     TEST.close(trans_node_id)?;
                 } else {
@@ -147,6 +145,7 @@ impl MemAP {
             _ => return Err(Error::new(&format!("Unexpected node in ArmDebug MemAP driver: {:?}", reg_write_node)))
         }
         TEST.close(n_id)?;
+        swd.update_actions(dut)?;
         Ok(())
     }
 
@@ -154,6 +153,10 @@ impl MemAP {
         let trans_node;
         let reg_verify_node = bc.to_verify_node(None, true, dut)?.unwrap();
         let n_id = TEST.push_and_open(reg_verify_node.clone());
+
+        let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
+        let swd_id = arm_debug.swd_id.unwrap();
+        let swd = services.get_as_swd(swd_id)?;
         match &reg_verify_node.attrs {
             Attrs::RegVerify(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
@@ -174,16 +177,15 @@ impl MemAP {
                         let dp = services.get_as_dp(self.dp_id)?;
                         dp.update_select(dut, services, (addr & 0xFFFF_FFF0) as usize)?;
                     }
-                    let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
-                    let swd_id = arm_debug.swd_id.unwrap();
-                    let swd = services.get_as_swd(swd_id)?;
                     swd.verify_ap(
+                        dut,
                         trans.to_dummy()?,
                         crate::swd_ok!(),
                         None
                     )?;
 
                     swd.verify_ap(
+                        dut,
                         trans,
                         crate::swd_ok!(),
                         None
@@ -206,29 +208,27 @@ impl MemAP {
                     let swd = services.get_as_swd(swd_id)?;
                     trans.address = Some(0xC); // DRW
                     swd.verify_ap(
+                        dut,
                         trans.to_dummy()?,
                         crate::swd_ok!(),
                         None
                     )?;
-                    TEST.append(&mut drive_low(&swd.swdio_id, swd.swdio_grp_id)?);
-                    TEST.push(cycle(true)?);
-                    // TEST.push(repeat(1, true)?);
-
+                    swd.swdio.drive_low().cycle();
                     trans.address = Some(0xC); // RDBUFF
                     swd.verify_dp(
+                        dut,
                         trans,
                         crate::swd_ok!(),
                         None
                     )?;
-                    TEST.append(&mut drive_low(&swd.swdio_id, swd.swdio_grp_id)?);
-                    TEST.push(cycle(true)?);
-
+                    swd.swdio.drive_low().cycle();
                     TEST.close(trans_node_id)?;
                 }
             },
             _ => return Err(Error::new(&format!("Unexpected node in ArmDebug MemAP driver: {:?}", reg_verify_node)))
         }
         TEST.close(n_id)?;
+        swd.update_actions(dut)?;
         Ok(())
     }
 }

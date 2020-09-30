@@ -1,6 +1,6 @@
 # ******************************************************************************************
 # Generated
-#   Time: 2020-09-22 22:19:06.944503 -05:00
+#   Time: 2020-09-29 22:35:33.293745 -05:00
 #   By: nxa13790
 #   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\swd_workout.py
 # ******************************************************************************************
@@ -25,47 +25,50 @@
 FORMAT reset swdclk swdio;
 R100 simple X 0 X # <EoL Comment>;
 # Reset SWD
+# SWD: Line Reset
+R50 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 X # <EoL Comment>;
 # Write AP to 0xCECE_ECEC
 # SWD: Write AP - AP: 0, Data: 0xCECEECEC
-# SWD: Header: host -> target (A: 0)
+# SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
 R2 simple X 1 1 # <EoL Comment>;
 R3 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Acknowledge Ok: target -> host
+# SWD: Acknowledge Ok: target -> host
 R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Drive data
-R2 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R3 simple X 1 1 # <EoL Comment>;
-R2 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R3 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R3 simple X 1 1 # <EoL Comment>;
-R2 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R3 simple X 1 1 # <EoL Comment>;
-R2 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-#   SWD: Drive data's parity bit
+# SWD: Drive data
+R2 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R3 simple X 1 H # <EoL Comment>;
+R2 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R3 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R3 simple X 1 H # <EoL Comment>;
+R2 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R3 simple X 1 H # <EoL Comment>;
+R2 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+# SWD: Drive data's parity bit
 R1 simple X 1 0 # <EoL Comment>;
 R10 simple X 1 0 # <EoL Comment>;
 # Verify AP
 # SWD: Verify AP - AP: 0, Data: 0xCECEECEC
-# SWD: Header: host -> target (A: 0)
+# SWD: Header: host -> target (A: 0, ap_access: 1, verify: 1) 
 R3 simple X 1 1 # <EoL Comment>;
 R4 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Acknowledge Ok: target -> host
+# SWD: Acknowledge Ok: target -> host
 R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 # SWD: Verify data
@@ -85,47 +88,47 @@ R1 simple X 1 L # <EoL Comment>;
 R3 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R2 simple X 1 H # <EoL Comment>;
-#   SWD: Ignoring parity bit on SWD READ operation
+# SWD: Ignoring parity bit on SWD READ operation
 R2 simple X 1 X # <EoL Comment>;
 R10 simple X 1 X # <EoL Comment>;
 # Write DP to 0x1234_ABCD
 # SWD: Write DP - DP: 0, Data: 0x1234ABCD
-# SWD: Header: host -> target (A: 0)
+# SWD: Header: host -> target (A: 0, ap_access: 0, verify: 0) 
 R1 simple X 1 1 # <EoL Comment>;
 R6 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Acknowledge Ok: target -> host
+# SWD: Acknowledge Ok: target -> host
 R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Drive data
-R1 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R2 simple X 1 0 # <EoL Comment>;
-R4 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R2 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R3 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R2 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R3 simple X 1 0 # <EoL Comment>;
-#   SWD: Drive data's parity bit
+# SWD: Drive data
+R1 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R2 simple X 1 L # <EoL Comment>;
+R4 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R2 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R3 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R2 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R3 simple X 1 L # <EoL Comment>;
+# SWD: Drive data's parity bit
 R1 simple X 1 1 # <EoL Comment>;
 R10 simple X 1 1 # <EoL Comment>;
 # Verify DP
 # SWD: Verify DP - DP: 0, Data: 0x1234ABCD
-# SWD: Header: host -> target (A: 0)
+# SWD: Header: host -> target (A: 0, ap_access: 0, verify: 1) 
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
@@ -134,7 +137,7 @@ R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Acknowledge Ok: target -> host
+# SWD: Acknowledge Ok: target -> host
 R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 # SWD: Verify data
@@ -158,51 +161,51 @@ R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 H # <EoL Comment>;
 R3 simple X 1 L # <EoL Comment>;
-#   SWD: Ignoring parity bit on SWD READ operation
+# SWD: Ignoring parity bit on SWD READ operation
 R2 simple X 1 X # <EoL Comment>;
 R10 simple X 1 X # <EoL Comment>;
 # Write AP with AP address expecting OK response
 # SWD: Write AP - AP: 4, Data: 0xBADC0DE
-# SWD: Header: host -> target (A: 1)
+# SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
 R2 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R3 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Acknowledge Ok: target -> host
+# SWD: Acknowledge Ok: target -> host
 R1 simple X 1 H # <EoL Comment>;
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Drive data
-R1 simple X 1 0 # <EoL Comment>;
-R4 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R6 simple X 1 0 # <EoL Comment>;
-R3 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R3 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R4 simple X 1 0 # <EoL Comment>;
-#   SWD: Drive data's parity bit
+# SWD: Drive data
+R1 simple X 1 L # <EoL Comment>;
+R4 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R6 simple X 1 L # <EoL Comment>;
+R3 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R3 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R4 simple X 1 L # <EoL Comment>;
+# SWD: Drive data's parity bit
 R1 simple X 1 0 # <EoL Comment>;
 R10 simple X 1 0 # <EoL Comment>;
 # Verify AP with AP address, expecting WAIT response, and verifying the parity bit
 # SWD: Verify AP - AP: 8, Data: 0xBADC0DE
-# SWD: Header: host -> target (A: 2)
+# SWD: Header: host -> target (A: 2, ap_access: 1, verify: 1) 
 R3 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R2 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Acknowledge Wait: target -> host
+# SWD: Acknowledge Wait: target -> host
 R1 simple X 1 L # <EoL Comment>;
 R1 simple X 1 H # <EoL Comment>;
 R1 simple X 1 L # <EoL Comment>;
@@ -222,52 +225,53 @@ R3 simple X 1 H # <EoL Comment>;
 R1 simple X 1 L # <EoL Comment>;
 R1 simple X 1 H # <EoL Comment>;
 R4 simple X 1 L # <EoL Comment>;
-#   SWD: Expecting parity bit of 0
-R2 simple X 1 L # <EoL Comment>;
-R10 simple X 1 L # <EoL Comment>;
+# SWD: Expecting parity bit of 0
+R1 simple X 1 L # <EoL Comment>;
+R1 simple X 1 X # <EoL Comment>;
+R10 simple X 1 X # <EoL Comment>;
 # Write DP with DP address expecting FAULT response
 # SWD: Write DP - DP: 12, Data: 0xC0DE1BAD
-# SWD: Header: host -> target (A: 3)
+# SWD: Header: host -> target (A: 3, ap_access: 0, verify: 0) 
 R1 simple X 1 1 # <EoL Comment>;
 R2 simple X 1 0 # <EoL Comment>;
 R2 simple X 1 1 # <EoL Comment>;
 R2 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Acknowledge Fault: target -> host
+# SWD: Acknowledge Fault: target -> host
 R2 simple X 1 L # <EoL Comment>;
 R1 simple X 1 H # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Drive data
-R1 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R1 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R3 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R4 simple X 1 0 # <EoL Comment>;
-R4 simple X 1 1 # <EoL Comment>;
-R1 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-R6 simple X 1 0 # <EoL Comment>;
-R2 simple X 1 1 # <EoL Comment>;
-#   SWD: Drive data's parity bit
+# SWD: Drive data
+R1 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R1 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R3 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R4 simple X 1 L # <EoL Comment>;
+R4 simple X 1 H # <EoL Comment>;
+R1 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+R6 simple X 1 L # <EoL Comment>;
+R2 simple X 1 H # <EoL Comment>;
+# SWD: Drive data's parity bit
 R1 simple X 1 1 # <EoL Comment>;
 R10 simple X 1 1 # <EoL Comment>;
 # Verify DP with DP address, ignoring the target's acknowledgement, and verifying the parity bit
 # SWD: Verify DP - DP: 12, Data: 0xC0DE1BAD
-# SWD: Header: host -> target (A: 3)
+# SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R4 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 0 # <EoL Comment>;
 R1 simple X 1 1 # <EoL Comment>;
 R1 simple X 1 X # <EoL Comment>;
-#   SWD: Do not check acknowledgement
-R4 simple X 1 X # <EoL Comment>;
+# SWD: Do not check acknowledgement
+R3 simple X 1 X # <EoL Comment>;
 # SWD: Verify data
 R1 simple X 1 H # <EoL Comment>;
 R1 simple X 1 L # <EoL Comment>;
@@ -284,9 +288,12 @@ R1 simple X 1 L # <EoL Comment>;
 R2 simple X 1 H # <EoL Comment>;
 R6 simple X 1 L # <EoL Comment>;
 R2 simple X 1 H # <EoL Comment>;
-#   SWD: Ignoring parity bit on SWD READ operation
+# SWD: Ignoring parity bit on SWD READ operation
 R2 simple X 1 X # <EoL Comment>;
 R10 simple X 1 X # <EoL Comment>;
 # Reset SWD
+# SWD: Line Reset
+R50 simple X 1 1 # <EoL Comment>;
+R2 simple X 1 X # <EoL Comment>;
 R10 simple X 1 X # <EoL Comment>;
 SQPG STOP;

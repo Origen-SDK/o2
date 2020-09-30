@@ -5,6 +5,10 @@ pub mod pin_header;
 use super::super::dut::Dut;
 use crate::error::Error;
 use crate::generator::ast::{Node};
+use crate::{Transaction, node, TEST};
+use crate::testers::vector_based::api::{cycle, repeat, repeat2, repeat2_node};
+use crate::standards::actions::*;
+use crate::generator::ast::Attrs;
 
 use regex::Regex;
 
@@ -14,28 +18,243 @@ use pin::{Pin, PinActions, ResolvePinActions};
 use pin_collection::PinCollection;
 use pin_group::PinGroup;
 
-pub struct PinStore<'a> {
-    pub pins: Vec<&'a Pin>,
-}
-
-impl<'a> PinStore<'a> {}
-
 #[derive(Debug, Clone)]
-pub struct PinGroupID {
-    pub id: usize,
-    pub pin_ids: Vec<usize>
+pub struct PinBus {
+    grp_ids: Option<Vec<(usize, usize)>>,
+    pin_ids: Vec<usize>,
 }
 
-impl PinGroupID {
-    pub fn from_name(dut: &crate::Dut, grp_name: &str, model_id: usize) -> crate::Result<Self> {
+impl PinBus {
+    pub fn from_group(dut: &crate::Dut, grp_name: &str, model_id: usize) -> crate::Result<Self> {
         let p_ids: Vec<usize> = dut._resolve_group_to_physical_pins(
             model_id,
             grp_name
         )?.iter().map( |p| p.id).collect();
         Ok(Self {
-            id: dut._get_pin_group(model_id, grp_name)?.id,
+            grp_ids: Some(vec!((dut._get_pin_group(model_id, grp_name)?.id, p_ids.len()))),
             pin_ids: p_ids
         })
+    }
+
+    // Haven't actually used this yet, so commenting it out until its needed in case it needs more work - coreyeng
+    // pub fn from_groups(dut: &crate::Dut, grps: Vec<(usize, &str)>) -> crate::Result<Self> {
+    //     let mut grp_ids = vec!();
+    //     let mut p_ids: Vec<usize> = vec!();
+    //     for grp in grps.iter() {
+    //         let mut ids: Vec<usize> = dut._resolve_group_to_physical_pins(
+    //             grp.0,
+    //             grp.1
+    //         )?.iter().map( |p| p.id).collect();
+    //         grp_ids.push((dut._get_pin_group(grp.0, grp.1)?.id, ids.len()));
+    //         p_ids.append(&mut ids);
+    //     }
+    //     let mut temp = p_ids.clone();
+    //     temp.sort();
+    //     temp.dedup();
+    //     if p_ids.len() != temp.len() {
+    //         return Err(Error::new(&format!(
+    //             "Duplicate physical pins detected when creating PinBus from {:?} - (resolved pin IDs: {:?}, unique pin IDs {:?})",
+    //             grps,
+    //             p_ids,
+    //             temp
+    //         )))
+    //     }
+    //     Ok(Self {
+    //         grp_ids: Some(grp_ids),
+    //         pin_ids: p_ids
+    //     })
+    // }
+
+    /// Applies the drive-high symbol to all the pins on this bus and pushes them to the AST
+    pub fn drive_high(&self) -> &Self {
+        TEST.append(&mut self.drive_high_nodes());
+        &self
+    }
+
+    /// Applies the drive-high symbol to all the pins on this bus and returns the nodes without pushing them to the AST
+    pub fn drive_high_nodes(&self) -> Vec<Node> {
+        self.drive_nodes(true)
+    }
+
+    /// Identical to "drive_high" except uses the drive-low symbol instead
+    pub fn drive_low(&self) -> &Self {
+        TEST.append(&mut self.drive_low_nodes());
+        &self
+    }
+
+    /// Identical to "drive_low_nodes" except uses the drive-low symbol instead
+    pub fn drive_low_nodes(&self) -> Vec<Node> {
+        self.drive_nodes(false)
+    }
+
+    /// Drives all pins to either the drive-high character, if 'state' is true,
+    /// or the drive-low character, if the 'state is false
+    pub fn drive(&self, state: bool) -> &Self {
+        TEST.append(&mut self.drive_nodes(state));
+        &self
+    }
+
+    pub fn drive_nodes(&self, state: bool) -> Vec<Node> {
+        if state {
+            self.set_action_nodes(DRIVE_HIGH)
+        } else {
+            self.set_action_nodes(DRIVE_LOW)
+        }
+    }
+
+    pub fn verify_high(&self) -> &Self {
+        TEST.append(&mut self.verify_high_nodes());
+        &self
+    }
+
+    pub fn verify_high_nodes(&self) -> Vec<Node> {
+        self.verify_nodes(true)
+    }
+
+    pub fn verify_low(&self) -> &Self {
+        TEST.append(&mut self.verify_low_nodes());
+        &self
+    }
+
+    pub fn verify_low_nodes(&self) -> Vec<Node> {
+        self.verify_nodes(false)
+    }
+
+    pub fn verify(&self, state: bool) -> &Self {
+        TEST.append(&mut self.verify_nodes(state));
+        &self
+    }
+
+    pub fn verify_nodes(&self, state: bool) -> Vec<Node> {
+        if state {
+            self.set_action_nodes(VERIFY_HIGH)
+        } else {
+            self.set_action_nodes(VERIFY_LOW)
+        }
+    }
+
+    pub fn capture(&self) -> &Self {
+        TEST.append(&mut self.capture_nodes());
+        &self
+    }
+
+    pub fn capture_nodes(&self) -> Vec<Node> {
+        self.set_action_nodes(CAPTURE)
+    }
+
+    pub fn highz(&self) -> &Self {
+        TEST.append(&mut self.highz_nodes());
+        &self
+    }
+
+    pub fn highz_nodes(&self) -> Vec<Node> {
+        self.set_action_nodes(HIGHZ)
+    }
+
+    /// Sets all the pins in this bus to an arbitrary action, pushing the nodes onto the AST
+    pub fn set_action(&self, action: &str) -> &Self {
+        TEST.append(&mut self.set_action_nodes(action));
+        &self
+    }
+
+    /// Sets all the pins in this bus to an arbitrary action, returning the nodes without pushing to the AST
+    pub fn set_action_nodes(&self, action: &str) -> Vec<Node> {
+        if let Some(grps) = &self.grp_ids {
+            let mut retn = vec![];
+            let mut pin_ids_offset = 0;
+            for (_i, grp) in grps.iter().enumerate() {
+                let mut grp_node = node!(PinGroupAction, grp.0, vec![action.to_string(); self.pin_ids.len()], None);
+                grp_node.add_children((0..grp.1).map( |pin_i| node!(PinAction, self.pin_ids[pin_ids_offset + pin_i], action.to_string(), None)).collect());
+                retn.push(grp_node);
+                pin_ids_offset += grp.1;
+            }
+            retn
+        } else {
+            self.pin_ids.iter().map( |id| node!(PinAction, *id, action.to_string(), None)).collect()
+        }
+    }
+
+    /// Generates a transaction on the pin bus and pushes the nodes to the AST
+    pub fn push_transaction(&self, trans: &Transaction) -> crate::Result<&Self> {
+        TEST.append(&mut self.push_transaction_nodes(trans)?);
+        Ok(&self)
+    }
+
+    /// Generate a transaction on the pin bus. The data, data width, operation, and overlay settings should
+    /// all be encapsulated in the transaction struct
+    pub fn push_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
+        let bit_actions = trans.to_symbols()?;
+        let mut pin_states: Vec<Node> = vec!();
+
+        for (_idx, chunk) in bit_actions.chunks(self.pin_ids.len()).enumerate() {
+            let mut this_cycle: Vec<Node> = vec![];
+            let mut this_grp_nodes: Vec<Node> = vec![];
+            let mut this_grp_action: Vec<String> = vec![];
+            let mut current_cnt = 0;
+            let mut grp_idx = 0;
+
+            for (pos, bit_action) in chunk.iter().enumerate() {
+                if self.grp_ids.is_some() {
+                    this_grp_nodes.push(node!(PinAction, self.pin_ids[pos], bit_action.to_string(), None));
+                    this_grp_action.push(bit_action.to_string());
+                    current_cnt += 1;
+                    if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
+                        let mut n = node!(PinGroupAction, self.grp_ids.as_ref().unwrap()[grp_idx].0, this_grp_action, None);
+                        n.add_children(this_grp_nodes);
+                        this_cycle.push(n);
+                        this_grp_nodes = vec![];
+                        grp_idx += 1;
+                        current_cnt = 0;
+                        this_grp_action = vec![];
+                    }
+                } else {
+                    // no pin groups. Just push the straight pins
+                    this_cycle.push(node!(PinAction, self.pin_ids[pos], bit_action.to_string(), None));
+                }
+            }
+            // Push the cycle updates and cycle the tester
+            pin_states.append(&mut this_cycle);
+            pin_states.push(repeat2_node(1, !trans.overlay_string.is_some()));
+        }
+        Ok(pin_states)
+    }
+
+    /// Push a cycle to the AST
+    pub fn cycle(&self) -> &Self {
+        cycle();
+        &self
+    }
+
+    /// Add number of compressed cycles indicated by count
+    pub fn repeat(&self, count: u32) -> &Self {
+        repeat(count);
+        &self
+    }
+
+    /// Repeat with two arguments - count and compressable
+    pub fn repeat2(&self, count: u32, compressable: bool) -> &Self {
+        repeat2(count, compressable);
+        &self
+    }
+
+    /// Find the most recent nodes in the AST which set the current pin action and update the internal pin state accordingly
+    pub fn update_actions(&self, dut: &crate::Dut) -> crate::Result<()> {
+        let mut pins_to_update = self.pin_ids.clone();
+        let mut cnt = 0;
+        while pins_to_update.len() > 0 {
+            match TEST.get_with_descendants(cnt)?.attrs {
+                Attrs::PinAction(pin_id, symbol, _metadata) => {
+                    let pos = pins_to_update.iter().position( |i| *i == pin_id);
+                    if let Some(p) = pos {
+                        pins_to_update.remove(p);
+                        *dut.pins[pin_id].action.write().unwrap() = PinActions::from_delimiter_optional(&symbol)?;
+                    }
+                }
+                _ => {}
+            }
+            cnt += 1;
+        }
+        Ok(())
     }
 }
 
@@ -716,6 +935,15 @@ impl Dut {
         for lookup in pins.iter() {
             let ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
             retn.push(ppins.iter().map(|p| p.id).collect::<Vec<usize>>());
+        }
+        Ok(retn)
+    }
+
+    pub fn _resolve_to_flattened_pins(&self, pins: &Vec<(usize, String)>) -> Result<Vec<&Pin>, Error> {
+        let mut retn: Vec<&Pin> = vec!();
+        for lookup in pins.iter() {
+            let mut ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
+            retn.append(&mut ppins);
         }
         Ok(retn)
     }

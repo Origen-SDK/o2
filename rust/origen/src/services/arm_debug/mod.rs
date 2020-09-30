@@ -5,13 +5,21 @@ pub use dp::DP;
 pub use mem_ap::MemAP;
 
 use std::collections::HashMap;
-use crate::testers::vector_based::api::*;
 use super::super::services::Service;
+use std::sync::MutexGuard;
+use crate::{Dut, Services, Transaction};
+use std::sync::RwLock;
+use crate::testers::api::ControllerAPI;
 
-// Register descriptions taken from the Arm Debug RM
 use crate::{Result, Error};
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+impl ControllerAPI for ArmDebug {
+    fn name(&self) -> String {
+        "ArmDebug".to_string()
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct ArmDebug {
     pub id: usize,
 
@@ -26,7 +34,7 @@ pub struct ArmDebug {
     // Store this just as a bool:
     //  true -> JTAG
     //  false -> SWD
-    pub jtagnswd: bool,
+    pub jtagnswd: RwLock<bool>,
 
     /// The SWD Service which operates this ArmDebug
     pub swd_id: Option<usize>,
@@ -37,42 +45,6 @@ pub struct ArmDebug {
     swdclk_grp_id: Option<Option<usize>>,
     swdio_id: Option<Vec<usize>>,
     swdio_grp_id: Option<Option<usize>>,
-}
-
-macro_rules! swdclk {
-    ($slf:expr, $action:ident) => {{
-        crate::testers::vector_based::api::$action(
-            $slf.swdclk_id.as_ref().unwrap(), //.expect("SWD CLK pin has not been set or could not be found!"),
-            $slf.swdclk_grp_id.unwrap() // .expect("SWD CLK pin has not been set or could not be found!")
-        )
-    }};
-}
-
-macro_rules! swdio {
-    ($slf:expr, $action:ident) => {{
-        crate::testers::vector_based::api::$action(
-            $slf.swdio_id.as_ref().unwrap(), //.expect("SWD CLK pin has not been set or could not be found!"),
-            $slf.swdio_grp_id.unwrap() // .expect("SWD CLK pin has not been set or could not be found!")
-        )
-    }};
-}
-
-macro_rules! extract_as_swd {
-    ($swd_id:expr, $services:expr) => {{
-        if let Some(id) = $swd_id {
-            let s = $services.get_service(id)?;
-            match s {
-                crate::services::Service::SWD(_s) => Ok(_s),
-                _ => Err(crate::Error::new(&format!(
-                    "Tried to extract Service at {} as SWD but received {:?}",
-                    id,
-                    s
-                )))
-            }
-        } else {
-            Err(crate::Error::new(&format!("SWD is not available (swd_id is None)!")))
-        }
-    }};
 }
 
 impl ArmDebug {
@@ -88,8 +60,8 @@ impl ArmDebug {
         let mut swdclk_grp_id = None;
         let mut swdio_id = None;
         let mut swdio_grp_id = None;
-        if swd_id.is_some() {
-            let swd = extract_as_swd!(swd_id, services)?;
+        if let Some(s_id) = swd_id {
+            let swd = services.get_as_swd(s_id)?;
             swdclk_id = Some(swd.swdclk_id.clone());
             swdclk_grp_id = Some(swd.swdclk_grp_id.clone());
             swdio_id = Some(swd.swdio_id.clone());
@@ -100,7 +72,7 @@ impl ArmDebug {
             dp_id: None,
             mem_ap_ids: HashMap::new(),
             model_id: model_id,
-            jtagnswd: true,
+            jtagnswd: RwLock::new(true),
             swd_id: swd_id,
             swdclk_id: swdclk_id,
             swdclk_grp_id: swdclk_grp_id,
@@ -112,34 +84,21 @@ impl ArmDebug {
         Ok(id)
     }
 
-    pub fn switch_to_swd(&mut self) -> Result<()> {
+    pub fn switch_to_swd(&self, dut: &MutexGuard<Dut>, services: &MutexGuard<Services>) -> Result<()> {
         match self.swd_id {
-            Some(_id) => {
-                // crate::TEST.push(crate::node!(ArmDebugSwjJTAGToSWD, self.clone()));
+            Some(id) => {
+                let swd = services.get_as_swd(id)?;
                 let n_id = crate::TEST.push_and_open(crate::node!(ArmDebugSwjJTAGToSWD, self.id));
-                let mut i: indexmap::IndexMap<usize, Vec<usize>> = indexmap::IndexMap::new();
-                i.insert(self.swdio_grp_id.unwrap().unwrap(), self.swdio_id.as_ref().unwrap().clone());
+                self.comment("Switching ArmDebug protocol to SWD");
+                swd.swdclk.drive_high();
+                swd.swdio.drive_high().repeat(50);
+                swd.swdio.push_transaction(&Transaction::new_write(num_bigint::BigUint::from(0xE79E as u32), 16)?)?;
+                swd.swdio.repeat(55);
+                swd.swdio.drive_low().repeat(4);
+                swd.update_actions(dut)?;
 
-                // let mut nodes: Vec<Node> = vec!();
-                crate::TEST.append(&mut swdclk!(self, drive_high)?);
-                // crate::TEST.append(&mut drive_high(swdclk)?);
-                crate::TEST.append(&mut swdio!(self, drive_high)?);
-                crate::TEST.push(repeat(50, true)?);
-                crate::TEST.append(&mut drive_data(
-                    &i,
-                    &num::BigUint::from(0xE79E as u32),
-                    16,
-                    true,
-                    None::<&u8>,
-                    None
-                )?);
-                crate::TEST.push(repeat(55, true)?);
-                crate::TEST.push(comment("Move to IDLE")?);
-                // crate::TEST.push(set_pin_drive_low(&swdio)?);
-                crate::TEST.append(&mut swdio!(self, drive_low)?);
-                crate::TEST.push(repeat(4, true)?);
                 crate::TEST.close(n_id)?;
-                self.jtagnswd = false;
+                *self.jtagnswd.write().unwrap() = false;
                 Ok(())
             },
             None => {
@@ -163,20 +122,4 @@ impl ArmDebug {
             )))
         }
     }
-
-    // pub fn dp(&self) -> Result<&>
-
-    // /// Discerns how the register should be written (AP vs. DP) and adds the appropriate nodes
-    // pub fn write_register(&self, dut: &MutexGuard<Dut>, bc: &BitCollection) -> Result<()> {
-    //     // ...
-    //     Ok(())
-    // }
-
-    // pub fn model(&self) -> &crate::core::model::Model {
-    //     // ...
-    // }
-
-    // pub fn protocol(&self) -> Service {
-    //     // ...
-    // }
 }

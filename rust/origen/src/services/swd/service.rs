@@ -2,6 +2,7 @@ use crate::{Result, Error, TEST};
 use crate::core::dut::Dut;
 use indexmap::IndexMap;
 use crate::Transaction;
+use crate::core::model::pins::PinBus;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Acknowledgements {
@@ -45,8 +46,8 @@ macro_rules! swd_ok {
 #[derive(Clone, Debug)]
 pub struct Service {
     pub id: usize,
-    pub swdclk: String,
-    pub swdio: String,
+    pub swdclk: PinBus,
+    pub swdio: PinBus,
     pub swdclk_id: Vec<usize>,
     pub swdclk_grp_id: Option<usize>,
     pub swdio_id: Vec<usize>,
@@ -67,18 +68,23 @@ impl Service {
 
         Ok(Self {
             id: id,
-            swdclk: "swdclk".to_string(),
-            swdio: "swdio".to_string(),
+            swdclk: PinBus::from_group(dut, "swdclk", 0)?,
+            swdio: PinBus::from_group(dut, "swdio", 0)?,
             swdclk_id: swdclk_id,
             swdclk_grp_id: Some(swdclk_grp_id),
             swdio_id: swdio_id,
             swdio_grp_id: Some(swdio_grp_id),
             swdio_grp: swd_grp,
-            trn: 1
+            trn: 1,
         })
     }
 
-    pub fn write_ap(&self, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
+    pub fn update_actions(&self, dut: &crate::Dut) -> Result<()> {
+        self.swdclk.update_actions(dut)?;
+        self.swdio.update_actions(dut)
+    }
+
+    pub fn write_ap(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
         let mut trans = node!(
             SWDWriteAP,
             self.id,
@@ -86,12 +92,13 @@ impl Service {
             ack,
             None
         );
-        self.process_transaction(&mut trans)?;
-        TEST.push(trans);
+        let n_id = TEST.push_and_open(trans.clone());
+        self.process_transaction(dut, &mut trans)?;
+        TEST.close(n_id)?;
         Ok(())
     }
 
-    pub fn verify_ap(&self, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
+    pub fn verify_ap(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
         let mut trans = node!(
             SWDVerifyAP,
             self.id,
@@ -100,12 +107,13 @@ impl Service {
             parity,
             None
         );
-        self.process_transaction(&mut trans)?;
-        TEST.push(trans);
+        let n_id = TEST.push_and_open(trans.clone());
+        self.process_transaction(dut, &mut trans)?;
+        TEST.close(n_id)?;
         Ok(())
     }
 
-    pub fn write_dp(&self, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
+    pub fn write_dp(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
         let mut trans = node!(
             SWDWriteDP,
             self.id,
@@ -113,12 +121,13 @@ impl Service {
             ack,
             None
         );
-        self.process_transaction(&mut trans)?;
-        TEST.push(trans);
+        let n_id = TEST.push_and_open(trans.clone());
+        self.process_transaction(dut, &mut trans)?;
+        TEST.close(n_id)?;
         Ok(())
     }
 
-    pub fn verify_dp(&self, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
+    pub fn verify_dp(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
         let mut trans = node!(
             SWDVerifyDP,
             self.id,
@@ -127,8 +136,9 @@ impl Service {
             parity,
             None
         );
-        self.process_transaction(&mut trans)?;
-        TEST.push(trans);
+        let n_id = TEST.push_and_open(trans.clone());
+        self.process_transaction(dut, &mut trans)?;
+        TEST.close(n_id)?;
         Ok(())
     }
 }

@@ -2,6 +2,9 @@ use crate::{Result, Error, Metadata};
 use num_bigint::BigUint;
 use num_traits::pow::Pow;
 use super::super::nodes::Id;
+use crate::standards::actions::*;
+use num_traits;
+use crate::utility::num_helpers::NumHelpers;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
@@ -17,8 +20,7 @@ pub struct Transaction {
     pub address: Option<u128>,
     pub width: usize,
     pub data: BigUint,
-    pub write_enable: Option<BigUint>,
-    pub verify_enable: Option<BigUint>,
+    pub bit_enable: BigUint,
     pub capture_enable: Option<BigUint>,
     pub overlay_enable: Option<BigUint>,
     pub overlay_string: Option<String>,
@@ -33,8 +35,7 @@ impl Transaction {
             address: None,
             width: width,
             data: data,
-            write_enable: Some(BigUint::from(2 as u32).pow(width as u32) - (1 as u32)),
-            verify_enable: None,
+            bit_enable: Self::enable_of_width(width)?,
             capture_enable: None,
             overlay_enable: None,
             overlay_string: None,
@@ -55,8 +56,7 @@ impl Transaction {
             address: None,
             width: width,
             data: data,
-            write_enable: None,
-            verify_enable: Some(Self::enable_of_width(width)?),
+            bit_enable: Self::enable_of_width(width)?,
             capture_enable: None,
             overlay_enable: None,
             overlay_string: None,
@@ -72,6 +72,50 @@ impl Transaction {
                 self
             )))
         }
+    }
+
+    pub fn to_symbols(&self) -> Result<Vec<&str>> {
+        let low_sym;
+        let high_sym;
+        if let Some(action) = &self.action {
+            match action {
+                Action::Write => {
+                    low_sym = DRIVE_LOW;
+                    high_sym = DRIVE_HIGH;
+                },
+                Action::Verify => {
+                    low_sym = VERIFY_LOW;
+                    high_sym = VERIFY_HIGH;
+                },
+                Action::Capture => {
+                    low_sym = CAPTURE;
+                    high_sym = CAPTURE;
+                }
+            }
+        } else {
+            low_sym = HIGHZ;
+            high_sym = HIGHZ;
+        }
+
+        let mut bits: Vec<&str> = Vec::with_capacity(self.width);
+        let enables = self.bit_enable.clone();
+        let t = BigUint::from(1 as u8);
+        for i in 0..self.width {
+            if ((&enables >> i) & &t) == t {
+                if ((&self.data >> i) & &t) == t {
+                    bits.push(high_sym);
+                } else {
+                    bits.push(low_sym);
+                }
+            } else {
+                bits.push(HIGHZ);
+            }
+        }
+        // Should probably add this
+        // if !lsb_first {
+        //     bits.reverse();
+        // }
+        Ok(bits)
     }
 
     pub fn enable_of_width(width: usize) -> Result<BigUint> {
@@ -95,12 +139,17 @@ impl Transaction {
             address: self.address,
             width: self.width,
             data: self.data.clone(),
-            write_enable: Some(BigUint::from(0 as u8)),
-            verify_enable: Some(BigUint::from(0 as u8)),
+            bit_enable: BigUint::from(0 as u8),
             capture_enable: Some(BigUint::from(0 as u8)),
             overlay_enable: self.overlay_enable.clone(),
             overlay_string: self.overlay_string.clone(),
             metadata: self.metadata.clone(),
         })
+    }
+}
+
+impl NumHelpers for Transaction {
+    fn even_parity(&self) -> bool {
+        self.data.even_parity()
     }
 }

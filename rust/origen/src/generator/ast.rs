@@ -37,17 +37,6 @@ macro_rules! text_line {
     }};
 }
 
-#[macro_export]
-macro_rules! generate_even_parity {
-    ( $data:expr ) => {{
-        if $data.count_ones() % 2 == 0 {
-            false
-        } else {
-            true
-        }
-    }};
-}
-
 /// An AST provides an API for constructing a node tree, when completed it can be unwrapped
 /// to a node by calling the unwrap() method
 #[derive(Clone)]
@@ -216,6 +205,16 @@ impl AST {
         } else {
             Ok(n.get_child(child_offset)?)
         }
+    }
+
+    pub fn get_with_descendants(&self, offset: usize) -> Result<Node> {
+        let mut cnt: usize = 0;
+        for n in self.nodes.iter().rev() {
+            if let Some(node) = n.get_descendant(offset, &mut cnt) {
+                return Ok(node);
+            }
+        }
+        Err(Error::new(&format!("Offset {} is out of range of the current AST", offset)))
     }
 
     /// Clear the current AST and start a new one with the given node at the top-level

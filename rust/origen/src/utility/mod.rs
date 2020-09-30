@@ -5,6 +5,7 @@ pub mod location;
 #[macro_use]
 pub mod logger;
 pub mod command_helpers;
+pub mod num_helpers;
 
 use crate::STATUS;
 use std::path::{Path, PathBuf};
