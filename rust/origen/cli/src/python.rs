@@ -88,7 +88,7 @@ pub fn poetry_version() -> Option<Version> {
 }
 
 fn extract_version(text: &str) -> Option<Version> {
-    let re = regex::Regex::new(r".*(\d+\.\d+\.\d+[\s]*)").unwrap();
+    let re = regex::Regex::new(r".*(\d+\.\d+\.\d+\w*[\s]*)").unwrap();
 
     match re.captures(text) {
         Some(x) => {
