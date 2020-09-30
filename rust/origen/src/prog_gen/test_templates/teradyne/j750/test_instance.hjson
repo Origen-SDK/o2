@@ -1,5 +1,5 @@
 {
-    "parameters": {
+    "parameter_list": {
         "test_name":       "String",
         "proc_type":       "String",
         "proc_name":       "String",

@@ -1,9 +1,6 @@
 {
     "parent": "test_instance",
 
-    "parameters": {
-    },
-
     "aliases": {
         "patterns":                  "arg0",
         "pattern":                   "arg0",

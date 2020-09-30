@@ -1,9 +1,6 @@
 {
     "parent": "test_instance",
 
-    "parameters": {
-    },
-
     "aliases": {
         "start_func":           "arg0",
         "start_of_body_f":      "arg0",
