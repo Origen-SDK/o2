@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const POETRY_INSTALLER: &str =
-    "https://raw.githubusercontent.com/sdispater/poetry/1.0.0b7/get-poetry.py";
+    "https://raw.githubusercontent.com/sdispater/poetry/1.1.0rc1/get-poetry.py";
 
 pub fn run() {
     print!("Is a suitable Python available? ... ");
