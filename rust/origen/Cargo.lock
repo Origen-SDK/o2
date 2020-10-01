@@ -1853,6 +1853,7 @@ dependencies = [
  "pathdiff",
  "pest",
  "pest_derive",
+ "phf",
  "pyo3",
  "regex",
  "rpassword",
