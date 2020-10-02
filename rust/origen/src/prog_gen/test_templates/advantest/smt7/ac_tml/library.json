@@ -1,0 +1,5 @@
+{
+    "library": {
+        "class_name_prefix": "ac_tml.AcTest"
+    }
+}

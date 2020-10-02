@@ -1,6 +1,4 @@
 {
-    "parent": "test_instance",
-
     "aliases": {
         "arg_list":             "arg0",
         "start_func":           "arg1",

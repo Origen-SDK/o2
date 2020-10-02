@@ -1860,6 +1860,7 @@ dependencies = [
  "semver",
  "serde 1.0.114",
  "serde-pickle",
+ "serde_json",
  "shellexpand",
  "tempfile",
  "termcolor",

@@ -1,6 +1,4 @@
 {
-    "parent": "test_instance",
-
     "aliases": {
         "hsp_start":            "arg0",
         "start_func":           "arg1",

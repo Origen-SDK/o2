@@ -1,0 +1,53 @@
+{
+    "parameters": {
+        "dps_pins": {
+            "type": "string",
+            "value": "Vee"
+        },
+        "disconnect_pins": {
+            "type": "string"
+        },
+        "settling_time": {
+            "type": "time",
+            "value": 0
+        },
+        "stop_mode": {
+            "type": "string",
+            "value": "ToStopVEC",
+            "accepted_values": ["ToStopVEC", "ToStopCYC"]
+        },
+        "str_stop_vec_cyc_num": {
+            "type": "string"
+        },
+        "samples": {
+            "type": "integer",
+            "value": 16
+        },
+        "check_functional": {
+            "type": "string",
+            "value": "ON",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "check_test_num_of_functional": {
+            "type": "string",
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "ganged_mode": {
+            "type": "string",
+            "value": "OFF",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "test_name": {
+            "type": "string",
+            "aliases": [],
+            "value": "passCurrLimit_uA"
+        }
+    }
+}

@@ -1,0 +1,35 @@
+{
+    "parameters": {
+        "pinlist": {
+            "type": "string",
+            "aliases": [],
+            "value": "@"
+        },
+        "force_value": {
+            "type": "voltage",
+            "aliases": [],
+            "value": 2500e-3
+        },
+        "settling_time": {
+            "type": "time",
+            "value": 0
+        },
+        "relay_switch_mode": {
+            "type": "string",
+            "aliases": [],
+            "value": "DEFAULT(BBM)",
+            "accepted_values": ["DEFAULT(BBM)", "BBM", "MBB", "PARALLEL"]
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "test_name": {
+            "type": "string",
+            "aliases": [],
+            "value": "passCurrent_uA"
+        }
+    }
+}

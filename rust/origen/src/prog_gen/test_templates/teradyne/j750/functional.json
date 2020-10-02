@@ -1,6 +1,4 @@
 {
-    "parent": "test_instance",
-
     "aliases": {
         "pattern":              "arg0",
         "patterns":             "arg0",
