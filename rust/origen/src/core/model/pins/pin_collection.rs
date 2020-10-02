@@ -1,6 +1,6 @@
 use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
-use super::pin::PinActions;
+use super::pin::PinAction;
 use crate::error::Error;
 
 /// Model for a collection (or group) of pins
@@ -76,40 +76,40 @@ impl PinCollection {
 }
 
 impl Dut {
-    pub fn drive_pin_collection(
-        &mut self,
-        pin_collection: &mut PinCollection,
-        data: Option<u32>,
-    ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::Drive, data)
-    }
+    // pub fn drive_pin_collection(
+    //     &mut self,
+    //     pin_collection: &mut PinCollection,
+    //     data: Option<u32>,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_collection_actions(pin_collection, PinActions::Drive, data)
+    // }
 
-    pub fn verify_pin_collection(
-        &mut self,
-        pin_collection: &mut PinCollection,
-        data: Option<u32>,
-    ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::Verify, data)
-    }
+    // pub fn verify_pin_collection(
+    //     &mut self,
+    //     pin_collection: &mut PinCollection,
+    //     data: Option<u32>,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_collection_actions(pin_collection, PinActions::Verify, data)
+    // }
 
-    pub fn capture_pin_collection(
-        &mut self,
-        pin_collection: &mut PinCollection,
-    ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::Capture, Option::None)
-    }
+    // pub fn capture_pin_collection(
+    //     &mut self,
+    //     pin_collection: &mut PinCollection,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_collection_actions(pin_collection, PinActions::Capture, Option::None)
+    // }
 
-    pub fn highz_pin_collection(
-        &mut self,
-        pin_collection: &mut PinCollection,
-    ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::HighZ, Option::None)
-    }
+    // pub fn highz_pin_collection(
+    //     &mut self,
+    //     pin_collection: &mut PinCollection,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_collection_actions(pin_collection, PinActions::HighZ, Option::None)
+    // }
 
     pub fn set_pin_collection_actions(
         &mut self,
         collection: &mut PinCollection,
-        action: PinActions,
+        action: PinAction,
         data: Option<u32>,
     ) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
@@ -121,7 +121,7 @@ impl Dut {
     pub fn set_per_pin_collection_actions(
         &mut self,
         collection: &mut PinCollection,
-        actions: &Vec<PinActions>,
+        actions: &Vec<PinAction>,
     ) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
         let mask = collection.mask;
@@ -134,15 +134,15 @@ impl Dut {
     //     Ok(self.get_pin_data(&pin_names))
     // }
 
-    pub fn get_pin_collection_reset_data(&self, collection: &PinCollection) -> Result<u32, Error> {
-        let pin_names = &collection.pin_names;
-        self.get_pin_reset_data(collection.model_id, &pin_names)
-    }
+    // pub fn get_pin_collection_reset_data(&self, collection: &PinCollection) -> Result<u32, Error> {
+    //     let pin_names = &collection.pin_names;
+    //     self.get_pin_reset_data(collection.model_id, &pin_names)
+    // }
 
     pub fn get_pin_collection_reset_actions(
         &self,
         collection: &PinCollection,
-    ) -> Result<Vec<PinActions>, Error> {
+    ) -> Result<Vec<PinAction>, Error> {
         let pin_names = &collection.pin_names;
         self.get_pin_reset_actions(collection.model_id, &pin_names)
     }

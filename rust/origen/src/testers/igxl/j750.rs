@@ -3,7 +3,7 @@ use crate::core::tester::{Interceptor, TesterAPI};
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::{Result, DUT};
 
-use crate::core::model::pins::pin::{PinActions, Resolver};
+use crate::core::model::pins::pin::{PinAction, Resolver};
 use crate::core::model::timesets::timeset::default_resolver;
 
 #[derive(Debug, Clone)]
@@ -54,7 +54,7 @@ impl VectorBased for J750 {
     fn print_vector(&self, renderer: &mut Renderer, repeat: u32, _compressable: bool) -> Option<Result<String>> {
         let states = renderer.states.as_ref().unwrap();
         let tname = renderer.timeset_name().unwrap();
-        if states.contains_action(PinActions::Capture) {
+        if states.contains_action(PinAction::capture()) {
             return Some(Ok(vec![
                 format!(" stv > {} {} ;", tname, renderer.render_states().unwrap());
                 repeat as usize
@@ -85,8 +85,8 @@ impl VectorBased for J750 {
 
     fn pin_action_resolver(&self) -> Option<Resolver> {
         let mut map = default_resolver();
-        map.update_mapping(PinActions::Capture, "X".to_string());
-        map.update_mapping(PinActions::HighZ, "X".to_string());
+        map.update_mapping(PinAction::capture(), "X".to_string());
+        map.update_mapping(PinAction::highz(), "X".to_string());
         Some(map)
     }
 }

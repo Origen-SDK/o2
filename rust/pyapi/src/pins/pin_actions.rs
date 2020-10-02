@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::class::basic::CompareOp;
 use pyo3::types::{PyAny, PySlice, PyType, PyDict, PyTuple};
-use origen::core::model::pins::pin::PinActions as OrigenPinActions;
+use origen::core::model::pins::pin::PinAction as OrigenPinAction;
 use super::super::meta::py_like_apis::list_like_api::GeneralizedListLikeAPI;
 
 macro_rules! extract_pinactions {
@@ -135,16 +135,16 @@ impl PinActions {
     Ok(PinActions { actions: vec!(OrigenPinActions::Other(symbol))}.into_py(py))
   }
 
-  #[classmethod]
-  fn standard_actions(_cls: &PyType) -> PyResult<PyObject> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let retn = PyDict::new(py);
-    for action in OrigenPinActions::standard_actions().iter() {
-      retn.set_item(action.long_name(), action.as_char().to_string())?;
-    }
-    Ok(retn.into())
-  }
+  // #[classmethod]
+  // fn standard_actions(_cls: &PyType) -> PyResult<PyObject> {
+  //   let gil = Python::acquire_gil();
+  //   let py = gil.python();
+  //   let retn = PyDict::new(py);
+  //   for action in OrigenPinActions::standard_actions().iter() {
+  //     retn.set_item(action.long_name(), action.as_char().to_string())?;
+  //   }
+  //   Ok(retn.into())
+  // }
 
   #[new]
   #[args(actions="*", _kwargs="**")]
@@ -174,10 +174,10 @@ impl PinActions {
     Ok(obj)
   }
 
-  #[getter]
-  fn get_long_names(&self) -> PyResult<Vec<String>> {
-    Ok(self.actions.iter().rev().map(|a| a.long_name()).collect::<Vec<String>>())
-  }
+  // #[getter]
+  // fn get_long_names(&self) -> PyResult<Vec<String>> {
+  //   Ok(self.actions.iter().rev().map(|a| a.long_name()).collect::<Vec<String>>())
+  // }
 
   #[getter]
   fn all_standard(&self) -> PyResult<bool> {

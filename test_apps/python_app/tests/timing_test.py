@@ -927,13 +927,6 @@ def test_exception_on_setting_symbols_from_invalid_pin_actions_size(clean_eagle,
   with pytest.raises(TypeError):
     origen.dut.timeset('simple').symbol_map[{}]
 
-def test_long_names(clean_eagle, clean_dummy):
-  assert origen.dut.timeset('simple').symbol_map.long_names == ['DriveHigh', 'DriveLow', 'VerifyHigh', 'VerifyLow', 'Capture', 'HighZ']
-
-def test_long_names_with_custom_symbols(clean_eagle, clean_dummy):
-  origen.dut.timeset('simple').symbol_map['a'] = 'a'
-  assert origen.dut.timeset('simple').symbol_map.long_names == ['DriveHigh', 'DriveLow', 'VerifyHigh', 'VerifyLow', 'Capture', 'HighZ', 'Other(a)']
-
 def test_corner_case__setting_custom_action_with_same_symbol_as_standard_action(clean_eagle, clean_dummy):
   assert origen.dut.timeset('simple').symbol_map['1'] == '1'
   origen.dut.timeset('simple').symbol_map['|1|'] = '2'

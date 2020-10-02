@@ -1,6 +1,6 @@
 use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
-use super::pin::PinActions;
+use super::pin::PinAction;
 use super::pin_collection::PinCollection;
 use crate::error::Error;
 
@@ -69,10 +69,10 @@ impl Dut {
         self.get_pin_data(model_id, pin_names)
     }
 
-    pub fn get_pin_group_reset_data(&self, model_id: usize, name: &str) -> Result<u32, Error> {
-        let pin_names = &self._get_pin_group(model_id, name)?.pin_names;
-        self.get_pin_reset_data(model_id, &pin_names)
-    }
+    // pub fn get_pin_group_reset_data(&self, model_id: usize, name: &str) -> Result<u32, Error> {
+    //     let pin_names = &self._get_pin_group(model_id, name)?.pin_names;
+    //     self.get_pin_reset_data(model_id, &pin_names)
+    // }
 
     pub fn reset_pin_group(&mut self, model_id: usize, name: &str) -> Result<(), Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
@@ -104,7 +104,7 @@ impl Dut {
     /// Returns the pin actions as a string.
     /// E.g.: for an 8-pin bus where the two MSBits are driving, the next two are capturing, then next wo are verifying, and the
     ///   two LSBits are HighZ, the return value will be "DDCCVVZZ"
-    pub fn get_pin_group_actions(&self, model_id: usize, name: &str) -> Result<Vec<PinActions>, Error> {
+    pub fn get_pin_group_actions(&self, model_id: usize, name: &str) -> Result<Vec<PinAction>, Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
         self.get_pin_actions(model_id, &pin_names)
     }
@@ -113,7 +113,7 @@ impl Dut {
         &self,
         model_id: usize,
         name: &str,
-    ) -> Result<Vec<PinActions>, Error> {
+    ) -> Result<Vec<PinAction>, Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
         self.get_pin_reset_actions(model_id, &pin_names)
     }
@@ -122,7 +122,7 @@ impl Dut {
         &mut self,
         model_id: usize,
         name: &str,
-        action: PinActions,
+        action: PinAction,
         data: Option<u32>,
         mask: Option<usize>,
     ) -> Result<(), Error> {
@@ -150,7 +150,7 @@ impl Dut {
         &mut self,
         model_id: usize,
         name: &str,
-        symbols: &Vec<PinActions>,
+        symbols: &Vec<PinAction>,
         mask: Option<usize>
     ) -> Result<(), Error> {
         let grp = self._get_mut_pin_group(model_id, name)?;
@@ -173,55 +173,55 @@ impl Dut {
             m,
         )
     }
-    pub fn drive_pin_group(
-        &mut self,
-        model_id: usize,
-        group_name: &str,
-        data: Option<u32>,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        return self.set_pin_group_actions(model_id, group_name, PinActions::Drive, data, mask);
-    }
+    // pub fn drive_pin_group(
+    //     &mut self,
+    //     model_id: usize,
+    //     group_name: &str,
+    //     data: Option<u32>,
+    //     mask: Option<usize>,
+    // ) -> Result<(), Error> {
+    //     return self.set_pin_group_actions(model_id, group_name, PinActions::Drive, data, mask);
+    // }
 
-    pub fn verify_pin_group(
-        &mut self,
-        model_id: usize,
-        group_name: &str,
-        data: Option<u32>,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        return self.set_pin_group_actions(model_id, group_name, PinActions::Verify, data, mask);
-    }
+    // pub fn verify_pin_group(
+    //     &mut self,
+    //     model_id: usize,
+    //     group_name: &str,
+    //     data: Option<u32>,
+    //     mask: Option<usize>,
+    // ) -> Result<(), Error> {
+    //     return self.set_pin_group_actions(model_id, group_name, PinActions::Verify, data, mask);
+    // }
 
-    pub fn capture_pin_group(
-        &mut self,
-        model_id: usize,
-        group_name: &str,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        return self.set_pin_group_actions(
-            model_id,
-            group_name,
-            PinActions::Capture,
-            Option::None,
-            mask,
-        );
-    }
+    // pub fn capture_pin_group(
+    //     &mut self,
+    //     model_id: usize,
+    //     group_name: &str,
+    //     mask: Option<usize>,
+    // ) -> Result<(), Error> {
+    //     return self.set_pin_group_actions(
+    //         model_id,
+    //         group_name,
+    //         PinActions::Capture,
+    //         Option::None,
+    //         mask,
+    //     );
+    // }
 
-    pub fn highz_pin_group(
-        &mut self,
-        model_id: usize,
-        group_name: &str,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        return self.set_pin_group_actions(
-            model_id,
-            group_name,
-            PinActions::HighZ,
-            Option::None,
-            mask,
-        );
-    }
+    // pub fn highz_pin_group(
+    //     &mut self,
+    //     model_id: usize,
+    //     group_name: &str,
+    //     mask: Option<usize>,
+    // ) -> Result<(), Error> {
+    //     return self.set_pin_group_actions(
+    //         model_id,
+    //         group_name,
+    //         PinActions::HighZ,
+    //         Option::None,
+    //         mask,
+    //     );
+    // }
 
     // Assume the pin group is properly defined (that is, not pin duplicates and all pins exists. If the pin group exists, these should both be met)
     pub fn slice_pin_group(
