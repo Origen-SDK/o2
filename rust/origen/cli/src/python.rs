@@ -1,6 +1,6 @@
 // Responsible for managing Python execution
 
-use origen::{Result, STATUS};
+use origen::Result;
 use semver::Version;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
@@ -24,7 +24,15 @@ pub struct Config {
     pub command: String,
     pub version: Version,
     pub error: String,
-    pub poetry_command: PathBuf,
+}
+
+impl Config {
+    pub fn poetry_command(&self) -> Command {
+        let mut c = Command::new(&self.command);
+        c.arg("-m");
+        c.arg("poetry");
+        c
+    }
 }
 
 impl Default for Config {
@@ -34,20 +42,12 @@ impl Default for Config {
             match get_version(cmd) {
                 Some(version) => {
                     available = true;
-                    let mut poetry_cmd = PathBuf::from(&STATUS.home);
-                    for d in [".poetry", "bin", "poetry"].iter() {
-                        poetry_cmd.push(d)
-                    }
-                    if cfg!(windows) {
-                        poetry_cmd.set_extension("bat");
-                    }
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
                         return Config {
                             available: true,
                             command: cmd.to_string(),
                             version: version,
                             error: "".to_string(),
-                            poetry_command: poetry_cmd,
                         };
                     }
                 }
@@ -63,7 +63,6 @@ impl Default for Config {
             command: String::new(),
             version: Version::parse("0.0.0").unwrap(),
             error: msg,
-            poetry_command: PathBuf::new(),
         }
     }
 }
@@ -99,12 +98,18 @@ fn get_version(command: &str) -> Option<Version> {
 
 /// Returns the version of poetry (obtained from running "poetry --version")
 pub fn poetry_version() -> Option<Version> {
-    match Command::new(&PYTHON_CONFIG.poetry_command)
-        .arg("--version")
-        .output()
-    {
-        Ok(output) => return extract_version(std::str::from_utf8(&output.stdout).unwrap()),
-        Err(_e) => return None,
+    //log_trace!("Executing command: {} --version", &PYTHON_CONFIG.poetry_command);
+    //match Command::new(&PYTHON_CONFIG.poetry_command)
+    match &PYTHON_CONFIG.poetry_command().arg("--version").output() {
+        Ok(output) => {
+            let text = std::str::from_utf8(&output.stdout).unwrap();
+            log_trace!("{}", text);
+            extract_version(text)
+        }
+        Err(e) => {
+            log_debug!("{}", e);
+            None
+        }
     }
 }
 
@@ -140,7 +145,7 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) -> Result<ExitStatus> {
-    let mut cmd = Command::new(&PYTHON_CONFIG.poetry_command);
+    let mut cmd = PYTHON_CONFIG.poetry_command();
     cmd.arg("run");
     cmd.arg(&PYTHON_CONFIG.command);
     cmd.arg("-c");
@@ -161,7 +166,7 @@ pub fn run_with_callbacks(
 ) -> Result<()> {
     use origen::utility::command_helpers::log_stdout_and_stderr;
 
-    let mut cmd = Command::new(&PYTHON_CONFIG.poetry_command);
+    let mut cmd = PYTHON_CONFIG.poetry_command();
     cmd.arg("run");
     cmd.arg(&PYTHON_CONFIG.command);
     cmd.arg("-c");

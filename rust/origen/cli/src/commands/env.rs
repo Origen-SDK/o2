@@ -7,20 +7,12 @@ use origen::core::status::search_for;
 use origen::core::term::*;
 use origen::utility::file_actions as fa;
 use regex::Regex;
-use std::fs;
-use std::io;
-use std::path::PathBuf;
 use std::process::Command;
-
-const POETRY_INSTALLER: &str =
-    "https://raw.githubusercontent.com/sdispater/poetry/1.0.0b7/get-poetry.py";
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("update") => {
-            let _ = Command::new(&PYTHON_CONFIG.poetry_command)
-                .arg("update")
-                .status();
+            let _ = PYTHON_CONFIG.poetry_command().arg("update").status();
 
             // Don't think we need to do anything here, if something goes wrong Poetry will give a better
             // error message than we could
@@ -74,47 +66,41 @@ pub fn run(matches: &ArgMatches) {
             }
 
             let mut attempts = 0;
-            while attempts < 2 {
+            while attempts < 3 {
                 print!("Is a suitable Poetry available? ... ");
                 let version = poetry_version();
                 if version.is_some() && version.unwrap().major == 1 {
                     greenln("YES");
-                    attempts = 2;
+                    attempts = 3;
                 } else {
                     redln("NO");
                     println!("");
                     attempts = attempts + 1;
 
-                    let tmp_dir = PathBuf::from("/tmp")
-                        .join(format!("origen-{}", time::now().to_timespec().nsec));
-                    fs::create_dir_all(format!("{}", tmp_dir.display()))
-                        .expect("Couldn't create tmp dir");
-
-                    // Get the Poetry installer script
-                    let get_poetry_file = tmp_dir.join("get-poetry.py");
-                    let mut resp = reqwest::get(POETRY_INSTALLER)
-                        .expect("Failed to fetch Poetry install file");
-                    let mut out = fs::File::create(format!("{}", get_poetry_file.display()))
-                        .expect("Failed to create Poetry install file");
-                    io::copy(&mut resp, &mut out)
-                        .expect("Failed to copy content to Poetry install file");
-
-                    // Modify the script to handle the case where the python command is not 'python'
-                    let data = fs::read_to_string(&get_poetry_file)
-                        .expect("Unable to read Poetry install file");
-                    let new_data = data.replace(
-                        "/bin/env python",
-                        &format!("/bin/env {}", PYTHON_CONFIG.command),
-                    );
-                    fs::write(&get_poetry_file, new_data)
-                        .expect("Unable to write Poetry install file");
-
-                    // Install Poetry
-                    Command::new(&PYTHON_CONFIG.command)
-                        .arg(get_poetry_file)
-                        .arg("--yes")
-                        .status()
-                        .expect("Something went wrong install Poetry");
+                    if attempts == 3 {
+                        display_redln!(
+                            "Failed to install Poetry, run again with -vvv to see what happened"
+                        )
+                    } else {
+                        let mut c = Command::new(&PYTHON_CONFIG.command);
+                        c.arg("-m");
+                        c.arg("pip");
+                        c.arg("install");
+                        if attempts == 2 {
+                            c.arg("--user");
+                            displayln!("Installing Poetry, please wait a few moments")
+                        } else {
+                            displayln!("Trying again to install Poetry in user dir, please wait a few moments")
+                        }
+                        c.arg("poetry");
+                        match c.output() {
+                            Ok(output) => {
+                                let text = std::str::from_utf8(&output.stdout).unwrap();
+                                log_trace!("{}", text);
+                            }
+                            Err(e) => log_debug!("{}", e),
+                        }
+                    }
 
                     println!("");
                 }
@@ -226,9 +212,7 @@ pub fn run(matches: &ArgMatches) {
             // This gives an error that suggests it is not working when run on Windows, yet it solves the problem
             // seen with the earlier version on CI
             let args = vec!["run", "pip", "install", "pip==20.2.3"];
-            let status = Command::new(&PYTHON_CONFIG.poetry_command)
-                .args(&args)
-                .status();
+            let status = PYTHON_CONFIG.poetry_command().args(&args).status();
 
             if status.is_ok() {
                 greenln("YES");
@@ -238,7 +222,8 @@ pub fn run(matches: &ArgMatches) {
 
             print!("Are the app's deps. installed?  ... ");
 
-            let status = Command::new(&PYTHON_CONFIG.poetry_command)
+            let status = PYTHON_CONFIG
+                .poetry_command()
                 .arg("install")
                 .arg("--no-root")
                 .status();
@@ -248,7 +233,8 @@ pub fn run(matches: &ArgMatches) {
                     std::env::set_current_dir(&origen::app().unwrap().root)
                         .expect("Couldn't cd to the app root");
 
-                    let status = Command::new(&PYTHON_CONFIG.poetry_command)
+                    let status = PYTHON_CONFIG
+                        .poetry_command()
                         .arg("update")
                         .arg("origen")
                         .status();

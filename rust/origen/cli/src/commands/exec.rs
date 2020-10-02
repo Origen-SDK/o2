@@ -1,8 +1,7 @@
 use crate::python::{add_origen_env, PYTHON_CONFIG};
-use std::process::Command;
 
 pub fn run(cmd_name: &str, args: Vec<&str>) {
-    let mut cmd = Command::new(&PYTHON_CONFIG.poetry_command);
+    let mut cmd = PYTHON_CONFIG.poetry_command();
     cmd.arg("run");
     cmd.arg(cmd_name);
     cmd.args(&args);
