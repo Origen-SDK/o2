@@ -7,6 +7,7 @@ use origen::core::status::search_for;
 use origen::core::term::*;
 use origen::utility::file_actions as fa;
 use regex::Regex;
+use semver::VersionReq;
 use std::process::Command;
 
 pub fn run(matches: &ArgMatches) {
@@ -69,7 +70,10 @@ pub fn run(matches: &ArgMatches) {
             while attempts < 3 {
                 print!("Is a suitable Poetry available? ... ");
                 let version = poetry_version();
-                if version.is_some() && version.unwrap().major == 1 {
+                // There is a bug in 1.1.0 which we need to avoid
+                let required_poetry_version = VersionReq::parse("=1.0.10").unwrap();
+
+                if version.is_some() && required_poetry_version.matches(&version.unwrap()) {
                     greenln("YES");
                     attempts = 3;
                 } else {
@@ -88,11 +92,12 @@ pub fn run(matches: &ArgMatches) {
                         c.arg("install");
                         if attempts == 2 {
                             c.arg("--user");
-                            displayln!("Installing Poetry, please wait a few moments")
-                        } else {
                             displayln!("Trying again to install Poetry in user dir, please wait a few moments")
+                        } else {
+                            displayln!("Installing Poetry, please wait a few moments")
                         }
-                        c.arg("poetry");
+                        c.arg("--ignore-installed");
+                        c.arg("poetry==1.0.10");
                         match c.output() {
                             Ok(output) => {
                                 let text = std::str::from_utf8(&output.stdout).unwrap();
