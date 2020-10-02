@@ -220,7 +220,7 @@ impl DP {
                 crate::swd_ok!()
             )?;
         }
-        swd.update_actions(dut)
+        Ok(())
     }
 
 }

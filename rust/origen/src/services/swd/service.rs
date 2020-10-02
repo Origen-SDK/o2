@@ -2,7 +2,6 @@ use crate::{Result, Error, TEST};
 use crate::core::dut::Dut;
 use indexmap::IndexMap;
 use crate::Transaction;
-use crate::core::model::pins::PinBus;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Acknowledgements {
@@ -46,8 +45,8 @@ macro_rules! swd_ok {
 #[derive(Clone, Debug)]
 pub struct Service {
     pub id: usize,
-    pub swdclk: PinBus,
-    pub swdio: PinBus,
+    pub swdclk: (String, usize),
+    pub swdio: (String, usize),
     pub swdclk_id: Vec<usize>,
     pub swdclk_grp_id: Option<usize>,
     pub swdio_id: Vec<usize>,
@@ -68,8 +67,8 @@ impl Service {
 
         Ok(Self {
             id: id,
-            swdclk: PinBus::from_group(dut, "swdclk", 0)?,
-            swdio: PinBus::from_group(dut, "swdio", 0)?,
+            swdclk: ("swdclk".to_string(), 0),
+            swdio: ("swdio".to_string(), 0),
             swdclk_id: swdclk_id,
             swdclk_grp_id: Some(swdclk_grp_id),
             swdio_id: swdio_id,
@@ -77,11 +76,6 @@ impl Service {
             swdio_grp: swd_grp,
             trn: 1,
         })
-    }
-
-    pub fn update_actions(&self, dut: &crate::Dut) -> Result<()> {
-        self.swdclk.update_actions(dut)?;
-        self.swdio.update_actions(dut)
     }
 
     pub fn write_ap(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements) -> Result<()> {

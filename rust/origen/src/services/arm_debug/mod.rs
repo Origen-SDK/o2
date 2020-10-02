@@ -10,6 +10,7 @@ use std::sync::MutexGuard;
 use crate::{Dut, Services, Transaction};
 use std::sync::RwLock;
 use crate::testers::api::ControllerAPI;
+use crate::core::model::pins::PinCollection;
 
 use crate::{Result, Error};
 
@@ -88,14 +89,15 @@ impl ArmDebug {
         match self.swd_id {
             Some(id) => {
                 let swd = services.get_as_swd(id)?;
+                let swdclk = PinCollection::from_group(dut, &swd.swdclk.0, swd.swdclk.1)?;
+                let swdio = PinCollection::from_group(dut, &swd.swdio.0, swd.swdio.1)?;
                 let n_id = crate::TEST.push_and_open(crate::node!(ArmDebugSwjJTAGToSWD, self.id));
                 self.comment("Switching ArmDebug protocol to SWD");
-                swd.swdclk.drive_high();
-                swd.swdio.drive_high().repeat(50);
-                swd.swdio.push_transaction(&Transaction::new_write(num_bigint::BigUint::from(0xE79E as u32), 16)?)?;
-                swd.swdio.repeat(55);
-                swd.swdio.drive_low().repeat(4);
-                swd.update_actions(dut)?;
+                swdclk.drive_high();
+                swdio.drive_high().repeat(50);
+                swdio.push_transaction(&Transaction::new_write(num_bigint::BigUint::from(0xE79E as u32), 16)?)?;
+                swdio.repeat(55);
+                swdio.drive_low().repeat(4);
 
                 crate::TEST.close(n_id)?;
                 *self.jtagnswd.write().unwrap() = false;
