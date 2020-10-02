@@ -17,16 +17,14 @@ def std_test():
 
 class TestPinActions:
 
-  def test_standard_actions(self):
-    assert klass.standard_actions() == standard_actions
+  # def test_standard_actions(self):
+  #   assert klass.standard_actions() == standard_actions
 
   @pytest.mark.parametrize("action", standard_actions.items())
   def test_standard_actions_instances(self, action):
     assert hasattr(klass, action[0])
     ins = getattr(klass, action[0])()
     assert isinstance(ins, backend_klass)
-    assert len(ins.long_names) == 1
-    assert ins.long_names[0] == action[0]
     assert str(ins) == action[1]
     assert ins.all_standard
 
@@ -104,10 +102,6 @@ class TestPinActions:
     assert str(actions)[-1] == "L"
     assert actions[0] == klass.VerifyLow()
     assert actions[-1] == klass.DriveHigh()
-
-  def test_long_name(self):
-    actions = std_test()
-    assert actions.long_names == ["DriveHigh", "DriveLow", "VerifyHigh", "VerifyLow"]
 
   def test_custom_actions(self):
     actions = klass("|x|")

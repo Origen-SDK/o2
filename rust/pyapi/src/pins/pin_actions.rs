@@ -135,16 +135,16 @@ impl PinActions {
     Ok(PinActions { actions: vec!(OrigenPinActions::Other(symbol))}.into_py(py))
   }
 
-  #[classmethod]
-  fn standard_actions(_cls: &PyType) -> PyResult<PyObject> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let retn = PyDict::new(py);
-    for action in OrigenPinActions::standard_actions().iter() {
-      retn.set_item(action.long_name(), action.as_char().to_string())?;
-    }
-    Ok(retn.into())
-  }
+  // #[classmethod]
+  // fn standard_actions(_cls: &PyType) -> PyResult<PyObject> {
+  //   let gil = Python::acquire_gil();
+  //   let py = gil.python();
+  //   let retn = PyDict::new(py);
+  //   for action in OrigenPinActions::standard_actions().iter() {
+  //     retn.set_item(action.long_name(), action.as_char().to_string())?;
+  //   }
+  //   Ok(retn.into())
+  // }
 
   #[new]
   #[args(actions="*", _kwargs="**")]
@@ -172,11 +172,6 @@ impl PinActions {
         actions: temp
       };
     Ok(obj)
-  }
-
-  #[getter]
-  fn get_long_names(&self) -> PyResult<Vec<String>> {
-    Ok(self.actions.iter().rev().map(|a| a.long_name()).collect::<Vec<String>>())
   }
 
   #[getter]

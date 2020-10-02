@@ -16,7 +16,7 @@ use crate::{Result, TEST, Dut,
 pub struct DP {
     model_id: usize,
     memory_map_id: usize,
-    dp_id: usize,
+    address_block_id: usize,
     arm_debug_id: usize,
     id: usize,
 }
@@ -24,7 +24,7 @@ pub struct DP {
 impl DP {
     pub fn model_init(dut: &mut crate::Dut, services: &mut crate::Services, model_id: usize, arm_debug_id: usize) -> Result<usize> {
         let memory_map_id = dut.create_memory_map(model_id, "default", None)?;
-        let dp_id = dut.create_address_block(
+        let ab_id = dut.create_address_block(
             memory_map_id,
             "default",
             None,
@@ -35,7 +35,7 @@ impl DP {
 
         // Read request -> IDCODE
         // Write request -> ABORT
-        add_reg_32bit!(dut, dp_id, "idcode", 0, Some("RW"), some_hard_reset_val!(0),
+        add_reg_32bit!(dut, ab_id, "idcode", 0, Some("RW"), some_hard_reset_val!(0),
             vec!(
                 field!("REVISION", 28, 4, "RO", vec!(), None, ""),
                 field!("PARTNO", 20, 8, "RO", vec!(), None, ""),
@@ -46,10 +46,10 @@ impl DP {
             ),
             "Provides information about the Debug Port."
         );
-        add_reg_32bit!(dut, dp_id, "abort", 0, Some("RO"), None, vec!(
+        add_reg_32bit!(dut, ab_id, "abort", 0, Some("RO"), None, vec!(
         ), "");
 
-        add_reg_32bit!(dut, dp_id, "ctrlstat", 0x4, None, some_hard_reset_val!(0),
+        add_reg_32bit!(dut, ab_id, "ctrlstat", 0x4, None, some_hard_reset_val!(0),
             vec!(
                 field!("CSYSPWRUPACK", 31, 1, "RO", vec!(), some_hard_reset_val!(0), ""),
                 field!("CSYSPWRUPREQ", 30, 1, "RW", vec!(), some_hard_reset_val!(0), ""),
@@ -60,16 +60,16 @@ impl DP {
             ),
             ""
         );
-        add_reg_32bit!(dut, dp_id, "dlcr", 0x4, None, some_hard_reset_val!(0), vec!(), "");
-        add_reg_32bit!(dut, dp_id, "targetid", 0x4, None, some_hard_reset_val!(0), vec!(), "");
-        add_reg_32bit!(dut, dp_id, "dlpidr", 0x4, None, some_hard_reset_val!(0), vec!(), "");
-        add_reg_32bit!(dut, dp_id, "eventstat", 0x4, None, some_hard_reset_val!(0), vec!(), "");
+        add_reg_32bit!(dut, ab_id, "dlcr", 0x4, None, some_hard_reset_val!(0), vec!(), "");
+        add_reg_32bit!(dut, ab_id, "targetid", 0x4, None, some_hard_reset_val!(0), vec!(), "");
+        add_reg_32bit!(dut, ab_id, "dlpidr", 0x4, None, some_hard_reset_val!(0), vec!(), "");
+        add_reg_32bit!(dut, ab_id, "eventstat", 0x4, None, some_hard_reset_val!(0), vec!(), "");
 
-        add_reg_32bit!(dut, dp_id, "select", 0x8, Some("RW"), some_hard_reset_val!(0), vec!(
+        add_reg_32bit!(dut, ab_id, "select", 0x8, Some("RW"), some_hard_reset_val!(0), vec!(
             field!("SELECT", 0, 32, "RW", vec!(), some_hard_reset_val!(0), "")
         ), "");
 
-        add_reg_32bit!(dut, dp_id, "rdbuff", 0xC, Some("RO"), some_hard_reset_val!(0), vec!(
+        add_reg_32bit!(dut, ab_id, "rdbuff", 0xC, Some("RO"), some_hard_reset_val!(0), vec!(
             field!("DATA", 0, 32, "RO", vec!(), some_hard_reset_val!(0), "")
         ), "");
 
@@ -79,7 +79,7 @@ impl DP {
             Self {
                 model_id: model_id,
                 memory_map_id: memory_map_id,
-                dp_id: dp_id,
+                address_block_id: ab_id,
                 arm_debug_id: arm_debug_id,
                 id: id,
             }
@@ -89,7 +89,7 @@ impl DP {
 
     pub fn power_up(&self, dut: &mut MutexGuard<Dut>, services: &crate::Services) -> Result<()> {
         // Set the ctrl stat bits
-        let reg = get_reg!(dut, self.dp_id, "ctrlstat");
+        let reg = get_reg!(dut, self.address_block_id, "ctrlstat");
         let bc = get_bc_for!(dut, reg, "CSYSPWRUPREQ")?;
         bc.set_data(BigUint::from(1 as u8));
         let bc = get_bc_for!(dut, reg, "CDBGPWRUPREQ")?;
@@ -100,7 +100,7 @@ impl DP {
     }
 
     pub fn verify_powered_up(&self, dut: &mut MutexGuard<Dut>, services: &crate::Services) -> Result<()> {
-        let reg = get_reg!(dut, self.dp_id, "ctrlstat");
+        let reg = get_reg!(dut, self.address_block_id, "ctrlstat");
 
         let bc = get_bc_for!(dut, reg, "CSYSPWRUPREQ")?;
         bc.set_data(BigUint::from(1 as u8));
@@ -115,10 +115,10 @@ impl DP {
         let bc = get_bc_for!(dut, reg, "CDBGPWRUPREQ")?;
         bc.set_data(BigUint::from(1 as u8));
         bc.set_verify_flag(None)?;
-        let bc = get_bc_for!(dut, self.dp_id, "ctrlstat", "CSYSPWRUPACK")?;
+        let bc = get_bc_for!(dut, self.address_block_id, "ctrlstat", "CSYSPWRUPACK")?;
         bc.set_data(BigUint::from(1 as u8));
         bc.set_verify_flag(None)?;
-        let bc = get_bc_for!(dut, self.dp_id, "ctrlstat", "CDBGPWRUPACK")?;
+        let bc = get_bc_for!(dut, self.address_block_id, "ctrlstat", "CDBGPWRUPACK")?;
         bc.set_data(BigUint::from(1 as u8));
         bc.set_verify_flag(None)?;
         let bc = reg.bits(dut);
@@ -128,7 +128,7 @@ impl DP {
     }
 
     pub fn update_select(&self, dut: &MutexGuard<Dut>, services: &crate::Services, select: usize) -> Result<Option<Vec<Node>>> {
-        let bc = get_bc_for!(dut, self.dp_id, "select", "SELECT")?;
+        let bc = get_bc_for!(dut, self.address_block_id, "select", "SELECT")?;
         let sel = BigUint::from(select);
         if bc.data()? == sel {
             // Select is already at the desired value - can skip this.
@@ -197,7 +197,7 @@ impl DP {
             _ => {}
         }
         if let Some(sel) = select {
-            let bc = get_reg_as_bc!(dut, self.dp_id, "select");
+            let bc = get_reg_as_bc!(dut, self.address_block_id, "select");
             bc.set_data(BigUint::from(1 as u8));
             TEST.push(node!(Comment, 0, format!("ArmDebugDP: select {} (DP Addr: {:X})", reg_name, sel)));
             if *arm_debug.jtagnswd.read().unwrap() {

@@ -19,6 +19,7 @@ pub mod services;
 pub mod standards;
 pub mod testers;
 pub mod utility;
+pub mod precludes;
 
 pub use self::core::user::User;
 pub use error::Error;

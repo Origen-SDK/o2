@@ -17,7 +17,7 @@ pub trait ResolvePinActions {
             Some(a) => Ok(a),
             None => Err(Error::new(&format!(
                 "No resolution provided for pin action {}",
-                &action.long_name()
+                &action.to_string()?
             )))
         }
     }
@@ -132,20 +132,6 @@ impl PinActions {
             _ => current.push(self.as_char())
         }
         Ok(())
-    }
-
-    pub fn long_name(&self) -> String {
-        match self {
-            PinActions::Drive => "Drive".into(),
-            PinActions::Verify => "Verify".into(),
-            Self::DriveHigh => "DriveHigh".into(),
-            Self::DriveLow => "DriveLow".into(),
-            Self::VerifyHigh => "VerifyHigh".into(),
-            Self::VerifyLow => "VerifyLow".into(),
-            PinActions::Capture => "Capture".into(),
-            PinActions::HighZ => "HighZ".into(),
-            PinActions::Other(sym) => format!("Other({})", sym)
-        }
     }
 
     pub fn to_action_string(actions: &Vec<PinActions>) -> Result<String, Error> {

@@ -1,7 +1,6 @@
 use crate::{Result, Error, TEST};
 use crate::core::dut::Dut;
-use indexmap::IndexMap;
-use crate::Transaction;
+use crate::precludes::controller::*;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Acknowledgements {
@@ -47,33 +46,28 @@ pub struct Service {
     pub id: usize,
     pub swdclk: (String, usize),
     pub swdio: (String, usize),
-    pub swdclk_id: Vec<usize>,
-    pub swdclk_grp_id: Option<usize>,
-    pub swdio_id: Vec<usize>,
-    pub swdio_grp_id: Option<usize>,
-    pub swdio_grp: IndexMap::<usize, Vec<usize>>,
     pub trn: u32,
 }
 
 #[allow(non_snake_case)]
 impl Service {
-    pub fn new(dut: &Dut, id: usize, swdclk: Option<&str>, swdio: Option<&str>) -> Result<Self> {
-        let swdclk_name = swdclk.unwrap_or("swdclk");
-        let swdio_name = swdio.unwrap_or("swdio");
-        let (swdio_id, swdio_grp_id) = dut.pin_group_to_ids(0, swdio_name)?;
-        let (swdclk_id, swdclk_grp_id) = dut.pin_group_to_ids(0, swdclk_name)?;
-        let mut swd_grp = IndexMap::new();
-        swd_grp.insert(swdio_grp_id, swdio_id.clone());
-
+    pub fn new(_dut: &Dut, id: usize, swdclk: Option<&PinGroup>, swdio: Option<&PinGroup>) -> Result<Self> {
         Ok(Self {
             id: id,
-            swdclk: ("swdclk".to_string(), 0),
-            swdio: ("swdio".to_string(), 0),
-            swdclk_id: swdclk_id,
-            swdclk_grp_id: Some(swdclk_grp_id),
-            swdio_id: swdio_id,
-            swdio_grp_id: Some(swdio_grp_id),
-            swdio_grp: swd_grp,
+            swdclk: {
+                if let Some(grp) = swdclk {
+                    grp.to_identifier()
+                } else {
+                    ("swdclk".to_string(), 0)
+                }
+            },
+            swdio: {
+                if let Some(grp) = swdio {
+                    grp.to_identifier()
+                } else {
+                    ("swdio".to_string(), 0)
+                }
+            },
             trn: 1,
         })
     }

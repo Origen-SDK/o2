@@ -41,11 +41,6 @@ pub struct ArmDebug {
     pub swd_id: Option<usize>,
     /// The JTAG Service which operates this ArmDebug
     pub jtag_id: Option<usize>,
-
-    swdclk_id: Option<Vec<usize>>,
-    swdclk_grp_id: Option<Option<usize>>,
-    swdio_id: Option<Vec<usize>>,
-    swdio_grp_id: Option<Option<usize>>,
 }
 
 impl ArmDebug {
@@ -57,17 +52,6 @@ impl ArmDebug {
         jtag_id: Option<usize>,
     ) -> Result<usize> {
         let id = services.next_id();
-        let mut swdclk_id = None;
-        let mut swdclk_grp_id = None;
-        let mut swdio_id = None;
-        let mut swdio_grp_id = None;
-        if let Some(s_id) = swd_id {
-            let swd = services.get_as_swd(s_id)?;
-            swdclk_id = Some(swd.swdclk_id.clone());
-            swdclk_grp_id = Some(swd.swdclk_grp_id.clone());
-            swdio_id = Some(swd.swdio_id.clone());
-            swdio_grp_id = Some(swd.swdio_grp_id.clone());
-        }
         let s = Self {
             id: id,
             dp_id: None,
@@ -75,10 +59,6 @@ impl ArmDebug {
             model_id: model_id,
             jtagnswd: RwLock::new(true),
             swd_id: swd_id,
-            swdclk_id: swdclk_id,
-            swdclk_grp_id: swdclk_grp_id,
-            swdio_id: swdio_id,
-            swdio_grp_id: swdio_grp_id,
             jtag_id: jtag_id,
         };
         services.push_service(Service::ArmDebug(s));

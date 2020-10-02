@@ -61,6 +61,10 @@ impl PinGroup {
     pub fn is_big_endian(&self) -> bool {
         return !self.is_little_endian();
     }
+
+    pub fn to_identifier(&self) -> (String, usize) {
+        (self.name.clone(), self.model_id)
+    }
 }
 
 impl Dut {
