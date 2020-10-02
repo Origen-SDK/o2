@@ -116,15 +116,6 @@ pub fn run(matches: &ArgMatches) {
                         .status()
                         .expect("Something went wrong install Poetry");
 
-                    if poetry_version().unwrap().major != 1 {
-                        // Have to use --preview here to get a 1.0.0 pre version, can only use versions for
-                        // official releases
-                        Command::new(&PYTHON_CONFIG.poetry_command)
-                            .arg("self:update")
-                            .arg("--preview")
-                            .status()
-                            .expect("Something wend wrong updating Poetry");
-                    }
                     println!("");
                 }
             }
