@@ -10,7 +10,7 @@ A very common use case is to distribute drivers for in-house protocols and test 
 within a company's private ecosystem.
 
 Origen uses the `Python Package Index (PyPI) <https://pypi.org/>`_ system for distribution and any PyPI compliant package
-server can be used for distribution or Origen plugins within a company - e.g. 
+server can be used for distribution of Origen plugins within a company - e.g. 
 
 * `Sonatype Nexus <https://www.sonatype.com/nexus/repository-oss>`_
 * `PyPI Server <https://github.com/pypiserver/pypiserver>`_
