@@ -1,5 +1,5 @@
 {
-    "class_name": "DVM",
+    "class_name": "dc_tml.DcTest.DVM",
     
     "parameters": {
         "pinlist": {

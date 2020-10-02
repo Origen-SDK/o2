@@ -1,4 +1,6 @@
 {
+    "class_name": "ac_tml.AcTest.specSearch",
+
     "parameters": {
         "max": {
             "type": "string"

@@ -1,4 +1,6 @@
 {
+    "class_name": "dc_tml.DcTest.dpsConnectivity",
+
     "parameters": {
         "dps_pins": {
             "type": "string",

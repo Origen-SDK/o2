@@ -1,5 +1,5 @@
 {
-    "class_name": "GeneralPMU",
+    "class_name": "dc_tml.DcTest.GeneralPMU",
     
     "parameters": {
         "pinlist": {

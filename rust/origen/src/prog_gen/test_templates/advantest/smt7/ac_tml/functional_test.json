@@ -1,4 +1,6 @@
 {
+    "class_name": "ac_tml.AcTest.functionalTest",
+    
     "parameters": {
         "output": {
             "type": "string",

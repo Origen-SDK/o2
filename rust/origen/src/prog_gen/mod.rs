@@ -44,11 +44,6 @@ struct TestTemplateParameter {
     accepted_values: Option<Vec<serde_json::Value>>,
 }
 
-#[derive(Debug, Deserialize)]
-struct TestLibrary {
-    class_name_prefix: Option<String>,
-}
-
 #[cfg(test)]
 mod unit_tests {
     use super::*;
@@ -56,13 +51,8 @@ mod unit_tests {
     #[test]
     fn test_all_templates_import_cleanly() {
         for (file, content) in TEST_TEMPLATES.entries() {
-            if file.ends_with("library.json") {
-                let _: TestLibrary =
-                    serde_json::from_str(content).expect(&format!("Failed to import {}", file));
-            } else {
-                let _: TestTemplate =
-                    serde_json::from_str(content).expect(&format!("Failed to import {}", file));
-            }
+            let _: TestTemplate =
+                serde_json::from_str(content).expect(&format!("Failed to import {}", file));
         }
     }
 }

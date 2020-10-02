@@ -1,5 +1,5 @@
 {
-    "class_name": "Frequency_byDigitalCapture",
+    "class_name": "ac_tml.AcTest.Frequency_byDigitalCapture",
 
     "parameters": {
         "vector_variable_name": {

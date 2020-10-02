@@ -1,5 +1,5 @@
 {
-    "class_name": "OutputDC",
+    "class_name": "dc_tml.DcTest.OutputDC",
 
     "parameters": {
         "pinlist": {

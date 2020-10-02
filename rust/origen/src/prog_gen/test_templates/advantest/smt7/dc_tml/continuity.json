@@ -1,4 +1,6 @@
 {
+    "class_name": "dc_tml.DcTest.continuity",
+
     "parameters": {
         "pinlist": {
             "type": "string",

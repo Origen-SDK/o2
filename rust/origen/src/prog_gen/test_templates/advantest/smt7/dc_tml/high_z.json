@@ -1,4 +1,6 @@
 {
+    "class_name": "dc_tml.DcTest.highZ",
+
     "parameters": {
         "pinlist": {
             "type": "string",
