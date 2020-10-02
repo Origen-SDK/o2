@@ -109,12 +109,27 @@ pub fn poetry_version() -> Option<Version> {
 }
 
 fn extract_version(text: &str) -> Option<Version> {
-    let re = regex::Regex::new(r".*(\d+\.\d+\.\d+[\s]*)").unwrap();
+    let re = regex::Regex::new(r".*(\d+\.\d+\.\d+)([^\s]+)?").unwrap();
 
     match re.captures(text) {
         Some(x) => {
-            let c = x.get(1).unwrap().as_str();
-            let v = Version::parse(c).unwrap();
+            let c = {
+                let v = x.get(1).unwrap().as_str();
+                if let Some(p) = x.get(2) {
+                    let mut p = p.as_str();
+                    if p.starts_with("-") {
+                        format!("{}{}", v, p)
+                    } else {
+                        if p.starts_with(".") || p.starts_with("+") {
+                            p = &p[1..];
+                        }
+                        format!("{}-{}", v, p)
+                    }
+                } else {
+                    v.to_string()
+                }
+            };
+            let v = Version::parse(&c).unwrap();
             return Some(v);
         }
         None => {
@@ -199,12 +214,16 @@ mod tests {
     #[test]
     fn extract_version_works() {
         assert_eq!(
-            Version::parse("2.7.15").unwrap(),
+            Version::parse("2.7.15-a").unwrap(),
             extract_version("Python 2.7.15+a\n").unwrap()
         );
         assert_eq!(
             Version::parse("3.6.8").unwrap(),
             extract_version("Python 3.6.8 \n").unwrap()
+        );
+        assert_eq!(
+            Version::parse("1.1.0-rc1").unwrap(),
+            extract_version("Poetry version 1.1.0rc1\n").unwrap()
         );
     }
 }
