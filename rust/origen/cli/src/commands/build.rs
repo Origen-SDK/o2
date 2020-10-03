@@ -1,7 +1,7 @@
 use super::fmt::cd;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
-use origen::utility::file_utils::{copy, symlink};
+use origen::utility::file_utils::symlink;
 use origen::utility::version::{to_pep440, to_semver};
 use origen::{Result, STATUS};
 use regex::Regex;
@@ -225,7 +225,7 @@ pub fn run(matches: &ArgMatches) {
                     ));
                 }
                 // Copy rather than link the file for now to avoid any issues with symlinks not working in user env
-                copy(&target, &link).expect(&format!(
+                std::fs::copy(&target, &link ).expect(&format!(
                     "Couldn't copy file from '{}' to '{}",
                     target.display(),
                     link.display()

@@ -1,3 +1,6 @@
+//! Some notes on how Origen's Python environment is setup and invoked:
+//!
+
 extern crate time;
 
 use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
