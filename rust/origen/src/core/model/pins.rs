@@ -13,13 +13,8 @@ use regex::Regex;
 
 use super::Model;
 use indexmap::IndexMap;
-<<<<<<< HEAD
 use pin::{Pin, PinAction, ResolvePinActions};
-use pin_collection::PinCollection;
-=======
-use pin::{Pin, PinActions, ResolvePinActions};
 use pin_store::PinStore;
->>>>>>> origin/timing_updates
 use pin_group::PinGroup;
 
 #[derive(Debug, Clone)]
@@ -168,7 +163,7 @@ impl<'a> PinCollection<'a> {
                 grp_node.add_children((0..grp.1).map( |pin_i| {
                     let p = &self.pins[pin_ids_offset + pin_i];
                     let mut paction = p.action.write().unwrap();
-                    *paction = PinActions::from_delimiter_optional(action).unwrap();
+                    *paction = PinAction::new(action);
 
                     node!(PinAction, p.id, action.to_string(), None)
                 }).collect());
@@ -179,7 +174,7 @@ impl<'a> PinCollection<'a> {
         } else {
             self.pins.iter().map( |p| {
                 let mut paction = p.action.write().unwrap();
-                *paction = PinActions::from_delimiter_optional(action).unwrap();
+                *paction = PinAction::new(action);
                 node!(PinAction, p.id, action.to_string(), None)
             }).collect()
         }
@@ -210,7 +205,7 @@ impl<'a> PinCollection<'a> {
                     this_grp_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
                     this_grp_action.push(bit_action.to_string());
                     let mut paction = p.action.write().unwrap();
-                    *paction = PinActions::from_delimiter_optional(bit_action)?;
+                    *paction = PinAction::new(bit_action);
                     current_cnt += 1;
                     if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
                         let mut n = node!(PinGroupAction, self.grp_ids.as_ref().unwrap()[grp_idx].0, this_grp_action, None);
@@ -225,7 +220,7 @@ impl<'a> PinCollection<'a> {
                     // no pin groups. Just push the straight pins
                     let p = &self.pins[pos];
                     let mut paction = p.action.write().unwrap();
-                    *paction = PinActions::from_delimiter_optional(bit_action).unwrap();
+                    *paction = PinAction::new(bit_action);
                     this_cycle.push(node!(PinAction, p.id, bit_action.to_string(), None));
                 }
             }

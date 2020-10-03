@@ -76,40 +76,40 @@ impl PinStore {
 }
 
 impl Dut {
-    pub fn drive_pin_store(
-        &mut self,
-        pin_store: &mut PinStore,
-        data: Option<u32>,
-    ) -> Result<(), Error> {
-        self.set_pin_store_actions(pin_store, PinActions::Drive, data)
-    }
+    // pub fn drive_pin_store(
+    //     &mut self,
+    //     pin_store: &mut PinStore,
+    //     data: Option<u32>,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_store_actions(pin_store, PinActions::Drive, data)
+    // }
 
-    pub fn verify_pin_store(
-        &mut self,
-        pin_store: &mut PinStore,
-        data: Option<u32>,
-    ) -> Result<(), Error> {
-        self.set_pin_store_actions(pin_store, PinActions::Verify, data)
-    }
+    // pub fn verify_pin_store(
+    //     &mut self,
+    //     pin_store: &mut PinStore,
+    //     data: Option<u32>,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_store_actions(pin_store, PinActions::Verify, data)
+    // }
 
-    pub fn capture_pin_store(
-        &mut self,
-        pin_store: &mut PinStore,
-    ) -> Result<(), Error> {
-        self.set_pin_store_actions(pin_store, PinActions::Capture, Option::None)
-    }
+    // pub fn capture_pin_store(
+    //     &mut self,
+    //     pin_store: &mut PinStore,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_store_actions(pin_store, PinActions::Capture, Option::None)
+    // }
 
-    pub fn highz_pin_store(
-        &mut self,
-        pin_store: &mut PinStore,
-    ) -> Result<(), Error> {
-        self.set_pin_store_actions(pin_store, PinActions::HighZ, Option::None)
-    }
+    // pub fn highz_pin_store(
+    //     &mut self,
+    //     pin_store: &mut PinStore,
+    // ) -> Result<(), Error> {
+    //     self.set_pin_store_actions(pin_store, PinActions::HighZ, Option::None)
+    // }
 
     pub fn set_pin_store_actions(
         &mut self,
         collection: &mut PinStore,
-        action: PinActions,
+        action: PinAction,
         data: Option<u32>,
     ) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
@@ -121,7 +121,7 @@ impl Dut {
     pub fn set_per_pin_store_actions(
         &mut self,
         collection: &mut PinStore,
-        actions: &Vec<PinActions>,
+        actions: &Vec<PinAction>,
     ) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
         let mask = collection.mask;
@@ -134,15 +134,15 @@ impl Dut {
     //     Ok(self.get_pin_data(&pin_names))
     // }
 
-    pub fn get_pin_store_reset_data(&self, collection: &PinStore) -> Result<u32, Error> {
-        let pin_names = &collection.pin_names;
-        self.get_pin_reset_data(collection.model_id, &pin_names)
-    }
+    // pub fn get_pin_store_reset_data(&self, collection: &PinStore) -> Result<u32, Error> {
+    //     let pin_names = &collection.pin_names;
+    //     self.get_pin_reset_data(collection.model_id, &pin_names)
+    // }
 
     pub fn get_pin_store_reset_actions(
         &self,
         collection: &PinStore,
-    ) -> Result<Vec<PinActions>, Error> {
+    ) -> Result<Vec<PinAction>, Error> {
         let pin_names = &collection.pin_names;
         self.get_pin_reset_actions(collection.model_id, &pin_names)
     }
