@@ -254,27 +254,6 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
-<<<<<<< HEAD
-    /// Find the most recent nodes in the AST which set the current pin action and update the internal pin state accordingly
-    pub fn update_actions(&self, dut: &crate::Dut) -> crate::Result<()> {
-        let mut pins_to_update = self.pin_ids.clone();
-        let mut cnt = 0;
-        while pins_to_update.len() > 0 {
-            match TEST.get_with_descendants(cnt)?.attrs {
-                Attrs::PinAction(pin_id, symbol, _metadata) => {
-                    let pos = pins_to_update.iter().position( |i| *i == pin_id);
-                    if let Some(p) = pos {
-                        pins_to_update.remove(p);
-                        *dut.pins[pin_id].action.write().unwrap() = PinAction::new(&symbol);
-                    }
-                }
-                _ => {}
-            }
-            cnt += 1;
-        }
-        Ok(())
-    }
-=======
     // /// Find the most recent nodes in the AST which set the current pin action and update the internal pin state accordingly
     // pub fn update_actions(&self, dut: &crate::Dut) -> crate::Result<()> {
     //     let mut pins_to_update = self.pin_ids.clone();
@@ -294,7 +273,6 @@ impl<'a> PinCollection<'a> {
     //     }
     //     Ok(())
     // }
->>>>>>> origin/timing_updates
 }
 
 #[derive(Debug, Copy, Clone)]
