@@ -174,11 +174,14 @@ impl PinActions {
     Ok(obj)
   }
 
+<<<<<<< HEAD
   // #[getter]
   // fn get_long_names(&self) -> PyResult<Vec<String>> {
   //   Ok(self.actions.iter().rev().map(|a| a.long_name()).collect::<Vec<String>>())
   // }
 
+=======
+>>>>>>> origin/timing_updates
   #[getter]
   fn all_standard(&self) -> PyResult<bool> {
     Ok(self.actions.iter().all(|a| a.is_standard()))

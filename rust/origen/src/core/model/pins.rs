@@ -1,5 +1,5 @@
 pub mod pin;
-pub mod pin_collection;
+pub mod pin_store;
 pub mod pin_group;
 pub mod pin_header;
 use super::super::dut::Dut;
@@ -8,31 +8,32 @@ use crate::generator::ast::{Node};
 use crate::{Transaction, node, TEST};
 use crate::testers::vector_based::api::{cycle, repeat, repeat2, repeat2_node};
 use crate::standards::actions::*;
-use crate::generator::ast::Attrs;
 
 use regex::Regex;
 
 use super::Model;
 use indexmap::IndexMap;
+<<<<<<< HEAD
 use pin::{Pin, PinAction, ResolvePinActions};
 use pin_collection::PinCollection;
+=======
+use pin::{Pin, PinActions, ResolvePinActions};
+use pin_store::PinStore;
+>>>>>>> origin/timing_updates
 use pin_group::PinGroup;
 
 #[derive(Debug, Clone)]
-pub struct PinBus {
+pub struct PinCollection<'a> {
     grp_ids: Option<Vec<(usize, usize)>>,
-    pin_ids: Vec<usize>,
+    pins: Vec<&'a Pin>
 }
 
-impl PinBus {
-    pub fn from_group(dut: &crate::Dut, grp_name: &str, model_id: usize) -> crate::Result<Self> {
-        let p_ids: Vec<usize> = dut._resolve_group_to_physical_pins(
-            model_id,
-            grp_name
-        )?.iter().map( |p| p.id).collect();
+impl<'a> PinCollection<'a> {
+    pub fn from_group(dut: &'a crate::Dut, grp_name: &str, model_id: usize) -> crate::Result<Self> {
+        let pins = dut._resolve_to_flattened_pins(&vec!((model_id, grp_name.to_string())))?;
         Ok(Self {
-            grp_ids: Some(vec!((dut._get_pin_group(model_id, grp_name)?.id, p_ids.len()))),
-            pin_ids: p_ids
+            grp_ids: Some(vec!((dut._get_pin_group(model_id, grp_name)?.id, pins.len()))),
+            pins: pins
         })
     }
 
@@ -163,14 +164,24 @@ impl PinBus {
             let mut retn = vec![];
             let mut pin_ids_offset = 0;
             for (_i, grp) in grps.iter().enumerate() {
-                let mut grp_node = node!(PinGroupAction, grp.0, vec![action.to_string(); self.pin_ids.len()], None);
-                grp_node.add_children((0..grp.1).map( |pin_i| node!(PinAction, self.pin_ids[pin_ids_offset + pin_i], action.to_string(), None)).collect());
+                let mut grp_node = node!(PinGroupAction, grp.0, vec![action.to_string(); self.pins.len()], None);
+                grp_node.add_children((0..grp.1).map( |pin_i| {
+                    let p = &self.pins[pin_ids_offset + pin_i];
+                    let mut paction = p.action.write().unwrap();
+                    *paction = PinActions::from_delimiter_optional(action).unwrap();
+
+                    node!(PinAction, p.id, action.to_string(), None)
+                }).collect());
                 retn.push(grp_node);
                 pin_ids_offset += grp.1;
             }
             retn
         } else {
-            self.pin_ids.iter().map( |id| node!(PinAction, *id, action.to_string(), None)).collect()
+            self.pins.iter().map( |p| {
+                let mut paction = p.action.write().unwrap();
+                *paction = PinActions::from_delimiter_optional(action).unwrap();
+                node!(PinAction, p.id, action.to_string(), None)
+            }).collect()
         }
     }
 
@@ -186,7 +197,7 @@ impl PinBus {
         let bit_actions = trans.to_symbols()?;
         let mut pin_states: Vec<Node> = vec!();
 
-        for (_idx, chunk) in bit_actions.chunks(self.pin_ids.len()).enumerate() {
+        for (_idx, chunk) in bit_actions.chunks(self.pins.len()).enumerate() {
             let mut this_cycle: Vec<Node> = vec![];
             let mut this_grp_nodes: Vec<Node> = vec![];
             let mut this_grp_action: Vec<String> = vec![];
@@ -195,8 +206,11 @@ impl PinBus {
 
             for (pos, bit_action) in chunk.iter().enumerate() {
                 if self.grp_ids.is_some() {
-                    this_grp_nodes.push(node!(PinAction, self.pin_ids[pos], bit_action.to_string(), None));
+                    let p = &self.pins[pos];
+                    this_grp_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
                     this_grp_action.push(bit_action.to_string());
+                    let mut paction = p.action.write().unwrap();
+                    *paction = PinActions::from_delimiter_optional(bit_action)?;
                     current_cnt += 1;
                     if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
                         let mut n = node!(PinGroupAction, self.grp_ids.as_ref().unwrap()[grp_idx].0, this_grp_action, None);
@@ -209,7 +223,10 @@ impl PinBus {
                     }
                 } else {
                     // no pin groups. Just push the straight pins
-                    this_cycle.push(node!(PinAction, self.pin_ids[pos], bit_action.to_string(), None));
+                    let p = &self.pins[pos];
+                    let mut paction = p.action.write().unwrap();
+                    *paction = PinActions::from_delimiter_optional(bit_action).unwrap();
+                    this_cycle.push(node!(PinAction, p.id, bit_action.to_string(), None));
                 }
             }
             // Push the cycle updates and cycle the tester
@@ -237,6 +254,7 @@ impl PinBus {
         &self
     }
 
+<<<<<<< HEAD
     /// Find the most recent nodes in the AST which set the current pin action and update the internal pin state accordingly
     pub fn update_actions(&self, dut: &crate::Dut) -> crate::Result<()> {
         let mut pins_to_update = self.pin_ids.clone();
@@ -256,6 +274,27 @@ impl PinBus {
         }
         Ok(())
     }
+=======
+    // /// Find the most recent nodes in the AST which set the current pin action and update the internal pin state accordingly
+    // pub fn update_actions(&self, dut: &crate::Dut) -> crate::Result<()> {
+    //     let mut pins_to_update = self.pin_ids.clone();
+    //     let mut cnt = 0;
+    //     while pins_to_update.len() > 0 {
+    //         match TEST.get_with_descendants(cnt)?.attrs {
+    //             Attrs::PinAction(pin_id, symbol, _metadata) => {
+    //                 let pos = pins_to_update.iter().position( |i| *i == pin_id);
+    //                 if let Some(p) = pos {
+    //                     pins_to_update.remove(p);
+    //                     *dut.pins[pin_id].action.write().unwrap() = PinActions::from_delimiter_optional(&symbol)?;
+    //                 }
+    //             }
+    //             _ => {}
+    //         }
+    //         cnt += 1;
+    //     }
+    //     Ok(())
+    // }
+>>>>>>> origin/timing_updates
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -752,9 +791,9 @@ impl Dut {
         model_id: usize,
         names: Vec<String>,
         endianness: Option<Endianness>,
-    ) -> Result<PinCollection, Error> {
+    ) -> Result<PinStore, Error> {
         let pnames = self.verify_names(model_id, &names)?;
-        Ok(PinCollection::new(model_id, &pnames, endianness))
+        Ok(PinStore::new(model_id, &pnames, endianness))
     }
 
     pub fn pin_names_contain(

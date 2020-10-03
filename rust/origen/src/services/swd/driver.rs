@@ -5,6 +5,7 @@ use super::service::Service;
 use crate::{Result, Error, Transaction, TEST};
 use crate::testers::api::ControllerAPI;
 use crate::utility::num_helpers::NumHelpers;
+use crate::core::model::pins::PinCollection;
 
 impl ControllerAPI for Service {
     fn name(&self) -> String {
@@ -14,7 +15,7 @@ impl ControllerAPI for Service {
 
 impl Service {
     #[allow(non_snake_case)]
-    fn drive_header(&self, ap_dp_addr: u32, ap_access: bool, verify: bool) -> Result<()> {
+    fn drive_header(&self, swdclk: &PinCollection, swdio: &PinCollection, ap_dp_addr: u32, ap_access: bool, verify: bool) -> Result<()> {
         let A = (ap_dp_addr & 0xF) >> 2;
         self.comment(&format!(
             "Header: host -> target (A: {:X}, ap_access: {}, verify: {}) ",
@@ -22,65 +23,65 @@ impl Service {
             ap_access as u8,
             verify as u8
         ));
-        self.swdclk.drive_high();
-        self.swdio.drive_high().cycle();
-        self.swdio.drive(ap_access).cycle();
-        self.swdio.drive(verify).cycle();
-        self.swdio.push_transaction(&crate::Transaction::new_write(A.into(), 2)?)?;
-        self.swdio.drive(
+        swdclk.drive_high();
+        swdio.drive_high().cycle();
+        swdio.drive(ap_access).cycle();
+        swdio.drive(verify).cycle();
+        swdio.push_transaction(&crate::Transaction::new_write(A.into(), 2)?)?;
+        swdio.drive(
             (A + ((ap_access as u32) << 3) + ((verify as u32) << 2)).even_parity()
         ).cycle();
-        self.swdio.drive_low().cycle();
-        self.swdio.drive_high().cycle();
-        self.swdio.highz().repeat(self.trn.into());
+        swdio.drive_low().cycle();
+        swdio.drive_high().cycle();
+        swdio.highz().repeat(self.trn.into());
         Ok(())
     }
 
-    fn verify_ack(&self, ack: &Acknowledgements) -> Result<()> {
+    fn verify_ack(&self, swdio: &PinCollection, ack: &Acknowledgements) -> Result<()> {
         match ack {
             Acknowledgements::Ok => {
                 self.comment("Acknowledge Ok: target -> host");
-                self.swdio.verify_high().cycle();
-                self.swdio.verify_low().repeat(2);
+                swdio.verify_high().cycle();
+                swdio.verify_low().repeat(2);
             },
             Acknowledgements::Wait => {
                 self.comment("Acknowledge Wait: target -> host");
-                self.swdio.verify_low().cycle();
-                self.swdio.verify_high().cycle();
-                self.swdio.verify_low().cycle();
+                swdio.verify_low().cycle();
+                swdio.verify_high().cycle();
+                swdio.verify_low().cycle();
             },
             Acknowledgements::Fault => {
                 self.comment("Acknowledge Fault: target -> host");
-                self.swdio.verify_low().repeat(2);
-                self.swdio.verify_high().cycle();
+                swdio.verify_low().repeat(2);
+                swdio.verify_high().cycle();
             },
             Acknowledgements::None => {
                 self.comment("Do not check acknowledgement");
-                self.swdio.highz().repeat(3);
+                swdio.highz().repeat(3);
             }
         }
         Ok(())
     }
 
-    fn drive_data(&self, trans: &Transaction) -> Result<()> {
-        self.swdio.highz().repeat(self.trn.into());
+    fn drive_data(&self, swdio: &PinCollection, trans: &Transaction) -> Result<()> {
+        swdio.highz().repeat(self.trn.into());
         self.comment("Drive data");
-        self.swdio.push_transaction(trans)?;
+        swdio.push_transaction(trans)?;
         self.comment("Drive data's parity bit");
-        self.swdio.drive(trans.even_parity()).cycle();
+        swdio.drive(trans.even_parity()).cycle();
         Ok(())
     }
 
-    fn verify_data(&self, trans: &Transaction, parity: &Option<bool>) -> Result<()> {
+    fn verify_data(&self, swdio: &PinCollection, trans: &Transaction, parity: &Option<bool>) -> Result<()> {
         self.comment("Verify data");
-        self.swdio.push_transaction(trans)?;
+        swdio.push_transaction(trans)?;
         if let Some(p) = parity {
             self.comment(&format!("Expecting parity bit of {}", *p as u8));
-            self.swdio.verify(*p).cycle();
-            self.swdio.highz();
+            swdio.verify(*p).cycle();
+            swdio.highz();
         } else {
             self.comment("Ignoring parity bit on SWD READ operation");
-            self.swdio.highz().cycle();
+            swdio.highz().cycle();
         }
         repeat(self.trn.into());
         Ok(())
@@ -91,6 +92,8 @@ impl Service {
     }
 
     pub fn process_transaction(&self, dut: &crate::Dut, node: &mut Node) -> Result<()> {
+        let swdclk = PinCollection::from_group(dut, &self.swdclk.0, self.swdclk.1)?;
+        let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         match &node.attrs {
             Attrs::SWDWriteAP(_swd_id, transaction, ack, _metadata) => {
                 let mut nodes = vec!();
@@ -99,9 +102,9 @@ impl Service {
                     transaction.addr()?,
                     transaction.data,
                 ));
-                self.drive_header(transaction.addr()? as u32, true, false)?;
-                self.verify_ack(ack)?;
-                self.drive_data(transaction)?;
+                self.drive_header(&swdclk, &swdio, transaction.addr()? as u32, true, false)?;
+                self.verify_ack(&swdio, ack)?;
+                self.drive_data(&swdio, transaction)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
             },
@@ -113,12 +116,14 @@ impl Service {
                     transaction.data,
                 ));
                 self.drive_header(
+                    &swdclk,
+                    &swdio,
                     transaction.addr()? as u32,
                     true,
                     true,
                 )?;
-                self.verify_ack(ack)?;
-                self.verify_data(transaction, &parity_compare)?;
+                self.verify_ack(&swdio, ack)?;
+                self.verify_data(&swdio, transaction, &parity_compare)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
             },
@@ -129,9 +134,9 @@ impl Service {
                     transaction.addr()?,
                     transaction.data,
                 ));
-                self.drive_header(transaction.addr()? as u32, false, false)?;
-                self.verify_ack(ack)?;
-                self.drive_data(transaction)?;
+                self.drive_header(&swdclk, &swdio, transaction.addr()? as u32, false, false)?;
+                self.verify_ack(&swdio, ack)?;
+                self.drive_data(&swdio, transaction)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
             },
@@ -142,26 +147,27 @@ impl Service {
                     transaction.addr()?,
                     transaction.data,
                 ));
-                self.drive_header(transaction.addr()? as u32, false, true)?;
-                self.verify_ack(ack)?;
-                self.verify_data(transaction, &parity_compare)?;
+                self.drive_header(&swdclk, &swdio, transaction.addr()? as u32, false, true)?;
+                self.verify_ack(&swdio, ack)?;
+                self.verify_data(&swdio, transaction, &parity_compare)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
             },
             _ => return Err(Error::new(&format!("Unexpected node in SWD driver: {:?}", node)))
         }
-        self.update_actions(dut)
+        Ok(())
     }
 
     pub fn line_reset(&self, dut: &crate::Dut) -> Result<usize> {
         let n_id = TEST.push_and_open(node!(SWDLineReset));
+        let swdclk = PinCollection::from_group(dut, &self.swdclk.0, self.swdclk.1)?;
+        let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         self.comment("Line Reset");
-        self.swdclk.drive_high();
-        self.swdio.drive_high();
+        swdclk.drive_high();
+        swdio.drive_high();
         repeat(50);
-        self.swdio.highz().repeat(2);
+        swdio.highz().repeat(2);
         TEST.close(n_id)?;
-        self.update_actions(dut)?;
         Ok(n_id)
     }
 }

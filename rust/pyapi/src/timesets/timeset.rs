@@ -960,6 +960,7 @@ impl SymbolMap {
         Ok(resolver.mapping().iter().map(|(k, _)| k.to_string().unwrap()).collect())
     }
 
+<<<<<<< HEAD
     // #[getter]
     // fn long_names(&self) -> PyResult<Vec<String>> {
     //     let dut = DUT.lock().unwrap();
@@ -967,6 +968,8 @@ impl SymbolMap {
     //     Ok(resolver.mapping().iter().map(|(k, _)| k.long_name()).collect())
     // }
 
+=======
+>>>>>>> origin/timing_updates
     fn values(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];

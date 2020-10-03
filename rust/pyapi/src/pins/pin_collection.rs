@@ -1,5 +1,5 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
-use origen::core::model::pins::pin_collection::PinCollection as OrigenPinCollection;
+use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
 use origen::{dut, DUT};
@@ -41,7 +41,7 @@ impl PinCollection {
     #[setter]
     fn set_data(&self, data: u32) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.set_pin_collection_data(&self.pin_collection, data)?;
+        dut.set_pin_store_data(&self.pin_collection, data)?;
         Ok(())
 
         // let gil = Python::acquire_gil();
@@ -61,7 +61,7 @@ impl PinCollection {
 
     fn with_mask(&mut self, mask: usize) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        dut.set_pin_collection_nonsticky_mask(&mut self.pin_collection, mask)?;
+        dut.set_pin_store_nonsticky_mask(&mut self.pin_collection, mask)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -96,7 +96,7 @@ impl PinCollection {
     #[setter]
     fn pin_actions(&mut self, actions: &PyAny) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.set_per_pin_collection_actions(
+        dut.set_per_pin_store_actions(
             &mut self.pin_collection,
             &extract_pinactions!(actions)?
         )?;
@@ -120,31 +120,31 @@ impl PinCollection {
 
     fn drive(&mut self, data: Option<u32>) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.drive_pin_collection(&mut self.pin_collection, data)?;
+        dut.drive_pin_store(&mut self.pin_collection, data)?;
         Ok(())
     }
 
     fn verify(&mut self, data: Option<u32>) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.verify_pin_collection(&mut self.pin_collection, data)?;
+        dut.verify_pin_store(&mut self.pin_collection, data)?;
         Ok(())
     }
 
     fn capture(&mut self) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.capture_pin_collection(&mut self.pin_collection)?;
+        dut.capture_pin_store(&mut self.pin_collection)?;
         Ok(())
     }
 
     fn highz(&mut self) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.highz_pin_collection(&mut self.pin_collection)?;
+        dut.highz_pin_store(&mut self.pin_collection)?;
         Ok(())
     }
 
     fn reset(&mut self) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.reset_pin_collection(&mut self.pin_collection)?;
+        dut.reset_pin_store(&mut self.pin_collection)?;
         Ok(())
     }
 
@@ -161,7 +161,7 @@ impl PinCollection {
     #[getter]
     fn get_reset_data(&self) -> PyResult<u32> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_collection_reset_data(&self.pin_collection)?)
+        Ok(dut.get_pin_store_reset_data(&self.pin_collection)?)
     }
 
     #[getter]
@@ -169,7 +169,7 @@ impl PinCollection {
         let dut = DUT.lock().unwrap();
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let pin_actions = dut.get_pin_collection_reset_actions(&self.pin_collection)?;
+        let pin_actions = dut.get_pin_store_reset_actions(&self.pin_collection)?;
         Ok(PinActions {actions: pin_actions}.into_py(py))
     }
 

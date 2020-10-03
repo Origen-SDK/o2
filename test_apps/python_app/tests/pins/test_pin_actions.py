@@ -17,8 +17,8 @@ def std_test():
 
 class TestPinActions:
 
-  def test_standard_actions(self):
-    assert klass.standard_actions() == standard_actions
+  # def test_standard_actions(self):
+  #   assert klass.standard_actions() == standard_actions
 
   @pytest.mark.parametrize("action", standard_actions.items())
   def test_standard_actions_instances(self, action):

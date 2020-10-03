@@ -10,6 +10,7 @@ use std::sync::MutexGuard;
 use crate::{Dut, Services, Transaction};
 use std::sync::RwLock;
 use crate::testers::api::ControllerAPI;
+use crate::core::model::pins::PinCollection;
 
 use crate::{Result, Error};
 
@@ -40,11 +41,6 @@ pub struct ArmDebug {
     pub swd_id: Option<usize>,
     /// The JTAG Service which operates this ArmDebug
     pub jtag_id: Option<usize>,
-
-    swdclk_id: Option<Vec<usize>>,
-    swdclk_grp_id: Option<Option<usize>>,
-    swdio_id: Option<Vec<usize>>,
-    swdio_grp_id: Option<Option<usize>>,
 }
 
 impl ArmDebug {
@@ -56,17 +52,6 @@ impl ArmDebug {
         jtag_id: Option<usize>,
     ) -> Result<usize> {
         let id = services.next_id();
-        let mut swdclk_id = None;
-        let mut swdclk_grp_id = None;
-        let mut swdio_id = None;
-        let mut swdio_grp_id = None;
-        if let Some(s_id) = swd_id {
-            let swd = services.get_as_swd(s_id)?;
-            swdclk_id = Some(swd.swdclk_id.clone());
-            swdclk_grp_id = Some(swd.swdclk_grp_id.clone());
-            swdio_id = Some(swd.swdio_id.clone());
-            swdio_grp_id = Some(swd.swdio_grp_id.clone());
-        }
         let s = Self {
             id: id,
             dp_id: None,
@@ -74,10 +59,6 @@ impl ArmDebug {
             model_id: model_id,
             jtagnswd: RwLock::new(true),
             swd_id: swd_id,
-            swdclk_id: swdclk_id,
-            swdclk_grp_id: swdclk_grp_id,
-            swdio_id: swdio_id,
-            swdio_grp_id: swdio_grp_id,
             jtag_id: jtag_id,
         };
         services.push_service(Service::ArmDebug(s));
@@ -88,14 +69,15 @@ impl ArmDebug {
         match self.swd_id {
             Some(id) => {
                 let swd = services.get_as_swd(id)?;
+                let swdclk = PinCollection::from_group(dut, &swd.swdclk.0, swd.swdclk.1)?;
+                let swdio = PinCollection::from_group(dut, &swd.swdio.0, swd.swdio.1)?;
                 let n_id = crate::TEST.push_and_open(crate::node!(ArmDebugSwjJTAGToSWD, self.id));
                 self.comment("Switching ArmDebug protocol to SWD");
-                swd.swdclk.drive_high();
-                swd.swdio.drive_high().repeat(50);
-                swd.swdio.push_transaction(&Transaction::new_write(num_bigint::BigUint::from(0xE79E as u32), 16)?)?;
-                swd.swdio.repeat(55);
-                swd.swdio.drive_low().repeat(4);
-                swd.update_actions(dut)?;
+                swdclk.drive_high();
+                swdio.drive_high().repeat(50);
+                swdio.push_transaction(&Transaction::new_write(num_bigint::BigUint::from(0xE79E as u32), 16)?)?;
+                swdio.repeat(55);
+                swdio.drive_low().repeat(4);
 
                 crate::TEST.close(n_id)?;
                 *self.jtagnswd.write().unwrap() = false;

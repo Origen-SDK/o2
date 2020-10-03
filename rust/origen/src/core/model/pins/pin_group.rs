@@ -1,7 +1,7 @@
 use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
 use super::pin::PinAction;
-use super::pin_collection::PinCollection;
+use super::pin_store::PinStore;
 use crate::error::Error;
 
 // We'll maintain both the pin_names which the group was built with, but we'll also maintain the list
@@ -60,6 +60,10 @@ impl PinGroup {
 
     pub fn is_big_endian(&self) -> bool {
         return !self.is_little_endian();
+    }
+
+    pub fn to_identifier(&self) -> (String, usize) {
+        (self.name.clone(), self.model_id)
     }
 }
 
@@ -231,7 +235,7 @@ impl Dut {
         start_idx: usize,
         stop_idx: usize,
         step_size: usize,
-    ) -> Result<PinCollection, Error> {
+    ) -> Result<PinStore, Error> {
         if let Some(p) = self.get_pin_group(model_id, name) {
             let names = &p.pin_names;
             let mut sliced_names: Vec<String> = vec![];
@@ -248,7 +252,7 @@ impl Dut {
                 let p = names[i].clone();
                 sliced_names.push(p);
             }
-            Ok(PinCollection::new(model_id, &sliced_names, Option::None))
+            Ok(PinStore::new(model_id, &sliced_names, Option::None))
         } else {
             Err(Error::new(&format!(
                 "Could not slice pin group {} because it doesn't exists!",

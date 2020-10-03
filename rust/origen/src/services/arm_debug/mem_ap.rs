@@ -4,6 +4,7 @@ use std::sync::MutexGuard;
 use crate::core::model::registers::BitCollection;
 use super::super::super::services::Service;
 use crate::Transaction;
+use crate::core::model::pins::PinCollection;
 
 use crate::generator::ast::*;
 
@@ -145,7 +146,6 @@ impl MemAP {
             _ => return Err(Error::new(&format!("Unexpected node in ArmDebug MemAP driver: {:?}", reg_write_node)))
         }
         TEST.close(n_id)?;
-        swd.update_actions(dut)?;
         Ok(())
     }
 
@@ -203,9 +203,7 @@ impl MemAP {
                     let trans_node_id = TEST.push_and_open(trans_node);
                     self.prep_for_transfer(&trans, dut, services)?;
 
-                    let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
-                    let swd_id = arm_debug.swd_id.unwrap();
-                    let swd = services.get_as_swd(swd_id)?;
+                    let swdio = PinCollection::from_group(dut, &swd.swdio.0, swd.swdio.1)?;
                     trans.address = Some(0xC); // DRW
                     swd.verify_ap(
                         dut,
@@ -213,7 +211,7 @@ impl MemAP {
                         crate::swd_ok!(),
                         None
                     )?;
-                    swd.swdio.drive_low().cycle();
+                    swdio.drive_low().cycle();
                     trans.address = Some(0xC); // RDBUFF
                     swd.verify_dp(
                         dut,
@@ -221,14 +219,13 @@ impl MemAP {
                         crate::swd_ok!(),
                         None
                     )?;
-                    swd.swdio.drive_low().cycle();
+                    swdio.drive_low().cycle();
                     TEST.close(trans_node_id)?;
                 }
             },
             _ => return Err(Error::new(&format!("Unexpected node in ArmDebug MemAP driver: {:?}", reg_verify_node)))
         }
         TEST.close(n_id)?;
-        swd.update_actions(dut)?;
         Ok(())
     }
 }
