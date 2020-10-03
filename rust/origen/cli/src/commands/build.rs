@@ -195,10 +195,16 @@ pub fn run(matches: &ArgMatches) {
 
             let mut args = vec!["build"];
             let mut target = "debug";
+            let mut arch_target = None;
 
             if matches.is_present("release") {
                 args.push("--release");
                 target = "release";
+            }
+            if let Some(t) = matches.value_of("target") {
+                args.push("--target");
+                args.push(t);
+                arch_target = Some(t);
             }
 
             Command::new("cargo")
@@ -208,7 +214,10 @@ pub fn run(matches: &ArgMatches) {
 
             if cfg!(windows) {
                 let link = pyapi_dir.join("target").join("_origen.pyd");
-                let target = pyapi_dir.join("target").join(target).join("_origen.dll");
+                let target = match arch_target {
+                    None => pyapi_dir.join("target").join(target).join("_origen.dll"),
+                    Some(t) =>  pyapi_dir.join("target").join(t).join(target).join("_origen.dll")
+                };
                 if link.exists() {
                     std::fs::remove_file(&link).expect(&format!(
                         "Couldn't delete existing _origen.dll at '{}'",
@@ -223,7 +232,10 @@ pub fn run(matches: &ArgMatches) {
                 ));
             } else {
                 let link = pyapi_dir.join("target").join("_origen.so");
-                let target = pyapi_dir.join("target").join(target).join("lib_origen.so");
+                let target = match arch_target {
+                    None => pyapi_dir.join("target").join(target).join("lib_origen.so"),
+                    Some(t) =>  pyapi_dir.join("target").join(t).join(target).join("lib_origen.so")
+                };
                 if link.exists() {
                     std::fs::remove_file(&link).expect(&format!(
                         "Couldn't delete existing _origen.so at '{}'",

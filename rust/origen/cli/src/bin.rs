@@ -326,6 +326,14 @@ fn main() {
                         .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
                 )
                 .arg(
+                    Arg::with_name("target")
+                        .long("target")
+                        .required(false)
+                        .takes_value(true)
+                        .display_order(1)
+                        .help("The Rust h/ware target (passed directly to Cargo build)"),
+                )
+                .arg(
                     Arg::with_name("python")
                         .long("python")
                         .required(false)
