@@ -77,6 +77,7 @@ pub fn run(matches: &ArgMatches) {
 
                 if version.is_some() && required_poetry_version.matches(&version.unwrap()) {
                     greenln("YES");
+                    let _ = &PYTHON_CONFIG.poetry_command().args(vec!["config", "experimental.new-installer", "false"]).status();
                     attempts = 3;
                 } else {
                     redln("NO");
