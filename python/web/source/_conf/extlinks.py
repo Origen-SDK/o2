@@ -30,7 +30,7 @@ extlinks = {
     ('https://www.sphinx-doc.org/en/master/extdev/appapi.html#sphinx.application.Sphinx.add_html_theme%s',
      ''),
     'sphinx_creating_themes':
-    ('https://www.sphinx-doc.org/en/master/theming.html#creating-themes%s',
+    ('https://www.sphinx-doc.org/en/3.x/development/theming.html#creating-themes%s',
      ''),
     'sphinx_available_themes': ('https://sphinx-themes.org/%s', ''),
     'sphinx_project_examples':
@@ -282,7 +282,7 @@ extlinks = {
     (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/python/origen/application.py%s',
      ''),
     'origen_src_example_commands':
-    (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/example/example/commands/examples.py%s',
+    (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/test_apps/python_app/example/commands/examples.py%s',
      ''),
 
     # Other
@@ -292,4 +292,11 @@ extlinks = {
     ('https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests%s',
      ''),
     'svg_to_png_converter': ('https://svgtopng.com/%s', ''),
+
+    # Python Package Servers
+    'sonatype_nexus': ('https://www.sonatype.com/nexus/repository-oss%s', ''),
+    'pypi_server': ('https://github.com/pypiserver/pypiserver%s', ''),
+    'jfrog_artifactory': (
+        'https://www.jfrog.com/confluence/display/JFROG/JFrog+Artifactory%s',
+        ''),
 }

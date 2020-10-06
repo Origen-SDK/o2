@@ -2,8 +2,10 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
-use crate::core::file_handler::File;
+use crate::utility::file_actions as fa;
+use crate::utility::version::{to_pep440, to_semver};
 use crate::Result;
+use regex::Regex;
 use semver::Version;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,18 +13,11 @@ use std::sync::RwLock;
 
 /// Represents the current application, an instance of this is returned by
 /// origen::app().
+#[derive(Debug)]
 pub struct Application {
     /// The full file system path to the application root (when applicable)
     pub root: PathBuf,
     config: RwLock<Config>,
-}
-
-#[derive(Debug, Deserialize)]
-struct AppVersion {
-    major: u64,
-    minor: u64,
-    patch: u64,
-    pre: Option<String>,
 }
 
 impl Application {
@@ -37,29 +32,27 @@ impl Application {
 
     /// Returns the application version, read from config/version.toml
     pub fn version(&self) -> Result<Version> {
-        let version_file = self.root.join("config").join("version.toml");
+        let version_file = self.root.join("pyproject.toml");
         log_trace!("Reading app version");
         if !version_file.exists() {
-            return error!(
-                "App version file does not exist at '{}'",
-                version_file.display()
-            );
+            return error!("File does not exist '{}'", version_file.display());
         }
         let content = match fs::read_to_string(&version_file) {
             Ok(x) => x,
             Err(e) => return error!("There was a problem reading the app version file: {}", e),
         };
-        let app_ver: AppVersion = match toml::from_str(&content) {
-            Ok(x) => x,
-            Err(e) => return error!("Malformed app version file: {}", e),
-        };
-        if let Some(pre) = app_ver.pre {
-            Ok(Version::parse(&format!(
-                "{}.{}.{}-{}",
-                app_ver.major, app_ver.minor, app_ver.patch, pre
-            ))?)
+        lazy_static! {
+            static ref VERSION_LINE: Regex =
+                Regex::new(r#"(?m)^\s*version\s*=\s*['"](.*)['"]"#).unwrap();
+        }
+        if VERSION_LINE.is_match(&content) {
+            let captures = VERSION_LINE.captures(&content).unwrap();
+            Ok(Version::parse(&to_semver(&captures[1])?)?)
         } else {
-            Ok(Version::new(app_ver.major, app_ver.minor, app_ver.patch))
+            error!(
+                "Failed to read a version from file '{}'",
+                version_file.display()
+            )
         }
     }
 
@@ -68,16 +61,13 @@ impl Application {
     /// as required, then return it back to this function.
     /// See here for the API - https://docs.rs/semver
     pub fn set_version(&self, version: &Version) -> Result<()> {
-        let mut content =
-            "# This file will be overwritten by Origen during an app release\n".to_string();
-        content += &format!(
-            "major = {}\nminor = {}\npatch = {}\n",
-            version.major, version.minor, version.patch
-        );
-        if version.pre.len() > 0 {
-            content += &format!("pre   = \"{}\"", &version.pre[0]);
-        }
-        File::create(self.root.join("config").join("version.toml")).write(&content);
+        let version_file = self.root.join("pyproject.toml");
+        let r = Regex::new(r#"^\s*version\s*=\s*['"]"#).unwrap();
+        fa::remove_line(&version_file, &r)?;
+
+        let r = Regex::new(r#"^\s*name\s*=\s+['"].*$"#).unwrap();
+        let line = format!("\nversion = \"{}\"", &to_pep440(&version.to_string())?);
+        fa::insert_after(&version_file, &r, &line)?;
         Ok(())
     }
 

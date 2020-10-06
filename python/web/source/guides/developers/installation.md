@@ -67,7 +67,7 @@ anyone who only wants to use Origen - if that's you, then follow the :ref:`user 
 
    ~~~
    $ origen -v
-   Origen: 2.0.0-pre2
+   Origen: {{origen.version}}
    ~~~
 
 9) Missing Ubuntu Packages:
@@ -85,11 +85,11 @@ anyone who only wants to use Origen - if that's you, then follow the :ref:`user 
 
 Whenever a new workspace is created for an Origen Python application its local environment needs to be setup and the test
 application embedded within the Origen 2 environment is no exception.
-This can be done simply by executing the `origen setup` command within the application directory:
+This can be done simply by executing the `origen env setup` command within the application directory:
 
 ~~~
 cd o2/test_apps/python_app
-origen setup
+origen env setup
 ~~~
 
 ## Regular Workflow
@@ -105,4 +105,24 @@ To re-build the CLI run:
 
 ~~~
 origen build --cli
+~~~
+
+To build either with release optimizations add the `--release` switch:
+
+~~~
+origen build --release
+origen build --cli --release
+~~~
+
+To use a local version of Origen within an application run the following commands from within the application's workspace:
+
+~~~
+origen env setup --origen path/to/your/o2
+origen build
+~~~
+
+To restore the application to using a released Origen package:
+
+~~~
+origen env setup
 ~~~

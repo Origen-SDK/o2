@@ -39,11 +39,22 @@ class Base:
     name = None
     # Returns the path to this block, e.g. "dut.ana.adc0"
     path = None
-    # Returns the block path that defined this block, e.g. the block defined in
-    # blocks/adc/derivatives/16_bit will have block_path = "adc.16_bit"
-    block_path = None
-    # Returns the application instance that defines this block
-    app = None
+
+    @property
+    def block_path(self):
+        ''' Returns the block path that defined this block, e.g. the block defined in
+            blocks/adc/derivatives/16_bit will have block_path = "adc.16_bit" '''
+        return self._block_path
+
+    @property
+    def app(self):
+        ''' Returns the application instance that defines this block '''
+        return self._app
+
+    @property
+    def block_dir(self):
+        ''' Returns a path to the block directory where this block is defined '''
+        return self._block_dir
 
     model_id = None
 
