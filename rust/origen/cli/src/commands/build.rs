@@ -216,7 +216,11 @@ pub fn run(matches: &ArgMatches) {
                 let link = pyapi_dir.join("target").join("_origen.pyd");
                 let target = match arch_target {
                     None => pyapi_dir.join("target").join(target).join("_origen.dll"),
-                    Some(t) =>  pyapi_dir.join("target").join(t).join(target).join("_origen.dll")
+                    Some(t) => pyapi_dir
+                        .join("target")
+                        .join(t)
+                        .join(target)
+                        .join("_origen.dll"),
                 };
                 if link.exists() {
                     std::fs::remove_file(&link).expect(&format!(
@@ -225,7 +229,7 @@ pub fn run(matches: &ArgMatches) {
                     ));
                 }
                 // Copy rather than link the file for now to avoid any issues with symlinks not working in user env
-                std::fs::copy(&target, &link ).expect(&format!(
+                std::fs::copy(&target, &link).expect(&format!(
                     "Couldn't copy file from '{}' to '{}",
                     target.display(),
                     link.display()
@@ -234,7 +238,11 @@ pub fn run(matches: &ArgMatches) {
                 let link = pyapi_dir.join("target").join("_origen.so");
                 let target = match arch_target {
                     None => pyapi_dir.join("target").join(target).join("lib_origen.so"),
-                    Some(t) =>  pyapi_dir.join("target").join(t).join(target).join("lib_origen.so")
+                    Some(t) => pyapi_dir
+                        .join("target")
+                        .join(t)
+                        .join(target)
+                        .join("lib_origen.so"),
                 };
                 if link.exists() {
                     std::fs::remove_file(&link).expect(&format!(

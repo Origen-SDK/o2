@@ -420,7 +420,7 @@ bs4 = "0.0.1"
 colorama = ">=0.4,<0.5"
 lxml = "4.4.2"
 mako = "1.1.0"
-poetry = ">=1.1.0"
+poetry = "1.1.1"
 pyreadline = {version = ">=2.1,<3.0", markers = "sys_platform == \"win32\""}
 recommonmark = ">=0"
 sphinx = "3.0.2"
@@ -490,7 +490,7 @@ dev = ["pre-commit", "tox"]
 
 [[package]]
 name = "poetry"
-version = "1.1.0"
+version = "1.1.1"
 description = "Python dependency management and packaging made easy."
 category = "main"
 optional = false
@@ -858,7 +858,7 @@ socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7,<2.0)"]
 
 [[package]]
 name = "virtualenv"
-version = "20.0.32"
+version = "20.0.33"
 description = "Virtual Python Environment builder"
 category = "main"
 optional = false
@@ -874,7 +874,7 @@ six = ">=1.9.0,<2"
 
 [package.extras]
 docs = ["proselint (>=0.10.2)", "sphinx (>=3)", "sphinx-argparse (>=0.2.5)", "sphinx-rtd-theme (>=0.4.3)", "towncrier (>=19.9.0rc1)"]
-testing = ["coverage (>=5)", "coverage-enable-subprocess (>=1)", "flaky (>=3)", "pytest (>=4)", "pytest-env (>=0.6.2)", "pytest-freezegun (>=0.4.1)", "pytest-mock (>=2)", "pytest-randomly (>=1)", "pytest-timeout (>=1)", "pytest-xdist (>=1.31.0)", "packaging (>=20.0)", "xonsh (>=0.9.16)"]
+testing = ["coverage (>=4)", "coverage-enable-subprocess (>=1)", "flaky (>=3)", "pytest (>=4)", "pytest-env (>=0.6.2)", "pytest-freezegun (>=0.4.1)", "pytest-mock (>=2)", "pytest-randomly (>=1)", "pytest-timeout (>=1)", "pytest-xdist (>=1.31.0)", "packaging (>=20.0)", "xonsh (>=0.9.16)"]
 
 [[package]]
 name = "webencodings"
@@ -894,7 +894,7 @@ python-versions = "*"
 
 [[package]]
 name = "zipp"
-version = "3.2.0"
+version = "3.3.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
 category = "main"
 optional = false
@@ -1197,8 +1197,8 @@ pluggy = [
     {file = "pluggy-0.13.1.tar.gz", hash = "sha256:15b2acde666561e1298d71b523007ed7364de07029219b604cf808bfa1c765b0"},
 ]
 poetry = [
-    {file = "poetry-1.1.0-py2.py3-none-any.whl", hash = "sha256:c563e2ce0b5d8fcb09af7f627129c69b2673ba872f6dc0057c01e53b1dce592e"},
-    {file = "poetry-1.1.0.tar.gz", hash = "sha256:0a05625681c530c1ba3ffe0ae5b612de3a0434fd0a043259481da01b48e9b24a"},
+    {file = "poetry-1.1.1-py2.py3-none-any.whl", hash = "sha256:59bed97b4373182d99b027b2107d9c0a63a82a28b4a6245bc891cfe681fd6a96"},
+    {file = "poetry-1.1.1.tar.gz", hash = "sha256:2f4d0255cc358c321de015adbe9e532de01f4f1bef97d26e4e8f8b88f3ddf6ca"},
 ]
 poetry-core = [
     {file = "poetry-core-1.0.0.tar.gz", hash = "sha256:6a664ff389b9f45382536f8fa1611a0cb4d2de7c5a5c885db1f0c600cd11fbd5"},
@@ -1321,8 +1321,8 @@ urllib3 = [
     {file = "urllib3-1.25.10.tar.gz", hash = "sha256:91056c15fa70756691db97756772bb1eb9678fa585d9184f24534b100dc60f4a"},
 ]
 virtualenv = [
-    {file = "virtualenv-20.0.32-py2.py3-none-any.whl", hash = "sha256:9160a8f6196afcb8bb91405b5362651f302ee8e810fc471f5f9ce9a06b070298"},
-    {file = "virtualenv-20.0.32.tar.gz", hash = "sha256:3d427459dfe5ec3241a6bad046b1d10c0e445940e013c81946458987c7c7e255"},
+    {file = "virtualenv-20.0.33-py2.py3-none-any.whl", hash = "sha256:35ecdeb58cfc2147bb0706f7cdef69a8f34f1b81b6d49568174e277932908b8f"},
+    {file = "virtualenv-20.0.33.tar.gz", hash = "sha256:a5e0d253fe138097c6559c906c528647254f437d1019af9d5a477b09bfa7300f"},
 ]
 webencodings = [
     {file = "webencodings-0.5.1-py2.py3-none-any.whl", hash = "sha256:a0af1213f3c2226497a97e2b3aa01a7e4bee4f403f95be16fc9acd2947514a78"},
@@ -1333,6 +1333,6 @@ yapf = [
     {file = "yapf-0.30.0.tar.gz", hash = "sha256:3000abee4c28daebad55da6c85f3cd07b8062ce48e2e9943c8da1b9667d48427"},
 ]
 zipp = [
-    {file = "zipp-3.2.0-py3-none-any.whl", hash = "sha256:43f4fa8d8bb313e65d8323a3952ef8756bf40f9a5c3ea7334be23ee4ec8278b6"},
-    {file = "zipp-3.2.0.tar.gz", hash = "sha256:b52f22895f4cfce194bc8172f3819ee8de7540aa6d873535a8668b730b8b411f"},
+    {file = "zipp-3.3.0-py3-none-any.whl", hash = "sha256:eed8ec0b8d1416b2ca33516a37a08892442f3954dee131e92cfd92d8fe3e7066"},
+    {file = "zipp-3.3.0.tar.gz", hash = "sha256:64ad89efee774d1897a58607895d80789c59778ea02185dd846ac38394a8642b"},
 ]

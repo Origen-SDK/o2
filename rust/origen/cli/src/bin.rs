@@ -54,7 +54,7 @@ fn main() {
                 let captures = verbosity_re.captures(&args[0]).unwrap();
                 let x = captures.get(1).unwrap().as_str();
                 let verbosity = x.chars().count() as u8;
-                origen::initialize(Some(verbosity));
+                origen::initialize(Some(verbosity), None);
                 args = args.drain(1..).collect();
             }
             // Commmand is not actually available outside an app, so just fall through
@@ -81,7 +81,14 @@ fn main() {
             verbosity = x.chars().count() as u8;
         }
     }
-    origen::initialize(Some(verbosity));
+    let exe = match std::env::current_exe() {
+        Ok(p) => Some(format!("{}", p.display())),
+        Err(e) => {
+            log_error!("{}", e);
+            None
+        }
+    };
+    origen::initialize(Some(verbosity), exe);
 
     let version = match STATUS.is_app_present {
         true => format!(

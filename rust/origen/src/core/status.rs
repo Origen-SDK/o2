@@ -49,11 +49,16 @@ pub struct Status {
     /// that it will always be created if it doesn't exist and all other code can forget about
     /// checking for that.
     reference_dir: RwLock<Option<PathBuf>>,
+    cli_location: RwLock<Option<PathBuf>>,
 }
 
 impl Default for Status {
     fn default() -> Status {
         log_trace!("Building STATUS");
+        log_trace!(
+            "Current exe is {}",
+            std::env::current_exe().unwrap().display()
+        );
         let mut dev_mode_origen_root: Option<PathBuf> = None;
         let mut origen_dev_mode = false;
         let (app_present, app_root) = search_for_from_pwd(vec!["config", "origen.toml"], true);
@@ -109,6 +114,7 @@ impl Default for Status {
             unhandled_error_count: RwLock::new(0),
             output_dir: RwLock::new(None),
             reference_dir: RwLock::new(None),
+            cli_location: RwLock::new(None),
             is_app_in_origen_dev_mode: origen_dev_mode,
         };
         log_trace!("Status built successfully");
@@ -129,6 +135,17 @@ impl Status {
     pub fn inc_unhandled_error_count(&self) {
         let mut cnt = self.unhandled_error_count.write().unwrap();
         *cnt += 1;
+    }
+
+    pub fn set_cli_location(&self, loc: Option<String>) {
+        if let Some(loc) = loc {
+            let mut cli_loc = self.cli_location.write().unwrap();
+            *cli_loc = Some(PathBuf::from(loc));
+        }
+    }
+
+    pub fn cli_location(&self) -> Option<PathBuf> {
+        self.cli_location.read().unwrap().to_owned()
     }
 
     /// Set the base output dir to the given path, it is <APP ROOT>/output by default

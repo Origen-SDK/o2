@@ -2,15 +2,21 @@ import sys
 import re
 import os
 init_verbosity = 0
+cli_path = None
 
 regexp = re.compile(r'verbosity=(\d+)')
+cli_re = re.compile(r'origen_cli=(.+)')
 for arg in sys.argv:
     matches = regexp.search(arg)
     if matches:
         init_verbosity = int(matches.group(1))
+    else:
+        matches = cli_re.search(arg)
+        if matches:
+            cli_path = matches.group(1)
 
 import _origen
-_origen.initialize(init_verbosity)
+_origen.initialize(init_verbosity, cli_path)
 from pathlib import Path
 import importlib
 from contextlib import contextmanager

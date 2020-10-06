@@ -152,8 +152,15 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     cmd.arg(&code);
     cmd.arg("-");
     cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
+    // current_exe returns the Python process once it gets underway, so pass in the CLI
+    // location for Origen to use (used to resolve Origen config files)
+    if let Ok(p) = std::env::current_exe() {
+        cmd.arg(&format!("origen_cli={}", p.display()));
+    };
 
     add_origen_env(&mut cmd);
+
+    log_trace!("Running Python command: '{:?}'", cmd);
 
     Ok(cmd.status()?)
 }
@@ -175,10 +182,17 @@ pub fn run_with_callbacks(
     // Force logger to be silent, use case for this is parsing output data so keep
     // noise to a minimum
     cmd.arg("verbosity=0");
+    // current_exe returns the Python process once it gets underway, so pass in the CLI
+    // location for Origen to use (used to resolve Origen config files)
+    if let Ok(p) = std::env::current_exe() {
+        cmd.arg(&format!("origen_cli={}", p.display()));
+    };
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
     add_origen_env(&mut cmd);
+
+    log_trace!("Running Python command: '{:?}'", cmd);
 
     let mut process = cmd.spawn()?;
 

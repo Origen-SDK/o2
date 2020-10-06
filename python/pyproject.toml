@@ -21,7 +21,7 @@ autoapi = {git = "https://github.com/coreyeng/autoapi.git", tag = "dev3"}
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
 yapf = "0.30"
-poetry = ">=1.1.0"
+poetry = "1.1.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
