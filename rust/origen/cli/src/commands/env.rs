@@ -16,6 +16,7 @@ use std::process::Command;
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("update") => {
+            install_poetry();
             let _ = PYTHON_CONFIG.poetry_command().arg("update").status();
 
             // Don't think we need to do anything here, if something goes wrong Poetry will give a better
@@ -69,49 +70,7 @@ pub fn run(matches: &ArgMatches) {
                 std::process::exit(1);
             }
 
-            let mut attempts = 0;
-            while attempts < 3 {
-                print!("Is a suitable Poetry available? ... ");
-                let version = poetry_version();
-                let required_poetry_version = VersionReq::parse("=1.1.1").unwrap();
-
-                if version.is_some() && required_poetry_version.matches(&version.unwrap()) {
-                    greenln("YES");
-                    attempts = 3;
-                } else {
-                    redln("NO");
-                    println!("");
-                    attempts = attempts + 1;
-
-                    if attempts == 3 {
-                        display_redln!(
-                            "Failed to install Poetry, run again with -vvv to see what happened"
-                        )
-                    } else {
-                        let mut c = Command::new(&PYTHON_CONFIG.command);
-                        c.arg("-m");
-                        c.arg("pip");
-                        c.arg("install");
-                        if attempts == 2 {
-                            c.arg("--user");
-                            displayln!("Trying again to install Poetry in user dir, please wait a few moments")
-                        } else {
-                            displayln!("Installing Poetry, please wait a few moments")
-                        }
-                        c.arg("--ignore-installed");
-                        c.arg("poetry==1.1.1");
-                        match c.output() {
-                            Ok(output) => {
-                                let text = std::str::from_utf8(&output.stdout).unwrap();
-                                log_trace!("{}", text);
-                            }
-                            Err(e) => log_debug!("{}", e),
-                        }
-                    }
-
-                    println!("");
-                }
-            }
+            install_poetry();
 
             let app_root = &origen::app().unwrap().root;
             let pyproject = app_root.join("pyproject.toml");
@@ -267,6 +226,52 @@ pub fn run(matches: &ArgMatches) {
         }
         None => unreachable!(),
         _ => unreachable!(),
+    }
+}
+
+fn install_poetry() {
+    let mut attempts = 0;
+    while attempts < 3 {
+        print!("Is a suitable Poetry available? ... ");
+        let version = poetry_version();
+        let required_poetry_version = VersionReq::parse("=1.0.10").unwrap();
+
+        if version.is_some() && required_poetry_version.matches(&version.unwrap()) {
+            greenln("YES");
+            attempts = 3;
+        } else {
+            redln("NO");
+            println!("");
+            attempts = attempts + 1;
+
+            if attempts == 3 {
+                display_redln!("Failed to install Poetry, run again with -vvv to see what happened")
+            } else {
+                let mut c = Command::new(&PYTHON_CONFIG.command);
+                c.arg("-m");
+                c.arg("pip");
+                c.arg("install");
+                if attempts == 2 {
+                    c.arg("--user");
+                    displayln!(
+                        "Trying again to install Poetry in user dir, please wait a few moments"
+                    )
+                } else {
+                    displayln!("Installing Poetry, please wait a few moments")
+                }
+                c.arg("--ignore-installed");
+                c.arg("poetry==1.0.10");
+                match c.output() {
+                    Ok(output) => {
+                        let text = std::str::from_utf8(&output.stdout).unwrap();
+                        log_trace!("{}", text);
+                    }
+                    Err(e) => log_debug!("{}", e),
+                }
+            }
+
+            println!("");
+        }
     }
 }
 
