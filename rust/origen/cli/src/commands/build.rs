@@ -1,7 +1,7 @@
 use super::fmt::cd;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
-use origen::utility::file_utils::symlink;
+use origen::utility::file_utils::{symlink, with_dir};
 use origen::utility::version::{to_pep440, to_semver};
 use origen::{Result, STATUS};
 use regex::Regex;
@@ -294,79 +294,85 @@ fn change_pyapi_wheel_version(dist_dir: &Path, old_version: &str, new_version: &
             continue;
         }
 
-        cd(dist_dir);
+        let _ = with_dir(dist_dir, || {
+            // Unzip the wheel and replace all occurrences of the mangled version
+            Command::new("unzip")
+                .arg(&wheel_file_name)
+                .status()
+                .expect("failed to unzip wheel file");
 
-        // Unzip the wheel and replace all occurrences of the mangled version
-        Command::new("unzip")
-            .arg(&wheel_file_name)
-            .status()
-            .expect("failed to unzip wheel file");
+            std::fs::remove_file(&wheel_file_name)
+                .expect("Couldn't delete the original wheel file");
 
-        std::fs::remove_file(&wheel_file_name).expect("Couldn't delete the original wheel file");
+            let new_wheel_file_name =
+                wheel_file_name.replace(&underscored_old_version, &new_version);
 
-        let new_wheel_file_name = wheel_file_name.replace(&underscored_old_version, &new_version);
+            let old_info_dir_name = format!("origen_pyapi-{}.dist-info", &underscored_old_version);
+            let new_info_dir_name = format!("origen_pyapi-{}.dist-info", &new_version);
 
-        let old_info_dir_name = format!("origen_pyapi-{}.dist-info", &underscored_old_version);
-        let new_info_dir_name = format!("origen_pyapi-{}.dist-info", &new_version);
+            std::fs::rename(&old_info_dir_name, &new_info_dir_name)
+                .expect("couldn't rename info file");
 
-        std::fs::rename(&old_info_dir_name, &new_info_dir_name).expect("couldn't rename info file");
+            let metadata_file = Path::new(&new_info_dir_name).join("METADATA");
+            let record_file = Path::new(&new_info_dir_name).join("RECORD");
 
-        let metadata_file = Path::new(&new_info_dir_name).join("METADATA");
-        let record_file = Path::new(&new_info_dir_name).join("RECORD");
+            // Update the package version in the METADATA file
+            let mut contents =
+                std::fs::read_to_string(&metadata_file).expect("Couldn't read METADATA");
+            contents = contents.replace(
+                &format!("Version: {}", &old_version),
+                &format!("Version: {}", &new_version),
+            );
+            File::create(metadata_file.clone()).write(&contents);
 
-        // Update the package version in the METADATA file
-        let mut contents = std::fs::read_to_string(&metadata_file).expect("Couldn't read METADATA");
-        contents = contents.replace(
-            &format!("Version: {}", &old_version),
-            &format!("Version: {}", &new_version),
-        );
-        File::create(metadata_file.clone()).write(&contents);
+            // Update the dir names and hash of the METADATA file in the RECORD file
+            let mut contents = std::fs::read_to_string(&record_file).expect("Couldn't read RECORD");
+            contents = contents.replace(
+                &format!("origen_pyapi-{}.dist", &underscored_old_version),
+                &format!("origen_pyapi-{}.dist", &new_version),
+            );
 
-        // Update the dir names and hash of the METADATA file in the RECORD file
-        let mut contents = std::fs::read_to_string(&record_file).expect("Couldn't read RECORD");
-        contents = contents.replace(
-            &format!("origen_pyapi-{}.dist", &underscored_old_version),
-            &format!("origen_pyapi-{}.dist", &new_version),
-        );
+            let sha = hash(&metadata_file);
+            let new_meta_line = format!(
+                "origen_pyapi-{}.dist-info/METADATA,sha256={},{}",
+                &new_version, sha.0, sha.1
+            );
 
-        let sha = hash(&metadata_file);
-        let new_meta_line = format!(
-            "origen_pyapi-{}.dist-info/METADATA,sha256={},{}",
-            &new_version, sha.0, sha.1
-        );
+            let lines: Vec<&str> = contents
+                .split("\n")
+                .into_iter()
+                .map(|line| {
+                    if line.contains("dist-info/METADATA") {
+                        &new_meta_line
+                    } else {
+                        line
+                    }
+                })
+                .collect();
 
-        let lines: Vec<&str> = contents
-            .split("\n")
-            .into_iter()
-            .map(|line| {
-                if line.contains("dist-info/METADATA") {
-                    &new_meta_line
-                } else {
-                    line
-                }
-            })
-            .collect();
+            File::create(record_file).write(&lines.join("\n"));
 
-        File::create(record_file).write(&lines.join("\n"));
+            // Finally, zip up the new wheel and clean up
+            Command::new("zip")
+                .args(&["-r", &new_wheel_file_name, "origen", &new_info_dir_name])
+                .status()
+                .expect("failed to zip wheel file");
 
-        // Finally, zip up the new wheel and clean up
-        Command::new("zip")
-            .args(&["-r", &new_wheel_file_name, "origen", &new_info_dir_name])
-            .status()
-            .expect("failed to zip wheel file");
-
-        for entry in std::fs::read_dir(dist_dir).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_file() {
-                if let Some(file_name) = path.file_name() {
-                    if file_name.to_str().unwrap().starts_with("_origen") {
-                        std::fs::remove_file(&path).expect("Couldn't delete _origen");
+            for entry in std::fs::read_dir(dist_dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_file() {
+                    if let Some(file_name) = path.file_name() {
+                        if file_name.to_str().unwrap().starts_with("_origen") {
+                            std::fs::remove_file(&path).expect("Couldn't delete _origen");
+                        }
                     }
                 }
             }
-        }
-        std::fs::remove_dir_all(&new_info_dir_name)
-            .expect(&format!("Couldn't delete {} dir", &new_info_dir_name));
+            std::fs::remove_dir_all(&new_info_dir_name)
+                .expect(&format!("Couldn't delete {} dir", &new_info_dir_name));
+
+            Ok(())
+        });
     }
 }
 

@@ -1137,7 +1137,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "2.0.0-dev3"
+version = "2.0.0-dev4"
 dependencies = [
  "built",
  "cargo-expand",
@@ -1176,7 +1176,7 @@ dependencies = [
 
 [[package]]
 name = "origen_pyapi"
-version = "2.0.0-dev3"
+version = "2.0.0-dev4"
 dependencies = [
  "curl-sys",
  "indexmap",
