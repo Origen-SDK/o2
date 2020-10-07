@@ -234,7 +234,7 @@ fn install_poetry() {
     while attempts < 3 {
         print!("Is a suitable Poetry available? ... ");
         let version = poetry_version();
-        let required_poetry_version = VersionReq::parse("=1.0.10").unwrap();
+        let required_poetry_version = VersionReq::parse("=1.1.2").unwrap();
 
         if version.is_some() && required_poetry_version.matches(&version.unwrap()) {
             greenln("YES");
@@ -260,7 +260,7 @@ fn install_poetry() {
                     displayln!("Installing Poetry, please wait a few moments")
                 }
                 c.arg("--ignore-installed");
-                c.arg("poetry==1.0.10");
+                c.arg("poetry==1.1.2");
                 match c.output() {
                     Ok(output) => {
                         let text = std::str::from_utf8(&output.stdout).unwrap();
