@@ -106,7 +106,7 @@ pub fn run(matches: &ArgMatches) {
 
         dependency_on_pyapi(false).expect("Couldn't disable dependency on origen_pyapi");
 
-        if matches.is_present("publish") {
+        if matches.is_present("publish") && !matches.is_present("dry_run") {
             let pypi_token =
                 std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
 
@@ -164,7 +164,15 @@ pub fn run(matches: &ArgMatches) {
                 .status()
                 .expect("failed to build pyapi for release");
 
-            if matches.is_present("publish") {
+            // Maturin picks up the version from Rust (pyapi) which is semver-compliant. Need to ensure the version
+            // of the generated Python package is pep440 compliant
+            let old = STATUS.origen_version.to_string();
+            let new = to_pep440(&old).unwrap();
+            if old != new {
+                change_pyapi_wheel_version(&wheel_dir, &old, &new);
+            }
+
+            if matches.is_present("publish") && !matches.is_present("dry_run") {
                 let pypi_token =
                     std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
 
@@ -261,34 +269,24 @@ pub fn run(matches: &ArgMatches) {
     }
 }
 
-/// This is no longer used, decided to accept the version that Poetry wants to use, however
-/// keeping it around for a while in case that decision changes.
-///
-/// Poetry is too opinionated about the versioning and wants to call a pre-release version
-/// a release candidate. This fixes the generated version by putting it back to the original
-/// Origen version within the wheel package.
-fn _fix_wheel_version(dist_dir: &Path) {
+fn change_pyapi_wheel_version(dist_dir: &Path, old_version: &str, new_version: &str) {
     if STATUS.origen_version.pre.is_empty() {
         return;
     }
+    let underscored_old_version = old_version.replace("-", "_");
+
     let paths = std::fs::read_dir(dist_dir).unwrap();
 
     for path in paths {
         let wheel_file_name;
-        let old_version;
-        let new_version = STATUS.origen_version.to_string();
-        let underscored_new_version = new_version.replace("-", "_");
 
-        // Get the mangled version from the whl file name
+        // Only process wheel files in the given dir
         if let Some(file) = path.unwrap().path().file_name() {
             if let Some(file) = file.to_str() {
                 if !file.ends_with(".whl") {
                     continue;
                 }
                 wheel_file_name = file.to_string();
-                let re = regex::Regex::new(r"origen-(\d+\.\d+\.\d+.+\d+)-py3.*").unwrap();
-                let captures = re.captures(&wheel_file_name).unwrap();
-                old_version = captures.get(1).unwrap().as_str().to_string();
             } else {
                 continue;
             }
@@ -306,10 +304,10 @@ fn _fix_wheel_version(dist_dir: &Path) {
 
         std::fs::remove_file(&wheel_file_name).expect("Couldn't delete the original wheel file");
 
-        let new_wheel_file_name = wheel_file_name.replace(&old_version, &underscored_new_version);
+        let new_wheel_file_name = wheel_file_name.replace(&underscored_old_version, &new_version);
 
-        let old_info_dir_name = format!("origen-{}.dist-info", &old_version);
-        let new_info_dir_name = format!("origen-{}.dist-info", &underscored_new_version);
+        let old_info_dir_name = format!("origen_pyapi-{}.dist-info", &underscored_old_version);
+        let new_info_dir_name = format!("origen_pyapi-{}.dist-info", &new_version);
 
         std::fs::rename(&old_info_dir_name, &new_info_dir_name).expect("couldn't rename info file");
 
@@ -327,14 +325,14 @@ fn _fix_wheel_version(dist_dir: &Path) {
         // Update the dir names and hash of the METADATA file in the RECORD file
         let mut contents = std::fs::read_to_string(&record_file).expect("Couldn't read RECORD");
         contents = contents.replace(
-            &format!("origen-{}.dist", &old_version),
-            &format!("origen-{}.dist", &underscored_new_version),
+            &format!("origen_pyapi-{}.dist", &underscored_old_version),
+            &format!("origen_pyapi-{}.dist", &new_version),
         );
 
-        let sha = _hash(&metadata_file);
+        let sha = hash(&metadata_file);
         let new_meta_line = format!(
-            "origen-{}.dist-info/METADATA,sha256={},{}",
-            &underscored_new_version, sha.0, sha.1
+            "origen_pyapi-{}.dist-info/METADATA,sha256={},{}",
+            &new_version, sha.0, sha.1
         );
 
         let lines: Vec<&str> = contents
@@ -357,13 +355,22 @@ fn _fix_wheel_version(dist_dir: &Path) {
             .status()
             .expect("failed to zip wheel file");
 
-        std::fs::remove_dir_all("origen").expect("Couldn't delete origen dir");
+        for entry in std::fs::read_dir(dist_dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_file() {
+                if let Some(file_name) = path.file_name() {
+                    if file_name.to_str().unwrap().starts_with("_origen") {
+                        std::fs::remove_file(&path).expect("Couldn't delete _origen");
+                    }
+                }
+            }
+        }
         std::fs::remove_dir_all(&new_info_dir_name)
             .expect(&format!("Couldn't delete {} dir", &new_info_dir_name));
     }
 }
 
-fn _hash(file: &Path) -> (String, usize) {
+fn hash(file: &Path) -> (String, usize) {
     let contents =
         std::fs::read_to_string(file).expect(&format!("Couldn't read {}", file.display()));
     let mut hasher = Sha256::new();

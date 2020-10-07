@@ -357,6 +357,14 @@ fn main() {
                         .help("Publish packages (e.g. to PyPI) after building"),
                 )
                 .arg(
+                    Arg::with_name("dry_run")
+                        .long("dry-run")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Use with --publish to perform a full dry run of the publishable build without actually publishing it"),
+                )
+                .arg(
                     Arg::with_name("version")
                         .long("version")
                         .required(false)
