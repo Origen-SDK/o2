@@ -1,4 +1,4 @@
-use super::super::tests::{Constraint, ParamType, ParamValue};
+use super::super::model::{Constraint, ParamType, ParamValue};
 use super::TestProgram;
 use crate::Result;
 

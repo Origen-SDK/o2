@@ -1,4 +1,4 @@
-use super::super::tests::ParamValue;
+use super::super::model::ParamValue;
 use super::TestProgram;
 use crate::Result;
 

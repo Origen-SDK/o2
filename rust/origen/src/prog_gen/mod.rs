@@ -1,11 +1,11 @@
 mod advantest;
+mod model;
 mod teradyne;
-mod test_program;
-mod tests;
 
 use phf::phf_map;
 use std::collections::HashMap;
-pub use test_program::TestProgram;
+
+pub use model::TestProgram;
 
 // This includes a map of all test template files, it is built by build.rs at compile time.
 // All files in each sub-directory of prog_gen/test_templates are accessible via a map with the

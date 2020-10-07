@@ -1,71 +1,6 @@
-use super::TestProgram;
+use super::{Constraint, ParamType, ParamValue, TestProgram};
 use crate::Result;
 use indexmap::IndexMap;
-
-#[derive(Debug)]
-pub enum ParamValue {
-    String(String),
-    Int(i128),
-    UInt(u128),
-    Number(f64),
-    Current(f64),
-    Voltage(f64),
-    Time(f64),
-    Frequency(f64),
-    Bool(bool),
-}
-
-impl ParamValue {
-    pub fn is_type(&self, kind: &ParamType) -> bool {
-        match self {
-            ParamValue::String(_) => kind == &ParamType::String,
-            ParamValue::Int(_) => kind == &ParamType::Int,
-            ParamValue::UInt(_) => kind == &ParamType::UInt,
-            ParamValue::Number(_) => kind == &ParamType::Number,
-            ParamValue::Current(_) => kind == &ParamType::Current,
-            ParamValue::Voltage(_) => kind == &ParamType::Voltage,
-            ParamValue::Time(_) => kind == &ParamType::Time,
-            ParamValue::Frequency(_) => kind == &ParamType::Frequency,
-            ParamValue::Bool(_) => kind == &ParamType::Bool,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum ParamType {
-    String,
-    Int,
-    UInt,
-    Number,
-    Current,
-    Voltage,
-    Time,
-    Frequency,
-    Bool,
-}
-
-#[derive(Debug)]
-pub enum Constraint {
-    In(Vec<ParamValue>),
-    GT(ParamValue),
-    GTE(ParamValue),
-    LT(ParamValue),
-    LTE(ParamValue),
-}
-
-/// Represents an individual test being called/invoked by a test program flow, it associates
-/// a test with additional parameterization that is relevant to a particular invocation of it
-/// within a flow.
-/// The invocation parameters can be very simple, e.g. only really to capture things like the
-/// test name column in a Teradyne platform, or more elaborate as in an Advantest example where
-/// it is used to model test suites.
-#[derive(Debug)]
-pub struct TestInvocation {
-    /// The ID of the Test to be invoked, i.e. the test instance/test method
-    test_id: usize,
-    /// The parameters associated with this particular call from the flow, i.e. the test suite
-    test_inv_id: usize,
-}
 
 /// This is an abstract data object which is used to model test instances on Teradyne platforms
 /// and both test methods and test suites on Advantest platforms.
@@ -191,21 +126,6 @@ impl Test {
             p.has_param(param_name, prog)
         } else {
             Ok(false)
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct TestCollection {
-    pub name: String,
-    pub test_ids: Vec<usize>,
-}
-
-impl TestCollection {
-    pub fn new(name: &str) -> TestCollection {
-        TestCollection {
-            name: name.to_string(),
-            test_ids: vec![],
         }
     }
 }

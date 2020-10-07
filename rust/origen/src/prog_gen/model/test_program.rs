@@ -1,4 +1,4 @@
-use super::tests::{Test, TestCollection, TestInvocation};
+use super::{Test, TestCollection, TestInvocation};
 use crate::generator::ast::AST;
 use crate::Result;
 use std::collections::HashMap;
