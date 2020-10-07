@@ -53,7 +53,8 @@ fn starting(job: &str) {
 
 // Returns true if no problems
 fn py_fmt(dir: &Path) {
-    let res = Command::new(&PYTHON_CONFIG.poetry_command)
+    let res = PYTHON_CONFIG
+        .poetry_command()
         .arg("run")
         .arg("yapf")
         .arg("--in-place")

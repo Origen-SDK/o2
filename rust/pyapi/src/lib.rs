@@ -124,8 +124,8 @@ fn exit_pass() -> PyResult<()> {
 
 /// Called automatically when Origen is first loaded
 #[pyfunction]
-fn initialize(log_verbosity: Option<u8>) -> PyResult<()> {
-    origen::initialize(log_verbosity);
+fn initialize(log_verbosity: Option<u8>, cli_location: Option<String>) -> PyResult<()> {
+    origen::initialize(log_verbosity, cli_location);
     Ok(())
 }
 

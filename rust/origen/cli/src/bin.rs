@@ -54,7 +54,7 @@ fn main() {
                 let captures = verbosity_re.captures(&args[0]).unwrap();
                 let x = captures.get(1).unwrap().as_str();
                 let verbosity = x.chars().count() as u8;
-                origen::initialize(Some(verbosity));
+                origen::initialize(Some(verbosity), None);
                 args = args.drain(1..).collect();
             }
             // Commmand is not actually available outside an app, so just fall through
@@ -81,7 +81,14 @@ fn main() {
             verbosity = x.chars().count() as u8;
         }
     }
-    origen::initialize(Some(verbosity));
+    let exe = match std::env::current_exe() {
+        Ok(p) => Some(format!("{}", p.display())),
+        Err(e) => {
+            log_error!("{}", e);
+            None
+        }
+    };
+    origen::initialize(Some(verbosity), exe);
 
     let version = match STATUS.is_app_present {
         true => format!(
@@ -326,6 +333,14 @@ fn main() {
                         .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
                 )
                 .arg(
+                    Arg::with_name("target")
+                        .long("target")
+                        .required(false)
+                        .takes_value(true)
+                        .display_order(1)
+                        .help("The Rust h/ware target (passed directly to Cargo build)"),
+                )
+                .arg(
                     Arg::with_name("python")
                         .long("python")
                         .required(false)
@@ -340,6 +355,14 @@ fn main() {
                         .takes_value(false)
                         .display_order(1)
                         .help("Publish packages (e.g. to PyPI) after building"),
+                )
+                .arg(
+                    Arg::with_name("dry_run")
+                        .long("dry-run")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Use with --publish to perform a full dry run of the publishable build without actually publishing it"),
                 )
                 .arg(
                     Arg::with_name("version")

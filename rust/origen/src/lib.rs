@@ -99,11 +99,11 @@ pub enum Value<'a> {
 }
 
 /// This is called immediately upon Origen booting
-pub fn initialize(verbosity: Option<u8>) {
+pub fn initialize(verbosity: Option<u8>, cli_location: Option<String>) {
     if let Some(v) = verbosity {
         let _ = LOGGER.set_verbosity(v);
     }
-    // Always keep this, as it is a way of forcing the STATUS object to be instantiated
+    STATUS.set_cli_location(cli_location);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
     LOGGER.set_status_ready();
 }
