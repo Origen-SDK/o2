@@ -896,8 +896,7 @@ Examples:
         // This defines the application commands
         // For each command
         for i in 0..cmds.len() {
-            let mut cmd = build_command(&cmds[i]);
-            cmd = cmd.setting(AppSettings::ArgRequiredElseHelp);
+            let cmd = build_command(&cmds[i]);
             app = app.subcommand(cmd);
         }
     }
