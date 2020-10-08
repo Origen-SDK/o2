@@ -37,6 +37,7 @@ main() {
         ../../rust/origen/target/$TARGET/debug/origen env setup
         ../../rust/origen/target/$TARGET/debug/origen -v
         ../../rust/origen/target/$TARGET/debug/origen exec pytest -vv
+        ../../rust/origen/target/$TARGET/debug/origen examples
         cd ../../rust
     fi
 }
