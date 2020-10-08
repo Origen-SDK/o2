@@ -62,7 +62,7 @@ impl FromStr for SupportedTester {
             "V93KSMT7" => Ok(SupportedTester::V93KSMT7),
             "V93KSMT8" => Ok(SupportedTester::V93KSMT8),
             "J750" => Ok(SupportedTester::J750),
-            "ULTRAFLEX" => Ok(SupportedTester::ULTRAFLEX),
+            "ULTRAFLEX" | "UFLEX" => Ok(SupportedTester::ULTRAFLEX),
             "SIMULATOR" => Ok(SupportedTester::SIMULATOR),
             "DUMMYRENDERER" => Ok(SupportedTester::DUMMYRENDERER),
             "DUMMYRENDERERWITHINTERCEPTORS" => Ok(SupportedTester::DUMMYRENDERERWITHINTERCEPTORS),
