@@ -2,6 +2,7 @@ use super::pins::pin_header::PinHeader;
 use super::timesets::timeset::Timeset;
 use origen::core::tester::TesterSource;
 use origen::error::Error;
+use origen::testers::SupportedTester;
 use origen::{STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
@@ -363,7 +364,7 @@ impl PyTester {
             for g in testers.iter() {
                 // Accept either a string name or the actual class of the tester
                 if let Ok(name) = g.extract::<String>() {
-                    tester.target(&name)?;
+                    tester.target(SupportedTester::new(&name)?)?;
                 } else {
                     let gil = Python::acquire_gil();
                     let py = gil.python();
@@ -374,7 +375,7 @@ impl PyTester {
                         ".{}",
                         obj.getattr(py, "__qualname__")?.extract::<String>(py)?
                     ));
-                    let t = tester.target(&n)?;
+                    let t = tester.target(SupportedTester::new(&n)?)?;
                     match t {
                         TesterSource::External(gen) => {
                             let klass = self.python_testers.get(gen).unwrap();
@@ -459,7 +460,6 @@ impl PyTester {
 
     #[getter]
     fn testers(&self) -> PyResult<Vec<String>> {
-        let tester = origen::tester();
-        Ok(tester.testers())
+        Ok(SupportedTester::all_names())
     }
 }
