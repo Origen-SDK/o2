@@ -1,6 +1,13 @@
 import origen
 import _origen
 import pickle
+from contextlib import contextmanager, ContextDecorator
+
+# Where mutliple are given the first one should be the one use internally by
+# Origen, the others are for user convenience
+SPECIFIC_TESTER_NAMES = [
+    "v93k_smt7", "v93k_smt8", "j750", ["ultraflex", "uflex"]
+]
 
 
 class Tester(_origen.tester.PyTester):
@@ -22,6 +29,33 @@ class Tester(_origen.tester.PyTester):
     def stats(self):
         return pickle.loads(bytes(self._stats()))
 
+    @contextmanager
+    def specific(self, name):
+        clean_name = next(
+            (x for x in SPECIFIC_TESTER_NAMES if _is_name_match(name, x)),
+            None)
+        if clean_name is None:
+            raise ValueError(
+                f"unknown specific tester name '{name}', should be one of: {SPECIFIC_TESTER_NAMES}"
+            )
+        # TODO: open an AST node here
+        if name == "v93k_smt7":
+            yield V93K(7)
+        elif name == "v93k_smt8":
+            yield V93K(8)
+        # TODO: and close it here
+
+
+def _is_name_match(name, options):
+    name = name.lower().replace("_", "")
+    if isinstance(options, list):
+        for n in options:
+            if name == n.lower().replace("_", ""):
+                return True
+        return False
+    else:
+        return name == options.lower().replace("_", "")
+
 
 class DummyTester:
     def __init__(self):
@@ -30,3 +64,7 @@ class DummyTester:
     def generate(self, ast):
         for i, n in enumerate(ast.nodes):
             print(f"Python Generator: Node: {i}: {n}")
+
+
+class V93K(_origen.tester_apis.V93K):
+    pass

@@ -36,6 +36,17 @@ impl PyTester {
         });
     }
 
+    #[args(enable = "None", preset = "false")]
+    pub fn _start_specific_block(
+        &self,
+        tester_type: Option<BigUint>,
+        preset: bool,
+    ) -> PyResult<usize> {
+        let dut = origen::dut();
+        let ref_id = self.materialize(&dut)?.verify(enable, preset, &dut)?;
+        Ok(ref_id)
+    }
+
     /// This resets the tester, clearing all loaded targets and any other state, making
     /// it ready for a fresh target load.
     /// This should only be called from Python code for testing, it will be called automatically

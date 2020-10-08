@@ -15,7 +15,9 @@ mod timesets;
 mod application;
 mod interface;
 mod producer;
+mod prog_gen;
 mod tester;
+mod tester_apis;
 mod utility;
 
 use crate::registers::bit_collection::BitCollection;
@@ -36,6 +38,7 @@ use logger::PyInit_logger;
 use producer::PyInit_producer;
 use services::PyInit_services;
 use tester::PyInit_tester;
+use tester_apis::PyInit_tester_apis;
 use utility::location::Location;
 use utility::PyInit_utility;
 
@@ -86,6 +89,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;
     m.add_wrapped(wrap_pymodule!(utility))?;
+    m.add_wrapped(wrap_pymodule!(tester_apis))?;
     Ok(())
 }
 
