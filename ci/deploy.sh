@@ -1,4 +1,6 @@
 # This script takes care of building your crate and packaging it for release
+#
+# PWD on entry is o2/rust/
 
 set -ex
 

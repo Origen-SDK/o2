@@ -13,6 +13,7 @@ Welcome to The Origen Guides!
    guides/device_modeling
    guides/testers
    guides/documenting
+   guides/plugins
    guides/developers
    interbuild/autoapi/origen/origen
 
