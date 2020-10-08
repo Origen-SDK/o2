@@ -26,10 +26,6 @@ from typing import List, Dict
 
 from origen.tester import Tester, DummyTester
 from origen.producer import Producer
-#import origen.standard_sub_blocks
-
-# ''' Shortcut to :mod:`origen.standard_sub_blocks` module '''
-# sbb = origen.standard_sub_blocks
 
 import origen.target
 

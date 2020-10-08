@@ -110,6 +110,8 @@ class Base(_origen.application.PyApplication):
                     filepath = filepath.joinpath('derivatives').joinpath(field)
                 elif filepath.joinpath('blocks').joinpath(field).exists():
                     filepath = filepath.joinpath('blocks').joinpath(field)
+                elif filepath.joinpath(field).exists():
+                    filepath = filepath.joinpath(field)
                 else:
                     self._block_path_cache[path] = (False, None)
                     break
