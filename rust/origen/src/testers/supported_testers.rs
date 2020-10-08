@@ -68,7 +68,11 @@ impl FromStr for SupportedTester {
             "DUMMYRENDERERWITHINTERCEPTORS" => Ok(SupportedTester::DUMMYRENDERERWITHINTERCEPTORS),
             "CUSTOM" => {
                 if let Some(n) = second {
-                    Ok(SupportedTester::CUSTOM(n))
+                    if crate::STATUS.custom_tester_ids().contains(&n) {
+                        Ok(SupportedTester::CUSTOM(n))
+                    } else {
+                        Err(error_msg(&s))
+                    }
                 } else {
                     Err(error_msg(&s))
                 }
