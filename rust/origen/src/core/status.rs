@@ -50,6 +50,7 @@ pub struct Status {
     /// checking for that.
     reference_dir: RwLock<Option<PathBuf>>,
     cli_location: RwLock<Option<PathBuf>>,
+    _custom_tester_ids: RwLock<Vec<String>>,
 }
 
 impl Default for Status {
@@ -116,6 +117,7 @@ impl Default for Status {
             reference_dir: RwLock::new(None),
             cli_location: RwLock::new(None),
             is_app_in_origen_dev_mode: origen_dev_mode,
+            _custom_tester_ids: RwLock::new(vec![]),
         };
         log_trace!("Status built successfully");
         s
@@ -123,6 +125,22 @@ impl Default for Status {
 }
 
 impl Status {
+    pub fn register_custom_tester(&self, name: &str) {
+        let mut t = self._custom_tester_ids.write().unwrap();
+        let name = name.to_string();
+        if !t.contains(&name) {
+            t.push(name);
+        }
+    }
+
+    pub fn custom_tester_ids(&self) -> Vec<String> {
+        let mut ids: Vec<String> = vec![];
+        for id in &*self._custom_tester_ids.read().unwrap() {
+            ids.push(id.to_string());
+        }
+        ids
+    }
+
     /// Returns the number of unhandled errors that have been encountered since this thread started.
     /// An example of a unhandled error is a pattern that failed to generate.
     /// If an error occurs on the Python side then Origen will most likely crash, however on the

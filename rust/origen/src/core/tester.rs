@@ -4,7 +4,7 @@ use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
-use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
+use crate::testers::{instantiate_tester, SupportedTester};
 use crate::utility::differ::Differ;
 use crate::utility::file_utils::to_relative_path;
 use crate::TEST;
@@ -78,7 +78,7 @@ pub struct Tester {
     current_timeset_id: Option<usize>,
     current_pin_header_id: Option<usize>,
     /// This stores additional testers provided by the Python domain, effectively adding them
-    /// to AVAILABLE_TESTERS. It never needs to be cleared.
+    /// to the list of supported_testers. It never needs to be cleared.
     external_testers: IndexMap<String, TesterSource>,
     /// This is the testers that have been selected by the current target, it will be cleared
     /// and new testers will be pushed to it during a target load.
@@ -115,6 +115,13 @@ impl Tester {
         }
     }
 
+    pub fn custom_tester_ids(&self) -> Vec<String> {
+        self.external_testers
+            .keys()
+            .map(|n| n.to_string())
+            .collect::<Vec<String>>()
+    }
+
     pub fn _current_timeset_id(&self) -> Result<usize> {
         match self.current_timeset_id {
             Some(t_id) => Ok(t_id),
@@ -141,6 +148,9 @@ impl Tester {
             tester.to_string(),
             TesterSource::External(tester.to_string()),
         );
+        // Store it in the STATUS so that it's presence is globally readable without having to
+        // get a lock on the TESTER
+        crate::STATUS.register_custom_tester(tester);
         Ok(())
     }
 
@@ -395,18 +405,24 @@ impl Tester {
         }
     }
 
-    pub fn target(&mut self, tester: &str) -> Result<&TesterSource> {
+    pub fn target(&mut self, tester: SupportedTester) -> Result<&TesterSource> {
         let g;
-        if let Some(_g) = instantiate_tester(tester) {
-            g = TesterSource::Internal(_g);
-        } else if let Some(_g) = self.external_testers.get(tester) {
-            g = (*_g).clone();
+        if let SupportedTester::CUSTOM(id) = &tester {
+            if let Some(_g) = self.external_testers.get(id) {
+                g = (*_g).clone();
+            } else {
+                return error!(
+                    "Could not find tester '{}', the available testers are: {}",
+                    tester,
+                    self.custom_tester_ids()
+                        .iter()
+                        .map(|id| format!("CUSTOM::{}", id))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                );
+            }
         } else {
-            return error!(
-                "Could not find tester '{}', must be one of: \n  {}",
-                tester,
-                AVAILABLE_TESTERS.join("\n  ")
-            );
+            g = TesterSource::Internal(instantiate_tester(&tester)?);
         }
 
         if self.target_testers.contains(&g) {
@@ -440,17 +456,6 @@ impl Tester {
             Some(t) => Some(t.id()),
             None => None
         }
-    }
-
-    pub fn testers(&self) -> Vec<String> {
-        let mut gens: Vec<String> = AVAILABLE_TESTERS.iter().map(|t| t.to_string()).collect();
-        gens.extend(
-            self.external_testers
-                .iter()
-                .map(|(n, _)| n.clone())
-                .collect::<Vec<String>>(),
-        );
-        gens
     }
 
     /// This is called automatically at the very start of a generate command, it is invoked from Python,

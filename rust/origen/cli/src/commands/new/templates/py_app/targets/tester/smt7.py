@@ -1,1 +1,1 @@
-origen.tester.target("::V93K::SMT7")
+origen.tester.target("V93KSMT7")

@@ -3,19 +3,20 @@ import origen, _origen  # pylint: disable=import-error
 
 
 backend_testers = [
-    "::DummyRenderer",
-    "::DummyRendererWithInterceptors",
-    "::V93K::SMT7",
-    "::Teradyne::UltraFlex",
-    "::Teradyne::J750",
-    "::Simulator"
+    "V93KSMT7",
+    "V93KSMT8",
+    "J750",
+    "ULTRAFLEX",
+    "SIMULATOR",
+    "DUMMYRENDERER",
+    "DUMMYRENDERERWITHINTERCEPTORS"
   ]
 
 @pytest.fixture
 def clean_eagle():
   instantiate_dut("dut.eagle")
   if len(origen.tester.targets) == 0:
-    origen.tester.target("::DummyRenderer")
+    origen.tester.target("DummyRenderer")
   assert origen.dut
   return origen.dut
 
@@ -40,7 +41,7 @@ def clean_tester():
 def clean_dummy():
   assert origen.tester
   origen.tester.reset()
-  origen.tester.target("::DummyRenderer")
+  origen.tester.target("DummyRenderer")
   _origen.start_new_test()
   assert len(origen.test_ast()["children"]) == 0
   assert origen.tester.targets == ["::DummyRenderer"]
