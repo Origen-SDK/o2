@@ -386,7 +386,8 @@ impl PyTester {
                         ".{}",
                         obj.getattr(py, "__qualname__")?.extract::<String>(py)?
                     ));
-                    let t = tester.target(SupportedTester::new(&n)?)?;
+                    // Assume a tester loaded via a class is a custom tester
+                    let t = tester.target(SupportedTester::new(&format!("CUSTOM::{}", n))?)?;
                     match t {
                         TesterSource::External(gen) => {
                             let klass = self.python_testers.get(gen).unwrap();

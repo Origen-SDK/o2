@@ -26,7 +26,7 @@ impl SupportedTester {
         }
         let mut s: Vec<String> = s.iter().map(|n| n.to_string()).collect();
         for id in crate::STATUS.custom_tester_ids() {
-            s.push(format!(", CUSTOM::{}", id));
+            s.push(format!("CUSTOM::{}", id));
         }
         s
     }
@@ -46,7 +46,7 @@ impl FromStr for SupportedTester {
         let mut second: Option<String> = None;
         let kind = match s.contains("::") {
             true => {
-                let fields: Vec<&str> = s.split(s).collect();
+                let fields: Vec<&str> = s.split("::").collect();
                 if fields.len() > 2 {
                     return Err(error_msg(&s));
                 }
