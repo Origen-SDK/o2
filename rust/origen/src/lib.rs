@@ -33,7 +33,7 @@ use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
-use prog_gen::TestProgram;
+use prog_gen::TestPrograms;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
@@ -65,7 +65,7 @@ lazy_static! {
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
     /// Storage for the current program generation run, can include multiple flows
-    pub static ref PROG: Mutex<TestProgram> = Mutex::new(TestProgram::new());
+    pub static ref PROG: TestPrograms = TestPrograms::new();
     /// Provides info about the current user
     pub static ref USER: User = User::current();
 }
@@ -122,24 +122,6 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
-}
-
-/// Execute the given function with a reference to the current test program.
-pub fn with_prog<T, F>(mut func: F) -> Result<T>
-where
-    F: FnMut(&TestProgram) -> Result<T>,
-{
-    let p = PROG.lock().unwrap();
-    func(&p)
-}
-
-/// Execute the given function with a mutable reference to the current test program.
-pub fn with_prog_mut<T, F>(mut func: F) -> Result<T>
-where
-    F: FnMut(&mut TestProgram) -> Result<T>,
-{
-    let mut p = PROG.lock().unwrap();
-    func(&mut p)
 }
 
 /// Execute the given function with a reference to the current job.

@@ -37,14 +37,12 @@ impl PyTester {
         });
     }
 
-    #[args(enable = "None", preset = "false")]
-    pub fn _start_specific_block(
-        &self,
-        tester_type: Option<BigUint>,
-        preset: bool,
-    ) -> PyResult<usize> {
-        let dut = origen::dut();
-        let ref_id = self.materialize(&dut)?.verify(enable, preset, &dut)?;
+    pub fn _start_specific_block(&self, testers: Vec<&str>) -> PyResult<usize> {
+        let mut ts: Vec<SupportedTester> = vec![];
+        for t in testers {
+            ts.push(SupportedTester::new(t)?);
+        }
+        let ref_id = origen::tester().start_tester_specific_block(ts)?;
         Ok(ref_id)
     }
 

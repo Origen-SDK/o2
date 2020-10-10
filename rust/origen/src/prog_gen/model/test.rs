@@ -1,4 +1,5 @@
-use super::{Constraint, ParamType, ParamValue, TestProgram};
+use super::{Constraint, ParamType, ParamValue};
+use crate::testers::SupportedTester;
 use crate::Result;
 use indexmap::IndexMap;
 
@@ -14,8 +15,6 @@ pub struct Test {
     pub id: usize,
     pub name: String,
     pub indirect: bool,
-    /// Optional parent definition
-    pub parent_id: Option<usize>,
     /// Defines the names of parameters and their types. Child class can override the type of a parameter
     /// inherited from a parent by adding a parameter of the same name to their params map. Then can also
     /// add additional parameters via the same mechanism. It is not possible to delete a parameter inherited
@@ -24,26 +23,27 @@ pub struct Test {
     pub values: IndexMap<String, ParamValue>,
     pub aliases: IndexMap<String, String>,
     pub constraints: IndexMap<String, Vec<Constraint>>,
+    pub tester: SupportedTester,
 }
 
 impl Test {
-    pub fn new(name: &str, id: usize) -> Test {
+    pub fn new(name: &str, id: usize, tester: SupportedTester) -> Test {
         Test {
             id: id,
             name: name.to_string(),
             indirect: false,
-            parent_id: None,
             params: IndexMap::new(),
             values: IndexMap::new(),
             aliases: IndexMap::new(),
             constraints: IndexMap::new(),
+            tester: tester,
         }
     }
 
     /// Set the value of the given parameter to the given value, returns an error if the
     /// parameter is not found or if its type does match the type of the given value
-    pub fn set(&mut self, param_name: &str, value: ParamValue, prog: &TestProgram) -> Result<()> {
-        let kind = self.get_type(param_name, prog)?;
+    pub fn set(&mut self, param_name: &str, value: ParamValue) -> Result<()> {
+        let kind = self.get_type(param_name)?;
         if value.is_type(kind) {
             self.values.insert(param_name.to_string(), value);
             Ok(())
@@ -54,28 +54,16 @@ impl Test {
 
     /// Returns the type of the given parameter name (or alias), returns an error if the
     /// parameter is not found
-    pub fn get_type<'a>(
-        &'a self,
-        param_name: &str,
-        prog: &'a TestProgram,
-    ) -> Result<&'a ParamType> {
+    pub fn get_type(&self, param_name: &str) -> Result<&ParamType> {
         if let Some(p) = self.params.get(param_name) {
             Ok(p)
-        } else if let Some(p) = self.parent(prog)? {
-            Ok(p.get_type(param_name, prog)?)
+        } else if self.aliases.contains_key(param_name) {
+            self.get_type(&self.aliases[param_name])
         } else {
             error!(
                 "Test '{}' has no parameter named '{}'",
                 &self.name, param_name
             )
-        }
-    }
-
-    /// Returns the parent of this test or None
-    pub fn parent<'a>(&self, prog: &'a TestProgram) -> Result<Option<&'a Test>> {
-        match self.parent_id {
-            Some(p) => return Ok(Some(prog.get_test(p)?)),
-            None => return Ok(None),
         }
     }
 
@@ -104,8 +92,8 @@ impl Test {
 
     /// Define a simple alias for an existing parameter, returns an error if the
     /// parameter is not found
-    pub fn add_alias(&mut self, alias: &str, param_name: &str, prog: &TestProgram) -> Result<()> {
-        if self.has_param(param_name, prog)? {
+    pub fn add_alias(&mut self, alias: &str, param_name: &str) -> Result<()> {
+        if self.has_param(param_name) {
             self.aliases
                 .insert(alias.to_string(), param_name.to_string());
             Ok(())
@@ -117,15 +105,8 @@ impl Test {
         }
     }
 
-    /// Returns the type of the given parameter name (or alias), returns an error if the
-    /// parameter is not found
-    pub fn has_param(&self, param_name: &str, prog: &TestProgram) -> Result<bool> {
-        if self.params.contains_key(param_name) {
-            Ok(true)
-        } else if let Some(p) = self.parent(prog)? {
-            p.has_param(param_name, prog)
-        } else {
-            Ok(false)
-        }
+    /// Returns true if the test has the given parameter name or alias
+    pub fn has_param(&self, param_name: &str) -> bool {
+        self.params.contains_key(param_name) || self.aliases.contains_key(param_name)
     }
 }

@@ -2,7 +2,7 @@ use crate::Result as OrigenResult;
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize)]
 pub enum SupportedTester {
     V93KSMT7,
     V93KSMT8,

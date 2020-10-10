@@ -6,9 +6,9 @@ use crate::generator::ast::{Attrs, Node};
 use crate::testers::{instantiate_tester, SupportedTester};
 use crate::utility::differ::Differ;
 use crate::utility::file_utils::to_relative_path;
-use crate::TEST;
 use crate::{add_children, node, text, text_line, with_current_job};
 use crate::{Error, Result};
+use crate::{PROG, TEST};
 use indexmap::IndexMap;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -95,6 +95,16 @@ impl Tester {
             target_testers: vec![],
             stats: Stats::default(),
         }
+    }
+
+    /// Starts a new tester-specific section in the current pattern and/or test program.
+    /// The returned IDs should be kept and given to end_tester_specific_block when the
+    /// tester specific section is complete.
+    pub fn start_tester_specific_block(&self, testers: Vec<SupportedTester>) -> Result<usize> {
+        let n = node!(TesterSpecific, testers.clone());
+        let block_id = TEST.push_and_open(n);
+        PROG.push_current_testers(testers)?;
+        Ok(block_id)
     }
 
     pub fn custom_tester_ids(&self) -> Vec<String> {

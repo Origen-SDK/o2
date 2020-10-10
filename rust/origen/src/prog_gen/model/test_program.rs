@@ -1,74 +1,111 @@
 use super::{Test, TestCollection, TestInvocation};
 use crate::generator::ast::AST;
+use crate::testers::SupportedTester;
 use crate::Result;
 use std::collections::HashMap;
+use std::sync::RwLock;
 
-/// The TestProgram is a singleton which lives for the entire duration of an Origen program
-/// generation run (the whole execution of an 'origen g' command), it is instantiated as
-/// origen::PROG.
-/// It provides long term storage for test obects, similar to how the DUT provides long
-/// term storage of the regs and other DUT models.
+/// One test program model represents the test program for one tester target
+#[derive(Debug)]
 pub struct TestProgram {
-    tests: Vec<Test>,
-    test_invocations: Vec<TestInvocation>,
-    test_collections: Vec<TestCollection>,
+    tests: RwLock<Vec<Test>>,
+    test_invocations: RwLock<Vec<TestInvocation>>,
+    test_collections: RwLock<Vec<TestCollection>>,
     /// Flows are represented as an AST, which will contain references to tests from the
     /// above collection
-    flows: HashMap<String, AST>,
-    /// Maps tests which are templates
-    templates: HashMap<String, HashMap<String, usize>>,
+    flows: RwLock<Vec<AST>>,
+    pointers: RwLock<Pointers>,
+}
+
+#[derive(Debug)]
+struct Pointers {
+    /// Maps names to a flow
+    flow_map: HashMap<String, usize>,
+    /// Maps tests which are templates, organized into named groups (test libraries)
+    libraries: HashMap<String, HashMap<String, usize>>,
     current_collection: usize,
+    current_flow: usize,
+    /// Not known at creation time, but will be assigned before the first test is added
+    /// to the program
+    tester: SupportedTester,
 }
 
 impl TestProgram {
     pub fn new() -> Self {
         Self {
-            tests: vec![],
-            test_invocations: vec![],
+            tests: RwLock::new(vec![]),
+            test_invocations: RwLock::new(vec![]),
             // New tests will be put into the global collection by default
-            test_collections: vec![TestCollection::new("global")],
-            flows: HashMap::new(),
-            templates: HashMap::new(),
-            current_collection: 0,
+            test_collections: RwLock::new(vec![TestCollection::new("global")]),
+            flows: RwLock::new(vec![]),
+            pointers: RwLock::new(Pointers {
+                flow_map: HashMap::new(),
+                libraries: HashMap::new(),
+                current_collection: 0,
+                current_flow: 0,
+                tester: SupportedTester::CUSTOM("TBD".to_string()),
+            }),
         }
     }
 
-    /// Get a read-only reference to the test with the given ID, use get_mut_test if
-    /// you need to modify it
-    pub fn get_test(&self, id: usize) -> Result<&Test> {
-        match self.tests.get(id) {
-            Some(x) => Ok(x),
-            None => error!(
-                "Something has gone wrong, no register exists with ID '{}'",
-                id
-            ),
+    pub fn set_tester(&self, tester: &SupportedTester) {
+        let mut pointers = self.pointers.write().unwrap();
+        pointers.tester = tester.to_owned();
+    }
+
+    /// Get a read-only reference to the test with the given ID, use with_test_mut if
+    /// you need to modify it.
+    /// Returns an error if there is no test found, otherwise the result of the given function.
+    pub fn with_test<T, F>(&'static self, id: usize, mut func: F) -> Result<T>
+    where
+        F: FnMut(&Test) -> Result<T>,
+    {
+        let tests = self.tests.read().unwrap();
+        match tests.get(id) {
+            Some(x) => func(x),
+            None => error!("Something has gone wrong, no test exists with ID '{}'", id),
         }
     }
 
-    pub fn add_test_library(&mut self, name: &str) -> Result<usize> {
-        if self.templates.contains_key(name) {
+    /// Get a writable reference to the test with the given ID.
+    /// Returns an error if there is no test found, otherwise the result of the given function.
+    pub fn with_test_mut<T, F>(&self, id: usize, mut func: F) -> Result<T>
+    where
+        F: FnMut(&mut Test) -> Result<T>,
+    {
+        let mut tests = self.tests.write().unwrap();
+        match tests.get_mut(id) {
+            Some(x) => func(x),
+            None => error!("Something has gone wrong, no test exists with ID '{}'", id),
+        }
+    }
+
+    pub fn create_test_library(&self, name: &str) -> Result<()> {
+        let mut pointers = self.pointers.write().unwrap();
+        if pointers.libraries.contains_key(name) {
             error!("A test library named '{}' already exists!", name)
         } else {
-            let id = self.templates.len();
-            self.templates.insert(name.to_string(), HashMap::new());
-            Ok(id)
+            pointers.libraries.insert(name.to_string(), HashMap::new());
+            Ok(())
         }
     }
 
-    pub fn add_test_template<T, F>(
-        &mut self,
+    pub fn create_test_template<T, F>(
+        &self,
         library_name: &str,
         name: &str,
         mut func: F,
     ) -> Result<T>
     where
-        F: FnMut(&mut Test, &TestProgram) -> Result<T>,
+        F: FnMut(&mut Test) -> Result<T>,
     {
-        let id = self.tests.len();
-        let mut t = Test::new(name, id);
+        let mut tests = self.tests.write().unwrap();
+        let mut pointers = self.pointers.write().unwrap();
+        let id = tests.len();
+        let mut t = Test::new(name, id, pointers.tester.clone());
         t.indirect = true;
         // Add the new test to the library
-        match self.templates.get_mut(library_name) {
+        match pointers.libraries.get_mut(library_name) {
             Some(x) => match x.contains_key(name) {
                 true => {
                     return error!(
@@ -80,24 +117,26 @@ impl TestProgram {
             },
             None => return error!("A test library named '{}' does not exist", library_name),
         };
-        let result = func(&mut t, self);
-        self.tests.push(t);
+        let result = func(&mut t);
+        tests.push(t);
         result
     }
 
-    pub fn add_test<T, F>(&mut self, name: &str, mut func: F) -> Result<T>
+    pub fn create_test<T, F>(&mut self, name: &str, mut func: F) -> Result<T>
     where
-        F: FnMut(&mut Test, &TestProgram) -> Result<T>,
+        F: FnMut(&mut Test) -> Result<T>,
     {
-        let id = self.tests.len();
-        let mut t = Test::new(name, id);
-        let result = func(&mut t, self);
-        self.tests.push(t);
+        let mut tests = self.tests.write().unwrap();
+        let id = tests.len();
+        let mut t = Test::new(name, id, self.pointers.read().unwrap().tester.clone());
+        let result = func(&mut t);
+        tests.push(t);
         result
     }
 
     pub fn get_test_template_id(&self, library_name: &str, name: &str) -> Result<usize> {
-        match self.templates.get(library_name) {
+        let pointers = self.pointers.read().unwrap();
+        match pointers.libraries.get(library_name) {
             Some(x) => match x.get(name) {
                 None => error!(
                     "The test library '{}' does not contain a test template called '{}'",
