@@ -1,6 +1,6 @@
 use super::bit_collection::BitCollection;
 use pyo3::class::basic::PyObjectProtocol;
-use pyo3::class::PyMappingProtocol;
+use pyo3::class::{PyMappingProtocol, PySequenceProtocol};
 use pyo3::exceptions::KeyError;
 use pyo3::prelude::*;
 
@@ -39,6 +39,16 @@ impl RegisterCollection {
 impl PyObjectProtocol for RegisterCollection {
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("<RegisterCollection: {:?}>", self.keys().unwrap()))
+    }
+}
+
+#[pyproto]
+impl PySequenceProtocol for RegisterCollection {
+    fn __contains__(&self, name: &str) -> PyResult<bool> {
+        match pyo3::PyMappingProtocol::__getitem__(self, name) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false)
+        }
     }
 }
 

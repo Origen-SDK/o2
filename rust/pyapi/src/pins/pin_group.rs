@@ -1,5 +1,6 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use super::pin_collection::PinCollection;
+use super::pin_actions::PinActions;
 use origen::DUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
@@ -29,10 +30,14 @@ impl PinGroup {
     }
 
     #[setter]
-    fn set_data(&self, data: u32) -> PyResult<Py<Self>> {
+    fn set_data(&self, data: u32) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
         dut.set_pin_group_data(self.model_id, &self.name, data)?;
+        Ok(())
+    }
 
+    fn set(&self, data: u32) -> PyResult<Py<Self>> {
+        self.set_data(data)?;
         let gil = Python::acquire_gil();
         let py = gil.python();
         Ok(Py::new(
@@ -45,27 +50,21 @@ impl PinGroup {
         .unwrap())
     }
 
-    fn set(&self, data: u32) -> PyResult<Py<Self>> {
-        return self.set_data(data);
+    fn with_mask(&self, mask: usize) -> PyResult<Py<Self>> {
+        let mut dut = DUT.lock().unwrap();
+        dut.set_pin_group_nonsticky_mask(self.model_id, &self.name, mask)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(
+            py,
+            Self {
+                name: self.name.clone(),
+                model_id: self.model_id,
+            },
+        )
+        .unwrap())
     }
-
-    // fn with_mask(&self, mask: usize) -> PyResult<Py<Self>> {
-    //     let mut dut = DUT.lock().unwrap();
-    //     let model = dut.get_mut_model(self.model_id)?;
-    //     model.set_pin_group_nonsticky_mask(&self.name, mask)?;
-
-    //     let gil = Python::acquire_gil();
-    //     let py = gil.python();
-    //     Ok(Py::new(
-    //         py,
-    //         Self {
-    //             name: self.name.clone(),
-    //             path: self.path.clone(),
-    //             model_id: self.model_id,
-    //         },
-    //     )
-    //     .unwrap())
-    // }
 
     #[getter]
     fn get_pin_names(&self) -> PyResult<Vec<String>> {
@@ -105,34 +104,61 @@ impl PinGroup {
     // }
 
     #[getter]
-    fn get_pin_actions(&self) -> PyResult<String> {
+    fn get_pin_actions(&self) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_group_actions(self.model_id, &self.name)?)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let pin_actions = dut.get_pin_group_actions(self.model_id, &self.name)?;
+        Ok(PinActions {actions: pin_actions}.into_py(py))
     }
 
-    fn drive(&self, data: Option<u32>) -> PyResult<()> {
+    fn drive(slf: PyRef<Self>, data: Option<u32>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        Ok(dut.drive_pin_group(self.model_id, &self.name, data, Option::None)?)
+        dut.drive_pin_group(slf.model_id, &slf.name, data, Option::None)?;
+        Ok(slf.into())
     }
 
-    fn verify(&self, data: Option<u32>) -> PyResult<()> {
+    fn verify(slf: PyRef<Self>, data: Option<u32>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        Ok(dut.verify_pin_group(self.model_id, &self.name, data, Option::None)?)
+        dut.verify_pin_group(slf.model_id, &slf.name, data, Option::None)?;
+        Ok(slf.into())
     }
 
-    fn capture(&self) -> PyResult<()> {
+    fn capture(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        Ok(dut.capture_pin_group(self.model_id, &self.name, Option::None)?)
+        dut.capture_pin_group(slf.model_id, &slf.name, Option::None)?;
+        Ok(slf.into())
     }
 
-    fn highz(&self) -> PyResult<()> {
+    fn highz(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        Ok(dut.highz_pin_group(self.model_id, &self.name, Option::None)?)
+        dut.highz_pin_group(slf.model_id, &slf.name, Option::None)?;
+        Ok(slf.into())
     }
 
-    fn reset(&self) -> PyResult<()> {
+    #[args(kwargs = "**")]
+    fn set_actions(slf: PyRef<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
-        Ok(dut.reset_pin_group(self.model_id, &self.name)?)
+        let mut mask = None;
+        if let Some(args) = kwargs {
+            if let Some(i) = args.get_item("mask") {
+                mask = Some(i.extract::<usize>()?);
+            }
+        }
+        dut.set_pin_group_symbols(
+            slf.model_id,
+            &slf.name,
+            &extract_pinactions!(actions)?,
+            mask
+        )?;
+        Ok(slf.into())
+    }
+
+    fn reset(slf: PyRef<Self>) -> PyResult<Py<Self>> {
+        let mut dut = DUT.lock().unwrap();
+        dut.reset_pin_group(slf.model_id, &slf.name)?;
+        Ok(slf.into())
     }
 
     #[getter]
@@ -156,9 +182,12 @@ impl PinGroup {
     }
 
     #[getter]
-    fn get_reset_actions(&self) -> PyResult<String> {
+    fn get_reset_actions(&self) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_group_reset_actions(self.model_id, &self.name)?)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let pin_actions = dut.get_pin_group_reset_actions(self.model_id, &self.name)?;
+        Ok(PinActions {actions: pin_actions}.into_py(py))
     }
 
     #[getter]
@@ -172,6 +201,29 @@ impl PinGroup {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         Ok(grp.is_little_endian())
+    }
+
+    #[args(kwargs = "**")]
+    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?)?;
+        locals.set_item("kwargs", kwargs.to_object(py))?;
+
+        py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
+        Ok(slf.into())
+    }
+
+    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?)?;
+        py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
+        Ok(slf.into())
     }
 }
 

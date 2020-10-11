@@ -8,6 +8,13 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 use pyo3::wrap_pymodule;
 
+#[allow(dead_code)]
+pub fn get_pydut(py: Python) -> PyResult<&PyAny> {
+    let locals = PyDict::new(py);
+    locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+    Ok(py.eval("origen.dut", Some(locals), None)?)
+}
+
 /// Implements the module _origen.dut in Python which exposes all
 /// DUT-related APIs
 #[pymodule]
@@ -30,10 +37,10 @@ pub struct PyDUT {
 impl PyDUT {
     #[new]
     /// Instantiating a new instance of PyDUT means re-loading the target
-    fn new(obj: &PyRawObject, name: &str) {
+    fn new(name: &str) -> Self {
         origen::dut().change(name);
         origen::services().change();
-        obj.init(PyDUT { metadata: vec![] });
+        PyDUT { metadata: vec![] }
     }
 
     /// Creates a new model at the given path
@@ -89,4 +96,13 @@ impl PyDUT {
     }
 }
 
-impl PyDUT {}
+impl PyDUT {
+    pub fn ensure_pins(model_path: &str) -> PyResult<()> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = PyDict::new(py);
+        locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+        py.eval(&format!("origen.{}.pins", model_path), Some(locals), None)?;
+        Ok(())
+    }
+}

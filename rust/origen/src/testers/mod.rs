@@ -1,6 +1,8 @@
+pub mod vector_based;
 pub mod igxl;
 pub mod simulator;
 pub mod smt;
+pub mod api;
 mod supported_testers;
 
 use crate::core::tester::{Interceptor, TesterAPI};
@@ -19,6 +21,7 @@ pub fn instantiate_tester(g: &SupportedTester) -> Result<Box<dyn TesterAPI + std
         SupportedTester::V93KSMT7 => Ok(Box::new(smt::V93K_SMT7::default())),
         SupportedTester::SIMULATOR => Ok(Box::new(simulator::Renderer::default())),
         SupportedTester::ULTRAFLEX => Ok(Box::new(igxl::UltraFlex::default())),
+        SupportedTester::J750 => Ok(Box::new(igxl::j750::J750::default())),
         SupportedTester::CUSTOM(_) => {
             error!("Custom testers are not instantiated by this function")
         }
@@ -46,6 +49,10 @@ impl Interceptor for DummyRenderer {}
 impl TesterAPI for DummyRenderer {
     fn name(&self) -> String {
         "DummyRenderer".to_string()
+    }
+
+    fn id(&self) -> String {
+        "::DummyRenderer".to_string()
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
@@ -106,14 +113,16 @@ impl TesterAPI for DummyRendererWithInterceptors {
         "DummyRendererWithInterceptors".to_string()
     }
 
+    fn id(&self) -> String {
+        "::DummyRendererWithInterceptors".to_string()
+    }
+
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
         Box::new(std::clone::Clone::clone(self))
     }
 
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
-        //let mut slf = Self::default();
         ast.process(self)?;
-        //node.clone()
         Ok(vec![])
     }
 }

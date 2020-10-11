@@ -69,6 +69,15 @@ impl AST {
         }
     }
 
+    pub fn append(&mut self, nodes: &mut Vec<Node>) {
+        match self.nodes.last_mut() {
+            Some(n) => {
+                n.add_children(nodes.to_vec());
+            },
+            None => self.nodes.append(nodes),
+        }
+    }
+
     /// Push a new node into the AST and leave it open, meaning that all new nodes
     /// added to the AST will be inserted as children of this node until it is closed.
     /// A reference ID is returned and the caller should save this and provide it again
@@ -196,6 +205,16 @@ impl AST {
         } else {
             Ok(n.get_child(child_offset)?)
         }
+    }
+
+    pub fn get_with_descendants(&self, offset: usize) -> Result<Node> {
+        let mut cnt: usize = 0;
+        for n in self.nodes.iter().rev() {
+            if let Some(node) = n.get_descendant(offset, &mut cnt) {
+                return Ok(node);
+            }
+        }
+        Err(Error::new(&format!("Offset {} is out of range of the current AST", offset)))
     }
 
     /// Clear the current AST and start a new one with the given node at the top-level

@@ -2,64 +2,237 @@ use crate::error::Error;
 use indexmap::map::IndexMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::RwLock;
 
-/// List of supported pin actions.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum PinActions {
-    Drive,
-    Verify,
-    Capture,
-    HighZ,
-}
+pub trait ResolvePinActions {
+    fn pin_action_resolver(&self, target: String) -> &Resolver;
+    fn mut_pin_action_resolver(&mut self, target: String) -> &mut Resolver;
 
-impl PinActions {
-    pub fn from_str(s: &str) -> Result<PinActions, Error> {
-        match s {
-            "Drive" => Ok(PinActions::Drive),
-            "Verify" => Ok(PinActions::Verify),
-            "Capture" => Ok(PinActions::Capture),
-            "HighZ" => Ok(PinActions::HighZ),
-            "D" => Ok(PinActions::Drive),
-            "V" => Ok(PinActions::Verify),
-            "C" => Ok(PinActions::Capture),
-            "Z" => Ok(PinActions::HighZ),
-            _ => Err(Error::new(&format!(
-                "Action {} is not available for pins!",
-                s
-            ))),
+    fn resolve_pin_action(&self, target: String, action: &PinActions) -> Option<String> {
+        self.pin_action_resolver(target).resolve(action)
+    }
+
+    fn _resolve_pin_action(&self, target: String, action: &PinActions) -> Result<String, Error> {
+        match self.resolve_pin_action(target, action) {
+            Some(a) => Ok(a),
+            None => Err(Error::new(&format!(
+                "No resolution provided for pin action {}",
+                &action.to_string()?
+            )))
         }
     }
 
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PinActions::Drive => "Drive",
-            PinActions::Verify => "Verify",
-            PinActions::Capture => "Capture",
-            PinActions::HighZ => "HighZ",
+    fn resolve_pin_actions(&self, target: String, actions: &Vec<PinActions>) -> Vec<Option<String>> {
+        self.pin_action_resolver(target).resolve_all(&actions)
+    }
+
+    fn update_mapping(&mut self, target: String, action: PinActions, new_resolution: String) {
+        self.mut_pin_action_resolver(target).update_mapping(action, new_resolution)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Resolver {
+    resolution_map: IndexMap::<PinActions, String>,
+}
+
+impl Resolver {
+    pub fn new() -> Self {
+        Self {
+            resolution_map: IndexMap::new()
         }
+    }
+
+    pub fn resolve(&self, action: &PinActions) -> Option<String> {
+        if let Some(r) = self.resolution_map.get(action) {
+            Some(r.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn update_mapping(&mut self, action: PinActions, new_resolution: String) {
+        self.resolution_map.insert(action, new_resolution);
+    }
+
+    pub fn resolve_all(&self, actions: &Vec<PinActions>) -> Vec<Option<String>> {
+        actions.iter().map(|a| self.resolve(a)).collect()
+    }
+
+    pub fn mapping(&self) -> &IndexMap<PinActions, String> {
+        &self.resolution_map
+    }
+}
+
+/// List of supported pin actions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
+pub enum PinActions {
+    Drive,
+    DriveHigh,
+    DriveLow,
+    Verify,
+    VerifyHigh,
+    VerifyLow,
+    Capture,
+    HighZ,
+    Other(String)
+}
+
+impl PinActions {
+
+    pub fn standard_actions() -> Vec<PinActions> {
+        vec!(Self::Drive, Self::DriveHigh, Self::DriveLow,
+        Self::Verify, Self::VerifyHigh, Self::VerifyLow,
+        Self::Capture, Self::HighZ)
+    }
+
+    /// Converts a str representing symbols of arbitrary size into a vector of PinAction::Other types.
+    /// Complains if the symbols are not divisible by the symbol size.
+    pub fn from_symbol_str(symbols: &str) -> Result<Vec<PinActions>, Error> {
+        let mut retn: Vec<Self> = vec![];
+        let mut sym = String::new();
+        let mut in_sym = false;
+        for s in symbols.chars() {
+            let mut b = [0; 4];
+            let c = &*s.encode_utf8(&mut b);
+            if in_sym {
+                if c == "|" {
+                    retn.push(Self::Other(sym.clone()));
+                    sym.clear();
+                    in_sym = false;
+                } else {
+                    sym.push_str(c);
+                }
+            } else if c == "|" {
+                in_sym = true;
+            } else {
+                let c_ = Self::from(c);
+                match c_ {
+                    Self::Other(_) => return Err(Error::new(&format!(
+                        "Cannot derive PinActions enum from encoded character {}!",
+                        c
+                    ))),
+                    _ => retn.push(c_),
+                }
+            }
+        }
+        if in_sym {
+            // Current sym wasn't closed. Badly formatted input
+            return Err(Error::new(&format!(
+                "Badly formatted PinActions string: Open user-defined symbol without closing delimiter. Current symbol: {}",
+                &sym
+            )));
+        }
+        Ok(retn)
+    }
+
+    pub fn push_to_string(&self, current: &mut String) -> Result<(), Error> {
+        match self {
+            Self::Other(s) => current.push_str(&format!("|{}|", s)),
+            _ => current.push(self.as_char())
+        }
+        Ok(())
+    }
+
+    pub fn to_action_string(actions: &Vec<PinActions>) -> Result<String, Error> {
+        let mut retn = "".to_string();
+        for action in actions.iter().rev() {
+            action.push_to_string(&mut retn)?;
+        }
+        return Ok(retn)
+    }
+
+    pub fn to_string(&self) -> Result<String, Error> {
+        Self::to_action_string(&vec!(self.clone()))
     }
 
     pub fn as_char(&self) -> char {
         match self {
             PinActions::Drive => 'D',
+            Self::DriveHigh => '1',
+            Self::DriveLow => '0',
             PinActions::Verify => 'V',
+            Self::VerifyHigh => 'H',
+            Self::VerifyLow => 'L',
             PinActions::Capture => 'C',
             PinActions::HighZ => 'Z',
+            PinActions::Other(_) => '_',
         }
     }
 
-    pub fn as_tester_char(&self, data: u8) -> char {
+    pub fn as_sym(&self) -> String {
         match self {
-            PinActions::Drive => match data {
-                0 => '0',
-                _ => '1',
+            PinActions::Other(sym) => sym.clone(),
+            _ => self.as_char().to_string()
+        }
+    }
+
+    pub fn apply_state(&self, state: u8) -> Self {
+        match self {
+            Self::Drive => {
+                if state == 0 {
+                    Self::DriveLow
+                } else {
+                    Self::DriveHigh
+                }
             },
-            PinActions::Verify => match data {
-                0 => 'L',
-                _ => 'H',
+            Self::Verify => {
+                if state == 0 {
+                    Self::VerifyLow
+                } else {
+                    Self::VerifyHigh
+                }
             },
-            PinActions::Capture => 'C',
-            PinActions::HighZ => 'Z',
+            _ => self.clone()
+        }
+    }
+
+    pub fn is_standard(&self) -> bool {
+        match self {
+            Self::Other(_) => false,
+            _ => true
+        }
+    }
+
+    /// Similar to "from", but accepts a custom string whether or not its delimited.
+    ///    from_delimiter_optional('a') => Other('a')
+    ///    from_delimiter_optional('|a|') => Other('a')
+    /// Delimiters are needed to override standard actions, however:
+    ///    from_delimiter_optional('1') => DriveHigh
+    ///    from_delimiter_optional('|1|') => Other('1')
+    /// The input must also be a single action only.
+    pub fn from_delimiter_optional(action: &str) -> Result<Self, Error> {
+        if action.is_empty() {
+            return Err(Error::new(&format!(
+                "Improperly formatted delimited-optional action. Action cannot be empty"
+            )));
+        }
+
+        let matches: Vec<_> = action.match_indices('|').collect();
+        if matches.len() == 0 {
+            // No '|' were found, so just the action remains - if it matches a standard action,
+            // use that, otherwise generate a custom action
+            Ok(Self::from(action))
+        } else if matches.len() == 2 {
+            // Since this keeps the delimiters, there are exactly two '|' and one 'other thing'
+            // in the string.
+            // The order could be screwed up, however. '||hi' will give you [|, |, hi],
+            // so verify that the first and last indices are '|' to check for properly formatted input
+            if let Some(temp) = action.strip_prefix("|") {
+                if let Some(temp2) = temp.strip_suffix("|") {
+                    return Ok(Self::Other(temp2.to_string()));
+                }
+            }
+            Err(Error::new(&format!(
+                "Improperly formatted delimited-optional action. Cannot convert from '{}'",
+                action
+            )))
+        } else {
+            // Unexpected input. Complain.
+            Err(Error::new(&format!(
+                "Expected a single delimited-optional action. Cannot convert from '{}'",
+                action
+            )))
         }
     }
 }
@@ -73,6 +246,12 @@ impl TryFrom<u8> for PinActions {
             'D' => Ok(PinActions::Drive),
             'v' => Ok(PinActions::Verify),
             'V' => Ok(PinActions::Verify),
+            '1' => Ok(Self::DriveHigh),
+            '0' => Ok(Self::DriveLow),
+            'H' => Ok(Self::VerifyHigh),
+            'h' => Ok(Self::VerifyHigh),
+            'L' => Ok(Self::VerifyLow),
+            'l' => Ok(Self::VerifyLow),
             'c' => Ok(PinActions::Capture),
             'C' => Ok(PinActions::Capture),
             'z' => Ok(PinActions::HighZ),
@@ -85,6 +264,24 @@ impl TryFrom<u8> for PinActions {
     }
 }
 
+impl From<&str> for PinActions {
+    fn from(s: &str) -> Self {
+        if s.len() == 1 {
+            match Self::try_from(s.chars().next().unwrap() as u8) {
+                Ok(p) => p,
+                Err(_) => Self::Other(s.to_string())
+            }
+        } else {
+            Self::Other(s.to_string())
+        }
+    }
+}
+
+// pub struct PinIdentifier {
+//     pub model_id: usize,
+//     pub name: usize
+// }
+
 /// Available Pin Roles
 #[derive(Debug, Copy, Clone)]
 pub enum PinRoles {
@@ -96,17 +293,18 @@ pub enum PinRoles {
 }
 
 /// Model for single pin.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Pin {
     pub model_id: usize,
     pub id: usize,
     // Since pins will be added from the add_pin function of Pins,
     // just reuse that String instance instead of creating a new one.
     pub name: String,
-    pub data: u8,
+    pub data: RwLock<u8>,
 
-    /// The pin's current action. If no action is desired, the pin will be HighZ.
-    pub action: PinActions,
+    // /// The pin's current action. If no action is desired, the pin will be HighZ.
+    // pub action: PinActions,
+    pub action: RwLock<PinActions>,
 
     /// The pin's initial action and state. This will be applied during creation and whenever the
     /// 'reset' function is called.
@@ -123,38 +321,55 @@ pub struct Pin {
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
     // lookup boost.
     pub groups: HashMap<String, usize>,
+
+    //pub overlaying: bool,
 }
 
 impl Pin {
-    pub fn drive(&mut self, data: Option<u8>) -> Result<(), Error> {
+    pub fn drive(&self, data: Option<u8>) -> Result<(), Error> {
         if let Some(d) = data {
             self.set_data(d)?;
         }
-        self.action = PinActions::Drive;
+
+        let mut action = self.action.write().unwrap();
+        if *self.data.read().unwrap() == 0 {
+            *action = PinActions::DriveLow;
+        } else {
+            *action = PinActions::DriveHigh;
+        }
         Ok(())
     }
 
-    pub fn verify(&mut self, data: Option<u8>) -> Result<(), Error> {
+    pub fn verify(&self, data: Option<u8>) -> Result<(), Error> {
         if let Some(d) = data {
             self.set_data(d)?;
         }
-        self.action = PinActions::Verify;
+
+        let mut action = self.action.write().unwrap();
+        if *self.data.read().unwrap() == 0 {
+            *action = PinActions::VerifyLow;
+        } else {
+            *action = PinActions::VerifyHigh;
+        }
         Ok(())
     }
 
-    pub fn capture(&mut self) -> Result<(), Error> {
-        self.action = PinActions::Capture;
+    pub fn capture(&self) -> Result<(), Error> {
+        let mut action = self.action.write().unwrap();
+        *action = PinActions::Capture;
         Ok(())
     }
 
-    pub fn highz(&mut self) -> Result<(), Error> {
-        self.action = PinActions::HighZ;
+    pub fn highz(&self) -> Result<(), Error> {
+        let mut action = self.action.write().unwrap();
+        *action = PinActions::HighZ;
         Ok(())
     }
 
-    pub fn set_data(&mut self, data: u8) -> Result<(), Error> {
+    pub fn set_data(&self, data: u8) -> Result<(), Error> {
         if data == 0 || data == 1 {
-            self.data = data;
+            let mut pin_data = self.data.write().unwrap();
+            *pin_data = data;
             Ok(())
         } else {
             Err(Error::new(&format!(
@@ -164,16 +379,20 @@ impl Pin {
         }
     }
 
-    pub fn reset(&mut self) {
-        match self.reset_data {
-            Some(d) => self.data = d as u8,
-            None => {
-                self.data = 0;
+    pub fn reset(&self) {
+        let mut action = self.action.write().unwrap();
+        {
+            let mut data = self.data.write().unwrap();
+            match self.reset_data {
+                Some(d) => *data = d as u8,
+                None => {
+                    *data = 0;
+                }
             }
         }
-        match self.reset_action {
-            Some(a) => self.action = a,
-            None => self.action = PinActions::HighZ,
+        match self.reset_action.as_ref() {
+            Some(a) => *action = a.apply_state(*self.data.read().unwrap()),
+            None => *action = PinActions::HighZ,
         }
     }
 
@@ -203,14 +422,20 @@ impl Pin {
         reset_data: Option<u32>,
         reset_action: Option<PinActions>,
     ) -> Pin {
-        let mut p = Pin {
+        let p = Pin {
             model_id: model_id,
             id: id,
             name: name,
-            data: 0,
-            action: PinActions::HighZ,
+            data: RwLock::new(0),
+            action: RwLock::new(PinActions::HighZ),
             reset_data: reset_data,
-            reset_action: reset_action,
+            reset_action: {
+                if let Some(a) = reset_action {
+                    Some(a.apply_state(reset_data.unwrap_or(0) as u8))
+                } else {
+                    None
+                }
+            },
             aliases: Vec::new(),
             groups: HashMap::new(),
             role: PinRoles::Standard,
@@ -221,8 +446,9 @@ impl Pin {
     }
 }
 
-impl Default for Pin {
-    fn default() -> Pin {
+impl std::clone::Clone for Pin {
+    fn clone(&self) -> Self {
+        println!("Cloning pin... where is this used?");
         Self::new(0, 0, String::from("default"), Option::None, Option::None)
     }
 }

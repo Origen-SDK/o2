@@ -1,0 +1,31 @@
+// ******************************************************************************************
+// Generated
+//   Time: 2020-07-28 08:04:10.629254 -05:00
+//   By: nxa13790
+//   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\example\example\patterns\looped_produce_pattern.py
+// ******************************************************************************************
+// Workspace
+//   Environment
+//     OS: Windows Unknown
+//     Mode: development
+//     Targets
+//         C:\Users\nxa13790\Documents\origen\o2\example\targets\tester\j750.py
+//         C:\Users\nxa13790\Documents\origen\o2\example\targets\dut\eagle.py
+//   Application
+//     Local Path: C:\Users\nxa13790\Documents\origen\o2\example
+//   Origen Core
+//     Version: 2.0.0-pre1
+//     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
+// ******************************************************************************************
+// Header Comments
+//   From the Application
+//     Hello pattern from the application!
+// ******************************************************************************************
+vector ($tset, clk, portc)
+{
+start_label pattern_st:
+repeat 100 > simple 0 XX ;
+// Producing pattern at index 2
+repeat 20 > simple 0 XX ;
+end_module > simple 0 XX ;
+}

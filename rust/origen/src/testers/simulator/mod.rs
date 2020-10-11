@@ -40,6 +40,10 @@ impl TesterAPI for Renderer {
         "Simulator".to_string()
     }
 
+    fn id(&self) -> String {
+        "::Simulator".to_string()
+    }
+
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
         Box::new(std::clone::Clone::clone(self))
     }

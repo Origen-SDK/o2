@@ -4,6 +4,8 @@ use crate::Result;
 use num_bigint::BigUint;
 use num_bigint::ToBigUint;
 use num_traits::Zero;
+use std::convert::TryInto;
+use super::num_helpers::NumHelpers;
 
 /// Returns the value of the given BigUint for the given bit field range.
 /// Notes:
@@ -29,7 +31,7 @@ pub fn bit_slice(value: &BigUint, start_bit: usize, stop_bit: usize) -> Result<B
     }
 
     // If the whole slice is above the MSB just return 0
-    if value.bits() <= lower {
+    if value.bits() <= lower.try_into().unwrap() {
         return Ok(0.to_biguint().unwrap());
     }
 
@@ -93,6 +95,18 @@ pub fn bit_slice(value: &BigUint, start_bit: usize, stop_bit: usize) -> Result<B
     }
 
     Ok(BigUint::from_bytes_le(&result_bytes))
+}
+
+impl NumHelpers for BigUint {
+    fn even_parity(&self) -> bool {
+        let mut cnt = BigUint::from(0 as u8);
+        self.to_u32_digits().iter().for_each( |d| cnt += d.count_ones());
+        if cnt % BigUint::from(2 as u8) == BigUint::from(0 as u8) {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 #[cfg(test)]

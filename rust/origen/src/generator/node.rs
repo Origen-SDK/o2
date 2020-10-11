@@ -152,6 +152,28 @@ impl Node {
         Ok(*self.children[index].clone())
     }
 
+    pub fn depth(&self) -> usize {
+        let mut depth = 0;
+        for n in self.children.iter() {
+            depth += n.depth();
+        }
+        depth
+    }
+
+    pub fn get_descendant(&self, offset: usize, depth: &mut usize) -> Option<Node> {
+        for n in self.children.iter().rev() {
+            if let Some(node) = n.get_descendant(offset, depth) {
+                return Some(node);
+            }
+        }
+        if offset == *depth {
+            Some(self.clone())
+        } else {
+            *depth += 1;
+            None
+        }
+    }
+
     pub fn process_return_code(
         &self,
         code: Return,

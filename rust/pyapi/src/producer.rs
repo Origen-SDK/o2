@@ -70,8 +70,8 @@ pub struct PyProducer {}
 #[pymethods]
 impl PyProducer {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(PyProducer {});
+    fn new() -> PyResult<Self> {
+        Ok(PyProducer {})
     }
 
     fn create_job(&self, command: &str, file: Option<&str>) -> PyResult<PyJob> {
@@ -99,7 +99,7 @@ pub struct PyPattern {
 #[pymethods]
 impl PyPattern {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(PyPattern {});
+    fn new() -> Self {
+        PyPattern {}
     }
 }

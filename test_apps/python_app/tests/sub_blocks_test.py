@@ -14,16 +14,13 @@ def run_around_tests():
 
 
 def test_sub_blocks_can_be_added():
-    assert len(dut.sub_blocks) == 5
-    assert list(
-        dut.sub_blocks.keys()) == ['core0', 'core1', 'core2', 'core3', 'dac']
+    assert len(dut.sub_blocks) == 8
+    assert list(dut.sub_blocks.keys()) == ['core0', 'core1', 'core2', 'core3', 'dac', 'arm_debug', 'flash', 'shared_ram']
 
     # Test adding a sub_block to the top-level
-    block = dut.add_sub_block("core4", "core")
-    assert len(dut.sub_blocks) == 6
-    assert list(dut.sub_blocks.keys()) == [
-        'core0', 'core1', 'core2', 'core3', 'dac', 'core4'
-    ]
+    block = dut.add_sub_block("core4", block_path="core")
+    assert len(dut.sub_blocks) == 9
+    assert list(dut.sub_blocks.keys()) == ['core0', 'core1', 'core2', 'core3', 'dac', 'arm_debug', 'flash', 'shared_ram', 'core4']
     assert block.name == "core4"
 
     # Test adding a sub_block to an embedded block...
@@ -34,9 +31,8 @@ def test_sub_blocks_can_be_added():
     assert list(dut.core0.adc0.sub_blocks.keys()) == ["my_block"]
     assert block.name == "my_block"
 
-
 def test_sub_block_iteration():
-    expected = ['core0', 'core1', 'core2', 'core3', 'dac']
+    expected = ['core0', 'core1', 'core2', 'core3', 'dac', 'arm_debug', 'flash', 'shared_ram']
     collected = []
     for name in dut.sub_blocks:
         collected.append(name)

@@ -1,8 +1,22 @@
-extern crate num;
-//use super::super::pins::pin::PinActions;
 use crate::error::Error;
 use eval;
 use indexmap::map::IndexMap;
+use crate::core::dut::Dut;
+use std::collections::HashMap;
+use super::super::pins::pin::{PinActions, ResolvePinActions};
+use super::super::pins::pin::Resolver as PinActionsResolver;
+use crate::core::tester::TesterSource;
+
+pub fn default_resolver() -> PinActionsResolver {
+    let mut map = PinActionsResolver::new();
+    map.update_mapping(PinActions::DriveHigh, "1".to_string());
+    map.update_mapping(PinActions::DriveLow, "0".to_string());
+    map.update_mapping(PinActions::VerifyHigh, "H".to_string());
+    map.update_mapping(PinActions::VerifyLow, "L".to_string());
+    map.update_mapping(PinActions::Capture, "C".to_string());
+    map.update_mapping(PinActions::HighZ, "X".to_string());
+    map
+}
 
 pub struct SimpleTimeset {
     pub name: String,
@@ -18,6 +32,9 @@ pub struct Timeset {
     pub period_as_string: Option<String>,
     pub default_period: Option<f64>,
     pub wavetable_ids: IndexMap<String, usize>,
+    pub pin_action_resolvers: IndexMap<String, PinActionsResolver>,
+
+    active_wavetable: Option<String>,
 }
 
 impl Timeset {
@@ -27,6 +44,7 @@ impl Timeset {
         name: &str,
         period_as_string: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
+        targets: Vec<&TesterSource>,
     ) -> Self {
         Timeset {
             model_id: model_id,
@@ -38,6 +56,26 @@ impl Timeset {
             },
             default_period: default_period,
             wavetable_ids: IndexMap::new(),
+            active_wavetable: Option::None,
+            //allow_implicit_pin_lookups: false,
+            pin_action_resolvers: {
+                let mut i = IndexMap::new();
+                for target in targets {
+                    match target {
+                        TesterSource::External(tester_name) => {
+                            i.insert(tester_name.to_string(), default_resolver());
+                        },
+                        TesterSource::Internal(t) => {
+                            if let Some(r) = t.pin_action_resolver() {
+                                i.insert(t.id(), r);
+                            } else {
+                                i.insert(t.id(), default_resolver());
+                            }
+                        }
+                    }
+                }
+                i
+            }
         }
     }
 
@@ -45,6 +83,27 @@ impl Timeset {
         let default = String::from("period");
         let p = self.period_as_string.as_ref().unwrap_or(&default);
         p.clone()
+    }
+
+    pub fn activate_wavetable(&mut self, wtbl_name: &str) -> Result<(), Error> {
+        if self.wavetable_ids.contains_key(wtbl_name) {
+            self.active_wavetable = Some(wtbl_name.to_string());
+            Ok(())
+        } else {
+            Err(Error::new(&format!(
+                "Timeset {} does not have a wavetable named {}!",
+                self.name,
+                wtbl_name
+            )))
+        }
+    }
+
+    pub fn clear_active_wavetable(&mut self) {
+        self.active_wavetable = Option::None;
+    }
+
+    pub fn active_wavetable(&self, _dut: Dut) -> Option<String> {
+        self.active_wavetable.clone()
     }
 
     pub fn eval(&self, current_period: Option<f64>) -> Result<f64, Error> {
@@ -92,7 +151,17 @@ impl Timeset {
 
 impl Default for Timeset {
     fn default() -> Self {
-        Self::new(0, 0, "dummy", Option::None, Option::None)
+        Self::new(0, 0, "dummy", Option::None, Option::None, vec![])
+    }
+}
+
+impl ResolvePinActions for Timeset {
+    fn pin_action_resolver(&self, target: String) -> &PinActionsResolver {
+        &self.pin_action_resolvers[&target]
+    }
+
+    fn mut_pin_action_resolver(&mut self, target: String) -> &mut PinActionsResolver {
+        &mut self.pin_action_resolvers[&target]
     }
 }
 
@@ -113,6 +182,10 @@ pub struct Wavetable {
     // Note that events are Event-IDs, which can be looked up from the DUT.
     //pub wave_ids: IndexMap<String, usize>
     pub wave_group_ids: IndexMap<String, usize>,
+
+    /// Stores the wave <-> physical relationship, after ID resolution
+    applied_waves: HashMap<usize, HashMap<String, usize>>,
+    inherited_wavetable_ids: Vec<usize>,
 }
 
 impl Wavetable {
@@ -123,9 +196,71 @@ impl Wavetable {
             timeset_id: timeset_id,
             id: id,
             period: Option::None,
-            //wave_ids: IndexMap::new(),
             wave_group_ids: IndexMap::new(),
+            applied_waves: HashMap::new(),
+            inherited_wavetable_ids: Vec::new(),
         })
+    }
+
+    pub fn apply_wave_to(&mut self, physical_pin_id: usize, wave_indicator: &str, wave_id: usize) {
+        if let Some(pin_waves) = self.applied_waves.get_mut(&physical_pin_id) {
+            pin_waves.insert(wave_indicator.to_string(), wave_id);
+        } else {
+            let mut pin_waves = HashMap::new();
+            pin_waves.insert(wave_indicator.to_string(), wave_id);
+            self.applied_waves.insert(physical_pin_id, pin_waves);
+        }
+    }
+
+    /// Returns all the wave IDs, including inherited ones, which is included in the pin list and
+    /// has an indicator in the indicator list.
+    /// If the pin list is empty, then all pins are returned. Likewise with the indicator list.
+    pub fn applied_waves(&self, dut: &Dut, pins: &Vec<(usize, String)>, indicators: &Vec<String>) -> Result<HashMap<usize, HashMap<String, usize>>, Error>{
+        let __pins;
+        if pins.len() > 1 {
+            let t: Vec<usize> = vec!();
+            for (model_id, pname) in pins.iter() {
+                dut._get_pin(*model_id, &pname)?.id;
+            }
+            __pins = t;
+        } else {
+            __pins = self.applied_waves.iter().map(|(k, _)| *k).collect();
+        }
+
+        let mut retn: HashMap<usize, HashMap<String, usize>> = HashMap::new();
+        for p in __pins.iter() {
+            if let Some(wids) = self.wave_ids_for(dut, *p, indicators) {
+                retn.insert(*p, wids);
+            }
+        }
+        Ok(retn)
+    }
+
+    pub fn wave_ids_for(&self, dut: &Dut, pin_id: usize, indicators: &Vec<String>) -> Option<HashMap<String, usize>> {
+        let mut retn: HashMap<String, usize> = HashMap::new();
+        if let Some(waves) = self.applied_waves.get(&pin_id) {
+            retn.extend(waves.clone());
+        }
+        for parent_id in self.inherited_wavetable_ids.iter().rev() {
+            let parent = &dut.wavetables[*parent_id];
+            // Notes here:
+            //  Could potentially be an inheritance chain, so need to use the
+            //      the 'waves_for' method over just checking applied_waves structure
+            //  Any circular inheritance structures should've been weeded out
+            //      during initialization, so not checking here.
+            //  We're only checking one pin at a time, so the result will be
+            //      a vector of size 1 with either Option::None or Option<wave_id>
+            //  Either way, we can just stick this directly into the return
+            // retn.insert(parent.wave_ids_for(dut, &vec!(*pid))[0]);
+            let mut t = parent.wave_ids_for(dut, pin_id, indicators).unwrap_or(HashMap::new());
+            t.extend(retn);
+            retn = t;
+        }
+        if retn.keys().len() > 0 {
+            Some(retn)
+        } else {
+            None
+        }
     }
 
     pub fn get_wave_group_id(&self, name: &str) -> Option<usize> {
@@ -151,11 +286,6 @@ impl Wavetable {
         Ok(())
     }
 
-    // pub fn register_wave(&mut self, id: usize, name: &str) -> Result<Wave, Error> {
-    //   let w = Wave::new(self.model_id, self.timeset_id, self.id, id, name)?;
-    //   self.wave_ids.insert(String::from(name), id);
-    //   Ok(w)
-    // }
     pub fn register_wave_group(
         &mut self,
         id: usize,
@@ -241,21 +371,6 @@ impl WaveGroup {
     pub fn contains_wave(&self, name: &str) -> bool {
         self.wave_ids.contains_key(name)
     }
-
-    pub fn get_waves_applied_to(
-        &self,
-        dut: &super::super::super::dut::Dut,
-        pin: &str,
-    ) -> Vec<String> {
-        let mut rtn: Vec<String> = vec![];
-        for (name, id) in self.wave_ids.iter() {
-            let w = &dut.waves[*id];
-            if w.pins.contains(&pin.to_string()) {
-                rtn.push(name.clone());
-            }
-        }
-        rtn
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -265,9 +380,8 @@ pub struct Wave {
     pub wavetable_id: usize,
     pub wave_group_id: usize,
     pub wave_id: usize,
-    //pub name: String,
     pub events: Vec<usize>,
-    pub pins: Vec<String>,
+    pub applied_pin_ids: Vec<usize>,
     pub indicator: String,
 }
 
@@ -286,9 +400,8 @@ impl Wave {
             wavetable_id: wavetable_id,
             wave_group_id: wave_group_id,
             wave_id: wave_id,
-            //name: String::from(name),
             events: vec![],
-            pins: vec![],
+            applied_pin_ids: vec![],
             indicator: String::from(indicator),
         })
     }
@@ -305,16 +418,9 @@ impl Wave {
             wave_group_id: wgrp.id,
             wave_id: id,
             events: vec![],
-            pins: vec![],
+            applied_pin_ids: vec![],
             indicator: String::from(indicator),
         })
-    }
-
-    pub fn apply_to(&mut self, pins: Vec<String>) -> Result<(), Error> {
-        // At some point, add some error handling to ensure the pins exists, isn't already included, etc.
-        // For now though, just adding it.
-        self.pins.extend(pins.clone());
-        Ok(())
     }
 
     pub fn set_indicator(&mut self, indicator: &str) -> Result<(), Error> {
@@ -454,16 +560,38 @@ impl Event {
     }
 }
 
+impl Dut {
+    pub fn apply_wave_id_to_pins(&mut self, wave_id: usize, pins: &Vec<(usize, String)>) -> Result<(), Error> {
+        let (wtbl_id, wave_indicator);
+        {
+            let wave = &self.waves[wave_id];
+            wtbl_id = wave.wavetable_id;
+            wave_indicator = wave.indicator.clone();
+        }
+
+        let physical_pin_ids: Vec<Vec<usize>> = self._resolve_groups_to_physical_pin_ids(&pins)?;
+        for ppin_ids in physical_pin_ids.iter() {
+            for ppin_id in ppin_ids.iter() {
+                    {
+                    let wtbl = &mut self.wavetables[wtbl_id];
+                    wtbl.apply_wave_to(*ppin_id, &wave_indicator, wave_id);
+                }
+                {
+                    let wave = &mut self.waves[wave_id];
+                    wave.applied_pin_ids.push(*ppin_id);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[test]
 fn test() {
-    //let e = Event { action: PinActions::Drive, at: vec!() };
-    // let t = Timeset::new("t1", Some(Box::new("1.0")), Option::None);
-    // assert_eq!(t.eval(None).unwrap(), 1.0 as f64);
-
-    let t = Timeset::new(0, 0, "t1", Some(Box::new("1.0 + 1")), Option::None);
+    let t = Timeset::new(0, 0, "t1", Some(Box::new("1.0 + 1")), Option::None, vec![]);
     assert!(t.eval(None).is_err());
 
-    let t = Timeset::new(0, 0, "t1", Some(Box::new("period")), Some(1.0 as f64));
+    let t = Timeset::new(0, 0, "t1", Some(Box::new("period")), Some(1.0 as f64), vec![]);
     assert_eq!(t.eval(Some(1.0 as f64)).unwrap(), 1.0 as f64);
 
     let t = Timeset::new(
@@ -472,6 +600,7 @@ fn test() {
         "t1",
         Some(Box::new("period + 0.25")),
         Some(1.0 as f64),
+        vec![],
     );
     assert_eq!(t.eval(Some(1.0 as f64)).unwrap(), 1.25 as f64);
 }

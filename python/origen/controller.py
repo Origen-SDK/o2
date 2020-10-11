@@ -33,6 +33,29 @@ class Proxies:
 
 # The base class of all Origen controller objects
 class Base:
+    __currently_loading__ = {}
+
+    @classmethod
+    def is_currently_loading(cls, name):
+        if name not in cls.__currently_loading__:
+            cls.__currently_loading__[name] = {
+                "count": 0
+            }
+        return cls.__currently_loading__[name]["count"] > 0
+    
+    @classmethod
+    def currently_loading(cls, name):
+        if name in cls.__currently_loading__:
+            cls.__currently_loading__[name]["count"] += 1
+        else:
+            cls.__currently_loading__[name] = {
+                "count": 1,
+            }
+
+    @classmethod
+    def done_loading(cls, name):
+        if name in  cls.__currently_loading__:
+            cls.__currently_loading__[name]["count"] -= 1
 
     # This is the ID given to this block instance by its parent. For example, if this
     # block was globally available as "dut.ana.adc0", then its name attribute would be "adc0"
@@ -80,6 +103,7 @@ class Base:
         #print(f"Looking for attribute {name}")
         # regs called directly on the controller means only the regs in the default
         # memory map and address block
+
         if name == "regs":
             self._load_regs()
             if self._default_default_address_block:
@@ -114,6 +138,10 @@ class Base:
             self.__proxies__["timesets"] = proxy
             for method in timesets.Proxy.api():
                 self.__setattr__(method, getattr(proxy, method))
+            
+            # Timesets may use pin references (as strings) for wavetable and wave
+            # instantiations. Need to ensure pins are loaded.
+            self.pins
             self._load_timesets()
             return eval(f"self.{name}")
 
@@ -171,6 +199,9 @@ class Base:
                 t += self.sub_blocks[key].tree_as_str(l, False)
         return t
 
+    def _set_as_default_address_block(self, mem_map_name, addr_block_name):
+        self._default_default_address_block = self.memory_maps[mem_map_name].address_blocks[addr_block_name]
+
     def memory_map(self, name):
         self._load_regs()
         return origen.dut.db.memory_map(self.model_id, name)
@@ -209,9 +240,9 @@ class Base:
 
     def _load_sub_blocks(self):
         if not self.sub_blocks_loaded:
+            self.sub_blocks_loaded = True
             self.sub_blocks = {}
             self.app.load_block_files(self, "sub_blocks.py")
-            self.sub_blocks_loaded = True
 
     def _load_pins(self):
         if not self.pins_loaded:
@@ -228,6 +259,13 @@ class Base:
             self.services_loaded = True
             self.services = {}
             self.app.load_block_files(self, "services.py")
+
+    def mem(self, offset, **kwargs):
+        self._load_regs()
+        n = f"_mem_0x{offset}"
+        if n not in self.regs:
+            self.add_simple_reg(n, offset, **kwargs)
+        return self.reg(n)
 
     def write_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
