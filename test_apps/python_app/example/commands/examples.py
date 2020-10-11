@@ -9,7 +9,7 @@ def run(**kwargs):
     run_cmd("generate",
             files=["example/patterns"],
             reference_dir="approved",
-            targets=["dut/eagle", "tester/v93k_smt7"])
+            targets=["dut/eagle", "tester/v93k_smt7", "tester/j750"])
 
     stats = origen.tester.stats()
     changes = stats['changed_pattern_files'] > 0 or stats[
