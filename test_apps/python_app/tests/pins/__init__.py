@@ -29,8 +29,8 @@ def pins():
 @pytest.fixture
 def grp():
   grp = origen.dut.group_pins("grp", "p1", "p2", "p3")
-  assert grp.data == 0
-  assert grp.pin_actions == "ZZZ"
+  #assert grp.data == 0
+  assert grp.actions == "ZZZ"
 
 @pytest.fixture
 def clk_pins():

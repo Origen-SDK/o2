@@ -48,6 +48,7 @@ impl<'a> Renderer<'a> {
 
         // Finally, generate the output
         let mut p = Self::new(tester);
+        // println!("{}", n);
         n.process(&mut p)?;
         Ok(vec![p.path.unwrap()])
     }
@@ -142,10 +143,10 @@ impl<'a> Processor for Renderer<'a> {
                 Ok(Return::Unmodified)
             }
             Attrs::PatternHeader => Ok(Return::ProcessChildren),
-            Attrs::PinGroupAction(grp_id, actions, _metadata) => {
-                let dut = DUT.lock().unwrap();
-                return self.update_states(*grp_id, actions, &dut);
-            },
+            // Attrs::PinGroupAction(grp_id, actions, _metadata) => {
+            //     let dut = DUT.lock().unwrap();
+            //     return self.update_states(*grp_id, actions, &dut);
+            // },
             Attrs::PinAction(pin_id, action, _metadata) => {
                 let dut = DUT.lock().unwrap();
                 let pin = &dut.pins[*pin_id];

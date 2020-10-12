@@ -39,6 +39,21 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+fn unpack_transaction_options(trans: &mut origen::Transaction, kwargs: Option<&PyDict>) -> PyResult<()> {
+    if let Some(opts) = kwargs {
+        if let Some(_mask) = opts.get_item("mask") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(())
+}
+
 /// Given a vector of PyAny's, assumed to be either a String, Pin, or PinGroup object,
 /// return a vector with each item mapped as (model_id<usize>, name<String>) pairs.
 /// This pair is sufficient to lookup the pin group object in the backend.
@@ -74,7 +89,7 @@ impl PyDUT {
         let mut dut = DUT.lock().unwrap();
         let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (
             Option<u32>,
-            Option<Vec<origen::core::model::pins::pin::PinActions>>,
+            Option<Vec<origen::core::model::pins::pin::PinAction>>,
             Option<u32>,
             Option<u32>,
             Option<Endianness>,

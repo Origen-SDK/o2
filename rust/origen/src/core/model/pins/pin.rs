@@ -1,9 +1,11 @@
+use crate::Result;
 use crate::error::Error;
 use indexmap::map::IndexMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::RwLock;
 use crate::standards::actions::*;
+use num_bigint::BigUint;
 
 pub trait ResolvePinActions {
     fn pin_action_resolver(&self, target: String) -> &Resolver;
@@ -13,7 +15,7 @@ pub trait ResolvePinActions {
         self.pin_action_resolver(target).resolve(action)
     }
 
-    fn _resolve_pin_action(&self, target: String, action: &PinAction) -> Result<String, Error> {
+    fn _resolve_pin_action(&self, target: String, action: &PinAction) -> Result<String> {
         match self.resolve_pin_action(target, action) {
             Some(a) => Ok(a),
             None => Err(Error::new(&format!(
@@ -66,22 +68,176 @@ impl Resolver {
 }
 
 /// Single 'action' applicable to a pin
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, Eq, Serialize, Deserialize)]
 pub struct PinAction {
-    action: String,
+    pub action: String,
+}
+
+impl PartialEq for PinAction {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
 }
 
 impl PinAction {
-    pub fn new(action: &str) -> Self {
+    pub fn new<T: AsRef<str> + std::fmt::Display>(action: T) -> Self {
         Self {
             action: action.to_string(),
             // metadata: None,
         }
     }
-    // pub fn standard_actions() -> Vec<String> {}
+
+    pub fn checked_new<T: AsRef<str> + std::fmt::Display>(action: T) -> Result<Self> {
+        let a = Self::from_action_str(&action.to_string())?;
+        if a.len() > 1 {
+            Err(Error::new(&format!(
+                "Expected Single PinAction but input {} would resolve to multiple actions",
+                action
+            )))
+        } else {
+            Ok(Self::new(a.first().unwrap().to_string()))
+        }
+    }
+
+    pub fn standard_actions() -> std::collections::HashMap<String, String> {
+        standard_actions()
+    }
+
+    pub fn is_standard(&self) -> bool {
+        STANDARD_ACTIONS.contains_key(&self.action)
+    }
 
     pub fn to_string(&self) -> String {
         self.action.to_string()
+    }
+
+    pub fn from_action_str(actions: &str) -> Result<Vec<Self>> {
+        let mut retn: Vec<Self> = vec![];
+        let mut sym = String::new();
+        let mut in_sym = false;
+
+        for a in actions.chars() {
+            let mut b = [0; 4];
+            let c = &*a.encode_utf8(&mut b);
+            if in_sym {
+                if c == "|" {
+                    retn.push(Self::new(&sym));
+                    sym.clear();
+                    in_sym = false;
+                } else {
+                    sym.push_str(c);
+                }
+            } else if c == "|" {
+                in_sym = true;
+            } else {
+                // let c_ = Self::from(c);
+                // match c_ {
+                //     Self::Other(_) => return Err(Error::new(&format!(
+                //         "Cannot derive PinActions enum from encoded character {}!",
+                //         c
+                //     ))),
+                //     _ => retn.push(c_),
+                // }
+                retn.push(Self::new(c));
+            }
+        }
+        if in_sym {
+            // Current sym wasn't closed. Badly formatted input
+            return Err(Error::new(&format!(
+                "Badly formatted PinAction string: Open user-defined symbol without closing delimiter. Current symbol: {}",
+                &sym
+            )));
+        }
+        Ok(retn)
+    }
+
+    pub fn push_to_string(&self, current: &mut String) -> Result<()> {
+        // match self {
+        //     Self::Other(s) => current.push_str(&format!("|{}|", s)),
+        //     _ => current.push(self.as_char())
+        // }
+        if self.action.len() > 1 {
+            current.push_str(&format!("|{}|", self.action));
+        } else {
+            current.push_str(&self.action);
+        }
+        Ok(())
+    }
+
+    pub fn to_action_string(actions: &Vec<Self>) -> Result<String> {
+        let mut retn = "".to_string();
+        for action in actions.iter().rev() {
+            action.push_to_string(&mut retn)?;
+        }
+        return Ok(retn)
+    }
+
+    pub fn to_bool(&self) -> Result<bool> {
+        if self.action == DRIVE_HIGH || self.action == VERIFY_HIGH {
+            Ok(true)
+        } else if self.action == DRIVE_LOW || self.action == VERIFY_LOW {
+            Ok(false)
+        } else {
+            Err(Error::new(&format!(
+                "Cannot interpret action {} as a logic 1 or 0",
+                self.action
+            )))
+        }
+    }
+
+    pub fn to_bool_unchecked(&self) -> bool {
+        self.action == DRIVE_HIGH || self.action == VERIFY_HIGH
+    }
+
+    pub fn to_logic(&self) -> Result<usize> {
+        Ok(self.to_bool()?.into())
+    }
+
+    pub fn to_logic_unchecked(&self) -> usize {
+        self.to_bool_unchecked().into()
+    }
+
+    pub fn is_driving(&self) -> bool {
+        self.action == DRIVE_HIGH || self.action == DRIVE_LOW
+    }
+
+    pub fn is_writing(&self) -> bool {
+        self.is_driving()
+    }
+
+    pub fn is_verifying(&self) -> bool {
+        self.action == VERIFY_HIGH || self.action == VERIFY_LOW
+    }
+
+    pub fn to_data(actions: Vec<PinAction>) -> Result<BigUint> {
+        let mut retn = BigUint::new(vec!(0));
+        for (i, a) in actions.iter().rev().enumerate() {
+            match a.to_bool() {
+                Ok(b) => {
+                    retn <<= 1;
+                    if b {
+                        retn = retn + (1 as u8);
+                    }
+                },
+                Err(_e) => return Err(Error::new(&format!(
+                    "Cannot convert actions to data as action {} at index {} cannot be interpreted as a logic 1 or 0",
+                    &a.to_string(),
+                    (actions.len() - i - 1) // Re-reverse the indices to they make sense to the user
+                )))
+            }
+         }
+        Ok(retn)
+    }
+
+    pub fn to_data_unchecked(actions: Vec<PinAction>) -> BigUint {
+        let mut retn = BigUint::new(vec!(0));
+        for a in actions.iter().rev() {
+            retn <<= 1;
+            if a.to_bool_unchecked() {
+                retn = retn + (1 as u8);
+            }
+        }
+        retn
     }
 
     pub fn drive_high() -> Self {
@@ -390,61 +546,62 @@ pub struct Pin {
 }
 
 impl Pin {
-    pub fn drive(&self, data: Option<u8>) -> Result<(), Error> {
-        if let Some(d) = data {
-            self.set_data(d)?;
-        }
+    // pub fn drive(&self, data: Option<u8>) -> Result<()> {
+    //     if let Some(d) = data {
+    //         self.set_data(d)?;
+    //     }
 
-        let mut action = self.action.write().unwrap();
-        if *self.data.read().unwrap() == 0 {
-            *action = PinAction::drive_low();
-        } else {
-            *action = PinAction::drive_high();
-        }
-        Ok(())
-    }
+    //     let mut action = self.action.write().unwrap();
+    //     if *self.data.read().unwrap() == 0 {
+    //         *action = PinAction::drive_low();
+    //     } else {
+    //         *action = PinAction::drive_high();
+    //     }
+    //     Ok(())
+    // }
 
-    pub fn verify(&self, data: Option<u8>) -> Result<(), Error> {
-        if let Some(d) = data {
-            self.set_data(d)?;
-        }
+    // pub fn verify(&self, data: Option<u8>) -> Result<()> {
+    //     if let Some(d) = data {
+    //         self.set_data(d)?;
+    //     }
 
-        let mut action = self.action.write().unwrap();
-        if *self.data.read().unwrap() == 0 {
-            *action = PinAction::verify_low();
-        } else {
-            *action = PinAction::verify_high();
-        }
-        Ok(())
-    }
+    //     let mut action = self.action.write().unwrap();
+    //     if *self.data.read().unwrap() == 0 {
+    //         *action = PinAction::verify_low();
+    //     } else {
+    //         *action = PinAction::verify_high();
+    //     }
+    //     Ok(())
+    // }
 
-    pub fn capture(&self) -> Result<(), Error> {
-        let mut action = self.action.write().unwrap();
-        *action = PinAction::capture();
-        Ok(())
-    }
+    // pub fn capture(&self) -> Result<()> {
+    //     let mut action = self.action.write().unwrap();
+    //     *action = PinAction::capture();
+    //     Ok(())
+    // }
 
-    pub fn highz(&self) -> Result<(), Error> {
-        let mut action = self.action.write().unwrap();
-        *action = PinAction::highz();
-        Ok(())
-    }
+    // pub fn highz(&self) -> Result<()> {
+    //     let mut action = self.action.write().unwrap();
+    //     *action = PinAction::highz();
+    //     Ok(())
+    // }
 
-    pub fn set_data(&self, data: u8) -> Result<(), Error> {
-        if data == 0 || data == 1 {
-            let mut pin_data = self.data.write().unwrap();
-            *pin_data = data;
-            Ok(())
-        } else {
-            Err(Error::new(&format!(
-                "Pin data must be either 0 or 1 - got {}",
-                data
-            )))
-        }
-    }
+    // pub fn set_data(&self, data: u8) -> Result<()> {
+    //     if data == 0 || data == 1 {
+    //         let mut pin_data = self.data.write().unwrap();
+    //         *pin_data = data;
+    //         Ok(())
+    //     } else {
+    //         Err(Error::new(&format!(
+    //             "Pin data must be either 0 or 1 - got {}",
+    //             data
+    //         )))
+    //     }
+    // }
 
-    pub fn reset(&self) {
-        let mut action = self.action.write().unwrap();
+    // pub fn reset(&self) -> Node {
+    fn reset(&self) {
+            let mut action = self.action.write().unwrap();
         // {
         //     let mut data = self.data.write().unwrap();
         //     match self.reset_data {
@@ -456,12 +613,16 @@ impl Pin {
         // }
         match self.reset_action.as_ref() {
             // Some(a) => *action = a.apply_state(*self.data.read().unwrap()),
-            Some(a) => *action = a.clone(),
-            None => *action = PinAction::highz(),
+            Some(a) => {
+                *action = a.clone();
+            },
+            None => {
+                *action = PinAction::highz();
+            }
         }
     }
 
-    pub fn add_metadata_id(&mut self, id_str: &str, id: usize) -> Result<(), Error> {
+    pub fn add_metadata_id(&mut self, id_str: &str, id: usize) -> Result<()> {
         if self.metadata.contains_key(id_str) {
             Err(Error::new(&format!(
                 "Pin {} already has metadata {}! Use set_metadata to override its current value!",

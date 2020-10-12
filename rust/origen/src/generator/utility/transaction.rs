@@ -5,12 +5,14 @@ use super::super::nodes::Id;
 use crate::standards::actions::*;
 use num_traits;
 use crate::utility::num_helpers::NumHelpers;
+use crate::core::model::pins::pin::PinAction;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
     Write,
     Verify,
-    Capture
+    Capture,
+    Set
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -24,6 +26,7 @@ pub struct Transaction {
     pub capture_enable: Option<BigUint>,
     pub overlay_enable: Option<BigUint>,
     pub overlay_string: Option<String>,
+    pub set_actions: Option<Vec<PinAction>>,
     pub metadata: Option<Metadata>,
 }
 
@@ -39,6 +42,7 @@ impl Transaction {
             capture_enable: None,
             overlay_enable: None,
             overlay_string: None,
+            set_actions: None,
             metadata: None
         })
     }
@@ -60,6 +64,55 @@ impl Transaction {
             capture_enable: None,
             overlay_enable: None,
             overlay_string: None,
+            set_actions: None,
+            metadata: None
+        })
+    }
+
+    pub fn new_capture(width: usize) -> Result<Self> {
+        Ok(Self {
+            action: Some(Action::Capture),
+            reg_id: None,
+            address: None,
+            width: width,
+            data: BigUint::from(0 as u8),
+            bit_enable: Self::enable_of_width(width)?,
+            capture_enable: Some(Self::enable_of_width(width)?),
+            overlay_enable: None,
+            overlay_string: None,
+            set_actions: None,
+            metadata: None
+        })
+    }
+
+    pub fn new_highz(width: usize) -> Result<Self> {
+        Ok(Self {
+            action: Some(Action::Write),
+            reg_id: None,
+            address: None,
+            width: width,
+            data: BigUint::from(0 as u8),
+            bit_enable: BigUint::from(0 as u8),
+            capture_enable: None,
+            overlay_enable: None,
+            overlay_string: None,
+            set_actions: None,
+            metadata: None
+        })
+    }
+
+    pub fn new_set(actions: &Vec<PinAction>) -> Result<Self> {
+        Ok(Self {
+            action: Some(Action::Set),
+            reg_id: None,
+            address: None,
+            width: actions.len(),
+            data: BigUint::from(0 as u8),
+            bit_enable: Self::enable_of_width(actions.len())?,
+            capture_enable: None,
+            overlay_enable: None,
+            overlay_string: None,
+            set_actions: Some(actions.clone()),
             metadata: None
         })
     }
@@ -91,6 +144,7 @@ impl Transaction {
                     low_sym = CAPTURE;
                     high_sym = CAPTURE;
                 }
+                _ => return Err(Error::new(&format!("Cannot get symbols for non write, verify, or capture actions")))
             }
         } else {
             low_sym = HIGHZ;
@@ -143,6 +197,7 @@ impl Transaction {
             capture_enable: Some(BigUint::from(0 as u8)),
             overlay_enable: self.overlay_enable.clone(),
             overlay_string: self.overlay_string.clone(),
+            set_actions: None,
             metadata: self.metadata.clone(),
         })
     }
