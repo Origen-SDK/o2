@@ -107,7 +107,7 @@ def test_setting_timeset_with_instance(clean_eagle, clean_dummy):
 
 def test_setting_targets(clean_eagle, clean_tester):
   assert origen.tester.targets == []
-  origen.tester.target("::DummyRenderer")
+  origen.tester.target("DummyRenderer")
   assert origen.tester.targets == ["::DummyRenderer"]
 
 def test_resetting_targets():
@@ -116,9 +116,9 @@ def test_resetting_targets():
   assert origen.tester.targets == []
 
 def test_exception_on_duplicate_targets(clean_eagle, clean_tester):
-  origen.tester.target("::DummyRenderer")
+  origen.tester.target("DummyRenderer")
   with pytest.raises(OSError):
-    origen.tester.target("::DummyRenderer")
+      origen.tester.target("DummyRenderer")
 
 def test_exception_on_unknown_target(clean_eagle, clean_tester):
   with pytest.raises(OSError):
@@ -152,20 +152,20 @@ class TestTesterAPI:
     assert n["attrs"][1][0] == 10
 
 def test_adding_frontend_renderer(clean_eagle, clean_tester):
-  assert "tester_test.PyTestRenderer" not in origen.tester.testers
-  origen.tester.register_tester(PyTestRenderer)
-  assert "tester_test.PyTestRenderer" in origen.tester.testers
+    assert "CUSTOM::tester_test.PyTestRenderer" not in origen.tester.testers
+    origen.tester.register_tester(PyTestRenderer)
+    assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
 
 def test_frontend_testers_can_be_targeted():
   origen.tester.reset()
-  assert "tester_test.PyTestRenderer" in origen.tester.testers
+  assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
   assert origen.tester.targets == []
-  origen.tester.target("tester_test.PyTestRenderer")
+  origen.tester.target("CUSTOM::tester_test.PyTestRenderer")
   assert origen.tester.targets == ["tester_test.PyTestRenderer"]
 
 def test_frontend_testers_can_be_targeted_as_class():
   origen.tester.reset()
-  assert "tester_test.PyTestRenderer" in origen.tester.testers
+  assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
   assert origen.tester.targets == []
   origen.tester.target(PyTestRenderer)
   assert origen.tester.targets == ["tester_test.PyTestRenderer"]
@@ -177,7 +177,7 @@ def run_pattern():
 
 @pytest.fixture
 def tester_target_backend_dummy():
-  origen.tester.target("::DummyRenderer")
+  origen.tester.target("DummyRenderer")
 
 @pytest.fixture
 def tester_target_frontend_dummy():
@@ -186,7 +186,7 @@ def tester_target_frontend_dummy():
   except OSError:
     # If we get an error back that shows it's already been added, that's fine. Ignore it.
     pass
-  origen.tester.target("tester_test.PyTestRenderer")
+  origen.tester.target("CUSTOM::tester_test.PyTestRenderer")
 
 class TestBackendRenderer:
   def test_tester(self, capfd, clean_eagle, clean_tester, tester_target_backend_dummy):
@@ -204,7 +204,7 @@ class TestBackendRenderer:
     assert err == ""
   
   def test_interceptors_on_backend(self, capfd, clean_eagle, clean_tester):
-    origen.tester.target("::DummyRendererWithInterceptors")
+    origen.tester.target("DummyRendererWithInterceptors")
     origen.tester.set_timeset("simple")
     run_pattern()
     origen.tester.render_pattern()
@@ -273,7 +273,7 @@ class TestFrontendRenderer:
 def test_targeted_renderer_ordering(capfd, clean_eagle, clean_tester):
     origen.tester.register_tester(PyTestRendererWithInterceptor)
     origen.tester.target(PyTestRendererWithInterceptor)
-    origen.tester.target("::DummyRendererWithInterceptors")
+    origen.tester.target("DummyRendererWithInterceptors")
     origen.tester.set_timeset("simple")
     run_pattern()
     origen.tester.render_pattern()
@@ -299,7 +299,7 @@ def test_targeted_renderer_ordering(capfd, clean_eagle, clean_tester):
 
 def test_targeted_renderer_reverse_ordering(capfd, clean_eagle, clean_tester):
     origen.tester.register_tester(PyTestRendererWithInterceptor)
-    origen.tester.target("::DummyRendererWithInterceptors")
+    origen.tester.target("DummyRendererWithInterceptors")
     origen.tester.target(PyTestRendererWithInterceptor)
     origen.tester.set_timeset("simple")
     run_pattern()

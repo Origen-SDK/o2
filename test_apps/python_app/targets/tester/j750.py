@@ -1,1 +1,1 @@
-origen.tester.target("::Teradyne::J750")
+origen.tester.target("J750")

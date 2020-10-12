@@ -6,5 +6,5 @@ authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-origen = { path = "../../python" }
+origen = { path = "../../python", develop = true }
 pytest = "^3.0"

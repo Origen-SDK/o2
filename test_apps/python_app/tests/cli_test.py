@@ -30,6 +30,7 @@ origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
 
 def test_origen_v():
+    #import pdb; pdb.set_trace()
     process = subprocess.Popen([f'{origen_cli}', '-v'],
                                stdout=subprocess.PIPE,
                                universal_newlines=True)

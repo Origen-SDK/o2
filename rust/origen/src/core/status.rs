@@ -2,6 +2,7 @@ extern crate time;
 use crate::core::application::Application;
 use crate::utility::file_utils::with_dir;
 use crate::{built_info, Result};
+use regex::Regex;
 use semver::Version;
 use std::env;
 use std::path::Path;
@@ -17,6 +18,7 @@ use path_slash::PathBufExt;
 // If you add an attribute to this you must also update:
 // * pyapi/src/lib.rs to convert it to Python
 // * default function below to define the default value (no nils in Rust)
+#[derive(Debug)]
 pub struct Status {
     /// When true, Origen is executing within an origen development workspace
     pub is_origen_present: bool,
@@ -24,8 +26,10 @@ pub struct Status {
     pub is_app_present: bool,
     /// When Origen is executing with the context of an application, this represents it
     pub app: Option<Application>,
-    /// When Origen is running within an Origen development workspace, this will
-    /// point to the root of the workspace
+    /// When Origen is running within an Origen development workspace or when it is running within
+    /// an app which is referencing a local copy of Origen, this will point to the root of the
+    /// Origen workspace.
+    /// i.e. it is only valid when either is_origen_present or is_app_in_origen_dev_mode is true.
     pub origen_wksp_root: PathBuf,
     /// The Origen version in a Semver object
     pub origen_version: Version,
@@ -33,6 +37,9 @@ pub struct Status {
     /// The full file system path to the user's home directory
     pub home: PathBuf,
     pub log_level: u8,
+    /// When true it means that Origen is running within an app and that app is using a local
+    /// development version of Origen
+    pub is_app_in_origen_dev_mode: bool,
     unhandled_error_count: RwLock<usize>,
     /// This must remain private, forcing it to be accessed by a function. That ensures
     /// that it will always be created if it doesn't exist and all other code can forget about
@@ -42,25 +49,65 @@ pub struct Status {
     /// that it will always be created if it doesn't exist and all other code can forget about
     /// checking for that.
     reference_dir: RwLock<Option<PathBuf>>,
+    cli_location: RwLock<Option<PathBuf>>,
+    _custom_tester_ids: RwLock<Vec<String>>,
 }
 
 impl Default for Status {
     fn default() -> Status {
         log_trace!("Building STATUS");
-        let (p, r) = search_for(vec!["config", "origen.toml"], true);
-        let (o, r2) = search_for(vec![".origen_dev_workspace"], false);
+        log_trace!(
+            "Current exe is {}",
+            std::env::current_exe().unwrap().display()
+        );
+        let mut dev_mode_origen_root: Option<PathBuf> = None;
+        let mut origen_dev_mode = false;
+        let (app_present, app_root) = search_for_from_pwd(vec!["config", "origen.toml"], true);
+        let (origen_present, origen_wksp_root) =
+            search_for_from_pwd(vec![".origen_dev_workspace"], false);
+
+        // If a standalone app is present check if it contains a reference to a local Origen
+        if app_present && !origen_present {
+            let pyproject = app_root.join("pyproject.toml");
+            match std::fs::read_to_string(&pyproject) {
+                Ok(contents) => {
+                    // (?m) is how you set the multiline flag
+                    let regex = Regex::new(
+                        r#"(?m)^\s*origen\s*=\s*\{\s*path\s*=\s*['"](?P<path>[^'"]+)['"]"#,
+                    )
+                    .unwrap();
+                    if let Some(captures) = regex.captures(&contents) {
+                        let path = PathBuf::from(captures.name("path").unwrap().as_str());
+                        let path = match path.is_relative() {
+                            true => app_root.join(&path),
+                            false => path,
+                        };
+                        let (found, path) = search_for(vec![".origen_dev_workspace"], false, &path);
+                        if found {
+                            dev_mode_origen_root = Some(path);
+                            origen_dev_mode = true;
+                        }
+                    }
+                }
+                Err(e) => log_error!("{}", e),
+            }
+        }
+
         let version = match Version::parse(built_info::PKG_VERSION) {
             Ok(v) => v,
             Err(_e) => Version::parse("0.0.0").unwrap(),
         };
         let s = Status {
-            is_app_present: p,
-            app: match p {
-                true => Some(Application::new(r)),
+            is_app_present: app_present,
+            app: match app_present {
+                true => Some(Application::new(app_root.clone())),
                 false => None,
             },
-            is_origen_present: o,
-            origen_wksp_root: r2,
+            is_origen_present: origen_present,
+            origen_wksp_root: match dev_mode_origen_root {
+                Some(x) => x,
+                None => origen_wksp_root,
+            },
             origen_version: version,
             start_time: time::now(),
             home: get_home_dir(),
@@ -68,6 +115,9 @@ impl Default for Status {
             unhandled_error_count: RwLock::new(0),
             output_dir: RwLock::new(None),
             reference_dir: RwLock::new(None),
+            cli_location: RwLock::new(None),
+            is_app_in_origen_dev_mode: origen_dev_mode,
+            _custom_tester_ids: RwLock::new(vec![]),
         };
         log_trace!("Status built successfully");
         s
@@ -75,6 +125,22 @@ impl Default for Status {
 }
 
 impl Status {
+    pub fn register_custom_tester(&self, name: &str) {
+        let mut t = self._custom_tester_ids.write().unwrap();
+        let name = name.to_string();
+        if !t.contains(&name) {
+            t.push(name);
+        }
+    }
+
+    pub fn custom_tester_ids(&self) -> Vec<String> {
+        let mut ids: Vec<String> = vec![];
+        for id in &*self._custom_tester_ids.read().unwrap() {
+            ids.push(id.to_string());
+        }
+        ids
+    }
+
     /// Returns the number of unhandled errors that have been encountered since this thread started.
     /// An example of a unhandled error is a pattern that failed to generate.
     /// If an error occurs on the Python side then Origen will most likely crash, however on the
@@ -87,6 +153,17 @@ impl Status {
     pub fn inc_unhandled_error_count(&self) {
         let mut cnt = self.unhandled_error_count.write().unwrap();
         *cnt += 1;
+    }
+
+    pub fn set_cli_location(&self, loc: Option<String>) {
+        if let Some(loc) = loc {
+            let mut cli_loc = self.cli_location.write().unwrap();
+            *cli_loc = Some(PathBuf::from(loc));
+        }
+    }
+
+    pub fn cli_location(&self) -> Option<PathBuf> {
+        self.cli_location.read().unwrap().to_owned()
     }
 
     /// Set the base output dir to the given path, it is <APP ROOT>/output by default
@@ -189,18 +266,23 @@ impl Status {
     }
 }
 
-fn search_for(paths: Vec<&str>, searching_for_app: bool) -> (bool, PathBuf) {
-    if searching_for_app {
-        log_trace!("Searching for app");
-    }
-    let mut aborted = false;
+pub fn search_for_from_pwd(paths: Vec<&str>, searching_for_app: bool) -> (bool, PathBuf) {
     let base = env::current_dir();
-    let mut base = match base {
+    let base = match base {
         Ok(p) => p,
         Err(_e) => {
             return (false, PathBuf::new());
         }
     };
+    search_for(paths, searching_for_app, &base)
+}
+
+pub fn search_for(paths: Vec<&str>, searching_for_app: bool, base: &Path) -> (bool, PathBuf) {
+    if searching_for_app {
+        log_trace!("Searching for app");
+    }
+    let mut aborted = false;
+    let mut base = base.to_path_buf();
 
     while !paths
         .iter()

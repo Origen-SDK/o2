@@ -19,6 +19,7 @@ impl PyApplication {
 
     #[getter]
     fn version(&self) -> PyResult<String> {
-        Ok(format!("{}", origen::app().unwrap().version()?))
+        let v = origen::app().unwrap().version()?.to_string();
+        Ok(format!("{}", origen::utility::version::to_pep440(&v)?))
     }
 }

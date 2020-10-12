@@ -20,7 +20,7 @@ impl TesterAPI for UltraFlex {
     }
 
     fn id(&self) -> String {
-        "::Teradyne::UltraFlex".to_string()
+        "UltraFlex".to_string()
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {

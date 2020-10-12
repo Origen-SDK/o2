@@ -1,13 +1,22 @@
 import sys
 import re
+import os
 init_verbosity = 0
+cli_path = None
+
+regexp = re.compile(r'verbosity=(\d+)')
+cli_re = re.compile(r'origen_cli=(.+)')
 for arg in sys.argv:
-    regexp = re.compile(r'verbosity=(\d+)')
     matches = regexp.search(arg)
     if matches:
         init_verbosity = int(matches.group(1))
+    else:
+        matches = cli_re.search(arg)
+        if matches:
+            cli_path = matches.group(1)
+
 import _origen
-_origen.initialize(init_verbosity)
+_origen.initialize(init_verbosity, cli_path)
 from pathlib import Path
 import importlib
 from contextlib import contextmanager
@@ -17,10 +26,6 @@ from typing import List, Dict
 
 from origen.tester import Tester, DummyTester
 from origen.producer import Producer
-import origen.standard_sub_blocks
-
-''' Shortcut to :mod:`origen.standard_sub_blocks` module '''
-sbb = origen.standard_sub_blocks
 
 import origen.target
 
@@ -55,7 +60,7 @@ if status["is_app_present"]:
         None: If not in an application's workspace.
 '''
 
-version = status["origen_version"]
+version = _origen.version()
 ''' Returns the version of the Origen executable.
 
     Returns:
@@ -142,6 +147,15 @@ producer = Producer()
 
 mode = "development"
 
+_plugins = {}
+''' Dictionary of Origen plugins (instances of :py:class:`origen.application.Application`)
+    that have been referenced and loaded.
+    It should never be access directly since a plugin not being present in this dict may only
+    mean that it hasn't been loaded yet (via an official API) rather than it not existing.
+'''
+
+__instantiate_dut_called = False
+
 if status["is_app_present"]:
     sys.path.insert(0, status["root"])
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
@@ -196,3 +210,35 @@ __all__ = [
     'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
     'frontend_root', 'app', 'dut', 'tester', 'producer'
 ]
+
+
+def has_plugin(name):
+    '''
+        Returns true if an Origen plugin matching the given name is found in the current environment
+    '''
+    if name in _plugins:
+        return True
+    else:
+        try:
+            a = importlib.import_module(f'{name}.application')
+            app = a.Application(root=Path(os.path.abspath(
+                a.__file__)).parent.parent,
+                                name=name)
+            _plugins[name] = app
+            return True
+        except ModuleNotFoundError:
+            return False
+
+
+def plugin(name):
+    '''
+        Returns an :class:`Origen application <origen.application.Application>` instance representing
+        the given Origen plugin. None is returned if no plugin is found matching the given name within the
+        current environment.
+    '''
+    if has_plugin(name):
+        return _plugins[name]
+    else:
+        raise RuntimeError(
+            f"The current Python environment does not contain a plugin named '{name}'"
+        )

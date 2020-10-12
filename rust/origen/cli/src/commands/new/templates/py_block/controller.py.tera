@@ -1,20 +1,48 @@
-{% if top -%}
-from origen.controller import TopLevel
+{% if top or nested -%}
+{% if dut -%}
+from origen.controller import TopLevel as BaseController
+{% else -%}
+from origen.controller import Base as BaseController
+{% endif -%}
 {% else -%}
 from ...controller import Controller as Parent
 {% endif -%}
 import origen
 
 
-{% if top -%}
-class Controller(TopLevel):
+{% if top or nested -%}
+class Controller(BaseController):
 {% else -%}
 class Controller(Parent):
+{% endif %}    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
+{% if top -%}
+{% if dut %}        # Invoke your driver of choice to dispatch this write_register request, 
+        # here is a JTAG example:
+        #self.jtag.write_ir(0xF, size=8)
+        #self.jtag.write_dr(reg_or_val, size)
+        raise RuntimeError(f"A request to write a register was received by '{self.path}' ({type(self)}), however the logic to implement it has not been defined yet")
+{% else %}        # All write register requests originated from within this block (or one of its children)
+        # will be sent to the parent block by default, however you can intercept it here and do
+        # something else if required
+        self.parent.write_register(reg_or_val, size, address, **kwargs)
+{% endif %}{% else %}        # All write register requests originated from within this block (or one of its children)
+        # will be sent to the parent class by default, however you can intercept it here and do
+        # something else if required
+        super().write_register(reg_or_val, size, address, **kwargs)
 {% endif %}
-    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
-        self.jtag.write_ir(0xF, size=8)
-        self.jtag.write_dr(reg_or_val, size)
-
     def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
-        self.jtag.write_ir(0x1F, size=8)
-        self.jtag.verify_dr(reg_or_val, size)
+{% if top -%}
+{% if dut %}        # Invoke your driver of choice to dispatch this verify_register request, 
+        # here is a JTAG example:
+        #self.jtag.write_ir(0x1F, size=8)
+        #self.jtag.verify_dr(reg_or_val, size)
+        raise RuntimeError(f"A request to verify a register was received by '{self.path}' ({type(self)}), however the logic to implement it has not been defined yet")
+{% else %}        # All verify register requests originated from within this block (or one of its children)
+        # will be sent to the parent block by default, however you can intercept it here and do
+        # something else if required
+        self.parent.verify_register(reg_or_val, size, address, **kwargs)
+{% endif %}{% else %}        # A verify register requests originated from within this block (or one of its children)
+        # will be sent to the parent class by default, however you can intercept it here and do
+        # something else if required
+        super().verify_register(reg_or_val, size, address, **kwargs)
+{% endif -%}

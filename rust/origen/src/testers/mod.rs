@@ -3,33 +3,29 @@ pub mod igxl;
 pub mod simulator;
 pub mod smt;
 pub mod api;
+mod supported_testers;
+
 use crate::core::tester::{Interceptor, TesterAPI};
-use crate::dut;
-use crate::error::Error;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
+use crate::{dut, Result};
 use std::path::PathBuf;
+pub use supported_testers::SupportedTester;
 
-pub const AVAILABLE_TESTERS: &[&str] = &[
-    "::DummyRenderer",
-    "::DummyRendererWithInterceptors",
-    "::V93K::SMT7",
-    "::Teradyne::UltraFlex",
-    "::Teradyne::J750",
-    "::Simulator",
-];
-
-pub fn instantiate_tester(g: &str) -> Option<Box<dyn TesterAPI + std::marker::Send>> {
+pub fn instantiate_tester(g: &SupportedTester) -> Result<Box<dyn TesterAPI + std::marker::Send>> {
     match g {
-        "::DummyRenderer" => Some(Box::new(DummyRenderer::default())),
-        "::DummyRendererWithInterceptors" => {
-            Some(Box::new(DummyRendererWithInterceptors::default()))
+        SupportedTester::DUMMYRENDERER => Ok(Box::new(DummyRenderer::default())),
+        SupportedTester::DUMMYRENDERERWITHINTERCEPTORS => {
+            Ok(Box::new(DummyRendererWithInterceptors::default()))
         }
-        "::V93K::SMT7" => Some(Box::new(smt::V93K_SMT7::default())),
-        "::Simulator" => Some(Box::new(simulator::Renderer::default())),
-        "::Teradyne::UltraFlex" => Some(Box::new(igxl::UltraFlex::default())),
-        "::Teradyne::J750" => Some(Box::new(igxl::j750::J750::default())),
-        _ => None,
+        SupportedTester::V93KSMT7 => Ok(Box::new(smt::V93K_SMT7::default())),
+        SupportedTester::SIMULATOR => Ok(Box::new(simulator::Renderer::default())),
+        SupportedTester::ULTRAFLEX => Ok(Box::new(igxl::UltraFlex::default())),
+        SupportedTester::J750 => Ok(Box::new(igxl::j750::J750::default())),
+        SupportedTester::CUSTOM(_) => {
+            error!("Custom testers are not instantiated by this function")
+        }
+        _ => error!("The tester driver for {}, is not implemented yet", g),
     }
 }
 
@@ -141,12 +137,12 @@ impl Default for DummyRendererWithInterceptors {
 }
 
 impl Interceptor for DummyRendererWithInterceptors {
-    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
+    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<()> {
         println!("Vector intercepted by DummyRendererWithInterceptors!");
         Ok(())
     }
 
-    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
+    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<()> {
         println!("Comment intercepted by DummyRendererWithInterceptors!");
         Ok(())
     }

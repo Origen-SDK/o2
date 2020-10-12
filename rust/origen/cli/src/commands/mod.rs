@@ -1,13 +1,14 @@
+pub mod app;
 pub mod build;
+pub mod env;
+pub mod exec;
 pub mod fmt;
 pub mod interactive;
 pub mod mode;
 pub mod new;
 pub mod proj;
 pub mod save_ref;
-pub mod setup;
 pub mod target;
-pub mod update;
 
 use crate::python;
 use indexmap::map::IndexMap;

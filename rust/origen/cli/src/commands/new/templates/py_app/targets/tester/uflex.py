@@ -1,1 +1,1 @@
-origen.tester.target("Ultraflex")
+origen.tester.target("ULTRAFLEX")

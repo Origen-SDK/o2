@@ -18,7 +18,7 @@ impl VectorBased for SMT7 {
     }
 
     fn id(&self) -> String {
-        "::V93K::SMT7".to_string()
+        "V93KSMT7".to_string()
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {

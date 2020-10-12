@@ -23,11 +23,11 @@ impl std::default::Default for J750 {
 
 impl VectorBased for J750 {
     fn name(&self) -> String {
-        "Teradyne_J750".to_string()
+        "J750".to_string()
     }
 
     fn id(&self) -> String {
-        "::Teradyne::J750".to_string()
+        "J750".to_string()
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {

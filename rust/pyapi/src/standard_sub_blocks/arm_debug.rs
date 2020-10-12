@@ -86,12 +86,11 @@ impl ArmDebug {
         }
 
         // Add the DP subblock
-        let args = PyTuple::new(py, &["dp".to_object(py)]);
+        let args = PyTuple::new(py, &["dp".to_object(py), "origen.arm_debug.dp".to_object(py)]);
         let kwargs = PyDict::new(py);
         let sb_options = PyDict::new(py);
         sb_options.set_item("arm_debug_id", arm_debug_id)?;
         kwargs.set_item("sb_options", sb_options.to_object(py))?;
-        kwargs.set_item("mod_path", "origen.standard_sub_blocks.arm_debug.dp".to_object(py))?;
         let py_dp_obj = instance.downcast::<PyCell<Self>>()?.call_method("add_sub_block", args, Some(kwargs))?;
         let py_dp = py_dp_obj.extract::<DP>()?;
         let dp_id = py_dp.dp_id.unwrap();
@@ -140,9 +139,8 @@ impl ArmDebug {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let args = PyTuple::new(py, &[name.to_object(py)]);
+        let args = PyTuple::new(py, &[name.to_object(py), "origen.arm_debug.mem_ap".to_object(py)]);
         let kwargs = PyDict::new(py);
-        kwargs.set_item("mod_path", "origen.standard_sub_blocks.arm_debug.mem_ap".to_object(py))?;
         let sb_options = PyDict::new(py);
         if let Some(_ap) = ap {
             sb_options.set_item("ap", _ap)?;

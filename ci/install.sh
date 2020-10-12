@@ -1,3 +1,7 @@
+# This script is responsible for installing Python
+#
+# PWD on entry and exit is o2/rust/
+
 set -ex
 
 main() {
@@ -21,7 +25,6 @@ main() {
         ln -s /home/travis/virtualenv/python$PYTHON_VERSION/bin/pip /home/travis/bin/pip
         ln -s /home/travis/virtualenv/python$PYTHON_VERSION/bin/pip3 /home/travis/bin/pip3
     fi
-    python --version
 }
 
 main
