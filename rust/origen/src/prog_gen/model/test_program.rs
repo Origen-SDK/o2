@@ -53,10 +53,54 @@ impl TestProgram {
         pointers.tester = tester.to_owned();
     }
 
+    /// Creates a new test which is a duplicate of the given test, returning the ID of the newly
+    /// created test.
+    /// The new test will be an exact duplicate of the original, including the value of the
+    /// indirect flag (indirect means that it will not be rendered to the final test program).
+    /// When creating a new test from a template use create_test_from_template instead, in that
+    /// case the new test will be a duplicate except for its indirect flag which will be forced
+    /// to false.
+    pub fn create_duplicate_test(&self, parent_test_id: usize) -> Result<usize> {
+        let mut tests = self.tests.write().unwrap();
+        let id = tests.len();
+        match tests.get(parent_test_id) {
+            None => error!(
+                "Something has gone wrong, no test exists with ID '{}'",
+                parent_test_id
+            ),
+            Some(t) => {
+                let mut new_test = t.clone();
+                new_test.id = id;
+                tests.push(new_test);
+                Ok(id)
+            }
+        }
+    }
+
+    /// Create a new test as a duplicate of the given template test, the ID of the new test is
+    /// returned.
+    pub fn create_test_from_template(&self, parent_test_id: usize) -> Result<usize> {
+        let mut tests = self.tests.write().unwrap();
+        let id = tests.len();
+        match tests.get(parent_test_id) {
+            None => error!(
+                "Something has gone wrong, no test exists with ID '{}'",
+                parent_test_id
+            ),
+            Some(t) => {
+                let mut new_test = t.clone();
+                new_test.id = id;
+                new_test.indirect = false;
+                tests.push(new_test);
+                Ok(id)
+            }
+        }
+    }
+
     /// Get a read-only reference to the test with the given ID, use with_test_mut if
     /// you need to modify it.
     /// Returns an error if there is no test found, otherwise the result of the given function.
-    pub fn with_test<T, F>(&'static self, id: usize, mut func: F) -> Result<T>
+    pub fn with_test<T, F>(&self, id: usize, mut func: F) -> Result<T>
     where
         F: FnMut(&Test) -> Result<T>,
     {
@@ -80,24 +124,22 @@ impl TestProgram {
         }
     }
 
-    pub fn create_test_library(&self, name: &str) -> Result<()> {
+    /// Creates a test library with the given name, if it already exists no action will be taken
+    pub fn create_test_library(&self, name: &str) {
         let mut pointers = self.pointers.write().unwrap();
-        if pointers.libraries.contains_key(name) {
-            error!("A test library named '{}' already exists!", name)
-        } else {
+        if !pointers.libraries.contains_key(name) {
             pointers.libraries.insert(name.to_string(), HashMap::new());
-            Ok(())
         }
     }
 
-    pub fn create_test_template<T, F>(
+    pub fn create_test_template<F>(
         &self,
         library_name: &str,
         name: &str,
         mut func: F,
-    ) -> Result<T>
+    ) -> Result<usize>
     where
-        F: FnMut(&mut Test) -> Result<T>,
+        F: FnMut(&mut Test) -> Result<()>,
     {
         let mut tests = self.tests.write().unwrap();
         let mut pointers = self.pointers.write().unwrap();
@@ -117,9 +159,9 @@ impl TestProgram {
             },
             None => return error!("A test library named '{}' does not exist", library_name),
         };
-        let result = func(&mut t);
+        func(&mut t)?;
         tests.push(t);
-        result
+        Ok(id)
     }
 
     pub fn create_test<T, F>(&mut self, name: &str, mut func: F) -> Result<T>

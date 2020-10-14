@@ -17,7 +17,7 @@ class Tester(_origen.tester.PyTester):
         # Load them here, if they haven't already.
         if origen.dut and not origen.dut.timesets_loaded:
             origen.dut.timesets
-        return _origen.tester.PyTester.set_timeset(self, tset)
+        return self.set_timeset(self, tset)
 
     # Returns stats on the number of patterns generated, etc.
     def stats(self):
@@ -25,13 +25,46 @@ class Tester(_origen.tester.PyTester):
 
     @contextmanager
     def specific(self, *names):
-        self._start_specific_block(names)
-        # TODO: open an AST node here
-        #if name == "v93k_smt7":
-        yield V93K(7)
-        #elif name == "v93k_smt8":
-        #    yield V93K(8)
-        # TODO: and close it here
+        (ref_id, clean_tester_names) = self._start_specific_block(names)
+        testers = []
+        for t in clean_tester_names:
+            if t == "V93KSMT7":
+                testers.append(V93K(7))
+            elif t == "V93KSMT8":
+                testers.append(V93K(8))
+            else:
+                raise Exception(
+                    f"The API for tester '{t}' has not been implemented yet!")
+
+        if len(testers) == 1:
+            yield testers[0]
+        elif len(testers) == 2:
+            yield testers[0], testers[1]
+        elif len(testers) == 3:
+            yield testers[0], testers[1], testers[2]
+        elif len(testers) == 4:
+            yield testers[0], testers[1], testers[2], testers[3]
+        elif len(testers) == 5:
+            yield testers[0], testers[1], testers[2], testers[3], testers[4]
+        elif len(testers) == 6:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5]
+        elif len(testers) == 7:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6]
+        elif len(testers) == 8:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6], testers[7]
+        elif len(testers) == 9:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6], testers[7], testers[8]
+        elif len(testers) == 10:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6], testers[7], testers[8], testers[9]
+        else:
+            raise Exception(
+                f"Only up to 10 testers are supported in a with-specific-tester block"
+            )
 
 
 class DummyTester:

@@ -7,6 +7,7 @@ extern crate meta;
 extern crate pest_derive;
 #[macro_use]
 pub mod macros;
+#[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
 

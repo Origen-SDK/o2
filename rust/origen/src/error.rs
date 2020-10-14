@@ -92,3 +92,15 @@ impl std::convert::From<semver::SemVerError> for Error {
         Error::new(&err.to_string())
     }
 }
+
+impl std::convert::From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::string::String> for Error {
+    fn from(err: std::string::String) -> Self {
+        Error::new(&err)
+    }
+}

@@ -37,13 +37,16 @@ impl PyTester {
         });
     }
 
-    pub fn _start_specific_block(&self, testers: Vec<&str>) -> PyResult<usize> {
+    pub fn _start_specific_block(&self, testers: Vec<&str>) -> PyResult<(usize, Vec<String>)> {
         let mut ts: Vec<SupportedTester> = vec![];
+        let mut clean_testers: Vec<String> = vec![];
         for t in testers {
-            ts.push(SupportedTester::new(t)?);
+            let st = SupportedTester::new(t)?;
+            clean_testers.push(st.to_string());
+            ts.push(st);
         }
         let ref_id = origen::tester().start_tester_specific_block(ts)?;
-        Ok(ref_id)
+        Ok((ref_id, clean_testers))
     }
 
     /// This resets the tester, clearing all loaded targets and any other state, making

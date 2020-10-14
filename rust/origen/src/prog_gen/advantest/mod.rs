@@ -1,6 +1,6 @@
-mod base;
-mod smt7;
-mod smt8;
+pub mod common;
+pub mod smt7;
+pub mod smt8;
 
 //use crate::Result;
 //use crate::TestProgram;

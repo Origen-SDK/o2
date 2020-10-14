@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize)]
 pub enum SupportedTester {
+    GENERIC, // If no tester is specified then this is used by default
     V93KSMT7,
     V93KSMT8,
     J750,
@@ -58,7 +59,7 @@ impl FromStr for SupportedTester {
 
         // Accept any case and with or without underscores
         let kind = kind.to_uppercase().replace("_", "");
-        match kind.as_str() {
+        match kind.trim() {
             "V93KSMT7" => Ok(SupportedTester::V93KSMT7),
             "V93KSMT8" => Ok(SupportedTester::V93KSMT8),
             "J750" => Ok(SupportedTester::J750),

@@ -1,6 +1,6 @@
-mod advantest;
+pub mod advantest;
 mod model;
-mod teradyne;
+pub mod teradyne;
 
 use crate::testers::SupportedTester;
 use crate::Result;
@@ -50,7 +50,7 @@ pub struct TestPrograms {
 impl TestPrograms {
     pub fn new() -> Self {
         let mut models: Vec<TestProgram> = vec![];
-        for i in 0..20 {
+        for _ in 0..20 {
             // Assumes an application will never be targetting more than 20 testers at once!
             models.push(TestProgram::new());
         }
@@ -63,10 +63,12 @@ impl TestPrograms {
 
     /// Returns the test program model for the given tester
     pub fn for_tester(&self, tester: &SupportedTester) -> &TestProgram {
-        match self.assignments.read().unwrap().get(tester) {
-            Some(x) => &self.models[x.to_owned()],
-            None => &self.models[self.assign_tester(tester)],
+        {
+            if let Some(x) = self.assignments.read().unwrap().get(tester) {
+                return &self.models[x.to_owned()];
+            }
         }
+        &self.models[self.assign_tester(tester)]
     }
 
     fn assign_tester(&self, tester: &SupportedTester) -> usize {
@@ -135,10 +137,9 @@ impl TestPrograms {
     //    result
     //}
 }
-
 /// Test template definitions from json files are read into this structure
 #[derive(Debug, Deserialize)]
-struct TestTemplate {
+pub struct TestTemplate {
     parameter_list: Option<HashMap<String, String>>,
     aliases: Option<HashMap<String, String>>,
     values: Option<HashMap<String, serde_json::Value>>,
@@ -148,11 +149,18 @@ struct TestTemplate {
 }
 
 #[derive(Debug, Deserialize)]
-struct TestTemplateParameter {
+pub struct TestTemplateParameter {
     kind: Option<String>,
     aliases: Option<Vec<String>>,
     value: Option<serde_json::Value>,
     accepted_values: Option<Vec<serde_json::Value>>,
+}
+
+pub fn import_test_template(path: &str) -> Result<TestTemplate> {
+    match TEST_TEMPLATES.get(path) {
+        None => return error!("No test template found at path '{}'", path),
+        Some(s) => Ok(serde_json::from_str(s)?),
+    }
 }
 
 #[cfg(test)]
