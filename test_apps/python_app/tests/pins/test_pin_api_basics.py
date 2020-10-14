@@ -263,16 +263,6 @@ class TestSettingStates:
     assert origen.dut.pins["p2"].actions == "E"
     assert origen.dut.pins["p3"].actions == "D"
 
-  @pytest.mark.xfail
-  def test_setting_states_with_nonsticky_mask(self, clean_falcon, pins, grp):
-    grp = origen.dut.pin("grp")
-    grp.with_mask(0x3).set_actions(PinActions("ABC"))
-    assert grp.actions == "ZBC"
-    assert origen.dut.pins["p1"].actions == "C"
-    assert origen.dut.pins["p2"].actions == "B"
-    assert origen.dut.pins["p3"].actions == "Z"
-
-  @pytest.mark.xfail
   def test_setting_states_with_mask(self, clean_falcon, pins, grp):
     grp = origen.dut.pin("grp")
     assert grp.actions == "ZZZ"
@@ -324,7 +314,6 @@ class TestSettingStates:
   #   with pytest.raises(OverflowError):
   #     grp.data = -1
   
-  @pytest.mark.xfail
   def test_exception_on_overflow_actions(self, clean_falcon, pins, grp):
     grp = origen.dut.pin("grp")
     #grp.data = 7

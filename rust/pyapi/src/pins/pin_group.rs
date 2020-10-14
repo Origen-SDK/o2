@@ -1,6 +1,7 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use super::pin_collection::PinCollection;
 use super::pin_actions::PinActions;
+use super::super::pins::extract_pin_transaction;
 use origen::DUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
@@ -163,7 +164,8 @@ impl PinGroup {
             }
         }
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-        grp.set_actions(&dut, &extract_pinactions!(actions)?)?;
+        grp.update(&dut, &extract_pin_transaction(actions, grp.len(), kwargs)?)?;
+        // grp.set_actions(&dut, &extract_pinactions!(actions)?)?;
         // dut.set_pin_group_symbols(
         //     slf.model_id,
         //     &slf.name,
@@ -277,7 +279,7 @@ impl ListLikeAPI for PinGroup {
     fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
-        Ok(Py::new(py, PinCollection::from_ids_unchecked(vec![grp.pin_ids[idx]], None))?.to_object(py))
+        Ok(Py::new(py, PinCollection::from_ids_unchecked(vec![grp.pin_ids[idx]], Some(grp.endianness)))?.to_object(py))
         // let collection = dut.slice_pin_group(self.model_id, &self.name, idx, idx + 1, 1)?;
         // Ok(Py::new(py, PinCollection::from(collection))
         //     .unwrap()

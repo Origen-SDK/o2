@@ -139,44 +139,50 @@ class TestCollecting:
     # assert c.data == 0xC
     assert c.actions == "DDZZ"
 
-  @pytest.mark.xfail
-  def test_chaining_method_calls_with_nonsticky_mask(self, clean_falcon, pins):
-    # This should set the data to 0x3, then drive the pins using mask 0x2.
-    # The mask should then be cleared.
+  # @pytest.mark.xfail
+  # def test_chaining_method_calls_with_nonsticky_mask(self, clean_falcon, pins):
+  #   # This should set the data to 0x3, then drive the pins using mask 0x2.
+  #   # The mask should then be cleared.
+  #   c = origen.dut.pins.collect("p0", "p1")
+  #   # c.data = 0x0
+  #   c.highz()
+  #   # assert c.data == 0
+  #   assert c.actions == "ZZ"
+
+  #   c.set(0x3).with_mask(0x2).drive()
+  #   # assert c.data == 0x3
+  #   assert c.actions == "1Z"
+
+  #   # This should set the data and action regardless of the mask being used previously.
+  #   # c.data = 0x0
+  #   c.highz()
+  #   # assert c.data == 0
+  #   assert c.actions == "ZZ"
+
+  #   # This should set the data and pin action using the mask 0x1.
+  #   # The mask should then be cleared.
+  #   c.with_mask(0x1).set(0x3).verify()
+  #   # assert c.data == 0x1
+  #   assert c.actions == "ZH"
+
+  #   # This should set the data and action regardless of the mask being used previously.
+  #   # c.data = 0x0
+  #   c.highz()
+  #   # assert c.data == 0
+  #   assert c.actions == "ZZ"
+
+  # def test_setting_actions_with_nonsticky_mask(self, clean_falcon, pins):
+  #   c = origen.dut.pins.collect("p0", "p1")
+  #   c.highz()
+  #   assert c.actions == "ZZ"
+  #   c.with_mask(0x1).set_actions("CC")
+  #   assert c.actions == "ZC"
+
+  def test_setting_actions_with_mask(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p0", "p1")
-    # c.data = 0x0
-    c.highz()
-    # assert c.data == 0
-    assert c.actions == "ZZ"
-
-    c.set(0x3).with_mask(0x2).drive()
-    # assert c.data == 0x3
-    assert c.actions == "1Z"
-
-    # This should set the data and action regardless of the mask being used previously.
-    # c.data = 0x0
-    c.highz()
-    # assert c.data == 0
-    assert c.actions == "ZZ"
-
-    # This should set the data and pin action using the mask 0x1.
-    # The mask should then be cleared.
-    c.with_mask(0x1).set(0x3).verify()
-    # assert c.data == 0x1
-    assert c.actions == "ZH"
-
-    # This should set the data and action regardless of the mask being used previously.
-    # c.data = 0x0
-    c.highz()
-    # assert c.data == 0
-    assert c.actions == "ZZ"
-
-  @pytest.mark.xfail
-  def test_setting_actions_with_nonsticky_mask(self, clean_falcon, pins):
-    c = origen.dut.pins.collect("p0", "p1")
     c.highz()
     assert c.actions == "ZZ"
-    c.with_mask(0x1).set_actions("CC")
+    c.with_mask(0x1).set_actions("CC", mask=0x1)
     assert c.actions == "ZC"
 
   def test_collecting_mixed_endianness(self, clean_falcon):
@@ -187,7 +193,6 @@ class TestCollecting:
     assert c.little_endian == True
     assert c.big_endian == False
 
-  @pytest.mark.xfail
   def test_collecting_big_endian(self, clean_falcon):
     origen.dut.add_pin("portc", width=4, little_endian=False)
     origen.dut.add_pin("portd", width=4, little_endian=True)
@@ -271,14 +276,17 @@ class TestCollecting:
     with pytest.raises(OSError):
       origen.dut.pins.collect("a1_a", "a1_b", "a1_c")
 
-  @pytest.mark.xfail
   def test_exception_on_overflow_data(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p1", "p2", "p3")
+    assert c.actions == "ZZZ"
     with pytest.raises(OSError):
-      c.data = 0xF
+      # c.data = 0xF
+      c.drive(0xF)
     with pytest.raises(OverflowError):
-      c.data = -1
-    assert c.data == 0x0
+      # c.data = -1
+      c.drive(-1)
+    # assert c.data == 0x0
+    assert c.actions == "ZZZ"
 
   def test_exception_on_collecting_duplicates_when_nested(self, clean_falcon, ports):
     assert "porta" in origen.dut.pins

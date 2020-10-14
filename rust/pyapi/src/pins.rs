@@ -54,6 +54,27 @@ fn unpack_transaction_options(trans: &mut origen::Transaction, kwargs: Option<&P
     Ok(())
 }
 
+pub fn extract_pin_transaction(actions: &PyAny, width: usize, kwargs: Option<&PyDict>) -> PyResult<origen::Transaction> {
+    let actions = extract_pinactions!(actions)?;
+    let mut t = origen::Transaction::new_set(&actions)?;
+    if let Some(opts) = kwargs {
+        if let Some(mask) = opts.get_item("mask") {
+            if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+                t.bit_enable = big_mask;
+            } else {
+                return super::type_error!("Could not extract kwarg 'mask' as an integer");
+            }
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(t)
+}
+
 /// Given a vector of PyAny's, assumed to be either a String, Pin, or PinGroup object,
 /// return a vector with each item mapped as (model_id<usize>, name<String>) pairs.
 /// This pair is sufficient to lookup the pin group object in the backend.

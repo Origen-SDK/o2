@@ -909,32 +909,30 @@ impl Event {
     }
 }
 
-macro_rules! action_from_pyany {
-    ($action:ident) => {
-        origen::core::model::pins::pin::PinAction::checked_new(
-            {
-                let t;
-                if let Ok(a) = $action.extract::<String>() {
-                    t = a.clone();
-                } else if $action.get_type().name() == "PinActions" {
-                    let pin_actions = $action.extract::<PyRef<super::super::pins::pin_actions::PinActions>>().unwrap();
-                    if pin_actions.actions.len() == 1 {
-                        t = pin_actions.actions.first().unwrap().to_string();
-                    } else {
-                        return Err(pyo3::exceptions::ValueError::py_err(
-                            "SymbolMap lookups can only retrieve single symbols at a time"
-                        ))
-                    }
+fn action_from_pyany(action: &PyAny) -> PyResult<origen::core::model::pins::pin::PinAction> {
+    Ok(origen::core::model::pins::pin::PinAction::from_delimiter_optional(
+        {
+            let t;
+            if let Ok(a) = action.extract::<String>() {
+                t = a.clone();
+            } else if action.get_type().name() == "PinActions" {
+                let pin_actions = action.extract::<PyRef<super::super::pins::pin_actions::PinActions>>().unwrap();
+                if pin_actions.actions.len() == 1 {
+                    t = pin_actions.actions.first().unwrap().to_string();
                 } else {
-                    return super::super::type_error!(&format!(
-                        "Cannot cast type {} to a valid PinAction",
-                        $action.get_type().name()
-                    ));
+                    return Err(pyo3::exceptions::ValueError::py_err(
+                        "SymbolMap lookups can only retrieve single symbols at a time"
+                    ))
                 }
-                t
-            }.as_str()
-        )
-    };
+            } else {
+                return super::super::type_error!(&format!(
+                    "Cannot cast type {} to a valid PinAction",
+                    action.get_type().name()
+                ));
+            }
+            t
+        }.as_str()
+    )?)
 }
 
 #[pyclass]
@@ -990,7 +988,7 @@ impl SymbolMap {
             let tset = &mut dut.timesets[self.timeset_id];
             if let Some(resolver) = tset.pin_action_resolvers.get_mut(&t) {
                 resolver.update_mapping(
-                    action_from_pyany!(action)?,
+                    action_from_pyany(action)?,
                     new_resolution.clone()
                 );
                 Ok(())
@@ -1040,7 +1038,7 @@ impl PyMappingProtocol for SymbolMap {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
 
-        if let Some(r) = resolver.resolve(&action_from_pyany!(action)?) {
+        if let Some(r) = resolver.resolve(&action_from_pyany(action)?) {
             Ok(r)
         } else {
             Err(pyo3::exceptions::KeyError::py_err(format!(
@@ -1057,7 +1055,7 @@ impl PyMappingProtocol for SymbolMap {
             // let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
             let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[target];
             resolver.update_mapping(
-                action_from_pyany!(action)?,
+                action_from_pyany(action)?,
                 new_resolution.clone()
             )
         }

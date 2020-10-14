@@ -38,10 +38,20 @@ impl PinStore {
     // }
 
     pub fn new(pin_ids: Vec<usize>, endianness: Option<Endianness>) -> Self {
+        let e = endianness.unwrap_or(Endianness::LittleEndian);
         Self {
-            pin_ids: pin_ids,
+            pin_ids: {
+                match e {
+                    Endianness::LittleEndian => pin_ids,
+                    Endianness::BigEndian => {
+                        let mut _pins = pin_ids.clone();
+                        _pins.reverse();
+                        _pins
+                    }
+                }
+            },
             mask: None,
-            endianness: endianness.unwrap_or(Endianness::LittleEndian)
+            endianness: e
         }
     }
 

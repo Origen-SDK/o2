@@ -285,9 +285,29 @@ impl<'a> PinCollection<'a> {
     /// Differs from "push_transaction" in that this is verified to fit within a single
     /// pin-action update. That is, the transaction width should match the PinCollection width exactly
     pub fn set_from_transaction(&self, trans: &Transaction) -> crate::Result<&Self> {
+        // if trans.is_set_action() {
+        //     // let mut v = vec!();
+        //     // trans.set_actions.as_ref().iter().for_each( |a| v.push(a.to_string()));
+        //     // self.set_actions(&v)?;
+        //     self.set_pin_actions(&trans.set_actions.unwrap())?;
+        // } else {
         TEST.append(&mut self.set_from_transaction_nodes(trans)?);
+        // }
         Ok(&self)
     }
+
+    // pub fn set_pin_actions(&self, actions: &Vec<PinAction>) -> crate::Result<&Self> {
+    //     TEST.append(&mut self.set_pin_actions_nodes(actions)?);
+    //     Ok(&self)
+    // }
+
+    // pub fn set_pin_actions_nodes(&self, actions: &Vec<PinAction>) -> crate::Result<Vec<Node>> {
+    //     let retn = vec!();
+    //     for a in actions {
+    //         d
+    //     }
+    //     retn
+    // }
 
     pub fn set_from_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
         self.verify_size(trans)?;
@@ -343,7 +363,7 @@ impl<'a> PinCollection<'a> {
     }
 
     /// Internal function to update all pins in this collection from a single PinAction
-    fn update_from_bit_actions(&self, bit_actions: &Vec<&str>) -> crate::Result<Vec<Node>> {
+    fn update_from_bit_actions(&self, bit_actions: &Vec<String>) -> crate::Result<Vec<Node>> {
         let mut action_nodes: Vec<Node> = vec!();
 
         let mut this_grp_nodes: Vec<Node> = vec![];

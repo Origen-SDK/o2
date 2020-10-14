@@ -32,6 +32,7 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn new_write(data: BigUint, width: usize) -> Result<Self> {
+        Self::check_size(&data, width)?;
         Ok(Self {
             action: Some(Action::Write),
             reg_id: None,
@@ -54,6 +55,7 @@ impl Transaction {
     }
 
     pub fn new_verify(data: BigUint, width: usize) -> Result<Self> {
+        Self::check_size(&data, width)?;
         Ok(Self {
             action: Some(Action::Verify),
             reg_id: None,
@@ -117,6 +119,18 @@ impl Transaction {
         })
     }
 
+    pub fn is_set_action(&self) -> bool {
+        match &self.action {
+            Some(action) => {
+                match action {
+                    Action::Set => true,
+                    _ => false,
+                }
+            },
+            None => false,
+        }
+    }
+
     pub fn addr(&self) -> Result<u128> {
         match self.address {
             Some(a) => Ok(a),
@@ -127,7 +141,7 @@ impl Transaction {
         }
     }
 
-    pub fn to_symbols(&self) -> Result<Vec<&str>> {
+    pub fn to_symbols(&self) -> Result<Vec<String>> {
         let low_sym;
         let high_sym;
         if let Some(action) = &self.action {
@@ -143,7 +157,11 @@ impl Transaction {
                 Action::Capture => {
                     low_sym = CAPTURE;
                     high_sym = CAPTURE;
-                }
+                },
+                Action::Set => {
+                    low_sym = HIGHZ;
+                    high_sym = HIGHZ;
+                },
                 _ => return Err(Error::new(&format!("Cannot get symbols for non write, verify, or capture actions")))
             }
         } else {
@@ -151,18 +169,22 @@ impl Transaction {
             high_sym = HIGHZ;
         }
 
-        let mut bits: Vec<&str> = Vec::with_capacity(self.width);
+        let mut bits: Vec<String> = Vec::with_capacity(self.width);
         let enables = self.bit_enable.clone();
         let t = BigUint::from(1 as u8);
         for i in 0..self.width {
             if ((&enables >> i) & &t) == t {
-                if ((&self.data >> i) & &t) == t {
-                    bits.push(high_sym);
+                if self.is_set_action() {
+                    bits.push(self.set_actions.as_ref().unwrap()[i].to_string());
                 } else {
-                    bits.push(low_sym);
+                    if ((&self.data >> i) & &t) == t {
+                        bits.push(high_sym.to_string());
+                    } else {
+                        bits.push(low_sym.to_string());
+                    }
                 }
             } else {
-                bits.push(HIGHZ);
+                bits.push(HIGHZ.to_string());
             }
         }
         // Should probably add this
@@ -179,6 +201,18 @@ impl Transaction {
     /// Helper method to generate a mask which enables all bits in the transaction
     pub fn enable_width(&self) -> Result<BigUint> {
         Self::enable_of_width(self.width)
+    }
+
+    pub fn check_size(data: &BigUint, width: usize) -> Result<()> {
+        if data.bits() > width as u64 {
+            Err(Error::new(&format!(
+                "Data {} does not fit in given width {}",
+                data,
+                width
+            )))
+        } else {
+            Ok(())
+        }
     }
 
     // Creates a dummy transaction from this transaction

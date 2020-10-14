@@ -9,6 +9,7 @@ use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 use super::pin_actions::PinActions;
 use num_bigint::BigUint;
 use origen::Transaction;
+use super::super::pins::extract_pin_transaction;
 
 #[pyclass]
 #[derive(Clone)]
@@ -107,17 +108,28 @@ impl PinCollection {
     // }
 
     #[setter]
-    fn actions(&mut self, actions: &PyAny) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
-        self.pin_collection.set_actions(
-            &dut,
-            &extract_pinactions!(actions)?
-        )?;
+    fn actions(mut slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<()> {
+        // let mut dut = DUT.lock().unwrap();
+        // self.pin_collection.update(
+        //     &dut,
+        //     &extract_pin_transaction(actions, self.pin_collection.len(), None)?
+        // )?;
+        // self.pin_collection.set_actions(
+        //     &dut,
+        //     &extract_pinactions!(actions)?
+        // )?;
+        Self::set_actions(slf, actions, None)?;
         Ok(())
     }
 
-    fn set_actions(mut slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<Py<Self>> {
-        slf.actions(actions)?;
+    #[args(kwargs = "**")]
+    fn set_actions(mut slf: PyRefMut<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+        // slf.actions(actions)?;
+        let mut dut = DUT.lock().unwrap();
+        slf.pin_collection.update(
+            &dut,
+            &extract_pin_transaction(actions, slf.pin_collection.len(), kwargs)?
+        )?;
         Ok(slf.into())
     }
 

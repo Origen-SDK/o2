@@ -99,6 +99,14 @@ impl PinAction {
         }
     }
 
+    pub fn from_delimiter_optional<T: AsRef<str> + std::fmt::Display>(action: T) -> Result<Self> {
+        let mut s = action.to_string();
+        if !s.starts_with("|") {
+            s = format!("|{}|", s);
+        }
+        Self::checked_new(s)
+    }
+
     pub fn standard_actions() -> std::collections::HashMap<String, String> {
         standard_actions()
     }
