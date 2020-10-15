@@ -162,7 +162,6 @@ impl Transaction {
                     low_sym = HIGHZ;
                     high_sym = HIGHZ;
                 },
-                _ => return Err(Error::new(&format!("Cannot get symbols for non write, verify, or capture actions")))
             }
         } else {
             low_sym = HIGHZ;

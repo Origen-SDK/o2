@@ -61,11 +61,6 @@ class TestPinActions:
     with pytest.raises(TypeError):
       klass("H", "L", [])
 
-  # def test_error_with_nonstandard_action(self):
-  #   with pytest.raises(OSError) as e:
-  #     klass("A")
-  #   assert "Cannot derive PinActions enum from encoded character A!" in str(e.value)
-
   class TestPinActions(Fixture_ListLikeAPI):
     ''' Although this *feels* more like a ``str``, the actual list-like
         behavior is emulated like that of a ``list``.
@@ -131,19 +126,6 @@ class TestPinActions:
       "Z"
     )
     assert actions == actions3
-
-  # def test_overriding_standard_actions(self):
-  #   actions = klass("1010")
-  #   assert str(actions) == "1010"
-  #   assert actions[0] == klass.Other('0')
-  #   assert str(actions[0]) == '|0|'
-  #   assert actions[1] == klass.Other('1')
-  #   assert str(actions[1]) == '|1|'
-  #   assert actions[2] == klass.DriveLow()
-  #   assert str(actions[2]) == '0'
-  #   assert actions[3] == klass.DriveHigh()
-  #   assert str(actions[3]) == '1'
-  #   assert not actions.all_standard
 
   def test_multi_char_symbols(self):
     actions = klass("1|Hi||Hello|")

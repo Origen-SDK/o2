@@ -34,7 +34,6 @@ impl PinCollection {
         PinCollection {
             pin_collection: OrigenPinCollection {
                 pin_ids: pin_ids,
-                mask: None,
                 endianness: endianness.unwrap_or(Endianness::LittleEndian)
             }
         }

@@ -93,8 +93,7 @@ impl PyDUT {
     #[args(kwargs = "**")]
     fn add_pin(&self, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
-        let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (
-            Option<u32>,
+        let (mut reset_action, mut width, mut offset, mut endianness): (
             Option<Vec<origen::core::model::pins::pin::PinAction>>,
             Option<u32>,
             Option<u32>,
@@ -104,13 +103,9 @@ impl PyDUT {
             Option::None,
             Option::None,
             Option::None,
-            Option::None,
         );
         match kwargs {
             Some(args) => {
-                if let Some(arg) = args.get_item("reset_data") {
-                    reset_data = Option::Some(arg.extract::<u32>()?);
-                }
                 if let Some(arg) = args.get_item("reset_action") {
                     reset_action = Some(extract_pinactions!(arg)?);
                 }
@@ -135,7 +130,6 @@ impl PyDUT {
             name,
             width,
             offset,
-            reset_data,
             reset_action,
             endianness,
         )?;

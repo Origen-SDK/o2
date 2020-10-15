@@ -448,7 +448,6 @@ impl Model {
         pin_group_id: usize,
         physical_pin_id: usize,
         name: &str,
-        reset_data: Option<u32>,
         reset_action: Option<PinAction>,
         endianness: Option<Endianness>,
     ) -> Result<(PinGroup, Pin), Error> {
@@ -463,7 +462,6 @@ impl Model {
             self.id,
             physical_pin_id,
             name.to_string(),
-            reset_data,
             reset_action,
         );
         self.pin_groups.insert(name.to_string(), pin_group_id);
@@ -505,7 +503,6 @@ impl Dut {
         name: &str,
         width: Option<u32>,
         offset: Option<u32>,
-        reset_data: Option<u32>,
         reset_action: Option<Vec<PinAction>>,
         endianness: Option<Endianness>,
     ) -> Result<&PinGroup, Error> {
@@ -521,13 +518,6 @@ impl Dut {
                 "Pin '{}' already exists on model '{}'!",
                 name, self.models[model_id].name
             )));
-        }
-        let mut rdata = None;
-
-        // Check that the given reset data fits within the width of the pins to add.
-        if let Some(r) = reset_data {
-            self.verify_data_fits(width.unwrap_or(1), r)?;
-            rdata = Some(r);
         }
 
         // Check that the given reset pin actions fit within the width of the pins to add and that they
@@ -580,44 +570,13 @@ impl Dut {
         }
         {
             let model = &mut self.models[model_id];
-            let (mut rd, mut ra) = (None, None);
+            let mut ra = None;
             for (i, n) in names.iter().enumerate() {
-                if let Some(r) = rdata {
-                    rd = Some(r & 0x1);
-                    rdata = Some(r >> 1);
-                }
                 if let Some(ref r) = reset_action {
                     ra = Some(r[i].clone());
-                    // if let Some(ref _rd) = rd {
-                    //     match ra.as_ref().unwrap() {
-                    //         PinActions::DriveHigh | PinActions::VerifyHigh => {
-                    //             if *_rd == 0 {
-                    //                 return Err(Error::new(&format!(
-                    //                     "Given reset action at position {} conflicts with given reset data",
-                    //                     i,
-                    //                 )));
-                    //             }
-                    //         },
-                    //         PinActions::DriveLow | PinActions::VerifyLow => {
-                    //             if *_rd == 1 {
-                    //                 return Err(Error::new(&format!(
-                    //                     "Given reset action at position {} conflicts with given reset data",
-                    //                     i,
-                    //                 )));
-                    //             }
-                    //         },
-                    //         _ => {}
-                    //     }
-                    // } else {
-                    //     // match ra.as_ref().unwrap() {
-                    //     //     PinActions::DriveHigh | PinActions::VerifyHigh => rd = Some(1),
-                    //     //     PinActions::DriveLow | PinActions::VerifyLow => rd = Some(0),
-                    //     //     _ => {}
-                    //     // }
-                    // }
                 }
                 let (pin_group, mut physical_pin) =
-                    model.register_pin(pin_group_id, physical_pin_id, &n, rd, ra.clone(), endianness)?;
+                    model.register_pin(pin_group_id, physical_pin_id, &n, ra.clone(), endianness)?;
                 if names.len() > 1 {
                     physical_pin.groups.insert(name.to_string(), i);
                 }
@@ -625,7 +584,6 @@ impl Dut {
                 self.pins.push(physical_pin);
                 pin_group_id += 1;
                 physical_pin_id += 1;
-                rd = Option::None;
             }
         }
         if offset.is_some() || width.is_some() {

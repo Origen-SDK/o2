@@ -42,7 +42,6 @@ class TestCollecting:
     origen.dut.pin("p2").drive(0)
     origen.dut.pin("p3").drive(1)
     c = origen.dut.pins.collect("p1", "p2", "p3")
-    #assert c.data == 0x5
     assert c.actions == "101"
 
   def test_collecting_with_single_regex(self, clean_falcon, pins, ports):
@@ -61,20 +60,6 @@ class TestCollecting:
     c = origen.dut.pins.collect("/port.1/", "p1", r)
     assert c.pin_names == ["porta1", "portb1", "p1", "porta0", "portb0"]
 
-  # def test_pin_collection_getting_and_setting_data(self, clean_falcon, pins):
-  #   c = origen.dut.pins.collect("p1", "p2", "p3")
-  #   assert c.data == 0x0
-  #   c.data = 0x7
-  #   assert c.data == 0x7
-  #   assert origen.dut.physical_pin("p1").data == 1
-  #   assert origen.dut.physical_pin("p2").data == 1
-  #   assert origen.dut.physical_pin("p3").data == 1
-  #   c.set(0x1)
-  #   assert c.data == 0x1
-  #   assert origen.dut.physical_pin("p1").data == 1
-  #   assert origen.dut.physical_pin("p2").data == 0
-  #   assert origen.dut.physical_pin("p3").data == 0
-
   def test_driving_pin_collection(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p1", "p2", "p3")
     c.drive(0x2)
@@ -83,12 +68,6 @@ class TestCollecting:
     assert origen.dut.physical_pin("p2").action == "1"
     assert origen.dut.physical_pin("p3").action == "0"
 
-  # def test_driving_pin_collection_with_data(self, clean_falcon, pins):
-  #   c = origen.dut.pins.collect("p1", "p2", "p3")
-  #   c.drive(0x7)
-  #   assert c.actions == "111"
-  #   assert c.data == 0x7
-
   def test_verifying_pin_collection(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p1", "p2", "p3")
     c.verify(0x5)
@@ -96,12 +75,6 @@ class TestCollecting:
     assert origen.dut.physical_pin("p1").action == "H"
     assert origen.dut.physical_pin("p2").action == "L"
     assert origen.dut.physical_pin("p3").action == "H"
-
-  # def test_verifying_pin_collection_with_data(self, clean_falcon, pins):
-  #   c = origen.dut.pins.collect("p1", "p2", "p3")
-  #   c.verify(0x3)
-  #   assert c.actions == "LHH"
-  #   assert c.data == 0x3
 
   def test_tristating_pin_collection(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p1", "p2", "p3")
@@ -124,59 +97,16 @@ class TestCollecting:
   def test_reset_values_persist_in_collections(self, clean_falcon, pins):
     origen.dut.add_pin("port", width=2, reset_data=0x3, reset_action="DD")
     c = origen.dut.pins.collect("p0", "p1", "port")
-    # assert c.reset_data == 0xC
     assert c.reset_actions == "DDZZ"
-    # assert c.data == 0xC
     assert c.actions == "DDZZ"
 
   def test_resetting_collection(self, clean_falcon, pins):
     origen.dut.add_pin("port", width=2, reset_data=0x3, reset_action="DD")
     c = origen.dut.pins.collect("p0", "p1", "port")
     c.verify(0x3)
-    # assert c.data == 0x3
     assert c.actions == "LLHH"
     c.reset()
-    # assert c.data == 0xC
     assert c.actions == "DDZZ"
-
-  # @pytest.mark.xfail
-  # def test_chaining_method_calls_with_nonsticky_mask(self, clean_falcon, pins):
-  #   # This should set the data to 0x3, then drive the pins using mask 0x2.
-  #   # The mask should then be cleared.
-  #   c = origen.dut.pins.collect("p0", "p1")
-  #   # c.data = 0x0
-  #   c.highz()
-  #   # assert c.data == 0
-  #   assert c.actions == "ZZ"
-
-  #   c.set(0x3).with_mask(0x2).drive()
-  #   # assert c.data == 0x3
-  #   assert c.actions == "1Z"
-
-  #   # This should set the data and action regardless of the mask being used previously.
-  #   # c.data = 0x0
-  #   c.highz()
-  #   # assert c.data == 0
-  #   assert c.actions == "ZZ"
-
-  #   # This should set the data and pin action using the mask 0x1.
-  #   # The mask should then be cleared.
-  #   c.with_mask(0x1).set(0x3).verify()
-  #   # assert c.data == 0x1
-  #   assert c.actions == "ZH"
-
-  #   # This should set the data and action regardless of the mask being used previously.
-  #   # c.data = 0x0
-  #   c.highz()
-  #   # assert c.data == 0
-  #   assert c.actions == "ZZ"
-
-  # def test_setting_actions_with_nonsticky_mask(self, clean_falcon, pins):
-  #   c = origen.dut.pins.collect("p0", "p1")
-  #   c.highz()
-  #   assert c.actions == "ZZ"
-  #   c.with_mask(0x1).set_actions("CC")
-  #   assert c.actions == "ZC"
 
   def test_setting_actions_with_mask(self, clean_falcon, pins):
     c = origen.dut.pins.collect("p0", "p1")
@@ -201,27 +131,11 @@ class TestCollecting:
     assert c.little_endian == False
     assert c.big_endian == True
 
-  # def test_getting_nested_pin_data(self, clean_falcon, ports):
-  #   grp = origen.dut.group_pins("ports", "porta", "portb")
-  #   c = origen.dut.pins.collect("porta", "portb")
-  #   assert grp.data == 0
-  #   assert c.data == 0
-
   def test_getting_nested_actions(self, clean_falcon, ports):
     grp = origen.dut.group_pins("ports", "porta", "portb")
     c = origen.dut.pins.collect("porta", "portb")
     assert grp.actions == "ZZZZZZ"
     assert c.actions == "ZZZZZZ"
-
-  # def test_setting_nested_pin_data(self, clean_falcon, ports):
-  #   grp = origen.dut.group_pins("ports", "porta", "portb")
-  #   c = origen.dut.pins.collect("porta", "portb")
-  #   grp.data = 0x2A
-  #   assert grp.data == 0x2A
-  #   assert c.data == 0x2A
-  #   c.data = 0x15
-  #   assert c.data == 0x15
-  #   assert grp.data == 0x15
 
   def test_setting_nested_actions(self, clean_falcon, ports):
     grp = origen.dut.group_pins("ports", "porta", "portb")
@@ -236,8 +150,6 @@ class TestCollecting:
   def test_directly_setting_nested_actions(self, clean_falcon, ports):
     grp = origen.dut.group_pins("ports", "porta", "portb")
     c = origen.dut.pins.collect("porta", "portb")
-    # c.data = 0x3F
-    # assert c.data == 0x3F
     assert isinstance(c.actions, PinActions)
     c.actions = "CCCZZZ"
     assert c.actions == "CCCZZZ"
@@ -251,16 +163,6 @@ class TestCollecting:
     c.set_actions(PinActions("111HHH"))
     assert c.actions == "111HHH"
     assert grp.actions == "111HHH"
-
-  # def test_setting_nested_actions_with_alters_data(self, clean_falcon, ports):
-  #   grp = origen.dut.group_pins("ports", "porta", "portb")
-  #   c = origen.dut.pins.collect("porta", "portb")
-  #   assert c.data == 0
-  #   c.actions = "HL1100"
-  #   assert c.data == 0x2C
-  #   assert grp.data == 0x2C
-  #   assert c.actions == "HL1100"
-  #   assert grp.actions == "HL1100"
 
   def test_exception_on_collecting_missing_pins(self, clean_falcon, pins):
     with pytest.raises(OSError):
@@ -280,12 +182,9 @@ class TestCollecting:
     c = origen.dut.pins.collect("p1", "p2", "p3")
     assert c.actions == "ZZZ"
     with pytest.raises(OSError):
-      # c.data = 0xF
       c.drive(0xF)
     with pytest.raises(OverflowError):
-      # c.data = -1
       c.drive(-1)
-    # assert c.data == 0x0
     assert c.actions == "ZZZ"
 
   def test_exception_on_collecting_duplicates_when_nested(self, clean_falcon, ports):

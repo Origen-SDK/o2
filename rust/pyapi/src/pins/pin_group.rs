@@ -26,22 +26,6 @@ impl PinGroup {
         Ok(grp.name.clone())
     }
 
-    fn with_mask(&self, mask: usize) -> PyResult<Py<Self>> {
-        let mut dut = DUT.lock().unwrap();
-        dut.set_pin_group_nonsticky_mask(self.model_id, &self.name, mask)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(
-            py,
-            Self {
-                name: self.name.clone(),
-                model_id: self.model_id,
-            },
-        )
-        .unwrap())
-    }
-
     #[getter]
     fn get_pin_names(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();

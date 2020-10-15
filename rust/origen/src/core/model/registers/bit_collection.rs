@@ -5,7 +5,7 @@ use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
-use crate::{Transaction, TransactionAction};
+use crate::{Transaction};
 
 const DONT_CARE_CHAR: &str = "X";
 const OVERLAY_CHAR: &str = "V";
