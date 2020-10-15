@@ -19,12 +19,11 @@ pub struct PinCollection {
 
 impl PinCollection {
     pub fn new(
-        // model_id: usize,
         // Todo - allow this to take Pins as well
         names: Vec<String>,
         endianness: Option<Endianness>,
     ) -> Result<PinCollection, Error> {
-        let mut dut = dut();
+        let dut = dut();
         let collection = dut.collect(&names.iter().map(|n| (n.to_string(), 0)).collect(), endianness)?;
         Ok(PinCollection {
             pin_collection: collection,
@@ -44,91 +43,18 @@ impl PinCollection {
 
 #[pymethods]
 impl PinCollection {
-    // #[getter]
-    // fn get_data(&self) -> PyResult<u32> {
-    //     let dut = DUT.lock().unwrap();
-    //     Ok(dut.get_pin_data(self.pin_collection.model_id, &self.pin_collection.pin_names)?)
-    // }
-
-    // #[setter]
-    // fn set_data(&self, data: u32) -> PyResult<()> {
-    //     let mut dut = DUT.lock().unwrap();
-    //     dut.set_pin_store_data(&self.pin_collection, data)?;
-    //     Ok(())
-
-    //     // let gil = Python::acquire_gil();
-    //     // let py = gil.python();
-
-    //     // // I'm sure there's a better way to return self, but I wasn't able to get anything to work.
-    //     // // Just copying self and returning that for now.
-    //     // Ok(Py::new(
-    //     //     py,
-    //     //     PinCollection {
-    //     //         pin_collection: self.pin_collection.clone(),
-    //     //         model_id: self.model_id,
-    //     //     },
-    //     // )
-    //     // .unwrap())
-    // }
-
-    fn with_mask(mut slf: PyRefMut<Self>, mask: usize) -> PyResult<Py<Self>> {
-        // let mut dut = DUT.lock().unwrap();
-        // dut.set_pin_store_nonsticky_mask(&mut self.pin_collection, mask)?;
-
-        // let gil = Python::acquire_gil();
-        // let py = gil.python();
-        // Ok(Py::new(
-        //     py,
-        //     PinCollection {
-        //         pin_collection: self.pin_collection.clone(),
-        //         model_id: self.model_id,
-        //     },
-        // )
-        // .unwrap())
-        slf.pin_collection.mask = Some(mask);
-        Ok(slf.into())
-    }
-
-    // fn set(&self, data: u32) -> PyResult<Py<Self>> {
-    //     self.set_data(data)?;
-
-    //     let gil = Python::acquire_gil();
-    //     let py = gil.python();
-
-    //     // I'm sure there's a better way to return self, but I wasn't able to get anything to work.
-    //     // Just copying self and returning that for now.
-    //     Ok(Py::new(
-    //         py,
-    //         PinCollection {
-    //             pin_collection: self.pin_collection.clone(),
-    //             model_id: self.model_id,
-    //         },
-    //     )
-    //     .unwrap())
-    // }
-
     #[setter]
-    fn actions(mut slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<()> {
-        // let mut dut = DUT.lock().unwrap();
-        // self.pin_collection.update(
-        //     &dut,
-        //     &extract_pin_transaction(actions, self.pin_collection.len(), None)?
-        // )?;
-        // self.pin_collection.set_actions(
-        //     &dut,
-        //     &extract_pinactions!(actions)?
-        // )?;
+    fn actions(slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<()> {
         Self::set_actions(slf, actions, None)?;
         Ok(())
     }
 
     #[args(kwargs = "**")]
-    fn set_actions(mut slf: PyRefMut<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
-        // slf.actions(actions)?;
-        let mut dut = DUT.lock().unwrap();
+    fn set_actions(slf: PyRefMut<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+        let dut = DUT.lock().unwrap();
         slf.pin_collection.update(
             &dut,
-            &extract_pin_transaction(actions, slf.pin_collection.len(), kwargs)?
+            &extract_pin_transaction(actions, kwargs)?
         )?;
         Ok(slf.into())
     }
@@ -139,7 +65,6 @@ impl PinCollection {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        // let pin_actions = dut.get_pin_actions(self.model_id, &self.pin_collection.pin_names)?;
         let pin_actions = self.pin_collection.get_actions(&dut)?;
         Ok(PinActions {actions: pin_actions}.into_py(py))
     }
@@ -169,9 +94,8 @@ impl PinCollection {
     }
 
     fn reset(&mut self) -> PyResult<()> {
-        let mut dut = DUT.lock().unwrap();
+        let dut = DUT.lock().unwrap();
         self.pin_collection.reset(&dut)?;
-        // dut.reset_pin_store(&mut self.pin_collection)?;
         Ok(())
     }
 
@@ -186,18 +110,11 @@ impl PinCollection {
         Ok(self.pin_collection.len())
     }
 
-    // #[getter]
-    // fn get_reset_data(&self) -> PyResult<u32> {
-    //     let dut = DUT.lock().unwrap();
-    //     Ok(dut.get_pin_store_reset_data(&self.pin_collection)?)
-    // }
-
     #[getter]
     fn get_reset_actions(&self) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let gil = Python::acquire_gil();
         let py = gil.python();
-        // let pin_actions = dut.get_pin_store_reset_actions(&self.pin_collection)?;
         let pin_actions = self.pin_collection.get_reset_actions(&dut)?;
         Ok(PinActions {actions: pin_actions}.into_py(py))
     }
@@ -243,7 +160,6 @@ impl pyo3::class::sequence::PySequenceProtocol for PinCollection {
         if let Ok(s) = item.extract::<String>() {
             // For just a String, assume model_id is 0 (DUT-level)
             let dut = DUT.lock().unwrap();
-            // Ok(dut.pin_names_contain(self.model_id, &self.pin_collection.pin_names, &s)?)
             Ok(self.pin_collection.contains_identifier(&dut, (0, s))?)
         } else {
             Ok(false)
@@ -252,12 +168,7 @@ impl pyo3::class::sequence::PySequenceProtocol for PinCollection {
 }
 
 impl ListLikeAPI for PinCollection {
-    fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize> {
-        // let mut pin_ids: Vec<usize> = vec![];
-        // for pname in self.pin_collection.pin_names.iter() {
-        //     pin_ids.push(dut._get_pin(self.model_id, pname).unwrap().id);
-        // }
-        // pin_ids
+    fn item_ids(&self, _dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize> {
         self.pin_collection.pin_ids.clone()
     }
 
@@ -269,17 +180,6 @@ impl ListLikeAPI for PinCollection {
                 None
             ),
         })?.to_object(py))
-        // Ok(Py::new(
-        //     py,
-        //     PinCollection::new(
-        //         // self.model_id,
-        //         // vec![self.pin_collection.pin_names[idx].clone()],
-        //         vec![self.pin_collection.pin_ids[idx]],
-        //         None,
-        //     )?,
-        // )
-        // .unwrap()
-        // .to_object(py))
     }
 
     fn __iter__(&self) -> PyResult<ListLikeIter> {
@@ -290,21 +190,17 @@ impl ListLikeAPI for PinCollection {
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
-        // let mut names: Vec<String> = vec![];
         let mut ids: Vec<usize> = vec![];
         {
-            // let indices = slice.indices((self.pin_collection.pin_names.len() as i32).into())?;
             let indices = slice.indices((self.pin_collection.pin_ids.len() as i32).into())?;
             let mut i = indices.start;
             if indices.step > 0 {
                 while i < indices.stop {
-                    // names.push(self.pin_collection.pin_names[i as usize].clone());
                     ids.push(self.pin_collection.pin_ids[i as usize].clone());
                     i += indices.step;
                 }
             } else {
                 while i > indices.stop {
-                    // names.push(self.pin_collection.pin_names[i as usize].clone());
                     ids.push(self.pin_collection.pin_ids[i as usize].clone());
                     i += indices.step;
                 }
@@ -312,7 +208,6 @@ impl ListLikeAPI for PinCollection {
         }
         let gil = Python::acquire_gil();
         let py = gil.python();
-        // Ok(Py::new(py, PinCollection::new(self.model_id, names, None)?)
         Ok(Py::new(py, PinCollection { 
             pin_collection: OrigenPinCollection::new(ids, None),
         })?.to_object(py))

@@ -182,7 +182,7 @@ class TestCollecting:
     c = origen.dut.pins.collect("p0", "p1")
     c.highz()
     assert c.actions == "ZZ"
-    c.with_mask(0x1).set_actions("CC", mask=0x1)
+    c.set_actions("CC", mask=0x1)
     assert c.actions == "ZC"
 
   def test_collecting_mixed_endianness(self, clean_falcon):

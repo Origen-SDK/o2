@@ -2,7 +2,6 @@ use crate::Result;
 use crate::error::Error;
 use indexmap::map::IndexMap;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::sync::RwLock;
 use crate::standards::actions::*;
 use num_bigint::BigUint;

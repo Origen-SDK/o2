@@ -39,22 +39,7 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-fn unpack_transaction_options(trans: &mut origen::Transaction, kwargs: Option<&PyDict>) -> PyResult<()> {
-    if let Some(opts) = kwargs {
-        if let Some(_mask) = opts.get_item("mask") {
-            panic!("option not supported yet!");
-        }
-        if let Some(_overlay) = opts.get_item("overlay") {
-            panic!("option not supported yet!");
-        }
-        if let Some(_overlay_str) = opts.get_item("overlay_str") {
-            panic!("option not supported yet!");
-        }
-    }
-    Ok(())
-}
-
-pub fn extract_pin_transaction(actions: &PyAny, width: usize, kwargs: Option<&PyDict>) -> PyResult<origen::Transaction> {
+pub fn extract_pin_transaction(actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<origen::Transaction> {
     let actions = extract_pinactions!(actions)?;
     let mut t = origen::Transaction::new_set(&actions)?;
     if let Some(opts) = kwargs {

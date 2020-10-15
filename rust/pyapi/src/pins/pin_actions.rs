@@ -63,14 +63,6 @@ pub struct PinActions {
 #[pymethods]
 impl PinActions {
 
-  // #[allow(non_snake_case)]
-  // #[classmethod]
-  // fn Drive(_cls: &PyType) -> PyResult<PyObject> {
-  //   let gil = Python::acquire_gil();
-  //   let py = gil.python();
-  //   Ok(PinActions { actions: vec!(OrigenPinAction::drive())}.into_py(py))
-  // }
-
   #[allow(non_snake_case)]
   #[classmethod]
   fn DriveHigh(_cls: &PyType) -> PyResult<PyObject> {
@@ -86,14 +78,6 @@ impl PinActions {
     let py = gil.python();
     Ok(PinActions { actions: vec!(OrigenPinAction::drive_low())}.into_py(py))
   }
-
-  // #[allow(non_snake_case)]
-  // #[classmethod]
-  // fn Verify(_cls: &PyType) -> PyResult<PyObject> {
-  //   let gil = Python::acquire_gil();
-  //   let py = gil.python();
-  //   Ok(PinActions { actions: vec!(OrigenPinActions::Verify)}.into_py(py))
-  // }
 
   #[allow(non_snake_case)]
   #[classmethod]
@@ -127,14 +111,6 @@ impl PinActions {
     Ok(PinActions { actions: vec!(OrigenPinAction::highz())}.into_py(py))
   }
 
-  // #[allow(non_snake_case)]
-  // #[classmethod]
-  // fn Other(_cls: &PyType, symbol: String) -> PyResult<PyObject> {
-  //   let gil = Python::acquire_gil();
-  //   let py = gil.python();
-  //   Ok(PinActions { actions: vec!(OrigenPinAction::new(&symbol))}.into_py(py))
-  // }
-
   #[allow(non_snake_case)]
   #[classmethod]
   fn Multichar(_cls: &PyType, symbol: String) -> PyResult<PyObject> {
@@ -148,15 +124,12 @@ impl PinActions {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let retn = PyDict::new(py);
-    retn.set_item("DriveHigh", Self::DriveHigh(cls)?);
-    retn.set_item("DriveLow", Self::DriveLow(cls)?);
-    retn.set_item("VerifyHigh", Self::VerifyHigh(cls)?);
-    retn.set_item("VerifyLow", Self::VerifyLow(cls)?);
-    retn.set_item("Capture", Self::Capture(cls)?);
-    retn.set_item("HighZ", Self::HighZ(cls)?);
-    // for (action, purpose) in OrigenPinAction::standard_actions().iter() {
-    //   retn.set_item(action, purpose)?;
-    // }
+    retn.set_item("DriveHigh", Self::DriveHigh(cls)?)?;
+    retn.set_item("DriveLow", Self::DriveLow(cls)?)?;
+    retn.set_item("VerifyHigh", Self::VerifyHigh(cls)?)?;
+    retn.set_item("VerifyLow", Self::VerifyLow(cls)?)?;
+    retn.set_item("Capture", Self::Capture(cls)?)?;
+    retn.set_item("HighZ", Self::HighZ(cls)?)?;
     Ok(retn.into())
   }
 
