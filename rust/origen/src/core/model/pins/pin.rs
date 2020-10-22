@@ -192,17 +192,17 @@ impl PinAction {
         self.to_bool_unchecked().into()
     }
 
-    pub fn is_driving(&self) -> bool {
-        self.action == DRIVE_HIGH || self.action == DRIVE_LOW
-    }
+    // pub fn is_driving(&self) -> bool {
+    //     self.action == DRIVE_HIGH || self.action == DRIVE_LOW
+    // }
 
-    pub fn is_writing(&self) -> bool {
-        self.is_driving()
-    }
+    // pub fn is_writing(&self) -> bool {
+    //     self.is_driving()
+    // }
 
-    pub fn is_verifying(&self) -> bool {
-        self.action == VERIFY_HIGH || self.action == VERIFY_LOW
-    }
+    // pub fn is_verifying(&self) -> bool {
+    //     self.action == VERIFY_HIGH || self.action == VERIFY_LOW
+    // }
 
     pub fn to_data(actions: Vec<PinAction>) -> Result<BigUint> {
         let mut retn = BigUint::new(vec!(0));
