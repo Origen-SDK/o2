@@ -1,5 +1,5 @@
-use super::model::pins::pin_header::PinHeader;
 use super::model::pins::pin::Resolver;
+use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::core::reference_files;
@@ -48,8 +48,12 @@ impl Eq for TesterSource {}
 impl std::hash::Hash for TesterSource {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            Self::Internal(g) => { g.id().hash(state); },
-            Self::External(g) => { g.hash(state); }
+            Self::Internal(g) => {
+                g.id().hash(state);
+            }
+            Self::External(g) => {
+                g.hash(state);
+            }
         }
     }
 }
@@ -447,14 +451,14 @@ impl Tester {
     pub fn focused_tester(&self) -> Option<&TesterSource> {
         match self.target_testers.first() {
             Some(t) => Some(&t),
-            None => None
+            None => None,
         }
     }
 
     pub fn focused_tester_name(&self) -> Option<String> {
         match self.target_testers.first() {
             Some(t) => Some(t.id()),
-            None => None
+            None => None,
         }
     }
 

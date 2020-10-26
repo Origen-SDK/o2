@@ -1,4 +1,5 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
+use super::pin_actions::PinActions;
 use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
@@ -6,7 +7,6 @@ use origen::{dut, DUT};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
-use super::pin_actions::PinActions;
 
 #[pyclass]
 #[derive(Clone)]
@@ -96,10 +96,7 @@ impl PinCollection {
     #[setter]
     fn pin_actions(&mut self, actions: &PyAny) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.set_per_pin_store_actions(
-            &mut self.pin_collection,
-            &extract_pinactions!(actions)?
-        )?;
+        dut.set_per_pin_store_actions(&mut self.pin_collection, &extract_pinactions!(actions)?)?;
         Ok(())
     }
 
@@ -115,7 +112,10 @@ impl PinCollection {
         let py = gil.python();
 
         let pin_actions = dut.get_pin_actions(self.model_id, &self.pin_collection.pin_names)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     fn drive(&mut self, data: Option<u32>) -> PyResult<()> {
@@ -170,7 +170,10 @@ impl PinCollection {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pin_actions = dut.get_pin_store_reset_actions(&self.pin_collection)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     #[getter]
@@ -192,7 +195,11 @@ impl PinCollection {
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
 
-        py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.cycle(**(kwargs or {{}}))"),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 
@@ -202,7 +209,11 @@ impl PinCollection {
 
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
-        py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.repeat({})", count),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 }

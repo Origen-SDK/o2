@@ -86,7 +86,7 @@ impl TestManager {
     ///  0      |       n3    |     n3
     ///  1      |       n2    |     n2.2
     ///  2      |       n1    |     n2.1
-    /// 
+    ///
     /// Fails if the offset is out of range.
     pub fn get_with_descendants(&self, offset: usize) -> Result<Node> {
         let ast = self.ast.read().unwrap();

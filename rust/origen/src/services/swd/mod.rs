@@ -1,3 +1,3 @@
-mod service;
 mod driver;
-pub use service::{Service, Acknowledgements};
+mod service;
+pub use service::{Acknowledgements, Service};

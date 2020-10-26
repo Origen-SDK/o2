@@ -1,9 +1,9 @@
 use super::stil;
+use super::utility::transaction::Transaction;
 use crate::services::swd::Acknowledgements;
+use indexmap::IndexMap;
 use num_bigint::BigUint;
 use std::collections::HashMap;
-use indexmap::IndexMap;
-use super::utility::transaction::Transaction;
 
 pub type Id = usize;
 type Metadata = Option<IndexMap<String, crate::Metadata>>;
@@ -27,7 +27,7 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Timeset nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    SetTimeset(usize),   // Indicates both a set or change of the current timeset
+    SetTimeset(usize), // Indicates both a set or change of the current timeset
     ClearTimeset,
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Pinheader nodes
@@ -43,22 +43,21 @@ pub enum Attrs {
     PinGroupAction(usize, Vec<String>, Option<HashMap<String, crate::Metadata>>),
     PinAction(usize, String, Option<HashMap<String, crate::Metadata>>),
     Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
-    Cycle(u32, bool), // repeat (0 not allowed), compressable
+    Cycle(u32, bool),                         // repeat (0 not allowed), compressable
     PatternHeader,
     PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
-                // represents the end of the 'pattern vectors', for vector-based testers.
+    // represents the end of the 'pattern vectors', for vector-based testers.
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Register transaction nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     RegWrite(Transaction), // Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
     RegVerify(
-        Transaction
-        // Id,
-        // BigUint,
-        // Option<BigUint>,
-        // Option<BigUint>,
-        // Option<BigUint>,
-        // Option<String>,
+        Transaction, // Id,
+                     // BigUint,
+                     // Option<BigUint>,
+                     // Option<BigUint>,
+                     // Option<BigUint>,
+                     // Option<String>
     ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// JTAG nodes
@@ -88,27 +87,27 @@ pub enum Attrs {
         Id, // SWD ID
         Transaction,
         Acknowledgements,
-        Metadata
+        Metadata,
     ),
     SWDVerifyAP(
         Id, // SWD ID
         Transaction,
         Acknowledgements, // SWD Acknowledgement
-        Option<bool>, // Parity Compare
-        Metadata
+        Option<bool>,     // Parity Compare
+        Metadata,
     ),
     SWDWriteDP(
         Id, // SWD ID
         Transaction,
         Acknowledgements, // SWD Acknowledgement
-        Metadata
+        Metadata,
     ),
     SWDVerifyDP(
         Id, // SWD ID
         Transaction,
         Acknowledgements, // SWD Acknowledgement
-        Option<bool>, // Parity Compare
-        Metadata
+        Option<bool>,     // Parity Compare
+        Metadata,
     ),
     SWDLineReset,
 
@@ -116,38 +115,38 @@ pub enum Attrs {
     //// Arm Debug nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     ArmDebugMemAPWriteReg(
-        Id, // MemAP Id
+        Id,    // MemAP Id
         usize, // MemAP address
         Transaction,
         Metadata,
     ),
     ArmDebugMemAPWriteInternalReg(
-        Id, // MemAP Id
+        Id,    // MemAP Id
         usize, // MemAP address
         Transaction,
         Metadata,
     ),
     ArmDebugMemAPVerifyReg(
-        Id, // MemAP ID
+        Id,    // MemAP ID
         usize, // MemAP address
         Transaction,
-        Metadata
+        Metadata,
     ),
     ArmDebugMemAPVerifyInternalReg(
-        Id, // MemAP ID
+        Id,    // MemAP ID
         usize, // MemAP address
         Transaction,
-        Metadata
+        Metadata,
     ),
     ArmDebugWriteDP(
         Id, // DP ID
         Transaction,
-        Metadata
+        Metadata,
     ),
     ArmDebugVerifyDP(
         Id, // DP ID
         Transaction,
-        Metadata
+        Metadata,
     ),
     ArmDebugSwjJTAGToSWD(Id), // arm_debug_id - Switch DP from JTAG to SWD
     ArmDebugSwjSWDToJTAG(Id), // arm_debug_id - Switch DP from SWD to JTAG
@@ -304,13 +303,17 @@ impl std::fmt::Display for Attrs {
         match &self {
             Attrs::PinGroupAction(grp_id, _actions, _metadata) => {
                 let dut = crate::dut();
-                write!(f, "{}", format!("{:?} -> ({})", self, &dut.pin_groups[*grp_id].name))
-            },
+                write!(
+                    f,
+                    "{}",
+                    format!("{:?} -> ({})", self, &dut.pin_groups[*grp_id].name)
+                )
+            }
             Attrs::PinAction(id, _actions, _metadata) => {
                 let dut = crate::dut();
                 write!(f, "{}", format!("{:?} -> ({})", self, &dut.pins[*id].name))
-            },
-            _ => write!(f, "{}", format!("{:?}", self))
+            }
+            _ => write!(f, "{}", format!("{:?}", self)),
         }
     }
 }

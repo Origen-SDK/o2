@@ -1,6 +1,6 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
-use super::pin_collection::PinCollection;
 use super::pin_actions::PinActions;
+use super::pin_collection::PinCollection;
 use origen::DUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
@@ -110,7 +110,10 @@ impl PinGroup {
         let py = gil.python();
 
         let pin_actions = dut.get_pin_group_actions(self.model_id, &self.name)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     fn drive(slf: PyRef<Self>, data: Option<u32>) -> PyResult<Py<Self>> {
@@ -138,7 +141,11 @@ impl PinGroup {
     }
 
     #[args(kwargs = "**")]
-    fn set_actions(slf: PyRef<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    fn set_actions(
+        slf: PyRef<Self>,
+        actions: &PyAny,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
         let mut dut = DUT.lock().unwrap();
         let mut mask = None;
         if let Some(args) = kwargs {
@@ -150,7 +157,7 @@ impl PinGroup {
             slf.model_id,
             &slf.name,
             &extract_pinactions!(actions)?,
-            mask
+            mask,
         )?;
         Ok(slf.into())
     }
@@ -187,7 +194,10 @@ impl PinGroup {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pin_actions = dut.get_pin_group_reset_actions(self.model_id, &self.name)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     #[getter]
@@ -212,7 +222,11 @@ impl PinGroup {
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
 
-        py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.cycle(**(kwargs or {{}}))"),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 
@@ -222,7 +236,11 @@ impl PinGroup {
 
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
-        py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.repeat({})", count),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 }

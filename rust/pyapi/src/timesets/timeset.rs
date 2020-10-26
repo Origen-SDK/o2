@@ -1,12 +1,12 @@
+use super::super::pins::pins_to_backend_lookup_fields;
 use super::timeset_container::{
     EventContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
 };
 use origen::error::Error;
 use origen::DUT;
+use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
-use pyo3::class::mapping::PyMappingProtocol;
-use super::super::pins::pins_to_backend_lookup_fields;
 
 #[macro_export]
 macro_rules! pytimeset {
@@ -266,9 +266,9 @@ impl Timeset {
                 target_name: {
                     match tester.focused_tester_name() {
                         Some(n) => n,
-                        None => return Ok(py.None())
+                        None => return Ok(py.None()),
                     }
-                }
+                },
             },
         )
         .unwrap()
@@ -286,17 +286,23 @@ impl Timeset {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let retn = t.pin_action_resolvers.keys().map({ |target| 
-            Py::new(
-                py,
-                crate::timesets::timeset::SymbolMap {
-                    timeset_id: t_id,
-                    target_name: target.to_string()
-                },
-            )
-            .unwrap()
-            .to_object(py)
-        }).collect::<Vec<PyObject>>();
+        let retn = t
+            .pin_action_resolvers
+            .keys()
+            .map({
+                |target| {
+                    Py::new(
+                        py,
+                        crate::timesets::timeset::SymbolMap {
+                            timeset_id: t_id,
+                            target_name: target.to_string(),
+                        },
+                    )
+                    .unwrap()
+                    .to_object(py)
+                }
+            })
+            .collect::<Vec<PyObject>>();
         Ok(retn)
     }
 }
@@ -396,13 +402,21 @@ impl Wavetable {
 
     /// Same as :meth:`applied_waves` but supports internal filtering of the return values.
     #[args(pins = "*")]
-    fn applied_waves_for(&self, pins: &PyTuple, indicators: Option<Vec<String>>) -> PyResult<PyObject> {
+    fn applied_waves_for(
+        &self,
+        pins: &PyTuple,
+        indicators: Option<Vec<String>>,
+    ) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
         let dut = DUT.lock().unwrap();
         let wt = dut._get_wavetable(self.timeset_id, &self.name)?;
-        let waves = wt.applied_waves(&dut, &pins_to_backend_lookup_fields(py, &pins)?, &indicators.unwrap_or(vec!()))?;
+        let waves = wt.applied_waves(
+            &dut,
+            &pins_to_backend_lookup_fields(py, &pins)?,
+            &indicators.unwrap_or(vec![]),
+        )?;
         Ok(waves.to_object(py))
     }
 
@@ -412,12 +426,10 @@ impl Wavetable {
         let py = gil.python();
         let tester = origen::tester();
         match tester.focused_tester_name() {
-            Some(name) => {
-                Ok(Py::new(py, SymbolMap::new(self.timeset_id, name))
-                    .unwrap()
-                    .to_object(py))
-            },
-            None => Ok(py.None())
+            Some(name) => Ok(Py::new(py, SymbolMap::new(self.timeset_id, name))
+                .unwrap()
+                .to_object(py)),
+            None => Ok(py.None()),
         }
     }
 
@@ -718,10 +730,13 @@ impl Wave {
         let mut pins: Vec<PyObject> = vec![];
         for p in w.applied_pin_ids.iter() {
             let ppin = &dut.pins[*p];
-            pins.push(super::super::pins::pin::Pin {
-                name: ppin.name.clone(),
-                model_id: ppin.model_id
-            }.into_py(py));
+            pins.push(
+                super::super::pins::pin::Pin {
+                    name: ppin.name.clone(),
+                    model_id: ppin.model_id,
+                }
+                .into_py(py),
+            );
         }
         Ok(pins)
     }
@@ -731,11 +746,13 @@ impl Wave {
         let mut dut = DUT.lock().unwrap();
         let wid;
         {
-            wid = dut.get_wave(self.wave_group_id, &self.name).unwrap().wave_id;
+            wid = dut
+                .get_wave(self.wave_group_id, &self.name)
+                .unwrap()
+                .wave_id;
         }
-        let pins_with_model_id: Vec<(usize, String)> = pins.iter().map(|pin| {
-            (0, pin.clone())
-        }).collect();
+        let pins_with_model_id: Vec<(usize, String)> =
+            pins.iter().map(|pin| (0, pin.clone())).collect();
         dut.apply_wave_id_to_pins(wid, &pins_with_model_id)?;
 
         let gil = Python::acquire_gil();
@@ -917,13 +934,15 @@ macro_rules! action_from_pyany {
                 if let Ok(a) = $action.extract::<String>() {
                     t = a.clone();
                 } else if $action.get_type().name() == "PinActions" {
-                    let pin_actions = $action.extract::<PyRef<super::super::pins::pin_actions::PinActions>>().unwrap();
+                    let pin_actions = $action
+                        .extract::<PyRef<super::super::pins::pin_actions::PinActions>>()
+                        .unwrap();
                     if pin_actions.actions.len() == 1 {
                         t = pin_actions.actions.first().unwrap().to_string().unwrap();
                     } else {
                         return Err(pyo3::exceptions::ValueError::py_err(
-                            "SymbolMap lookups can only retrieve single symbols at a time"
-                        ))
+                            "SymbolMap lookups can only retrieve single symbols at a time",
+                        ));
                     }
                 } else {
                     return super::super::type_error!(&format!(
@@ -932,7 +951,8 @@ macro_rules! action_from_pyany {
                     ));
                 }
                 t
-            }.as_str()
+            }
+            .as_str(),
         )?
     };
 }
@@ -947,7 +967,7 @@ impl SymbolMap {
     pub fn new(timeset_id: usize, target_name: String) -> Self {
         Self {
             timeset_id: timeset_id,
-            target_name: target_name
+            target_name: target_name,
         }
     }
 }
@@ -957,22 +977,32 @@ impl SymbolMap {
     fn keys(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
-        Ok(resolver.mapping().iter().map(|(k, _)| k.to_string().unwrap()).collect())
+        Ok(resolver
+            .mapping()
+            .iter()
+            .map(|(k, _)| k.to_string().unwrap())
+            .collect())
     }
 
     fn values(&self) -> PyResult<Vec<String>> {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
-        Ok(resolver.mapping().iter().map(|(_, v)| v.to_string()).collect::<Vec<String>>())
+        Ok(resolver
+            .mapping()
+            .iter()
+            .map(|(_, v)| v.to_string())
+            .collect::<Vec<String>>())
     }
 
     fn items(&self) -> PyResult<Vec<(String, String)>> {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
 
-        Ok(resolver.mapping().iter().map(
-            |(k, v)| (k.to_string().unwrap(), v.to_string())
-        ).collect::<Vec<(String, String)>>())
+        Ok(resolver
+            .mapping()
+            .iter()
+            .map(|(k, v)| (k.to_string().unwrap(), v.to_string()))
+            .collect::<Vec<(String, String)>>())
     }
 
     fn get(&self, action: &PyAny) -> PyResult<PyObject> {
@@ -980,19 +1010,21 @@ impl SymbolMap {
         let py = gil.python();
         match self.__getitem__(action) {
             Ok(a) => Ok(a.into_py(py)),
-            Err(_) => Ok(py.None())
+            Err(_) => Ok(py.None()),
         }
     }
 
-    fn set_symbol(&mut self, action: &PyAny, new_resolution: String, target: Option<String>) -> PyResult<()> {
+    fn set_symbol(
+        &mut self,
+        action: &PyAny,
+        new_resolution: String,
+        target: Option<String>,
+    ) -> PyResult<()> {
         if let Some(t) = target {
             let mut dut = DUT.lock().unwrap();
             let tset = &mut dut.timesets[self.timeset_id];
             if let Some(resolver) = tset.pin_action_resolvers.get_mut(&t) {
-                resolver.update_mapping(
-                    action_from_pyany!(action),
-                    new_resolution.clone()
-                );
+                resolver.update_mapping(action_from_pyany!(action), new_resolution.clone());
                 Ok(())
             } else {
                 Err(pyo3::exceptions::KeyError::py_err(format!(
@@ -1015,7 +1047,7 @@ impl SymbolMap {
                     "Timeset '{}' does not have a symbol map targeting '{}' (The target must be set prior to timeset creation)",
                     t.name,
                     target
-                )))
+                )));
             }
         }
 
@@ -1025,7 +1057,7 @@ impl SymbolMap {
             py,
             crate::timesets::timeset::SymbolMap {
                 timeset_id: self.timeset_id,
-                target_name: target
+                target_name: target,
             },
         )
         .unwrap()
@@ -1035,7 +1067,6 @@ impl SymbolMap {
 
 #[pyproto]
 impl PyMappingProtocol for SymbolMap {
-
     fn __getitem__(&self, action: &PyAny) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
@@ -1056,10 +1087,7 @@ impl PyMappingProtocol for SymbolMap {
         for target in tester.targets_as_strs().iter() {
             // let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
             let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[target];
-            resolver.update_mapping(
-                action_from_pyany!(action),
-                new_resolution.clone()
-            )
+            resolver.update_mapping(action_from_pyany!(action), new_resolution.clone())
         }
         Ok(())
     }
@@ -1076,7 +1104,7 @@ impl pyo3::class::sequence::PySequenceProtocol for SymbolMap {
     fn __contains__(&self, item: &PyAny) -> PyResult<bool> {
         match pyo3::PyMappingProtocol::__getitem__(self, &item) {
             Ok(_) => Ok(true),
-            Err(_) => Ok(false)
+            Err(_) => Ok(false),
         }
     }
 }
@@ -1106,9 +1134,9 @@ impl pyo3::class::iter::PyIterProtocol for SymbolMapIter {
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for SymbolMap {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<SymbolMapIter> {
-      Ok(SymbolMapIter {
-        keys: slf.keys().unwrap(),
-        i: 0,
-      })
+        Ok(SymbolMapIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
     }
 }

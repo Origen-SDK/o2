@@ -18,28 +18,33 @@ pub trait ResolvePinActions {
             None => Err(Error::new(&format!(
                 "No resolution provided for pin action {}",
                 &action.to_string()?
-            )))
+            ))),
         }
     }
 
-    fn resolve_pin_actions(&self, target: String, actions: &Vec<PinActions>) -> Vec<Option<String>> {
+    fn resolve_pin_actions(
+        &self,
+        target: String,
+        actions: &Vec<PinActions>,
+    ) -> Vec<Option<String>> {
         self.pin_action_resolver(target).resolve_all(&actions)
     }
 
     fn update_mapping(&mut self, target: String, action: PinActions, new_resolution: String) {
-        self.mut_pin_action_resolver(target).update_mapping(action, new_resolution)
+        self.mut_pin_action_resolver(target)
+            .update_mapping(action, new_resolution)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Resolver {
-    resolution_map: IndexMap::<PinActions, String>,
+    resolution_map: IndexMap<PinActions, String>,
 }
 
 impl Resolver {
     pub fn new() -> Self {
         Self {
-            resolution_map: IndexMap::new()
+            resolution_map: IndexMap::new(),
         }
     }
 
@@ -75,15 +80,21 @@ pub enum PinActions {
     VerifyLow,
     Capture,
     HighZ,
-    Other(String)
+    Other(String),
 }
 
 impl PinActions {
-
     pub fn standard_actions() -> Vec<PinActions> {
-        vec!(Self::Drive, Self::DriveHigh, Self::DriveLow,
-        Self::Verify, Self::VerifyHigh, Self::VerifyLow,
-        Self::Capture, Self::HighZ)
+        vec![
+            Self::Drive,
+            Self::DriveHigh,
+            Self::DriveLow,
+            Self::Verify,
+            Self::VerifyHigh,
+            Self::VerifyLow,
+            Self::Capture,
+            Self::HighZ,
+        ]
     }
 
     /// Converts a str representing symbols of arbitrary size into a vector of PinAction::Other types.
@@ -108,10 +119,12 @@ impl PinActions {
             } else {
                 let c_ = Self::from(c);
                 match c_ {
-                    Self::Other(_) => return Err(Error::new(&format!(
-                        "Cannot derive PinActions enum from encoded character {}!",
-                        c
-                    ))),
+                    Self::Other(_) => {
+                        return Err(Error::new(&format!(
+                            "Cannot derive PinActions enum from encoded character {}!",
+                            c
+                        )))
+                    }
                     _ => retn.push(c_),
                 }
             }
@@ -129,7 +142,7 @@ impl PinActions {
     pub fn push_to_string(&self, current: &mut String) -> Result<(), Error> {
         match self {
             Self::Other(s) => current.push_str(&format!("|{}|", s)),
-            _ => current.push(self.as_char())
+            _ => current.push(self.as_char()),
         }
         Ok(())
     }
@@ -139,11 +152,11 @@ impl PinActions {
         for action in actions.iter().rev() {
             action.push_to_string(&mut retn)?;
         }
-        return Ok(retn)
+        return Ok(retn);
     }
 
     pub fn to_string(&self) -> Result<String, Error> {
-        Self::to_action_string(&vec!(self.clone()))
+        Self::to_action_string(&vec![self.clone()])
     }
 
     pub fn as_char(&self) -> char {
@@ -163,7 +176,7 @@ impl PinActions {
     pub fn as_sym(&self) -> String {
         match self {
             PinActions::Other(sym) => sym.clone(),
-            _ => self.as_char().to_string()
+            _ => self.as_char().to_string(),
         }
     }
 
@@ -175,22 +188,22 @@ impl PinActions {
                 } else {
                     Self::DriveHigh
                 }
-            },
+            }
             Self::Verify => {
                 if state == 0 {
                     Self::VerifyLow
                 } else {
                     Self::VerifyHigh
                 }
-            },
-            _ => self.clone()
+            }
+            _ => self.clone(),
         }
     }
 
     pub fn is_standard(&self) -> bool {
         match self {
             Self::Other(_) => false,
-            _ => true
+            _ => true,
         }
     }
 
@@ -269,7 +282,7 @@ impl From<&str> for PinActions {
         if s.len() == 1 {
             match Self::try_from(s.chars().next().unwrap() as u8) {
                 Ok(p) => p,
-                Err(_) => Self::Other(s.to_string())
+                Err(_) => Self::Other(s.to_string()),
             }
         } else {
             Self::Other(s.to_string())
@@ -321,7 +334,6 @@ pub struct Pin {
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
     // lookup boost.
     pub groups: HashMap<String, usize>,
-
     //pub overlaying: bool,
 }
 

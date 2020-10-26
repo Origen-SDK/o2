@@ -1,7 +1,7 @@
 use super::dut::PyDUT;
+use origen::core::tester::TesterSource;
 use origen::{DUT, TESTER};
 use pyo3::prelude::*;
-use origen::core::tester::TesterSource;
 
 #[macro_export]
 macro_rules! type_error {
@@ -16,7 +16,7 @@ pub mod timeset_container;
 pub mod timeset;
 
 use pyo3::types::{PyAny, PyDict};
-use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable, SymbolMap};
+use timeset::{Event, SymbolMap, Timeset, Wave, WaveGroup, Wavetable};
 use timeset_container::{
     EventContainer, TimesetContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
 };
@@ -77,7 +77,11 @@ impl PyDUT {
                 //         },
                 //         _ => None
                 //     }
-                tester.target_testers.iter().map( |t| t).collect::<Vec<&TesterSource>>()
+                tester
+                    .target_testers
+                    .iter()
+                    .map(|t| t)
+                    .collect::<Vec<&TesterSource>>()
             },
         )?;
 
