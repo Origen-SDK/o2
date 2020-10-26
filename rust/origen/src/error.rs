@@ -51,6 +51,12 @@ impl std::convert::From<Error> for PyErr {
     }
 }
 
+impl std::convert::From<PyErr> for Error {
+    fn from(err: PyErr) -> Self {
+        Error::new(&format!("{:?}", err))
+    }
+}
+
 impl std::convert::From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error::new(&err.to_string())

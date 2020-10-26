@@ -1,3 +1,4 @@
+use crate::prog_gen::ParamValue;
 use crate::testers::SupportedTester;
 use crate::Result;
 use crate::PROG;
@@ -19,6 +20,8 @@ pub fn new_test_suite(name: &str, tester: &SupportedTester) -> Result<usize> {
     let id = prog.create_duplicate_test(tid)?;
     prog.with_test_mut(id, |t| {
         t.name = name.to_owned();
+        t.indirect = false;
+        t.set("name", ParamValue::String(name.to_owned()))?;
         Ok(())
     })?;
     Ok(id)
@@ -38,6 +41,10 @@ pub fn new_test_method(lib_name: &str, tm_name: &str, tester: &SupportedTester) 
         }
     };
     let id = prog.create_duplicate_test(tid)?;
+    prog.with_test_mut(id, |t| {
+        t.indirect = false;
+        Ok(())
+    })?;
     Ok(id)
 }
 

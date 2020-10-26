@@ -6,13 +6,15 @@ mod test_collection;
 mod test_invocation;
 mod test_program;
 
+use crate::Result as OrigenResult;
+use std::fmt;
 use std::str::FromStr;
 pub use test::Test;
 pub use test_collection::TestCollection;
 pub use test_invocation::TestInvocation;
 pub use test_program::TestProgram;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParamValue {
     String(String),
     Int(i64),
@@ -37,6 +39,22 @@ impl ParamValue {
             ParamValue::Time(_) => kind == &ParamType::Time,
             ParamValue::Frequency(_) => kind == &ParamType::Frequency,
             ParamValue::Bool(_) => kind == &ParamType::Bool,
+        }
+    }
+}
+
+impl fmt::Display for ParamValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParamValue::String(v) => write!(f, "{}", v),
+            ParamValue::Int(v) => write!(f, "{}", v),
+            ParamValue::UInt(v) => write!(f, "{}", v),
+            ParamValue::Float(v) => write!(f, "{}", v),
+            ParamValue::Current(v) => write!(f, "{}A", v),
+            ParamValue::Voltage(v) => write!(f, "{}V", v),
+            ParamValue::Time(v) => write!(f, "{}s", v),
+            ParamValue::Frequency(v) => write!(f, "{}Hz", v),
+            ParamValue::Bool(v) => write!(f, "{}", v),
         }
     }
 }
@@ -82,4 +100,31 @@ pub enum Constraint {
     GTE(ParamValue),
     LT(ParamValue),
     LTE(ParamValue),
+}
+
+impl Constraint {
+    pub fn is_satisfied(&self, value: &ParamValue) -> OrigenResult<()> {
+        match self {
+            Constraint::In(values) => {
+                if values.iter().any(|v| v == value) {
+                    Ok(())
+                } else {
+                    error!(
+                        "'{}' is not one of the permitted values: {}",
+                        value,
+                        values
+                            .iter()
+                            .map(|v| format!("'{}'", v))
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
+                }
+            }
+            // Unimplemented for now, but placeholders in case such contraints are supported in future
+            Constraint::GT(_) => Ok(()),
+            Constraint::GTE(_) => Ok(()),
+            Constraint::LT(_) => Ok(()),
+            Constraint::LTE(_) => Ok(()),
+        }
+    }
 }

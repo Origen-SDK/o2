@@ -26,6 +26,7 @@ pub struct Test {
     pub aliases: IndexMap<String, String>,
     pub constraints: IndexMap<String, Vec<Constraint>>,
     pub tester: SupportedTester,
+    pub class_name: Option<String>,
 }
 
 impl Test {
@@ -39,11 +40,47 @@ impl Test {
             aliases: IndexMap::new(),
             constraints: IndexMap::new(),
             tester: tester,
+            class_name: None,
         }
     }
 
     /// Applies the values read from a test template file (e.g. JSON) to the current test object
     pub fn import_test_template(&mut self, test_template: &TestTemplate) -> Result<()> {
+        self.class_name = test_template.class_name.to_owned();
+        if let Some(params) = &test_template.parameters {
+            for (name, param) in params {
+                let kind = match &param.kind {
+                    Some(k) => match ParamType::from_str(k) {
+                        Err(msg) => {
+                            return error!(
+                                "{} (for parameter '{}' in test template '{}')",
+                                msg, name, &self.name
+                            )
+                        }
+                        Ok(t) => t,
+                    },
+                    None => ParamType::String,
+                };
+                self.params.insert(name.to_owned(), kind.clone());
+                if let Some(aliases) = &param.aliases {
+                    for alias in aliases {
+                        self.aliases.insert(alias.to_owned(), name.to_owned());
+                    }
+                }
+                if let Some(value) = &param.value {
+                    let v = self.import_value(&kind, name, value)?;
+                    self.values.insert(name.to_owned(), v);
+                }
+                if let Some(accepted_values) = &param.accepted_values {
+                    let mut values: Vec<ParamValue> = vec![];
+                    for value in accepted_values {
+                        values.push(self.import_value(&kind, name, value)?);
+                    }
+                    self.constraints
+                        .insert(name.to_owned(), vec![Constraint::In(values)]);
+                }
+            }
+        }
         if let Some(params) = &test_template.parameter_list {
             for (name, type_str) in params {
                 match ParamType::from_str(&type_str) {
@@ -70,96 +107,133 @@ impl Test {
         }
         if let Some(values) = &test_template.values {
             for (name, value) in values {
-                let v = {
-                    let name = self.to_param_name(name)?;
-                    match self.get_type(name)? {
-                        &ParamType::String => {
-                            match value.as_str() {
-                                Some(x) => Ok(ParamValue::String(x.to_owned())),
-                                None => error!("Value given for '{}' in test '{}' is not a string: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::Int => {
-                            match value.as_i64() {
-                                Some(x) => Ok(ParamValue::Int(x)),
-                                None => error!("Value given for '{}' in test '{}' is not an integer: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::UInt => {
-                            match value.as_u64() {
-                                Some(x) => Ok(ParamValue::UInt(x)),
-                                None => error!("Value given for '{}' in test '{}' is not an unsigned integer: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::Float => {
-                            match value.as_f64() {
-                                Some(x) => Ok(ParamValue::Float(x)),
-                                None => error!("Value given for '{}' in test '{}' is not a float: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::Current => {
-                            match value.as_f64() {
-                                Some(x) => Ok(ParamValue::Current(x)),
-                                None => error!("Value given for '{}' in test '{}' is not a number: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::Voltage => {
-                            match value.as_f64() {
-                                Some(x) => Ok(ParamValue::Voltage(x)),
-                                None => error!("Value given for '{}' in test '{}' is not a number: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::Time => {
-                            match value.as_f64() {
-                                Some(x) => Ok(ParamValue::Time(x)),
-                                None => error!("Value given for '{}' in test '{}' is not a number: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::Frequency => {
-                            match value.as_f64() {
-                                Some(x) => Ok(ParamValue::Frequency(x)),
-                                None => error!("Value given for '{}' in test '{}' is not a number: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                        &ParamType::Bool => {
-                            match value.as_bool() {
-                                Some(x) => Ok(ParamValue::Bool(x)),
-                                None => error!("Value given for '{}' in test '{}' is not a boolean: '{:?}'", name, &self.name, value),
-                            }
-                        }
-                    }?
-                };
-                self.values.insert(name.to_string(), v);
+                let param_name = { self.to_param_name(name)?.to_owned() };
+                let v = self.import_value(self.get_type(&param_name)?, name, value)?;
+                self.values.insert(param_name, v);
+            }
+        }
+        if let Some(accepted_values) = &test_template.accepted_values {
+            for (name, accepted_values) in accepted_values {
+                let param_name = { self.to_param_name(name)?.to_owned() };
+                let mut values: Vec<ParamValue> = vec![];
+                for value in accepted_values {
+                    values.push(self.import_value(self.get_type(&param_name)?, name, value)?);
+                }
+                self.constraints
+                    .insert(param_name, vec![Constraint::In(values)]);
             }
         }
         Ok(())
     }
 
+    fn import_value(
+        &self,
+        kind: &ParamType,
+        name: &str,
+        value: &serde_json::Value,
+    ) -> Result<ParamValue> {
+        match kind {
+            &ParamType::String => match value.as_str() {
+                Some(x) => Ok(ParamValue::String(x.to_owned())),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not a string: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::Int => match value.as_i64() {
+                Some(x) => Ok(ParamValue::Int(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not an integer: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::UInt => match value.as_u64() {
+                Some(x) => Ok(ParamValue::UInt(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not an unsigned integer: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::Float => match value.as_f64() {
+                Some(x) => Ok(ParamValue::Float(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not a float: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::Current => match value.as_f64() {
+                Some(x) => Ok(ParamValue::Current(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not a number: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::Voltage => match value.as_f64() {
+                Some(x) => Ok(ParamValue::Voltage(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not a number: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::Time => match value.as_f64() {
+                Some(x) => Ok(ParamValue::Time(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not a number: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::Frequency => match value.as_f64() {
+                Some(x) => Ok(ParamValue::Frequency(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not a number: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+            &ParamType::Bool => match value.as_bool() {
+                Some(x) => Ok(ParamValue::Bool(x)),
+                None => error!(
+                    "Value given for '{}' in test '{}' is not a boolean: '{:?}'",
+                    name, &self.name, value
+                ),
+            },
+        }
+    }
+
     /// Set the value of the given parameter to the given value, returns an error if the
-    /// parameter is not found or if its type does match the type of the given value
-    pub fn set(&mut self, param_name: &str, value: ParamValue) -> Result<()> {
-        let kind = self.get_type(param_name)?;
+    /// parameter is not found, if its type does match the type of the given value or if
+    /// any constraints placed on the possible values is violated
+    pub fn set(&mut self, param_name_or_alias: &str, value: ParamValue) -> Result<()> {
+        let param_name = { self.to_param_name(param_name_or_alias)?.to_owned() };
+        let kind = self.get_type(&param_name)?;
         if value.is_type(kind) {
-            self.values.insert(param_name.to_string(), value);
+            if let Some(constraints) = self.constraints.get(&param_name) {
+                for constraint in constraints {
+                    if let Err(e) = constraint.is_satisfied(&value) {
+                        return error!(
+                            "Illegal value applied to attribute '{}' of test '{}': {}",
+                            param_name_or_alias, &self.name, e
+                        );
+                    }
+                }
+            }
+            self.values.insert(param_name, value);
             Ok(())
         } else {
             error!("The type of the given value for '{}' in test '{}' does not match the required type: expected {:?}, given {:?}", param_name, &self.name, kind, value)
         }
     }
 
+    /// Get the value of the given attribute
+    pub fn get(&self, param_name_or_alias: &str) -> Result<Option<&ParamValue>> {
+        let param_name = self.to_param_name(param_name_or_alias)?;
+        Ok(self.values.get(param_name))
+    }
+
     /// Returns the type of the given parameter name (or alias), returns an error if the
     /// parameter is not found
-    pub fn get_type(&self, param_name: &str) -> Result<&ParamType> {
-        if let Some(p) = self.params.get(param_name) {
-            Ok(p)
-        } else if self.aliases.contains_key(param_name) {
-            self.get_type(&self.aliases[param_name])
-        } else {
-            error!(
-                "Test '{}' has no parameter named '{}'",
-                &self.name, param_name
-            )
-        }
+    pub fn get_type(&self, param_name_or_alias: &str) -> Result<&ParamType> {
+        let param_name = self.to_param_name(param_name_or_alias)?;
+        Ok(&self.params[param_name])
     }
 
     pub fn add_param(

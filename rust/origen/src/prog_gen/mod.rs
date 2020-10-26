@@ -4,6 +4,9 @@ pub mod teradyne;
 
 use crate::testers::SupportedTester;
 use crate::Result;
+pub use model::ParamType;
+pub use model::ParamValue;
+pub use model::Test;
 pub use model::TestInvocation;
 use model::TestProgram;
 use phf::phf_map;
@@ -160,6 +163,7 @@ pub struct TestTemplate {
 
 #[derive(Debug, Deserialize)]
 pub struct TestTemplateParameter {
+    #[serde(rename(deserialize = "type"))]
     kind: Option<String>,
     aliases: Option<Vec<String>>,
     value: Option<serde_json::Value>,
