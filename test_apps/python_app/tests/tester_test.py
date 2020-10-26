@@ -83,14 +83,11 @@ def test_init_state(clean_eagle, clean_tester):
     # but just in case those change unbeknownst to this method, double check the initial state here.
     assert origen.tester
     assert origen.tester.targets == []
-    assert origen.tester.testers == [
-        'V93KSMT7', 'V93KSMT8', 'J750', 'ULTRAFLEX', 'SIMULATOR',
-        'DUMMYRENDERER', 'DUMMYRENDERERWITHINTERCEPTORS'
-    ]
+    assert origen.tester.testers == backend_testers
     assert origen.tester.timeset is None
 
 
-def test_setting_a_timeset(clean_eagle, clean_tester):
+def test_setting_a_timeset(clean_eagle, clean_dummy):
     origen.tester.set_timeset("simple")
     assert isinstance(origen.tester.timeset, _origen.dut.timesets.Timeset)
     assert origen.tester.timeset.name == "simple"
@@ -106,12 +103,12 @@ def test_resetting_the_timeset():
     assert origen.tester.timeset is None
 
 
-def test_exception_on_unknown_timeset(clean_eagle, clean_tester):
+def test_exception_on_unknown_timeset(clean_eagle, clean_dummy):
     with pytest.raises(OSError):
         origen.tester.set_timeset("blah")
 
 
-def test_setting_timeset_with_instance(clean_eagle, clean_tester):
+def test_setting_timeset_with_instance(clean_eagle, clean_dummy):
     assert origen.tester.timeset is None
     origen.tester.set_timeset(origen.dut.timesets["simple"])
     assert origen.tester.timeset.name == "simple"
@@ -141,26 +138,26 @@ def test_exception_on_unknown_target(clean_eagle, clean_tester):
 
 
 class TestTesterAPI:
-    def test_cycle(self, clean_eagle, clean_tester):
+    def test_cycle(self, clean_eagle, clean_dummy):
         assert len(origen.test_ast()["children"]) == 0
         origen.tester.set_timeset("simple")
         check_last_node_type("SetTimeset")
         origen.tester.cycle()
         check_last_node_type("Cycle")
 
-    def test_multiple_cycles(self, clean_eagle, clean_tester):
+    def test_multiple_cycles(self, clean_eagle, clean_dummy):
         origen.tester.set_timeset("simple")
         origen.tester.cycle()
         origen.tester.cycle()
         origen.tester.cycle()
         assert len(origen.test_ast()["children"]) == 4
 
-    def test_cc(self, clean_eagle, clean_tester):
+    def test_cc(self, clean_eagle, clean_dummy):
         origen.tester.set_timeset("simple")
         origen.tester.cc("Hello Tester!")
         check_last_node_type("Comment")
 
-    def test_repeat(self, clean_eagle, clean_tester):
+    def test_repeat(self, clean_eagle, clean_dummy):
         origen.tester.set_timeset("simple")
         origen.tester.repeat(10)
         n = get_last_node()

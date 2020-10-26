@@ -273,7 +273,7 @@ impl PyObjectProtocol for AddressBlock {
         let dut = origen::dut();
 
         if query == "regs" || query == "registers" {
-            let pyref = PyRef::new(
+            let pyobj = Py::new(
                 py,
                 RegisterCollection {
                     address_block_id: Some(self.id),
@@ -282,7 +282,7 @@ impl PyObjectProtocol for AddressBlock {
                     i: 0,
                 },
             )?;
-            Ok(pyref.to_object(py))
+            Ok(pyobj.to_object(py))
 
         // See if the requested attribute is a reference to one of this block's registers
         } else {
@@ -290,8 +290,8 @@ impl PyObjectProtocol for AddressBlock {
 
             match blk.get_register_id(query) {
                 Ok(id) => {
-                    let pyref = PyRef::new(py, BitCollection::from_reg_id(id, &dut))?;
-                    Ok(pyref.to_object(py))
+                    let pyobj = Py::new(py, BitCollection::from_reg_id(id, &dut))?;
+                    Ok(pyobj.to_object(py))
                 }
                 Err(_) => Err(AttributeError::py_err(format!(
                     "'AddressBlock' object has no attribute '{}'",
@@ -301,7 +301,7 @@ impl PyObjectProtocol for AddressBlock {
         }
     }
 
-    fn __richcmp__(&self, other: &AddressBlock, op: CompareOp) -> PyResult<bool> {
+    fn __richcmp__(&self, other: PyRef<'p, AddressBlock>, op: CompareOp) -> PyResult<bool> {
         match op {
             CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
             CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),

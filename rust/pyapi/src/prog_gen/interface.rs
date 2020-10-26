@@ -20,8 +20,8 @@ pub struct PyInterface {
 #[pymethods]
 impl PyInterface {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(PyInterface {});
+    fn new() -> Self {
+        PyInterface {}
     }
 
     fn resolve_file_reference(&self, path: &str) -> PyResult<String> {

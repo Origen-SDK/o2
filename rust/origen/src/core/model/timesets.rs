@@ -1,12 +1,13 @@
 pub mod timeset;
 
 use super::super::dut::Dut;
+use super::super::tester::TesterSource;
 use super::Model;
 use crate::error::Error;
 use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 
-/// Returns an Origen Error with pre-formatted message comlaining that
-/// someting already exists.
+/// Returns an Origen Error with pre-formatted message complaining that
+/// something already exists.
 #[macro_export]
 macro_rules! duplicate_error {
     ($container:expr, $model_name:expr, $duplicate_name:expr) => {
@@ -48,8 +49,9 @@ impl Model {
         name: &str,
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
+        targets: Vec<&TesterSource>,
     ) -> Result<Timeset, Error> {
-        let t = Timeset::new(model_id, instance_id, name, period, default_period);
+        let t = Timeset::new(model_id, instance_id, name, period, default_period, targets);
         self.timesets.insert(String::from(name), instance_id);
         Ok(t)
     }
@@ -73,6 +75,7 @@ impl Dut {
         name: &str,
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
+        targets: Vec<&TesterSource>,
     ) -> Result<&Timeset, Error> {
         let id;
         {
@@ -86,7 +89,7 @@ impl Dut {
                 return duplicate_error!("timeset", model.name, name);
             }
 
-            t = model.add_timeset(model_id, id, name, period, default_period)?;
+            t = model.add_timeset(model_id, id, name, period, default_period, targets)?;
         }
         self.timesets.push(t);
         Ok(&self.timesets[id])
@@ -176,8 +179,9 @@ impl Dut {
                 // If given, pull the following out of the wave:
                 //  * pins
                 //  * events
-                let w = &mut self.waves[id];
-                w.pins = base_wave.pins.clone();
+                // Todo - add waveform inheritance
+                // let w = &mut self.waves[id];
+                // w.pins = base_wave.pins.clone();
             }
         }
         Ok(&self.waves[id])

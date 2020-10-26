@@ -1,7 +1,7 @@
 use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
 use super::pin::PinActions;
-use super::pin_collection::PinCollection;
+use super::pin_store::PinStore;
 use crate::error::Error;
 
 // We'll maintain both the pin_names which the group was built with, but we'll also maintain the list
@@ -61,6 +61,10 @@ impl PinGroup {
     pub fn is_big_endian(&self) -> bool {
         return !self.is_little_endian();
     }
+
+    pub fn to_identifier(&self) -> (String, usize) {
+        (self.name.clone(), self.model_id)
+    }
 }
 
 impl Dut {
@@ -85,9 +89,10 @@ impl Dut {
         name: &str,
         data: u32,
     ) -> Result<(), Error> {
-        let grp = self._get_pin_group(model_id, name)?;
+        let grp = self._get_mut_pin_group(model_id, name)?;
         let m = grp.mask;
         let pin_names = grp.pin_names.clone();
+        grp.mask = None;
         self.set_pin_data(model_id, &pin_names, data, m)
     }
 
@@ -103,7 +108,11 @@ impl Dut {
     /// Returns the pin actions as a string.
     /// E.g.: for an 8-pin bus where the two MSBits are driving, the next two are capturing, then next wo are verifying, and the
     ///   two LSBits are HighZ, the return value will be "DDCCVVZZ"
-    pub fn get_pin_group_actions(&self, model_id: usize, name: &str) -> Result<String, Error> {
+    pub fn get_pin_group_actions(
+        &self,
+        model_id: usize,
+        name: &str,
+    ) -> Result<Vec<PinActions>, Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
         self.get_pin_actions(model_id, &pin_names)
     }
@@ -112,7 +121,7 @@ impl Dut {
         &self,
         model_id: usize,
         name: &str,
-    ) -> Result<String, Error> {
+    ) -> Result<Vec<PinActions>, Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
         self.get_pin_reset_actions(model_id, &pin_names)
     }
@@ -125,10 +134,48 @@ impl Dut {
         data: Option<u32>,
         mask: Option<usize>,
     ) -> Result<(), Error> {
-        let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
-        self.set_pin_actions(model_id, &pin_names, action, data, mask)
+        let grp = self._get_mut_pin_group(model_id, name)?;
+        let grp_id;
+        {
+            grp_id = grp.id;
+        }
+        let pin_names = grp.pin_names.clone();
+        let m;
+        if let Some(_m) = mask {
+            m = Some(_m);
+        } else {
+            if let Some(_m) = grp.mask {
+                m = Some(_m);
+            } else {
+                m = None;
+            }
+        }
+        grp.mask = None;
+        self.set_pin_actions(model_id, &pin_names, action, data, m, Some(grp_id))
     }
 
+    pub fn set_pin_group_symbols(
+        &mut self,
+        model_id: usize,
+        name: &str,
+        symbols: &Vec<PinActions>,
+        mask: Option<usize>,
+    ) -> Result<(), Error> {
+        let grp = self._get_mut_pin_group(model_id, name)?;
+        let pin_names = grp.pin_names.clone();
+        let m;
+        if let Some(_m) = mask {
+            m = Some(_m);
+        } else {
+            if let Some(_m) = grp.mask {
+                m = Some(_m);
+            } else {
+                m = None;
+            }
+        }
+        grp.mask = None;
+        self.set_per_pin_actions(model_id, &pin_names, symbols, m)
+    }
     pub fn drive_pin_group(
         &mut self,
         model_id: usize,
@@ -187,7 +234,7 @@ impl Dut {
         start_idx: usize,
         stop_idx: usize,
         step_size: usize,
-    ) -> Result<PinCollection, Error> {
+    ) -> Result<PinStore, Error> {
         if let Some(p) = self.get_pin_group(model_id, name) {
             let names = &p.pin_names;
             let mut sliced_names: Vec<String> = vec![];
@@ -204,7 +251,7 @@ impl Dut {
                 let p = names[i].clone();
                 sliced_names.push(p);
             }
-            Ok(PinCollection::new(model_id, &sliced_names, Option::None))
+            Ok(PinStore::new(model_id, &sliced_names, Option::None))
         } else {
             Err(Error::new(&format!(
                 "Could not slice pin group {} because it doesn't exists!",
@@ -213,9 +260,14 @@ impl Dut {
         }
     }
 
-    //     pub fn set_pin_group_nonsticky_mask(&mut self, name: &str, mask: usize) -> Result<(), Error> {
-    //         let grp = self._get_mut_pin_group(name)?;
-    //         grp.mask = Some(mask);
-    //         Ok(())
-    //     }
+    pub fn set_pin_group_nonsticky_mask(
+        &mut self,
+        model_id: usize,
+        name: &str,
+        mask: usize,
+    ) -> Result<(), Error> {
+        let grp = self._get_mut_pin_group(model_id, name)?;
+        grp.mask = Some(mask);
+        Ok(())
+    }
 }

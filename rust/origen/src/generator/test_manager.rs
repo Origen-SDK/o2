@@ -34,6 +34,11 @@ impl TestManager {
         ast.push(node);
     }
 
+    pub fn append(&self, nodes: &mut Vec<Node>) {
+        let mut ast = self.ast.write().unwrap();
+        ast.append(nodes);
+    }
+
     /// Push a new node into the AST and leave it open, meaning that all new nodes
     /// added to the AST will be inserted as children of this node until it is closed.
     /// A reference ID is returned and the caller should save this and provide it again
@@ -66,6 +71,26 @@ impl TestManager {
     pub fn get(&self, offset: usize) -> Result<Node> {
         let ast = self.ast.write().unwrap();
         ast.get(offset)
+    }
+
+    /// Returns a copy of node n - offset, where an offset of 0 means
+    /// the last node pushed.
+    /// Differs from 'get' in that the offset will step into all nodes'
+    /// children. For example, in the AST:
+    ///     n1
+    ///         n2
+    ///             n2.1
+    ///             n2.2
+    ///         n3
+    ///  offset | get(offset) | get_with_descendants(offset)
+    ///  0      |       n3    |     n3
+    ///  1      |       n2    |     n2.2
+    ///  2      |       n1    |     n2.1
+    ///
+    /// Fails if the offset is out of range.
+    pub fn get_with_descendants(&self, offset: usize) -> Result<Node> {
+        let ast = self.ast.read().unwrap();
+        ast.get_with_descendants(offset)
     }
 
     /// Insert the node at position n - offset, using offset = 0 is equivalent

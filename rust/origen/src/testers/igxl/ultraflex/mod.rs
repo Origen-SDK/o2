@@ -19,6 +19,10 @@ impl TesterAPI for UltraFlex {
         "ULTRAFLEX".to_string()
     }
 
+    fn id(&self) -> String {
+        "UltraFlex".to_string()
+    }
+
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
         Box::new(std::clone::Clone::clone(self))
     }

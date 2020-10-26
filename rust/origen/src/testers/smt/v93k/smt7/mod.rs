@@ -1,10 +1,7 @@
-pub mod pattern_renderer;
-
 use crate::core::tester::{Interceptor, TesterAPI};
-use crate::generator::ast::Node;
-use crate::utility::differ::Differ;
-use crate::Result;
-use std::path::{Path, PathBuf};
+use crate::testers::vector_based::pattern_renderer::Renderer;
+use crate::testers::vector_based::VectorBased;
+use crate::{Result, DUT};
 
 #[derive(Debug, Clone)]
 pub struct SMT7 {}
@@ -15,23 +12,61 @@ impl Default for SMT7 {
     }
 }
 
-impl Interceptor for SMT7 {}
-impl TesterAPI for SMT7 {
+impl VectorBased for SMT7 {
     fn name(&self) -> String {
         "V93K_SMT7".to_string()
+    }
+
+    fn id(&self) -> String {
+        "V93KSMT7".to_string()
     }
 
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
         Box::new(std::clone::Clone::clone(self))
     }
 
-    fn render_pattern(&mut self, node: &Node) -> Result<Vec<PathBuf>> {
-        pattern_renderer::Renderer::run(self, node)
+    fn comment_str(&self) -> &str {
+        "#"
     }
 
-    fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Differ> {
-        let mut d = Differ::new(pat_a, pat_b);
-        let _ = d.ignore_comments("#");
-        Some(d)
+    fn file_ext(&self) -> &str {
+        "avc"
+    }
+
+    fn print_vector(
+        &self,
+        renderer: &mut Renderer,
+        repeat: u32,
+        _compressable: bool,
+    ) -> Option<Result<String>> {
+        Some(Ok(format!(
+            "R{} {} {} # <EoL Comment>;",
+            repeat,
+            {
+                match renderer.timeset_name() {
+                    Ok(s) => s,
+                    Err(e) => return Some(Err(e)),
+                }
+            },
+            // The pin states should have been previously updated from the PinAction node, or just has default values
+            {
+                match renderer.render_states() {
+                    Ok(s) => s,
+                    Err(e) => return Some(Err(e)),
+                }
+            }
+        )))
+    }
+
+    fn print_pinlist(&self, renderer: &mut Renderer) -> Option<Result<String>> {
+        let dut = DUT.lock().unwrap();
+        let pins = renderer.states(&dut).names().join(" ");
+        Some(Ok(format!("FORMAT {};", pins)))
+    }
+
+    fn print_pattern_end(&self, _renderer: &mut Renderer) -> Option<Result<String>> {
+        Some(Ok("SQPG STOP;".to_string()))
     }
 }
+
+impl Interceptor for SMT7 {}

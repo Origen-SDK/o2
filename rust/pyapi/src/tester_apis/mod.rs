@@ -13,7 +13,7 @@ fn tester_apis(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 pub fn to_test_invocation(obj: &PyAny) -> Option<TestInvocation> {
-    if let Ok(ts) = obj.extract::<&TestSuite>() {
+    if let Ok(ts) = obj.extract::<TestSuite>() {
         log_info!("Got V93K test! - {}", ts.name);
         let t = TestInvocation {
             test_id: 0,

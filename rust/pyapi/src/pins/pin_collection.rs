@@ -1,5 +1,6 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
-use origen::core::model::pins::pin_collection::PinCollection as OrigenPinCollection;
+use super::pin_actions::PinActions;
+use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
 use origen::{dut, DUT};
@@ -21,7 +22,6 @@ impl PinCollection {
         endianness: Option<Endianness>,
     ) -> Result<PinCollection, Error> {
         let mut dut = dut();
-        //let model = dut.get_mut_model(model_id)?;
         let collection = dut.collect(model_id, names, endianness)?;
         Ok(PinCollection {
             pin_collection: collection,
@@ -39,9 +39,44 @@ impl PinCollection {
     }
 
     #[setter]
-    fn set_data(&self, data: u32) -> PyResult<Py<Self>> {
+    fn set_data(&self, data: u32) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.set_pin_collection_data(&self.pin_collection, data)?;
+        dut.set_pin_store_data(&self.pin_collection, data)?;
+        Ok(())
+
+        // let gil = Python::acquire_gil();
+        // let py = gil.python();
+
+        // // I'm sure there's a better way to return self, but I wasn't able to get anything to work.
+        // // Just copying self and returning that for now.
+        // Ok(Py::new(
+        //     py,
+        //     PinCollection {
+        //         pin_collection: self.pin_collection.clone(),
+        //         model_id: self.model_id,
+        //     },
+        // )
+        // .unwrap())
+    }
+
+    fn with_mask(&mut self, mask: usize) -> PyResult<Py<Self>> {
+        let mut dut = DUT.lock().unwrap();
+        dut.set_pin_store_nonsticky_mask(&mut self.pin_collection, mask)?;
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(Py::new(
+            py,
+            PinCollection {
+                pin_collection: self.pin_collection.clone(),
+                model_id: self.model_id,
+            },
+        )
+        .unwrap())
+    }
+
+    fn set(&self, data: u32) -> PyResult<Py<Self>> {
+        self.set_data(data)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -58,59 +93,58 @@ impl PinCollection {
         .unwrap())
     }
 
-    fn with_mask(&mut self, mask: usize) -> PyResult<Py<Self>> {
+    #[setter]
+    fn pin_actions(&mut self, actions: &PyAny) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.set_pin_collection_nonsticky_mask(&mut self.pin_collection, mask)?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(
-            py,
-            PinCollection {
-                pin_collection: self.pin_collection.clone(),
-                model_id: self.model_id,
-            },
-        )
-        .unwrap())
+        dut.set_per_pin_store_actions(&mut self.pin_collection, &extract_pinactions!(actions)?)?;
+        Ok(())
     }
 
-    fn set(&self, data: u32) -> PyResult<Py<Self>> {
-        return self.set_data(data);
+    fn set_actions(mut slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<Py<Self>> {
+        slf.pin_actions(actions)?;
+        Ok(slf.into())
     }
 
     #[getter]
-    fn get_pin_actions(&self) -> PyResult<String> {
+    fn get_pin_actions(&self) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_actions(self.model_id, &self.pin_collection.pin_names)?)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let pin_actions = dut.get_pin_actions(self.model_id, &self.pin_collection.pin_names)?;
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     fn drive(&mut self, data: Option<u32>) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.drive_pin_collection(&mut self.pin_collection, data)?;
+        dut.drive_pin_store(&mut self.pin_collection, data)?;
         Ok(())
     }
 
     fn verify(&mut self, data: Option<u32>) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.verify_pin_collection(&mut self.pin_collection, data)?;
+        dut.verify_pin_store(&mut self.pin_collection, data)?;
         Ok(())
     }
 
     fn capture(&mut self) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.capture_pin_collection(&mut self.pin_collection)?;
+        dut.capture_pin_store(&mut self.pin_collection)?;
         Ok(())
     }
 
     fn highz(&mut self) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.highz_pin_collection(&mut self.pin_collection)?;
+        dut.highz_pin_store(&mut self.pin_collection)?;
         Ok(())
     }
 
     fn reset(&mut self) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
-        dut.reset_pin_collection(&mut self.pin_collection)?;
+        dut.reset_pin_store(&mut self.pin_collection)?;
         Ok(())
     }
 
@@ -127,13 +161,19 @@ impl PinCollection {
     #[getter]
     fn get_reset_data(&self) -> PyResult<u32> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_collection_reset_data(&self.pin_collection)?)
+        Ok(dut.get_pin_store_reset_data(&self.pin_collection)?)
     }
 
     #[getter]
-    fn get_reset_actions(&self) -> PyResult<String> {
+    fn get_reset_actions(&self) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        Ok(dut.get_pin_collection_reset_actions(&self.pin_collection)?)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let pin_actions = dut.get_pin_store_reset_actions(&self.pin_collection)?;
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     #[getter]
@@ -144,6 +184,37 @@ impl PinCollection {
     #[getter]
     fn get_little_endian(&self) -> PyResult<bool> {
         Ok(self.pin_collection.is_little_endian())
+    }
+
+    #[args(kwargs = "**")]
+    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?)?;
+        locals.set_item("kwargs", kwargs.to_object(py))?;
+
+        py.eval(
+            &format!("origen.tester.cycle(**(kwargs or {{}}))"),
+            None,
+            Some(&locals),
+        )?;
+        Ok(slf.into())
+    }
+
+    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?)?;
+        py.eval(
+            &format!("origen.tester.repeat({})", count),
+            None,
+            Some(&locals),
+        )?;
+        Ok(slf.into())
     }
 }
 

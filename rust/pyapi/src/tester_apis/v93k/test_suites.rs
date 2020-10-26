@@ -33,7 +33,7 @@ pub struct TestSuite {
 #[pymethods]
 impl TestSuite {
     #[setter]
-    pub fn test_method(&mut self, tm: &Test) -> PyResult<()> {
+    pub fn test_method(&mut self, tm: Test) -> PyResult<()> {
         self.test_method_id = Some(tm.id);
         Ok(())
     }

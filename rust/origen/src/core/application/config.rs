@@ -1,3 +1,4 @@
+use crate::core::application::target::matches;
 use crate::core::term;
 use crate::utility::location::Location;
 use config::File;
@@ -27,7 +28,7 @@ pub struct Config {
 
 impl Config {
     pub fn refresh(&mut self) {
-        let latest = Self::build(self.root.as_ref().unwrap());
+        let latest = Self::build(self.root.as_ref().unwrap(), false);
         self.name = latest.name;
         self.target = latest.target;
         self.mode = latest.mode;
@@ -38,8 +39,32 @@ impl Config {
         self.website_release_name = latest.website_release_name;
     }
 
+    pub fn check_defaults(root: &Path) {
+        let defaults = Self::build(root, true);
+
+        // Do some quick default checks here:
+        //  * Target - tl;dr: have a better error message on invalid default targets.
+        //             If the default target moves or is otherwise invalid, the app won't boot.
+        //             This isn't necessarily bad (having an invalid default target is bad) but it may not be obvious,
+        //             especially to newer users, as to why the app all of a sudden doesn't boot.
+        //             This can be overcome by setting the target (or fixing the default), but add, remove, etc., the commands
+        //             users will probably go to when encountering target problems, won't work.
+        // * Stack up others as needed.
+        if let Some(targets) = defaults.target {
+            for t in targets.iter() {
+                let m = matches(t, "targets");
+                if m.len() != 1 {
+                    term::redln(&format!(
+                        "Error present in default target '{}' (in config/application.toml)",
+                        t
+                    ));
+                }
+            }
+        }
+    }
+
     /// Builds a new config from all application.toml files found at the given app root
-    pub fn build(root: &Path) -> Config {
+    pub fn build(root: &Path, default_only: bool) -> Config {
         log_trace!("Building app config");
         let mut s = config::Config::new();
 
@@ -55,9 +80,12 @@ impl Config {
         if file.exists() {
             files.push(file);
         }
-        let file = root.join(".origen").join("application.toml");
-        if file.exists() {
-            files.push(file);
+
+        if !default_only {
+            let file = root.join(".origen").join("application.toml");
+            if file.exists() {
+                files.push(file);
+            }
         }
 
         // Now add in the files, with the last one found taking highest priority

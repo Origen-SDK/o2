@@ -1,3 +1,4 @@
+use super::model::pins::pin::Resolver;
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
@@ -32,7 +33,7 @@ impl PartialEq<TesterSource> for TesterSource {
     fn eq(&self, g: &TesterSource) -> bool {
         match g {
             TesterSource::Internal(_g) => match self {
-                TesterSource::Internal(_self) => *_g.name() == *_self.name(),
+                TesterSource::Internal(_self) => *_g.id() == *_self.id(),
                 _ => false,
             },
             TesterSource::External(_g) => match self {
@@ -42,12 +43,33 @@ impl PartialEq<TesterSource> for TesterSource {
         }
     }
 }
+impl Eq for TesterSource {}
+
+impl std::hash::Hash for TesterSource {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Internal(g) => {
+                g.id().hash(state);
+            }
+            Self::External(g) => {
+                g.hash(state);
+            }
+        }
+    }
+}
 
 impl TesterSource {
     pub fn to_string(&self) -> String {
         match self {
             Self::External(g) => g.clone(),
             Self::Internal(g) => g.to_string(),
+        }
+    }
+
+    pub fn id(&self) -> String {
+        match self {
+            Self::External(g) => g.clone(),
+            Self::Internal(g) => g.id(),
         }
     }
 }
@@ -442,7 +464,21 @@ impl Tester {
     }
 
     pub fn targets_as_strs(&self) -> Vec<String> {
-        self.target_testers.iter().map(|g| g.to_string()).collect()
+        self.target_testers.iter().map(|g| g.id()).collect()
+    }
+
+    pub fn focused_tester(&self) -> Option<&TesterSource> {
+        match self.target_testers.first() {
+            Some(t) => Some(&t),
+            None => None,
+        }
+    }
+
+    pub fn focused_tester_name(&self) -> Option<String> {
+        match self.target_testers.first() {
+            Some(t) => Some(t.id()),
+            None => None,
+        }
     }
 
     /// This is called automatically at the very start of a generate command, it is invoked from Python,
@@ -491,10 +527,11 @@ impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
 
 pub trait TesterAPI: std::fmt::Debug + Interceptor {
     fn name(&self) -> String;
+    fn id(&self) -> String;
     fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
 
     /// Render the given AST to an output, returning the path(s) to the created file(s)
-    /// if successfull.
+    /// if successful.
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
@@ -517,10 +554,20 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor {
         let _ = pat_b;
         None
     }
+
+    fn pin_action_resolver(&self) -> Option<Resolver> {
+        None
+    }
 }
 
 impl PartialEq<TesterSource> for dyn TesterAPI {
     fn eq(&self, g: &TesterSource) -> bool {
-        self.to_string() == g.to_string()
+        self.id() == g.id()
+    }
+}
+
+impl std::hash::Hash for dyn TesterAPI {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
     }
 }

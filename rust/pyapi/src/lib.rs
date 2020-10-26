@@ -7,6 +7,7 @@ mod file_handler;
 mod logger;
 mod meta;
 mod model;
+#[macro_use]
 mod pins;
 mod registers;
 mod services;
@@ -15,6 +16,7 @@ mod timesets;
 mod application;
 mod producer;
 mod prog_gen;
+mod standard_sub_blocks;
 mod tester;
 mod tester_apis;
 mod utility;
@@ -36,6 +38,7 @@ use logger::PyInit_logger;
 use producer::PyInit_producer;
 use prog_gen::interface::PyInit_interface;
 use services::PyInit_services;
+use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
 use tester_apis::PyInit_tester_apis;
 use utility::location::Location;
@@ -89,6 +92,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(services))?;
     m.add_wrapped(wrap_pymodule!(utility))?;
     m.add_wrapped(wrap_pymodule!(tester_apis))?;
+    m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     Ok(())
 }
 
@@ -97,7 +101,7 @@ fn extract_value<'a>(
     size: Option<u32>,
     dut: &'a MutexGuard<Dut>,
 ) -> Result<Value<'a>> {
-    let bits = bits_or_val.extract::<&BitCollection>();
+    let bits = bits_or_val.extract::<PyRef<BitCollection>>();
     if bits.is_ok() {
         return Ok(Value::Bits(bits.unwrap().materialize(dut)?, size));
     }
@@ -111,6 +115,29 @@ fn extract_value<'a>(
         };
     }
     Err(Error::new("Illegal bits/value argument"))
+}
+
+/// Unpacks/extracts common transaction options, updating the transaction directly
+/// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
+fn unpack_transaction_options(
+    trans: &mut origen::Transaction,
+    kwargs: Option<&PyDict>,
+) -> PyResult<()> {
+    if let Some(opts) = kwargs {
+        if let Some(address) = opts.get_item("address") {
+            trans.address = Some(address.extract::<u128>()?);
+        }
+        if let Some(_mask) = opts.get_item("mask") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(())
 }
 
 /// Exit with a failing status code and print a big FAIL to the console

@@ -26,15 +26,13 @@ pub struct PyTester {
 #[pymethods]
 impl PyTester {
     #[new]
-    fn new(obj: &PyRawObject) {
+    fn new() -> Self {
         origen::tester().reset();
-        obj.init({
-            PyTester {
-                python_testers: HashMap::new(),
-                instantiated_testers: HashMap::new(),
-                metadata: vec![],
-            }
-        });
+        PyTester {
+            python_testers: HashMap::new(),
+            instantiated_testers: HashMap::new(),
+            metadata: vec![],
+        }
     }
 
     pub fn _start_specific_block(&self, testers: Vec<&str>) -> PyResult<(usize, Vec<String>)> {
@@ -120,7 +118,7 @@ impl PyTester {
 
     #[setter]
     // Note - do not add doc strings here. Add to get_timeset above.
-    fn timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
+    fn timeset(&self, timeset: &PyAny) -> PyResult<()> {
         let (model_id, timeset_name);
 
         // If the timeset is a string, assume its a timeset name on the DUT.
@@ -136,7 +134,7 @@ impl PyTester {
                     tester.clear_timeset()?;
                 }
                 self.issue_callbacks("clear_timeset")?;
-                return self.get_timeset();
+                return Ok(());
             } else if timeset.get_type().name().to_string() == "Timeset" {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
@@ -158,7 +156,7 @@ impl PyTester {
             }
             self.issue_callbacks("set_timeset")?;
         }
-        self.get_timeset()
+        Ok(())
     }
 
     /// set_timeset(timeset)
@@ -177,7 +175,8 @@ impl PyTester {
     /// * :class:`_origen.dut.timesets.Timeset`
     /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
-        self.timeset(timeset)
+        self.timeset(timeset)?;
+        self.get_timeset()
     }
 
     #[getter]
@@ -203,7 +202,7 @@ impl PyTester {
     }
 
     #[setter]
-    fn pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
+    fn pin_header(&self, pin_header: &PyAny) -> PyResult<()> {
         let (model_id, pin_header_name);
 
         if pin_header.get_type().name().to_string() == "NoneType" {
@@ -212,7 +211,7 @@ impl PyTester {
                 tester.clear_pin_header()?;
             }
             self.issue_callbacks("clear_pin_header")?;
-            return self.get_timeset();
+            return Ok(());
         } else if pin_header.get_type().name().to_string() == "PinHeader" {
             let gil = Python::acquire_gil();
             let py = gil.python();
@@ -233,11 +232,12 @@ impl PyTester {
             }
             self.issue_callbacks("set_pin_header")?;
         }
-        self.get_pin_header()
+        Ok(())
     }
 
     fn set_pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
-        self.pin_header(pin_header)
+        self.pin_header(pin_header)?;
+        self.get_pin_header()
     }
 
     /// cc(comment: str) -> self
@@ -253,16 +253,13 @@ impl PyTester {
     /// --------
     /// * {{ link_to('prog-gen:comments', 'Commenting pattern source') }}
     /// * {{ link_to('pat-gen:comments', 'Commenting program source') }}
-    fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<PyObject> {
+    fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<Py<Self>> {
         {
             let mut tester = origen::tester();
             tester.cc(&comment)?;
         }
         slf.issue_callbacks("cc")?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
     fn generate_pattern_header(&self, header_comments: &PyDict) -> PyResult<()> {
@@ -331,7 +328,7 @@ impl PyTester {
 
     /// cycle(**kwargs) -> self
     #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         {
             let mut tester = origen::tester();
             let mut repeat = None;
@@ -344,12 +341,10 @@ impl PyTester {
         }
         slf.issue_callbacks("cycle")?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<PyObject> {
+    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let kwargs = PyDict::new(py);

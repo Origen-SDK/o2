@@ -1,12 +1,13 @@
 import origen
 import _origen
-import importlib
+import importlib, inspect
 import os.path
 import re
 from origen.controller import TopLevel
 from origen.translator import Translator
 from origen.compiler import Compiler
 from origen.errors import *
+from types import ModuleType
 
 
 class Base(_origen.application.PyApplication):
@@ -110,9 +111,13 @@ class Base(_origen.application.PyApplication):
                     filepath = filepath.joinpath('derivatives').joinpath(field)
                 elif filepath.joinpath('blocks').joinpath(field).exists():
                     filepath = filepath.joinpath('blocks').joinpath(field)
+                elif filepath.joinpath(field).exists():
+                    filepath = filepath.joinpath(field)
                 else:
                     self._block_path_cache[path] = (False, None)
                     break
+            elif filepath.joinpath(f"{field}.py").exists():
+                break
             else:
                 filepath = filepath.joinpath(field)
                 if not filepath.exists():
@@ -143,7 +148,36 @@ class Base(_origen.application.PyApplication):
         origen.dut = dut
         return dut
 
-    def instantiate_block(self, path, base_path=None):
+    def instantiate_block_from_mod(self,
+                                   mod,
+                                   class_name="Controller",
+                                   sb_options={}):
+        if not self.__instantiate_dut_called:
+            raise RuntimeError(
+                f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{mod}\")' instead?"
+            )
+
+        # Load the module and try to find its controller.
+        if isinstance(mod, ModuleType):
+            m = mod
+        else:
+            m = importlib.import_module(mod + ".controller")
+        c = getattr(m, class_name)
+        if 'kwargs' in inspect.signature(c).parameters:
+            block = c(**sb_options)
+        else:
+            block = c()
+        block.app = self
+        block.block_path = mod
+        block.from_mod_path = True
+        return block
+
+    def instantiate_block(self,
+                          path,
+                          base_path=None,
+                          *,
+                          class_name="Controller",
+                          sb_options=None):
         '''
             Instantiate the given block and return it
         
@@ -173,8 +207,11 @@ class Base(_origen.application.PyApplication):
             if not r[0]:
                 paths = path.split(".")
                 if len(paths) > 1 and origen.has_plugin(paths[0]):
-                    return origen.plugin(paths[0]).instantiate_block(".".join(
-                        paths[1:]))
+                    return origen.plugin(paths[0]).instantiate_block(
+                        ".".join(paths[1:]),
+                        None,
+                        class_name=class_name,
+                        sb_options=sb_options)
                 else:
                     raise RuntimeError(
                         f"No block was found at path '{orig_path}'")
@@ -185,18 +222,24 @@ class Base(_origen.application.PyApplication):
         controller_dir = block_dir
         controller_file = None
         blocks_dir = self.app_dir.joinpath("blocks")
-        while controller_dir != blocks_dir:
-            if controller_dir.joinpath("controller.py").exists():
-                controller_file = controller_dir.joinpath("controller.py")
-                break
-            controller_dir = controller_dir.parent
-            d = os.path.basename(controller_dir)
-            if d == "derivatives":
+        if controller_dir.joinpath(f"{path}.py").exists():
+            controller_file = controller_dir.joinpath(f"{path}.py")
+        else:
+            while controller_dir != blocks_dir:
+                if controller_dir.joinpath("controller.py").exists():
+                    controller_file = controller_dir.joinpath("controller.py")
+                    break
+                elif controller_dir.joinpath(f"{path}.py").exists():
+                    controller_file = controller_dir.joinpath(f"{path}.py")
+                    break
                 controller_dir = controller_dir.parent
-            # Nested blocks don't inherit controllers, they either have their own or use
-            # a generic Origen controller
-            elif d == "blocks":
-                break
+                d = os.path.basename(controller_dir)
+                if d == "derivatives":
+                    controller_dir = controller_dir.parent
+                # Nested blocks don't inherit controllers, they either have their own or use
+                # a generic Origen controller
+                elif d == "blocks":
+                    break
 
         # If no controller was found in the app, fall back to the Origen Base controller
         if controller_file is None:
@@ -215,7 +258,15 @@ class Base(_origen.application.PyApplication):
             p = p.replace("\\", ".")
             p = p.replace(".py", "")
             m = importlib.import_module(f"{self.name}.{p}")
-            block = m.Controller()
+            if hasattr(m, class_name):
+                c = getattr(m, class_name)
+                if 'kwargs' in inspect.signature(c).parameters:
+                    block = c(**sb_options)
+                else:
+                    block = c()
+            else:
+                raise RuntimeError(
+                    f"No class name '{class_name}' found in module {m}")
 
         block._app = self
         block._block_path = orig_path
@@ -229,6 +280,16 @@ class Base(_origen.application.PyApplication):
         
             >>> origen.app.load_block_files(dut.flash, "registers.py")
         '''
+        # if isinstance(controller.block_path, ModuleType):
+        #     return controller
+        # fields = controller.block_path.split(".")
+        # for i, field in enumerate(fields):
+        #     if i == 0:
+        #         filepath = origen.root.joinpath(
+        #             self.name).joinpath("blocks").joinpath(fields[i])
+        #     else:
+        #         filepath = filepath.joinpath("derivatives").joinpath(fields[i])
+        #     p = filepath.joinpath(filename)
 
         blocks_dir = self.app_dir.joinpath("blocks")
         load_dirs = []
@@ -296,3 +357,8 @@ class Base(_origen.application.PyApplication):
         '''
         self.compiler.run(*args, **options)
         return self.compiler
+
+
+class Application(Base):
+    def hey(self):
+        return "you"

@@ -6,6 +6,7 @@ pub mod address_block;
 pub mod bit;
 pub mod bit_collection;
 pub mod field;
+pub mod macro_api;
 pub mod memory_map;
 pub mod register;
 pub mod register_file;

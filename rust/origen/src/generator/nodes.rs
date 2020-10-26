@@ -1,10 +1,13 @@
 use super::stil;
-use crate::core::model::pins::pin::PinActions;
+use super::utility::transaction::Transaction;
+use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
+use indexmap::IndexMap;
 use num_bigint::BigUint;
 use std::collections::HashMap;
 
-type Id = usize;
+pub type Id = usize;
+type Metadata = Option<IndexMap<String, crate::Metadata>>;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Attrs {
@@ -26,20 +29,44 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     Test(String),
     Comment(u8, String), // level, msg
-    SetTimeset(usize),   // Indicates both a set or change of the current timeset
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Timeset nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    SetTimeset(usize), // Indicates both a set or change of the current timeset
     ClearTimeset,
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Pinheader nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
     SetPinHeader(usize), // Indicates the pin header selected
     ClearPinHeader,
-    PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, PinActions, Pin Data
-    RegWrite(Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Pattern generation nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, (PinActions, Pin Data)
+    //SetPin(HashMap<String, String>), // Pin IDs, Waveform Symbol
+    //PinAction(IndexMap<usize, (String, Option<HashMap<String, crate::Metadata>>)>, Option<(usize, Option<HashMap<String, crate::Metadata>>)>),
+    PinGroupAction(usize, Vec<String>, Option<HashMap<String, crate::Metadata>>),
+    PinAction(usize, String, Option<HashMap<String, crate::Metadata>>),
+    Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
+    Cycle(u32, bool),                         // repeat (0 not allowed), compressable
+    PatternHeader,
+    PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
+    // represents the end of the 'pattern vectors', for vector-based testers.
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Register transaction nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    RegWrite(Transaction), // Id, BigUint, Option<BigUint>, Option<String>), // reg_id, data, overlay_enable, overlay_str
     RegVerify(
-        Id,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
+        Transaction, // Id,
+                     // BigUint,
+                     // Option<BigUint>,
+                     // Option<BigUint>,
+                     // Option<BigUint>,
+                     // Option<String>
     ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// JTAG nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
     JTAGWriteIR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
     JTAGVerifyIR(
         u32,
@@ -58,10 +85,78 @@ pub enum Attrs {
         Option<BigUint>,
         Option<String>,
     ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    Cycle(u32, bool), // repeat (0 not allowed), compressable
-    PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
-    // represents the end of the 'pattern vectors', for vector-based testers.
-    PatternHeader,
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// SWD nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    SWDWriteAP(
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements,
+        Metadata,
+    ),
+    SWDVerifyAP(
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements, // SWD Acknowledgement
+        Option<bool>,     // Parity Compare
+        Metadata,
+    ),
+    SWDWriteDP(
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements, // SWD Acknowledgement
+        Metadata,
+    ),
+    SWDVerifyDP(
+        Id, // SWD ID
+        Transaction,
+        Acknowledgements, // SWD Acknowledgement
+        Option<bool>,     // Parity Compare
+        Metadata,
+    ),
+    SWDLineReset,
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Arm Debug nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ArmDebugMemAPWriteReg(
+        Id,    // MemAP Id
+        usize, // MemAP address
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugMemAPWriteInternalReg(
+        Id,    // MemAP Id
+        usize, // MemAP address
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugMemAPVerifyReg(
+        Id,    // MemAP ID
+        usize, // MemAP address
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugMemAPVerifyInternalReg(
+        Id,    // MemAP ID
+        usize, // MemAP address
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugWriteDP(
+        Id, // DP ID
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugVerifyDP(
+        Id, // DP ID
+        Transaction,
+        Metadata,
+    ),
+    ArmDebugSwjJTAGToSWD(Id), // arm_debug_id - Switch DP from JTAG to SWD
+    ArmDebugSwjSWDToJTAG(Id), // arm_debug_id - Switch DP from SWD to JTAG
+    // ArmDebugSWJ__EnterDormant, // Switch DP to dormant
+    // ArmDebugSWJ__ExitDormant, // Switch DP from dormant back to whatever it was prior to entering dormant.
 
     //// Text (Comment) nodes
     //// Useful for formatting comment blocks in the AST.
@@ -70,7 +165,7 @@ pub enum Attrs {
     // How exactly this will look in the output is up to the render, but there should be some sort of
     // delimiter or otherwise obvious 'break' in the text
     // This node optionally accepts a 'title', which can be handled however the renderer sees fit.
-    // It also optionally accetps a 'level', which the renderer can use to decide how to delimit it
+    // It also optionally accepts a 'level', which the renderer can use to decide how to delimit it
     TextLine, // Content that should appear on the same line. This is only a single node so that other nodes can be used in its children.
     // For example:
     //   TextLine
@@ -206,4 +301,24 @@ pub enum Attrs {
     STILBreakPoint,
     STILIDDQ,
     STILStopStatement,
+}
+
+impl std::fmt::Display for Attrs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Attrs::PinGroupAction(grp_id, _actions, _metadata) => {
+                let dut = crate::dut();
+                write!(
+                    f,
+                    "{}",
+                    format!("{:?} -> ({})", self, &dut.pin_groups[*grp_id].name)
+                )
+            }
+            Attrs::PinAction(id, _actions, _metadata) => {
+                let dut = crate::dut();
+                write!(f, "{}", format!("{:?} -> ({})", self, &dut.pins[*id].name))
+            }
+            _ => write!(f, "{}", format!("{:?}", self)),
+        }
+    }
 }

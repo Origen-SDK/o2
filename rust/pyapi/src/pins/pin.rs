@@ -34,10 +34,10 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        let dut = py
+        let mut dut = py
             .eval("origen.dut.db", None, Some(&locals))
             .unwrap()
-            .downcast_mut::<PyDUT>()?;
+            .extract::<PyRefMut<PyDUT>>()?;
         let idx = dut.push_metadata(obj);
 
         // Store the index of this object, returning an error if the
@@ -52,18 +52,16 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = [("origen", py.import("origen")?)].into_py_dict(py);
-        let dut = py
+        let mut dut = py
             .eval("origen.dut.db", None, Some(&locals))
             .unwrap()
-            .downcast_mut::<PyDUT>()?;
+            .extract::<PyRefMut<PyDUT>>()?;
         match pin.get_metadata_id(id_str) {
             Some(idx) => {
-                println!("override!");
                 dut.override_metadata_at(idx, obj)?;
                 Ok(true)
             }
             None => {
-                println!("adding!");
                 let idx = dut.push_metadata(obj);
                 pin.add_metadata_id(id_str, idx)?;
                 Ok(false)
@@ -112,14 +110,16 @@ impl Pin {
     fn get_data(&self) -> PyResult<u8> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-        Ok(pin.data)
+        let data = pin.data.read().unwrap();
+        Ok(*data)
     }
 
     #[getter]
     fn get_action(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-        Ok(String::from(pin.action.as_str()))
+        let name = pin.action.read().unwrap().to_string()?;
+        Ok(name)
     }
 
     #[getter]
@@ -149,8 +149,8 @@ impl Pin {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        match pin.reset_action {
-            Some(a) => Ok(String::from(a.as_char().to_string()).to_object(py)),
+        match pin.reset_action.as_ref() {
+            Some(a) => Ok(a.to_string()?.into_py(py)),
             None => Ok(py.None()),
         }
     }

@@ -5,20 +5,20 @@ use crate::error::Error;
 
 /// Model for a collection (or group) of pins
 #[derive(Debug, Clone)]
-pub struct PinCollection {
+pub struct PinStore {
     pub pin_names: Vec<String>,
     pub endianness: Endianness,
     pub mask: Option<usize>,
     pub model_id: usize,
 }
 
-impl PinCollection {
+impl PinStore {
     pub fn new(
         model_id: usize,
         pin_names: &Vec<String>,
         endianness: Option<Endianness>,
-    ) -> PinCollection {
-        PinCollection {
+    ) -> PinStore {
+        PinStore {
             pin_names: match endianness {
                 Some(e) => match e {
                     Endianness::LittleEndian => pin_names.iter().map(|p| String::from(p)).collect(),
@@ -43,7 +43,7 @@ impl PinCollection {
         start_idx: usize,
         stop_idx: usize,
         step_size: usize,
-    ) -> Result<PinCollection, Error> {
+    ) -> Result<PinStore, Error> {
         let mut sliced_names: Vec<String> = vec![];
         for i in (start_idx..=stop_idx).step_by(step_size) {
             if i >= self.pin_names.len() {
@@ -56,7 +56,7 @@ impl PinCollection {
             let p = self.pin_names[i].clone();
             sliced_names.push(p);
         }
-        Ok(PinCollection::new(
+        Ok(PinStore::new(
             self.model_id,
             &sliced_names,
             Option::Some(self.endianness),
@@ -76,86 +76,87 @@ impl PinCollection {
 }
 
 impl Dut {
-    pub fn drive_pin_collection(
+    pub fn drive_pin_store(
         &mut self,
-        pin_collection: &mut PinCollection,
+        pin_store: &mut PinStore,
         data: Option<u32>,
     ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::Drive, data)
+        self.set_pin_store_actions(pin_store, PinActions::Drive, data)
     }
 
-    pub fn verify_pin_collection(
+    pub fn verify_pin_store(
         &mut self,
-        pin_collection: &mut PinCollection,
+        pin_store: &mut PinStore,
         data: Option<u32>,
     ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::Verify, data)
+        self.set_pin_store_actions(pin_store, PinActions::Verify, data)
     }
 
-    pub fn capture_pin_collection(
-        &mut self,
-        pin_collection: &mut PinCollection,
-    ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::Capture, Option::None)
+    pub fn capture_pin_store(&mut self, pin_store: &mut PinStore) -> Result<(), Error> {
+        self.set_pin_store_actions(pin_store, PinActions::Capture, Option::None)
     }
 
-    pub fn highz_pin_collection(
-        &mut self,
-        pin_collection: &mut PinCollection,
-    ) -> Result<(), Error> {
-        self.set_pin_collection_actions(pin_collection, PinActions::HighZ, Option::None)
+    pub fn highz_pin_store(&mut self, pin_store: &mut PinStore) -> Result<(), Error> {
+        self.set_pin_store_actions(pin_store, PinActions::HighZ, Option::None)
     }
 
-    pub fn set_pin_collection_actions(
+    pub fn set_pin_store_actions(
         &mut self,
-        collection: &mut PinCollection,
+        collection: &mut PinStore,
         action: PinActions,
         data: Option<u32>,
     ) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
         let mask = collection.mask;
         collection.mask = Option::None;
-        self.set_pin_actions(collection.model_id, pin_names, action, data, mask)
+        self.set_pin_actions(collection.model_id, pin_names, action, data, mask, None)
     }
 
-    // pub fn get_pin_collection_data(&mut self, collection: &PinCollection) -> Result<u32, Error> {
+    pub fn set_per_pin_store_actions(
+        &mut self,
+        collection: &mut PinStore,
+        actions: &Vec<PinActions>,
+    ) -> Result<(), Error> {
+        let pin_names = &collection.pin_names;
+        let mask = collection.mask;
+        collection.mask = Option::None;
+        self.set_per_pin_actions(collection.model_id, pin_names, &actions, mask)
+    }
+
+    // pub fn get_pin_store_data(&mut self, collection: &PinStore) -> Result<u32, Error> {
     //     let pin_names = &collection.pin_names;
     //     Ok(self.get_pin_data(&pin_names))
     // }
 
-    pub fn get_pin_collection_reset_data(&self, collection: &PinCollection) -> Result<u32, Error> {
+    pub fn get_pin_store_reset_data(&self, collection: &PinStore) -> Result<u32, Error> {
         let pin_names = &collection.pin_names;
         self.get_pin_reset_data(collection.model_id, &pin_names)
     }
 
-    pub fn get_pin_collection_reset_actions(
+    pub fn get_pin_store_reset_actions(
         &self,
-        collection: &PinCollection,
-    ) -> Result<String, Error> {
+        collection: &PinStore,
+    ) -> Result<Vec<PinActions>, Error> {
         let pin_names = &collection.pin_names;
         self.get_pin_reset_actions(collection.model_id, &pin_names)
     }
 
-    pub fn reset_pin_collection(&mut self, collection: &PinCollection) -> Result<(), Error> {
+    pub fn reset_pin_store(&mut self, collection: &PinStore) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
         self.reset_pin_names(collection.model_id, &pin_names)
     }
 
-    pub fn set_pin_collection_data(
-        &mut self,
-        collection: &PinCollection,
-        data: u32,
-    ) -> Result<(), Error> {
+    pub fn set_pin_store_data(&mut self, collection: &PinStore, data: u32) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
         self.set_pin_data(collection.model_id, &pin_names, data, collection.mask)
     }
 
-    pub fn set_pin_collection_nonsticky_mask(
+    pub fn set_pin_store_nonsticky_mask(
         &mut self,
-        pin_collection: &mut PinCollection,
+        pin_store: &mut PinStore,
         mask: usize,
     ) -> Result<(), Error> {
-        pin_collection.mask = Some(mask);
+        pin_store.mask = Some(mask);
         Ok(())
     }
 }

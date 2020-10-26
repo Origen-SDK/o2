@@ -907,6 +907,84 @@ impl BitCollection {
             )),
         }
     }
+
+    /// Locates the "closest" controller to this bitcollection.
+    /// "Closest" being defined as the first subblock (or the DUT) which implements a "verify/write_register"
+    /// that owns the memory map -> address block -> register -> bit collection <- self
+    fn controller_for(slf: &PyCell<Self>, operation: Option<&str>) -> PyResult<PyObject> {
+        let bc = slf.extract::<PyRef<Self>>()?;
+        match bc._controller_for(operation)? {
+            Some(c) => Ok(c),
+            None => {
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                Ok(py.None())
+            }
+        }
+    }
+
+    #[args(_kwargs = "**")]
+    fn write(
+        slf: &PyCell<Self>,
+        data: Option<BigUint>,
+        _kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
+        // Extract the underlying Rust object
+        let bc = slf.extract::<PyRef<Self>>()?;
+
+        // Update the data in the bitcollection
+        if let Some(d) = data {
+            bc.set_data(d)?;
+        }
+
+        // Attempt to find a controller which implements "write_register"
+        match bc._controller_for(Some("write_register"))? {
+            Some(c) => {
+                // If we've found a matching controller, write the register
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                let args = PyTuple::new(py, &[slf.to_object(py)]);
+                c.call_method(py, "write_register", args, None)?;
+            },
+            None => return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                "No controller in the path {} implements a 'write_register'. Cannot write this register.",
+                bc.model_path()?
+            ))),
+        }
+        Ok(slf.into())
+    }
+
+    #[args(_kwargs = "**")]
+    fn verify(
+        slf: &PyCell<Self>,
+        data: Option<BigUint>,
+        _kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
+        // Extract the underlying Rust object
+        let bc = slf.extract::<PyRef<Self>>()?;
+
+        // Update the data in the bitcollection
+        if let Some(d) = data {
+            bc.set_data(d)?;
+        }
+        bc.set_verify_flag(None)?;
+
+        // Attempt to find a controller which implements "verify_register"
+        match bc._controller_for(Some("verify_register"))? {
+            Some(c) => {
+                // If we've found a matching controller, verify the register
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                let args = PyTuple::new(py, &[slf.to_object(py)]);
+                c.call_method(py, "verify_register", args, None)?;
+            },
+            None => return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                "No controller in the path {} implements a 'verify_register'. Cannot verify this register.",
+                bc.model_path()?
+            ))),
+        }
+        Ok(slf.into())
+    }
 }
 
 /// Internal helper methods
@@ -944,5 +1022,38 @@ impl BitCollection {
         } else {
             None
         }
+    }
+
+    fn _controller_for(&self, operation: Option<&str>) -> PyResult<Option<PyObject>> {
+        let mut ops: Vec<String> = vec![];
+        if let Some(s) = operation {
+            ops.push(s.to_string());
+        } else {
+            ops.push("write_register".to_string());
+            ops.push("read_register".to_string());
+        }
+        let mut mp = self.model_path()?;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?.to_object(py))?;
+        locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
+        let mut dut_checked = false;
+        while !dut_checked {
+            // Grab the subblock from the Python heap and see if it implements read/write register
+            let m = py.eval(&mp, Some(locals), None)?;
+            if mp == "dut" {
+                dut_checked = true;
+            }
+            if ops.iter().all(|op| m.hasattr(op).unwrap()) {
+                // Found the controller. Return this.
+                return Ok(Some(m.to_object(py)));
+            } else {
+                // Not this controller. Bump up to its parent and try again.
+                mp = mp.rsplitn(2, ".").last().unwrap().to_string();
+            }
+        }
+        // No controller found. Return None
+        Ok(None)
     }
 }

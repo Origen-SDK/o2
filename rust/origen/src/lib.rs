@@ -14,13 +14,18 @@ extern crate indexmap;
 pub mod core;
 pub mod error;
 pub mod generator;
+pub mod precludes;
 pub mod prog_gen;
 pub mod revision_control;
 pub mod services;
+pub mod standards;
 pub mod testers;
 pub mod utility;
 
+pub use self::core::metadata::Metadata;
 pub use self::core::user::User;
+pub use self::generator::utility::transaction::Action as TransactionAction;
+pub use self::generator::utility::transaction::Transaction;
 pub use error::Error;
 
 use self::core::application::Application;
@@ -42,6 +47,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// The available Origen runtime modes
 pub const MODES: &'static [&'static str] = &["production", "development"];
+
+// No idea why, but lazy_static was having none of this
+// pub static BIGU1: num_bigint::BigUint = num_bigint::BigUint::from(1 as u8);
+// pub static BIGU0: num_bigint::BigUint = num_bigint::BigUint::from(0 as u8);
 
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present
@@ -97,6 +106,22 @@ pub mod built_info {
 pub enum Value<'a> {
     Bits(BitCollection<'a>, Option<u32>), // bits holding data, optional size
     Data(BigUint, u32),                   // value, size
+}
+
+impl<'a> Value<'a> {
+    pub fn to_write_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
+        match &self {
+            Self::Bits(bits, _size) => bits.to_write_transaction(dut),
+            Self::Data(data, width) => Transaction::new_write(data.clone(), (*width) as usize),
+        }
+    }
+
+    pub fn to_verify_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
+        match &self {
+            Self::Bits(bits, _size) => bits.to_verify_transaction(None, true, dut),
+            Self::Data(data, width) => Transaction::new_verify(data.clone(), (*width) as usize),
+        }
+    }
 }
 
 /// This is called immediately upon Origen booting

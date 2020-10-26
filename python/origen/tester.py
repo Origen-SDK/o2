@@ -17,7 +17,7 @@ class Tester(_origen.tester.PyTester):
         # Load them here, if they haven't already.
         if origen.dut and not origen.dut.timesets_loaded:
             origen.dut.timesets
-        return self.set_timeset(self, tset)
+        return _origen.tester.PyTester.set_timeset(self, tset)
 
     # Returns stats on the number of patterns generated, etc.
     def stats(self):

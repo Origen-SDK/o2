@@ -2,6 +2,7 @@ use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
 use crate::node;
 use crate::{Dut, Error, Result, TEST};
+use crate::{Transaction, TransactionAction};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
@@ -418,24 +419,57 @@ impl<'a> BitCollection<'a> {
         preset: bool,
         dut: &'a MutexGuard<Dut>,
     ) -> Result<Option<usize>> {
+        let trans = self.to_verify_transaction(enable, preset, dut);
+        if let Ok(t) = trans {
+            Ok(Some(TEST.push_and_open(node!(RegVerify, t))))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn to_verify_node(
+        &self,
+        enable: Option<BigUint>,
+        preset: bool,
+        dut: &'a MutexGuard<Dut>,
+    ) -> Result<Option<crate::generator::ast::Node>> {
+        let trans = self.to_verify_transaction(enable, preset, dut);
+        if let Ok(t) = trans {
+            Ok(Some(node!(RegVerify, t)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn to_verify_transaction(
+        &self,
+        enable: Option<BigUint>,
+        preset: bool,
+        dut: &'a MutexGuard<Dut>,
+    ) -> Result<Transaction> {
         if !preset {
             self.set_verify_flag(enable)?;
         }
         // Record the verify in the AST
         if let Some(id) = self.reg_id {
-            let reg = self.reg(dut)?.bits(dut);
-            let n = node!(
-                RegVerify,
-                id,
-                reg.data()?,
-                Some(reg.verify_enables()),
-                Some(reg.capture_enables()),
-                Some(reg.overlay_enables()),
-                reg.get_overlay()?
-            );
-            Ok(Some(TEST.push_and_open(n)))
+            let reg = self.reg(dut)?;
+            let bits = reg.bits(dut);
+            Ok(Transaction {
+                action: Some(TransactionAction::Verify),
+                reg_id: Some(id),
+                address: Some(reg.address(dut, None)?),
+                width: reg.size,
+                data: bits.data()?,
+                bit_enable: bits.verify_enables(),
+                capture_enable: Some(bits.capture_enables()),
+                overlay_enable: Some(bits.overlay_enables()),
+                overlay_string: bits.get_overlay()?,
+                metadata: None,
+            })
         } else {
-            Ok(None)
+            Err(Error::new(&format!(
+                "bit collection 'to_verify_transaction' only supported for register-based bit collections"
+            )))
         }
     }
 
@@ -469,19 +503,47 @@ impl<'a> BitCollection<'a> {
 
     /// Trigger a write operation on the register
     pub fn write(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<usize>> {
-        // Record the write in the AST
-        if let Some(id) = self.reg_id {
-            let reg = self.reg(dut)?.bits(dut);
-            let n = node!(
-                RegWrite,
-                id,
-                reg.data()?,
-                Some(reg.overlay_enables()),
-                reg.get_overlay()?
-            );
-            Ok(Some(TEST.push_and_open(n)))
+        let trans = self.to_write_transaction(dut);
+        if let Ok(t) = trans {
+            Ok(Some(TEST.push_and_open(node!(RegWrite, t))))
         } else {
             Ok(None)
+        }
+    }
+
+    pub fn to_write_node(
+        &self,
+        dut: &'a MutexGuard<Dut>,
+    ) -> Result<Option<crate::generator::ast::Node>> {
+        let trans = self.to_write_transaction(dut);
+        if let Ok(t) = trans {
+            Ok(Some(node!(RegWrite, t)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn to_write_transaction(&self, dut: &'a MutexGuard<Dut>) -> Result<Transaction> {
+        // Record the write in the AST
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?;
+            let bits = reg.bits(dut);
+            Ok(Transaction {
+                action: Some(TransactionAction::Write),
+                reg_id: Some(id),
+                address: Some(reg.address(dut, None)?),
+                width: reg.size,
+                data: bits.data()?,
+                bit_enable: Transaction::enable_of_width(reg.size)?,
+                capture_enable: None,
+                overlay_enable: Some(bits.overlay_enables()),
+                overlay_string: bits.get_overlay()?,
+                metadata: None,
+            })
+        } else {
+            Err(Error::new(&format!(
+                "bit collection 'to_verify_transaction' only supported for register-based bit collections"
+            )))
         }
     }
 

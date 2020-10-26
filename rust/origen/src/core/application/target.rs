@@ -109,7 +109,7 @@ pub fn matches(name: &str, dir: &str) -> Vec<PathBuf> {
 }
 
 /// Gets the currently enabled targets
-pub fn get() -> Option<Vec<String>> {
+pub fn get(full_paths: bool) -> Option<Vec<String>> {
     app()
         .unwrap()
         .with_config_mut(|config| {
@@ -118,7 +118,7 @@ pub fn get() -> Option<Vec<String>> {
                 Some(targets) => Ok(Some(
                     targets
                         .iter()
-                        .map(|t| clean_name(t, "targets", true))
+                        .map(|t| clean_name(t, "targets", full_paths))
                         .collect::<Vec<String>>()
                         .clone(),
                 )),
