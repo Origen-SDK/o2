@@ -61,7 +61,7 @@ impl Processor for PinActionCombiner {
                         Ok(Return::Unmodified)
                     }
                 }
-            },
+            }
             Attrs::PinAction(pin_id, action, _metadata) => {
                 if self.first_pass {
                     // Compare to the last seen pin actions. If these are the same, then this node can be deleted on the next pass.
@@ -77,10 +77,8 @@ impl Processor for PinActionCombiner {
                     }
                 }
                 Ok(Return::Unmodified)
-            },
-            _ => {
-                Ok(Return::ProcessChildren)
             }
+            _ => Ok(Return::ProcessChildren),
         }
     }
 
@@ -95,8 +93,8 @@ impl Processor for PinActionCombiner {
                 }
                 self.i += 1;
                 Ok(Return::None)
-            },
-            _ => Ok(Return::None)
+            }
+            _ => Ok(Return::None),
         }
     }
 }

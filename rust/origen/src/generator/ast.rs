@@ -73,7 +73,7 @@ impl AST {
         match self.nodes.last_mut() {
             Some(n) => {
                 n.add_children(nodes.to_vec());
-            },
+            }
             None => self.nodes.append(nodes),
         }
     }
@@ -214,7 +214,10 @@ impl AST {
                 return Ok(node);
             }
         }
-        Err(Error::new(&format!("Offset {} is out of range of the current AST", offset)))
+        Err(Error::new(&format!(
+            "Offset {} is out of range of the current AST",
+            offset
+        )))
     }
 
     /// Clear the current AST and start a new one with the given node at the top-level

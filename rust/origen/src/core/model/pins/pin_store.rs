@@ -25,14 +25,14 @@ impl PinStore {
                     }
                 }
             },
-            endianness: e
+            endianness: e,
         }
     }
 
     pub fn from_grp_identifiers(dut: &Dut, grps: &Vec<(String, usize)>) -> Result<Self> {
         Ok(Self {
             endianness: Endianness::LittleEndian,
-            pin_ids: dut.collect_grp_ids_as_pin_ids(grps)?
+            pin_ids: dut.collect_grp_ids_as_pin_ids(grps)?,
         })
     }
 
@@ -112,8 +112,8 @@ impl PinStore {
 
     pub fn set_actions(&self, dut: &Dut, actions: &Vec<PinAction>) -> Result<()> {
         let pc = super::super::pins::PinCollection::from_pin_store(&dut, &self)?;
-        let mut v = vec!();
-        actions.iter().for_each( |a| v.push(a.to_string()));
+        let mut v = vec![];
+        actions.iter().for_each(|a| v.push(a.to_string()));
         pc.set_actions(&v)?;
         Ok(())
     }

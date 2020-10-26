@@ -1,16 +1,16 @@
+use super::bit::{Bit, UNDEFINED, ZERO};
 use super::{AccessType, AddressBlock, BitCollection, BitOrder, Field, RegisterFile, SummaryField};
 use crate::core::model::Model;
+use crate::utility::big_uint_helpers::bit_slice;
 use crate::Result as OrigenResult;
 use crate::{Dut, LOGGER};
 use crate::{Error, Result};
 use indexmap::map::IndexMap;
-use std::cmp;
-use std::sync::MutexGuard;
-use super::bit::{Bit, UNDEFINED, ZERO};
-use std::sync::RwLock;
-use std::collections::HashMap;
 use num_bigint::BigUint;
-use crate::utility::big_uint_helpers::bit_slice;
+use std::cmp;
+use std::collections::HashMap;
+use std::sync::MutexGuard;
+use std::sync::RwLock;
 
 #[derive(Debug)]
 pub struct Register {
@@ -794,7 +794,7 @@ impl Register {
         description: Option<String>,
         access: Option<&str>,
         resets: Option<Vec<ResetVal>>,
-        fields: Vec<FieldContainer>
+        fields: Vec<FieldContainer>,
     ) -> Result<usize> {
         let r_id = dut.create_reg(
             address_block_id,
@@ -805,9 +805,11 @@ impl Register {
             bit_order,
             filename,
             lineno,
-            description
+            description,
         )?;
-        crate::core::model::registers::register::Register::materialize(dut, r_id, access, resets, fields)?;
+        crate::core::model::registers::register::Register::materialize(
+            dut, r_id, access, resets, fields,
+        )?;
         Ok(r_id)
     }
 
@@ -816,7 +818,7 @@ impl Register {
         reg_id: usize,
         access: Option<&str>,
         resets: Option<Vec<ResetVal>>,
-        mut fields: Vec<FieldContainer>
+        mut fields: Vec<FieldContainer>,
     ) -> Result<()> {
         let reg_fields;
         let base_bit_id;
@@ -877,8 +879,11 @@ impl Register {
                             // already has a value for this reset then do nothing here
                             if !field.resets.contains_key(&r.name) {
                                 // Work out the portion of the reset for this field
-                                let value =
-                                    bit_slice(&r.value, field.offset, field.width + field.offset - 1)?;
+                                let value = bit_slice(
+                                    &r.value,
+                                    field.offset,
+                                    field.width + field.offset - 1,
+                                )?;
                                 let mask = match &r.mask {
                                     None => None,
                                     Some(x) => Some(bit_slice(
@@ -941,7 +946,7 @@ impl Register {
                 }
             } else {
                 let reset_val = reset_vals.last().unwrap().as_ref().unwrap();
-    
+
                 // If no reset mask to apply. There is a lot of duplication here but ran
                 // into borrow issues that I couldn't resolve and had to move on.
                 if reset_val.1.as_ref().is_none() {
@@ -1027,7 +1032,15 @@ pub struct FieldContainer {
 }
 
 impl FieldContainer {
-    pub fn internal_new(name: &str, offset: usize, width: usize, access: &str, enums: Vec<FieldEnum>, resets: Option<Vec<ResetVal>>, description: &str) -> Self {
+    pub fn internal_new(
+        name: &str,
+        offset: usize,
+        width: usize,
+        access: &str,
+        enums: Vec<FieldEnum>,
+        resets: Option<Vec<ResetVal>>,
+        description: &str,
+    ) -> Self {
         Self {
             name: name.to_string(),
             description: Some(description.to_string()),
@@ -1056,9 +1069,9 @@ impl ResetVal {
             mask: {
                 match mask {
                     Some(m) => Some(BigUint::from(m)),
-                    None => None
+                    None => None,
                 }
-            }
+            },
         }
     }
 }
@@ -1070,15 +1083,11 @@ pub struct FieldEnum {
 }
 
 impl FieldEnum {
-    pub fn new(
-        name: String,
-        description: String,
-        value: u128,
-    ) -> Self {
-            FieldEnum {
-                name: name,
-                description: description,
-                value: BigUint::from(value),
-            }
+    pub fn new(name: String, description: String, value: u128) -> Self {
+        FieldEnum {
+            name: name,
+            description: description,
+            value: BigUint::from(value),
+        }
     }
 }

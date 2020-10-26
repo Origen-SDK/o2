@@ -1,18 +1,18 @@
-use crate::{Result, Error, Metadata};
-use num_bigint::BigUint;
-use num_traits::pow::Pow;
 use super::super::nodes::Id;
-use crate::standards::actions::*;
-use num_traits;
-use crate::utility::num_helpers::NumHelpers;
 use crate::core::model::pins::pin::PinAction;
+use crate::standards::actions::*;
+use crate::utility::num_helpers::NumHelpers;
+use crate::{Error, Metadata, Result};
+use num_bigint::BigUint;
+use num_traits;
+use num_traits::pow::Pow;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
     Write,
     Verify,
     Capture,
-    Set
+    Set,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -44,7 +44,7 @@ impl Transaction {
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
-            metadata: None
+            metadata: None,
         })
     }
 
@@ -67,7 +67,7 @@ impl Transaction {
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
-            metadata: None
+            metadata: None,
         })
     }
 
@@ -83,7 +83,7 @@ impl Transaction {
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
-            metadata: None
+            metadata: None,
         })
     }
 
@@ -99,7 +99,7 @@ impl Transaction {
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
-            metadata: None
+            metadata: None,
         })
     }
 
@@ -115,17 +115,15 @@ impl Transaction {
             overlay_enable: None,
             overlay_string: None,
             set_actions: Some(actions.clone()),
-            metadata: None
+            metadata: None,
         })
     }
 
     pub fn is_set_action(&self) -> bool {
         match &self.action {
-            Some(action) => {
-                match action {
-                    Action::Set => true,
-                    _ => false,
-                }
+            Some(action) => match action {
+                Action::Set => true,
+                _ => false,
             },
             None => false,
         }
@@ -137,7 +135,7 @@ impl Transaction {
             None => Err(Error::new(&format!(
                 "Tried to retrieve address from transaction {:?}, but an address has not be set",
                 self
-            )))
+            ))),
         }
     }
 
@@ -149,19 +147,19 @@ impl Transaction {
                 Action::Write => {
                     low_sym = DRIVE_LOW;
                     high_sym = DRIVE_HIGH;
-                },
+                }
                 Action::Verify => {
                     low_sym = VERIFY_LOW;
                     high_sym = VERIFY_HIGH;
-                },
+                }
                 Action::Capture => {
                     low_sym = CAPTURE;
                     high_sym = CAPTURE;
-                },
+                }
                 Action::Set => {
                     low_sym = HIGHZ;
                     high_sym = HIGHZ;
-                },
+                }
             }
         } else {
             low_sym = HIGHZ;
@@ -206,8 +204,7 @@ impl Transaction {
         if data.bits() > width as u64 {
             Err(Error::new(&format!(
                 "Data {} does not fit in given width {}",
-                data,
-                width
+                data, width
             )))
         } else {
             Ok(())

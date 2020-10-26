@@ -1,13 +1,13 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
-use super::pin_collection::PinCollection;
-use super::pin_actions::PinActions;
 use super::super::pins::extract_pin_transaction;
+use super::pin_actions::PinActions;
+use super::pin_collection::PinCollection;
+use num_bigint::BigUint;
+use origen::Transaction;
 use origen::DUT;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
-use num_bigint::BigUint;
-use origen::Transaction;
 
 #[pyclass]
 #[derive(Clone)]
@@ -41,7 +41,10 @@ impl PinGroup {
 
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         let pin_actions = grp.get_actions(&dut)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     fn drive(slf: PyRef<Self>, data: BigUint) -> PyResult<Py<Self>> {
@@ -79,7 +82,11 @@ impl PinGroup {
     }
 
     #[args(kwargs = "**")]
-    fn set_actions(slf: PyRef<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    fn set_actions(
+        slf: PyRef<Self>,
+        actions: &PyAny,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
         grp.update(&dut, &extract_pin_transaction(actions, kwargs)?)?;
@@ -107,7 +114,10 @@ impl PinGroup {
         let py = gil.python();
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         let pin_actions = grp.get_reset_actions(&dut)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     #[getter]
@@ -132,7 +142,11 @@ impl PinGroup {
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
 
-        py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.cycle(**(kwargs or {{}}))"),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 
@@ -142,7 +156,11 @@ impl PinGroup {
 
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
-        py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.repeat({})", count),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 }
@@ -170,7 +188,11 @@ impl ListLikeAPI for PinGroup {
     fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
-        Ok(Py::new(py, PinCollection::from_ids_unchecked(vec![grp.pin_ids[idx]], Some(grp.endianness)))?.to_object(py))
+        Ok(Py::new(
+            py,
+            PinCollection::from_ids_unchecked(vec![grp.pin_ids[idx]], Some(grp.endianness)),
+        )?
+        .to_object(py))
     }
 
     fn __iter__(&self) -> PyResult<ListLikeIter> {

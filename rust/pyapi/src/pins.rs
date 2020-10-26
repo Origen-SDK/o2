@@ -17,11 +17,11 @@ pub mod pin_header;
 use origen::core::model::pins::Endianness;
 use physical_pin_container::PhysicalPinContainer;
 use pin::Pin;
+use pin_actions::PinActions;
 use pin_collection::PinCollection;
 use pin_container::PinContainer;
 use pin_group::PinGroup;
 use pin_header::{PinHeader, PinHeaderContainer};
-use pin_actions::PinActions;
 
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
@@ -39,7 +39,10 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-pub fn extract_pin_transaction(actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<origen::Transaction> {
+pub fn extract_pin_transaction(
+    actions: &PyAny,
+    kwargs: Option<&PyDict>,
+) -> PyResult<origen::Transaction> {
     let actions = extract_pinactions!(actions)?;
     let mut t = origen::Transaction::new_set(&actions)?;
     if let Some(opts) = kwargs {
@@ -65,16 +68,23 @@ pub fn extract_pin_transaction(actions: &PyAny, kwargs: Option<&PyDict>) -> PyRe
 /// This pair is sufficient to lookup the pin group object in the backend.
 ///  - This doesn't resolve any pin groups.
 ///  - If a String is given, its model_id is assumed to be 0 (on the DUT).
-pub fn pins_to_backend_lookup_fields(py: Python, pins: &PyTuple) -> Result<Vec<(usize, String)>, PyErr> {
-    let mut retn: Vec<(usize, String)> = vec!();
+pub fn pins_to_backend_lookup_fields(
+    py: Python,
+    pins: &PyTuple,
+) -> Result<Vec<(usize, String)>, PyErr> {
+    let mut retn: Vec<(usize, String)> = vec![];
     for (i, p) in pins.iter().enumerate() {
         if let Ok(s) = p.extract::<String>() {
             // item is a String (or extract-able as a String)
             // Model ID is 0.
             retn.push((0, s.clone()));
-        } else if p.get_type().name().to_string() == "Pin" || p.get_type().name().to_string() == "PinGroup" {
+        } else if p.get_type().name().to_string() == "Pin"
+            || p.get_type().name().to_string() == "PinGroup"
+        {
             let obj = p.to_object(py);
-            let model_id = obj.getattr(py, "__origen__model_id__")?.extract::<usize>(py)?;
+            let model_id = obj
+                .getattr(py, "__origen__model_id__")?
+                .extract::<usize>(py)?;
             let name = obj.getattr(py, "name")?.extract::<String>(py)?;
             retn.push((model_id, name.to_string()));
         } else {
@@ -98,12 +108,7 @@ impl PyDUT {
             Option<u32>,
             Option<u32>,
             Option<Endianness>,
-        ) = (
-            Option::None,
-            Option::None,
-            Option::None,
-            Option::None,
-        );
+        ) = (Option::None, Option::None, Option::None, Option::None);
         match kwargs {
             Some(args) => {
                 if let Some(arg) = args.get_item("reset_action") {
@@ -125,14 +130,7 @@ impl PyDUT {
             }
             None => {}
         }
-        dut.add_pin(
-            model_id,
-            name,
-            width,
-            offset,
-            reset_action,
-            endianness,
-        )?;
+        dut.add_pin(model_id, name, width, offset, reset_action, endianness)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();

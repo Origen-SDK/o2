@@ -1,11 +1,11 @@
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
 use crate::node;
+use crate::Transaction;
 use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
-use crate::{Transaction};
 
 const DONT_CARE_CHAR: &str = "X";
 const OVERLAY_CHAR: &str = "V";
@@ -462,18 +462,18 @@ impl<'a> BitCollection<'a> {
             t.overlay_enable = Some(bits.overlay_enables());
             t.overlay_string = bits.get_overlay()?;
             Ok(t)
-            // Ok(Transaction {
-            //     action: Some(TransactionAction::Verify),
-            //     reg_id: Some(id),
-            //     address: Some(reg.address(dut, None)?),
-            //     width: reg.size,
-            //     data: bits.data()?,
-            //     bit_enable: bits.verify_enables(),
-            //     capture_enable: Some(bits.capture_enables()),
-            //     overlay_enable: Some(bits.overlay_enables()),
-            //     overlay_string: bits.get_overlay()?,
-            //     metadata: None,
-            // })
+        // Ok(Transaction {
+        //     action: Some(TransactionAction::Verify),
+        //     reg_id: Some(id),
+        //     address: Some(reg.address(dut, None)?),
+        //     width: reg.size,
+        //     data: bits.data()?,
+        //     bit_enable: bits.verify_enables(),
+        //     capture_enable: Some(bits.capture_enables()),
+        //     overlay_enable: Some(bits.overlay_enables()),
+        //     overlay_string: bits.get_overlay()?,
+        //     metadata: None,
+        // })
         } else {
             Err(Error::new(&format!(
                 "bit collection 'to_verify_transaction' only supported for register-based bit collections"
@@ -519,7 +519,10 @@ impl<'a> BitCollection<'a> {
         }
     }
 
-    pub fn to_write_node(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<crate::generator::ast::Node>> {
+    pub fn to_write_node(
+        &self,
+        dut: &'a MutexGuard<Dut>,
+    ) -> Result<Option<crate::generator::ast::Node>> {
         let trans = self.to_write_transaction(dut);
         if let Ok(t) = trans {
             Ok(Some(node!(RegWrite, t)))
@@ -558,7 +561,6 @@ impl<'a> BitCollection<'a> {
             )))
         }
     }
-
 
     /// Returns the Register object associated with the BitCollection. Note that this will
     /// return the reg even if the BitCollection only contains a subset of the register's bits

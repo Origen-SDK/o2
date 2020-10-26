@@ -1,11 +1,11 @@
 //! Helpers for working with BigUnits
 
+use super::num_helpers::NumHelpers;
 use crate::Result;
 use num_bigint::BigUint;
 use num_bigint::ToBigUint;
 use num_traits::Zero;
 use std::convert::TryInto;
-use super::num_helpers::NumHelpers;
 
 /// Returns the value of the given BigUint for the given bit field range.
 /// Notes:
@@ -100,7 +100,9 @@ pub fn bit_slice(value: &BigUint, start_bit: usize, stop_bit: usize) -> Result<B
 impl NumHelpers for BigUint {
     fn even_parity(&self) -> bool {
         let mut cnt = BigUint::from(0 as u8);
-        self.to_u32_digits().iter().for_each( |d| cnt += d.count_ones());
+        self.to_u32_digits()
+            .iter()
+            .for_each(|d| cnt += d.count_ones());
         if cnt % BigUint::from(2 as u8) == BigUint::from(0 as u8) {
             false
         } else {

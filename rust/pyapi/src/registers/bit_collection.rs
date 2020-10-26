@@ -923,8 +923,12 @@ impl BitCollection {
         }
     }
 
-    #[args(_kwargs="**")]
-    fn write(slf: &PyCell<Self>, data: Option<BigUint>, _kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    #[args(_kwargs = "**")]
+    fn write(
+        slf: &PyCell<Self>,
+        data: Option<BigUint>,
+        _kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
         // Extract the underlying Rust object
         let bc = slf.extract::<PyRef<Self>>()?;
 
@@ -950,8 +954,12 @@ impl BitCollection {
         Ok(slf.into())
     }
 
-    #[args(_kwargs="**")]
-    fn verify(slf: &PyCell<Self>, data: Option<BigUint>, _kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    #[args(_kwargs = "**")]
+    fn verify(
+        slf: &PyCell<Self>,
+        data: Option<BigUint>,
+        _kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
         // Extract the underlying Rust object
         let bc = slf.extract::<PyRef<Self>>()?;
 
@@ -1017,7 +1025,7 @@ impl BitCollection {
     }
 
     fn _controller_for(&self, operation: Option<&str>) -> PyResult<Option<PyObject>> {
-        let mut ops: Vec<String> = vec!();
+        let mut ops: Vec<String> = vec![];
         if let Some(s) = operation {
             ops.push(s.to_string());
         } else {
@@ -1028,7 +1036,7 @@ impl BitCollection {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = PyDict::new(py);
-        locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+        locals.set_item("origen", py.import("origen")?.to_object(py))?;
         locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
         let mut dut_checked = false;
         while !dut_checked {
@@ -1037,7 +1045,7 @@ impl BitCollection {
             if mp == "dut" {
                 dut_checked = true;
             }
-            if ops.iter().all( |op| m.hasattr(op).unwrap()) {
+            if ops.iter().all(|op| m.hasattr(op).unwrap()) {
                 // Found the controller. Return this.
                 return Ok(Some(m.to_object(py)));
             } else {

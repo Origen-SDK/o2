@@ -14,7 +14,12 @@ pub trait RendererAPI: std::fmt::Debug {
     fn id(&self) -> String;
     fn file_ext(&self) -> &str;
     fn comment_str(&self) -> &str;
-    fn print_vector(&self, renderer: &mut Renderer, repeat: u32, compressable: bool) -> Option<Result<String>>;
+    fn print_vector(
+        &self,
+        renderer: &mut Renderer,
+        repeat: u32,
+        compressable: bool,
+    ) -> Option<Result<String>>;
     fn print_pinlist(&self, renderer: &mut Renderer) -> Option<Result<String>>;
 
     fn override_node(&self, _renderer: &mut Renderer, _node: &Node) -> Option<Result<Return>> {
@@ -92,13 +97,13 @@ impl<'a> Renderer<'a> {
     pub fn render_states(&self) -> Result<String> {
         let dut = DUT.lock().unwrap();
         let t = &dut.timesets[self.current_timeset_id.unwrap()];
-        Ok(self.states
+        Ok(self
+            .states
             .as_ref()
             .unwrap()
             .to_symbols(self.tester.id(), &dut, &t)
             .unwrap()
-            .join(" ")
-        )
+            .join(" "))
     }
 
     pub fn timeset_name(&self) -> Result<String> {
@@ -112,7 +117,7 @@ impl<'a> Processor for Renderer<'a> {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         match self.tester.override_node(self, &node) {
             Some(retn) => return retn,
-            None => {},
+            None => {}
         }
 
         match &node.attrs {
@@ -129,17 +134,19 @@ impl<'a> Processor for Renderer<'a> {
                 Ok(Return::ProcessChildren)
             }
             Attrs::Comment(_level, msg) => {
-                self.output_file
-                    .as_mut()
-                    .unwrap()
-                    .write_ln(&format!("{} {}", self.tester.comment_str(), msg));
+                self.output_file.as_mut().unwrap().write_ln(&format!(
+                    "{} {}",
+                    self.tester.comment_str(),
+                    msg
+                ));
                 Ok(Return::Unmodified)
             }
             Attrs::Text(text) => {
-                self.output_file
-                    .as_mut()
-                    .unwrap()
-                    .write_ln(&format!("{} {}", self.tester.comment_str(), text));
+                self.output_file.as_mut().unwrap().write_ln(&format!(
+                    "{} {}",
+                    self.tester.comment_str(),
+                    text
+                ));
                 Ok(Return::Unmodified)
             }
             Attrs::PatternHeader => Ok(Return::ProcessChildren),
@@ -151,15 +158,15 @@ impl<'a> Processor for Renderer<'a> {
                 let dut = DUT.lock().unwrap();
                 let pin = &dut.pins[*pin_id];
                 let grp_id = dut.get_pin_group(pin.model_id, &pin.name).unwrap().id;
-                return self.update_states(grp_id, &vec!(action.clone()), &dut);
-            },
+                return self.update_states(grp_id, &vec![action.clone()], &dut);
+            }
             Attrs::Cycle(repeat, compressable) => {
                 if !self.pin_header_printed {
                     match self.tester.print_pinlist(self) {
                         Some(pinlist) => {
                             self.output_file.as_mut().unwrap().write_ln(&pinlist?);
-                        },
-                        None => {},
+                        }
+                        None => {}
                     }
                     self.pin_header_printed = true;
                 }
@@ -167,8 +174,8 @@ impl<'a> Processor for Renderer<'a> {
                 match self.tester.print_vector(self, *repeat, *compressable) {
                     Some(vector) => {
                         self.output_file.as_mut().unwrap().write_ln(&vector?);
-                    },
-                    None => {},
+                    }
+                    None => {}
                 }
                 Ok(Return::Unmodified)
             }

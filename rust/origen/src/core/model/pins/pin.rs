@@ -1,10 +1,10 @@
-use crate::Result;
 use crate::error::Error;
+use crate::standards::actions::*;
+use crate::Result;
 use indexmap::map::IndexMap;
+use num_bigint::BigUint;
 use std::collections::HashMap;
 use std::sync::RwLock;
-use crate::standards::actions::*;
-use num_bigint::BigUint;
 
 pub trait ResolvePinActions {
     fn pin_action_resolver(&self, target: String) -> &Resolver;
@@ -20,7 +20,7 @@ pub trait ResolvePinActions {
             None => Err(Error::new(&format!(
                 "No resolution provided for pin action {:?}",
                 &action
-            )))
+            ))),
         }
     }
 
@@ -29,19 +29,20 @@ pub trait ResolvePinActions {
     }
 
     fn update_mapping(&mut self, target: String, action: PinAction, new_resolution: String) {
-        self.mut_pin_action_resolver(target).update_mapping(action, new_resolution)
+        self.mut_pin_action_resolver(target)
+            .update_mapping(action, new_resolution)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Resolver {
-    resolution_map: IndexMap::<PinAction, String>,
+    resolution_map: IndexMap<PinAction, String>,
 }
 
 impl Resolver {
     pub fn new() -> Self {
         Self {
-            resolution_map: IndexMap::new()
+            resolution_map: IndexMap::new(),
         }
     }
 
@@ -164,7 +165,7 @@ impl PinAction {
         for action in actions.iter().rev() {
             action.push_to_string(&mut retn)?;
         }
-        return Ok(retn)
+        return Ok(retn);
     }
 
     pub fn to_bool(&self) -> Result<bool> {
@@ -205,7 +206,7 @@ impl PinAction {
     // }
 
     pub fn to_data(actions: Vec<PinAction>) -> Result<BigUint> {
-        let mut retn = BigUint::new(vec!(0));
+        let mut retn = BigUint::new(vec![0]);
         for (i, a) in actions.iter().rev().enumerate() {
             match a.to_bool() {
                 Ok(b) => {
@@ -220,12 +221,12 @@ impl PinAction {
                     (actions.len() - i - 1) // Re-reverse the indices to they make sense to the user
                 )))
             }
-         }
+        }
         Ok(retn)
     }
 
     pub fn to_data_unchecked(actions: Vec<PinAction>) -> BigUint {
-        let mut retn = BigUint::new(vec!(0));
+        let mut retn = BigUint::new(vec![0]);
         for a in actions.iter().rev() {
             retn <<= 1;
             if a.to_bool_unchecked() {
@@ -295,7 +296,6 @@ pub struct Pin {
     // require a bit of extra storage. Since that storage is only a reference and uint, it should be small and well worth the
     // lookup boost.
     pub groups: HashMap<String, usize>,
-
     //pub overlaying: bool,
 }
 
@@ -305,7 +305,7 @@ impl Pin {
         match self.reset_action.as_ref() {
             Some(a) => {
                 *action = a.clone();
-            },
+            }
             None => {
                 *action = PinAction::highz();
             }
@@ -331,12 +331,7 @@ impl Pin {
         }
     }
 
-    pub fn new(
-        model_id: usize,
-        id: usize,
-        name: String,
-        reset_action: Option<PinAction>,
-    ) -> Pin {
+    pub fn new(model_id: usize, id: usize, name: String, reset_action: Option<PinAction>) -> Pin {
         let p = Pin {
             model_id: model_id,
             id: id,

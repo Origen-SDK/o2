@@ -100,18 +100,13 @@ impl PinGroup {
 
     pub fn set_actions(&self, dut: &Dut, actions: &Vec<PinAction>) -> Result<()> {
         let pc = super::super::pins::PinCollection::from_pin_group(&dut, &self)?;
-        let mut v = vec!();
-        actions.iter().for_each( |a| v.push(a.to_string()));
+        let mut v = vec![];
+        actions.iter().for_each(|a| v.push(a.to_string()));
         pc.set_actions(&v)?;
         Ok(())
     }
 
-    pub fn slice(
-        &self,
-        start_idx: usize,
-        stop_idx: usize,
-        step_size: usize,
-    ) -> Result<PinStore> {
+    pub fn slice(&self, start_idx: usize, stop_idx: usize, step_size: usize) -> Result<PinStore> {
         let mut sliced_names: Vec<usize> = vec![];
         for i in (start_idx..=stop_idx).step_by(step_size) {
             if i >= self.pin_ids.len() {

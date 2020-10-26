@@ -1,15 +1,15 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
+use super::super::pins::extract_pin_transaction;
+use super::pin_actions::PinActions;
+use num_bigint::BigUint;
 use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
+use origen::Transaction;
 use origen::{dut, DUT};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
-use super::pin_actions::PinActions;
-use num_bigint::BigUint;
-use origen::Transaction;
-use super::super::pins::extract_pin_transaction;
 
 #[pyclass]
 #[derive(Clone)]
@@ -24,7 +24,10 @@ impl PinCollection {
         endianness: Option<Endianness>,
     ) -> Result<PinCollection, Error> {
         let dut = dut();
-        let collection = dut.collect(&names.iter().map(|n| (n.to_string(), 0)).collect(), endianness)?;
+        let collection = dut.collect(
+            &names.iter().map(|n| (n.to_string(), 0)).collect(),
+            endianness,
+        )?;
         Ok(PinCollection {
             pin_collection: collection,
         })
@@ -34,8 +37,8 @@ impl PinCollection {
         PinCollection {
             pin_collection: OrigenPinCollection {
                 pin_ids: pin_ids,
-                endianness: endianness.unwrap_or(Endianness::LittleEndian)
-            }
+                endianness: endianness.unwrap_or(Endianness::LittleEndian),
+            },
         }
     }
 }
@@ -49,12 +52,14 @@ impl PinCollection {
     }
 
     #[args(kwargs = "**")]
-    fn set_actions(slf: PyRefMut<Self>, actions: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    fn set_actions(
+        slf: PyRefMut<Self>,
+        actions: &PyAny,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
-        slf.pin_collection.update(
-            &dut,
-            &extract_pin_transaction(actions, kwargs)?
-        )?;
+        slf.pin_collection
+            .update(&dut, &extract_pin_transaction(actions, kwargs)?)?;
         Ok(slf.into())
     }
 
@@ -65,30 +70,41 @@ impl PinCollection {
         let py = gil.python();
 
         let pin_actions = self.pin_collection.get_actions(&dut)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     fn drive(&mut self, data: BigUint) -> PyResult<()> {
         let dut = DUT.lock().unwrap();
-        self.pin_collection.update(&dut, &Transaction::new_write(data, self.pin_collection.len())?)?;
+        self.pin_collection.update(
+            &dut,
+            &Transaction::new_write(data, self.pin_collection.len())?,
+        )?;
         Ok(())
     }
 
     fn verify(&mut self, data: BigUint) -> PyResult<()> {
         let dut = DUT.lock().unwrap();
-        self.pin_collection.update(&dut, &Transaction::new_verify(data, self.pin_collection.len())?)?;
+        self.pin_collection.update(
+            &dut,
+            &Transaction::new_verify(data, self.pin_collection.len())?,
+        )?;
         Ok(())
     }
 
     fn capture(&mut self) -> PyResult<()> {
         let dut = DUT.lock().unwrap();
-        self.pin_collection.update(&dut, &Transaction::new_capture(self.pin_collection.len())?)?;
+        self.pin_collection
+            .update(&dut, &Transaction::new_capture(self.pin_collection.len())?)?;
         Ok(())
     }
 
     fn highz(&mut self) -> PyResult<()> {
         let dut = DUT.lock().unwrap();
-        self.pin_collection.update(&dut, &Transaction::new_highz(self.pin_collection.len())?)?;
+        self.pin_collection
+            .update(&dut, &Transaction::new_highz(self.pin_collection.len())?)?;
         Ok(())
     }
 
@@ -115,7 +131,10 @@ impl PinCollection {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pin_actions = self.pin_collection.get_reset_actions(&dut)?;
-        Ok(PinActions {actions: pin_actions}.into_py(py))
+        Ok(PinActions {
+            actions: pin_actions,
+        }
+        .into_py(py))
     }
 
     #[getter]
@@ -137,7 +156,11 @@ impl PinCollection {
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
 
-        py.eval(&format!("origen.tester.cycle(**(kwargs or {{}}))"), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.cycle(**(kwargs or {{}}))"),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 
@@ -147,7 +170,11 @@ impl PinCollection {
 
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
-        py.eval(&format!("origen.tester.repeat({})", count), None, Some(&locals))?;
+        py.eval(
+            &format!("origen.tester.repeat({})", count),
+            None,
+            Some(&locals),
+        )?;
         Ok(slf.into())
     }
 }
@@ -173,12 +200,16 @@ impl ListLikeAPI for PinCollection {
 
     // Grabs a single pin and puts it in an anonymous pin collection
     fn new_pyitem(&self, py: Python, idx: usize) -> PyResult<PyObject> {
-        Ok(Py::new(py, PinCollection { 
-            pin_collection: OrigenPinCollection::new(
-                vec![self.pin_collection.pin_ids[idx]],
-                None
-            ),
-        })?.to_object(py))
+        Ok(Py::new(
+            py,
+            PinCollection {
+                pin_collection: OrigenPinCollection::new(
+                    vec![self.pin_collection.pin_ids[idx]],
+                    None,
+                ),
+            },
+        )?
+        .to_object(py))
     }
 
     fn __iter__(&self) -> PyResult<ListLikeIter> {
@@ -207,9 +238,13 @@ impl ListLikeAPI for PinCollection {
         }
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(Py::new(py, PinCollection { 
-            pin_collection: OrigenPinCollection::new(ids, None),
-        })?.to_object(py))
+        Ok(Py::new(
+            py,
+            PinCollection {
+                pin_collection: OrigenPinCollection::new(ids, None),
+            },
+        )?
+        .to_object(py))
     }
 }
 
