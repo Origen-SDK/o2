@@ -1,16 +1,16 @@
+use crate::{Result, Error, Metadata};
+use num_bigint::BigUint;
+use num_traits::pow::Pow;
 use super::super::nodes::Id;
 use crate::standards::actions::*;
-use crate::utility::num_helpers::NumHelpers;
-use crate::{Error, Metadata, Result};
-use num_bigint::BigUint;
 use num_traits;
-use num_traits::pow::Pow;
+use crate::utility::num_helpers::NumHelpers;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
     Write,
     Verify,
-    Capture,
+    Capture
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -39,7 +39,7 @@ impl Transaction {
             capture_enable: None,
             overlay_enable: None,
             overlay_string: None,
-            metadata: None,
+            metadata: None
         })
     }
 
@@ -60,7 +60,7 @@ impl Transaction {
             capture_enable: None,
             overlay_enable: None,
             overlay_string: None,
-            metadata: None,
+            metadata: None
         })
     }
 
@@ -70,7 +70,7 @@ impl Transaction {
             None => Err(Error::new(&format!(
                 "Tried to retrieve address from transaction {:?}, but an address has not be set",
                 self
-            ))),
+            )))
         }
     }
 
@@ -82,11 +82,11 @@ impl Transaction {
                 Action::Write => {
                     low_sym = DRIVE_LOW;
                     high_sym = DRIVE_HIGH;
-                }
+                },
                 Action::Verify => {
                     low_sym = VERIFY_LOW;
                     high_sym = VERIFY_HIGH;
-                }
+                },
                 Action::Capture => {
                     low_sym = CAPTURE;
                     high_sym = CAPTURE;

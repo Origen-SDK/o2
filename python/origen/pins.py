@@ -3,7 +3,6 @@ from origen.errors import *
 
 PinActions = _origen.dut.pins.PinActions
 
-
 class Proxy:
     def __init__(self, controller):
         self.controller = controller

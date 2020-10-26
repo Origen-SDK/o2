@@ -1,9 +1,9 @@
-pub mod api;
+pub mod vector_based;
 pub mod igxl;
 pub mod simulator;
 pub mod smt;
+pub mod api;
 mod supported_testers;
-pub mod vector_based;
 
 use crate::core::tester::{Interceptor, TesterAPI};
 use crate::generator::ast::{Attrs, Node};

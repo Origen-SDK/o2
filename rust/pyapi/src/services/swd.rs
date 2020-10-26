@@ -1,10 +1,10 @@
+use origen::services::{swd, Service};
+use origen::services::swd::Acknowledgements;
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use crate::extract_value;
 use crate::model::Model;
 use crate::unpack_transaction_options;
-use origen::services::swd::Acknowledgements;
-use origen::services::{swd, Service};
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use pyo3::types::{PyAny, PyType};
 
 #[pyclass]
@@ -32,7 +32,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[args(kwargs="**")]
     fn write_ap(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -52,7 +52,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[args(kwargs="**")]
     fn verify_ap(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -75,7 +75,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[args(kwargs="**")]
     fn write_dp(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -95,7 +95,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[args(kwargs="**")]
     fn verify_dp(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();

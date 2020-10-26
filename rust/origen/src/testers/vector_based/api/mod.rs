@@ -1,4 +1,4 @@
-use crate::generator::ast::Node;
+use crate::generator::ast::{Node};
 use crate::{node, TEST};
 
 pub fn cycle() {

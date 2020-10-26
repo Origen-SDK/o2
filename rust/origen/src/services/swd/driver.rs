@@ -1,11 +1,11 @@
-use super::service::Service;
-use super::Acknowledgements;
-use crate::core::model::pins::PinCollection;
 use crate::generator::ast::*;
-use crate::testers::api::ControllerAPI;
+use super::Acknowledgements;
 use crate::testers::vector_based::api::*;
+use super::service::Service;
+use crate::{Result, Error, Transaction, TEST};
+use crate::testers::api::ControllerAPI;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Error, Result, Transaction, TEST};
+use crate::core::model::pins::PinCollection;
 
 impl ControllerAPI for Service {
     fn name(&self) -> String {
@@ -15,27 +15,22 @@ impl ControllerAPI for Service {
 
 impl Service {
     #[allow(non_snake_case)]
-    fn drive_header(
-        &self,
-        swdclk: &PinCollection,
-        swdio: &PinCollection,
-        ap_dp_addr: u32,
-        ap_access: bool,
-        verify: bool,
-    ) -> Result<()> {
+    fn drive_header(&self, swdclk: &PinCollection, swdio: &PinCollection, ap_dp_addr: u32, ap_access: bool, verify: bool) -> Result<()> {
         let A = (ap_dp_addr & 0xF) >> 2;
         self.comment(&format!(
             "Header: host -> target (A: {:X}, ap_access: {}, verify: {}) ",
-            A, ap_access as u8, verify as u8
+            A,
+            ap_access as u8,
+            verify as u8
         ));
         swdclk.drive_high();
         swdio.drive_high().cycle();
         swdio.drive(ap_access).cycle();
         swdio.drive(verify).cycle();
         swdio.push_transaction(&crate::Transaction::new_write(A.into(), 2)?)?;
-        swdio
-            .drive((A + ((ap_access as u32) << 3) + ((verify as u32) << 2)).even_parity())
-            .cycle();
+        swdio.drive(
+            (A + ((ap_access as u32) << 3) + ((verify as u32) << 2)).even_parity()
+        ).cycle();
         swdio.drive_low().cycle();
         swdio.drive_high().cycle();
         swdio.highz().repeat(self.trn.into());
@@ -48,18 +43,18 @@ impl Service {
                 self.comment("Acknowledge Ok: target -> host");
                 swdio.verify_high().cycle();
                 swdio.verify_low().repeat(2);
-            }
+            },
             Acknowledgements::Wait => {
                 self.comment("Acknowledge Wait: target -> host");
                 swdio.verify_low().cycle();
                 swdio.verify_high().cycle();
                 swdio.verify_low().cycle();
-            }
+            },
             Acknowledgements::Fault => {
                 self.comment("Acknowledge Fault: target -> host");
                 swdio.verify_low().repeat(2);
                 swdio.verify_high().cycle();
-            }
+            },
             Acknowledgements::None => {
                 self.comment("Do not check acknowledgement");
                 swdio.highz().repeat(3);
@@ -77,12 +72,7 @@ impl Service {
         Ok(())
     }
 
-    fn verify_data(
-        &self,
-        swdio: &PinCollection,
-        trans: &Transaction,
-        parity: &Option<bool>,
-    ) -> Result<()> {
+    fn verify_data(&self, swdio: &PinCollection, trans: &Transaction, parity: &Option<bool>) -> Result<()> {
         self.comment("Verify data");
         swdio.push_transaction(trans)?;
         if let Some(p) = parity {
@@ -106,7 +96,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         match &node.attrs {
             Attrs::SWDWriteAP(_swd_id, transaction, ack, _metadata) => {
-                let mut nodes = vec![];
+                let mut nodes = vec!();
                 self.comment(&format!(
                     "Write AP - AP: {}, Data: 0x{:X}",
                     transaction.addr()?,
@@ -117,22 +107,28 @@ impl Service {
                 self.drive_data(&swdio, transaction)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
-            }
+            },
             Attrs::SWDVerifyAP(_swd_id, transaction, ack, parity_compare, _metadata) => {
-                let mut nodes = vec![];
+                let mut nodes = vec!();
                 self.comment(&format!(
                     "Verify AP - AP: {}, Data: 0x{:X}",
                     transaction.addr()?,
                     transaction.data,
                 ));
-                self.drive_header(&swdclk, &swdio, transaction.addr()? as u32, true, true)?;
+                self.drive_header(
+                    &swdclk,
+                    &swdio,
+                    transaction.addr()? as u32,
+                    true,
+                    true,
+                )?;
                 self.verify_ack(&swdio, ack)?;
                 self.verify_data(&swdio, transaction, &parity_compare)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
-            }
+            },
             Attrs::SWDWriteDP(_swd_id, transaction, ack, _metadata) => {
-                let mut nodes = vec![];
+                let mut nodes = vec!();
                 self.comment(&format!(
                     "Write DP - DP: {}, Data: 0x{:X}",
                     transaction.addr()?,
@@ -143,9 +139,9 @@ impl Service {
                 self.drive_data(&swdio, transaction)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
-            }
+            },
             Attrs::SWDVerifyDP(_swd_id, transaction, ack, parity_compare, _metadata) => {
-                let mut nodes = vec![];
+                let mut nodes = vec!();
                 self.comment(&format!(
                     "Verify DP - DP: {}, Data: 0x{:X}",
                     transaction.addr()?,
@@ -156,13 +152,8 @@ impl Service {
                 self.verify_data(&swdio, transaction, &parity_compare)?;
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
-            }
-            _ => {
-                return Err(Error::new(&format!(
-                    "Unexpected node in SWD driver: {:?}",
-                    node
-                )))
-            }
+            },
+            _ => return Err(Error::new(&format!("Unexpected node in SWD driver: {:?}", node)))
         }
         Ok(())
     }

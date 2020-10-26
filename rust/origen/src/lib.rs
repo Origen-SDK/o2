@@ -13,19 +13,19 @@ extern crate indexmap;
 pub mod core;
 pub mod error;
 pub mod generator;
-pub mod precludes;
 pub mod prog_gen;
 pub mod revision_control;
 pub mod services;
 pub mod standards;
 pub mod testers;
 pub mod utility;
+pub mod precludes;
 
-pub use self::core::metadata::Metadata;
 pub use self::core::user::User;
-pub use self::generator::utility::transaction::Action as TransactionAction;
-pub use self::generator::utility::transaction::Transaction;
 pub use error::Error;
+pub use self::core::metadata::Metadata;
+pub use self::generator::utility::transaction::Transaction;
+pub use self::generator::utility::transaction::Action as TransactionAction;
 
 use self::core::application::Application;
 use self::core::config::Config as OrigenConfig;
@@ -107,18 +107,26 @@ pub enum Value<'a> {
     Data(BigUint, u32),                   // value, size
 }
 
-impl<'a> Value<'a> {
+impl <'a> Value<'a> {
     pub fn to_write_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
         match &self {
-            Self::Bits(bits, _size) => bits.to_write_transaction(dut),
-            Self::Data(data, width) => Transaction::new_write(data.clone(), (*width) as usize),
+            Self::Bits(bits, _size) => {
+                bits.to_write_transaction(dut)
+            },
+            Self::Data(data, width) => {
+                Transaction::new_write(data.clone(), (*width) as usize)
+            }
         }
     }
 
     pub fn to_verify_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
         match &self {
-            Self::Bits(bits, _size) => bits.to_verify_transaction(None, true, dut),
-            Self::Data(data, width) => Transaction::new_verify(data.clone(), (*width) as usize),
+            Self::Bits(bits, _size) => {
+                bits.to_verify_transaction(None, true, dut)
+            },
+            Self::Data(data, width) => {
+                Transaction::new_verify(data.clone(), (*width) as usize)
+            }
         }
     }
 }

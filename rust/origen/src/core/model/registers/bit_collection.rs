@@ -2,10 +2,10 @@ use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
 use crate::node;
 use crate::{Dut, Error, Result, TEST};
-use crate::{Transaction, TransactionAction};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
+use crate::{Transaction, TransactionAction};
 
 const DONT_CARE_CHAR: &str = "X";
 const OVERLAY_CHAR: &str = "V";
@@ -511,10 +511,7 @@ impl<'a> BitCollection<'a> {
         }
     }
 
-    pub fn to_write_node(
-        &self,
-        dut: &'a MutexGuard<Dut>,
-    ) -> Result<Option<crate::generator::ast::Node>> {
+    pub fn to_write_node(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<crate::generator::ast::Node>> {
         let trans = self.to_write_transaction(dut);
         if let Ok(t) = trans {
             Ok(Some(node!(RegWrite, t)))
@@ -546,6 +543,7 @@ impl<'a> BitCollection<'a> {
             )))
         }
     }
+
 
     /// Returns the Register object associated with the BitCollection. Note that this will
     /// return the reg even if the BitCollection only contains a subset of the register's bits

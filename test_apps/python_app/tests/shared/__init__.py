@@ -1,20 +1,24 @@
 import pytest, pathlib, inspect
 import origen, _origen  # pylint: disable=import-error
 
-backend_testers = [
-    "V93KSMT7", "V93KSMT8", "J750", "ULTRAFLEX", "SIMULATOR", "DUMMYRENDERER",
-    "DUMMYRENDERERWITHINTERCEPTORS"
-]
 
+backend_testers = [
+    "V93KSMT7",
+    "V93KSMT8",
+    "J750",
+    "ULTRAFLEX",
+    "SIMULATOR",
+    "DUMMYRENDERER",
+    "DUMMYRENDERERWITHINTERCEPTORS"
+  ]
 
 @pytest.fixture
 def clean_eagle():
-    instantiate_dut("dut.eagle")
-    if len(origen.tester.targets) == 0:
-        origen.tester.target("DummyRenderer")
-    assert origen.dut
-    return origen.dut
-
+  instantiate_dut("dut.eagle")
+  if len(origen.tester.targets) == 0:
+    origen.tester.target("DummyRenderer")
+  assert origen.dut
+  return origen.dut
 
 @pytest.fixture
 def clean_falcon():
@@ -35,14 +39,13 @@ def clean_tester():
 
 @pytest.fixture
 def clean_dummy():
-    assert origen.tester
-    origen.tester.reset()
-    origen.tester.target("DummyRenderer")
-    _origen.start_new_test()
-    assert len(origen.test_ast()["children"]) == 0
-    assert origen.tester.targets == ["::DummyRenderer"]
-    assert origen.tester.timeset is None
-
+  assert origen.tester
+  origen.tester.reset()
+  origen.tester.target("DummyRenderer")
+  _origen.start_new_test()
+  assert len(origen.test_ast()["children"]) == 0
+  assert origen.tester.targets == ["::DummyRenderer"]
+  assert origen.tester.timeset is None
 
 @pytest.fixture
 def clean_compiler():

@@ -1,14 +1,14 @@
 // use origen::standard_sub_blocks::ArmDebug as OrigenArmDebug;
 use origen::services::arm_debug::ArmDebug as OrigenArmDebug;
 // use origen::standard_sub_blocks::arm_debug::DP as OrigenDP;
-use origen::services::arm_debug::MemAP as OrigenMemAP;
 use origen::services::arm_debug::DP as OrigenDP;
+use origen::services::arm_debug::MemAP as OrigenMemAP;
 // use origen::standard_sub_blocks::arm_debug::mem_ap::MemAP as OrigenMemAP;
-use crate::registers::bit_collection::BitCollection;
-use pyo3::exceptions;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict, PyTuple, PyType};
+use crate::registers::bit_collection::BitCollection;
+use pyo3::types::{PyAny, PyType, PyDict, PyTuple};
 use pyo3::ToPyObject;
+use pyo3::exceptions;
 
 #[pymodule]
 /// Implements the module _origen.standard_sub_blocks in Python and ties together
@@ -27,8 +27,8 @@ fn check_for_swd() -> PyResult<Option<usize>> {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let locals = PyDict::new(py);
-    locals.set_item("origen", py.import("origen")?.to_object(py))?;
-    locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
+    locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+    locals.set_item("builtins",  py.import("builtins")?.to_object(py))?;
     locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
     let m = py.eval("builtins.hasattr(dut, \"swd\")", Some(locals), None)?;
 
@@ -56,6 +56,7 @@ pub struct ArmDebug {
 
 #[pymethods]
 impl ArmDebug {
+
     #[classmethod]
     fn __init__(_cls: &PyType, _instance: &PyAny) -> PyResult<()> {
         Ok(())
@@ -63,14 +64,16 @@ impl ArmDebug {
 
     #[new]
     fn new() -> Self {
-        Self { arm_debug_id: None }
+            Self {
+                arm_debug_id: None
+            }
     }
 
     #[classmethod]
     fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
         crate::dut::PyDUT::ensure_pins("dut")?;
         let swd_id = check_for_swd()?;
-
+        
         // Create the Arm Debug instance
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -79,24 +82,16 @@ impl ArmDebug {
             let model_id = instance.getattr("model_id")?.extract::<usize>()?;
             let mut dut = origen::dut();
             let mut services = origen::services();
-            arm_debug_id =
-                OrigenArmDebug::model_init(&mut dut, &mut services, model_id, swd_id, None)?;
+            arm_debug_id = OrigenArmDebug::model_init(&mut dut, &mut services, model_id, swd_id, None)?;
         }
 
         // Add the DP subblock
-        let args = PyTuple::new(
-            py,
-            &["dp".to_object(py), "origen.arm_debug.dp".to_object(py)],
-        );
+        let args = PyTuple::new(py, &["dp".to_object(py), "origen.arm_debug.dp".to_object(py)]);
         let kwargs = PyDict::new(py);
         let sb_options = PyDict::new(py);
         sb_options.set_item("arm_debug_id", arm_debug_id)?;
         kwargs.set_item("sb_options", sb_options.to_object(py))?;
-        let py_dp_obj = instance.downcast::<PyCell<Self>>()?.call_method(
-            "add_sub_block",
-            args,
-            Some(kwargs),
-        )?;
+        let py_dp_obj = instance.downcast::<PyCell<Self>>()?.call_method("add_sub_block", args, Some(kwargs))?;
         let py_dp = py_dp_obj.extract::<DP>()?;
         let dp_id = py_dp.dp_id.unwrap();
 
@@ -132,7 +127,7 @@ impl ArmDebug {
                             } else {
                                 None
                             }
-                        },
+                        }
                     )?;
                 }
             }
@@ -140,19 +135,11 @@ impl ArmDebug {
         Ok(())
     }
 
-    fn add_mem_ap(
-        slf: &PyCell<Self>,
-        name: &str,
-        ap: Option<u32>,
-        csw_reset: Option<u32>,
-    ) -> PyResult<()> {
+    fn add_mem_ap(slf: &PyCell<Self>, name: &str, ap: Option<u32>, csw_reset: Option<u32>) -> PyResult<()> {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        let args = PyTuple::new(
-            py,
-            &[name.to_object(py), "origen.arm_debug.mem_ap".to_object(py)],
-        );
+        let args = PyTuple::new(py, &[name.to_object(py), "origen.arm_debug.mem_ap".to_object(py)]);
         let kwargs = PyDict::new(py);
         let sb_options = PyDict::new(py);
         if let Some(_ap) = ap {
@@ -183,7 +170,7 @@ impl ArmDebug {
 #[derive(Clone)]
 struct DP {
     pub dp_id: Option<usize>,
-    pub arm_debug_id: Option<usize>,
+    pub arm_debug_id: Option<usize>
 }
 
 #[pymethods]
@@ -202,7 +189,7 @@ impl DP {
     }
 
     #[classmethod]
-    #[args(_block_options = "**")]
+    #[args(_block_options="**")]
     fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
@@ -217,7 +204,7 @@ impl DP {
                 }
             } else {
                 return Err(PyErr::new::<exceptions::RuntimeError, _>(
-                    "Subblock arm_debug.dp was not given required block option 'arm_debug_id'",
+                    "Subblock arm_debug.dp was not given required block option 'arm_debug_id'"
                 ));
             }
         } else {
@@ -243,7 +230,7 @@ impl DP {
         Ok(())
     }
 
-    #[args(write_opts = "**")]
+    #[args(write_opts="**")]
     fn write_register(&self, bits: &PyAny, _write_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
@@ -253,7 +240,7 @@ impl DP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
+    #[args(verify_opts="**")]
     fn verify_register(&self, bits: &PyAny, _verify_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
@@ -287,6 +274,7 @@ struct MemAP {
 
 #[pymethods]
 impl MemAP {
+
     #[classmethod]
     fn __init__(_cls: &PyType, _instance: &PyAny) -> PyResult<()> {
         Ok(())
@@ -294,7 +282,9 @@ impl MemAP {
 
     #[new]
     fn new() -> Self {
-        Self { mem_ap_id: None }
+            Self { 
+                mem_ap_id: None
+            }
     }
 
     #[classmethod]
@@ -312,7 +302,7 @@ impl MemAP {
                 }
             } else {
                 return Err(PyErr::new::<exceptions::RuntimeError, _>(
-                    "Subblock arm_debug.mem_ap was not given required block option 'arm_debug_id'",
+                    "Subblock arm_debug.mem_ap was not given required block option 'arm_debug_id'"
                 ));
             }
         } else {
@@ -342,8 +332,7 @@ impl MemAP {
             let mut dut = origen::dut();
             let mut services = origen::services();
             let model_id = obj.getattr(py, "model_id")?.extract::<usize>(py)?;
-            mem_ap_id =
-                OrigenMemAP::model_init(&mut dut, &mut services, model_id, arm_debug_id, addr)?;
+            mem_ap_id = OrigenMemAP::model_init(&mut dut, &mut services, model_id, arm_debug_id, addr)?;
         }
         let mut slf = instance.extract::<PyRefMut<Self>>()?;
         slf.mem_ap_id = Some(mem_ap_id);
@@ -355,13 +344,8 @@ impl MemAP {
     /// a BitCollection).
     /// Assumes that all posturing has been completed - that is, the bits' data, overlay
     /// status, etc. is current.
-    #[args(write_opts = "**")]
-    fn write_register(
-        &self,
-        bits: &PyAny,
-        _latency: Option<u32>,
-        _write_opts: Option<&PyDict>,
-    ) -> PyResult<()> {
+    #[args(write_opts="**")]
+    fn write_register(&self, bits: &PyAny, _latency: Option<u32>, _write_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
         let services = origen::services();
@@ -370,13 +354,8 @@ impl MemAP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
-    fn verify_register(
-        &self,
-        bits: &PyAny,
-        _latency: Option<u32>,
-        _verify_opts: Option<&PyDict>,
-    ) -> PyResult<()> {
+    #[args(verify_opts="**")]
+    fn verify_register(&self, bits: &PyAny, _latency: Option<u32>, _verify_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
         let services = origen::services();

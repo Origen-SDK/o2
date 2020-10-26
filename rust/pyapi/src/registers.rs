@@ -8,8 +8,8 @@ use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use register::{Field, FieldEnum, ResetVal};
 
-use origen::core::model::registers::register::Register;
 pub use register_collection::RegisterCollection;
+use origen::core::model::registers::register::Register;
 
 #[pymodule]
 /// Implements the module _origen.registers in Python
@@ -41,12 +41,7 @@ fn create(
 ) -> PyResult<usize> {
     let r;
     if let Some(_resets) = resets {
-        r = Some(
-            _resets
-                .iter()
-                .map(|res| res.to_origen_reset_val())
-                .collect(),
-        );
+        r = Some(_resets.iter().map( |res| res.to_origen_reset_val()).collect());
     } else {
         r = None
     }
@@ -64,6 +59,6 @@ fn create(
         description,
         access,
         r,
-        fields.iter().map(|f| f.to_origen_field()).collect(),
+        fields.iter().map( |f| f.to_origen_field()).collect()
     )?)
 }

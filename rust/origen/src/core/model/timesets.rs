@@ -1,10 +1,10 @@
 pub mod timeset;
 
 use super::super::dut::Dut;
-use super::super::tester::TesterSource;
 use super::Model;
 use crate::error::Error;
 use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
+use super::super::tester::TesterSource;
 
 /// Returns an Origen Error with pre-formatted message complaining that
 /// something already exists.
@@ -75,7 +75,7 @@ impl Dut {
         name: &str,
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
-        targets: Vec<&TesterSource>,
+        targets: Vec<&TesterSource>
     ) -> Result<&Timeset, Error> {
         let id;
         {

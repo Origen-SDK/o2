@@ -108,11 +108,7 @@ impl Dut {
     /// Returns the pin actions as a string.
     /// E.g.: for an 8-pin bus where the two MSBits are driving, the next two are capturing, then next wo are verifying, and the
     ///   two LSBits are HighZ, the return value will be "DDCCVVZZ"
-    pub fn get_pin_group_actions(
-        &self,
-        model_id: usize,
-        name: &str,
-    ) -> Result<Vec<PinActions>, Error> {
+    pub fn get_pin_group_actions(&self, model_id: usize, name: &str) -> Result<Vec<PinActions>, Error> {
         let pin_names = self._get_pin_group(model_id, name)?.pin_names.clone();
         self.get_pin_actions(model_id, &pin_names)
     }
@@ -159,7 +155,7 @@ impl Dut {
         model_id: usize,
         name: &str,
         symbols: &Vec<PinActions>,
-        mask: Option<usize>,
+        mask: Option<usize>
     ) -> Result<(), Error> {
         let grp = self._get_mut_pin_group(model_id, name)?;
         let pin_names = grp.pin_names.clone();
@@ -174,7 +170,12 @@ impl Dut {
             }
         }
         grp.mask = None;
-        self.set_per_pin_actions(model_id, &pin_names, symbols, m)
+        self.set_per_pin_actions(
+            model_id,
+            &pin_names,
+            symbols,
+            m,
+        )
     }
     pub fn drive_pin_group(
         &mut self,
@@ -260,12 +261,7 @@ impl Dut {
         }
     }
 
-    pub fn set_pin_group_nonsticky_mask(
-        &mut self,
-        model_id: usize,
-        name: &str,
-        mask: usize,
-    ) -> Result<(), Error> {
+    pub fn set_pin_group_nonsticky_mask(&mut self, model_id: usize, name: &str, mask: usize) -> Result<(), Error> {
         let grp = self._get_mut_pin_group(model_id, name)?;
         grp.mask = Some(mask);
         Ok(())

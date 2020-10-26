@@ -1,6 +1,6 @@
-use crate::core::tester::{Interceptor, TesterAPI};
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
+use crate::core::tester::{Interceptor, TesterAPI};
 use crate::{Result, DUT};
 
 #[derive(Debug, Clone)]
@@ -33,26 +33,22 @@ impl VectorBased for SMT7 {
         "avc"
     }
 
-    fn print_vector(
-        &self,
-        renderer: &mut Renderer,
-        repeat: u32,
-        _compressable: bool,
-    ) -> Option<Result<String>> {
+    fn print_vector(&self, renderer: &mut Renderer, repeat: u32, _compressable: bool) -> Option<Result<String>> {
         Some(Ok(format!(
             "R{} {} {} # <EoL Comment>;",
             repeat,
             {
                 match renderer.timeset_name() {
                     Ok(s) => s,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return Some(Err(e))
                 }
             },
+
             // The pin states should have been previously updated from the PinAction node, or just has default values
             {
                 match renderer.render_states() {
                     Ok(s) => s,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return Some(Err(e))
                 }
             }
         )))
@@ -70,3 +66,4 @@ impl VectorBased for SMT7 {
 }
 
 impl Interceptor for SMT7 {}
+

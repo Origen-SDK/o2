@@ -92,11 +92,17 @@ impl Dut {
         self.set_pin_store_actions(pin_store, PinActions::Verify, data)
     }
 
-    pub fn capture_pin_store(&mut self, pin_store: &mut PinStore) -> Result<(), Error> {
+    pub fn capture_pin_store(
+        &mut self,
+        pin_store: &mut PinStore,
+    ) -> Result<(), Error> {
         self.set_pin_store_actions(pin_store, PinActions::Capture, Option::None)
     }
 
-    pub fn highz_pin_store(&mut self, pin_store: &mut PinStore) -> Result<(), Error> {
+    pub fn highz_pin_store(
+        &mut self,
+        pin_store: &mut PinStore,
+    ) -> Result<(), Error> {
         self.set_pin_store_actions(pin_store, PinActions::HighZ, Option::None)
     }
 
@@ -146,7 +152,11 @@ impl Dut {
         self.reset_pin_names(collection.model_id, &pin_names)
     }
 
-    pub fn set_pin_store_data(&mut self, collection: &PinStore, data: u32) -> Result<(), Error> {
+    pub fn set_pin_store_data(
+        &mut self,
+        collection: &PinStore,
+        data: u32,
+    ) -> Result<(), Error> {
         let pin_names = &collection.pin_names;
         self.set_pin_data(collection.model_id, &pin_names, data, collection.mask)
     }

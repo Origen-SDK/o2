@@ -1,33 +1,23 @@
-pub mod api;
 pub mod pattern_renderer;
+pub mod api;
 
-use crate::core::model::pins::pin::Resolver;
-use crate::core::tester::TesterAPI;
-use crate::generator::ast::Node;
 use crate::utility::differ::Differ;
 use crate::Result;
 use std::path::{Path, PathBuf};
+use crate::core::tester::TesterAPI;
+use crate::core::model::pins::pin::Resolver;
+use crate::generator::ast::Node;
 
-pub trait VectorBased:
-    std::fmt::Debug + std::default::Default + crate::core::tester::Interceptor
-{
+pub trait VectorBased: std::fmt::Debug + std::default::Default + crate::core::tester::Interceptor {
     fn name(&self) -> String;
     fn id(&self) -> String;
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
+    fn clone(&self) ->  Box<dyn TesterAPI + std::marker::Send>;
     fn comment_str(&self) -> &str;
     fn file_ext(&self) -> &str;
-    fn print_vector(
-        &self,
-        renderer: &mut pattern_renderer::Renderer,
-        repeat: u32,
-        compressable: bool,
-    ) -> Option<Result<String>>;
+    fn print_vector(&self, renderer: &mut pattern_renderer::Renderer, repeat: u32, compressable: bool) -> Option<Result<String>>;
     fn print_pinlist(&self, renderer: &mut pattern_renderer::Renderer) -> Option<Result<String>>;
 
-    fn print_pattern_end(
-        &self,
-        _renderer: &mut pattern_renderer::Renderer,
-    ) -> Option<Result<String>> {
+    fn print_pattern_end(&self, _renderer: &mut pattern_renderer::Renderer) -> Option<Result<String>> {
         None
     }
 
@@ -36,10 +26,7 @@ pub trait VectorBased:
     }
 }
 
-impl<T> pattern_renderer::RendererAPI for T
-where
-    T: VectorBased,
-{
+impl <T> pattern_renderer::RendererAPI for T where T: VectorBased {
     fn name(&self) -> String {
         VectorBased::name(self)
     }
@@ -56,12 +43,7 @@ where
         VectorBased::comment_str(self)
     }
 
-    fn print_vector(
-        &self,
-        renderer: &mut pattern_renderer::Renderer,
-        repeat: u32,
-        compressable: bool,
-    ) -> Option<Result<String>> {
+    fn print_vector(&self, renderer: &mut pattern_renderer::Renderer, repeat: u32, compressable: bool) -> Option<Result<String>> {
         VectorBased::print_vector(self, renderer, repeat, compressable)
     }
 
@@ -69,18 +51,12 @@ where
         VectorBased::print_pinlist(self, renderer)
     }
 
-    fn print_pattern_end(
-        &self,
-        renderer: &mut pattern_renderer::Renderer,
-    ) -> Option<Result<String>> {
+    fn print_pattern_end(&self, renderer: &mut pattern_renderer::Renderer) -> Option<Result<String>> {
         VectorBased::print_pattern_end(self, renderer)
     }
 }
 
-impl<T> crate::core::tester::TesterAPI for T
-where
-    T: VectorBased,
-{
+impl <T> crate::core::tester::TesterAPI for T where T: VectorBased {
     fn name(&self) -> String {
         VectorBased::name(self)
     }

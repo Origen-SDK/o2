@@ -1,11 +1,11 @@
-use super::super::pins::pin::Resolver as PinActionsResolver;
-use super::super::pins::pin::{PinActions, ResolvePinActions};
-use crate::core::dut::Dut;
-use crate::core::tester::TesterSource;
 use crate::error::Error;
 use eval;
 use indexmap::map::IndexMap;
+use crate::core::dut::Dut;
 use std::collections::HashMap;
+use super::super::pins::pin::{PinActions, ResolvePinActions};
+use super::super::pins::pin::Resolver as PinActionsResolver;
+use crate::core::tester::TesterSource;
 
 pub fn default_resolver() -> PinActionsResolver {
     let mut map = PinActionsResolver::new();
@@ -64,7 +64,7 @@ impl Timeset {
                     match target {
                         TesterSource::External(tester_name) => {
                             i.insert(tester_name.to_string(), default_resolver());
-                        }
+                        },
                         TesterSource::Internal(t) => {
                             if let Some(r) = t.pin_action_resolver() {
                                 i.insert(t.id(), r);
@@ -75,7 +75,7 @@ impl Timeset {
                     }
                 }
                 i
-            },
+            }
         }
     }
 
@@ -92,7 +92,8 @@ impl Timeset {
         } else {
             Err(Error::new(&format!(
                 "Timeset {} does not have a wavetable named {}!",
-                self.name, wtbl_name
+                self.name,
+                wtbl_name
             )))
         }
     }
@@ -214,15 +215,10 @@ impl Wavetable {
     /// Returns all the wave IDs, including inherited ones, which is included in the pin list and
     /// has an indicator in the indicator list.
     /// If the pin list is empty, then all pins are returned. Likewise with the indicator list.
-    pub fn applied_waves(
-        &self,
-        dut: &Dut,
-        pins: &Vec<(usize, String)>,
-        indicators: &Vec<String>,
-    ) -> Result<HashMap<usize, HashMap<String, usize>>, Error> {
+    pub fn applied_waves(&self, dut: &Dut, pins: &Vec<(usize, String)>, indicators: &Vec<String>) -> Result<HashMap<usize, HashMap<String, usize>>, Error>{
         let __pins;
         if pins.len() > 1 {
-            let t: Vec<usize> = vec![];
+            let t: Vec<usize> = vec!();
             for (model_id, pname) in pins.iter() {
                 dut._get_pin(*model_id, &pname)?.id;
             }
@@ -240,12 +236,7 @@ impl Wavetable {
         Ok(retn)
     }
 
-    pub fn wave_ids_for(
-        &self,
-        dut: &Dut,
-        pin_id: usize,
-        indicators: &Vec<String>,
-    ) -> Option<HashMap<String, usize>> {
+    pub fn wave_ids_for(&self, dut: &Dut, pin_id: usize, indicators: &Vec<String>) -> Option<HashMap<String, usize>> {
         let mut retn: HashMap<String, usize> = HashMap::new();
         if let Some(waves) = self.applied_waves.get(&pin_id) {
             retn.extend(waves.clone());
@@ -261,9 +252,7 @@ impl Wavetable {
             //      a vector of size 1 with either Option::None or Option<wave_id>
             //  Either way, we can just stick this directly into the return
             // retn.insert(parent.wave_ids_for(dut, &vec!(*pid))[0]);
-            let mut t = parent
-                .wave_ids_for(dut, pin_id, indicators)
-                .unwrap_or(HashMap::new());
+            let mut t = parent.wave_ids_for(dut, pin_id, indicators).unwrap_or(HashMap::new());
             t.extend(retn);
             retn = t;
         }
@@ -572,11 +561,7 @@ impl Event {
 }
 
 impl Dut {
-    pub fn apply_wave_id_to_pins(
-        &mut self,
-        wave_id: usize,
-        pins: &Vec<(usize, String)>,
-    ) -> Result<(), Error> {
+    pub fn apply_wave_id_to_pins(&mut self, wave_id: usize, pins: &Vec<(usize, String)>) -> Result<(), Error> {
         let (wtbl_id, wave_indicator);
         {
             let wave = &self.waves[wave_id];
@@ -587,7 +572,7 @@ impl Dut {
         let physical_pin_ids: Vec<Vec<usize>> = self._resolve_groups_to_physical_pin_ids(&pins)?;
         for ppin_ids in physical_pin_ids.iter() {
             for ppin_id in ppin_ids.iter() {
-                {
+                    {
                     let wtbl = &mut self.wavetables[wtbl_id];
                     wtbl.apply_wave_to(*ppin_id, &wave_indicator, wave_id);
                 }
@@ -606,14 +591,7 @@ fn test() {
     let t = Timeset::new(0, 0, "t1", Some(Box::new("1.0 + 1")), Option::None, vec![]);
     assert!(t.eval(None).is_err());
 
-    let t = Timeset::new(
-        0,
-        0,
-        "t1",
-        Some(Box::new("period")),
-        Some(1.0 as f64),
-        vec![],
-    );
+    let t = Timeset::new(0, 0, "t1", Some(Box::new("period")), Some(1.0 as f64), vec![]);
     assert_eq!(t.eval(Some(1.0 as f64)).unwrap(), 1.0 as f64);
 
     let t = Timeset::new(

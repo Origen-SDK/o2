@@ -1,12 +1,10 @@
 import _origen
 from origen.controller import Base
 
-
 class Generic(Base):
-    def __init__(self, *, offset=0, word_size=4, length=None):
+    def __init__(self, *,  offset=0, word_size=4, length=None):
         if length is None:
-            raise ValueError(
-                "Argument 'length' when defining a memory cannot be None")
+            raise ValueError("Argument 'length' when defining a memory cannot be None")
         self.length_in_bytes = length
 
         Base.__init__(self)
@@ -15,12 +13,11 @@ class Generic(Base):
 
     @property
     def size(self):
-        return self.length_in_bytes / self.word_size
+        return self.length_in_bytes/self.word_size
 
     @property
     def start_addr(self):
         return self.address()
-
     start_address = start_addr
     start = start_addr
     first_addr = start_addr
@@ -30,7 +27,6 @@ class Generic(Base):
     @property
     def last_addr(self):
         return self.address() + self.length - self.word_size
-
     last_address = last_addr
     last = last_addr
     end_addr = last_addr
@@ -66,12 +62,10 @@ class Generic(Base):
     def __len__(self):
         return self.length
 
-
 class RAM(Generic):
     def __init__(self, **kwargs):
         Generic.__init__(self, **kwargs)
         self.type = "RAM"
-
 
 class ROM(Generic):
     class WriteROMError(TypeError):
@@ -84,7 +78,6 @@ class ROM(Generic):
 
     def write_register(self, *args, **kwargs):
         raise ROM.WriteROMError()
-
 
 class Flash(Generic):
     def __init__(self, **kwargs):

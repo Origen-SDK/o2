@@ -11,7 +11,7 @@ use pyo3::wrap_pymodule;
 #[allow(dead_code)]
 pub fn get_pydut(py: Python) -> PyResult<&PyAny> {
     let locals = PyDict::new(py);
-    locals.set_item("origen", py.import("origen")?.to_object(py))?;
+    locals.set_item("origen",  py.import("origen")?.to_object(py))?;
     Ok(py.eval("origen.dut", Some(locals), None)?)
 }
 
@@ -101,7 +101,7 @@ impl PyDUT {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let locals = PyDict::new(py);
-        locals.set_item("origen", py.import("origen")?.to_object(py))?;
+        locals.set_item("origen",  py.import("origen")?.to_object(py))?;
         py.eval(&format!("origen.{}.pins", model_path), Some(locals), None)?;
         Ok(())
     }

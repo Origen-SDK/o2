@@ -1,3 +1,3 @@
-pub use crate::core::model::pins::pin_group::PinGroup;
+pub use crate::{TEST, Dut, Services, Transaction};
 pub use crate::core::model::pins::PinCollection;
-pub use crate::{Dut, Services, Transaction, TEST};
+pub use crate::core::model::pins::pin_group::PinGroup;
