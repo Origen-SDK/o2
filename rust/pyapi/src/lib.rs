@@ -32,9 +32,9 @@ use std::sync::MutexGuard;
 // Imported pyapi modules
 use application::PyInit_application;
 use dut::PyInit_dut;
-use prog_gen::interface::PyInit_interface;
 use logger::PyInit_logger;
 use producer::PyInit_producer;
+use prog_gen::interface::PyInit_interface;
 use services::PyInit_services;
 use tester::PyInit_tester;
 use tester_apis::PyInit_tester_apis;

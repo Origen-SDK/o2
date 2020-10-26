@@ -1,9 +1,9 @@
 //! This module implements classes which expose ATE-specific APIs for use in both pattern and program generation.
 mod v93k;
 
-use pyo3::types::PyAny;
-use pyo3::prelude::*;
 use origen::prog_gen::TestInvocation;
+use pyo3::prelude::*;
+use pyo3::types::PyAny;
 use v93k::TestSuite;
 
 #[pymodule]

@@ -2,8 +2,8 @@ import origen
 from origen.interface import BaseInterface, dut, tester
 #import pdb; pdb.set_trace()
 
-class Interface(BaseInterface):
 
+class Interface(BaseInterface):
     def func(self, name):
         with tester().specific("v93k_smt7") as v93k:
             t = v93k.test_suites.add(name)

@@ -6,8 +6,8 @@ use pyo3::exceptions;
 use pyo3::prelude::*;
 
 use test_methods::TestMethods;
-pub use test_suites::TestSuites;
 pub use test_suites::TestSuite;
+pub use test_suites::TestSuites;
 
 #[pyclass(subclass)]
 #[derive(Debug)]

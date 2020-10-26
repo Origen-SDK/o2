@@ -4,11 +4,11 @@ pub mod teradyne;
 
 use crate::testers::SupportedTester;
 use crate::Result;
+pub use model::TestInvocation;
 use model::TestProgram;
 use phf::phf_map;
 use std::collections::HashMap;
 use std::sync::RwLock;
-pub use model::TestInvocation;
 
 // This includes a map of all test template files, it is built by build.rs at compile time.
 // All files in each sub-directory of prog_gen/test_templates are accessible via a map with the
