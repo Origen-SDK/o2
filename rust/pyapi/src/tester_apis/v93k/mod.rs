@@ -1,21 +1,19 @@
-use origen::prog_gen::advantest::common as v93k_prog;
+mod test_methods;
+mod test_suites;
+
 use origen::testers::SupportedTester;
 use pyo3::exceptions;
 use pyo3::prelude::*;
+
+use test_methods::TestMethods;
+pub use test_suites::TestSuites;
+pub use test_suites::TestSuite;
 
 #[pyclass(subclass)]
 #[derive(Debug)]
 /// Python interface for the tester backend.
 pub struct V93K {
     smt_major_version: u32,
-    tester_type: SupportedTester,
-}
-
-#[pyclass]
-#[derive(Debug, Clone)]
-pub struct Test {
-    id: usize,
-    name: String,
     tester: SupportedTester,
 }
 
@@ -26,7 +24,7 @@ impl V93K {
         obj.init({
             V93K {
                 smt_major_version: smt_major_version,
-                tester_type: match smt_major_version {
+                tester: match smt_major_version {
                     7 => SupportedTester::V93KSMT7,
                     8 => SupportedTester::V93KSMT8,
                     _ => {
@@ -41,11 +39,17 @@ impl V93K {
         Ok(())
     }
 
-    pub fn new_test_suite(&self, name: &str) -> PyResult<Test> {
-        Ok(Test {
-            name: name.to_string(),
-            id: v93k_prog::new_test_suite(name, &self.tester_type)?,
-            tester: self.tester_type.clone(),
+    #[getter]
+    pub fn test_suites(&self) -> PyResult<TestSuites> {
+        Ok(TestSuites {
+            tester: self.tester.clone(),
+        })
+    }
+
+    #[getter]
+    pub fn test_methods(&self) -> PyResult<TestMethods> {
+        Ok(TestMethods {
+            tester: self.tester.clone(),
         })
     }
 }

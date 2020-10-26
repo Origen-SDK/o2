@@ -49,6 +49,11 @@ impl PyTester {
         Ok((ref_id, clean_testers))
     }
 
+    pub fn _end_specific_block(&self, ref_id: usize) -> PyResult<()> {
+        origen::tester().end_tester_specific_block(ref_id)?;
+        Ok(())
+    }
+
     /// This resets the tester, clearing all loaded targets and any other state, making
     /// it ready for a fresh target load.
     /// This should only be called from Python code for testing, it will be called automatically

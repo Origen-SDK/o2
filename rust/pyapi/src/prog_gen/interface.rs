@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
 use std::path::Path;
+use crate::tester_apis::to_test_invocation;
 
 #[pymodule]
 pub fn interface(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -30,8 +32,14 @@ impl PyInterface {
     }
 
     /// Add a test to the flow
-    fn add_test(&self, _name: &str) -> PyResult<()> {
-        Ok(())
+    fn add_test(&self, test_obj: &PyAny) -> PyResult<()> {
+        if let Some(t) = to_test_invocation(&test_obj) {
+            //log_info!("GAot V93K test! - {}", t.name);
+            Ok(())
+        } else {
+            log_error!("Could not convert: {:?}", test_obj);
+            Ok(())
+        }
     }
 
     /// Bin out

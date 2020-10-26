@@ -13,7 +13,6 @@ mod services;
 #[macro_use]
 mod timesets;
 mod application;
-mod interface;
 mod producer;
 mod prog_gen;
 mod tester;
@@ -33,7 +32,7 @@ use std::sync::MutexGuard;
 // Imported pyapi modules
 use application::PyInit_application;
 use dut::PyInit_dut;
-use interface::PyInit_interface;
+use prog_gen::interface::PyInit_interface;
 use logger::PyInit_logger;
 use producer::PyInit_producer;
 use services::PyInit_services;

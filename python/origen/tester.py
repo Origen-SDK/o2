@@ -65,6 +65,9 @@ class Tester(_origen.tester.PyTester):
             raise Exception(
                 f"Only up to 10 testers are supported in a with-specific-tester block"
             )
+        for t in testers:
+            del t
+        self._end_specific_block(ref_id)
 
 
 class DummyTester:

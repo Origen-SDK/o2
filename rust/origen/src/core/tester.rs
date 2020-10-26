@@ -98,13 +98,22 @@ impl Tester {
     }
 
     /// Starts a new tester-specific section in the current pattern and/or test program.
-    /// The returned IDs should be kept and given to end_tester_specific_block when the
+    /// The returned ID should be kept and given to end_tester_specific_block when the
     /// tester specific section is complete.
     pub fn start_tester_specific_block(&self, testers: Vec<SupportedTester>) -> Result<usize> {
         let n = node!(TesterSpecific, testers.clone());
         let block_id = TEST.push_and_open(n);
         PROG.push_current_testers(testers)?;
         Ok(block_id)
+    }
+
+    /// Ends an open tester-specific section in the current pattern and/or test program.
+    /// The ID produced when opening the block (via start_tester_specific_block) should be supplied
+    /// as the main argument.
+    pub fn end_tester_specific_block(&self, block_id: usize) -> Result<()> {
+        TEST.close(block_id)?;
+        PROG.pop_current_testers()?;
+        Ok(())
     }
 
     pub fn custom_tester_ids(&self) -> Vec<String> {

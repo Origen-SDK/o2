@@ -8,6 +8,7 @@ use model::TestProgram;
 use phf::phf_map;
 use std::collections::HashMap;
 use std::sync::RwLock;
+pub use model::TestInvocation;
 
 // This includes a map of all test template files, it is built by build.rs at compile time.
 // All files in each sub-directory of prog_gen/test_templates are accessible via a map with the
@@ -98,6 +99,15 @@ impl TestPrograms {
             }
         }
         current_testers.push(testers);
+        Ok(())
+    }
+
+    pub fn pop_current_testers(&self) -> Result<()> {
+        let mut current_testers = self.current_testers.write().unwrap();
+        if current_testers.is_empty() {
+            return error!("There has been an attempt to close a tester-specific block, but none is currently open in the program generator");
+        }
+        let _ = current_testers.pop();
         Ok(())
     }
 

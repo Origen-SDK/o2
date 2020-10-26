@@ -7,7 +7,7 @@
 #[derive(Debug)]
 pub struct TestInvocation {
     /// The ID of the Test to be invoked, i.e. the test instance/test method
-    test_id: usize,
+    pub test_id: usize,
     /// The parameters associated with this particular call from the flow, i.e. the test suite
-    test_inv_id: usize,
+    pub test_inv_id: usize,
 }
