@@ -9,6 +9,7 @@ from origen.compiler import Compiler
 from origen.errors import *
 from types import ModuleType
 
+
 class Base(_origen.application.PyApplication):
     '''
         The base class of all Origen ``applications``.
@@ -147,9 +148,14 @@ class Base(_origen.application.PyApplication):
         origen.dut = dut
         return dut
 
-    def instantiate_block_from_mod(self, mod, class_name="Controller", sb_options={}):
+    def instantiate_block_from_mod(self,
+                                   mod,
+                                   class_name="Controller",
+                                   sb_options={}):
         if not self.__instantiate_dut_called:
-            raise RuntimeError(f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{mod}\")' instead?")
+            raise RuntimeError(
+                f"No DUT has been instantiated yet, did you mean to call 'origen.instantiate_dut(\"{mod}\")' instead?"
+            )
 
         # Load the module and try to find its controller.
         if isinstance(mod, ModuleType):
@@ -166,7 +172,12 @@ class Base(_origen.application.PyApplication):
         block.from_mod_path = True
         return block
 
-    def instantiate_block(self, path, base_path=None, *, class_name="Controller", sb_options=None):
+    def instantiate_block(self,
+                          path,
+                          base_path=None,
+                          *,
+                          class_name="Controller",
+                          sb_options=None):
         '''
             Instantiate the given block and return it
         
@@ -198,10 +209,9 @@ class Base(_origen.application.PyApplication):
                 if len(paths) > 1 and origen.has_plugin(paths[0]):
                     return origen.plugin(paths[0]).instantiate_block(
                         ".".join(paths[1:]),
-                         None,
-                         class_name=class_name,
-                         sb_options=sb_options
-                    )
+                        None,
+                        class_name=class_name,
+                        sb_options=sb_options)
                 else:
                     raise RuntimeError(
                         f"No block was found at path '{orig_path}'")
@@ -255,7 +265,8 @@ class Base(_origen.application.PyApplication):
                 else:
                     block = c()
             else:
-                raise RuntimeError(f"No class name '{class_name}' found in module {m}")
+                raise RuntimeError(
+                    f"No class name '{class_name}' found in module {m}")
 
         block._app = self
         block._block_path = orig_path
@@ -346,6 +357,7 @@ class Base(_origen.application.PyApplication):
         '''
         self.compiler.run(*args, **options)
         return self.compiler
+
 
 class Application(Base):
     def hey(self):

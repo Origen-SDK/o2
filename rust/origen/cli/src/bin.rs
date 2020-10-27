@@ -101,7 +101,9 @@ fn main() {
         ),
     };
     if STATUS.app.is_some() {
-        origen::core::application::config::Config::check_defaults(&STATUS.app.as_ref().unwrap().root);
+        origen::core::application::config::Config::check_defaults(
+            &STATUS.app.as_ref().unwrap().root,
+        );
     }
 
     let mut app = App::new("")
@@ -599,11 +601,12 @@ Examples:
             SubCommand::with_name("target")
                 .about(t_help)
                 .visible_alias("t")
-                .arg(Arg::with_name("full-paths")
-                    .long("full-paths")
-                    .short("f")
-                    .help("Display targets' full paths")
-                    .takes_value(false)
+                .arg(
+                    Arg::with_name("full-paths")
+                        .long("full-paths")
+                        .short("f")
+                        .help("Display targets' full paths")
+                        .takes_value(false),
                 )
                 .subcommand(
                     SubCommand::with_name("add")
@@ -617,11 +620,12 @@ Examples:
                                 .multiple(true)
                                 .required(true),
                         )
-                        .arg(Arg::with_name("full-paths")
-                            .long("full-paths")
-                            .short("f")
-                            .help("Display targets' full paths")
-                            .takes_value(false)
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 )
                 .subcommand(
@@ -636,11 +640,12 @@ Examples:
                                 .multiple(true)
                                 .required(true),
                         )
-                        .arg(Arg::with_name("full-paths")
-                            .long("full-paths")
-                            .short("f")
-                            .help("Display targets' full paths")
-                            .takes_value(false)
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 )
                 .subcommand(
@@ -655,33 +660,36 @@ Examples:
                                 .multiple(true)
                                 .required(true),
                         )
-                        .arg(Arg::with_name("full-paths")
-                            .long("full-paths")
-                            .short("f")
-                            .help("Display targets' full paths")
-                            .takes_value(false)
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 )
                 .subcommand(
                     SubCommand::with_name("default")
                         .about("Activates the default target(s) while deactivating all others")
                         .visible_alias("d")
-                        .arg(Arg::with_name("full-paths")
-                            .long("full-paths")
-                            .short("f")
-                            .help("Display targets' full paths")
-                            .takes_value(false)
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 )
                 .subcommand(
                     SubCommand::with_name("view")
                         .about("Views the currently activated target(s)")
                         .visible_alias("v")
-                        .arg(Arg::with_name("full-paths")
-                            .long("full-paths")
-                            .short("f")
-                            .help("Display targets' full paths")
-                            .takes_value(false)
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 ),
         );

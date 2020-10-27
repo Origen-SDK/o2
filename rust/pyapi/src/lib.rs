@@ -16,9 +16,9 @@ mod timesets;
 mod application;
 mod interface;
 mod producer;
+mod standard_sub_blocks;
 mod tester;
 mod utility;
-mod standard_sub_blocks;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
@@ -37,9 +37,9 @@ use interface::PyInit_interface;
 use logger::PyInit_logger;
 use producer::PyInit_producer;
 use services::PyInit_services;
+use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
 use utility::location::Location;
-use standard_sub_blocks::PyInit_standard_sub_blocks;
 use utility::PyInit_utility;
 
 #[macro_export]
@@ -115,8 +115,11 @@ fn extract_value<'a>(
 }
 
 /// Unpacks/extracts common transaction options, updating the transaction directly
-/// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint), 
-fn unpack_transaction_options(trans: &mut origen::Transaction, kwargs: Option<&PyDict>) -> PyResult<()> {
+/// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
+fn unpack_transaction_options(
+    trans: &mut origen::Transaction,
+    kwargs: Option<&PyDict>,
+) -> PyResult<()> {
     if let Some(opts) = kwargs {
         if let Some(address) = opts.get_item("address") {
             trans.address = Some(address.extract::<u128>()?);

@@ -10,90 +10,101 @@ top_level_flow_open = False
 
 
 class Producer(_origen.producer.PyProducer):
-  def issue_callback(self, c, kwargs):
-      if origen.helpers.has_method(origen.dut, c) and not kwargs.get("skip_all_callbacks") and not kwargs.get(f"skip_callback_{c}"):
-          getattr(origen.dut, c)(**kwargs)
-          return True # Callback ran or raised an exception
-      return False # Callback didn't run
-      
-  # Defines the methods that are accessible within blocks/<block>/registers.py
-  def api(self):
-      return {
-          "Pattern": self.Pattern, 
-          "Flow": self.Flow, 
-      }
+    def issue_callback(self, c, kwargs):
+        if origen.helpers.has_method(origen.dut, c) and not kwargs.get(
+                "skip_all_callbacks") and not kwargs.get(f"skip_callback_{c}"):
+            getattr(origen.dut, c)(**kwargs)
+            return True  # Callback ran or raised an exception
+        return False  # Callback didn't run
 
-  @contextmanager
-  def Pattern(self, **kwargs):
-      # Always freshly load the target when generating a pattern, no matter how much anyone
-      # complains about this!
-      # It guarantees that produced patterns are always the same regardless of generation
-      # order by clearing all DUT state.
-      origen.target.load()
+    # Defines the methods that are accessible within blocks/<block>/registers.py
+    def api(self):
+        return {
+            "Pattern": self.Pattern,
+            "Flow": self.Flow,
+        }
 
-      job = origen.producer.current_job
-      name = Path(job.source_file).stem
-      pat = PatternClass(name, **kwargs)
+    @contextmanager
+    def Pattern(self, **kwargs):
+        # Always freshly load the target when generating a pattern, no matter how much anyone
+        # complains about this!
+        # It guarantees that produced patterns are always the same regardless of generation
+        # order by clearing all DUT state.
+        origen.target.load()
 
-      # This initializes a new AST for the pattern we are about to generate
-      _origen.start_new_test(pat.name)
-      origen.tester.generate_pattern_header(pat.header_comments)
+        job = origen.producer.current_job
+        name = Path(job.source_file).stem
+        pat = PatternClass(name, **kwargs)
 
-      origen.logger.debug(f"Producing pattern {pat.name} in job {job.id}")
-      origen.producer.issue_callback('startup', kwargs)
-      yield pat
-      origen.producer.issue_callback('shutdown', kwargs)
+        # This initializes a new AST for the pattern we are about to generate
+        _origen.start_new_test(pat.name)
+        origen.tester.generate_pattern_header(pat.header_comments)
 
-      origen.tester.end_pattern()
-      # True means continue on fail, should make this dynamic in future so that the user can
-      # decide whether to blow up upon an error or continue to the next pattern.
-      origen.tester.render_pattern(True)
+        origen.logger.debug(f"Producing pattern {pat.name} in job {job.id}")
+        origen.producer.issue_callback('startup', kwargs)
+        yield pat
+        origen.producer.issue_callback('shutdown', kwargs)
 
-  @contextmanager
-  def Flow(self, **kwargs):
-      # Instantiate the app interface
-      if origen.interface is None:
-          path = f'{_origen.app_config()["name"]}.interface.interface'
-          origen.logger.trace(f"Looking for application test program interface at {path}")
-          try:
-              origen.logger.trace(f"Found application interface module, instantiating the Interface class")
-              m = importlib.import_module(path)
-              origen.interface = m.Interface()
-          except ModuleNotFoundError:
-              origen.logger.trace(f"Not found, instantiating Origen's basic interface instead")
-              origen.interface = BasicInterface()
-          except AttributeError:
-              origen.logger.trace(f"Not found, instantiating Origen's basic interface instead")
-              origen.interface = BasicInterface()
+        origen.tester.end_pattern()
+        # True means continue on fail, should make this dynamic in future so that the user can
+        # decide whether to blow up upon an error or continue to the next pattern.
+        origen.tester.render_pattern(True)
 
-      global top_level_flow_open
+    @contextmanager
+    def Flow(self, **kwargs):
+        # Instantiate the app interface
+        if origen.interface is None:
+            path = f'{_origen.app_config()["name"]}.interface.interface'
+            origen.logger.trace(
+                f"Looking for application test program interface at {path}")
+            try:
+                origen.logger.trace(
+                    f"Found application interface module, instantiating the Interface class"
+                )
+                m = importlib.import_module(path)
+                origen.interface = m.Interface()
+            except ModuleNotFoundError:
+                origen.logger.trace(
+                    f"Not found, instantiating Origen's basic interface instead"
+                )
+                origen.interface = BasicInterface()
+            except AttributeError:
+                origen.logger.trace(
+                    f"Not found, instantiating Origen's basic interface instead"
+                )
+                origen.interface = BasicInterface()
 
-      job = origen.producer.current_job
-      name = Path(job.current_file).stem
-      flow = FlowClass(name, **kwargs)
+        global top_level_flow_open
 
-      if top_level_flow_open:
-          top_level = False
-          origen.logger.debug(f"Producing sub-flow '{flow.name}' in job '{job.id}'")
-      else:
-          origen.logger.debug(f"Producing flow '{flow.name}' in job '{job.id}'")
-          top_level = True
-          top_level_flow_open = True
+        job = origen.producer.current_job
+        name = Path(job.current_file).stem
+        flow = FlowClass(name, **kwargs)
 
-      #origen.tester.reset()
-      #origen.target.reload()
-      #origen.tester.clear_dut_dependencies(ast_name=flow.name)
-      #origen.tester.generate_pattern_header(flow.header_comments)
+        if top_level_flow_open:
+            top_level = False
+            origen.logger.debug(
+                f"Producing sub-flow '{flow.name}' in job '{job.id}'")
+        else:
+            origen.logger.debug(
+                f"Producing flow '{flow.name}' in job '{job.id}'")
+            top_level = True
+            top_level_flow_open = True
 
-      #origen.producer.issue_callback('startup', kwargs)
-      yield origen.interface
-      #origen.producer.issue_callback('shutdown', kwargs)
+        #origen.tester.reset()
+        #origen.target.reload()
+        #origen.tester.clear_dut_dependencies(ast_name=flow.name)
+        #origen.tester.generate_pattern_header(flow.header_comments)
 
-      if top_level:
-        top_level_flow_open = False
+        #origen.producer.issue_callback('startup', kwargs)
+        yield origen.interface
+        #origen.producer.issue_callback('shutdown', kwargs)
 
-      #origen.tester.end_pattern()
-      #origen.tester.render()
+        if top_level:
+            top_level_flow_open = False
+
+        #origen.tester.end_pattern()
+        #origen.tester.render()
+
 
 # (_origen.producer.PyPattern)
 class PatternClass:

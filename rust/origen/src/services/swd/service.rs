@@ -1,6 +1,6 @@
-use crate::{Result, Error, TEST};
 use crate::core::dut::Dut;
 use crate::precludes::controller::*;
+use crate::{Error, Result, TEST};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Acknowledgements {
@@ -20,7 +20,7 @@ impl Acknowledgements {
             _ => Err(Error::new(&format!(
                 "No matching SWD acknowledgment for '{}'",
                 ack
-            )))
+            ))),
         }
     }
 
@@ -29,7 +29,7 @@ impl Acknowledgements {
             Self::Ok => "Ok",
             Self::Wait => "Wait",
             Self::Fault => "Fault",
-            Self::None => "None"
+            Self::None => "None",
         }
     }
 }
@@ -51,7 +51,12 @@ pub struct Service {
 
 #[allow(non_snake_case)]
 impl Service {
-    pub fn new(_dut: &Dut, id: usize, swdclk: Option<&PinGroup>, swdio: Option<&PinGroup>) -> Result<Self> {
+    pub fn new(
+        _dut: &Dut,
+        id: usize,
+        swdclk: Option<&PinGroup>,
+        swdio: Option<&PinGroup>,
+    ) -> Result<Self> {
         Ok(Self {
             id: id,
             swdclk: {
@@ -72,58 +77,54 @@ impl Service {
         })
     }
 
-    pub fn write_ap(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
-        let mut trans = node!(
-            SWDWriteAP,
-            self.id,
-            transaction.clone(),
-            ack,
-            None
-        );
+    pub fn write_ap(
+        &self,
+        dut: &crate::Dut,
+        transaction: Transaction,
+        ack: Acknowledgements,
+    ) -> Result<()> {
+        let mut trans = node!(SWDWriteAP, self.id, transaction.clone(), ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
         Ok(())
     }
 
-    pub fn verify_ap(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
-        let mut trans = node!(
-            SWDVerifyAP,
-            self.id,
-            transaction.clone(),
-            ack,
-            parity,
-            None
-        );
+    pub fn verify_ap(
+        &self,
+        dut: &crate::Dut,
+        transaction: Transaction,
+        ack: Acknowledgements,
+        parity: Option<bool>,
+    ) -> Result<()> {
+        let mut trans = node!(SWDVerifyAP, self.id, transaction.clone(), ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
         Ok(())
     }
 
-    pub fn write_dp(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements) -> Result<()> {
-        let mut trans = node!(
-            SWDWriteDP,
-            self.id,
-            transaction.clone(),
-            ack,
-            None
-        );
+    pub fn write_dp(
+        &self,
+        dut: &crate::Dut,
+        transaction: Transaction,
+        ack: Acknowledgements,
+    ) -> Result<()> {
+        let mut trans = node!(SWDWriteDP, self.id, transaction.clone(), ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
         Ok(())
     }
 
-    pub fn verify_dp(&self, dut: &crate::Dut, transaction: Transaction, ack: Acknowledgements, parity: Option<bool>) -> Result<()> {
-        let mut trans = node!(
-            SWDVerifyDP,
-            self.id,
-            transaction.clone(),
-            ack,
-            parity,
-            None
-        );
+    pub fn verify_dp(
+        &self,
+        dut: &crate::Dut,
+        transaction: Transaction,
+        ack: Acknowledgements,
+        parity: Option<bool>,
+    ) -> Result<()> {
+        let mut trans = node!(SWDVerifyDP, self.id, transaction.clone(), ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;

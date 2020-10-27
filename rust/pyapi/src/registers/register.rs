@@ -1,8 +1,8 @@
 use num_bigint::BigUint;
-use pyo3::prelude::*;
-use origen::core::model::registers::register::ResetVal as OrigenResetVal;
-use origen::core::model::registers::register::FieldEnum as OrigenFieldEnum;
 use origen::core::model::registers::register::FieldContainer as OrigenField;
+use origen::core::model::registers::register::FieldEnum as OrigenFieldEnum;
+use origen::core::model::registers::register::ResetVal as OrigenResetVal;
+use pyo3::prelude::*;
 
 #[pyclass]
 #[derive(Debug)]
@@ -55,17 +55,17 @@ impl Field {
         } else {
             rsts = None;
         }
-            Field {
-                name: name,
-                description: description,
-                offset: offset,
-                width: width,
-                access: access,
-                resets: rsts,
-                enums: enum_objs,
-                filename: filename,
-                lineno: lineno,
-            }
+        Field {
+            name: name,
+            description: description,
+            offset: offset,
+            width: width,
+            access: access,
+            resets: rsts,
+            enums: enum_objs,
+            filename: filename,
+            lineno: lineno,
+        }
     }
 }
 
@@ -79,12 +79,21 @@ impl Field {
             access: self.access.clone(),
             resets: {
                 if let Some(_resets) = &self.resets {
-                    Some(_resets.iter().map( |res| res.to_origen_reset_val()).collect())
+                    Some(
+                        _resets
+                            .iter()
+                            .map(|res| res.to_origen_reset_val())
+                            .collect(),
+                    )
                 } else {
                     None
                 }
             },
-            enums: self.enums.iter().map ( |e| e.to_origen_field_enum()).collect(),
+            enums: self
+                .enums
+                .iter()
+                .map(|e| e.to_origen_field_enum())
+                .collect(),
             filename: self.filename.clone(),
             lineno: self.lineno,
         }
@@ -109,12 +118,12 @@ impl FieldEnum {
         //usage: String,
         value: BigUint,
     ) -> Self {
-            FieldEnum {
-                name: name,
-                description: description,
-                //usage: usage,
-                value: value,
-            }
+        FieldEnum {
+            name: name,
+            description: description,
+            //usage: usage,
+            value: value,
+        }
     }
 }
 
@@ -123,7 +132,7 @@ impl FieldEnum {
         OrigenFieldEnum {
             name: self.name.clone(),
             description: self.name.clone(),
-            value: self.value.clone()
+            value: self.value.clone(),
         }
     }
 }
@@ -140,11 +149,11 @@ pub struct ResetVal {
 impl ResetVal {
     #[new]
     fn new(name: String, value: BigUint, mask: Option<BigUint>) -> Self {
-            ResetVal {
-                name: name,
-                value: value,
-                mask: mask
-            }
+        ResetVal {
+            name: name,
+            value: value,
+            mask: mask,
+        }
     }
 }
 
