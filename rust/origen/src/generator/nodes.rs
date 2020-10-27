@@ -44,6 +44,7 @@ pub enum Attrs {
     PinAction(usize, String, Option<HashMap<String, crate::Metadata>>),
     Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
     Cycle(u32, bool), // repeat (0 not allowed), compressable
+    //Wait(usize, crate::NanoDuration),
     PatternHeader,
     PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
                 // represents the end of the 'pattern vectors', for vector-based testers.
@@ -63,24 +64,26 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// JTAG nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    JTAGWriteIR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
+    JTAGWriteIR(
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
     JTAGVerifyIR(
-        u32,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
-    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    JTAGWriteDR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
+    JTAGWriteDR(
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
     JTAGVerifyDR(
-        u32,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
-    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// SWD nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +114,30 @@ pub enum Attrs {
         Metadata
     ),
     SWDLineReset,
+    
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Arm Debug's JTAG DP Nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ArmDebugJTAGWriteDP(
+        Id, // JTAG DP Id
+        Transaction,
+        Metadata
+    ),
+    ArmDebugJTAGVerifyDP(
+        Id,
+        Transaction,
+        Metadata
+    ),
+    ArmDebugJTAGWriteAP(
+        Id,
+        Transaction,
+        Metadata
+    ),
+    ArmDebugJTAGVerifyAP(
+        Id,
+        Transaction,
+        Metadata
+    ),
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Arm Debug nodes

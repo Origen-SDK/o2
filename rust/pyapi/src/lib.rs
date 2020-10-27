@@ -121,6 +121,9 @@ fn unpack_transaction_options(trans: &mut origen::Transaction, kwargs: Option<&P
         if let Some(address) = opts.get_item("address") {
             trans.address = Some(address.extract::<u128>()?);
         }
+        if let Some(w) = opts.get_item("address_width") {
+            trans.address_width = Some(w.extract::<usize>()?);
+        }
         if let Some(_mask) = opts.get_item("mask") {
             panic!("option not supported yet!");
         }
@@ -132,6 +135,41 @@ fn unpack_transaction_options(trans: &mut origen::Transaction, kwargs: Option<&P
         }
     }
     Ok(())
+}
+
+fn resolve_transaction(
+    dut: &std::sync::MutexGuard<origen::Dut>,
+    trans: &PyAny,
+    action: origen::TransactionAction,
+    kwargs: Option<&PyDict>
+) -> PyResult<origen::Transaction> {
+    let mut width = 32;
+    if let Some(opts) = kwargs {
+        if let Some(w) = opts.get_item("width") {
+            width = w.extract::<u32>()?;
+        }
+    }
+    let value = extract_value(trans, Some(width), &dut)?;
+    let mut trans = value.to_write_transaction(&dut)?;
+
+    if let Some(opts) = kwargs {
+        if let Some(address) = opts.get_item("address") {
+            trans.address = Some(address.extract::<u128>()?);
+        }
+        if let Some(w) = opts.get_item("address_width") {
+            trans.address_width = Some(w.extract::<usize>()?);
+        }
+        if let Some(_mask) = opts.get_item("mask") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(trans)
 }
 
 /// Exit with a failing status code and print a big FAIL to the console

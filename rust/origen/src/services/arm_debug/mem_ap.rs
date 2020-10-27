@@ -103,8 +103,27 @@ impl MemAP {
         let reg_write_node = bc.to_write_node(dut)?.unwrap();
         let n_id = TEST.push_and_open(reg_write_node.clone());
         let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
-        let swd_id = arm_debug.swd_id.unwrap();
-        let swd = services.get_as_swd(swd_id)?;
+
+        // let swd_id = arm_debug.swd_id.unwrap();
+        // let swd = services.get_as_swd(swd_id)?;
+        let jtag_dp;
+        let swd_service;
+        let jtag_dp_service;
+        let swd;
+        if *arm_debug.jtagnswd.read().unwrap() {
+            jtag_dp_service = services.get_service(arm_debug.jtag_dp_id.expect(
+                "Backend Error - JTAG DP requested but a JTAG DP instance is not available (this should have been caught upstream, please review)"
+            ))?;
+            jtag_dp = Some(jtag_dp_service.as_jtag_dp()?);
+            swd = None;
+        } else {
+            swd_service = services.get_service(arm_debug.swd_id.expect(
+                "Backend Error - SWD requested but a SWD instance is not available (this should have been caught upstream, please review)"
+            ))?;
+            swd = Some(swd_service.as_swd()?);
+            jtag_dp = None;
+        }
+
         match &reg_write_node.attrs {
             Attrs::RegWrite(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
@@ -125,7 +144,12 @@ impl MemAP {
                         let dp = services.get_as_dp(self.dp_id)?;
                         dp.update_select(dut, services, (addr & 0xFFFF_FFF0) as usize)?;
                     }
-                    swd.write_ap(dut, trans, crate::swd_ok!())?;
+
+                    if jtag_dp.is_some() {
+                        jtag_dp.unwrap().write_ap(dut, services, trans)?;
+                    } else {
+                        swd.unwrap().write_ap(dut, trans, crate::swd_ok!())?;
+                    }
 
                     TEST.close(trans_node_id)?;
                 } else {
@@ -155,8 +179,24 @@ impl MemAP {
         let n_id = TEST.push_and_open(reg_verify_node.clone());
 
         let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
-        let swd_id = arm_debug.swd_id.unwrap();
-        let swd = services.get_as_swd(swd_id)?;
+        let jtag_dp;
+        let swd_service;
+        let jtag_dp_service;
+        let swd;
+        if *arm_debug.jtagnswd.read().unwrap() {
+            jtag_dp_service = services.get_service(arm_debug.jtag_dp_id.expect(
+                "Backend Error - JTAG DP requested but a JTAG DP instance is not available (this should have been caught upstream, please review)"
+            ))?;
+            jtag_dp = Some(jtag_dp_service.as_jtag_dp()?);
+            swd = None;
+        } else {
+            swd_service = services.get_service(arm_debug.swd_id.expect(
+                "Backend Error - SWD requested but a SWD instance is not available (this should have been caught upstream, please review)"
+            ))?;
+            swd = Some(swd_service.as_swd()?);
+            jtag_dp = None;
+        }
+
         match &reg_verify_node.attrs {
             Attrs::RegVerify(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
@@ -177,19 +217,36 @@ impl MemAP {
                         let dp = services.get_as_dp(self.dp_id)?;
                         dp.update_select(dut, services, (addr & 0xFFFF_FFF0) as usize)?;
                     }
-                    swd.verify_ap(
-                        dut,
-                        trans.to_dummy()?,
-                        crate::swd_ok!(),
-                        None
-                    )?;
+                    if jtag_dp.is_some() {
+                        jtag_dp.unwrap().verify_ap(
+                            dut,
+                            services,
+                            trans.to_dummy()?,
+                            true,
+                        )?;
+                        crate::testers::vector_based::api::repeat(100);
 
-                    swd.verify_ap(
-                        dut,
-                        trans,
-                        crate::swd_ok!(),
-                        None
-                    )?;
+                        jtag_dp.unwrap().verify_ap(
+                            dut,
+                            services,
+                            trans,
+                            false,
+                        )?;
+                    } else {
+                        swd.unwrap().verify_ap(
+                            dut,
+                            trans.to_dummy()?,
+                            crate::swd_ok!(),
+                            None
+                        )?;
+
+                        swd.unwrap().verify_ap(
+                            dut,
+                            trans,
+                            crate::swd_ok!(),
+                            None
+                        )?;
+                    }
                     TEST.close(trans_node_id)?;
                 } else {
                     // External (to the MemAP) register - that is, part of the register map
@@ -203,23 +260,42 @@ impl MemAP {
                     let trans_node_id = TEST.push_and_open(trans_node);
                     self.prep_for_transfer(&trans, dut, services)?;
 
-                    let swdio = PinCollection::from_group(dut, &swd.swdio.0, swd.swdio.1)?;
-                    trans.address = Some(0xC); // DRW
-                    swd.verify_ap(
-                        dut,
-                        trans.to_dummy()?,
-                        crate::swd_ok!(),
-                        None
-                    )?;
-                    swdio.drive_low().cycle();
-                    trans.address = Some(0xC); // RDBUFF
-                    swd.verify_dp(
-                        dut,
-                        trans,
-                        crate::swd_ok!(),
-                        None
-                    )?;
-                    swdio.drive_low().cycle();
+                    if jtag_dp.is_some() {
+                        trans.address = Some(0xC);
+                        jtag_dp.unwrap().verify_ap(
+                            dut,
+                            services,
+                            trans.to_dummy()?,
+                            true,
+                        )?;
+                        crate::testers::vector_based::api::repeat(100);
+
+                        trans.address = Some(0xC);
+                        jtag_dp.unwrap().verify_dp(
+                            dut,
+                            services,
+                            trans,
+                            false
+                        )?;
+                    } else {
+                        let swdio = PinCollection::from_group(dut, &swd.unwrap().swdio.0, swd.unwrap().swdio.1)?;
+                        trans.address = Some(0xC); // DRW
+                        swd.unwrap().verify_ap(
+                            dut,
+                            trans.to_dummy()?,
+                            crate::swd_ok!(),
+                            None
+                        )?;
+                        swdio.drive_low().cycle();
+                        trans.address = Some(0xC); // RDBUFF
+                        swd.unwrap().verify_dp(
+                            dut,
+                            trans,
+                            crate::swd_ok!(),
+                            None
+                        )?;
+                        swdio.drive_low().cycle();
+                    }
                     TEST.close(trans_node_id)?;
                 }
             },

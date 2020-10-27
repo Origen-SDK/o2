@@ -23,11 +23,12 @@ class Loader:
         self.controller.sub_blocks[name] = b
         # Create a new representation of it in the internal database
         b.model_id = origen.dut.db.create_model(self.controller.model_id, name, offset)
-        for base in b.__class__.__bases__:
-            if hasattr(base, "model_init"):
-                base.model_init(b, block_options=sb_options)
-        # if hasattr(b, "model_init"):
-        #     b.model_init(b, block_options=sb_options)
+        if hasattr(b, "model_init"):
+            b.model_init(b, block_options=sb_options)
+        else:
+            for base in b.__class__.__bases__:
+                if hasattr(base, "model_init"):
+                    base.model_init(b, block_options=sb_options)
         self.controller.__class__.done_loading(name)
         return b
 

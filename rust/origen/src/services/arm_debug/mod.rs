@@ -1,7 +1,9 @@
 pub mod dp;
+pub mod jtag_dp;
 pub mod mem_ap;
 
 pub use dp::DP;
+pub use jtag_dp::JtagDP;
 pub use mem_ap::MemAP;
 
 use std::collections::HashMap;
@@ -30,6 +32,7 @@ pub struct ArmDebug {
     /// IDs of any MemAPs this ArmDebug instance contains.
     mem_ap_ids: HashMap<usize, usize>,
     dp_id: Option<usize>,
+    jtag_dp_id: Option<usize>,
 
     // Arm debug only support JTAG or SWD.
     // Store this just as a bool:
@@ -51,10 +54,14 @@ impl ArmDebug {
         swd_id: Option<usize>,
         jtag_id: Option<usize>,
     ) -> Result<usize> {
+        if swd_id.is_none() && jtag_id.is_none() {
+            return Err(Error::new("ArmDebug must be instantiated with a SWD and/or JTAG interface. Neither was provided."))
+        }
         let id = services.next_id();
         let s = Self {
             id: id,
             dp_id: None,
+            jtag_dp_id: None,
             mem_ap_ids: HashMap::new(),
             model_id: model_id,
             jtagnswd: RwLock::new(true),
@@ -100,6 +107,22 @@ impl ArmDebug {
         } else {
             Err(Error::new(&format!(
                 "Arm Debug instance at {} has not had a DP ID set yet.",
+                self.id
+            )))
+        }
+    }
+
+    pub fn set_jtag_dp_id(&mut self, jtag_dp_id: usize) -> Result<()> {
+        self.jtag_dp_id = Some(jtag_dp_id);
+        Ok(())
+    }
+
+    pub fn jtag_dp_id(&self) -> Result<usize> {
+        if let Some(id) = self.jtag_dp_id {
+            Ok(id)
+        } else {
+            Err(Error::new(&format!(
+                "Arm Debug instance at {} has not had a JTAG DP ID set yet.",
                 self.id
             )))
         }

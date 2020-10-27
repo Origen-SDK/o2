@@ -18,6 +18,7 @@ pub struct Transaction {
     pub action: Option<Action>, // Can keep this as None for a generalized transaction
     pub reg_id: Option<Id>,
     pub address: Option<u128>,
+    pub address_width: Option<usize>,
     pub width: usize,
     pub data: BigUint,
     pub bit_enable: BigUint,
@@ -27,12 +28,31 @@ pub struct Transaction {
     pub metadata: Option<Metadata>,
 }
 
+impl Default for Transaction {
+    fn default() -> Self {
+        Self {
+            action: None,
+            reg_id: None,
+            address: None,
+            address_width: None,
+            width: 0,
+            data: BigUint::from(0 as usize),
+            bit_enable: BigUint::from(0 as usize),
+            capture_enable: None,
+            overlay_enable: None,
+            overlay_string: None,
+            metadata: None
+        }
+    }
+}
+
 impl Transaction {
     pub fn new_write(data: BigUint, width: usize) -> Result<Self> {
         Ok(Self {
             action: Some(Action::Write),
             reg_id: None,
             address: None,
+            address_width: None,
             width: width,
             data: data,
             bit_enable: Self::enable_of_width(width)?,
@@ -54,6 +74,7 @@ impl Transaction {
             action: Some(Action::Verify),
             reg_id: None,
             address: None,
+            address_width: None,
             width: width,
             data: data,
             bit_enable: Self::enable_of_width(width)?,
@@ -137,6 +158,7 @@ impl Transaction {
             action: self.action.clone(),
             reg_id: self.reg_id.clone(),
             address: self.address,
+            address_width: None,
             width: self.width,
             data: self.data.clone(),
             bit_enable: BigUint::from(0 as u8),
@@ -145,6 +167,38 @@ impl Transaction {
             overlay_string: self.overlay_string.clone(),
             metadata: self.metadata.clone(),
         })
+    }
+
+    /// Shortcut function to generate a new transaction where the address
+    /// of this transaction acts as the data of the new one.
+    /// The address_width field will be the new transaction's width. If this
+    /// is not provided, it will be taken from the default_addr_size.
+    /// If neither widths are provided, or if the address width exceeds the resolved
+    /// width, an error is returned.
+    pub fn to_addr_trans(&self, default_addr_size: Option<usize>) -> Result<Self> {
+        let mut t = Self::default();
+        if self.address.is_none() {
+            return Err(Error::new("Cannot create an address transaction from a transaction which does not have an address"));
+        }
+        if let Some(w) = self.address_width {
+            t.width = w;
+        } else if let Some(w) = default_addr_size {
+            t.width = w;
+        } else {
+            return Err(Error::new("Could not create transaction from address as this transaction does not supply an address width nor was a default one provided"));
+        }
+        t.data = BigUint::from(self.address.unwrap());
+        t.bit_enable = Self::enable_of_width(t.width)?;
+        t.action = Some(Action::Write);
+        Ok(t)
+    }
+
+    pub fn prepend_data(&mut self, data: BigUint, width: usize) -> Result<()> {
+        self.data = (&self.data << width) + data;
+        self.width += width;
+        // Preserve existing bit enables
+        self.bit_enable = (&self.bit_enable << width) + Self::enable_of_width(width)?;
+        Ok(())
     }
 }
 

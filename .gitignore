@@ -1,6 +1,7 @@
 *.egg-info
 __pycache__
 /rust/origen/target
+/rust/origen/cli/target
 /rust/pyapi/target
 pip-wheel-metadata/
 _origen.pyd

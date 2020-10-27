@@ -267,13 +267,6 @@ class Base:
             self.add_simple_reg(n, offset, **kwargs)
         return self.reg(n)
 
-    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
-        pass
-
-    def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
-        pass
-
-
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
 class TopLevel(Base):

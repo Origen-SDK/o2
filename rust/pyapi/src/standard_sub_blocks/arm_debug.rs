@@ -2,6 +2,7 @@
 use origen::services::arm_debug::ArmDebug as OrigenArmDebug;
 // use origen::standard_sub_blocks::arm_debug::DP as OrigenDP;
 use origen::services::arm_debug::DP as OrigenDP;
+use origen::services::arm_debug::JtagDP as OrigenJtagDP;
 use origen::services::arm_debug::MemAP as OrigenMemAP;
 // use origen::standard_sub_blocks::arm_debug::mem_ap::MemAP as OrigenMemAP;
 use pyo3::prelude::*;
@@ -9,6 +10,7 @@ use crate::registers::bit_collection::BitCollection;
 use pyo3::types::{PyAny, PyType, PyDict, PyTuple};
 use pyo3::ToPyObject;
 use pyo3::exceptions;
+use crate::{unpack_transaction_options, extract_value};
 
 #[pymodule]
 /// Implements the module _origen.standard_sub_blocks in Python and ties together
@@ -17,6 +19,7 @@ use pyo3::exceptions;
 pub fn arm_debug(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ArmDebug>()?;
     m.add_class::<DP>()?;
+    m.add_class::<JtagDP>()?;
     m.add_class::<MemAP>()?;
     Ok(())
 }
@@ -36,6 +39,27 @@ fn check_for_swd() -> PyResult<Option<usize>> {
         let pyswd = py.eval("dut.swd", Some(locals), None)?;
         if let Ok(swd) = pyswd.extract::<PyRefMut<super::super::services::swd::SWD>>() {
             Ok(Some(swd.id()?))
+        } else {
+            Ok(None)
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+fn check_for_jtag() -> PyResult<Option<usize>> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let locals = PyDict::new(py);
+    locals.set_item("origen",  py.import("origen")?.to_object(py))?;
+    locals.set_item("builtins",  py.import("builtins")?.to_object(py))?;
+    locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
+    let m = py.eval("builtins.hasattr(dut, \"jtag\")", Some(locals), None)?;
+
+    if m.extract::<bool>()? {
+        let pyjtag = py.eval("dut.jtag", Some(locals), None)?;
+        if let Ok(jtag) = pyjtag.extract::<PyRefMut<super::super::services::jtag::JTAG>>() {
+            Ok(Some(jtag.id()?))
         } else {
             Ok(None)
         }
@@ -64,15 +88,16 @@ impl ArmDebug {
 
     #[new]
     fn new() -> Self {
-            Self {
-                arm_debug_id: None
-            }
+        Self {
+            arm_debug_id: None
+        }
     }
 
     #[classmethod]
     fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
         crate::dut::PyDUT::ensure_pins("dut")?;
         let swd_id = check_for_swd()?;
+        let jtag_id = check_for_jtag()?;
         
         // Create the Arm Debug instance
         let gil = Python::acquire_gil();
@@ -82,7 +107,7 @@ impl ArmDebug {
             let model_id = instance.getattr("model_id")?.extract::<usize>()?;
             let mut dut = origen::dut();
             let mut services = origen::services();
-            arm_debug_id = OrigenArmDebug::model_init(&mut dut, &mut services, model_id, swd_id, None)?;
+            arm_debug_id = OrigenArmDebug::model_init(&mut dut, &mut services, model_id, swd_id, jtag_id)?;
         }
 
         // Add the DP subblock
@@ -100,6 +125,22 @@ impl ArmDebug {
             let mut services = origen::services();
             let origen_arm_debug = services.get_as_mut_arm_debug(arm_debug_id)?;
             origen_arm_debug.set_dp_id(dp_id)?;
+        }
+
+        // If a jtag protocol was provided, add the JTAG DP
+        if jtag_id.is_some() {
+            let args = PyTuple::new(py, &["jtag_dp".to_object(py), "origen.arm_debug.jtag_dp".to_object(py)]);
+            let kwargs = PyDict::new(py);
+            let sb_options = PyDict::new(py);
+            sb_options.set_item("arm_debug_id", arm_debug_id)?;
+            kwargs.set_item("sb_options", sb_options.to_object(py))?;
+            let py_jtag_dp_obj = instance.downcast::<PyCell<Self>>()?.call_method("add_sub_block", args, Some(kwargs))?;
+            let py_jtag_dp = py_jtag_dp_obj.extract::<JtagDP>()?;
+            let jtag_dp_id = py_jtag_dp.id.unwrap();
+
+            let mut services = origen::services();
+            let origen_arm_debug = services.get_as_mut_arm_debug(arm_debug_id)?;
+            origen_arm_debug.set_jtag_dp_id(jtag_dp_id)?;
         }
 
         {
@@ -263,6 +304,172 @@ impl DP {
         let services = origen::services();
         let dp = services.get_as_dp(self.dp_id.unwrap())?;
         dp.verify_powered_up(&mut dut, &services)?;
+        Ok(())
+    }
+}
+
+#[pyclass(subclass)]
+#[text_signature = "()"]
+#[derive(Clone)]
+struct JtagDP {
+    pub id: Option<usize>,
+    pub arm_debug_id: Option<usize>
+}
+
+#[pymethods]
+impl JtagDP {
+
+    #[classmethod]
+    fn __init__(_cls: &PyType, _instance: &PyAny) -> PyResult<()> {
+        Ok(())
+    }
+
+    #[new]
+    fn new() -> Self {
+            Self { 
+                id: None,
+                arm_debug_id: None,
+            }
+    }
+
+    #[classmethod]
+    #[args(_block_options="**")]
+    fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
+        // Require an ArmDebug ID to tie this DP to an ArmDebug instance
+        let arm_debug_id;
+        if let Some(opts) = block_options {
+            if let Some(ad_id) = opts.get_item("arm_debug_id") {
+                if let Ok(id) = ad_id.extract::<usize>() {
+                    arm_debug_id = id;
+                } else {
+                    return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                        "Subblock arm_debug.dp was given an arm_debug _id block option but could not extract it as an integer"
+                    ));
+                }
+            } else {
+                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                    "Subblock arm_debug.dp was not given required block option 'arm_debug_id'"
+                ));
+            }
+        } else {
+            return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                "Subblock arm_debug.dp requires an arm_debug_id block option, but no block options were given."
+            ));
+        }
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let obj = instance.to_object(py);
+        let args = PyTuple::new(py, &["default".to_object(py), "default".to_object(py)]);
+        let id;
+        {
+            let mut dut = origen::dut();
+            let model_id = obj.getattr(py, "model_id")?.extract::<usize>(py)?;
+            let mut services = origen::services();
+            id = OrigenJtagDP::model_init(
+                &mut dut,
+                &mut services,
+                model_id,
+                arm_debug_id,
+                {
+                    if let Some(opts) = block_options {
+                        if let Some(default_ir_size) = opts.get_item("default_ir_size") {
+                            if let Ok(_default_ir_size) = default_ir_size.extract::<usize>() {
+                                Some(_default_ir_size)
+                            } else {
+                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                    "Subblock arm_debug.jtag_dp was given a 'default_ifr_size' block option but could not extract it as an integer"
+                                ));
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                },
+                {
+                    if let Some(opts) = block_options {
+                        if let Some(default_idcode) = opts.get_item("default_idcode") {
+                            if let Ok(_default_idcode) = default_idcode.extract::<u32>() {
+                                Some(_default_idcode)
+                            } else {
+                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                    "Subblock arm_debug.jtag_dp was given a 'default_idcode' block option but could not extract it as an integer"
+                                ));
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                },
+                {
+                    if let Some(opts) = block_options {
+                        if let Some(dpacc_select) = opts.get_item("dpacc_select") {
+                            if let Ok(_dpacc_select) = dpacc_select.extract::<u32>() {
+                                Some(_dpacc_select)
+                            } else {
+                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                    "Subblock arm_debug.jtag_dp was given a 'dpacc_select' block option but could not extract it as an integer"
+                                ));
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                },
+                {
+                    if let Some(opts) = block_options {
+                        if let Some(apacc_select) = opts.get_item("apacc_select") {
+                            if let Ok(_apacc_select) = apacc_select.extract::<u32>() {
+                                Some(_apacc_select)
+                            } else {
+                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                    "Subblock arm_debug.jtag_dp was given a 'apacc_select' block option but could not extract it as an integer"
+                                ));
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                },
+            )?;
+        }
+        let mut slf = instance.extract::<PyRefMut<Self>>()?;
+        slf.id = Some(id);
+        obj.call_method1(py, "_set_as_default_address_block", args)?;
+        Ok(())
+    }
+
+    #[args(write_opts="**")]
+    fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
+        let dut = origen::dut();
+        let services = origen::services();
+        let jtag_dp = services.get_as_jtag_dp(self.id.unwrap())?;
+
+        let value = extract_value(bits, Some(32), &dut)?;
+        let mut trans = value.to_write_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, write_opts)?;
+        jtag_dp.write_register(&dut, &services, trans)?;
+        Ok(())
+    }
+
+    #[args(verify_opts="**")]
+    fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
+        let dut = origen::dut();
+        let services = origen::services();
+        let jtag_dp = services.get_as_jtag_dp(self.id.unwrap())?;
+
+        let value = extract_value(bits, Some(32), &dut)?;
+        let mut trans = value.to_verify_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, verify_opts)?;
+        jtag_dp.verify_register(&dut, &services, trans)?;
         Ok(())
     }
 }

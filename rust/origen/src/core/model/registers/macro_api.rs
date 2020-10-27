@@ -67,6 +67,27 @@ macro_rules! add_reg_32bit {
 }
 
 #[macro_export]
+macro_rules! add_reg {
+    ( $dut:expr, $address_block_id:expr, $name:expr, $offset:expr, $size:expr, $access:expr, $resets:expr, $fields:expr, $description:expr ) => {{
+        crate::core::model::registers::register::Register::add_reg(
+            $dut,
+            $address_block_id,
+            None,
+            $name,
+            $offset,
+            Some($size),
+            "LSB0",
+            None,
+            None,
+            Some($description.to_string()),
+            $access,
+            $resets,
+            $fields
+        )?
+    }};
+}
+
+#[macro_export]
 macro_rules! field {
     ( $name:expr, $offset:expr, $width:expr, $access:expr, $enums:expr, $resets:expr, $description:expr ) => {{
         crate::core::model::registers::register::FieldContainer::internal_new($name, $offset, $width, $access, $enums, $resets, $description)
