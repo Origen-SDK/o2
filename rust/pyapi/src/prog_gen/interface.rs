@@ -36,7 +36,9 @@ impl PyInterface {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
             log_info!("Got a test invocation!");
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            log_info!("Got a testvocation!");
+            log_info!("Got a test!");
+        } else if let Ok(t) = test_obj.extract::<String>() {
+            log_info!("Got a string!");
         } else {
             log_error!("Could not convert: {:?}", test_obj);
         }

@@ -196,6 +196,7 @@ impl Test {
                     name, &self.name, value
                 ),
             },
+            &ParamType::Any => Ok(ParamValue::Any(format!("{}", value))),
         }
     }
 
@@ -205,7 +206,7 @@ impl Test {
     pub fn set(&mut self, param_name_or_alias: &str, value: ParamValue) -> Result<()> {
         let param_name = { self.to_param_name(param_name_or_alias)?.to_owned() };
         let kind = self.get_type(&param_name)?;
-        if value.is_type(kind) {
+        if value.is_type(kind) || kind == &ParamType::Any {
             if let Some(constraints) = self.constraints.get(&param_name) {
                 for constraint in constraints {
                     if let Err(e) = constraint.is_satisfied(&value) {

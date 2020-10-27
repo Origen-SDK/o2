@@ -15,6 +15,7 @@ class Interface(BaseInterface):
         with tester().specific("v93ksmt7", "v93ksmt8") as (v93k7, v93k8):
             pass
 
-        #with tester().specific("uflex") as uflex:
-        #    t = uflex.test_instances.functional(name)
-        #    self.add_test(t)
+        with tester().specific("uflex") as uflex:
+            t = uflex.test_instances.std.functional(name)
+            t.threading = True
+            self.add_test(t)

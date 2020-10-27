@@ -25,6 +25,8 @@ pub enum ParamValue {
     Time(f64),
     Frequency(f64),
     Bool(bool),
+    // Like a string, but any value assigned to such an attribute will be accepted and converted into a string representation
+    Any(String),
 }
 
 impl ParamValue {
@@ -39,6 +41,7 @@ impl ParamValue {
             ParamValue::Time(_) => kind == &ParamType::Time,
             ParamValue::Frequency(_) => kind == &ParamType::Frequency,
             ParamValue::Bool(_) => kind == &ParamType::Bool,
+            ParamValue::Any(_) => true,
         }
     }
 }
@@ -55,6 +58,7 @@ impl fmt::Display for ParamValue {
             ParamValue::Time(v) => write!(f, "{}s", v),
             ParamValue::Frequency(v) => write!(f, "{}Hz", v),
             ParamValue::Bool(v) => write!(f, "{}", v),
+            ParamValue::Any(v) => write!(f, "{}", v),
         }
     }
 }
@@ -70,6 +74,7 @@ pub enum ParamType {
     Time,
     Frequency,
     Bool,
+    Any,
 }
 
 impl FromStr for ParamType {
@@ -88,7 +93,8 @@ impl FromStr for ParamType {
             "time" | "t" | "s" => Ok(ParamType::Time),
             "frequency" | "freq" | "hz" => Ok(ParamType::Frequency),
             "boolean" | "bool" => Ok(ParamType::Bool),
-            _ => Err(format!("'{}' is not a valid parameter type, the available types are: String, Int, UInt, Number, Current, Voltage, Time, Frequency, Bool", str)),
+            "any" => Ok(ParamType::Any),
+            _ => Err(format!("'{}' is not a valid parameter type, the available types are: String, Int, UInt, Number, Current, Voltage, Time, Frequency, Bool, Any", str)),
         }
     }
 }

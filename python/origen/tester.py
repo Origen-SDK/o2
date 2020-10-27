@@ -32,6 +32,8 @@ class Tester(_origen.tester.PyTester):
                 testers.append(V93K(7))
             elif t == "V93KSMT8":
                 testers.append(V93K(8))
+            elif t == "ULTRAFLEX":
+                testers.append(ULTRAFLEX())
             else:
                 raise Exception(
                     f"The API for tester '{t}' has not been implemented yet!")
@@ -80,4 +82,8 @@ class DummyTester:
 
 
 class V93K(_origen.tester_apis.V93K):
+    pass
+
+
+class ULTRAFLEX(_origen.tester_apis.ULTRAFLEX):
     pass

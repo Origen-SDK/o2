@@ -7,7 +7,7 @@ use origen::prog_gen::{ParamType, ParamValue};
 use origen::testers::SupportedTester;
 use origen::{Result, PROG};
 use pyo3::class::basic::PyObjectProtocol;
-use pyo3::exceptions::AttributeError;
+use pyo3::exceptions::{AttributeError, TypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 
@@ -17,6 +17,60 @@ pub struct Test {
     pub id: usize,
     pub name: String,
     pub tester: SupportedTester,
+    pub initialized: bool,
+}
+
+#[pymethods]
+impl Test {
+    // This implements ..test_instances.std.functional(<name>)
+    #[__call__]
+    fn __call__(&mut self, name: &str) -> PyResult<Test> {
+        if self.initialized || self.tester != SupportedTester::ULTRAFLEX {
+            return Err(TypeError::py_err(
+                "'Test' object is not callable".to_string(),
+            ));
+        }
+        self.initialized = true;
+        self.name = name.to_owned();
+        PROG.for_tester(&self.tester).with_test_mut(self.id, |t| {
+            t.set("test_name", ParamValue::String(name.to_owned()))?;
+            Ok(())
+        })?;
+        Ok(self.clone())
+    }
+}
+
+#[pyproto]
+impl PyObjectProtocol for Test {
+    //fn __repr__(&self) -> PyResult<String> {
+    //    Ok("Hello".to_string())
+    //}
+
+    fn __getattr__(&self, query: &str) -> PyResult<()> {
+        dbg!(query);
+        Ok(())
+    }
+
+    fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
+        if PROG.for_tester(&self.tester).with_test_mut(self.id, |t| {
+            if t.has_param(name) {
+                set_value(t, name, value)?;
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        })? {
+            return Ok(());
+        }
+        // To get here the test did not have an attribute of the given name
+        let msg = format!(
+            "The {} '{}' has no attribute called '{}'",
+            name_of_test(&self.tester),
+            &self.name,
+            name
+        );
+        Err(AttributeError::py_err(msg))
+    }
 }
 
 #[pyclass]
@@ -60,12 +114,14 @@ impl PyObjectProtocol for TestInvocation {
     //fn __repr__(&self) -> PyResult<String> {
     //    Ok("Hello".to_string())
     //}
+
     fn __getattr__(&self, query: &str) -> PyResult<()> {
         dbg!(query);
         Ok(())
     }
 
     fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
+        // Specials for platform specific attributes
         if name == "test_method"
             && (self.tester == SupportedTester::V93KSMT7
                 || self.tester == SupportedTester::V93KSMT8)
@@ -73,6 +129,7 @@ impl PyObjectProtocol for TestInvocation {
             self.set_test_obj(value.extract::<Test>()?)?;
             return Ok(());
         }
+        // Try and set the attribute on the test invocation
         if PROG.for_tester(&self.tester).with_test_mut(self.id, |t| {
             if t.has_param(name) {
                 set_value(t, name, value)?;
@@ -83,6 +140,7 @@ impl PyObjectProtocol for TestInvocation {
         })? {
             return Ok(());
         }
+        // Try and set the attribute on the test (if present)
         if let Some(id) = self.test_id {
             if PROG.for_tester(&self.tester).with_test_mut(id, |t| {
                 if t.has_param(name) {
@@ -95,6 +153,7 @@ impl PyObjectProtocol for TestInvocation {
                 return Ok(());
             }
         }
+        // Tried our best
         let msg = match self.test_id {
             Some(id) => format!(
                 "Neither the {} '{}' or its {} '{}' has an attribute called '{}'",
@@ -194,6 +253,7 @@ fn set_value(t: &mut RichTest, name: &str, value: &PyAny) -> Result<()> {
                 return error!("Illegal value applied to attribute '{}' of test '{}', expected a String, got: '{}'", name, &t.name, value);
             }
         }
+        ParamType::Any => t.set(name, ParamValue::Any(format!("{}", value.str()?)))?,
     };
     Ok(())
 }
