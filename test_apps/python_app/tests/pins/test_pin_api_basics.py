@@ -10,14 +10,11 @@ def test_pin_group_base_state(clean_falcon):
     p = origen.dut.add_pin("p0")
     assert isinstance(p, _origen.dut.pins.PinGroup)
     assert p.name == "p0"
-    assert p.reset_data == 0
     assert p.reset_actions == "Z"
-    assert p.data == 0
-    assert p.pin_actions == "Z"
+    assert p.actions == "Z"
     assert p.little_endian
     assert not p.big_endian
     assert p.width == 1
-    assert p.physical_names == ["p0"]
     assert p.pin_names == ["p0"]
     assert p.width == 1
 
@@ -27,9 +24,7 @@ def test_pin_base_state(clean_falcon):
     p = origen.dut.physical_pin("p0")
     assert isinstance(p, _origen.dut.pins.Pin)
     assert p.name == "p0"
-    assert p.data == 0
     assert p.action == "Z"
-    assert p.reset_data is None
     assert p.reset_action is None
     assert p.aliases == []
     assert p.groups == {}
@@ -72,47 +67,34 @@ class TestDefiningPins:
         grp = origen.dut.add_pin("porta",
                                  width=4,
                                  reset_data=0xC,
-                                 reset_action="DVDV")
-        assert grp.data == 0xC
-        assert grp.pin_actions == "1H0L"
-        assert grp.reset_data == 0xC
+                                 reset_action="ABCD")
+        assert grp.actions == "ABCD"
         assert isinstance(grp.reset_actions, PinActions)
-        assert grp.reset_actions == "1H0L"
+        assert grp.reset_actions == "ABCD"
         # Check the physical pins
-        assert origen.dut.physical_pin("porta0").reset_action == "L"
-        assert origen.dut.physical_pin("porta0").reset_data == 0
-        assert origen.dut.physical_pin("porta1").reset_action == "0"
-        assert origen.dut.physical_pin("porta1").reset_data == 0
-        assert origen.dut.physical_pin("porta2").reset_action == "H"
-        assert origen.dut.physical_pin("porta2").reset_data == 1
-        assert origen.dut.physical_pin("porta3").reset_action == "1"
-        assert origen.dut.physical_pin("porta3").reset_data == 1
+        assert origen.dut.physical_pin("porta0").reset_action == "D"
+        assert origen.dut.physical_pin("porta1").reset_action == "C"
+        assert origen.dut.physical_pin("porta2").reset_action == "B"
+        assert origen.dut.physical_pin("porta3").reset_action == "A"
 
     def test_adding_pins_with_more_involved_reset_actions(self, clean_falcon):
         grp = origen.dut.add_pin("porta",
                                  width=4,
                                  reset_data=0xC,
-                                 reset_action=PinActions("|A|CC|B|"))
-        assert grp.data == 0xC
-        assert grp.reset_actions == "|A|CC|B|"
-        assert grp.pin_actions == "|A|CC|B|"
-        assert origen.dut.physical_pin("porta0").reset_action == "|B|"
-        assert origen.dut.physical_pin("porta0").reset_data == 0
+                                 reset_action=PinActions("ACCB"))
+        assert grp.reset_actions == "ACCB"
+        assert grp.actions == "ACCB"
+        assert origen.dut.physical_pin("porta0").reset_action == "B"
         assert origen.dut.physical_pin("porta1").reset_action == "C"
-        assert origen.dut.physical_pin("porta1").reset_data == 0
         assert origen.dut.physical_pin("porta2").reset_action == "C"
-        assert origen.dut.physical_pin("porta2").reset_data == 1
-        assert origen.dut.physical_pin("porta3").reset_action == "|A|"
-        assert origen.dut.physical_pin("porta3").reset_data == 1
+        assert origen.dut.physical_pin("porta3").reset_action == "A"
 
     def test_reset_actions_set_reset_data_when_applicable(self, clean_falcon):
         grp = origen.dut.add_pin("porta",
                                  width=4,
                                  reset_action=PinActions("HL10"))
-        assert grp.reset_data == 0xA
         assert grp.reset_actions == "HL10"
-        assert grp.data == 0xA
-        assert grp.pin_actions == "HL10"
+        assert grp.actions == "HL10"
         assert origen.dut.physical_pin("porta0").reset_action == "0"
         assert origen.dut.physical_pin("porta0").reset_data == 0
         assert origen.dut.physical_pin("porta1").reset_action == "1"
@@ -163,18 +145,6 @@ class TestDefiningPins:
             origen.dut.add_pin("invalid", offset=2)
         assert len(origen.dut.pins) == 0
 
-    def test_exception_on_invalid_reset_data(self, clean_falcon):
-        assert "invalid" not in origen.dut.pins
-        with pytest.raises(OSError):
-            origen.dut.add_pin("invalid", reset_data=2)
-        with pytest.raises(OSError):
-            origen.dut.add_pin("invalid", width=2, reset_data=4)
-        with pytest.raises(OverflowError):
-            origen.dut.add_pin("invalid", width=2, reset_data=-1)
-        with pytest.raises(TypeError):
-            origen.dut.add_pin("invalid", width=2, reset_data="hi!")
-        assert "invalid" not in origen.dut.pins
-
     def test_exception_on_invalid_reset_actions(self, clean_falcon):
         assert "invalid" not in origen.dut.pins
         with pytest.raises(OSError):
@@ -191,169 +161,93 @@ class TestDefiningPins:
             origen.dut.add_pin("invalid",
                                width=2,
                                reset_action=PinActions("ZZZ"))
-        with pytest.raises(OSError):
-            origen.dut.add_pin("invalid", width=2, reset_action="HI")
-        with pytest.raises(OSError):
-            origen.dut.add_pin("invalid", width=2, reset_action="**")
         with pytest.raises(TypeError):
             origen.dut.add_pin("invalid", width=2, reset_action=42)
         assert "invalid" not in origen.dut.pins
 
-    def test_exception_when_reset_actions_alter_reset_data(self, clean_falcon):
-        assert "invalid" not in origen.dut.pins
-        with pytest.raises(OSError):
-            origen.dut.add_pin("invalid",
-                               width=2,
-                               reset_data=0x3,
-                               reset_action="00")
-        assert "invalid" not in origen.dut.pins
-
 
 class TestSettingStates:
-    def test_setting_data(self, clean_falcon, pins, grp):
-        # Observe that the underlying pin state has changed,
-        # therefore changing ALL references to that/those pin(s)
-        grp = origen.dut.pin("grp")
-        assert grp.data == 0
-        grp.data = 0x3
-        assert grp.data == 3
-        assert origen.dut.pins["p1"].data == 1
-        assert origen.dut.pins["p2"].data == 1
-        assert origen.dut.pins["p3"].data == 0
-
-        # Set the data in a pin reference in the above group and ensure
-        # that the update is reflected there.
-        origen.dut.pins["p3"].data = 1
-        assert origen.dut.pins["p3"].data == 1
-        assert grp.data == 7
-
     def test_driving_pins(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        is_pin_group(grp.drive())
-        assert grp.pin_actions == "000"
-        assert grp.data == 0
-        assert origen.dut.pins["p1"].pin_actions == "0"
-        assert origen.dut.pins["p2"].pin_actions == "0"
-        assert origen.dut.pins["p3"].pin_actions == "0"
+        is_pin_group(grp.drive(0))
+        assert grp.actions == "000"
+        assert origen.dut.pins["p1"].actions == "0"
+        assert origen.dut.pins["p2"].actions == "0"
+        assert origen.dut.pins["p3"].actions == "0"
 
     def test_driving_pins_with_data(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
         is_pin_group(grp.drive(0x7))
-        assert grp.data == 0x7
-        assert grp.pin_actions == "111"
+        assert grp.actions == "111"
 
     def test_veriying_pins(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        is_pin_group(grp.verify())
-        assert grp.data == 0
-        assert grp.pin_actions == "LLL"
+        is_pin_group(grp.verify(0))
+        assert grp.actions == "LLL"
 
     def test_veriying_pins_with_data(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
         is_pin_group(grp.verify(0x7))
-        assert grp.data == 0x7
-        assert grp.pin_actions == "HHH"
+        assert grp.actions == "HHH"
 
     def test_capturing_pins(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
         is_pin_group(grp.capture())
-        assert grp.pin_actions == "CCC"
-        assert origen.dut.pins["p1"].pin_actions == "C"
-        assert origen.dut.pins["p2"].pin_actions == "C"
-        assert origen.dut.pins["p3"].pin_actions == "C"
+        assert grp.actions == "CCC"
+        assert origen.dut.pins["p1"].actions == "C"
+        assert origen.dut.pins["p2"].actions == "C"
+        assert origen.dut.pins["p3"].actions == "C"
 
     def test_tristating_pins(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        grp.drive()
-        assert grp.pin_actions == "000"
+        grp.drive(0)
+        assert grp.actions == "000"
         is_pin_group(grp.highz())
-        assert grp.pin_actions == "ZZZ"
-        assert origen.dut.pins["p1"].pin_actions == "Z"
-        assert origen.dut.pins["p2"].pin_actions == "Z"
-        assert origen.dut.pins["p3"].pin_actions == "Z"
+        assert grp.actions == "ZZZ"
+        assert origen.dut.pins["p1"].actions == "Z"
+        assert origen.dut.pins["p2"].actions == "Z"
+        assert origen.dut.pins["p3"].actions == "Z"
 
     def test_setting_pins_to_arbitrary_actions(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        grp.set_actions("|A||B||C|")
-        assert grp.pin_actions == "|A||B||C|"
-        assert origen.dut.pins["p1"].pin_actions == "|C|"
-        assert origen.dut.pins["p2"].pin_actions == "|B|"
-        assert origen.dut.pins["p3"].pin_actions == "|A|"
+        grp.set_actions("ABC")
+        assert grp.actions == "ABC"
+        assert origen.dut.pins["p1"].actions == "C"
+        assert origen.dut.pins["p2"].actions == "B"
+        assert origen.dut.pins["p3"].actions == "A"
 
-    def test_setting_pins_using_pin_actions_class(self, clean_falcon, pins,
-                                                  grp):
+    def test_setting_pins_using_actions_class(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        grp.set_actions(PinActions("|D||E|C"))
-        assert grp.pin_actions == "|D||E|C"
-        assert origen.dut.pins["p1"].pin_actions == "C"
-        assert origen.dut.pins["p2"].pin_actions == "|E|"
-        assert origen.dut.pins["p3"].pin_actions == "|D|"
+        grp.set_actions(PinActions("DEC"))
+        assert grp.actions == "DEC"
+        assert origen.dut.pins["p1"].actions == "C"
+        assert origen.dut.pins["p2"].actions == "E"
+        assert origen.dut.pins["p3"].actions == "D"
 
-    def test_setting_states_with_nonsticky_mask(self, clean_falcon, pins, grp):
+    def test_setting_states_with_mask(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        grp.with_mask(0x3).set_actions(PinActions("|A||B||C|"))
-        assert grp.pin_actions == "Z|B||C|"
-        assert origen.dut.pins["p1"].pin_actions == "|C|"
-        assert origen.dut.pins["p2"].pin_actions == "|B|"
-        assert origen.dut.pins["p3"].pin_actions == "Z"
+        assert grp.actions == "ZZZ"
+        grp.set_actions(PinActions("ABC"), mask=0x3)
+        assert grp.actions == "ZBC"
+        assert origen.dut.pins["p1"].actions == "C"
+        assert origen.dut.pins["p2"].actions == "B"
+        assert origen.dut.pins["p3"].actions == "Z"
 
     def test_setting_states_updates_data_when_appropriate(
             self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        assert grp.pin_actions == "ZZZ"
-        assert grp.data == 0
+        assert grp.actions == "ZZZ"
         grp.set_actions("1HL")
-        assert grp.pin_actions == "1HL"
-        assert grp.data == 0x6
-
-    def test_resetting_data(self, clean_falcon):
-        grp = origen.dut.add_pin("porta",
-                                 width=4,
-                                 reset_data=0xC,
-                                 reset_action="DVDV")
-        assert grp.data == 0xC
-        assert grp.pin_actions == "1H0L"
-        grp.drive(0x3)
-        assert grp.data == 0x3
-        assert grp.pin_actions == "0011"
-        grp.reset()
-        assert grp.data == 0xC
-        assert grp.pin_actions == "1H0L"
-
-    def test_exception_on_overflow_data(self, clean_falcon, pins, grp):
-        grp = origen.dut.pin("grp")
-        grp.data = 7
-        assert grp.data == 7
-        with pytest.raises(OSError):
-            grp.data = 8
-        with pytest.raises(OSError):
-            grp.set(8)
-        assert grp.data == 7
-
-    def test_exception_on_invalid_data(self, clean_falcon, pins, grp):
-        grp = origen.dut.pin("grp")
-        with pytest.raises(TypeError):
-            grp.data = "hi"
-        with pytest.raises(TypeError):
-            grp.set({})
-        with pytest.raises(TypeError):
-            grp.data = []
-        with pytest.raises(TypeError):
-            grp.set(origen)
-        with pytest.raises(OverflowError):
-            grp.data = -1
+        assert grp.actions == "1HL"
 
     def test_exception_on_overflow_actions(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
-        grp.data = 7
-        assert grp.data == 7
-        assert grp.pin_actions == "ZZZ"
+        assert grp.actions == "ZZZ"
         with pytest.raises(OSError):
             grp.drive(8)
         with pytest.raises(OSError):
             grp.verify(8)
-        assert grp.pin_actions == "ZZZ"
-        assert grp.data == 7
+        assert grp.actions == "ZZZ"
 
     def test_exception_on_invalid_actions(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")

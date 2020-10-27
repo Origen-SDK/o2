@@ -217,34 +217,6 @@ class TestEventsListLike(Fixture_ListLikeAPI):
         return w.events
 
 
-# class TestEventsListLike(Fixture_ListLikeAPI):
-#   def equals(i, expected):
-#     assert i.action == expected["action"]
-#     assert i.data == expected["data"]
-#     assert i.at == expected["at"]
-
-#   def parameterize(self):
-#     return {
-#       "items": [
-#         {action: "drive", data: 1, at: "0"},
-#         {action: "drive", data: 0, at: "period*0.25"},
-#         {action: "drive", data: 1, at: "period*0.5"},
-#         {action: "drive", data: 0, at: "period*0.75"}
-#       ],
-#       "klass": _origen.dut.timesets.Event,
-#       "not_in_dut": "Blah"
-#     }
-
-# def boot_dict_under_test(self):
-#   instantiate_dut("dut.eagle")
-#   w = origen.dut.add_timeset("t").add_wavetable("wt").add_wave("w")
-#   w.add_event("drive 1", "0")
-#   w.add_event("drive 0", "period*0.25")
-#   w.add_event("drive 1", "period*0.5")
-#   w.add_event("drive 0", "period*0.75")
-#   return w.events
-
-
 class TestComplexTimingScenerios:
 
     # Test adding a timeset with more complex features.
@@ -997,7 +969,7 @@ def test_corner_case__setting_custom_action_with_same_symbol_as_standard_action(
         clean_eagle, clean_dummy):
     assert origen.dut.timeset('simple').symbol_map['1'] == '1'
     origen.dut.timeset('simple').symbol_map['|1|'] = '2'
-    assert origen.dut.timeset('simple').symbol_map['1'] == '1'
+    assert origen.dut.timeset('simple').symbol_map['1'] == '2'
     assert origen.dut.timeset('simple').symbol_map['|1|'] == '2'
 
 

@@ -1,8 +1,8 @@
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
 use crate::node;
+use crate::Transaction;
 use crate::{Dut, Error, Result, TEST};
-use crate::{Transaction, TransactionAction};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
@@ -454,18 +454,26 @@ impl<'a> BitCollection<'a> {
         if let Some(id) = self.reg_id {
             let reg = self.reg(dut)?;
             let bits = reg.bits(dut);
-            Ok(Transaction {
-                action: Some(TransactionAction::Verify),
-                reg_id: Some(id),
-                address: Some(reg.address(dut, None)?),
-                width: reg.size,
-                data: bits.data()?,
-                bit_enable: bits.verify_enables(),
-                capture_enable: Some(bits.capture_enables()),
-                overlay_enable: Some(bits.overlay_enables()),
-                overlay_string: bits.get_overlay()?,
-                metadata: None,
-            })
+            let mut t = Transaction::new_verify(bits.data()?, reg.size)?;
+            t.reg_id = Some(id);
+            t.address = Some(reg.address(dut, None)?);
+            t.bit_enable = bits.verify_enables();
+            t.capture_enable = Some(bits.capture_enables());
+            t.overlay_enable = Some(bits.overlay_enables());
+            t.overlay_string = bits.get_overlay()?;
+            Ok(t)
+        // Ok(Transaction {
+        //     action: Some(TransactionAction::Verify),
+        //     reg_id: Some(id),
+        //     address: Some(reg.address(dut, None)?),
+        //     width: reg.size,
+        //     data: bits.data()?,
+        //     bit_enable: bits.verify_enables(),
+        //     capture_enable: Some(bits.capture_enables()),
+        //     overlay_enable: Some(bits.overlay_enables()),
+        //     overlay_string: bits.get_overlay()?,
+        //     metadata: None,
+        // })
         } else {
             Err(Error::new(&format!(
                 "bit collection 'to_verify_transaction' only supported for register-based bit collections"
@@ -528,18 +536,25 @@ impl<'a> BitCollection<'a> {
         if let Some(id) = self.reg_id {
             let reg = self.reg(dut)?;
             let bits = reg.bits(dut);
-            Ok(Transaction {
-                action: Some(TransactionAction::Write),
-                reg_id: Some(id),
-                address: Some(reg.address(dut, None)?),
-                width: reg.size,
-                data: bits.data()?,
-                bit_enable: Transaction::enable_of_width(reg.size)?,
-                capture_enable: None,
-                overlay_enable: Some(bits.overlay_enables()),
-                overlay_string: bits.get_overlay()?,
-                metadata: None,
-            })
+            let mut t = Transaction::new_write(bits.data()?, reg.size)?;
+            t.reg_id = Some(id);
+            t.address = Some(reg.address(dut, None)?);
+            t.bit_enable = Transaction::enable_of_width(reg.size)?;
+            t.overlay_enable = Some(bits.overlay_enables());
+            t.overlay_string = bits.get_overlay()?;
+            // Ok(Transaction {
+            //     action: Some(TransactionAction::Write),
+            //     reg_id: Some(id),
+            //     address: Some(reg.address(dut, None)?),
+            //     width: reg.size,
+            //     data: bits.data()?,
+            //     bit_enable: Transaction::enable_of_width(reg.size)?,
+            //     capture_enable: None,
+            //     overlay_enable: Some(bits.overlay_enables()),
+            //     overlay_string: bits.get_overlay()?,
+            //     metadata: None,
+            // })
+            Ok(t)
         } else {
             Err(Error::new(&format!(
                 "bit collection 'to_verify_transaction' only supported for register-based bit collections"

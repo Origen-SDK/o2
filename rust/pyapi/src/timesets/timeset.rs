@@ -926,19 +926,19 @@ impl Event {
     }
 }
 
-macro_rules! action_from_pyany {
-    ($action:ident) => {
-        origen::core::model::pins::pin::PinActions::from_delimiter_optional(
+fn action_from_pyany(action: &PyAny) -> PyResult<origen::core::model::pins::pin::PinAction> {
+    Ok(
+        origen::core::model::pins::pin::PinAction::from_delimiter_optional(
             {
                 let t;
-                if let Ok(a) = $action.extract::<String>() {
+                if let Ok(a) = action.extract::<String>() {
                     t = a.clone();
-                } else if $action.get_type().name() == "PinActions" {
-                    let pin_actions = $action
+                } else if action.get_type().name() == "PinActions" {
+                    let pin_actions = action
                         .extract::<PyRef<super::super::pins::pin_actions::PinActions>>()
                         .unwrap();
                     if pin_actions.actions.len() == 1 {
-                        t = pin_actions.actions.first().unwrap().to_string().unwrap();
+                        t = pin_actions.actions.first().unwrap().to_string();
                     } else {
                         return Err(pyo3::exceptions::ValueError::py_err(
                             "SymbolMap lookups can only retrieve single symbols at a time",
@@ -947,14 +947,14 @@ macro_rules! action_from_pyany {
                 } else {
                     return super::super::type_error!(&format!(
                         "Cannot cast type {} to a valid PinAction",
-                        $action.get_type().name()
+                        action.get_type().name()
                     ));
                 }
                 t
             }
             .as_str(),
-        )?
-    };
+        )?,
+    )
 }
 
 #[pyclass]
@@ -980,7 +980,7 @@ impl SymbolMap {
         Ok(resolver
             .mapping()
             .iter()
-            .map(|(k, _)| k.to_string().unwrap())
+            .map(|(k, _)| k.to_string())
             .collect())
     }
 
@@ -1001,7 +1001,7 @@ impl SymbolMap {
         Ok(resolver
             .mapping()
             .iter()
-            .map(|(k, v)| (k.to_string().unwrap(), v.to_string()))
+            .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect::<Vec<(String, String)>>())
     }
 
@@ -1024,7 +1024,7 @@ impl SymbolMap {
             let mut dut = DUT.lock().unwrap();
             let tset = &mut dut.timesets[self.timeset_id];
             if let Some(resolver) = tset.pin_action_resolvers.get_mut(&t) {
-                resolver.update_mapping(action_from_pyany!(action), new_resolution.clone());
+                resolver.update_mapping(action_from_pyany(action)?, new_resolution.clone());
                 Ok(())
             } else {
                 Err(pyo3::exceptions::KeyError::py_err(format!(
@@ -1071,7 +1071,7 @@ impl PyMappingProtocol for SymbolMap {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
 
-        if let Some(r) = resolver.resolve(&action_from_pyany!(action)) {
+        if let Some(r) = resolver.resolve(&action_from_pyany(action)?) {
             Ok(r)
         } else {
             Err(pyo3::exceptions::KeyError::py_err(format!(
@@ -1087,7 +1087,7 @@ impl PyMappingProtocol for SymbolMap {
         for target in tester.targets_as_strs().iter() {
             // let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
             let resolver = &mut dut.timesets[self.timeset_id].pin_action_resolvers[target];
-            resolver.update_mapping(action_from_pyany!(action), new_resolution.clone())
+            resolver.update_mapping(action_from_pyany(action)?, new_resolution.clone())
         }
         Ok(())
     }

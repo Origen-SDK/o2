@@ -64,7 +64,7 @@ impl PinContainer {
                 name_strs.push(_n.clone());
             }
         }
-        let collection = PinCollection::new(self.model_id, name_strs, endianness)?;
+        let collection = PinCollection::new(name_strs, endianness)?;
         let c = Py::new(py, collection).unwrap();
         Ok(c)
     }

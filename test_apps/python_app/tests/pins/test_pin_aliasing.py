@@ -32,16 +32,12 @@ class TestPinAliasing:
         p1 = origen.dut.pin("p1")
         a1 = origen.dut.pin("a1")
         a1.drive(1)
-        assert a1.data == 1
-        assert a1.pin_actions == "1"
-        assert p1.data == 1
-        assert p1.pin_actions == "1"
+        assert a1.actions == "1"
+        assert p1.actions == "1"
 
         a1.verify(0)
-        assert a1.data == 0
-        assert a1.pin_actions == "L"
-        assert p1.data == 0
-        assert p1.pin_actions == "L"
+        assert a1.actions == "L"
+        assert p1.actions == "L"
 
     def test_aliasing_an_alias(self, clean_falcon, pins, grp, ports):
         origen.dut.add_pin_alias("p1", "a1")

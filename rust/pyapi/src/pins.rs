@@ -39,6 +39,30 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+pub fn extract_pin_transaction(
+    actions: &PyAny,
+    kwargs: Option<&PyDict>,
+) -> PyResult<origen::Transaction> {
+    let actions = extract_pinactions!(actions)?;
+    let mut t = origen::Transaction::new_set(&actions)?;
+    if let Some(opts) = kwargs {
+        if let Some(mask) = opts.get_item("mask") {
+            if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+                t.bit_enable = big_mask;
+            } else {
+                return super::type_error!("Could not extract kwarg 'mask' as an integer");
+            }
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(t)
+}
+
 /// Given a vector of PyAny's, assumed to be either a String, Pin, or PinGroup object,
 /// return a vector with each item mapped as (model_id<usize>, name<String>) pairs.
 /// This pair is sufficient to lookup the pin group object in the backend.
@@ -79,24 +103,14 @@ impl PyDUT {
     #[args(kwargs = "**")]
     fn add_pin(&self, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
-        let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (
-            Option<u32>,
-            Option<Vec<origen::core::model::pins::pin::PinActions>>,
+        let (mut reset_action, mut width, mut offset, mut endianness): (
+            Option<Vec<origen::core::model::pins::pin::PinAction>>,
             Option<u32>,
             Option<u32>,
             Option<Endianness>,
-        ) = (
-            Option::None,
-            Option::None,
-            Option::None,
-            Option::None,
-            Option::None,
-        );
+        ) = (Option::None, Option::None, Option::None, Option::None);
         match kwargs {
             Some(args) => {
-                if let Some(arg) = args.get_item("reset_data") {
-                    reset_data = Option::Some(arg.extract::<u32>()?);
-                }
                 if let Some(arg) = args.get_item("reset_action") {
                     reset_action = Some(extract_pinactions!(arg)?);
                 }
@@ -116,15 +130,7 @@ impl PyDUT {
             }
             None => {}
         }
-        dut.add_pin(
-            model_id,
-            name,
-            width,
-            offset,
-            reset_data,
-            reset_action,
-            endianness,
-        )?;
+        dut.add_pin(model_id, name, width, offset, reset_action, endianness)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();

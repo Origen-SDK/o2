@@ -1,5 +1,5 @@
 use super::super::pins::pin::Resolver as PinActionsResolver;
-use super::super::pins::pin::{PinActions, ResolvePinActions};
+use super::super::pins::pin::{PinAction, ResolvePinActions};
 use crate::core::dut::Dut;
 use crate::core::tester::TesterSource;
 use crate::error::Error;
@@ -7,14 +7,25 @@ use eval;
 use indexmap::map::IndexMap;
 use std::collections::HashMap;
 
+// pub fn default_resolver() -> PinActionsResolver {
+//     let mut map = PinActionsResolver::new();
+//     map.update_mapping(PinActions::DriveHigh, "1".to_string());
+//     map.update_mapping(PinActions::DriveLow, "0".to_string());
+//     map.update_mapping(PinActions::VerifyHigh, "H".to_string());
+//     map.update_mapping(PinActions::VerifyLow, "L".to_string());
+//     map.update_mapping(PinActions::Capture, "C".to_string());
+//     map.update_mapping(PinActions::HighZ, "X".to_string());
+//     map
+// }
+
 pub fn default_resolver() -> PinActionsResolver {
     let mut map = PinActionsResolver::new();
-    map.update_mapping(PinActions::DriveHigh, "1".to_string());
-    map.update_mapping(PinActions::DriveLow, "0".to_string());
-    map.update_mapping(PinActions::VerifyHigh, "H".to_string());
-    map.update_mapping(PinActions::VerifyLow, "L".to_string());
-    map.update_mapping(PinActions::Capture, "C".to_string());
-    map.update_mapping(PinActions::HighZ, "X".to_string());
+    map.update_mapping(PinAction::drive_high(), "1".to_string());
+    map.update_mapping(PinAction::drive_low(), "0".to_string());
+    map.update_mapping(PinAction::verify_high(), "H".to_string());
+    map.update_mapping(PinAction::verify_low(), "L".to_string());
+    map.update_mapping(PinAction::capture(), "C".to_string());
+    map.update_mapping(PinAction::highz(), "X".to_string());
     map
 }
 

@@ -108,7 +108,6 @@ class TestPinLoaderAPI:
             "portb3", "portb", "portc0", "portc1", "portc", "clk", "swd_clk",
             "swdclk", "tclk", "swdio", "reset"
         ]
-        assert origen.dut.pin("portc").reset_data == 0x3
         assert origen.dut.pin("clk").reset_actions == "0"
         assert origen.dut.pin_headers.keys() == [
             "ports", "clk", "all", "pins-for-toggle", "pins-for-toggle-rev",

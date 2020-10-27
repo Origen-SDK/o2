@@ -6,8 +6,6 @@ from tests.shared.python_like_apis import Fixture_ListLikeAPI  # pylint: disable
 klass = origen.pins.PinActions
 backend_klass = _origen.dut.pins.PinActions
 standard_actions = {
-    'Drive': 'D',
-    'Verify': 'V',
     'DriveHigh': '1',
     'DriveLow': '0',
     'VerifyHigh': 'H',
@@ -22,9 +20,8 @@ def std_test():
 
 
 class TestPinActions:
-
-    # def test_standard_actions(self):
-    #   assert klass.standard_actions() == standard_actions
+    def test_standard_actions(self):
+        assert klass.standard_actions() == standard_actions
 
     @pytest.mark.parametrize("action", standard_actions.items())
     def test_standard_actions_instances(self, action):
@@ -68,12 +65,6 @@ class TestPinActions:
         with pytest.raises(TypeError):
             klass("H", "L", [])
 
-    def test_error_with_nonstandard_action(self):
-        with pytest.raises(OSError) as e:
-            klass("A")
-        assert "Cannot derive PinActions enum from encoded character A!" in str(
-            e.value)
-
     class TestPinActions(Fixture_ListLikeAPI):
         ''' Although this *feels* more like a ``str``, the actual list-like
         behavior is emulated like that of a ``list``.
@@ -86,18 +77,18 @@ class TestPinActions:
 
         def verify_i0(self, i):
             assert isinstance(i, _origen.dut.pins.PinActions)
-            assert i == _origen.dut.pins.PinActions.Drive()
+            assert i == _origen.dut.pins.PinActions.DriveHigh()
 
         def verify_i1(self, i):
             assert isinstance(i, _origen.dut.pins.PinActions)
-            assert i == _origen.dut.pins.PinActions.Verify()
+            assert i == _origen.dut.pins.PinActions.VerifyLow()
 
         def verify_i2(self, i):
             assert isinstance(i, _origen.dut.pins.PinActions)
             assert i == _origen.dut.pins.PinActions.Capture()
 
         def boot_list_under_test(self):
-            return klass("CVD")
+            return klass("CL1")
 
     def test_representation(self):
         actions = std_test()
@@ -108,49 +99,36 @@ class TestPinActions:
         assert actions[-1] == klass.DriveHigh()
 
     def test_custom_actions(self):
-        actions = klass("|x|")
-        assert str(actions) == "|x|"
-        assert actions[0] == klass.Other("x")
+        actions = klass("x")
+        assert str(actions) == "x"
+        assert actions[0] == klass("x")
         assert not actions.all_standard
 
     def test_multiple_other_actions(self):
-        actions = klass("10|A||B|HL|C|Z")
-        assert str(actions) == "10|A||B|HL|C|Z"
+        actions = klass("10ABHLCZ")
+        assert str(actions) == "10ABHLCZ"
         assert not actions.all_standard
         assert actions[0] == klass.HighZ()
-        assert actions[1] == klass.Other('C')
-        assert actions[4] == klass.Other('B')
-        assert actions[5] == klass.Other('A')
+        assert actions[1] == klass('C')
+        assert actions[4] == klass('B')
+        assert actions[5] == klass('A')
 
     def test_more_creating_other_actions(self):
-        actions = klass("10|A||B|HL|C|Z")
-        assert actions == "10|A||B|HL|C|Z"
-        actions2 = klass("1", "0", "|A|", "|B|", "H", "L|C|Z")
+        actions = klass("10ABHLCZ")
+        assert actions == "10ABHLCZ"
+        actions2 = klass("1", "0", "A", "B", "H", "LCZ")
         assert actions == actions2
-        actions3 = klass("10|A|", klass.Other('B'), klass.VerifyHigh(),
-                         klass.VerifyLow(), klass.Other('C'), "Z")
+        actions3 = klass("10A", klass('B'), klass.VerifyHigh(),
+                         klass.VerifyLow(), klass('C'), "Z")
         assert actions == actions3
-
-    def test_overriding_standard_actions(self):
-        actions = klass("10|1||0|")
-        assert str(actions) == "10|1||0|"
-        assert actions[0] == klass.Other('0')
-        assert str(actions[0]) == '|0|'
-        assert actions[1] == klass.Other('1')
-        assert str(actions[1]) == '|1|'
-        assert actions[2] == klass.DriveLow()
-        assert str(actions[2]) == '0'
-        assert actions[3] == klass.DriveHigh()
-        assert str(actions[3]) == '1'
-        assert not actions.all_standard
 
     def test_multi_char_symbols(self):
         actions = klass("1|Hi||Hello|")
         assert len(actions) == 3
         assert str(actions) == "1|Hi||Hello|"
-        assert actions[0] == klass.Other("Hello")
+        assert actions[0] == klass.Multichar("Hello")
         assert str(actions[0]) == '|Hello|'
-        assert actions[1] == klass.Other("Hi")
+        assert actions[1] == klass.Multichar("Hi")
         assert str(actions[1]) == '|Hi|'
         assert actions[2] == klass.DriveHigh()
         assert not actions.all_standard
