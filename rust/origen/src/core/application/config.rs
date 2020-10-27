@@ -1,8 +1,8 @@
+use crate::core::application::target::matches;
 use crate::core::term;
 use crate::utility::location::Location;
 use config::File;
 use std::path::{Path, PathBuf};
-use crate::core::application::target::matches;
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -54,7 +54,10 @@ impl Config {
             for t in targets.iter() {
                 let m = matches(t, "targets");
                 if m.len() != 1 {
-                    term::redln(&format!("Error present in default target '{}' (in config/application.toml)", t));
+                    term::redln(&format!(
+                        "Error present in default target '{}' (in config/application.toml)",
+                        t
+                    ));
                 }
             }
         }

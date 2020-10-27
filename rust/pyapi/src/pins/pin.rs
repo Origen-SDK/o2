@@ -118,7 +118,7 @@ impl Pin {
     fn get_action(&self) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let pin = dut._get_pin(self.model_id, &self.name)?;
-        let name = pin.action.read().unwrap().to_string()?;
+        let name = pin.action.read().unwrap().to_string();
         Ok(name)
     }
 
@@ -136,8 +136,8 @@ impl Pin {
 
         let gil = Python::acquire_gil();
         let py = gil.python();
-        match pin.reset_data {
-            Some(d) => Ok(d.to_object(py)),
+        match &pin.reset_action {
+            Some(d) => Ok(d.to_logic()?.to_object(py)),
             None => Ok(py.None()),
         }
     }
@@ -150,7 +150,7 @@ impl Pin {
         let gil = Python::acquire_gil();
         let py = gil.python();
         match pin.reset_action.as_ref() {
-            Some(a) => Ok(a.to_string()?.into_py(py)),
+            Some(a) => Ok(a.to_string().into_py(py)),
             None => Ok(py.None()),
         }
     }

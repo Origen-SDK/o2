@@ -17,10 +17,8 @@ macro_rules! get_bc_for {
             Some(f) => Ok(f.bits($dut)),
             None => Err(crate::Error::new(&format!(
                 "Could not find bitfield '{}' in register '{}' (address block: '{}')",
-                $field_name,
-                $reg_name,
-                ab.name
-            )))
+                $field_name, $reg_name, ab.name
+            ))),
         }
     }};
     ( $dut:expr, $reg:expr, $field_name:expr ) => {{
@@ -28,11 +26,10 @@ macro_rules! get_bc_for {
             Some(f) => Ok(f.bits($dut)),
             None => Err(crate::Error::new(&format!(
                 "Could not find bitfield '{}' in register '{}'",
-                $field_name,
-                $reg.name,
-            )))
+                $field_name, $reg.name,
+            ))),
         }
-    }}
+    }};
 }
 
 #[macro_export]
@@ -61,7 +58,7 @@ macro_rules! add_reg_32bit {
             Some($description.to_string()),
             $access,
             $resets,
-            $fields
+            $fields,
         )?
     }};
 }
@@ -90,13 +87,23 @@ macro_rules! add_reg {
 #[macro_export]
 macro_rules! field {
     ( $name:expr, $offset:expr, $width:expr, $access:expr, $enums:expr, $resets:expr, $description:expr ) => {{
-        crate::core::model::registers::register::FieldContainer::internal_new($name, $offset, $width, $access, $enums, $resets, $description)
+        crate::core::model::registers::register::FieldContainer::internal_new(
+            $name,
+            $offset,
+            $width,
+            $access,
+            $enums,
+            $resets,
+            $description,
+        )
     }};
 }
 
 #[macro_export]
 macro_rules! some_hard_reset_val {
     ( $val:expr ) => {{
-        Some(vec!(crate::core::model::registers::register::ResetVal::new("hard", $val, None)))
+        Some(vec![
+            crate::core::model::registers::register::ResetVal::new("hard", $val, None),
+        ])
     }};
 }

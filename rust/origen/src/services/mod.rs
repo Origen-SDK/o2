@@ -1,6 +1,6 @@
+pub mod arm_debug;
 pub mod jtag;
 pub mod swd;
-pub mod arm_debug;
 
 pub use arm_debug::ArmDebug;
 
@@ -23,7 +23,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service SWD but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 
@@ -43,7 +43,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebug but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 
@@ -53,7 +53,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebug but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 
@@ -63,7 +63,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebugDP but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 
@@ -73,7 +73,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebugDP but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 
@@ -103,7 +103,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebugMemAP but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 }
@@ -220,7 +220,7 @@ impl Services {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebug but received {:?}",
                 s
-            )))
+            ))),
         }
     }
 }

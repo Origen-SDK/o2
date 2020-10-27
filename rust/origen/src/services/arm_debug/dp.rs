@@ -1,15 +1,15 @@
+use super::super::super::services::Service;
+use crate::core::model::registers::BitCollection;
+use crate::Transaction;
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
-use crate::core::model::registers::BitCollection;
-use super::super::super::services::Service;
-use crate::Transaction;
 
 use crate::generator::ast::Node;
 
 // Register descriptions taken from the Arm Debug RM
-use crate::{Result, TEST, Dut, 
-    add_reg_32bit, field, some_hard_reset_val, get_bc_for, get_reg_as_bc,
-    get_reg
+use crate::{
+    add_reg_32bit, field, get_bc_for, get_reg, get_reg_as_bc, some_hard_reset_val, Dut, Result,
+    TEST,
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -22,20 +22,25 @@ pub struct DP {
 }
 
 impl DP {
-    pub fn model_init(dut: &mut crate::Dut, services: &mut crate::Services, model_id: usize, arm_debug_id: usize) -> Result<usize> {
+    pub fn model_init(
+        dut: &mut crate::Dut,
+        services: &mut crate::Services,
+        model_id: usize,
+        arm_debug_id: usize,
+    ) -> Result<usize> {
         let memory_map_id = dut.create_memory_map(model_id, "default", None)?;
-        let ab_id = dut.create_address_block(
-            memory_map_id,
-            "default",
-            None,
-            None,
-            Some(32),
-            None
-        )?;
+        let ab_id =
+            dut.create_address_block(memory_map_id, "default", None, None, Some(32), None)?;
 
         // Read request -> IDCODE
         // Write request -> ABORT
-        add_reg_32bit!(dut, ab_id, "idcode", 0, Some("RW"), some_hard_reset_val!(0),
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "idcode",
+            0,
+            Some("RW"),
+            some_hard_reset_val!(0),
             vec!(
                 field!("REVISION", 28, 4, "RO", vec!(), None, ""),
                 field!("PARTNO", 20, 8, "RO", vec!(), None, ""),
@@ -46,32 +51,151 @@ impl DP {
             ),
             "Provides information about the Debug Port."
         );
-        add_reg_32bit!(dut, ab_id, "abort", 0, Some("RO"), None, vec!(
-        ), "");
+        add_reg_32bit!(dut, ab_id, "abort", 0, Some("RO"), None, vec!(), "");
 
-        add_reg_32bit!(dut, ab_id, "ctrlstat", 0x4, None, some_hard_reset_val!(0),
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "ctrlstat",
+            0x4,
+            None,
+            some_hard_reset_val!(0),
             vec!(
-                field!("CSYSPWRUPACK", 31, 1, "RO", vec!(), some_hard_reset_val!(0), ""),
-                field!("CSYSPWRUPREQ", 30, 1, "RW", vec!(), some_hard_reset_val!(0), ""),
-                field!("CDBGPWRUPACK", 29, 1, "RO", vec!(), some_hard_reset_val!(0), ""),
-                field!("CDBGPWRUPREQ", 28, 1, "RW", vec!(), some_hard_reset_val!(0), ""),
-                field!("CDBGRSTACK", 27, 1, "RO", vec!(), some_hard_reset_val!(0), ""),
-                field!("CDBGRSTREQ", 26, 1, "RW", vec!(), some_hard_reset_val!(0), ""),
+                field!(
+                    "CSYSPWRUPACK",
+                    31,
+                    1,
+                    "RO",
+                    vec!(),
+                    some_hard_reset_val!(0),
+                    ""
+                ),
+                field!(
+                    "CSYSPWRUPREQ",
+                    30,
+                    1,
+                    "RW",
+                    vec!(),
+                    some_hard_reset_val!(0),
+                    ""
+                ),
+                field!(
+                    "CDBGPWRUPACK",
+                    29,
+                    1,
+                    "RO",
+                    vec!(),
+                    some_hard_reset_val!(0),
+                    ""
+                ),
+                field!(
+                    "CDBGPWRUPREQ",
+                    28,
+                    1,
+                    "RW",
+                    vec!(),
+                    some_hard_reset_val!(0),
+                    ""
+                ),
+                field!(
+                    "CDBGRSTACK",
+                    27,
+                    1,
+                    "RO",
+                    vec!(),
+                    some_hard_reset_val!(0),
+                    ""
+                ),
+                field!(
+                    "CDBGRSTREQ",
+                    26,
+                    1,
+                    "RW",
+                    vec!(),
+                    some_hard_reset_val!(0),
+                    ""
+                ),
             ),
             ""
         );
-        add_reg_32bit!(dut, ab_id, "dlcr", 0x4, None, some_hard_reset_val!(0), vec!(), "");
-        add_reg_32bit!(dut, ab_id, "targetid", 0x4, None, some_hard_reset_val!(0), vec!(), "");
-        add_reg_32bit!(dut, ab_id, "dlpidr", 0x4, None, some_hard_reset_val!(0), vec!(), "");
-        add_reg_32bit!(dut, ab_id, "eventstat", 0x4, None, some_hard_reset_val!(0), vec!(), "");
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "dlcr",
+            0x4,
+            None,
+            some_hard_reset_val!(0),
+            vec!(),
+            ""
+        );
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "targetid",
+            0x4,
+            None,
+            some_hard_reset_val!(0),
+            vec!(),
+            ""
+        );
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "dlpidr",
+            0x4,
+            None,
+            some_hard_reset_val!(0),
+            vec!(),
+            ""
+        );
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "eventstat",
+            0x4,
+            None,
+            some_hard_reset_val!(0),
+            vec!(),
+            ""
+        );
 
-        add_reg_32bit!(dut, ab_id, "select", 0x8, Some("RW"), some_hard_reset_val!(0), vec!(
-            field!("SELECT", 0, 32, "RW", vec!(), some_hard_reset_val!(0), "")
-        ), "");
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "select",
+            0x8,
+            Some("RW"),
+            some_hard_reset_val!(0),
+            vec!(field!(
+                "SELECT",
+                0,
+                32,
+                "RW",
+                vec!(),
+                some_hard_reset_val!(0),
+                ""
+            )),
+            ""
+        );
 
-        add_reg_32bit!(dut, ab_id, "rdbuff", 0xC, Some("RO"), some_hard_reset_val!(0), vec!(
-            field!("DATA", 0, 32, "RO", vec!(), some_hard_reset_val!(0), "")
-        ), "");
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "rdbuff",
+            0xC,
+            Some("RO"),
+            some_hard_reset_val!(0),
+            vec!(field!(
+                "DATA",
+                0,
+                32,
+                "RO",
+                vec!(),
+                some_hard_reset_val!(0),
+                ""
+            )),
+            ""
+        );
 
         let id = services.next_id();
         services.push_service(Service::ArmDebugDP(
@@ -98,7 +222,11 @@ impl DP {
         Ok(())
     }
 
-    pub fn verify_powered_up(&self, dut: &mut MutexGuard<Dut>, services: &crate::Services) -> Result<()> {
+    pub fn verify_powered_up(
+        &self,
+        dut: &mut MutexGuard<Dut>,
+        services: &crate::Services,
+    ) -> Result<()> {
         let reg = get_reg!(dut, self.address_block_id, "ctrlstat");
 
         let bc = get_bc_for!(dut, reg, "CSYSPWRUPREQ")?;
@@ -126,7 +254,12 @@ impl DP {
         Ok(())
     }
 
-    pub fn update_select(&self, dut: &MutexGuard<Dut>, services: &crate::Services, select: usize) -> Result<Option<Vec<Node>>> {
+    pub fn update_select(
+        &self,
+        dut: &MutexGuard<Dut>,
+        services: &crate::Services,
+        select: usize,
+    ) -> Result<Option<Vec<Node>>> {
         let bc = get_bc_for!(dut, self.address_block_id, "select", "SELECT")?;
         let sel = BigUint::from(select);
         if bc.data()? == sel {
@@ -139,11 +272,21 @@ impl DP {
         }
     }
 
-    pub fn write_register(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection) -> Result<()> {
+    pub fn write_register(
+        &self,
+        dut: &MutexGuard<Dut>,
+        services: &crate::Services,
+        bc: &BitCollection,
+    ) -> Result<()> {
         self.reg_trans(dut, services, bc, false)
     }
 
-    pub fn verify_register(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection) -> Result<()> {
+    pub fn verify_register(
+        &self,
+        dut: &MutexGuard<Dut>,
+        services: &crate::Services,
+        bc: &BitCollection,
+    ) -> Result<()> {
         self.reg_trans(dut, services, bc, true)
     }
 
@@ -157,7 +300,13 @@ impl DP {
     ///     * For the group of five registers which share address 0x4:
     ///         * the index (0, 1, 2, 3, 4) is stored in  SELECT.
     ///         * must write SELECT first, then write the DP register
-    pub fn reg_trans(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection, readnwrite: bool) -> Result<()> {
+    pub fn reg_trans(
+        &self,
+        dut: &MutexGuard<Dut>,
+        services: &crate::Services,
+        bc: &BitCollection,
+        readnwrite: bool,
+    ) -> Result<()> {
         let ad_service = services.get_service(self.arm_debug_id)?;
         let arm_debug = ad_service.as_arm_debug()?;
         let jtag_dp;
@@ -177,22 +326,22 @@ impl DP {
             swd = Some(swd_service.as_swd()?);
             jtag_dp = None;
         }
-        
+
         let reg_name = bc.reg(dut).unwrap().name.clone();
         let mut select = None;
         match reg_name.as_str() {
             "ctrlstat" => {
                 select = Some(0);
-            },
+            }
             "dlcr" => {
                 select = Some(1);
-            },
+            }
             "targetid" => {
                 select = Some(2);
-            },
+            }
             "dlpidr" => {
                 select = Some(3);
-            },
+            }
             "eventstat" => {
                 select = Some(4);
             }
@@ -249,5 +398,4 @@ impl DP {
         }
         Ok(())
     }
-
 }

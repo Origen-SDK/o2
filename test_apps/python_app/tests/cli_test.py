@@ -55,7 +55,10 @@ def test_bad_command():
 
 
 def test_origen_g():
-  os.chdir(origen.root)
-  process = subprocess.Popen([f'{origen_cli}', 'g', r'./example/patterns/toggle.py', '-t', r'./targets/eagle_with_smt7.py'], universal_newlines=True)
-  assert process.wait() == 0
-  
+    os.chdir(origen.root)
+    process = subprocess.Popen([
+        f'{origen_cli}', 'g', r'./example/patterns/toggle.py', '-t',
+        r'./targets/eagle_with_smt7.py'
+    ],
+                               universal_newlines=True)
+    assert process.wait() == 0

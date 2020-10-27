@@ -1,10 +1,10 @@
-use crate::{Result, Error, TEST, Dut, add_reg_32bit, some_hard_reset_val, field, get_reg};
+use super::super::super::services::Service;
+use crate::core::model::pins::PinCollection;
+use crate::core::model::registers::BitCollection;
+use crate::Transaction;
+use crate::{add_reg_32bit, field, get_reg, some_hard_reset_val, Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
-use crate::core::model::registers::BitCollection;
-use super::super::super::services::Service;
-use crate::Transaction;
-use crate::core::model::pins::PinCollection;
 
 use crate::generator::ast::*;
 
@@ -19,17 +19,17 @@ pub struct MemAP {
 }
 
 impl MemAP {
-    pub fn model_init(dut: &mut crate::Dut, services: &mut crate::Services, model_id: usize, arm_debug_id: usize, addr: usize) -> Result<usize> {
+    pub fn model_init(
+        dut: &mut crate::Dut,
+        services: &mut crate::Services,
+        model_id: usize,
+        arm_debug_id: usize,
+        addr: usize,
+    ) -> Result<usize> {
         // Create the model
         let memory_map_id = dut.create_memory_map(model_id, "default", None)?;
-        let ab_id = dut.create_address_block(
-            memory_map_id,
-            "default",
-            None,
-            None,
-            Some(32),
-            None
-        )?;
+        let ab_id =
+            dut.create_address_block(memory_map_id, "default", None, None, Some(32), None)?;
 
         add_reg_32bit!(dut, ab_id, "csw", 0, Some("RW"), some_hard_reset_val!(0),
             vec!(
@@ -47,7 +47,13 @@ impl MemAP {
             ),
             "Configures and controls accesses through the MEM-AP to or from a connected memory system."
         );
-        add_reg_32bit!(dut, ab_id, "tar", 0x4, Some("RW"), None,
+        add_reg_32bit!(
+            dut,
+            ab_id,
+            "tar",
+            0x4,
+            Some("RW"),
+            None,
             vec!(field!("Address", 0, 32, "RW", vec!(), None, "")),
             "Holds the memory address to be accessed."
         );
@@ -69,20 +75,23 @@ impl MemAP {
 
         let id = services.next_id();
         let dp_id = services.get_as_arm_debug(arm_debug_id)?.dp_id()?;
-        services.push_service(Service::ArmDebugMemAP(
-            Self {
-                id: id,
-                arm_debug_id: arm_debug_id,
-                address_block_id: ab_id,
-                dp_id: dp_id,
-                model_id: model_id,
-                addr: addr,
-            }
-        ));
+        services.push_service(Service::ArmDebugMemAP(Self {
+            id: id,
+            arm_debug_id: arm_debug_id,
+            address_block_id: ab_id,
+            dp_id: dp_id,
+            model_id: model_id,
+            addr: addr,
+        }));
         Ok(id)
     }
 
-    pub fn prep_for_transfer<'a, 'b>(&'a self, transaction: &Transaction, dut: &'b MutexGuard<'b, Dut>, services: &crate::Services) -> Result<BitCollection<'b>> {
+    pub fn prep_for_transfer<'a, 'b>(
+        &'a self,
+        transaction: &Transaction,
+        dut: &'b MutexGuard<'b, Dut>,
+        services: &crate::Services,
+    ) -> Result<BitCollection<'b>> {
         let reg = get_reg!(dut, self.address_block_id, "csw");
         let bc = reg.bits(dut);
         bc.set_data(BigUint::from(0x2300_0012 as u32));
@@ -99,7 +108,12 @@ impl MemAP {
         Ok(bc)
     }
 
-    pub fn write_register(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection) -> Result<()> {
+    pub fn write_register(
+        &self,
+        dut: &MutexGuard<Dut>,
+        services: &crate::Services,
+        bc: &BitCollection,
+    ) -> Result<()> {
         let reg_write_node = bc.to_write_node(dut)?.unwrap();
         let n_id = TEST.push_and_open(reg_write_node.clone());
         let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
@@ -166,14 +180,24 @@ impl MemAP {
                     self.write_register(dut, services, &drw_bits)?;
                     TEST.close(trans_node_id)?;
                 }
-            },
-            _ => return Err(Error::new(&format!("Unexpected node in ArmDebug MemAP driver: {:?}", reg_write_node)))
+            }
+            _ => {
+                return Err(Error::new(&format!(
+                    "Unexpected node in ArmDebug MemAP driver: {:?}",
+                    reg_write_node
+                )))
+            }
         }
         TEST.close(n_id)?;
         Ok(())
     }
 
-    pub fn verify_register(&self, dut: &MutexGuard<Dut>, services: &crate::Services, bc: &BitCollection) -> Result<()> {
+    pub fn verify_register(
+        &self,
+        dut: &MutexGuard<Dut>,
+        services: &crate::Services,
+        bc: &BitCollection,
+    ) -> Result<()> {
         let trans_node;
         let reg_verify_node = bc.to_verify_node(None, true, dut)?.unwrap();
         let n_id = TEST.push_and_open(reg_verify_node.clone());
@@ -298,8 +322,13 @@ impl MemAP {
                     }
                     TEST.close(trans_node_id)?;
                 }
-            },
-            _ => return Err(Error::new(&format!("Unexpected node in ArmDebug MemAP driver: {:?}", reg_verify_node)))
+            }
+            _ => {
+                return Err(Error::new(&format!(
+                    "Unexpected node in ArmDebug MemAP driver: {:?}",
+                    reg_verify_node
+                )))
+            }
         }
         TEST.close(n_id)?;
         Ok(())

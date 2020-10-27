@@ -8,13 +8,22 @@ class Loader:
     def __init__(self, controller):
         self.controller = controller
 
-    def sub_block(self, name, block_path=None, class_name="Controller", *, offset=None, sb_options={}):
+    def sub_block(self,
+                  name,
+                  block_path=None,
+                  class_name="Controller",
+                  *,
+                  offset=None,
+                  sb_options={}):
         if self.controller.__class__.is_currently_loading(name):
             return None
         else:
             self.controller.__class__.currently_loading(name)
         b = self.controller.app.instantiate_block(
-            block_path, base_path=self.controller.block_path, class_name=class_name, sb_options=sb_options)
+            block_path,
+            base_path=self.controller.block_path,
+            class_name=class_name,
+            sb_options=sb_options)
 
         b.name = name
         b.path = f"{self.controller.path}.{name}"

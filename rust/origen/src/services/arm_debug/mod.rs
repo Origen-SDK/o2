@@ -6,15 +6,15 @@ pub use dp::DP;
 pub use jtag_dp::JtagDP;
 pub use mem_ap::MemAP;
 
-use std::collections::HashMap;
 use super::super::services::Service;
-use std::sync::MutexGuard;
-use crate::{Dut, Services, Transaction};
-use std::sync::RwLock;
-use crate::testers::api::ControllerAPI;
 use crate::core::model::pins::PinCollection;
+use crate::testers::api::ControllerAPI;
+use crate::{Dut, Services, Transaction};
+use std::collections::HashMap;
+use std::sync::MutexGuard;
+use std::sync::RwLock;
 
-use crate::{Result, Error};
+use crate::{Error, Result};
 
 impl ControllerAPI for ArmDebug {
     fn name(&self) -> String {
@@ -28,7 +28,7 @@ pub struct ArmDebug {
 
     /// Model ID, holding all the registers and current values
     pub model_id: usize,
-    
+
     /// IDs of any MemAPs this ArmDebug instance contains.
     mem_ap_ids: HashMap<usize, usize>,
     dp_id: Option<usize>,
@@ -72,7 +72,11 @@ impl ArmDebug {
         Ok(id)
     }
 
-    pub fn switch_to_swd(&self, dut: &MutexGuard<Dut>, services: &MutexGuard<Services>) -> Result<()> {
+    pub fn switch_to_swd(
+        &self,
+        dut: &MutexGuard<Dut>,
+        services: &MutexGuard<Services>,
+    ) -> Result<()> {
         match self.swd_id {
             Some(id) => {
                 let swd = services.get_as_swd(id)?;
@@ -82,17 +86,20 @@ impl ArmDebug {
                 self.comment("Switching ArmDebug protocol to SWD");
                 swdclk.drive_high();
                 swdio.drive_high().repeat(50);
-                swdio.push_transaction(&Transaction::new_write(num_bigint::BigUint::from(0xE79E as u32), 16)?)?;
+                swdio.push_transaction(&Transaction::new_write(
+                    num_bigint::BigUint::from(0xE79E as u32),
+                    16,
+                )?)?;
                 swdio.repeat(55);
                 swdio.drive_low().repeat(4);
 
                 crate::TEST.close(n_id)?;
                 *self.jtagnswd.write().unwrap() = false;
                 Ok(())
-            },
-            None => {
-                Err(Error::new(&format!("No SWD available - cannot switch to SWD")))
             }
+            None => Err(Error::new(&format!(
+                "No SWD available - cannot switch to SWD"
+            ))),
         }
     }
 

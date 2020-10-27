@@ -38,11 +38,9 @@ class Base:
     @classmethod
     def is_currently_loading(cls, name):
         if name not in cls.__currently_loading__:
-            cls.__currently_loading__[name] = {
-                "count": 0
-            }
+            cls.__currently_loading__[name] = {"count": 0}
         return cls.__currently_loading__[name]["count"] > 0
-    
+
     @classmethod
     def currently_loading(cls, name):
         if name in cls.__currently_loading__:
@@ -54,7 +52,7 @@ class Base:
 
     @classmethod
     def done_loading(cls, name):
-        if name in  cls.__currently_loading__:
+        if name in cls.__currently_loading__:
             cls.__currently_loading__[name]["count"] -= 1
 
     # This is the ID given to this block instance by its parent. For example, if this
@@ -138,7 +136,7 @@ class Base:
             self.__proxies__["timesets"] = proxy
             for method in timesets.Proxy.api():
                 self.__setattr__(method, getattr(proxy, method))
-            
+
             # Timesets may use pin references (as strings) for wavetable and wave
             # instantiations. Need to ensure pins are loaded.
             self.pins
@@ -200,7 +198,8 @@ class Base:
         return t
 
     def _set_as_default_address_block(self, mem_map_name, addr_block_name):
-        self._default_default_address_block = self.memory_maps[mem_map_name].address_blocks[addr_block_name]
+        self._default_default_address_block = self.memory_maps[
+            mem_map_name].address_blocks[addr_block_name]
 
     def memory_map(self, name):
         self._load_regs()
