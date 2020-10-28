@@ -1,5 +1,4 @@
-use super::{Test, TestCollection, TestInvocation};
-use crate::generator::ast::AST;
+use super::{Test, TestCollection};
 use crate::testers::SupportedTester;
 use crate::Result;
 use std::collections::HashMap;
@@ -9,22 +8,15 @@ use std::sync::RwLock;
 #[derive(Debug)]
 pub struct TestProgram {
     tests: RwLock<Vec<Test>>,
-    test_invocations: RwLock<Vec<TestInvocation>>,
     test_collections: RwLock<Vec<TestCollection>>,
-    /// Flows are represented as an AST, which will contain references to tests from the
-    /// above collection
-    flows: RwLock<Vec<AST>>,
     pointers: RwLock<Pointers>,
 }
 
 #[derive(Debug)]
 struct Pointers {
-    /// Maps names to a flow
-    flow_map: HashMap<String, usize>,
     /// Maps tests which are templates, organized into named groups (test libraries)
     libraries: HashMap<String, HashMap<String, usize>>,
     current_collection: usize,
-    current_flow: usize,
     /// Not known at creation time, but will be assigned before the first test is added
     /// to the program
     tester: SupportedTester,
@@ -34,15 +26,11 @@ impl TestProgram {
     pub fn new() -> Self {
         Self {
             tests: RwLock::new(vec![]),
-            test_invocations: RwLock::new(vec![]),
             // New tests will be put into the global collection by default
             test_collections: RwLock::new(vec![TestCollection::new("global")]),
-            flows: RwLock::new(vec![]),
             pointers: RwLock::new(Pointers {
-                flow_map: HashMap::new(),
                 libraries: HashMap::new(),
                 current_collection: 0,
-                current_flow: 0,
                 tester: SupportedTester::CUSTOM("TBD".to_string()),
             }),
         }

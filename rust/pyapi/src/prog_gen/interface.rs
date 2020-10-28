@@ -1,4 +1,6 @@
 use crate::prog_gen::{Test, TestInvocation};
+use origen::PROG;
+use pyo3::exceptions::TypeError;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use std::path::Path;
@@ -34,13 +36,16 @@ impl PyInterface {
     /// Add a test to the flow
     fn add_test(&self, test_obj: &PyAny) -> PyResult<()> {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            log_info!("Got a test invocation!");
+            PROG.add_test(Some(t.tester), t.test_id, Some(t.id), None)?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            log_info!("Got a test!");
+            PROG.add_test(Some(t.tester), Some(t.id), None, None)?;
         } else if let Ok(t) = test_obj.extract::<String>() {
-            log_info!("Got a string!");
+            PROG.add_test(None, None, None, Some(t))?;
         } else {
-            log_error!("Could not convert: {:?}", test_obj);
+            return Err(TypeError::py_err(format!(
+                "add_test must be given a valid test object, or a String, this is neither: {:?}",
+                test_obj
+            )));
         }
         Ok(())
     }

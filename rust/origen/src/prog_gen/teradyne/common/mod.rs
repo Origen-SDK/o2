@@ -1,4 +1,3 @@
-use crate::prog_gen::ParamValue;
 use crate::testers::SupportedTester;
 use crate::Result;
 use crate::PROG;
@@ -39,7 +38,7 @@ fn load_test_from_lib(tester: &SupportedTester, lib_name: &str, test_name: &str)
             let _ = prog.create_test_template(lib_name, test_name, |t| {
                 let base_template =
                     super::super::import_test_template("teradyne/ultraflex/test_instance.json")?;
-                t.import_test_template(&base_template);
+                t.import_test_template(&base_template)?;
 
                 let template = match super::super::import_test_template(&format!(
                     "teradyne/ultraflex/{}/{}.json",

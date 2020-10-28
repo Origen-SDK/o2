@@ -2,12 +2,13 @@ pub mod advantest;
 mod model;
 pub mod teradyne;
 
+use crate::generator::ast::AST;
 use crate::testers::SupportedTester;
 use crate::Result;
+use indexmap::IndexMap;
 pub use model::ParamType;
 pub use model::ParamValue;
 pub use model::Test;
-pub use model::TestInvocation;
 use model::TestProgram;
 use phf::phf_map;
 use std::collections::HashMap;
@@ -23,8 +24,8 @@ use std::sync::RwLock;
 //        ...
 //        "advantest/smt7/ac_tml/..." => "...",
 //        ...
-//        "teradyne/j750/apmu_powersupply.json" => "...",
-//        "teradyne/j750/board_pmu.json" => "...",
+//        "teradyne/j750/std/apmu_powersupply.json" => "...",
+//        "teradyne/j750/std/board_pmu.json" => "...",
 //      }
 //
 // Doing it this way means that we can just drop new files into the templates dirs and they will
@@ -36,7 +37,9 @@ include!(concat!(env!("OUT_DIR"), "/test_templates.rs"));
 /// origen::PROG.
 /// It provides long term storage for the test program model, similar to how the DUT provides long
 /// term storage of the regs and other DUT models.
-/// A complete test program model is maintained for each tester target.
+/// A complete test program model is maintained for each tester target, each model stores the test
+/// templates and test instances for the given tester.
+/// A common flow AST is shared by all testers and is therefore stored in this central data struct.
 #[derive(Debug, Default)]
 pub struct TestPrograms {
     /// A number of empty models are created initially and then mapped to a tester via the
@@ -44,11 +47,16 @@ pub struct TestPrograms {
     /// It is done this way so that the models don't need to be put behind a lock to make it
     /// easy to get a reference on them.
     models: Vec<TestProgram>,
+    /// Assignments map a specific tester type to a model in the models vector
     assignments: RwLock<HashMap<SupportedTester, usize>>,
     /// This keeps track of what testers are selected by 'with specific tester' blocks in the application.
     /// It is implemented as a stack, allowing the application to select multiple testers at a time and then
     /// optionally select a subset via a nested with block.
     current_testers: RwLock<Vec<Vec<SupportedTester>>>,
+    /// Flows are represented as an AST, which will contain references to tests from the
+    /// above collection, the last flow is the current one and so an IndexMap (ordered) instead of
+    /// regular HashMap.
+    flows: RwLock<IndexMap<String, AST>>,
 }
 
 impl TestPrograms {
@@ -62,6 +70,7 @@ impl TestPrograms {
             models: models,
             assignments: RwLock::new(HashMap::new()),
             current_testers: RwLock::new(vec![]),
+            flows: RwLock::new(IndexMap::new()),
         }
     }
 
@@ -112,6 +121,59 @@ impl TestPrograms {
         }
         let _ = current_testers.pop();
         Ok(())
+    }
+
+    /// Start a new flow, will fail if a flow with the given name already exists
+    pub fn start_flow(&self, name: &str) -> Result<()> {
+        let mut flows = self.flows.write().unwrap();
+        if flows.contains_key(name) {
+            return error!("A flow already exists called '{}'", name);
+        }
+        let mut ast = AST::new();
+        ast.push_and_open(node!(PGMFlow, name.to_owned()));
+        flows.insert(name.to_owned(), ast);
+        Ok(())
+    }
+
+    /// Execute the given function with a reference to the current flow.
+    /// Returns an error if there is no current flow, otherwise the result of the given function.
+    pub fn with_current_flow<T, F>(&self, func: F) -> Result<T>
+    where
+        F: FnOnce(&AST) -> Result<T>,
+    {
+        let flows = self.flows.read().unwrap();
+        match flows.values().last() {
+            None => error!("Something has gone wrong, a reference has been made to the current flow when there is none"),
+            Some(f) => func(f),
+        }
+    }
+
+    /// Execute the given function with a mutable reference to the current flow.
+    /// Returns an error if there is no current flow, otherwise the result of the given function.
+    pub fn with_current_flow_mut<T, F>(&self, func: F) -> Result<T>
+    where
+        F: FnOnce(&mut AST) -> Result<T>,
+    {
+        let mut flows = self.flows.write().unwrap();
+        match flows.values_mut().last() {
+            None => error!("Something has gone wrong, a reference has been made to the current flow when there is none"),
+            Some(f) => func(f),
+        }
+    }
+
+    /// Add the given test to the current flow
+    pub fn add_test(
+        &self,
+        tester: Option<SupportedTester>,
+        test_id: Option<usize>,
+        invocation_id: Option<usize>,
+        name: Option<String>,
+    ) -> Result<()> {
+        self.with_current_flow_mut(|f| {
+            let n = node!(PGMTest, tester, test_id, invocation_id, name);
+            f.push(n);
+            Ok(())
+        })
     }
 
     ///// Returns the current tester, will error if more than one tester is currently selected

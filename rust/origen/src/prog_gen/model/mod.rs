@@ -3,7 +3,6 @@
 
 mod test;
 mod test_collection;
-mod test_invocation;
 mod test_program;
 
 use crate::Result as OrigenResult;
@@ -11,7 +10,6 @@ use std::fmt;
 use std::str::FromStr;
 pub use test::Test;
 pub use test_collection::TestCollection;
-pub use test_invocation::TestInvocation;
 pub use test_program::TestProgram;
 
 #[derive(Debug, Clone, PartialEq)]

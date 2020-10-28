@@ -90,6 +90,7 @@ class Producer(_origen.producer.PyProducer):
             top_level = True
             top_level_flow_open = True
             origen.target.load()
+            _origen.prog_gen.start_new_flow(flow.name)
 
         #origen.tester.reset()
         #origen.target.reload()

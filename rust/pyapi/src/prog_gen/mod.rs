@@ -10,6 +10,20 @@ use pyo3::class::basic::PyObjectProtocol;
 use pyo3::exceptions::{AttributeError, TypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
+use pyo3::wrap_pyfunction;
+
+#[pymodule]
+/// Implements the module _origen.prog_gen in Python
+pub fn prog_gen(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(start_new_flow))?;
+    Ok(())
+}
+
+#[pyfunction]
+fn start_new_flow(name: &str) -> PyResult<()> {
+    PROG.start_flow(name)?;
+    Ok(())
+}
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -85,9 +99,11 @@ pub struct TestInvocation {
 impl TestInvocation {
     fn set_test_obj(&mut self, test: Test) -> PyResult<()> {
         if test.tester != self.tester {
-            //return error!("Blah");
+            return Err(AttributeError::py_err(format!(
+                "Attempted to associate a test for '{}' with an invocation for '{}'",
+                test.tester, self.tester
+            )));
         }
-        log_info!("Set test object called!");
         self.test_id = Some(test.id);
         Ok(())
     }
@@ -155,7 +171,7 @@ impl PyObjectProtocol for TestInvocation {
         }
         // Tried our best
         let msg = match self.test_id {
-            Some(id) => format!(
+            Some(_id) => format!(
                 "Neither the {} '{}' or its {} '{}' has an attribute called '{}'",
                 name_of_test_invocation(&self.tester),
                 &self.name()?,

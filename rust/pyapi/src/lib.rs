@@ -37,6 +37,7 @@ use dut::PyInit_dut;
 use logger::PyInit_logger;
 use producer::PyInit_producer;
 use prog_gen::interface::PyInit_interface;
+use prog_gen::PyInit_prog_gen;
 use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
@@ -93,6 +94,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(utility))?;
     m.add_wrapped(wrap_pymodule!(tester_apis))?;
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
+    m.add_wrapped(wrap_pymodule!(prog_gen))?;
     Ok(())
 }
 
