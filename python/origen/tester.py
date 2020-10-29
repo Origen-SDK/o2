@@ -1,6 +1,7 @@
 import origen
 import _origen
 import pickle
+from contextlib import contextmanager, ContextDecorator
 
 
 class Tester(_origen.tester.PyTester):
@@ -22,6 +23,55 @@ class Tester(_origen.tester.PyTester):
     def stats(self):
         return pickle.loads(bytes(self._stats()))
 
+    @contextmanager
+    def specific(self, *names):
+        (pat_ref_id, prog_ref_id,
+         clean_tester_names) = self._start_specific_block(names)
+        testers = []
+        for t in clean_tester_names:
+            if t == "V93KSMT7":
+                testers.append(V93K(7))
+            elif t == "V93KSMT8":
+                testers.append(V93K(8))
+            elif t == "ULTRAFLEX":
+                testers.append(ULTRAFLEX())
+            else:
+                raise Exception(
+                    f"The API for tester '{t}' has not been implemented yet!")
+
+        if len(testers) == 1:
+            yield testers[0]
+        elif len(testers) == 2:
+            yield testers[0], testers[1]
+        elif len(testers) == 3:
+            yield testers[0], testers[1], testers[2]
+        elif len(testers) == 4:
+            yield testers[0], testers[1], testers[2], testers[3]
+        elif len(testers) == 5:
+            yield testers[0], testers[1], testers[2], testers[3], testers[4]
+        elif len(testers) == 6:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5]
+        elif len(testers) == 7:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6]
+        elif len(testers) == 8:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6], testers[7]
+        elif len(testers) == 9:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6], testers[7], testers[8]
+        elif len(testers) == 10:
+            yield testers[0], testers[1], testers[2], testers[3], testers[
+                4], testers[5], testers[6], testers[7], testers[8], testers[9]
+        else:
+            raise Exception(
+                f"Only up to 10 testers are supported in a with-specific-tester block"
+            )
+        for t in testers:
+            del t
+        self._end_specific_block(pat_ref_id, prog_ref_id)
+
 
 class DummyTester:
     def __init__(self):
@@ -30,3 +80,11 @@ class DummyTester:
     def generate(self, ast):
         for i, n in enumerate(ast.nodes):
             print(f"Python Generator: Node: {i}: {n}")
+
+
+class V93K(_origen.tester_apis.V93K):
+    pass
+
+
+class ULTRAFLEX(_origen.tester_apis.ULTRAFLEX):
+    pass

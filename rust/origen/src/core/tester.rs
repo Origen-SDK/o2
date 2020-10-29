@@ -7,9 +7,9 @@ use crate::generator::ast::{Attrs, Node};
 use crate::testers::{instantiate_tester, SupportedTester};
 use crate::utility::differ::Differ;
 use crate::utility::file_utils::to_relative_path;
-use crate::TEST;
 use crate::{add_children, node, text, text_line, with_current_job};
 use crate::{Error, Result};
+use crate::{PROG, TEST};
 use indexmap::IndexMap;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -117,6 +117,28 @@ impl Tester {
             target_testers: vec![],
             stats: Stats::default(),
         }
+    }
+
+    /// Starts a new tester-specific section in the current pattern and/or test program.
+    /// The returned ID should be kept and given to end_tester_specific_block when the
+    /// tester specific section is complete.
+    pub fn start_tester_specific_block(
+        &self,
+        testers: Vec<SupportedTester>,
+    ) -> Result<(usize, usize)> {
+        let n = node!(TesterSpecific, testers.clone());
+        let pat_ref_id = TEST.push_and_open(n);
+        let prog_ref_id = PROG.push_current_testers(testers)?;
+        Ok((pat_ref_id, prog_ref_id))
+    }
+
+    /// Ends an open tester-specific section in the current pattern and/or test program.
+    /// The ID produced when opening the block (via start_tester_specific_block) should be supplied
+    /// as the main argument.
+    pub fn end_tester_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
+        TEST.close(pat_ref_id)?;
+        PROG.pop_current_testers(prog_ref_id)?;
+        Ok(())
     }
 
     pub fn custom_tester_ids(&self) -> Vec<String> {

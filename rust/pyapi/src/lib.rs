@@ -14,15 +14,16 @@ mod services;
 #[macro_use]
 mod timesets;
 mod application;
-mod interface;
 mod producer;
+mod prog_gen;
 mod standard_sub_blocks;
 mod tester;
+mod tester_apis;
 mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
+use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, PROG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyAny, PyDict};
@@ -33,12 +34,14 @@ use std::sync::MutexGuard;
 // Imported pyapi modules
 use application::PyInit_application;
 use dut::PyInit_dut;
-use interface::PyInit_interface;
 use logger::PyInit_logger;
 use producer::PyInit_producer;
+use prog_gen::interface::PyInit_interface;
+use prog_gen::PyInit_prog_gen;
 use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
+use tester_apis::PyInit_tester_apis;
 use utility::location::Location;
 use utility::PyInit_utility;
 
@@ -68,6 +71,8 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(file_handler))?;
     m.add_wrapped(wrap_pyfunction!(test))?;
     m.add_wrapped(wrap_pyfunction!(test_ast))?;
+    m.add_wrapped(wrap_pyfunction!(flow))?;
+    m.add_wrapped(wrap_pyfunction!(flow_ast))?;
     m.add_wrapped(wrap_pyfunction!(output_directory))?;
     m.add_wrapped(wrap_pyfunction!(website_output_directory))?;
     m.add_wrapped(wrap_pyfunction!(website_source_directory))?;
@@ -89,7 +94,9 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;
     m.add_wrapped(wrap_pymodule!(utility))?;
+    m.add_wrapped(wrap_pymodule!(tester_apis))?;
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
+    m.add_wrapped(wrap_pymodule!(prog_gen))?;
     Ok(())
 }
 
@@ -190,6 +197,22 @@ fn test() -> PyResult<()> {
 #[pyfunction]
 fn test_ast() -> PyResult<Vec<u8>> {
     Ok(TEST.to_pickle())
+}
+
+/// Prints out the AST for the current flow to the console
+#[pyfunction]
+fn flow() -> PyResult<()> {
+    PROG.with_current_flow(|f| {
+        println!("{}", f.to_string());
+        Ok(())
+    })?;
+    Ok(())
+}
+
+/// Returns the AST for the current flow in Python
+#[pyfunction]
+fn flow_ast() -> PyResult<Vec<u8>> {
+    Ok(PROG.with_current_flow(|f| Ok(f.to_pickle()))?)
 }
 
 /// Returns a file handler object (iterable) for consuming the file arguments

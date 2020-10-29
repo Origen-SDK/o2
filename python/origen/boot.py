@@ -160,6 +160,7 @@ def run_cmd(command,
             origen.producer.create_job("generate", f)
             context = origen.producer.api()
             origen.load_file(f, locals=context)
+        _origen.prog_gen.render()
         # Print a summary here...
         stats = origen.tester.stats()
         changes = stats['changed_pattern_files'] > 0 or stats[
