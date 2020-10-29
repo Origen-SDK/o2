@@ -12,7 +12,6 @@ use pyo3::exceptions::{AttributeError, TypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use pyo3::wrap_pyfunction;
-use std::path::PathBuf;
 use std::thread;
 
 #[pymodule]
@@ -140,7 +139,7 @@ impl PyObjectProtocol for Test {
     //    Ok("Hello".to_string())
     //}
 
-    fn __getattr__(&self, query: &str) -> PyResult<()> {
+    fn __getattr__(&self, _query: &str) -> PyResult<()> {
         Ok(())
     }
 
@@ -210,7 +209,7 @@ impl PyObjectProtocol for TestInvocation {
     //    Ok("Hello".to_string())
     //}
 
-    fn __getattr__(&self, query: &str) -> PyResult<()> {
+    fn __getattr__(&self, _query: &str) -> PyResult<()> {
         Ok(())
     }
 

@@ -437,7 +437,7 @@ impl Tester {
     pub fn render_program_for_target_at(
         &mut self,
         idx: usize,
-        diff_and_display: bool,
+        _diff_and_display: bool,
     ) -> Result<Vec<PathBuf>> {
         let g = &mut self.target_testers[idx];
         match g {
