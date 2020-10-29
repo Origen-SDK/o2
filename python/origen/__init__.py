@@ -180,8 +180,13 @@ def load_file(path, globals={}, locals={}):
 
 
 def test_ast() -> List[str]:
-    ''' Returns a serialized representation of the AST '''
+    ''' Returns a serialized representation of the AST for the current pattern'''
     return pickle.loads(bytes(_origen.test_ast()))
+
+
+def flow_ast() -> List[str]:
+    ''' Returns a serialized representation of the AST for the current test program flow '''
+    return pickle.loads(bytes(_origen.flow_ast()))
 
 
 @contextmanager

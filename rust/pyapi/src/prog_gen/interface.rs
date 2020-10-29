@@ -36,11 +36,11 @@ impl PyInterface {
     /// Add a test to the flow
     fn add_test(&self, test_obj: &PyAny) -> PyResult<()> {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            PROG.add_test(Some(t.tester), t.test_id, Some(t.id), None)?;
+            PROG.add_test(t.name()?, Some(t.tester), t.test_id, Some(t.id))?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            PROG.add_test(Some(t.tester), Some(t.id), None, None)?;
+            PROG.add_test(t.name, Some(t.tester), Some(t.id), None)?;
         } else if let Ok(t) = test_obj.extract::<String>() {
-            PROG.add_test(None, None, None, Some(t))?;
+            PROG.add_test(t, None, None, None)?;
         } else {
             return Err(TypeError::py_err(format!(
                 "add_test must be given a valid test object, or a String, this is neither: {:?}",

@@ -16,13 +16,41 @@ use pyo3::wrap_pyfunction;
 /// Implements the module _origen.prog_gen in Python
 pub fn prog_gen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(start_new_flow))?;
+    m.add_wrapped(wrap_pyfunction!(end_flow))?;
+    m.add_wrapped(wrap_pyfunction!(render))?;
     Ok(())
 }
 
 #[pyfunction]
-fn start_new_flow(name: &str) -> PyResult<()> {
-    PROG.start_flow(name)?;
-    Ok(())
+fn start_new_flow(name: &str, sub_flow: Option<bool>) -> PyResult<usize> {
+    let sub_flow = match sub_flow {
+        None => false,
+        Some(x) => x,
+    };
+    if sub_flow {
+        Ok(PROG.start_sub_flow(name)?)
+    } else {
+        Ok(PROG.start_flow(name)?)
+    }
+}
+
+#[pyfunction]
+fn end_flow(ref_id: usize, sub_flow: Option<bool>) -> PyResult<()> {
+    let sub_flow = match sub_flow {
+        None => false,
+        Some(x) => x,
+    };
+    if sub_flow {
+        Ok(PROG.end_sub_flow(ref_id)?)
+    } else {
+        Ok(PROG.end_flow(ref_id)?)
+    }
+}
+
+// Called automatically by Origen once all test program source files have been executed
+#[pyfunction]
+fn render(py: Python) -> PyResult<()> {
+    py.allow_threads(|| Ok(PROG.render()?))
 }
 
 #[pyclass]

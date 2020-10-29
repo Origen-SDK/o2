@@ -25,7 +25,8 @@ class Tester(_origen.tester.PyTester):
 
     @contextmanager
     def specific(self, *names):
-        (ref_id, clean_tester_names) = self._start_specific_block(names)
+        (pat_ref_id, prog_ref_id,
+         clean_tester_names) = self._start_specific_block(names)
         testers = []
         for t in clean_tester_names:
             if t == "V93KSMT7":
@@ -69,7 +70,7 @@ class Tester(_origen.tester.PyTester):
             )
         for t in testers:
             del t
-        self._end_specific_block(ref_id)
+        self._end_specific_block(pat_ref_id, prog_ref_id)
 
 
 class DummyTester:

@@ -122,19 +122,22 @@ impl Tester {
     /// Starts a new tester-specific section in the current pattern and/or test program.
     /// The returned ID should be kept and given to end_tester_specific_block when the
     /// tester specific section is complete.
-    pub fn start_tester_specific_block(&self, testers: Vec<SupportedTester>) -> Result<usize> {
+    pub fn start_tester_specific_block(
+        &self,
+        testers: Vec<SupportedTester>,
+    ) -> Result<(usize, usize)> {
         let n = node!(TesterSpecific, testers.clone());
-        let block_id = TEST.push_and_open(n);
-        PROG.push_current_testers(testers)?;
-        Ok(block_id)
+        let pat_ref_id = TEST.push_and_open(n);
+        let prog_ref_id = PROG.push_current_testers(testers)?;
+        Ok((pat_ref_id, prog_ref_id))
     }
 
     /// Ends an open tester-specific section in the current pattern and/or test program.
     /// The ID produced when opening the block (via start_tester_specific_block) should be supplied
     /// as the main argument.
-    pub fn end_tester_specific_block(&self, block_id: usize) -> Result<()> {
-        TEST.close(block_id)?;
-        PROG.pop_current_testers()?;
+    pub fn end_tester_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
+        TEST.close(pat_ref_id)?;
+        PROG.pop_current_testers(prog_ref_id)?;
         Ok(())
     }
 

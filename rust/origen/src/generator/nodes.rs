@@ -197,12 +197,13 @@ pub enum Attrs {
     //// Flow (prog gen) nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     PGMFlow(String),
+    PGMSubFlow(String),
     PGMTest(
+        String,
         Option<SupportedTester>,
         Option<usize>,
         Option<usize>,
-        Option<String>,
-    ), // Tester, Test ID, Invocation ID, Name
+    ), // Name, Tester, Test ID, Invocation ID
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// STIL

@@ -2,6 +2,7 @@ pub mod advantest;
 mod model;
 pub mod teradyne;
 
+use crate::generator::ast::Node;
 use crate::generator::ast::AST;
 use crate::testers::SupportedTester;
 use crate::Result;
@@ -74,6 +75,11 @@ impl TestPrograms {
         }
     }
 
+    /// Called automatically by Origen to render the test program at the end of the generate command
+    pub fn render(&self) -> Result<()> {
+        Ok(())
+    }
+
     /// Returns the test program model for the given tester
     pub fn for_tester(&self, tester: &SupportedTester) -> &TestProgram {
         {
@@ -92,7 +98,7 @@ impl TestPrograms {
         id
     }
 
-    pub fn push_current_testers(&self, testers: Vec<SupportedTester>) -> Result<()> {
+    pub fn push_current_testers(&self, testers: Vec<SupportedTester>) -> Result<usize> {
         if testers.is_empty() {
             return error!("No tester type(s) given");
         }
@@ -110,29 +116,94 @@ impl TestPrograms {
                 }
             }
         }
-        current_testers.push(testers);
-        Ok(())
+        current_testers.push(testers.clone());
+        let n = node!(TesterSpecific, testers);
+        self.push_and_open(n)
     }
 
-    pub fn pop_current_testers(&self) -> Result<()> {
+    pub fn pop_current_testers(&self, ref_id: usize) -> Result<()> {
         let mut current_testers = self.current_testers.write().unwrap();
         if current_testers.is_empty() {
             return error!("There has been an attempt to close a tester-specific block, but none is currently open in the program generator");
         }
         let _ = current_testers.pop();
+        self.close(ref_id)?;
         Ok(())
     }
 
-    /// Start a new flow, will fail if a flow with the given name already exists
-    pub fn start_flow(&self, name: &str) -> Result<()> {
+    /// Push a new terminal node into the AST for the current flow
+    pub fn push(&self, node: Node) -> Result<()> {
+        self.with_current_flow_mut(|t| {
+            t.push(node);
+            Ok(())
+        })
+    }
+
+    /// Append multiple nodes to the AST for the current flow
+    pub fn append(&self, nodes: &mut Vec<Node>) -> Result<()> {
+        self.with_current_flow_mut(|t| {
+            t.append(nodes);
+            Ok(())
+        })
+    }
+
+    /// Push a new node into the current flow and leave it open, meaning that all new nodes
+    /// added to the AST will be inserted as children of this node until it is closed.
+    /// A reference ID is returned and the caller should save this and provide it again
+    /// when calling close(). If the reference does not match the expected an error will
+    /// be raised. This will catch any cases of application code forgetting to close
+    /// a node before closing one of its parents.
+    pub fn push_and_open(&self, node: Node) -> Result<usize> {
+        self.with_current_flow_mut(|t| Ok(t.push_and_open(node)))
+    }
+
+    /// Close the currently open node in the current test flow
+    pub fn close(&self, ref_id: usize) -> Result<()> {
+        self.with_current_flow_mut(|t| t.close(ref_id))
+    }
+
+    /// Replace the node n - offset with the given node, use offset = 0 to
+    /// replace the last node that was pushed.
+    /// Fails if the AST has no children yet or if the offset is otherwise out
+    /// of range.
+    pub fn replace(&self, node: Node, offset: usize) -> Result<()> {
+        self.with_current_flow_mut(|t| t.replace(node, offset))
+    }
+
+    /// Returns a copy of node n - offset, an offset of 0 means
+    /// the last node pushed.
+    /// Fails if the offset is out of range.
+    pub fn get(&self, offset: usize) -> Result<Node> {
+        self.with_current_flow(|t| t.get(offset))
+    }
+
+    /// Start a new flow, will fail if a flow with the given name already exists.
+    /// Called at the start of a top-level flow.
+    pub fn start_flow(&self, name: &str) -> Result<usize> {
         let mut flows = self.flows.write().unwrap();
         if flows.contains_key(name) {
             return error!("A flow already exists called '{}'", name);
         }
         let mut ast = AST::new();
-        ast.push_and_open(node!(PGMFlow, name.to_owned()));
+        let ref_id = ast.push_and_open(node!(PGMFlow, name.to_owned()));
         flows.insert(name.to_owned(), ast);
+        Ok(ref_id)
+    }
+
+    /// Called at the end of a top-level flow
+    pub fn end_flow(&self, _ref_id: usize) -> Result<()> {
         Ok(())
+    }
+
+    /// Called at the start of a sub-flow
+    pub fn start_sub_flow(&self, name: &str) -> Result<usize> {
+        let n = node!(PGMSubFlow, name.to_owned());
+        self.push_and_open(n)
+    }
+
+    /// Called at the end of a sub-flow
+    pub fn end_sub_flow(&self, ref_id: usize) -> Result<()> {
+        self.close(ref_id)
     }
 
     /// Execute the given function with a reference to the current flow.
@@ -164,16 +235,13 @@ impl TestPrograms {
     /// Add the given test to the current flow
     pub fn add_test(
         &self,
+        name: String,
         tester: Option<SupportedTester>,
         test_id: Option<usize>,
         invocation_id: Option<usize>,
-        name: Option<String>,
     ) -> Result<()> {
-        self.with_current_flow_mut(|f| {
-            let n = node!(PGMTest, tester, test_id, invocation_id, name);
-            f.push(n);
-            Ok(())
-        })
+        let n = node!(PGMTest, name, tester, test_id, invocation_id);
+        self.push(n)
     }
 
     ///// Returns the current tester, will error if more than one tester is currently selected

@@ -35,7 +35,10 @@ impl PyTester {
         }
     }
 
-    pub fn _start_specific_block(&self, testers: Vec<&str>) -> PyResult<(usize, Vec<String>)> {
+    pub fn _start_specific_block(
+        &self,
+        testers: Vec<&str>,
+    ) -> PyResult<(usize, usize, Vec<String>)> {
         let mut ts: Vec<SupportedTester> = vec![];
         let mut clean_testers: Vec<String> = vec![];
         for t in testers {
@@ -43,12 +46,12 @@ impl PyTester {
             clean_testers.push(st.to_string());
             ts.push(st);
         }
-        let ref_id = origen::tester().start_tester_specific_block(ts)?;
-        Ok((ref_id, clean_testers))
+        let refs = origen::tester().start_tester_specific_block(ts)?;
+        Ok((refs.0, refs.1, clean_testers))
     }
 
-    pub fn _end_specific_block(&self, ref_id: usize) -> PyResult<()> {
-        origen::tester().end_tester_specific_block(ref_id)?;
+    pub fn _end_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
+        origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id)?;
         Ok(())
     }
 
