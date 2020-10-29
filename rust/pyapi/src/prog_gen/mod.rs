@@ -2,6 +2,7 @@
 
 pub mod interface;
 
+use origen::core::tester::TesterSource;
 use origen::prog_gen::Test as RichTest;
 use origen::prog_gen::{ParamType, ParamValue};
 use origen::testers::SupportedTester;
@@ -11,6 +12,8 @@ use pyo3::exceptions::{AttributeError, TypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use pyo3::wrap_pyfunction;
+use std::path::PathBuf;
+use std::thread;
 
 #[pymodule]
 /// Implements the module _origen.prog_gen in Python
@@ -49,8 +52,57 @@ fn end_flow(ref_id: usize, sub_flow: Option<bool>) -> PyResult<()> {
 
 // Called automatically by Origen once all test program source files have been executed
 #[pyfunction]
-fn render(py: Python) -> PyResult<()> {
-    py.allow_threads(|| Ok(PROG.render()?))
+fn render(py: Python) -> PyResult<Vec<String>> {
+    let continue_on_fail = true;
+    py.allow_threads(|| {
+        let targets = {
+            let tester = origen::tester();
+            tester.targets().clone()
+        };
+        let threads: Vec<_> = targets.iter().enumerate().map(|(i, t)| {
+            let t = t.to_owned();
+            thread::spawn(move || {
+                match t {
+                    TesterSource::External(g) => {
+                        log_error!("Python based tester targets are not supported for program generation yet, no action taken for target: {}", g);
+                        Ok(vec![])
+                    }
+                    _ => {
+                        let mut tester = origen::tester();
+                        let files = tester.render_program_for_target_at(i, true);
+                        match files {
+                            Err(e) => {
+                                let msg = e.to_string();
+                                if continue_on_fail {
+                                    origen::STATUS.inc_unhandled_error_count();
+                                    log_error!("{}", &msg);
+                                    Ok(vec![])
+                                } else {
+                                    Err(e)
+                                }
+                            }
+                            Ok(paths) => Ok(paths)
+                        }
+                    }
+                }
+            })
+        }).collect();
+        let mut generated_files: Vec<String> = vec![];
+        for thread in threads {
+            match thread.join() {
+                Err(_e) => log_error!("Something has gone wrong when doing the final program render"),
+                Ok(v) => match v {
+                    Err(e) => log_error!("{}", e),
+                    Ok(paths) => {
+                        for path in &paths {
+                            generated_files.push(format!("{}", path.display()));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(generated_files)
+    })
 }
 
 #[pyclass]
@@ -89,7 +141,6 @@ impl PyObjectProtocol for Test {
     //}
 
     fn __getattr__(&self, query: &str) -> PyResult<()> {
-        dbg!(query);
         Ok(())
     }
 
@@ -160,7 +211,6 @@ impl PyObjectProtocol for TestInvocation {
     //}
 
     fn __getattr__(&self, query: &str) -> PyResult<()> {
-        dbg!(query);
         Ok(())
     }
 

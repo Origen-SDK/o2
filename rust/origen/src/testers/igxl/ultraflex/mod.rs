@@ -1,4 +1,5 @@
-use crate::core::tester::{Interceptor, TesterAPI};
+use crate::core::tester::{Interceptor, TesterAPI, TesterID};
+use crate::testers::SupportedTester;
 //use crate::generator::ast::Node;
 //use crate::Result;
 //use std::path::PathBuf;
@@ -14,20 +15,10 @@ impl Default for UltraFlex {
 
 impl Interceptor for UltraFlex {}
 
-impl TesterAPI for UltraFlex {
-    fn name(&self) -> String {
-        "ULTRAFLEX".to_string()
+impl TesterID for UltraFlex {
+    fn id(&self) -> SupportedTester {
+        SupportedTester::ULTRAFLEX
     }
-
-    fn id(&self) -> String {
-        "UltraFlex".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
-    //fn render_pattern(&mut self, node: &Node) -> Result<Option<PathBuf>> {
-    //    pattern_renderer::Renderer::run(self, node)
-    //}
 }
+
+impl TesterAPI for UltraFlex {}

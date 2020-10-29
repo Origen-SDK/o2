@@ -40,7 +40,7 @@ def clean_dummy():
     origen.tester.target("DummyRenderer")
     _origen.start_new_test()
     assert len(origen.test_ast()["children"]) == 0
-    assert origen.tester.targets == ["::DummyRenderer"]
+    assert origen.tester.targets == ["DUMMYRENDERER"]
     assert origen.tester.timeset is None
 
 

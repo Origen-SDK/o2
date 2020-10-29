@@ -126,7 +126,7 @@ impl RevisionControlAPI for Git {
         let repo = Repository::open(&self.local)?;
         let stat = repo.statuses(None)?;
         for entry in stat.iter() {
-            //dbg!(entry.status());
+            //(entry.status());
 
             if entry.status().contains(git2::Status::WT_NEW) {
                 let old = entry.index_to_workdir().unwrap().old_file().path();

@@ -1,7 +1,8 @@
-use crate::core::tester::{Interceptor, TesterAPI};
+use crate::core::tester::{Interceptor, TesterAPI, TesterID};
 use crate::error::Error;
 use crate::generator::ast::Node;
 use crate::generator::processor::Processor;
+use crate::testers::SupportedTester;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -35,19 +36,14 @@ impl Interceptor for Renderer {
         Ok(())
     }
 }
+
+impl TesterID for Renderer {
+    fn id(&self) -> SupportedTester {
+        SupportedTester::SIMULATOR
+    }
+}
+
 impl TesterAPI for Renderer {
-    fn name(&self) -> String {
-        "Simulator".to_string()
-    }
-
-    fn id(&self) -> String {
-        "::Simulator".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
         Ok(vec![])
