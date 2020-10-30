@@ -4,6 +4,14 @@ use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use std::path::{Path, PathBuf};
 
+pub trait Differ {
+    /// Returns true if diffs are found between the contained files based on the differ's current
+    /// configuration.
+    /// An error will be returned if any of the files doesn't exist or if there is some
+    /// other problem with reading them.
+    fn has_diffs(&mut self) -> Result<bool>;
+}
+
 /// A utility for diffing two different files, with the ability to ignore code in comments,
 /// and to specify character strings within the file to suspend and resume diffing.
 /// Blank lines will be ignored by default.
@@ -13,7 +21,7 @@ use std::path::{Path, PathBuf};
 /// ```
 /// use std::io::Write;
 /// # use tempfile::NamedTempFile;
-/// use origen::utility::differ::Differ;
+/// use origen::utility::differ::ASCIIDiffer;
 ///
 /// # let mut file_a = NamedTempFile::new().unwrap();
 /// # let mut file_b = NamedTempFile::new().unwrap();
@@ -21,7 +29,7 @@ use std::path::{Path, PathBuf};
 /// let _ = writeln!(file_b, "This part is the same // But this is not");
 /// let _ = writeln!(file_b, "");   // An extra blank line in file B
 ///
-/// let mut differ = Differ::new(file_a.path(), file_b.path());
+/// let mut differ = ASCIIDiffer::new(file_a.path(), file_b.path());
 ///
 /// assert_eq!(differ.has_diffs().unwrap(), true);
 ///
@@ -33,7 +41,7 @@ use std::path::{Path, PathBuf};
 ///
 /// assert_eq!(differ.has_diffs().unwrap(), true);
 /// ```
-pub struct Differ {
+pub struct ASCIIDiffer {
     file_a: PathBuf,
     file_b: PathBuf,
     pub ignore_blank_lines: bool,
@@ -46,9 +54,15 @@ pub struct Differ {
     resume_on: Option<Regex>,
 }
 
-impl Differ {
+impl Differ for ASCIIDiffer {
+    fn has_diffs(&mut self) -> Result<bool> {
+        self.run()
+    }
+}
+
+impl ASCIIDiffer {
     pub fn new(file_a: &Path, file_b: &Path) -> Self {
-        Differ {
+        ASCIIDiffer {
             file_a: file_a.to_path_buf(),
             file_b: file_b.to_path_buf(),
             ignore_blank_lines: true,
@@ -87,7 +101,7 @@ impl Differ {
     /// configuration.
     /// An error will be returned if either of the files doesn't exist or if there is some
     /// other problem with reading them.
-    pub fn has_diffs(&mut self) -> Result<bool> {
+    pub fn run(&mut self) -> Result<bool> {
         let fa = File::open(&self.file_a)?;
         let mut fa = BufReader::new(fa).lines();
 
@@ -192,7 +206,7 @@ impl Differ {
 
 #[cfg(test)]
 mod tests {
-    use crate::utility::differ::Differ;
+    use crate::utility::differ::{ASCIIDiffer, Differ};
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -217,7 +231,7 @@ mod tests {
              and now we are back"
         );
 
-        let mut differ = Differ::new(file_a.path(), file_b.path());
+        let mut differ = ASCIIDiffer::new(file_a.path(), file_b.path());
 
         assert_eq!(differ.has_diffs().unwrap(), true);
 
@@ -248,7 +262,7 @@ mod tests {
              and now we are back"
         );
 
-        let mut differ = Differ::new(file_a.path(), file_b.path());
+        let mut differ = ASCIIDiffer::new(file_a.path(), file_b.path());
 
         assert_eq!(differ.has_diffs().unwrap(), true);
 
@@ -279,7 +293,7 @@ mod tests {
              and now we are back"
         );
 
-        let mut differ = Differ::new(file_a.path(), file_b.path());
+        let mut differ = ASCIIDiffer::new(file_a.path(), file_b.path());
 
         assert_eq!(differ.has_diffs().unwrap(), true);
 
@@ -307,7 +321,7 @@ mod tests {
              This part is the same"
         );
 
-        let mut differ = Differ::new(file_a.path(), file_b.path());
+        let mut differ = ASCIIDiffer::new(file_a.path(), file_b.path());
 
         assert_eq!(differ.has_diffs().unwrap(), false);
 

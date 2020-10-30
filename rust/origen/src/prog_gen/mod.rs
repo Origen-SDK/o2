@@ -201,6 +201,17 @@ impl TestPrograms {
         self.close(ref_id)
     }
 
+    /// Execute the given function with a reference to an index map containing all flows, the map
+    /// will simply be empty if there are no flows.
+    /// The result of the given function is returned.
+    pub fn with_all_flows<T, F>(&self, func: F) -> Result<T>
+    where
+        F: FnOnce(&IndexMap<String, AST>) -> Result<T>,
+    {
+        let flows = self.flows.read().unwrap();
+        func(&flows)
+    }
+
     /// Execute the given function with a reference to the current flow.
     /// Returns an error if there is no current flow, otherwise the result of the given function.
     pub fn with_current_flow<T, F>(&self, func: F) -> Result<T>
