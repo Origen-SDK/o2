@@ -43,6 +43,14 @@ impl JTAG {
         Ok(self.clone())
     }
 
+    fn reset(&self) -> PyResult<()> {
+        let dut = origen::dut();
+        let services = origen::services();
+        let jtag = services.get_as_jtag(self.id)?;
+        jtag.reset(&dut)?;
+        Ok(())
+    }
+
     #[args(write_opts = "**")]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
@@ -69,6 +77,62 @@ impl JTAG {
         unpack_transaction_options(&mut trans, verify_opts)?;
         jtag.verify_register(&dut, &services, &trans)?;
         Ok(())
+    }
+
+    #[args(kwargs = "**")]
+    fn write_dr(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+        let dut = origen::dut();
+        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_write_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
+
+        let services = origen::services();
+        let jtag = services.get_as_jtag(self.id)?;
+
+        jtag.write_dr(&dut, &trans)?;
+        Ok(self.clone())
+    }
+
+    #[args(kwargs = "**")]
+    fn verify_dr(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+        let dut = origen::dut();
+        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_verify_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
+
+        let services = origen::services();
+        let jtag = services.get_as_jtag(self.id)?;
+
+        jtag.verify_dr(&dut, &trans)?;
+        Ok(self.clone())
+    }
+
+    #[args(kwargs = "**")]
+    fn write_ir(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+        let dut = origen::dut();
+        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_write_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
+
+        let services = origen::services();
+        let jtag = services.get_as_jtag(self.id)?;
+
+        jtag.write_ir(&dut, &trans)?;
+        Ok(self.clone())
+    }
+
+    #[args(kwargs = "**")]
+    fn verify_ir(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+        let dut = origen::dut();
+        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let mut trans = value.to_verify_transaction(&dut)?;
+        unpack_transaction_options(&mut trans, kwargs)?;
+
+        let services = origen::services();
+        let jtag = services.get_as_jtag(self.id)?;
+
+        jtag.verify_ir(&dut, &trans)?;
+        Ok(self.clone())
     }
 
     // #[args(size = "None")]
