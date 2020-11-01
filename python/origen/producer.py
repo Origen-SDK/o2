@@ -84,11 +84,15 @@ class Producer(_origen.producer.PyProducer):
             top_level = False
             origen.logger.debug(
                 f"Producing sub-flow '{flow.name}' in job '{job.id}'")
+            flow_ref = _origen.prog_gen.start_new_flow(flow.name,
+                                                       sub_flow=True)
         else:
             origen.logger.debug(
                 f"Producing flow '{flow.name}' in job '{job.id}'")
             top_level = True
             top_level_flow_open = True
+            origen.target.load()
+            flow_ref = _origen.prog_gen.start_new_flow(flow.name)
 
         #origen.tester.reset()
         #origen.target.reload()
@@ -101,6 +105,9 @@ class Producer(_origen.producer.PyProducer):
 
         if top_level:
             top_level_flow_open = False
+            _origen.prog_gen.end_flow(flow_ref)
+        else:
+            _origen.prog_gen.end_flow(flow_ref, sub_flow=True)
 
         #origen.tester.end_pattern()
         #origen.tester.render()

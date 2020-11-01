@@ -7,6 +7,7 @@ extern crate meta;
 extern crate pest_derive;
 #[macro_use]
 pub mod macros;
+#[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
 
@@ -38,7 +39,7 @@ use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
-use prog_gen::Interface;
+use prog_gen::TestPrograms;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
@@ -74,7 +75,7 @@ lazy_static! {
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
     /// Storage for the current program generation run, can include multiple flows
-    pub static ref INTERFACE: Interface = Interface::new();
+    pub static ref PROG: TestPrograms = TestPrograms::new();
     /// Provides info about the current user
     pub static ref USER: User = User::current();
 }

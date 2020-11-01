@@ -35,6 +35,26 @@ impl PyTester {
         }
     }
 
+    pub fn _start_specific_block(
+        &self,
+        testers: Vec<&str>,
+    ) -> PyResult<(usize, usize, Vec<String>)> {
+        let mut ts: Vec<SupportedTester> = vec![];
+        let mut clean_testers: Vec<String> = vec![];
+        for t in testers {
+            let st = SupportedTester::new(t)?;
+            clean_testers.push(st.to_string());
+            ts.push(st);
+        }
+        let refs = origen::tester().start_tester_specific_block(ts)?;
+        Ok((refs.0, refs.1, clean_testers))
+    }
+
+    pub fn _end_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
+        origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id)?;
+        Ok(())
+    }
+
     /// This resets the tester, clearing all loaded targets and any other state, making
     /// it ready for a fresh target load.
     /// This should only be called from Python code for testing, it will be called automatically

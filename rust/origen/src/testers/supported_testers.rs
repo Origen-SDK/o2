@@ -2,8 +2,9 @@ use crate::Result as OrigenResult;
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize)]
 pub enum SupportedTester {
+    GENERIC, // If no tester is specified then this is used by default
     V93KSMT7,
     V93KSMT8,
     J750,
@@ -58,7 +59,7 @@ impl FromStr for SupportedTester {
 
         // Accept any case and with or without underscores
         let kind = kind.to_uppercase().replace("_", "");
-        match kind.as_str() {
+        match kind.trim() {
             "V93KSMT7" => Ok(SupportedTester::V93KSMT7),
             "V93KSMT8" => Ok(SupportedTester::V93KSMT8),
             "J750" => Ok(SupportedTester::J750),
@@ -94,4 +95,26 @@ fn error_msg(val: &str) -> String {
         val,
         SupportedTester::all_names().join(", ")
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn verify_custom_testers_work_as_hash_keys() {
+        let mut h: HashMap<SupportedTester, usize> = HashMap::new();
+        let t1 = SupportedTester::J750;
+        let t2 = SupportedTester::CUSTOM("t2".to_string());
+        let t3 = SupportedTester::CUSTOM("t3".to_string());
+
+        h.insert(t1.clone(), 1);
+        h.insert(t2.clone(), 2);
+        h.insert(t3.clone(), 3);
+
+        assert_eq!(h[&t1], 1);
+        assert_eq!(h[&t2], 2);
+        assert_eq!(h[&t3], 3);
+    }
 }

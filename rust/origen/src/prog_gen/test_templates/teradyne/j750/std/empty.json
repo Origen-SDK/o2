@@ -1,0 +1,43 @@
+{
+    "aliases": {
+        "start_func":           "arg0",
+        "start_of_body_f":      "arg0",
+        "pre_pat_func":         "arg1",
+        "pre_pat_f":            "arg1",
+        "pre_test_func":        "arg2",
+        "pre_test_f":           "arg2",
+        "post_test_func":       "arg3",
+        "post_test_f":          "arg3",
+        "post_pat_func":        "arg4",
+        "post_pat_f":           "arg4",
+        "end_func":             "arg5",
+        "end_of_body_f":        "arg5",
+        "start_func_args":      "arg6",
+        "start_of_body_f_args": "arg6",
+        "pre_pat_func_args":    "arg7",
+        "pre_pat_f_args":       "arg7",
+        "pre_test_func_args":   "arg8",
+        "pre_test_f_args":      "arg8",
+        "post_test_func_args":  "arg9",
+        "post_test_f_args":     "arg9",
+        "post_pat_func_args":   "arg10",
+        "post_pat_f_args":      "arg10",
+        "end_func_args":        "arg11",
+        "end_of_body_f_args":   "arg11",
+        "utility_pins_1":       "arg12",
+        "utility_pins_0":       "arg13",
+        "init_lo":              "arg14",
+        "start_lo":             "arg14",
+        "init_hi":              "arg15",
+        "start_hi":             "arg15",
+        "init_hiz":             "arg16",
+        "start_hiz":            "arg16",
+        "float_pins":           "arg17"
+    },
+
+    "values": {
+        "proc_type":      "IG-XL Template",
+        "proc_name":      "Empty_T",
+        "proc_called_as": "Excel Macro"
+    }
+}

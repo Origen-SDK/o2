@@ -1,0 +1,16 @@
+{
+    "class_name": "ac_tml.AcTest.functionalTest",
+    
+    "parameters": {
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "test_name": {
+            "type": "string",
+            "value": "Functional"
+        }
+    }
+}
