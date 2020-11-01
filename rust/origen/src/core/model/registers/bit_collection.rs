@@ -457,7 +457,7 @@ impl<'a> BitCollection<'a> {
             let mut t = Transaction::new_verify(bits.data()?, reg.size)?;
             t.reg_id = Some(id);
             t.address = Some(reg.address(dut, None)?);
-            t.address_width = Some(reg.address_unit_bits(&dut)? as usize);
+            t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = bits.verify_enables();
             t.capture_enable = Some(bits.capture_enables());
             t.overlay_enable = Some(bits.overlay_enables());
@@ -465,7 +465,7 @@ impl<'a> BitCollection<'a> {
             Ok(t)
         } else {
             Err(Error::new(&format!(
-                "bit collection 'to_verify_transaction' only supported for register-based bit collections"
+                "bit collection 'to_verify_transaction' is only supported for register-based bit collections"
             )))
         }
     }
@@ -528,14 +528,15 @@ impl<'a> BitCollection<'a> {
             let mut t = Transaction::new_write(bits.data()?, reg.size)?;
             t.reg_id = Some(id);
             t.address = Some(reg.address(dut, None)?);
-            t.address_width = Some(reg.address_unit_bits(&dut)? as usize);
+            println!("WT size: {}", reg.width(&dut)? as usize);
+            t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = Transaction::enable_of_width(reg.size)?;
             t.overlay_enable = Some(bits.overlay_enables());
             t.overlay_string = bits.get_overlay()?;
             Ok(t)
         } else {
             Err(Error::new(&format!(
-                "bit collection 'to_verify_transaction' only supported for register-based bit collections"
+                "bit collection 'to_verify_transaction' is only supported for register-based bit collections"
             )))
         }
     }

@@ -143,7 +143,7 @@ fn unpack_transaction_options(
 fn resolve_transaction(
     dut: &std::sync::MutexGuard<origen::Dut>,
     trans: &PyAny,
-    action: origen::TransactionAction,
+    action: Option<origen::TransactionAction>,
     kwargs: Option<&PyDict>
 ) -> PyResult<origen::Transaction> {
     let mut width = 32;
@@ -153,7 +153,21 @@ fn resolve_transaction(
         }
     }
     let value = extract_value(trans, Some(width), &dut)?;
-    let mut trans = value.to_write_transaction(&dut)?;
+    let mut trans;
+    if let Some(a) = action {
+        match a {
+            origen::TransactionAction::Write => trans = value.to_write_transaction(&dut)?,
+            origen::TransactionAction::Verify => trans = value.to_verify_transaction(&dut)?,
+            // origen::TransactionAction::Capture => trans = value.to_capture_transaction(&dut)?,
+            _ => return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
+                "Resolving transactions for {:?} is not supported",
+                a
+            )))
+        }
+    } else {
+        trans = value.to_write_transaction(&dut)?;
+        trans.action = None;
+    }
 
     if let Some(opts) = kwargs {
         if let Some(address) = opts.get_item("address") {

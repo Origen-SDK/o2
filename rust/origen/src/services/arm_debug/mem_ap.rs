@@ -118,8 +118,6 @@ impl MemAP {
         let n_id = TEST.push_and_open(reg_write_node.clone());
         let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
 
-        // let swd_id = arm_debug.swd_id.unwrap();
-        // let swd = services.get_as_swd(swd_id)?;
         let jtag_dp;
         let swd_service;
         let jtag_dp_service;

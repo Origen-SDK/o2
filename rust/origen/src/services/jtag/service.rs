@@ -6,7 +6,7 @@ use crate::{Result, TEST, Dut, Transaction, Services};
 use crate::precludes::controller::*;
 use crate::testers::api::ControllerAPI;
 
-pub enum JTAG_STATES {
+pub enum TAPStates {
     Reset,
     Idle,
 
@@ -20,37 +20,23 @@ pub enum JTAG_STATES {
     UpdateDR,
     
     // IR States
-    SELECT_IR,
-    CAPTURE_IR,
-    SHIFT_IR,
-    EXIT1_IR,
-    PAUSE_IR,
-    EXIT2_IR,
-    UPDATE_IR,
+    SelectIR,
+    CaptureIR,
+    ShiftIR,
+    Exit1IR,
+    PauseIR,
+    Exit2IR,
+    UpdateIR,
 }
 
-impl JTAG_STATES{
-    pub fn cycles_to_idle(&self) -> usize {
-        match self {
-            Reset => 0,
-            Idle => 3,
-    // SELECT_DR,
-    // CAPTURE_DR,
-    // SHIFT_DR,
-    // EXIT1_DR,
-    // PAUSE_DR,
-    // EXIT2_DR,
-    // UPDATE_DR,
-    // SELECT_IR,
-    // CAPTURE_IR,
-    // SHIFT_IR,
-    // EXIT1_IR,
-    // PAUSE_IR,
-    // EXIT2_IR,
-    // UPDATE_IR,
-            _ => 0
-        }
-    }
+impl TAPStates{
+    // pub fn cycles_to_idle(&self) -> usize {
+    //     match self {
+    //         Reset => 0,
+    //         Idle => 3,
+    //         _ => 0
+    //     }
+    // }
 
     // pub fn next_state(&self, tms_val) -> usize {
     //     // ...
@@ -85,11 +71,6 @@ impl JTAG_STATES{
     // }
 }
 
-// SELECT_IR_CHAIN = index_map!(
-//     (JTAG_STATES::SELECT_IR, JTAG_STATES::CAPTURE_IR, JTAG_STATES::RESET),
-//     (JTAG_STATE)
-// )
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Service {
     // For example, to keep track of the current IR value, would also add fields
@@ -109,16 +90,6 @@ impl ControllerAPI for Service {
     }
 }
 
-// fn cycles(num: u32) {
-//     // This is temporary to create some AST content, the only direct Node creation
-//     // done by this driver should be JTAG nodes.
-//     // Cycles will be induced by API method calls in future, e.g. tester.cycle()
-//     let cyc = node!(Cycle, 1, true);
-//     for _i in 0..num {
-//         TEST.push(cyc.clone());
-//     }
-// }
-
 impl Service {
     pub fn new(
         _dut: &Dut,
@@ -133,7 +104,6 @@ impl Service {
         Ok(Service {
             id: id,
             default_ir_size: default_ir_size,
-            // ir_size: ir_size,
             tclk: {
                 if let Some(grp) = tclk {
                     grp.to_identifier()
@@ -173,14 +143,15 @@ impl Service {
     }
 
     pub fn reset(&self, dut: &Dut) -> Result<()> {
-        // let tms = &self.tms.to_pc(&dut);
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         self._reset(&tms)
     }
 
     fn _reset(&self, tms: &PinCollection) -> Result<()> {
+        let n_id = TEST.push_and_open(node!(JTAGReset, self.id, None));
         self.comment("Resetting JTAG Interface");
         tms.drive_high().repeat(6);
+        TEST.close(n_id);
         Ok(())
     }
 
@@ -197,8 +168,6 @@ impl Service {
     // }
 
     pub fn write_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()>{
-        // let tms = &self.tms.to_pc(&dut);
-        // let tdo = &self.tdo.to_pc(&dut);
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdi = PinCollection::from_group(&dut, &self.tdi.0, self.tdi.1)?;
         let mut trans = node!(
@@ -208,16 +177,7 @@ impl Service {
             None
         );
         let n_id = TEST.push_and_open(trans.clone());
-        // self.process_transaction(dut, &mut trans)?;
 
-        // self._move_to_state(WRITE_IR, tms)?;
-        // self.comment("Write IR {:?}", transaction.data);
-        // tdo.push_transaction(transaction)?;
-        // self.comment("Completed IR Shift");
-        // tdo.highz();
-        // self._move_to_state(IDLE, tms);
-
-        //self._reset(&tms)?;
         self.comment("Move to Shift-IR");
         tms.drive_low().cycle();
         tms.drive_high().cycles(2);
@@ -247,7 +207,20 @@ impl Service {
             None
         );
         let n_id = TEST.push_and_open(trans.clone());
-        panic!("Not ready yet!");
+        self.comment("Move to Shift-IR");
+        tms.drive_low().cycle();
+        tms.drive_high().cycles(2);
+        tms.drive_low().cycles(2);
+        self.comment(&format!("Verify IR {:?}", transaction.data));
+        let mut nodes = tdo.push_transaction_nodes(&transaction)?;
+        nodes.insert(nodes.len() - 2, tms.drive_high_nodes().first().unwrap().clone());
+        TEST.append(&mut nodes);
+        self.comment("Completed IR Shift");
+        tdo.highz();
+        self.comment("Move to Update IR");
+        tms.drive_high().cycle();
+        self.comment("Move to IDLE");
+        tms.drive_low().cycle();
         TEST.close(n_id)?;
         Ok(())
     }
@@ -293,7 +266,6 @@ impl Service {
         );
         let n_id = TEST.push_and_open(trans.clone());
 
-        //self._reset(&tms)?;
         self.comment("Move to Shift-DR");
         tms.drive_low().cycle();
         tms.drive_high().cycle();
@@ -314,120 +286,20 @@ impl Service {
     }
 
     pub fn write_register(&self, dut: &Dut, _services: &Services, transaction: &Transaction) -> Result<()> {
+        let n_id = TEST.push_and_open(transaction.as_write_node()?);
         let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
         self.write_ir(&dut, &ir_trans)?;
         self.write_dr(&dut, &transaction)?;
+        TEST.close(n_id);
         Ok(())
     }
 
     pub fn verify_register(&self, dut: &Dut, _services: &Services, transaction: &Transaction) -> Result<()> {
+        let n_id = TEST.push_and_open(transaction.as_verify_node()?);
         let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
         self.write_ir(&dut, &ir_trans)?;
         self.verify_dr(&dut, transaction)?;
+        TEST.close(n_id);
         Ok(())
     }
-
-    // pub fn write_ir(&mut self, value: Value) -> Result<()> {
-    //     let trans = match value {
-    //         Value::Bits(bits, size) => node!(
-    //             JTAGWriteIR,
-    //             match size {
-    //                 None => bits.len() as u32,
-    //                 Some(x) => x,
-    //             },
-    //             bits.data()?,
-    //             Some(bits.overlay_enables()),
-    //             bits.get_overlay()?
-    //         ),
-    //         Value::Data(value, size) => node!(JTAGWriteIR, size, value, None, None),
-    //     };
-    //     let tid = TEST.push_and_open(trans);
-
-    //     // This is temporary to create some AST content
-    //     cycles(5);
-
-    //     TEST.close(tid)
-    //         .expect("Closed JTAG write IR trans properly");
-
-    //     Ok(())
-    // }
-
-    // pub fn verify_ir(&mut self, value: Value) -> Result<()> {
-    //     let trans = match value {
-    //         Value::Bits(bits, size) => node!(
-    //             JTAGVerifyIR,
-    //             match size {
-    //                 None => bits.len() as u32,
-    //                 Some(x) => x,
-    //             },
-    //             bits.data()?,
-    //             Some(bits.verify_enables()),
-    //             Some(bits.capture_enables()),
-    //             Some(bits.overlay_enables()),
-    //             bits.get_overlay()?
-    //         ),
-    //         Value::Data(value, size) => node!(JTAGVerifyIR, size, value, None, None, None, None),
-    //     };
-    //     let tid = TEST.push_and_open(trans);
-
-    //     // This is temporary to create some AST content
-    //     cycles(15);
-
-    //     TEST.close(tid)
-    //         .expect("Closed JTAG write IR trans properly");
-
-    //     Ok(())
-    // }
-
-    // pub fn write_dr(&mut self, value: Value) -> Result<()> {
-    //     let trans = match value {
-    //         Value::Bits(bits, size) => node!(
-    //             JTAGWriteDR,
-    //             match size {
-    //                 None => bits.len() as u32,
-    //                 Some(x) => x,
-    //             },
-    //             bits.data()?,
-    //             Some(bits.overlay_enables()),
-    //             bits.get_overlay()?
-    //         ),
-    //         Value::Data(value, size) => node!(JTAGWriteIR, size, value, None, None),
-    //     };
-    //     let tid = TEST.push_and_open(trans);
-
-    //     // This is temporary to create some AST content
-    //     cycles(5);
-
-    //     TEST.close(tid)
-    //         .expect("Closed JTAG write IR trans properly");
-
-    //     Ok(())
-    // }
-
-    // pub fn verify_dr(&mut self, value: Value) -> Result<()> {
-    //     let trans = match value {
-    //         Value::Bits(bits, size) => node!(
-    //             JTAGVerifyDR,
-    //             match size {
-    //                 None => bits.len() as u32,
-    //                 Some(x) => x,
-    //             },
-    //             bits.data()?,
-    //             Some(bits.verify_enables()),
-    //             Some(bits.capture_enables()),
-    //             Some(bits.overlay_enables()),
-    //             bits.get_overlay()?
-    //         ),
-    //         Value::Data(value, size) => node!(JTAGVerifyIR, size, value, None, None, None, None),
-    //     };
-    //     let tid = TEST.push_and_open(trans);
-
-    //     // This is temporary to create some AST content
-    //     cycles(15);
-
-    //     TEST.close(tid)
-    //         .expect("Closed JTAG write IR trans properly");
-
-    //     Ok(())
-    // }
 }

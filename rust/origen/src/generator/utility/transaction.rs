@@ -6,6 +6,8 @@ use crate::{Error, Metadata, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
+use crate::generator::ast::Node;
+use crate::utility::big_uint_helpers::BigUintHelpers;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
@@ -164,6 +166,16 @@ impl Transaction {
         }
     }
 
+    pub fn addr_width(&self) -> Result<usize> {
+        match self.address_width {
+            Some(a) => Ok(a),
+            None => Err(Error::new(&format!(
+                "Tried to retrieve address width from transaction {:?}, but an address width has not be set",
+                self
+            ))),
+        }
+    }
+
     pub fn to_symbols(&self) -> Result<Vec<String>> {
         let low_sym;
         let high_sym;
@@ -289,9 +301,27 @@ impl Transaction {
         self.bit_enable = (&self.bit_enable << width) + Self::enable_of_width(width)?;
         Ok(())
     }
+
+    pub fn as_write_node(&self) -> Result<Node> {
+        Ok(node!(RegWrite, self.clone()))
+    }
+
+    pub fn as_verify_node(&self) -> Result<Node> {
+        Ok(node!(RegVerify, self.clone()))
+    }
+
+    pub fn chunk_data(&self, chunk_width: usize, lsb_first: bool) -> Result<Vec<BigUint>> {
+        self.data.chunk(chunk_width, self.width, lsb_first, true)
+    }
+
+    pub fn chunk_addr(&self, chunk_width: usize, lsb_first: bool) -> Result<Vec<BigUint>> {
+        BigUint::from(self.addr()?).chunk(chunk_width, self.addr_width()?, lsb_first, true)
+    }
 }
 
 impl NumHelpers for Transaction {
+    type T = Self;
+
     fn even_parity(&self) -> bool {
         self.data.even_parity()
     }

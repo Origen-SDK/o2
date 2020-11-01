@@ -266,6 +266,12 @@ class Base:
             self.add_simple_reg(n, offset, **kwargs)
         return self.reg(n)
 
+    def preface(self):
+        return f"{self.name}: "
+
+    def cc(self, message):
+        return origen.tester.cc(f"{self.preface()}{message}")
+
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
 class TopLevel(Base):

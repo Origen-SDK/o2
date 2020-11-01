@@ -82,6 +82,7 @@ pub enum Attrs {
         Transaction,
         Metadata,
     ),
+    JTAGReset(Id, Metadata),
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// SWD nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,22 +117,22 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Arm Debug's JTAG DP Nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ArmDebugJTAGWriteDP(
+    JTAGDPWriteDP(
         Id, // JTAG DP Id
         Transaction,
         Metadata
     ),
-    ArmDebugJTAGVerifyDP(
+    JTAGDPVerifyDP(
         Id,
         Transaction,
         Metadata
     ),
-    ArmDebugJTAGWriteAP(
+    JTAGDPWriteAP(
         Id,
         Transaction,
         Metadata
     ),
-    ArmDebugJTAGVerifyAP(
+    JTAGDPVerifyAP(
         Id,
         Transaction,
         Metadata

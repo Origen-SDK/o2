@@ -56,7 +56,7 @@ impl JTAG {
         // let value = extract_value(bits, Some(32), &dut)?;
         // let mut trans = value.to_write_transaction(&dut)?;
         // unpack_transaction_options(&mut trans, write_opts)?;
-        let trans = resolve_transaction(&dut, bits, origen::TransactionAction::Write, write_opts)?;
+        let trans = resolve_transaction(&dut, bits, Some(origen::TransactionAction::Write), write_opts)?;
         jtag.write_register(&dut, &services, &trans)?;
         Ok(())
     }

@@ -25,3 +25,15 @@ class Loader:
         return {
             "Service": self.service,
         }
+
+class Base:
+    def set_controller(self, name, controller):
+        self.name = name
+        self.controller = controller
+        return self
+
+    def preface(self):
+        return f"{self.name}: "
+
+    def cc(self, message):
+        return origen.tester.cc(f"{self.preface()}{message}")

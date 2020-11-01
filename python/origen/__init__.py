@@ -204,14 +204,6 @@ def standard_context():
         "tester": lambda: __import__("origen").tester,
     }
 
-
-__all__ = [
-    *internal_members(sys.modules[__name__]), 'config', 'status', 'root',
-    'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
-    'frontend_root', 'app', 'dut', 'tester', 'producer'
-]
-
-
 def has_plugin(name):
     '''
         Returns true if an Origen plugin matching the given name is found in the current environment
@@ -242,3 +234,10 @@ def plugin(name):
         raise RuntimeError(
             f"The current Python environment does not contain a plugin named '{name}'"
         )
+
+__all__ = [
+    *internal_members(sys.modules[__name__]), 'config', 'status', 'root',
+    'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
+    'frontend_root', 'app', 'dut', 'tester', 'producer',
+    'has_plugin', 'plugin'
+]
