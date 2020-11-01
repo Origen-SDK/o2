@@ -33,7 +33,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service JTAG but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 
@@ -83,7 +83,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebugJtagDP but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 
@@ -93,7 +93,7 @@ impl Service {
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebugJtagDP but received {:?}",
                 self
-            )))
+            ))),
         }
     }
 

@@ -79,7 +79,7 @@ macro_rules! add_reg {
             Some($description.to_string()),
             $access,
             $resets,
-            $fields
+            $fields,
         )?
     }};
 }

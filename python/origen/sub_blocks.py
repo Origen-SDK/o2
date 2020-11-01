@@ -31,7 +31,8 @@ class Loader:
         b.parent = self.controller
         self.controller.sub_blocks[name] = b
         # Create a new representation of it in the internal database
-        b.model_id = origen.dut.db.create_model(self.controller.model_id, name, offset)
+        b.model_id = origen.dut.db.create_model(self.controller.model_id, name,
+                                                offset)
         if hasattr(b, "model_init"):
             b.model_init(b, block_options=sb_options)
         else:

@@ -1,13 +1,13 @@
 use super::super::nodes::Id;
 use crate::core::model::pins::pin::PinAction;
+use crate::generator::ast::Node;
 use crate::standards::actions::*;
+use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
 use crate::{Error, Metadata, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
-use crate::generator::ast::Node;
-use crate::utility::big_uint_helpers::BigUintHelpers;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
@@ -47,7 +47,7 @@ impl Default for Transaction {
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
-            metadata: None
+            metadata: None,
         }
     }
 }

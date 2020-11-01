@@ -55,7 +55,7 @@ impl ArmDebug {
         jtag_id: Option<usize>,
     ) -> Result<usize> {
         if swd_id.is_none() && jtag_id.is_none() {
-            return Err(Error::new("ArmDebug must be instantiated with a SWD and/or JTAG interface. Neither was provided."))
+            return Err(Error::new("ArmDebug must be instantiated with a SWD and/or JTAG interface. Neither was provided."));
         }
         let id = services.next_id();
         let s = Self {

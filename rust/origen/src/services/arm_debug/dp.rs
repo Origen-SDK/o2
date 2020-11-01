@@ -198,15 +198,13 @@ impl DP {
         );
 
         let id = services.next_id();
-        services.push_service(Service::ArmDebugDP(
-            Self {
-                model_id: model_id,
-                memory_map_id: memory_map_id,
-                address_block_id: ab_id,
-                arm_debug_id: arm_debug_id,
-                id: id,
-            }
-        ));
+        services.push_service(Service::ArmDebugDP(Self {
+            model_id: model_id,
+            memory_map_id: memory_map_id,
+            address_block_id: ab_id,
+            arm_debug_id: arm_debug_id,
+            id: id,
+        }));
         Ok(id)
     }
 
@@ -350,7 +348,11 @@ impl DP {
         if let Some(sel) = select {
             let bc = get_reg_as_bc!(dut, self.address_block_id, "select");
             bc.set_data(BigUint::from(1 as u8));
-            TEST.push(node!(Comment, 0, format!("ArmDebugDP: select {} (DP Addr: {:X})", reg_name, sel)));
+            TEST.push(node!(
+                Comment,
+                0,
+                format!("ArmDebugDP: select {} (DP Addr: {:X})", reg_name, sel)
+            ));
             if jtag_dp.is_some() {
                 jtag_dp.unwrap().write_dp(
                     dut,
@@ -361,7 +363,7 @@ impl DP {
                 swd.unwrap().write_dp(
                     dut,
                     Transaction::new_write_with_addr(BigUint::from(sel as u32), 32, 0x8)?,
-                    crate::swd_ok!()
+                    crate::swd_ok!(),
                 )?;
             }
         }
@@ -371,29 +373,24 @@ impl DP {
                     dut,
                     &services,
                     bc.to_verify_transaction(None, true, dut)?,
-                    true
+                    true,
                 )?;
             } else {
                 swd.unwrap().verify_dp(
                     dut,
                     bc.to_verify_transaction(None, true, dut)?,
                     crate::swd_ok!(),
-                    None
+                    None,
                 )?;
             }
         } else {
             if jtag_dp.is_some() {
-                jtag_dp.unwrap().write_dp(
-                    dut,
-                    &services,
-                    bc.to_write_transaction(dut)?
-                )?;
+                jtag_dp
+                    .unwrap()
+                    .write_dp(dut, &services, bc.to_write_transaction(dut)?)?;
             } else {
-                swd.unwrap().write_dp(
-                    dut,
-                    bc.to_write_transaction(dut)?,
-                    crate::swd_ok!()
-                )?;
+                swd.unwrap()
+                    .write_dp(dut, bc.to_write_transaction(dut)?, crate::swd_ok!())?;
             }
         }
         Ok(())

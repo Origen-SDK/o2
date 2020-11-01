@@ -240,34 +240,17 @@ impl MemAP {
                         dp.update_select(dut, services, (addr & 0xFFFF_FFF0) as usize)?;
                     }
                     if jtag_dp.is_some() {
-                        jtag_dp.unwrap().verify_ap(
-                            dut,
-                            services,
-                            trans.to_dummy()?,
-                            true,
-                        )?;
+                        jtag_dp
+                            .unwrap()
+                            .verify_ap(dut, services, trans.to_dummy()?, true)?;
                         crate::testers::vector_based::api::repeat(100);
 
-                        jtag_dp.unwrap().verify_ap(
-                            dut,
-                            services,
-                            trans,
-                            false,
-                        )?;
+                        jtag_dp.unwrap().verify_ap(dut, services, trans, false)?;
                     } else {
-                        swd.unwrap().verify_ap(
-                            dut,
-                            trans.to_dummy()?,
-                            crate::swd_ok!(),
-                            None
-                        )?;
+                        swd.unwrap()
+                            .verify_ap(dut, trans.to_dummy()?, crate::swd_ok!(), None)?;
 
-                        swd.unwrap().verify_ap(
-                            dut,
-                            trans,
-                            crate::swd_ok!(),
-                            None
-                        )?;
+                        swd.unwrap().verify_ap(dut, trans, crate::swd_ok!(), None)?;
                     }
                     TEST.close(trans_node_id)?;
                 } else {
@@ -284,38 +267,25 @@ impl MemAP {
 
                     if jtag_dp.is_some() {
                         trans.address = Some(0xC);
-                        jtag_dp.unwrap().verify_ap(
-                            dut,
-                            services,
-                            trans.to_dummy()?,
-                            true,
-                        )?;
+                        jtag_dp
+                            .unwrap()
+                            .verify_ap(dut, services, trans.to_dummy()?, true)?;
                         crate::testers::vector_based::api::repeat(100);
 
                         trans.address = Some(0xC);
-                        jtag_dp.unwrap().verify_dp(
-                            dut,
-                            services,
-                            trans,
-                            false
-                        )?;
+                        jtag_dp.unwrap().verify_dp(dut, services, trans, false)?;
                     } else {
-                        let swdio = PinCollection::from_group(dut, &swd.unwrap().swdio.0, swd.unwrap().swdio.1)?;
-                        trans.address = Some(0xC); // DRW
-                        swd.unwrap().verify_ap(
+                        let swdio = PinCollection::from_group(
                             dut,
-                            trans.to_dummy()?,
-                            crate::swd_ok!(),
-                            None
+                            &swd.unwrap().swdio.0,
+                            swd.unwrap().swdio.1,
                         )?;
+                        trans.address = Some(0xC); // DRW
+                        swd.unwrap()
+                            .verify_ap(dut, trans.to_dummy()?, crate::swd_ok!(), None)?;
                         swdio.drive_low().cycle();
                         trans.address = Some(0xC); // RDBUFF
-                        swd.unwrap().verify_dp(
-                            dut,
-                            trans,
-                            crate::swd_ok!(),
-                            None
-                        )?;
+                        swd.unwrap().verify_dp(dut, trans, crate::swd_ok!(), None)?;
                         swdio.drive_low().cycle();
                     }
                     TEST.close(trans_node_id)?;

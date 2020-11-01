@@ -100,11 +100,7 @@ pub fn bit_slice(value: &BigUint, start_bit: usize, stop_bit: usize) -> Result<B
 pub trait BigUintHelpers {
     type T;
     fn reverse(&self, width: usize) -> Result<Self::T>;
-    fn chunk(
-        &self,
-        chunk_width: usize,
-        data_width: usize,
-    ) -> crate::Result<Vec<Self::T>>;
+    fn chunk(&self, chunk_width: usize, data_width: usize) -> crate::Result<Vec<Self::T>>;
 }
 
 impl BigUintHelpers for BigUint {
@@ -123,15 +119,11 @@ impl BigUintHelpers for BigUint {
         Ok(reversed)
     }
 
-    fn chunk(
-        &self,
-        chunk_width: usize,
-        data_width: usize,
-    ) -> Result<Vec<Self>> {
+    fn chunk(&self, chunk_width: usize, data_width: usize) -> Result<Vec<Self>> {
         let mut data = self.clone();
-        let mut retn = vec!();
+        let mut retn = vec![];
         let mask = Self::from(((1 << chunk_width) - 1) as u128);
-        for _i in 0..(data_width/chunk_width) {
+        for _i in 0..(data_width / chunk_width) {
             retn.push(BigUint::from(&data & &mask));
             data >>= chunk_width;
         }

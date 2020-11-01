@@ -144,7 +144,7 @@ fn resolve_transaction(
     dut: &std::sync::MutexGuard<origen::Dut>,
     trans: &PyAny,
     action: Option<origen::TransactionAction>,
-    kwargs: Option<&PyDict>
+    kwargs: Option<&PyDict>,
 ) -> PyResult<origen::Transaction> {
     let mut width = 32;
     if let Some(opts) = kwargs {
@@ -159,10 +159,12 @@ fn resolve_transaction(
             origen::TransactionAction::Write => trans = value.to_write_transaction(&dut)?,
             origen::TransactionAction::Verify => trans = value.to_verify_transaction(&dut)?,
             // origen::TransactionAction::Capture => trans = value.to_capture_transaction(&dut)?,
-            _ => return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
-                "Resolving transactions for {:?} is not supported",
-                a
-            )))
+            _ => {
+                return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
+                    "Resolving transactions for {:?} is not supported",
+                    a
+                )))
+            }
         }
     } else {
         trans = value.to_write_transaction(&dut)?;

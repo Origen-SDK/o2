@@ -272,6 +272,7 @@ class Base:
     def cc(self, message):
         return origen.tester.cc(f"{self.preface()}{message}")
 
+
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
 class TopLevel(Base):

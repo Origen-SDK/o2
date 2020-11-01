@@ -1,9 +1,8 @@
-pub mod swd;
 pub mod jtag;
+pub mod swd;
 // pub mod ahb;
 
 use pyo3::prelude::*;
-
 
 #[pymodule]
 /// Implements the module _origen.services in Python

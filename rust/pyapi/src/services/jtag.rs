@@ -1,9 +1,9 @@
 use crate::extract_value;
 use crate::model::Model;
-use pyo3::prelude::*;
+use crate::{resolve_transaction, unpack_transaction_options};
 use origen::services::{jtag, Service};
+use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
-use crate::{unpack_transaction_options, resolve_transaction};
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -30,9 +30,7 @@ impl JTAG {
         let mut services = origen::services();
         let id = services.next_id();
         let service = Service::JTAG(jtag::Service::new(
-            & dut,
-            id,
-            None, // default IR size
+            &dut, id, None, // default IR size
             None, // tdi
             None, // tdo
             None, // toms
@@ -45,18 +43,23 @@ impl JTAG {
         Ok(self.clone())
     }
 
-    #[args(write_opts="**")]
+    #[args(write_opts = "**")]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
         let jtag = services.get_as_jtag(self.id)?;
 
-        let trans = resolve_transaction(&dut, bits, Some(origen::TransactionAction::Write), write_opts)?;
+        let trans = resolve_transaction(
+            &dut,
+            bits,
+            Some(origen::TransactionAction::Write),
+            write_opts,
+        )?;
         jtag.write_register(&dut, &services, &trans)?;
         Ok(())
     }
 
-    #[args(verify_opts="**")]
+    #[args(verify_opts = "**")]
     fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();

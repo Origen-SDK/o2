@@ -26,6 +26,7 @@ class Loader:
             "Service": self.service,
         }
 
+
 class Base:
     def set_controller(self, name, controller):
         self.name = name

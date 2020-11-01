@@ -109,7 +109,9 @@ impl<'a> Renderer<'a> {
     pub fn timeset_name(&self) -> Result<String> {
         let dut = DUT.lock().unwrap();
 
-        let t = &dut.timesets[self.current_timeset_id.expect("Attempted to retrieve the current timeset name but no timeset has been set")];
+        let t = &dut.timesets[self
+            .current_timeset_id
+            .expect("Attempted to retrieve the current timeset name but no timeset has been set")];
         Ok(t.name.clone())
     }
 }

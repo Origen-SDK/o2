@@ -2,9 +2,9 @@
 //! all state storage for a JTAG driver instance
 
 use crate::node;
-use crate::{Result, TEST, Dut, Transaction, Services};
 use crate::precludes::controller::*;
 use crate::testers::api::ControllerAPI;
+use crate::{Dut, Result, Services, Transaction, TEST};
 
 // pub enum TAPStates {
 //     Reset,
@@ -18,7 +18,7 @@ use crate::testers::api::ControllerAPI;
 //     PauseDR,
 //     Exit2DR,
 //     UpdateDR,
-    
+
 //     // IR States
 //     SelectIR,
 //     CaptureIR,
@@ -93,7 +93,7 @@ impl ControllerAPI for Service {
 impl Service {
     pub fn new(
         _dut: &Dut,
-        id: usize, 
+        id: usize,
         default_ir_size: Option<usize>,
         tclk: Option<&PinGroup>,
         tdi: Option<&PinGroup>,
@@ -138,7 +138,7 @@ impl Service {
                 } else {
                     ("trstm".to_string(), 0)
                 }
-            }
+            },
         })
     }
 
@@ -167,15 +167,10 @@ impl Service {
     //     // ...
     // }
 
-    pub fn write_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()>{
+    pub fn write_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdi = PinCollection::from_group(&dut, &self.tdi.0, self.tdi.1)?;
-        let trans = node!(
-            JTAGWriteIR,
-            self.id,
-            transaction.clone(),
-            None
-        );
+        let trans = node!(JTAGWriteIR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
 
         self.comment("Move to Shift-IR");
@@ -184,7 +179,10 @@ impl Service {
         tms.drive_low().cycles(2);
         self.comment(&format!("Write IR {:?}", transaction.data));
         let mut nodes = tdi.push_transaction_nodes(&transaction)?;
-        nodes.insert(nodes.len() - 2, tms.drive_high_nodes().first().unwrap().clone());
+        nodes.insert(
+            nodes.len() - 2,
+            tms.drive_high_nodes().first().unwrap().clone(),
+        );
         TEST.append(&mut nodes);
         self.comment("Completed IR Shift");
         tdi.highz();
@@ -200,12 +198,7 @@ impl Service {
     pub fn verify_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdo = PinCollection::from_group(&dut, &self.tdo.0, self.tdo.1)?;
-        let trans = node!(
-            JTAGVerifyIR,
-            self.id,
-            transaction.clone(),
-            None
-        );
+        let trans = node!(JTAGVerifyIR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
         self.comment("Move to Shift-IR");
         tms.drive_low().cycle();
@@ -213,7 +206,10 @@ impl Service {
         tms.drive_low().cycles(2);
         self.comment(&format!("Verify IR {:?}", transaction.data));
         let mut nodes = tdo.push_transaction_nodes(&transaction)?;
-        nodes.insert(nodes.len() - 2, tms.drive_high_nodes().first().unwrap().clone());
+        nodes.insert(
+            nodes.len() - 2,
+            tms.drive_high_nodes().first().unwrap().clone(),
+        );
         TEST.append(&mut nodes);
         self.comment("Completed IR Shift");
         tdo.highz();
@@ -228,12 +224,7 @@ impl Service {
     pub fn write_dr(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdi = PinCollection::from_group(&dut, &self.tdi.0, self.tdi.1)?;
-        let trans = node!(
-            JTAGWriteDR,
-            self.id,
-            transaction.clone(),
-            None
-        );
+        let trans = node!(JTAGWriteDR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
 
         self.comment("Move to Shift-DR");
@@ -242,7 +233,10 @@ impl Service {
         tms.drive_low().cycles(2);
         self.comment(&format!("Write DR {:?}", transaction.data));
         let mut nodes = tdi.push_transaction_nodes(&transaction)?;
-        nodes.insert(nodes.len() - 2, tms.drive_high_nodes().first().unwrap().clone());
+        nodes.insert(
+            nodes.len() - 2,
+            tms.drive_high_nodes().first().unwrap().clone(),
+        );
         TEST.append(&mut nodes);
         self.comment("Completed DR Shift");
         tdi.highz();
@@ -258,12 +252,7 @@ impl Service {
     pub fn verify_dr(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdo = PinCollection::from_group(&dut, &self.tdo.0, self.tdo.1)?;
-        let trans = node!(
-            JTAGVerifyDR,
-            self.id,
-            transaction.clone(),
-            None
-        );
+        let trans = node!(JTAGVerifyDR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
 
         self.comment("Move to Shift-DR");
@@ -272,7 +261,10 @@ impl Service {
         tms.drive_low().cycles(2);
         self.comment(&format!("Verify DR {:?}", transaction.data));
         let mut nodes = tdo.push_transaction_nodes(&transaction)?;
-        nodes.insert(nodes.len() - 2, tms.drive_high_nodes().first().unwrap().clone());
+        nodes.insert(
+            nodes.len() - 2,
+            tms.drive_high_nodes().first().unwrap().clone(),
+        );
         TEST.append(&mut nodes);
         self.comment("Completed DR Shift");
         tdo.highz();
@@ -285,7 +277,12 @@ impl Service {
         Ok(())
     }
 
-    pub fn write_register(&self, dut: &Dut, _services: &Services, transaction: &Transaction) -> Result<()> {
+    pub fn write_register(
+        &self,
+        dut: &Dut,
+        _services: &Services,
+        transaction: &Transaction,
+    ) -> Result<()> {
         let n_id = TEST.push_and_open(transaction.as_write_node()?);
         let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
         self.write_ir(&dut, &ir_trans)?;
@@ -294,7 +291,12 @@ impl Service {
         Ok(())
     }
 
-    pub fn verify_register(&self, dut: &Dut, _services: &Services, transaction: &Transaction) -> Result<()> {
+    pub fn verify_register(
+        &self,
+        dut: &Dut,
+        _services: &Services,
+        transaction: &Transaction,
+    ) -> Result<()> {
         let n_id = TEST.push_and_open(transaction.as_verify_node()?);
         let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
         self.write_ir(&dut, &ir_trans)?;

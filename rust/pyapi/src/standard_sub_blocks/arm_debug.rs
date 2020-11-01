@@ -1,13 +1,13 @@
 // use origen::standard_sub_blocks::ArmDebug as OrigenArmDebug;
 use origen::services::arm_debug::ArmDebug as OrigenArmDebug;
 // use origen::standard_sub_blocks::arm_debug::DP as OrigenDP;
-use origen::services::arm_debug::DP as OrigenDP;
 use origen::services::arm_debug::JtagDP as OrigenJtagDP;
 use origen::services::arm_debug::MemAP as OrigenMemAP;
+use origen::services::arm_debug::DP as OrigenDP;
 // use origen::standard_sub_blocks::arm_debug::mem_ap::MemAP as OrigenMemAP;
 use crate::registers::bit_collection::BitCollection;
+use crate::{extract_value, unpack_transaction_options};
 use pyo3::exceptions;
-use crate::{unpack_transaction_options, extract_value};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple, PyType};
 use pyo3::ToPyObject;
@@ -51,8 +51,8 @@ fn check_for_jtag() -> PyResult<Option<usize>> {
     let gil = Python::acquire_gil();
     let py = gil.python();
     let locals = PyDict::new(py);
-    locals.set_item("origen",  py.import("origen")?.to_object(py))?;
-    locals.set_item("builtins",  py.import("builtins")?.to_object(py))?;
+    locals.set_item("origen", py.import("origen")?.to_object(py))?;
+    locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
     locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
     let m = py.eval("builtins.hasattr(dut, \"jtag\")", Some(locals), None)?;
 
@@ -87,9 +87,7 @@ impl ArmDebug {
 
     #[new]
     fn new() -> Self {
-        Self {
-            arm_debug_id: None
-        }
+        Self { arm_debug_id: None }
     }
 
     #[classmethod]
@@ -97,7 +95,7 @@ impl ArmDebug {
         crate::dut::PyDUT::ensure_pins("dut")?;
         let swd_id = check_for_swd()?;
         let jtag_id = check_for_jtag()?;
-        
+
         // Create the Arm Debug instance
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -106,7 +104,8 @@ impl ArmDebug {
             let model_id = instance.getattr("model_id")?.extract::<usize>()?;
             let mut dut = origen::dut();
             let mut services = origen::services();
-            arm_debug_id = OrigenArmDebug::model_init(&mut dut, &mut services, model_id, swd_id, jtag_id)?;
+            arm_debug_id =
+                OrigenArmDebug::model_init(&mut dut, &mut services, model_id, swd_id, jtag_id)?;
         }
 
         // Add the DP subblock
@@ -135,12 +134,22 @@ impl ArmDebug {
 
         // If a jtag protocol was provided, add the JTAG DP
         if jtag_id.is_some() {
-            let args = PyTuple::new(py, &["jtag_dp".to_object(py), "origen.arm_debug.jtag_dp".to_object(py)]);
+            let args = PyTuple::new(
+                py,
+                &[
+                    "jtag_dp".to_object(py),
+                    "origen.arm_debug.jtag_dp".to_object(py),
+                ],
+            );
             let kwargs = PyDict::new(py);
             let sb_options = PyDict::new(py);
             sb_options.set_item("arm_debug_id", arm_debug_id)?;
             kwargs.set_item("sb_options", sb_options.to_object(py))?;
-            let py_jtag_dp_obj = instance.downcast::<PyCell<Self>>()?.call_method("add_sub_block", args, Some(kwargs))?;
+            let py_jtag_dp_obj = instance.downcast::<PyCell<Self>>()?.call_method(
+                "add_sub_block",
+                args,
+                Some(kwargs),
+            )?;
             let py_jtag_dp = py_jtag_dp_obj.extract::<JtagDP>()?;
             let jtag_dp_id = py_jtag_dp.id.unwrap();
 
@@ -327,12 +336,11 @@ impl DP {
 #[derive(Clone)]
 struct JtagDP {
     pub id: Option<usize>,
-    pub arm_debug_id: Option<usize>
+    pub arm_debug_id: Option<usize>,
 }
 
 #[pymethods]
 impl JtagDP {
-
     #[classmethod]
     fn __init__(_cls: &PyType, _instance: &PyAny) -> PyResult<()> {
         Ok(())
@@ -340,14 +348,14 @@ impl JtagDP {
 
     #[new]
     fn new() -> Self {
-            Self { 
-                id: None,
-                arm_debug_id: None,
-            }
+        Self {
+            id: None,
+            arm_debug_id: None,
+        }
     }
 
     #[classmethod]
-    #[args(_block_options="**")]
+    #[args(_block_options = "**")]
     fn model_init(_cls: &PyType, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
@@ -362,7 +370,7 @@ impl JtagDP {
                 }
             } else {
                 return Err(PyErr::new::<exceptions::RuntimeError, _>(
-                    "Subblock arm_debug.dp was not given required block option 'arm_debug_id'"
+                    "Subblock arm_debug.dp was not given required block option 'arm_debug_id'",
                 ));
             }
         } else {
@@ -461,7 +469,7 @@ impl JtagDP {
         Ok(())
     }
 
-    #[args(write_opts="**")]
+    #[args(write_opts = "**")]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -474,7 +482,7 @@ impl JtagDP {
         Ok(())
     }
 
-    #[args(verify_opts="**")]
+    #[args(verify_opts = "**")]
     fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();

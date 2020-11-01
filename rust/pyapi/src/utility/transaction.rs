@@ -1,9 +1,9 @@
+use crate::resolve_transaction;
+use num_bigint::BigUint;
 use origen::Transaction as Trans;
 use origen::TransactionAction;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyType, PyDict};
-use crate::resolve_transaction;
-use num_bigint::BigUint;
+use pyo3::types::{PyAny, PyDict, PyType};
 
 #[pyclass]
 pub struct Transaction {
@@ -13,21 +13,16 @@ pub struct Transaction {
 #[pymethods]
 impl Transaction {
     #[new]
-    #[args(kwargs="**")]
+    #[args(kwargs = "**")]
     fn new(bc_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         Ok(Self {
-            transaction: resolve_transaction(
-                &dut,
-                bc_or_val,
-                None,
-                kwargs
-            )?
+            transaction: resolve_transaction(&dut, bc_or_val, None, kwargs)?,
         })
     }
 
     #[classmethod]
-    #[args(kwargs="**")]
+    #[args(kwargs = "**")]
     fn new_write(_cls: &PyType, bc_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         Ok(Self {
@@ -35,13 +30,13 @@ impl Transaction {
                 &dut,
                 bc_or_val,
                 Some(TransactionAction::Write),
-                kwargs
-            )?
+                kwargs,
+            )?,
         })
     }
 
     #[classmethod]
-    #[args(kwargs="**")]
+    #[args(kwargs = "**")]
     fn new_verify(_cls: &PyType, bc_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         Ok(Self {
@@ -49,8 +44,8 @@ impl Transaction {
                 &dut,
                 bc_or_val,
                 Some(TransactionAction::Verify),
-                kwargs
-            )?
+                kwargs,
+            )?,
         })
     }
 
@@ -112,7 +107,7 @@ impl Transaction {
         let py = gil.python();
         let dut = origen::dut();
 
-        if let Some(id)= self.transaction.reg_id {
+        if let Some(id) = self.transaction.reg_id {
             Ok(crate::registers::bit_collection::BitCollection::from_reg_id(id, &dut).into_py(py))
         } else {
             Ok(py.None())
