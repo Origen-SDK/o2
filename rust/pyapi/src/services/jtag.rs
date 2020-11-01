@@ -2,8 +2,7 @@ use crate::extract_value;
 use crate::model::Model;
 use pyo3::prelude::*;
 use origen::services::{jtag, Service};
-use crate::registers::bit_collection::BitCollection;
-use pyo3::types::{PyAny, PyType, PyDict, PyTuple};
+use pyo3::types::{PyAny, PyDict};
 use crate::{unpack_transaction_options, resolve_transaction};
 
 #[pyclass]
@@ -48,14 +47,10 @@ impl JTAG {
 
     #[args(write_opts="**")]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
-        // let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
         let services = origen::services();
         let jtag = services.get_as_jtag(self.id)?;
 
-        // let value = extract_value(bits, Some(32), &dut)?;
-        // let mut trans = value.to_write_transaction(&dut)?;
-        // unpack_transaction_options(&mut trans, write_opts)?;
         let trans = resolve_transaction(&dut, bits, Some(origen::TransactionAction::Write), write_opts)?;
         jtag.write_register(&dut, &services, &trans)?;
         Ok(())
@@ -63,7 +58,6 @@ impl JTAG {
 
     #[args(verify_opts="**")]
     fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
-        let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
         let services = origen::services();
         let jtag = services.get_as_jtag(self.id)?;

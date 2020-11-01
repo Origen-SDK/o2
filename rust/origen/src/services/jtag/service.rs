@@ -6,70 +6,70 @@ use crate::{Result, TEST, Dut, Transaction, Services};
 use crate::precludes::controller::*;
 use crate::testers::api::ControllerAPI;
 
-pub enum TAPStates {
-    Reset,
-    Idle,
+// pub enum TAPStates {
+//     Reset,
+//     Idle,
 
-    // DR States
-    SelectDR,
-    CaptureDR,
-    ShiftDR,
-    Exit1DR,
-    PauseDR,
-    Exit2DR,
-    UpdateDR,
+//     // DR States
+//     SelectDR,
+//     CaptureDR,
+//     ShiftDR,
+//     Exit1DR,
+//     PauseDR,
+//     Exit2DR,
+//     UpdateDR,
     
-    // IR States
-    SelectIR,
-    CaptureIR,
-    ShiftIR,
-    Exit1IR,
-    PauseIR,
-    Exit2IR,
-    UpdateIR,
-}
+//     // IR States
+//     SelectIR,
+//     CaptureIR,
+//     ShiftIR,
+//     Exit1IR,
+//     PauseIR,
+//     Exit2IR,
+//     UpdateIR,
+// }
 
-impl TAPStates{
-    // pub fn cycles_to_idle(&self) -> usize {
-    //     match self {
-    //         Reset => 0,
-    //         Idle => 3,
-    //         _ => 0
-    //     }
-    // }
+// impl TAPStates{
+//     // pub fn cycles_to_idle(&self) -> usize {
+//     //     match self {
+//     //         Reset => 0,
+//     //         Idle => 3,
+//     //         _ => 0
+//     //     }
+//     // }
 
-    // pub fn next_state(&self, tms_val) -> usize {
-    //     // ...
-    // }
+//     // pub fn next_state(&self, tms_val) -> usize {
+//     //     // ...
+//     // }
 
-    // pub fn cycles_to_reset(&self) -> usize {
-    //     self.cycles_to_idle() + 3
-    // }
+//     // pub fn cycles_to_reset(&self) -> usize {
+//     //     self.cycles_to_idle() + 3
+//     // }
 
-    // pub fn to_idle(&self) -> Result<Self> {
-    //     // ...
-    // }
+//     // pub fn to_idle(&self) -> Result<Self> {
+//     //     // ...
+//     // }
 
-    // pub fn to_reset(&self) -> Result<Self> {
-    //     // ...
-    // }
+//     // pub fn to_reset(&self) -> Result<Self> {
+//     //     // ...
+//     // }
 
-    // pub fn to_shift_ir(&self) -> Result<Self> {
-    //     // ...
-    // }
+//     // pub fn to_shift_ir(&self) -> Result<Self> {
+//     //     // ...
+//     // }
 
-    // pub fn to_update_ir(&self) -> Result<Self> {
-    //     // ...
-    // }
+//     // pub fn to_update_ir(&self) -> Result<Self> {
+//     //     // ...
+//     // }
 
-    // pub fn to_shift_dr(&self) -> Result<Self> {
-    //     // ...
-    // }
+//     // pub fn to_shift_dr(&self) -> Result<Self> {
+//     //     // ...
+//     // }
 
-    // pub fn to_update_dr(&self) -> Result<Self> {
-    //     // ...
-    // }
-}
+//     // pub fn to_update_dr(&self) -> Result<Self> {
+//     //     // ...
+//     // }
+// }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Service {
@@ -151,7 +151,7 @@ impl Service {
         let n_id = TEST.push_and_open(node!(JTAGReset, self.id, None));
         self.comment("Resetting JTAG Interface");
         tms.drive_high().repeat(6);
-        TEST.close(n_id);
+        TEST.close(n_id)?;
         Ok(())
     }
 
@@ -170,7 +170,7 @@ impl Service {
     pub fn write_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()>{
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdi = PinCollection::from_group(&dut, &self.tdi.0, self.tdi.1)?;
-        let mut trans = node!(
+        let trans = node!(
             JTAGWriteIR,
             self.id,
             transaction.clone(),
@@ -200,7 +200,7 @@ impl Service {
     pub fn verify_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdo = PinCollection::from_group(&dut, &self.tdo.0, self.tdo.1)?;
-        let mut trans = node!(
+        let trans = node!(
             JTAGVerifyIR,
             self.id,
             transaction.clone(),
@@ -228,7 +228,7 @@ impl Service {
     pub fn write_dr(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdi = PinCollection::from_group(&dut, &self.tdi.0, self.tdi.1)?;
-        let mut trans = node!(
+        let trans = node!(
             JTAGWriteDR,
             self.id,
             transaction.clone(),
@@ -258,7 +258,7 @@ impl Service {
     pub fn verify_dr(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdo = PinCollection::from_group(&dut, &self.tdo.0, self.tdo.1)?;
-        let mut trans = node!(
+        let trans = node!(
             JTAGVerifyDR,
             self.id,
             transaction.clone(),
@@ -290,7 +290,7 @@ impl Service {
         let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
         self.write_ir(&dut, &ir_trans)?;
         self.write_dr(&dut, &transaction)?;
-        TEST.close(n_id);
+        TEST.close(n_id)?;
         Ok(())
     }
 
@@ -299,7 +299,7 @@ impl Service {
         let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
         self.write_ir(&dut, &ir_trans)?;
         self.verify_dr(&dut, transaction)?;
-        TEST.close(n_id);
+        TEST.close(n_id)?;
         Ok(())
     }
 }

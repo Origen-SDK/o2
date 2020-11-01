@@ -528,7 +528,6 @@ impl<'a> BitCollection<'a> {
             let mut t = Transaction::new_write(bits.data()?, reg.size)?;
             t.reg_id = Some(id);
             t.address = Some(reg.address(dut, None)?);
-            println!("WT size: {}", reg.width(&dut)? as usize);
             t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = Transaction::enable_of_width(reg.size)?;
             t.overlay_enable = Some(bits.overlay_enables());

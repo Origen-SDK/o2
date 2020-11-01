@@ -2,7 +2,6 @@ use super::stil;
 use super::utility::transaction::Transaction;
 use crate::services::swd::Acknowledgements;
 use indexmap::IndexMap;
-use num_bigint::BigUint;
 use std::collections::HashMap;
 
 pub type Id = usize;

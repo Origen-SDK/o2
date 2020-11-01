@@ -71,21 +71,23 @@ impl JtagDP {
         );
 
         let id = services.next_id();
-        let arm_debug = services.get_as_arm_debug(arm_debug_id)?;
+        let jtag_id;
+        {
+            let arm_debug = services.get_as_arm_debug(arm_debug_id)?;
+            if let Some(j_id) = arm_debug.jtag_id {
+               jtag_id = j_id;
+            } else {
+                return Err(Error::new("Arm Debug's JTAG DP requires a JTAG service. No JTAG service was given"));
+            }
+        }
         services.push_service(Service::ArmDebugJtagDP(
             Self {
                 id: id,
                 model_id: model_id,
                 memory_map_id: memory_map_id,
                 address_block_id: ab_id,
-                arm_debug_id: arm_debug.id,
-                jtag_id: {
-                    if let Some(j_id) = arm_debug.jtag_id {
-                        j_id
-                    } else {
-                        return Err(Error::new("Arm Debug's JTAG DP requires a JTAG service. No JTAG service was given"));
-                    }
-                },
+                arm_debug_id: arm_debug_id,
+                jtag_id: jtag_id,
                 default_ir_size: default_ir_size.unwrap_or(4),
                 dpacc_select: dpacc_select.unwrap_or(0xA),
                 apacc_select: apacc_select.unwrap_or(0xB)
@@ -245,7 +247,7 @@ impl JtagDP {
         let jtag = jtag_service.as_jtag()?;
 
         // Write the header and data
-        let mut trans = transaction.clone();
+        let trans = transaction.clone();
         jtag.verify_dr(&dut, &trans)?;
 
         TEST.close(n_id)?;

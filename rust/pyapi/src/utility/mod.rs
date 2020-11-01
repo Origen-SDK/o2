@@ -4,7 +4,7 @@ pub mod transaction;
 use location::Location;
 use transaction::{Transaction};
 use pyo3::prelude::*;
-use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::wrap_pyfunction;
 
 use num_bigint::BigUint;
 use origen::utility::big_uint_helpers::BigUintHelpers;

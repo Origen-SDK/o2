@@ -1,9 +1,8 @@
 use origen::Transaction as Trans;
 use origen::TransactionAction;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-use pyo3::types::{PyAny, PyType, PyDict, PyTuple};
-use crate::{unpack_transaction_options, resolve_transaction};
+use pyo3::types::{PyAny, PyType, PyDict};
+use crate::resolve_transaction;
 use num_bigint::BigUint;
 
 #[pyclass]
@@ -55,12 +54,12 @@ impl Transaction {
         })
     }
 
-    fn chunk_data(&self, chunk_width: usize, chunk_lsb_first: Option<bool>) -> PyResult<Vec<BigUint>> {
-        Ok(self.transaction.chunk_data(chunk_width, chunk_lsb_first.unwrap_or(true))?)
+    fn chunk_data(&self, chunk_width: usize) -> PyResult<Vec<BigUint>> {
+        Ok(self.transaction.chunk_data(chunk_width)?)
     }
 
-    fn chunk_addr(&self, chunk_width: usize, chunk_lsb_first: Option<bool>) -> PyResult<Vec<BigUint>> {
-        Ok(self.transaction.chunk_addr(chunk_width, chunk_lsb_first.unwrap_or(true))?)
+    fn chunk_addr(&self, chunk_width: usize) -> PyResult<Vec<BigUint>> {
+        Ok(self.transaction.chunk_addr(chunk_width)?)
     }
 
     #[getter]

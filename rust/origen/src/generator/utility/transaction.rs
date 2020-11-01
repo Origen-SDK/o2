@@ -310,12 +310,12 @@ impl Transaction {
         Ok(node!(RegVerify, self.clone()))
     }
 
-    pub fn chunk_data(&self, chunk_width: usize, lsb_first: bool) -> Result<Vec<BigUint>> {
-        self.data.chunk(chunk_width, self.width, lsb_first, true)
+    pub fn chunk_data(&self, chunk_width: usize) -> Result<Vec<BigUint>> {
+        self.data.chunk(chunk_width, self.width)
     }
 
-    pub fn chunk_addr(&self, chunk_width: usize, lsb_first: bool) -> Result<Vec<BigUint>> {
-        BigUint::from(self.addr()?).chunk(chunk_width, self.addr_width()?, lsb_first, true)
+    pub fn chunk_addr(&self, chunk_width: usize) -> Result<Vec<BigUint>> {
+        BigUint::from(self.addr()?).chunk(chunk_width, self.addr_width()?)
     }
 }
 

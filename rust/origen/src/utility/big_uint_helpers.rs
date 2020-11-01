@@ -104,8 +104,6 @@ pub trait BigUintHelpers {
         &self,
         chunk_width: usize,
         data_width: usize,
-        chunk_lsb_first: bool,
-        data_lsb_first: bool
     ) -> crate::Result<Vec<Self::T>>;
 }
 
@@ -116,7 +114,7 @@ impl BigUintHelpers for BigUint {
         let mut data = self.clone();
         let mut reversed = BigUint::from(0 as u8);
         let big1 = BigUint::from(1 as u8);
-        for i in 0..width {
+        for _i in 0..width {
             reversed += &data & &big1;
             reversed <<= 1;
             data >>= 1;
@@ -129,19 +127,11 @@ impl BigUintHelpers for BigUint {
         &self,
         chunk_width: usize,
         data_width: usize,
-        chunk_lsb_first: bool,
-        data_lsb_first: bool
     ) -> Result<Vec<Self>> {
-        let mut data;
-        if chunk_lsb_first {
-            data = self.clone();
-        } else {
-            data = self.reverse(data_width)?;
-        }
-        println!("chunking data: {}", data);
+        let mut data = self.clone();
         let mut retn = vec!();
         let mask = Self::from(((1 << chunk_width) - 1) as u128);
-        for i in 0..(data_width/chunk_width) {
+        for _i in 0..(data_width/chunk_width) {
             retn.push(BigUint::from(&data & &mask));
             data >>= chunk_width;
         }
