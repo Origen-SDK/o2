@@ -117,11 +117,11 @@ def test_setting_timeset_with_instance(clean_eagle, clean_dummy):
 def test_setting_targets(clean_eagle, clean_tester):
     assert origen.tester.targets == []
     origen.tester.target("DummyRenderer")
-    assert origen.tester.targets == ["::DummyRenderer"]
+    assert origen.tester.targets == ["DUMMYRENDERER"]
 
 
 def test_resetting_targets():
-    assert origen.tester.targets == ["::DummyRenderer"]
+    assert origen.tester.targets == ["DUMMYRENDERER"]
     origen.tester.reset()
     assert origen.tester.targets == []
 
@@ -176,7 +176,7 @@ def test_frontend_testers_can_be_targeted():
     assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
     assert origen.tester.targets == []
     origen.tester.target("CUSTOM::tester_test.PyTestRenderer")
-    assert origen.tester.targets == ["tester_test.PyTestRenderer"]
+    assert origen.tester.targets == ['CUSTOM("tester_test.PyTestRenderer")']
 
 
 def test_frontend_testers_can_be_targeted_as_class():
@@ -184,7 +184,7 @@ def test_frontend_testers_can_be_targeted_as_class():
     assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
     assert origen.tester.targets == []
     origen.tester.target(PyTestRenderer)
-    assert origen.tester.targets == ["tester_test.PyTestRenderer"]
+    assert origen.tester.targets == ['CUSTOM("tester_test.PyTestRenderer")']
 
 
 def run_pattern():

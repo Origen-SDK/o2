@@ -1,6 +1,7 @@
-use crate::core::tester::{Interceptor, TesterAPI};
+use crate::core::tester::{Interceptor, TesterID};
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
+use crate::testers::SupportedTester;
 use crate::{Result, DUT};
 
 #[derive(Debug, Clone)]
@@ -12,19 +13,13 @@ impl Default for SMT7 {
     }
 }
 
+impl TesterID for SMT7 {
+    fn id(&self) -> SupportedTester {
+        SupportedTester::V93KSMT7
+    }
+}
+
 impl VectorBased for SMT7 {
-    fn name(&self) -> String {
-        "V93K_SMT7".to_string()
-    }
-
-    fn id(&self) -> String {
-        "V93KSMT7".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
     fn comment_str(&self) -> &str {
         "#"
     }

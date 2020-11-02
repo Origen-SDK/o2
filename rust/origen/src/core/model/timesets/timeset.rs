@@ -78,9 +78,9 @@ impl Timeset {
                         }
                         TesterSource::Internal(t) => {
                             if let Some(r) = t.pin_action_resolver() {
-                                i.insert(t.id(), r);
+                                i.insert(t.name(), r);
                             } else {
-                                i.insert(t.id(), default_resolver());
+                                i.insert(t.name(), default_resolver());
                             }
                         }
                     }
