@@ -398,7 +398,7 @@ impl Tester {
                                                     let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
                                                     let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
                                                     let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                                                    displayln!("  {} {} {}", &diff_tool, old.display(), new.display());
+                                                    displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
                                                     display!("  origen save_ref {}", stem.display());
                                                 } else {
                                                     display_green!("No diffs");
@@ -474,7 +474,7 @@ impl Tester {
                                                     let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
                                                     let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
                                                     let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                                                    displayln!("  {} {} {}", &diff_tool, old.display(), new.display());
+                                                    displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
                                                     display!("  origen save_ref {}", stem.display());
                                                 } else {
                                                     display_green!("No diffs");

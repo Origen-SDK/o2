@@ -12,7 +12,7 @@ use std::str::FromStr;
 /// direct tests which are to be rendered.
 /// Child tests can add additional prameters/aliases/defaults and/or inherit or override those from
 /// parent tests.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Test {
     pub id: usize,
     pub name: String,

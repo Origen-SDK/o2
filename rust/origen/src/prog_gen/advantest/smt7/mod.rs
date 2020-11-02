@@ -1,4 +1,4 @@
-mod flow_processors;
+mod processors;
 
 use crate::core::tester::TesterAPI;
 use crate::testers::smt::V93K_SMT7;
@@ -19,10 +19,7 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
     PROG.with_all_flows(|flows| {
         for (name, flow) in flows {
             log_debug!("Rendering flow '{}' for V93k SMT7", name);
-            files.push(flow_processors::write_to_file::run(
-                &flow.to_node(),
-                &flow_dir,
-            )?);
+            files.push(processors::write_to_file::run(&flow.to_node(), &flow_dir)?);
         }
         Ok(())
     })?;

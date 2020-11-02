@@ -1,18 +1,22 @@
 //! This module contains all of the data/model for a test program, including all flows,
 //! test templates, test instances, etc.
 
+mod bin;
+mod limit;
 mod test;
 mod test_collection;
 mod test_program;
 
 use crate::Result as OrigenResult;
+pub use bin::Bin;
+pub use limit::Limit;
 use std::fmt;
 use std::str::FromStr;
 pub use test::Test;
 pub use test_collection::TestCollection;
 pub use test_program::TestProgram;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ParamValue {
     String(String),
     Int(i64),
@@ -61,7 +65,7 @@ impl fmt::Display for ParamValue {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum ParamType {
     String,
     Int,
@@ -97,7 +101,7 @@ impl FromStr for ParamType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Constraint {
     In(Vec<ParamValue>),
     GT(ParamValue),

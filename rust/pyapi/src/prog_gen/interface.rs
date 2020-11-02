@@ -34,7 +34,13 @@ impl PyInterface {
     }
 
     /// Add a test to the flow
-    fn add_test(&self, test_obj: &PyAny) -> PyResult<()> {
+    #[allow(unused_variables)]
+    fn add_test(
+        &self,
+        test_obj: &PyAny,
+        if_failed: Option<&PyAny>,
+        test_text: Option<String>,
+    ) -> PyResult<()> {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
             PROG.add_test(t.name()?, Some(t.tester), t.test_id, Some(t.id))?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
@@ -51,7 +57,23 @@ impl PyInterface {
     }
 
     /// Bin out
-    fn bin(&self, _number: usize) -> PyResult<()> {
+    #[allow(unused_variables)]
+    fn bin(
+        &self,
+        number: usize,
+        description: Option<String>,
+        softbin: Option<usize>,
+    ) -> PyResult<()> {
+        Ok(())
+    }
+
+    #[allow(unused_variables)]
+    fn pass_bin(
+        &self,
+        number: usize,
+        description: Option<String>,
+        softbin: Option<usize>,
+    ) -> PyResult<()> {
         Ok(())
     }
 }
