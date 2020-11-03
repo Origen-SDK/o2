@@ -76,7 +76,6 @@ pub fn run(matches: &ArgMatches) {
                     std::process::exit(1);
                 }
                 let par = clean_and_validate_resource_name(p, "PARENT");
-                dbg!(&par);
                 block_name = format!("{}/{}", &par, &block_name);
             }
 

@@ -5,7 +5,7 @@ pub mod smt;
 mod supported_testers;
 pub mod vector_based;
 
-use crate::core::tester::{Interceptor, TesterAPI};
+use crate::core::tester::{Interceptor, TesterAPI, TesterID};
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::{dut, Result};
@@ -46,19 +46,14 @@ impl Default for DummyRenderer {
 
 impl DummyRenderer {}
 impl Interceptor for DummyRenderer {}
+
+impl TesterID for DummyRenderer {
+    fn id(&self) -> SupportedTester {
+        SupportedTester::DUMMYRENDERER
+    }
+}
+
 impl TesterAPI for DummyRenderer {
-    fn name(&self) -> String {
-        "DummyRenderer".to_string()
-    }
-
-    fn id(&self) -> String {
-        "::DummyRenderer".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
         Ok(vec![])
@@ -108,19 +103,13 @@ pub struct DummyRendererWithInterceptors {
 
 impl DummyRendererWithInterceptors {}
 
+impl TesterID for DummyRendererWithInterceptors {
+    fn id(&self) -> SupportedTester {
+        SupportedTester::DUMMYRENDERERWITHINTERCEPTORS
+    }
+}
+
 impl TesterAPI for DummyRendererWithInterceptors {
-    fn name(&self) -> String {
-        "DummyRendererWithInterceptors".to_string()
-    }
-
-    fn id(&self) -> String {
-        "::DummyRendererWithInterceptors".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
         Ok(vec![])

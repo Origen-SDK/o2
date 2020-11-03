@@ -75,11 +75,6 @@ impl TestPrograms {
         }
     }
 
-    /// Called automatically by Origen to render the test program at the end of the generate command
-    pub fn render(&self) -> Result<()> {
-        Ok(())
-    }
-
     /// Returns the test program model for the given tester
     pub fn for_tester(&self, tester: &SupportedTester) -> &TestProgram {
         {
@@ -243,42 +238,6 @@ impl TestPrograms {
         let n = node!(PGMTest, name, tester, test_id, invocation_id);
         self.push(n)
     }
-
-    ///// Returns the current tester, will error if more than one tester is currently selected
-    //fn current_tester(&self) -> Result<SupportedTester> {
-    //    let t = *self.current_testers.read().unwrap();
-    //    if t.len() != 1 {
-    //        if t.len() == 0 {
-    //            error!("No tester is currently selected by the test program")
-    //        } else {
-    //            error!("Expected only one tester to be selected, but the following were selected: {:?}", &t)
-    //        }
-    //    } else {
-    //        Ok(t[0].clone())
-    //    }
-    //}
-
-    ///// Execute the given function with the test program selecting the given tester
-    ///// types.
-    ///// At the end the test program's tester selection will be restored to it's original
-    ///// value.
-    //pub fn for_current_testers<T, F>(&self, testers: Vec<&SupportedTester>, mut func: F) -> Result<T>
-    //where
-    //    F: FnMut(&TestProgram) -> Result<T>,
-    //{
-    //    let mut current_testers = *self.current_testers.write().unwrap();
-    //    let orig: Vec<SupportedTester> = current_testers.drain(..).collect();
-    //    for t in testers {
-    //        current_testers.push(t.to_owned());
-    //    }
-    //    let tp = self.
-    //    let result = func(&self);
-    //    current_testers.clear();
-    //    for t in orig.drain(..) {
-    //        current_testers.push(t);
-    //    }
-    //    result
-    //}
 }
 /// Test template definitions from json files are read into this structure
 #[derive(Debug, Deserialize)]

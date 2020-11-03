@@ -18,8 +18,8 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 #[derive(Debug)]
 /// Python interface for the tester backend.
 pub struct PyTester {
-    python_testers: HashMap<String, PyObject>,
-    instantiated_testers: HashMap<String, PyObject>,
+    python_testers: HashMap<SupportedTester, PyObject>,
+    instantiated_testers: HashMap<SupportedTester, PyObject>,
     metadata: Vec<PyObject>,
 }
 
@@ -367,8 +367,8 @@ impl PyTester {
             obj.getattr(py, "__qualname__")?.extract::<String>(py)?
         ));
 
-        tester.register_external_tester(&n)?;
-        self.python_testers.insert(n, obj);
+        let t_id = tester.register_external_tester(&n)?;
+        self.python_testers.insert(t_id, obj);
         Ok(())
     }
 
@@ -396,7 +396,7 @@ impl PyTester {
                         TesterSource::External(gen) => {
                             let klass = self.python_testers.get(gen).unwrap();
                             let inst = klass.call0(py)?;
-                            self.instantiated_testers.insert(gen.to_string(), inst);
+                            self.instantiated_testers.insert(gen.to_owned(), inst);
                         }
                         _ => {}
                     }

@@ -9,9 +9,7 @@ use std::path::PathBuf;
 
 use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
 
-pub trait RendererAPI: std::fmt::Debug {
-    fn name(&self) -> String;
-    fn id(&self) -> String;
+pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
     fn file_ext(&self) -> &str;
     fn comment_str(&self) -> &str;
     fn print_vector(
@@ -101,7 +99,7 @@ impl<'a> Renderer<'a> {
             .states
             .as_ref()
             .unwrap()
-            .to_symbols(self.tester.id(), &dut, &t)
+            .to_symbols(self.tester.name(), &dut, &t)
             .unwrap()
             .join(" "))
     }
