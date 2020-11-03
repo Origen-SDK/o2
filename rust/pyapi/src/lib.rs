@@ -23,7 +23,7 @@ mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, PROG, STATUS, TEST};
+use origen::{Dut, Error, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyAny, PyDict};
@@ -202,17 +202,14 @@ fn test_ast() -> PyResult<Vec<u8>> {
 /// Prints out the AST for the current flow to the console
 #[pyfunction]
 fn flow() -> PyResult<()> {
-    PROG.with_current_flow(|f| {
-        println!("{}", f.to_string());
-        Ok(())
-    })?;
+    println!("{}", FLOW.to_string());
     Ok(())
 }
 
 /// Returns the AST for the current flow in Python
 #[pyfunction]
 fn flow_ast() -> PyResult<Vec<u8>> {
-    Ok(PROG.with_current_flow(|f| Ok(f.to_pickle()))?)
+    Ok(FLOW.to_pickle())
 }
 
 /// Returns a file handler object (iterable) for consuming the file arguments

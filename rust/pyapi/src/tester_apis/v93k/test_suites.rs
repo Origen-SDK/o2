@@ -12,11 +12,14 @@ pub struct TestSuites {
 #[pymethods]
 impl TestSuites {
     pub fn add(&self, name: &str) -> PyResult<TestInvocation> {
-        Ok(TestInvocation {
-            tester: self.tester.clone(),
-            id: v93k_prog::new_test_suite(name, &self.tester)?,
-            test_id: None,
-        })
+        let t = origen::with_prog_mut(|p| {
+            Ok(TestInvocation {
+                tester: self.tester.clone(),
+                id: v93k_prog::new_test_suite(name, &self.tester, p)?.id,
+                test_id: None,
+            })
+        })?;
+        Ok(t)
     }
 }
 

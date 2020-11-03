@@ -1,4 +1,5 @@
 use crate::core::tester::{Interceptor, TesterAPI, TesterID};
+use crate::prog_gen::Database;
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
@@ -68,7 +69,7 @@ impl VectorBased for SMT7 {
 impl Interceptor for SMT7 {}
 
 impl TesterAPI for SMT7 {
-    fn render_program(&mut self) -> crate::Result<Vec<PathBuf>> {
-        crate::prog_gen::advantest::smt7::render_test_program(&self)
+    fn render_program(&mut self, database: &Database) -> crate::Result<Vec<PathBuf>> {
+        crate::prog_gen::advantest::smt7::render_test_program(&self, database)
     }
 }

@@ -2,19 +2,17 @@
 //! test templates, test instances, etc.
 
 mod bin;
+mod database;
 mod limit;
 mod test;
-mod test_collection;
-mod test_program;
 
 use crate::Result as OrigenResult;
 pub use bin::Bin;
+pub use database::Database;
 pub use limit::Limit;
 use std::fmt;
 use std::str::FromStr;
 pub use test::Test;
-pub use test_collection::TestCollection;
-pub use test_program::TestProgram;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ParamValue {

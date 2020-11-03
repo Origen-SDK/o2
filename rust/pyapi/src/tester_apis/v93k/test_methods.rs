@@ -36,11 +36,14 @@ impl PyObjectProtocol for TML {
     //    Ok("Hello".to_string())
     //}
     fn __getattr__(&self, query: &str) -> PyResult<Test> {
-        Ok(Test {
-            name: query.to_string(),
-            id: v93k_prog::new_test_method(&self.name, query, &self.tester)?,
-            tester: self.tester.clone(),
-            initialized: true,
-        })
+        let t = origen::with_prog_mut(|p| {
+            Ok(Test {
+                name: query.to_string(),
+                id: v93k_prog::new_test_method(&self.name, query, &self.tester, p)?.id,
+                tester: self.tester.clone(),
+                initialized: true,
+            })
+        })?;
+        Ok(t)
     }
 }

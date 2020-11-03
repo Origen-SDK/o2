@@ -46,12 +46,14 @@ impl PyTester {
             clean_testers.push(st.to_string());
             ts.push(st);
         }
-        let refs = origen::tester().start_tester_specific_block(ts)?;
+        let refs = origen::with_prog_mut(|p| origen::tester().start_tester_specific_block(ts, p))?;
         Ok((refs.0, refs.1, clean_testers))
     }
 
     pub fn _end_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
-        origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id)?;
+        origen::with_prog_mut(|p| {
+            origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id, p)
+        })?;
         Ok(())
     }
 

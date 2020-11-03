@@ -36,11 +36,14 @@ impl PyObjectProtocol for TIL {
     //    Ok("Hello".to_string())
     //}
     fn __getattr__(&self, query: &str) -> PyResult<Test> {
-        Ok(Test {
-            name: query.to_string(),
-            id: uflex_prog::new_test_instance(&self.name, query, &self.tester)?,
-            tester: self.tester.clone(),
-            initialized: false,
-        })
+        let t = origen::with_prog_mut(|p| {
+            Ok(Test {
+                name: query.to_string(),
+                id: uflex_prog::new_test_instance(&self.name, query, &self.tester, p)?.id,
+                tester: self.tester.clone(),
+                initialized: false,
+            })
+        })?;
+        Ok(t)
     }
 }

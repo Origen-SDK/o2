@@ -6,7 +6,7 @@ use origen::core::tester::TesterSource;
 use origen::prog_gen::Test as RichTest;
 use origen::prog_gen::{ParamType, ParamValue};
 use origen::testers::SupportedTester;
-use origen::{Result, PROG};
+use origen::{Result, FLOW};
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::exceptions::{AttributeError, TypeError};
 use pyo3::prelude::*;
@@ -30,9 +30,10 @@ fn start_new_flow(name: &str, sub_flow: Option<bool>) -> PyResult<usize> {
         Some(x) => x,
     };
     if sub_flow {
-        Ok(PROG.start_sub_flow(name)?)
+        Ok(FLOW.start_sub_flow(name)?)
     } else {
-        Ok(PROG.start_flow(name)?)
+        FLOW.start(name)?;
+        Ok(0)
     }
 }
 
@@ -43,9 +44,9 @@ fn end_flow(ref_id: usize, sub_flow: Option<bool>) -> PyResult<()> {
         Some(x) => x,
     };
     if sub_flow {
-        Ok(PROG.end_sub_flow(ref_id)?)
+        Ok(FLOW.end_sub_flow(ref_id)?)
     } else {
-        Ok(PROG.end_flow(ref_id)?)
+        Ok(FLOW.end()?)
     }
 }
 
@@ -68,7 +69,9 @@ fn render(py: Python) -> PyResult<Vec<String>> {
                     }
                     _ => {
                         let mut tester = origen::tester();
-                        let files = tester.render_program_for_target_at(i, true);
+                        let files = origen::with_prog(|p| {
+                            tester.render_program_for_target_at(i, true, p)
+                        });
                         match files {
                             Err(e) => {
                                 let msg = e.to_string();
@@ -125,9 +128,9 @@ impl Test {
         }
         self.initialized = true;
         self.name = name.to_owned();
-        PROG.for_tester(&self.tester).with_test_mut(self.id, |t| {
-            t.set("test_name", ParamValue::String(name.to_owned()))?;
-            Ok(())
+        origen::with_prog_mut(|p| {
+            let t = &mut p.tests[self.id];
+            t.set("test_name", ParamValue::String(name.to_owned()))
         })?;
         Ok(self.clone())
     }
@@ -144,7 +147,8 @@ impl PyObjectProtocol for Test {
     }
 
     fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
-        if PROG.for_tester(&self.tester).with_test_mut(self.id, |t| {
+        if origen::with_prog_mut(|p| {
+            let t = &mut p.tests[self.id];
             if t.has_param(name) {
                 set_value(t, name, value)?;
                 Ok(true)
@@ -187,16 +191,14 @@ impl TestInvocation {
     }
 
     fn name(&self) -> PyResult<String> {
-        Ok(PROG
-            .for_tester(&self.tester)
-            .with_test(self.id, |t| Ok(t.name.to_owned()))?)
+        let name = origen::with_prog(|p| Ok(p.tests[self.id].name.to_owned()))?;
+        Ok(name)
     }
 
     fn test_name(&self) -> PyResult<Option<String>> {
         if let Some(id) = self.test_id {
-            Ok(PROG
-                .for_tester(&self.tester)
-                .with_test(id, |t| Ok(Some(t.name.to_owned())))?)
+            let name = origen::with_prog(|p| Ok(p.tests[id].name.to_owned()))?;
+            Ok(Some(name))
         } else {
             Ok(None)
         }
@@ -222,29 +224,28 @@ impl PyObjectProtocol for TestInvocation {
             self.set_test_obj(value.extract::<Test>()?)?;
             return Ok(());
         }
-        // Try and set the attribute on the test invocation
-        if PROG.for_tester(&self.tester).with_test_mut(self.id, |t| {
+        if origen::with_prog_mut(|p| {
+            // Try and set the attribute on the test invocation
+            let t = &mut p.tests[self.id];
             if t.has_param(name) {
                 set_value(t, name, value)?;
-                Ok(true)
+                return Ok(true);
             } else {
-                Ok(false)
-            }
-        })? {
-            return Ok(());
-        }
-        // Try and set the attribute on the test (if present)
-        if let Some(id) = self.test_id {
-            if PROG.for_tester(&self.tester).with_test_mut(id, |t| {
-                if t.has_param(name) {
-                    set_value(t, name, value)?;
-                    Ok(true)
+                // Try and set the attribute on the test (if present)
+                if let Some(id) = self.test_id {
+                    let t = &mut p.tests[id];
+                    if t.has_param(name) {
+                        set_value(t, name, value)?;
+                        Ok(true)
+                    } else {
+                        Ok(false)
+                    }
                 } else {
                     Ok(false)
                 }
-            })? {
-                return Ok(());
             }
+        })? {
+            return Ok(());
         }
         // Tried our best
         let msg = match self.test_id {
