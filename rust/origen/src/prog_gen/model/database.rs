@@ -21,10 +21,6 @@ pub struct Database {
     ///   * Library Name
     ///     * Test Name -> ID (reference to tests)
     libraries: HashMap<SupportedTester, HashMap<String, HashMap<String, usize>>>,
-    /// This keeps track of what testers are selected by 'with specific tester' blocks in the application.
-    /// It is implemented as a stack, allowing the application to select multiple testers at a time and then
-    /// optionally select a subset via a nested with block.
-    current_testers: Vec<Vec<SupportedTester>>,
 }
 
 impl Database {
@@ -34,37 +30,7 @@ impl Database {
             bins: vec![],
             limits: vec![],
             libraries: HashMap::new(),
-            current_testers: vec![],
         }
-    }
-
-    pub fn push_current_testers(&mut self, testers: Vec<SupportedTester>) -> Result<()> {
-        if testers.is_empty() {
-            return error!("No tester type(s) given");
-        }
-        // When some testers are already selected, the application is only allowed to select a subset of them,
-        // so verify that all given testers are already contained in the last selection
-        if !self.current_testers.is_empty() {
-            let last = self.current_testers.last().unwrap();
-            for t in &testers {
-                if !last.contains(t) {
-                    return error!(
-                        "Can't select tester '{}' within a block that already selects '{:?}'",
-                        t, last
-                    );
-                }
-            }
-        }
-        self.current_testers.push(testers.clone());
-        Ok(())
-    }
-
-    pub fn pop_current_testers(&mut self) -> Result<()> {
-        if self.current_testers.is_empty() {
-            return error!("There has been an attempt to close a tester-specific block, but none is currently open in the program generator");
-        }
-        let _ = self.current_testers.pop();
-        Ok(())
     }
 
     /// Creates a new test which is a duplicate of the given test, returning a mutable reference
@@ -179,7 +145,7 @@ impl Database {
         name: &str,
     ) -> Result<usize> {
         if !self.libraries.contains_key(tester)
-            && !self.libraries[tester].contains_key(library_name)
+            || !self.libraries[tester].contains_key(library_name)
         {
             return error!(
                 "A test library named '{}' does not exist for tester '{}'",

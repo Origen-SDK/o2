@@ -130,17 +130,6 @@ impl FlowManager {
         Ok(())
     }
 
-    /// Start a sub-flow, the returned reference should be retained and passed to end_sub_flow
-    pub fn start_sub_flow(&self, name: &str) -> Result<usize> {
-        let n = node!(PGMSubFlow, name.to_owned());
-        self.push_and_open(n)
-    }
-
-    /// End of a sub-flow
-    pub fn end_sub_flow(&self, ref_id: usize) -> Result<()> {
-        self.close(ref_id)
-    }
-
     /// Push a new terminal node into the AST for the current flow
     pub fn push(&self, node: Node) -> Result<()> {
         self.with_selected_flow_mut(|flow| {

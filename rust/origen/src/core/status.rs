@@ -1,5 +1,6 @@
 extern crate time;
 use crate::core::application::Application;
+use crate::testers::SupportedTester;
 use crate::utility::file_utils::with_dir;
 use crate::{built_info, Result};
 use regex::Regex;
@@ -51,6 +52,8 @@ pub struct Status {
     reference_dir: RwLock<Option<PathBuf>>,
     cli_location: RwLock<Option<PathBuf>>,
     _custom_tester_ids: RwLock<Vec<String>>,
+    current_testers: RwLock<Vec<Vec<SupportedTester>>>,
+    unique_id: RwLock<usize>,
 }
 
 impl Default for Status {
@@ -118,6 +121,8 @@ impl Default for Status {
             cli_location: RwLock::new(None),
             is_app_in_origen_dev_mode: origen_dev_mode,
             _custom_tester_ids: RwLock::new(vec![]),
+            current_testers: RwLock::new(vec![]),
+            unique_id: RwLock::new(0),
         };
         log_trace!("Status built successfully");
         s
@@ -139,6 +144,49 @@ impl Status {
             ids.push(id.to_string());
         }
         ids
+    }
+
+    /// Returns an ID that it guaranteed unique across threads and within the lifetime of an Origen
+    /// invocation
+    pub fn generate_unique_id(&self) -> usize {
+        let mut unique_id = self.unique_id.write().unwrap();
+        *unique_id += 1;
+        *unique_id
+    }
+
+    /// Corresponds to the start of a tester specific block of code, returns an error if the given tester
+    /// selection is not a subset of any existing selection
+    pub fn push_current_testers(&self, testers: Vec<SupportedTester>) -> Result<()> {
+        if testers.is_empty() {
+            return error!("No tester type(s) given");
+        }
+        let mut current_testers = self.current_testers.write().unwrap();
+        // When some testers are already selected, the application is only allowed to select a subset of them,
+        // so verify that all given testers are already contained in the last selection
+        if !current_testers.is_empty() {
+            let last = current_testers.last().unwrap();
+            for t in &testers {
+                if !last.contains(t) {
+                    return error!(
+                        "Can't select tester '{}' within a block that already selects '{:?}'",
+                        t, last
+                    );
+                }
+            }
+        }
+        current_testers.push(testers.clone());
+        Ok(())
+    }
+
+    /// Corresponds to the end of a tester specific block, returns an error if no tester specific
+    /// selection currently exists
+    pub fn pop_current_testers(&self) -> Result<()> {
+        let mut current_testers = self.current_testers.write().unwrap();
+        if current_testers.is_empty() {
+            return error!("There has been an attempt to close a tester-specific block, but none is currently open in the program generator");
+        }
+        let _ = current_testers.pop();
+        Ok(())
     }
 
     /// Returns the number of unhandled errors that have been encountered since this thread started.

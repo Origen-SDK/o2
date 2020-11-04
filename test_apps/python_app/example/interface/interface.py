@@ -23,13 +23,13 @@ class Interface(BaseInterface):
 
     def func(self, name, duration="static", number=None, **kwargs):
         with tester().specific("igxl") as igxl:
-            with self.block_loop(name, kwargs) as (block, i, group):
+            with self.block_loop(name, **kwargs) as (block, i, group):
                 if number and i:
                     number += i
                 ins = igxl.test_instances.std.functional(name)
                 if duration == "dynamic":
                     ins.set_wait_flags("a")
-                if kwargs["pin_levels"]:
+                if kwargs.get("pin_levels"):
                     ins.pin_levels = kwargs.pop("pin_levels")
                 if group:
                     pname = f"{name}_b{i}_pset"
@@ -41,8 +41,10 @@ class Interface(BaseInterface):
                     }])
                     ins.pattern = pname
                     if i == 0:
-                        flow.add_test(group, kwargs)
+                        self.add_test(group, **kwargs)
                 else:
+                    import pdb
+                    pdb.set_trace()
                     pname = f"{name}_pset"
                     igxl.patsets.add(pname, [{
                         "pattern": f"{name}.PAT"
@@ -51,35 +53,35 @@ class Interface(BaseInterface):
                         "start_label": 'subr'
                     }])
                     ins.pattern = pname
-                    if kwargs["cz_setup"]:
-                        flow.cz(ins, kwargs["cz_setup"], kwargs)
+                    if kwargs.get("cz_setup"):
+                        self.cz(ins, kwargs["cz_setup"], **kwargs)
                     else:
-                        flow.add_test(ins, kwargs)
+                        self.add_test(ins, **kwargs)
 
         with tester().specific("v93k") as v93k:
-            with self.block_loop(name, kwargs) as (block, i):
+            with self.block_loop(name, **kwargs) as (block, i):
                 if number and i:
                     number += i
                 tm = v93k.test_methods.ac_tml.ac_test.functional_test
-                ts = test_suites.add(name, kwargs)
+                ts = test_suites.add(name, **kwargs)
                 ts.test_method = tm
                 with tester().specific("v93ksmt8"):
-                    if kwargs["pin_levels"]:
+                    if kwargs.get("pin_levels"):
                         ts.spec = kwargs.pop("pin_levels")
                     else:
                         ts.spec = 'specs.Nominal'
                 with tester().specific("v93ksmt7"):
-                    if kwargs["pin_levels"]:
+                    if kwargs.get("pin_levels"):
                         ts.levels = kwargs.pop["pin_levels"]
                 if block:
                     ts.pattern = f"{name}_b{i}"
                 else:
                     ts.pattern = name
-                flow.add_test(ts, kwargs)
+                self.add_test(ts, **kwargs)
 
     @contextmanager
     def block_loop(self, name, **kwargs):
-        if kwargs["by_block"]:
+        if kwargs.get("by_block"):
             with tester().specific("igxl") as igxl:
                 with igxl.test_instances.group() as group:
                     group.name = name
@@ -87,7 +89,7 @@ class Interface(BaseInterface):
                         yield block, i, group
 
             with tester().specific("v93k") as v93k:
-                with self.group(name, kwargs) as group:
+                with self.group(name, **kwargs) as group:
                     for i, block in enumerate(dut.blocks):
                         yield block, i, None
         else:

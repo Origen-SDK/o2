@@ -42,7 +42,7 @@ pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
-use std::sync::{Mutex, MutexGuard, RwLock};
+use std::sync::{Mutex, MutexGuard};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -75,16 +75,6 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
-    /// This is analagous to the DUT for test program duration, it is a database for storing objects
-    /// produced during test program generation, e.g. tests, limits, etc. which will be referred to by
-    /// an ID from the flow AST.
-    /// A RwLock has been used since it is expected that the test program rendering stage will need
-    /// regular access to this, so the RwLock may provide better performance when multiple threads for
-    /// each target at accessing it at once.
-    /// Similar to the DUT, low level functions should not reference it directly to avoid deadlocks and
-    /// instead high-level entry nodes (e.g. in PyApi) should obtain a r/w lock and pass a reference down
-    /// to lower level functions.
-    pub static ref PROG: RwLock<prog_gen::Database> = RwLock::new(prog_gen::Database::new());
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
@@ -160,26 +150,6 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
-}
-
-/// Execute the given function with a reference to the test program model.
-/// Returns the result of the given function.
-pub fn with_prog<T, F>(func: F) -> Result<T>
-where
-    F: FnOnce(&prog_gen::Database) -> Result<T>,
-{
-    let p = PROG.read().unwrap();
-    func(&p)
-}
-
-/// Execute the given function with a mutable reference to the test program model.
-/// Returns the result of the given function.
-pub fn with_prog_mut<T, F>(func: F) -> Result<T>
-where
-    F: FnOnce(&mut prog_gen::Database) -> Result<T>,
-{
-    let mut p = PROG.write().unwrap();
-    func(&mut p)
 }
 
 /// Execute the given function with a reference to the current job.

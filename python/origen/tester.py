@@ -29,12 +29,16 @@ class Tester(_origen.tester.PyTester):
          clean_tester_names) = self._start_specific_block(names)
         testers = []
         for t in clean_tester_names:
-            if t == "V93KSMT7":
+            if t == "V93K":
+                testers.append(V93K())
+            elif t == "V93KSMT7":
                 testers.append(V93K(7))
             elif t == "V93KSMT8":
                 testers.append(V93K(8))
+            elif t == "IGXL":
+                testers.append(IGXL())
             elif t == "ULTRAFLEX":
-                testers.append(ULTRAFLEX())
+                testers.append(IGXL("ULTRAFLEX"))
             else:
                 raise Exception(
                     f"The API for tester '{t}' has not been implemented yet!")
@@ -86,5 +90,5 @@ class V93K(_origen.tester_apis.V93K):
     pass
 
 
-class ULTRAFLEX(_origen.tester_apis.ULTRAFLEX):
+class IGXL(_origen.tester_apis.IGXL):
     pass

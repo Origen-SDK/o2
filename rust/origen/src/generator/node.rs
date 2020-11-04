@@ -58,14 +58,11 @@ impl Node {
         let r = processor.on_node(&self)?;
         self.process_return_code(r, processor)
     }
-    pub fn new_with_meta(attrs: Attrs, filename: Option<String>, lineno: Option<usize>) -> Node {
+    pub fn new_with_meta(attrs: Attrs, meta: Option<Meta>) -> Node {
         Node {
             attrs: attrs,
             children: Vec::new(),
-            meta: Some(Meta {
-                filename: filename,
-                lineno: lineno,
-            }),
+            meta: meta,
         }
     }
 

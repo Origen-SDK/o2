@@ -4,7 +4,6 @@ use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
-use crate::prog_gen::Database;
 use crate::testers::{instantiate_tester, SupportedTester};
 use crate::utility::differ::Differ;
 use crate::utility::file_utils::to_relative_path;
@@ -109,6 +108,7 @@ impl Stats {
         serde_pickle::to_vec(self, true).unwrap()
     }
 }
+
 impl Tester {
     pub fn new() -> Self {
         Tester {
@@ -126,28 +126,22 @@ impl Tester {
     pub fn start_tester_specific_block(
         &self,
         testers: Vec<SupportedTester>,
-        database: &mut crate::prog_gen::Database,
     ) -> Result<(usize, usize)> {
         let n = node!(TesterSpecific, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id = FLOW.push_and_open(n)?;
         // This also verifies that the given tester selection is valid
-        database.push_current_testers(testers)?;
+        crate::STATUS.push_current_testers(testers)?;
         Ok((pat_ref_id, prog_ref_id))
     }
 
     /// Ends an open tester-specific section in the current pattern and/or test program.
     /// The ID produced when opening the block (via start_tester_specific_block) should be supplied
     /// as the main argument.
-    pub fn end_tester_specific_block(
-        &self,
-        pat_ref_id: usize,
-        prog_ref_id: usize,
-        database: &mut crate::prog_gen::Database,
-    ) -> Result<()> {
+    pub fn end_tester_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
         FLOW.close(prog_ref_id)?;
-        database.pop_current_testers()?;
+        crate::STATUS.pop_current_testers()?;
         Ok(())
     }
 
@@ -448,7 +442,6 @@ impl Tester {
         &mut self,
         idx: usize,
         diff_and_display: bool,
-        database: &Database,
     ) -> Result<Vec<PathBuf>> {
         let g = &mut self.target_testers[idx];
         match g {
@@ -457,7 +450,7 @@ impl Tester {
             }
             TesterSource::Internal(gen) => {
                 log_info!("Rendering program for {}", &gen.name());
-                let paths = gen.render_program(database)?;
+                let paths = gen.render_program()?;
                 if !paths.is_empty() {
                     for path in &paths {
                         self.stats.generated_program_files += 1;
@@ -639,7 +632,7 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// if successful.
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
-    fn render_program(&mut self, database: &Database) -> crate::Result<Vec<PathBuf>> {
+    fn render_program(&mut self) -> crate::Result<Vec<PathBuf>> {
         log_debug!("Tester '{}' does not implement render_program", &self.id());
         Ok(vec![])
     }

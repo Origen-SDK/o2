@@ -1,5 +1,4 @@
 use crate::prog_gen::Test;
-use origen::prog_gen::advantest::common as v93k_prog;
 use origen::testers::SupportedTester;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
@@ -35,15 +34,16 @@ impl PyObjectProtocol for TML {
     //fn __repr__(&self) -> PyResult<String> {
     //    Ok("Hello".to_string())
     //}
-    fn __getattr__(&self, query: &str) -> PyResult<Test> {
-        let t = origen::with_prog_mut(|p| {
-            Ok(Test {
-                name: query.to_string(),
-                id: v93k_prog::new_test_method(&self.name, query, &self.tester, p)?.id,
-                tester: self.tester.clone(),
-                initialized: true,
-            })
-        })?;
+    fn __getattr__(&self, test_method_name: &str) -> PyResult<Test> {
+        let mut t = Test {
+            name: test_method_name.to_string(),
+            initialized: true,
+            tester: self.tester.clone(),
+            id: 0,
+            library_name: self.name.clone(),
+            template_name: test_method_name.to_owned(),
+        };
+        t.define()?;
         Ok(t)
     }
 }

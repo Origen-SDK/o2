@@ -1,5 +1,5 @@
 use crate::prog_gen::{Test, TestInvocation};
-use origen::prog_gen::add_test as core_add_test;
+use origen::prog_gen::flow_api;
 use pyo3::exceptions::TypeError;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
@@ -42,11 +42,11 @@ impl PyInterface {
         test_text: Option<String>,
     ) -> PyResult<()> {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            core_add_test(t.name()?, Some(t.tester), t.test_id, Some(t.id))?;
+            flow_api::execute_test(t.id, None)?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            core_add_test(t.name, Some(t.tester), Some(t.id), None)?;
+            flow_api::execute_test(t.id, None)?;
         } else if let Ok(t) = test_obj.extract::<String>() {
-            core_add_test(t, None, None, None)?;
+            flow_api::execute_test_str(t, None)?;
         } else {
             return Err(TypeError::py_err(format!(
                 "add_test must be given a valid test object, or a String, this is neither: {:?}",

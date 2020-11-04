@@ -1,8 +1,18 @@
 #[macro_export]
 macro_rules! node {
+    ( $attr:ident, $( $x:expr ),* ; $m:expr) => {
+        {
+            $crate::generator::ast::Node::new_with_meta($crate::generator::ast::Attrs::$attr($( $x ),*), $m)
+        }
+    };
     ( $attr:ident, $( $x:expr ),* ) => {
         {
             $crate::generator::ast::Node::new($crate::generator::ast::Attrs::$attr($( $x ),*))
+        }
+    };
+    ( $attr:ident ; $m:expr) => {
+        {
+            $crate::generator::ast::Node::new_with_meta($crate::generator::ast::Attrs::$attr, $m)
         }
     };
     ( $attr:ident ) => {

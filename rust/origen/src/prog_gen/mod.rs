@@ -1,9 +1,9 @@
 pub mod advantest;
+pub mod flow_api;
 mod flow_manager;
 mod model;
 pub mod teradyne;
 
-use crate::testers::SupportedTester;
 use crate::Result;
 pub use flow_manager::FlowManager;
 pub use model::Database;
@@ -30,17 +30,6 @@ use std::collections::HashMap;
 // Doing it this way means that we can just drop new files into the templates dirs and they will
 // automatically be picked up and included in the new build.
 include!(concat!(env!("OUT_DIR"), "/test_templates.rs"));
-
-/// Add the given test to the current flow
-pub fn add_test(
-    name: String,
-    tester: Option<SupportedTester>,
-    test_id: Option<usize>,
-    invocation_id: Option<usize>,
-) -> Result<()> {
-    let n = node!(PGMTest, name, tester, test_id, invocation_id);
-    crate::FLOW.push(n)
-}
 
 /// Test template definitions from json files are read into this structure
 #[derive(Debug, Deserialize)]

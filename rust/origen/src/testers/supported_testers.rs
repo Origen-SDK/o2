@@ -4,9 +4,17 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize)]
 pub enum SupportedTester {
-    GENERIC, // If no tester is specified then this is used by default
+    /// Generally, the absence of an optional SupportedTester value means all testers, but
+    /// this can also be used to indicate that whenever a SupportedTester value is required
+    ALL,
+    /// Indicates support for all versions of SMT on the V93K
+    V93K,
+    /// Indicates support for V93K SMT7 only, i.e. not SMT8
     V93KSMT7,
+    /// Indicates support for V93K SMT8 only, i.e. not SMT7
     V93KSMT8,
+    /// Indicates support for all IGXL-based testers
+    IGXL,
     J750,
     ULTRAFLEX,
     SIMULATOR,
@@ -20,7 +28,16 @@ pub enum SupportedTester {
 impl SupportedTester {
     /// Returns the names of all available testers
     pub fn all_names() -> Vec<String> {
-        let mut s = vec!["V93KSMT7", "V93KSMT8", "J750", "ULTRAFLEX", "SIMULATOR"];
+        let mut s = vec![
+            "ALL",
+            "V93K",
+            "V93KSMT7",
+            "V93KSMT8",
+            "IGXL",
+            "J750",
+            "ULTRAFLEX",
+            "SIMULATOR",
+        ];
         if crate::STATUS.is_origen_present {
             s.push("DUMMYRENDERER");
             s.push("DUMMYRENDERERWITHINTERCEPTORS");
@@ -60,8 +77,11 @@ impl FromStr for SupportedTester {
         // Accept any case and with or without underscores
         let kind = kind.to_uppercase().replace("_", "");
         match kind.trim() {
+            "ALL" | "ANY" => Ok(SupportedTester::ALL),
+            "V93K" => Ok(SupportedTester::V93K),
             "V93KSMT7" => Ok(SupportedTester::V93KSMT7),
             "V93KSMT8" => Ok(SupportedTester::V93KSMT8),
+            "IGXL" => Ok(SupportedTester::IGXL),
             "J750" => Ok(SupportedTester::J750),
             "ULTRAFLEX" | "UFLEX" => Ok(SupportedTester::ULTRAFLEX),
             "SIMULATOR" => Ok(SupportedTester::SIMULATOR),

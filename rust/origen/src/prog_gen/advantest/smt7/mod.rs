@@ -1,14 +1,13 @@
 mod processors;
 
 use crate::core::tester::TesterAPI;
-use crate::prog_gen::Database;
 use crate::testers::smt::V93K_SMT7;
 use crate::Result;
 use crate::FLOW;
 use std::path::PathBuf;
 
 /// Main entry point to render the current test program, paths to all files generated are returned
-pub fn render_test_program(tester: &V93K_SMT7, _database: &Database) -> Result<Vec<PathBuf>> {
+pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
     let mut files = vec![];
 
     let output_dir = tester.output_dir()?.join("test_program");

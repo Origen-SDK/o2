@@ -1,5 +1,6 @@
 use super::stil;
 use super::utility::transaction::Transaction;
+use crate::prog_gen::ParamValue;
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
@@ -198,12 +199,24 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     PGMFlow(String),
     PGMSubFlow(String),
-    PGMTest(
-        String,
-        Option<SupportedTester>,
-        Option<usize>,
-        Option<usize>,
-    ), // Name, Tester, Test ID, Invocation ID
+    /// Defines a new test, this must be done before attributes can be set via PGMSetAttr. Note that this doesn't
+    /// actually add it to the test flow, that must be done via a PGMTest node
+    ///         ID,    Name,     Tester,       Library  Template
+    PGMDefTest(usize, String, SupportedTester, String, String),
+    /// Defines a new test invocation, this must be done before attributes can be set via PGMSetAttr. Note that
+    /// this doesn't actually add it to the test flow, that must be done via a PGMTest node
+    ///            ID,    Name,     Tester
+    PGMDefTestInv(usize, String, SupportedTester),
+    /// Assign an existing test to an existing invocation
+    ///                 InvID  TestID
+    PGMAssignTestToInv(usize, usize),
+    /// Set the attribute with the given name within the given test (ID), to the given value
+    PGMSetAttr(usize, String, ParamValue),
+    /// Execute a test (or invocation) from the flow
+    PGMTest(usize),
+    /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
+    /// into the flow
+    PGMTestStr(String),
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// STIL

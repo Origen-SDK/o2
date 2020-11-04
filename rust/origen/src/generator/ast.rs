@@ -1,3 +1,4 @@
+pub use crate::generator::node::Meta;
 pub use crate::generator::node::Node;
 pub use crate::generator::nodes::Attrs;
 use crate::generator::TestManager;

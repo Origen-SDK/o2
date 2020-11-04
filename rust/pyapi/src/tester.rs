@@ -46,14 +46,19 @@ impl PyTester {
             clean_testers.push(st.to_string());
             ts.push(st);
         }
-        let refs = origen::with_prog_mut(|p| origen::tester().start_tester_specific_block(ts, p))?;
+        let refs = origen::tester().start_tester_specific_block(ts)?;
         Ok((refs.0, refs.1, clean_testers))
     }
 
     pub fn _end_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
-        origen::with_prog_mut(|p| {
-            origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id, p)
-        })?;
+        origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id)?;
+        Ok(())
+    }
+
+    /// Prints out the AST for the current flow to the console (for debugging)
+    #[getter]
+    fn ast(&self) -> PyResult<()> {
+        println!("{}", origen::FLOW.to_string());
         Ok(())
     }
 
