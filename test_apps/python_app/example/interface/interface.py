@@ -17,7 +17,7 @@ class Interface(BaseInterface):
     #        pass
 
     #    with tester().specific("uflex") as uflex:
-    #        t = uflex.test_instances.std.functional(name)
+    #        t = uflex.new_test_instances.std.functional(name)
     #        t.threading = True
     #        self.add_test(t)
 
@@ -26,44 +26,38 @@ class Interface(BaseInterface):
             with self.block_loop(name, **kwargs) as (block, i, group):
                 if number and i:
                     number += i
-                ins = igxl.test_instances.std.functional(name)
+                ins = igxl.new_test_instance(name,
+                                             library="std",
+                                             template="functional")
                 if duration == "dynamic":
                     ins.set_wait_flags("a")
                 if kwargs.get("pin_levels"):
                     ins.pin_levels = kwargs.pop("pin_levels")
                 if group:
-                    pname = f"{name}_b{i}_pset"
-                    igxl.patsets.add(pname, [{
-                        "pattern": f"{name}_b{i}.PAT"
-                    }, {
-                        "pattern": 'nvm_global_subs.PAT',
-                        "start_label": 'subr'
-                    }])
-                    ins.pattern = pname
+                    p = igxl.new_patset(f"{name}_b{i}_pset")
+                    p.append(f"{name}_b{i}.PAT")
+                    p.append('nvm_global_subs.PAT', start_label="subr")
+                    ins.pattern = p.name
                     if i == 0:
                         self.add_test(group, **kwargs)
                 else:
-                    import pdb
-                    pdb.set_trace()
-                    pname = f"{name}_pset"
-                    igxl.patsets.add(pname, [{
-                        "pattern": f"{name}.PAT"
-                    }, {
-                        "pattern": 'nvm_global_subs.PAT',
-                        "start_label": 'subr'
-                    }])
-                    ins.pattern = pname
+                    p = igxl.new_patset(f"{name}_pset")
+                    p.append(f"{name}.PAT")
+                    p.append('nvm_global_subs.PAT', start_label="subr")
+                    ins.pattern = p.name
                     if kwargs.get("cz_setup"):
                         self.cz(ins, kwargs["cz_setup"], **kwargs)
                     else:
                         self.add_test(ins, **kwargs)
 
         with tester().specific("v93k") as v93k:
-            with self.block_loop(name, **kwargs) as (block, i):
+            with self.block_loop(name, **kwargs) as (block, i, _):
                 if number and i:
                     number += i
-                tm = v93k.test_methods.ac_tml.ac_test.functional_test
-                ts = test_suites.add(name, **kwargs)
+                tm = v93k.new_test_method("functional_test", library="ac_tml")
+                ts = v93k.new_test_suite(name, **kwargs)
+                import pdb
+                pdb.set_trace()
                 ts.test_method = tm
                 with tester().specific("v93ksmt8"):
                     if kwargs.get("pin_levels"):

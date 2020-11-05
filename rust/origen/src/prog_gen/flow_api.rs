@@ -1,4 +1,5 @@
 use super::ParamValue;
+use super::PatternGroupType;
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
@@ -72,5 +73,27 @@ pub fn execute_test(id: usize, meta: Option<Meta>) -> Result<()> {
 /// inserted by Origen
 pub fn execute_test_str(name: String, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMTestStr, name; meta);
+    FLOW.push(n)
+}
+
+pub fn define_pattern_group(
+    name: String,
+    tester: SupportedTester,
+    kind: Option<PatternGroupType>,
+    meta: Option<Meta>,
+) -> Result<usize> {
+    let id = crate::STATUS.generate_unique_id();
+    let n = node!(PGMPatternGroup, id, name, tester, kind; meta);
+    FLOW.push(n)?;
+    Ok(id)
+}
+
+pub fn push_pattern_to_group(
+    id: usize,
+    path: String,
+    start_label: Option<String>,
+    meta: Option<Meta>,
+) -> Result<()> {
+    let n = node!(PGMPushPattern, id, path, start_label; meta);
     FLOW.push(n)
 }

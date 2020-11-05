@@ -1,12 +1,14 @@
 //! Implements Python bindings for program generation data structures and functions
 
 pub mod interface;
+mod pattern_group;
 mod test;
 mod test_invocation;
 
 use origen::core::tester::TesterSource;
 use origen::prog_gen::{flow_api, ParamType, ParamValue};
 use origen::{Result, FLOW};
+pub use pattern_group::PatternGroup;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use pyo3::wrap_pyfunction;
@@ -105,7 +107,7 @@ fn render(py: Python) -> PyResult<Vec<String>> {
     })
 }
 
-fn to_param_value(value: &PyAny) -> Result<ParamValue> {
+pub fn to_param_value(value: &PyAny) -> Result<ParamValue> {
     Ok(if let Ok(v) = value.extract::<bool>() {
         ParamValue::Bool(v)
     } else if let Ok(v) = value.extract::<i64>() {
@@ -121,8 +123,7 @@ fn to_param_value(value: &PyAny) -> Result<ParamValue> {
     })
 }
 
-#[allow(dead_code)]
-fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<ParamValue> {
+pub fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<ParamValue> {
     match ptype {
         ParamType::Bool => {
             if let Ok(v) = value.extract::<bool>() {

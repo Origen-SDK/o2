@@ -1,10 +1,8 @@
-mod test_instances;
+mod prog_gen_api;
 
 use origen::testers::SupportedTester;
 use pyo3::exceptions;
 use pyo3::prelude::*;
-
-use test_instances::TestInstances;
 
 #[pyclass(subclass)]
 #[derive(Debug)]
@@ -34,13 +32,6 @@ impl IGXL {
                     }
                 }
             },
-        })
-    }
-
-    #[getter]
-    pub fn test_instances(&self) -> PyResult<TestInstances> {
-        Ok(TestInstances {
-            tester: self.tester.clone(),
         })
     }
 }

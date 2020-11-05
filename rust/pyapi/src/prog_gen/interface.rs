@@ -2,7 +2,7 @@ use crate::prog_gen::{Test, TestInvocation};
 use origen::prog_gen::flow_api;
 use pyo3::exceptions::TypeError;
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
+use pyo3::types::{PyAny, PyDict};
 use std::path::Path;
 
 #[pymodule]
@@ -35,11 +35,13 @@ impl PyInterface {
 
     /// Add a test to the flow
     #[allow(unused_variables)]
+    #[args(kwargs = "**")]
     fn add_test(
         &self,
         test_obj: &PyAny,
-        if_failed: Option<&PyAny>,
-        test_text: Option<String>,
+        //if_failed: Option<&PyAny>,
+        //test_text: Option<String>,
+        kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
             flow_api::execute_test(t.id, None)?;

@@ -9,6 +9,7 @@ pub use flow_manager::FlowManager;
 pub use model::Database;
 pub use model::ParamType;
 pub use model::ParamValue;
+pub use model::PatternGroupType;
 pub use model::Test;
 use phf::phf_map;
 use std::collections::HashMap;

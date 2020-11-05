@@ -1,6 +1,6 @@
 use super::stil;
 use super::utility::transaction::Transaction;
-use crate::prog_gen::ParamValue;
+use crate::prog_gen::{ParamValue, PatternGroupType};
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
@@ -217,6 +217,9 @@ pub enum Attrs {
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
     /// into the flow
     PGMTestStr(String),
+    /// Defines a new pattern group, also used to model IG-XL pattern sets
+    PGMPatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
+    PGMPushPattern(usize, String, Option<String>),
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// STIL

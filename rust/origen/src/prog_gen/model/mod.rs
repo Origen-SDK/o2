@@ -15,6 +15,12 @@ use std::str::FromStr;
 pub use test::Test;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum PatternGroupType {
+    Patset,
+    Patgroup,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ParamValue {
     String(String),
     Int(i64),

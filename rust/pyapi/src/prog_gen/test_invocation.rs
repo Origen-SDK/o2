@@ -1,6 +1,6 @@
 use super::to_param_value;
 use super::Test;
-use origen::prog_gen::flow_api;
+use origen::prog_gen::{flow_api, ParamValue};
 use origen::testers::SupportedTester;
 use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
@@ -16,27 +16,36 @@ pub struct TestInvocation {
     pub name: String,
     pub tester: SupportedTester,
     pub id: usize,
-    pub test_id: Option<usize>,
-    pub test_name: Option<String>,
 }
 
 #[pymethods]
 impl TestInvocation {
     fn set_test_obj(&mut self, test: Test) -> PyResult<()> {
+        // TODO: Should be more like self.tester.is_compatible_with(test.tester)
         if test.tester != self.tester {
             return Err(AttributeError::py_err(format!(
                 "Attempted to associate a test for '{}' with an invocation for '{}'",
                 test.tester, self.tester
             )));
         }
-        self.test_id = Some(test.id);
+        flow_api::assign_test_to_invocation(self.id, test.id, None)?;
         Ok(())
     }
 }
 
 impl TestInvocation {
-    pub fn define(&mut self) -> Result<()> {
-        self.id = flow_api::define_test_invocation(&self.name, &self.tester, None)?;
+    pub fn new(name: String, tester: SupportedTester) -> Result<TestInvocation> {
+        let id = flow_api::define_test_invocation(&name, &tester, None)?;
+
+        Ok(TestInvocation {
+            name: name,
+            tester: tester,
+            id: id,
+        })
+    }
+
+    pub fn set_attr(&self, name: &str, value: ParamValue) -> Result<()> {
+        flow_api::set_test_attr(self.id, name, value, None)?;
         Ok(())
     }
 }
@@ -59,10 +68,9 @@ impl PyObjectProtocol for TestInvocation {
                 || self.tester == SupportedTester::V93K)
         {
             let test = value.extract::<Test>()?;
-            flow_api::assign_test_to_invocation(self.id, test.id, None)?;
-            return Ok(());
+            return self.set_test_obj(test);
         }
-        flow_api::set_test_attr(self.id, name, to_param_value(value)?, None)?;
+        self.set_attr(name, to_param_value(value)?)?;
         Ok(())
 
         //if origen::with_prog_mut(|p| {

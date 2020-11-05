@@ -1,12 +1,8 @@
-mod test_methods;
-mod test_suites;
+mod prog_gen_api;
 
 use origen::testers::SupportedTester;
 use pyo3::exceptions;
 use pyo3::prelude::*;
-
-use test_methods::TestMethods;
-use test_suites::TestSuites;
 
 #[pyclass(subclass)]
 #[derive(Debug)]
@@ -33,20 +29,6 @@ impl V93K {
                     )))
                 }
             },
-        })
-    }
-
-    #[getter]
-    pub fn test_suites(&self) -> PyResult<TestSuites> {
-        Ok(TestSuites {
-            tester: self.tester.clone(),
-        })
-    }
-
-    #[getter]
-    pub fn test_methods(&self) -> PyResult<TestMethods> {
-        Ok(TestMethods {
-            tester: self.tester.clone(),
         })
     }
 }
