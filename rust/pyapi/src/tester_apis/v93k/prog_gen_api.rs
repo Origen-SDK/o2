@@ -17,7 +17,6 @@ impl V93K {
         name: String,
         kwargs: Option<&PyDict>,
     ) -> PyResult<TestInvocation> {
-        dbg!(kwargs);
         let t = TestInvocation::new(name.clone(), self.tester.to_owned())?;
         t.set_attr("name", ParamValue::String(name.to_owned()))?;
         if let Some(kwargs) = kwargs {

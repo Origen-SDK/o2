@@ -39,6 +39,8 @@ class Tester(_origen.tester.PyTester):
                 testers.append(IGXL())
             elif t == "ULTRAFLEX":
                 testers.append(IGXL("ULTRAFLEX"))
+            elif t == "J750":
+                testers.append(IGXL("J750"))
             else:
                 raise Exception(
                     f"The API for tester '{t}' has not been implemented yet!")

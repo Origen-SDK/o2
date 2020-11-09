@@ -55,6 +55,31 @@ impl SupportedTester {
             Err(msg) => error!("{}", msg),
         }
     }
+
+    /// Returns true if the given tester is equal to self or if the given tester is a
+    /// derivative of self (see is_a_derivative_of()).
+    pub fn is_compatible_with(&self, tester: &SupportedTester) -> bool {
+        self == tester || tester.is_a_derivative_of(self)
+    }
+
+    /// Returns true if self is a derivative of the given tester. For example if the given
+    /// tester is IGXL, then both the J750 and the ULTRAFLEX would be considered derivatives
+    /// of it.
+    /// Note that true is only returned for derivatives, if the given tester is the same as
+    /// self then false will be returned.
+    /// Use is_compatible_with() if you also want to consider an exact match as true.
+    pub fn is_a_derivative_of(&self, tester: &SupportedTester) -> bool {
+        match self {
+            SupportedTester::ALL => tester != &SupportedTester::ALL,
+            SupportedTester::IGXL => {
+                tester == &SupportedTester::J750 || tester == &SupportedTester::ULTRAFLEX
+            }
+            SupportedTester::V93K => {
+                tester == &SupportedTester::V93KSMT7 || tester == &SupportedTester::V93KSMT8
+            }
+            _ => false,
+        }
+    }
 }
 
 impl FromStr for SupportedTester {

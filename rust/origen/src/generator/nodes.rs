@@ -220,6 +220,7 @@ pub enum Attrs {
     /// Defines a new pattern group, also used to model IG-XL pattern sets
     PGMPatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
     PGMPushPattern(usize, String, Option<String>),
+    PGMRender(String),
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// STIL

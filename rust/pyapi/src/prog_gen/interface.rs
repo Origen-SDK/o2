@@ -58,6 +58,12 @@ impl PyInterface {
         Ok(())
     }
 
+    /// Render the given string directly to the current flow
+    fn render_str(&self, text: String) -> PyResult<()> {
+        flow_api::render(text, None)?;
+        Ok(())
+    }
+
     /// Bin out
     #[allow(unused_variables)]
     fn bin(

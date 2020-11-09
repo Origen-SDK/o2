@@ -166,10 +166,17 @@ impl Status {
         if !current_testers.is_empty() {
             let last = current_testers.last().unwrap();
             for t in &testers {
-                if !last.contains(t) {
+                if !last
+                    .iter()
+                    .any(|current_tester| t.is_compatible_with(current_tester))
+                {
                     return error!(
-                        "Can't select tester '{}' within a block that already selects '{:?}'",
-                        t, last
+                        "Can't select tester '{}' within a block that selects '{}'",
+                        t,
+                        last.iter()
+                            .map(|t| t.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", ")
                     );
                 }
             }

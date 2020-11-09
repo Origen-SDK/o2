@@ -22,7 +22,7 @@ with Flow() as flow:
     # Render an ERB template, or raw
     # text file
     with tester().specific("j750"):
-        flow.render('templates/j750/vt_flow', include_tifr=true)
+        flow.render('templates/j750/vt_flow.txt.j2', include_tifr=True)
 
     flow.log('Should be v1')
     flow.func("program_ckbd", number=3000)
@@ -34,13 +34,13 @@ with Flow() as flow:
     flow.func("program_ckbd", duration="dynamic", number=3030)
 
     flow.log('Should be a v1 test instance group')
-    flow.func("program_ckbd", by_block=true, number=3040)
+    flow.func("program_ckbd", by_block=True, number=3040)
     flow.log('Should be a v2 test instance group')
-    flow.func("program_ckbd", by_block=true, duration="dynamic", number=3050)
+    flow.func("program_ckbd", by_block=True, duration="dynamic", number=3050)
     flow.log('Should be a v1 test instance group')
-    flow.func("program_ckbd", by_block=true, number=3060)
+    flow.func("program_ckbd", by_block=True, number=3060)
     flow.log('Should be a v2 test instance group')
-    flow.func("program_ckbd", by_block=true, duration="dynamic", number=3070)
+    flow.func("program_ckbd", by_block=True, duration="dynamic", number=3070)
 
     # Test job conditions
     flow.func("p1_only_test", if_job="p1", number=3080)
@@ -152,7 +152,7 @@ with Flow() as flow:
     flow.log('Verify that job context wraps enable block within an import')
     with flow.if_job("fr"):
         flow.include('../additional_erase', number=5500)
-        flow.include('../additional_erase', force=true, number=5600)
+        flow.include('../additional_erase', force=True, number=5600)
 
     flow.log('Verify that flow.cz works...')
     flow.func("margin_read1_all1",

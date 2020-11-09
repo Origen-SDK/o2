@@ -56,8 +56,6 @@ class Interface(BaseInterface):
                     number += i
                 tm = v93k.new_test_method("functional_test", library="ac_tml")
                 ts = v93k.new_test_suite(name, **kwargs)
-                import pdb
-                pdb.set_trace()
                 ts.test_method = tm
                 with tester().specific("v93ksmt8"):
                     if kwargs.get("pin_levels"):

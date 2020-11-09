@@ -97,3 +97,9 @@ pub fn push_pattern_to_group(
     let n = node!(PGMPushPattern, id, path, start_label; meta);
     FLOW.push(n)
 }
+
+/// Renders the given string directly to the test flow
+pub fn render(text: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMRender, text; meta);
+    FLOW.push(n)
+}
