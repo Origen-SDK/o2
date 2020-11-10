@@ -1,5 +1,5 @@
-use crate::prog_gen::{Test, TestInvocation};
-use origen::prog_gen::flow_api;
+use crate::prog_gen::{Group, Test, TestInvocation};
+use origen::prog_gen::{flow_api, GroupType};
 use pyo3::exceptions::TypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
@@ -62,6 +62,16 @@ impl PyInterface {
     fn render_str(&self, text: String) -> PyResult<()> {
         flow_api::render(text, None)?;
         Ok(())
+    }
+
+    fn log(&self, text: String) -> PyResult<()> {
+        flow_api::log(text, None)?;
+        Ok(())
+    }
+
+    fn group(&mut self, name: String) -> PyResult<Group> {
+        let g = Group::new(name, None, GroupType::Flow);
+        Ok(g)
     }
 
     /// Bin out

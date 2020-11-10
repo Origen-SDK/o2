@@ -1,10 +1,12 @@
 //! Implements Python bindings for program generation data structures and functions
 
+pub mod group;
 pub mod interface;
 mod pattern_group;
 mod test;
 mod test_invocation;
 
+pub use group::Group;
 use origen::core::tester::TesterSource;
 use origen::prog_gen::{flow_api, ParamType, ParamValue};
 use origen::{Result, FLOW};
@@ -123,6 +125,7 @@ pub fn to_param_value(value: &PyAny) -> Result<ParamValue> {
     })
 }
 
+#[allow(dead_code)] // Could be used in future
 pub fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<ParamValue> {
     match ptype {
         ParamType::Bool => {

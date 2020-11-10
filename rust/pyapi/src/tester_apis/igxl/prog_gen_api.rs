@@ -1,9 +1,10 @@
 use super::IGXL;
-use crate::prog_gen::{PatternGroup, Test};
-use origen::prog_gen::ParamValue;
-use origen::prog_gen::PatternGroupType;
+use crate::prog_gen::{Group, PatternGroup, Test};
+use origen::error::Error;
+use origen::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType};
 use origen::testers::SupportedTester;
 use pyo3::prelude::*;
+use pyo3::types::PyTuple;
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -36,5 +37,36 @@ impl IGXL {
     fn new_patset(&mut self, name: String) -> PyResult<PatternGroup> {
         let p = PatternGroup::new(name, self.tester.clone(), Some(PatternGroupType::Patset))?;
         Ok(p)
+    }
+
+    // Set the cpu wait flags for the given test instance
+    #[args(flags = "*")]
+    fn set_wait_flags(&mut self, test_instance: &Test, flags: &PyTuple) -> PyResult<()> {
+        let mut clean_flags: Vec<String> = vec![];
+        for fl in flags {
+            let mut bad = true;
+            if let Ok(f) = fl.extract::<String>() {
+                match f.to_lowercase().as_str() {
+                    "a" | "b" | "c" | "d" => {
+                        clean_flags.push(f.to_lowercase().to_owned());
+                        bad = false;
+                    }
+                    _ => {}
+                }
+            }
+            if bad {
+                return Err(PyErr::from(Error::new(&format!(
+                "Illegal argument given to set_wait_flags '{}', should be a String flag name, e.g. \"a\", \"b\", etc.",
+                fl
+            ))));
+            }
+        }
+        flow_api::set_wait_flags(test_instance.id, clean_flags, None)?;
+        Ok(())
+    }
+
+    fn test_instance_group(&mut self, name: String) -> PyResult<Group> {
+        let g = Group::new(name, Some(self.tester.to_owned()), GroupType::Test);
+        Ok(g)
     }
 }

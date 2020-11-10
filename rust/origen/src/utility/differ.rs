@@ -21,7 +21,7 @@ pub trait Differ {
 /// ```
 /// use std::io::Write;
 /// # use tempfile::NamedTempFile;
-/// use origen::utility::differ::ASCIIDiffer;
+/// use origen::utility::differ::{ASCIIDiffer, Differ};
 ///
 /// # let mut file_a = NamedTempFile::new().unwrap();
 /// # let mut file_b = NamedTempFile::new().unwrap();

@@ -1,5 +1,5 @@
 use super::ParamValue;
-use super::PatternGroupType;
+use super::{GroupType, PatternGroupType};
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
@@ -102,4 +102,30 @@ pub fn push_pattern_to_group(
 pub fn render(text: String, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMRender, text; meta);
     FLOW.push(n)
+}
+
+pub fn log(text: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMLog, text; meta);
+    FLOW.push(n)
+}
+
+/// [IGXL only] Set the given wait flags on the given test instance
+pub fn set_wait_flags(ti_id: usize, flags: Vec<String>, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMIGXLSetWaitFlags, ti_id, flags; meta);
+    FLOW.push(n)
+}
+
+/// Used to model flow groups, IG-XL test instance groups, etc.
+pub fn start_group(
+    name: String,
+    tester: Option<SupportedTester>,
+    kind: GroupType,
+    meta: Option<Meta>,
+) -> Result<usize> {
+    let n = node!(PGMGroup, name, tester, kind; meta);
+    FLOW.push_and_open(n)
+}
+
+pub fn end_group(ref_id: usize) -> Result<()> {
+    FLOW.close(ref_id)
 }

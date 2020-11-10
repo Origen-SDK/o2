@@ -14,3 +14,7 @@ class Controller(Parent):
         # will be sent to the parent class by default, however you can intercept it here and do
         # something else if required
         super().verify_register(reg_or_val, size, address, **kwargs)
+
+    @property
+    def blocks(self):
+        return [self.b0, self.b1, self.b2]

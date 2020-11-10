@@ -1,6 +1,6 @@
 use super::stil;
 use super::utility::transaction::Transaction;
-use crate::prog_gen::{ParamValue, PatternGroupType};
+use crate::prog_gen::{GroupType, ParamValue, PatternGroupType};
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
@@ -221,6 +221,10 @@ pub enum Attrs {
     PGMPatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
     PGMPushPattern(usize, String, Option<String>),
     PGMRender(String),
+    PGMLog(String),
+    PGMGroup(String, Option<SupportedTester>, GroupType),
+
+    PGMIGXLSetWaitFlags(usize, Vec<String>),
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// STIL

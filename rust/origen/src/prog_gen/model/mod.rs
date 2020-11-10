@@ -21,6 +21,12 @@ pub enum PatternGroupType {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum GroupType {
+    Flow,
+    Test,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ParamValue {
     String(String),
     Int(i64),
