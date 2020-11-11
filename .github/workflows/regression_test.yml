@@ -1,9 +1,15 @@
 name: Regression Tests
 on: [push]
 jobs:
-  check-bats-version:
+  build-cli:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: pwd
-      - run: ls
+      - name: Install (latest) Rust nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            override: true
+            #components: rustfmt, clippy
+      - run: cd rust/origen/cli
+      - run: cargo build --bins
