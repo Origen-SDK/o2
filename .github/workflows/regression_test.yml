@@ -25,10 +25,16 @@ jobs:
             
       - name: Build Origen CLI
         working-directory: rust/origen/cli
-        run: |
-          cargo build --bins
-          echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
+        run: cargo build --bins
+          
+      - name: Add Origen to PATH (Linux)
+        if: matrix.os == ubuntu-latest
+        run : echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
 
+      - name: Add Origen to PATH (Windows)
+        if: matrix.os == windows-latest
+        run: 'echo "::add-path::${{ github.workspace }}\rust\origen\target\debug"'
+ 
       - name: Display Python Version
         run: python -c "import sys; print(sys.version)"
 
