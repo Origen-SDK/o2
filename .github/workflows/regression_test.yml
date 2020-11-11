@@ -51,7 +51,7 @@ jobs:
 
       - name: Setup App Env
         working-directory: test_apps/python_app
-        run: origen build
+        run: origen env setup
 
       - name: Display Origen App Version
         working-directory: test_apps/python_app
