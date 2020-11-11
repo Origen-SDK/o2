@@ -1,8 +1,6 @@
 name: 'Build Origen CLI'
 description: 'Installs Rust, builds the Origen CLI and makes it available in the PATH'
 inputs:
-  rust-version: 
-    default: 'nightly'
   release:
     description: "Build a release version of the CLI"
     default: false
@@ -13,12 +11,6 @@ inputs:
 runs:
   using: "composite"
   steps: 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-          toolchain: ${{ inputs.rust-version }}
-          override: true
-          #components: rustfmt, clippy
     - name: Build Origen CLI (Debug)
       if: ${{ !inputs.release }}
       working-directory: rust/origen/cli
