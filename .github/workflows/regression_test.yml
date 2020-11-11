@@ -7,18 +7,18 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python-version: [3.6, 3.7, 3.8]
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: "nightly"
+            toolchain: "nightly-2020-11-01"
             override: true
             #components: rustfmt, clippy
             
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
@@ -29,9 +29,32 @@ jobs:
           cargo build --bins
           echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
 
-      - name: Display Python version
+      - name: Display Python Version
         run: python -c "import sys; print(sys.version)"
 
-      - name: Display Origen CLI version
+      - name: Display Origen CLI Version
         run: origen -v
 
+      - name: Run Rust Tests
+        if: python-version == 3.8
+        working-directory: rust/origen
+        run: cargo test --workspace
+
+      - name: Build PyAPI
+        run: origen build
+
+      - name: Setup App Env
+        working-directory: test_apps/python_app
+        run: origen build
+
+      - name: Display Origen App Version
+        working-directory: test_apps/python_app
+        run: origen -v
+
+      - name: Run Python Unit Tests
+        working-directory: test_apps/python_app
+        run: origen exec pytest -vv
+
+      - name: Run Diff Tests
+        working-directory: test_apps/python_app
+        run: origen examples
