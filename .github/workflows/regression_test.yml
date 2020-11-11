@@ -36,7 +36,7 @@ jobs:
         run: origen -v
 
       - name: Run Rust Tests
-        if: python-version == 3.8
+        if: matrix.python-version == 3.8
         working-directory: rust/origen
         run: cargo test --workspace
 
