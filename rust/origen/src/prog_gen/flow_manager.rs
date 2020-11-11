@@ -207,11 +207,8 @@ impl FlowManager {
         }
     }
 
-    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Node) -> Node {
-        match self.with_selected_flow(|flow| Ok(flow.process(process_fn))) {
-            Err(e) => node!(PGMFlow, format!("{}", e)),
-            Ok(n) => n,
-        }
+    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Result<Node>) -> Result<Node> {
+        self.with_selected_flow(|flow| flow.process(process_fn))
     }
 
     /// Returns a copy of the current flow as a Node
