@@ -1,18 +1,37 @@
 name: Regression Tests
 on: [push]
 jobs:
-  build-cli:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: [3.6, 3.7, 3.8]
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
             toolchain: "nightly"
             override: true
             #components: rustfmt, clippy
-      - uses: ./.github/actions/build-cli
-      - run: origen -v
-        #- name: Build Origen CLI
-        #- working-directory: rust/origen/cli
-        #- run: cargo build --bins
+            
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+            
+      - name: Build Origen CLI
+        working-directory: rust/origen/cli
+        run: |
+          cargo build --bins
+          echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Display Origen CLI version
+        run: origen -v
+
