@@ -1,3 +1,4 @@
+use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, FlowCondition};
 use pyo3::class::PyContextProtocol;
 use pyo3::prelude::*;
@@ -22,7 +23,7 @@ impl Condition {
 #[pyproto]
 impl PyContextProtocol for Condition {
     fn __enter__(&mut self) -> PyResult<()> {
-        self.ref_id = flow_api::start_condition(self.kind.clone(), None)?;
+        self.ref_id = flow_api::start_condition(self.kind.clone(), src_caller_meta())?;
         Ok(())
     }
 

@@ -13,8 +13,8 @@ pub struct Node {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Meta {
-    filename: Option<String>,
-    lineno: Option<usize>,
+    pub filename: Option<String>,
+    pub lineno: Option<usize>,
 }
 
 impl fmt::Display for Node {

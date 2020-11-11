@@ -104,6 +104,7 @@ def run_cmd(command,
             files=None,
             output_dir=None,
             reference_dir=None,
+            debug=False,
             args=None,
             **kwargs):
     ''' Run an Origen command. This is the main entry method for the CLI, but it can also
@@ -138,6 +139,9 @@ def run_cmd(command,
 
     if reference_dir is not None:
         _origen.set_reference_dir(reference_dir)
+
+    if debug:
+        _origen.enable_debug()
 
     origen.target.setup(targets=targets)
 

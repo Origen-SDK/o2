@@ -1,6 +1,8 @@
 //! Provides helper functions to get the caller information from Python
 #![allow(dead_code)]
 
+use origen::generator::ast::Meta;
+use origen::STATUS;
 use pyo3::prelude::*;
 //use origen::Result;
 
@@ -11,6 +13,16 @@ pub struct FrameInfo {
     function: String,
     code_context: Option<Vec<String>>,
     index: Option<usize>,
+}
+
+impl FrameInfo {
+    /// Turns the frame into an AST meta object, consuming self in the process
+    pub fn to_meta(self) -> Meta {
+        Meta {
+            filename: Some(self.filename),
+            lineno: Some(self.lineno),
+        }
+    }
 }
 
 enum Filter<'a> {
@@ -43,6 +55,38 @@ pub fn app_caller() -> Option<FrameInfo> {
         }
     }
     None
+}
+
+/// Returns the last caller that was a test program flow (and possibly a pattern in future, hence the
+/// generic function name)
+pub fn src_caller() -> Option<FrameInfo> {
+    let file = origen::with_current_job(|job| {
+        if let Some(f) = job.files.last() {
+            Ok(Some(format!("{}", f.display())))
+        } else {
+            Ok(None)
+        }
+    })
+    .unwrap_or(None);
+    if let Some(f) = file {
+        caller_containing(&f)
+    } else {
+        None
+    }
+}
+
+/// Same as src_caller() but returns an AST metadata
+pub fn src_caller_meta() -> Option<Meta> {
+    if STATUS.is_debug_enabled() {
+        let c = src_caller();
+        let m = match c {
+            Some(m) => Some(m.to_meta()),
+            None => None,
+        };
+        m
+    } else {
+        None
+    }
 }
 
 /// Returns the last caller where the filename contains the given text

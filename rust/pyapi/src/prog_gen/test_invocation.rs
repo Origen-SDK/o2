@@ -1,5 +1,6 @@
 use super::to_param_value;
 use super::Test;
+use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, ParamValue};
 use origen::testers::SupportedTester;
 use origen::Result;
@@ -34,7 +35,7 @@ impl TestInvocation {
 
 impl TestInvocation {
     pub fn new(name: String, tester: SupportedTester) -> Result<TestInvocation> {
-        let id = flow_api::define_test_invocation(&name, &tester, None)?;
+        let id = flow_api::define_test_invocation(&name, &tester, src_caller_meta())?;
 
         Ok(TestInvocation {
             name: name,
@@ -44,7 +45,7 @@ impl TestInvocation {
     }
 
     pub fn set_attr(&self, name: &str, value: ParamValue) -> Result<()> {
-        flow_api::set_test_attr(self.id, name, value, None)?;
+        flow_api::set_test_attr(self.id, name, value, src_caller_meta())?;
         Ok(())
     }
 }

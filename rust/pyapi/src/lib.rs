@@ -85,6 +85,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(set_reference_dir))?;
     m.add_wrapped(wrap_pyfunction!(exit_pass))?;
     m.add_wrapped(wrap_pyfunction!(exit_fail))?;
+    m.add_wrapped(wrap_pyfunction!(enable_debug))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
@@ -174,6 +175,13 @@ fn set_output_dir(dir: &str) -> PyResult<()> {
 /// Set the output directory to be used instead of <APP ROOT>/output
 fn set_reference_dir(dir: &str) -> PyResult<()> {
     STATUS.set_reference_dir(Path::new(dir));
+    Ok(())
+}
+
+#[pyfunction]
+/// Enable Python source line tracking
+fn enable_debug() -> PyResult<()> {
+    STATUS.set_debug_enabled(true);
     Ok(())
 }
 

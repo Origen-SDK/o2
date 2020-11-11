@@ -1,4 +1,5 @@
 use super::to_param_value;
+use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, ParamValue};
 use origen::testers::SupportedTester;
 use origen::Result;
@@ -20,7 +21,13 @@ impl Test {
         library_name: String,
         template_name: String,
     ) -> Result<Test> {
-        let id = flow_api::define_test(&name, &tester, &library_name, &template_name, None)?;
+        let id = flow_api::define_test(
+            &name,
+            &tester,
+            &library_name,
+            &template_name,
+            src_caller_meta(),
+        )?;
 
         Ok(Test {
             name: name,
@@ -30,7 +37,7 @@ impl Test {
     }
 
     pub fn set_attr(&self, name: &str, value: ParamValue) -> Result<()> {
-        flow_api::set_test_attr(self.id, name, value, None)?;
+        flow_api::set_test_attr(self.id, name, value, src_caller_meta())?;
         Ok(())
     }
 }

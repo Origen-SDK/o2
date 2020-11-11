@@ -1,5 +1,6 @@
 use super::IGXL;
 use crate::prog_gen::{to_param_value, Group, PatternGroup, Test};
+use crate::utility::caller::src_caller_meta;
 use origen::error::Error;
 use origen::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType};
 use origen::testers::SupportedTester;
@@ -76,7 +77,7 @@ impl IGXL {
             ))));
             }
         }
-        flow_api::set_wait_flags(test_instance.id, clean_flags, None)?;
+        flow_api::set_wait_flags(test_instance.id, clean_flags, src_caller_meta())?;
         Ok(())
     }
 

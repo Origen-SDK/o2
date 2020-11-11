@@ -1,4 +1,5 @@
 use crate::prog_gen::{Condition, Group, Test, TestInvocation};
+use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, BinType, FlowCondition, GroupType};
 use origen::Result;
 use pyo3::exceptions::TypeError;
@@ -46,11 +47,11 @@ impl PyInterface {
         kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            flow_api::execute_test(t.id, id, None)?;
+            flow_api::execute_test(t.id, id, src_caller_meta())?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            flow_api::execute_test(t.id, id, None)?;
+            flow_api::execute_test(t.id, id, src_caller_meta())?;
         } else if let Ok(t) = test_obj.extract::<String>() {
-            flow_api::execute_test_str(t, id, None)?;
+            flow_api::execute_test_str(t, id, src_caller_meta())?;
         } else {
             return Err(TypeError::py_err(format!(
                 "add_test must be given a valid test object, or a String, this is neither: {:?}",
@@ -70,9 +71,9 @@ impl PyInterface {
         kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            flow_api::execute_cz_test(t.id, cz_setup, None)?;
+            flow_api::execute_cz_test(t.id, cz_setup, src_caller_meta())?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            flow_api::execute_cz_test(t.id, cz_setup, None)?;
+            flow_api::execute_cz_test(t.id, cz_setup, src_caller_meta())?;
         } else {
             return Err(TypeError::py_err(format!(
                 "add_cz_test must be given a valid test object, this is something else: {:?}",

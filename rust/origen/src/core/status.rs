@@ -55,6 +55,7 @@ pub struct Status {
     testers_eq: RwLock<Vec<Vec<SupportedTester>>>,
     testers_neq: RwLock<Vec<Vec<SupportedTester>>>,
     unique_id: RwLock<usize>,
+    debug_enabled: RwLock<bool>,
 }
 
 impl Default for Status {
@@ -125,6 +126,7 @@ impl Default for Status {
             testers_eq: RwLock::new(vec![]),
             testers_neq: RwLock::new(vec![]),
             unique_id: RwLock::new(0),
+            debug_enabled: RwLock::new(false),
         };
         log_trace!("Status built successfully");
         s
@@ -249,6 +251,15 @@ impl Status {
     pub fn inc_unhandled_error_count(&self) {
         let mut cnt = self.unhandled_error_count.write().unwrap();
         *cnt += 1;
+    }
+
+    pub fn set_debug_enabled(&self, val: bool) {
+        let mut debug_enabled = self.debug_enabled.write().unwrap();
+        *debug_enabled = val;
+    }
+
+    pub fn is_debug_enabled(&self) -> bool {
+        *self.debug_enabled.read().unwrap()
     }
 
     pub fn set_cli_location(&self, loc: Option<String>) {
