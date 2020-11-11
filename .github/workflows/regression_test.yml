@@ -5,12 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install (latest) Rust nightly
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: nightly
-            override: true
-            #components: rustfmt, clippy
-      - name: Build Origen CLI
-        working-directory: rust/origen/cli
-        run: cargo build --bins
+      - uses: .github/actions/build_cli@v1
+      - run: origen -v
+        #- name: Build Origen CLI
+        #- working-directory: rust/origen/cli
+        #- run: cargo build --bins
