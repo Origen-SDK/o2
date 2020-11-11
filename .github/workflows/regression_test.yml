@@ -11,5 +11,6 @@ jobs:
             toolchain: nightly
             override: true
             #components: rustfmt, clippy
-      - run: cd rust/origen/cli
-      - run: cargo build --bins
+      - name: Build Origen CLI
+        working-directory: rust/origen/cli
+        run: cargo build --bins
