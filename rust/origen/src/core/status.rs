@@ -1,17 +1,53 @@
 extern crate time;
+use crate::built_info;
 use crate::core::application::Application;
 use crate::testers::SupportedTester;
 use crate::utility::file_utils::with_dir;
-use crate::{built_info, Result};
+use crate::Result as OrigenResult;
 use regex::Regex;
 use semver::Version;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::RwLock;
 
 // Trait for extending std::path::PathBuf
 use path_slash::PathBufExt;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Operation {
+    None,
+    Convert,
+    Generate,
+    GeneratePattern,
+    GenerateFlow,
+    Compile,
+    Interactive,
+    Web,
+    AppCommand,
+}
+
+impl FromStr for Operation {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Accept any case
+        let s = s.to_lowercase();
+        match s.trim() {
+            "none" => Ok(Operation::None),
+            "convert" => Ok(Operation::Convert),
+            "generate" => Ok(Operation::Generate),
+            "generatepattern" => Ok(Operation::GeneratePattern),
+            "generateflow" => Ok(Operation::GenerateFlow),
+            "compile" => Ok(Operation::Compile),
+            "interactive" => Ok(Operation::Interactive),
+            "web" => Ok(Operation::Web),
+            "appcommand" => Ok(Operation::AppCommand),
+            _ => Err(format!("Unknown Operation: '{}'", &s)),
+        }
+    }
+}
 
 /// Exposes some status information about the runtime environment, e.g. whether an
 /// application workspace is present
@@ -56,6 +92,7 @@ pub struct Status {
     testers_neq: RwLock<Vec<Vec<SupportedTester>>>,
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
+    _operation: RwLock<Operation>,
 }
 
 impl Default for Status {
@@ -127,6 +164,7 @@ impl Default for Status {
             testers_neq: RwLock::new(vec![]),
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
+            _operation: RwLock::new(Operation::None),
         };
         log_trace!("Status built successfully");
         s
@@ -160,7 +198,7 @@ impl Status {
 
     /// Corresponds to the start of a tester specific block of code, returns an error if the given tester
     /// selection is not a subset of any existing selection
-    pub fn push_testers_eq(&self, testers: Vec<SupportedTester>) -> Result<()> {
+    pub fn push_testers_eq(&self, testers: Vec<SupportedTester>) -> OrigenResult<()> {
         if testers.is_empty() {
             return error!("No tester type(s) given");
         }
@@ -208,7 +246,7 @@ impl Status {
 
     /// Corresponds to the start of a tester except (tester not equal to) block of code, returns an error if the given tester
     /// selection is not valid within any existing eq or neq blocks
-    pub fn push_testers_neq(&self, testers: Vec<SupportedTester>) -> Result<()> {
+    pub fn push_testers_neq(&self, testers: Vec<SupportedTester>) -> OrigenResult<()> {
         if testers.is_empty() {
             return error!("No tester type(s) given");
         }
@@ -219,7 +257,7 @@ impl Status {
 
     /// Corresponds to the end of a tester specific block, returns an error if no tester specific
     /// selection currently exists
-    pub fn pop_testers_eq(&self) -> Result<()> {
+    pub fn pop_testers_eq(&self) -> OrigenResult<()> {
         let mut current_testers = self.testers_eq.write().unwrap();
         if current_testers.is_empty() {
             return error!("There has been an attempt to close a tester-specific block, but none is currently open");
@@ -230,7 +268,7 @@ impl Status {
 
     /// Corresponds to the end of a tester exclusion block, returns an error if no tester exlcusion
     /// selection currently exists
-    pub fn pop_testers_neq(&self) -> Result<()> {
+    pub fn pop_testers_neq(&self) -> OrigenResult<()> {
         let mut current_testers = self.testers_neq.write().unwrap();
         if current_testers.is_empty() {
             return error!("There has been an attempt to close a tester-exclusion block, but none is currently open");
@@ -260,6 +298,15 @@ impl Status {
 
     pub fn is_debug_enabled(&self) -> bool {
         *self.debug_enabled.read().unwrap()
+    }
+
+    pub fn set_operation(&self, val: Operation) {
+        let mut operation = self._operation.write().unwrap();
+        *operation = val;
+    }
+
+    pub fn operation(&self) -> Operation {
+        *self._operation.read().unwrap()
     }
 
     pub fn set_cli_location(&self, loc: Option<String>) {
@@ -317,9 +364,9 @@ impl Status {
     /// the function and then restored at the end by setting change_to to True.
     /// If this is called when Origen is executing outside of an application workspace then it will
     /// return None unless it has been previously set by calling set_output_dir().
-    pub fn with_output_dir<T, F>(&self, change_dir: bool, mut f: F) -> Result<T>
+    pub fn with_output_dir<T, F>(&self, change_dir: bool, mut f: F) -> OrigenResult<T>
     where
-        F: FnMut(&Path) -> Result<T>,
+        F: FnMut(&Path) -> OrigenResult<T>,
     {
         let dir = self.output_dir();
         if change_dir {
@@ -359,9 +406,9 @@ impl Status {
     /// the function and then restored at the end by setting change_to to True.
     /// If this is called when Origen is executing outside of an application workspace then it will
     /// return None unless it has been previously set by calling set_reference_dir().
-    pub fn with_reference_dir<T, F>(&self, change_dir: bool, mut f: F) -> Result<T>
+    pub fn with_reference_dir<T, F>(&self, change_dir: bool, mut f: F) -> OrigenResult<T>
     where
-        F: FnMut(Option<&PathBuf>) -> Result<T>,
+        F: FnMut(Option<&PathBuf>) -> OrigenResult<T>,
     {
         let dir = self.reference_dir();
         if change_dir && dir.is_some() {

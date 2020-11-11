@@ -3,7 +3,7 @@ use super::timesets::timeset::Timeset;
 use origen::core::tester::TesterSource;
 use origen::error::Error;
 use origen::testers::SupportedTester;
-use origen::{STATUS, TEST};
+use origen::{Operation, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use std::collections::HashMap;
@@ -72,7 +72,11 @@ impl PyTester {
     /// Prints out the AST for the current flow to the console (for debugging)
     #[getter]
     fn ast(&self) -> PyResult<()> {
-        println!("{}", origen::FLOW.to_string());
+        if Operation::GenerateFlow == STATUS.operation() {
+            println!("{}", origen::FLOW.to_string());
+        } else {
+            println!("{}", origen::TEST.to_string());
+        }
         Ok(())
     }
 
