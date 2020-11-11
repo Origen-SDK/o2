@@ -1,5 +1,5 @@
 use super::ParamValue;
-use super::{GroupType, PatternGroupType};
+use super::{BinType, FlowCondition, GroupType, PatternGroupType};
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
@@ -10,8 +10,7 @@ pub fn start_sub_flow(name: &str, meta: Option<Meta>) -> Result<usize> {
     FLOW.push_and_open(n)
 }
 
-/// End of a sub-flow
-pub fn end_sub_flow(ref_id: usize) -> Result<()> {
+pub fn end_block(ref_id: usize) -> Result<()> {
     FLOW.close(ref_id)
 }
 
@@ -63,16 +62,22 @@ pub fn assign_test_to_invocation(
 }
 
 /// Execute the given test (or invocation) from the current flow
-pub fn execute_test(id: usize, meta: Option<Meta>) -> Result<()> {
-    let n = node!(PGMTest, id; meta);
+pub fn execute_test(id: usize, flow_id: Option<String>, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMTest, id, flow_id; meta);
     FLOW.push(n)
 }
 
 /// Execute the given test (or invocation) from the current flow, where the test is a string that
 /// will be rendered verbatim to the flow - no linkage to an actual test object will be checked or
 /// inserted by Origen
-pub fn execute_test_str(name: String, meta: Option<Meta>) -> Result<()> {
-    let n = node!(PGMTestStr, name; meta);
+pub fn execute_test_str(name: String, flow_id: Option<String>, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMTestStr, name, flow_id; meta);
+    FLOW.push(n)
+}
+
+/// Cz the given test (or invocation) from the current flow
+pub fn execute_cz_test(id: usize, cz_setup: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMCz, id, cz_setup; meta);
     FLOW.push(n)
 }
 
@@ -120,12 +125,32 @@ pub fn start_group(
     name: String,
     tester: Option<SupportedTester>,
     kind: GroupType,
+    flow_id: Option<String>,
     meta: Option<Meta>,
 ) -> Result<usize> {
-    let n = node!(PGMGroup, name, tester, kind; meta);
+    let n = node!(PGMGroup, name, tester, kind, flow_id; meta);
     FLOW.push_and_open(n)
 }
 
-pub fn end_group(ref_id: usize) -> Result<()> {
-    FLOW.close(ref_id)
+pub fn start_condition(condition: FlowCondition, meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMCondition, condition; meta);
+    FLOW.push_and_open(n)
+}
+
+pub fn define_bin(
+    number: usize,
+    is_soft: bool,
+    kind: BinType,
+    description: Option<String>,
+    priority: Option<usize>,
+    meta: Option<Meta>,
+) -> Result<()> {
+    let n = node!(PGMDefBin, number, is_soft, kind, description, priority; meta);
+    FLOW.push(n)
+}
+
+/// Bin out the DUT
+pub fn bin(hard: usize, soft: Option<usize>, kind: BinType, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMBin, hard, soft, kind; meta);
+    FLOW.push(n)
 }

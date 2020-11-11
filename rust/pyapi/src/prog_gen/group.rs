@@ -12,14 +12,21 @@ pub struct Group {
     pub tester: Option<SupportedTester>,
     pub kind: GroupType,
     ref_id: usize,
+    flow_id: Option<String>,
 }
 
 impl Group {
-    pub fn new(name: String, tester: Option<SupportedTester>, kind: GroupType) -> Group {
+    pub fn new(
+        name: String,
+        tester: Option<SupportedTester>,
+        kind: GroupType,
+        flow_id: Option<String>,
+    ) -> Group {
         Group {
             name: name,
             tester: tester,
             kind: kind,
+            flow_id: flow_id,
             ref_id: 0,
         }
     }
@@ -32,6 +39,7 @@ impl PyContextProtocol for Group {
             self.name.clone(),
             self.tester.clone(),
             self.kind.clone(),
+            self.flow_id.clone(),
             None,
         )?;
         Ok(self.clone())
@@ -43,7 +51,7 @@ impl PyContextProtocol for Group {
         _value: Option<&'p PyAny>,
         _traceback: Option<&'p PyAny>,
     ) -> bool {
-        flow_api::end_group(self.ref_id).expect(&format!(
+        flow_api::end_block(self.ref_id).expect(&format!(
             "Something has gone wrong closing group '{}'",
             self.name
         ));

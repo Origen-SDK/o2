@@ -21,7 +21,7 @@ with Flow() as flow:
 
     # Render an ERB template, or raw
     # text file
-    with tester().specific("j750"):
+    with tester().eq("j750"):
         flow.render('templates/j750/vt_flow.txt.j2', include_tifr=True)
 
     flow.log('Should be v1')
@@ -44,11 +44,11 @@ with Flow() as flow:
 
     # Test job conditions
     flow.func("p1_only_test", if_job="p1", number=3080)
-    with flow.if_job(["p1", "p2"]):
+    with flow.if_job_block(["p1", "p2"]):
         flow.func("p1_or_p2_only_test", number=3090)
     flow.func("not_p1_test", unless_job="p1", number=3100)
     flow.func("not_p1_or_p2_test", unless_job=["p1", "p2"], number=3110)
-    with flow.unless_job(["p1", "p2"]):
+    with flow.unless_job_block(["p1", "p2"]):
         flow.func("another_not_p1_or_p2_test", number=3120)
 
     flow.log('Verify that a test with an external instance works')
@@ -57,7 +57,7 @@ with Flow() as flow:
     flow.log('Verify that a request to use the current context works')
     flow.func("erase_all", if_job="p1", number=3140)  # Job should be P1
     flow.func("erase_all", context="current", number=3150)  # Job should be P1
-    with flow.unless_job("p2"):
+    with flow.unless_job_block("p2"):
         flow.func("erase_all", context="current",
                   number=3160)  # Job should be P1
         flow.func("erase_all", number=3170)  # Job should be !P2
@@ -84,13 +84,13 @@ with Flow() as flow:
     flow.log('Test if enable')
     flow.func("erase_all", if_enable='do_erase', number=4010)
 
-    with flow.if_enable('do_erase'):
+    with flow.if_enable_block('do_erase'):
         flow.func("erase_all", number=4020)
 
     flow.log('Test unless enable')
     flow.func("erase_all", unless_enable='no_extra_erase', number=4030)
 
-    with flow.unless_enable('no_extra_erase'):
+    with flow.unless_enable_block('no_extra_erase'):
         flow.func("erase_all", number=4040)
         flow.func("erase_all", number=4050)
 
@@ -102,7 +102,7 @@ with Flow() as flow:
     flow.func("erase_all", id='erase_passed_2', number=4090)
 
     flow.func("margin_read1_all1", if_passed='erase_passed_1', number=4100)
-    with flow.if_passed('erase_passed_2'):
+    with flow.if_passed_block('erase_passed_2'):
         flow.func("margin_read1_all1", number=4110)
 
     flow.log('Test unless_passed')
@@ -110,7 +110,7 @@ with Flow() as flow:
     flow.func("erase_all", id='erase_passed_4', number=4130)
 
     flow.func("margin_read1_all1", unless_passed='erase_passed_3', number=4140)
-    with flow.unless_passed('erase_passed_4'):
+    with flow.unless_passed_block('erase_passed_4'):
         flow.func("margin_read1_all1", number=4150)
 
     flow.log('Test if_failed')
@@ -118,7 +118,7 @@ with Flow() as flow:
     flow.func("erase_all", id='erase_failed_2', number=4170)
 
     flow.func("margin_read1_all1", if_failed='erase_failed_1', number=4180)
-    with flow.if_failed('erase_failed_2'):
+    with flow.if_failed_block('erase_failed_2'):
         flow.func("margin_read1_all1", number=4190)
 
     flow.log('Test unless_failed')
@@ -126,7 +126,7 @@ with Flow() as flow:
     flow.func("erase_all", id='erase_failed_4', number=4210)
 
     flow.func("margin_read1_all1", unless_failed='erase_failed_3', number=4220)
-    with flow.unless_failed('erase_failed_4'):
+    with flow.unless_failed_block('erase_failed_4'):
         flow.func("margin_read1_all1", number=4230)
 
     flow.log('Test if_ran')
@@ -134,7 +134,7 @@ with Flow() as flow:
     flow.func("erase_all", id='erase_ran_2', number=4250)
 
     flow.func("margin_read1_all1", if_ran='erase_ran_1', number=4260)
-    with flow.if_ran('erase_ran_2'):
+    with flow.if_ran_block('erase_ran_2'):
         flow.func("margin_read1_all1", number=4270)
 
     flow.log('Test unless_ran')
@@ -142,15 +142,15 @@ with Flow() as flow:
     flow.func("erase_all", id='erase_ran_4', number=4290)
 
     flow.func("margin_read1_all1", unless_ran='erase_ran_3', number=4300)
-    with flow.unless_ran('erase_ran_4'):
+    with flow.unless_ran_block('erase_ran_4'):
         flow.func("margin_read1_all1", number=4310)
 
     flow.log('Verify that job context wraps import')
-    with flow.if_job("fr"):
+    with flow.if_job_block("fr"):
         flow.include('../erase', number=5000)
 
     flow.log('Verify that job context wraps enable block within an import')
-    with flow.if_job("fr"):
+    with flow.if_job_block("fr"):
         flow.include('../additional_erase', number=5500)
         flow.include('../additional_erase', force=True, number=5600)
 
@@ -161,7 +161,7 @@ with Flow() as flow:
               number=5700)
 
     flow.log('Verify that flow.cz works with enable words')
-    with flow.if_enable('usb_xcvr_cz'):
+    with flow.if_enable_block('usb_xcvr_cz'):
         flow.func("xcvr_fs_vilvih", cz_setup='usb_fs_vil_cz', number=5710)
         flow.func("xcvr_fs_vilvih", cz_setup='usb_fs_vih_cz', number=5720)
 
@@ -177,7 +177,7 @@ with Flow() as flow:
     flow.log('Verify that MTO template works...')
     flow.mto_memory("mto_read1_all1", number=5750)
 
-    with tester().specific("uflex"):
+    with tester().eq("uflex"):
         flow.log('import statement')
         flow.include('temp', number=5800)
 
@@ -191,7 +191,7 @@ with Flow() as flow:
                   number=5910)
         flow.meas("bgap_voltage_meas1", number=5920)
 
-    with tester().specific("j750"):
+    with tester().eq("j750"):
         flow.meas("lo_voltage", tnum=1150, bin=95, soft_bin=5, number=5920)
         flow.meas("hi_voltage",
                   pins="hi_v",
@@ -222,25 +222,25 @@ with Flow() as flow:
     flow.log('Test node optimization within an if_failed branch')
     flow.func("some_func_test", id="sft1", number=6010)
 
-    with flow.if_failed("sft1"):
+    with flow.if_failed_block("sft1"):
         flow.bin(10, if_flag="Alarm")
         flow.bin(11, unless_flag="Alarm")
         flow.bin(12, if_enable="AlarmEnabled")
         flow.bin(13, unless_enable="AlarmEnabled")
 
     for i in range(3):
-        flow.cc(f"cc test {i}")
+        #flow.cc(f"cc test {i}")
         flow.func(f"cc_test_{i}", number=7000 + i)
 
     # Ensure that mixed flag types work
-    with tester().specific("v93k_smt7"):
+    with tester().eq("v93k_smt7"):
         flow.log('Passing test flags of mixed types works as expected')
-        with flow.if_enable(["sym_flag", "$StringFLag"]):
+        with flow.if_enable_block(["sym_flag", "$StringFLag"]):
             flow.func("mixed_flag_check")
 
     flow.include('deep_nested')
 
-    with tester().specific("v93k_smt7"):
+    with tester().eq("v93k_smt7"):
         flow.log('Passing test flags works as expected')
         flow.func("test_with_no_flags",
                   bypass=False,
@@ -261,7 +261,7 @@ with Flow() as flow:
                   per_pin_on_fail=True,
                   number=6030)
 
-    with tester().specific("v93k_smt7"):
+    with tester().eq("v93k_smt7"):
         flow.log('force_serial test method parameter can be programmed')
         flow.func("force_serial_true_test", force_serial=True)
         flow.func("force_serial_false_test", force_serial=False)

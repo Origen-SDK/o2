@@ -1,10 +1,10 @@
 use super::IGXL;
-use crate::prog_gen::{Group, PatternGroup, Test};
+use crate::prog_gen::{to_param_value, Group, PatternGroup, Test};
 use origen::error::Error;
 use origen::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType};
 use origen::testers::SupportedTester;
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyDict, PyTuple};
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -16,11 +16,13 @@ pub struct Patset {
 
 #[pymethods]
 impl IGXL {
+    #[args(kwargs = "**")]
     fn new_test_instance(
         &mut self,
         name: String,
         library: Option<String>,
         template: String,
+        kwargs: Option<&PyDict>,
     ) -> PyResult<Test> {
         let library = match library {
             Some(x) => x,
@@ -30,6 +32,19 @@ impl IGXL {
         let t = Test::new(name.clone(), self.tester.to_owned(), library, template)?;
 
         t.set_attr("test_name", ParamValue::String(name))?;
+
+        if let Some(kwargs) = kwargs {
+            for (k, v) in kwargs {
+                if let Ok(name) = k.extract::<String>() {
+                    t.set_attr(&name, to_param_value(v)?)?;
+                } else {
+                    return type_error!(&format!(
+                        "Illegal test instance attribute name type '{}', should be a String",
+                        k
+                    ));
+                }
+            }
+        }
 
         Ok(t)
     }
@@ -66,7 +81,7 @@ impl IGXL {
     }
 
     fn test_instance_group(&mut self, name: String) -> PyResult<Group> {
-        let g = Group::new(name, Some(self.tester.to_owned()), GroupType::Test);
+        let g = Group::new(name, Some(self.tester.to_owned()), GroupType::Test, None);
         Ok(g)
     }
 }

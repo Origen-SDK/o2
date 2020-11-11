@@ -1,11 +1,13 @@
 //! Implements Python bindings for program generation data structures and functions
 
+mod condition;
 pub mod group;
 pub mod interface;
 mod pattern_group;
 mod test;
 mod test_invocation;
 
+pub use condition::Condition;
 pub use group::Group;
 use origen::core::tester::TesterSource;
 use origen::prog_gen::{flow_api, ParamType, ParamValue};
@@ -48,7 +50,7 @@ fn end_flow(ref_id: usize, sub_flow: Option<bool>) -> PyResult<()> {
         Some(x) => x,
     };
     if sub_flow {
-        Ok(flow_api::end_sub_flow(ref_id)?)
+        Ok(flow_api::end_block(ref_id)?)
     } else {
         Ok(FLOW.end()?)
     }

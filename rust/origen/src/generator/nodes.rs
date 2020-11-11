@@ -1,6 +1,6 @@
 use super::stil;
 use super::utility::transaction::Transaction;
-use crate::prog_gen::{GroupType, ParamValue, PatternGroupType};
+use crate::prog_gen::{BinType, FlowCondition, GroupType, ParamValue, PatternGroupType};
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
@@ -24,7 +24,8 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Common pat gen and prog gen nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    TesterSpecific(Vec<SupportedTester>), // Child nodes should only be processed when targetting the given tester(s)
+    TesterEq(Vec<SupportedTester>), // Child nodes should only be processed when targetting the given tester(s)
+    TesterNeq(Vec<SupportedTester>), // Child nodes should only be processed unless targetting the given tester(s)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Test (pat gen) nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,16 +214,23 @@ pub enum Attrs {
     /// Set the attribute with the given name within the given test (ID), to the given value
     PGMSetAttr(usize, String, ParamValue),
     /// Execute a test (or invocation) from the flow
-    PGMTest(usize),
+    PGMTest(usize, Option<String>),
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
     /// into the flow
-    PGMTestStr(String),
+    PGMTestStr(String, Option<String>),
     /// Defines a new pattern group, also used to model IG-XL pattern sets
     PGMPatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
     PGMPushPattern(usize, String, Option<String>),
     PGMRender(String),
     PGMLog(String),
-    PGMGroup(String, Option<SupportedTester>, GroupType),
+    PGMGroup(String, Option<SupportedTester>, GroupType, Option<String>),
+    PGMCondition(FlowCondition),
+    /// Execute a test (or invocation) from the flow with a CZ setup reference
+    PGMCz(usize, String),
+    /// Bin (number, is_soft, type, description, priority)
+    PGMDefBin(usize, bool, BinType, Option<String>, Option<usize>),
+    /// Bin out (hard, soft, type)
+    PGMBin(usize, Option<usize>, BinType),
 
     PGMIGXLSetWaitFlags(usize, Vec<String>),
 

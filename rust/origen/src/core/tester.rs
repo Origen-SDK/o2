@@ -121,27 +121,42 @@ impl Tester {
     }
 
     /// Starts a new tester-specific section in the current pattern and/or test program.
-    /// The returned ID should be kept and given to end_tester_specific_block when the
+    /// The returned ID should be kept and given to end_tester_eq_block when the
     /// tester specific section is complete.
-    pub fn start_tester_specific_block(
-        &self,
-        testers: Vec<SupportedTester>,
-    ) -> Result<(usize, usize)> {
-        let n = node!(TesterSpecific, testers.clone());
+    pub fn start_tester_eq_block(&self, testers: Vec<SupportedTester>) -> Result<(usize, usize)> {
+        let n = node!(TesterEq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id = FLOW.push_and_open(n)?;
         // This also verifies that the given tester selection is valid
-        crate::STATUS.push_current_testers(testers)?;
+        crate::STATUS.push_testers_eq(testers)?;
         Ok((pat_ref_id, prog_ref_id))
     }
 
     /// Ends an open tester-specific section in the current pattern and/or test program.
-    /// The ID produced when opening the block (via start_tester_specific_block) should be supplied
+    /// The ID produced when opening the block (via start_tester_eq_block) should be supplied
     /// as the main argument.
-    pub fn end_tester_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
+    pub fn end_tester_eq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
         FLOW.close(prog_ref_id)?;
-        crate::STATUS.pop_current_testers()?;
+        crate::STATUS.pop_testers_eq()?;
+        Ok(())
+    }
+
+    /// Like start_tester_eq_block, but the contained block will be included for all testers
+    /// except those in the given list
+    pub fn start_tester_neq_block(&self, testers: Vec<SupportedTester>) -> Result<(usize, usize)> {
+        let n = node!(TesterNeq, testers.clone());
+        let pat_ref_id = TEST.push_and_open(n.clone());
+        let prog_ref_id = FLOW.push_and_open(n)?;
+        // This also verifies that the given tester selection is valid
+        crate::STATUS.push_testers_neq(testers)?;
+        Ok((pat_ref_id, prog_ref_id))
+    }
+
+    pub fn end_tester_neq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
+        TEST.close(pat_ref_id)?;
+        FLOW.close(prog_ref_id)?;
+        crate::STATUS.pop_testers_neq()?;
         Ok(())
     }
 

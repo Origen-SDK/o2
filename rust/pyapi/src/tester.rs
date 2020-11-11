@@ -35,7 +35,7 @@ impl PyTester {
         }
     }
 
-    fn _start_specific_block(&self, testers: Vec<&str>) -> PyResult<(usize, usize, Vec<String>)> {
+    fn _start_eq_block(&self, testers: Vec<&str>) -> PyResult<(usize, usize, Vec<String>)> {
         let mut ts: Vec<SupportedTester> = vec![];
         let mut clean_testers: Vec<String> = vec![];
         for t in testers {
@@ -43,12 +43,29 @@ impl PyTester {
             clean_testers.push(st.to_string());
             ts.push(st);
         }
-        let refs = origen::tester().start_tester_specific_block(ts)?;
+        let refs = origen::tester().start_tester_eq_block(ts)?;
         Ok((refs.0, refs.1, clean_testers))
     }
 
-    fn _end_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
-        origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id)?;
+    fn _end_eq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
+        origen::tester().end_tester_eq_block(pat_ref_id, prog_ref_id)?;
+        Ok(())
+    }
+
+    fn _start_neq_block(&self, testers: Vec<&str>) -> PyResult<(usize, usize, Vec<String>)> {
+        let mut ts: Vec<SupportedTester> = vec![];
+        let mut clean_testers: Vec<String> = vec![];
+        for t in testers {
+            let st = SupportedTester::new(t)?;
+            clean_testers.push(st.to_string());
+            ts.push(st);
+        }
+        let refs = origen::tester().start_tester_neq_block(ts)?;
+        Ok((refs.0, refs.1, clean_testers))
+    }
+
+    fn _end_neq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
+        origen::tester().end_tester_neq_block(pat_ref_id, prog_ref_id)?;
         Ok(())
     }
 

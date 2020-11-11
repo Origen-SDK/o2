@@ -6,8 +6,26 @@ use pyo3::types::PyDict;
 
 #[pymethods]
 impl V93K {
-    fn new_test_method(&mut self, name: String, library: String) -> PyResult<Test> {
+    #[args(kwargs = "**")]
+    fn new_test_method(
+        &mut self,
+        name: String,
+        library: String,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Test> {
         let t = Test::new(name.clone(), self.tester.to_owned(), library, name)?;
+        if let Some(kwargs) = kwargs {
+            for (k, v) in kwargs {
+                if let Ok(name) = k.extract::<String>() {
+                    t.set_attr(&name, to_param_value(v)?)?;
+                } else {
+                    return type_error!(&format!(
+                        "Illegal test method attribute name type '{}', should be a String",
+                        k
+                    ));
+                }
+            }
+        }
         Ok(t)
     }
 
@@ -26,7 +44,7 @@ impl V93K {
                 } else {
                     return type_error!(&format!(
                         "Illegal test suite attribute name type '{}', should be a String",
-                        name
+                        k
                     ));
                 }
             }

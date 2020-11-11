@@ -52,7 +52,8 @@ pub struct Status {
     reference_dir: RwLock<Option<PathBuf>>,
     cli_location: RwLock<Option<PathBuf>>,
     _custom_tester_ids: RwLock<Vec<String>>,
-    current_testers: RwLock<Vec<Vec<SupportedTester>>>,
+    testers_eq: RwLock<Vec<Vec<SupportedTester>>>,
+    testers_neq: RwLock<Vec<Vec<SupportedTester>>>,
     unique_id: RwLock<usize>,
 }
 
@@ -121,7 +122,8 @@ impl Default for Status {
             cli_location: RwLock::new(None),
             is_app_in_origen_dev_mode: origen_dev_mode,
             _custom_tester_ids: RwLock::new(vec![]),
-            current_testers: RwLock::new(vec![]),
+            testers_eq: RwLock::new(vec![]),
+            testers_neq: RwLock::new(vec![]),
             unique_id: RwLock::new(0),
         };
         log_trace!("Status built successfully");
@@ -156,41 +158,80 @@ impl Status {
 
     /// Corresponds to the start of a tester specific block of code, returns an error if the given tester
     /// selection is not a subset of any existing selection
-    pub fn push_current_testers(&self, testers: Vec<SupportedTester>) -> Result<()> {
+    pub fn push_testers_eq(&self, testers: Vec<SupportedTester>) -> Result<()> {
         if testers.is_empty() {
             return error!("No tester type(s) given");
         }
-        let mut current_testers = self.current_testers.write().unwrap();
+        let mut testers_eq = self.testers_eq.write().unwrap();
+        // This may not be correct, makes it harder to call re-useable functions that make their own tester selections
+        //let testers_neq = self.testers_neq.read().unwrap();
+        //// Verify that the new selection does not violate any existing tester exclusion
+        //if !testers_neq.is_empty() {
+        //    for t_neqs in &*testers_neq {
+        //        for t_neq in t_neqs {
+        //            for t_eq in &testers {
+        //                if t_neq.is_compatible_with(t_eq) {
+        //                    return error!(
+        //                        "Can't select tester '{}' within a block that already excludes it",
+        //                        t_eq,
+        //                    );
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
         // When some testers are already selected, the application is only allowed to select a subset of them,
         // so verify that all given testers are already contained in the last selection
-        if !current_testers.is_empty() {
-            let last = current_testers.last().unwrap();
-            for t in &testers {
-                if !last
-                    .iter()
-                    .any(|current_tester| t.is_compatible_with(current_tester))
-                {
-                    return error!(
-                        "Can't select tester '{}' within a block that selects '{}'",
-                        t,
-                        last.iter()
-                            .map(|t| t.to_string())
-                            .collect::<Vec<String>>()
-                            .join(", ")
-                    );
-                }
-            }
+        //if !testers_eq.is_empty() {
+        //    let last = testers_eq.last().unwrap();
+        //    for t in &testers {
+        //        if !last
+        //            .iter()
+        //            .any(|current_tester| t.is_compatible_with(current_tester))
+        //        {
+        //            return error!(
+        //                "Can't select tester '{}' within a block that selects '{}'",
+        //                t,
+        //                last.iter()
+        //                    .map(|t| t.to_string())
+        //                    .collect::<Vec<String>>()
+        //                    .join(", ")
+        //            );
+        //        }
+        //    }
+        //}
+        testers_eq.push(testers.clone());
+        Ok(())
+    }
+
+    /// Corresponds to the start of a tester except (tester not equal to) block of code, returns an error if the given tester
+    /// selection is not valid within any existing eq or neq blocks
+    pub fn push_testers_neq(&self, testers: Vec<SupportedTester>) -> Result<()> {
+        if testers.is_empty() {
+            return error!("No tester type(s) given");
         }
-        current_testers.push(testers.clone());
+        let mut testers_neq = self.testers_neq.write().unwrap();
+        testers_neq.push(testers.clone());
         Ok(())
     }
 
     /// Corresponds to the end of a tester specific block, returns an error if no tester specific
     /// selection currently exists
-    pub fn pop_current_testers(&self) -> Result<()> {
-        let mut current_testers = self.current_testers.write().unwrap();
+    pub fn pop_testers_eq(&self) -> Result<()> {
+        let mut current_testers = self.testers_eq.write().unwrap();
         if current_testers.is_empty() {
-            return error!("There has been an attempt to close a tester-specific block, but none is currently open in the program generator");
+            return error!("There has been an attempt to close a tester-specific block, but none is currently open");
+        }
+        let _ = current_testers.pop();
+        Ok(())
+    }
+
+    /// Corresponds to the end of a tester exclusion block, returns an error if no tester exlcusion
+    /// selection currently exists
+    pub fn pop_testers_neq(&self) -> Result<()> {
+        let mut current_testers = self.testers_neq.write().unwrap();
+        if current_testers.is_empty() {
+            return error!("There has been an attempt to close a tester-exclusion block, but none is currently open");
         }
         let _ = current_testers.pop();
         Ok(())

@@ -27,6 +27,26 @@ pub enum GroupType {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum BinType {
+    Good,
+    Bad,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum FlowCondition {
+    IfJob(Vec<String>),
+    UnlessJob(Vec<String>),
+    IfEnable(Vec<String>),
+    UnlessEnable(Vec<String>),
+    IfPassed(Vec<String>),
+    UnlessPassed(Vec<String>),
+    IfFailed(Vec<String>),
+    UnlessFailed(Vec<String>),
+    IfRan(Vec<String>),
+    UnlessRan(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ParamValue {
     String(String),
     Int(i64),

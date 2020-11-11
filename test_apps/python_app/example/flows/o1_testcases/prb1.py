@@ -15,8 +15,4 @@ with Flow(flow_description="Probe1 Main") as flow:
                   if_failed="deep_test",
                   test_text="some_custom_text")
 
-    flow.pass_bin(1, description="Good die!", softbin=1)
-
-    # Print out the AST in developement
-    import _origen
-    _origen.flow()
+    flow.good_die(1, description="Good die!", softbin=1)

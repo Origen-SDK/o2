@@ -70,7 +70,7 @@ impl Processor for WriteToFile {
                 }
                 Return::None
             }
-            Attrs::PGMTest(id) => {
+            Attrs::PGMTest(id, _flow_id) => {
                 self.push_body(&format!("run({});", id));
                 Return::ProcessChildren
             }

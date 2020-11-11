@@ -6,7 +6,9 @@ pub mod teradyne;
 
 use crate::Result;
 pub use flow_manager::FlowManager;
+pub use model::BinType;
 pub use model::Database;
+pub use model::FlowCondition;
 pub use model::GroupType;
 pub use model::ParamType;
 pub use model::ParamValue;

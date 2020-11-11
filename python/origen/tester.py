@@ -24,9 +24,9 @@ class Tester(_origen.tester.PyTester):
         return pickle.loads(bytes(self._stats()))
 
     @contextmanager
-    def specific(self, *names):
+    def eq(self, *names):
         (pat_ref_id, prog_ref_id,
-         clean_tester_names) = self._start_specific_block(names)
+         clean_tester_names) = self._start_eq_block(names)
         testers = []
         for t in clean_tester_names:
             if t == "V93K":
@@ -76,7 +76,14 @@ class Tester(_origen.tester.PyTester):
             )
         for t in testers:
             del t
-        self._end_specific_block(pat_ref_id, prog_ref_id)
+        self._end_eq_block(pat_ref_id, prog_ref_id)
+
+    @contextmanager
+    def neq(self, *names):
+        (pat_ref_id, prog_ref_id,
+         clean_tester_names) = self._start_neq_block(names)
+        yield
+        self._end_neq_block(pat_ref_id, prog_ref_id)
 
 
 class DummyTester:
