@@ -44,6 +44,22 @@ impl Node {
         }
     }
 
+    pub fn new_with_meta(attrs: Attrs, meta: Option<Meta>) -> Node {
+        Node {
+            attrs: attrs,
+            children: Vec::new(),
+            meta: meta,
+        }
+    }
+
+    pub fn new_with_children(attrs: Attrs, children: Vec<Node>) -> Node {
+        Node {
+            attrs: attrs,
+            children: children.into_iter().map(|n| Box::new(n)).collect(),
+            meta: None,
+        }
+    }
+
     pub fn unwrap(&mut self) -> Option<Node> {
         match self.children.pop() {
             None => None,
@@ -57,13 +73,6 @@ impl Node {
     pub fn process(&self, processor: &mut dyn Processor) -> Result<Option<Node>> {
         let r = processor.on_node(&self)?;
         self.process_return_code(r, processor)
-    }
-    pub fn new_with_meta(attrs: Attrs, meta: Option<Meta>) -> Node {
-        Node {
-            attrs: attrs,
-            children: Vec::new(),
-            meta: meta,
-        }
     }
 
     fn inline(nodes: Vec<Box<Node>>) -> Node {
@@ -195,12 +204,15 @@ impl Node {
                     nodes.into_iter().map(|n| Box::new(n)).collect(),
                 )))
             }
-            Return::InlineWithProcessedChildren(nodes) => {
-                let mut nodes_ = nodes.clone();
-                nodes_.append(&mut self.process_children(processor)?);
+            Return::InlineWithProcessedChildren(mut nodes) => {
+                nodes.append(&mut self.process_children(processor)?);
                 Ok(Some(Node::inline(
-                    nodes_.into_iter().map(|n| Box::new(n)).collect(),
+                    nodes.into_iter().map(|n| Box::new(n)).collect(),
                 )))
+            }
+            Return::ReplaceChildren(nodes) => {
+                let new_node = self.replace_unboxed_children(nodes);
+                Ok(Some(new_node))
             }
         }
     }
@@ -282,6 +294,17 @@ impl Node {
             attrs: self.attrs.clone(),
             meta: self.meta.clone(),
             children: nodes,
+        };
+        new_node
+    }
+
+    /// Returns a new node which is a copy of self with its children replaced
+    /// by the given collection of nodes.
+    pub fn replace_unboxed_children(&self, nodes: Vec<Node>) -> Node {
+        let new_node = Node {
+            attrs: self.attrs.clone(),
+            meta: self.meta.clone(),
+            children: nodes.into_iter().map(|n| Box::new(n)).collect(),
         };
         new_node
     }

@@ -1,6 +1,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::model::{Bin, Test};
+use crate::prog_gen::model::{Bin, GroupType, Test};
 use std::path::{Path, PathBuf};
 use tera::{Context, Tera};
 
@@ -68,6 +68,22 @@ impl Processor for WriteToFile {
                         .unwrap();
                     std::fs::write(&self.file_path.as_ref().unwrap(), &contents)?;
                 }
+                Return::None
+            }
+            Attrs::PGMGroup(name, _, kind, _) => {
+                if kind == &GroupType::Flow {
+                    self.push_body("{");
+                    self.indent += 1;
+                    let _ = node.process_children(self);
+                    self.indent -= 1;
+                    self.push_body(&format!("}}, open,\"{}\",\"\"", &name));
+                } else {
+                    let _ = node.process_children(self);
+                }
+                Return::None
+            }
+            Attrs::PGMLog(msg) => {
+                self.push_body(&format!("print_dl(\"{}\");", msg));
                 Return::None
             }
             Attrs::PGMTest(id, _flow_id) => {

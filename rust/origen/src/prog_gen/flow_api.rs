@@ -1,10 +1,10 @@
 use super::ParamValue;
-use super::{BinType, FlowCondition, GroupType, PatternGroupType};
+use super::{BinType, FlowCondition, FlowID, GroupType, PatternGroupType};
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
 
-/// Start a sub-flow, the returned reference should be retained and passed to end_sub_flow
+/// Start a sub-flow, the returned reference should be retained and passed to end_block
 pub fn start_sub_flow(name: &str, meta: Option<Meta>) -> Result<usize> {
     let n = node!(PGMSubFlow, name.to_owned(); meta);
     FLOW.push_and_open(n)
@@ -62,7 +62,7 @@ pub fn assign_test_to_invocation(
 }
 
 /// Execute the given test (or invocation) from the current flow
-pub fn execute_test(id: usize, flow_id: Option<String>, meta: Option<Meta>) -> Result<()> {
+pub fn execute_test(id: usize, flow_id: FlowID, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMTest, id, flow_id; meta);
     FLOW.push(n)
 }
@@ -70,14 +70,19 @@ pub fn execute_test(id: usize, flow_id: Option<String>, meta: Option<Meta>) -> R
 /// Execute the given test (or invocation) from the current flow, where the test is a string that
 /// will be rendered verbatim to the flow - no linkage to an actual test object will be checked or
 /// inserted by Origen
-pub fn execute_test_str(name: String, flow_id: Option<String>, meta: Option<Meta>) -> Result<()> {
+pub fn execute_test_str(name: String, flow_id: FlowID, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMTestStr, name, flow_id; meta);
     FLOW.push(n)
 }
 
 /// Cz the given test (or invocation) from the current flow
-pub fn execute_cz_test(id: usize, cz_setup: String, meta: Option<Meta>) -> Result<()> {
-    let n = node!(PGMCz, id, cz_setup; meta);
+pub fn execute_cz_test(
+    id: usize,
+    cz_setup: String,
+    flow_id: FlowID,
+    meta: Option<Meta>,
+) -> Result<()> {
+    let n = node!(PGMCz, id, cz_setup, flow_id; meta);
     FLOW.push(n)
 }
 
@@ -125,9 +130,12 @@ pub fn start_group(
     name: String,
     tester: Option<SupportedTester>,
     kind: GroupType,
-    flow_id: Option<String>,
+    flow_id: Option<FlowID>,
     meta: Option<Meta>,
 ) -> Result<usize> {
+    if kind == GroupType::Flow && flow_id.is_none() {
+        return error!("A flow_id must be supplied when starting a flow group");
+    }
     let n = node!(PGMGroup, name, tester, kind, flow_id; meta);
     FLOW.push_and_open(n)
 }
@@ -153,4 +161,18 @@ pub fn define_bin(
 pub fn bin(hard: usize, soft: Option<usize>, kind: BinType, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMBin, hard, soft, kind; meta);
     FLOW.push(n)
+}
+
+/// Start an on-failed block (events to run if the given test or group failed), the returned
+/// reference should be retained and passed to end_block
+pub fn start_on_failed(flow_id: FlowID, meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMOnFailed, flow_id; meta);
+    FLOW.push_and_open(n)
+}
+
+/// Start an on-passed block (events to run if the given test or group passed), the returned
+/// reference should be retained and passed to end_block
+pub fn start_on_passed(flow_id: FlowID, meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMOnPassed, flow_id; meta);
+    FLOW.push_and_open(n)
 }

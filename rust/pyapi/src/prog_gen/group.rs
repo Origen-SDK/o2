@@ -1,4 +1,4 @@
-use origen::prog_gen::{flow_api, GroupType};
+use origen::prog_gen::{flow_api, FlowID, GroupType};
 use origen::testers::SupportedTester;
 use pyo3::class::PyContextProtocol;
 use pyo3::prelude::*;
@@ -12,7 +12,7 @@ pub struct Group {
     pub tester: Option<SupportedTester>,
     pub kind: GroupType,
     ref_id: usize,
-    flow_id: Option<String>,
+    flow_id: Option<FlowID>,
 }
 
 impl Group {
@@ -20,7 +20,7 @@ impl Group {
         name: String,
         tester: Option<SupportedTester>,
         kind: GroupType,
-        flow_id: Option<String>,
+        flow_id: Option<FlowID>,
     ) -> Group {
         Group {
             name: name,

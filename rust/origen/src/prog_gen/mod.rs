@@ -2,6 +2,7 @@ pub mod advantest;
 pub mod flow_api;
 mod flow_manager;
 mod model;
+mod processors;
 pub mod teradyne;
 
 use crate::Result;
@@ -9,6 +10,7 @@ pub use flow_manager::FlowManager;
 pub use model::BinType;
 pub use model::Database;
 pub use model::FlowCondition;
+pub use model::FlowID;
 pub use model::GroupType;
 pub use model::ParamType;
 pub use model::ParamValue;

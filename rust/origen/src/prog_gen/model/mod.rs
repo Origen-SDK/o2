@@ -3,12 +3,14 @@
 
 mod bin;
 mod database;
+mod flow_id;
 mod limit;
 mod test;
 
 use crate::Result as OrigenResult;
 pub use bin::Bin;
 pub use database::Database;
+pub use flow_id::FlowID;
 pub use limit::Limit;
 use std::fmt;
 use std::str::FromStr;

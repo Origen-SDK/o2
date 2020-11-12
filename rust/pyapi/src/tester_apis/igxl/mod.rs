@@ -14,13 +14,14 @@ pub struct IGXL {
 #[pymethods]
 impl IGXL {
     #[new]
-    fn new(tester: Option<String>) -> PyResult<Self> {
+    pub fn new(tester: Option<String>) -> PyResult<Self> {
         Ok(IGXL {
             tester: match tester {
                 None => SupportedTester::IGXL,
                 Some(t) => {
                     let t = t.to_uppercase().replace("_", "");
                     match t.as_str() {
+                        "IGXL" => SupportedTester::IGXL,
                         "J750" => SupportedTester::J750,
                         "ULTRAFLEX" => SupportedTester::ULTRAFLEX,
                         _ => {

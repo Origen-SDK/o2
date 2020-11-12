@@ -2,6 +2,9 @@
 mod igxl;
 mod v93k;
 
+pub use igxl::IGXL;
+pub use v93k::V93K;
+
 use pyo3::prelude::*;
 
 #[pymodule]

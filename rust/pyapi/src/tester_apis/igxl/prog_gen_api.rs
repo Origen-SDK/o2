@@ -1,5 +1,5 @@
 use super::IGXL;
-use crate::prog_gen::{to_param_value, Group, PatternGroup, Test};
+use crate::prog_gen::{flow_options, to_param_value, Group, PatternGroup, Test, TestInvocation};
 use crate::utility::caller::src_caller_meta;
 use origen::error::Error;
 use origen::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType};
@@ -37,7 +37,9 @@ impl IGXL {
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs {
                 if let Ok(name) = k.extract::<String>() {
-                    t.set_attr(&name, to_param_value(v)?)?;
+                    if !flow_options::is_flow_option(&name) {
+                        t.set_attr(&name, to_param_value(v)?)?;
+                    }
                 } else {
                     return type_error!(&format!(
                         "Illegal test instance attribute name type '{}', should be a String",
@@ -47,6 +49,26 @@ impl IGXL {
             }
         }
 
+        Ok(t)
+    }
+
+    #[args(kwargs = "**")]
+    pub fn new_flow_line(&mut self, kwargs: Option<&PyDict>) -> PyResult<TestInvocation> {
+        let t = TestInvocation::new("_".to_owned(), self.tester.to_owned())?;
+        if let Some(kwargs) = kwargs {
+            for (k, v) in kwargs {
+                if let Ok(name) = k.extract::<String>() {
+                    if !flow_options::is_flow_option(&name) {
+                        t.set_attr(&name, to_param_value(v)?)?;
+                    }
+                } else {
+                    return type_error!(&format!(
+                        "Illegal test suite attribute name type '{}', should be a String",
+                        k
+                    ));
+                }
+            }
+        }
         Ok(t)
     }
 

@@ -21,7 +21,7 @@ pub struct TestInvocation {
 
 #[pymethods]
 impl TestInvocation {
-    fn set_test_obj(&mut self, test: Test) -> PyResult<()> {
+    pub fn set_test_obj(&mut self, test: Test) -> PyResult<()> {
         if !test.tester.is_compatible_with(&self.tester) {
             return Err(AttributeError::py_err(format!(
                 "Attempted to associate a test for '{}' with an invocation for '{}'",

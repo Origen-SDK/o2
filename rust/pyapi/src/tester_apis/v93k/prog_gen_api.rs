@@ -1,5 +1,5 @@
 use super::V93K;
-use crate::prog_gen::{to_param_value, Test, TestInvocation};
+use crate::prog_gen::{flow_options, to_param_value, Test, TestInvocation};
 use origen::prog_gen::ParamValue;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -17,7 +17,9 @@ impl V93K {
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs {
                 if let Ok(name) = k.extract::<String>() {
-                    t.set_attr(&name, to_param_value(v)?)?;
+                    if !flow_options::is_flow_option(&name) {
+                        t.set_attr(&name, to_param_value(v)?)?;
+                    }
                 } else {
                     return type_error!(&format!(
                         "Illegal test method attribute name type '{}', should be a String",
@@ -40,7 +42,9 @@ impl V93K {
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs {
                 if let Ok(name) = k.extract::<String>() {
-                    t.set_attr(&name, to_param_value(v)?)?;
+                    if !flow_options::is_flow_option(&name) {
+                        t.set_attr(&name, to_param_value(v)?)?;
+                    }
                 } else {
                     return type_error!(&format!(
                         "Illegal test suite attribute name type '{}', should be a String",

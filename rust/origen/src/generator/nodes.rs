@@ -1,6 +1,6 @@
 use super::stil;
 use super::utility::transaction::Transaction;
-use crate::prog_gen::{BinType, FlowCondition, GroupType, ParamValue, PatternGroupType};
+use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, ParamValue, PatternGroupType};
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
@@ -214,23 +214,27 @@ pub enum Attrs {
     /// Set the attribute with the given name within the given test (ID), to the given value
     PGMSetAttr(usize, String, ParamValue),
     /// Execute a test (or invocation) from the flow
-    PGMTest(usize, Option<String>),
+    PGMTest(usize, FlowID),
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
     /// into the flow
-    PGMTestStr(String, Option<String>),
+    PGMTestStr(String, FlowID),
     /// Defines a new pattern group, also used to model IG-XL pattern sets
     PGMPatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
     PGMPushPattern(usize, String, Option<String>),
     PGMRender(String),
     PGMLog(String),
-    PGMGroup(String, Option<SupportedTester>, GroupType, Option<String>),
+    /// A FlowID will always be present when the group type is a flow group
+    PGMGroup(String, Option<SupportedTester>, GroupType, Option<FlowID>),
     PGMCondition(FlowCondition),
     /// Execute a test (or invocation) from the flow with a CZ setup reference
-    PGMCz(usize, String),
+    PGMCz(usize, String, FlowID),
     /// Bin (number, is_soft, type, description, priority)
     PGMDefBin(usize, bool, BinType, Option<String>, Option<usize>),
     /// Bin out (hard, soft, type)
     PGMBin(usize, Option<usize>, BinType),
+    /// Events to run if the test or group with the given ID failed
+    PGMOnFailed(FlowID),
+    PGMOnPassed(FlowID),
 
     PGMIGXLSetWaitFlags(usize, Vec<String>),
 

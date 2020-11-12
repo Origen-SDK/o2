@@ -1,6 +1,9 @@
+use super::flow_options;
 use crate::prog_gen::{Condition, Group, Test, TestInvocation};
+use crate::tester_apis::IGXL;
 use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, BinType, FlowCondition, GroupType};
+use origen::testers::SupportedTester;
 use origen::Result;
 use pyo3::exceptions::TypeError;
 use pyo3::prelude::*;
@@ -36,44 +39,66 @@ impl PyInterface {
     }
 
     /// Add a test to the flow
-    #[args(id = "None", kwargs = "**")]
-    #[allow(unused_variables)]
-    fn add_test(
-        &self,
-        test_obj: &PyAny,
-        id: Option<String>,
-        //if_failed: Option<&PyAny>,
-        //test_text: Option<String>,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<()> {
+    #[args(kwargs = "**")]
+    fn add_test(&self, test_obj: &PyAny, kwargs: Option<&PyDict>) -> PyResult<()> {
+        let id = flow_options::get_flow_id(kwargs)?;
+        let bin = flow_options::get_bin(kwargs)?;
+        let softbin = flow_options::get_softbin(kwargs)?;
+
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            flow_api::execute_test(t.id, id, src_caller_meta())?;
+            flow_api::execute_test(t.id, id.clone(), src_caller_meta())?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            flow_api::execute_test(t.id, id, src_caller_meta())?;
+            match t.tester {
+                SupportedTester::IGXL | SupportedTester::J750 | SupportedTester::ULTRAFLEX => {
+                    let mut flow_line =
+                        IGXL::new(Some(t.tester.to_string()))?.new_flow_line(kwargs)?;
+                    flow_line.set_test_obj(t)?;
+                    flow_api::execute_test(flow_line.id, id.clone(), src_caller_meta())?;
+                }
+                SupportedTester::V93K | SupportedTester::V93KSMT7 | SupportedTester::V93KSMT8 => {
+                    return Err(TypeError::py_err(format!(
+                        "expected a Test Suite but was given a Test Method"
+                    )));
+                }
+                _ => {
+                    return Err(TypeError::py_err(format!(
+                        "add_test doesn't yet know how to handle a test object for '{}'",
+                        t.tester
+                    )));
+                }
+            }
         } else if let Ok(t) = test_obj.extract::<String>() {
-            flow_api::execute_test_str(t, id, src_caller_meta())?;
+            flow_api::execute_test_str(t, id.clone(), src_caller_meta())?;
         } else {
             return Err(TypeError::py_err(format!(
                 "add_test must be given a valid test object, or a String, this is neither: {:?}",
                 test_obj
             )));
         }
+
+        if let Some(bin) = bin {
+            let ref_id = flow_api::start_on_failed(id, None)?;
+            self.bin(bin, softbin, None, false, None)?;
+            flow_api::end_block(ref_id)?;
+        }
+
         Ok(())
     }
 
     /// Add a cz test to the flow
     #[args(kwargs = "**")]
-    #[allow(unused_variables)]
     fn add_cz_test(
         &self,
         test_obj: &PyAny,
         cz_setup: String,
         kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
+        let id = flow_options::get_flow_id(kwargs)?;
+
         if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            flow_api::execute_cz_test(t.id, cz_setup, src_caller_meta())?;
+            flow_api::execute_cz_test(t.id, cz_setup, id, src_caller_meta())?;
         } else if let Ok(t) = test_obj.extract::<Test>() {
-            flow_api::execute_cz_test(t.id, cz_setup, src_caller_meta())?;
+            flow_api::execute_cz_test(t.id, cz_setup, id, src_caller_meta())?;
         } else {
             return Err(TypeError::py_err(format!(
                 "add_cz_test must be given a valid test object, this is something else: {:?}",
@@ -95,14 +120,9 @@ impl PyInterface {
     }
 
     #[args(id = "None", kwargs = "**")]
-    #[allow(unused_variables)]
-    fn group(
-        &mut self,
-        name: String,
-        id: Option<String>,
-        kwargs: Option<&PyDict>,
-    ) -> PyResult<Group> {
-        let g = Group::new(name, None, GroupType::Flow, id);
+    fn group(&mut self, name: String, kwargs: Option<&PyDict>) -> PyResult<Group> {
+        let id = flow_options::get_flow_id(kwargs)?;
+        let g = Group::new(name, None, GroupType::Flow, Some(id));
         Ok(g)
     }
 
@@ -188,14 +208,13 @@ impl PyInterface {
 
     /// Bin out
     #[args(soft_bin = "None", softbin = "None", good = "false", kwargs = "**")]
-    #[allow(unused_variables)]
     fn bin(
         &self,
         hard_bin: usize,
         soft_bin: Option<usize>,
         softbin: Option<usize>,
         good: bool,
-        kwargs: Option<&PyDict>,
+        _kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
         let sbin = match soft_bin {
             Some(n) => Some(n),

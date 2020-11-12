@@ -1,6 +1,7 @@
 //! Implements Python bindings for program generation data structures and functions
 
 mod condition;
+pub mod flow_options;
 pub mod group;
 pub mod interface;
 mod pattern_group;
