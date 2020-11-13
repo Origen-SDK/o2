@@ -217,6 +217,9 @@ with Flow() as flow:
         flow.add_test("test100_2", bin=5, number=5990)
         flow.add_test("test100_3", bin=5, number=6000)
 
+    import pdb
+    pdb.set_trace()
+
     flow.good_die(2, if_ran="g100")
 
     flow.log('Test node optimization within an if_failed branch')

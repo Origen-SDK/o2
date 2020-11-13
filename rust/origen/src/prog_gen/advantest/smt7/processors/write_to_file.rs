@@ -87,9 +87,70 @@ impl Processor for WriteToFile {
                 Return::None
             }
             Attrs::PGMTest(id, _flow_id) => {
-                self.push_body(&format!("run({});", id));
+                if node
+                    .children
+                    .iter()
+                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
+                {
+                    self.push_body(&format!("run_and_branch({})", id));
+                    self.push_body("then");
+                    self.push_body("{");
+                    self.indent += 1;
+                    for n in &node.children {
+                        if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
+                            let _ = n.process_children(self);
+                        }
+                    }
+                    self.indent -= 1;
+                    self.push_body("}");
+                    self.push_body("else");
+                    self.push_body("{");
+                    self.indent += 1;
+                    for n in &node.children {
+                        if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
+                            let _ = n.process_children(self);
+                        }
+                    }
+                    self.indent -= 1;
+                    self.push_body("}");
+                } else {
+                    self.push_body(&format!("run({});", id));
+                }
                 Return::ProcessChildren
             }
+            Attrs::PGMTestStr(name, _flow_id) => {
+                if node
+                    .children
+                    .iter()
+                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
+                {
+                    self.push_body(&format!("run_and_branch({})", name));
+                    self.push_body("then");
+                    self.push_body("{");
+                    self.indent += 1;
+                    for n in &node.children {
+                        if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
+                            let _ = n.process_children(self);
+                        }
+                    }
+                    self.indent -= 1;
+                    self.push_body("}");
+                    self.push_body("else");
+                    self.push_body("{");
+                    self.indent += 1;
+                    for n in &node.children {
+                        if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
+                            let _ = n.process_children(self);
+                        }
+                    }
+                    self.indent -= 1;
+                    self.push_body("}");
+                } else {
+                    self.push_body(&format!("run({});", name));
+                }
+                Return::ProcessChildren
+            }
+            Attrs::PGMOnFailed(_) => Return::ProcessChildren,
             _ => Return::ProcessChildren,
         };
         Ok(result)
