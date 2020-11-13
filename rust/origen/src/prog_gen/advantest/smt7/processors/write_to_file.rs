@@ -1,6 +1,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::model::{Bin, GroupType, Test};
+use crate::prog_gen::{Bin, GroupType, Model, Test};
 use std::path::{Path, PathBuf};
 use tera::{Context, Tera};
 
@@ -14,7 +14,7 @@ pub struct WriteToFile {
     indent: usize,
 }
 
-pub fn run(ast: &Node, output_dir: &Path) -> Result<PathBuf> {
+pub fn run(ast: &Node, output_dir: &Path, _model: &Model) -> Result<PathBuf> {
     let mut p = WriteToFile {
         output_dir: output_dir.to_owned(),
         file_path: None,

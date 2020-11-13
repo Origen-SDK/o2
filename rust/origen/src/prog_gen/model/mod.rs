@@ -2,16 +2,17 @@
 //! test templates, test instances, etc.
 
 mod bin;
-mod database;
 mod flow_id;
 mod limit;
+mod model;
+mod template_loader;
 mod test;
 
 use crate::Result as OrigenResult;
 pub use bin::Bin;
-pub use database::Database;
 pub use flow_id::FlowID;
 pub use limit::Limit;
+pub use model::Model;
 use std::fmt;
 use std::str::FromStr;
 pub use test::Test;

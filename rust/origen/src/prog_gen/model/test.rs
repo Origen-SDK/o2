@@ -1,4 +1,4 @@
-use super::super::TestTemplate;
+use super::template_loader::TestTemplate;
 use super::{Constraint, ParamType, ParamValue};
 use crate::testers::SupportedTester;
 use crate::Result;

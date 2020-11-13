@@ -1,26 +1,25 @@
-//! This nests OnFailed and OnPassed nodes into their parent tests (or groups)
-//!
-//! Original:
-//!     PGMTest(4, FlowID { id: "3" })
-//!     PGMOnFailed(FlowID { id: "3" })
-//!         PGMBin(100, Some(1100), Bad)
-//!     PGMTest(6, FlowID { id: "7" })
-//!     PGMOnFailed(FlowID { id: "7" })
-//!         PGMBin(100, Some(1100), Bad)
-//!
-//! Output:
-//!     PGMTest(4, FlowID { id: "3" })
-//!         PGMOnFailed(FlowID { id: "3" })
-//!             PGMBin(100, Some(1100), Bad)
-//!     PGMTest(6, FlowID { id: "7" })
-//!         PGMOnFailed(FlowID { id: "7" })
-//!             PGMBin(100, Some(1100), Bad)
-
 use crate::generator::ast::*;
 use crate::generator::processor::*;
 use crate::prog_gen::FlowID;
 use indexmap::IndexMap;
 
+/// This nests OnFailed and OnPassed nodes into their parent tests (or groups)
+///
+/// Original:
+///     PGMTest(4, FlowID { id: "3" })
+///     PGMOnFailed(FlowID { id: "3" })
+///         PGMBin(100, Some(1100), Bad)
+///     PGMTest(6, FlowID { id: "7" })
+///     PGMOnFailed(FlowID { id: "7" })
+///         PGMBin(100, Some(1100), Bad)
+///
+/// Output:
+///     PGMTest(4, FlowID { id: "3" })
+///         PGMOnFailed(FlowID { id: "3" })
+///             PGMBin(100, Some(1100), Bad)
+///     PGMTest(6, FlowID { id: "7" })
+///         PGMOnFailed(FlowID { id: "7" })
+///             PGMBin(100, Some(1100), Bad)
 pub struct NestOnResultNodes {
     nodes: IndexMap<FlowID, Node>,
     pass: usize,
