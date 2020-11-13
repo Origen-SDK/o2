@@ -1,0 +1,50 @@
+{
+    "class_name": "dc_tml.DcTest.continuity",
+
+    "parameters": {
+        "pinlist": {
+            "type": "string",
+            "aliases": ["pin_list"],
+            "value": "@"
+        },
+        "test_current": {
+            "type": "current",
+            "aliases": [],
+            "value": 10e-6
+        },
+        "settling_time": {
+            "type": "time",
+            "aliases": [],
+            "value": 1e-3
+        },
+        "measurement_mode": {
+            "type": "string",
+            "aliases": [],
+            "value": "PPMUpar",
+            "accepted_values": ["PPMUpar", "ProgLoad"]
+        },
+        "polarity": {
+            "type": "string",
+            "aliases": [],
+            "value": "SPOL",
+            "accepted_values": ["SPOL", "BPOL"]
+        },
+        "precharge_to_zero_vol": {
+            "type": "string",
+            "aliases": [],
+            "value": "ON",
+            "accepted_values": ["ON", "OFF"]
+        },
+        "test_name": {
+            "type": "string",
+            "aliases": [],
+            "value": "passVolt_mv"
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        }
+    }
+}

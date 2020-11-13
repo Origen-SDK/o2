@@ -3,6 +3,7 @@ pub mod config;
 pub mod dut;
 pub mod file_handler;
 pub mod lsf;
+pub mod metadata;
 pub mod model;
 pub mod os;
 pub mod producer;

@@ -82,16 +82,14 @@ pub trait ListLikeAPI {
 
 #[pyclass]
 pub struct ListLikeIter {
-    pub parent: Box<dyn ListLikeAPI>,
+    pub parent: Box<dyn ListLikeAPI + std::marker::Send>,
     pub i: usize,
 }
 
 #[pyproto]
 impl<'p> pyo3::class::iter::PyIterProtocol<'p> for ListLikeIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        Ok(slf.into())
     }
 
     fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
@@ -100,5 +98,72 @@ impl<'p> pyo3::class::iter::PyIterProtocol<'p> for ListLikeIter {
         }
         slf.i += 1;
         Ok(Some(slf.parent.___getitem__((slf.i - 1) as isize).unwrap()))
+    }
+}
+
+pub trait GeneralizedListLikeAPI {
+    type Contained;
+
+    fn items(&self) -> &Vec<Self::Contained>;
+    fn new_pyitem(&self, py: Python, item: &Self::Contained, idx: usize) -> PyResult<PyObject>;
+    // fn __iter__(&self) -> PyResult<GeneralizedListLikeIter>;
+
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
+        if let Ok(slice) = idx.cast_as::<PySlice>() {
+            self.___getslice__(slice)
+        } else {
+            let i = idx.extract::<isize>()?;
+            self.___getitem__(i)
+        }
+    }
+
+    fn ___getitem__(&self, idx: isize) -> PyResult<PyObject> {
+        if idx >= (self.items().len() as isize) {
+            return Err(pyo3::exceptions::IndexError::py_err(format!(
+                "Index {} is out range of container of size {}",
+                idx,
+                self.items().len()
+            )));
+        } else if idx.abs() > (self.items().len() as isize) {
+            return Err(pyo3::exceptions::IndexError::py_err(format!(
+                "Index {} is out range of container of size {}",
+                idx,
+                self.items().len()
+            )));
+        }
+        let _idx;
+        if idx >= 0 {
+            _idx = idx as usize;
+        } else {
+            _idx = ((self.items().len() as isize) + idx) as usize;
+        }
+
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(self.new_pyitem(py, &self.items()[_idx], _idx)?)
+    }
+
+    fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
+        let indices = slice.indices((self.items().len() as i32).into())?;
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let mut rtn: Vec<PyObject> = vec![];
+        let mut i = indices.start;
+        if indices.step > 0 {
+            while i < indices.stop {
+                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+                i += indices.step;
+            }
+        } else if indices.step < 0 {
+            while i > indices.stop {
+                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+                i += indices.step;
+            }
+        }
+        Ok(rtn.to_object(py))
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self.items().len())
     }
 }

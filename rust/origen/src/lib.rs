@@ -1,3 +1,5 @@
+#![feature(specialization)]
+#![allow(incomplete_features)]
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -7,19 +9,25 @@ extern crate meta;
 extern crate pest_derive;
 #[macro_use]
 pub mod macros;
+#[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
 
 pub mod core;
 pub mod error;
 pub mod generator;
+pub mod precludes;
 pub mod prog_gen;
 pub mod revision_control;
 pub mod services;
+pub mod standards;
 pub mod testers;
 pub mod utility;
 
+pub use self::core::metadata::Metadata;
 pub use self::core::user::User;
+pub use self::generator::utility::transaction::Action as TransactionAction;
+pub use self::generator::utility::transaction::Transaction;
 pub use error::Error;
 
 use self::core::application::Application;
@@ -33,7 +41,7 @@ use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
-use prog_gen::Interface;
+use prog_gen::TestPrograms;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
@@ -41,6 +49,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// The available Origen runtime modes
 pub const MODES: &'static [&'static str] = &["production", "development"];
+
+// No idea why, but lazy_static was having none of this
+// pub static BIGU1: num_bigint::BigUint = num_bigint::BigUint::from(1 as u8);
+// pub static BIGU0: num_bigint::BigUint = num_bigint::BigUint::from(0 as u8);
 
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present
@@ -65,7 +77,7 @@ lazy_static! {
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
     /// Storage for the current program generation run, can include multiple flows
-    pub static ref INTERFACE: Interface = Interface::new();
+    pub static ref PROG: TestPrograms = TestPrograms::new();
     /// Provides info about the current user
     pub static ref USER: User = User::current();
 }
@@ -98,12 +110,28 @@ pub enum Value<'a> {
     Data(BigUint, u32),                   // value, size
 }
 
+impl<'a> Value<'a> {
+    pub fn to_write_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
+        match &self {
+            Self::Bits(bits, _size) => bits.to_write_transaction(dut),
+            Self::Data(data, width) => Transaction::new_write(data.clone(), (*width) as usize),
+        }
+    }
+
+    pub fn to_verify_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
+        match &self {
+            Self::Bits(bits, _size) => bits.to_verify_transaction(None, true, dut),
+            Self::Data(data, width) => Transaction::new_verify(data.clone(), (*width) as usize),
+        }
+    }
+}
+
 /// This is called immediately upon Origen booting
-pub fn initialize(verbosity: Option<u8>) {
+pub fn initialize(verbosity: Option<u8>, cli_location: Option<String>) {
     if let Some(v) = verbosity {
         let _ = LOGGER.set_verbosity(v);
     }
-    // Always keep this, as it is a way of forcing the STATUS object to be instantiated
+    STATUS.set_cli_location(cli_location);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
     LOGGER.set_status_ready();
 }

@@ -7,19 +7,23 @@ mod file_handler;
 mod logger;
 mod meta;
 mod model;
+#[macro_use]
 mod pins;
 mod registers;
 mod services;
 #[macro_use]
 mod timesets;
 mod application;
-mod interface;
 mod producer;
+mod prog_gen;
+mod standard_sub_blocks;
 mod tester;
+mod tester_apis;
+mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, STATUS, TEST};
+use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, PROG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyAny, PyDict};
@@ -30,11 +34,16 @@ use std::sync::MutexGuard;
 // Imported pyapi modules
 use application::PyInit_application;
 use dut::PyInit_dut;
-use interface::PyInit_interface;
 use logger::PyInit_logger;
 use producer::PyInit_producer;
+use prog_gen::interface::PyInit_interface;
+use prog_gen::PyInit_prog_gen;
 use services::PyInit_services;
+use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
+use tester_apis::PyInit_tester_apis;
+use utility::location::Location;
+use utility::PyInit_utility;
 
 #[macro_export]
 macro_rules! pypath {
@@ -54,6 +63,7 @@ macro_rules! pypath {
 fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(initialize))?;
     m.add_wrapped(wrap_pyfunction!(status))?;
+    m.add_wrapped(wrap_pyfunction!(version))?;
     m.add_wrapped(wrap_pyfunction!(config))?;
     m.add_wrapped(wrap_pyfunction!(app_config))?;
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
@@ -61,6 +71,8 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(file_handler))?;
     m.add_wrapped(wrap_pyfunction!(test))?;
     m.add_wrapped(wrap_pyfunction!(test_ast))?;
+    m.add_wrapped(wrap_pyfunction!(flow))?;
+    m.add_wrapped(wrap_pyfunction!(flow_ast))?;
     m.add_wrapped(wrap_pyfunction!(output_directory))?;
     m.add_wrapped(wrap_pyfunction!(website_output_directory))?;
     m.add_wrapped(wrap_pyfunction!(website_source_directory))?;
@@ -81,6 +93,10 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(interface))?;
     m.add_wrapped(wrap_pymodule!(producer))?;
     m.add_wrapped(wrap_pymodule!(services))?;
+    m.add_wrapped(wrap_pymodule!(utility))?;
+    m.add_wrapped(wrap_pymodule!(tester_apis))?;
+    m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
+    m.add_wrapped(wrap_pymodule!(prog_gen))?;
     Ok(())
 }
 
@@ -89,7 +105,7 @@ fn extract_value<'a>(
     size: Option<u32>,
     dut: &'a MutexGuard<Dut>,
 ) -> Result<Value<'a>> {
-    let bits = bits_or_val.extract::<&BitCollection>();
+    let bits = bits_or_val.extract::<PyRef<BitCollection>>();
     if bits.is_ok() {
         return Ok(Value::Bits(bits.unwrap().materialize(dut)?, size));
     }
@@ -103,6 +119,29 @@ fn extract_value<'a>(
         };
     }
     Err(Error::new("Illegal bits/value argument"))
+}
+
+/// Unpacks/extracts common transaction options, updating the transaction directly
+/// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
+fn unpack_transaction_options(
+    trans: &mut origen::Transaction,
+    kwargs: Option<&PyDict>,
+) -> PyResult<()> {
+    if let Some(opts) = kwargs {
+        if let Some(address) = opts.get_item("address") {
+            trans.address = Some(address.extract::<u128>()?);
+        }
+        if let Some(_mask) = opts.get_item("mask") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(())
 }
 
 /// Exit with a failing status code and print a big FAIL to the console
@@ -119,8 +158,8 @@ fn exit_pass() -> PyResult<()> {
 
 /// Called automatically when Origen is first loaded
 #[pyfunction]
-fn initialize(log_verbosity: Option<u8>) -> PyResult<()> {
-    origen::initialize(log_verbosity);
+fn initialize(log_verbosity: Option<u8>, cli_location: Option<String>) -> PyResult<()> {
+    origen::initialize(log_verbosity, cli_location);
     Ok(())
 }
 
@@ -160,6 +199,22 @@ fn test_ast() -> PyResult<Vec<u8>> {
     Ok(TEST.to_pickle())
 }
 
+/// Prints out the AST for the current flow to the console
+#[pyfunction]
+fn flow() -> PyResult<()> {
+    PROG.with_current_flow(|f| {
+        println!("{}", f.to_string());
+        Ok(())
+    })?;
+    Ok(())
+}
+
+/// Returns the AST for the current flow in Python
+#[pyfunction]
+fn flow_ast() -> PyResult<Vec<u8>> {
+    Ok(PROG.with_current_flow(|f| Ok(f.to_pickle()))?)
+}
+
 /// Returns a file handler object (iterable) for consuming the file arguments
 /// given to the CLI
 #[pyfunction]
@@ -174,11 +229,21 @@ fn status(py: Python) -> PyResult<PyObject> {
     let ret = PyDict::new(py);
     // Don't think an error can really happen here, so not handled
     let _ = ret.set_item("is_app_present", &STATUS.is_app_present);
-    let _ = ret.set_item("root", format!("{}", origen::app().unwrap().root.display()));
+    if let Some(app) = origen::app() {
+        let _ = ret.set_item("root", format!("{}", app.root.display()));
+    }
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     let _ = ret.set_item("on_windows", cfg!(windows));
     Ok(ret.into())
+}
+
+/// Returns the Origen version formatted into PEP440, e.g. "1.2.3.dev4"
+#[pyfunction]
+fn version() -> PyResult<String> {
+    Ok(origen::utility::version::to_pep440(
+        &STATUS.origen_version.to_string(),
+    )?)
 }
 
 /// Returns the Origen configuration (as defined in origen.toml files)
@@ -197,8 +262,34 @@ fn config(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen application configuration (as defined in application.toml)
 #[pyfunction]
 fn app_config(py: Python) -> PyResult<PyObject> {
+    // let ret = PyDict::new(py);
+    // // Don't think an error can really happen here, so not handled
+    // let app_config = origen_app_config();
+    // let _ = ret.set_item("name", &app_config.name);
+    // let _ = ret.set_item("target", &app_config.target);
+    // let _ = ret.set_item("mode", &app_config.mode);
+    // let _ = ret.set_item("__output_directory__", &app_config.output_directory);
+    // let _ = ret.set_item(
+    //     "__website_output_directory__",
+    //     &app_config.website_output_directory,
+    // );
+    // let _ = ret.set_item(
+    //     "__website_source_directory__",
+    //     &app_config.website_source_directory,
+    // );
+    // let _ = ret.set_item(
+    //     "website_release_location",
+    //     match &app_config.website_release_location {
+    //         Some(loc) => Py::new(py, Location {location: (*loc).clone()}).unwrap().to_object(py),
+    //         None => py.None()
+    //     }
+    // );
+    // let _ = ret.set_item(
+    //     "website_release_name",
+    //     &app_config.website_release_name,
+    // );
+
     let ret = PyDict::new(py);
-    // Don't think an error can really happen here, so not handled
     let _ = origen::app().unwrap().with_config(|config| {
         let _ = ret.set_item("name", &config.name);
         let _ = ret.set_item("target", &config.target);
@@ -212,11 +303,27 @@ fn app_config(py: Python) -> PyResult<PyObject> {
             "__website_source_directory__",
             &config.website_source_directory,
         );
+        let _ = ret.set_item(
+            "website_release_location",
+            match &config.website_release_location {
+                Some(loc) => Py::new(
+                    py,
+                    Location {
+                        location: (*loc).clone(),
+                    },
+                )
+                .unwrap()
+                .to_object(py),
+                None => py.None(),
+            },
+        );
+        let _ = ret.set_item("website_release_name", &config.website_release_name);
         Ok(())
     });
     Ok(ret.into())
 }
 
+/// clean_mode(name)
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid
 #[pyfunction]
 fn clean_mode(name: &str) -> PyResult<String> {
@@ -225,6 +332,7 @@ fn clean_mode(name: &str) -> PyResult<String> {
 }
 
 #[pyfunction]
+/// target_file(name, dir)
 /// Sanitizes the given target/env name and returns the matching file, but will exit the process
 /// if it does not uniquely identify a single target/env file.
 fn target_file(name: &str, dir: &str) -> PyResult<String> {

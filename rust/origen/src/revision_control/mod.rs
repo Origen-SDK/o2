@@ -64,12 +64,20 @@ impl RevisionControl {
         loop {
             if base.join(".SYNC").exists() {
                 match Designsync::from_dir(&base) {
-                    Ok(ds) => return Some(RevisionControl { driver: Box::new(ds) }),
+                    Ok(ds) => {
+                        return Some(RevisionControl {
+                            driver: Box::new(ds),
+                        })
+                    }
                     Err(e) => log_error!("{}", e),
                 }
             } else if base.join(".git").exists() {
                 match Git::from_dir(&base) {
-                    Ok(git) => return Some(RevisionControl { driver: Box::new(git) }),
+                    Ok(git) => {
+                        return Some(RevisionControl {
+                            driver: Box::new(git),
+                        })
+                    }
                     Err(e) => log_error!("{}", e),
                 }
             }

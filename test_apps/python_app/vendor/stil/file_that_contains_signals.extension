@@ -1,0 +1,36 @@
+//*******************************************************************************
+//  Bunch of single line comments here
+//
+//
+//*******************************************************************************
+STIL 1.0;
+
+Signals {
+
+  PIN0                                InOut ; 
+  PIN1                                InOut ; 
+  PIN2                                InOut ; 
+  PIN3                                InOut ; 
+  PIN4                                InOut ; 
+  PIN5                                In    ; 
+  PIN6                                InOut ; 
+  PIN7                                InOut ; 
+  PIN8                                InOut ; 
+  PIN9                                InOut ; 
+  PIN10                               InOut ; 
+  PIN11                               InOut ; 
+  PIN12                               InOut ; 
+  PIN13                               InOut ; 
+  PIN14                               InOut ; 
+  PIN15                               InOut ; 
+  PIN16                               InOut ;
+  PIN17                               InOut ;
+  PIN18                               InOut ;
+  PIN19                               InOut ;
+  PIN20                               InOut ;
+  PIN21                               InOut ;
+  PIN22                               InOut ;
+  PIN23                               InOut ;
+  PIN24                               InOut ;
+     
+}

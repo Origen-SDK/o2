@@ -2,6 +2,7 @@ use super::pins::pin_header::PinHeader;
 use super::timesets::timeset::Timeset;
 use origen::core::tester::TesterSource;
 use origen::error::Error;
+use origen::testers::SupportedTester;
 use origen::{STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
@@ -15,24 +16,43 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyclass(subclass)]
 #[derive(Debug)]
+/// Python interface for the tester backend.
 pub struct PyTester {
-    python_testers: HashMap<String, PyObject>,
-    instantiated_testers: HashMap<String, PyObject>,
+    python_testers: HashMap<SupportedTester, PyObject>,
+    instantiated_testers: HashMap<SupportedTester, PyObject>,
     metadata: Vec<PyObject>,
 }
 
 #[pymethods]
 impl PyTester {
     #[new]
-    fn new(obj: &PyRawObject) {
+    fn new() -> Self {
         origen::tester().reset();
-        obj.init({
-            PyTester {
-                python_testers: HashMap::new(),
-                instantiated_testers: HashMap::new(),
-                metadata: vec![],
-            }
-        });
+        PyTester {
+            python_testers: HashMap::new(),
+            instantiated_testers: HashMap::new(),
+            metadata: vec![],
+        }
+    }
+
+    pub fn _start_specific_block(
+        &self,
+        testers: Vec<&str>,
+    ) -> PyResult<(usize, usize, Vec<String>)> {
+        let mut ts: Vec<SupportedTester> = vec![];
+        let mut clean_testers: Vec<String> = vec![];
+        for t in testers {
+            let st = SupportedTester::new(t)?;
+            clean_testers.push(st.to_string());
+            ts.push(st);
+        }
+        let refs = origen::tester().start_tester_specific_block(ts)?;
+        Ok((refs.0, refs.1, clean_testers))
+    }
+
+    pub fn _end_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> PyResult<()> {
+        origen::tester().end_tester_specific_block(pat_ref_id, prog_ref_id)?;
+        Ok(())
     }
 
     /// This resets the tester, clearing all loaded targets and any other state, making
@@ -55,6 +75,30 @@ impl PyTester {
     }
 
     #[getter]
+    /// Property for the current :class:`_origen.dut.timesets.Timeset` or None, if no timeset has been set.
+    /// Set to ``None`` to clear the current timeset.
+    ///
+    /// Returns:
+    ///     :class:`_origen.dut.timesets.Timeset` or ``None``
+    ///
+    /// >>> # Initially no timeset has been set
+    /// >>> origen.tester.timeset
+    /// None
+    /// >>> origen.tester.timeset = origen.dut.timesets.Timeset['my_timeset']
+    /// origen.dut.timesets.Timeset['my_timeset']
+    /// >>> origen.tester.timeset
+    /// origen.dut.timesets.Timeset['my_timeset']
+    /// >>> # Clear the current timeset
+    /// >>> origen.tester.timeset = None
+    /// None
+    /// >>> origen.tester.timeset
+    /// None
+    ///
+    /// See Also
+    /// --------
+    /// * :meth:`set_timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn get_timeset(&self) -> PyResult<PyObject> {
         let tester = origen::tester();
         let dut = origen::dut();
@@ -76,7 +120,8 @@ impl PyTester {
     }
 
     #[setter]
-    fn timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
+    // Note - do not add doc strings here. Add to get_timeset above.
+    fn timeset(&self, timeset: &PyAny) -> PyResult<()> {
         let (model_id, timeset_name);
 
         // If the timeset is a string, assume its a timeset name on the DUT.
@@ -92,7 +137,7 @@ impl PyTester {
                     tester.clear_timeset()?;
                 }
                 self.issue_callbacks("clear_timeset")?;
-                return self.get_timeset();
+                return Ok(());
             } else if timeset.get_type().name().to_string() == "Timeset" {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
@@ -114,11 +159,27 @@ impl PyTester {
             }
             self.issue_callbacks("set_timeset")?;
         }
-        self.get_timeset()
+        Ok(())
     }
 
+    /// set_timeset(timeset)
+    ///
+    /// Sets the timeset.
+    ///
+    /// >>> origen.tester.set_timeset(origen.dut.timesets['my_timeset'])
+    /// origen.tester.timesets['my_timeset']
+    ///
+    /// Parameters:
+    ///     timeset (_origen.dut.timesets.Timeset, None): Timeset to set as current, or ``None`` to clear
+    ///
+    /// See Also
+    /// --------
+    /// * :meth:`timeset`
+    /// * :class:`_origen.dut.timesets.Timeset`
+    /// * :ref:`Timing <guides/testers/timing:Timing>`
     fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
-        self.timeset(timeset)
+        self.timeset(timeset)?;
+        self.get_timeset()
     }
 
     #[getter]
@@ -144,7 +205,7 @@ impl PyTester {
     }
 
     #[setter]
-    fn pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
+    fn pin_header(&self, pin_header: &PyAny) -> PyResult<()> {
         let (model_id, pin_header_name);
 
         if pin_header.get_type().name().to_string() == "NoneType" {
@@ -153,7 +214,7 @@ impl PyTester {
                 tester.clear_pin_header()?;
             }
             self.issue_callbacks("clear_pin_header")?;
-            return self.get_timeset();
+            return Ok(());
         } else if pin_header.get_type().name().to_string() == "PinHeader" {
             let gil = Python::acquire_gil();
             let py = gil.python();
@@ -174,23 +235,34 @@ impl PyTester {
             }
             self.issue_callbacks("set_pin_header")?;
         }
-        self.get_pin_header()
+        Ok(())
     }
 
     fn set_pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
-        self.pin_header(pin_header)
+        self.pin_header(pin_header)?;
+        self.get_pin_header()
     }
 
-    fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<PyObject> {
+    /// cc(comment: str) -> self
+    ///
+    /// Inserts a single-line comment into the AST.
+    ///
+    /// >>> origen.tester.cc("my comment")
+    /// <self>
+    /// >>> origen.tester.cc("my first comment").cc("my second comment")
+    /// <self>
+    ///
+    /// See Also
+    /// --------
+    /// * {{ link_to('prog-gen:comments', 'Commenting pattern source') }}
+    /// * {{ link_to('pat-gen:comments', 'Commenting program source') }}
+    fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<Py<Self>> {
         {
             let mut tester = origen::tester();
             tester.cc(&comment)?;
         }
         slf.issue_callbacks("cc")?;
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
     fn generate_pattern_header(&self, header_comments: &PyDict) -> PyResult<()> {
@@ -257,9 +329,9 @@ impl PyTester {
         Ok(())
     }
 
-    /// Expecting more arguments/options to eventually be added here.
+    /// cycle(**kwargs) -> self
     #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         {
             let mut tester = origen::tester();
             let mut repeat = None;
@@ -272,12 +344,10 @@ impl PyTester {
         }
         slf.issue_callbacks("cycle")?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+        Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<PyObject> {
+    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let kwargs = PyDict::new(py);
@@ -297,8 +367,8 @@ impl PyTester {
             obj.getattr(py, "__qualname__")?.extract::<String>(py)?
         ));
 
-        tester.register_external_tester(&n)?;
-        self.python_testers.insert(n, obj);
+        let t_id = tester.register_external_tester(&n)?;
+        self.python_testers.insert(t_id, obj);
         Ok(())
     }
 
@@ -309,7 +379,7 @@ impl PyTester {
             for g in testers.iter() {
                 // Accept either a string name or the actual class of the tester
                 if let Ok(name) = g.extract::<String>() {
-                    tester.target(&name)?;
+                    tester.target(SupportedTester::new(&name)?)?;
                 } else {
                     let gil = Python::acquire_gil();
                     let py = gil.python();
@@ -320,12 +390,13 @@ impl PyTester {
                         ".{}",
                         obj.getattr(py, "__qualname__")?.extract::<String>(py)?
                     ));
-                    let t = tester.target(&n)?;
+                    // Assume a tester loaded via a class is a custom tester
+                    let t = tester.target(SupportedTester::new(&format!("CUSTOM::{}", n))?)?;
                     match t {
                         TesterSource::External(gen) => {
                             let klass = self.python_testers.get(gen).unwrap();
                             let inst = klass.call0(py)?;
-                            self.instantiated_testers.insert(gen.to_string(), inst);
+                            self.instantiated_testers.insert(gen.to_owned(), inst);
                         }
                         _ => {}
                     }
@@ -405,7 +476,6 @@ impl PyTester {
 
     #[getter]
     fn testers(&self) -> PyResult<Vec<String>> {
-        let tester = origen::tester();
-        Ok(tester.testers())
+        Ok(SupportedTester::all_names())
     }
 }

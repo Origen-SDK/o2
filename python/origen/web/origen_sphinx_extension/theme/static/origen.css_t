@@ -1,0 +1,144 @@
+/* Origen specific overrides */
+
+/* 
+  TODO:
+  Despite the comments in origen.js, hardcoding here because a simple lookup didn't quite work
+  as the other did.
+  Need to fix this longer term - coreyeng
+
+  Lighten the arrows in the dropdowns to be more discernable
+*/
+#navbar-pages .arrow:after{border-left-color: rgb(236, 238, 239, 0.4) }
+div.sphinxsidebarwrapper > div.sidebartoctree > ul a.arrow.collapsed{ border-top-color: rgb(236, 238, 239, 0.4) }
+div.sphinxsidebarwrapper > div.sidebartoctree > ul a.arrow:not(.collapsed){ border-bottom-color: rgb(236, 238, 239, 0.4) }
+
+/*
+  The CSS solution to this problem:
+  https://stackoverflow.com/questions/49331572/offset-scroll-anchor-in-html-with-bootstrap-4-fixed-navbar
+  leaves yields a highlighting issue. More details in ./origen.js, but the sphinxbootstrap4theme implements the CSS solution,
+  which is deactivated here.
+*/
+*[id]:before {
+  display: none;
+}
+
+/*
+  Darkly's theme slightly enlarges the navbar but Sphinx's bootstrap4 assumes the standard bootstrap4 size of 54px.
+  Update the hard-coded size to account for the 72px-high navbar
+*/
+.related[role="navigation"] {
+  margin-top: 72px;
+}
+
+/*
+  Darkly doesn't do anything with hr tags and they remain very dark.
+  They are barely discernable, so make them stand out a bit more so they actually serve their purpose.
+*/
+hr {
+  border-top-color: #fff;
+}
+
+li > p {
+  margin-bottom: 0;
+}
+
+li > blockquote {
+  margin-bottom: 0;
+}
+
+/* Some color changes to fit in with Origen branding */
+a {
+  color: #4BC5FF;
+}
+a:hover {
+  color: #b3e1f7;
+}
+code {
+  color: #FF9337;
+}
+
+nav form {
+  margin-right: 70px;
+}
+
+.related .btn-group {
+  margin-right: 70px;
+}
+
+div.sphinxsidebarwrapper a.reference.current {
+  background-color: #197CBD !important;
+}
+
+body {
+  padding-top: 50px;
+}
+
+/* Corner Ribbon */
+.corner-ribbon{
+  width: 200px;
+  background: #e43;
+  position: absolute;
+  top: 25px;
+  left: -50px;
+  text-align: center;
+  line-height: 40px;
+  letter-spacing: 1px;
+  color: #f0f0f0;
+  transform: rotate(-45deg);
+  -webkit-transform: rotate(-45deg);
+  z-index: 10000;
+  -webkit-box-shadow: 0px 0px 3px rgba(0,0,0,5);
+  -moz-box-shadow:    0px 0px 3px rgba(0,0,0,5);
+  box-shadow:         0px 0px 3px rgba(0,0,0,5);
+}
+
+.corner-ribbon.sticky{
+  position: fixed;
+}
+
+.corner-ribbon.shadow{
+  box-shadow: 0 0 3px rgba(0,0,0,.3);
+}
+
+.corner-ribbon.top-left{
+  top: 25px;
+  left: -50px;
+  transform: rotate(-45deg);
+  -webkit-transform: rotate(-45deg);
+}
+
+.corner-ribbon.top-right{
+  top: 25px;
+  right: -50px;
+  left: auto;
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
+}
+
+.corner-ribbon.bottom-left{
+  top: auto;
+  bottom: 25px;
+  left: -50px;
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
+}
+
+.corner-ribbon.bottom-right{
+  top: auto;
+  right: -50px;
+  bottom: 25px;
+  left: auto;
+  transform: rotate(-45deg);
+  -webkit-transform: rotate(-45deg);
+}
+
+.corner-ribbon.white{background: #f0f0f0; color: #555;}
+.corner-ribbon.black{background: #333;}
+.corner-ribbon.grey{background: #999;}
+.corner-ribbon.blue{background: #39d;}
+.corner-ribbon.green{background: #2c7;}
+.corner-ribbon.turquoise{background: #1b9;}
+.corner-ribbon.purple{background: #95b;}
+.corner-ribbon.red{background: #e43;}
+.corner-ribbon.orange{background: #f96a27;}
+.corner-ribbon.yellow{background: #ec0;}

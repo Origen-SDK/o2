@@ -1,4 +1,6 @@
+use crate::core::application::target::matches;
 use crate::core::term;
+use crate::utility::location::Location;
 use config::File;
 use std::path::{Path, PathBuf};
 
@@ -19,22 +21,50 @@ pub struct Config {
     pub reference_directory: Option<String>,
     pub website_output_directory: Option<String>,
     pub website_source_directory: Option<String>,
-    root: Option<PathBuf>,
+    pub website_release_location: Option<Location>,
+    pub website_release_name: Option<String>,
+    pub root: Option<PathBuf>,
 }
 
 impl Config {
     pub fn refresh(&mut self) {
-        let latest = Self::build(self.root.as_ref().unwrap());
+        let latest = Self::build(self.root.as_ref().unwrap(), false);
         self.name = latest.name;
         self.target = latest.target;
         self.mode = latest.mode;
         self.reference_directory = latest.reference_directory;
         self.website_output_directory = latest.website_output_directory;
         self.website_source_directory = latest.website_source_directory;
+        self.website_release_location = latest.website_release_location;
+        self.website_release_name = latest.website_release_name;
+    }
+
+    pub fn check_defaults(root: &Path) {
+        let defaults = Self::build(root, true);
+
+        // Do some quick default checks here:
+        //  * Target - tl;dr: have a better error message on invalid default targets.
+        //             If the default target moves or is otherwise invalid, the app won't boot.
+        //             This isn't necessarily bad (having an invalid default target is bad) but it may not be obvious,
+        //             especially to newer users, as to why the app all of a sudden doesn't boot.
+        //             This can be overcome by setting the target (or fixing the default), but add, remove, etc., the commands
+        //             users will probably go to when encountering target problems, won't work.
+        // * Stack up others as needed.
+        if let Some(targets) = defaults.target {
+            for t in targets.iter() {
+                let m = matches(t, "targets");
+                if m.len() != 1 {
+                    term::redln(&format!(
+                        "Error present in default target '{}' (in config/application.toml)",
+                        t
+                    ));
+                }
+            }
+        }
     }
 
     /// Builds a new config from all application.toml files found at the given app root
-    pub fn build(root: &Path) -> Config {
+    pub fn build(root: &Path, default_only: bool) -> Config {
         log_trace!("Building app config");
         let mut s = config::Config::new();
 
@@ -50,9 +80,12 @@ impl Config {
         if file.exists() {
             files.push(file);
         }
-        let file = root.join(".origen").join("application.toml");
-        if file.exists() {
-            files.push(file);
+
+        if !default_only {
+            let file = root.join(".origen").join("application.toml");
+            if file.exists() {
+                files.push(file);
+            }
         }
 
         // Now add in the files, with the last one found taking highest priority
@@ -66,9 +99,23 @@ impl Config {
                 }
             }
         }
-        let mut config: Config = s.try_into().unwrap();
-        config.root = Some(root.to_path_buf());
+
+        // Couldn't figure out how to get the config::Config to recognize the Location struct since the
+        // underlying converter to config::value::ValueKind is private.
+        // Instead, just pluck it out as string and set it to none before casting to our Config (Self)
+        // Then, after the cast, put it back in as the type we want (Location)
+        let loc;
+        match s.get_str("website_release_location") {
+            Ok(l) => loc = Some(l),
+            Err(_) => loc = None,
+        }
+        s.set("website_release_location", None::<String>).unwrap();
+        let mut c: Self = s.try_into().unwrap();
+        c.root = Some(root.to_path_buf());
+        if let Some(l) = loc {
+            c.website_release_location = Some(Location::new(&l));
+        }
         log_trace!("Completed building app config");
-        config
+        c
     }
 }

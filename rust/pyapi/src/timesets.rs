@@ -1,5 +1,6 @@
 use super::dut::PyDUT;
-use origen::DUT;
+use origen::core::tester::TesterSource;
+use origen::{DUT, TESTER};
 use pyo3::prelude::*;
 
 #[macro_export]
@@ -15,7 +16,7 @@ pub mod timeset_container;
 pub mod timeset;
 
 use pyo3::types::{PyAny, PyDict};
-use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
+use timeset::{Event, SymbolMap, Timeset, Wave, WaveGroup, Wavetable};
 use timeset_container::{
     EventContainer, TimesetContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
 };
@@ -32,6 +33,7 @@ pub fn timesets(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<WaveGroup>()?;
     m.add_class::<Wave>()?;
     m.add_class::<Event>()?;
+    m.add_class::<SymbolMap>()?;
     Ok(())
 }
 
@@ -46,6 +48,7 @@ impl PyDUT {
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
+        let tester = TESTER.lock().unwrap();
 
         dut.create_timeset(
             model_id,
@@ -65,6 +68,20 @@ impl PyDUT {
                     None => Option::None,
                 },
                 None => Option::None,
+            },
+            {
+                // if let Some(t) = tester.target_testers.first() {
+                //     match t {
+                //         TesterSource::Internal(tester_struct) => {
+                //             tester_struct.pin_action_resolver()
+                //         },
+                //         _ => None
+                //     }
+                tester
+                    .target_testers
+                    .iter()
+                    .map(|t| t)
+                    .collect::<Vec<&TesterSource>>()
             },
         )?;
 

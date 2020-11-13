@@ -1,0 +1,95 @@
+{% extends "basic/layout.html" %}
+
+{% block htmltitle %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    {{ super() }}
+{% endblock %}
+
+{% block extrahead %}
+{{ super() }}
+{%- if theme_favicon and not favicon %}
+<link rel="shortcut icon" href="{{ theme_favicon if theme_favicon_raw_src else pathto('_static/' + theme_favicon, 1) }}"/>
+{%- endif %}
+{% endblock %}
+
+{%- macro sphinxsidebar() %}
+      {%- if render_sidebar %}
+      <div class="sphinxsidebar d-none d-md-block">
+        <div class="sphinxsidebarwrapper">
+          {%- block sidebarlogo %}{%- endblock %}
+          {%- if sidebars != None %}
+            {#- new style sidebar: explicitly include/exclude templates #}
+            {%- for sidebartemplate in sidebars %}
+            {%- include sidebartemplate %}
+            {%- endfor %}
+          {%- else %}
+            {#- old style sidebars: using blocks -- should be deprecated #}
+            {%- block sidebartoc %}
+            {%- include "globaltoc.html" %}
+            {%- endblock %}
+            {%- block sidebarrel %}
+            {%- include "relations.html" %}
+            {%- endblock %}
+            {%- if customsidebar %}
+            {%- include customsidebar %}
+            {%- endif %}
+            {%- block sidebarsearch %}
+            {%- include "searchbox.html" %}
+            {%- endblock %}
+            {%- block sidebarsourcelink %}
+            {%- include "sourcelink.html" %}
+            {%- endblock %}
+          {%- endif %}
+        </div>
+      </div>
+      {%- endif %}
+{%- endmacro %}
+
+{% macro navBar() %}
+{% include "navbar.html" %}
+{% endmacro %}
+
+{% macro breadcrumb() %}
+{% include "breadcrumb.html" %}
+{% endmacro %}
+
+{%- block relbar1 %}{% endblock %}
+{%- block relbar2 %}{% endblock %}
+
+{%- block header %}{{ navBar() }}{%- endblock %}
+
+
+{%- block footer %}
+{% include "footer.html" %}
+{%- endblock %}
+
+{%- block content %}
+  ## Thought it looks better without the breadcrumbs bar, and kinda redunant since we have the sidebar nav
+  {#- block breadcrumb1 %}{{breadcrumb()}}{% endblock #}
+  <div class="corner-ribbon top-right sticky orange">Origen v2</div>:
+  <div class="main container-fluid">
+    <div class="row">
+      {%- block sidebar1 %} {% if theme_show_sidebar|tobool and not theme_sidebar_right|tobool %}{{ sphinxsidebar() }}{% endif %} {% endblock %}
+
+      <div class="document">
+      {%- block document %}
+      <div class="documentwrapper">
+      {%- if render_sidebar %}
+        <div class="bodywrapper">
+      {%- endif %}
+          <div class="body">
+            {% block body %} {% endblock %}
+          </div>
+      {%- if render_sidebar %}
+        </div>
+      {%- endif %}
+      </div>
+  {%- endblock %}
+    </div>
+    {%- block sidebar2 %}{% if theme_show_sidebar|tobool and theme_sidebar_right|tobool %}{{ sphinxsidebar() }}{% endif %}{% endblock %}
+      <div class="clearer"></div>
+      </div>
+    </div>
+{%- endblock %}

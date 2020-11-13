@@ -6,11 +6,12 @@ from origen.registers.loader import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
 from contextlib import contextmanager
 
+
 class Proxies:
     def __init__(self, controller):
         self.controller = controller
         self.proxies = {}
-    
+
     def __getitem__(self, name):
         p = self.proxies.get(name)
         if (p):
@@ -18,28 +19,63 @@ class Proxies:
         else:
             origen.logger.error(f"No proxy for '{name}' has been set!")
             exit()
-    
+
     def __setitem__(self, name, proxy):
         if proxy in self.proxies:
-            origen.logger.error(f"A proxy for '{proxy}' has already been set! Cannot set the same proxy again!")
+            origen.logger.error(
+                f"A proxy for '{proxy}' has already been set! Cannot set the same proxy again!"
+            )
             exit()
         else:
             self.proxies[name] = proxy
             return proxy
 
+
 # The base class of all Origen controller objects
 class Base:
+    __currently_loading__ = {}
+
+    @classmethod
+    def is_currently_loading(cls, name):
+        if name not in cls.__currently_loading__:
+            cls.__currently_loading__[name] = {"count": 0}
+        return cls.__currently_loading__[name]["count"] > 0
+
+    @classmethod
+    def currently_loading(cls, name):
+        if name in cls.__currently_loading__:
+            cls.__currently_loading__[name]["count"] += 1
+        else:
+            cls.__currently_loading__[name] = {
+                "count": 1,
+            }
+
+    @classmethod
+    def done_loading(cls, name):
+        if name in cls.__currently_loading__:
+            cls.__currently_loading__[name]["count"] -= 1
 
     # This is the ID given to this block instance by its parent. For example, if this
     # block was globally available as "dut.ana.adc0", then its name attribute would be "adc0"
     name = None
     # Returns the path to this block, e.g. "dut.ana.adc0"
     path = None
-    # Returns the block path that defined this block, e.g. the block defined in
-    # blocks/adc/derivatives/16_bit will have block_path = "adc.16_bit"
-    block_path = None
-    # Returns the application instance that defines this block
-    app = None
+
+    @property
+    def block_path(self):
+        ''' Returns the block path that defined this block, e.g. the block defined in
+            blocks/adc/derivatives/16_bit will have block_path = "adc.16_bit" '''
+        return self._block_path
+
+    @property
+    def app(self):
+        ''' Returns the application instance that defines this block '''
+        return self._app
+
+    @property
+    def block_dir(self):
+        ''' Returns a path to the block directory where this block is defined '''
+        return self._block_dir
 
     model_id = None
 
@@ -65,6 +101,7 @@ class Base:
         #print(f"Looking for attribute {name}")
         # regs called directly on the controller means only the regs in the default
         # memory map and address block
+
         if name == "regs":
             self._load_regs()
             if self._default_default_address_block:
@@ -88,7 +125,7 @@ class Base:
                 self.__setattr__(method, getattr(proxy, method))
             self._load_pins()
             return eval(f"self.{name}")
-        
+
         elif name == "memory_maps":
             self._load_regs()
             return origen.dut.db.memory_maps(self.model_id)
@@ -99,6 +136,10 @@ class Base:
             self.__proxies__["timesets"] = proxy
             for method in timesets.Proxy.api():
                 self.__setattr__(method, getattr(proxy, method))
+
+            # Timesets may use pin references (as strings) for wavetable and wave
+            # instantiations. Need to ensure pins are loaded.
+            self.pins
             self._load_timesets()
             return eval(f"self.{name}")
 
@@ -125,7 +166,8 @@ class Base:
             try:
                 return getattr(self.model(), name)
             except AttributeError:
-                raise AttributeError(f"The block '{self.block_path}' has no attribute '{name}'")
+                raise AttributeError(
+                    f"The block '{self.block_path}' has no attribute '{name}'")
 
     def tree(self):
         print(self.tree_as_str())
@@ -155,6 +197,10 @@ class Base:
                 t += self.sub_blocks[key].tree_as_str(l, False)
         return t
 
+    def _set_as_default_address_block(self, mem_map_name, addr_block_name):
+        self._default_default_address_block = self.memory_maps[
+            mem_map_name].address_blocks[addr_block_name]
+
     def memory_map(self, name):
         self._load_regs()
         return origen.dut.db.memory_map(self.model_id, name)
@@ -164,7 +210,9 @@ class Base:
         if self._default_default_address_block:
             return self._default_default_address_block.reg(name)
         else:
-            raise AttributeError(f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)")
+            raise AttributeError(
+                f"The block '{self.block_path}' has no reg called '{name}' (at least within its default address block)"
+            )
 
     def add_simple_reg(self, *args, **kwargs):
         kwargs["_called_from_controller"] = True
@@ -191,10 +239,10 @@ class Base:
 
     def _load_sub_blocks(self):
         if not self.sub_blocks_loaded:
+            self.sub_blocks_loaded = True
             self.sub_blocks = {}
             self.app.load_block_files(self, "sub_blocks.py")
-            self.sub_blocks_loaded = True
-    
+
     def _load_pins(self):
         if not self.pins_loaded:
             self.app.load_block_files(self, "pins.py")
@@ -211,11 +259,19 @@ class Base:
             self.services = {}
             self.app.load_block_files(self, "services.py")
 
+    def mem(self, offset, **kwargs):
+        self._load_regs()
+        n = f"_mem_0x{offset}"
+        if n not in self.regs:
+            self.add_simple_reg(n, offset, **kwargs)
+        return self.reg(n)
+
     def write_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
 
     def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
         pass
+
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)

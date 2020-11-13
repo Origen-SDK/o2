@@ -1,14 +1,15 @@
+use super::model::pins::pin::Resolver;
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
-use crate::testers::{instantiate_tester, AVAILABLE_TESTERS};
+use crate::testers::{instantiate_tester, SupportedTester};
 use crate::utility::differ::Differ;
 use crate::utility::file_utils::to_relative_path;
-use crate::TEST;
 use crate::{add_children, node, text, text_line, with_current_job};
 use crate::{Error, Result};
+use crate::{PROG, TEST};
 use indexmap::IndexMap;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -16,7 +17,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub enum TesterSource {
     Internal(Box<dyn TesterAPI + std::marker::Send>),
-    External(String),
+    External(SupportedTester),
 }
 
 impl Clone for TesterSource {
@@ -32,7 +33,7 @@ impl PartialEq<TesterSource> for TesterSource {
     fn eq(&self, g: &TesterSource) -> bool {
         match g {
             TesterSource::Internal(_g) => match self {
-                TesterSource::Internal(_self) => *_g.name() == *_self.name(),
+                TesterSource::Internal(_self) => _g.id() == _self.id(),
                 _ => false,
             },
             TesterSource::External(_g) => match self {
@@ -42,12 +43,33 @@ impl PartialEq<TesterSource> for TesterSource {
         }
     }
 }
+impl Eq for TesterSource {}
+
+impl std::hash::Hash for TesterSource {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Internal(g) => {
+                g.id().hash(state);
+            }
+            Self::External(g) => {
+                g.hash(state);
+            }
+        }
+    }
+}
 
 impl TesterSource {
-    pub fn to_string(&self) -> String {
+    pub fn name(&self) -> String {
         match self {
-            Self::External(g) => g.clone(),
-            Self::Internal(g) => g.to_string(),
+            Self::External(g) => g.to_string(),
+            Self::Internal(g) => g.name(),
+        }
+    }
+
+    pub fn id(&self) -> SupportedTester {
+        match self {
+            Self::External(g) => g.to_owned(),
+            Self::Internal(g) => g.id(),
         }
     }
 }
@@ -60,7 +82,7 @@ pub struct Tester {
     current_timeset_id: Option<usize>,
     current_pin_header_id: Option<usize>,
     /// This stores additional testers provided by the Python domain, effectively adding them
-    /// to AVAILABLE_TESTERS. It never needs to be cleared.
+    /// to the list of supported_testers. It never needs to be cleared.
     external_testers: IndexMap<String, TesterSource>,
     /// This is the testers that have been selected by the current target, it will be cleared
     /// and new testers will be pushed to it during a target load.
@@ -97,6 +119,35 @@ impl Tester {
         }
     }
 
+    /// Starts a new tester-specific section in the current pattern and/or test program.
+    /// The returned ID should be kept and given to end_tester_specific_block when the
+    /// tester specific section is complete.
+    pub fn start_tester_specific_block(
+        &self,
+        testers: Vec<SupportedTester>,
+    ) -> Result<(usize, usize)> {
+        let n = node!(TesterSpecific, testers.clone());
+        let pat_ref_id = TEST.push_and_open(n);
+        let prog_ref_id = PROG.push_current_testers(testers)?;
+        Ok((pat_ref_id, prog_ref_id))
+    }
+
+    /// Ends an open tester-specific section in the current pattern and/or test program.
+    /// The ID produced when opening the block (via start_tester_specific_block) should be supplied
+    /// as the main argument.
+    pub fn end_tester_specific_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
+        TEST.close(pat_ref_id)?;
+        PROG.pop_current_testers(prog_ref_id)?;
+        Ok(())
+    }
+
+    pub fn custom_tester_ids(&self) -> Vec<String> {
+        self.external_testers
+            .keys()
+            .map(|n| n.to_string())
+            .collect::<Vec<String>>()
+    }
+
     pub fn _current_timeset_id(&self) -> Result<usize> {
         match self.current_timeset_id {
             Some(t_id) => Ok(t_id),
@@ -118,12 +169,14 @@ impl Tester {
         self.current_timeset_id = Option::None;
     }
 
-    pub fn register_external_tester(&mut self, tester: &str) -> Result<()> {
-        self.external_testers.insert(
-            tester.to_string(),
-            TesterSource::External(tester.to_string()),
-        );
-        Ok(())
+    pub fn register_external_tester(&mut self, tester: &str) -> Result<SupportedTester> {
+        let t_id = SupportedTester::CUSTOM(tester.to_string());
+        self.external_testers
+            .insert(tester.to_string(), TesterSource::External(t_id.clone()));
+        // Store it in the STATUS so that it's presence is globally readable without having to
+        // get a lock on the TESTER
+        crate::STATUS.register_custom_tester(tester);
+        Ok(t_id)
     }
 
     pub fn get_timeset(&self, dut: &Dut) -> Option<Timeset> {
@@ -377,18 +430,46 @@ impl Tester {
         }
     }
 
-    pub fn target(&mut self, tester: &str) -> Result<&TesterSource> {
+    /// Renders the test program for the target at index i.
+    /// Allows the frontend to call testers in a (multithreaded) loop.
+    /// When diff_and_display is true the generated files will be displayed to the console
+    /// and checked for diffs.
+    pub fn render_program_for_target_at(
+        &mut self,
+        idx: usize,
+        _diff_and_display: bool,
+    ) -> Result<Vec<PathBuf>> {
+        let g = &mut self.target_testers[idx];
+        match g {
+            TesterSource::External(gen) => {
+                error!("Tester '{}' is Python-based and pattern rendering must be invoked from Python code", &gen)
+            }
+            TesterSource::Internal(gen) => {
+                log_info!("Rendering program for {}", &gen.name());
+                let paths = gen.render_program()?;
+                Ok(paths)
+            }
+        }
+    }
+
+    pub fn target(&mut self, tester: SupportedTester) -> Result<&TesterSource> {
         let g;
-        if let Some(_g) = instantiate_tester(tester) {
-            g = TesterSource::Internal(_g);
-        } else if let Some(_g) = self.external_testers.get(tester) {
-            g = (*_g).clone();
+        if let SupportedTester::CUSTOM(id) = &tester {
+            if let Some(_g) = self.external_testers.get(id) {
+                g = (*_g).clone();
+            } else {
+                return error!(
+                    "Could not find tester '{}', the available testers are: {}",
+                    tester,
+                    self.custom_tester_ids()
+                        .iter()
+                        .map(|id| format!("CUSTOM::{}", id))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                );
+            }
         } else {
-            return error!(
-                "Could not find tester '{}', must be one of: \n  {}",
-                tester,
-                AVAILABLE_TESTERS.join("\n  ")
-            );
+            g = TesterSource::Internal(instantiate_tester(&tester)?);
         }
 
         if self.target_testers.contains(&g) {
@@ -407,18 +488,21 @@ impl Tester {
     }
 
     pub fn targets_as_strs(&self) -> Vec<String> {
-        self.target_testers.iter().map(|g| g.to_string()).collect()
+        self.target_testers.iter().map(|g| g.name()).collect()
     }
 
-    pub fn testers(&self) -> Vec<String> {
-        let mut gens: Vec<String> = AVAILABLE_TESTERS.iter().map(|t| t.to_string()).collect();
-        gens.extend(
-            self.external_testers
-                .iter()
-                .map(|(n, _)| n.clone())
-                .collect::<Vec<String>>(),
-        );
-        gens
+    pub fn focused_tester(&self) -> Option<&TesterSource> {
+        match self.target_testers.first() {
+            Some(t) => Some(&t),
+            None => None,
+        }
+    }
+
+    pub fn focused_tester_name(&self) -> Option<String> {
+        match self.target_testers.first() {
+            Some(t) => Some(t.name()),
+            None => None,
+        }
     }
 
     /// This is called automatically at the very start of a generate command, it is invoked from Python,
@@ -465,21 +549,34 @@ pub trait Interceptor {
 impl<'a, T> Interceptor for &'a T where T: TesterAPI {}
 impl<'a, T> Interceptor for &'a mut T where T: TesterAPI {}
 
-pub trait TesterAPI: std::fmt::Debug + Interceptor {
-    fn name(&self) -> String;
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send>;
+pub trait TesterID {
+    fn id(&self) -> SupportedTester;
 
+    /// Returns the id() as a String in most cases, but may be overridden to something
+    /// more friendly (but still unique), e.g. for custom Python-based testers
+    fn name(&self) -> String {
+        self.id().to_string()
+    }
+}
+
+pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// Render the given AST to an output, returning the path(s) to the created file(s)
-    /// if successfull.
+    /// if successful.
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         let _ = ast;
+        log_debug!("Tester '{}' does not implement render_pattern", &self.id());
         Ok(vec![])
     }
 
-    fn to_string(&self) -> String {
-        format!("::{}", self.name())
+    /// Render the test program to an output, returning the path(s) to the created file(s)
+    /// if successful.
+    /// A default implementation is given since some testers may only support prog gen
+    /// and not patgen and vice versa, in that case they will return an empty vector.
+    fn render_program(&mut self) -> crate::Result<Vec<PathBuf>> {
+        log_debug!("Tester '{}' does not implement render_program", &self.id());
+        Ok(vec![])
     }
 
     /// The tester should implement this to return a differ instance which is configured
@@ -493,10 +590,40 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor {
         let _ = pat_b;
         None
     }
+
+    fn pin_action_resolver(&self) -> Option<Resolver> {
+        None
+    }
+}
+
+// This stuff derived from here: https://stackoverflow.com/questions/30353462/how-to-clone-a-struct-storing-a-boxed-trait-object
+pub trait TesterAPIClone {
+    fn clone_box(&self) -> Box<dyn TesterAPI + Send>;
+}
+
+impl<T> TesterAPIClone for T
+where
+    T: 'static + TesterAPI + Clone + Send,
+{
+    fn clone_box(&self) -> Box<dyn TesterAPI + Send> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn TesterAPI + Send> {
+    fn clone(&self) -> Box<dyn TesterAPI + Send> {
+        self.clone_box()
+    }
 }
 
 impl PartialEq<TesterSource> for dyn TesterAPI {
     fn eq(&self, g: &TesterSource) -> bool {
-        self.to_string() == g.to_string()
+        self.id() == g.id()
+    }
+}
+
+impl std::hash::Hash for dyn TesterAPI {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id().hash(state);
     }
 }

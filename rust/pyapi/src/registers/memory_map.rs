@@ -252,7 +252,7 @@ impl PyObjectProtocol for MemoryMap {
         // is returned.
         if query == "regs" {
             let ab_id = dut.get_memory_map(self.id)?.get_address_block_id("default");
-            let pyref = PyRef::new(
+            let pyobj = Py::new(
                 py,
                 RegisterCollection {
                     address_block_id: match ab_id {
@@ -265,9 +265,9 @@ impl PyObjectProtocol for MemoryMap {
                 },
             )?;
 
-            Ok(pyref.to_object(py))
+            Ok(pyobj.to_object(py))
         } else if query == "address_blocks" {
-            Ok(PyRef::new(
+            Ok(Py::new(
                 py,
                 AddressBlocks {
                     memory_map_id: self.id,
@@ -282,14 +282,14 @@ impl PyObjectProtocol for MemoryMap {
 
             match map.get_address_block_id(query) {
                 Ok(id) => {
-                    let pyref = PyRef::new(
+                    let pyobj = Py::new(
                         py,
                         AddressBlock {
                             id: id,
                             name: query.to_string(),
                         },
                     )?;
-                    Ok(pyref.to_object(py))
+                    Ok(pyobj.to_object(py))
                 }
                 Err(_) => Err(AttributeError::py_err(format!(
                     "'MemoryMap' object has no attribute '{}'",
@@ -299,7 +299,7 @@ impl PyObjectProtocol for MemoryMap {
         }
     }
 
-    fn __richcmp__(&self, other: &MemoryMap, op: CompareOp) -> PyResult<bool> {
+    fn __richcmp__(&self, other: PyRef<'p, MemoryMap>, op: CompareOp) -> PyResult<bool> {
         match op {
             CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
             CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),

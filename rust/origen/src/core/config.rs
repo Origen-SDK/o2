@@ -1,5 +1,5 @@
 //! Collects the main Origen configuration options from all origen.toml files
-//! found in the application and Origen installation file system paths
+//! found in the application and Origen CLI installation file system paths
 //!
 //! # Examples
 //!
@@ -12,7 +12,6 @@
 use super::term;
 use crate::STATUS;
 use config::{Environment, File};
-use std::env;
 use std::path::PathBuf;
 
 lazy_static! {
@@ -50,12 +49,14 @@ impl Default for Config {
         if let Some(app) = &STATUS.app {
             let mut path = app.root.join("config");
             let f = path.join("origen.toml");
+            log_trace!("Looking for Origen config file at '{}'", f.display());
             if f.exists() {
                 files.push(f);
             }
 
             while path.pop() {
                 let f = path.join("origen.toml");
+                log_trace!("Looking for Origen config file at '{}'", f.display());
                 if f.exists() {
                     files.push(f);
                 }
@@ -63,21 +64,25 @@ impl Default for Config {
         }
 
         // TODO: Should this be the Python installation dir?
-        let mut path = env::current_exe().unwrap();
-        let f = path.join("origen.toml");
-        if f.exists() {
-            files.push(f);
-        }
-
-        while path.pop() {
+        if let Some(mut path) = STATUS.cli_location() {
             let f = path.join("origen.toml");
+            log_trace!("Looking for Origen config file at '{}'", f.display());
             if f.exists() {
                 files.push(f);
+            }
+
+            while path.pop() {
+                let f = path.join("origen.toml");
+                log_trace!("Looking for Origen config file at '{}'", f.display());
+                if f.exists() {
+                    files.push(f);
+                }
             }
         }
 
         // Now add in the files, with the last one found taking lowest priority
         for f in files.iter().rev() {
+            log_trace!("Loading Origen config file from '{}'", f.display());
             match s.merge(File::with_name(&format!("{}", f.display()))) {
                 Ok(_) => {}
                 Err(error) => {

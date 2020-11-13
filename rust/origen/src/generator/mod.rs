@@ -6,6 +6,7 @@ pub mod processor;
 pub mod processors;
 pub mod stil;
 mod test_manager;
+pub mod utility;
 
 pub use test_manager::TestManager;
 
@@ -15,6 +16,12 @@ mod tests {
     use crate::generator::processors::*;
     use crate::generator::TestManager;
 
+    fn reg_write_node() -> Node {
+        let mut trans = crate::Transaction::new_write(0x12345678_u32.into(), 32).unwrap();
+        trans.reg_id = Some(10);
+        node!(RegWrite, trans)
+    }
+
     #[test]
     fn basic_ast_creation_and_processor_test() {
         let test = TestManager::new();
@@ -23,8 +30,7 @@ mod tests {
         let c = node!(Comment, 1, "Hello".to_string());
         test.push(c);
 
-        let reg_trans = node!(RegWrite, 10, 0x12345678_u32.into(), None, None);
-        let tid = test.push_and_open(reg_trans);
+        let tid = test.push_and_open(reg_write_node());
         let c = node!(Comment, 1, "Should be inside reg transaction".to_string());
         test.push(c);
         let cyc = node!(Cycle, 1, false);
@@ -39,7 +45,7 @@ mod tests {
         let mut ast1 = AST::new();
         ast1.push_and_open(node!(Test, "trim_vbgap".to_string()));
         ast1.push(node!(Comment, 1, "Hello".to_string()));
-        let r = ast1.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let r = ast1.push_and_open(reg_write_node());
         ast1.push(node!(
             Comment,
             1,
@@ -62,7 +68,7 @@ mod tests {
         let mut ast2 = AST::new();
         ast2.push_and_open(node!(Test, "trim_vbgap".to_string()));
         ast2.push(node!(Comment, 1, "Hello".to_string()));
-        let r = ast2.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let r = ast2.push_and_open(reg_write_node());
         ast2.push(node!(
             Comment,
             1,
@@ -89,7 +95,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "trim_vbgap".to_string()));
         ast.push(node!(Comment, 1, "HELLO".to_string()));
-        let r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let r = ast.push_and_open(reg_write_node());
         ast.push(node!(
             Comment,
             1,
@@ -116,7 +122,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "trim_vbgap".to_string()));
         ast.push(node!(Comment, 1, "HELLO".to_string()));
-        let r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let r = ast.push_and_open(reg_write_node());
         ast.push(node!(
             Comment,
             1,
@@ -141,9 +147,8 @@ mod tests {
         let test = TestManager::new();
 
         test.start("t1");
-        let reg_trans = node!(RegWrite, 10, 0x12345678_u32.into(), None, None);
         test.push(node!(Cycle, 1, false));
-        let _tid = test.push_and_open(reg_trans);
+        let _tid = test.push_and_open(reg_write_node());
         test.push(node!(Cycle, 1, false));
         test.push(node!(Cycle, 1, true));
         test.push(node!(Cycle, 1, true));
@@ -151,7 +156,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 1, true));
@@ -163,7 +168,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 5, false));
@@ -175,7 +180,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 10, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 5, false));
@@ -197,7 +202,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 15, true));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 10, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 5, false));
@@ -207,7 +212,7 @@ mod tests {
 
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t2".to_string()));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 10, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 5, false));
@@ -219,9 +224,8 @@ mod tests {
         let test = TestManager::new();
 
         test.start("t1");
-        let reg_trans = node!(RegWrite, 10, 0x12345678_u32.into(), None, None);
         test.push(node!(Cycle, 1, false));
-        let _tid = test.push_and_open(reg_trans);
+        let _tid = test.push_and_open(reg_write_node());
         test.push(node!(Cycle, 1, false));
         test.push(node!(Cycle, 1, true));
         test.push(node!(Cycle, 1, true));
@@ -229,7 +233,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 1, true));
@@ -241,7 +245,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 1, true));
@@ -254,7 +258,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
         ast.push(node!(Cycle, 7, false));
@@ -267,7 +271,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 8, false));
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
@@ -284,7 +288,7 @@ mod tests {
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 9, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 8, false));
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
@@ -300,7 +304,7 @@ mod tests {
         ast.push(node!(Cycle, 10, false));
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 9, false));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 8, false));
         ast.push(node!(Cycle, 1, false));
         ast.push(node!(Cycle, 1, true));
@@ -316,8 +320,7 @@ mod tests {
 
         test.start("t1");
         test.push(node!(Cycle, 1, true));
-        let reg_trans = node!(RegWrite, 10, 0x12345678_u32.into(), None, None);
-        let _tid = test.push_and_open(reg_trans);
+        let _tid = test.push_and_open(reg_write_node());
         test.push(node!(Cycle, 2, true));
         test.push(node!(Cycle, 3, true));
         test.push(node!(Cycle, 4, true));
@@ -337,7 +340,7 @@ mod tests {
         let mut ast = AST::new();
         ast.push_and_open(node!(Test, "t1".to_string()));
         ast.push(node!(Cycle, 1, true));
-        let _r = ast.push_and_open(node!(RegWrite, 10, 0x12345678_u32.into(), None, None));
+        let _r = ast.push_and_open(reg_write_node());
         ast.push(node!(Cycle, 2, true));
         ast.push(node!(Cycle, 3, true));
         ast.push(node!(Cycle, 5, true));

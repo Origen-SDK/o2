@@ -1,6 +1,5 @@
 //! A simple processor which will combine pin actions not separated by a cycle into a single PinAction node
 
-use crate::core::model::pins::pin::PinActions;
 use crate::generator::ast::*;
 use crate::generator::processor::*;
 use crate::Result;
@@ -8,10 +7,11 @@ use std::collections::HashMap;
 
 /// Combines adjacent pin actions into a single pin action
 pub struct PinActionCombiner {
-    current_state: HashMap<String, (PinActions, u8)>,
+    current_state: HashMap<usize, String>,
     i: usize,
     first_pass: bool,
-    updated_indices: Vec<usize>,
+    delete_current_index: bool,
+    indices_to_delete: Vec<usize>,
 }
 
 /// Combines pin actions so that only pin actions which change the pin states are left.
@@ -26,7 +26,8 @@ impl PinActionCombiner {
             current_state: HashMap::new(),
             i: 0,
             first_pass: true,
-            updated_indices: vec![],
+            delete_current_index: false,
+            indices_to_delete: vec![],
         };
 
         node.process(&mut p)?.unwrap();
@@ -45,41 +46,55 @@ impl Processor for PinActionCombiner {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         match &node.attrs {
             // Grab the pins and push them into the running vectors, then delete this node.
-            Attrs::PinAction(pin_changes) => {
+            Attrs::PinGroupAction(_grp_id, _actions, _metadata) => {
                 if self.first_pass {
-                    // Compare to the last seen pin actions. If these are the same, then this node can be deleted on the next pass.
-                    // If they're different, then these updates must be saved.
-                    for (n, state) in pin_changes.iter() {
-                        if let Some(_state) = self.current_state.get_mut(n) {
-                            if _state.0 != state.0 || _state.1 != state.1 {
-                                // Update both in case they both changed. Quicker just to do the update than to add a bunch of conditionals.
-                                _state.0 = state.0;
-                                _state.1 = state.1;
-                                self.updated_indices.push(self.i);
-                            }
-                        } else {
-                            self.current_state.insert(n.to_string(), *state);
-                            self.updated_indices.push(self.i);
-                        }
-                    }
-                    self.i += 1;
-                    Ok(Return::Unmodified)
+                    // On the first pass, only mark the pin group's index
+                    self.delete_current_index = true;
+                    Ok(Return::ProcessChildren)
                 } else {
-                    // Delete any pin action nodes whose indice is not presetn in the saved indices
-                    if self.updated_indices.contains(&self.i) {
-                        self.i += 1;
-                        Ok(Return::Unmodified)
-                    } else {
+                    // On the second pass, delete the pin group if necessary
+                    if self.indices_to_delete.contains(&self.i) {
                         self.i += 1;
                         Ok(Return::None)
+                    } else {
+                        self.i += 1;
+                        Ok(Return::Unmodified)
                     }
                 }
             }
-            _ => {
-                // For all other nodes, just advance.
-                self.i += 1;
-                Ok(Return::ProcessChildren)
+            Attrs::PinAction(pin_id, action, _metadata) => {
+                if self.first_pass {
+                    // Compare to the last seen pin actions. If these are the same, then this node can be deleted on the next pass.
+                    // If they're different, then these updates must be saved.
+                    if let Some(a) = self.current_state.get_mut(pin_id) {
+                        if a != action {
+                            self.delete_current_index = false;
+                            self.current_state.insert(*pin_id, action.clone());
+                        }
+                    } else {
+                        self.current_state.insert(*pin_id, action.clone());
+                        self.delete_current_index = false;
+                    }
+                }
+                Ok(Return::Unmodified)
             }
+            _ => Ok(Return::ProcessChildren),
+        }
+    }
+
+    fn on_end_of_block(&mut self, node: &Node) -> Result<Return> {
+        match &node.attrs {
+            Attrs::PinGroupAction(_grp_id, _actions, _metadata) => {
+                if self.first_pass {
+                    if self.delete_current_index {
+                        self.indices_to_delete.push(self.i);
+                    }
+                    self.delete_current_index = false;
+                }
+                self.i += 1;
+                Ok(Return::None)
+            }
+            _ => Ok(Return::None),
         }
     }
 }

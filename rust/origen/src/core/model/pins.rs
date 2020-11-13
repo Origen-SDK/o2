@@ -1,20 +1,476 @@
 pub mod pin;
-pub mod pin_collection;
 pub mod pin_group;
 pub mod pin_header;
+pub mod pin_store;
 use super::super::dut::Dut;
 use crate::error::Error;
-use std::convert::TryFrom;
+use crate::generator::ast::Node;
+use crate::standards::actions::*;
+use crate::testers::vector_based::api::{cycle, repeat, repeat2, repeat2_node};
+use crate::{node, Transaction, TEST};
 
 use regex::Regex;
 
 use super::Model;
-use crate::push_pin_actions;
 use indexmap::IndexMap;
-use pin::{Pin, PinActions};
-use pin_collection::PinCollection;
+use pin::{Pin, PinAction, ResolvePinActions};
 use pin_group::PinGroup;
-use std::collections::HashMap;
+use pin_store::PinStore;
+
+pub type PinGroupIdendifer = (usize, String);
+
+#[derive(Debug, Clone)]
+pub struct PinCollection<'a> {
+    grp_ids: Option<Vec<(usize, usize)>>,
+    pins: Vec<&'a Pin>,
+}
+
+impl<'a> PinCollection<'a> {
+    pub fn from_group(dut: &'a crate::Dut, grp_name: &str, model_id: usize) -> crate::Result<Self> {
+        let pins = dut._resolve_to_flattened_pins(&vec![(model_id, grp_name.to_string())])?;
+        Ok(Self {
+            grp_ids: Some(vec![(
+                dut._get_pin_group(model_id, grp_name)?.id,
+                pins.len(),
+            )]),
+            pins: pins,
+        })
+    }
+
+    pub fn from_pin_store(dut: &'a crate::Dut, ps: &PinStore) -> crate::Result<Self> {
+        Ok(Self {
+            grp_ids: None,
+            pins: ps.pin_ids.iter().map(|id| &dut.pins[*id]).collect(),
+        })
+    }
+
+    pub fn from_pin_group(dut: &'a crate::Dut, grp: &PinGroup) -> crate::Result<Self> {
+        Ok(Self {
+            grp_ids: Some(vec![(grp.id, grp.pin_ids.len())]),
+            pins: grp.pin_ids.iter().map(|id| &dut.pins[*id]).collect(),
+        })
+    }
+
+    // Haven't actually used this yet, so commenting it out until its needed in case it needs more work - coreyeng
+    // pub fn from_groups(dut: &crate::Dut, grps: Vec<(usize, &str)>) -> crate::Result<Self> {
+    //     let mut grp_ids = vec!();
+    //     let mut p_ids: Vec<usize> = vec!();
+    //     for grp in grps.iter() {
+    //         let mut ids: Vec<usize> = dut._resolve_group_to_physical_pins(
+    //             grp.0,
+    //             grp.1
+    //         )?.iter().map( |p| p.id).collect();
+    //         grp_ids.push((dut._get_pin_group(grp.0, grp.1)?.id, ids.len()));
+    //         p_ids.append(&mut ids);
+    //     }
+    //     let mut temp = p_ids.clone();
+    //     temp.sort();
+    //     temp.dedup();
+    //     if p_ids.len() != temp.len() {
+    //         return Err(Error::new(&format!(
+    //             "Duplicate physical pins detected when creating PinBus from {:?} - (resolved pin IDs: {:?}, unique pin IDs {:?})",
+    //             grps,
+    //             p_ids,
+    //             temp
+    //         )))
+    //     }
+    //     Ok(Self {
+    //         grp_ids: Some(grp_ids),
+    //         pin_ids: p_ids
+    //     })
+    // }
+
+    pub fn pin_names(&self) -> Vec<String> {
+        self.pins.iter().map(|p| p.name.to_string()).collect()
+    }
+
+    pub fn contains_group_identifier(
+        &self,
+        dut: &Dut,
+        id: PinGroupIdendifer,
+    ) -> crate::Result<bool> {
+        // A pin collection contains a pin group if all of the pin_ids in the
+        // group are present and adjacent to one another. For example, if the
+        // pin ids for a group are [0, 1, 2], then a collection of:
+        // [3, 0, 1, 2, 4, 5] would contain pin group, but a collection of
+        // [0, 3, 1, 4, 2, 5] would not, even though all the pins are present.
+        let grp = dut._get_pin_group(id.0, &id.1)?;
+        Ok(self.contains(&grp.pin_ids))
+    }
+
+    pub fn as_ids(&self) -> Vec<usize> {
+        self.pins.iter().map(|p| p.id).collect()
+    }
+
+    fn contains(&self, query_ids: &Vec<usize>) -> bool {
+        let p_ids = self.as_ids();
+        if query_ids.len() == 0 {
+            return false;
+        }
+
+        if let Some(pos) = p_ids.iter().position(|&i| i == *query_ids.first().unwrap()) {
+            for (idx, id) in query_ids[1..].iter().enumerate() {
+                if *id != p_ids[pos + idx] {
+                    return false;
+                }
+            }
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Applies the drive-high symbol to all the pins on this bus and pushes them to the AST
+    pub fn drive_high(&self) -> &Self {
+        TEST.append(&mut self.drive_high_nodes());
+        &self
+    }
+
+    /// Applies the drive-high symbol to all the pins on this bus and returns the nodes without pushing them to the AST
+    pub fn drive_high_nodes(&self) -> Vec<Node> {
+        self.drive_nodes(true)
+    }
+
+    /// Identical to "drive_high" except uses the drive-low symbol instead
+    pub fn drive_low(&self) -> &Self {
+        TEST.append(&mut self.drive_low_nodes());
+        &self
+    }
+
+    /// Identical to "drive_low_nodes" except uses the drive-low symbol instead
+    pub fn drive_low_nodes(&self) -> Vec<Node> {
+        self.drive_nodes(false)
+    }
+
+    /// Drives all pins to either the drive-high character, if 'state' is true,
+    /// or the drive-low character, if the 'state is false
+    pub fn drive(&self, state: bool) -> &Self {
+        TEST.append(&mut self.drive_nodes(state));
+        &self
+    }
+
+    pub fn drive_nodes(&self, state: bool) -> Vec<Node> {
+        if state {
+            self.set_action_nodes(DRIVE_HIGH)
+        } else {
+            self.set_action_nodes(DRIVE_LOW)
+        }
+    }
+
+    pub fn verify_high(&self) -> &Self {
+        TEST.append(&mut self.verify_high_nodes());
+        &self
+    }
+
+    pub fn verify_high_nodes(&self) -> Vec<Node> {
+        self.verify_nodes(true)
+    }
+
+    pub fn verify_low(&self) -> &Self {
+        TEST.append(&mut self.verify_low_nodes());
+        &self
+    }
+
+    pub fn verify_low_nodes(&self) -> Vec<Node> {
+        self.verify_nodes(false)
+    }
+
+    pub fn verify(&self, state: bool) -> &Self {
+        TEST.append(&mut self.verify_nodes(state));
+        &self
+    }
+
+    pub fn verify_nodes(&self, state: bool) -> Vec<Node> {
+        if state {
+            self.set_action_nodes(VERIFY_HIGH)
+        } else {
+            self.set_action_nodes(VERIFY_LOW)
+        }
+    }
+
+    pub fn capture(&self) -> &Self {
+        TEST.append(&mut self.capture_nodes());
+        &self
+    }
+
+    pub fn capture_nodes(&self) -> Vec<Node> {
+        self.set_action_nodes(CAPTURE)
+    }
+
+    pub fn highz(&self) -> &Self {
+        TEST.append(&mut self.highz_nodes());
+        &self
+    }
+
+    pub fn highz_nodes(&self) -> Vec<Node> {
+        self.set_action_nodes(HIGHZ)
+    }
+
+    /// Sets all the pins in this bus to an arbitrary action, pushing the nodes onto the AST
+    pub fn set_action(&self, action: &str) -> &Self {
+        TEST.append(&mut self.set_action_nodes(action));
+        &self
+    }
+
+    pub fn set_actions<T: AsRef<str> + std::fmt::Display>(
+        &self,
+        actions: &Vec<T>,
+    ) -> crate::Result<&Self> {
+        if actions.len() != self.pins.len() {
+            return Err(Error::new(&format!(
+                "Error in PinCollection (set_actions): Expected length of actions ({}) to equal length of pin collection ({})",
+                actions.len(),
+                self.pins.len()
+            )));
+        }
+        for (i, a) in actions.iter().enumerate() {
+            let p = &self.pins[i];
+            let mut paction = p.action.write().unwrap();
+            *paction = PinAction::new(a);
+            TEST.push(node!(PinAction, p.id, a.to_string(), None));
+        }
+
+        Ok(&self)
+    }
+
+    /// Sets all the pins in this bus to an arbitrary action, returning the nodes without pushing to the AST
+    pub fn set_action_nodes(&self, action: &str) -> Vec<Node> {
+        if let Some(grps) = &self.grp_ids {
+            let mut retn = vec![];
+            let mut pin_ids_offset = 0;
+            for (_i, grp) in grps.iter().enumerate() {
+                let mut grp_node = node!(
+                    PinGroupAction,
+                    grp.0,
+                    vec![action.to_string(); self.pins.len()],
+                    None
+                );
+                grp_node.add_children(
+                    (0..grp.1)
+                        .map(|pin_i| {
+                            let p = &self.pins[pin_ids_offset + pin_i];
+                            let mut paction = p.action.write().unwrap();
+                            *paction = PinAction::new(action);
+
+                            node!(PinAction, p.id, action.to_string(), None)
+                        })
+                        .collect(),
+                );
+                retn.push(grp_node);
+                pin_ids_offset += grp.1;
+            }
+            retn
+        } else {
+            self.pins
+                .iter()
+                .map(|p| {
+                    let mut paction = p.action.write().unwrap();
+                    *paction = PinAction::new(action);
+                    node!(PinAction, p.id, action.to_string(), None)
+                })
+                .collect()
+        }
+    }
+
+    /// Sets the pin actions per the given transaction
+    /// Differs from "push_transaction" in that this is verified to fit within a single
+    /// pin-action update. That is, the transaction width should match the PinCollection width exactly
+    pub fn set_from_transaction(&self, trans: &Transaction) -> crate::Result<&Self> {
+        TEST.append(&mut self.set_from_transaction_nodes(trans)?);
+        Ok(&self)
+    }
+
+    pub fn set_from_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
+        self.verify_size(trans)?;
+        let bit_actions = trans.to_symbols()?;
+        self.update_from_bit_actions(&bit_actions)
+    }
+
+    pub fn get_actions(&self) -> Vec<PinAction> {
+        self.pins
+            .iter()
+            .map(|p| p.action.read().unwrap().clone())
+            .collect()
+    }
+
+    pub fn get_reset_actions(&self) -> Vec<PinAction> {
+        self.pins
+            .iter()
+            .map(|p| {
+                if let Some(ra) = &p.reset_action {
+                    ra.clone()
+                } else {
+                    PinAction::highz()
+                }
+            })
+            .collect()
+    }
+
+    pub fn reset(&self) -> &Self {
+        self.pins.iter().for_each(|p| {
+            let a;
+            if let Some(ra) = &p.reset_action {
+                a = ra.clone();
+            } else {
+                a = PinAction::highz();
+            }
+            let mut paction = p.action.write().unwrap();
+            *paction = a.clone();
+            TEST.push(node!(PinAction, p.id, a.to_string(), None));
+        });
+        &self
+    }
+
+    fn verify_size(&self, trans: &Transaction) -> crate::Result<()> {
+        if trans.width != self.pins.len() {
+            Err(Error::new(&format!(
+                "Error in PinCollection: Transaction of width {} does not match PinCollection size {}. PC: {:?}, Transaction: {:?}",
+                trans.width,
+                self.pins.len(),
+                self,
+                trans
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Internal function to update all pins in this collection from a single PinAction
+    fn update_from_bit_actions(&self, bit_actions: &Vec<String>) -> crate::Result<Vec<Node>> {
+        let mut action_nodes: Vec<Node> = vec![];
+
+        let mut this_grp_nodes: Vec<Node> = vec![];
+        let mut this_grp_action: Vec<String> = vec![];
+        let mut current_cnt = 0;
+        let mut grp_idx = 0;
+
+        for (i, bit_action) in bit_actions.iter().enumerate() {
+            if self.grp_ids.is_some() {
+                let p = &self.pins[i];
+                this_grp_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
+                this_grp_action.push(bit_action.to_string());
+                let mut paction = p.action.write().unwrap();
+                *paction = PinAction::new(bit_action);
+                current_cnt += 1;
+                if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
+                    let mut n = node!(
+                        PinGroupAction,
+                        self.grp_ids.as_ref().unwrap()[grp_idx].0,
+                        this_grp_action,
+                        None
+                    );
+                    n.add_children(this_grp_nodes);
+                    action_nodes.push(n);
+                    this_grp_nodes = vec![];
+                    grp_idx += 1;
+                    current_cnt = 0;
+                    this_grp_action = vec![];
+                }
+            } else {
+                // no pin groups. Just push the straight pins
+                let p = &self.pins[i];
+                let mut paction = p.action.write().unwrap();
+                *paction = PinAction::new(bit_action);
+                action_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
+            }
+        }
+        Ok(action_nodes)
+    }
+
+    /// Generates a transaction on the pin bus and pushes the nodes to the AST
+    pub fn push_transaction(&self, trans: &Transaction) -> crate::Result<&Self> {
+        TEST.append(&mut self.push_transaction_nodes(trans)?);
+        Ok(&self)
+    }
+
+    /// Generate a transaction on the pin bus. The data, data width, operation, and overlay settings should
+    /// all be encapsulated in the transaction struct
+    pub fn push_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
+        let bit_actions = trans.to_symbols()?;
+        let mut pin_states: Vec<Node> = vec![];
+
+        for (_idx, chunk) in bit_actions.chunks(self.pins.len()).enumerate() {
+            let mut this_cycle: Vec<Node> = vec![];
+            let mut this_grp_nodes: Vec<Node> = vec![];
+            let mut this_grp_action: Vec<String> = vec![];
+            let mut current_cnt = 0;
+            let mut grp_idx = 0;
+
+            for (pos, bit_action) in chunk.iter().enumerate() {
+                if self.grp_ids.is_some() {
+                    let p = &self.pins[pos];
+                    this_grp_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
+                    this_grp_action.push(bit_action.to_string());
+                    let mut paction = p.action.write().unwrap();
+                    *paction = PinAction::new(bit_action);
+                    current_cnt += 1;
+                    if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
+                        let mut n = node!(
+                            PinGroupAction,
+                            self.grp_ids.as_ref().unwrap()[grp_idx].0,
+                            this_grp_action,
+                            None
+                        );
+                        n.add_children(this_grp_nodes);
+                        this_cycle.push(n);
+                        this_grp_nodes = vec![];
+                        grp_idx += 1;
+                        current_cnt = 0;
+                        this_grp_action = vec![];
+                    }
+                } else {
+                    // no pin groups. Just push the straight pins
+                    let p = &self.pins[pos];
+                    let mut paction = p.action.write().unwrap();
+                    *paction = PinAction::new(bit_action);
+                    this_cycle.push(node!(PinAction, p.id, bit_action.to_string(), None));
+                }
+            }
+            // Push the cycle updates and cycle the tester
+            pin_states.append(&mut this_cycle);
+            pin_states.push(repeat2_node(1, !trans.overlay_string.is_some()));
+        }
+        Ok(pin_states)
+    }
+
+    /// Push a cycle to the AST
+    pub fn cycle(&self) -> &Self {
+        cycle();
+        &self
+    }
+
+    /// Add number of compressed cycles indicated by count
+    pub fn repeat(&self, count: u32) -> &Self {
+        repeat(count);
+        &self
+    }
+
+    /// Repeat with two arguments - count and compressable
+    pub fn repeat2(&self, count: u32, compressable: bool) -> &Self {
+        repeat2(count, compressable);
+        &self
+    }
+
+    // /// Find the most recent nodes in the AST which set the current pin action and update the internal pin state accordingly
+    // pub fn update_actions(&self, dut: &crate::Dut) -> crate::Result<()> {
+    //     let mut pins_to_update = self.pin_ids.clone();
+    //     let mut cnt = 0;
+    //     while pins_to_update.len() > 0 {
+    //         match TEST.get_with_descendants(cnt)?.attrs {
+    //             Attrs::PinAction(pin_id, symbol, _metadata) => {
+    //                 let pos = pins_to_update.iter().position( |i| *i == pin_id);
+    //                 if let Some(p) = pos {
+    //                     pins_to_update.remove(p);
+    //                     *dut.pins[pin_id].action.write().unwrap() = PinActions::from_delimiter_optional(&symbol)?;
+    //                 }
+    //             }
+    //             _ => {}
+    //         }
+    //         cnt += 1;
+    //     }
+    //     Ok(())
+    // }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub enum Endianness {
@@ -28,24 +484,17 @@ impl Model {
         pin_group_id: usize,
         physical_pin_id: usize,
         name: &str,
-        reset_data: Option<u32>,
-        reset_action: Option<PinActions>,
+        reset_action: Option<PinAction>,
         endianness: Option<Endianness>,
     ) -> Result<(PinGroup, Pin), Error> {
         let pin_group = PinGroup::new(
             self.id,
             pin_group_id,
-            name.to_string(),
-            vec![name.to_string()],
+            name,
+            vec![physical_pin_id],
             endianness,
         );
-        let physical_pin = Pin::new(
-            self.id,
-            physical_pin_id,
-            name.to_string(),
-            reset_data,
-            reset_action,
-        );
+        let physical_pin = Pin::new(self.id, physical_pin_id, name.to_string(), reset_action);
         self.pin_groups.insert(name.to_string(), pin_group_id);
         self.pins.insert(name.to_string(), physical_pin_id);
         Ok((pin_group, physical_pin))
@@ -55,10 +504,16 @@ impl Model {
         &mut self,
         pin_group_id: usize,
         name: &str,
-        pins: Vec<String>,
+        pin_ids: Vec<usize>,
         endianness: Option<Endianness>,
     ) -> Result<PinGroup, Error> {
-        let pin_group = PinGroup::new(self.id, pin_group_id, name.to_string(), pins, endianness);
+        let pin_group = PinGroup::new(
+            self.id,
+            pin_group_id,
+            &name.to_string(),
+            pin_ids,
+            endianness,
+        );
         self.pin_groups.insert(name.to_string(), pin_group_id);
         Ok(pin_group)
     }
@@ -85,8 +540,7 @@ impl Dut {
         name: &str,
         width: Option<u32>,
         offset: Option<u32>,
-        reset_data: Option<u32>,
-        reset_action: Option<String>,
+        reset_action: Option<Vec<PinAction>>,
         endianness: Option<Endianness>,
     ) -> Result<&PinGroup, Error> {
         // Check some of the parameters before we go much further. We can error out quickly if something is awry.
@@ -103,29 +557,20 @@ impl Dut {
             )));
         }
 
-        let mut rdata = None;
-        let mut raction: Option<Vec<u8>> = None;
-
-        // Check that the given reset data fits within the width of the pins to add.
-        if let Some(r) = reset_data {
-            self.verify_data_fits(width.unwrap_or(1), r)?;
-            rdata = Some(r);
+        // Check that the given reset pin actions fit within the width of the pins to add and that they
+        // are valid pin action characters.
+        if let Some(ref r) = reset_action {
+            if r.len() != (width.unwrap_or(1) as usize) {
+                return Err(Error::new(&format!(
+                    "PinActions of length {} must match width {}!",
+                    r.len(),
+                    width.unwrap_or(1)
+                )));
+            }
         }
-
-        // // Check that the given reset pin actions fit within the width of the pins to add and that they
-        // // are valid pin action characters.
-        if let Some(r) = reset_action {
-            let mut temp = r.into_bytes();
-            temp.reverse();
-            raction = Some(temp.clone());
-        }
-        if raction.is_some() {
-            self.verify_action_string_fits(width.unwrap_or(1), &raction.clone().unwrap())?;
-        }
-        //raction2 = raction.clone();
 
         // Resolve the names first - if there's a problem with one of the names, an error will generated here but passed up
-        // to the frontend, which should end the progrma. Howvever, the user could catch the exception, which would leave the
+        // to the frontend, which should end the program. However, the user could catch the exception, which would leave the
         // backend here in half-complete state.
         // Just to be safe, resolve and check the names first before adding anything.
         let mut names: Vec<String> = vec![];
@@ -162,17 +607,18 @@ impl Dut {
         }
         {
             let model = &mut self.models[model_id];
-            let (mut rd, mut ra) = (None, None);
+            let mut ra = None;
             for (i, n) in names.iter().enumerate() {
-                if let Some(r) = rdata {
-                    rd = Some(r & 0x1);
-                    rdata = Some(r >> 1);
+                if let Some(ref r) = reset_action {
+                    ra = Some(r[i].clone());
                 }
-                if raction.is_some() {
-                    ra = Some(PinActions::try_from(raction.clone().unwrap()[i])?);
-                }
-                let (pin_group, mut physical_pin) =
-                    model.register_pin(pin_group_id, physical_pin_id, &n, rd, ra, endianness)?;
+                let (pin_group, mut physical_pin) = model.register_pin(
+                    pin_group_id,
+                    physical_pin_id,
+                    &n,
+                    ra.clone(),
+                    endianness,
+                )?;
                 if names.len() > 1 {
                     physical_pin.groups.insert(name.to_string(), i);
                 }
@@ -202,27 +648,27 @@ impl Dut {
             )));
         }
 
-        let (grp, names, id);
+        let (grp, id, ids);
         if let Some(idx) = self.models[model_id].pin_groups.get(name) {
             id = self.pin_groups.len();
             let p = &self.pin_groups[*idx];
             grp = PinGroup::new(
                 model_id,
                 id,
-                String::from(alias),
-                p.pin_names.clone(),
+                alias,
+                p.pin_ids.clone(),
                 Option::Some(p.endianness),
             );
-            names = p.pin_names.clone();
+            ids = p.pin_ids.clone();
         } else {
             return Err(Error::new(&format!(
                 "Could not alias '{}' to '{}', as '{}' doesn't exists!",
                 name, alias, name
             )));
         }
-        for n in names.iter() {
-            let pin = self._get_mut_pin(model_id, n)?;
-            pin.aliases.push(String::from(alias));
+        for pid in ids {
+            let p = &mut self.pins[pid];
+            p.aliases.push(alias.to_string())
         }
         self.models[model_id]
             .pin_groups
@@ -248,147 +694,14 @@ impl Dut {
             p.groups.insert(String::from(name), i);
         }
 
+        let ids = pnames
+            .iter()
+            .map(|p| self._get_pin(model_id, p).unwrap().id)
+            .collect();
         let model = &mut self.models[model_id];
-        //self.pin_groups.push(model.register_pin_group(id, name, physical_names, endianness)?);
         self.pin_groups
-            .push(model.register_pin_group(id, name, pnames, endianness)?);
+            .push(model.register_pin_group(id, name, ids, endianness)?);
         Ok(&self.pin_groups[id])
-    }
-
-    pub fn get_pin_data(&self, model_id: usize, names: &Vec<String>) -> Result<u32, Error> {
-        let mut data = 0;
-        for n in names.iter().rev() {
-            let p = self._get_pin(model_id, n)?;
-            data = (data << 1) + p.data;
-        }
-        Ok(data as u32)
-    }
-
-    pub fn get_pin_reset_data(&self, model_id: usize, names: &Vec<String>) -> Result<u32, Error> {
-        let mut rdata = 0;
-        for n in names.iter().rev() {
-            let p = self._get_pin(model_id, n)?;
-            rdata = (rdata << 1) + p.reset_data.unwrap_or(0);
-        }
-        Ok(rdata as u32)
-    }
-
-    pub fn reset_pin_names(&mut self, model_id: usize, names: &Vec<String>) -> Result<(), Error> {
-        for n in names.iter() {
-            let p = self._get_mut_pin(model_id, n)?;
-            p.reset();
-        }
-        Ok(())
-    }
-
-    pub fn set_pin_data(
-        &mut self,
-        model_id: usize,
-        names: &Vec<String>,
-        data: u32,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        self.data_fits_in_pins(names, data)?;
-
-        let mut d = data;
-        let mut m = (mask.unwrap_or(!(0 as usize))) as u32;
-        for n in names.iter() {
-            let p = self._get_mut_pin(model_id, n)?;
-            p.set_data(((d & 0x1) & (m & 0x1)) as u8)?;
-            d = d >> 1;
-            m = m >> 1;
-        }
-        Ok(())
-    }
-
-    pub fn get_pin_actions(&self, model_id: usize, names: &Vec<String>) -> Result<String, Error> {
-        let mut s = String::from("");
-        for n in names.iter() {
-            let p = self._get_pin(model_id, n)?;
-            s += &(p.action.as_char()).to_string();
-        }
-        Ok(s)
-    }
-
-    pub fn get_pin_reset_actions(
-        &self,
-        model_id: usize,
-        names: &Vec<String>,
-    ) -> Result<String, Error> {
-        let mut s = String::from("");
-        for n in names.iter() {
-            let p = self._get_pin(model_id, n)?;
-            s += &(p.reset_action.unwrap_or(PinActions::HighZ).as_char()).to_string();
-        }
-        Ok(s)
-    }
-
-    pub fn set_pin_actions(
-        &mut self,
-        model_id: usize,
-        names: &Vec<String>,
-        action: PinActions,
-        data: Option<u32>,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        if let Some(d) = data {
-            self.set_pin_data(model_id, names, d, mask)?;
-        }
-
-        let mut m = (mask.unwrap_or(!(0 as usize))) as u32;
-        let mut resolved_actions: HashMap<String, (PinActions, u8)> = HashMap::new();
-        for (_i, n) in names.iter().rev().enumerate() {
-            let p = self._get_mut_pin(model_id, n)?;
-
-            if m & 0x1 == 1 {
-                p.action = action;
-            } else {
-                p.action = PinActions::HighZ;
-            }
-            m >>= 1;
-
-            resolved_actions.insert(p.name.clone(), (p.action, p.data));
-        }
-        push_pin_actions!(resolved_actions);
-        Ok(())
-    }
-
-    pub fn drive_pins(
-        &mut self,
-        model_id: usize,
-        names: &Vec<String>,
-        data: Option<u32>,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        self.set_pin_actions(model_id, names, PinActions::Drive, data, mask)
-    }
-
-    pub fn verify_pins(
-        &mut self,
-        model_id: usize,
-        names: &Vec<String>,
-        data: Option<u32>,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        self.set_pin_actions(model_id, names, PinActions::Verify, data, mask)
-    }
-
-    pub fn capture_pins(
-        &mut self,
-        model_id: usize,
-        names: &Vec<String>,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        self.set_pin_actions(model_id, names, PinActions::Capture, Option::None, mask)
-    }
-
-    pub fn highz_pins(
-        &mut self,
-        model_id: usize,
-        names: &Vec<String>,
-        mask: Option<usize>,
-    ) -> Result<(), Error> {
-        self.set_pin_actions(model_id, names, PinActions::HighZ, Option::None, mask)
     }
 
     /// Given a group/collection of pin names, verify:
@@ -408,12 +721,19 @@ impl Dut {
                 for (name_str, grp_id) in self.models[model_id].pin_groups.iter() {
                     if regex.is_match(name_str) {
                         let grp = &self.pin_groups[*grp_id];
-                        for _name_str in grp.pin_names.iter() {
+                        let n = grp
+                            .pin_ids
+                            .iter()
+                            .map(|pid| self.pins[*pid].name.to_string())
+                            .collect::<Vec<String>>();
+                        for _name_str in n.iter() {
+                            // for _name_str in grp.pin_names.iter() {
                             if physical_names.contains(_name_str) {
                                 return Err(Error::new(&format!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", name_str, regex_str, _name_str)));
                             }
                         }
-                        _pin_names.extend(grp.pin_names.clone())
+                        // _pin_names.extend(grp.pin_names.clone())
+                        _pin_names.extend(n);
                     }
                 }
                 _pin_names.sort();
@@ -423,7 +743,13 @@ impl Dut {
                     return Err(Error::new(&format!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", pin_name, p.name)));
                 }
                 if let Some(p) = self.get_pin_group(model_id, pin_name) {
-                    physical_names.extend_from_slice(&p.pin_names);
+                    let n = p
+                        .pin_ids
+                        .iter()
+                        .map(|pid| self.pins[*pid].name.clone())
+                        .collect::<Vec<String>>();
+                    // physical_names.extend_from_slice(&p.pin_names);
+                    physical_names.extend_from_slice(&n);
                 }
             } else {
                 return Err(Error::new(&format!(
@@ -435,14 +761,68 @@ impl Dut {
         Ok(physical_names.clone())
     }
 
+    pub fn collect_grp_ids_as_pin_ids(
+        &self,
+        grps: &Vec<(String, usize)>,
+    ) -> crate::Result<Vec<usize>> {
+        let mut physical_ids: Vec<usize> = vec![];
+        for (_i, identifier) in grps.iter().enumerate() {
+            if identifier.0.starts_with("/") && identifier.0.ends_with("/") {
+                let mut regex_str = identifier.0.clone();
+                regex_str.pop();
+                regex_str.remove(0);
+                let regex = Regex::new(&regex_str).unwrap();
+
+                let mut _pin_names: Vec<usize> = vec![];
+                for (name_str, grp_id) in self.models[identifier.1].pin_groups.iter() {
+                    if regex.is_match(name_str) {
+                        let grp = &self.pin_groups[*grp_id];
+                        // for _name_str in grp.pin_names.iter() {
+                        //     if physical_ids.contains(&self._get_pin(identifier.1, _name_str)?.id) {
+                        //         return Err(Error::new(&format!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", name_str, regex_str, _name_str)));
+                        //     }
+                        // }
+                        for pid in grp.pin_ids.iter() {
+                            if physical_ids.contains(&pid) {
+                                return Err(Error::new(&format!(
+                                    "Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!",
+                                    name_str,
+                                    regex_str,
+                                    &self.pins[*pid].name
+                                )));
+                            }
+                        }
+                        // _pin_names.extend(grp.pin_names.iter().map( |n| self._get_pin(identifier.1, n).unwrap().id).collect::<Vec<usize>>());
+                        _pin_names.extend(&grp.pin_ids.clone());
+                    }
+                }
+                _pin_names.sort();
+                physical_ids.extend(_pin_names);
+            } else if let Some(p) = self.resolve_to_physical_pin(identifier.1, &identifier.0) {
+                if physical_ids.contains(&p.id) {
+                    return Err(Error::new(&format!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", identifier.0, p.name)));
+                }
+                if let Some(p) = self.get_pin_group(identifier.1, &identifier.0) {
+                    // physical_ids.extend(&p.pin_names.iter().map( |n| self._get_pin(identifier.1, n).unwrap().id).collect::<Vec<usize>>());
+                    physical_ids.extend(&p.pin_ids.clone());
+                }
+            } else {
+                return Err(Error::new(&format!(
+                    "Can not collect pin '{}' because it does not exist!",
+                    identifier.0
+                )));
+            }
+        }
+        Ok(physical_ids.clone())
+    }
+
     pub fn collect(
-        &mut self,
-        model_id: usize,
-        names: Vec<String>,
+        &self,
+        grps: &Vec<(String, usize)>,
         endianness: Option<Endianness>,
-    ) -> Result<PinCollection, Error> {
-        let pnames = self.verify_names(model_id, &names)?;
-        Ok(PinCollection::new(model_id, &pnames, endianness))
+    ) -> Result<PinStore, Error> {
+        let pids = self.collect_grp_ids_as_pin_ids(grps)?;
+        Ok(PinStore::new(pids, endianness))
     }
 
     pub fn pin_names_contain(
@@ -515,42 +895,9 @@ impl Dut {
 
     pub fn resolve_to_physical_pin(&self, model_id: usize, name: &str) -> Option<&Pin> {
         if let Some(grp) = self.get_pin_group(model_id, name) {
-            if let Some(physical_pin) = self.get_pin(model_id, &grp.pin_names[0]) {
-                return Option::Some(physical_pin);
-            }
+            return Some(&self.pins[grp.pin_ids[0]]);
         }
         Option::None
-    }
-
-    pub fn resolve_to_mut_physical_pin(&mut self, model_id: usize, name: &str) -> Option<&mut Pin> {
-        let n;
-        match self.get_pin_group(model_id, name) {
-            Some(grp) => {
-                n = grp.pin_names[0].clone();
-            }
-            None => return Option::None,
-        }
-        self.get_mut_pin(model_id, &n)
-    }
-
-    pub fn _resolve_to_physical_pin(&self, model_id: usize, name: &str) -> Result<&Pin, Error> {
-        match self.resolve_to_physical_pin(model_id, name) {
-            Some(p) => Ok(p),
-            None => Err(Error::new(&format!("Cannot find phyiscal pin '{}'!", name))),
-        }
-    }
-
-    pub fn resolve_pin_names(
-        &self,
-        model_id: usize,
-        names: &Vec<String>,
-    ) -> Result<Vec<String>, Error> {
-        let mut physical_names: Vec<String> = vec![];
-        for (_i, n) in names.iter().enumerate() {
-            let p = self._resolve_to_physical_pin(model_id, n)?;
-            physical_names.push(p.name.clone());
-        }
-        Ok(physical_names)
     }
 
     pub fn data_fits_in_pins(&mut self, pins: &Vec<String>, data: u32) -> Result<(), Error> {
@@ -620,31 +967,72 @@ impl Dut {
     ) -> Result<Vec<&Pin>, Error> {
         let mut retn: Vec<&Pin> = vec![];
         let grp = self._get_pin_group(model_id, name)?;
-        for p in grp.pin_names.iter() {
-            retn.push(self._get_pin(model_id, p)?);
+        for p_id in grp.pin_ids.iter() {
+            retn.push(&self.pins[*p_id]);
         }
         Ok(retn)
+    }
+
+    pub fn _resolve_groups_to_physical_pin_ids(
+        &self,
+        pins: &Vec<(usize, String)>,
+    ) -> Result<Vec<Vec<usize>>, Error> {
+        let mut retn: Vec<Vec<usize>> = vec![];
+        for lookup in pins.iter() {
+            let ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
+            retn.push(ppins.iter().map(|p| p.id).collect::<Vec<usize>>());
+        }
+        Ok(retn)
+    }
+
+    pub fn _resolve_to_flattened_pins(
+        &self,
+        pins: &Vec<(usize, String)>,
+    ) -> Result<Vec<&Pin>, Error> {
+        let mut retn: Vec<&Pin> = vec![];
+        for lookup in pins.iter() {
+            let mut ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
+            retn.append(&mut ppins);
+        }
+        Ok(retn)
+    }
+
+    /// Given a pin group name and model ID, converts it to a tuple containing:
+    ///  [0] -> Vec<usize> containing the physical pin IDs of the pins in this group
+    ///  [1] -> usize -> the resolved pin group ID
+    pub fn pin_group_to_ids(
+        &self,
+        model_id: usize,
+        pin_grp_name: &str,
+    ) -> Result<(Vec<usize>, usize), Error> {
+        let p_ids: Vec<usize> = self
+            ._resolve_group_to_physical_pins(model_id, pin_grp_name)?
+            .iter()
+            .map(|p| p.id)
+            .collect();
+        Ok((p_ids, self._get_pin_group(model_id, pin_grp_name)?.id))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct StateTracker {
-    pins: IndexMap<String, Vec<(PinActions, u8)>>,
+    pins: IndexMap<String, Vec<String>>,
     model_id: usize,
 }
 
 impl StateTracker {
     /// Creates a new state storage container. Creating a new instance populates the given groups with their reset data and actions.
     pub fn new(model_id: usize, pin_header_id: Option<usize>, dut: &Dut) -> Self {
-        let mut pins: IndexMap<String, Vec<(PinActions, u8)>> = IndexMap::new();
+        let mut pins: IndexMap<String, Vec<String>> = IndexMap::new();
         if let Some(id) = pin_header_id {
             for n in dut.pin_headers[id].pin_names.iter() {
-                let mut states: Vec<(PinActions, u8)> = vec![];
+                let mut states: Vec<String> = vec![];
                 for p in dut._resolve_group_to_physical_pins(model_id, n).unwrap() {
-                    states.push((
-                        p.reset_action.unwrap_or(PinActions::HighZ),
-                        p.reset_data.unwrap_or(0) as u8,
-                    ));
+                    if let Some(r) = p.reset_action.as_ref() {
+                        states.push(r.to_string());
+                    } else {
+                        states.push("Z".to_string());
+                    }
                 }
                 pins.insert(n.clone(), states);
             }
@@ -653,13 +1041,13 @@ impl StateTracker {
             for phys in dut.pins.iter() {
                 if phys.model_id == 0 {
                     // Note: the phys name is guaranteed to be in the pin groups, as this physical's pins pin group representation
-                    pins.insert(
-                        phys.name.clone(),
-                        vec![(
-                            phys.reset_action.unwrap_or(PinActions::HighZ),
-                            phys.reset_data.unwrap_or(0) as u8,
-                        )],
-                    );
+                    pins.insert(phys.name.clone(), {
+                        if let Some(r) = phys.reset_action.as_ref() {
+                            vec![r.to_string()]
+                        } else {
+                            vec!["Z".to_string()]
+                        }
+                    });
                 }
             }
         }
@@ -670,59 +1058,45 @@ impl StateTracker {
     }
 
     /// Given a physical pin name, action, and data, updates the state appropriately
-    pub fn update(
-        &mut self,
-        physical_pin: &str,
-        action: Option<PinActions>,
-        data: Option<u8>,
-        dut: &Dut,
-    ) -> Result<(), Error> {
-        let p = dut._get_pin(self.model_id, physical_pin)?;
-        // Check for the header pin in the aliases
-        if let Some(states) = self.pins.get_mut(physical_pin) {
-            if let Some(a) = action {
-                states[0].0 = a;
+    pub fn update(&mut self, grp_id: usize, actions: &Vec<String>, dut: &Dut) -> Result<(), Error> {
+        // for (i, physical_pin) in dut.pin_groups[grp_id].pin_names.iter().enumerate() {
+        for (i, pid) in dut.pin_groups[grp_id].pin_ids.iter().enumerate() {
+            // let p = dut._get_pin(self.model_id, &physical_pin)?;
+            let p = &dut.pins[*pid];
+            // Check for the header pin in the aliases
+            // if let Some(states) = self.pins.get_mut(physical_pin) {
+            if let Some(states) = self.pins.get_mut(&p.name) {
+                states[0] = actions[i].clone();
+                continue;
             }
-            if let Some(d) = data {
-                states[0].1 = d;
-            }
-            return Ok(());
-        }
 
-        // Check for the header pin in the groups
-        for (grp, offset) in p.groups.iter() {
-            if let Some(states) = self.pins.get_mut(grp) {
-                if let Some(a) = action {
-                    states[*offset].0 = a;
+            // Check for the header pin in the groups
+            for (grp, offset) in p.groups.iter() {
+                if let Some(states) = self.pins.get_mut(grp) {
+                    states[*offset] = actions[i].clone();
+                    continue;
                 }
-                if let Some(d) = data {
-                    states[*offset].1 = d;
-                }
-                return Ok(());
             }
-        }
 
-        // Check for the header pin in the aliases
-        for alias in p.aliases.iter() {
-            if let Some(states) = self.pins.get_mut(alias) {
-                if let Some(a) = action {
-                    states[0].0 = a;
+            // Check for the header pin in the aliases
+            for alias in p.aliases.iter() {
+                if let Some(states) = self.pins.get_mut(alias) {
+                    states[0] = actions[i].clone();
+                    continue;
                 }
-                if let Some(d) = data {
-                    states[0].1 = d;
-                }
-                return Ok(());
             }
+            // return Err(Error::new(&format!(
+            //     "Could not resolve physical pin {} to any pins in header {}",
+            //     // physical_pin,
+            //     &p.name,
+            //     self.pins
+            //         .keys()
+            //         .map(|n| n.to_string())
+            //         .collect::<Vec<String>>()
+            //         .join(", ")
+            // )));
         }
-        Err(Error::new(&format!(
-            "Could not resolve physical pin {} to any pins in header {}",
-            physical_pin,
-            self.pins
-                .keys()
-                .map(|n| n.to_string())
-                .collect::<Vec<String>>()
-                .join(", ")
-        )))
+        Ok(())
     }
 
     /// Processes the current state into a vector of 'state strings', where each string corresponds to a tester representation of the actions and data.
@@ -730,18 +1104,21 @@ impl StateTracker {
     ///     => ['1Z', '1', 'L']
     /// If a header was given, the order will be identical to that from the header. If no header was given, the order will be whatever order was when the default
     /// pins were collected.
-    pub fn as_strings(&self) -> Result<Vec<String>, Error> {
-        Ok(self
-            .pins
-            .iter()
-            .map(|(_n, states)| {
-                states
-                    .iter()
-                    .map(|(action, data)| action.as_tester_char(*data).to_string())
-                    .collect::<Vec<String>>()
-                    .join("")
-            })
-            .collect::<Vec<String>>())
+    pub fn to_symbols(
+        &self,
+        target: String,
+        _dut: &Dut,
+        t: &super::timesets::timeset::Timeset,
+    ) -> Result<Vec<String>, Error> {
+        let mut syms: Vec<String> = vec![];
+        for (_n, states) in self.pins.iter() {
+            let mut s: Vec<String> = vec![];
+            for action in states.iter() {
+                s.push(t._resolve_pin_action(target.clone(), &PinAction::new(action))?);
+            }
+            syms.push(s.join(""));
+        }
+        Ok(syms)
     }
 
     pub fn names(&self) -> Vec<String> {
@@ -749,5 +1126,14 @@ impl StateTracker {
             .keys()
             .map(|n| n.to_string())
             .collect::<Vec<String>>()
+    }
+
+    pub fn contains_action(&self, action: PinAction) -> bool {
+        for (_pin, actions) in self.pins.iter() {
+            if actions.iter().any(|a| a.to_string() == action.to_string()) {
+                return true;
+            }
+        }
+        false
     }
 }

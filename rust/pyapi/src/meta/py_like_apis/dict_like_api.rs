@@ -147,10 +147,8 @@ pub struct DictLikeIter {
 
 #[pyproto]
 impl pyo3::class::iter::PyIterProtocol for DictLikeIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(slf.to_object(py))
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        Ok(slf.into())
     }
 
     /// The Iterator will be created with an index starting at 0 and the pin names at the time of its creation.

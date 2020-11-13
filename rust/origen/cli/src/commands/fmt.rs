@@ -24,8 +24,8 @@ pub fn run() {
 
     let root = match STATUS.is_origen_present {
         true => {
-            starting("example ... ");
-            STATUS.origen_wksp_root.join("example")
+            starting("python_app ... ");
+            STATUS.origen_wksp_root.join("test_apps").join("python_app")
         }
         false => {
             starting("formatting ... ");
@@ -53,7 +53,8 @@ fn starting(job: &str) {
 
 // Returns true if no problems
 fn py_fmt(dir: &Path) {
-    let res = Command::new(&PYTHON_CONFIG.poetry_command)
+    let res = PYTHON_CONFIG
+        .poetry_command()
         .arg("run")
         .arg("yapf")
         .arg("--in-place")
@@ -82,6 +83,6 @@ fn cargo_fmt() {
     redln("NO");
 }
 
-fn cd(dir: &Path) {
+pub fn cd(dir: &Path) {
     env::set_current_dir(&dir).expect(&format!("Couldn't cd to '{}'", dir.display()));
 }

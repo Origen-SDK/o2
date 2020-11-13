@@ -1,33 +1,31 @@
+pub mod api;
 pub mod igxl;
 pub mod simulator;
 pub mod smt;
-use crate::core::tester::{Interceptor, TesterAPI};
-use crate::dut;
-use crate::error::Error;
+mod supported_testers;
+pub mod vector_based;
+
+use crate::core::tester::{Interceptor, TesterAPI, TesterID};
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
+use crate::{dut, Result};
 use std::path::PathBuf;
+pub use supported_testers::SupportedTester;
 
-pub const AVAILABLE_TESTERS: &[&str] = &[
-    "::DummyRenderer",
-    "::DummyRendererWithInterceptors",
-    "::V93K::SMT7",
-    "UltraFlex",
-    "::Simulator",
-];
-
-pub fn instantiate_tester(g: &str) -> Option<Box<dyn TesterAPI + std::marker::Send>> {
+pub fn instantiate_tester(g: &SupportedTester) -> Result<Box<dyn TesterAPI + std::marker::Send>> {
     match g {
-        "::DummyRenderer" => Some(Box::new(DummyRenderer::default())),
-        "::DummyRendererWithInterceptors" => {
-            Some(Box::new(DummyRendererWithInterceptors::default()))
+        SupportedTester::DUMMYRENDERER => Ok(Box::new(DummyRenderer::default())),
+        SupportedTester::DUMMYRENDERERWITHINTERCEPTORS => {
+            Ok(Box::new(DummyRendererWithInterceptors::default()))
         }
-        "::V93K::SMT7" => Some(Box::new(smt::V93K_SMT7::default())),
-        "::Simulator" => Some(Box::new(simulator::Renderer::default())),
-        "UltraFlex" | "ULTRAFLEX" | "Ultraflex" | "UFlex" | "Uflex" => {
-            Some(Box::new(igxl::UltraFlex::default()))
+        SupportedTester::V93KSMT7 => Ok(Box::new(smt::V93K_SMT7::default())),
+        SupportedTester::SIMULATOR => Ok(Box::new(simulator::Renderer::default())),
+        SupportedTester::ULTRAFLEX => Ok(Box::new(igxl::UltraFlex::default())),
+        SupportedTester::J750 => Ok(Box::new(igxl::j750::J750::default())),
+        SupportedTester::CUSTOM(_) => {
+            error!("Custom testers are not instantiated by this function")
         }
-        _ => None,
+        _ => error!("The tester driver for {}, is not implemented yet", g),
     }
 }
 
@@ -48,15 +46,14 @@ impl Default for DummyRenderer {
 
 impl DummyRenderer {}
 impl Interceptor for DummyRenderer {}
+
+impl TesterID for DummyRenderer {
+    fn id(&self) -> SupportedTester {
+        SupportedTester::DUMMYRENDERER
+    }
+}
+
 impl TesterAPI for DummyRenderer {
-    fn name(&self) -> String {
-        "DummyRenderer".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
         Ok(vec![])
@@ -106,19 +103,15 @@ pub struct DummyRendererWithInterceptors {
 
 impl DummyRendererWithInterceptors {}
 
+impl TesterID for DummyRendererWithInterceptors {
+    fn id(&self) -> SupportedTester {
+        SupportedTester::DUMMYRENDERERWITHINTERCEPTORS
+    }
+}
+
 impl TesterAPI for DummyRendererWithInterceptors {
-    fn name(&self) -> String {
-        "DummyRendererWithInterceptors".to_string()
-    }
-
-    fn clone(&self) -> Box<dyn TesterAPI + std::marker::Send> {
-        Box::new(std::clone::Clone::clone(self))
-    }
-
     fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
-        //let mut slf = Self::default();
         ast.process(self)?;
-        //node.clone()
         Ok(vec![])
     }
 }
@@ -133,12 +126,12 @@ impl Default for DummyRendererWithInterceptors {
 }
 
 impl Interceptor for DummyRendererWithInterceptors {
-    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
+    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<()> {
         println!("Vector intercepted by DummyRendererWithInterceptors!");
         Ok(())
     }
 
-    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
+    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<()> {
         println!("Comment intercepted by DummyRendererWithInterceptors!");
         Ok(())
     }

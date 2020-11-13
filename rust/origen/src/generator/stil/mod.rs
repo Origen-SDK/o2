@@ -42,7 +42,7 @@ pub enum Termination {
     TerminateHigh,
     TerminateLow,
     TerminateOff,
-    TerminateUknown,
+    TerminateUnknown,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]

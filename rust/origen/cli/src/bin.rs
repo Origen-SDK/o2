@@ -11,6 +11,8 @@ mod python;
 
 use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
+use indexmap::map::IndexMap;
+use origen::utility::version::to_pep440;
 use origen::{LOGGER, STATUS};
 use std::path::Path;
 
@@ -35,25 +37,79 @@ impl CommandHelp {
 
 // This is the entry point for the Origen CLI tool
 fn main() {
+    let verbosity_re = regex::Regex::new(r"-([vV]+)").unwrap();
+
+    // Intercept the 'origen exec' command immediately to prevent further parsing of it, this
+    // is so that something like 'origen exec pytest -v' will apply '-v' as an argument to pytest
+    // and not to origen
+    let mut args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "exec" {
+        args = args.drain(2..).collect();
+        if args.len() > 0 && (args[0] == "-h" || args[0] == "--help" || args[0] == "help") {
+            // Just fall through to display the help in this case
+        } else {
+            // Apply any leading -vvv to origen, any -v later in the args will be applied to the
+            // 3rd party command
+            if args.len() > 0 && verbosity_re.is_match(&args[0]) {
+                let captures = verbosity_re.captures(&args[0]).unwrap();
+                let x = captures.get(1).unwrap().as_str();
+                let verbosity = x.chars().count() as u8;
+                origen::initialize(Some(verbosity), None);
+                args = args.drain(1..).collect();
+            }
+            // Commmand is not actually available outside an app, so just fall through
+            // to generate the appropriate error
+            if STATUS.is_app_present {
+                if args.len() > 0 {
+                    let cmd = args[0].clone();
+                    args = args.drain(1..).collect();
+                    let cmd_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+                    commands::exec::run(&cmd, cmd_args);
+                } else {
+                    std::process::exit(0);
+                }
+            }
+        }
+    }
+
     // Set the verbosity immediately, this is to allow log statements to work in really
     // low level stuff, e.g. when building the STATUS
-    let re = regex::Regex::new(r"-([vV]+)").unwrap();
     let mut verbosity: u8 = 0;
     for arg in std::env::args() {
-        if let Some(captures) = re.captures(&arg) {
+        if let Some(captures) = verbosity_re.captures(&arg) {
             let x = captures.get(1).unwrap().as_str();
             verbosity = x.chars().count() as u8;
         }
     }
-    origen::initialize(Some(verbosity));
+    let exe = match std::env::current_exe() {
+        Ok(p) => Some(format!("{}", p.display())),
+        Err(e) => {
+            log_error!("{}", e);
+            None
+        }
+    };
+    origen::initialize(Some(verbosity), exe);
 
     let version = match STATUS.is_app_present {
-        true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
-        false => format!("Origen: {}", STATUS.origen_version.to_string()),
+        true => format!(
+            "Origen CLI: {}",
+            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
+        ),
+        false => format!(
+            "Origen: {}",
+            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
+        ),
     };
+    if STATUS.app.is_some() {
+        origen::core::application::config::Config::check_defaults(
+            &STATUS.app.as_ref().unwrap().root,
+        );
+    }
 
     let mut app = App::new("")
         .setting(AppSettings::ArgRequiredElseHelp)
+        .setting(AppSettings::VersionlessSubcommands)
+        .setting(AppSettings::DisableVersion)
         .before_help("Origen, The Semiconductor Developer's Kit")
         .after_help("See 'origen <command> -h' for more information on a specific command.")
         .version(&*version)
@@ -75,6 +131,7 @@ fn main() {
     /******************** Global only commands ******************************************/
     /************************************************************************************/
     if !STATUS.is_app_present {
+        //************************************************************************************/
         let proj_help = "Manage multi-repository project areas and workspaces";
         origen_commands.push(CommandHelp {
             name: "proj".to_string(),
@@ -83,7 +140,6 @@ fn main() {
         });
 
         app = app
-            //************************************************************************************/
             .subcommand(
                 SubCommand::with_name("proj")
                     .display_order(1)
@@ -199,6 +255,132 @@ fn main() {
                         )
                     )
             );
+
+        //************************************************************************************/
+        let new_help = "Create a new Origen application";
+        origen_commands.push(CommandHelp {
+            name: "new".to_string(),
+            help: new_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("new").about(new_help).arg(
+                Arg::with_name("name")
+                    .help("The lowercased and underscored name of the new application")
+                    .takes_value(true)
+                    .required(true)
+                    .number_of_values(1)
+                    .value_name("NAME"),
+            )
+            .arg(Arg::with_name("setup")
+                .help("Don't create the new app's virtual environment after building (need to manually run 'origen env setup' within the new app workspace before using it in that case)")
+                .long("no-setup")
+                .required(false)
+                .takes_value(false)
+            ),
+        );
+    }
+
+    /************************************************************************************/
+    /******************** Global and app commands ***************************************/
+    /************************************************************************************/
+
+    /************************************************************************************/
+    /******************** Origen dev commands *******************************************/
+    /************************************************************************************/
+    if STATUS.is_origen_present || STATUS.is_app_present {
+        let fmt_help = match STATUS.is_origen_present {
+            true => "Nicely format all Rust and Python files",
+            false => "Nicely format all of your application's Python files",
+        };
+
+        origen_commands.push(CommandHelp {
+            name: "fmt".to_string(),
+            help: fmt_help.to_string(),
+            shortcut: None,
+        });
+
+        app = app
+            //************************************************************************************/
+            .subcommand(SubCommand::with_name("fmt").about(fmt_help));
+    }
+
+    if STATUS.is_origen_present || STATUS.is_app_in_origen_dev_mode {
+        let build_help = match STATUS.is_origen_present {
+            true => "Build and publish Origen, builds the pyapi Rust package by default",
+            false => "Build Origen",
+        };
+
+        origen_commands.push(CommandHelp {
+            name: "build".to_string(),
+            help: build_help.to_string(),
+            shortcut: None,
+        });
+
+        //************************************************************************************/
+        let mut sub = SubCommand::with_name("build").about(build_help).arg(
+            Arg::with_name("cli")
+                .long("cli")
+                .required(false)
+                .takes_value(false)
+                .display_order(1)
+                .help("Build the CLI (instead of the Python API)"),
+        );
+
+        if STATUS.is_origen_present {
+            sub = sub
+                .arg(
+                    Arg::with_name("release")
+                        .long("release")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
+                )
+                .arg(
+                    Arg::with_name("target")
+                        .long("target")
+                        .required(false)
+                        .takes_value(true)
+                        .display_order(1)
+                        .help("The Rust h/ware target (passed directly to Cargo build)"),
+                )
+                .arg(
+                    Arg::with_name("python")
+                        .long("python")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Build the pure Python package (instead of the Python API)"),
+                )
+                .arg(
+                    Arg::with_name("publish")
+                        .long("publish")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Publish packages (e.g. to PyPI) after building"),
+                )
+                .arg(
+                    Arg::with_name("dry_run")
+                        .long("dry-run")
+                        .required(false)
+                        .takes_value(false)
+                        .display_order(1)
+                        .help("Use with --publish to perform a full dry run of the publishable build without actually publishing it"),
+                )
+                .arg(
+                    Arg::with_name("version")
+                        .long("version")
+                        .required(false)
+                        .takes_value(true)
+                        .value_name("VERSION")
+                        .display_order(1)
+                        .help("Set the version (of all components) to the given value"),
+                );
+        }
+
+        app = app.subcommand(sub);
     }
 
     /************************************************************************************/
@@ -235,6 +417,81 @@ fn main() {
                         .takes_value(true)
                         .value_name("MODE"),
                 ),
+        );
+
+        /************************************************************************************/
+        let new_help = "Generate a new block, flow, pattern, etc. for your application";
+        origen_commands.push(CommandHelp {
+            name: "new".to_string(),
+            help: new_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("new")
+            .about(new_help)
+            .setting(AppSettings::ArgRequiredElseHelp)
+            .subcommand(SubCommand::with_name("dut")
+                .display_order(5)
+                .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
+                .long_about(
+"This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
+reg file, controller, target, timesets, pins, etc.
+
+The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
+by a forward slash.
+
+Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
+
+Examples:
+  origen new dut                # Creates <app_name>/blocks/dut/...
+  origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
+  origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
+                .arg(Arg::with_name("name")
+                    .takes_value(true)
+                    .required(false)
+                    .help("The name of the new DUT")
+                    .value_name("NAME")
+                )
+            )
+            .subcommand(SubCommand::with_name("block")
+                .display_order(5)
+                .about("Create a new block, see 'origen new block -h' for more info")
+                .long_about(
+"This generator creates a block (e.g. to represent RAM, ATD, Flash, DAC, etc.) and all of the associated
+resources for it, e.g. a reg file, controller, timesets, etc.
+
+The NAME should be given in lower case (e.g. flash/flash2kb, adc/adc16), optionally with
+additional parent sub-block names after the initial type.
+
+Alternatively, a reference to an existing BLOCK can be added, in which case a nested block will be created
+within that block's 'blocks/' directory, rather than a primary top-level block.
+
+Any parent block(s) will be created if they don't exist, but they will not be modified if they do.
+
+Examples:
+  origen new block dac                  # Creates <app_name>/blocks/dac/...
+  origen new block adc/adc8bit          # Creates <app_name>/blocks/adc/derivatives/adc8bit/...
+  origen new block adc/adc16bit         # Creates <app_name>/blocks/adc/derivatives/adc16bit/...
+  origen new block nvm/flash/flash2kb   # Creates <app_name>/blocks/nvm/derivatives/flash/derivatives/flash2kb/...
+
+  # Example of creating a nested sub-block
+  origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/blocks/bist/...")
+                .arg(Arg::with_name("name")
+                    .takes_value(true)
+                    .required(true)
+                    .help("The name of the new block, including its parents if applicable")
+                    .value_name("NAME")
+                )
+                .arg(
+                    Arg::with_name("parent")
+                        .short("p")
+                        .long("parent")
+                        .help("Create the new block nested within this existing block")
+                        .takes_value(true)
+                        .required(false)
+                        .value_name("PARENT")
+                )
+            )
         );
 
         /************************************************************************************/
@@ -344,6 +601,13 @@ fn main() {
             SubCommand::with_name("target")
                 .about(t_help)
                 .visible_alias("t")
+                .arg(
+                    Arg::with_name("full-paths")
+                        .long("full-paths")
+                        .short("f")
+                        .help("Display targets' full paths")
+                        .takes_value(false),
+                )
                 .subcommand(
                     SubCommand::with_name("add")
                         .about("Activates the given target(s)")
@@ -355,6 +619,13 @@ fn main() {
                                 .value_name("TARGETS")
                                 .multiple(true)
                                 .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 )
                 .subcommand(
@@ -368,6 +639,13 @@ fn main() {
                                 .value_name("TARGETS")
                                 .multiple(true)
                                 .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 )
                 .subcommand(
@@ -381,17 +659,133 @@ fn main() {
                                 .value_name("TARGETS")
                                 .multiple(true)
                                 .required(true),
+                        )
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
                         ),
                 )
                 .subcommand(
                     SubCommand::with_name("default")
                         .about("Activates the default target(s) while deactivating all others")
-                        .visible_alias("d"),
+                        .visible_alias("d")
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
+                        ),
                 )
                 .subcommand(
                     SubCommand::with_name("view")
                         .about("Views the currently activated target(s)")
+                        .visible_alias("v")
+                        .arg(
+                            Arg::with_name("full-paths")
+                                .long("full-paths")
+                                .short("f")
+                                .help("Display targets' full paths")
+                                .takes_value(false),
+                        ),
+                ),
+        );
+
+        /************************************************************************************/
+        let t_help = "Create, Build, and View Web Documentation";
+        origen_commands.push(CommandHelp {
+            name: "web".to_string(),
+            help: t_help.to_string(),
+            shortcut: Some("w".to_string()),
+        });
+        app = app.subcommand(
+            SubCommand::with_name("web")
+                .about(t_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .visible_alias("w")
+                .subcommand(
+                    SubCommand::with_name("build") // What I think this command should be called
+                        .about("Builds the web documentation")
+                        .visible_alias("b")
+                        .visible_alias("compile") // If coming from O1
+                        .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
+                        .arg(
+                            Arg::with_name("view")
+                                .long("view")
+                                .help("Launch your web browser after the build")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("clean")
+                                .long("clean")
+                                .help(
+                                    "Clean up directories from previous builds and force a rebuild",
+                                )
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("release")
+                                .long("release")
+                                .short("r")
+                                .help("Release (deploy) the resulting web pages")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("archive")
+                                .long("archive")
+                                .short("a")
+                                .help("Archive the resulting web pages after building")
+                                .takes_value(true)
+                                .multiple(false)
+                                .min_values(0),
+                        )
+                        .arg(
+                            Arg::with_name("as-release")
+                                .long("as-release")
+                                .help("Build webpages with release checks")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("release-with-warnings")
+                                .long("release-with-warnings")
+                                .help("Release webpages even if warnings persists")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("no-api")
+                                .long("no-api")
+                                .help("Skip building the API")
+                                .takes_value(false),
+                        )
+                        .arg(
+                            Arg::with_name("sphinx-args")
+                                .long("sphinx-args")
+                                .help(
+                                    "Additional arguments to pass to the 'sphinx-build' command
+  Argument will passed as a single string and appended to the build command
+  E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
+     -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'",
+                                )
+                                .takes_value(true)
+                                .multiple(false)
+                                .allow_hyphen_values(true),
+                        ), // .arg(Arg::with_name("pdf")
+                           //     .long("pdf")
+                           //     .help("Create a PDF of resulting web pages")
+                           //     .takes_value(false)
+                           // )
+                )
+                .subcommand(
+                    SubCommand::with_name("view")
+                        .about("Launches your web browser to view previously built documentation")
                         .visible_alias("v"),
+                )
+                .subcommand(
+                    SubCommand::with_name("clean")
+                        .about("Cleans the output directory and all cached files"),
                 ),
         );
 
@@ -415,22 +809,78 @@ fn main() {
         );
 
         /************************************************************************************/
-        let setup_help = "Setup your application's Python environment in a new workspace, this will install dependencies per the poetry.lock file";
+        let app_help = "Commands for packaging and releasing your application";
         origen_commands.push(CommandHelp {
-            name: "setup".to_string(),
-            help: setup_help.to_string(),
+            name: "app".to_string(),
+            help: app_help.to_string(),
             shortcut: None,
         });
-        app = app.subcommand(SubCommand::with_name("setup").about(setup_help));
+        app = app.subcommand(
+            SubCommand::with_name("app")
+                .about(app_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .subcommand(
+                    SubCommand::with_name("package")
+                        .about("Build the app into a Python package (a wheel)"),
+                ),
+        );
 
         /************************************************************************************/
-        let update_help = "Update your application's Python dependencies according to the latest pyproject.toml file";
+        let env_help = "Manage your application's Origen/Python environment (dependencies, etc.)";
         origen_commands.push(CommandHelp {
-            name: "update".to_string(),
-            help: update_help.to_string(),
+            name: "env".to_string(),
+            help: env_help.to_string(),
             shortcut: None,
         });
-        app = app.subcommand(SubCommand::with_name("update").about(update_help));
+        app = app.subcommand(SubCommand::with_name("env").about(env_help)
+            .setting(AppSettings::ArgRequiredElseHelp)
+            .subcommand(
+                SubCommand::with_name("setup")
+                    .about("Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file")
+                    .arg(Arg::with_name("origen")
+                            .long("origen")
+                            .help("The path to a local version of Origen to use (to develop Origen)")
+                            .takes_value(true),
+                    ),
+            )
+            .subcommand(
+                SubCommand::with_name("update")
+                    .about("Update your application's Python dependencies according to the latest pyproject.toml file"),
+            )
+        );
+
+        /************************************************************************************/
+        let exec_help = "Execute a command within your application's Origen/Python environment (e.g. origen exec pytest)";
+        origen_commands.push(CommandHelp {
+            name: "exec".to_string(),
+            help: exec_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("exec")
+                .about(exec_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .setting(AppSettings::DisableVersion)
+                .setting(AppSettings::AllowLeadingHyphen)
+                .arg(
+                    Arg::with_name("cmd")
+                        .help("The command to be run")
+                        .takes_value(true)
+                        .required(true)
+                        .value_name("COMMAND"),
+                )
+                .arg(
+                    Arg::with_name("args")
+                        .help("Arguments to be passed to the command")
+                        .takes_value(true)
+                        .allow_hyphen_values(true)
+                        .multiple(true)
+                        .number_of_values(1)
+                        .required(false)
+                        //.last(true)
+                        .value_name("ARGS"),
+                ),
+        );
 
         /************************************************************************************/
         let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
@@ -512,7 +962,6 @@ fn main() {
             .subcommand(SubCommand::with_name("fmt").about(fmt_help));
     }
 
-
     // This is used to justify the command names in the help
     let mut name_width = origen_commands
         .iter()
@@ -536,8 +985,7 @@ fn main() {
         for command in &app_command_defs.command_helps {
             app_commands.push(command.clone());
         }
-        // This defines the application commands, some crazy references here since the string
-        // args to clap need the right lifetime
+        // This defines the application commands
         // For each command
         for i in 0..cmds.len() {
             let cmd = build_command(&cmds[i]);
@@ -555,10 +1003,8 @@ fn main() {
 
 USAGE:
     origen [FLAGS] [COMMAND]
-
 FLAGS:
     -h, --help       Prints help information
-    -V, --version    Prints version information
     -v               Terminal verbosity level e.g. -v, -vv, -vvv
 
 CORE COMMANDS:
@@ -586,9 +1032,11 @@ CORE COMMANDS:
     let _ = LOGGER.set_verbosity(matches.occurrences_of("verbose") as u8);
 
     match matches.subcommand_name() {
-        Some("setup") => commands::setup::run(),
-        Some("update") => commands::update::run(),
+        Some("app") => commands::app::run(matches.subcommand_matches("app").unwrap()),
+        Some("env") => commands::env::run(matches.subcommand_matches("env").unwrap()),
         Some("fmt") => commands::fmt::run(),
+        Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
+        Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap()),
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some("interactive") => {
             log_trace!("Launching interactive session");
@@ -615,6 +1063,7 @@ CORE COMMANDS:
                 Some(m.values_of("files").unwrap().collect()),
                 m.value_of("output_dir"),
                 m.value_of("reference_dir"),
+                None,
             );
         }
         Some("compile") => {
@@ -630,6 +1079,7 @@ CORE COMMANDS:
                 Some(m.values_of("files").unwrap().collect()),
                 m.value_of("output_dir"),
                 m.value_of("reference_dir"),
+                None,
             );
         }
         Some("target") => {
@@ -642,9 +1092,66 @@ CORE COMMANDS:
                         Some(targets) => Some(targets.collect()),
                         None => None,
                     },
+                    s.is_present("full-paths"),
                 )
             } else {
-                commands::target::run(None, None);
+                commands::target::run(None, None, m.is_present("full-paths"));
+            }
+        }
+        Some("web") => {
+            let cmd = matches.subcommand_matches("web").unwrap();
+            let subcmd = cmd.subcommand();
+            let sub = subcmd.1.unwrap();
+            match subcmd.0 {
+                "build" => {
+                    let mut args = IndexMap::new();
+                    if sub.is_present("view") {
+                        args.insert("view", "True".to_string());
+                    }
+                    if sub.is_present("clean") {
+                        args.insert("clean", "True".to_string());
+                    }
+                    if sub.is_present("no-api") {
+                        args.insert("no-api", "True".to_string());
+                    }
+                    if sub.is_present("as-release") {
+                        args.insert("as-release", "True".to_string());
+                    }
+                    if sub.is_present("release-with-warnings") {
+                        args.insert("release-with-warnings", "True".to_string());
+                    }
+                    if sub.is_present("release") {
+                        args.insert("release", "True".to_string());
+                    }
+                    if sub.is_present("archive") {
+                        if let Some(archive) = sub.value_of("archive") {
+                            args.insert("archive", format!("'{}'", archive));
+                        } else {
+                            args.insert("archive", "True".to_string());
+                        }
+                    }
+                    if let Some(s_args) = sub.value_of("sphinx-args") {
+                        // Recall that this comes in as a single argument, potentially quoted to mimic multiple,
+                        // but a single argument from the perspective here nonetheless
+                        args.insert("sphinx-args", format!("'{}'", s_args));
+                    }
+                    commands::launch(
+                        "web:build",
+                        if let Some(targets) = cmd.values_of("target") {
+                            Some(targets.collect())
+                        } else {
+                            Option::None
+                        },
+                        &None,
+                        None,
+                        None,
+                        None,
+                        Some(args),
+                    )
+                }
+                "view" => commands::launch("web:view", None, &None, None, None, None, None),
+                "clean" => commands::launch("web:clean", None, &None, None, None, None, None),
+                _ => {}
             }
         }
         Some("mode") => {
@@ -678,7 +1185,7 @@ CORE COMMANDS:
                 if let Err(e) = res {
                     log_error!("{}", e);
                     log_error!("Couldn't boot app to determine the in-application Origen version");
-                    origen_version = "Uknown".to_string();
+                    origen_version = "Unknown".to_string();
                 }
 
                 let app_version = match origen::app().unwrap().version() {
@@ -689,12 +1196,29 @@ CORE COMMANDS:
                     Ok(v) => format!("{}", v),
                 };
 
-                println!(
-                    "App:    {}\nOrigen: {}\nCLI:    {}",
-                    app_version, origen_version, STATUS.origen_version
-                );
+                if STATUS.is_app_in_origen_dev_mode {
+                    println!(
+                        "App:    {}\nOrigen: {} (from {})\nCLI:    {}",
+                        to_pep440(&app_version).unwrap_or("Error".to_string()),
+                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
+                        STATUS.origen_wksp_root.display(),
+                        to_pep440(&STATUS.origen_version.to_string())
+                            .unwrap_or("Error".to_string())
+                    );
+                } else {
+                    println!(
+                        "App:    {}\nOrigen: {}\nCLI:    {}",
+                        to_pep440(&app_version).unwrap_or("Error".to_string()),
+                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
+                        to_pep440(&STATUS.origen_version.to_string())
+                            .unwrap_or("Error".to_string())
+                    );
+                }
             } else {
-                println!("Origen: {}", STATUS.origen_version);
+                println!(
+                    "Origen: {}",
+                    to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
+                );
             }
         }
         _ => {

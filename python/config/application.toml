@@ -1,0 +1,12 @@
+name = "core"
+# Define a default target that will be used by a new workspace
+#target = "falcon"
+# Define a default environment that will be used by a new workspace
+#environment = "v93k"
+# To make your application workspace run in production mode by default
+#mode = "production"
+#website_release_location = "https://github.com/Origen-SDK/Origen-SDK.github.io.git"
+
+# Manually doing the RC for now
+website_release_location = "../../Origen-SDK.github.io"
+website_release_name = "o2"

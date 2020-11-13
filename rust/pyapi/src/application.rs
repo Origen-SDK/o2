@@ -13,12 +13,13 @@ pub struct PyApplication {}
 #[pymethods]
 impl PyApplication {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(PyApplication {});
+    fn new() -> Self {
+        PyApplication {}
     }
 
     #[getter]
     fn version(&self) -> PyResult<String> {
-        Ok(format!("{}", origen::app().unwrap().version()?))
+        let v = origen::app().unwrap().version()?.to_string();
+        Ok(format!("{}", origen::utility::version::to_pep440(&v)?))
     }
 }

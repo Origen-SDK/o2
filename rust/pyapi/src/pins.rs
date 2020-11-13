@@ -3,7 +3,9 @@ use origen::DUT;
 use pyo3::prelude::*;
 
 #[macro_use]
-mod pin;
+pub mod pin_actions;
+#[macro_use]
+pub mod pin;
 #[macro_use]
 mod pin_group;
 #[macro_use]
@@ -15,6 +17,7 @@ pub mod pin_header;
 use origen::core::model::pins::Endianness;
 use physical_pin_container::PhysicalPinContainer;
 use pin::Pin;
+use pin_actions::PinActions;
 use pin_collection::PinCollection;
 use pin_container::PinContainer;
 use pin_group::PinGroup;
@@ -32,7 +35,67 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PinCollection>()?;
     m.add_class::<PinHeader>()?;
     m.add_class::<PinHeaderContainer>()?;
+    m.add_class::<PinActions>()?;
     Ok(())
+}
+
+pub fn extract_pin_transaction(
+    actions: &PyAny,
+    kwargs: Option<&PyDict>,
+) -> PyResult<origen::Transaction> {
+    let actions = extract_pinactions!(actions)?;
+    let mut t = origen::Transaction::new_set(&actions)?;
+    if let Some(opts) = kwargs {
+        if let Some(mask) = opts.get_item("mask") {
+            if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+                t.bit_enable = big_mask;
+            } else {
+                return super::type_error!("Could not extract kwarg 'mask' as an integer");
+            }
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(t)
+}
+
+/// Given a vector of PyAny's, assumed to be either a String, Pin, or PinGroup object,
+/// return a vector with each item mapped as (model_id<usize>, name<String>) pairs.
+/// This pair is sufficient to lookup the pin group object in the backend.
+///  - This doesn't resolve any pin groups.
+///  - If a String is given, its model_id is assumed to be 0 (on the DUT).
+pub fn pins_to_backend_lookup_fields(
+    py: Python,
+    pins: &PyTuple,
+) -> Result<Vec<(usize, String)>, PyErr> {
+    let mut retn: Vec<(usize, String)> = vec![];
+    for (i, p) in pins.iter().enumerate() {
+        if let Ok(s) = p.extract::<String>() {
+            // item is a String (or extract-able as a String)
+            // Model ID is 0.
+            retn.push((0, s.clone()));
+        } else if p.get_type().name().to_string() == "Pin"
+            || p.get_type().name().to_string() == "PinGroup"
+        {
+            let obj = p.to_object(py);
+            let model_id = obj
+                .getattr(py, "__origen__model_id__")?
+                .extract::<usize>(py)?;
+            let name = obj.getattr(py, "name")?.extract::<String>(py)?;
+            retn.push((model_id, name.to_string()));
+        } else {
+            return Err(PyErr::from(origen::error::Error::new(&format!(
+                "Could not resolve object at index {} as String, Pin, or Pin Group. Got: {}",
+                i,
+                p.get_type().name()
+            ))));
+        }
+    }
+    Ok(retn)
 }
 
 #[pymethods]
@@ -40,26 +103,16 @@ impl PyDUT {
     #[args(kwargs = "**")]
     fn add_pin(&self, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
-        let (mut reset_data, mut reset_action, mut width, mut offset, mut endianness): (
-            Option<u32>,
-            Option<String>,
+        let (mut reset_action, mut width, mut offset, mut endianness): (
+            Option<Vec<origen::core::model::pins::pin::PinAction>>,
             Option<u32>,
             Option<u32>,
             Option<Endianness>,
-        ) = (
-            Option::None,
-            Option::None,
-            Option::None,
-            Option::None,
-            Option::None,
-        );
+        ) = (Option::None, Option::None, Option::None, Option::None);
         match kwargs {
             Some(args) => {
-                if let Some(arg) = args.get_item("reset_data") {
-                    reset_data = Option::Some(arg.extract::<u32>()?);
-                }
                 if let Some(arg) = args.get_item("reset_action") {
-                    reset_action = Option::Some(arg.extract::<String>()?);
+                    reset_action = Some(extract_pinactions!(arg)?);
                 }
                 if let Some(arg) = args.get_item("width") {
                     width = Option::Some(arg.extract::<u32>()?);
@@ -77,15 +130,7 @@ impl PyDUT {
             }
             None => {}
         }
-        dut.add_pin(
-            model_id,
-            name,
-            width,
-            offset,
-            reset_data,
-            reset_action,
-            endianness,
-        )?;
+        dut.add_pin(model_id, name, width, offset, reset_action, endianness)?;
 
         let gil = Python::acquire_gil();
         let py = gil.python();

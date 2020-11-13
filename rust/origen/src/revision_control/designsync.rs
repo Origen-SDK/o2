@@ -72,7 +72,14 @@ impl RevisionControlAPI for Designsync {
                 rec = "";
             }
             let mut process = Command::new("dssc")
-                .args(&["compare", rec, "-path", "-report", "silent", &format!("{}", target.display())])
+                .args(&[
+                    "compare",
+                    rec,
+                    "-path",
+                    "-report",
+                    "silent",
+                    &format!("{}", target.display()),
+                ])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
@@ -136,7 +143,10 @@ impl RevisionControlAPI for Designsync {
 }
 
 fn get_vault(path: &Path) -> Result<String> {
-    let output = exec_and_capture("dssc", Some(vec!["url", "vault", &format!("{}", path.display())]));
+    let output = exec_and_capture(
+        "dssc",
+        Some(vec!["url", "vault", &format!("{}", path.display())]),
+    );
     if let Ok((status, mut lines, stderr)) = output {
         if status.success() {
             Ok(lines.pop().unwrap())
@@ -147,10 +157,16 @@ fn get_vault(path: &Path) -> Result<String> {
             for line in stderr {
                 log_debug!("{}", &line);
             }
-            error!("Failed to run 'dssc url vault {}', see log for details", path.display())
+            error!(
+                "Failed to run 'dssc url vault {}', see log for details",
+                path.display()
+            )
         }
     } else {
-        error!("Failed to run 'dssc url vault {}', see log for details", path.display())
+        error!(
+            "Failed to run 'dssc url vault {}', see log for details",
+            path.display()
+        )
     }
 }
 

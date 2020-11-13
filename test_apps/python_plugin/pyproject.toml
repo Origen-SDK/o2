@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "python_plugin"
+version = "0.1.0"
+description = ""
+authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+origen = { path = "../../python", develop = true }
+
+[tool.poetry.dev-dependencies]
+pytest = "^3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

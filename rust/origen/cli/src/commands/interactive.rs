@@ -14,5 +14,5 @@ pub fn run(targets: Option<Vec<&str>>, mode: &Option<&str>) {
             .open(&history_file);
     }
 
-    super::launch("interactive", targets, mode, None, None, None);
+    super::launch("interactive", targets, mode, None, None, None, None);
 }

@@ -1,9 +1,9 @@
-use std::path::{Path, PathBuf};
-use std::env;
-use std::process::exit;
 use origen::revision_control::RevisionControl;
 use origen::revision_control::RevisionControlAPI;
 use origen::utility::file_utils::to_relative_path;
+use std::env;
+use std::path::{Path, PathBuf};
+use std::process::exit;
 
 pub fn run(matches: &clap::ArgMatches) {
     match matches.subcommand_name() {
@@ -14,7 +14,9 @@ pub fn run(matches: &clap::ArgMatches) {
                 false => rc(&path),
                 true => rc(&path.parent().unwrap()),
             };
-            let stat = rc.status(Some(&path)).expect("Something went wrong determining the status, see log for details");
+            let stat = rc
+                .status(Some(&path))
+                .expect("Something went wrong determining the status, see log for details");
             let pwd = std::env::current_dir().expect("Couldn't resolve the PWD");
             if stat.is_modified() {
                 displayln!("The workspace contains the following modifications:");
@@ -22,21 +24,36 @@ pub fn run(matches: &clap::ArgMatches) {
                 if !stat.added.is_empty() {
                     display_cyanln!("        new:");
                     for f in &stat.added {
-                        display_cyanln!("                    {}", to_relative_path(f, Some(&pwd)).unwrap_or_else(|_| f.to_path_buf()).display());
+                        display_cyanln!(
+                            "                    {}",
+                            to_relative_path(f, Some(&pwd))
+                                .unwrap_or_else(|_| f.to_path_buf())
+                                .display()
+                        );
                     }
                     displayln!("");
                 }
                 if !stat.removed.is_empty() {
                     display_redln!("        deleted:");
                     for f in &stat.removed {
-                        display_redln!("                    {}", to_relative_path(f, Some(&pwd)).unwrap_or_else(|_| f.to_path_buf()).display());
+                        display_redln!(
+                            "                    {}",
+                            to_relative_path(f, Some(&pwd))
+                                .unwrap_or_else(|_| f.to_path_buf())
+                                .display()
+                        );
                     }
                     displayln!("");
                 }
                 if !stat.changed.is_empty() {
                     display_yellowln!("        modified:");
                     for f in &stat.changed {
-                        display_yellowln!("                    origen rc diff {}", to_relative_path(f, Some(&pwd)).unwrap_or_else(|_| f.to_path_buf()).display());
+                        display_yellowln!(
+                            "                    origen rc diff {}",
+                            to_relative_path(f, Some(&pwd))
+                                .unwrap_or_else(|_| f.to_path_buf())
+                                .display()
+                        );
                     }
                     displayln!("");
                 }
@@ -61,7 +78,9 @@ fn rc(dir: &Path) -> RevisionControl {
 /// Returns the path contained in the args or else the PWD
 fn path(matches: &clap::ArgMatches) -> PathBuf {
     match matches.value_of("path") {
-        Some(x) => PathBuf::from(x).canonicalize().expect(&format!("PATH arg is invalid '{}'", x)),
+        Some(x) => PathBuf::from(x)
+            .canonicalize()
+            .expect(&format!("PATH arg is invalid '{}'", x)),
         None => match env::current_dir() {
             Err(e) => {
                 log_error!("{}", e);
@@ -69,6 +88,6 @@ fn path(matches: &clap::ArgMatches) -> PathBuf {
                 exit(1);
             }
             Ok(d) => d,
-        }
+        },
     }
 }
