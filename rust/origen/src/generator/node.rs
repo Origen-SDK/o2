@@ -1,7 +1,7 @@
 use super::processors::ToString;
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::Error;
+use crate::{Error, Operation, STATUS};
 use std::fmt;
 
 #[derive(Clone, PartialEq, Serialize)]
@@ -64,6 +64,39 @@ impl Node {
         match self.children.pop() {
             None => None,
             Some(n) => Some(*n),
+        }
+    }
+
+    pub fn error(&self, error: Error) -> Result<()> {
+        // Messaging may need to be slightly different for patgen
+        if STATUS.operation() == Operation::GenerateFlow {
+            let help = {
+                if self.meta.is_some() && self.meta.as_ref().unwrap().filename.is_some() {
+                    let mut m = self
+                        .meta
+                        .as_ref()
+                        .unwrap()
+                        .filename
+                        .as_ref()
+                        .unwrap()
+                        .to_string();
+                    if let Some(l) = self.meta.as_ref().unwrap().lineno {
+                        m += &format!(":{}", l);
+                    }
+                    m
+                } else {
+                    if STATUS.is_debug_enabled() {
+                        // Don't display children since it's potentially huge
+                        let n = self.replace_children(vec![]);
+                        format!("Sorry, no flow source information was found, here is the flow node that failed if it helps:\n{}", n)
+                    } else {
+                        "Run again with the --debug switch to try and trace this back to a flow source file location".to_string()
+                    }
+                }
+            };
+            error!("{}\n{}", error, &help)
+        } else {
+            Err(error)
         }
     }
 

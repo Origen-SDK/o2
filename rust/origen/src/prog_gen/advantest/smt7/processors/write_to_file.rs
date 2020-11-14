@@ -5,16 +5,17 @@ use std::path::{Path, PathBuf};
 use tera::{Context, Tera};
 
 /// Does the final writing of the flow AST to a SMT7 flow file
-pub struct WriteToFile {
+pub struct WriteToFile<'a> {
     output_dir: PathBuf,
     file_path: Option<PathBuf>,
     flow_header: Vec<String>,
     flow_body: Vec<String>,
     flow_footer: Vec<String>,
     indent: usize,
+    model: &'a Model,
 }
 
-pub fn run(ast: &Node, output_dir: &Path, _model: &Model) -> Result<PathBuf> {
+pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
     let mut p = WriteToFile {
         output_dir: output_dir.to_owned(),
         file_path: None,
@@ -22,19 +23,20 @@ pub fn run(ast: &Node, output_dir: &Path, _model: &Model) -> Result<PathBuf> {
         flow_body: vec![],
         flow_footer: vec![],
         indent: 0,
+        model: model,
     };
     ast.process(&mut p)?;
     Ok(p.file_path.unwrap())
 }
 
-impl WriteToFile {
+impl<'a> WriteToFile<'a> {
     fn push_body(&mut self, line: &str) {
         self.flow_body
             .push(format!("{:indent$}{}", "", line, indent = self.indent * 2));
     }
 }
 
-impl Processor for WriteToFile {
+impl<'a> Processor for WriteToFile<'a> {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         let result = match &node.attrs {
             Attrs::PGMFlow(name) => {
@@ -42,11 +44,19 @@ impl Processor for WriteToFile {
                     self.file_path = Some(self.output_dir.join(&format!("{}.tf", name)));
 
                     self.indent += 1;
+
                     self.push_body("{");
                     self.indent += 1;
+
+                    self.push_body("{");
+                    self.indent += 1;
+                    self.indent -= 1;
+                    self.push_body("}, open,\"Init Flow Control Vars\",\"\"");
+
                     let _ = node.process_children(self);
                     self.indent -= 1;
                     self.push_body(&format!("}}, open,\"{}\",\"\"", &name.to_uppercase()));
+
                     self.indent -= 1;
 
                     let mut tera = Tera::default();
@@ -70,6 +80,14 @@ impl Processor for WriteToFile {
                 }
                 Return::None
             }
+            Attrs::PGMSubFlow(name) => {
+                self.push_body("{");
+                self.indent += 1;
+                let _ = node.process_children(self);
+                self.indent -= 1;
+                self.push_body(&format!("}}, open,\"{}\",\"\"", &name));
+                Return::None
+            }
             Attrs::PGMGroup(name, _, kind, _) => {
                 if kind == &GroupType::Flow {
                     self.push_body("{");
@@ -87,12 +105,15 @@ impl Processor for WriteToFile {
                 Return::None
             }
             Attrs::PGMTest(id, _flow_id) => {
+                let test = &self.model.test_invocations[id];
+                let test_name = test.get("name")?.unwrap();
+
                 if node
                     .children
                     .iter()
                     .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
                 {
-                    self.push_body(&format!("run_and_branch({})", id));
+                    self.push_body(&format!("run_and_branch({})", test_name));
                     self.push_body("then");
                     self.push_body("{");
                     self.indent += 1;
@@ -114,7 +135,7 @@ impl Processor for WriteToFile {
                     self.indent -= 1;
                     self.push_body("}");
                 } else {
-                    self.push_body(&format!("run({});", id));
+                    self.push_body(&format!("run({});", test_name));
                 }
                 Return::ProcessChildren
             }

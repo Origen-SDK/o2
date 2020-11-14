@@ -28,7 +28,7 @@ impl TestInvocation {
                 test.tester, self.tester
             )));
         }
-        flow_api::assign_test_to_invocation(self.id, test.id, None)?;
+        flow_api::assign_test_to_invocation(self.id, test.id, src_caller_meta())?;
         Ok(())
     }
 }

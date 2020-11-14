@@ -27,6 +27,9 @@ pub struct Test {
     pub constraints: IndexMap<String, Vec<Constraint>>,
     pub tester: SupportedTester,
     pub class_name: Option<String>,
+    pub test_id: Option<usize>,
+    // Should remain private, this is to ensure there is no direct construction of test objects
+    _private: bool,
 }
 
 impl Test {
@@ -41,6 +44,10 @@ impl Test {
             constraints: IndexMap::new(),
             tester: tester,
             class_name: None,
+            /// If the test is modelling an invocation then this will reflect the ID of the
+            /// test being invoked
+            test_id: None,
+            _private: true,
         }
     }
 
@@ -201,9 +208,17 @@ impl Test {
     }
 
     /// Set the value of the given parameter to the given value, returns an error if the
-    /// parameter is not found, if its type does match the type of the given value or if
-    /// any constraints placed on the possible values is violated
-    pub fn set(&mut self, param_name_or_alias: &str, value: ParamValue) -> Result<()> {
+    /// parameter is not found (unless allow_missing = true), if its type does match the type of the
+    /// given value or if any constraints placed on the possible values is violated
+    pub fn set(
+        &mut self,
+        param_name_or_alias: &str,
+        value: ParamValue,
+        allow_mising: bool,
+    ) -> Result<()> {
+        if allow_mising && !self.has_param(param_name_or_alias) {
+            return Ok(());
+        }
         let param_name = { self.to_param_name(param_name_or_alias)?.to_owned() };
         let kind = self.get_type(&param_name)?;
         if value.is_type(kind) || kind == &ParamType::Any {

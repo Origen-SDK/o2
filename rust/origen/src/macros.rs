@@ -27,6 +27,13 @@ macro_rules! node {
     };
 }
 
+#[macro_export]
+macro_rules! trace {
+    ( $e:expr , $n:expr ) => {{
+        $e.or_else(|e| return $n.error(e))?
+    }};
+}
+
 /// Exit the origen process with a passing exit code and a big SUCCESS banner
 #[macro_export]
 macro_rules! exit_success {

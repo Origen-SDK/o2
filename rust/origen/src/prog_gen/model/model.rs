@@ -1,5 +1,5 @@
 use super::template_loader::load_test_from_lib;
-use super::{Bin, Limit, Test};
+use super::{Bin, Limit, ParamValue, Test};
 use crate::testers::SupportedTester;
 use crate::Result;
 use std::collections::HashMap;
@@ -118,5 +118,59 @@ impl Model {
             self.test_invocations.insert(id, test);
             Ok(())
         }
+    }
+
+    /// Assign the given test to the given invocation, returns an error if neither exists.
+    /// Currently, no error will be raised if a test is already assigned to the invocation, it will
+    /// be replaced.
+    pub fn assign_test_to_inv(&mut self, inv_id: usize, test_id: usize) -> Result<()> {
+        if !self.test_invocations.contains_key(&inv_id) {
+            return error!(
+                "Something has gone wrong, no test invocation exists with ID '{}'",
+                inv_id
+            );
+        }
+        if !self.tests.contains_key(&test_id) {
+            return error!(
+                "Something has gone wrong, no test exists with ID '{}'",
+                test_id
+            );
+        }
+        let inv = self.test_invocations.get_mut(&inv_id).unwrap();
+        inv.test_id = Some(test_id);
+        Ok(())
+    }
+
+    /// Set the value of the given test attribute.
+    /// If the given ID refers to a test invocation then both the invocation and the test will be
+    /// checked for a matching attribute.
+    /// Currently, if no matching attribute is found then nothing happens.
+    /// An error is returned if the test doesn't exist or if the value is the wrong type for the
+    /// given parameter.
+    pub fn set_test_attr(&mut self, id: usize, name: &str, value: ParamValue) -> Result<()> {
+        if self.test_invocations.contains_key(&id) {
+            let inv = self.test_invocations.get_mut(&id).unwrap();
+            if inv.has_param(name) {
+                inv.set(name, value, true)?;
+            } else {
+                if let Some(tid) = inv.test_id {
+                    if let Some(test) = self.tests.get_mut(&tid) {
+                        test.set(name, value, true)?;
+                    } else {
+                        return error!("Something has gone wrong, no test exists with ID '{}', it was referened by this test invocation: \n{:?}", id, inv);
+                    }
+                }
+            }
+            return Ok(());
+        }
+        if self.tests.contains_key(&id) {
+            let test = self.tests.get_mut(&id).unwrap();
+            test.set(name, value, true)?;
+            return Ok(());
+        }
+        error!(
+            "Something has gone wrong, no test or invocation exists with ID '{}'",
+            id
+        )
     }
 }
