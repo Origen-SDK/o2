@@ -2,7 +2,7 @@ use super::template_loader::load_test_from_lib;
 use super::{Bin, Limit, ParamValue, Test};
 use crate::testers::SupportedTester;
 use crate::Result;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 /// The test program model contains tests, test invocations, patterns, bins, etc. that have been
 /// extracted from a flow AST into a generic data structure that can be consumed by all tester
@@ -10,25 +10,25 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Model {
     pub flow_name: String,
-    pub tests: HashMap<usize, Test>,
-    pub test_invocations: HashMap<usize, Test>,
-    pub bins: HashMap<usize, Bin>,
-    pub limits: HashMap<usize, Limit>,
+    pub tests: IndexMap<usize, Test>,
+    pub test_invocations: IndexMap<usize, Test>,
+    pub bins: IndexMap<usize, Bin>,
+    pub limits: IndexMap<usize, Limit>,
     /// Templates which have been loaded into Test objects, organized by:
     ///   * Library Name
     ///     * Test Name
-    templates: HashMap<String, HashMap<String, Test>>,
+    templates: IndexMap<String, IndexMap<String, Test>>,
 }
 
 impl Model {
     pub fn new(flow_name: String) -> Self {
         Self {
             flow_name: flow_name,
-            tests: HashMap::new(),
-            test_invocations: HashMap::new(),
-            bins: HashMap::new(),
-            limits: HashMap::new(),
-            templates: HashMap::new(),
+            tests: IndexMap::new(),
+            test_invocations: IndexMap::new(),
+            bins: IndexMap::new(),
+            limits: IndexMap::new(),
+            templates: IndexMap::new(),
         }
     }
 
@@ -49,7 +49,7 @@ impl Model {
         };
         if !self.templates.contains_key(library_name) {
             self.templates
-                .insert(library_name.to_string(), HashMap::new());
+                .insert(library_name.to_string(), IndexMap::new());
         }
         if let None = self.templates[library_name].get(template_name) {
             let mut test = Test::new(template_name, 0, tester.to_owned());
@@ -87,7 +87,7 @@ impl Model {
     ) -> Result<()> {
         if !self.templates.contains_key("_internal") {
             self.templates
-                .insert("_internal".to_string(), HashMap::new());
+                .insert("_internal".to_string(), IndexMap::new());
         }
         let template_name = match tester {
             SupportedTester::J750 | SupportedTester::ULTRAFLEX => Some("flow_line"),

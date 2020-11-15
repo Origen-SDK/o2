@@ -1,8 +1,8 @@
 {
-    "class_name": "dc_tml.DcTest.standbyCurrent",
+    "class_name": "dc_tml.DcTest.StandbyCurrent",
 
     "parameters": {
-        "dps_pins": {
+        "dpsPins": {
             "type": "string",
             "value": "@"
         },
@@ -15,7 +15,7 @@
             "value": "OFF",
             "accepted_values": ["ON", "OFF"]
         },
-        "settling_time": {
+        "settlingTime": {
             "type": "time",
             "value": 0
         },
@@ -25,7 +25,7 @@
             "value": "None",
             "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "passCurrLimit_uA"

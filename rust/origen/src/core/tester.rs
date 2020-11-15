@@ -677,7 +677,7 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// Returns a path to the tester-specific output directory, it is expected to create it
     /// if it doesn't exist so the caller doesn't have to
     fn output_dir(&self) -> Result<PathBuf> {
-        let dir = crate::STATUS.output_dir().join(&self.name());
+        let dir = crate::STATUS.output_dir().join(&self.name().to_lowercase());
         if !dir.exists() {
             std::fs::create_dir_all(&dir)?;
         }

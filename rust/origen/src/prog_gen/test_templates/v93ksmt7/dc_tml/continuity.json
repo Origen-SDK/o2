@@ -1,5 +1,5 @@
 {
-    "class_name": "dc_tml.DcTest.continuity",
+    "class_name": "dc_tml.DcTest.Continuity",
 
     "parameters": {
         "pinlist": {
@@ -7,17 +7,17 @@
             "aliases": ["pin_list"],
             "value": "@"
         },
-        "test_current": {
+        "testCurrent": {
             "type": "current",
             "aliases": [],
             "value": 10e-6
         },
-        "settling_time": {
+        "settlingTime": {
             "type": "time",
             "aliases": [],
             "value": 1e-3
         },
-        "measurement_mode": {
+        "measurementMode": {
             "type": "string",
             "aliases": [],
             "value": "PPMUpar",
@@ -29,13 +29,13 @@
             "value": "SPOL",
             "accepted_values": ["SPOL", "BPOL"]
         },
-        "precharge_to_zero_vol": {
+        "prechargeToZeroVol": {
             "type": "string",
             "aliases": [],
             "value": "ON",
             "accepted_values": ["ON", "OFF"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "passVolt_mv"

@@ -99,7 +99,7 @@ where
     }
 
     default fn output_dir(&self) -> Result<PathBuf> {
-        let dir = crate::STATUS.output_dir().join(&self.name());
+        let dir = crate::STATUS.output_dir().join(&self.name().to_lowercase());
         if !dir.exists() {
             std::fs::create_dir_all(&dir)?;
         }

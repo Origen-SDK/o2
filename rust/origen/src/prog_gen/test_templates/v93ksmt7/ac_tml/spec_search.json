@@ -1,5 +1,5 @@
 {
-    "class_name": "ac_tml.AcTest.specSearch",
+    "class_name": "ac_tml.AcTest.SpecSearch",
 
     "parameters": {
         "max": {
@@ -14,10 +14,10 @@
         "resolution": {
             "type": "string"
         },
-        "result_pinlist": {
+        "resultPinlist": {
             "type": "string"
         },
-        "setup_pinlist": {
+        "setupPinlist": {
             "type": "string"
         },
         "spec": {
@@ -32,7 +32,7 @@
             "value": "None",
             "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "value": "SpecSearch_Test"
         }

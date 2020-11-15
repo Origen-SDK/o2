@@ -32,9 +32,46 @@ pub struct Test {
     _private: bool,
 }
 
+pub struct SortedParams<'a> {
+    test: &'a Test,
+    sorted_keys: Vec<&'a String>,
+}
+
+impl<'a> SortedParams<'a> {
+    fn new(test: &'a Test) -> SortedParams {
+        let mut keys: Vec<&String> = test.params.keys().collect();
+        keys.sort();
+        keys.reverse();
+        SortedParams {
+            test: test,
+            sorted_keys: keys,
+        }
+    }
+}
+
+impl<'a> Iterator for SortedParams<'a> {
+    type Item = (&'a str, &'a ParamType, Option<&'a ParamValue>);
+
+    // Here, we define the sequence using `.curr` and `.next`.
+    // The return type is `Option<T>`:
+    //     * When the `Iterator` is finished, `None` is returned.
+    //     * Otherwise, the next value is wrapped in `Some` and returned.
+    fn next(&mut self) -> Option<(&'a str, &'a ParamType, Option<&'a ParamValue>)> {
+        if let Some(k) = self.sorted_keys.pop() {
+            Some((
+                k,
+                self.test.params.get(k).unwrap(),
+                self.test.get(k).unwrap(),
+            ))
+        } else {
+            None
+        }
+    }
+}
+
 impl Test {
     pub fn new(name: &str, id: usize, tester: SupportedTester) -> Test {
-        Test {
+        let mut t = Test {
             id: id,
             name: name.to_string(),
             indirect: false,
@@ -48,7 +85,16 @@ impl Test {
             /// test being invoked
             test_id: None,
             _private: true,
+        };
+        let clean_name = clean(name);
+        if clean_name != name {
+            t.aliases.insert(clean_name, name.to_owned());
         }
+        t
+    }
+
+    pub fn sorted_params(&self) -> SortedParams {
+        SortedParams::new(&self)
     }
 
     /// Applies the values read from a test template file (e.g. JSON) to the current test object
@@ -71,7 +117,7 @@ impl Test {
                 self.params.insert(name.to_owned(), kind.clone());
                 if let Some(aliases) = &param.aliases {
                     for alias in aliases {
-                        self.aliases.insert(alias.to_owned(), name.to_owned());
+                        self.aliases.insert(clean(alias), name.to_owned());
                     }
                 }
                 if let Some(value) = &param.value {
@@ -106,7 +152,7 @@ impl Test {
         if let Some(aliases) = &test_template.aliases {
             for (new, old) in aliases {
                 if self.params.contains_key(old) {
-                    self.aliases.insert(new.to_owned(), old.to_owned());
+                    self.aliases.insert(clean(new), old.to_owned());
                 } else {
                     return error!("Invalid alias: test template '{}' has no parameter '{}' (being aliased to '{}')", &self.name, old, new);
                 }
@@ -266,7 +312,7 @@ impl Test {
         }
         if let Some(aliases) = aliases {
             for alias in aliases {
-                self.aliases.insert(name.to_string(), alias.to_string());
+                self.aliases.insert(clean(name), alias.to_string());
             }
         }
         if let Some(x) = constraints {
@@ -279,8 +325,7 @@ impl Test {
     /// parameter is not found
     pub fn add_alias(&mut self, alias: &str, param_name: &str) -> Result<()> {
         if self.has_param(param_name) {
-            self.aliases
-                .insert(alias.to_string(), param_name.to_string());
+            self.aliases.insert(clean(alias), param_name.to_string());
             Ok(())
         } else {
             error!(
@@ -292,20 +337,30 @@ impl Test {
 
     /// Returns true if the test has the given parameter name or alias
     pub fn has_param(&self, param_name: &str) -> bool {
-        self.params.contains_key(param_name) || self.aliases.contains_key(param_name)
+        self.params.contains_key(param_name) || {
+            let n = clean(param_name);
+            self.aliases.contains_key(&n)
+        }
     }
 
     /// Resolves the given param or alias name to a param name
     pub fn to_param_name<'a>(&'a self, name: &'a str) -> Result<&'a str> {
         if self.params.contains_key(name) {
             Ok(name)
-        } else if self.aliases.contains_key(name) {
-            Ok(&self.aliases[name])
         } else {
-            error!(
-                "Test '{}' does not have a parameter named '{}'",
-                self.name, name
-            )
+            let n = clean(name);
+            if self.aliases.contains_key(&n) {
+                Ok(&self.aliases[&n])
+            } else {
+                error!(
+                    "Test '{}' does not have a parameter named '{}'",
+                    self.name, name
+                )
+            }
         }
     }
+}
+
+fn clean(name: &str) -> String {
+    name.to_lowercase().replace("_", "")
 }

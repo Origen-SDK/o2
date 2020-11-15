@@ -1,5 +1,5 @@
 {
-    "class_name": "ac_tml.AcTest.functionalTest",
+    "class_name": "ac_tml.AcTest.FunctionalTest",
     
     "parameters": {
         "output": {
@@ -8,7 +8,7 @@
             "value": "None",
             "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "value": "Functional"
         }

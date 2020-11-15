@@ -10,52 +10,52 @@
             "value": "PROGRAMLOAD",
             "accepted_values": ["PROGRAMLOAD", "PPMU", "SPMU", "PPMUTERM", "SPMUTERM"]
         },
-        "measure_level": {
+        "measureLevel": {
             "type": "string",
             "value": "BOTH",
             "accepted_values": ["BOTH", "LOW", "HIGH"]
         },
-        "force_current_low": {
+        "forceCurrentLow": {
             "type": "current",
             "value": 0
         },
-        "force_current_high": {
+        "forceCurrentHigh": {
             "type": "current",
             "value": 0
         },
-        "max_pass_low": {
+        "maxPassLow": {
             "type": "voltage",
             "value": 0
         },
-        "min_pass_low": {
+        "minPassLow": {
             "type": "voltage",
             "value": 0
         },
-        "max_pass_high": {
+        "maxPassHigh": {
             "type": "voltage",
             "value": 0
         },
-        "min_pass_high": {
+        "minPassHigh": {
             "type": "voltage",
             "value": 0
         },
-        "settling_time_low": {
+        "settlingTimeLow": {
             "type": "time",
             "value": 0
         },
-        "settling_time_high": {
+        "settlingTimeHigh": {
             "type": "time",
             "value": 0
         },
-        "spmu_clamp_voltage_low": {
+        "spmuClampVoltageLow": {
             "type": "voltage",
             "value": 0
         },
-        "spmu_clamp_voltage_high": {
+        "spmuClampVoltageHigh": {
             "type": "voltage",
             "value": 0
         },
-        "vector_range": {
+        "vectorRange": {
             "type": "string"
         },
         "output": {
@@ -64,7 +64,7 @@
             "value": "None",
             "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "(OutputDC_LowLevel[V],OutputDC_HighLevel[V])"

@@ -1,18 +1,18 @@
 {
-    "class_name": "dc_tml.DcTest.dpsStatus",
+    "class_name": "dc_tml.DcTest.DpsStatus",
 
     "parameters": {
-        "dps_pins": {
+        "dpsPins": {
             "type": "string",
             "aliases": [],
             "value": "@"
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "DPS_Status"
         },
-        "constant_current": {
+        "constantCurrent": {
             "type": "string",
             "aliases": [],
             "value": "OFF",
@@ -24,13 +24,13 @@
             "value": "OFF",
             "accepted_values": ["ON", "OFF"]
         },
-        "over_voltage": {
+        "overVoltage": {
             "type": "string",
             "aliases": [],
             "value": "OFF",
             "accepted_values": ["ON", "OFF"]
         },
-        "over_power_temp": {
+        "overPowerTemp": {
             "type": "string",
             "aliases": [],
             "value": "OFF",

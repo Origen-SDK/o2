@@ -16,7 +16,7 @@ end
 -----------------------------------------------------------------
 testmethodlimits
 {% if inline_limits %}
-{%   for test_method in test_methods %}
+{%   for (_, test_method) in test_methods %}
 %   test_methods.sorted_collection.each do |method|
 %     if method.respond_to?(:limits) && method.limits && method.limits.render?
 <%= method.id %>:

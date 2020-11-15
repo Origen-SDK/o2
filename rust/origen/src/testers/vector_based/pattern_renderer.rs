@@ -122,7 +122,7 @@ impl<'a> Processor for Renderer<'a> {
             Attrs::Test(name) => {
                 let _ = STATUS.with_output_dir(false, |dir| {
                     let mut p = dir.to_path_buf();
-                    p.push(self.tester.name());
+                    p.push(self.tester.name().to_lowercase());
                     p.push(name);
                     p.set_extension(self.tester.file_ext());
                     self.path = Some(p.clone());

@@ -7,18 +7,18 @@
             "aliases": [],
             "value": "@"
         },
-        "settling_time": {
+        "settlingTime": {
             "type": "time",
             "aliases": [],
             "value": 0
         },
-        "measure_mode": {
+        "measureMode": {
             "type": "string",
             "aliases": [],
             "value": "PPMUpar",
             "accepted_values": ["PPMUpar", "ProgLoad"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "passVoltageLimit_mV"

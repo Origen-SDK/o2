@@ -1,8 +1,8 @@
 {
-    "class_name": "dc_tml.DcTest.operatingCurrent",
+    "class_name": "dc_tml.DcTest.OperatingCurrent",
 
     "parameters": {
-        "dps_pins": {
+        "dpsPins": {
             "type": "string",
             "value": "@"
         },
@@ -10,7 +10,7 @@
             "type": "integer",
             "value": 4
         },
-        "delay_time": {
+        "delayTime": {
             "type": "time",
             "value": 0
         },
@@ -25,7 +25,7 @@
             "value": "None",
             "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "passCurrLimit_uA"

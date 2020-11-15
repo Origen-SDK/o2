@@ -1,5 +1,5 @@
 {
-    "class_name": "dc_tml.DcTest.leakage",
+    "class_name": "dc_tml.DcTest.Leakage",
 
     "parameters": {
         "pinlist": {
@@ -13,68 +13,68 @@
             "value": "BOTH",
             "accepted_values": ["BOTH", "LOW", "HIGH"]
         },
-        "force_voltage_low": {
+        "forceVoltageLow": {
             "type": "voltage",
             "value": 400e-3
         },
-        "force_voltage_high": {
+        "forceVoltageHigh": {
             "type": "voltage",
             "value": 3800e-3
         },
-        "spmu_clamp_current_low": {
+        "spmuClampCurrentLow": {
             "type": "current",
             "value": 0
         },
-        "spmu_clamp_current_high": {
+        "spmuClampCurrentHigh": {
             "type": "current",
             "value": 0
         },
-        "ppmu_pre_charge": {
+        "ppmuPreCharge": {
             "type": "string",
             "value": "ON",
             "accepted_values": ["ON", "OFF"]
         },
-        "precharge_voltage_low": {
+        "prechargeVoltageLow": {
             "type": "voltage",
             "value": 0
         },
-        "precharge_voltage_high": {
+        "prechargeVoltageHigh": {
             "type": "voltage",
             "value": 0
         },
-        "settling_time_low": {
+        "settlingTimeLow": {
             "type": "time",
             "value": 0
         },
-        "settling_time_high": {
+        "settlingTimeHigh": {
             "type": "time",
             "value": 0
         },
-        "pre_function": {
+        "preFunction": {
             "type": "string",
             "value": "NO",
             "accepted_values": ["NO", "ALL", "ToStopVEC", "ToStopCYC"]
         },
-        "control_test_num_off_functional": {
+        "controlTestNumOffFunctional": {
             "type": "string",
             "value": "NO",
             "accepted_values": ["NO", "ALL", "ToStopVEC", "ToStopCYC"]
         },
-        "stop_cyc_vec_low": {
+        "stopCycVecLow": {
             "type": "integer",
             "value": 0
         },
-        "stop_cyc_vec_high": {
+        "stopCycVecHigh": {
             "type": "integer",
             "value": 0
         },
-        "measure_mode": {
+        "measureMode": {
             "type": "string",
             "aliases": [],
             "value": "PPMUpar",
             "accepted_values": ["PPMUpar", "PPMUser", "SPMUser"]
         },
-        "relay_switch_mode": {
+        "relaySwitchMode": {
             "type": "string",
             "aliases": [],
             "value": "DEFAULT(BBM)",
@@ -86,7 +86,7 @@
             "value": "None",
             "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "(passCurrentLow_uA,passCurrentHigh_uA)"

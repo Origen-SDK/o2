@@ -7,18 +7,18 @@
             "aliases": [],
             "value": "@"
         },
-        "force_mode": {
+        "forceMode": {
             "type": "string",
             "aliases": [],
             "value": "VOLT",
             "accepted_values": ["VOLT", "CURR"]
         },
-        "force_value": {
+        "forceValue": {
             "type": "voltage",
             "aliases": [],
             "value": 3800e-3
         },
-        "spmu_clamp": {
+        "spmuClamp": {
             "type": "current",
             "value": 0
         },
@@ -27,15 +27,15 @@
             "value": "OFF",
             "accepted_values": ["ON", "OFF"]
         },
-        "precharge_voltage": {
+        "prechargeVoltage": {
             "type": "voltage",
             "value": 0
         },
-        "settling_time": {
+        "settlingTime": {
             "type": "time",
             "value": 0
         },
-        "tester_state": {
+        "testerState": {
             "type": "string",
             "value": "CONNECTED",
             "accepted_values": ["CONNECTED", "DISCONNECTED", "UNCHANGED"]
@@ -45,23 +45,23 @@
             "value": "OFF",
             "accepted_values": ["ON", "OFF"]
         },
-        "measure_mode": {
+        "measureMode": {
             "type": "string",
             "aliases": [],
             "value": "PPMUpar",
             "accepted_values": ["PPMUpar", "ProgLoad"]
         },
-        "relay_switch_mode": {
+        "relaySwitchMode": {
             "type": "string",
             "aliases": [],
             "value": "DEFAULT(BBM)",
             "accepted_values": ["DEFAULT(BBM)", "BBM", "MBB", "PARALLEL"]
         },
-        "ppmu_clamp_low": {
+        "ppmuClampLow": {
             "type": "voltage",
             "value": 0
         },
-        "ppmu_clamp_high": {
+        "ppmuClampHigh": {
             "type": "voltage",
             "value": 0
         },
@@ -71,7 +71,7 @@
             "value": "None",
             "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "passLimit_uA_mV"

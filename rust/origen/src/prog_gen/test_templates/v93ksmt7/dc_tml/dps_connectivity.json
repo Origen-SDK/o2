@@ -1,13 +1,13 @@
 {
-    "class_name": "dc_tml.DcTest.dpsConnectivity",
+    "class_name": "dc_tml.DcTest.DpsConnectivity",
 
     "parameters": {
-        "dps_pins": {
+        "dpsPins": {
             "type": "string",
             "aliases": [],
             "value": "@"
         },
-        "test_name": {
+        "testName": {
             "type": "string",
             "aliases": [],
             "value": "DPS_ForceSense"
