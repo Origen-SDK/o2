@@ -1,9 +1,9 @@
 use super::IGXL;
 use crate::prog_gen::{flow_options, to_param_value, Group, PatternGroup, Test, TestInvocation};
 use crate::utility::caller::src_caller_meta;
-use origen::error::Error;
 use origen::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType};
 use origen::testers::SupportedTester;
+use origen::{Error, Result};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
@@ -72,9 +72,25 @@ impl IGXL {
         Ok(t)
     }
 
-    fn new_patset(&mut self, name: String) -> PyResult<PatternGroup> {
-        let p = PatternGroup::new(name, self.tester.clone(), Some(PatternGroupType::Patset))?;
-        Ok(p)
+    #[args(pattern = "None", patterns = "None")]
+    fn new_patset(
+        &mut self,
+        name: String,
+        pattern: Option<&PyAny>,
+        patterns: Option<&PyAny>,
+    ) -> PyResult<PatternGroup> {
+        let pg = PatternGroup::new(name, self.tester.clone(), Some(PatternGroupType::Patset))?;
+        if let Some(p) = pattern {
+            for pat in extract_vec_string("pattern", p)? {
+                pg.append(pat, None)?;
+            }
+        }
+        if let Some(p) = patterns {
+            for pat in extract_vec_string("patterns", p)? {
+                pg.append(pat, None)?;
+            }
+        }
+        Ok(pg)
     }
 
     // Set the cpu wait flags for the given test instance
@@ -106,5 +122,18 @@ impl IGXL {
     fn test_instance_group(&mut self, name: String) -> PyResult<Group> {
         let g = Group::new(name, Some(self.tester.to_owned()), GroupType::Test, None);
         Ok(g)
+    }
+}
+
+fn extract_vec_string(arg_name: &str, val: &PyAny) -> Result<Vec<String>> {
+    if let Ok(v) = val.extract::<String>() {
+        Ok(vec![v])
+    } else if let Ok(v) = val.extract::<Vec<String>>() {
+        Ok(v)
+    } else {
+        error!(
+            "Illegal value for argument '{}', expected a String or a List of Strings, got: {}",
+            arg_name, val
+        )
     }
 }

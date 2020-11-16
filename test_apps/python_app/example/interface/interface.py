@@ -154,12 +154,25 @@ class Interface(BaseInterface):
             else:
                 self.add_test(ins, **options)
 
+    def para(self, name, **kwargs):
+        options = {"high_voltage": False}
+        options.update(kwargs)
+
+        with tester().eq("j750") as j750:
+            if options["high_voltage"]:
+                ins = j750.new_test_instance(name, template="bpmu", **options)
+            else:
+                ins = j750.new_test_instance(name, template="ppmu", **options)
+            ins.dc_category = 'NVM_PARA'
+            self.add_test(ins, **options)
+            j750.new_patset(f"{name}_pset", pattern=f"{name}.PAT")
+
     def meas(self, name, **kwargs):
         options = {"duration": "static"}
         options.update(kwargs)
 
         if "meas" not in name:
-            name = f"meas_#{name}"
+            name = f"meas_{name}"
 
         with tester().eq("igxl") as igxl:
             with tester().eq("uflex") as uflex:
@@ -218,7 +231,7 @@ class Interface(BaseInterface):
 
         with tester().eq("v93k") as v93k:
             tm = v93k.new_test_method("general_pmu",
-                                      library="dc_test",
+                                      library="dc_tml",
                                       **options)
             ts = v93k.new_test_suite(name, **options)
             ts.test_method = tm

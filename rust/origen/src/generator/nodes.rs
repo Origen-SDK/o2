@@ -242,6 +242,9 @@ pub enum Attrs {
     PGMOnFailed(FlowID),
     /// Events to run if the test or group with the given ID passed
     PGMOnPassed(FlowID),
+    /// Any tests contained within a Resources block will not be added to the flow, but will be added
+    /// to 'resource' sheets/files, e.g. the test instances sheet
+    PGMResources,
 
     PGMIGXLSetWaitFlags(usize, Vec<String>),
 

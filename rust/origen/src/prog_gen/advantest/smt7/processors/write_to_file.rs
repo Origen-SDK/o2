@@ -1,7 +1,7 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::{BinType, GroupType, Model, Test};
-use std::collections::BTreeMap;
+use crate::prog_gen::{BinType, GroupType, Model, ParamType, Test};
+use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -15,7 +15,9 @@ pub struct WriteToFile<'a> {
     indent: usize,
     model: &'a Model,
     test_methods: BTreeMap<String, &'a Test>,
-    sig: Option<String>,
+    test_suites: BTreeMap<String, &'a Test>,
+    test_method_names: HashMap<usize, String>,
+    sig: String,
 }
 
 pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
@@ -28,13 +30,21 @@ pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
         indent: 0,
         model: model,
         test_methods: BTreeMap::new(),
-        sig: Some("864CE8F".to_string()),
+        test_suites: BTreeMap::new(),
+        test_method_names: HashMap::new(),
+        sig: "_864CE8F".to_string(),
     };
 
     for (i, t) in model.tests.values().enumerate() {
-        p.test_methods.insert(format!("tm_{}", i + 1), t);
+        let name = format!("tm_{}", i + 1);
+        p.test_method_names.insert(t.id, name.clone());
+        p.test_methods.insert(name, t);
     }
 
+    for (_, t) in model.test_invocations.values().enumerate() {
+        p.test_suites
+            .insert(format!("{}{}", t.get("name")?.unwrap(), p.sig), t);
+    }
     ast.process(&mut p)?;
     Ok(p.file_path.unwrap())
 }
@@ -55,6 +65,80 @@ impl<'a> WriteToFile<'a> {
                 .push(format!("{:indent$}{}", "", line, indent = ind));
         }
     }
+}
+
+/// Returns true if the given parameter has a value and it is true, returns false
+/// for None or Some(false)
+fn is_true(test_suite: &Test, param: &str) -> Result<bool> {
+    match test_suite.get(param) {
+        Err(e) => error!("An error occurred with parameter '{}': {}", param, e),
+        Ok(v) => {
+            if let Some(v) = v {
+                v.to_bool()
+            } else {
+                Ok(false)
+            }
+        }
+    }
+}
+
+fn flags(test_suite: &Test) -> Result<Vec<&'static str>> {
+    let mut flags: Vec<&str> = vec![];
+    if is_true(test_suite, "bypass")? {
+        flags.push("bypass");
+    }
+    if is_true(test_suite, "set_pass")? {
+        flags.push("set_pass");
+    }
+    if is_true(test_suite, "set_fail")? {
+        flags.push("set_fail");
+    }
+    if is_true(test_suite, "hold")? {
+        flags.push("hold");
+    }
+    if is_true(test_suite, "hold_on_fail")? {
+        flags.push("hold_on_fail");
+    }
+    if is_true(test_suite, "output_on_pass")? {
+        flags.push("output_on_pass");
+    }
+    if is_true(test_suite, "output_on_fail")? {
+        flags.push("output_on_fail");
+    }
+    if is_true(test_suite, "pass_value")? {
+        flags.push("value_on_pass");
+    }
+    if is_true(test_suite, "fail_value")? {
+        flags.push("value_on_fail");
+    }
+    if is_true(test_suite, "per_pin_on_pass")? {
+        flags.push("per_pin_on_pass");
+    }
+    if is_true(test_suite, "per_pin_on_fail")? {
+        flags.push("per_pin_on_fail");
+    }
+    if is_true(test_suite, "log_mixed_signal_waveform")? {
+        flags.push("mx_waves_enable");
+    }
+    if is_true(test_suite, "fail_per_label")? {
+        flags.push("fail_per_label");
+    }
+    if is_true(test_suite, "ffc_enable")? {
+        flags.push("ffc_enable");
+    }
+    if is_true(test_suite, "ffv_enable")? {
+        flags.push("ffv_enable");
+    }
+    if is_true(test_suite, "frg_enable")? {
+        flags.push("frg_enable");
+    }
+    if is_true(test_suite, "hardware_dsp_disable")? {
+        flags.push("hw_dsp_disable");
+    }
+    if is_true(test_suite, "force_serial")? {
+        flags.push("force_serial");
+    }
+    Ok(flags)
 }
 
 impl<'a> Processor for WriteToFile<'a> {
@@ -90,9 +174,20 @@ impl<'a> Processor for WriteToFile<'a> {
                     writeln!(&mut f, "")?;
                     for (name, tm) in &self.test_methods {
                         writeln!(&mut f, "{}:", name)?;
-                        for (name, _kind, value) in tm.sorted_params() {
+                        for (name, kind, value) in tm.sorted_params() {
                             if let Some(v) = value {
-                                writeln!(&mut f, r#"  "{}" = "{}";"#, name, v)?;
+                                match kind {
+                                    ParamType::Voltage => {
+                                        writeln!(&mut f, r#"  "{}" = "{}[V]";"#, name, v)?
+                                    }
+                                    ParamType::Current => {
+                                        writeln!(&mut f, r#"  "{}" = "{}[A]";"#, name, v)?
+                                    }
+                                    ParamType::Time => {
+                                        writeln!(&mut f, r#"  "{}" = "{}[s]";"#, name, v)?
+                                    }
+                                    _ => writeln!(&mut f, r#"  "{}" = "{}";"#, name, v)?,
+                                }
                             }
                         }
                     }
@@ -130,18 +225,68 @@ impl<'a> Processor for WriteToFile<'a> {
                             writeln!(&mut f, r#"  testmethod_class = "{}";"#, class)?;
                         }
                     }
+                    writeln!(&mut f, "")?;
                     writeln!(&mut f, "end")?;
                     writeln!(
                         &mut f,
                         "-----------------------------------------------------------------"
                     )?;
                     writeln!(&mut f, "test_suites")?;
-                    //{% for test_suite in test_suites %}
-                    //<%= suite.name %>:
-                    //%     suite.lines.each do |line|
-                    //<%= line %>
-                    //%     end
-                    //{% endfor %}
+                    writeln!(&mut f, "")?;
+
+                    for (name, ts) in &self.test_suites {
+                        writeln!(&mut f, "{}:", name)?;
+                        if let Some(v) = ts.get("comment")? {
+                            writeln!(&mut f, "  comment = \"{}\";", v)?;
+                        }
+                        if is_true(ts, "log_first")? {
+                            writeln!(&mut f, "  ffc_on_fail = 1;")?;
+                        }
+                        let fls = flags(ts)?;
+                        if !fls.is_empty() {
+                            writeln!(&mut f, "  local_flags = {};", fls.join(", "))?;
+                        }
+                        writeln!(&mut f, "  override = 1;")?;
+                        if let Some(v) = ts.get("analog_set")? {
+                            writeln!(&mut f, "  override_anaset = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("level_equation")? {
+                            writeln!(&mut f, "  override_lev_equ_set = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("level_spec")? {
+                            writeln!(&mut f, "  override_lev_spec_set = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("level_set")? {
+                            writeln!(&mut f, "  override_levset = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("pattern")? {
+                            writeln!(&mut f, "  override_seqlbl = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("test_number")? {
+                            writeln!(&mut f, "  override_test_number = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.test_id {
+                            writeln!(&mut f, "  override_testf = {};", self.test_method_names[&v])?;
+                        }
+                        if let Some(v) = ts.get("timing_equation")? {
+                            writeln!(&mut f, "  override_tim_equ_set = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("timing_spec")? {
+                            writeln!(&mut f, "  override_tim_spec_set = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("timing_set")? {
+                            writeln!(&mut f, "  override_timset = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("site_control")? {
+                            writeln!(&mut f, "  site_control = \"{}\";", v)?;
+                        }
+                        if let Some(v) = ts.get("site_match")? {
+                            writeln!(&mut f, "  site_match = {};", v)?;
+                        }
+                        if let Some(v) = ts.get("test_level")? {
+                            writeln!(&mut f, "  test_level = \"{}\";", v)?;
+                        }
+                    }
                     writeln!(&mut f, "")?;
                     writeln!(&mut f, "end")?;
                     writeln!(
@@ -234,12 +379,7 @@ impl<'a> Processor for WriteToFile<'a> {
                     .iter()
                     .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
                 {
-                    if let Some(sig) = &self.sig {
-                        let s = format!("run_and_branch({}_{})", test_name, sig);
-                        self.push_body(&s);
-                    } else {
-                        self.push_body(&format!("run_and_branch({})", test_name));
-                    }
+                    self.push_body(&format!("run_and_branch({}{})", test_name, self.sig));
                     self.push_body("then");
                     self.push_body("{");
                     self.indent += 1;
@@ -261,12 +401,7 @@ impl<'a> Processor for WriteToFile<'a> {
                     self.indent -= 1;
                     self.push_body("}");
                 } else {
-                    if let Some(sig) = &self.sig {
-                        let s = format!("run({}_{});", test_name, sig);
-                        self.push_body(&s);
-                    } else {
-                        self.push_body(&format!("run({});", test_name));
-                    }
+                    self.push_body(&format!("run({}{});", test_name, self.sig));
                 }
                 Return::ProcessChildren
             }
@@ -302,7 +437,8 @@ impl<'a> Processor for WriteToFile<'a> {
                 }
                 Return::ProcessChildren
             }
-            Attrs::PGMOnFailed(_) => Return::ProcessChildren,
+            Attrs::PGMOnFailed(_) => Return::None, // Done manually within the PGMTest handler
+            Attrs::PGMOnPassed(_) => Return::None, // Done manually within the PGMTest handler
             Attrs::PGMBin(bin, softbin, kind) => {
                 let softbin = match softbin {
                     None => "".to_string(),
@@ -318,6 +454,7 @@ impl<'a> Processor for WriteToFile<'a> {
                 ));
                 Return::None
             }
+            Attrs::PGMResources => Return::None,
             _ => Return::ProcessChildren,
         };
         Ok(result)

@@ -5,6 +5,7 @@ pub mod flow_options;
 pub mod group;
 pub mod interface;
 mod pattern_group;
+mod resources;
 mod test;
 mod test_invocation;
 
@@ -17,6 +18,7 @@ pub use pattern_group::PatternGroup;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use pyo3::wrap_pyfunction;
+use resources::Resources;
 use std::thread;
 pub use test::Test;
 pub use test_invocation::TestInvocation;

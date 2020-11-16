@@ -15,7 +15,7 @@ with Flow() as flow:
     else:
         flow.func('margin_read0_ckbd', number=1030)
 
-    # Include a sub flow, example of
+    ## Include a sub flow, example of
     # parameter passing
     flow.include('../erase', pulses=6, number=2000)
 

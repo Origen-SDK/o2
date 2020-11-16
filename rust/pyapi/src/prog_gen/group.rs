@@ -47,14 +47,16 @@ impl PyContextProtocol for Group {
 
     fn __exit__(
         &mut self,
-        _ty: Option<&'p PyType>,
+        ty: Option<&'p PyType>,
         _value: Option<&'p PyAny>,
         _traceback: Option<&'p PyAny>,
     ) -> bool {
-        flow_api::end_block(self.ref_id).expect(&format!(
-            "Something has gone wrong closing group '{}'",
-            self.name
-        ));
-        true
+        if ty.is_none() {
+            flow_api::end_block(self.ref_id).expect(&format!(
+                "Something has gone wrong closing group '{}'",
+                self.name
+            ));
+        }
+        false
     }
 }

@@ -176,3 +176,10 @@ pub fn start_on_passed(flow_id: FlowID, meta: Option<Meta>) -> Result<usize> {
     let n = node!(PGMOnPassed, flow_id; meta);
     FLOW.push_and_open(n)
 }
+
+/// Start a resources block, contained tests will not appear in the flow but the test definitions
+/// will appear in the generated test program (e.g. in the test instances sheet)
+pub fn start_resources(meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMResources; meta);
+    FLOW.push_and_open(n)
+}

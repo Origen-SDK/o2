@@ -79,19 +79,28 @@ impl ParamValue {
             ParamValue::Any(_) => true,
         }
     }
+
+    pub fn to_bool(&self) -> OrigenResult<bool> {
+        if let ParamValue::Bool(v) = self {
+            Ok(*v)
+        } else {
+            error!("Not a boolean value")
+        }
+    }
 }
 
 impl fmt::Display for ParamValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            // This can probably go, decided to handle the type specific formatting in the testers instead
             ParamValue::String(v) => write!(f, "{}", v),
             ParamValue::Int(v) => write!(f, "{}", v),
             ParamValue::UInt(v) => write!(f, "{}", v),
             ParamValue::Float(v) => write!(f, "{}", v),
-            ParamValue::Current(v) => write!(f, "{}A", v),
-            ParamValue::Voltage(v) => write!(f, "{}V", v),
-            ParamValue::Time(v) => write!(f, "{}s", v),
-            ParamValue::Frequency(v) => write!(f, "{}Hz", v),
+            ParamValue::Current(v) => write!(f, "{}", v),
+            ParamValue::Voltage(v) => write!(f, "{}", v),
+            ParamValue::Time(v) => write!(f, "{}", v),
+            ParamValue::Frequency(v) => write!(f, "{}", v),
             ParamValue::Bool(v) => write!(f, "{}", v),
             ParamValue::Any(v) => write!(f, "{}", v),
         }

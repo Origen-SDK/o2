@@ -16,3 +16,6 @@ with Flow(flow_description="Probe1 Main") as flow:
                   test_text="some_custom_text")
 
     flow.good_die(1, description="Good die!", softbin=1)
+
+    with flow.resources():
+        flow.include('prb1_resources')
