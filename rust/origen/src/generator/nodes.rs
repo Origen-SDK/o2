@@ -14,6 +14,8 @@ type Metadata = Option<IndexMap<String, crate::Metadata>>;
 pub enum Attrs {
     // A meta-node type, used to indicate a node who's children should be placed inline at the given location
     _Inline,
+    // A simple node that is quick to write and use in processor unit tests
+    T(usize),
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Data Types
@@ -220,11 +222,15 @@ pub enum Attrs {
     PGMTestStr(String, FlowID),
     /// Defines a new pattern group, also used to model IG-XL pattern sets
     PGMPatternGroup(usize, String, SupportedTester, Option<PatternGroupType>),
+    /// Push a pattern to the given pattern group ID
     PGMPushPattern(usize, String, Option<String>),
+    /// Render the given text directly to the flow
     PGMRender(String),
+    /// Add a log line to the flow
     PGMLog(String),
     /// A FlowID will always be present when the group type is a flow group
     PGMGroup(String, Option<SupportedTester>, GroupType, Option<FlowID>),
+    /// All children will be gated by the given condition (if_failed, if_enabled, etc.)
     PGMCondition(FlowCondition),
     /// Execute a test (or invocation) from the flow with a CZ setup reference
     PGMCz(usize, String, FlowID),
@@ -234,6 +240,7 @@ pub enum Attrs {
     PGMBin(usize, Option<usize>, BinType),
     /// Events to run if the test or group with the given ID failed
     PGMOnFailed(FlowID),
+    /// Events to run if the test or group with the given ID passed
     PGMOnPassed(FlowID),
 
     PGMIGXLSetWaitFlags(usize, Vec<String>),

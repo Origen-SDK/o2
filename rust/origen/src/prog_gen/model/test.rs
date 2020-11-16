@@ -29,7 +29,7 @@ pub struct Test {
     pub class_name: Option<String>,
     pub test_id: Option<usize>,
     // Should remain private, this is to ensure there is no direct construction of test objects
-    _private: bool,
+    _private: (),
 }
 
 pub struct SortedParams<'a> {
@@ -84,7 +84,7 @@ impl Test {
             /// If the test is modelling an invocation then this will reflect the ID of the
             /// test being invoked
             test_id: None,
-            _private: true,
+            _private: (),
         };
         let clean_name = clean(name);
         if clean_name != name {

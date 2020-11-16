@@ -1,6 +1,7 @@
 //! Functions concerned with extracting known values from kwargs
 
-use origen::prog_gen::FlowID;
+use crate::utility::caller::src_caller_meta;
+use origen::prog_gen::{flow_api, FlowCondition, FlowID};
 use origen::Result;
 use pyo3::types::PyDict;
 
@@ -11,6 +12,112 @@ pub fn is_flow_option(key: &str) -> bool {
         "softbin" => true,
         "soft_bin" => true,
         _ => false,
+    }
+}
+
+pub fn wrap_in_conditions<T, F>(kwargs: Option<&PyDict>, func: F) -> Result<T>
+where
+    F: FnOnce() -> Result<T>,
+{
+    if let Some(kwargs) = kwargs {
+        let mut ref_ids = vec![];
+        if let Some(ids) = extract_condition("if_enable", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::IfEnable(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("if_enabled", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::IfEnable(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("unless_enable", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::UnlessEnable(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("unless_enabled", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::UnlessEnable(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("if_job", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::IfJob(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("unless_job", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::UnlessJob(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("if_ran", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::IfRan(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("unless_ran", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::UnlessRan(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("if_passed", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::IfPassed(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("unless_passed", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::UnlessPassed(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("if_failed", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::IfFailed(ids),
+                src_caller_meta(),
+            )?);
+        }
+        if let Some(ids) = extract_condition("unless_failed", kwargs)? {
+            ref_ids.push(flow_api::start_condition(
+                FlowCondition::UnlessFailed(ids),
+                src_caller_meta(),
+            )?);
+        }
+        let r = func();
+        ref_ids.reverse();
+        for id in ref_ids {
+            flow_api::end_block(id)?;
+        }
+        r
+    } else {
+        func()
+    }
+}
+
+fn extract_condition(name: &str, kwargs: &PyDict) -> Result<Option<Vec<String>>> {
+    if let Some(v) = kwargs.get_item(name) {
+        if let Ok(v) = v.extract::<String>() {
+            Ok(Some(vec![v]))
+        } else if let Ok(v) = v.extract::<Vec<String>>() {
+            Ok(Some(v))
+        } else {
+            error!(
+                "Illegal '{}' value, expected a String or a List of Strings, got: '{}'",
+                name, v
+            )
+        }
+    } else {
+        Ok(None)
     }
 }
 

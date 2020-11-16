@@ -45,44 +45,45 @@ impl PyInterface {
         let bin = flow_options::get_bin(kwargs)?;
         let softbin = flow_options::get_softbin(kwargs)?;
 
-        if let Ok(t) = test_obj.extract::<TestInvocation>() {
-            flow_api::execute_test(t.id, id.clone(), src_caller_meta())?;
-        } else if let Ok(t) = test_obj.extract::<Test>() {
-            match t.tester {
-                SupportedTester::IGXL | SupportedTester::J750 | SupportedTester::ULTRAFLEX => {
-                    let mut flow_line =
-                        IGXL::new(Some(t.tester.to_string()))?.new_flow_line(kwargs)?;
-                    flow_line.set_test_obj(t)?;
-                    flow_api::execute_test(flow_line.id, id.clone(), src_caller_meta())?;
+        Ok(flow_options::wrap_in_conditions(kwargs, || {
+            if let Ok(t) = test_obj.extract::<TestInvocation>() {
+                flow_api::execute_test(t.id, id.clone(), src_caller_meta())?;
+            } else if let Ok(t) = test_obj.extract::<Test>() {
+                match t.tester {
+                    SupportedTester::IGXL | SupportedTester::J750 | SupportedTester::ULTRAFLEX => {
+                        let mut flow_line =
+                            IGXL::new(Some(t.tester.to_string()))?.new_flow_line(kwargs)?;
+                        flow_line.set_test_obj(t)?;
+                        flow_api::execute_test(flow_line.id, id.clone(), src_caller_meta())?;
+                    }
+                    SupportedTester::V93K
+                    | SupportedTester::V93KSMT7
+                    | SupportedTester::V93KSMT8 => {
+                        return error!("expected a Test Suite but was given a Test Method");
+                    }
+                    _ => {
+                        return error!(
+                            "add_test doesn't yet know how to handle a test object for '{}'",
+                            t.tester
+                        );
+                    }
                 }
-                SupportedTester::V93K | SupportedTester::V93KSMT7 | SupportedTester::V93KSMT8 => {
-                    return Err(TypeError::py_err(format!(
-                        "expected a Test Suite but was given a Test Method"
-                    )));
-                }
-                _ => {
-                    return Err(TypeError::py_err(format!(
-                        "add_test doesn't yet know how to handle a test object for '{}'",
-                        t.tester
-                    )));
-                }
+            } else if let Ok(t) = test_obj.extract::<String>() {
+                flow_api::execute_test_str(t, id.clone(), src_caller_meta())?;
+            } else {
+                return error!(
+                    "add_test must be given a valid test object, or a String, this is neither: {:?}",
+                    test_obj
+                );
             }
-        } else if let Ok(t) = test_obj.extract::<String>() {
-            flow_api::execute_test_str(t, id.clone(), src_caller_meta())?;
-        } else {
-            return Err(TypeError::py_err(format!(
-                "add_test must be given a valid test object, or a String, this is neither: {:?}",
-                test_obj
-            )));
-        }
 
-        if let Some(bin) = bin {
-            let ref_id = flow_api::start_on_failed(id, None)?;
-            self.bin(bin, softbin, None, false, None)?;
-            flow_api::end_block(ref_id)?;
-        }
-
-        Ok(())
+            if let Some(bin) = bin {
+                let ref_id = flow_api::start_on_failed(id, None)?;
+                self.bin(bin, softbin, None, false, None)?;
+                flow_api::end_block(ref_id)?;
+            }
+            Ok(())
+        })?)
     }
 
     /// Add a cz test to the flow
@@ -127,7 +128,7 @@ impl PyInterface {
     }
 
     #[args(jobs = "*")]
-    fn if_job_block(&mut self, jobs: &PyTuple) -> PyResult<Condition> {
+    fn if_job(&mut self, jobs: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfJob(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -135,7 +136,7 @@ impl PyInterface {
     }
 
     #[args(jobs = "*")]
-    fn unless_job_block(&mut self, jobs: &PyTuple) -> PyResult<Condition> {
+    fn unless_job(&mut self, jobs: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessJob(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -143,7 +144,7 @@ impl PyInterface {
     }
 
     #[args(flags = "*")]
-    fn if_enable_block(&mut self, flags: &PyTuple) -> PyResult<Condition> {
+    fn if_enable(&mut self, flags: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -151,7 +152,7 @@ impl PyInterface {
     }
 
     #[args(flags = "*")]
-    fn unless_enable_block(&mut self, flags: &PyTuple) -> PyResult<Condition> {
+    fn unless_enable(&mut self, flags: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -159,7 +160,7 @@ impl PyInterface {
     }
 
     #[args(ids = "*")]
-    fn if_passed_block(&mut self, ids: &PyTuple) -> PyResult<Condition> {
+    fn if_passed(&mut self, ids: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -167,7 +168,7 @@ impl PyInterface {
     }
 
     #[args(ids = "*")]
-    fn unless_passed_block(&mut self, ids: &PyTuple) -> PyResult<Condition> {
+    fn unless_passed(&mut self, ids: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessPassed(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -175,7 +176,7 @@ impl PyInterface {
     }
 
     #[args(ids = "*")]
-    fn if_failed_block(&mut self, ids: &PyTuple) -> PyResult<Condition> {
+    fn if_failed(&mut self, ids: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -183,7 +184,7 @@ impl PyInterface {
     }
 
     #[args(ids = "*")]
-    fn unless_failed_block(&mut self, ids: &PyTuple) -> PyResult<Condition> {
+    fn unless_failed(&mut self, ids: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessFailed(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -191,7 +192,7 @@ impl PyInterface {
     }
 
     #[args(ids = "*")]
-    fn if_ran_block(&mut self, ids: &PyTuple) -> PyResult<Condition> {
+    fn if_ran(&mut self, ids: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfRan(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
@@ -199,7 +200,7 @@ impl PyInterface {
     }
 
     #[args(ids = "*")]
-    fn unless_ran_block(&mut self, ids: &PyTuple) -> PyResult<Condition> {
+    fn unless_ran(&mut self, ids: &PyTuple) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessRan(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
