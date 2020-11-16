@@ -90,6 +90,7 @@ class Base:
         self.pins_loaded = False
         self.timesets_loaded = False
         self.services_loaded = False
+        self.attributes_loaded = False
 
     def __repr__(self):
         self._load_regs()
@@ -147,13 +148,15 @@ class Base:
             return self.services[name]
 
         else:
-            self._load_sub_blocks()
+            self._load_attributes()
+            if name in self.attributes:
+                return self.attributes[name]
 
+            self._load_sub_blocks()
             if name in self.sub_blocks:
                 return self.sub_blocks[name]
 
             self._load_regs()
-
             if name in self.memory_maps:
                 return self.memory_maps[name]
 
@@ -231,6 +234,12 @@ class Base:
     def add_sub_block(self, *args, **kwargs):
         self._load_sub_blocks()
         return SubBlockLoader(self).sub_block(*args, **kwargs)
+
+    def _load_attributes(self):
+        if not self.attributes_loaded:
+            self.attributes_loaded = True
+            self.attributes = {}
+            self.app.load_block_files(self, "attributes.py")
 
     def _load_regs(self):
         if not self.regs_loaded:

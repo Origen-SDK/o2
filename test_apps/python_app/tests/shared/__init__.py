@@ -2,8 +2,8 @@ import pytest, pathlib, inspect
 import origen, _origen  # pylint: disable=import-error
 
 backend_testers = [
-    "V93KSMT7", "V93KSMT8", "J750", "ULTRAFLEX", "SIMULATOR", "DUMMYRENDERER",
-    "DUMMYRENDERERWITHINTERCEPTORS"
+    "ALL", "V93K", "V93KSMT7", "V93KSMT8", "IGXL", "J750", "ULTRAFLEX",
+    "SIMULATOR", "DUMMYRENDERER", "DUMMYRENDERERWITHINTERCEPTORS"
 ]
 
 

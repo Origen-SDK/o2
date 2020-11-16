@@ -104,6 +104,7 @@ def run_cmd(command,
             files=None,
             output_dir=None,
             reference_dir=None,
+            debug=False,
             args=None,
             **kwargs):
     ''' Run an Origen command. This is the main entry method for the CLI, but it can also
@@ -139,12 +140,16 @@ def run_cmd(command,
     if reference_dir is not None:
         _origen.set_reference_dir(reference_dir)
 
+    if debug:
+        _origen.enable_debug()
+
     origen.target.setup(targets=targets)
 
     # The generate command handles patterns and flows.
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
     if command == "generate":
+        _origen.set_operation("generate")
         # Just do this once, consider a case like the examples command where this is being called
         # multiple times in the same thread of execution
         if not _generate_prepared:
@@ -180,10 +185,12 @@ def run_cmd(command,
                 print("  origen save_ref --new --changed")
 
     elif command == "compile":
+        _origen.set_operation("compile")
         for file in _origen.file_handler():
             origen.app.compile(pathlib.Path(file))
 
     elif command == "interactive":
+        _origen.set_operation("interactive")
         origen.logger.trace("Starting interactive session (on Python side)")
         origen.target.load()
         import atexit, os, sys, colorama, termcolor, readline, rlcompleter
@@ -214,14 +221,17 @@ def run_cmd(command,
                       exitmsg="")
 
     elif command == "web:build":
+        _origen.set_operation("web")
         from origen.web import run_cmd
         return run_cmd("build", args)
 
     elif command == "web:view":
+        _origen.set_operation("web")
         from origen.web import run_cmd
         return run_cmd("view", args)
 
     elif command == "web:clean":
+        _origen.set_operation("web")
         from origen.web import run_cmd
         return run_cmd("clean", args)
     # Internal command to give the Origen version loaded by the application to the CLI

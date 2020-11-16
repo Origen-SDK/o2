@@ -32,6 +32,8 @@ pub enum Return {
     /// A combination of Inline and ProcessChildren which will add the given nodes
     /// then proceed to process the original node's children
     InlineWithProcessedChildren(Vec<Node>),
+    /// Keep the node in the new AST but replace its children with the given nodes
+    ReplaceChildren(Vec<Node>),
 }
 
 pub trait Processor {

@@ -25,6 +25,7 @@ pub mod testers;
 pub mod utility;
 
 pub use self::core::metadata::Metadata;
+pub use self::core::status::Operation;
 pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
@@ -41,7 +42,6 @@ use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
-use prog_gen::TestPrograms;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 
@@ -76,8 +76,9 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
-    /// Storage for the current program generation run, can include multiple flows
-    pub static ref PROG: TestPrograms = TestPrograms::new();
+    /// This is analogous to the TEST for test program duration, it provides a similar API for
+    /// pushing nodes to the current flow, FLOW.push(my_node), etc.
+    pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
     /// Provides info about the current user
     pub static ref USER: User = User::current();
 }

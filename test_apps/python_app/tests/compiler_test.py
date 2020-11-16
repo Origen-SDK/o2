@@ -93,12 +93,11 @@ class FixtureCompilerTest(abc.ABC):
     @property
     def expected_default_output_filename(self):
         s = user_compiler().renderers[self.syntax]
-        return origen.app.output_dir.joinpath(
-            f'renders/{s.__name__.lower()}/test_file.txt')
+        return origen.app.output_dir.joinpath(f'compiled/test_file.txt')
 
     @property
     def input_filename(self):
-        return origen.root.joinpath('example/templates/dut_info.txt' +
+        return origen.root.joinpath('templates/dut_info.txt' +
                                     f'.{self.extension}')
 
     @property
@@ -115,9 +114,9 @@ class FixtureCompilerTest(abc.ABC):
 
     def test_compiler_resolves_default_filenames(self):
         # Test as string
-        assert user_compiler().resolve_filename(
-            str(self.dummy_input_filename
-                )) == self.expected_default_output_filename
+        f = str(self.dummy_input_filename)
+        r = user_compiler().resolve_filename(f)
+        assert r == self.expected_default_output_filename
 
         # Test as pathlib.Path
         assert user_compiler().resolve_filename(
@@ -244,7 +243,7 @@ class TestCompilerStack():
 
     def test_compiler_returns_templates_dir(self):
         assert user_compiler().templates_dir == origen.app.root.joinpath(
-            'example/templates')
+            'templates')
 
     def test_compiler_renders_files(self, clean_falcon, clean_compiler):
         origen.app.compile('dut_info.txt.mako',
