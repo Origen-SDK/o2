@@ -73,37 +73,37 @@ where
         }
         if let Some(ids) = extract_condition("if_ran", kwargs)? {
             ref_ids.push(flow_api::start_condition(
-                FlowCondition::IfRan(ids),
+                FlowCondition::IfRan(ids.iter().map(|id| FlowID::from_str(id)).collect()),
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_ran", kwargs)? {
             ref_ids.push(flow_api::start_condition(
-                FlowCondition::UnlessRan(ids),
+                FlowCondition::UnlessRan(ids.iter().map(|id| FlowID::from_str(id)).collect()),
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_passed", kwargs)? {
             ref_ids.push(flow_api::start_condition(
-                FlowCondition::IfPassed(ids),
+                FlowCondition::IfPassed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_passed", kwargs)? {
             ref_ids.push(flow_api::start_condition(
-                FlowCondition::UnlessPassed(ids),
+                FlowCondition::IfFailed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("if_failed", kwargs)? {
             ref_ids.push(flow_api::start_condition(
-                FlowCondition::IfFailed(ids),
+                FlowCondition::IfFailed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
                 src_caller_meta(),
             )?);
         }
         if let Some(ids) = extract_condition("unless_failed", kwargs)? {
             ref_ids.push(flow_api::start_condition(
-                FlowCondition::UnlessFailed(ids),
+                FlowCondition::IfPassed(ids.iter().map(|id| FlowID::from_str(id)).collect()),
                 src_caller_meta(),
             )?);
         }

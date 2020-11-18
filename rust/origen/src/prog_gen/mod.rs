@@ -4,6 +4,7 @@ mod flow_manager;
 mod model;
 mod processors;
 pub mod teradyne;
+mod validators;
 
 pub use flow_manager::FlowManager;
 pub use model::Bin;

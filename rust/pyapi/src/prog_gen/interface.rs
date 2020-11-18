@@ -2,7 +2,7 @@ use super::flow_options;
 use crate::prog_gen::{Condition, Group, Resources, Test, TestInvocation};
 use crate::tester_apis::IGXL;
 use crate::utility::caller::src_caller_meta;
-use origen::prog_gen::{flow_api, BinType, FlowCondition, GroupType};
+use origen::prog_gen::{flow_api, BinType, FlowCondition, FlowID, GroupType};
 use origen::testers::SupportedTester;
 use origen::Result;
 use pyo3::exceptions::TypeError;
@@ -183,7 +183,9 @@ impl PyInterface {
     #[args(ids = "*", kwargs = "**")]
     fn if_passed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(v))),
+            Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
+                v.iter().map(|id| FlowID::from_str(id)).collect(),
+            ))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
@@ -191,7 +193,9 @@ impl PyInterface {
     #[args(ids = "*", kwargs = "**")]
     fn unless_passed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessPassed(v))),
+            Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
+                v.iter().map(|id| FlowID::from_str(id)).collect(),
+            ))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
@@ -199,7 +203,9 @@ impl PyInterface {
     #[args(ids = "*", kwargs = "**")]
     fn if_failed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(v))),
+            Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
+                v.iter().map(|id| FlowID::from_str(id)).collect(),
+            ))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
@@ -207,7 +213,9 @@ impl PyInterface {
     #[args(ids = "*", kwargs = "**")]
     fn unless_failed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessFailed(v))),
+            Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
+                v.iter().map(|id| FlowID::from_str(id)).collect(),
+            ))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
@@ -215,7 +223,9 @@ impl PyInterface {
     #[args(ids = "*", kwargs = "**")]
     fn if_ran(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::IfRan(v))),
+            Ok(v) => Ok(Condition::new(FlowCondition::IfRan(
+                v.iter().map(|id| FlowID::from_str(id)).collect(),
+            ))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
@@ -223,7 +233,9 @@ impl PyInterface {
     #[args(ids = "*", kwargs = "**")]
     fn unless_ran(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
-            Ok(v) => Ok(Condition::new(FlowCondition::UnlessRan(v))),
+            Ok(v) => Ok(Condition::new(FlowCondition::UnlessRan(
+                v.iter().map(|id| FlowID::from_str(id)).collect(),
+            ))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }

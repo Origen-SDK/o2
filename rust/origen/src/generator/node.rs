@@ -67,23 +67,27 @@ impl Node {
         }
     }
 
+    /// Returns "<filename>:<lineno>" if present, else ""
+    pub fn meta_string(&self) -> String {
+        if let Some(meta) = &self.meta {
+            if let Some(f) = &meta.filename {
+                let mut s = format!("{}", f);
+                if let Some(l) = &meta.lineno {
+                    s += &format!(":{}", l);
+                }
+                return s;
+            }
+        }
+        "".to_string()
+    }
+
     pub fn error(&self, error: Error) -> Result<()> {
         // Messaging may need to be slightly different for patgen
         if STATUS.operation() == Operation::GenerateFlow {
             let help = {
-                if self.meta.is_some() && self.meta.as_ref().unwrap().filename.is_some() {
-                    let mut m = self
-                        .meta
-                        .as_ref()
-                        .unwrap()
-                        .filename
-                        .as_ref()
-                        .unwrap()
-                        .to_string();
-                    if let Some(l) = self.meta.as_ref().unwrap().lineno {
-                        m += &format!(":{}", l);
-                    }
-                    m
+                let s = self.meta_string();
+                if s != "" {
+                    s
                 } else {
                     if STATUS.is_debug_enabled() {
                         // Don't display children since it's potentially huge
@@ -318,6 +322,11 @@ impl Node {
             }
         }
         Ok(nodes)
+    }
+
+    /// Returns a new node which is a copy of self with its children removed
+    pub fn without_children(&self) -> Node {
+        self.replace_children(vec![])
     }
 
     /// Returns a new node which is a copy of self with its children replaced

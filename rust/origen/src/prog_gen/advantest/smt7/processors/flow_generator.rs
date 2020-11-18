@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Does the final writing of the flow AST to a SMT7 flow file
-pub struct WriteToFile<'a> {
+pub struct FlowGenerator<'a> {
     output_dir: PathBuf,
     file_path: Option<PathBuf>,
     flow_header: Vec<String>,
@@ -21,7 +21,7 @@ pub struct WriteToFile<'a> {
 }
 
 pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
-    let mut p = WriteToFile {
+    let mut p = FlowGenerator {
         output_dir: output_dir.to_owned(),
         file_path: None,
         flow_header: vec![],
@@ -49,7 +49,7 @@ pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
     Ok(p.file_path.unwrap())
 }
 
-impl<'a> WriteToFile<'a> {
+impl<'a> FlowGenerator<'a> {
     fn push_body(&mut self, line: &str) {
         let ind = {
             if self.indent > 2 {
@@ -141,7 +141,7 @@ fn flags(test_suite: &Test) -> Result<Vec<&'static str>> {
     Ok(flags)
 }
 
-impl<'a> Processor for WriteToFile<'a> {
+impl<'a> Processor for FlowGenerator<'a> {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         let result = match &node.attrs {
             Attrs::PGMFlow(name) => {
@@ -360,7 +360,7 @@ impl<'a> Processor for WriteToFile<'a> {
                     self.indent += 1;
                     let _ = node.process_children(self);
                     self.indent -= 1;
-                    self.push_body(&format!("}}, open,\"{}\",\"\"", &name));
+                    self.push_body(&format!("}}, open,\"{}\", \"\"", &name));
                 } else {
                     let _ = node.process_children(self);
                 }

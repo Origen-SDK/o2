@@ -29,6 +29,12 @@ impl FlowID {
     pub fn new() -> FlowID {
         FlowID::from_int(crate::STATUS.generate_unique_id())
     }
+
+    /// Returns true if the ID refers to a test external to this flow, currently defined by the ID
+    /// starting with "extern_"
+    pub fn is_external(&self) -> bool {
+        self.id.starts_with("extern")
+    }
 }
 
 impl std::fmt::Display for FlowID {

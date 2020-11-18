@@ -14,7 +14,7 @@ pub fn run(node: &Node, model: Model) -> Result<Model> {
         model: model,
         test_suite_names: HashMap::new(),
     };
-    let _ = node.process(&mut p)?.unwrap();
+    let _ = node.process(&mut p)?;
     Ok(p.model)
 }
 
