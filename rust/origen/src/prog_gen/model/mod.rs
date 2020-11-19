@@ -49,6 +49,8 @@ pub enum FlowCondition {
     IfAllFailed(Vec<FlowID>),
     IfRan(Vec<FlowID>),
     UnlessRan(Vec<FlowID>),
+    IfFlag(Vec<String>),
+    UnlessFlag(Vec<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

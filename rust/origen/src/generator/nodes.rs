@@ -245,6 +245,8 @@ pub enum Attrs {
     /// Any tests contained within a Resources block will not be added to the flow, but will be added
     /// to 'resource' sheets/files, e.g. the test instances sheet
     PGMResources,
+    // Volatile flag definition (a flag that can be changed state by tests)
+    PGMVolatile(String),
 
     PGMIGXLSetWaitFlags(usize, Vec<String>),
 

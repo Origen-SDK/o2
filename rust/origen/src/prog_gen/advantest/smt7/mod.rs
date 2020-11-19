@@ -25,6 +25,8 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
             let ast = flow.process(&mut |n| TargetTester::run(n, SupportedTester::V93KSMT7))?;
             validators::duplicate_ids::run(&ast)?;
             validators::missing_ids::run(&ast)?;
+            validators::jobs::run(&ast)?;
+            validators::flags::run(&ast)?;
             let (ast, model) = ExtractToModel::run(&ast, SupportedTester::V93KSMT7, name)?;
             let mut model = processors::clean_names::run(&ast, model)?;
             let ast = NestOnResultNodes::run(&ast)?;
