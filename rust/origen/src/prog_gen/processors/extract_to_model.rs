@@ -12,18 +12,16 @@ pub struct ExtractToModel {
     pass: usize,
 }
 
-impl ExtractToModel {
-    pub fn run(node: &Node, tester: SupportedTester, flow_name: &str) -> Result<(Node, Model)> {
-        let mut p = ExtractToModel {
-            model: Model::new(flow_name.to_string()),
-            tester: tester,
-            pass: 0,
-        };
-        let ast = node.process(&mut p)?.unwrap();
-        p.pass = 1;
-        let ast = ast.process(&mut p)?.unwrap();
-        Ok((ast, p.model))
-    }
+pub fn run(node: &Node, tester: SupportedTester, flow_name: &str) -> Result<(Node, Model)> {
+    let mut p = ExtractToModel {
+        model: Model::new(flow_name.to_string()),
+        tester: tester,
+        pass: 0,
+    };
+    let ast = node.process(&mut p)?.unwrap();
+    p.pass = 1;
+    let ast = ast.process(&mut p)?.unwrap();
+    Ok((ast, p.model))
 }
 
 impl Processor for ExtractToModel {

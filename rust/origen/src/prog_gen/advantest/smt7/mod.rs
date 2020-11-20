@@ -1,9 +1,9 @@
 mod processors;
 
-use super::super::validators;
+use super::super::validators as generic_validators;
 use crate::core::tester::TesterAPI;
 use crate::generator::processors::TargetTester;
-use crate::prog_gen::processors::{ExtractToModel, NestOnResultNodes};
+use crate::prog_gen::processors as generic_processors;
 use crate::testers::smt::V93K_SMT7;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
@@ -23,13 +23,16 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
         for (name, flow) in flows {
             log_debug!("Rendering flow '{}' for V93k SMT7", name);
             let ast = flow.process(&mut |n| TargetTester::run(n, SupportedTester::V93KSMT7))?;
-            validators::duplicate_ids::run(&ast)?;
-            validators::missing_ids::run(&ast)?;
-            validators::jobs::run(&ast)?;
-            validators::flags::run(&ast)?;
-            let (ast, model) = ExtractToModel::run(&ast, SupportedTester::V93KSMT7, name)?;
+            generic_validators::duplicate_ids::run(&ast)?;
+            generic_validators::missing_ids::run(&ast)?;
+            generic_validators::jobs::run(&ast)?;
+            generic_validators::flags::run(&ast)?;
+            let (ast, model) =
+                generic_processors::extract_to_model::run(&ast, SupportedTester::V93KSMT7, name)?;
             let mut model = processors::clean_names::run(&ast, model)?;
-            let ast = NestOnResultNodes::run(&ast)?;
+            let ast = generic_processors::nest_on_result_nodes::run(&ast)?;
+            let ast = generic_processors::relationship::run(&ast)?;
+            let ast = generic_processors::flag_optimizer::run(&ast, None)?;
             //dbg!(&ast);
             files.push(processors::flow_generator::run(
                 &ast, &flow_dir, &mut model,

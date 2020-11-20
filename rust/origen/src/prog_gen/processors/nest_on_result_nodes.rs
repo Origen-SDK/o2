@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 
 /// This nests OnFailed and OnPassed nodes into their parent tests (or groups)
 ///
-/// Original:
+/// Input:
 ///     PGMTest(4, FlowID { id: "3" })
 ///     PGMOnFailed(FlowID { id: "3" })
 ///         PGMBin(100, Some(1100), Bad)
@@ -25,20 +25,17 @@ pub struct NestOnResultNodes {
     pass: usize,
 }
 
-impl NestOnResultNodes {
-    #[allow(dead_code)]
-    pub fn run(node: &Node) -> Result<Node> {
-        let mut p = NestOnResultNodes {
-            nodes: IndexMap::new(),
-            pass: 0,
-        };
-        // The first pass strips out all OnPassed and OnFailed nodes and holds them
-        let ast = node.process(&mut p)?.unwrap();
-        p.pass = 1;
-        // Then the final pass re-inserts them in the right place
-        let ast = ast.process(&mut p)?.unwrap();
-        Ok(ast)
-    }
+pub fn run(node: &Node) -> Result<Node> {
+    let mut p = NestOnResultNodes {
+        nodes: IndexMap::new(),
+        pass: 0,
+    };
+    // The first pass strips out all OnPassed and OnFailed nodes and holds them
+    let ast = node.process(&mut p)?.unwrap();
+    p.pass = 1;
+    // Then the final pass re-inserts them in the right place
+    let ast = ast.process(&mut p)?.unwrap();
+    Ok(ast)
 }
 
 impl Processor for NestOnResultNodes {
@@ -84,7 +81,7 @@ impl Processor for NestOnResultNodes {
 
 #[cfg(test)]
 mod tests {
-    use super::NestOnResultNodes;
+    use super::run;
     use crate::prog_gen::{BinType, FlowID};
     use crate::Result;
 
@@ -123,7 +120,7 @@ mod tests {
             )
         );
 
-        assert_eq!(NestOnResultNodes::run(&input)?, expected);
+        assert_eq!(run(&input)?, expected);
         Ok(())
     }
 }

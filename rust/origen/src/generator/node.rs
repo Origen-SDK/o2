@@ -108,7 +108,7 @@ impl Node {
     /// Returning None means that the processor has decided that the node should be removed
     /// from the next stage AST.
     pub fn process(&self, processor: &mut dyn Processor) -> Result<Option<Node>> {
-        let r = processor.on_node(&self)?;
+        let r = { processor.on_node(&self)? };
         self.process_return_code(r, processor)
     }
 
@@ -360,5 +360,37 @@ impl Node {
             children: self.children.clone(),
         };
         new_node
+    }
+
+    /// Ensures the the given node type is present in the nodes immediate children,
+    /// inserting it if not
+    pub fn ensure_node_present(&mut self, attrs: Attrs) {
+        if self.children.iter().any(|c| c.attrs == attrs) {
+            return;
+        }
+        self.children.push(Box::new(Node::new(attrs)));
+    }
+
+    /// Returns a new node which is a copy of self with its components replaced by the given values
+    pub fn updated(
+        &self,
+        attrs: Option<Attrs>,
+        children: Option<Vec<Box<Node>>>,
+        meta: Option<Meta>,
+    ) -> Node {
+        Node {
+            attrs: match attrs {
+                Some(x) => x,
+                None => self.attrs.clone(),
+            },
+            children: match children {
+                Some(x) => x,
+                None => self.children.clone(),
+            },
+            meta: match meta {
+                Some(x) => Some(x),
+                None => self.meta.clone(),
+            },
+        }
     }
 }
