@@ -311,6 +311,13 @@ impl<'a> BitCollection<'a> {
         self
     }
 
+    pub fn clear_capture(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.clear_capture();
+        }
+        self
+    }
+
     pub fn set_undefined(&self) -> &BitCollection {
         for &bit in self.bits.iter() {
             bit.set_undefined();
@@ -459,7 +466,10 @@ impl<'a> BitCollection<'a> {
             t.address = Some(reg.address(dut, None)?);
             t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = bits.verify_enables();
-            t.capture_enable = Some(bits.capture_enables());
+            let captures = bits.capture_enables();
+            if captures != BigUint::from(0 as u8) {
+                t.set_capture_enables(Some(bits.capture_enables()))?;
+            }
             t.overlay_enable = Some(bits.overlay_enables());
             t.overlay_string = bits.get_overlay()?;
             Ok(t)
@@ -530,6 +540,27 @@ impl<'a> BitCollection<'a> {
             t.address = Some(reg.address(dut, None)?);
             t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = Transaction::enable_of_width(reg.size)?;
+            t.overlay_enable = Some(bits.overlay_enables());
+            t.overlay_string = bits.get_overlay()?;
+            Ok(t)
+        } else {
+            Err(Error::new(&format!(
+                "bit collection 'to_verify_transaction' is only supported for register-based bit collections"
+            )))
+        }
+    }
+
+    pub fn to_capture_transaction(&self, dut: &'a MutexGuard<Dut>) -> Result<Transaction> {
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?;
+            let bits = reg.bits(dut);
+            let mut t = Transaction::new_capture(
+                reg.size,
+                Some(bits.capture_enables())
+            )?;
+            t.reg_id = Some(id);
+            t.address = Some(reg.address(dut, None)?);
+            t.address_width = Some(reg.width(&dut)? as usize);
             t.overlay_enable = Some(bits.overlay_enables());
             t.overlay_string = bits.get_overlay()?;
             Ok(t)

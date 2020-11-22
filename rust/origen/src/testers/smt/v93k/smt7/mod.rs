@@ -3,6 +3,8 @@ use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
 use crate::{Result, DUT};
+use crate::generator::ast::{Attrs, Node};
+use crate::generator::processor::{Processor, Return};
 
 #[derive(Debug, Clone)]
 pub struct SMT7 {}
@@ -61,6 +63,33 @@ impl VectorBased for SMT7 {
 
     fn print_pattern_end(&self, _renderer: &mut Renderer) -> Option<Result<String>> {
         Some(Ok("SQPG STOP;".to_string()))
+    }
+
+    fn override_node(&self, renderer: &mut Renderer, node: &Node) -> Option<Result<Return>> {
+        match &node.attrs {
+            Attrs::Capture(capture, _metadata) => {
+                match capture.enabled_capture_pins() {
+                    Ok(ids) => {
+                        for pin in ids.iter() {
+                            if let Some(sym) = capture.symbol.as_ref() {
+                                renderer.capturing.insert(
+                                    Some(*pin),
+                                    capture.symbol.clone()
+                                );
+                            } else {
+                                renderer.capturing.insert(
+                                    Some(*pin),
+                                    Some(crate::standards::actions::CAPTURE.to_string())
+                                );
+                            }
+                        }
+                        Some(Ok(Return::Unmodified))
+                    },
+                    Err(e) => None
+                }
+            }
+            _ => None
+        }
     }
 }
 

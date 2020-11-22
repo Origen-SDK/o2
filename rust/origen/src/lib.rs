@@ -27,7 +27,7 @@ pub mod utility;
 pub use self::core::metadata::Metadata;
 pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
-pub use self::generator::utility::transaction::Transaction;
+pub use self::generator::utility::transaction::{Transaction};
 pub use error::Error;
 
 use self::core::application::Application;
@@ -36,7 +36,7 @@ pub use self::core::dut::Dut;
 use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
-pub use self::core::tester::Tester;
+pub use self::core::tester::{Tester, Capture, Overlay};
 use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
@@ -124,12 +124,20 @@ impl<'a> Value<'a> {
             Self::Data(data, width) => Transaction::new_verify(data.clone(), (*width) as usize),
         }
     }
+
+    pub fn to_capture_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
+        match &self {
+            Self::Bits(bits, _size) => bits.to_capture_transaction(dut),
+            Self::Data(_data, width) => Transaction::new_capture((*width) as usize, None),
+        }
+    }
 }
 
 /// This is called immediately upon Origen booting
-pub fn initialize(verbosity: Option<u8>, cli_location: Option<String>) {
+pub fn initialize(verbosity: Option<u8>, verbosity_keywords: Vec<String>, cli_location: Option<String>) {
     if let Some(v) = verbosity {
         let _ = LOGGER.set_verbosity(v);
+        let _ = LOGGER.set_verbosity_keywords(verbosity_keywords);
     }
     STATUS.set_cli_location(cli_location);
     log_debug!("Initialized Origen {}", STATUS.origen_version);

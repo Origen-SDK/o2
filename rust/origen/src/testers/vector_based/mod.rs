@@ -7,6 +7,8 @@ use crate::generator::ast::Node;
 use crate::utility::differ::Differ;
 use crate::Result;
 use std::path::{Path, PathBuf};
+use crate::generator::processor::Return;
+use pattern_renderer::Renderer;
 
 pub trait VectorBased:
     std::fmt::Debug + std::default::Default + crate::core::tester::Interceptor + TesterID + Clone + Send
@@ -29,6 +31,10 @@ pub trait VectorBased:
     }
 
     fn pin_action_resolver(&self) -> Option<Resolver> {
+        None
+    }
+
+    fn override_node(&self, _renderer: &mut Renderer, _node: &Node) -> Option<Result<Return>> {
         None
     }
 }
@@ -66,6 +72,10 @@ where
         renderer: &mut pattern_renderer::Renderer,
     ) -> Option<Result<String>> {
         VectorBased::print_pattern_end(self, renderer)
+    }
+
+    fn override_node(&self, renderer: &mut Renderer, node: &Node) -> Option<Result<Return>> {
+        VectorBased::override_node(self, renderer, node)
     }
 }
 

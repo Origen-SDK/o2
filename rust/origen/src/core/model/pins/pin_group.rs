@@ -3,7 +3,7 @@ use super::super::pins::Endianness;
 use super::pin::PinAction;
 use super::pin_store::PinStore;
 use crate::error::Error;
-use crate::Result;
+use crate::{Result, Transaction, Overlay, Capture};
 
 // We'll maintain both the pin_names which the group was built with, but we'll also maintain the list
 // of physical names. Even though we can resolve this later, most operations wil
@@ -70,9 +70,21 @@ impl PinGroup {
         Ok(pc.pin_names())
     }
 
-    pub fn update(&self, dut: &Dut, trans: &crate::Transaction) -> Result<()> {
+    pub fn update(&self, dut: &Dut, trans: &Transaction) -> Result<()> {
         let pc = super::super::pins::PinCollection::from_pin_group(&dut, self)?;
         pc.set_from_transaction(trans)?;
+        Ok(())
+    }
+
+    pub fn overlay(&self, overlay: &mut Overlay) -> Result<()> {
+        overlay.pin_ids = Some(self.pin_ids.clone());
+        crate::TEST.push(overlay.to_node());
+        Ok(())
+    }
+
+    pub fn capture(&self, capture: &mut Capture) -> Result<()> {
+        capture.pin_ids = Some(self.pin_ids.clone());
+        crate::TEST.push(capture.to_node());
         Ok(())
     }
 

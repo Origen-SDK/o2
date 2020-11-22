@@ -5,7 +5,7 @@ use num_bigint::BigUint;
 use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
-use origen::Transaction;
+use origen::{Transaction, TransactionAction};
 use origen::{dut, DUT};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
@@ -59,7 +59,7 @@ impl PinCollection {
     ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         slf.pin_collection
-            .update(&dut, &extract_pin_transaction(actions, kwargs)?)?;
+            .update(&dut, &extract_pin_transaction(actions, TransactionAction::Set, kwargs)?)?;
         Ok(slf.into())
     }
 
@@ -97,7 +97,7 @@ impl PinCollection {
     fn capture(&mut self) -> PyResult<()> {
         let dut = DUT.lock().unwrap();
         self.pin_collection
-            .update(&dut, &Transaction::new_capture(self.pin_collection.len())?)?;
+            .update(&dut, &Transaction::new_capture(self.pin_collection.len(), None)?)?;
         Ok(())
     }
 

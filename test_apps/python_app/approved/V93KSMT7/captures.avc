@@ -1,31 +1,410 @@
 # ******************************************************************************************
 # Generated
-#   Time: 2020-08-24 21:36:44.185212700 -05:00
+#   Time: 2020-11-22 08:59:33.800976400 -06:00
 #   By: nxa13790
-#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\captures.py
+#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\captures.py
 # ******************************************************************************************
 # Workspace
 #   Environment
 #     OS: Windows Unknown
 #     Mode: development
 #     Targets
-#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\dut\eagle.py
-#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\v93k_smt7.py
-#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\j750.py
+#         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\dut\eagle.py
+#         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\tester\v93k_smt7.py
 #   Application
-#     Local Path: C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app
+#     Local Path: C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app
 #   Origen Core
-#     Version: 2.0.0-pre2
+#     Version: 2.0.0-dev4
 #     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
 # ******************************************************************************************
 # Header Comments
 #   From the Application
 #     Hello pattern from the application!
 # ******************************************************************************************
-FORMAT clk portc;
-R100 simple 0 XX # <EoL Comment>;
-R1 simple 0 CC # <EoL Comment>;
-R5 simple 0 XX # <EoL Comment>;
-R1 simple 0 CC # <EoL Comment>;
-R20 simple 0 XX # <EoL Comment>;
+FORMAT swdclk swdio portc;
+R100 simple 0 X XX # <EoL Comment>;
+# Basics
+# ---
+# Capture a single cycle
+R2 simple 0 X XX # <EoL Comment>;
+# Capture a single cycle on portc
+R1 simple 0 X CC # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+# Capture two cycles on portc
+R2 simple 0 X CC # <EoL Comment>;
+# Capture three cycles on portc with symbol 'A'
+R3 simple 0 X AA # <EoL Comment>;
+# Capture four cycles on portc with symbol 'B'
+R4 simple 0 X BB # <EoL Comment>;
+# Capture four cycles on portc and clk
+R4 simple C X CC # <EoL Comment>;
+R6 simple 0 X XX # <EoL Comment>;
+# Basics with implied pins (portc)
+# ---
+# Capture next cycle (portc)
+R1 simple 0 X CC # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+# Capture next two cycles (portc)
+R2 simple 0 X CC # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+# Capture next two cycles with symbol 'A' (portc)
+R2 simple 0 X AA # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+# Capture next two cycles with symbol 'B' masking the second bit (portc)
+R2 simple 0 X BX # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+# Corner case: two captures stepping on each other
+# ---
+# (capture on portc with symbol 'A' is essentially ignored)
+# Capture on portc with symbol 'B'
+R2 simple 0 X BB # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+# Two captures with symbols
+# ---
+# This however, is fine.
+R2 simple 0 X AA # <EoL Comment>;
+R2 simple 0 X BB # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+# ArmDebug: Switching ArmDebug protocol to SWD
+R50 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R4 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R4 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R58 simple 1 1 XX # <EoL Comment>;
+R4 simple 1 0 XX # <EoL Comment>;
+# Capturing a register (using arm debug)
+# ---
+# Capture 'reg1'
+# SWD: Write AP - AP: 0, Data: 0x23000012
+# SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R19 simple 1 0 XX # <EoL Comment>;
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 1 XX # <EoL Comment>;
+# SWD: Write AP - AP: 4, Data: 0x0
+# SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R32 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify AP - AP: 12, Data: 0x0
+# SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+R5 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R32 simple 1 C XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify DP - DP: 12, Data: 0x0
+# SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R4 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R32 simple 1 C XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+# Verify with captures previously set. Next two transactions will be captured and verified
+# ---
+# Capture next two transactions
+# SWD: Write AP - AP: 0, Data: 0x23000012
+# SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R19 simple 1 0 XX # <EoL Comment>;
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 1 XX # <EoL Comment>;
+# SWD: Write AP - AP: 4, Data: 0x0
+# SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R32 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify AP - AP: 12, Data: 0xCECECECE
+# SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+R5 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R32 simple 1 C XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify DP - DP: 12, Data: 0xCECECECE
+# SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R4 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Write AP - AP: 0, Data: 0x23000012
+# SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R19 simple 1 0 XX # <EoL Comment>;
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 1 XX # <EoL Comment>;
+# SWD: Write AP - AP: 4, Data: 0x0
+# SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R32 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify AP - AP: 12, Data: 0xCECECECE
+# SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+R5 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R32 simple 1 C XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify DP - DP: 12, Data: 0xCECECECE
+# SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R4 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R1 simple 1 C XX # <EoL Comment>;
+R3 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+R2 simple 1 C XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+# This should not be captured
+# SWD: Write AP - AP: 0, Data: 0x23000012
+# SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R19 simple 1 0 XX # <EoL Comment>;
+R2 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 1 XX # <EoL Comment>;
+# SWD: Write AP - AP: 4, Data: 0x0
+# SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+R2 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R3 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Drive data
+R32 simple 1 0 XX # <EoL Comment>;
+# SWD: Drive data's parity bit
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify AP - AP: 12, Data: 0xCECECECE
+# SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+R5 simple 1 1 XX # <EoL Comment>;
+R2 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R32 simple 1 X XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+# SWD: Verify DP - DP: 12, Data: 0xCECECECE
+# SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R4 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R1 simple 1 1 XX # <EoL Comment>;
+R1 simple 1 X XX # <EoL Comment>;
+# SWD: Acknowledge Ok: target -> host
+R1 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+# SWD: Verify data
+R1 simple 1 L XX # <EoL Comment>;
+R3 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R2 simple 1 H XX # <EoL Comment>;
+R1 simple 1 L XX # <EoL Comment>;
+R3 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R2 simple 1 H XX # <EoL Comment>;
+R1 simple 1 L XX # <EoL Comment>;
+R3 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R2 simple 1 H XX # <EoL Comment>;
+R1 simple 1 L XX # <EoL Comment>;
+R3 simple 1 H XX # <EoL Comment>;
+R2 simple 1 L XX # <EoL Comment>;
+R2 simple 1 H XX # <EoL Comment>;
+# SWD: Ignoring parity bit on SWD READ operation
+R2 simple 1 X XX # <EoL Comment>;
+R1 simple 1 0 XX # <EoL Comment>;
+R10 simple 1 0 XX # <EoL Comment>;
 SQPG STOP;

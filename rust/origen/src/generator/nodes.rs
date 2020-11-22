@@ -41,11 +41,12 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Pattern generation nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, (PinActions, Pin Data)
-    //SetPin(HashMap<String, String>), // Pin IDs, Waveform Symbol
-    //PinAction(IndexMap<usize, (String, Option<HashMap<String, crate::Metadata>>)>, Option<(usize, Option<HashMap<String, crate::Metadata>>)>),
     PinGroupAction(usize, Vec<String>, Option<HashMap<String, crate::Metadata>>),
     PinAction(usize, String, Option<HashMap<String, crate::Metadata>>),
+    Capture(crate::Capture, Metadata),
+    EndCapture(Option<usize>),
+    Overlay(crate::Overlay, Metadata),
+    EndOverlay(Option<usize>),
     Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
     Cycle(u32, bool),                         // repeat (0 not allowed), compressable
     PatternHeader,
@@ -63,6 +64,8 @@ pub enum Attrs {
                      // Option<BigUint>,
                      // Option<String>
     ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    RegCapture(Transaction),
+    RegOverlay(Transaction),
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// JTAG nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////

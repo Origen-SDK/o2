@@ -1,7 +1,9 @@
 use crate::dut::PyDUT;
 use origen::DUT;
 use pyo3::prelude::*;
+use crate::unpack_transaction_kwargs;
 
+mod pin_api;
 #[macro_use]
 pub mod pin_actions;
 #[macro_use]
@@ -41,26 +43,65 @@ pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
 
 pub fn extract_pin_transaction(
     actions: &PyAny,
+    action: origen::TransactionAction,
     kwargs: Option<&PyDict>,
 ) -> PyResult<origen::Transaction> {
     let actions = extract_pinactions!(actions)?;
-    let mut t = origen::Transaction::new_set(&actions)?;
-    if let Some(opts) = kwargs {
-        if let Some(mask) = opts.get_item("mask") {
-            if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
-                t.bit_enable = big_mask;
-            } else {
-                return super::type_error!("Could not extract kwarg 'mask' as an integer");
-            }
-        }
-        if let Some(_overlay) = opts.get_item("overlay") {
-            panic!("option not supported yet!");
-        }
-        if let Some(_overlay_str) = opts.get_item("overlay_str") {
-            panic!("option not supported yet!");
-        }
+    let mut t;
+    match action {
+        origen::TransactionAction::Set => t = origen::Transaction::new_set(&actions)?,
+        _ => return crate::runtime_error!(
+            format!("Extracting Pin transaction of action {:?} is not supported", action)
+        )
     }
+    unpack_pin_transaction_kwargs(&mut t, kwargs)?;
     Ok(t)
+
+    // if let Some(opts) = kwargs {
+    //     if let Some(mask) = opts.get_item("mask") {
+    //         if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+    //             t.bit_enable = big_mask;
+    //         } else {
+    //             return super::type_error!("Could not extract kwarg 'mask' as an integer");
+    //         }
+    //     }
+    //     if let Some(overlay) = opts.get_item("overlay") {
+    //         let overlay_mask;
+    //         if let Some(mask) = opts.get_item("overlay_mask") {
+    //             if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+    //                 overlay_mask = Some(big_mask);
+    //             } else {
+    //                 return super::type_error!("Could not extract kwarg 'overlay_mask' as an integer");
+    //             }
+    //         } else {
+    //             overlay_mask = Some(t.enable_width()?)
+    //         }
+    //         // panic!("option not supported yet!");
+    //         if let Ok(should_overlay) = overlay.extract::<bool>() {
+    //             if should_overlay {
+    //                 // Unnamed overlay
+    //                 t.overlay_enable = overlay_mask;
+    //             }
+    //         } else if let Ok(overlay_name) = overlay.extract::<String>() {
+    //             t.overlay_enable = overlay_mask;
+    //             t.overlay_string = Some(overlay_name);
+    //         } else {
+    //             return super::type_error!("Could not extract kwarg 'overlay' as either a bool or a string");
+    //         }
+    //     }
+
+        // if let Some(_overlay_str) = opts.get_item("overlay_str") {
+        //     panic!("option not supported yet!");
+        // }
+    // }
+    // Ok(t)
+}
+
+fn unpack_pin_transaction_kwargs(trans: &mut origen::Transaction, kwargs: Option<&PyDict>) -> PyResult<()> {
+    if let Some(opts) = kwargs {
+        unpack_transaction_kwargs(trans, opts)?;
+    }
+    Ok(())
 }
 
 /// Given a vector of PyAny's, assumed to be either a String, Pin, or PinGroup object,
@@ -97,6 +138,28 @@ pub fn pins_to_backend_lookup_fields(
     }
     Ok(retn)
 }
+
+pub fn vec_to_ppin_ids(dut: &origen::Dut, pins: Vec<&PyAny>) -> PyResult<Vec<usize>> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let t = PyTuple::new(py, pins);
+    let pin_lookups = pins_to_backend_lookup_fields(py, t)?;
+    let flat_pins = dut._resolve_to_flattened_pins(&pin_lookups)?; 
+    Ok(flat_pins.iter().map(|p| p.id).collect::<Vec<usize>>())
+}
+
+// /// Similar to pins_to_backend_lookup_fields (and actually uses that) but goes
+// /// the extra step of converting the pins to actual pin_ids
+// /// This will catch pin-related errors sooner, but requires that the pins
+// /// are already created.
+// pub fn extract_as_pin_ids(dut: Dut, pins: &PyTuple) -> PyResult<Vec<usize>> {
+//     let lookup_fields = pins_to_backend_lookup_fields(py, pins)?;
+//     let retn: Vec<usize> = vec![];
+//     for (model_id, name) in lookup_fields {
+//         // ...
+//     }
+//     Ok(retn)
+// }
 
 #[pymethods]
 impl PyDUT {

@@ -1,3 +1,6 @@
+pub mod api_structs;
+pub use api_structs::{Overlay, Capture};
+
 use super::model::pins::pin::Resolver;
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
@@ -275,6 +278,16 @@ impl Tester {
     pub fn cycle(&mut self, repeat: Option<usize>) -> Result<()> {
         let cycle_node = node!(Cycle, repeat.unwrap_or(1) as u32, true);
         TEST.push(cycle_node);
+        Ok(())
+    }
+
+    pub fn overlay(&self, overlay: &Overlay) -> Result<()> {
+        TEST.push(overlay.to_node());
+        Ok(())
+    }
+
+    pub fn capture(&self, capture: &Capture) -> Result<()> {
+        TEST.push(capture.to_node());
         Ok(())
     }
 

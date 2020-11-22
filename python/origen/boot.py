@@ -100,6 +100,7 @@ if sys.platform == "win32":
 def run_cmd(command,
             targets=None,
             verbosity=None,
+            verbosity_keywords="",
             mode=None,
             files=None,
             output_dir=None,
@@ -132,6 +133,7 @@ def run_cmd(command,
 
     if verbosity is not None:
         _origen.logger.set_verbosity(verbosity)
+        _origen.logger.set_verbosity_keywords(verbosity_keywords.split(","))
 
     if output_dir is not None:
         _origen.set_output_dir(output_dir)

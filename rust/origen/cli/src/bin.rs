@@ -16,6 +16,9 @@ use origen::utility::version::to_pep440;
 use origen::{LOGGER, STATUS};
 use std::path::Path;
 
+static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
+static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
+
 #[derive(Clone)]
 pub struct CommandHelp {
     name: String,
@@ -54,7 +57,7 @@ fn main() {
                 let captures = verbosity_re.captures(&args[0]).unwrap();
                 let x = captures.get(1).unwrap().as_str();
                 let verbosity = x.chars().count() as u8;
-                origen::initialize(Some(verbosity), None);
+                origen::initialize(Some(verbosity), vec!(), None);
                 args = args.drain(1..).collect();
             }
             // Commmand is not actually available outside an app, so just fall through
@@ -88,7 +91,7 @@ fn main() {
             None
         }
     };
-    origen::initialize(Some(verbosity), exe);
+    origen::initialize(Some(verbosity), vec!(), exe);
 
     let version = match STATUS.is_app_present {
         true => format!(
@@ -118,7 +121,15 @@ fn main() {
                 .short("v")
                 .multiple(true)
                 .global(true)
-                .help("Terminal verbosity level e.g. -v, -vv, -vvv"),
+                .help(VERBOSITY_HELP_STR)
+        )
+        .arg(
+            Arg::with_name("verbosity_keywords")
+                .short("k")
+                .multiple(true)
+                .takes_value(true)
+                .global(true)
+                .help(VERBOSITY_KEYWORD_HELP_STR)
         );
 
     // The main help message is going to be automatically generated to allow us to handle and clearly
@@ -959,12 +970,15 @@ Examples:
 USAGE:
     origen [FLAGS] [COMMAND]
 FLAGS:
-    -h, --help       Prints help information
-    -v               Terminal verbosity level e.g. -v, -vv, -vvv
+    -h, --help                Prints help information
+    -v                        {}
+    -vk, --verbosity_keywords {}
 
 CORE COMMANDS:
 ",
-        version
+        version,
+        VERBOSITY_HELP_STR,
+        VERBOSITY_KEYWORD_HELP_STR
     );
 
     for command in &origen_commands {
@@ -985,6 +999,9 @@ CORE COMMANDS:
     let matches = app.get_matches();
 
     let _ = LOGGER.set_verbosity(matches.occurrences_of("verbose") as u8);
+    if let Some(keywords) = matches.values_of("verbosity_keywords") {
+        let _ = LOGGER.set_verbosity_keywords(keywords.map( |k| k.to_string()).collect());
+    }
 
     match matches.subcommand_name() {
         Some("app") => commands::app::run(matches.subcommand_matches("app").unwrap()),

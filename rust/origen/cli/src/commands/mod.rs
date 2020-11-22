@@ -63,7 +63,7 @@ pub fn launch(
     }
 
     cmd += &format!(", verbosity={}", LOGGER.verbosity());
-
+    cmd += &format!(", verbosity_keywords=\"{}\"", LOGGER.keywords_to_cmd());
     cmd += ");";
 
     log_debug!("Launching Python: '{}'", &cmd);

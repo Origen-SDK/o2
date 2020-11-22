@@ -147,6 +147,64 @@ fn unpack_transaction_options(
     Ok(())
 }
 
+// fn unpack_capture_kwargs(kwargs: Option<&PyDict>) -> PyResult<Option<origen::Capture>> {
+//     if let Some(opts) = kwargs {
+//         let mut c = origen::Capture::placeholder();
+//         if let Some(sym) = opts.get_item("symbol") {
+//             c.symbol = Some(sym.extract::<String>()?);
+//         }
+//         if let Some(enables) = opts.get_item("mask") {
+//             c.enables = Some(enables.extract::<BigUint>()?);
+//         }
+//     } else {
+//         None
+//     }
+// }
+
+/// Unpacks/extracts common transaction options, updating the transaction directly
+/// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
+fn unpack_transaction_kwargs(
+    trans: &mut origen::Transaction,
+    kwargs: &PyDict,
+) -> PyResult<()> {
+    if let Some(mask) = kwargs.get_item("mask") {
+        if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+            trans.bit_enable = big_mask;
+        } else {
+            return crate::type_error!("Could not extract kwarg 'mask' as an integer");
+        }
+    }
+    if let Some(overlay) = kwargs.get_item("overlay") {
+        let overlay_mask;
+        if let Some(mask) = kwargs.get_item("overlay_mask") {
+            if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+                overlay_mask = Some(big_mask);
+            } else {
+                return crate::type_error!("Could not extract kwarg 'overlay_mask' as an integer");
+            }
+        } else {
+            overlay_mask = Some(trans.enable_width()?)
+        }
+        // panic!("option not supported yet!");
+        if let Ok(should_overlay) = overlay.extract::<bool>() {
+            if should_overlay {
+                // Unnamed overlay
+                trans.overlay_enable = overlay_mask;
+            }
+        } else if let Ok(overlay_name) = overlay.extract::<String>() {
+            trans.overlay_enable = overlay_mask;
+            trans.overlay_string = Some(overlay_name);
+        } else {
+            return crate::type_error!("Could not extract kwarg 'overlay' as either a bool or a string");
+        }
+    }
+    Ok(())
+}
+
+// fn unpack_register_transaction() -> PyResult<Transaction> {
+//     // ...
+// }
+
 fn resolve_transaction(
     dut: &std::sync::MutexGuard<origen::Dut>,
     trans: &PyAny,
@@ -165,7 +223,7 @@ fn resolve_transaction(
         match a {
             origen::TransactionAction::Write => trans = value.to_write_transaction(&dut)?,
             origen::TransactionAction::Verify => trans = value.to_verify_transaction(&dut)?,
-            // origen::TransactionAction::Capture => trans = value.to_capture_transaction(&dut)?,
+            origen::TransactionAction::Capture => trans = value.to_capture_transaction(&dut)?,
             _ => {
                 return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
                     "Resolving transactions for {:?} is not supported",
@@ -180,7 +238,9 @@ fn resolve_transaction(
 
     if let Some(opts) = kwargs {
         if let Some(address) = opts.get_item("address") {
-            trans.address = Some(address.extract::<u128>()?);
+            if !address.is_none() {
+                trans.address = Some(address.extract::<u128>()?);
+            }
         }
         if let Some(w) = opts.get_item("address_width") {
             trans.address_width = Some(w.extract::<usize>()?);
@@ -212,8 +272,8 @@ fn exit_pass() -> PyResult<()> {
 
 /// Called automatically when Origen is first loaded
 #[pyfunction]
-fn initialize(log_verbosity: Option<u8>, cli_location: Option<String>) -> PyResult<()> {
-    origen::initialize(log_verbosity, cli_location);
+fn initialize(log_verbosity: Option<u8>, verbosity_keywords: Vec<String>, cli_location: Option<String>) -> PyResult<()> {
+    origen::initialize(log_verbosity, verbosity_keywords, cli_location);
     Ok(())
 }
 
@@ -434,4 +494,13 @@ fn prepare_for_target_load() -> PyResult<()> {
 fn start_new_test(name: Option<String>) -> PyResult<()> {
     origen::start_new_test(name);
     Ok(())
+}
+
+#[macro_export]
+macro_rules! runtime_error {
+    ($message:expr) => {{
+        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(
+            $message,
+        ))
+    }};
 }

@@ -4,7 +4,7 @@ use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Error, Metadata, Result};
+use crate::{Error, Metadata, Result, Capture, Overlay};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
@@ -14,6 +14,7 @@ pub enum Action {
     Write,
     Verify,
     Capture,
+    // Overlay,
     Set,
 }
 
@@ -26,7 +27,7 @@ pub struct Transaction {
     pub width: usize,
     pub data: BigUint,
     pub bit_enable: BigUint,
-    pub capture_enable: Option<BigUint>,
+    pub capture: Option<Capture>,
     pub overlay_enable: Option<BigUint>,
     pub overlay_string: Option<String>,
     pub set_actions: Option<Vec<PinAction>>,
@@ -43,7 +44,7 @@ impl Default for Transaction {
             width: 0,
             data: BigUint::from(0 as usize),
             bit_enable: BigUint::from(0 as usize),
-            capture_enable: None,
+            capture: None,
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
@@ -63,7 +64,7 @@ impl Transaction {
             width: width,
             data: data,
             bit_enable: Self::enable_of_width(width)?,
-            capture_enable: None,
+            capture: None,
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
@@ -87,7 +88,7 @@ impl Transaction {
             width: width,
             data: data,
             bit_enable: Self::enable_of_width(width)?,
-            capture_enable: None,
+            capture: None,
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
@@ -95,7 +96,7 @@ impl Transaction {
         })
     }
 
-    pub fn new_capture(width: usize) -> Result<Self> {
+    pub fn new_capture(width: usize, capture_enables: Option<BigUint>) -> Result<Self> {
         Ok(Self {
             action: Some(Action::Capture),
             reg_id: None,
@@ -104,12 +105,24 @@ impl Transaction {
             width: width,
             data: BigUint::from(0 as u8),
             bit_enable: Self::enable_of_width(width)?,
-            capture_enable: Some(Self::enable_of_width(width)?),
+            capture: Some({
+                let mut c = Capture::default();
+                c.enables = capture_enables.clone();
+                c
+            }),
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
             metadata: None,
         })
+    }
+
+    pub fn set_capture_enables(&mut self, capture_enables: Option<BigUint>) -> Result<()> {
+        if self.capture.is_none() {
+            self.capture = Some(Capture::default());
+        }
+        self.capture.as_mut().unwrap().enables = capture_enables;
+        Ok(())
     }
 
     pub fn new_highz(width: usize) -> Result<Self> {
@@ -121,13 +134,22 @@ impl Transaction {
             width: width,
             data: BigUint::from(0 as u8),
             bit_enable: BigUint::from(0 as u8),
-            capture_enable: None,
+            capture: None,
             overlay_enable: None,
             overlay_string: None,
             set_actions: None,
             metadata: None,
         })
     }
+
+    // pub new_overlay(
+    //     overlay_string: Option<String>,
+    //     symbol: Option<String>,
+    //     overlay_enable: Option<BigUuint>,
+    //     cycles: usize
+    // ) -> Result<Self> {
+    //     let t = Self::default();
+    // }
 
     pub fn new_set(actions: &Vec<PinAction>) -> Result<Self> {
         Ok(Self {
@@ -138,7 +160,7 @@ impl Transaction {
             width: actions.len(),
             data: BigUint::from(0 as u8),
             bit_enable: Self::enable_of_width(actions.len())?,
-            capture_enable: None,
+            capture: None,
             overlay_enable: None,
             overlay_string: None,
             set_actions: Some(actions.clone()),
@@ -176,7 +198,7 @@ impl Transaction {
         }
     }
 
-    pub fn to_symbols(&self) -> Result<Vec<String>> {
+    pub fn to_symbols(&self) -> Result<Vec<(String, bool, bool)>> {
         let low_sym;
         let high_sym;
         if let Some(action) = &self.action {
@@ -203,22 +225,40 @@ impl Transaction {
             high_sym = HIGHZ;
         }
 
-        let mut bits: Vec<String> = Vec::with_capacity(self.width);
+        let mut bits: Vec<(String, bool, bool)> = Vec::with_capacity(self.width);
         let enables = self.bit_enable.clone();
         let t = BigUint::from(1 as u8);
+
+        let big0 = BigUint::from(0 as u8);
+        let mut overlays = self.overlay_enable.as_ref().unwrap_or(&big0);
+        let mut captures;
+        if let Some(c) = &self.capture {
+            if let Some(cap_enables) = &c.enables {
+                captures = cap_enables.clone();
+            } else {
+                captures = self.enable_width()?;
+            }
+        } else {
+            // no captures
+            captures = BigUint::from(0 as u8);
+        }
+        let mut overlay;
+        let mut capture;
         for i in 0..self.width {
+            overlay = ((overlays >> i) & &t) == t;
+            capture = ((&captures >> i) & &t) == t;
             if ((&enables >> i) & &t) == t {
                 if self.is_set_action() {
-                    bits.push(self.set_actions.as_ref().unwrap()[i].to_string());
+                    bits.push((self.set_actions.as_ref().unwrap()[i].to_string(), overlay, capture));
                 } else {
                     if ((&self.data >> i) & &t) == t {
-                        bits.push(high_sym.to_string());
+                        bits.push((high_sym.to_string(), overlay, capture));
                     } else {
-                        bits.push(low_sym.to_string());
+                        bits.push((low_sym.to_string(), overlay, capture));
                     }
                 }
             } else {
-                bits.push(HIGHZ.to_string());
+                bits.push((HIGHZ.to_string(), overlay, capture));
             }
         }
         // Should probably add this
@@ -262,7 +302,7 @@ impl Transaction {
             width: self.width,
             data: self.data.clone(),
             bit_enable: BigUint::from(0 as u8),
-            capture_enable: Some(BigUint::from(0 as u8)),
+            capture: self.capture.clone(),
             overlay_enable: self.overlay_enable.clone(),
             overlay_string: self.overlay_string.clone(),
             set_actions: None,
@@ -310,12 +350,27 @@ impl Transaction {
         Ok(node!(RegVerify, self.clone()))
     }
 
+    pub fn as_capture_node(&self) -> Result<Node> {
+        Ok(node!(RegCapture, self.clone()))
+    }
+
     pub fn chunk_data(&self, chunk_width: usize) -> Result<Vec<BigUint>> {
         self.data.chunk(chunk_width, self.width)
     }
 
     pub fn chunk_addr(&self, chunk_width: usize) -> Result<Vec<BigUint>> {
         BigUint::from(self.addr()?).chunk(chunk_width, self.addr_width()?)
+    }
+
+    pub fn is_capture(&self) -> bool {
+        if let Some(a) = &self.action {
+            match a {
+                Action::Capture => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
 }
 
