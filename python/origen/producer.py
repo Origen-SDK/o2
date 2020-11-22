@@ -26,6 +26,7 @@ class Producer(_origen.producer.PyProducer):
 
     @contextmanager
     def Pattern(self, **kwargs):
+        _origen.set_operation("generatepattern")
         # Always freshly load the target when generating a pattern, no matter how much anyone
         # complains about this!
         # It guarantees that produced patterns are always the same regardless of generation
@@ -52,6 +53,7 @@ class Producer(_origen.producer.PyProducer):
 
     @contextmanager
     def Flow(self, **kwargs):
+        _origen.set_operation("generateflow")
         # Instantiate the app interface
         if origen.interface is None:
             path = f'{_origen.app_config()["name"]}.interface.interface'

@@ -23,12 +23,13 @@ mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen::{Dut, Error, Result, Value, ORIGEN_CONFIG, PROG, STATUS, TEST};
+use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::types::{PyAny, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::MutexGuard;
 
 // Imported pyapi modules
@@ -85,6 +86,8 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(set_reference_dir))?;
     m.add_wrapped(wrap_pyfunction!(exit_pass))?;
     m.add_wrapped(wrap_pyfunction!(exit_fail))?;
+    m.add_wrapped(wrap_pyfunction!(enable_debug))?;
+    m.add_wrapped(wrap_pyfunction!(set_operation))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
@@ -292,6 +295,25 @@ fn set_reference_dir(dir: &str) -> PyResult<()> {
 }
 
 #[pyfunction]
+/// Enable Python source line tracking
+fn enable_debug() -> PyResult<()> {
+    STATUS.set_debug_enabled(true);
+    Ok(())
+}
+
+#[pyfunction]
+/// Set the current Origen operation (generate, compile, etc.)
+fn set_operation(name: String) -> PyResult<()> {
+    match Operation::from_str(&name) {
+        Ok(op) => {
+            STATUS.set_operation(op);
+            Ok(())
+        }
+        Err(e) => Err(PyErr::from(Error::new(&e))),
+    }
+}
+
+#[pyfunction]
 /// Returns the number of unhandled errors that have been encountered since the Origen
 /// invocation started.
 /// An unhandled error is something that ultimately resulted in a pattern not being generated
@@ -316,17 +338,14 @@ fn test_ast() -> PyResult<Vec<u8>> {
 /// Prints out the AST for the current flow to the console
 #[pyfunction]
 fn flow() -> PyResult<()> {
-    PROG.with_current_flow(|f| {
-        println!("{}", f.to_string());
-        Ok(())
-    })?;
+    println!("{}", FLOW.to_string());
     Ok(())
 }
 
 /// Returns the AST for the current flow in Python
 #[pyfunction]
 fn flow_ast() -> PyResult<Vec<u8>> {
-    Ok(PROG.with_current_flow(|f| Ok(f.to_pickle()))?)
+    Ok(FLOW.to_pickle())
 }
 
 /// Returns a file handler object (iterable) for consuming the file arguments

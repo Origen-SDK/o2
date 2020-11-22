@@ -558,6 +558,13 @@ Examples:
                         .help("Override the default reference directory (<APP ROOT>/.ref)")
                         .takes_value(true)
                         .value_name("REFERENCE_DIR"),
+                )
+                .arg(
+                    Arg::with_name("debug")
+                        .long("debug")
+                        .short("d")
+                        .help("Enable Python caller tracking for debug (takes longer to execute)")
+                        .takes_value(false),
                 ),
         );
 
@@ -1035,6 +1042,7 @@ CORE COMMANDS:
                 Some(m.values_of("files").unwrap().collect()),
                 m.value_of("output_dir"),
                 m.value_of("reference_dir"),
+                m.is_present("debug"),
                 None,
             );
         }
@@ -1051,6 +1059,7 @@ CORE COMMANDS:
                 Some(m.values_of("files").unwrap().collect()),
                 m.value_of("output_dir"),
                 m.value_of("reference_dir"),
+                false,
                 None,
             );
         }
@@ -1118,11 +1127,14 @@ CORE COMMANDS:
                         None,
                         None,
                         None,
+                        false,
                         Some(args),
                     )
                 }
-                "view" => commands::launch("web:view", None, &None, None, None, None, None),
-                "clean" => commands::launch("web:clean", None, &None, None, None, None, None),
+                "view" => commands::launch("web:view", None, &None, None, None, None, false, None),
+                "clean" => {
+                    commands::launch("web:clean", None, &None, None, None, None, false, None)
+                }
                 _ => {}
             }
         }

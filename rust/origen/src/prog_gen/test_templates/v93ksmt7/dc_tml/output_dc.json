@@ -1,0 +1,73 @@
+{
+    "class_name": "dc_tml.DcTest.OutputDC",
+
+    "parameters": {
+        "pinlist": {
+            "type": "string"
+        },
+        "mode": {
+            "type": "string",
+            "value": "PROGRAMLOAD",
+            "accepted_values": ["PROGRAMLOAD", "PPMU", "SPMU", "PPMUTERM", "SPMUTERM"]
+        },
+        "measureLevel": {
+            "type": "string",
+            "value": "BOTH",
+            "accepted_values": ["BOTH", "LOW", "HIGH"]
+        },
+        "forceCurrentLow": {
+            "type": "current",
+            "value": 0
+        },
+        "forceCurrentHigh": {
+            "type": "current",
+            "value": 0
+        },
+        "maxPassLow": {
+            "type": "voltage",
+            "value": 0
+        },
+        "minPassLow": {
+            "type": "voltage",
+            "value": 0
+        },
+        "maxPassHigh": {
+            "type": "voltage",
+            "value": 0
+        },
+        "minPassHigh": {
+            "type": "voltage",
+            "value": 0
+        },
+        "settlingTimeLow": {
+            "type": "time",
+            "value": 0
+        },
+        "settlingTimeHigh": {
+            "type": "time",
+            "value": 0
+        },
+        "spmuClampVoltageLow": {
+            "type": "voltage",
+            "value": 0
+        },
+        "spmuClampVoltageHigh": {
+            "type": "voltage",
+            "value": 0
+        },
+        "vectorRange": {
+            "type": "string"
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "testName": {
+            "type": "string",
+            "aliases": [],
+            "value": "(OutputDC_LowLevel[V],OutputDC_HighLevel[V])"
+        }
+    }
+}

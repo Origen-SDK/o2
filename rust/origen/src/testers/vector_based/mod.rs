@@ -4,7 +4,7 @@ pub mod pattern_renderer;
 use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::ast::Node;
-use crate::utility::differ::Differ;
+use crate::utility::differ::{ASCIIDiffer, Differ};
 use crate::Result;
 use std::path::{Path, PathBuf};
 use crate::generator::processor::Return;
@@ -87,13 +87,32 @@ where
         pattern_renderer::Renderer::run(self, node)
     }
 
-    default fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Differ> {
-        let mut d = Differ::new(pat_a, pat_b);
+    default fn pattern_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Box<dyn Differ>> {
+        let mut d = ASCIIDiffer::new(pat_a, pat_b);
         let _ = d.ignore_comments(self.comment_str());
-        Some(d)
+        Some(Box::new(d))
+    }
+
+    default fn program_differ(&self, pat_a: &Path, pat_b: &Path) -> Option<Box<dyn Differ>> {
+        let mut d = ASCIIDiffer::new(pat_a, pat_b);
+        let _ = d.ignore_comments(self.comment_str());
+        Some(Box::new(d))
     }
 
     default fn pin_action_resolver(&self) -> Option<Resolver> {
         VectorBased::pin_action_resolver(self)
+    }
+
+    default fn render_program(&mut self) -> crate::Result<Vec<PathBuf>> {
+        log_debug!("Tester '{}' does not implement render_program", &self.id());
+        Ok(vec![])
+    }
+
+    default fn output_dir(&self) -> Result<PathBuf> {
+        let dir = crate::STATUS.output_dir().join(&self.name().to_lowercase());
+        if !dir.exists() {
+            std::fs::create_dir_all(&dir)?;
+        }
+        Ok(dir)
     }
 }

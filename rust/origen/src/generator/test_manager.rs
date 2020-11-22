@@ -105,7 +105,7 @@ impl TestManager {
         format!("{}", ast)
     }
 
-    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Node) -> Node {
+    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Result<Node>) -> Result<Node> {
         let ast = self.ast.read().unwrap();
         ast.process(process_fn)
     }

@@ -23,6 +23,7 @@ pub fn launch(
     files: Option<Vec<&str>>,
     output_dir: Option<&str>,
     reference_dir: Option<&str>,
+    debug: bool,
     cmd_args: Option<IndexMap<&str, String>>,
 ) {
     let mut cmd = format!("from origen.boot import run_cmd; run_cmd('{}'", command);
@@ -60,6 +61,10 @@ pub fn launch(
 
     if let Some(dir) = reference_dir {
         cmd += &format!(", reference_dir='{}'", dir);
+    }
+
+    if debug {
+        cmd += ", debug=True";
     }
 
     cmd += &format!(", verbosity={}", LOGGER.verbosity());
