@@ -4,7 +4,7 @@
 use crate::node;
 use crate::precludes::controller::*;
 use crate::testers::api::ControllerAPI;
-use crate::{Dut, Result, Services, Transaction, TEST};
+use crate::{Dut, Result, Transaction, TEST};
 
 // pub enum TAPStates {
 //     Reset,
@@ -273,34 +273,6 @@ impl Service {
         self.comment("Move to IDLE");
         tms.drive_low().cycle();
 
-        TEST.close(n_id)?;
-        Ok(())
-    }
-
-    pub fn write_register(
-        &self,
-        dut: &Dut,
-        _services: &Services,
-        transaction: &Transaction,
-    ) -> Result<()> {
-        let n_id = TEST.push_and_open(transaction.as_write_node()?);
-        let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
-        self.write_ir(&dut, &ir_trans)?;
-        self.write_dr(&dut, &transaction)?;
-        TEST.close(n_id)?;
-        Ok(())
-    }
-
-    pub fn verify_register(
-        &self,
-        dut: &Dut,
-        _services: &Services,
-        transaction: &Transaction,
-    ) -> Result<()> {
-        let n_id = TEST.push_and_open(transaction.as_verify_node()?);
-        let ir_trans = transaction.to_addr_trans(self.default_ir_size)?;
-        self.write_ir(&dut, &ir_trans)?;
-        self.verify_dr(&dut, transaction)?;
         TEST.close(n_id)?;
         Ok(())
     }
