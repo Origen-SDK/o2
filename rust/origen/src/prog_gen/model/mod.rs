@@ -1,18 +1,55 @@
 //! This module contains all of the data/model for a test program, including all flows,
 //! test templates, test instances, etc.
 
+mod bin;
+mod flow_id;
+mod limit;
+mod model;
+mod template_loader;
 mod test;
-mod test_collection;
-mod test_program;
 
 use crate::Result as OrigenResult;
+pub use bin::Bin;
+pub use flow_id::FlowID;
+pub use limit::Limit;
+pub use model::Model;
 use std::fmt;
 use std::str::FromStr;
 pub use test::Test;
-pub use test_collection::TestCollection;
-pub use test_program::TestProgram;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum PatternGroupType {
+    Patset,
+    Patgroup,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum GroupType {
+    Flow,
+    Test,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum BinType {
+    Good,
+    Bad,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum FlowCondition {
+    IfJob(Vec<String>),
+    UnlessJob(Vec<String>),
+    IfEnable(Vec<String>),
+    UnlessEnable(Vec<String>),
+    IfPassed(Vec<String>),
+    UnlessPassed(Vec<String>),
+    IfFailed(Vec<String>),
+    UnlessFailed(Vec<String>),
+    IfRan(Vec<String>),
+    UnlessRan(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ParamValue {
     String(String),
     Int(i64),
@@ -61,7 +98,7 @@ impl fmt::Display for ParamValue {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum ParamType {
     String,
     Int,
@@ -97,7 +134,7 @@ impl FromStr for ParamType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Constraint {
     In(Vec<ParamValue>),
     GT(ParamValue),

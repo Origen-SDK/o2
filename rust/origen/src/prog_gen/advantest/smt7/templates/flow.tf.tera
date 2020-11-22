@@ -1,0 +1,82 @@
+hp93000,testflow,0.1
+language_revision = 1;
+
+testmethodparameters
+{% for test_method in test_methods %}
+%       unless method.parameters.empty?
+<%= method.id %>:
+%         method.sorted_parameters.each do |param|
+%           name = param[0]
+  "<%= name.is_a?(String) ? name : name.to_s[0] == '_' ? name.to_s.camelize(:upper) : name.to_s.camelize(:lower) %>" = "<%= method.format(name) %>";
+%         end
+%       end
+{% endfor %}
+
+end
+-----------------------------------------------------------------
+testmethodlimits
+{% if inline_limits %}
+{%   for (_, test_method) in test_methods %}
+%   test_methods.sorted_collection.each do |method|
+%     if method.respond_to?(:limits) && method.limits && method.limits.render?
+<%= method.id %>:
+  <%= method.limits %>;
+%     end
+{%   endfor %}
+{% endif %}
+
+end
+-----------------------------------------------------------------
+testmethods
+{% for test_method in test_methods %}
+<%= method.id %>:
+  testmethod_class = "<%= method.klass %>";
+{% endfor %}
+
+end
+-----------------------------------------------------------------
+test_suites
+{% for test_suite in test_suites %}
+<%= suite.name %>:
+%     suite.lines.each do |line|
+<%= line %>
+%     end
+{% endfor %}
+
+end
+-----------------------------------------------------------------
+test_flow
+
+{% for line in flow_header %}
+{{ line }}
+{% endfor %}
+{% for line in flow_body %}
+{{ line }}
+{% endfor %}
+{% for line in flow_footer %}
+{{ line }}
+{% endfor %}
+
+end
+-----------------------------------------------------------------
+binning
+end
+-----------------------------------------------------------------
+oocrule
+
+
+end
+-----------------------------------------------------------------
+context
+
+
+end
+-----------------------------------------------------------------
+hardware_bin_descriptions
+
+{% for bin in hard_bins %}
+  {{bin.number}} = {{bin.description}};
+{% endfor %}
+
+end
+-----------------------------------------------------------------

@@ -1,0 +1,32 @@
+{
+    "class_name": "ac_tml.AcTest.Frequency_byDigitalCapture",
+
+    "parameters": {
+        "vectorVariableName": {
+            "type": "string"
+        },
+        "algorithm": {
+            "type": "string",
+            "value": "FFT",
+            "accepted_values": ["FFT", "LinearFit"]
+        },
+        "samplePeriod": {
+            "type": "time",
+            "value": 0
+        },
+        "targetFrequency": {
+            "type": "frequency",
+            "value": 0
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "testName": {
+            "type": "string",
+            "value": "passFrequency_Mhz"
+        }
+    }
+}

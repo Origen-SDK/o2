@@ -1,3 +1,4 @@
+pub use crate::generator::node::Meta;
 pub use crate::generator::node::Node;
 pub use crate::generator::nodes::Attrs;
 use crate::generator::TestManager;
@@ -226,7 +227,7 @@ impl AST {
         self.nodes.push(node);
     }
 
-    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Node) -> Node {
+    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Result<Node>) -> Result<Node> {
         if self.nodes.len() > 1 {
             let node = self.to_node();
             process_fn(&node)

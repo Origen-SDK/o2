@@ -1,5 +1,6 @@
 import origen, pathlib, re, mako, os, abc
 from mako.template import Template
+from jinja2 import Template as JinjaTemplate
 from os import access, W_OK, X_OK, R_OK
 from origen.errors import *
 
@@ -58,10 +59,7 @@ class Compiler:
     def __init__(self, *args, **options):
         self.stack = list(args) if args else []
         self.renders, self.output_files = [], []
-        self.renderers = {
-            'mako': MakoRenderer,
-            # 'jinja': JinjaRenderer
-        }
+        self.renderers = {'mako': MakoRenderer, 'jinja': JinjaRenderer}
 
     @property
     def supported_extensions(self):
@@ -121,8 +119,7 @@ class Compiler:
 
     @property
     def templates_dir(self):
-        templates_dir = pathlib.Path(
-            f"{origen.app.root}/{origen.app.name}/templates")
+        templates_dir = pathlib.Path(f"{origen.app.root}/templates")
         if not templates_dir.exists():
             raise FileNotFoundError(
                 f"Application templates directory does not exist at {templates_dir}"
@@ -142,7 +139,7 @@ class Compiler:
         f = pathlib.Path(filename)
         if f.suffix == '.mako':
             return 'mako'
-        elif f.suffix == '.jinja':
+        elif f.suffix == '.jinja' or f.suffix == ".j2" or f.suffix == ".jinja2":
             return 'jinja'
 
     def render(self,
@@ -205,13 +202,13 @@ class Compiler:
                          output_name=None,
                          renderer=None):
         '''
-            Resolves the output name from the source, syntax, and given options.
+            Resolves the output name from the source, and given options.
 
             Resolution rules:
 
             * if no output_dir or output_name is given, the resolved filename will end up in
-                ``<app_output_dir>/renders/<syntax>/<file.x>`` where the filename is equivalent except
-                that the syntax-specific extension is removed.
+                ``<app_output_dir>/renders/<file.x>`` where the syntax-specific extension has been removed
+                from the filename
             * if an output name is given, the name and extension is changed to the output name, but the
                 output_dir remains as above.
             * if the output_dir is given, the templates are written to that location. Same rules for
@@ -219,9 +216,8 @@ class Compiler:
         '''
         src = pathlib.Path(src)
         r = renderer or self.renderer_for(src)
-        output = pathlib.Path(
-            output_dir
-            or origen.app.output_dir.joinpath(f'renders/{r.__name__.lower()}'))
+        output = pathlib.Path(output_dir
+                              or origen.app.output_dir.joinpath(f'compiled'))
         output = output.joinpath(output_name or r.resolve_filename(src.name))
         return output
 
@@ -280,6 +276,15 @@ class MakoRenderer(Renderer):
             output_file)
 
 
-# TODO: Add Jinja wrapper to Origen's compiler, especially since we'll get it for free via Sphinx
-# class JinjaRenderer(Renderer):
-#     pass
+class JinjaRenderer(Renderer):
+    file_extensions = ['jinja', 'jinja2', 'j2']
+    preprocessor = []
+
+    def render_str(self, src, context):
+        return JinjaTemplate(src).render(**context)
+
+    def render_file(self, src, output_file, context):
+        #import pdb; pdb.set_trace()
+        print(src)
+        return self.compiler._write_output_file(
+            JinjaTemplate(open(src).read()).render(**context), output_file)

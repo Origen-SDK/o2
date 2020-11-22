@@ -1,16 +1,53 @@
 extern crate time;
+use crate::built_info;
 use crate::core::application::Application;
+use crate::testers::SupportedTester;
 use crate::utility::file_utils::with_dir;
-use crate::{built_info, Result};
+use crate::Result as OrigenResult;
 use regex::Regex;
 use semver::Version;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::RwLock;
 
 // Trait for extending std::path::PathBuf
 use path_slash::PathBufExt;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Operation {
+    None,
+    Convert,
+    Generate,
+    GeneratePattern,
+    GenerateFlow,
+    Compile,
+    Interactive,
+    Web,
+    AppCommand,
+}
+
+impl FromStr for Operation {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Accept any case
+        let s = s.to_lowercase();
+        match s.trim() {
+            "none" => Ok(Operation::None),
+            "convert" => Ok(Operation::Convert),
+            "generate" => Ok(Operation::Generate),
+            "generatepattern" => Ok(Operation::GeneratePattern),
+            "generateflow" => Ok(Operation::GenerateFlow),
+            "compile" => Ok(Operation::Compile),
+            "interactive" => Ok(Operation::Interactive),
+            "web" => Ok(Operation::Web),
+            "appcommand" => Ok(Operation::AppCommand),
+            _ => Err(format!("Unknown Operation: '{}'", &s)),
+        }
+    }
+}
 
 /// Exposes some status information about the runtime environment, e.g. whether an
 /// application workspace is present
@@ -51,6 +88,11 @@ pub struct Status {
     reference_dir: RwLock<Option<PathBuf>>,
     cli_location: RwLock<Option<PathBuf>>,
     _custom_tester_ids: RwLock<Vec<String>>,
+    testers_eq: RwLock<Vec<Vec<SupportedTester>>>,
+    testers_neq: RwLock<Vec<Vec<SupportedTester>>>,
+    unique_id: RwLock<usize>,
+    debug_enabled: RwLock<bool>,
+    _operation: RwLock<Operation>,
 }
 
 impl Default for Status {
@@ -118,6 +160,11 @@ impl Default for Status {
             cli_location: RwLock::new(None),
             is_app_in_origen_dev_mode: origen_dev_mode,
             _custom_tester_ids: RwLock::new(vec![]),
+            testers_eq: RwLock::new(vec![]),
+            testers_neq: RwLock::new(vec![]),
+            unique_id: RwLock::new(0),
+            debug_enabled: RwLock::new(false),
+            _operation: RwLock::new(Operation::None),
         };
         log_trace!("Status built successfully");
         s
@@ -141,6 +188,95 @@ impl Status {
         ids
     }
 
+    /// Returns an ID that it guaranteed unique across threads and within the lifetime of an Origen
+    /// invocation
+    pub fn generate_unique_id(&self) -> usize {
+        let mut unique_id = self.unique_id.write().unwrap();
+        *unique_id += 1;
+        *unique_id
+    }
+
+    /// Corresponds to the start of a tester specific block of code, returns an error if the given tester
+    /// selection is not a subset of any existing selection
+    pub fn push_testers_eq(&self, testers: Vec<SupportedTester>) -> OrigenResult<()> {
+        if testers.is_empty() {
+            return error!("No tester type(s) given");
+        }
+        let mut testers_eq = self.testers_eq.write().unwrap();
+        // This may not be correct, makes it harder to call re-useable functions that make their own tester selections
+        //let testers_neq = self.testers_neq.read().unwrap();
+        //// Verify that the new selection does not violate any existing tester exclusion
+        //if !testers_neq.is_empty() {
+        //    for t_neqs in &*testers_neq {
+        //        for t_neq in t_neqs {
+        //            for t_eq in &testers {
+        //                if t_neq.is_compatible_with(t_eq) {
+        //                    return error!(
+        //                        "Can't select tester '{}' within a block that already excludes it",
+        //                        t_eq,
+        //                    );
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
+        // When some testers are already selected, the application is only allowed to select a subset of them,
+        // so verify that all given testers are already contained in the last selection
+        //if !testers_eq.is_empty() {
+        //    let last = testers_eq.last().unwrap();
+        //    for t in &testers {
+        //        if !last
+        //            .iter()
+        //            .any(|current_tester| t.is_compatible_with(current_tester))
+        //        {
+        //            return error!(
+        //                "Can't select tester '{}' within a block that selects '{}'",
+        //                t,
+        //                last.iter()
+        //                    .map(|t| t.to_string())
+        //                    .collect::<Vec<String>>()
+        //                    .join(", ")
+        //            );
+        //        }
+        //    }
+        //}
+        testers_eq.push(testers.clone());
+        Ok(())
+    }
+
+    /// Corresponds to the start of a tester except (tester not equal to) block of code, returns an error if the given tester
+    /// selection is not valid within any existing eq or neq blocks
+    pub fn push_testers_neq(&self, testers: Vec<SupportedTester>) -> OrigenResult<()> {
+        if testers.is_empty() {
+            return error!("No tester type(s) given");
+        }
+        let mut testers_neq = self.testers_neq.write().unwrap();
+        testers_neq.push(testers.clone());
+        Ok(())
+    }
+
+    /// Corresponds to the end of a tester specific block, returns an error if no tester specific
+    /// selection currently exists
+    pub fn pop_testers_eq(&self) -> OrigenResult<()> {
+        let mut current_testers = self.testers_eq.write().unwrap();
+        if current_testers.is_empty() {
+            return error!("There has been an attempt to close a tester-specific block, but none is currently open");
+        }
+        let _ = current_testers.pop();
+        Ok(())
+    }
+
+    /// Corresponds to the end of a tester exclusion block, returns an error if no tester exlcusion
+    /// selection currently exists
+    pub fn pop_testers_neq(&self) -> OrigenResult<()> {
+        let mut current_testers = self.testers_neq.write().unwrap();
+        if current_testers.is_empty() {
+            return error!("There has been an attempt to close a tester-exclusion block, but none is currently open");
+        }
+        let _ = current_testers.pop();
+        Ok(())
+    }
+
     /// Returns the number of unhandled errors that have been encountered since this thread started.
     /// An example of a unhandled error is a pattern that failed to generate.
     /// If an error occurs on the Python side then Origen will most likely crash, however on the
@@ -153,6 +289,24 @@ impl Status {
     pub fn inc_unhandled_error_count(&self) {
         let mut cnt = self.unhandled_error_count.write().unwrap();
         *cnt += 1;
+    }
+
+    pub fn set_debug_enabled(&self, val: bool) {
+        let mut debug_enabled = self.debug_enabled.write().unwrap();
+        *debug_enabled = val;
+    }
+
+    pub fn is_debug_enabled(&self) -> bool {
+        *self.debug_enabled.read().unwrap()
+    }
+
+    pub fn set_operation(&self, val: Operation) {
+        let mut operation = self._operation.write().unwrap();
+        *operation = val;
+    }
+
+    pub fn operation(&self) -> Operation {
+        *self._operation.read().unwrap()
     }
 
     pub fn set_cli_location(&self, loc: Option<String>) {
@@ -210,9 +364,9 @@ impl Status {
     /// the function and then restored at the end by setting change_to to True.
     /// If this is called when Origen is executing outside of an application workspace then it will
     /// return None unless it has been previously set by calling set_output_dir().
-    pub fn with_output_dir<T, F>(&self, change_dir: bool, mut f: F) -> Result<T>
+    pub fn with_output_dir<T, F>(&self, change_dir: bool, mut f: F) -> OrigenResult<T>
     where
-        F: FnMut(&Path) -> Result<T>,
+        F: FnMut(&Path) -> OrigenResult<T>,
     {
         let dir = self.output_dir();
         if change_dir {
@@ -252,9 +406,9 @@ impl Status {
     /// the function and then restored at the end by setting change_to to True.
     /// If this is called when Origen is executing outside of an application workspace then it will
     /// return None unless it has been previously set by calling set_reference_dir().
-    pub fn with_reference_dir<T, F>(&self, change_dir: bool, mut f: F) -> Result<T>
+    pub fn with_reference_dir<T, F>(&self, change_dir: bool, mut f: F) -> OrigenResult<T>
     where
-        F: FnMut(Option<&PathBuf>) -> Result<T>,
+        F: FnMut(Option<&PathBuf>) -> OrigenResult<T>,
     {
         let dir = self.reference_dir();
         if change_dir && dir.is_some() {

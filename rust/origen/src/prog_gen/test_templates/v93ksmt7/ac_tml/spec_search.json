@@ -1,0 +1,40 @@
+{
+    "class_name": "ac_tml.AcTest.SpecSearch",
+
+    "parameters": {
+        "max": {
+            "type": "string"
+        },
+        "method": {
+            "type": "string"
+        },
+        "min": {
+            "type": "string"
+        },
+        "resolution": {
+            "type": "string"
+        },
+        "resultPinlist": {
+            "type": "string"
+        },
+        "setupPinlist": {
+            "type": "string"
+        },
+        "spec": {
+            "type": "string"
+        },
+        "step": {
+            "type": "string"
+        },
+        "output": {
+            "type": "string",
+            "aliases": [],
+            "value": "None",
+            "accepted_values": ["None", "ReportUI", "ShowFailOnly"]
+        },
+        "testName": {
+            "type": "string",
+            "value": "SpecSearch_Test"
+        }
+    }
+}

@@ -327,6 +327,10 @@ class Base(_origen.application.PyApplication):
                     from origen.services import Loader
                     context = Loader(controller).api()
 
+                elif filename == "attributes.py":
+                    from origen.attributes import Loader
+                    context = Loader(controller).api()
+
                 else:
                     block = controller
                     context = locals()
