@@ -3,7 +3,6 @@ use origen::DUT;
 use pyo3::prelude::*;
 use crate::unpack_transaction_kwargs;
 
-mod pin_api;
 #[macro_use]
 pub mod pin_actions;
 #[macro_use]
