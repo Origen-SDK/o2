@@ -131,10 +131,13 @@ impl Processor for Relationship {
                 Return::Replace(node)
             }
             Attrs::PGMCondition(cond) => match cond {
-                FlowCondition::IfFailed(ids) => {
-                    let flag = format!("{}_FAILED", ids.first().unwrap().to_str());
+                FlowCondition::IfFailed(ids) | FlowCondition::IfAnyFailed(ids) => {
+                    let flags = ids
+                        .iter()
+                        .map(|id| format!("{}_FAILED", id.to_str()))
+                        .collect();
                     let n = node.updated(
-                        Some(Attrs::PGMCondition(FlowCondition::IfFlag(vec![flag]))),
+                        Some(Attrs::PGMCondition(FlowCondition::IfFlag(flags))),
                         Some(node.process_and_box_children(self)?),
                         None,
                     );
@@ -159,7 +162,7 @@ impl Processor for Relationship {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{BinType, FlowCondition, FlowID};
+    use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType};
     use crate::Result;
 
     #[test]
@@ -231,16 +234,86 @@ mod tests {
 
         let expected = node!(PGMFlow, "f1".to_string() =>
             node!(PGMTest, 1, FlowID::from_int(1) =>
-                node!(PGMOnFailed, FlowID::from_int(2) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
                     node!(PGMContinue),
-                    node!(PGMTest, 2, FlowID::from_int(2)),
-                    node!(PGMTest, 3, FlowID::from_int(3) =>
-                        node!(PGMOnFailed, FlowID::from_int(2) =>
-                            node!(PGMContinue),
-                            node!(PGMTest, 2, FlowID::from_int(4)),
-                        ),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMTest, 2, FlowID::from_int(2)),
+                node!(PGMTest, 3, FlowID::from_int(3) =>
+                    node!(PGMOnFailed, FlowID::from_int(3) =>
+                        node!(PGMSetFlag, "t3_FAILED".to_string(), true, true),
+                        node!(PGMContinue),
                     ),
                 ),
+                node!(PGMCondition, FlowCondition::IfFlag(vec!["t3_FAILED".to_string()]) =>
+                    node!(PGMTest, 4, FlowID::from_int(4)),
+                ),
+            ),
+        );
+
+        assert_eq!(expected, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn any_failed_is_processed() -> Result<()> {
+        let input = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1)),
+            node!(PGMTest, 2, FlowID::from_int(2)),
+            node!(PGMCondition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(1), FlowID::from_int(2)]) =>
+                node!(PGMTest, 3, FlowID::from_int(3)),
+            ),
+        );
+
+        let expected = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                    node!(PGMContinue),
+                ),
+            ),
+            node!(PGMTest, 2, FlowID::from_int(2) =>
+                node!(PGMOnFailed, FlowID::from_int(2) =>
+                    node!(PGMSetFlag, "t2_FAILED".to_string(), true, true),
+                    node!(PGMContinue),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string(), "t2_FAILED".to_string()]) =>
+                node!(PGMTest, 3, FlowID::from_int(3))
+            ),
+        );
+
+        assert_eq!(expected, run(&input)?);
+        Ok(())
+    }
+
+    #[test]
+    fn group_based_if_failed_is_processed() -> Result<()> {
+        let input = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGMTest, 1, FlowID::from_int(1)),
+                node!(PGMTest, 2, FlowID::from_int(2)),
+            ),
+            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_str("g1")]) =>
+                node!(PGMTest, 3, FlowID::from_int(3)),
+                node!(PGMTest, 4, FlowID::from_int(4)),
+            ),
+        );
+
+        let expected = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGMTest, 1, FlowID::from_int(1)),
+                node!(PGMTest, 2, FlowID::from_int(2)),
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMSetFlag, "g1_FAILED".to_string(), true, true),
+                    node!(PGMContinue),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["g1_FAILED".to_string()]) =>
+                node!(PGMTest, 3, FlowID::from_int(3)),
+                node!(PGMTest, 4, FlowID::from_int(4)),
             ),
         );
 
@@ -249,92 +322,6 @@ mod tests {
     }
 }
 
-//
-//end
-//
-//it "any failed is processed" do
-//test :test1, id: :t1
-//test :test2, id: :t2
-//test :test3, if_any_failed: [:t1, :t2]
-//
-//atp.raw.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:test,
-//      s(:object, "test1"),
-//      s(:id, "t1")),
-//    s(:test,
-//      s(:object, "test2"),
-//      s(:id, "t2")),
-//    s(:if_any_failed, [:t1, :t2],
-//      s(:test,
-//        s(:object, "test3"))))
-//
-//ast.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:test,
-//      s(:object, "test1"),
-//      s(:id, "t1"),
-//      s(:on_fail,
-//        s(:set_flag, "t1_FAILED", "auto_generated"),
-//        s(:continue))),
-//    s(:test,
-//      s(:object, "test2"),
-//      s(:id, "t2"),
-//      s(:on_fail,
-//        s(:set_flag, "t2_FAILED", "auto_generated"),
-//        s(:continue))),
-//    s(:if_flag, ["t1_FAILED", "t2_FAILED"],
-//      s(:test,
-//        s(:object,"test3"))))
-//end
-//
-//it "group-based if_failed is processed" do
-//group :group1, id: :grp1 do
-//  test :test1
-//  test :test2
-//end
-//if_failed :grp1 do
-//  test :test3
-//  test :test4
-//end
-//
-//atp.raw.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:group,
-//      s(:name, "group1"),
-//      s(:id, "grp1"),
-//      s(:test,
-//        s(:object, "test1")),
-//      s(:test,
-//        s(:object, "test2"))),
-//    s(:if_failed, "grp1",
-//      s(:test,
-//        s(:object, "test3")),
-//      s(:test,
-//        s(:object, "test4"))))
-//
-//ast.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:group,
-//      s(:name, "group1"),
-//      s(:id, "grp1"),
-//      s(:test,
-//        s(:object, "test1")),
-//      s(:test,
-//        s(:object, "test2")),
-//      s(:on_fail,
-//        s(:set_flag, "grp1_FAILED", "auto_generated"),
-//        s(:continue))),
-//    s(:if_flag, "grp1_FAILED",
-//      s(:test,
-//        s(:object, "test3")),
-//      s(:test,
-//        s(:object, "test4"))))
-//end
 //
 //it "group-based if_passed is processed" do
 //group :group1, id: :grp1 do

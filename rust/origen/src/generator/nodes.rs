@@ -12,10 +12,12 @@ type Metadata = Option<IndexMap<String, crate::Metadata>>;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Attrs {
-    // A meta-node type, used to indicate a node who's children should be placed inline at the given location
+    /// A meta-node type, used to indicate a node who's children should be placed inline at the given location
     _Inline,
-    // A simple node that is quick to write and use in processor unit tests
+    /// A simple node that is quick to write and use in processor unit tests
     T(usize),
+    /// This will be ignored by all processors, so can be used to indicate the absence of a node
+    Nil,
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Data Types

@@ -1,8 +1,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::FlowID;
 use crate::prog_gen::{FlowCondition, GroupType};
-use std::borrow::Cow;
 use std::collections::HashMap;
 
 ///  This processor eliminates the use of un-necessary flags between adjacent tests:
@@ -25,10 +23,7 @@ use std::collections::HashMap;
 pub struct FlagOptimizer {
     optimize_when_continue: bool,
     /// The number of times each flag is used
-    run_flag_table: HashMap<String, usize>,
-    nodes_to_inline: Vec<Node>,
-    volatile_flags: Vec<String>,
-    run_flag_to_remove: Vec<String>,
+    nodes_to_inline: Vec<Box<Node>>,
 }
 
 pub fn run(node: &Node, optimize_when_continue: Option<bool>) -> Result<Node> {
@@ -36,60 +31,74 @@ pub fn run(node: &Node, optimize_when_continue: Option<bool>) -> Result<Node> {
         Some(x) => x,
         None => true,
     };
-    let mut p = ExtractRunFlagTable {
-        results: HashMap::new(),
-    };
-    let _ = node.process(&mut p)?;
-
     let mut p = FlagOptimizer {
         optimize_when_continue: optimize_when_continue,
-        run_flag_table: p.results,
         nodes_to_inline: vec![],
-        volatile_flags: vec![],
-        run_flag_to_remove: vec![],
     };
     let ast = node.process(&mut p)?.unwrap();
+
+    let mut p = RemoveRedundantSetFlags {
+        pass: 0,
+        references: HashMap::new(),
+    };
+    let ast = ast.process(&mut p)?.unwrap();
+    p.pass = 1;
+    let ast = ast.process(&mut p)?.unwrap();
 
     Ok(ast)
 }
 
-pub struct ExtractRunFlagTable {
-    results: HashMap<String, usize>,
+/// Removes any auto-generated flags which are set in the flow but which are no longer used/referenced
+#[derive(Debug)]
+pub struct RemoveRedundantSetFlags {
+    pass: usize,
+    references: HashMap<String, usize>,
 }
 
 /// Extracts the IDs of all tests which have dependents on whether they passed, failed or ran
-impl Processor for ExtractRunFlagTable {
+impl Processor for RemoveRedundantSetFlags {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
-        Ok(match &node.attrs {
-            Attrs::PGMCondition(cond) => match cond {
-                FlowCondition::IfFlag(ids) | FlowCondition::UnlessFlag(ids) => {
-                    for id in ids {
-                        if self.results.contains_key(id) {
-                            let x = self.results[id];
-                            self.results.insert(id.clone(), x + 1);
-                        } else {
-                            self.results.insert(id.clone(), 1);
+        // Count all references the first time around
+        if self.pass == 0 {
+            Ok(match &node.attrs {
+                Attrs::PGMCondition(cond) => match cond {
+                    FlowCondition::IfFlag(ids) | FlowCondition::UnlessFlag(ids) => {
+                        for id in ids {
+                            if self.references.contains_key(id) {
+                                let x = self.references[id];
+                                self.references.insert(id.clone(), x + 1);
+                            } else {
+                                self.references.insert(id.clone(), 1);
+                            }
                         }
+                        Return::ProcessChildren
                     }
-                    Return::ProcessChildren
+                    _ => Return::ProcessChildren,
+                },
+                _ => Return::ProcessChildren,
+            })
+        } else {
+            Ok(match &node.attrs {
+                Attrs::PGMSetFlag(flag, _, auto_generated) => {
+                    if *auto_generated && !self.references.contains_key(flag) {
+                        Return::None
+                    } else {
+                        Return::ProcessChildren
+                    }
                 }
                 _ => Return::ProcessChildren,
-            },
-            _ => Return::ProcessChildren,
-        })
+            })
+        }
     }
 }
 
 impl Processor for FlagOptimizer {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         Ok(match &node.attrs {
-            Attrs::PGMVolatile(flag) => {
-                self.volatile_flags.push(flag.to_owned());
-                Return::Unmodified
-            }
             Attrs::PGMGroup(_name, _, kind, _fid) => match kind {
                 GroupType::Flow => {
-                    Return::Replace(node.updated(None, Some(self.optimize(&node.children)?), None))
+                    let children = node.process_and_box_children(self)?;
+                    Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
                 }
                 _ => Return::ProcessChildren,
             },
@@ -99,25 +108,48 @@ impl Processor for FlagOptimizer {
             | Attrs::PGMWhenever
             | Attrs::PGMWheneverAny
             | Attrs::PGMWheneverAll => {
-                Return::Replace(node.updated(None, Some(self.optimize(&node.children)?), None))
+                let children = node.process_and_box_children(self)?;
+                Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
             }
             Attrs::PGMCondition(cond) => match cond {
-                FlowCondition::UnlessFlag(_) => {
-                    Return::Replace(node.updated(None, Some(self.optimize(&node.children)?), None))
-                }
-                FlowCondition::IfFlag(ids) => {
-                    if let Some(f) = self.run_flag_to_remove.last() {
-                        if f == &ids[0] {
-                            return Ok(Return::InlineBoxed(self.optimize(&node.children)?));
-                        }
-                    }
-                    Return::Replace(node.updated(None, Some(self.optimize(&node.children)?), None))
+                FlowCondition::IfFlag(_) | FlowCondition::UnlessFlag(_) => {
+                    let children = node.process_and_box_children(self)?;
+                    Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
                 }
                 _ => Return::ProcessChildren,
             },
-            Attrs::PGMOnFailed(_) => {
-                if let Some(to_inline) = self.nodes_to_inline.last() {}
-                Return::ProcessChildren // Temporary
+            Attrs::PGMOnFailed(_) | Attrs::PGMOnPassed(_) => {
+                let mut flag = None;
+                let update = {
+                    if let Some(to_inline) = self.nodes_to_inline.last() {
+                        let mut i = 0;
+                        if let Some(set_flag) = node.children.iter().find(|n| {
+                            i += 1;
+                            matches!(n.attrs, Attrs::PGMSetFlag(_, _, _))
+                        }) {
+                            if let Attrs::PGMSetFlag(flg, true, true) = &set_flag.attrs {
+                                flag = Some(flg);
+                                is_gated_by_set(flg, to_inline)
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                };
+                let mut children = node.process_and_box_children(self)?;
+                if update {
+                    let to_inline = self.nodes_to_inline.pop().unwrap();
+                    let to_inline = self.reorder_nested_run_flags(flag.unwrap(), *to_inline)?;
+                    for n in to_inline.children {
+                        children.push(n);
+                    }
+                    self.nodes_to_inline.push(Box::new(node!(Nil))); // This will be popped off and discarded later
+                }
+                Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
             }
             _ => Return::ProcessChildren,
         })
@@ -125,26 +157,29 @@ impl Processor for FlagOptimizer {
 }
 
 impl FlagOptimizer {
-    fn optimize(&mut self, nodes: &Vec<Box<Node>>) -> Result<Vec<Box<Node>>> {
+    fn optimize(&mut self, nodes: Vec<Box<Node>>) -> Result<Vec<Box<Node>>> {
         let mut results: Vec<Box<Node>> = vec![];
-        let mut node1: Option<Cow<Box<Node>>> = None;
+        let mut node1: Option<Box<Node>> = None;
         for node2 in nodes {
-            let n2 = Cow::Borrowed(node2);
+            let n2 = node2;
             if let Some(n1) = node1 {
                 if self.can_be_combined(&n1, &n2) {
-                    node1 = Some(Cow::Owned(self.combine(n1, n2)?));
+                    node1 = Some(self.combine(n1, n2)?);
                 } else {
-                    results.push(n1.into_owned());
+                    results.push(n1);
                     node1 = Some(n2);
                 }
             } else {
                 node1 = Some(n2);
             }
         }
+        if let Some(n) = node1 {
+            results.push(n);
+        }
         Ok(results)
     }
 
-    fn can_be_combined(&self, node1: &Cow<Box<Node>>, node2: &Cow<Box<Node>>) -> bool {
+    fn can_be_combined(&mut self, node1: &Box<Node>, node2: &Box<Node>) -> bool {
         // If node1 could have an OnFailed or OnPassed and if node2 is a flag condition
         if (matches!(node1.attrs, Attrs::PGMTest(_, _))
             || matches!(node1.attrs, Attrs::PGMSubFlow(_)))
@@ -187,11 +222,7 @@ impl FlagOptimizer {
                     .find(|n| matches!(n.attrs, Attrs::PGMSetFlag(_, _, _)));
                 if let Some(set_flag) = set_flag {
                     if let Attrs::PGMSetFlag(name, val, auto_generated) = &set_flag.attrs {
-                        *val &&
-                        is_gated_by_set(name, node2) &&   // The flag set by node1 is gating node2
-                        *auto_generated &&                      // The flag was no specified by the user
-                        !name.ends_with("_RAN") &&    // Don't compress RAN flags since they will be set by both pass and fail
-                        !self.volatile_flags.contains(name) // And finally keep all volatile flags
+                        *val && is_gated_by_set(name, node2) && *auto_generated
                     } else {
                         unreachable!()
                     }
@@ -205,11 +236,76 @@ impl FlagOptimizer {
         false
     }
 
-    fn combine(&mut self, node1: Cow<Box<Node>>, node2: Cow<Box<Node>>) -> Result<Box<Node>> {
-        self.nodes_to_inline.push(*node2.into_owned());
+    fn combine(&mut self, node1: Box<Node>, node2: Box<Node>) -> Result<Box<Node>> {
+        self.nodes_to_inline.push(node2);
         let node1 = node1.process_and_update_children(self)?;
         self.nodes_to_inline.pop();
         Ok(Box::new(node1))
+    }
+
+    // Returns the node with the run_flag clauses re-ordered to have the given flag of interest at the top.
+    //
+    // The caller guarantees the run_flag clause containing the given flag is present.
+    //
+    // For example, given this node:
+    //
+    //   s(:unless_flag, "flag1",
+    //     s(:if_flag, "ot_BEA7F3B_FAILED",
+    //       s(:test,
+    //         s(:object, <TestSuite: inner_test1_BEA7F3B>),
+    //         s(:name, "inner_test1_BEA7F3B"),
+    //         s(:number, 0),
+    //         s(:id, "it1_BEA7F3B"),
+    //         s(:on_fail,
+    //           s(:render, "multi_bin;")))))
+    //
+    // Then this node would be returned when the flag of interest is ot_BEA7F3B_FAILED:
+    //
+    //   s(:if_flag, "ot_BEA7F3B_FAILED",
+    //     s(:unless_flag, "flag1",
+    //       s(:test,
+    //         s(:object, <TestSuite: inner_test1_BEA7F3B>),
+    //         s(:name, "inner_test1_BEA7F3B"),
+    //         s(:number, 0),
+    //         s(:id, "it1_BEA7F3B"),
+    //         s(:on_fail,
+    //           s(:render, "multi_bin;")))))
+    fn reorder_nested_run_flags(&mut self, flag: &str, node: Node) -> Result<Node> {
+        // If the run_flag we care about is already at the top, just return node
+        if let Attrs::PGMCondition(FlowCondition::IfFlag(flags)) = &node.attrs {
+            if flags[0] == flag {
+                return Ok(node);
+            }
+        }
+        let mut p = RemoveIfFlag { flag: flag };
+        let node = node.process(&mut p)?.unwrap();
+        let n = node!(PGMCondition, FlowCondition::IfFlag(vec![flag.to_owned()]) => node);
+        Ok(n)
+    }
+}
+
+/// Removes any auto-generated flags which are set in the flow but which are no longer used/referenced
+#[derive(Debug)]
+pub struct RemoveIfFlag<'a> {
+    flag: &'a str,
+}
+
+/// Extracts the IDs of all tests which have dependents on whether they passed, failed or ran
+impl<'a> Processor for RemoveIfFlag<'a> {
+    fn on_node(&mut self, node: &Node) -> Result<Return> {
+        Ok(match &node.attrs {
+            Attrs::PGMCondition(cond) => match cond {
+                FlowCondition::IfFlag(ids) => {
+                    if ids[0] == self.flag {
+                        Return::UnwrapWithProcessedChildren
+                    } else {
+                        Return::ProcessChildren
+                    }
+                }
+                _ => Return::ProcessChildren,
+            },
+            _ => Return::ProcessChildren,
+        })
     }
 }
 
@@ -247,11 +343,11 @@ fn is_gated_by_set(flag: &str, node: &Box<Node>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{BinType, FlowCondition, FlowID};
+    use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType};
     use crate::Result;
 
     #[test]
-    fn embedded_test_results_are_processed() -> Result<()> {
+    fn basic_functionality_test() -> Result<()> {
         let input = node!(PGMFlow, "f1".to_string() =>
             node!(PGMTest, 1, FlowID::from_int(1) =>
                 node!(PGMOnFailed, FlowID::from_int(1) =>
@@ -276,108 +372,172 @@ mod tests {
         assert_eq!(output, run(&input, None)?);
         Ok(())
     }
-}
 
-//it "works at the top-level" do
-//test :test1, id: :t1
-//test :test2, if_failed: :t1
-//
-//ast.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:test,
-//      s(:object, "test1"),
-//      s(:id, "t1"),
-//      s(:on_fail,
-//        s(:continue),
-//        s(:test,
-//          s(:object, "test2")))))
-//end
-//
-//it "doesn't eliminate flags with later references" do
-//test :test1, id: :t1
-//test :test2, if_failed: :t1
-//test :test3
-//test :test4, if_failed: :t1
-//
-//ast.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:test,
-//      s(:object, "test1"),
-//      s(:id, "t1"),
-//      s(:on_fail,
-//        s(:set_flag, "t1_FAILED", "auto_generated"),
-//        s(:continue),
-//        s(:test,
-//          s(:object, "test2")))),
-//    s(:test,
-//      s(:object, "test3")),
-//    s(:if_flag, "t1_FAILED",
-//      s(:test,
-//        s(:object, "test4"))))
-//end
-//
-//it "applies the optimization within nested groups" do
-//group :group1 do
-//  test :test1, id: :t1
-//  test :test2, if_failed: :t1
-//end
-//
-//ast.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:group,
-//      s(:name, "group1"),
-//      s(:test,
-//        s(:object, "test1"),
-//        s(:id, "t1"),
-//        s(:on_fail,
-//          s(:continue),
-//          s(:test,
-//            s(:object, "test2"))))))
-//end
-//
-//it "a more complex test case with both pass and fail branches to be optimized" do
-//test :test1, id: :t1, number: 0
-//test :test2, if_passed: :t1, number: 0
-//test :test3, if_failed: :t1, number: 0
-//bin 10, if_failed: :t1
-//
-//ast.should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:test,
-//      s(:object, "test1"),
-//      s(:number, 0),
-//      s(:id, "t1"),
-//      s(:on_pass,
-//        s(:test,
-//          s(:object, "test2"),
-//          s(:number, 0))),
-//      s(:on_fail,
-//        s(:continue),
-//        s(:test,
-//          s(:object, "test3"),
-//          s(:number, 0)),
-//        s(:set_result, "fail",
-//          s(:bin, 10)))))
-//end
-//
-//it "optionally doesn't eliminate flags on tests with a continue" do
-//test :test1, id: :t1
-//test :test2, if_failed: :t1
-//
-//ast(optimize_flags_when_continue: false).should ==
-//  s(:flow,
-//    s(:name, "sort1"),
-//    s(:test,
-//      s(:object, "test1"),
-//      s(:id, "t1"),
-//      s(:on_fail,
-//        s(:set_flag, "t1_FAILED", "auto_generated"),
-//        s(:continue))),
-//    s(:if_flag, "t1_FAILED",
-//      s(:test,
-//        s(:object, "test2"))))
-//end
+    #[test]
+    fn it_keeps_flags_with_later_references() -> Result<()> {
+        let input = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMTest, 2, FlowID::from_int(2))
+            ),
+            node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMTest, 4, FlowID::from_int(4))
+            ),
+        );
+
+        let output = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                    node!(PGMTest, 2, FlowID::from_int(2))
+                ),
+            ),
+            node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMTest, 4, FlowID::from_int(4))
+            ),
+        );
+
+        assert_eq!(output, run(&input, None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn it_applies_the_optimization_within_nested_groups() -> Result<()> {
+        let input = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGMTest, 1, FlowID::from_int(1) =>
+                    node!(PGMOnFailed, FlowID::from_int(1) =>
+                        node!(PGMContinue),
+                        node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                    ),
+                ),
+                node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                    node!(PGMTest, 2, FlowID::from_int(2))
+                ),
+            ),
+        );
+
+        let output = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGMTest, 1, FlowID::from_int(1) =>
+                    node!(PGMOnFailed, FlowID::from_int(1) =>
+                        node!(PGMContinue),
+                        node!(PGMTest, 2, FlowID::from_int(2)),
+                    ),
+                ),
+            ),
+        );
+
+        assert_eq!(output, run(&input, None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn a_more_complex_case_with_both_pass_and_fail_branches_to_be_optimized() -> Result<()> {
+        let input = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnPassed, FlowID::from_int(1) =>
+                    node!(PGMSetFlag, "t1_PASSED".to_string(), true, true),
+                ),
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_PASSED".to_string()]) =>
+                node!(PGMTest, 2, FlowID::from_int(2))
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMTest, 3, FlowID::from_int(3))
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMBin, 10, None, BinType::Bad)
+            ),
+        );
+
+        let output = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnPassed, FlowID::from_int(1) =>
+                    node!(PGMTest, 2, FlowID::from_int(2))
+                ),
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMTest, 3, FlowID::from_int(3)),
+                    node!(PGMBin, 10, None, BinType::Bad),
+                ),
+            ),
+        );
+
+        assert_eq!(output, run(&input, None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn nested_flags_are_handled() -> Result<()> {
+        let input = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                    node!(PGMTest, 2, FlowID::from_int(2))
+                ),
+            ),
+        );
+
+        let output = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                        node!(PGMTest, 2, FlowID::from_int(2))
+                    ),
+                ),
+            ),
+        );
+
+        assert_eq!(output, run(&input, None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn optionally_doesnt_eliminate_flags_on_tests_with_a_continue() -> Result<()> {
+        let input = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMTest, 2, FlowID::from_int(2))
+            ),
+        );
+
+        let output = node!(PGMFlow, "f1".to_string() =>
+            node!(PGMTest, 1, FlowID::from_int(1) =>
+                node!(PGMOnFailed, FlowID::from_int(1) =>
+                    node!(PGMContinue),
+                    node!(PGMSetFlag, "t1_FAILED".to_string(), true, true),
+                ),
+            ),
+            node!(PGMCondition, FlowCondition::IfFlag(vec!["t1_FAILED".to_string()]) =>
+                node!(PGMTest, 2, FlowID::from_int(2))
+            ),
+        );
+
+        assert_eq!(output, run(&input, Some(false))?);
+        Ok(())
+    }
+}

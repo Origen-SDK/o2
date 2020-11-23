@@ -195,6 +195,22 @@ impl Node {
         Ok(*self.children[index].clone())
     }
 
+    /// Removes the child node at the given offset and returns it
+    pub fn remove_child(&mut self, offset: usize) -> Result<Node> {
+        let len = self.children.len();
+        if len == 0 {
+            return Err(Error::new(
+                "Attempted to remove a child in a node with no children",
+            ));
+        } else if offset > len - 1 {
+            return Err(Error::new(&format!(
+                "An offset of {} was given to remove a child in a node with only {} children",
+                offset, len
+            )));
+        }
+        Ok(*self.children.remove(offset))
+    }
+
     pub fn depth(&self) -> usize {
         let mut depth = 0;
         for n in self.children.iter() {
