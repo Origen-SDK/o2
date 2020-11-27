@@ -5,8 +5,8 @@ use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
 
 /// Start a sub-flow, the returned reference should be retained and passed to end_block
-pub fn start_sub_flow(name: &str, meta: Option<Meta>) -> Result<usize> {
-    let n = node!(PGMSubFlow, name.to_owned(); meta);
+pub fn start_sub_flow(name: &str, flow_id: Option<FlowID>, meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMSubFlow, name.to_owned(), flow_id; meta);
     FLOW.push_and_open(n)
 }
 

@@ -203,7 +203,7 @@ pub enum Attrs {
     //// Flow (prog gen) nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     PGMFlow(String),
-    PGMSubFlow(String),
+    PGMSubFlow(String, Option<FlowID>),
     /// Defines a new test, this must be done before attributes can be set via PGMSetAttr. Note that this doesn't
     /// actually add it to the test flow, that must be done via a PGMTest node
     ///         ID,    Name,     Tester,       Library  Template
@@ -255,6 +255,8 @@ pub enum Attrs {
     PGMSetFlag(String, bool, bool),
     /// Continue in the event of a failure
     PGMContinue,
+    /// Delay binning in the event of a failure
+    PGMDelayed,
     PGMElse,
     PGMWhenever,    // Placeholder
     PGMWheneverAny, // Placeholder

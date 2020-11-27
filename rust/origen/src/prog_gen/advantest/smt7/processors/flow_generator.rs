@@ -346,7 +346,7 @@ impl<'a> Processor for FlowGenerator<'a> {
                 }
                 Return::None
             }
-            Attrs::PGMSubFlow(name) => {
+            Attrs::PGMSubFlow(name, _fid) => {
                 self.push_body("{");
                 self.indent += 1;
                 let _ = node.process_children(self);

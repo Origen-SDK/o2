@@ -103,7 +103,7 @@ impl Processor for FlagOptimizer {
                 _ => Return::ProcessChildren,
             },
             Attrs::PGMFlow(_)
-            | Attrs::PGMSubFlow(_)
+            | Attrs::PGMSubFlow(_, _)
             | Attrs::PGMElse
             | Attrs::PGMWhenever
             | Attrs::PGMWheneverAny
@@ -182,7 +182,7 @@ impl FlagOptimizer {
     fn can_be_combined(&mut self, node1: &Box<Node>, node2: &Box<Node>) -> bool {
         // If node1 could have an OnFailed or OnPassed and if node2 is a flag condition
         if (matches!(node1.attrs, Attrs::PGMTest(_, _))
-            || matches!(node1.attrs, Attrs::PGMSubFlow(_)))
+            || matches!(node1.attrs, Attrs::PGMSubFlow(_, _)))
             && (matches!(node2.attrs, Attrs::PGMCondition(FlowCondition::IfFlag(_)))
                 || matches!(
                     node2.attrs,

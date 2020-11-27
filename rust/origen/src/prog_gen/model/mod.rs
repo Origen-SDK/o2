@@ -44,13 +44,19 @@ pub enum FlowCondition {
     IfPassed(Vec<FlowID>),
     IfAnyPassed(Vec<FlowID>),
     IfAllPassed(Vec<FlowID>),
+    IfAnySitesPassed(Vec<FlowID>),
+    IfAllSitesPassed(Vec<FlowID>),
     IfFailed(Vec<FlowID>),
     IfAnyFailed(Vec<FlowID>),
     IfAllFailed(Vec<FlowID>),
+    IfAnySitesFailed(Vec<FlowID>),
+    IfAllSitesFailed(Vec<FlowID>),
     IfRan(Vec<FlowID>),
     UnlessRan(Vec<FlowID>),
     IfFlag(Vec<String>),
     UnlessFlag(Vec<String>),
+    IfAnySitesFlag(Vec<String>),
+    IfAllSitesFlag(Vec<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

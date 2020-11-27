@@ -39,7 +39,7 @@ fn start_new_flow(name: &str, sub_flow: Option<bool>) -> PyResult<usize> {
         Some(x) => x,
     };
     if sub_flow {
-        Ok(flow_api::start_sub_flow(name, None)?)
+        Ok(flow_api::start_sub_flow(name, None, None)?)
     } else {
         FLOW.start(name)?;
         Ok(0)
