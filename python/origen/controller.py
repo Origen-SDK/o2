@@ -275,11 +275,11 @@ class Base:
             self.add_simple_reg(n, offset, **kwargs)
         return self.reg(n)
 
-    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
-        pass
+    def preface(self):
+        return f"{self.name}: "
 
-    def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
-        pass
+    def cc(self, message):
+        return origen.tester.cc(f"{self.preface()}{message}")
 
 
 # The base class of all Origen controller objects which are also

@@ -296,6 +296,13 @@ impl Register {
         }
     }
 
+    pub fn width(&self, dut: &MutexGuard<Dut>) -> Result<u64> {
+        match self.address_block(dut)?.width {
+            Some(w) => Ok(w),
+            None => Ok((self.address_unit_bits(dut)? * 4).into()), // Assume byte-addressable
+        }
+    }
+
     /// Returns the fully-resolved address taking into account all base addresses defined by the parent hierachy.
     /// The returned address is with an address_unit_bits size of 1.
     pub fn bit_address(&self, dut: &MutexGuard<Dut>) -> Result<u128> {

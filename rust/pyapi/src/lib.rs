@@ -134,6 +134,9 @@ fn unpack_transaction_options(
         if let Some(address) = opts.get_item("address") {
             trans.address = Some(address.extract::<u128>()?);
         }
+        if let Some(w) = opts.get_item("address_width") {
+            trans.address_width = Some(w.extract::<usize>()?);
+        }
         if let Some(_mask) = opts.get_item("mask") {
             panic!("option not supported yet!");
         }
@@ -145,6 +148,57 @@ fn unpack_transaction_options(
         }
     }
     Ok(())
+}
+
+fn resolve_transaction(
+    dut: &std::sync::MutexGuard<origen::Dut>,
+    trans: &PyAny,
+    action: Option<origen::TransactionAction>,
+    kwargs: Option<&PyDict>,
+) -> PyResult<origen::Transaction> {
+    let mut width = 32;
+    if let Some(opts) = kwargs {
+        if let Some(w) = opts.get_item("width") {
+            width = w.extract::<u32>()?;
+        }
+    }
+    let value = extract_value(trans, Some(width), &dut)?;
+    let mut trans;
+    if let Some(a) = action {
+        match a {
+            origen::TransactionAction::Write => trans = value.to_write_transaction(&dut)?,
+            origen::TransactionAction::Verify => trans = value.to_verify_transaction(&dut)?,
+            // origen::TransactionAction::Capture => trans = value.to_capture_transaction(&dut)?,
+            _ => {
+                return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
+                    "Resolving transactions for {:?} is not supported",
+                    a
+                )))
+            }
+        }
+    } else {
+        trans = value.to_write_transaction(&dut)?;
+        trans.action = None;
+    }
+
+    if let Some(opts) = kwargs {
+        if let Some(address) = opts.get_item("address") {
+            trans.address = Some(address.extract::<u128>()?);
+        }
+        if let Some(w) = opts.get_item("address_width") {
+            trans.address_width = Some(w.extract::<usize>()?);
+        }
+        if let Some(_mask) = opts.get_item("mask") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay) = opts.get_item("overlay") {
+            panic!("option not supported yet!");
+        }
+        if let Some(_overlay_str) = opts.get_item("overlay_str") {
+            panic!("option not supported yet!");
+        }
+    }
+    Ok(trans)
 }
 
 /// Exit with a failing status code and print a big FAIL to the console

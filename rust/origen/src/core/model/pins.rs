@@ -439,6 +439,10 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
+    pub fn cycles(&self, count: usize) -> &Self {
+        self.repeat(count as u32)
+    }
+
     /// Add number of compressed cycles indicated by count
     pub fn repeat(&self, count: u32) -> &Self {
         repeat(count);

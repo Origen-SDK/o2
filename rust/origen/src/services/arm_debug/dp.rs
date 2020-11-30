@@ -198,7 +198,6 @@ impl DP {
         );
 
         let id = services.next_id();
-        let arm_debug_id = services.get_as_arm_debug(arm_debug_id)?.id;
         services.push_service(Service::ArmDebugDP(Self {
             model_id: model_id,
             memory_map_id: memory_map_id,
@@ -308,19 +307,22 @@ impl DP {
     ) -> Result<()> {
         let ad_service = services.get_service(self.arm_debug_id)?;
         let arm_debug = ad_service.as_arm_debug()?;
-        //let jtag;
+        let jtag_dp;
         let swd_service;
-        // let jtag_service;
+        let jtag_dp_service;
         let swd;
         if *arm_debug.jtagnswd.read().unwrap() {
-            // Temporary panic just to kill the process - JTAG isn't supported at all rn.
-            //  - coreyeng
-            panic!("JTAG not supported yet!");
+            jtag_dp_service = services.get_service(arm_debug.jtag_dp_id.expect(
+                "Backend Error - JTAG DP requested but a JTAG DP instance is not available (this should have been caught upstream, please review)"
+            ))?;
+            jtag_dp = Some(jtag_dp_service.as_jtag_dp()?);
+            swd = None;
         } else {
             swd_service = services.get_service(arm_debug.swd_id.expect(
-                "Backend Error - SWD requested but an SWD instance is not available (this should have been caught upstream, please review)"
+                "Backend Error - SWD requested but a SWD instance is not available (this should have been caught upstream, please review)"
             ))?;
-            swd = swd_service.as_swd()?;
+            swd = Some(swd_service.as_swd()?);
+            jtag_dp = None;
         }
 
         let reg_name = bc.reg(dut).unwrap().name.clone();
@@ -351,10 +353,14 @@ impl DP {
                 0,
                 format!("ArmDebugDP: select {} (DP Addr: {:X})", reg_name, sel)
             ));
-            if *arm_debug.jtagnswd.read().unwrap() {
-                // ...
+            if jtag_dp.is_some() {
+                jtag_dp.unwrap().write_dp(
+                    dut,
+                    &services,
+                    Transaction::new_write_with_addr(BigUint::from(sel as u32), 32, 0x8)?,
+                )?;
             } else {
-                swd.write_dp(
+                swd.unwrap().write_dp(
                     dut,
                     Transaction::new_write_with_addr(BigUint::from(sel as u32), 32, 0x8)?,
                     crate::swd_ok!(),
@@ -362,14 +368,30 @@ impl DP {
             }
         }
         if readnwrite {
-            swd.verify_dp(
-                dut,
-                bc.to_verify_transaction(None, true, dut)?,
-                crate::swd_ok!(),
-                None,
-            )?;
+            if jtag_dp.is_some() {
+                jtag_dp.unwrap().verify_dp(
+                    dut,
+                    &services,
+                    bc.to_verify_transaction(None, true, dut)?,
+                    true,
+                )?;
+            } else {
+                swd.unwrap().verify_dp(
+                    dut,
+                    bc.to_verify_transaction(None, true, dut)?,
+                    crate::swd_ok!(),
+                    None,
+                )?;
+            }
         } else {
-            swd.write_dp(dut, bc.to_write_transaction(dut)?, crate::swd_ok!())?;
+            if jtag_dp.is_some() {
+                jtag_dp
+                    .unwrap()
+                    .write_dp(dut, &services, bc.to_write_transaction(dut)?)?;
+            } else {
+                swd.unwrap()
+                    .write_dp(dut, bc.to_write_transaction(dut)?, crate::swd_ok!())?;
+            }
         }
         Ok(())
     }

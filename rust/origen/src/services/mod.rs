@@ -12,6 +12,7 @@ pub enum Service {
     SWD(swd::Service),
     ArmDebug(arm_debug::ArmDebug),
     ArmDebugDP(arm_debug::dp::DP),
+    ArmDebugJtagDP(arm_debug::jtag_dp::JtagDP),
     ArmDebugMemAP(arm_debug::mem_ap::MemAP),
 }
 
@@ -21,6 +22,16 @@ impl Service {
             Self::SWD(s) => Ok(s),
             _ => Err(Error::new(&format!(
                 "Expected service SWD but received {:?}",
+                self
+            ))),
+        }
+    }
+
+    pub fn as_jtag(&self) -> Result<&jtag::Service> {
+        match self {
+            Self::JTAG(s) => Ok(s),
+            _ => Err(Error::new(&format!(
+                "Expected service JTAG but received {:?}",
                 self
             ))),
         }
@@ -61,6 +72,26 @@ impl Service {
             Self::ArmDebugDP(s) => Ok(s),
             _ => Err(Error::new(&format!(
                 "Expected service ArmDebugDP but received {:?}",
+                self
+            ))),
+        }
+    }
+
+    pub fn as_jtag_dp(&self) -> Result<&arm_debug::JtagDP> {
+        match self {
+            Self::ArmDebugJtagDP(s) => Ok(s),
+            _ => Err(Error::new(&format!(
+                "Expected service ArmDebugJtagDP but received {:?}",
+                self
+            ))),
+        }
+    }
+
+    pub fn as_mut_jtag_dp(&mut self) -> Result<&mut arm_debug::JtagDP> {
+        match self {
+            Self::ArmDebugJtagDP(s) => Ok(s),
+            _ => Err(Error::new(&format!(
+                "Expected service ArmDebugJtagDP but received {:?}",
                 self
             ))),
         }
@@ -147,6 +178,11 @@ impl Services {
         s.as_swd()
     }
 
+    pub fn get_as_jtag(&self, id: usize) -> Result<&jtag::Service> {
+        let s = self.get_service(id)?;
+        s.as_jtag()
+    }
+
     pub fn get_as_arm_debug(&self, id: usize) -> Result<&arm_debug::ArmDebug> {
         let s = self.get_service(id)?;
         s.as_arm_debug()
@@ -160,6 +196,16 @@ impl Services {
     pub fn get_as_mut_dp(&mut self, id: usize) -> Result<&mut arm_debug::DP> {
         let s = self.get_mut_service(id)?;
         s.as_mut_dp()
+    }
+
+    pub fn get_as_jtag_dp(&self, id: usize) -> Result<&arm_debug::JtagDP> {
+        let s = self.get_service(id)?;
+        s.as_jtag_dp()
+    }
+
+    pub fn get_as_mut_jtag_dp(&mut self, id: usize) -> Result<&mut arm_debug::JtagDP> {
+        let s = self.get_mut_service(id)?;
+        s.as_mut_jtag_dp()
     }
 
     pub fn get_as_mem_ap(&self, id: usize) -> Result<&arm_debug::MemAP> {

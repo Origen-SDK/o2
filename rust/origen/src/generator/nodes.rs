@@ -4,7 +4,6 @@ use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, ParamValue, Pat
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
-use num_bigint::BigUint;
 use std::collections::HashMap;
 
 pub type Id = usize;
@@ -71,24 +70,27 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// JTAG nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    JTAGWriteIR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
+    JTAGWriteIR(
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
     JTAGVerifyIR(
-        u32,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
-    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
-    JTAGWriteDR(u32, BigUint, Option<BigUint>, Option<String>), // size, data, overlay_enable, overlay_str
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
+    JTAGWriteDR(
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
     JTAGVerifyDR(
-        u32,
-        BigUint,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<BigUint>,
-        Option<String>,
-    ), // size, data, verify_enable, capture_enable, overlay_enable, overlay_str
+        Id, // JTAG ID
+        Transaction,
+        Metadata,
+    ),
+    JTAGReset(Id, Metadata),
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// SWD nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,6 +121,18 @@ pub enum Attrs {
         Metadata,
     ),
     SWDLineReset,
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Arm Debug's JTAG DP Nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    JTAGDPWriteDP(
+        Id, // JTAG DP Id
+        Transaction,
+        Metadata,
+    ),
+    JTAGDPVerifyDP(Id, Transaction, Metadata),
+    JTAGDPWriteAP(Id, Transaction, Metadata),
+    JTAGDPVerifyAP(Id, Transaction, Metadata),
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Arm Debug nodes

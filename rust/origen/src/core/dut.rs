@@ -443,7 +443,7 @@ impl Dut {
             None => {}
         }
         match width {
-            Some(v) => defaults.width = v,
+            Some(v) => defaults.width = Some(v),
             None => {}
         }
         match access {
