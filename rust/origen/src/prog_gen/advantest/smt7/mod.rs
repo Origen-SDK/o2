@@ -32,6 +32,7 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
             let mut model = processors::clean_names::run(&ast, model)?;
             let ast = generic_processors::nest_on_result_nodes::run(&ast)?;
             let ast = generic_processors::relationship::run(&ast)?;
+            let ast = generic_processors::condition::run(&ast)?;
             let ast = generic_processors::flag_optimizer::run(&ast, None)?;
             //dbg!(&ast);
             files.push(processors::flow_generator::run(
