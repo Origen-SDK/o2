@@ -5,16 +5,18 @@ mod bin;
 mod flow_id;
 mod limit;
 mod model;
+mod sub_test;
 mod template_loader;
 mod test;
 
 use crate::Result as OrigenResult;
 pub use bin::Bin;
 pub use flow_id::FlowID;
-pub use limit::Limit;
+pub use limit::{Limit, LimitType};
 pub use model::Model;
 use std::fmt;
 use std::str::FromStr;
+pub use sub_test::SubTest;
 pub use test::Test;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -33,6 +35,12 @@ pub enum GroupType {
 pub enum BinType {
     Good,
     Bad,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum LimitSelector {
+    Lo,
+    Hi,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

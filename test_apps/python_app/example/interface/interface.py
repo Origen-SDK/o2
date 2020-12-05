@@ -30,12 +30,11 @@ class Interface(BaseInterface):
         with tester().eq("igxl") as igxl:
             with self.instance_group(name, igxl, **kwargs) as (group):
 
-                def func_igxl(i, block):
+                def func_igxl(i, block, **kwargs):
                     nonlocal name
                     nonlocal duration
                     nonlocal number
                     nonlocal igxl
-                    nonlocal kwargs
                     nonlocal group
                     if number and i:
                         number += i
@@ -67,19 +66,18 @@ class Interface(BaseInterface):
 
                 if group is not None:
                     for i, block in enumerate(dut().blocks):
-                        func_igxl(i, block)
+                        func_igxl(i, block, **kwargs)
                 else:
-                    func_igxl(None, None)
+                    func_igxl(None, None, **kwargs)
 
         with tester().eq("v93k") as v93k:
             with self.v93k_group(name, v93k, **kwargs) as (group):
 
-                def func_v93k(i, block):
+                def func_v93k(i, block, **kwargs):
                     nonlocal name
                     nonlocal duration
                     nonlocal number
                     nonlocal v93k
-                    nonlocal kwargs
                     nonlocal group
                     if number and i:
                         number += i
@@ -104,9 +102,9 @@ class Interface(BaseInterface):
 
                 if group is not None:
                     for i, block in enumerate(dut().blocks):
-                        func_v93k(i, block)
+                        func_v93k(i, block, **kwargs)
                 else:
-                    func_v93k(None, None)
+                    func_v93k(None, None, **kwargs)
 
     @contextmanager
     def instance_group(self, name, igxl, **kwargs):
@@ -184,8 +182,6 @@ class Interface(BaseInterface):
                     uflex.set_wait_flags(ins, "a")
                 if options.get("pin_levels"):
                     ins.pin_levels = options.pop("pin_levels")
-                ins.lo_limit = options.get("lo_limit")
-                ins.hi_limit = options.get("hi_limit")
                 ins.scale = options.get("scale")
                 ins.units = options.get("units")
                 ins.defer_limits = options.get("defer_limits")
@@ -218,8 +214,6 @@ class Interface(BaseInterface):
                     j750.set_wait_flags(ins, "a")
                 if options.get("pin_levels"):
                     ins.pin_levels = options.pop("pin_levels")
-                ins.lo_limit = options.get("lo_limit")
-                ins.hi_limit = options.get("hi_limit")
                 p = j750.new_patset(f"{name}_pset")
                 p.append(f"{name}.PAT")
                 p.append('nvm_global_subs.PAT', start_label="subr")
@@ -244,7 +238,5 @@ class Interface(BaseInterface):
                 if kwargs.get("pin_levels"):
                     ts.levels = kwargs.pop["pin_levels"]
 
-            ts.lo_limit = options.get("lo_limit")
-            ts.hi_limit = options.get("hi_limit")
             ts.pattern = name
             self.add_test(ts, **options)

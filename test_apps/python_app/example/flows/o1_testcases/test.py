@@ -80,7 +80,7 @@ with Flow() as flow:
               bin=119,
               soft_bin=2,
               lo_limit=[1 * uA, 2 * uA, 3 * uA],
-              hi_limit=[4 * uA, 5 * uA],
+              hi_limit=[4 * uA, 5e-06],
               units="A",
               defer_limits=True,
               number=40090)

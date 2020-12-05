@@ -1,6 +1,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::Model;
+use crate::prog_gen::{LimitSelector, Model};
 use crate::testers::SupportedTester;
 
 /// This extracts all definitions for tests, test invocations, pattern sets, bins, etc.
@@ -68,6 +68,24 @@ impl Processor for ExtractToModel {
             match &node.attrs {
                 Attrs::PGMSetAttr(id, name, value) => {
                     trace!(self.model.set_test_attr(*id, name, value.to_owned()), node);
+                    Ok(Return::None)
+                }
+                Attrs::PGMSetLimit(test_id, inv_id, selector, value) => {
+                    let t = {
+                        if let Some(id) = test_id {
+                            self.model.tests.get_mut(id)
+                        } else if let Some(id) = inv_id {
+                            self.model.test_invocations.get_mut(id)
+                        } else {
+                            None
+                        }
+                    };
+                    if let Some(t) = t {
+                        match selector {
+                            LimitSelector::Hi => t.hi_limit = value.to_owned(),
+                            LimitSelector::Lo => t.lo_limit = value.to_owned(),
+                        }
+                    }
                     Ok(Return::None)
                 }
                 _ => Ok(Return::ProcessChildren),

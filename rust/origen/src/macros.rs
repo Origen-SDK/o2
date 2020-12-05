@@ -20,6 +20,11 @@ macro_rules! node {
             $crate::generator::ast::Node::new_with_meta($crate::generator::ast::Attrs::$attr, $m)
         }
     };
+    ( $attr:ident => $( $c:expr ),* $(,)?) => {
+        {
+            $crate::generator::ast::Node::new_with_children($crate::generator::ast::Attrs::$attr, vec![$( $c ),*])
+        }
+    };
     ( $attr:ident ) => {
         {
             $crate::generator::ast::Node::new($crate::generator::ast::Attrs::$attr)

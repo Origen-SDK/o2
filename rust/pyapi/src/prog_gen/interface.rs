@@ -78,10 +78,12 @@ impl PyInterface {
             }
 
             if let Some(bin) = bin {
-                let ref_id = flow_api::start_on_failed(id, None)?;
+                let ref_id = flow_api::start_on_failed(id.clone(), None)?;
                 self.bin(bin, softbin, None, false, None)?;
                 flow_api::end_block(ref_id)?;
             }
+            flow_options::on_fail(&id, kwargs)?;
+            flow_options::on_pass(&id, kwargs)?;
             Ok(())
         })?)
     }

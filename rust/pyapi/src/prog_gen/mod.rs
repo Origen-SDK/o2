@@ -114,19 +114,21 @@ fn render(py: Python) -> PyResult<Vec<String>> {
     })
 }
 
-pub fn to_param_value(value: &PyAny) -> Result<ParamValue> {
+pub fn to_param_value(value: &PyAny) -> Result<Option<ParamValue>> {
     Ok(if let Ok(v) = value.extract::<bool>() {
-        ParamValue::Bool(v)
-    } else if let Ok(v) = value.extract::<i64>() {
-        ParamValue::Int(v)
+        Some(ParamValue::Bool(v))
     } else if let Ok(v) = value.extract::<u64>() {
-        ParamValue::UInt(v)
+        Some(ParamValue::UInt(v))
+    } else if let Ok(v) = value.extract::<i64>() {
+        Some(ParamValue::Int(v))
     } else if let Ok(v) = value.extract::<f64>() {
-        ParamValue::Float(v)
+        Some(ParamValue::Float(v))
     } else if let Ok(v) = value.extract::<String>() {
-        ParamValue::String(v)
+        Some(ParamValue::String(v))
+    } else if let Ok(None) = value.extract::<Option<String>>() {
+        None
     } else {
-        ParamValue::Any(format!("{}", value.str()?))
+        Some(ParamValue::Any(format!("{}", value.str()?)))
     })
 }
 

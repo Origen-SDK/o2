@@ -1,5 +1,5 @@
 use super::ParamValue;
-use super::{BinType, FlowCondition, FlowID, GroupType, PatternGroupType};
+use super::{BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType};
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
@@ -45,8 +45,31 @@ pub fn define_test_invocation(
 }
 
 /// Set an attribute of either a test or a test invocation
-pub fn set_test_attr(id: usize, name: &str, value: ParamValue, meta: Option<Meta>) -> Result<()> {
+pub fn set_test_attr(
+    id: usize,
+    name: &str,
+    value: Option<ParamValue>,
+    meta: Option<Meta>,
+) -> Result<()> {
     let n = node!(PGMSetAttr, id, name.to_owned(), value; meta);
+    FLOW.push(n)?;
+    Ok(())
+}
+
+pub fn set_test_limit(
+    test_id: Option<usize>,
+    inv_id: Option<usize>,
+    hilo: LimitSelector,
+    value: Option<Limit>,
+    meta: Option<Meta>,
+) -> Result<()> {
+    if test_id.is_none() && inv_id.is_none() {
+        return error!("Either a test ID or an invocation ID must be supplied to set_test_limit");
+    }
+    if test_id.is_some() && inv_id.is_some() {
+        return error!("Either a test ID *OR* an invocation ID must be supplied to set_test_limit, but not both");
+    }
+    let n = node!(PGMSetLimit, test_id, inv_id, hilo, value; meta);
     FLOW.push(n)?;
     Ok(())
 }
@@ -182,4 +205,9 @@ pub fn start_on_passed(flow_id: FlowID, meta: Option<Meta>) -> Result<usize> {
 pub fn start_resources(meta: Option<Meta>) -> Result<usize> {
     let n = node!(PGMResources; meta);
     FLOW.push_and_open(n)
+}
+
+pub fn set_flag(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMSetFlag, name, state, false; meta);
+    FLOW.push(n)
 }

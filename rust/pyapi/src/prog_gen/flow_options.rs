@@ -3,7 +3,8 @@
 use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, FlowCondition, FlowID};
 use origen::Result;
-use pyo3::types::PyDict;
+use pyo3::types::{PyAny, PyDict};
+use std::collections::HashMap;
 
 pub fn is_flow_option(key: &str) -> bool {
     match key {
@@ -192,4 +193,86 @@ pub fn get_softbin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
         }
     }
     Ok(None)
+}
+
+pub fn on_fail(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
+    if let Some(kwargs) = kwargs {
+        if let Some(on_fail) = kwargs.get_item("on_fail") {
+            let ref_id = flow_api::start_on_failed(fid.to_owned(), None)?;
+            if let Ok(on_fail) = on_fail.cast_as::<PyDict>() {
+                for (k, v) in on_fail {
+                    if let Ok(k) = k.extract::<String>() {
+                        match k.as_str() {
+                            "set_flag" => {
+                                if let Ok(v) = v.extract::<String>() {
+                                    flow_api::set_flag(v, true, src_caller_meta())?;
+                                } else {
+                                    return error!(
+                                        "Illegal value for set_flag, expected a String, got: '{}'",
+                                        v
+                                    );
+                                }
+                            }
+                            _ => {
+                                return error!("Illegal key in 'on_fail' Dict '{}'", k);
+                            }
+                        }
+                    } else {
+                        return error!(
+                            "Illegal key in 'on_fail' Dict, expected a String, got: '{}'",
+                            k
+                        );
+                    }
+                }
+            } else {
+                return error!(
+                    "Illegal 'on_fail' value, expected a Dict, got: '{}'",
+                    on_fail
+                );
+            }
+            flow_api::end_block(ref_id)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn on_pass(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
+    if let Some(kwargs) = kwargs {
+        if let Some(on_pass) = kwargs.get_item("on_pass") {
+            let ref_id = flow_api::start_on_failed(fid.to_owned(), None)?;
+            if let Ok(on_pass) = on_pass.cast_as::<PyDict>() {
+                for (k, v) in on_pass {
+                    if let Ok(k) = k.extract::<String>() {
+                        match k.as_str() {
+                            "set_flag" => {
+                                if let Ok(v) = v.extract::<String>() {
+                                    flow_api::set_flag(v, true, src_caller_meta())?;
+                                } else {
+                                    return error!(
+                                        "Illegal value for set_flag, expected a String, got: '{}'",
+                                        v
+                                    );
+                                }
+                            }
+                            _ => {
+                                return error!("Illegal key in 'on_pass' Dict '{}'", k);
+                            }
+                        }
+                    } else {
+                        return error!(
+                            "Illegal key in 'on_pass' Dict, expected a String, got: '{}'",
+                            k
+                        );
+                    }
+                }
+            } else {
+                return error!(
+                    "Illegal 'on_pass' value, expected a Dict, got: '{}'",
+                    on_pass
+                );
+            }
+            flow_api::end_block(ref_id)?;
+        }
+    }
+    Ok(())
 }

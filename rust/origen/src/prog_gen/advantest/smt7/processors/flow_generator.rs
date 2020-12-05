@@ -1,6 +1,7 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::{BinType, GroupType, Model, ParamType, Test};
+use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamType, Test};
+use regex::Regex;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -18,6 +19,9 @@ pub struct FlowGenerator<'a> {
     test_suites: BTreeMap<String, &'a Test>,
     test_method_names: HashMap<usize, String>,
     sig: String,
+    flow_control_vars: Vec<String>,
+    group_count: HashMap<String, usize>,
+    inline_limits: bool,
 }
 
 pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
@@ -33,6 +37,9 @@ pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
         test_suites: BTreeMap::new(),
         test_method_names: HashMap::new(),
         sig: "_864CE8F".to_string(),
+        flow_control_vars: vec![],
+        group_count: HashMap::new(),
+        inline_limits: true,
     };
 
     for (i, t) in model.tests.values().enumerate() {
@@ -62,6 +69,22 @@ impl<'a> FlowGenerator<'a> {
             self.flow_body.push(line.to_string());
         } else {
             self.flow_body
+                .push(format!("{:indent$}{}", "", line, indent = ind));
+        }
+    }
+
+    fn push_header(&mut self, line: &str) {
+        let ind = {
+            if self.indent > 2 {
+                4 + (3 * (self.indent - 2))
+            } else {
+                2 * self.indent
+            }
+        };
+        if line == "" {
+            self.flow_header.push(line.to_string());
+        } else {
+            self.flow_header
                 .push(format!("{:indent$}{}", "", line, indent = ind));
         }
     }
@@ -148,23 +171,41 @@ impl<'a> Processor for FlowGenerator<'a> {
                 {
                     self.file_path = Some(self.output_dir.join(&format!("{}.tf", name)));
 
+                    // Process the flow AST, this will also generate the lines in the main body
+                    // of the flow
                     self.indent += 1;
-
-                    self.push_body("{");
                     self.indent += 1;
-
-                    self.push_body("{");
-                    self.indent += 1;
-                    // Generate flow init vars here
-                    self.indent -= 1;
-                    self.push_body("}, open,\"Init Flow Control Vars\", \"\"");
-
                     let _ = node.process_children(self);
                     self.indent -= 1;
                     self.push_body("");
                     self.push_body(&format!("}}, open,\"{}\",\"\"", &name.to_uppercase()));
-
                     self.indent -= 1;
+
+                    // Populate the flow header lines now that the flow has been fully generated
+                    self.indent += 1;
+                    self.push_header("{");
+                    self.indent += 1;
+                    self.push_header("{");
+                    self.indent += 1;
+                    // O1 did not sort these, so maintaing that for diffing
+                    //self.flow_control_vars.sort();
+                    //self.flow_control_vars.dedup();
+                    let mut lines = vec![];
+                    let mut done_flags: HashMap<String, bool> = HashMap::new();
+                    for var in &self.flow_control_vars {
+                        if !done_flags.contains_key(var) {
+                            done_flags.insert(var.to_owned(), true);
+                            lines.push(format!("{} = -1;", var));
+                        }
+                    }
+                    for line in lines {
+                        self.push_header(&line);
+                    }
+                    self.indent -= 1;
+                    self.push_header("}, open,\"Init Flow Control Vars\", \"\"");
+                    self.indent -= 1;
+
+                    // Now render the file
 
                     let mut f = std::fs::File::create(&self.file_path.as_ref().unwrap())?;
                     writeln!(&mut f, "hp93000,testflow,0.1")?;
@@ -198,15 +239,79 @@ impl<'a> Processor for FlowGenerator<'a> {
                         "-----------------------------------------------------------------"
                     )?;
                     writeln!(&mut f, "testmethodlimits")?;
-                    //{% if inline_limits %}
-                    //{%   for (_, test_method) in test_methods %}
-                    //%   test_methods.sorted_collection.each do |method|
-                    //%     if method.respond_to?(:limits) && method.limits && method.limits.render?
-                    //<%= method.id %>:
-                    //  <%= method.limits %>;
-                    //%     end
-                    //{%   endfor %}
-                    //{% endif %}
+                    if self.inline_limits {
+                        writeln!(&mut f, "")?;
+                        for (name, tm) in &self.test_methods {
+                            writeln!(&mut f, "{}:", name)?;
+                            if tm.sub_tests.is_empty() {
+                                let test_name = match tm.get("TestName") {
+                                    Ok(n) => match n {
+                                        Some(n) => Some(n.to_string()),
+                                        None => None,
+                                    },
+                                    Err(_) => None,
+                                };
+                                let test_name = match test_name {
+                                    Some(x) => x,
+                                    None => "Functional".to_string(),
+                                };
+                                let number = match tm.invocation(self.model).unwrap().number {
+                                    Some(x) => format!("{}", x),
+                                    None => "".to_string(),
+                                };
+                                if tm.hi_limit.is_none() && tm.lo_limit.is_none() {
+                                    // Don't know why, but to align to O1, can be removed later if necessary
+                                    if number == "" {
+                                        writeln!(
+                                            &mut f,
+                                            r#"  "{}" = "":"NA":"":"NA":"":"":"";"#,
+                                            test_name
+                                        )?;
+                                    } else {
+                                        writeln!(
+                                            &mut f,
+                                            r#"  "{}" = "":"NA":"":"NA":"":"{}":"0";"#,
+                                            test_name, &number
+                                        )?;
+                                    }
+                                } else if tm.lo_limit.is_none() {
+                                    let limit = tm.hi_limit.as_ref().unwrap();
+                                    writeln!(
+                                        &mut f,
+                                        r#"  "{}" = "":"NA":"{}":"LE":"{}":"{}":"0";"#,
+                                        test_name,
+                                        limit.value,
+                                        limit.unit_str(),
+                                        &number
+                                    )?;
+                                } else if tm.hi_limit.is_none() {
+                                    let limit = tm.lo_limit.as_ref().unwrap();
+                                    writeln!(
+                                        &mut f,
+                                        r#"  "{}" = "{}":"GE":"":"NA":"{}":"{}":"0";"#,
+                                        test_name,
+                                        limit.value,
+                                        limit.unit_str(),
+                                        &number
+                                    )?;
+                                } else {
+                                    let lo_limit = tm.lo_limit.as_ref().unwrap();
+                                    let hi_limit = tm.hi_limit.as_ref().unwrap();
+                                    writeln!(
+                                        &mut f,
+                                        r#"  "{}" = "{}":"GE":"{}":"LE":"{}":"{}":"0";"#,
+                                        test_name,
+                                        lo_limit.value,
+                                        hi_limit.value,
+                                        lo_limit.unit_str(),
+                                        &number
+                                    )?;
+                                }
+                            } else {
+                                return error!("Inline multi-limits is not implemented for V93K SMT7 yet, multiple limits encountered for test '{}'", name);
+                            }
+                        }
+                    }
                     writeln!(&mut f, "")?;
                     writeln!(&mut f, "end")?;
                     writeln!(
@@ -214,10 +319,6 @@ impl<'a> Processor for FlowGenerator<'a> {
                         "-----------------------------------------------------------------"
                     )?;
                     writeln!(&mut f, "testmethods")?;
-                    //{% for test_method in test_methods %}
-                    //<%= method.id %>:
-                    //  testmethod_class = "<%= method.klass %>";
-                    //{% endfor %}
                     writeln!(&mut f, "")?;
                     for (name, tm) in &self.test_methods {
                         writeln!(&mut f, "{}:", name)?;
@@ -257,7 +358,7 @@ impl<'a> Processor for FlowGenerator<'a> {
                             writeln!(&mut f, "  override_lev_spec_set = \"{}\";", v)?;
                         }
                         if let Some(v) = ts.get("level_set")? {
-                            writeln!(&mut f, "  override_levset = \"{}\";", v)?;
+                            writeln!(&mut f, "  override_levset = {};", v)?;
                         }
                         if let Some(v) = ts.get("pattern")? {
                             writeln!(&mut f, "  override_seqlbl = \"{}\";", v)?;
@@ -351,11 +452,22 @@ impl<'a> Processor for FlowGenerator<'a> {
                 self.indent += 1;
                 let _ = node.process_children(self);
                 self.indent -= 1;
-                self.push_body(&format!("}}, open,\"{}\",\"\"", &name));
+                self.push_body(&format!("}}, open,\"{}\", \"\"", &name));
                 Return::None
             }
             Attrs::PGMGroup(name, _, kind, _) => {
                 if kind == &GroupType::Flow {
+                    let name = {
+                        if self.group_count.contains_key(name) {
+                            let mut i = self.group_count[name];
+                            i += 1;
+                            self.group_count.insert(name.to_string(), i);
+                            format!("{}_{}", name, i)
+                        } else {
+                            self.group_count.insert(name.to_string(), 1);
+                            name.to_string()
+                        }
+                    };
                     self.push_body("{");
                     self.indent += 1;
                     let _ = node.process_children(self);
@@ -439,6 +551,106 @@ impl<'a> Processor for FlowGenerator<'a> {
             }
             Attrs::PGMOnFailed(_) => Return::None, // Done manually within the PGMTest handler
             Attrs::PGMOnPassed(_) => Return::None, // Done manually within the PGMTest handler
+            Attrs::PGMCondition(cond) => match cond {
+                FlowCondition::IfJob(jobs) | FlowCondition::UnlessJob(jobs) => {
+                    let mut jobstr = "if".to_string();
+                    for (i, job) in jobs.iter().enumerate() {
+                        if i > 0 {
+                            jobstr += " or";
+                        }
+                        jobstr += &format!(" @JOB == \"{}\"", job.to_uppercase())
+                    }
+                    jobstr += " then";
+                    self.push_body(&jobstr);
+                    self.push_body("{");
+                    if matches!(cond, FlowCondition::IfJob(_)) {
+                        self.indent += 1;
+                        node.process_children(self)?;
+                        self.indent -= 1;
+                    }
+                    self.push_body("}");
+                    self.push_body("else");
+                    self.push_body("{");
+                    if matches!(cond, FlowCondition::UnlessJob(_)) {
+                        self.indent += 1;
+                        node.process_children(self)?;
+                        self.indent -= 1;
+                    }
+                    self.push_body("}");
+                    Return::None
+                }
+                FlowCondition::IfEnable(flags) | FlowCondition::UnlessEnable(flags) => {
+                    let mut flagstr = "if".to_string();
+                    for (i, flag) in flags.iter().enumerate() {
+                        if i > 0 {
+                            flagstr += " or";
+                        }
+                        flagstr += &format!(" @{} == 1", flag.to_uppercase())
+                    }
+                    flagstr += " then";
+                    self.push_body(&flagstr);
+                    self.push_body("{");
+                    if matches!(cond, FlowCondition::IfEnable(_)) {
+                        self.indent += 1;
+                        node.process_children(self)?;
+                        self.indent -= 1;
+                    }
+                    self.push_body("}");
+                    self.push_body("else");
+                    self.push_body("{");
+                    if matches!(cond, FlowCondition::UnlessEnable(_)) {
+                        self.indent += 1;
+                        node.process_children(self)?;
+                        self.indent -= 1;
+                    }
+                    self.push_body("}");
+                    Return::None
+                }
+                FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
+                    let mut flagstr = "if".to_string();
+                    for (i, flag) in flags.iter().enumerate() {
+                        if i > 0 {
+                            flagstr += " or";
+                        }
+                        flagstr += &format!(" @{} == 1", flag.to_uppercase())
+                    }
+                    flagstr += " then";
+                    self.push_body(&flagstr);
+                    self.push_body("{");
+                    if matches!(cond, FlowCondition::IfFlag(_)) {
+                        self.indent += 1;
+                        node.process_children(self)?;
+                        self.indent -= 1;
+                    }
+                    self.push_body("}");
+                    self.push_body("else");
+                    self.push_body("{");
+                    if matches!(cond, FlowCondition::UnlessFlag(_)) {
+                        self.indent += 1;
+                        node.process_children(self)?;
+                        self.indent -= 1;
+                    }
+                    self.push_body("}");
+                    Return::None
+                }
+                _ => Return::ProcessChildren,
+            },
+            Attrs::PGMSetFlag(flag, state, is_auto_generated) => {
+                let mut flag = format!("@{}", flag.to_uppercase());
+                if *is_auto_generated {
+                    let re = Regex::new(r"_(?P<flag>PASSED|FAILED|RAN)$").unwrap();
+                    let replacement = format!("{}_$flag", self.sig);
+                    let r = re.replace(&flag, &*replacement);
+                    flag = r.to_string();
+                }
+                if *state {
+                    self.push_body(&format!("{} = 1;", flag));
+                } else {
+                    self.push_body(&format!("{} = 0;", flag));
+                }
+                self.flow_control_vars.push(flag.to_string());
+                Return::None
+            }
             Attrs::PGMBin(bin, softbin, kind) => {
                 let softbin = match softbin {
                     None => "".to_string(),

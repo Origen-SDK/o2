@@ -138,6 +138,8 @@ impl Model {
         }
         let inv = self.test_invocations.get_mut(&inv_id).unwrap();
         inv.test_id = Some(test_id);
+        let test = self.tests.get_mut(&test_id).unwrap();
+        test.test_id = Some(inv_id);
         Ok(())
     }
 
@@ -147,7 +149,13 @@ impl Model {
     /// Currently, if no matching attribute is found then nothing happens.
     /// An error is returned if the test doesn't exist or if the value is the wrong type for the
     /// given parameter.
-    pub fn set_test_attr(&mut self, id: usize, name: &str, value: ParamValue) -> Result<()> {
+    /// Calling with value = None will cause all existing settings for the given attribute to be removed.
+    pub fn set_test_attr(
+        &mut self,
+        id: usize,
+        name: &str,
+        value: Option<ParamValue>,
+    ) -> Result<()> {
         if self.test_invocations.contains_key(&id) {
             let inv = self.test_invocations.get_mut(&id).unwrap();
             if inv.has_param(name) {

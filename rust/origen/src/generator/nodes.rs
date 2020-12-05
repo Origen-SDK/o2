@@ -1,6 +1,8 @@
 use super::stil;
 use super::utility::transaction::Transaction;
-use crate::prog_gen::{BinType, FlowCondition, FlowID, GroupType, ParamValue, PatternGroupType};
+use crate::prog_gen::{
+    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, ParamValue, PatternGroupType,
+};
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
@@ -216,7 +218,10 @@ pub enum Attrs {
     ///                 InvID  TestID
     PGMAssignTestToInv(usize, usize),
     /// Set the attribute with the given name within the given test (ID), to the given value
-    PGMSetAttr(usize, String, ParamValue),
+    PGMSetAttr(usize, String, Option<ParamValue>),
+    /// Set the limit of the given test or invocation, (test_id, inv_id, hi/lo, value). Note that either test_id
+    /// or inv_id must be present, but not both.
+    PGMSetLimit(Option<usize>, Option<usize>, LimitSelector, Option<Limit>),
     /// Execute a test (or invocation) from the flow
     PGMTest(usize, FlowID),
     /// Execute a test (or invocation) from the flow, where the test is simply a string to be inserted
@@ -261,6 +266,10 @@ pub enum Attrs {
     PGMWhenever,    // Placeholder
     PGMWheneverAny, // Placeholder
     PGMWheneverAll, // Placeholder
+    /// Enable a flow switch
+    PGMEnable(String),
+    /// Disable a flow switch
+    PGMDisable(String),
 
     PGMIGXLSetWaitFlags(usize, Vec<String>),
 

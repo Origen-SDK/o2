@@ -29,7 +29,7 @@ impl Processor for CleanNames {
                     self.test_suite_names.insert(name.clone(), count + 1);
                     t.set(
                         "name",
-                        ParamValue::String(format!("{}_{}", name, count + 1)),
+                        Some(ParamValue::String(format!("{}_{}", name, count + 1))),
                         false,
                     )?;
                 } else {

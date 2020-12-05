@@ -34,6 +34,7 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
             let ast = generic_processors::relationship::run(&ast)?;
             let ast = generic_processors::condition::run(&ast)?;
             let ast = generic_processors::flag_optimizer::run(&ast, None)?;
+            let ast = generic_processors::adjacent_if_combiner::run(&ast)?;
             //dbg!(&ast);
             files.push(processors::flow_generator::run(
                 &ast, &flow_dir, &mut model,

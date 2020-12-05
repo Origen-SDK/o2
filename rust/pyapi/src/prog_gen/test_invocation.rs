@@ -1,12 +1,14 @@
 use super::to_param_value;
 use super::Test;
+use crate::prog_gen::flow_options;
 use crate::utility::caller::src_caller_meta;
-use origen::prog_gen::{flow_api, ParamValue};
+use origen::prog_gen::{flow_api, Limit, LimitSelector, ParamValue};
 use origen::testers::SupportedTester;
 use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::exceptions::AttributeError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 /// A test invocation models a particular call (or invocation) of a test from a test flow,
 /// on the V93K a TestInvocation maps to a TestSuite, while a Test maps to a TestMethod.
@@ -31,20 +33,83 @@ impl TestInvocation {
         flow_api::assign_test_to_invocation(self.id, test.id, src_caller_meta())?;
         Ok(())
     }
+
+    #[setter]
+    pub fn set_lo_limit(&self, value: &PyAny) -> PyResult<()> {
+        let value = match to_param_value(value)? {
+            None => None,
+            Some(x) => Some(Limit {
+                kind: origen::prog_gen::LimitType::GTE,
+                value: x,
+                unit: None,
+            }),
+        };
+        flow_api::set_test_limit(
+            None,
+            Some(self.id),
+            LimitSelector::Lo,
+            value,
+            src_caller_meta(),
+        )?;
+        Ok(())
+    }
+
+    #[setter]
+    pub fn set_hi_limit(&self, value: &PyAny) -> PyResult<()> {
+        let value = match to_param_value(value)? {
+            None => None,
+            Some(x) => Some(Limit {
+                kind: origen::prog_gen::LimitType::LTE,
+                value: x,
+                unit: None,
+            }),
+        };
+        flow_api::set_test_limit(
+            None,
+            Some(self.id),
+            LimitSelector::Hi,
+            value,
+            src_caller_meta(),
+        )?;
+        Ok(())
+    }
 }
 
 impl TestInvocation {
-    pub fn new(name: String, tester: SupportedTester) -> Result<TestInvocation> {
+    pub fn new(
+        name: String,
+        tester: SupportedTester,
+        kwargs: Option<&PyDict>,
+    ) -> Result<TestInvocation> {
         let id = flow_api::define_test_invocation(&name, &tester, src_caller_meta())?;
 
-        Ok(TestInvocation {
+        let t = TestInvocation {
             name: name,
             tester: tester,
             id: id,
-        })
+        };
+
+        if let Some(kwargs) = kwargs {
+            for (k, v) in kwargs {
+                if let Ok(name) = k.extract::<String>() {
+                    if !flow_options::is_flow_option(&name) {
+                        if name == "lo_limit" {
+                            t.set_lo_limit(v)?;
+                        } else if name == "hi_limit" {
+                            t.set_hi_limit(v)?;
+                        } else {
+                            t.set_attr(&name, to_param_value(v)?)?;
+                        }
+                    }
+                } else {
+                    return error!("Illegal attribute name type '{}', should be a String", k);
+                }
+            }
+        }
+        Ok(t)
     }
 
-    pub fn set_attr(&self, name: &str, value: ParamValue) -> Result<()> {
+    pub fn set_attr(&self, name: &str, value: Option<ParamValue>) -> Result<()> {
         flow_api::set_test_attr(self.id, name, value, src_caller_meta())?;
         Ok(())
     }
@@ -52,14 +117,6 @@ impl TestInvocation {
 
 #[pyproto]
 impl PyObjectProtocol for TestInvocation {
-    //fn __repr__(&self) -> PyResult<String> {
-    //    Ok("Hello".to_string())
-    //}
-
-    //fn __getattr__(&self, _query: &str) -> PyResult<()> {
-    //    Ok(())
-    //}
-
     fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
         // Specials for platform specific attributes
         if name == "test_method"
@@ -72,47 +129,5 @@ impl PyObjectProtocol for TestInvocation {
         }
         self.set_attr(name, to_param_value(value)?)?;
         Ok(())
-
-        //if origen::with_prog_mut(|p| {
-        //    // Try and set the attribute on the test invocation
-        //    let t = &mut p.tests[self.id];
-        //    if t.has_param(name) {
-        //        set_value(t, name, value)?;
-        //        return Ok(true);
-        //    } else {
-        //        // Try and set the attribute on the test (if present)
-        //        if let Some(id) = self.test_id {
-        //            let t = &mut p.tests[id];
-        //            if t.has_param(name) {
-        //                set_value(t, name, value)?;
-        //                Ok(true)
-        //            } else {
-        //                Ok(false)
-        //            }
-        //        } else {
-        //            Ok(false)
-        //        }
-        //    }
-        //})? {
-        //    return Ok(());
-        //}
-        //// Tried our best
-        //let msg = match self.test_id {
-        //    Some(_id) => format!(
-        //        "Neither the {} '{}' or its {} '{}' has an attribute called '{}'",
-        //        name_of_test_invocation(&self.tester),
-        //        &self.name()?,
-        //        name_of_test(&self.tester),
-        //        &self.test_name()?.unwrap(),
-        //        name
-        //    ),
-        //    None => format!(
-        //        "The {} '{}' has no attribute called '{}'",
-        //        name_of_test_invocation(&self.tester),
-        //        &self.name()?,
-        //        name
-        //    ),
-        //};
-        //Err(AttributeError::py_err(msg))
     }
 }
