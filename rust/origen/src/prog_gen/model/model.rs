@@ -12,7 +12,8 @@ pub struct Model {
     pub flow_name: String,
     pub tests: IndexMap<usize, Test>,
     pub test_invocations: IndexMap<usize, Test>,
-    pub bins: IndexMap<usize, Bin>,
+    pub hardbins: IndexMap<usize, Bin>,
+    pub softbins: IndexMap<usize, Bin>,
     pub limits: IndexMap<usize, Limit>,
     /// Templates which have been loaded into Test objects, organized by:
     ///   * Library Name
@@ -26,7 +27,8 @@ impl Model {
             flow_name: flow_name,
             tests: IndexMap::new(),
             test_invocations: IndexMap::new(),
-            bins: IndexMap::new(),
+            hardbins: IndexMap::new(),
+            softbins: IndexMap::new(),
             limits: IndexMap::new(),
             templates: IndexMap::new(),
         }

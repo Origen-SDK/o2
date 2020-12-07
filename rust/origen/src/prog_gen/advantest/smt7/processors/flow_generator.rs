@@ -22,6 +22,8 @@ pub struct FlowGenerator<'a> {
     flow_control_vars: Vec<String>,
     group_count: HashMap<String, usize>,
     inline_limits: bool,
+    on_fails: Vec<Node>,
+    on_passes: Vec<Node>,
 }
 
 pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
@@ -40,6 +42,8 @@ pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
         flow_control_vars: vec![],
         group_count: HashMap::new(),
         inline_limits: true,
+        on_fails: vec![],
+        on_passes: vec![],
     };
 
     for (i, t) in model.tests.values().enumerate() {
@@ -88,6 +92,25 @@ impl<'a> FlowGenerator<'a> {
                 .push(format!("{:indent$}{}", "", line, indent = ind));
         }
     }
+
+    fn add_sig_to_flag(&self, flag: &str) -> String {
+        let re = Regex::new(r"_(?P<flag>PASSED|FAILED|RAN)$").unwrap();
+        let replacement = format!("{}_$flag", &self.sig);
+        let r = re.replace(flag, &*replacement);
+        r.to_string()
+    }
+
+    fn add_count_to_group_name(&mut self, name: &str) -> String {
+        if self.group_count.contains_key(name) {
+            let mut i = self.group_count[name];
+            i += 1;
+            self.group_count.insert(name.to_string(), i);
+            format!("{}_{}", name, i)
+        } else {
+            self.group_count.insert(name.to_string(), 1);
+            name.to_string()
+        }
+    }
 }
 
 /// Returns true if the given parameter has a value and it is true, returns false
@@ -102,6 +125,14 @@ fn is_true(test_suite: &Test, param: &str) -> Result<bool> {
                 Ok(false)
             }
         }
+    }
+}
+
+fn clean_flag(flag: &str) -> String {
+    if flag.starts_with("$") {
+        flag.replacen("$", "", 1)
+    } else {
+        flag.to_uppercase()
     }
 }
 
@@ -435,9 +466,11 @@ impl<'a> Processor for FlowGenerator<'a> {
                     )?;
                     writeln!(&mut f, "hardware_bin_descriptions")?;
                     writeln!(&mut f, "")?;
-                    //{% for bin in hard_bins %}
-                    //  {{bin.number}} = {{bin.description}};
-                    //{% endfor %}
+                    for (number, bin) in &self.model.hardbins {
+                        if let Some(desc) = &bin.description {
+                            writeln!(&mut f, "  {} = \"{}\";", number, desc)?;
+                        }
+                    }
                     writeln!(&mut f, "")?;
                     writeln!(&mut f, "end")?;
                     writeln!(
@@ -452,27 +485,36 @@ impl<'a> Processor for FlowGenerator<'a> {
                 self.indent += 1;
                 let _ = node.process_children(self);
                 self.indent -= 1;
+                let name = self.add_count_to_group_name(name);
                 self.push_body(&format!("}}, open,\"{}\", \"\"", &name));
                 Return::None
             }
             Attrs::PGMGroup(name, _, kind, _) => {
                 if kind == &GroupType::Flow {
-                    let name = {
-                        if self.group_count.contains_key(name) {
-                            let mut i = self.group_count[name];
-                            i += 1;
-                            self.group_count.insert(name.to_string(), i);
-                            format!("{}_{}", name, i)
-                        } else {
-                            self.group_count.insert(name.to_string(), 1);
-                            name.to_string()
+                    let mut pop_on_passed = false;
+                    let mut pop_on_failed = false;
+                    for n in &node.children {
+                        if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
+                            self.on_passes.push(*n.clone());
+                            pop_on_passed = true;
                         }
-                    };
+                        if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
+                            self.on_fails.push(*n.clone());
+                            pop_on_failed = true;
+                        }
+                    }
+                    let name = self.add_count_to_group_name(name);
                     self.push_body("{");
                     self.indent += 1;
                     let _ = node.process_children(self);
                     self.indent -= 1;
                     self.push_body(&format!("}}, open,\"{}\", \"\"", &name));
+                    if pop_on_passed {
+                        let _ = self.on_passes.pop();
+                    }
+                    if pop_on_failed {
+                        let _ = self.on_fails.pop();
+                    }
                 } else {
                     let _ = node.process_children(self);
                 }
@@ -490,6 +532,8 @@ impl<'a> Processor for FlowGenerator<'a> {
                     .children
                     .iter()
                     .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
+                    || !self.on_fails.is_empty()
+                    || !self.on_passes.is_empty()
                 {
                     self.push_body(&format!("run_and_branch({}{})", test_name, self.sig));
                     self.push_body("then");
@@ -497,8 +541,11 @@ impl<'a> Processor for FlowGenerator<'a> {
                     self.indent += 1;
                     for n in &node.children {
                         if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
-                            let _ = n.process_children(self);
+                            n.process_children(self)?;
                         }
+                    }
+                    for n in self.on_passes.clone() {
+                        n.process_children(self)?;
                     }
                     self.indent -= 1;
                     self.push_body("}");
@@ -507,8 +554,11 @@ impl<'a> Processor for FlowGenerator<'a> {
                     self.indent += 1;
                     for n in &node.children {
                         if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
-                            let _ = n.process_children(self);
+                            n.process_children(self)?;
                         }
+                    }
+                    for n in self.on_fails.clone() {
+                        n.process_children(self)?;
                     }
                     self.indent -= 1;
                     self.push_body("}");
@@ -522,6 +572,8 @@ impl<'a> Processor for FlowGenerator<'a> {
                     .children
                     .iter()
                     .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
+                    || !self.on_fails.is_empty()
+                    || !self.on_passes.is_empty()
                 {
                     self.push_body(&format!("run_and_branch({})", name));
                     self.push_body("then");
@@ -529,8 +581,11 @@ impl<'a> Processor for FlowGenerator<'a> {
                     self.indent += 1;
                     for n in &node.children {
                         if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
-                            let _ = n.process_children(self);
+                            n.process_children(self)?;
                         }
+                    }
+                    for n in self.on_passes.clone() {
+                        n.process_children(self)?;
                     }
                     self.indent -= 1;
                     self.push_body("}");
@@ -539,8 +594,11 @@ impl<'a> Processor for FlowGenerator<'a> {
                     self.indent += 1;
                     for n in &node.children {
                         if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
-                            let _ = n.process_children(self);
+                            n.process_children(self)?;
                         }
+                    }
+                    for n in self.on_fails.clone() {
+                        n.process_children(self)?;
                     }
                     self.indent -= 1;
                     self.push_body("}");
@@ -551,9 +609,14 @@ impl<'a> Processor for FlowGenerator<'a> {
             }
             Attrs::PGMOnFailed(_) => Return::None, // Done manually within the PGMTest handler
             Attrs::PGMOnPassed(_) => Return::None, // Done manually within the PGMTest handler
+            Attrs::PGMElse => Return::None,        // Handled by its parent
             Attrs::PGMCondition(cond) => match cond {
                 FlowCondition::IfJob(jobs) | FlowCondition::UnlessJob(jobs) => {
                     let mut jobstr = "if".to_string();
+                    let else_node = node
+                        .children
+                        .iter()
+                        .find(|n| matches!(n.attrs, Attrs::PGMElse));
                     for (i, job) in jobs.iter().enumerate() {
                         if i > 0 {
                             jobstr += " or";
@@ -563,85 +626,115 @@ impl<'a> Processor for FlowGenerator<'a> {
                     jobstr += " then";
                     self.push_body(&jobstr);
                     self.push_body("{");
+                    self.indent += 1;
                     if matches!(cond, FlowCondition::IfJob(_)) {
-                        self.indent += 1;
                         node.process_children(self)?;
-                        self.indent -= 1;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
                     }
+                    self.indent -= 1;
                     self.push_body("}");
                     self.push_body("else");
                     self.push_body("{");
+                    self.indent += 1;
                     if matches!(cond, FlowCondition::UnlessJob(_)) {
-                        self.indent += 1;
                         node.process_children(self)?;
-                        self.indent -= 1;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
                     }
+                    self.indent -= 1;
                     self.push_body("}");
                     Return::None
                 }
                 FlowCondition::IfEnable(flags) | FlowCondition::UnlessEnable(flags) => {
                     let mut flagstr = "if".to_string();
+                    let else_node = node
+                        .children
+                        .iter()
+                        .find(|n| matches!(n.attrs, Attrs::PGMElse));
                     for (i, flag) in flags.iter().enumerate() {
                         if i > 0 {
                             flagstr += " or";
                         }
-                        flagstr += &format!(" @{} == 1", flag.to_uppercase())
+                        flagstr += &format!(" @{} == 1", clean_flag(&flag))
                     }
                     flagstr += " then";
                     self.push_body(&flagstr);
                     self.push_body("{");
+                    self.indent += 1;
                     if matches!(cond, FlowCondition::IfEnable(_)) {
-                        self.indent += 1;
                         node.process_children(self)?;
-                        self.indent -= 1;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
                     }
+                    self.indent -= 1;
                     self.push_body("}");
                     self.push_body("else");
                     self.push_body("{");
+                    self.indent += 1;
                     if matches!(cond, FlowCondition::UnlessEnable(_)) {
-                        self.indent += 1;
                         node.process_children(self)?;
-                        self.indent -= 1;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
                     }
+                    self.indent -= 1;
                     self.push_body("}");
                     Return::None
                 }
                 FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
                     let mut flagstr = "if".to_string();
+                    let else_node = node
+                        .children
+                        .iter()
+                        .find(|n| matches!(n.attrs, Attrs::PGMElse));
                     for (i, flag) in flags.iter().enumerate() {
+                        let flag = self.add_sig_to_flag(flag);
                         if i > 0 {
                             flagstr += " or";
                         }
-                        flagstr += &format!(" @{} == 1", flag.to_uppercase())
+                        flagstr += &format!(" @{} == 1", clean_flag(&flag))
                     }
                     flagstr += " then";
                     self.push_body(&flagstr);
                     self.push_body("{");
+                    self.indent += 1;
                     if matches!(cond, FlowCondition::IfFlag(_)) {
-                        self.indent += 1;
                         node.process_children(self)?;
-                        self.indent -= 1;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
                     }
+                    self.indent -= 1;
                     self.push_body("}");
                     self.push_body("else");
                     self.push_body("{");
+                    self.indent += 1;
                     if matches!(cond, FlowCondition::UnlessFlag(_)) {
-                        self.indent += 1;
                         node.process_children(self)?;
-                        self.indent -= 1;
+                    } else {
+                        if let Some(else_node) = else_node {
+                            else_node.process_children(self)?;
+                        }
                     }
+                    self.indent -= 1;
                     self.push_body("}");
                     Return::None
                 }
                 _ => Return::ProcessChildren,
             },
             Attrs::PGMSetFlag(flag, state, is_auto_generated) => {
-                let mut flag = format!("@{}", flag.to_uppercase());
+                let mut flag = format!("@{}", clean_flag(&flag));
                 if *is_auto_generated {
-                    let re = Regex::new(r"_(?P<flag>PASSED|FAILED|RAN)$").unwrap();
-                    let replacement = format!("{}_$flag", self.sig);
-                    let r = re.replace(&flag, &*replacement);
-                    flag = r.to_string();
+                    flag = self.add_sig_to_flag(&flag);
                 }
                 if *state {
                     self.push_body(&format!("{} = 1;", flag));

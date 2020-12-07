@@ -33,6 +33,7 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
             let ast = generic_processors::nest_on_result_nodes::run(&ast)?;
             let ast = generic_processors::relationship::run(&ast)?;
             let ast = generic_processors::condition::run(&ast)?;
+            let ast = generic_processors::continue_implementer::run(&ast)?;
             let ast = generic_processors::flag_optimizer::run(&ast, None)?;
             let ast = generic_processors::adjacent_if_combiner::run(&ast)?;
             //dbg!(&ast);

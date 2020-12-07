@@ -2206,8 +2206,10 @@ test_flow
              else
              {
              }
-             run(erase_all_40_864CE8F);
           }, open,"additional_erase", ""
+          {
+             run(erase_all_40_864CE8F);
+          }, open,"additional_erase_2", ""
        }
        else
        {

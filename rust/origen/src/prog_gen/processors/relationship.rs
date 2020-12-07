@@ -141,14 +141,14 @@ fn process_test_results(fid: &FlowID, mut node: Node, processor: &Relationship) 
                     match &node.attrs {
                         // For a test, set a flag immediately after the referenced test has executed
                         // but don't change its pass/fail handling
-                        Attrs::PGMTest(_, _) => {
+                        Attrs::PGMTest(_, _) | Attrs::PGMTestStr(_, _) => {
                             return Ok(Return::Inline(vec![node, set_flag]));
                         }
                         // For a group, set a flag immediately upon entry to the group to signal that
                         // it ran to later tests, this is better than doing it immediately after the group
                         // in case it was bypassed
                         Attrs::PGMGroup(_, _, _, _) | Attrs::PGMSubFlow(_, _) => {
-                            node.insert_child(set_flag, 0)?;
+                            node.insert_child(set_flag, node.children.len())?;
                         }
                         _ => unreachable!(),
                     }
@@ -168,7 +168,7 @@ fn ids_to_flags(ids: &Vec<FlowID>, name: &str) -> Vec<String> {
 impl Processor for Relationship {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         Ok(match &node.attrs {
-            Attrs::PGMTest(_, fid) => {
+            Attrs::PGMTest(_, fid) | Attrs::PGMTestStr(_, fid) => {
                 let node = node.process_and_update_children(self)?;
                 process_test_results(fid, node, &self)?
             }

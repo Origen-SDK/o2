@@ -1,6 +1,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::{LimitSelector, Model};
+use crate::prog_gen::{Bin, BinType, LimitSelector, Model};
 use crate::testers::SupportedTester;
 
 /// This extracts all definitions for tests, test invocations, pattern sets, bins, etc.
@@ -55,13 +55,6 @@ impl Processor for ExtractToModel {
                     trace!(self.model.assign_test_to_inv(*inv_id, *test_id), node);
                     Ok(Return::None)
                 }
-                //Attrs::PGMPatternGroup(id, name, _, kind) => Ok(Return::None),
-                //Attrs::PGMPushPattern(id, name, start_label) => Ok(Return::None),
-                //// These will be left in the AST for later consumption by the flow, but they also function
-                //// as un-official bin definitions.
-                //// Any official bin defs in the AST for the same bin number will be combined with the model
-                //// defintion created from here.
-                //Attrs::PGMBin(hardbin, softbin, kind) => Ok(Return::Unmodified),
                 _ => Ok(Return::ProcessChildren),
             }
         } else {
@@ -84,6 +77,59 @@ impl Processor for ExtractToModel {
                         match selector {
                             LimitSelector::Hi => t.hi_limit = value.to_owned(),
                             LimitSelector::Lo => t.lo_limit = value.to_owned(),
+                        }
+                    }
+                    Ok(Return::None)
+                }
+                //Attrs::PGMPatternGroup(id, name, _, kind) => Ok(Return::None),
+                //Attrs::PGMPushPattern(id, name, start_label) => Ok(Return::None),
+                // These will be left in the AST for later consumption by the flow, but they also function
+                // as un-official bin definitions.
+                // Any official bin defs in the AST for the same bin number will be combined with the model
+                // defintion created from here.
+                Attrs::PGMBin(hardbin, softbin, kind) => {
+                    if !self.model.hardbins.contains_key(hardbin) {
+                        let b = Bin {
+                            number: *hardbin,
+                            description: None,
+                            priority: None,
+                            pass: matches!(kind, BinType::Good),
+                        };
+                        self.model.hardbins.insert(*hardbin, b);
+                    }
+                    if let Some(softbin) = softbin {
+                        if !self.model.softbins.contains_key(hardbin) {
+                            let b = Bin {
+                                number: *softbin,
+                                description: None,
+                                priority: None,
+                                pass: matches!(kind, BinType::Good),
+                            };
+                            self.model.softbins.insert(*softbin, b);
+                        }
+                    }
+                    Ok(Return::Unmodified)
+                }
+                Attrs::PGMDefBin(number, is_soft, kind, description, priority) => {
+                    let collection = match is_soft {
+                        false => &mut self.model.hardbins,
+                        true => &mut self.model.softbins,
+                    };
+                    if !collection.contains_key(number) {
+                        let b = Bin {
+                            number: *number,
+                            description: description.to_owned(),
+                            priority: priority.to_owned(),
+                            pass: matches!(kind, BinType::Good),
+                        };
+                        collection.insert(*number, b);
+                    } else {
+                        let mut b = collection.get_mut(number).unwrap();
+                        if let Some(d) = description {
+                            b.description = Some(d.to_owned());
+                        }
+                        if let Some(p) = priority {
+                            b.priority = Some(*p);
                         }
                     }
                     Ok(Return::None)

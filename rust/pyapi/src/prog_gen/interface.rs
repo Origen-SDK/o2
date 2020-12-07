@@ -45,7 +45,7 @@ impl PyInterface {
         let bin = flow_options::get_bin(kwargs)?;
         let softbin = flow_options::get_softbin(kwargs)?;
 
-        Ok(flow_options::wrap_in_conditions(kwargs, || {
+        Ok(flow_options::wrap_in_conditions(kwargs, false, || {
             if let Ok(t) = test_obj.extract::<TestInvocation>() {
                 flow_api::execute_test(t.id, id.clone(), src_caller_meta())?;
             } else if let Ok(t) = test_obj.extract::<Test>() {
@@ -79,13 +79,13 @@ impl PyInterface {
 
             if let Some(bin) = bin {
                 let ref_id = flow_api::start_on_failed(id.clone(), None)?;
-                self.bin(bin, softbin, None, false, None)?;
+                self.bin(bin, softbin, None, false, None, None, None)?;
                 flow_api::end_block(ref_id)?;
             }
             flow_options::on_fail(&id, kwargs)?;
             flow_options::on_pass(&id, kwargs)?;
             Ok(())
-        })?)
+        })?.0)
     }
 
     /// Add a cz test to the flow
@@ -125,7 +125,11 @@ impl PyInterface {
     #[args(id = "None", kwargs = "**")]
     fn group(&mut self, name: String, kwargs: Option<&PyDict>) -> PyResult<Group> {
         let id = flow_options::get_flow_id(kwargs)?;
-        let g = Group::new(name, None, GroupType::Flow, Some(id));
+        let (mut g, ref_ids) = flow_options::wrap_in_conditions(kwargs, true, || {
+            let g = Group::new(name, None, GroupType::Flow, Some(id));
+            Ok(g)
+        })?;
+        g.open_conditions = ref_ids;
         Ok(g)
     }
 
@@ -250,7 +254,9 @@ impl PyInterface {
         soft_bin: Option<usize>,
         softbin: Option<usize>,
         good: bool,
-        _kwargs: Option<&PyDict>,
+        description: Option<String>,
+        priority: Option<usize>,
+        kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
         let sbin = match soft_bin {
             Some(n) => Some(n),
@@ -263,8 +269,24 @@ impl PyInterface {
             true => BinType::Good,
             false => BinType::Bad,
         };
-        flow_api::bin(hard_bin, sbin, kind, None)?;
-        Ok(())
+        if description.is_some() || priority.is_some() {
+            if let Some(sbin) = sbin {
+                flow_api::define_bin(
+                    sbin,
+                    true,
+                    kind.clone(),
+                    description.clone(),
+                    priority,
+                    None,
+                );
+            }
+            flow_api::define_bin(hard_bin, false, kind.clone(), description, priority, None);
+        }
+        Ok(flow_options::wrap_in_conditions(kwargs, false, || {
+            flow_api::bin(hard_bin, sbin, kind, None)?;
+            Ok(())
+        })?
+        .0)
     }
 
     #[args(soft_bin = "None", softbin = "None", kwargs = "**")]
@@ -273,9 +295,19 @@ impl PyInterface {
         hard_bin: usize,
         soft_bin: Option<usize>,
         softbin: Option<usize>,
+        description: Option<String>,
+        priority: Option<usize>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
-        self.bin(hard_bin, soft_bin, softbin, true, kwargs)
+        self.bin(
+            hard_bin,
+            soft_bin,
+            softbin,
+            true,
+            description,
+            priority,
+            kwargs,
+        )
     }
 
     #[args(soft_bin = "None", softbin = "None", kwargs = "**")]
@@ -284,9 +316,19 @@ impl PyInterface {
         hard_bin: usize,
         soft_bin: Option<usize>,
         softbin: Option<usize>,
+        description: Option<String>,
+        priority: Option<usize>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<()> {
-        self.bin(hard_bin, soft_bin, softbin, false, kwargs)
+        self.bin(
+            hard_bin,
+            soft_bin,
+            softbin,
+            false,
+            description,
+            priority,
+            kwargs,
+        )
     }
 }
 
