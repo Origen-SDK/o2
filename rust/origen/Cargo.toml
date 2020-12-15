@@ -54,6 +54,8 @@ path-slash = "0.1.2"
 phf = { version = "0.8.0", features = ["macros"] }
 serde_json = "1.0"
 tera = "1"
+strum_macros = "0.20"
+strum = { version = "0.20", features = ["derive"] }
 
 [build-dependencies]
 built = "0.4"

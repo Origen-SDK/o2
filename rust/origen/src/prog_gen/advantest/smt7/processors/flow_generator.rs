@@ -7,16 +7,16 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Does the final writing of the flow AST to a SMT7 flow file
-pub struct FlowGenerator<'a> {
+pub struct FlowGenerator {
     output_dir: PathBuf,
-    file_path: Option<PathBuf>,
+    generated_files: Vec<PathBuf>,
     flow_header: Vec<String>,
     flow_body: Vec<String>,
     flow_footer: Vec<String>,
     indent: usize,
-    model: &'a Model,
-    test_methods: BTreeMap<String, &'a Test>,
-    test_suites: BTreeMap<String, &'a Test>,
+    model: Model,
+    test_methods: BTreeMap<String, usize>,
+    test_suites: BTreeMap<String, usize>,
     test_method_names: HashMap<usize, String>,
     sig: String,
     flow_control_vars: Vec<String>,
@@ -24,12 +24,13 @@ pub struct FlowGenerator<'a> {
     inline_limits: bool,
     on_fails: Vec<Node>,
     on_passes: Vec<Node>,
+    resources_block: bool,
 }
 
-pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
+pub fn run(ast: &Node, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
     let mut p = FlowGenerator {
         output_dir: output_dir.to_owned(),
-        file_path: None,
+        generated_files: vec![],
         flow_header: vec![],
         flow_body: vec![],
         flow_footer: vec![],
@@ -44,24 +45,30 @@ pub fn run(ast: &Node, output_dir: &Path, model: &Model) -> Result<PathBuf> {
         inline_limits: true,
         on_fails: vec![],
         on_passes: vec![],
+        resources_block: false,
     };
 
-    for (i, t) in model.tests.values().enumerate() {
+    let mut i = 0;
+    for (_, t) in &p.model.tests {
         let name = format!("tm_{}", i + 1);
         p.test_method_names.insert(t.id, name.clone());
-        p.test_methods.insert(name, t);
+        p.test_methods.insert(name, t.id);
+        i += 1;
     }
 
-    for (_, t) in model.test_invocations.values().enumerate() {
+    for (_, t) in &p.model.test_invocations {
         p.test_suites
-            .insert(format!("{}{}", t.get("name")?.unwrap(), p.sig), t);
+            .insert(format!("{}{}", t.get("name")?.unwrap(), p.sig), t.id);
     }
     ast.process(&mut p)?;
-    Ok(p.file_path.unwrap())
+    Ok((p.model, p.generated_files))
 }
 
-impl<'a> FlowGenerator<'a> {
+impl FlowGenerator {
     fn push_body(&mut self, line: &str) {
+        if self.resources_block {
+            return;
+        }
         let ind = {
             if self.indent > 2 {
                 4 + (3 * (self.indent - 2))
@@ -78,6 +85,9 @@ impl<'a> FlowGenerator<'a> {
     }
 
     fn push_header(&mut self, line: &str) {
+        if self.resources_block {
+            return;
+        }
         let ind = {
             if self.indent > 2 {
                 4 + (3 * (self.indent - 2))
@@ -195,13 +205,16 @@ fn flags(test_suite: &Test) -> Result<Vec<&'static str>> {
     Ok(flags)
 }
 
-impl<'a> Processor for FlowGenerator<'a> {
+impl Processor for FlowGenerator {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         let result = match &node.attrs {
+            Attrs::PGMResourcesFilename(name, kind) => {
+                self.model.set_resources_filename(name.to_owned(), kind);
+                Return::Unmodified
+            }
             Attrs::PGMFlow(name) => {
                 {
-                    self.file_path = Some(self.output_dir.join(&format!("{}.tf", name)));
-
+                    self.model.select_flow(name)?;
                     // Process the flow AST, this will also generate the lines in the main body
                     // of the flow
                     self.indent += 1;
@@ -237,16 +250,19 @@ impl<'a> Processor for FlowGenerator<'a> {
                     self.indent -= 1;
 
                     // Now render the file
+                    let flow_file = self.output_dir.join(&format!("{}.tf", name));
+                    let mut f = std::fs::File::create(&flow_file)?;
+                    self.generated_files.push(flow_file);
 
-                    let mut f = std::fs::File::create(&self.file_path.as_ref().unwrap())?;
                     writeln!(&mut f, "hp93000,testflow,0.1")?;
                     writeln!(&mut f, "language_revision = 1;")?;
                     writeln!(&mut f, "")?;
                     writeln!(&mut f, "testmethodparameters")?;
                     writeln!(&mut f, "")?;
-                    for (name, tm) in &self.test_methods {
+                    for (name, id) in &self.test_methods {
                         writeln!(&mut f, "{}:", name)?;
-                        for (name, kind, value) in tm.sorted_params() {
+                        for (name, kind, value) in self.model.tests.get(id).unwrap().sorted_params()
+                        {
                             if let Some(v) = value {
                                 match kind {
                                     ParamType::Voltage => {
@@ -272,7 +288,8 @@ impl<'a> Processor for FlowGenerator<'a> {
                     writeln!(&mut f, "testmethodlimits")?;
                     if self.inline_limits {
                         writeln!(&mut f, "")?;
-                        for (name, tm) in &self.test_methods {
+                        for (name, id) in &self.test_methods {
+                            let tm = self.model.tests.get(id).unwrap();
                             writeln!(&mut f, "{}:", name)?;
                             if tm.sub_tests.is_empty() {
                                 let test_name = match tm.get("TestName") {
@@ -286,7 +303,7 @@ impl<'a> Processor for FlowGenerator<'a> {
                                     Some(x) => x,
                                     None => "Functional".to_string(),
                                 };
-                                let number = match tm.invocation(self.model).unwrap().number {
+                                let number = match tm.invocation(&self.model).unwrap().number {
                                     Some(x) => format!("{}", x),
                                     None => "".to_string(),
                                 };
@@ -351,7 +368,8 @@ impl<'a> Processor for FlowGenerator<'a> {
                     )?;
                     writeln!(&mut f, "testmethods")?;
                     writeln!(&mut f, "")?;
-                    for (name, tm) in &self.test_methods {
+                    for (name, id) in &self.test_methods {
+                        let tm = self.model.tests.get(id).unwrap();
                         writeln!(&mut f, "{}:", name)?;
                         if let Some(class) = &tm.class_name {
                             writeln!(&mut f, r#"  testmethod_class = "{}";"#, class)?;
@@ -366,7 +384,8 @@ impl<'a> Processor for FlowGenerator<'a> {
                     writeln!(&mut f, "test_suites")?;
                     writeln!(&mut f, "")?;
 
-                    for (name, ts) in &self.test_suites {
+                    for (name, id) in &self.test_suites {
+                        let ts = self.model.test_invocations.get(id).unwrap();
                         writeln!(&mut f, "{}:", name)?;
                         if let Some(v) = ts.get("comment")? {
                             writeln!(&mut f, "  comment = \"{}\";", v)?;
@@ -466,7 +485,8 @@ impl<'a> Processor for FlowGenerator<'a> {
                     )?;
                     writeln!(&mut f, "hardware_bin_descriptions")?;
                     writeln!(&mut f, "")?;
-                    for (number, bin) in &self.model.hardbins {
+                    let flow = self.model.get_flow(None).unwrap();
+                    for (number, bin) in &flow.hardbins {
                         if let Some(desc) = &bin.description {
                             writeln!(&mut f, "  {} = \"{}\";", number, desc)?;
                         }
@@ -525,9 +545,17 @@ impl<'a> Processor for FlowGenerator<'a> {
                 Return::None
             }
             Attrs::PGMTest(id, _flow_id) => {
-                let test = &self.model.test_invocations[id];
-                let test_name = test.get("name")?.unwrap();
-
+                let (test_name, pattern) = {
+                    let test = &self.model.test_invocations[id];
+                    (
+                        test.get("name")?.unwrap().to_string(),
+                        test.get("pattern")?.map(|p| p.to_string()),
+                    )
+                };
+                // Record any pattern reference made by this test in the model
+                if let Some(pattern) = pattern {
+                    self.model.record_pattern_reference(pattern, None, None);
+                }
                 if node
                     .children
                     .iter()
@@ -535,7 +563,7 @@ impl<'a> Processor for FlowGenerator<'a> {
                     || !self.on_fails.is_empty()
                     || !self.on_passes.is_empty()
                 {
-                    self.push_body(&format!("run_and_branch({}{})", test_name, self.sig));
+                    self.push_body(&format!("run_and_branch({}{})", &test_name, self.sig));
                     self.push_body("then");
                     self.push_body("{");
                     self.indent += 1;
@@ -563,7 +591,7 @@ impl<'a> Processor for FlowGenerator<'a> {
                     self.indent -= 1;
                     self.push_body("}");
                 } else {
-                    self.push_body(&format!("run({}{});", test_name, self.sig));
+                    self.push_body(&format!("run({}{});", &test_name, self.sig));
                 }
                 Return::ProcessChildren
             }
@@ -759,7 +787,13 @@ impl<'a> Processor for FlowGenerator<'a> {
                 ));
                 Return::None
             }
-            Attrs::PGMResources => Return::None,
+            Attrs::PGMResources => {
+                let orig = self.resources_block;
+                self.resources_block = true;
+                node.process_children(self)?;
+                self.resources_block = orig;
+                Return::None
+            }
             _ => Return::ProcessChildren,
         };
         Ok(result)

@@ -20,3 +20,18 @@ pub use model::ParamType;
 pub use model::ParamValue;
 pub use model::PatternGroupType;
 pub use model::Test;
+
+#[derive(Debug, PartialEq, EnumString, Clone, Serialize)]
+pub enum ResourcesType {
+    #[strum(serialize = "All", serialize = "all", serialize = "ALL")]
+    All,
+    #[strum(
+        serialize = "Pattern",
+        serialize = "pattern",
+        serialize = "PATTERN",
+        serialize = "Patterns",
+        serialize = "patterns",
+        serialize = "PATTERNS"
+    )]
+    Patterns,
+}

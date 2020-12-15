@@ -1301,6 +1301,8 @@ dependencies = [
  "serde-pickle",
  "serde_json",
  "shellexpand",
+ "strum",
+ "strum_macros",
  "tempfile",
  "tera",
  "termcolor",
@@ -1991,6 +1993,27 @@ checksum = "510413f9de616762a4fbeab62509bf15c729603b72d7cd71280fbca431b1c118"
 dependencies = [
  "heck",
  "proc-macro-error",
+ "proc-macro2 1.0.13",
+ "quote 1.0.6",
+ "syn 1.0.23",
+]
+
+[[package]]
+name = "strum"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7318c509b5ba57f18533982607f24070a55d353e90d4cae30c467cdb2ad5ac5c"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee8bc6b87a5112aeeab1f4a9f7ab634fe6cbefc4850006df31267f4cfb9e3149"
+dependencies = [
+ "heck",
  "proc-macro2 1.0.13",
  "quote 1.0.6",
  "syn 1.0.23",

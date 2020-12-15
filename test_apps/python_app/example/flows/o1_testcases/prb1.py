@@ -2,7 +2,7 @@
 with Flow(flow_description="Probe1 Main") as flow:
 
     #unless Origen.app.environment.name == 'v93k_global'
-    flow.resources_filename = 'prb1'
+    flow.set_resources_filename('prb1')
 
     flow.include('components/prb1_main')
 

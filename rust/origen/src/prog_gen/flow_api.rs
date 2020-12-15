@@ -1,5 +1,8 @@
 use super::ParamValue;
-use super::{BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType};
+use super::{
+    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType,
+    ResourcesType,
+};
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
@@ -214,5 +217,10 @@ pub fn set_flag(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
 
 pub fn continue_on_fail(meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMContinue; meta);
+    FLOW.push(n)
+}
+
+pub fn set_resources_filename(name: String, kind: ResourcesType, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMResourcesFilename, name, kind; meta);
     FLOW.push(n)
 }

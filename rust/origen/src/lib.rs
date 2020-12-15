@@ -12,6 +12,8 @@ pub mod macros;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
+#[macro_use]
+extern crate strum_macros;
 
 pub mod core;
 pub mod error;

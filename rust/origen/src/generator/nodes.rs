@@ -2,6 +2,7 @@ use super::stil;
 use super::utility::transaction::Transaction;
 use crate::prog_gen::{
     BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, ParamValue, PatternGroupType,
+    ResourcesType,
 };
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
@@ -270,6 +271,7 @@ pub enum Attrs {
     PGMEnable(String),
     /// Disable a flow switch
     PGMDisable(String),
+    PGMResourcesFilename(String, ResourcesType),
 
     PGMIGXLSetWaitFlags(usize, Vec<String>),
 

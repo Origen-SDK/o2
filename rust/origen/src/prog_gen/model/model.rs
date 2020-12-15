@@ -1,38 +1,199 @@
 use super::template_loader::load_test_from_lib;
-use super::{Bin, Limit, ParamValue, Test};
+use super::{
+    Flow, ParamValue, Pattern, PatternReferenceType, PatternType, ResourcesType, SubTest, Test,
+};
 use crate::testers::SupportedTester;
 use crate::Result;
 use indexmap::IndexMap;
+use std::collections::HashSet;
 
 /// The test program model contains tests, test invocations, patterns, bins, etc. that have been
 /// extracted from a flow AST into a generic data structure that can be consumed by all tester
 /// targets.
 #[derive(Debug)]
 pub struct Model {
-    pub flow_name: String,
+    /// Test objects, stored by their internal ID.
+    /// These map to test instances for IG-XL and test methods for V93K.
     pub tests: IndexMap<usize, Test>,
+    /// Test invocation objects, stored by their internal ID.
+    /// These map to test flow lines for IG-XL and test suites for V93K.
     pub test_invocations: IndexMap<usize, Test>,
-    pub hardbins: IndexMap<usize, Bin>,
-    pub softbins: IndexMap<usize, Bin>,
-    pub limits: IndexMap<usize, Limit>,
+    /// Tests can store a single limit, but if a test has multiple limits then they are represented as sub-tests
+    pub sub_tests: Vec<SubTest>,
+    /// All pattern references made in the flow, stored by resources name e.g. "global", "prb", etc.
+    pub patterns: Vec<Pattern>,
+    pub flows: IndexMap<String, Flow>,
+    pub pattern_collections: IndexMap<String, Vec<usize>>,
     /// Templates which have been loaded into Test objects, organized by:
     ///   * Library Name
     ///     * Test Name
     templates: IndexMap<String, IndexMap<String, Test>>,
+    current_flow: String,
+    current_resource: String,
+    current_pattern_resource: Option<String>,
 }
 
 impl Model {
-    pub fn new(flow_name: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            flow_name: flow_name,
+            current_flow: "".to_string(),
+            current_resource: "global".to_string(),
+            current_pattern_resource: None,
             tests: IndexMap::new(),
             test_invocations: IndexMap::new(),
-            hardbins: IndexMap::new(),
-            softbins: IndexMap::new(),
-            limits: IndexMap::new(),
+            sub_tests: vec![],
             templates: IndexMap::new(),
+            patterns: vec![],
+            flows: IndexMap::new(),
+            pattern_collections: IndexMap::new(),
         }
     }
+
+    pub fn set_resources_filename(&mut self, name: String, kind: &ResourcesType) {
+        match kind {
+            ResourcesType::All => {
+                self.current_resource = name;
+                self.current_pattern_resource = None;
+            }
+            ResourcesType::Patterns => {
+                self.current_pattern_resource = Some(name);
+            }
+        }
+    }
+
+    pub fn patterns_from_ids(&self, ids: &Vec<usize>, sort: bool, uniq: bool) -> Vec<&Pattern> {
+        let mut pats: Vec<&Pattern> = ids.iter().map(|id| &self.patterns[*id]).collect();
+        if uniq {
+            let mut existing = HashSet::new();
+            pats.retain(|&p| {
+                if existing.contains(&p.path) {
+                    false
+                } else {
+                    existing.insert(&p.path);
+                    true
+                }
+            });
+        }
+        if sort {
+            pats.sort_by_key(|p| &p.path);
+        }
+        pats
+    }
+
+    /// Set the current flow (default flow operated on by some of the model's methods), returns an error
+    /// if the model doesn't contain a flow with the given name
+    pub fn select_flow(&mut self, name: &str) -> Result<()> {
+        if !self.flows.contains_key(name) {
+            return error!("The test program doesn't contains a flow called '{}'", name);
+        }
+        self.current_flow = name.to_string();
+        Ok(())
+    }
+
+    /// Creates a new flow within the model and selects it as the current flow.
+    /// An error will be returned if a flow of the given name already exists.
+    pub fn create_flow(&mut self, name: &str) -> Result<()> {
+        let flow = Flow::new();
+        if self.flows.contains_key(name) {
+            return error!(
+                "The test program model already contains a flow called '{}'",
+                name
+            );
+        }
+        self.flows.insert(name.to_string(), flow);
+        self.current_flow = name.to_string();
+        Ok(())
+    }
+
+    /// Get a reference to the current or given flow
+    pub fn get_flow(&self, name: Option<&str>) -> Option<&Flow> {
+        let name = match name {
+            Some(n) => n,
+            None => &self.current_flow,
+        };
+        self.flows.get(name)
+    }
+
+    /// Get a mutable reference to the current or given flow, will create it if it doesn't exist yet
+    pub fn get_flow_mut(&mut self, name: Option<&str>) -> &mut Flow {
+        let name = match name {
+            Some(n) => n,
+            None => &self.current_flow,
+        };
+        if !self.flows.contains_key(name) {
+            self.flows.insert(name.to_string(), Flow::new());
+        }
+        self.flows.get_mut(name).unwrap()
+    }
+
+    pub fn current_pattern_collection_name(&self) -> &str {
+        match &self.current_pattern_resource {
+            Some(n) => n,
+            None => &self.current_resource,
+        }
+    }
+
+    /// Get a reference to the current or given pattern collection
+    pub fn get_pattern_collection(&self, name: Option<&str>) -> Option<&Vec<usize>> {
+        let name = match name {
+            Some(n) => n,
+            None => self.current_pattern_collection_name(),
+        };
+        self.pattern_collections.get(name)
+    }
+
+    /// Get a mutable reference to the current or given resource, will create it if it doesn't exist yet
+    pub fn get_pattern_collection_mut(&mut self, name: Option<&str>) -> &mut Vec<usize> {
+        let name = match name {
+            Some(n) => n,
+            // Had to inline current_pattern_collection_name here to satisfy the borrow checker
+            None => match &self.current_pattern_resource {
+                Some(n) => n,
+                None => &self.current_resource,
+            },
+        };
+        if !self.pattern_collections.contains_key(name) {
+            self.pattern_collections.insert(name.to_string(), vec![]);
+        }
+        self.pattern_collections.get_mut(name).unwrap()
+    }
+
+    /// Record a pattern reference and allocate to the current flow and pattern collection
+    pub fn record_pattern_reference(
+        &mut self,
+        path: String,
+        pattern_type: Option<PatternType>,
+        reference_type: Option<PatternReferenceType>,
+    ) {
+        let p = Pattern::new(path, pattern_type, reference_type);
+        let id = self.patterns.len();
+        self.patterns.push(p);
+        let flow = self.get_flow_mut(None);
+        flow.patterns.push(id);
+        self.get_pattern_collection_mut(None).push(id);
+    }
+
+    ///// Get the pattern references for the given resource name, if it doesn't exist None will be returned
+    //pub fn get_pattern_references(&self, resources: Option<&String>) -> Option<&PatternReferences> {
+    //    let resources = match resources {
+    //        Some(x) => x,
+    //        None => "global",
+    //    };
+    //    self.pattern_references.get(resources)
+    //}
+
+    ///// Get a mutable reference to the pattern references for the given resource name, if it doesn't exist
+    ///// then it will be created
+    //pub fn get_pattern_references_mut(&mut self, resources: Option<&String>) -> &mut PatternReferences {
+    //    let resources = match resources {
+    //        Some(x) => x,
+    //        None => "global",
+    //    };
+    //    if !self.pattern_references.contains_key(resources) {
+    //        self.pattern_references.insert(resources.to_owned(), PatternReferences::new());
+    //    }
+    //    self.pattern_references.get_mut(resources).unwrap()
+    //}
 
     /// Create a new test within the model from the given template reference.
     /// An error will be returned if the given template can not be found, or if a test alraedy
@@ -72,7 +233,7 @@ impl Model {
         test.name = name;
         test.id = id;
         if self.tests.contains_key(&id) {
-            error!("Something has gone wrong, two tests have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.flow_name, &self.tests[&id], &test)
+            error!("Something has gone wrong, two tests have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
         } else {
             self.tests.insert(id, test);
             Ok(())
@@ -115,7 +276,7 @@ impl Model {
             None => Test::new(&name, id, tester.to_owned()),
         };
         if self.test_invocations.contains_key(&id) {
-            error!("Something has gone wrong, two test invocations have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.flow_name, &self.tests[&id], &test)
+            error!("Something has gone wrong, two test invocations have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
         } else {
             self.test_invocations.insert(id, test);
             Ok(())

@@ -1,7 +1,6 @@
 # Similar to the test flows an interface instance is passed in as the first argument.
 with Flow() as flow:
-
-    flow.resources_filename = 'prb1'
+    flow.set_resources_filename('prb1')
 
     # Logic here should be minimal,
     # pass whatever options you want

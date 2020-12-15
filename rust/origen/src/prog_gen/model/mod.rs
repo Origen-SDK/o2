@@ -2,18 +2,25 @@
 //! test templates, test instances, etc.
 
 mod bin;
+mod flow;
 mod flow_id;
 mod limit;
 mod model;
+mod pattern;
 mod sub_test;
 mod template_loader;
 mod test;
 
+pub use super::ResourcesType;
 use crate::Result as OrigenResult;
 pub use bin::Bin;
+pub use flow::Flow;
 pub use flow_id::FlowID;
 pub use limit::{Limit, LimitType};
 pub use model::Model;
+pub use pattern::Pattern;
+pub use pattern::PatternReferenceType;
+pub use pattern::PatternType;
 use std::fmt;
 use std::str::FromStr;
 pub use sub_test::SubTest;

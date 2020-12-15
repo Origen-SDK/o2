@@ -6,15 +6,18 @@ use crate::testers::SupportedTester;
 /// This extracts all definitions for tests, test invocations, pattern sets, bins, etc.
 /// and converts them into a program model which is returned.
 /// The resultant AST has most of the associated nodes removed but is otherwise unchanged.
+/// The model is not considered finalized until after the flow generator for the specific ATE
+/// target has run, at that point any ATE-specific extraction into the model will be complete,
+/// e.g. to extract pattern refernces made by test objects.
 pub struct ExtractToModel {
     model: Model,
     tester: SupportedTester,
     pass: usize,
 }
 
-pub fn run(node: &Node, tester: SupportedTester, flow_name: &str) -> Result<(Node, Model)> {
+pub fn run(node: &Node, tester: SupportedTester, model: Model) -> Result<(Node, Model)> {
     let mut p = ExtractToModel {
-        model: Model::new(flow_name.to_string()),
+        model: model,
         tester: tester,
         pass: 0,
     };
@@ -29,7 +32,15 @@ impl Processor for ExtractToModel {
         // On first pass extract all tests and invocations and link them together. This is to ensure that any attribute
         // assignments can be checked against both the invocation and its assigned test
         if self.pass == 0 {
-            match &node.attrs {
+            Ok(match &node.attrs {
+                Attrs::PGMResourcesFilename(name, kind) => {
+                    self.model.set_resources_filename(name.to_owned(), kind);
+                    Return::Unmodified
+                }
+                Attrs::PGMFlow(name) => {
+                    self.model.create_flow(name)?;
+                    Return::ProcessChildren
+                }
                 Attrs::PGMDefTest(id, name, _, library_name, template_name) => {
                     trace!(
                         self.model.add_test_from_template(
@@ -41,7 +52,7 @@ impl Processor for ExtractToModel {
                         ),
                         node
                     );
-                    Ok(Return::None)
+                    Return::None
                 }
                 Attrs::PGMDefTestInv(id, name, _) => {
                     trace!(
@@ -49,19 +60,23 @@ impl Processor for ExtractToModel {
                             .add_test_invocation(*id, name.to_owned(), &self.tester),
                         node
                     );
-                    Ok(Return::None)
+                    Return::None
                 }
                 Attrs::PGMAssignTestToInv(inv_id, test_id) => {
                     trace!(self.model.assign_test_to_inv(*inv_id, *test_id), node);
-                    Ok(Return::None)
+                    Return::None
                 }
-                _ => Ok(Return::ProcessChildren),
-            }
+                _ => Return::ProcessChildren,
+            })
         } else {
-            match &node.attrs {
+            Ok(match &node.attrs {
+                Attrs::PGMResourcesFilename(name, kind) => {
+                    self.model.set_resources_filename(name.to_owned(), kind);
+                    Return::Unmodified
+                }
                 Attrs::PGMSetAttr(id, name, value) => {
                     trace!(self.model.set_test_attr(*id, name, value.to_owned()), node);
-                    Ok(Return::None)
+                    Return::None
                 }
                 Attrs::PGMSetLimit(test_id, inv_id, selector, value) => {
                     let t = {
@@ -79,7 +94,7 @@ impl Processor for ExtractToModel {
                             LimitSelector::Lo => t.lo_limit = value.to_owned(),
                         }
                     }
-                    Ok(Return::None)
+                    Return::None
                 }
                 //Attrs::PGMPatternGroup(id, name, _, kind) => Ok(Return::None),
                 //Attrs::PGMPushPattern(id, name, start_label) => Ok(Return::None),
@@ -88,32 +103,34 @@ impl Processor for ExtractToModel {
                 // Any official bin defs in the AST for the same bin number will be combined with the model
                 // defintion created from here.
                 Attrs::PGMBin(hardbin, softbin, kind) => {
-                    if !self.model.hardbins.contains_key(hardbin) {
+                    let flow = self.model.get_flow_mut(None);
+                    if !flow.hardbins.contains_key(hardbin) {
                         let b = Bin {
                             number: *hardbin,
                             description: None,
                             priority: None,
                             pass: matches!(kind, BinType::Good),
                         };
-                        self.model.hardbins.insert(*hardbin, b);
+                        flow.hardbins.insert(*hardbin, b);
                     }
                     if let Some(softbin) = softbin {
-                        if !self.model.softbins.contains_key(hardbin) {
+                        if !flow.softbins.contains_key(hardbin) {
                             let b = Bin {
                                 number: *softbin,
                                 description: None,
                                 priority: None,
                                 pass: matches!(kind, BinType::Good),
                             };
-                            self.model.softbins.insert(*softbin, b);
+                            flow.softbins.insert(*softbin, b);
                         }
                     }
-                    Ok(Return::Unmodified)
+                    Return::Unmodified
                 }
                 Attrs::PGMDefBin(number, is_soft, kind, description, priority) => {
+                    let flow = self.model.get_flow_mut(None);
                     let collection = match is_soft {
-                        false => &mut self.model.hardbins,
-                        true => &mut self.model.softbins,
+                        false => &mut flow.hardbins,
+                        true => &mut flow.softbins,
                     };
                     if !collection.contains_key(number) {
                         let b = Bin {
@@ -132,10 +149,10 @@ impl Processor for ExtractToModel {
                             b.priority = Some(*p);
                         }
                     }
-                    Ok(Return::None)
+                    Return::None
                 }
-                _ => Ok(Return::ProcessChildren),
-            }
+                _ => Return::ProcessChildren,
+            })
         }
     }
 }

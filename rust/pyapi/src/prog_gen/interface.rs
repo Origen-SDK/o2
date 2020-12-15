@@ -2,13 +2,14 @@ use super::flow_options;
 use crate::prog_gen::{Condition, Group, Resources, Test, TestInvocation};
 use crate::tester_apis::IGXL;
 use crate::utility::caller::src_caller_meta;
-use origen::prog_gen::{flow_api, BinType, FlowCondition, FlowID, GroupType};
+use origen::prog_gen::{flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType};
 use origen::testers::SupportedTester;
 use origen::Result;
 use pyo3::exceptions::TypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use std::path::Path;
+use std::str::FromStr;
 
 #[pymodule]
 pub fn interface(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -36,6 +37,23 @@ impl PyInterface {
             job.resolve_file_reference(Path::new(path), Some(vec!["py"]))
         })?;
         Ok(file.to_str().unwrap().to_string())
+    }
+
+    fn set_resources_filename(&self, path: String, kind: Option<String>) -> PyResult<()> {
+        let kind = match kind {
+            None => ResourcesType::All,
+            Some(n) => match ResourcesType::from_str(&n) {
+                Ok(n) => n,
+                Err(e) => {
+                    return Err(TypeError::py_err(format!(
+                        "Illegal resources filename kind: {}",
+                        e
+                    )))
+                }
+            },
+        };
+        flow_api::set_resources_filename(path, kind, None)?;
+        Ok(())
     }
 
     /// Add a test to the flow
@@ -138,56 +156,56 @@ impl PyInterface {
         Ok(r)
     }
 
-    #[args(jobs = "*", kwargs = "**")]
-    fn if_job(&mut self, jobs: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(jobs = "*", _kwargs = "**")]
+    fn if_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfJob(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
 
-    #[args(jobs = "*", kwargs = "**")]
-    fn unless_job(&mut self, jobs: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(jobs = "*", _kwargs = "**")]
+    fn unless_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessJob(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
 
-    #[args(flags = "*", kwargs = "**")]
-    fn if_enable(&mut self, flags: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(flags = "*", _kwargs = "**")]
+    fn if_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
 
-    #[args(flags = "*", kwargs = "**")]
-    fn unless_enable(&mut self, flags: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(flags = "*", _kwargs = "**")]
+    fn unless_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
 
-    #[args(flags = "*", kwargs = "**")]
-    fn if_enabled(&mut self, flags: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(flags = "*", _kwargs = "**")]
+    fn if_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
 
-    #[args(flags = "*", kwargs = "**")]
-    fn unless_enabled(&mut self, flags: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(flags = "*", _kwargs = "**")]
+    fn unless_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
             Err(e) => Err(TypeError::py_err(e.to_string())),
         }
     }
 
-    #[args(ids = "*", kwargs = "**")]
-    fn if_passed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(ids = "*", _kwargs = "**")]
+    fn if_passed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
@@ -196,8 +214,8 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", kwargs = "**")]
-    fn unless_passed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(ids = "*", _kwargs = "**")]
+    fn unless_passed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
@@ -206,8 +224,8 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", kwargs = "**")]
-    fn if_failed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(ids = "*", _kwargs = "**")]
+    fn if_failed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
@@ -216,8 +234,8 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", kwargs = "**")]
-    fn unless_failed(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(ids = "*", _kwargs = "**")]
+    fn unless_failed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
@@ -226,8 +244,8 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", kwargs = "**")]
-    fn if_ran(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(ids = "*", _kwargs = "**")]
+    fn if_ran(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfRan(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
@@ -236,8 +254,8 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", kwargs = "**")]
-    fn unless_ran(&mut self, ids: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<Condition> {
+    #[args(ids = "*", _kwargs = "**")]
+    fn unless_ran(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessRan(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
@@ -278,9 +296,9 @@ impl PyInterface {
                     description.clone(),
                     priority,
                     None,
-                );
+                )?;
             }
-            flow_api::define_bin(hard_bin, false, kind.clone(), description, priority, None);
+            flow_api::define_bin(hard_bin, false, kind.clone(), description, priority, None)?;
         }
         Ok(flow_options::wrap_in_conditions(kwargs, false, || {
             flow_api::bin(hard_bin, sbin, kind, None)?;
