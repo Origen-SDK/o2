@@ -10,6 +10,7 @@ mod pattern;
 mod sub_test;
 mod template_loader;
 mod test;
+mod variable;
 
 pub use super::ResourcesType;
 use crate::Result as OrigenResult;
@@ -25,6 +26,9 @@ use std::fmt;
 use std::str::FromStr;
 pub use sub_test::SubTest;
 pub use test::Test;
+pub use variable::Variable;
+pub use variable::VariableOperation;
+pub use variable::VariableType;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum PatternGroupType {

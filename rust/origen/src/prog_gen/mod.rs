@@ -18,8 +18,14 @@ pub use model::LimitType;
 use model::Model;
 pub use model::ParamType;
 pub use model::ParamValue;
+pub use model::Pattern;
 pub use model::PatternGroupType;
+pub use model::PatternReferenceType;
+pub use model::PatternType;
 pub use model::Test;
+pub use model::Variable;
+pub use model::VariableOperation;
+pub use model::VariableType;
 
 #[derive(Debug, PartialEq, EnumString, Clone, Serialize)]
 pub enum ResourcesType {
@@ -34,4 +40,13 @@ pub enum ResourcesType {
         serialize = "PATTERNS"
     )]
     Patterns,
+    #[strum(
+        serialize = "Variable",
+        serialize = "variable",
+        serialize = "VARIABLE",
+        serialize = "Variables",
+        serialize = "variables",
+        serialize = "VARIABLES"
+    )]
+    Variables,
 }

@@ -1,7 +1,6 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
 use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamType, Test};
-use regex::Regex;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -18,7 +17,6 @@ pub struct FlowGenerator {
     test_methods: BTreeMap<String, usize>,
     test_suites: BTreeMap<String, usize>,
     test_method_names: HashMap<usize, String>,
-    sig: String,
     flow_control_vars: Vec<String>,
     group_count: HashMap<String, usize>,
     inline_limits: bool,
@@ -39,7 +37,6 @@ pub fn run(ast: &Node, output_dir: &Path, model: Model) -> Result<(Model, Vec<Pa
         test_methods: BTreeMap::new(),
         test_suites: BTreeMap::new(),
         test_method_names: HashMap::new(),
-        sig: "_864CE8F".to_string(),
         flow_control_vars: vec![],
         group_count: HashMap::new(),
         inline_limits: true,
@@ -58,7 +55,7 @@ pub fn run(ast: &Node, output_dir: &Path, model: Model) -> Result<(Model, Vec<Pa
 
     for (_, t) in &p.model.test_invocations {
         p.test_suites
-            .insert(format!("{}{}", t.get("name")?.unwrap(), p.sig), t.id);
+            .insert(t.get("name")?.unwrap().to_string(), t.id);
     }
     ast.process(&mut p)?;
     Ok((p.model, p.generated_files))
@@ -103,13 +100,6 @@ impl FlowGenerator {
         }
     }
 
-    fn add_sig_to_flag(&self, flag: &str) -> String {
-        let re = Regex::new(r"_(?P<flag>PASSED|FAILED|RAN)$").unwrap();
-        let replacement = format!("{}_$flag", &self.sig);
-        let r = re.replace(flag, &*replacement);
-        r.to_string()
-    }
-
     fn add_count_to_group_name(&mut self, name: &str) -> String {
         if self.group_count.contains_key(name) {
             let mut i = self.group_count[name];
@@ -135,14 +125,6 @@ fn is_true(test_suite: &Test, param: &str) -> Result<bool> {
                 Ok(false)
             }
         }
-    }
-}
-
-fn clean_flag(flag: &str) -> String {
-    if flag.starts_with("$") {
-        flag.replacen("$", "", 1)
-    } else {
-        flag.to_uppercase()
     }
 }
 
@@ -563,7 +545,7 @@ impl Processor for FlowGenerator {
                     || !self.on_fails.is_empty()
                     || !self.on_passes.is_empty()
                 {
-                    self.push_body(&format!("run_and_branch({}{})", &test_name, self.sig));
+                    self.push_body(&format!("run_and_branch({})", &test_name));
                     self.push_body("then");
                     self.push_body("{");
                     self.indent += 1;
@@ -591,7 +573,7 @@ impl Processor for FlowGenerator {
                     self.indent -= 1;
                     self.push_body("}");
                 } else {
-                    self.push_body(&format!("run({}{});", &test_name, self.sig));
+                    self.push_body(&format!("run({});", &test_name));
                 }
                 Return::ProcessChildren
             }
@@ -688,7 +670,7 @@ impl Processor for FlowGenerator {
                         if i > 0 {
                             flagstr += " or";
                         }
-                        flagstr += &format!(" @{} == 1", clean_flag(&flag))
+                        flagstr += &format!(" @{} == 1", &flag)
                     }
                     flagstr += " then";
                     self.push_body(&flagstr);
@@ -724,11 +706,10 @@ impl Processor for FlowGenerator {
                         .iter()
                         .find(|n| matches!(n.attrs, Attrs::PGMElse));
                     for (i, flag) in flags.iter().enumerate() {
-                        let flag = self.add_sig_to_flag(flag);
                         if i > 0 {
                             flagstr += " or";
                         }
-                        flagstr += &format!(" @{} == 1", clean_flag(&flag))
+                        flagstr += &format!(" @{} == 1", flag)
                     }
                     flagstr += " then";
                     self.push_body(&flagstr);
@@ -759,15 +740,12 @@ impl Processor for FlowGenerator {
                 }
                 _ => Return::ProcessChildren,
             },
-            Attrs::PGMSetFlag(flag, state, is_auto_generated) => {
-                let mut flag = format!("@{}", clean_flag(&flag));
-                if *is_auto_generated {
-                    flag = self.add_sig_to_flag(&flag);
-                }
+            Attrs::PGMSetFlag(flag, state, _is_auto_generated) => {
+                let flag = format!("@{}", &flag);
                 if *state {
-                    self.push_body(&format!("{} = 1;", flag));
+                    self.push_body(&format!("{} = 1;", &flag));
                 } else {
-                    self.push_body(&format!("{} = 0;", flag));
+                    self.push_body(&format!("{} = 0;", &flag));
                 }
                 self.flow_control_vars.push(flag.to_string());
                 Return::None

@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Pattern {
     pub pattern_type: PatternType,
     pub reference_type: PatternReferenceType,
@@ -25,13 +25,13 @@ impl Pattern {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PatternType {
     Main,
     Subroutine,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum PatternReferenceType {
     All,
     Origen,

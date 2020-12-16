@@ -1,6 +1,7 @@
 use super::template_loader::load_test_from_lib;
 use super::{
     Flow, ParamValue, Pattern, PatternReferenceType, PatternType, ResourcesType, SubTest, Test,
+    Variable, VariableOperation, VariableType,
 };
 use crate::testers::SupportedTester;
 use crate::Result;
@@ -20,10 +21,15 @@ pub struct Model {
     pub test_invocations: IndexMap<usize, Test>,
     /// Tests can store a single limit, but if a test has multiple limits then they are represented as sub-tests
     pub sub_tests: Vec<SubTest>,
-    /// All pattern references made in the flow, stored by resources name e.g. "global", "prb", etc.
+    /// All pattern references made in the test program, flows and pattern_collections make reference to these
+    /// via their ID (their vector index number)
     pub patterns: Vec<Pattern>,
+    /// All variable references made in the test program, flows and variable_collections make reference to these
+    /// via their ID (their vector index number)
+    pub variables: Vec<Variable>,
     pub flows: IndexMap<String, Flow>,
     pub pattern_collections: IndexMap<String, Vec<usize>>,
+    pub variable_collections: IndexMap<String, Vec<usize>>,
     /// Templates which have been loaded into Test objects, organized by:
     ///   * Library Name
     ///     * Test Name
@@ -31,6 +37,7 @@ pub struct Model {
     current_flow: String,
     current_resource: String,
     current_pattern_resource: Option<String>,
+    current_variable_resource: Option<String>,
 }
 
 impl Model {
@@ -39,13 +46,16 @@ impl Model {
             current_flow: "".to_string(),
             current_resource: "global".to_string(),
             current_pattern_resource: None,
+            current_variable_resource: None,
             tests: IndexMap::new(),
             test_invocations: IndexMap::new(),
             sub_tests: vec![],
             templates: IndexMap::new(),
             patterns: vec![],
+            variables: vec![],
             flows: IndexMap::new(),
             pattern_collections: IndexMap::new(),
+            variable_collections: IndexMap::new(),
         }
     }
 
@@ -54,9 +64,13 @@ impl Model {
             ResourcesType::All => {
                 self.current_resource = name;
                 self.current_pattern_resource = None;
+                self.current_variable_resource = None;
             }
             ResourcesType::Patterns => {
                 self.current_pattern_resource = Some(name);
+            }
+            ResourcesType::Variables => {
+                self.current_variable_resource = Some(name);
             }
         }
     }
@@ -66,10 +80,10 @@ impl Model {
         if uniq {
             let mut existing = HashSet::new();
             pats.retain(|&p| {
-                if existing.contains(&p.path) {
+                if existing.contains(p) {
                     false
                 } else {
-                    existing.insert(&p.path);
+                    existing.insert(p);
                     true
                 }
             });
@@ -78,6 +92,25 @@ impl Model {
             pats.sort_by_key(|p| &p.path);
         }
         pats
+    }
+
+    pub fn variables_from_ids(&self, ids: &Vec<usize>, sort: bool, uniq: bool) -> Vec<&Variable> {
+        let mut vars: Vec<&Variable> = ids.iter().map(|id| &self.variables[*id]).collect();
+        if uniq {
+            let mut existing = HashSet::new();
+            vars.retain(|&v| {
+                if existing.contains(v) {
+                    false
+                } else {
+                    existing.insert(v);
+                    true
+                }
+            });
+        }
+        if sort {
+            vars.sort_by_key(|v| &v.name);
+        }
+        vars
     }
 
     /// Set the current flow (default flow operated on by some of the model's methods), returns an error
@@ -173,27 +206,52 @@ impl Model {
         self.get_pattern_collection_mut(None).push(id);
     }
 
-    ///// Get the pattern references for the given resource name, if it doesn't exist None will be returned
-    //pub fn get_pattern_references(&self, resources: Option<&String>) -> Option<&PatternReferences> {
-    //    let resources = match resources {
-    //        Some(x) => x,
-    //        None => "global",
-    //    };
-    //    self.pattern_references.get(resources)
-    //}
+    pub fn current_variable_collection_name(&self) -> &str {
+        match &self.current_variable_resource {
+            Some(n) => n,
+            None => &self.current_resource,
+        }
+    }
 
-    ///// Get a mutable reference to the pattern references for the given resource name, if it doesn't exist
-    ///// then it will be created
-    //pub fn get_pattern_references_mut(&mut self, resources: Option<&String>) -> &mut PatternReferences {
-    //    let resources = match resources {
-    //        Some(x) => x,
-    //        None => "global",
-    //    };
-    //    if !self.pattern_references.contains_key(resources) {
-    //        self.pattern_references.insert(resources.to_owned(), PatternReferences::new());
-    //    }
-    //    self.pattern_references.get_mut(resources).unwrap()
-    //}
+    /// Get a reference to the current or given variable collection
+    pub fn get_variable_collection(&self, name: Option<&str>) -> Option<&Vec<usize>> {
+        let name = match name {
+            Some(n) => n,
+            None => self.current_variable_collection_name(),
+        };
+        self.variable_collections.get(name)
+    }
+
+    /// Get a mutable reference to the current or given resource, will create it if it doesn't exist yet
+    pub fn get_variable_collection_mut(&mut self, name: Option<&str>) -> &mut Vec<usize> {
+        let name = match name {
+            Some(n) => n,
+            // Had to inline current_variable_collection_name here to satisfy the borrow checker
+            None => match &self.current_variable_resource {
+                Some(n) => n,
+                None => &self.current_resource,
+            },
+        };
+        if !self.variable_collections.contains_key(name) {
+            self.variable_collections.insert(name.to_string(), vec![]);
+        }
+        self.variable_collections.get_mut(name).unwrap()
+    }
+
+    /// Record a variable reference and allocate to the current flow and variable collection
+    pub fn record_variable_reference(
+        &mut self,
+        name: String,
+        variable_type: VariableType,
+        operation: VariableOperation,
+    ) {
+        let v = Variable::new(name, variable_type, operation);
+        let id = self.variables.len();
+        self.variables.push(v);
+        let flow = self.get_flow_mut(None);
+        flow.variables.push(id);
+        self.get_variable_collection_mut(None).push(id);
+    }
 
     /// Create a new test within the model from the given template reference.
     /// An error will be returned if the given template can not be found, or if a test alraedy
@@ -236,6 +294,7 @@ impl Model {
             error!("Something has gone wrong, two tests have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
         } else {
             self.tests.insert(id, test);
+            self.get_flow_mut(None).tests.push(id);
             Ok(())
         }
     }
@@ -279,6 +338,7 @@ impl Model {
             error!("Something has gone wrong, two test invocations have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
         } else {
             self.test_invocations.insert(id, test);
+            self.get_flow_mut(None).test_invocations.push(id);
             Ok(())
         }
     }
