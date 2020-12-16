@@ -15,7 +15,7 @@ pub use model::GroupType;
 pub use model::Limit;
 pub use model::LimitSelector;
 pub use model::LimitType;
-use model::Model;
+pub use model::Model;
 pub use model::ParamType;
 pub use model::ParamValue;
 pub use model::Pattern;

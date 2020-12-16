@@ -4,7 +4,6 @@ use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
-use crate::prog_gen::Model;
 use crate::testers::{instantiate_tester, SupportedTester};
 use crate::utility::differ::Differ;
 use crate::utility::file_utils::to_relative_path;
@@ -14,6 +13,7 @@ use crate::{FLOW, TEST};
 use indexmap::IndexMap;
 use std::env;
 use std::path::{Path, PathBuf};
+use crate::prog_gen::Model;
 
 #[derive(Debug)]
 pub enum TesterSource {

@@ -12,7 +12,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// Main entry point to render the current test program, paths to all files generated are returned
-pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
+pub fn render_test_program(tester: &V93K_SMT7) -> Result<(Vec<PathBuf>, Model)> {
     let mut files = vec![];
 
     let output_dir = tester.output_dir()?.join("test_program");
@@ -29,7 +29,7 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
         std::fs::create_dir_all(&vectors_dir)?;
     }
 
-    FLOW.with_all_flows(|flows| {
+    let model = FLOW.with_all_flows(|flows| {
         let mut model = Model::new();
 
         for (name, flow) in flows {
@@ -236,8 +236,8 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<Vec<PathBuf>> {
             }
         }
 
-        Ok(())
+        Ok(model)
     })?;
 
-    Ok(files)
+    Ok((files, model))
 }
