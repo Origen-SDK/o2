@@ -4,7 +4,9 @@ use crate::{Error, Result};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
 use std::sync::{Mutex, RwLock};
+use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct User {
     current: bool,
     // All user data is stored behind a RW lock so that it can be lazily loaded
@@ -18,6 +20,7 @@ struct Data {
     password: Option<String>,
     id: Option<String>,
     name: Option<String>,
+    home_dir: PathBuf,
     // Will be set after trying to get a missing name, e.g. from the
     // Git config to differentiate between an name which has not been
     // looked up and name which has been looked up but which could not
@@ -25,15 +28,24 @@ struct Data {
     name_tried: bool,
     email: Option<String>,
     email_tried: bool,
+
+    // Authentication
+    authenticated: bool,
+    authentication_failed: bool,
 }
 
 impl User {
     pub fn current() -> User {
-        User {
+        let u = User {
             current: true,
             data: RwLock::new(Data::default()),
             password_semaphore: Mutex::new(0),
+        };
+        {
+            let mut data = u.data.write().unwrap();
+            data.home_dir = super::status::get_home_dir();
         }
+        u
     }
 
     pub fn id(&self) -> Option<String> {
@@ -74,6 +86,14 @@ impl User {
         } else {
             let data = self.data.read().unwrap();
             data.id.clone()
+        }
+    }
+
+    pub fn get_id(&self) -> Result<String> {
+        if let Some(id) = self.id() {
+            Ok(id)
+        } else {
+            crate::error!("Attempted to retrieve a user's ID but no ID is available: {:?}", self)
         }
     }
 
@@ -129,6 +149,28 @@ impl User {
     pub fn set_email(&self, email: &str) {
         let mut data = self.data.write().unwrap();
         data.email = Some(email.to_string());
+    }
+
+    pub fn get_email(&self) -> Result<String> {
+        if let Some(e) = self.data.read().unwrap().email.as_ref() {
+            Ok(e.to_string())
+        } else {
+            error!("Tried to retrieve email from user {:?} but it has not been set yet!", self.data.read().unwrap().id)
+        }
+    }
+
+    pub fn home_dir(&self) -> Result<PathBuf> {
+        Ok(self.data.read().unwrap().home_dir.clone())
+    }
+
+    pub fn home_dir_string(&self) -> Result<String> {
+        Ok(self.data.read().unwrap().home_dir.to_string_lossy().to_string())
+    }
+
+    pub fn set_home_dir(&self, new_dir: PathBuf) -> Result<()> {
+        let mut data = self.data.write().unwrap();
+        data.home_dir = new_dir;
+        Ok(())
     }
 
     pub fn password(&self, reason: Option<&str>, failed_password: Option<&str>) -> Result<String> {
@@ -193,6 +235,14 @@ impl User {
                 "Can't get the password for a user which is not the current user",
             ))
         }
+    }
+
+    pub fn authenticated(&self) -> bool {
+        self.data.read().unwrap().authenticated
+    }
+
+    pub fn authentication_failed(&self) -> bool {
+        self.data.read().unwrap().authentication_failed
     }
 
     #[cfg(feature = "password-cache")]

@@ -20,17 +20,19 @@ mod standard_sub_blocks;
 mod tester;
 mod tester_apis;
 mod utility;
+mod user;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::{PyAny, PyDict, PyBytes};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::MutexGuard;
+use pyo3::conversion::AsPyPointer;
 
 // Imported pyapi modules
 use application::PyInit_application;
@@ -45,6 +47,7 @@ use tester::PyInit_tester;
 use tester_apis::PyInit_tester_apis;
 use utility::location::Location;
 use utility::PyInit_utility;
+use user::PyInit_users;
 
 #[macro_export]
 macro_rules! pypath {
@@ -100,6 +103,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(tester_apis))?;
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
+    m.add_wrapped(wrap_pymodule!(users))?;
     Ok(())
 }
 
@@ -453,4 +457,24 @@ fn prepare_for_target_load() -> PyResult<()> {
 fn start_new_test(name: Option<String>) -> PyResult<()> {
     origen::start_new_test(name);
     Ok(())
+}
+
+#[macro_export]
+macro_rules! runtime_error {
+    ($message:expr) => {{
+        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(
+            $message,
+        ))
+    }};
+}
+
+pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
+    let pickle = PyModule::import(py, "pickle")?;
+    pickle.call1("dumps", (object,))?.extract::<Vec<u8>>()
+}
+
+pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
+    let pickle = PyModule::import(py, "pickle")?;
+    let bytes = PyBytes::new(py, object);
+    pickle.call1("loads", (bytes,))
 }

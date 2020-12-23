@@ -110,3 +110,27 @@ impl std::convert::From<std::string::String> for Error {
         Error::new(&err)
     }
 }
+
+impl std::convert::From<lettre::address::AddressError> for Error {
+    fn from(err: lettre::address::AddressError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<toml::de::Error> for Error {
+    fn from(err: toml::de::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<num_bigint::ParseBigIntError> for Error {
+    fn from(err: num_bigint::ParseBigIntError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<ldap3::LdapError> for Error{
+    fn from(err: ldap3::LdapError) -> Self {
+        Error::new(&err.to_string())
+    }
+}

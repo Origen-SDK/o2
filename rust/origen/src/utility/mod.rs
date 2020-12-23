@@ -8,6 +8,9 @@ pub mod logger;
 pub mod command_helpers;
 pub mod num_helpers;
 pub mod version;
+pub mod mailer;
+pub mod ldap;
+pub mod session_store;
 
 use crate::STATUS;
 use std::path::{Path, PathBuf};

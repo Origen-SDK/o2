@@ -12,6 +12,8 @@ pub mod macros;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
+#[macro_use]
+extern crate cfg_if;
 
 pub mod core;
 pub mod error;
@@ -44,6 +46,8 @@ use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
+use utility::session_store::Sessions;
+use utility::ldap::LDAPs;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -79,8 +83,8 @@ lazy_static! {
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
-    /// Provides info about the current user
-    pub static ref USER: User = User::current();
+    pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
+    pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new().unwrap());
 }
 
 impl PartialEq<AST> for TEST {
@@ -151,6 +155,14 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
+}
+
+pub fn sessions() -> MutexGuard<'static, Sessions> {
+    SESSIONS.lock().unwrap()
+}
+
+pub fn ldaps() -> MutexGuard<'static, LDAPs> {
+    LDAPS.lock().unwrap()
 }
 
 /// Execute the given function with a reference to the current job.
@@ -226,5 +238,35 @@ pub fn start_new_test(name: Option<String>) {
         TEST.start(&name);
     } else {
         TEST.start("ad-hoc");
+    }
+}
+
+#[macro_export]
+macro_rules! current_user {
+    () => {{
+        &crate::STATUS.current_user.read().unwrap()
+    }};
+}
+
+#[cfg(all(test, not(origen_skip_frontend_tests)))]
+mod tests {
+    pub fn run_python(code: &str) -> crate::Result<()> {
+        let mut c = std::process::Command::new("origen");
+        c.arg("exec");
+        c.arg("python");
+        c.arg("-c");
+        c.arg(&format!("import origen; {}", code));
+        // Assume we're in the root of the Origen rust package
+        let mut f = std::env::current_dir().unwrap();
+        f.pop();
+        f.pop();
+        f.push("test_apps/python_app");
+        c.current_dir(f);
+        let res = c.output().unwrap();
+        println!("status: {}", res.status);
+        println!("{:?}", std::str::from_utf8(&res.stdout).unwrap());
+        println!("{:?}", std::str::from_utf8(&res.stderr).unwrap());
+        assert_eq!(res.status.success(), true);
+        Ok(())
     }
 }

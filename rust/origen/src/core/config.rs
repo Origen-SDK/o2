@@ -13,6 +13,7 @@ use super::term;
 use crate::STATUS;
 use config::{Environment, File};
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 lazy_static! {
     pub static ref CONFIG: Config = Config::default();
@@ -29,6 +30,13 @@ pub struct Config {
     pub pkg_server_push: String,
     pub pkg_server_pull: String,
     pub some_val: u32,
+    pub mailer_server: Option<String>,
+    pub mailer_port: Option<i64>,
+    pub mailer_auth: Option<String>,
+    pub mailer_domain: Option<String>,
+    pub mailer_auth_email: Option<String>,
+    pub mailer_auth_password: Option<String>,
+    pub ldaps: HashMap<String, HashMap<String, String>>,
 }
 
 impl Default for Config {
@@ -42,6 +50,16 @@ impl Default for Config {
         let _ = s.set_default("pkg_server_push", "");
         let _ = s.set_default("pkg_server_pull", "");
         let _ = s.set_default("some_val", 3);
+        let _ = s.set_default("mailer_server", None::<String>);
+        let _ = s.set_default("mailer_port", None::<i64>);
+        let _ = s.set_default("mailer_auth", None::<String>);
+        let _ = s.set_default("mailer_domain", None::<String>);
+        let _ = s.set_default("mailer_auth_email", None::<String>);
+        let _ = s.set_default("mailer_auth_password", None::<String>);
+        let _ = s.set_default("ldaps", {
+            let t: HashMap<String, HashMap<String, String>> = HashMap::new();
+            t
+        });
 
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();

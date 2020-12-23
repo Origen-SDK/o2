@@ -1,7 +1,7 @@
 use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::Result as OrigenResult;
-use crate::USER;
+use crate::current_user;
 use git2::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -457,7 +457,7 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        USER.password(
+                        current_user!().password(
                             Some(&format!("to access repository '{}'", url)),
                             last_password_attempt.as_deref(),
                         )
@@ -476,7 +476,7 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        USER.id().unwrap()
+                        current_user!().id().unwrap()
                     }
                 };
             }
