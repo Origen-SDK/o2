@@ -37,6 +37,8 @@ pub struct Config {
     pub mailer_auth_email: Option<String>,
     pub mailer_auth_password: Option<String>,
     pub ldaps: HashMap<String, HashMap<String, String>>,
+    pub default_encryption_key: String,
+    pub default_encryption_nonce: String,
 }
 
 impl Default for Config {
@@ -60,6 +62,12 @@ impl Default for Config {
             let t: HashMap<String, HashMap<String, String>> = HashMap::new();
             t
         });
+
+        // Default keys generated from crate::utility::mod::tests::check_default_key_values
+        // default_encryption_key: !<<<---Origen StandardKey--->>>!"
+        // default_encryption_nonce: ORIGEN NONCE
+        let _ = s.set_default("default_encryption_key", "213c3c3c2d2d2d4f726967656e205374616e646172644b65792d2d2d3e3e3e21");
+        let _ = s.set_default("default_encryption_nonce", "4f524947454e204e4f4e4345");
 
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();

@@ -283,7 +283,7 @@ impl FilePermissions {
     }
 
     #[allow(unused_variables)]
-    pub fn apply_to(&self, path: &Path, warn_when_supported: bool) -> Result<()> {
+    pub fn apply_to(&self, path: &Path, warn_when_unsupported: bool) -> Result<()> {
         cfg_if! {
             if #[cfg(unix)] {
                 let f = File::open(path)?;
@@ -297,7 +297,7 @@ impl FilePermissions {
                     self.to_str(),
                     std::env::consts::OS
                 );
-                if warn_when_supported {
+                if warn_when_unsupported {
                     // Generate a warning instead of throwing an error
                     crate::LOGGER.warning(&message);
                     Ok(())

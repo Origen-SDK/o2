@@ -3,7 +3,6 @@ use origen::Metadata;
 use pyo3::types::PyBytes;
 
 pub fn metadata_to_pyobj(data: Option<Metadata>, key: Option<&str>) -> PyResult<Option<PyObject>> {
-    println!("PyMetadata: {:?}", data);
     if let Some(d) = data {
         let gil = Python::acquire_gil();
         let py = gil.python();

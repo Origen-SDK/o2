@@ -143,12 +143,9 @@ impl TryFrom<&Value> for Metadata {
             Value::Table(a) => {
                 if let Some(encoded_class_value) = a.get(CLASS) {
                     if let Some(encoded_class) = encoded_class_value.as_str() {
-                        println!("Encoded {}", encoded_class);
-                        println!("Table Value - {:?}", a);
                         if encoded_class == "vec" {
                             if let Some(data_val) = a.get("vec") {
                                 if let Some(data) = data_val.as_array() {
-                                    println!("DATA: {:?}", data);
                                     let mut elements: Vec<Metadata> = vec![];
                                     for el in data.iter() {
                                         elements.push(Self::try_from(el)?);

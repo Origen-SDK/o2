@@ -16,12 +16,6 @@ pub enum Storeable {
     Serialized(Vec<u8>),
 }
 
-// pub enum Role {
-//     TopAppSession,
-//     PluginSession(String),
-//     TopUserSession(String),
-// }
-
 pub struct Sessions {
     pub app_session_root: Option<PathBuf>,
     pub user_session_root: PathBuf,
@@ -62,11 +56,6 @@ impl Sessions {
         } else {
             path.push(crate::app().unwrap().name());
         }
-        // let s = session.unwrap_or({
-        //     let mut _s = self.app_session_root.as_ref().unwrap().clone();
-        //     _s.push(crate::app().unwrap().name());
-        //     _s
-        // });
         if !self.app_sessions.contains_key(&path) {
             self.create_app_session(path.clone())?;
         }
@@ -171,10 +160,7 @@ impl Default for SessionData {
 
 pub struct SessionStore {
     pub path: PathBuf,
-    // name: String,
-    // role: Role,
     permissions: FilePermissions,
-    // contents: Option<Map<String, Value>>,
     data: SessionData,
     is_app_session: bool
 }
@@ -196,54 +182,12 @@ impl SessionStore {
 
     pub fn new(path_to: PathBuf, is_app_session: bool, permissions: FilePermissions) -> Result<Self> {
         let mut s = Self {
-            // name: name.to_string(),
             permissions: permissions,
             data: SessionData::default(),
-                // if *(&path_to.exists()) {
-                //     // if path_to.is_file() {
-                //     let mut file = File::open(&path_to).unwrap();
-                //     let mut buffer = String::new();
-                //     file.read_to_string(&mut buffer).unwrap();
-                //     let parsed: SessionData = toml::from_str(&buffer).unwrap();
-                //     parsed
-                // } else {
-                //     SessionData {
-                //         data: Map::new()
-                //     }
-                // }
-                // SessionData {
-                //     data: {
-                //         if *(&path_to.exists()) {
-                //             if path_to.is_file() {
-                //                 let mut file = File::open(&path_to).unwrap();
-                //                 let mut buffer = String::new();
-                //                 file.read_to_string(&mut buffer).unwrap();
-                //                 let parsed: SessionData = toml::from_str(&buffer).unwrap();
-                //                 println!("First read: {:?}", parsed.data);
-                //                 // Not certain why, byt the TOML parser doesn't
-                //                 // build this correctly to the config. It nests
-                //                 // 'data' again. Need to manually flatten it.
-                //                 // if let Some(d) = parsed.data.get("data") {
-                //                 //     d.as_table().unwrap().clone()
-                //                 // } else {
-                //                 //     Map::new()
-                //                 // }
-
-                //             } else {
-                //                 return error!("Session located at {:?} does not appear to be a file", path_to)
-                //             }
-                //         } else {
-                //             Map::new()
-                //             //HashMap::new()
-                //         }
-                //     }
-                // }
-            // },
             path: path_to,
             is_app_session: is_app_session
         };
         s.refresh()?;
-        println!("New read: {:?}", s.data);
         Ok(s)
     }
 
@@ -291,10 +235,6 @@ impl SessionStore {
             Ok(None)
         }
     }
-
-    // pub fn path(&self) -> Result<&PathBuf> {
-    //     Ok(&self.path)
-    // }
 
     pub fn retrieve(&mut self, key: &str) -> Result<Option<Metadata>> {
         let value = self.data.data.get(key);
@@ -347,9 +287,7 @@ impl SessionStore {
     }
 
     pub fn refresh(&mut self) -> Result<()> {
-        println!("REFRESHING!!");
         if let Some(d) = Self::read_toml(&self.path)? {
-            println!("REFRESHING FOUND!!");
             self.data = d;
         } else {
             self.data = SessionData::default();
@@ -380,11 +318,11 @@ impl SessionStore {
 
     pub fn write(&mut self) -> Result<()> {
         if !self.path.parent().unwrap().exists() {
-            println!("Creating {}", self.path.parent().unwrap().display());
             std::fs::create_dir(format!("{}", self.path.parent().unwrap().display()))?;
         }
         let mut file = File::create(&self.path).unwrap();
         write!(file, "{}", toml::to_string(&self.data).unwrap()).unwrap();
+        self.permissions.apply_to(&self.path, true)?;
         Ok(())
     }
 }

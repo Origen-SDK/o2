@@ -129,8 +129,20 @@ impl std::convert::From<num_bigint::ParseBigIntError> for Error {
     }
 }
 
-impl std::convert::From<ldap3::LdapError> for Error{
+impl std::convert::From<ldap3::LdapError> for Error {
     fn from(err: ldap3::LdapError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<aes_gcm::Error> for Error {
+    fn from(err: aes_gcm::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::string::FromUtf8Error> for Error {
+    fn from(err: std::string::FromUtf8Error) -> Self {
         Error::new(&err.to_string())
     }
 }
