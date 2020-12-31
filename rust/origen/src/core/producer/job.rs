@@ -78,8 +78,10 @@ impl Job {
             }
         } else {
             if let Some(root) = self.files.last() {
+                dbg!(root.parent());
                 if let Some(dir) = root.parent() {
                     let f = dir.join(file);
+                    dbg!(&f);
                     if f.exists() {
                         return Some(f.to_path_buf());
                     }
