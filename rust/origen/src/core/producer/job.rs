@@ -66,6 +66,8 @@ impl Job {
                 }
             }
         }
+        dbg!(file);
+        dbg!(&self.files);
         error!("Could not find '{}'", file.display())
     }
 
