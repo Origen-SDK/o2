@@ -97,7 +97,46 @@ pub fn bit_slice(value: &BigUint, start_bit: usize, stop_bit: usize) -> Result<B
     Ok(BigUint::from_bytes_le(&result_bytes))
 }
 
+pub trait BigUintHelpers {
+    type T;
+    fn reverse(&self, width: usize) -> Result<Self::T>;
+    fn chunk(&self, chunk_width: usize, data_width: usize) -> crate::Result<Vec<Self::T>>;
+}
+
+impl BigUintHelpers for BigUint {
+    type T = Self;
+
+    fn reverse(&self, width: usize) -> Result<Self::T> {
+        let mut data = self.clone();
+        let mut reversed = BigUint::from(0 as u8);
+        let big1 = BigUint::from(1 as u8);
+        for _i in 0..width {
+            reversed += &data & &big1;
+            reversed <<= 1;
+            data >>= 1;
+        }
+        reversed >>= 1;
+        Ok(reversed)
+    }
+
+    fn chunk(&self, chunk_width: usize, data_width: usize) -> Result<Vec<Self>> {
+        let mut data = self.clone();
+        let mut retn = vec![];
+        let mask = Self::from(((1 << chunk_width) - 1) as u128);
+        for _i in 0..(data_width / chunk_width) {
+            retn.push(BigUint::from(&data & &mask));
+            data >>= chunk_width;
+        }
+        if data_width % chunk_width != 0 {
+            retn.push(data);
+        }
+        Ok(retn)
+    }
+}
+
 impl NumHelpers for BigUint {
+    type T = Self;
+
     fn even_parity(&self) -> bool {
         let mut cnt = BigUint::from(0 as u8);
         self.to_u32_digits()
@@ -109,6 +148,38 @@ impl NumHelpers for BigUint {
             true
         }
     }
+
+    // fn reverse(&self, width: usize) -> Result<Self::T> {
+    //     let mut data = self.clone();
+    //     let mut reversed = BigUint::from(0 as u8);
+    //     let big1 = BigUint::from(1 as u8);
+    //     for i in 0..width {
+    //         reversed += data & big1;
+    //         reversed <<= 1;
+    //         data <<= 1;
+    //     }
+    //     Ok(reversed)
+    // }
+
+    // fn chunk(
+    //     &self,
+    //     chunk_width: usize,
+    //     data_width: usize,
+    //     chunk_lsb_first: bool,
+    //     data_lsb_first: bool
+    // ) -> Result<Vec<Self>> {
+    //     let mut data = self.clone();
+    //     let retn = vec!();
+    //     let mask = Self::from(((1 << chunk_width) - 1) as u128);
+    //     for i in 0..(data_width/chunk_width) {
+    //         retn.push(BigUint::from(data & mask));
+    //         data >> chunk_width;
+    //     }
+    //     if data_width % chunk_width != 0 {
+    //         retn.push(data);
+    //     }
+    //     Ok(retn)
+    // }
 }
 
 #[cfg(test)]

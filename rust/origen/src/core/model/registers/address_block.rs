@@ -18,7 +18,7 @@ pub struct AddressBlock {
     pub range: u64,
     /// The maximum number of bits that can be accessed by a transaction into this
     /// address block.
-    pub width: u64,
+    pub width: Option<u64>,
     pub access: AccessType,
     pub registers: IndexMap<String, usize>,
     pub register_files: IndexMap<String, usize>,
@@ -32,7 +32,7 @@ impl Default for AddressBlock {
             name: "default".to_string(),
             offset: 0,
             range: 0,
-            width: 0,
+            width: None,
             access: AccessType::RW,
             registers: IndexMap::new(),
             register_files: IndexMap::new(),

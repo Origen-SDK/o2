@@ -1,5 +1,6 @@
 import importlib.util, pathlib
 import origen
+import origen.helpers.num
 
 
 def try_method(obj, m, args):

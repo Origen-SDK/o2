@@ -63,6 +63,9 @@ class Loader:
     def Alias(self, name, *aliases):
         self.controller.add_pin_alias(name, *aliases)
 
+    def Group(self, name, *pins, **options):
+        self.controller.group_pins(name, *pins, **options)
+
     def PinHeader(self, name, *pins):
         self.controller.add_pin_header(name, *pins)
 
@@ -71,4 +74,5 @@ class Loader:
             "Pin": self.Pin,
             "Alias": self.Alias,
             "PinHeader": self.PinHeader,
+            "Group": self.Group,
         }
