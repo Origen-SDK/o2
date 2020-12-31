@@ -55,8 +55,7 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<(Vec<PathBuf>, Model)> 
             let ast = generic_processors::adjacent_if_combiner::run(&ast)?;
 
             // Some V93K-specific model and AST processing
-            let (ast, m) =
-                processors::clean_names_and_add_sig::run(&ast, m, Some("864CE8F".to_string()))?;
+            let (ast, m) = processors::clean_names_and_add_sig::run(&ast, m)?;
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Generate the main flow file

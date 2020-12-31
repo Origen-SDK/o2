@@ -39,7 +39,21 @@ impl PyInterface {
         Ok(file.to_str().unwrap().to_string())
     }
 
-    fn set_resources_filename(&self, path: String, kind: Option<String>) -> PyResult<()> {
+    #[setter]
+    fn set_description(&self, desc: String) -> PyResult<()> {
+        flow_api::flow_description(desc.trim().to_string(), None)?;
+        Ok(())
+    }
+
+    #[setter(resources_filename)]
+    fn _set_resources_filename(&self, path: String) -> PyResult<()> {
+        Err(TypeError::py_err(format!(
+            "The resources filename should be set like this: flow.set_resources_filename(\"{}\")",
+            path
+        )))
+    }
+
+    fn set_resources_filename(&mut self, path: String, kind: Option<String>) -> PyResult<()> {
         let kind = match kind {
             None => ResourcesType::All,
             Some(n) => match ResourcesType::from_str(&n) {

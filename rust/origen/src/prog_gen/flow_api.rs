@@ -1,7 +1,7 @@
 use super::ParamValue;
 use super::{
     BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType,
-    ResourcesType,
+    ResourcesType, UniquenessOption,
 };
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
@@ -215,6 +215,11 @@ pub fn set_flag(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
     FLOW.push(n)
 }
 
+pub fn set_default_flag_state(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMSetDefaultFlagState, name, state; meta);
+    FLOW.push(n)
+}
+
 pub fn continue_on_fail(meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMContinue; meta);
     FLOW.push(n)
@@ -223,4 +228,21 @@ pub fn continue_on_fail(meta: Option<Meta>) -> Result<()> {
 pub fn set_resources_filename(name: String, kind: ResourcesType, meta: Option<Meta>) -> Result<()> {
     let n = node!(PGMResourcesFilename, name, kind; meta);
     FLOW.push(n)
+}
+
+/// Contained flows will be bypassed
+pub fn start_bypass_sub_flows(meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMBypassSubFlows; meta);
+    FLOW.push_and_open(n)
+}
+
+pub fn flow_description(desc: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMFlowDescription, desc; meta);
+    FLOW.push(n)
+}
+
+/// Contained test names and similar will the use the given uniqueness option
+pub fn start_uniqueness(option: UniquenessOption, meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMUniqueness, option; meta);
+    FLOW.push_and_open(n)
 }

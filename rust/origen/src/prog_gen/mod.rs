@@ -50,3 +50,16 @@ pub enum ResourcesType {
     )]
     Variables,
 }
+
+/// The type of unique signature to append to test names and similar
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub enum UniquenessOption {
+    /// No unique identitier
+    None,
+    /// Add an automatically generated signature
+    Signature,
+    /// Add the flow name
+    Flowname,
+    /// Add the given string
+    String(String),
+}

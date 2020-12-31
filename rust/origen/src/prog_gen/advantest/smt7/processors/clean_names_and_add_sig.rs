@@ -1,18 +1,23 @@
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::prog_gen::{FlowCondition, Model, ParamValue};
+use crate::prog_gen::{FlowCondition, Model, ParamValue, UniquenessOption};
+use md5::{Digest, Md5};
 use regex::Regex;
 use std::collections::HashMap;
 
 pub struct AddSig {
+    uniq_option: UniquenessOption,
     sig: Option<String>,
+    flow_name: Option<String>,
     model: Model,
     test_suite_names: HashMap<String, usize>,
 }
 
-pub fn run(node: &Node, model: Model, sig: Option<String>) -> Result<(Node, Model)> {
+pub fn run(node: &Node, model: Model) -> Result<(Node, Model)> {
     let mut p = AddSig {
-        sig: sig,
+        uniq_option: UniquenessOption::Signature,
+        sig: None,
+        flow_name: None,
         model: model,
         test_suite_names: HashMap::new(),
     };
@@ -25,8 +30,26 @@ impl Processor for AddSig {
     fn on_node(&mut self, node: &Node) -> Result<Return> {
         Ok(match &node.attrs {
             Attrs::PGMFlow(name) => {
+                self.flow_name = Some(name.to_owned());
+                let mut hasher = Md5::new();
+                hasher.update(name);
+                // Just to match what O1 did for regression testing
+                hasher.update(format!("{}.tf", name));
+                if let Some(app) = crate::app() {
+                    let n = app.name();
+                    // Again, to match O1 for regression testing
+                    if n == "example" {
+                        hasher.update("origen_testers");
+                    } else {
+                        hasher.update(n);
+                    }
+                }
+                let hash = hasher.finalize();
+                self.sig = Some((&format!("{:X}", hash)[0..7]).to_string());
+
                 let n = node.process_and_update_children(self)?;
-                if let Some(sig) = &self.sig {
+                if let Some(sig) = self.uniqueness() {
+                    let sig = sig.to_owned();
                     for id in &self.model.flows[name].test_invocations {
                         let t = self.model.test_invocations.get_mut(id).unwrap();
                         let new_name = format!("{}_{}", t.get("name")?.unwrap(), sig);
@@ -57,11 +80,7 @@ impl Processor for AddSig {
                         .iter()
                         .map(|f| {
                             let f = clean_flag(f);
-                            if self.sig.is_some() {
-                                self.add_sig_to_flag(&f)
-                            } else {
-                                f
-                            }
+                            self.add_sig_to_flag(f)
                         })
                         .collect();
                     let children = node.process_and_box_children(self)?;
@@ -96,11 +115,7 @@ impl Processor for AddSig {
                 let flag = {
                     let f = clean_flag(flag);
                     if *is_auto_generated {
-                        if self.sig.is_some() {
-                            self.add_sig_to_flag(&f)
-                        } else {
-                            f
-                        }
+                        self.add_sig_to_flag(f)
                     } else {
                         f
                     }
@@ -118,11 +133,24 @@ impl Processor for AddSig {
 }
 
 impl AddSig {
-    fn add_sig_to_flag(&self, flag: &str) -> String {
-        let re = Regex::new(r"_(?P<flag>PASSED|FAILED|RAN)$").unwrap();
-        let replacement = format!("_{}_$flag", self.sig.as_ref().unwrap());
-        let r = re.replace(flag, &*replacement);
-        r.to_string()
+    fn add_sig_to_flag(&self, flag: String) -> String {
+        if let Some(sig) = self.uniqueness() {
+            let re = Regex::new(r"_(?P<flag>PASSED|FAILED|RAN)$").unwrap();
+            let replacement = format!("_{}_$flag", sig);
+            let r = re.replace(&flag, &*replacement);
+            r.to_string()
+        } else {
+            flag
+        }
+    }
+
+    fn uniqueness(&self) -> Option<&str> {
+        match &self.uniq_option {
+            UniquenessOption::None => None,
+            UniquenessOption::Flowname => Some(self.flow_name.as_ref().unwrap()),
+            UniquenessOption::Signature => Some(self.sig.as_ref().unwrap()),
+            UniquenessOption::String(s) => Some(s),
+        }
     }
 }
 

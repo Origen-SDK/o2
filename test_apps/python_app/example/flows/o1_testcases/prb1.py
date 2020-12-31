@@ -1,4 +1,3 @@
-#Flow.create interface: 'OrigenTesters::Test::Interface', flow_description: 'Probe1 Main' do
 with Flow(flow_description="Probe1 Main") as flow:
 
     #unless Origen.app.environment.name == 'v93k_global'

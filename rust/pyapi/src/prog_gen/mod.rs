@@ -13,10 +13,12 @@ pub use condition::Condition;
 pub use group::Group;
 use origen::core::reference_files;
 use origen::core::tester::TesterSource;
-use origen::prog_gen::{flow_api, Model, ParamType, ParamValue, PatternReferenceType};
+use origen::prog_gen::{
+    flow_api, FlowCondition, Model, ParamType, ParamValue, PatternReferenceType,
+};
 use origen::utility::differ::{ASCIIDiffer, Differ};
 use origen::utility::file_utils::to_relative_path;
-use origen::{Result, FLOW};
+use origen::{Error, Result, FLOW};
 pub use pattern_group::PatternGroup;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
@@ -39,30 +41,59 @@ pub fn prog_gen(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyfunction]
-fn start_new_flow(name: &str, sub_flow: Option<bool>) -> PyResult<usize> {
+fn start_new_flow(
+    name: &str,
+    sub_flow: Option<bool>,
+    bypass_sub_flows: Option<bool>,
+    add_flow_enable: Option<&str>,
+) -> PyResult<Vec<usize>> {
     let sub_flow = match sub_flow {
         None => false,
         Some(x) => x,
     };
+    let mut refs = vec![];
     if sub_flow {
-        Ok(flow_api::start_sub_flow(name, None, None)?)
+        refs.push(flow_api::start_sub_flow(name, None, None)?);
     } else {
         FLOW.start(name)?;
-        Ok(0)
+        refs.push(0);
+        if let Some(bypass) = bypass_sub_flows {
+            if bypass {
+                refs.push(flow_api::start_bypass_sub_flows(None)?);
+            }
+        }
+        if let Some(enable) = add_flow_enable {
+            let flag = format!("{}_enable", name);
+            refs.push(flow_api::start_condition(
+                FlowCondition::IfEnable(vec![flag.clone()]),
+                None,
+            )?);
+            if enable.to_lowercase() == "enabled" {
+                flow_api::set_default_flag_state(flag, true, None)?;
+            } else if enable.to_lowercase() == "disabled" {
+                flow_api::set_default_flag_state(flag, false, None)?;
+            } else {
+                return Err(PyErr::from(Error::new(&format!(
+                    "The add_flow_enable argument must be either None (default), \"enabled\" or \"disabled\", got '{}'",
+                    enable
+                ))));
+            }
+        }
     }
+    refs.reverse();
+    Ok(refs)
 }
 
 #[pyfunction]
-fn end_flow(ref_id: usize, sub_flow: Option<bool>) -> PyResult<()> {
-    let sub_flow = match sub_flow {
-        None => false,
-        Some(x) => x,
-    };
-    if sub_flow {
-        Ok(flow_api::end_block(ref_id)?)
-    } else {
-        Ok(FLOW.end()?)
+fn end_flow(ref_ids: Vec<usize>) -> PyResult<()> {
+    for ref_id in ref_ids {
+        if ref_id == 0 {
+            FLOW.end()?;
+        } else {
+            flow_api::end_block(ref_id)?;
+        }
     }
+    Ok(())
 }
 
 // Called automatically by Origen once all test program source files have been executed

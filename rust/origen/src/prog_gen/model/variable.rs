@@ -1,3 +1,5 @@
+use super::ParamValue;
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Variable {
     pub name: String,
@@ -26,8 +28,9 @@ pub enum VariableType {
     Job,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VariableOperation {
     Reference,
     Set,
+    Default(ParamValue),
 }

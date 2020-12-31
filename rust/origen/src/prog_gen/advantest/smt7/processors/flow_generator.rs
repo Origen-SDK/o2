@@ -7,6 +7,10 @@ use std::path::{Path, PathBuf};
 
 /// Does the final writing of the flow AST to a SMT7 flow file
 pub struct FlowGenerator {
+    name: String,
+    description: Option<String>,
+    sub_flow_open: bool,
+    bypass_sub_flows: bool,
     output_dir: PathBuf,
     generated_files: Vec<PathBuf>,
     flow_header: Vec<String>,
@@ -27,6 +31,10 @@ pub struct FlowGenerator {
 
 pub fn run(ast: &Node, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
     let mut p = FlowGenerator {
+        name: "".to_string(),
+        description: None,
+        sub_flow_open: false,
+        bypass_sub_flows: false,
         output_dir: output_dir.to_owned(),
         generated_files: vec![],
         flow_header: vec![],
@@ -196,6 +204,7 @@ impl Processor for FlowGenerator {
             }
             Attrs::PGMFlow(name) => {
                 {
+                    self.name = name.to_owned();
                     self.model.select_flow(name)?;
                     // Process the flow AST, this will also generate the lines in the main body
                     // of the flow
@@ -204,32 +213,40 @@ impl Processor for FlowGenerator {
                     let _ = node.process_children(self);
                     self.indent -= 1;
                     self.push_body("");
-                    self.push_body(&format!("}}, open,\"{}\",\"\"", &name.to_uppercase()));
+
+                    self.push_body(&format!(
+                        "}}, open,\"{}\",\"{}\"",
+                        &name.to_uppercase(),
+                        self.description.as_ref().unwrap_or(&"".to_string())
+                    ));
                     self.indent -= 1;
 
                     // Populate the flow header lines now that the flow has been fully generated
                     self.indent += 1;
                     self.push_header("{");
                     self.indent += 1;
-                    self.push_header("{");
-                    self.indent += 1;
-                    // O1 did not sort these, so maintaing that for diffing
-                    //self.flow_control_vars.sort();
-                    //self.flow_control_vars.dedup();
-                    let mut lines = vec![];
-                    let mut done_flags: HashMap<String, bool> = HashMap::new();
-                    for var in &self.flow_control_vars {
-                        if !done_flags.contains_key(var) {
-                            done_flags.insert(var.to_owned(), true);
-                            lines.push(format!("{} = -1;", var));
+
+                    if !self.flow_control_vars.is_empty() {
+                        self.push_header("{");
+                        self.indent += 1;
+                        // O1 did not sort these, so maintaing that for diffing
+                        //self.flow_control_vars.sort();
+                        //self.flow_control_vars.dedup();
+                        let mut lines = vec![];
+                        let mut done_flags: HashMap<String, bool> = HashMap::new();
+                        for var in &self.flow_control_vars {
+                            if !done_flags.contains_key(var) {
+                                done_flags.insert(var.to_owned(), true);
+                                lines.push(format!("{} = -1;", var));
+                            }
                         }
+                        for line in lines {
+                            self.push_header(&line);
+                        }
+                        self.indent -= 1;
+                        self.push_header("}, open,\"Init Flow Control Vars\", \"\"");
+                        self.indent -= 1;
                     }
-                    for line in lines {
-                        self.push_header(&line);
-                    }
-                    self.indent -= 1;
-                    self.push_header("}, open,\"Init Flow Control Vars\", \"\"");
-                    self.indent -= 1;
 
                     // Now render the file
                     let flow_file = self.output_dir.join(&format!("{}.tf", name));
@@ -482,13 +499,33 @@ impl Processor for FlowGenerator {
                 }
                 Return::None
             }
+            Attrs::PGMBypassSubFlows => {
+                let orig = self.bypass_sub_flows;
+                self.bypass_sub_flows = true;
+                let _ = node.process_children(self);
+                self.bypass_sub_flows = orig;
+                Return::None
+            }
+            Attrs::PGMFlowDescription(desc) => {
+                if !self.sub_flow_open {
+                    self.description = Some(desc.to_owned());
+                }
+                Return::None
+            }
             Attrs::PGMSubFlow(name, _fid) => {
+                let orig = self.sub_flow_open;
+                self.sub_flow_open = true;
                 self.push_body("{");
                 self.indent += 1;
                 let _ = node.process_children(self);
                 self.indent -= 1;
                 let name = self.add_count_to_group_name(name);
-                self.push_body(&format!("}}, open,\"{}\", \"\"", &name));
+                if self.bypass_sub_flows {
+                    self.push_body(&format!("}}, groupbypass, open,\"{}\", \"\"", &name));
+                } else {
+                    self.push_body(&format!("}}, open,\"{}\", \"\"", &name));
+                }
+                self.sub_flow_open = orig;
                 Return::None
             }
             Attrs::PGMGroup(name, _, kind, _) => {
