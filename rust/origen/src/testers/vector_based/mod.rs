@@ -96,7 +96,7 @@ where
 
     default fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
         log_debug!("Tester '{}' does not implement render_program", &self.id());
-        Ok((vec![], Model::new()))
+        Ok((vec![], Model::new(self.id())))
     }
 
     default fn output_dir(&self) -> Result<PathBuf> {

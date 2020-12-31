@@ -30,7 +30,7 @@ pub fn render_test_program(tester: &V93K_SMT7) -> Result<(Vec<PathBuf>, Model)> 
     }
 
     let model = FLOW.with_all_flows(|flows| {
-        let mut model = Model::new();
+        let mut model = Model::new(SupportedTester::V93KSMT7);
 
         for (name, flow) in flows {
             log_debug!("Rendering flow '{}' for V93k SMT7", name);

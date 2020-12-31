@@ -11,22 +11,16 @@ mod test_invocation;
 
 pub use condition::Condition;
 pub use group::Group;
-use origen::core::reference_files;
 use origen::core::tester::TesterSource;
-use origen::prog_gen::{
-    flow_api, FlowCondition, Model, ParamType, ParamValue, PatternReferenceType,
-};
-use origen::utility::differ::{ASCIIDiffer, Differ};
-use origen::utility::file_utils::to_relative_path;
+use origen::prog_gen::{flow_api, FlowCondition, Model, ParamType, ParamValue};
+use origen::testers::SupportedTester;
 use origen::{Error, Result, FLOW};
 pub use pattern_group::PatternGroup;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
 use pyo3::wrap_pyfunction;
 use resources::Resources;
-use std::collections::HashSet;
-use std::io::Write;
-use std::path::Path;
+use std::collections::HashMap;
 use std::thread;
 pub use test::Test;
 pub use test_invocation::TestInvocation;
@@ -111,9 +105,9 @@ fn render(py: Python) -> PyResult<Vec<String>> {
                 match t {
                     TesterSource::External(g) => {
                         log_error!("Python based tester targets are not supported for program generation yet, no action taken for target: {}", g);
-                        Ok((vec![], Model::new()))
+                        Ok((vec![], Model::new(g)))
                     }
-                    _ => {
+                    TesterSource::Internal(t) => {
                         let mut tester = origen::tester();
                         let files = tester.render_program_for_target_at(i, true);
                         match files {
@@ -122,7 +116,7 @@ fn render(py: Python) -> PyResult<Vec<String>> {
                                 if continue_on_fail {
                                     origen::STATUS.inc_unhandled_error_count();
                                     log_error!("{}", &msg);
-                                    Ok((vec![], Model::new()))
+                                    Ok((vec![], Model::new(t.id())))
                                 } else {
                                     Err(e)
                                 }
@@ -134,7 +128,7 @@ fn render(py: Python) -> PyResult<Vec<String>> {
             })
         }).collect();
         let mut generated_files: Vec<String> = vec![];
-        let mut referenced_patterns: HashSet<String> = HashSet::new();
+        let mut models: HashMap<SupportedTester, Model> = HashMap::new();
         for thread in threads {
             match thread.join() {
                 Err(_e) => log_error!("Something has gone wrong when doing the final program render"),
@@ -144,65 +138,11 @@ fn render(py: Python) -> PyResult<Vec<String>> {
                         for path in &paths_and_model.0 {
                             generated_files.push(format!("{}", path.display()));
                         }
-                        // Extract the referenced patterns and add to global set
-                        for pat in &paths_and_model.1.patterns {
-                            if pat.reference_type == PatternReferenceType::All || pat.reference_type == PatternReferenceType::Origen {
-                                let _ = referenced_patterns.insert(pat.path.to_owned());
-                            }
-                        }
+                        models.insert(paths_and_model.1.tester.clone(), paths_and_model.1);
                     }
                 }
             }
         }
-
-        let dir = origen::app().unwrap().root.join("list");
-        if !dir.exists() {
-            std::fs::create_dir_all(&dir)?;
-        }
-        let list = dir.join("referenced.list");
-        let mut f = std::fs::File::create(&list)?;
-        let mut pats: Vec<_> = referenced_patterns.into_iter().collect();
-        pats.sort();
-        for pat in pats {
-            writeln!(&mut f, "{}", pat)?;
-        }
-
-        // TODO: This diffing/reporting should be abstracted into the core:
-        if let Ok(p) = to_relative_path(&list, None) {
-            display!("Created: {}", p.display());
-        } else {
-            display!("Created: {}", list.display());
-        }
-        if let Some(ref_dir) = origen::STATUS.reference_dir() {
-            let ref_list = ref_dir.join("referenced.list");
-            display!(" - ");
-            if ref_list.exists() {
-                let mut differ = ASCIIDiffer::new(&ref_list, &list);
-                differ.ignore_comments("#")?;
-                if differ.has_diffs()? {
-                    if let Err(e) = reference_files::create_changed_ref(Path::new("referenced.list"), &list, &ref_list) {
-                        log_error!("{}", e);
-                    }
-                    origen::tester().stats.changed_program_files += 1;
-                    display_redln!("Diffs found");
-                    let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
-                    let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
-                    let diff_tool = std::env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                    displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
-                    display!("  origen save_ref referenced.list");
-                } else {
-                    display_green!("No diffs");
-                }
-            } else {
-                origen::tester().stats.new_program_files += 1;
-                if let Err(e) = reference_files::create_new_ref(Path::new("referenced.list"), &list, &ref_list) {
-                    log_error!("{}", e);
-                }
-                display_cyanln!("New file");
-                display!("  origen save_ref referenced.list");
-            }
-        }
-        displayln!("");
 
         // Could hand over the model here in future to allow the app to generate additional output from it
 

@@ -13,6 +13,7 @@ use std::collections::HashSet;
 /// targets.
 #[derive(Debug)]
 pub struct Model {
+    pub tester: SupportedTester,
     /// Test objects, stored by their internal ID.
     /// These map to test instances for IG-XL and test methods for V93K.
     pub tests: IndexMap<usize, Test>,
@@ -41,8 +42,9 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new() -> Self {
+    pub fn new(tester: SupportedTester) -> Self {
         Self {
+            tester: tester,
             current_flow: "".to_string(),
             current_resource: "global".to_string(),
             current_pattern_resource: None,
