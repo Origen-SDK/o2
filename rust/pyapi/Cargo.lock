@@ -1371,6 +1371,7 @@ dependencies = [
  "num-traits 0.2.12",
  "origen",
  "pyo3",
+ "regex",
 ]
 
 [[package]]
