@@ -1,5 +1,3 @@
-use super::ParamValue;
-
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Variable {
     pub name: String,
@@ -32,5 +30,4 @@ pub enum VariableType {
 pub enum VariableOperation {
     Reference,
     Set,
-    Default(ParamValue),
 }
