@@ -86,12 +86,15 @@ impl Job {
                         dbg!("Does exist!");
                         return Some(f.to_path_buf());
                     }
-                    if let Ok(f) = f.canonicalize() {
-                        dbg!(&f);
-                        if f.exists() {
-                            dbg!("Does exist!");
-                            return Some(f.to_path_buf());
+                    match f.canonicalize() {
+                        Ok(f) => {
+                            dbg!(&f);
+                            if f.exists() {
+                                dbg!("Does exist!");
+                                return Some(f.to_path_buf());
+                            }
                         }
+                        Err(e) => { dbg!(e); } 
                     }
                     dbg!("Does not exist!");
                 }

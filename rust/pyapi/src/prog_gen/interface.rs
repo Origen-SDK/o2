@@ -35,7 +35,7 @@ impl PyInterface {
 
     fn resolve_file_reference(&self, path: &str) -> PyResult<String> {
         let file = origen::with_current_job(|job| {
-            let mut pt = PathBuf::new();
+            let mut pt = PathBuf::from_str(".").unwrap();
             for p in Regex::new(r"(\\|/)").unwrap().split(path) {
                 pt.push(p);
             }
