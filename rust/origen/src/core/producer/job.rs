@@ -83,8 +83,10 @@ impl Job {
                     let f = dir.join(file);
                     dbg!(&f);
                     if f.exists() {
+                        dbg!("Does exist!");
                         return Some(f.to_path_buf());
                     }
+                    dbg!("Does not exist!");
                 }
             }
             if let Some(root) = self.files.first() {
