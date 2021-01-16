@@ -57,6 +57,7 @@ tera = "1"
 strum_macros = "0.20"
 strum = { version = "0.20", features = ["derive"] }
 md-5 = "0.9"
+normpath = "0.2.0"
 
 [build-dependencies]
 built = "0.4"

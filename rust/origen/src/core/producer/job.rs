@@ -1,5 +1,6 @@
 use crate::Result;
 use std::path::{Path, PathBuf};
+use normpath::PathExt;
 
 /// A job represents the execution of an Origen application source file.
 /// For example, if the user runs `origen g <pat1> <pat2>` then two jobs will be created,
@@ -78,25 +79,26 @@ impl Job {
             }
         } else {
             if let Some(root) = self.files.last() {
-                dbg!(root.parent());
-                if let Some(dir) = root.parent() {
+                let root_norm = root.normalize().unwrap();
+                // dbg!(root_norm.parent());
+                if let Ok(Some(dir)) = root_norm.parent() {
                     let f = dir.join(file);
-                    dbg!(&f);
+                    // dbg!(&f);
                     if f.exists() {
-                        dbg!("Does exist!");
-                        return Some(f.to_path_buf());
+                        // dbg!("Does exist!");
+                        return Some(f.into_path_buf());
                     }
                     match f.canonicalize() {
                         Ok(f) => {
-                            dbg!(&f);
+                            // dbg!(&f);
                             if f.exists() {
-                                dbg!("Does exist!");
-                                return Some(f.to_path_buf());
+                                // dbg!("Does exist!");
+                                return Some(f.into_path_buf());
                             }
                         }
-                        Err(e) => { dbg!(e); } 
+                        Err(_e) => { }//dbg!(e); } 
                     }
-                    dbg!("Does not exist!");
+                    // dbg!("Does not exist!");
                 }
             }
             if let Some(root) = self.files.first() {
