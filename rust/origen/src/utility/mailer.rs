@@ -40,6 +40,7 @@ pub struct Maillist {
 //     }
 // }
 
+#[derive(Debug)]
 pub struct Mailer {
     pub server: Option<String>,
     pub port: Option<usize>,
@@ -120,7 +121,7 @@ impl Mailer {
         Ok(
             SinglePart::builder()
                 .header(header::ContentType(
-                    "text/plain; charset=utf8".parse().unwrap(),
+                    "text/html; charset=utf8".parse().unwrap(),
                 )).header(header::ContentTransferEncoding::QuotedPrintable)
                 .body(body)
         )
@@ -128,28 +129,33 @@ impl Mailer {
 
     pub fn compose(
         &self,
-        from: Mailbox,
-        to: Vec<Mailbox>,
-        subject: Option<String>,
-        body: Option<String>,
+        from: &str,
+        to: Vec<&str>,
+        subject: Option<&str>,
+        body: Option<&str>,
         include_origen_signature: bool
     ) -> Result<Message> {
+        let e: Mailbox = from.parse()?;
+        let mut email_to: Vec<Mailbox>;
         let mut m = Message::builder();
-        m = m.from(from);
+        m = m.from(e);
         for t in to {
-            m = m.to(t);
+            m = m.to(t.parse()?);
         }
-        if let Some(s) = subject.as_ref() {
+        if let Some(s) = subject {
             m = m.subject(s);
         }
-        let mut content = lettre::message::MultiPartBuilder::new().build();
-        if let Some(c) = body.as_ref() {
-            content = content.multipart(MultiPart::mixed().singlepart(Self::html_singlepart(c)?));
+        let mut content = "".to_string();
+        if let Some(c) = body {
+            content.push_str(c);
         }
         if include_origen_signature {
-            content = content.multipart(self.origen_sig()?);
+            content.push_str("\n<p style=\"font-size:11px\">Sent using <a href=\"https://origen-sdk.org/\">Origen's Mailer</a></p>");
         }
-        Ok(m.multipart(content).unwrap())
+        Ok(m.multipart(
+            MultiPart::mixed()
+            .singlepart(Self::html_singlepart(&content)?)
+        ).unwrap())
     }
 
     pub fn send(&self, m: Message) -> Result<()> {
@@ -165,29 +171,25 @@ impl Mailer {
         Ok(())
     }
 
-    pub fn test(&self) -> Result<()> {
-        let e: Mailbox = crate::current_user!().get_email()?.parse()?;
+    pub fn test(&self, to: Option<Vec<&str>>) -> Result<()> {
+        let e = crate::core::user::get_current_email()?;
         let m = self.compose(
-            e.clone(),
-            vec!(e),
-            Some("Hello from Origen's Mailer!".to_string()),
-            Some("<b>Hello from Origen's Mailer!<b>".to_string()),
+            &e,
+            if let Some(t) = to {
+                t
+            } else {
+                vec!(&e)
+            },
+            Some("Hello from Origen's Mailer!"),
+            Some("<b>Hello from Origen's Mailer!<b>"),
             true,
         )?;
         self.send(m)?;
         Ok(())
     }
 
-    // pub fn test_to_all(&self) -> Result<()> {
-    //     Ok(())
-    // }
-
-    // pub fn test_to_targets(&self) -> Result<()> {
-    //     Ok(())
-    // }
-
     pub fn origen_sig(&self) -> Result<MultiPart> {
-        Ok(MultiPart::builder().singlepart(Self::html_singlepart(
+        Ok(MultiPart::mixed().singlepart(Self::html_singlepart(
             "<p style=\"font-size:9px\">Sent using <a href=\"https://origen-sdk.org/\">Origen's Mailer</a></p>"
         )?))
     }

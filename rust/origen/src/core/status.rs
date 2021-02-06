@@ -95,9 +95,6 @@ pub struct Status {
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
     _operation: RwLock<Operation>,
-
-    _users: RwLock<IndexMap<String, User>>,
-    pub current_user: RwLock<User>,
 }
 
 impl Default for Status {
@@ -170,8 +167,6 @@ impl Default for Status {
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
             _operation: RwLock::new(Operation::None),
-            _users: RwLock::new(IndexMap::new()),
-            current_user: RwLock::new(User::current()),
         };
         log_trace!("Status built successfully");
         s

@@ -1,5 +1,6 @@
 import pytest, shutil, pathlib, marshal, inspect, pickle, origen, _origen
 from tests.shared import tmp_dir
+from tests.shared.python_like_apis import Fixture_DictLikeAPI
 
 class Dummy:
     def __init__(self, data):
@@ -114,9 +115,11 @@ class TestSessionStoreDefaults(Base):
         assert self._plugin_user_session.path == self.plugin_user_session_path
 
         assert origen.session_store.app_session(self.pl_name) == self._plugin_app_session
+        assert origen.session_store.app_session(self.pl) == self._plugin_app_session
         assert origen.plugin(self.pl_name).session == self._plugin_app_session
 
         assert origen.session_store.user_session(self.pl_name) == self._plugin_user_session
+        assert origen.session_store.user_session(self.pl) == self._plugin_user_session
         assert origen.plugin(self.pl_name).user_session == self._plugin_user_session
 
 class TestSessionStore(Base):
@@ -237,10 +240,6 @@ class TestSessionStore(Base):
         s.refresh()
         assert pickle.loads(s.get("pickle_serialized")) == "Pickle!"
 
-    @pytest.mark.skip
-    def test_dict_like(self):
-        ...
-
     def test_roundtrip_as_string(self):
         s = self.blank_app_session_for()
         assert s.store("test_str", "str").refresh().get("test_str") == "str"
@@ -259,3 +258,52 @@ class TestSessionStore(Base):
         s = self.blank_app_session_for()
         assert s.store("test_float", 3.14).refresh().get("test_float") == 3.14
         assert s.store("test_float_neg", -3.14).refresh().get("test_float_neg") == -3.14
+
+    def test_getting_all_app_sessions(self):
+        s = origen.session_store.app_sessions()
+        assert isinstance(s, dict)
+        assert set(s.keys()) == {
+            'test_roundtrip_for_fancier_objects',
+            'test_roundtrip_as_string',
+            'test_roundtrip_serialized',
+            'test_roundtrip_as_bool',
+            'test_roundtrip_for_custom_class',
+            'test_roundtrip',
+            'test_clearing_session_values',
+            'test_roundtrip_as_int',
+            'test_data_is_returned_by_value',
+            'test_roundtrip_as_float'
+        }
+        assert isinstance(s['test_roundtrip_as_string'], _origen.utility.session_store.SessionStore)
+
+        # Spot check one of the sessions themselves
+        assert s['test_roundtrip_as_string'].get('test_str') == 'str'
+
+    def test_getting_all_user_sessios(self):
+        s = origen.session_store.user_sessions()
+        assert isinstance(s, dict)
+        assert set(s.keys()) == {'test_roundtrip_user_session'}
+        assert isinstance(s["test_roundtrip_user_session"], _origen.utility.session_store.SessionStore)
+        assert s['test_roundtrip_user_session'].get('test') == 'user_str'
+
+# class TestAppSessionsDictLike(Fixture_DictLikeAPI, Base):
+#     def parameterize(self):
+#         return {
+#             "keys": [NAME],
+#             "klass": _origen.utility.ldap.LDAP,
+#             "not_in_dut": "Blah"
+#         }
+
+#     def boot_dict_under_test(self):
+#         return origen.session_store.app_sessions
+
+# class TestUserSessionsDictLike(Fixture_DictLikeAPI, Base):
+#     def parameterize(self):
+#         return {
+#             "keys": [NAME],
+#             "klass": _origen.utility.ldap.LDAP,
+#             "not_in_dut": "Blah"
+#         }
+
+#     def boot_dict_under_test(self):
+#         return origen.session_store.user_sessions

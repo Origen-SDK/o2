@@ -6,6 +6,7 @@ pyo3_version = '0.8.5'
 python_doc_version = '3'  # Points to latest, stable Python3 version.
 links = defs['abslinks']
 core_github_branch = "doc_system"
+github_root__python_app = "https://github.com/Origen-SDK/o2/blob/{core_github_branch}/test_apps/python_app"
 
 extlinks = {
     # Sphinx basics or built-in (non-extension) features
@@ -219,6 +220,9 @@ extlinks = {
     'docstrings_guide_tc':
     ('https://thomas-cokelaer.info/tutorials/sphinx/docstring_python.html%s',
      ''),
+    'python_docs_pickle': (f'https://docs.python.org/{python_doc_version}/library/pickle.html%s', ''),
+    'python_docs_bytes': (f'https://docs.python.org/{python_doc_version}/library/stdtypes.html#binary-sequence-types-bytes-bytearray-memoryview%s', ''),
+    'python_docs_marshal': (f'https://docs.python.org/{python_doc_version}/library/marshal.html%s', ''),
 
     # PyO3 Stuff
     'pyo3_crate_home': (f'https://docs.rs/crate/pyo3/{pyo3_version}%s', ''),
@@ -284,6 +288,21 @@ extlinks = {
     'origen_src_example_commands':
     (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/test_apps/python_app/example/commands/examples.py%s',
      ''),
+    'origen_example_app_config':
+    (f'{github_root__python_app}/config/application.toml%s',
+     ''),
+    'origen_example_config':
+    (f'{github_root__python_app}/config/origen.toml%s',
+     ''),
+    'origen_specs_users':
+    (f'{github_root__python_app}/tests/origen_utilities/users.py%s',
+     ''),
+
+    # LDAP
+    'ldap_wiki': ('https://ldapwiki.com/wiki/LDAP%s', ''),
+    'ldap_invalid_credentials': ('https://ldapwiki.com/wiki/LDAP_INVALID_CREDENTIALS%s', ''),
+    'ldap_filters': ('https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html%s', ''),
+    'ldap_test_server': ('https://www.forumsys.com/tutorials/integration-how-to/ldap/online-ldap-test-server/%s', ''),
 
     # Other
     'mvc_dp_wiki': ('https://en.wikipedia.org/wiki/Model–view–controller%s',

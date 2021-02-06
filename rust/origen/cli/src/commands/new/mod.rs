@@ -59,10 +59,13 @@ pub fn run(matches: &ArgMatches) {
         &to_pep440(&origen::STATUS.origen_version.to_string()).unwrap(),
     );
     let mut user_info = "".to_string();
-    if let Some(username) = origen::current_user!().name() {
-        user_info += &username;
-        if let Some(email) = origen::current_user!().email() {
-            user_info += &format!(" <{}>", &email);
+    let users = origen::users();
+    if let Ok(u) = users.current_user() {
+        if let Ok(username) = u.username() {
+            user_info += &username;
+            if let Some(email) = u.email() {
+                user_info += &format!(" <{}>", &email);
+            }
         }
     }
     context.insert("user_info", &user_info);

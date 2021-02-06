@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use crate::{Result, current_user};
+use crate::Result;
 use toml::map::Map;
 use toml::Value;
 use crate::Metadata;
@@ -9,6 +9,9 @@ use super::file_utils::FilePermissions;
 use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashMap;
+
+static USER_PATH_OFFSET: &str = ".o2/.session";
+static APP_PATH_OFFSET: &str = ".session";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum Storeable {
@@ -30,14 +33,14 @@ impl Sessions {
     pub fn new() -> Self {
         Self {
             user_session_root: {
-                let mut p = crate::current_user!().home_dir().unwrap();
-                p.push(".o2/.session");
+                let mut p = crate::core::user::current_home_dir().unwrap();
+                p.push(USER_PATH_OFFSET);
                 p
             },
             app_session_root: {
                 if let Some(app) = crate::app() {
                     let mut p = app.root.clone();
-                    p.push(".session");
+                    p.push(APP_PATH_OFFSET);
                     Some(p)
                 } else {
                     None
@@ -67,7 +70,7 @@ impl Sessions {
         if let Some(s) = session {
             path.push(s);
         } else {
-            path.push(current_user!().get_id()?);
+            path.push(crate::core::user::get_current_id()?);
         }
         if !self.user_sessions.contains_key(&path) {
             self.create_user_session(path.clone())?;
@@ -142,6 +145,26 @@ impl Sessions {
         }
         self.clear_cache()?;
         Ok(())
+    }
+
+    pub fn available_app_sessions(&self) -> Result<Vec<(String, PathBuf)>> {
+        let mut retn = vec![];
+        if let Some(app_path) = &self.app_session_root {
+            for session in std::fs::read_dir(app_path)? {
+                let session = session?;
+                retn.push((session.file_name().into_string()?, session.path()));
+            }
+        }
+        Ok(retn)
+    }
+
+    pub fn available_user_sessions(&self) -> Result<Vec<(String, PathBuf)>> {
+        let mut retn = vec![];
+        for session in std::fs::read_dir(&self.user_session_root)? {
+            let session = session?;
+            retn.push((session.file_name().into_string()?, session.path()));
+        }
+        Ok(retn)
     }
 }
 
@@ -317,8 +340,9 @@ impl SessionStore {
     }
 
     pub fn write(&mut self) -> Result<()> {
+        log_trace!("Rewriting session '{:?}'", &self.path);
         if !self.path.parent().unwrap().exists() {
-            std::fs::create_dir(format!("{}", self.path.parent().unwrap().display()))?;
+            std::fs::create_dir_all(format!("{}", self.path.parent().unwrap().display()))?;
         }
         let mut file = File::create(&self.path).unwrap();
         write!(file, "{}", toml::to_string(&self.data).unwrap()).unwrap();

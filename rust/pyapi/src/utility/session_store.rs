@@ -78,13 +78,13 @@ pub fn user_session(session: Option<&PyAny>) -> PyResult<SessionStore> {
 pub fn app_sessions() -> PyResult<HashMap<String, SessionStore>> {
     let mut retn: HashMap<String, SessionStore> = HashMap::new();
     let s = origen::sessions();
-    for (n, s) in s.app_sessions.iter() {
+    for (n, p) in s.available_app_sessions()?.iter() {
         retn.insert(
-            n.display().to_string(),
+            n.to_string(),
             SessionStore::new(
-                s.path.clone(),
+                p.to_path_buf(),
                 true,
-                n.display().to_string()
+                n.to_string()
             )
         );
     }
@@ -95,13 +95,13 @@ pub fn app_sessions() -> PyResult<HashMap<String, SessionStore>> {
 pub fn user_sessions() -> PyResult<HashMap<String, SessionStore>> {
     let mut retn: HashMap<String, SessionStore> = HashMap::new();
     let s = origen::sessions();
-    for (n, s) in s.user_sessions.iter() {
+    for (n, p) in s.available_user_sessions()?.iter() {
         retn.insert(
-            n.display().to_string(),
+            n.to_string(),
             SessionStore::new(
-                s.path.clone(),
+                p.to_path_buf(),
                 true,
-                n.display().to_string()
+                n.to_string()
             )
         );
     }

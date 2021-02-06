@@ -29,6 +29,7 @@ pub mod utility;
 pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
 pub use self::core::user::User;
+pub use self::core::user;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
 pub use error::Error;
@@ -46,8 +47,11 @@ use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
-use utility::session_store::Sessions;
+use utility::session_store::{Sessions, SessionStore};
 use utility::ldap::LDAPs;
+use utility::mailer::Mailer;
+use std::sync::{RwLock, RwLockWriteGuard, RwLockReadGuard};
+use self::core::user::Users;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -84,7 +88,9 @@ lazy_static! {
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
     pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
-    pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new().unwrap());
+    pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
+    pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
+    pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new().unwrap());
 }
 
 impl PartialEq<AST> for TEST {
@@ -161,8 +167,45 @@ pub fn sessions() -> MutexGuard<'static, Sessions> {
     SESSIONS.lock().unwrap()
 }
 
+pub fn with_user_session<T, F>(session: Option<String>, mut func: F) -> Result<T>
+where F: FnMut(&mut SessionStore) -> Result<T> {
+    let mut sessions = crate::sessions();
+    let s = sessions.user_session(session)?;
+    func(s)
+}
+
 pub fn ldaps() -> MutexGuard<'static, LDAPs> {
     LDAPS.lock().unwrap()
+}
+
+pub fn users<'a>() -> RwLockReadGuard<'a, Users> {
+    USERS.read().unwrap()
+}
+
+pub fn users_mut<'a>() -> RwLockWriteGuard<'a, Users> {
+    USERS.write().unwrap()
+}
+
+pub fn with_current_user<T, F>(mut func: F) -> Result<T>
+where F: FnMut(&User) -> Result<T> {
+    let _users = users();
+    let u = _users.current_user()?;
+    func(u)
+}
+
+pub fn with_user<T, F>(user: &str, mut func: F) -> Result<T>
+where F: FnMut(&User) -> Result<T> {
+    let _users = users();
+    let u = _users.user(user).unwrap();
+    func(u)
+}
+
+pub fn mailer<'a>() -> RwLockReadGuard<'a, Mailer> {
+    MAILER.read().unwrap()
+}
+
+pub fn mailer_mut<'a>() -> RwLockWriteGuard<'a, Mailer> {
+    MAILER.write().unwrap()
 }
 
 /// Execute the given function with a reference to the current job.
@@ -239,13 +282,6 @@ pub fn start_new_test(name: Option<String>) {
     } else {
         TEST.start("ad-hoc");
     }
-}
-
-#[macro_export]
-macro_rules! current_user {
-    () => {{
-        &crate::STATUS.current_user.read().unwrap()
-    }};
 }
 
 #[cfg(all(test, not(origen_skip_frontend_tests)))]

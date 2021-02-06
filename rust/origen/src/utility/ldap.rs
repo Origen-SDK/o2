@@ -7,6 +7,10 @@ pub struct LDAPs {
 }
 
 impl LDAPs {
+    pub fn get_standalone(ldap_name: &str) -> Result<LDAP> {
+        LDAP::from_config(ldap_name)
+    }
+
     pub fn get(&self, ldap: &str) -> Option<&LDAP> {
         self.ldaps.get(ldap)
     }
@@ -16,7 +20,7 @@ impl LDAPs {
             Ok(l)
         } else {
             error!(
-                "No LDAP named {} available",
+                "No LDAP named '{}' available",
                 ldap
             )
         }
@@ -41,47 +45,41 @@ impl LDAPs {
         &self.ldaps
     }
 
-    pub fn add(&mut self, name: &str, server: &str, base: &str, auth: SupportedAuths) -> Result<()> {
-        self.ldaps.insert(name.to_string(), LDAP::new(
-            name,
-            server,
-            base,
-            auth
-        )?);
-        Ok(())
-    }
-
-    pub fn new() -> Result<Self> {
-        let mut ldaps = Self::default();
-        for (name, config) in &crate::ORIGEN_CONFIG.ldaps {
-            ldaps.add(
-                name,
-                if let Some(c) = config.get("server") {
-                    c
-                } else {
-                    return error!("LDAP config {} must have a 'server' field", name);
+    pub fn new() -> Self {
+        let mut ldaps: HashMap<String, LDAP> = HashMap::new();
+        for (name, _) in &crate::ORIGEN_CONFIG.ldaps {
+            match LDAP::from_config(name) {
+                Ok(l) => {
+                    ldaps.insert(name.to_string(), l);
                 },
-                if let Some(b) = config.get("base") {
-                    b
-                } else {
-                    return error!("LDAP config {} must have a 'base' field", name);
-                },
-                SupportedAuths::from_str(
-                    config.get("auth").unwrap_or(&"sipmle_bind".to_string()),
-                    config.get("username"),
-                    config.get("password")
-                )?
-            )?;
+                Err(e) => {
+                    display_redln!("Unable to add LDAP {}. Reason: {}", name, e.msg);
+                }
+            }
         }
-        Ok(ldaps)
-    }
-}
-
-impl std::default::Default for LDAPs {
-    fn default() -> Self {
         Self {
-            ldaps: HashMap::new()
+            ldaps: ldaps
         }
+    }
+
+    pub fn try_password(ldap_name: &str, username: &str, password: &str) -> Result<bool> {
+        let mut ldap = Self::get_standalone(ldap_name)?;
+        match ldap.bind_as(username, password) {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                if e.msg.contains("rc=49") {
+                    Ok(false)
+                } else {
+                    Err(e)
+                }
+            }
+        }
+    }
+
+    pub fn with_standalone<T, F>(name: &str, mut func: F) -> Result<T>
+    where F: FnMut(LDAP) -> Result<T> {
+        let ldap = Self::get_standalone(&name)?;
+        func(ldap)
     }
 }
 
@@ -105,12 +103,12 @@ impl SupportedAuths {
                     if let Some(u) = username {
                         u.to_string()
                     } else {
-                        return error!("LDAP's 'sipmle bind' requires a username but none was provided");
+                        return error!("LDAP's 'simple bind' requires a username but none was provided");
                     },
                     if let Some(p) = password {
                         p.to_string()
                     } else {
-                        return error!("LDAP's 'sipmle_bind' requires a password but none was provided");
+                        return error!("LDAP's 'simple_bind' requires a password but none was provided");
                     }
                 ))
             },
@@ -118,6 +116,17 @@ impl SupportedAuths {
         }
     }
 
+    pub fn to_hashmap(&self) -> HashMap<String, String> {
+        let mut retn = HashMap::new();
+        retn.insert("type".to_string(), self.to_str().to_string());
+        match self {
+            Self::SimpleBind(username, password) => {
+                retn.insert("username".to_string(), username.to_string());
+                retn.insert("password".to_string(), password.to_string());
+            }
+        }
+        retn
+    }
 
     pub fn bind(&self, ldap: &mut LdapConn) -> Result<()> {
         match self {
@@ -137,7 +146,8 @@ pub struct LDAP {
     server: String,
     base: String,
     ldap: LdapConn,
-    auth: SupportedAuths
+    auth: SupportedAuths,
+    bound: bool
 }
 
 impl LDAP {
@@ -147,8 +157,49 @@ impl LDAP {
             server: server.to_string(),
             base: base.to_string(),
             ldap: LdapConn::new(server)?,
-            auth: auth
+            auth: auth,
+            bound: false,
         })
+    }
+
+    pub fn from_config(name: &str) -> Result<Self> {
+        if let Some(config) = crate::ORIGEN_CONFIG.ldaps.get(name) {
+            Self::new(
+                name,
+                if let Some(c) = config.get("server") {
+                    c
+                } else {
+                    return error!("LDAP config {} must have a 'server' field", name);
+                },
+                if let Some(b) = config.get("base") {
+                    b
+                } else {
+                    return error!("LDAP config {} must have a 'base' field", name);
+                },
+                {
+                    let (username, password);
+                    if let Some(u) = config.get("service_user") {
+                        let su = crate::ORIGEN_CONFIG.get_service_user(u)?;
+                        if let Some(_su) = su {
+                            username = _su.get("username");
+                            password = _su.get("password");
+                        } else {
+                            return error!("Could not find service user {}", u);
+                        }
+                    } else {
+                        username = config.get("username");
+                        password = config.get("password");
+                    }
+                    SupportedAuths::from_str(
+                        config.get("auth").unwrap_or(&"simple_bind".to_string()),
+                        username,
+                        password
+                    )?
+                }
+            )
+        } else {
+            error!("No ldap {} found in the configuration", name)
+        }
     }
 
     pub fn name(&self) -> &str {
@@ -163,12 +214,42 @@ impl LDAP {
         &self.base
     }
 
+    pub fn auth(&self) -> &SupportedAuths {
+        &self.auth
+    }
+
+    pub fn bound(&self) -> bool {
+        self.bound
+    }
+
     pub fn bind(&mut self) -> Result<()> {
-        self.auth.bind(&mut self.ldap)
+        // Doesn't seem to be any harm in binding again. Probably remove this
+        // to speed up accesses later
+        self.auth.bind(&mut self.ldap)?;
+        self.bound = true;
+        Ok(())
+    }
+
+    pub fn bind_as(&mut self, username: &str, password: &str) -> Result<()> {
+        self.unbind()?;
+        self.auth = SupportedAuths::SimpleBind(username.to_string(), password.to_string());
+        self.auth.bind(&mut self.ldap)?;
+        self.bound = true;
+        Ok(())
+    }
+
+    pub fn bind_with(&mut self, auth: SupportedAuths) -> Result<()> {
+        self.unbind()?;
+        self.auth = auth;
+        self.auth.bind(&mut self.ldap)?;
+        self.bound = true;
+        Ok(())
     }
 
     pub fn unbind(&mut self) -> Result<()> {
         self.ldap.unbind()?;
+        self.bound = false;
+        self.ldap = LdapConn::new(&self.server)?;
         Ok(())
     }
 

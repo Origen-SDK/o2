@@ -14,7 +14,6 @@ pub mod session_store;
 
 use crate::{STATUS, Result};
 use std::path::{Path, PathBuf};
-use rand::Rng;
 
 use aes_gcm::Aes256Gcm;
 use aes_gcm::aead::{Aead, NewAead, generic_array::GenericArray, generic_array::typenum::{U32, U12}};
@@ -43,6 +42,14 @@ pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> Pa
     dir
 }
 
+pub fn str_to_bool(s: &str) -> Result<bool> {
+    match s {
+        "true" | "True" => Ok(true),
+        "false" | "False" => Ok(false),
+        _ => error!("Could not convert string {} to boolean value", s)
+    }
+}
+
 /// For convenience in converting to/from configs, allow bytes to be converted
 /// to a string representation of byte values (NOT characters themselves).
 /// This allows for invalid UTF-8 characters to still be encoded in a string.
@@ -63,13 +70,12 @@ pub fn str_from_byte_array(bytes: &[u8]) -> Result<String> {
     Ok(s)
 }
 
-pub fn keygen() -> GenericArray<u8, U32> { //  [u8; 32] {
+pub fn keygen() -> GenericArray<u8, U32> {
     let key: [u8; 32] = rand::random();
     *GenericArray::from_slice(&key)
 }
 
 pub fn noncegen() -> GenericArray<u8, U12> {
-    // let mut rng = rand::thread_rng();
     let nonce: [u8; 12] = rand::random();
     *GenericArray::from_slice(&nonce)
 }
@@ -82,7 +88,6 @@ pub fn encrypt(data: &str) -> Result<Vec<u8>> {
     )
 }
 
-// pub fn encrypt_with(data: &str, key: &[u8; 32], nonce: &[u8; 12]) -> Result<Vec<u8>> {
 pub fn encrypt_with(data: &str, key: GenericArray<u8, U32>, nonce: GenericArray<u8, U12>) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new(&key);
     Ok(cipher.encrypt(&nonce, data.as_bytes())?)
@@ -116,8 +121,6 @@ mod tests {
 
     #[test]
     fn test_str_byte_array_roundtrip() {
-        // let s1 = "<<<---Origen Encryption Key--->>>";
-        // let s2 = "ORIGEN NONCE";
         let s1 = "TEST";
         let s2 = "another test";
 
