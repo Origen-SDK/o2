@@ -38,7 +38,7 @@ For cases where Origen acts not just as a pattern or program generation tool but
 
 Consider an application which builds a workspace from two independent systems: an internal Bitbucket system, and the external Github system, with the intention of building a fully-functioning development workspace, requiring proper credentials for both systems simultaneously.
 
-For this, two sets of credentials are needed, as the BitBucket credentials need not match that same user's Github credentials. :class:`Datasets <_origen.users.Dataset>` allow for a single user to set and query fields independent of each other. For example:
+For this, two sets of credentials are needed, as the BitBucket credentials need not match that same user's Github credentials. :class:`Datasets <_origen.users.UserDataset>` allow for a single user to set and query fields independent of each other. For example:
 
 .. code:: python
 
@@ -57,7 +57,7 @@ Using the |origen_config|, we can indicate that additional datasets are needed:
     [user__datasets.git]
     [user__datasets.bitbucket]
 
-These are then available on the |dict-like| container :meth:`datasets <_origen.users.Datasets` and our example application can interact with these two systems as the same user with two different sets of credentials.
+These are then available on the |dict-like| container :meth:`datasets <_origen.users.datasets>` and our example application can interact with these two systems as the same user with two different sets of credentials.
 
 .. code:: python
 
@@ -276,7 +276,7 @@ LDAP instances are added via |origen_config|. A single LDAP only has a few param
 
 Note: the above is a configuration for a :link-to:`free LDAP server <ldap:test_server>` and should work for testing or debug. See the |ldap:tests| for example interactions with this system.
 
-Added LDAPs are available as :class:`origen.ldaps <_origen.utilities.ldap.LDAPs>`, a |dict-like| container:
+Added LDAPs are available as :class:`origen.ldaps <_origen.utility.ldap.LDAPs>`, a |dict-like| container:
 
 .. code:: python
 
@@ -295,9 +295,9 @@ Common Methods
 
 The LDAP wrapper has two main purposes: general searches and validating user's credentials.
 
-Searching can be done using the :meth:`search <_origen.utilities.ldap.Ldap.search>` method. This takes a |ldap:filter| and an attribute list and spits out the resulting query. For simpler searches, where the |ldap:filter| is expected to return exactly one or zero entries, you can use :meth:`search_single_filter <_origen.utilities.ldap.Ldap.search_single_filter>` to get a friendlier return value. If more than one entry is returned then an error is raised.
+Searching can be done using the :meth:`search <_origen.utility.ldap.LDAP.search>` method. This takes a |ldap:filter| and an attribute list and spits out the resulting query. For simpler searches, where the |ldap:filter| is expected to return exactly one or zero entries, you can use :meth:`search_single_filter <_origen.utility.ldap.LDAP.search_single_filter>` to get a friendlier return value. If more than one entry is returned then an error is raised.
 
-The :meth:`validate_credentials <_origen.utilities.ldap.Ldap.validate_credentials>` method will check that the given username and password validates against the LDAP. The state of the LDAP itself is unchanged.
+The :meth:`validate_credentials <_origen.utility.ldap.LDAP.validate_credentials>` method will check that the given username and password validates against the LDAP. The state of the LDAP itself is unchanged.
 
 Implementation note: this method looks strictly for ``error code 49``, |ldap:invalid_credentials|. An exception will be raised for other error codes.
 
@@ -313,8 +313,8 @@ LDAP Resources
 
 For more information on Origen's LDAP, see the resources below:
 
-* :class:`origen.ldaps <_origen.utilities.ldap.LDAPs>`
-* :class:`ldap API <_origen.utilities.ldap.Ldap>`
+* :class:`origen.ldaps <_origen.utility.ldap.LDAPs>`
+* :class:`ldap API <_origen.utility.ldap.LDAP>`
 * |ldap:filters|
 * |ldap:wiki|
 * |ldap:tests|
@@ -330,9 +330,9 @@ A simple command-line interface is also available:
 Session Storage
 ---------------
 
-Some features or :link-to:`plugins <origen_plugins>` cache simple data pieces regarding the current user, workspace configuration, environment, or other aspects - |origen_utilities:password_caching| being one - where the data should persists across invocations. Origen's :class:`session store <_origen.utility.session_store.Session>` provides an interface for such a task.
+Some features or :link-to:`plugins <origen_plugins>` cache simple data pieces regarding the current user, workspace configuration, environment, or other aspects - |origen_utilities:password_caching| being one - where the data should persists across invocations. Origen's :class:`session store <_origen.utility.session_store.SessionStore>` provides an interface for such a task.
 
-The current session is accessed through ``origen.app.session`` and has two key functions: :meth:`store <_origen.utility.session_store.Session.store>` and :meth:`get <_origen.utility.session_store.Session.get>`. As their names suggest, ``store`` will put data into the session, storing it for future retrievals while ``get`` will retrieve previously stored data.
+The current session is accessed through ``origen.app.session`` and has two key functions: :meth:`store <_origen.utility.session_store.SessionStore.store>` and :meth:`get <_origen.utility.session_store.SessionStore.get>`. As their names suggest, ``store`` will put data into the session, storing it for future retrievals while ``get`` will retrieve previously stored data.
 
 .. code:: python
 
@@ -345,7 +345,7 @@ The current session is accessed through ``origen.app.session`` and has two key f
     origen.app.session.get("val 2")
         #=> 2
 
-:meth:`delete <<_origen.utility.session_store.Session.delete>` will remove an item from the session entirely, returning the deleted value. However, this can also be achieved by storing a ``None`` value, but without getting the value back:
+:meth:`delete <_origen.utility.session_store.SessionStore.delete>` will remove an item from the session entirely, returning the deleted value. However, this can also be achieved by storing a ``None`` value, but without getting the value back:
 
 .. code:: python
 
@@ -372,7 +372,7 @@ application's workspace will not carry any of the previous application's session
 
 For session data that should exists for a given user across all of their applications, or even outside of an application, the ``user session`` can be used. :link-to:`Password caching <origen_utilities:password_caching>` is one such item stored in the user's session, as opposed to the application's. Other than scope, this session store behaves identically to the application session.
 
-This session is accessed as :meth:`origen.session_store.user_session() <_origen.utilities.session_store.Sessions.user_session>`.
+This session is accessed as :meth:`origen.session_store.user_session() <_origen.utility.session_store.user_session>`.
 
 Session Namespaces
 ^^^^^^^^^^^^^^^^^^
@@ -425,7 +425,7 @@ Almost any Python object can be stored in the session. Standard objects which co
 used by the Rust backend, such as strings, numbers, booleans, or lists of those types, are
 stored directly. Any other objects, such as custom classes, are serialized using |pickle|.
 
-You can opt to store and get data through your own serialization mechanism. The method :meth:`store_serialized <_origen.utility.session_store.Session.store_serialized>` will bypass any serialization or data type inference occurring in the backend and simply store the given |bytes| directly. When it is retrieved, via the standard :meth:`get <_origen.utility.session_store.Session.get>` method, the |bytes| are retrieved. See the |session_store:tests| for an example
+You can opt to store and get data through your own serialization mechanism. The method :meth:`store_serialized <_origen.utility.session_store.SessionStore.store_serialized>` will bypass any serialization or data type inference occurring in the backend and simply store the given |bytes| directly. When it is retrieved, via the standard :meth:`get <_origen.utility.session_store.SessionStore.get>` method, the |bytes| are retrieved. See the |session_store:tests| for an example
 of storing via |marshal|.
 
 .. Session File Data

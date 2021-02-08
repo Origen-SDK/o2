@@ -14,6 +14,8 @@ fn users(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("users", wrap_pyfunction!(users_cls)(py))?;
     m.add_class::<Users>()?;
     m.add_class::<User>()?;
+    m.add_class::<UserDataset>()?;
+    m.add_class::<DataStore>()?;
     Ok(())
 }
 

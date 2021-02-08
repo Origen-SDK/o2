@@ -113,10 +113,10 @@ pub fn set_app_root(root: &PyAny) -> PyResult<()> {
     let path;
     if let Ok(p) = root.extract::<String>() {
         path = p;
-    } else if root.get_type().name().to_string() == "Path" || root.get_type().name().to_string() == "WindowsPath" {
+    } else if root.get_type().name().to_string() == "Path" || root.get_type().name().to_string() == "WindowsPath" || root.get_type().name().to_string() == "PosixPath" {
         path = root.call_method0("__str__")?.extract::<String>()?;
     } else {
-        return crate::type_error!("Cannot extract input as either a str or pathlib.Path object");
+        return crate::type_error!(&format!("Cannot extract input as either a str or pathlib.Path object. Received {}", root.get_type().name().to_string()));
     }
     let mut s = origen::sessions();
     s.app_session_root = Some(PathBuf::from(path));
