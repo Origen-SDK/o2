@@ -289,7 +289,7 @@ impl FilePermissions {
                 let f = File::open(path)?;
                 let m = f.metadata()?;
                 let mut permissions = m.permissions();
-                permissions.set_mode(self.to_i());
+                permissions.set_mode(self.to_i().into());
                 Ok(())
             } else {
                 let message = format!(
