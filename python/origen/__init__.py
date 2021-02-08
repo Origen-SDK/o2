@@ -186,7 +186,6 @@ See also:
     * :link-to:`LDAPs in the guides <origen_utilities:ldap>`
 '''
 
-
 __instantiate_dut_called = False
 
 if status["is_app_present"]:
@@ -274,12 +273,14 @@ def plugin(name):
             f"The current Python environment does not contain a plugin named '{name}'"
         )
 
+
 def current_user():
     return _origen.users.current_user()
+
 
 __all__ = [
     *internal_members(sys.modules[__name__]), 'config', 'status', 'root',
     'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
-    'frontend_root', 'app', 'dut', 'tester', 'producer', 'has_plugin', 'plugin',
-    'current_user', 'users', 'mailer', 'ldaps'
+    'frontend_root', 'app', 'dut', 'tester', 'producer', 'has_plugin',
+    'plugin', 'current_user', 'users', 'mailer', 'ldaps'
 ]

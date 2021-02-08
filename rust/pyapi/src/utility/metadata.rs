@@ -1,5 +1,5 @@
-use pyo3::prelude::*;
 use origen::Metadata;
+use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
 pub fn metadata_to_pyobj(data: Option<Metadata>, key: Option<&str>) -> PyResult<Option<PyObject>> {
@@ -7,76 +7,62 @@ pub fn metadata_to_pyobj(data: Option<Metadata>, key: Option<&str>) -> PyResult<
         let gil = Python::acquire_gil();
         let py = gil.python();
         match d {
-            Metadata::String(s) => {
-                Ok(Some(s.to_object(py)))
-            },
-            Metadata::BigInt(big) => {
-                Ok(Some(big.to_object(py)))
-            },
-            Metadata::BigUint(big) => {
-                Ok(Some(big.to_object(py)))
-            },
-            Metadata::Bool(b) => {
-                Ok(Some(b.to_object(py)))
-            },
-            Metadata::Float(f) => {
-                Ok(Some(f.to_object(py)))
-            },
+            Metadata::String(s) => Ok(Some(s.to_object(py))),
+            Metadata::BigInt(big) => Ok(Some(big.to_object(py))),
+            Metadata::BigUint(big) => Ok(Some(big.to_object(py))),
+            Metadata::Bool(b) => Ok(Some(b.to_object(py))),
+            Metadata::Float(f) => Ok(Some(f.to_object(py))),
             Metadata::Serialized(bytes, serializer, _class) => {
                 if let Some(s) = serializer {
                     if s == "Python-Pickle" {
                         let gil = Python::acquire_gil();
                         let py = gil.python();
-                
+
                         let any = crate::depickle(py, &bytes)?;
                         Ok(Some(any.into()))
                     } else if s == "Python-Frontend" {
                         let bytes = PyBytes::new(py, &bytes);
                         Ok(Some(bytes.into()))
                     } else {
-                        crate::runtime_error!(
-                            if let Some(k) = key {
-                                format!(
-                                    "Unknown serializer {} for {}. \
-                                    If this was manually serialized, use method 'get_serialized' \
-                                    to get a byte-array and manually deserialize.",
-                                    k,
-                                    s
-                                )
-                            } else {
-                                format!(
-                                    "Unknown serializer {}. \
-                                    If this was manually serialized, use method 'get_serialized' \
-                                    to get a byte-array and manually deserialize.",
-                                    s
-                                )
-                            }
-                        )
-                    }
-                } else {
-                    crate::runtime_error!(
-                        if let Some(k) = key {
+                        crate::runtime_error!(if let Some(k) = key {
                             format!(
-                                "No serializer provided for {}. \
-                                If this was manually serialized, use method 'get_serialized' \
-                                to get a byte-array and manually deserialize.",
-                                k
+                                "Unknown serializer {} for {}. \
+                                    If this was manually serialized, use method 'get_serialized' \
+                                    to get a byte-array and manually deserialize.",
+                                k, s
                             )
                         } else {
-                            "No serializer provided. \
+                            format!(
+                                "Unknown serializer {}. \
+                                    If this was manually serialized, use method 'get_serialized' \
+                                    to get a byte-array and manually deserialize.",
+                                s
+                            )
+                        })
+                    }
+                } else {
+                    crate::runtime_error!(if let Some(k) = key {
+                        format!(
+                            "No serializer provided for {}. \
+                                If this was manually serialized, use method 'get_serialized' \
+                                to get a byte-array and manually deserialize.",
+                            k
+                        )
+                    } else {
+                        "No serializer provided. \
                             If this was manually serialized, use method 'get_serialized' \
-                            to get a byte-array and manually deserialize.".to_string()
-                        }
-                    )
+                            to get a byte-array and manually deserialize."
+                            .to_string()
+                    })
                 }
-            },
+            }
             Metadata::Vec(list) => {
                 let mut pylist: Vec<PyObject> = vec![];
                 for l in list {
                     pylist.push(metadata_to_pyobj(Some(l), None)?.unwrap());
                 }
                 Ok(Some(pylist.to_object(py)))
-            },
+            }
             _ => {
                 if let Some(k) = key {
                     crate::runtime_error!(format!("Cannot decode stored value at {} ({:?})", k, d))
@@ -116,9 +102,8 @@ pub fn extract_as_metadata(value: &PyAny) -> PyResult<Metadata> {
         data = Metadata::Serialized(
             crate::pickle(py, value)?,
             Some("Python-Pickle".to_string()),
-            Some(value.get_type().name().to_string())
+            Some(value.get_type().name().to_string()),
         );
     }
     Ok(data)
-
 }

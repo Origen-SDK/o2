@@ -1,8 +1,9 @@
 import origen, _origen, pytest, os, getpass
 from tests.shared.python_like_apis import Fixture_DictLikeAPI
 
-data_fields = ["email", "first_name", "last_name"] # name?
+data_fields = ["email", "first_name", "last_name"]  # name?
 data_fields_exceptions = ["display_name", "username"]
+
 
 class TestUsers:
     @property
@@ -28,7 +29,7 @@ class TestUsers:
         user = origen.current_user()
         assert isinstance(user, _origen.users.User)
         assert user.id == self.current
-    
+
     def test_adding_users(self):
         # Current user is always added
         assert len(origen.users) == 1
@@ -97,19 +98,19 @@ class TestUsers:
         assert u.last_name is None
         assert d.__display_name__ is None
         assert d.username is None
-        
+
         # If nothing is set, ID is used
         assert u.display_name == "test2"
         assert d.display_name == "test2"
         assert d.__display_name__ is None
-        assert d2.display_name== "test2"
+        assert d2.display_name == "test2"
 
         # If no first name & last name, or no display name, but a username, username is used
         u.username = "display_username"
         assert u.display_name == "display_username"
         assert d.display_name == "display_username"
         assert d.__display_name__ is None
-        assert d2.display_name== "test2"
+        assert d2.display_name == "test2"
 
         # If a first name but no last name is given, the username is still used
         u.first_name = "User"
@@ -124,7 +125,7 @@ class TestUsers:
         assert u.display_name == "display_username"
         assert d.display_name == "display_username"
         assert d.__display_name__ is None
-        assert d2.display_name== "test2"
+        assert d2.display_name == "test2"
 
         # But, if both first and last names are available, that is used.
         u.first_name = "User"
@@ -200,7 +201,9 @@ class TestUsers:
         d2.password = "!PASSWORD!"
 
         assert u.password_for("just because") == "!PASSWORD!"
-        with pytest.raises(OSError, match=f"No password available for reason: 'Nothing!'"):
+        with pytest.raises(
+                OSError,
+                match=f"No password available for reason: 'Nothing!'"):
             u.password_for("Nothing!")
         assert u.dataset_for("just because") == "test2"
         assert u.dataset_for("nothing") == None
@@ -226,6 +229,7 @@ class TestUsers:
         assert d.email == "?"
         assert d.last_name == "?"
 
+
 class TestUsersDictLike(Fixture_DictLikeAPI):
     def parameterize(self):
         return {
@@ -236,6 +240,7 @@ class TestUsersDictLike(Fixture_DictLikeAPI):
 
     def boot_dict_under_test(self):
         return origen.users
+
 
 #     def test_home_dir():
 #         ...

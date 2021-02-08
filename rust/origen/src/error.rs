@@ -151,6 +151,9 @@ impl std::convert::From<std::string::FromUtf8Error> for Error {
 // https://doc.rust-lang.org/std/ffi/struct.OsString.html#method.into_string
 impl std::convert::From<std::ffi::OsString> for Error {
     fn from(os_string: std::ffi::OsString) -> Self {
-        Error::new(&format!("Unable to convert OsString {:?} to String", os_string))
+        Error::new(&format!(
+            "Unable to convert OsString {:?} to String",
+            os_string
+        ))
     }
 }

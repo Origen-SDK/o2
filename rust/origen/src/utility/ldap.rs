@@ -1,9 +1,9 @@
-use ldap3::{LdapConn, Scope, SearchEntry};
 use crate::Result;
+use ldap3::{LdapConn, Scope, SearchEntry};
 use std::collections::HashMap;
 
 pub struct LDAPs {
-    ldaps: HashMap<String, LDAP>
+    ldaps: HashMap<String, LDAP>,
 }
 
 impl LDAPs {
@@ -19,10 +19,7 @@ impl LDAPs {
         if let Some(l) = self.ldaps.get(ldap) {
             Ok(l)
         } else {
-            error!(
-                "No LDAP named '{}' available",
-                ldap
-            )
+            error!("No LDAP named '{}' available", ldap)
         }
     }
 
@@ -34,10 +31,7 @@ impl LDAPs {
         if let Some(l) = self.ldaps.get_mut(ldap) {
             Ok(l)
         } else {
-            error!(
-                "No LDAP named {} available",
-                ldap
-            )
+            error!("No LDAP named {} available", ldap)
         }
     }
 
@@ -51,15 +45,13 @@ impl LDAPs {
             match LDAP::from_config(name) {
                 Ok(l) => {
                     ldaps.insert(name.to_string(), l);
-                },
+                }
                 Err(e) => {
                     display_redln!("Unable to add LDAP {}. Reason: {}", name, e.msg);
                 }
             }
         }
-        Self {
-            ldaps: ldaps
-        }
+        Self { ldaps: ldaps }
     }
 
     pub fn try_password(ldap_name: &str, username: &str, password: &str) -> Result<bool> {
@@ -77,7 +69,9 @@ impl LDAPs {
     }
 
     pub fn with_standalone<T, F>(name: &str, mut func: F) -> Result<T>
-    where F: FnMut(LDAP) -> Result<T> {
+    where
+        F: FnMut(LDAP) -> Result<T>,
+    {
         let ldap = Self::get_standalone(&name)?;
         func(ldap)
     }
@@ -86,33 +80,39 @@ impl LDAPs {
 // Can be extended as other LDAP auth support is needed
 #[derive(Debug, Clone)]
 pub enum SupportedAuths {
-    SimpleBind(String, String) // Username/Password
+    SimpleBind(String, String), // Username/Password
 }
 
 impl SupportedAuths {
     pub fn to_str(&self) -> &str {
         match self {
-            Self::SimpleBind(_, _) => "simple_bind"
+            Self::SimpleBind(_, _) => "simple_bind",
         }
     }
 
-    pub fn from_str(auth: &str, username: Option<&String>, password: Option<&String>) -> Result<Self> {
+    pub fn from_str(
+        auth: &str,
+        username: Option<&String>,
+        password: Option<&String>,
+    ) -> Result<Self> {
         match auth {
-            "simple" | "Simple" | "simple_bind" | "SimpleBind" => {
-                Ok(Self::SimpleBind(
-                    if let Some(u) = username {
-                        u.to_string()
-                    } else {
-                        return error!("LDAP's 'simple bind' requires a username but none was provided");
-                    },
-                    if let Some(p) = password {
-                        p.to_string()
-                    } else {
-                        return error!("LDAP's 'simple_bind' requires a password but none was provided");
-                    }
-                ))
-            },
-            _ => error!("Unrecognized LDAP authentication {}", auth)
+            "simple" | "Simple" | "simple_bind" | "SimpleBind" => Ok(Self::SimpleBind(
+                if let Some(u) = username {
+                    u.to_string()
+                } else {
+                    return error!(
+                        "LDAP's 'simple bind' requires a username but none was provided"
+                    );
+                },
+                if let Some(p) = password {
+                    p.to_string()
+                } else {
+                    return error!(
+                        "LDAP's 'simple_bind' requires a password but none was provided"
+                    );
+                },
+            )),
+            _ => error!("Unrecognized LDAP authentication {}", auth),
         }
     }
 
@@ -131,10 +131,7 @@ impl SupportedAuths {
     pub fn bind(&self, ldap: &mut LdapConn) -> Result<()> {
         match self {
             Self::SimpleBind(username, password) => {
-                ldap.simple_bind(
-                    username,
-                    password
-                )?.success()?;
+                ldap.simple_bind(username, password)?.success()?;
                 Ok(())
             }
         }
@@ -147,7 +144,7 @@ pub struct LDAP {
     base: String,
     ldap: LdapConn,
     auth: SupportedAuths,
-    bound: bool
+    bound: bool,
 }
 
 impl LDAP {
@@ -193,9 +190,9 @@ impl LDAP {
                     SupportedAuths::from_str(
                         config.get("auth").unwrap_or(&"simple_bind".to_string()),
                         username,
-                        password
+                        password,
                     )?
-                }
+                },
             )
         } else {
             error!("No ldap {} found in the configuration", name)
@@ -256,25 +253,18 @@ impl LDAP {
     pub fn search(
         &mut self,
         filter: &str,
-        attrs: Vec<&str>
-    ) -> Result<HashMap<String, (
-        HashMap<String, Vec<String>>,
-        HashMap<String, Vec<Vec<u8>>>
-    )>> {
+        attrs: Vec<&str>,
+    ) -> Result<HashMap<String, (HashMap<String, Vec<String>>, HashMap<String, Vec<Vec<u8>>>)>>
+    {
         self.bind()?;
-        let (rs, _result) = self.ldap.search(
-            &self.base,
-            Scope::Subtree,
-            filter,
-            attrs
-        )?.success()?;
+        let (rs, _result) = self
+            .ldap
+            .search(&self.base, Scope::Subtree, filter, attrs)?
+            .success()?;
         let mut retn = HashMap::new();
         for entry in rs {
             let construct = SearchEntry::construct(entry);
-            retn.insert(
-                construct.dn,
-                (construct.attrs, construct.bin_attrs)
-            );
+            retn.insert(construct.dn, (construct.attrs, construct.bin_attrs));
         }
         Ok(retn)
     }
@@ -282,18 +272,13 @@ impl LDAP {
     pub fn single_filter_search(
         &mut self,
         filter: &str,
-        attrs: Vec<&str>
-    ) -> Result<(
-        HashMap<String, Vec<String>>,
-        HashMap<String, Vec<Vec<u8>>>
-    )> {
+        attrs: Vec<&str>,
+    ) -> Result<(HashMap<String, Vec<String>>, HashMap<String, Vec<Vec<u8>>>)> {
         self.bind()?;
-        let (mut rs, _result) = self.ldap.search(
-            &self.base,
-            Scope::Subtree,
-            filter,
-            attrs
-        )?.success()?;
+        let (mut rs, _result) = self
+            .ldap
+            .search(&self.base, Scope::Subtree, filter, attrs)?
+            .success()?;
         if rs.len() > 1 {
             return error!(
                 "LDAP: expected a single DN result from filter {} for 'single_filter_search'. \

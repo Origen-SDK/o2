@@ -42,7 +42,11 @@ pub fn is_base_app(query: &PyAny) -> PyResult<bool> {
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
     locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
     locals.set_item("query", query.to_object(py))?;
-    let result = py.eval("builtins.isinstance(query, origen.application.Base)", Some(locals), None)?;
+    let result = py.eval(
+        "builtins.isinstance(query, origen.application.Base)",
+        Some(locals),
+        None,
+    )?;
     Ok(result.extract::<bool>()?)
 }
 

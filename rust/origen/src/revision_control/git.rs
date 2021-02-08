@@ -459,9 +459,10 @@ impl Git {
                             u.password(
                                 Some(&format!("to access repository '{}'", url)),
                                 true,
-                                Some(None)
+                                Some(None),
                             )
-                        }).expect("Couldn't prompt for password")
+                        })
+                        .expect("Couldn't prompt for password")
                     }
                 };
                 username = {

@@ -28,8 +28,8 @@ pub mod utility;
 
 pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
-pub use self::core::user::User;
 pub use self::core::user;
+pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
 pub use error::Error;
@@ -41,17 +41,17 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::Tester;
+use self::core::user::Users;
 use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
-use utility::session_store::{Sessions, SessionStore};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::ldap::LDAPs;
 use utility::mailer::Mailer;
-use std::sync::{RwLock, RwLockWriteGuard, RwLockReadGuard};
-use self::core::user::Users;
+use utility::session_store::{SessionStore, Sessions};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -168,7 +168,9 @@ pub fn sessions() -> MutexGuard<'static, Sessions> {
 }
 
 pub fn with_user_session<T, F>(session: Option<String>, mut func: F) -> Result<T>
-where F: FnMut(&mut SessionStore) -> Result<T> {
+where
+    F: FnMut(&mut SessionStore) -> Result<T>,
+{
     let mut sessions = crate::sessions();
     let s = sessions.user_session(session)?;
     func(s)
@@ -187,14 +189,18 @@ pub fn users_mut<'a>() -> RwLockWriteGuard<'a, Users> {
 }
 
 pub fn with_current_user<T, F>(mut func: F) -> Result<T>
-where F: FnMut(&User) -> Result<T> {
+where
+    F: FnMut(&User) -> Result<T>,
+{
     let _users = users();
     let u = _users.current_user()?;
     func(u)
 }
 
 pub fn with_user<T, F>(user: &str, mut func: F) -> Result<T>
-where F: FnMut(&User) -> Result<T> {
+where
+    F: FnMut(&User) -> Result<T>,
+{
     let _users = users();
     let u = _users.user(user).unwrap();
     func(u)

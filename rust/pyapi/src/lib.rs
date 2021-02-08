@@ -19,20 +19,20 @@ mod prog_gen;
 mod standard_sub_blocks;
 mod tester;
 mod tester_apis;
-mod utility;
 mod user;
+mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
-use pyo3::types::{PyAny, PyDict, PyBytes};
+use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::MutexGuard;
-use pyo3::conversion::AsPyPointer;
 
 // Imported pyapi modules
 use application::PyInit_application;
@@ -45,9 +45,9 @@ use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
 use tester_apis::PyInit_tester_apis;
+use user::PyInit_users;
 use utility::location::Location;
 use utility::PyInit_utility;
-use user::PyInit_users;
 
 #[macro_export]
 macro_rules! pypath {
@@ -462,9 +462,7 @@ fn start_new_test(name: Option<String>) -> PyResult<()> {
 #[macro_export]
 macro_rules! runtime_error {
     ($message:expr) => {{
-        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(
-            $message,
-        ))
+        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>($message))
     }};
 }
 

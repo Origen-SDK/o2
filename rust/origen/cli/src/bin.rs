@@ -797,7 +797,8 @@ Examples:
         );
 
         /************************************************************************************/
-        let mailer_help = "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
+        let mailer_help =
+            "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
         origen_commands.push(CommandHelp {
             name: "mailer".to_string(),
             help: mailer_help.to_string(),
@@ -817,7 +818,7 @@ Examples:
                                 .takes_value(true)
                                 .required(true)
                                 .value_name("BODY")
-                                .index(1)
+                                .index(1),
                         )
                         .arg(
                             Arg::with_name("subject")
@@ -825,7 +826,7 @@ Examples:
                                 .long("subject")
                                 .short("s")
                                 .takes_value(true)
-                                .value_name("SUBJECT")
+                                .value_name("SUBJECT"),
                         )
                         .arg(
                             Arg::with_name("to")
@@ -835,23 +836,25 @@ Examples:
                                 .takes_value(true)
                                 .required(true)
                                 .multiple(true)
-                                .value_name("TO")
-                        )
+                                .value_name("TO"),
+                        ),
                 )
                 .subcommand(
                     SubCommand::with_name("test")
                         .about("Send a test email")
                         .arg(
                             Arg::with_name("to")
-                                .help("Recipient list. If omitted, will be sent to the current user")
+                                .help(
+                                    "Recipient list. If omitted, will be sent to the current user",
+                                )
                                 .long("to")
                                 .short("t")
                                 .takes_value(true)
                                 .required(false)
                                 .multiple(true)
-                                .value_name("TO")
-                        )
-                )
+                                .value_name("TO"),
+                        ),
+                ),
         );
 
         /************************************************************************************/
@@ -874,7 +877,7 @@ Examples:
                                 .takes_value(false)
                                 .required(false)
                                 .long("all")
-                                .short("a")
+                                .short("a"),
                         )
                         .arg(
                             Arg::with_name("dataset")
@@ -885,8 +888,8 @@ Examples:
                                 .multiple(true)
                                 .conflicts_with("all")
                                 .long("dataset")
-                                .short("d")
-                        )
+                                .short("d"),
+                        ),
                 )
                 .subcommand(
                     SubCommand::with_name("clear")
@@ -898,7 +901,7 @@ Examples:
                                 .required(false)
                                 .conflicts_with("dataset")
                                 .long("all")
-                                .short("a")
+                                .short("a"),
                         )
                         .arg(
                             Arg::with_name("dataset")
@@ -908,9 +911,9 @@ Examples:
                                 .value_name("DATASET")
                                 .multiple(true)
                                 .long("dataset")
-                                .short("d")
-                        )
-                )
+                                .short("d"),
+                        ),
+                ),
         );
 
         /************************************************************************************/
@@ -1245,48 +1248,51 @@ CORE COMMANDS:
             match subcmd.0 {
                 "send" => {
                     let m = origen::mailer();
-                    let e = origen::core::user::get_current_email().expect(
-                        "Could not resolve current user's email"
-                    );
+                    let e = origen::core::user::get_current_email()
+                        .expect("Could not resolve current user's email");
                     let email = m.compose(
                         &e,
                         if let Some(recipients) = sub.values_of("to") {
                             recipients.collect()
                         } else {
-                            vec!(&e)
+                            vec![&e]
                         },
                         sub.value_of("subject"),
                         sub.value_of("body"),
-                        true
+                        true,
                     );
                     match email {
-                        Ok(e) => {
-                            match m.send(e) {
-                                Ok(_) => {},
-                                Err(e) => {
-                                    origen::display_redln!("Errors occurred sending email:\n{}", e.msg);
-                                }
+                        Ok(e) => match m.send(e) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!("Errors occurred sending email:\n{}", e.msg);
                             }
-                        }
+                        },
                         Err(e) => {
                             origen::display_redln!("Errors occurred composing email:\n{}", e.msg);
                         }
                     }
-                },
+                }
                 "test" => {
                     let m = origen::mailer();
                     if let Some(t) = sub.values_of("to") {
                         match m.test(Some(t.collect())) {
-                            Ok(_) => {},
+                            Ok(_) => {}
                             Err(e) => {
-                                origen::display_redln!("Error occurred sending test email:\n{}", e.msg);
+                                origen::display_redln!(
+                                    "Error occurred sending test email:\n{}",
+                                    e.msg
+                                );
                             }
                         }
                     } else {
                         match m.test(None) {
-                            Ok(_) => {},
+                            Ok(_) => {}
                             Err(e) => {
-                                origen::display_redln!("Errors occurred sending test email:\n{}", e.msg);
+                                origen::display_redln!(
+                                    "Errors occurred sending test email:\n{}",
+                                    e.msg
+                                );
                             }
                         }
                     }
@@ -1304,7 +1310,10 @@ CORE COMMANDS:
                         match origen::core::user::set_all_passwords() {
                             Ok(_) => {}
                             Err(e) => {
-                                origen::display_redln!("Could not set all passwords. Errors were encountered:\n{}", e.msg);
+                                origen::display_redln!(
+                                    "Could not set all passwords. Errors were encountered:\n{}",
+                                    e.msg
+                                );
                             }
                         }
                     } else {
@@ -1330,7 +1339,10 @@ CORE COMMANDS:
                         match origen::core::user::clear_all_passwords() {
                             Ok(_) => {}
                             Err(e) => {
-                                origen::display_redln!("Could not clear all passwords. Errors were encountered:\n{}", e.msg);
+                                origen::display_redln!(
+                                    "Could not clear all passwords. Errors were encountered:\n{}",
+                                    e.msg
+                                );
                             }
                         }
                     } else {
@@ -1345,7 +1357,10 @@ CORE COMMANDS:
                             match origen::core::user::clear_passwords(None) {
                                 Ok(_) => {}
                                 Err(e) => {
-                                    origen::display_redln!("Could not clear password. Errors were encountered:\n{}", e.msg);
+                                    origen::display_redln!(
+                                        "Could not clear password. Errors were encountered:\n{}",
+                                        e.msg
+                                    );
                                 }
                             }
                         }

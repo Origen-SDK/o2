@@ -19,7 +19,6 @@ pub struct Mailer {}
 
 #[pymethods]
 impl Mailer {
-
     #[getter]
     fn get_server(&self) -> PyResult<Option<String>> {
         let m = origen::mailer();
@@ -45,7 +44,7 @@ impl Mailer {
 
     // fn test(&self, to: Option<Vec<&PyAny>>) -> PyResult<()> {
     fn test(&self) -> PyResult<()> {
-            let m = origen::mailer();
+        let m = origen::mailer();
         Ok(m.test(None)?)
     }
 
@@ -67,5 +66,4 @@ impl Mailer {
     // fn port(&self) -> PyResult<String> {
     //     Ok(mailer.port.unwrap())
     // }
-
 }

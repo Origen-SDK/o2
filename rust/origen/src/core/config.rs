@@ -12,8 +12,8 @@
 use super::term;
 use crate::STATUS;
 use config::{Environment, File};
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 lazy_static! {
     pub static ref CONFIG: Config = Config::default();
@@ -21,7 +21,8 @@ lazy_static! {
 
 /// Default keys generated from crate::utility::mod::tests::check_default_key_values
 /// default_encryption_key: !<<<---Origen StandardKey--->>>!
-pub static DEFAULT_ENCRYPTION_KEY: &str = "213c3c3c2d2d2d4f726967656e205374616e646172644b65792d2d2d3e3e3e21";
+pub static DEFAULT_ENCRYPTION_KEY: &str =
+    "213c3c3c2d2d2d4f726967656e205374616e646172644b65792d2d2d3e3e3e21";
 /// default_encryption_nonce: ORIGEN NONCE
 pub static DEFAULT_ENCRYPTION_NONCE: &str = "4f524947454e204e4f4e4345";
 
@@ -175,7 +176,10 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn get_service_user(&self, username: &str) -> crate::Result<Option<&HashMap<String, String>>> {
+    pub fn get_service_user(
+        &self,
+        username: &str,
+    ) -> crate::Result<Option<&HashMap<String, String>>> {
         if let Some(u) = self.service_users.get(username) {
             Ok(Some(u))
         } else {

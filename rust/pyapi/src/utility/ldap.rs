@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use std::collections::HashMap;
 use pyo3::class::mapping::PyMappingProtocol;
+use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
+use std::collections::HashMap;
 
 #[pymodule]
 fn ldap(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -31,7 +31,9 @@ impl LDAPs {
         let ldaps = origen::ldaps();
         let mut retn = vec![];
         for n in ldaps.ldaps().keys() {
-            retn.push(LDAP { name: n.to_string( )});
+            retn.push(LDAP {
+                name: n.to_string(),
+            });
         }
         Ok(retn)
     }
@@ -40,7 +42,12 @@ impl LDAPs {
         let ldaps = origen::ldaps();
         let mut retn = vec![];
         for n in ldaps.ldaps().keys() {
-            retn.push((n.to_string(), LDAP { name: n.to_string( )}));
+            retn.push((
+                n.to_string(),
+                LDAP {
+                    name: n.to_string(),
+                },
+            ));
         }
         Ok(retn)
     }
@@ -49,7 +56,7 @@ impl LDAPs {
         let ldaps = origen::ldaps();
         if ldaps.ldaps().contains_key(ldap) {
             Ok(Some(LDAP {
-                name: ldap.to_string()
+                name: ldap.to_string(),
             }))
         } else {
             Ok(None)
@@ -116,7 +123,6 @@ pub struct LDAP {
 
 #[pymethods]
 impl LDAP {
-
     /// Retrieves the server this LDAP was instantiated with
     #[getter]
     fn get_server(&self) -> PyResult<String> {
@@ -180,12 +186,12 @@ impl LDAP {
     /// --------
     /// * For examples, see the specs tests written against a free LDAP server
     /// * {{ link_to('origen_utilities:ldap', 'LDAP in the guides') }}
-    fn search(&self, filter: &str, attrs: Vec<&str>) -> PyResult<
-        HashMap<String, (
-            HashMap<String, Vec<String>>,
-            HashMap<String, Vec<Vec<u8>>>
-        )>
-    > {
+    fn search(
+        &self,
+        filter: &str,
+        attrs: Vec<&str>,
+    ) -> PyResult<HashMap<String, (HashMap<String, Vec<String>>, HashMap<String, Vec<Vec<u8>>>)>>
+    {
         let mut ldaps = origen::ldaps();
         let ldap = ldaps._get_mut(&self.name)?;
         Ok(ldap.search(filter, attrs)?)
@@ -203,10 +209,11 @@ impl LDAP {
     /// Returns:
     ///     tuple: Two-item tuple, each item being a dict corresponding to ``(returned data, binary returned data)``
     ///     respectively.
-    fn single_filter_search(&self, filter: &str, attrs: Vec<&str>) -> PyResult<(
-        HashMap<String, Vec<String>>,
-        HashMap<String, Vec<Vec<u8>>>
-    )> {
+    fn single_filter_search(
+        &self,
+        filter: &str,
+        attrs: Vec<&str>,
+    ) -> PyResult<(HashMap<String, Vec<String>>, HashMap<String, Vec<Vec<u8>>>)> {
         let mut ldaps = origen::ldaps();
         let ldap = ldaps._get_mut(&self.name)?;
         Ok(ldap.single_filter_search(filter, attrs)?)
@@ -241,6 +248,8 @@ impl LDAP {
     }
 
     fn validate_credentials(&self, username: &str, password: &str) -> PyResult<bool> {
-        Ok(origen::utility::ldap::LDAPs::try_password(&self.name, username, password)?)
+        Ok(origen::utility::ldap::LDAPs::try_password(
+            &self.name, username, password,
+        )?)
     }
 }

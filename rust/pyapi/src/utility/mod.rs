@@ -1,19 +1,19 @@
 pub mod caller;
+pub mod ldap;
 pub mod location;
-pub mod transaction;
 #[allow(non_snake_case)]
 pub mod mailer;
-pub mod session_store;
 pub mod metadata;
-pub mod ldap;
+pub mod session_store;
+pub mod transaction;
 
+use ldap::PyInit_ldap;
 use location::Location;
+use mailer::PyInit_mailer;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use transaction::Transaction;
 use session_store::PyInit_session_store;
-use ldap::PyInit_ldap;
-use mailer::PyInit_mailer;
+use transaction::Transaction;
 
 use num_bigint::BigUint;
 use origen::utility::big_uint_helpers::BigUintHelpers;

@@ -1,8 +1,8 @@
-use toml::Value;
-use num_bigint::{BigUint, BigInt};
 use crate::Result;
-use std::str::FromStr;
+use num_bigint::{BigInt, BigUint};
 use std::convert::TryFrom;
+use std::str::FromStr;
+use toml::Value;
 
 const DATA: &str = "data";
 const CLASS: &str = "__origen_encoded_class__";
@@ -17,7 +17,7 @@ pub enum Metadata {
     Float(f64),
     Vec(Vec<Self>),
     Serialized(Vec<u8>, Option<String>, Option<String>), // Data, Serializer, Optional Data Type/Class
-    // ... as needed
+                                                         // ... as needed
 }
 
 macro_rules! data {
@@ -51,23 +51,27 @@ impl Metadata {
         match self {
             Self::String(s) => {
                 toml_map.insert(data!(), Value::String(s.to_string()));
-            },
+            }
             Self::BigInt(b) => {
                 toml_map.insert(data!(), Value::String(b.to_str_radix(10)));
-            },
+            }
             Self::BigUint(b) => {
                 toml_map.insert(data!(), Value::String(b.to_str_radix(10)));
-            },
+            }
             Self::Bool(b) => {
                 toml_map.insert(data!(), Value::Boolean(*b));
-            },
+            }
             Self::Float(f) => {
                 toml_map.insert(data!(), Value::Float(*f));
-            },
+            }
             Self::Serialized(data, serializer, class) => {
                 toml_map.insert(
                     data!(),
-                    Value::Array(data.iter().map( |byte| Value::Integer(*byte as i64)).collect::<Vec<Value>>())
+                    Value::Array(
+                        data.iter()
+                            .map(|byte| Value::Integer(*byte as i64))
+                            .collect::<Vec<Value>>(),
+                    ),
                 );
                 if let Some(s) = serializer {
                     toml_map.insert("serializer".to_string(), Value::String(s.to_string()));
@@ -82,8 +86,8 @@ impl Metadata {
                     values_vec.push(d.to_toml_value()?);
                 }
                 toml_map.insert("vec".to_string(), Value::Array(values_vec));
-            },
-            _ => return error!("Cannot convert metadata {:?} to a toml map value", self)
+            }
+            _ => return error!("Cannot convert metadata {:?} to a toml map value", self),
         }
         toml_map.insert(class!(), Value::String(self.to_class_str().to_string()));
         Ok(Value::Table(toml_map))
@@ -92,42 +96,60 @@ impl Metadata {
     pub fn as_string(&self) -> Result<String> {
         match self {
             Self::String(s) => Ok(s.clone()),
-            _ => error!("Requested Metadata as string, but it is of type {}", self.to_class_str())
+            _ => error!(
+                "Requested Metadata as string, but it is of type {}",
+                self.to_class_str()
+            ),
         }
     }
 
     pub fn as_bigint(&self) -> Result<BigInt> {
         match self {
             Self::BigInt(b) => Ok(b.clone()),
-            _ => error!("Requested Metadata as bigint, but it is of type {}", self.to_class_str())
+            _ => error!(
+                "Requested Metadata as bigint, but it is of type {}",
+                self.to_class_str()
+            ),
         }
     }
 
     pub fn as_biguint(&self) -> Result<BigUint> {
         match self {
             Self::BigUint(b) => Ok(b.clone()),
-            _ => error!("Requested Metadata as biguint, but it is of type {}", self.to_class_str())
+            _ => error!(
+                "Requested Metadata as biguint, but it is of type {}",
+                self.to_class_str()
+            ),
         }
     }
 
     pub fn as_bool(&self) -> Result<bool> {
         match self {
             Self::Bool(b) => Ok(*b),
-            _ => error!("Requested Metadata as bool, but it is of type {}", self.to_class_str())
+            _ => error!(
+                "Requested Metadata as bool, but it is of type {}",
+                self.to_class_str()
+            ),
         }
     }
 
     pub fn as_float(&self) -> Result<f64> {
         match self {
             Self::Float(f) => Ok(*f),
-            _ => error!("Requested Metadata as float, but it is of type {}", self.to_class_str())
+            _ => error!(
+                "Requested Metadata as float, but it is of type {}",
+                self.to_class_str()
+            ),
         }
     }
 
     pub fn as_vec(&self) -> Result<Vec<Self>> {
         match self {
             Self::Vec(v) => Ok(v.clone()),
-            _ => error!("Requested Metadata as float, but it is of type {}", self.to_class_str())
+            _ => error!(
+                "Requested Metadata as float, but it is of type {}",
+                self.to_class_str()
+            ),
         }
     }
 }
@@ -183,8 +205,8 @@ impl TryFrom<&Value> for Metadata {
                                         match byte {
                                             Value::Integer(b) => {
                                                 retn.push(*b as u8);
-                                            },
-                                            _ => return error!("Data was not serialized!")
+                                            }
+                                            _ => return error!("Data was not serialized!"),
                                         }
                                     }
                                     return Ok(Self::Serialized(
@@ -193,7 +215,7 @@ impl TryFrom<&Value> for Metadata {
                                             if let Some(s) = serializer.as_str() {
                                                 Some(s.to_string())
                                             } else {
-                                                return error!("serializer was not of type String")
+                                                return error!("serializer was not of type String");
                                             }
                                         } else {
                                             None
@@ -202,11 +224,11 @@ impl TryFrom<&Value> for Metadata {
                                             if let Some(c) = class.as_str() {
                                                 Some(c.to_string())
                                             } else {
-                                                return error!("class was not of type String")
+                                                return error!("class was not of type String");
                                             }
                                         } else {
                                             None
-                                        }
+                                        },
                                     ));
                                 }
                             } else {
@@ -218,8 +240,8 @@ impl TryFrom<&Value> for Metadata {
                 // Generic Hashmap
                 // Probably add support for this add some point
                 error!("Metadata conversion from generic Value::Table is not implemented yet")
-            },
-            _ => error!("Cannot convert toml::Value {} to origen::Metadata", value)
+            }
+            _ => error!("Cannot convert toml::Value {} to origen::Metadata", value),
         }
     }
 }

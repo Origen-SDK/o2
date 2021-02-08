@@ -9,6 +9,7 @@ USER_USERNAME = "uid=euler,dc=example,dc=com"
 PASSWORD = "password"
 NAME = "forumsys"
 
+
 class TestLDAPs:
     @property
     def ldap(self):
@@ -42,15 +43,15 @@ class TestLDAPs:
 
     def test_ldap_searching(self):
         results = self.ldap.search("(uid=euler)", [])
-        assert results == {'uid=euler,dc=example,dc=com':
-            ({
+        assert results == {
+            'uid=euler,dc=example,dc=com': ({
                 'cn': ['Leonhard Euler'],
                 'sn': ['Euler'],
                 'uid': ['euler'],
-                'objectClass': ['inetOrgPerson', 'organizationalPerson', 'person', 'top'],
+                'objectClass':
+                ['inetOrgPerson', 'organizationalPerson', 'person', 'top'],
                 'mail': ['euler@ldap.forumsys.com']
-            }, 
-            {})
+            }, {})
         }
         results = self.ldap.search("(|(uid=tesla)(uid=curie))", ["cn", "mail"])
         assert results == {
@@ -60,8 +61,8 @@ class TestLDAPs:
             }, {}),
             'uid=curie,dc=example,dc=com': ({
                 'mail': ['curie@ldap.forumsys.com'],
-                'cn': ['Marie Curie']},
-            {})
+                'cn': ['Marie Curie']
+            }, {})
         }
         results = self.ldap.search("(|(uid=tesla)(uid=curie))", ["BLAH"])
         assert results == {
@@ -73,19 +74,18 @@ class TestLDAPs:
 
     def test_single_filter_search(self):
         results = self.ldap.single_filter_search("(uid=tesla)", ["cn", "mail"])
-        assert results == (
-            {
-                'mail': ['tesla@ldap.forumsys.com'],
-                'cn': ['Nikola Tesla']
-            },
-            {}
-        )
+        assert results == ({
+            'mail': ['tesla@ldap.forumsys.com'],
+            'cn': ['Nikola Tesla']
+        }, {})
         results = self.ldap.single_filter_search("(uid=blah)", ["cn", "mail"])
         assert results == ({}, {})
 
     def test_error_if_single_filter_search_returns_multiple_dns(self):
-        with pytest.raises(OSError, match="expected a single DN result from filter"):
-            self.ldap.single_filter_search("(|(uid=tesla)(uid=Curie))", ["mail"])
+        with pytest.raises(OSError,
+                           match="expected a single DN result from filter"):
+            self.ldap.single_filter_search("(|(uid=tesla)(uid=Curie))",
+                                           ["mail"])
 
     def test_unbind_and_rebind(self):
         assert self.ldap.bound

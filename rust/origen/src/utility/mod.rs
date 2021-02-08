@@ -6,17 +6,21 @@ pub mod location;
 #[macro_use]
 pub mod logger;
 pub mod command_helpers;
-pub mod num_helpers;
-pub mod version;
-pub mod mailer;
 pub mod ldap;
+pub mod mailer;
+pub mod num_helpers;
 pub mod session_store;
+pub mod version;
 
-use crate::{STATUS, Result};
+use crate::{Result, STATUS};
 use std::path::{Path, PathBuf};
 
+use aes_gcm::aead::{
+    generic_array::typenum::{U12, U32},
+    generic_array::GenericArray,
+    Aead, NewAead,
+};
 use aes_gcm::Aes256Gcm;
-use aes_gcm::aead::{Aead, NewAead, generic_array::GenericArray, generic_array::typenum::{U32, U12}};
 
 /// Resolves a directory path from the current application root.
 /// Accepts an optional 'user_val' and a default. The resulting directory will be resolved from:
@@ -46,7 +50,7 @@ pub fn str_to_bool(s: &str) -> Result<bool> {
     match s {
         "true" | "True" => Ok(true),
         "false" | "False" => Ok(false),
-        _ => error!("Could not convert string {} to boolean value", s)
+        _ => error!("Could not convert string {} to boolean value", s),
     }
 }
 
@@ -57,7 +61,10 @@ pub fn bytes_from_str_of_bytes(s: &str) -> Result<Vec<u8>> {
     let mut bytes = vec![];
     for chrs in s.chars().collect::<Vec<char>>().chunks(2) {
         let s = format!("{}{}", chrs[0], chrs[1]);
-        bytes.push(u8::from_str_radix(&s, 16).expect(&format!("Could not interpret byte {} as a hex value", s)));
+        bytes.push(
+            u8::from_str_radix(&s, 16)
+                .expect(&format!("Could not interpret byte {} as a hex value", s)),
+        );
     }
     Ok(bytes)
 }
@@ -83,12 +90,20 @@ pub fn noncegen() -> GenericArray<u8, U12> {
 pub fn encrypt(data: &str) -> Result<Vec<u8>> {
     encrypt_with(
         data,
-        *GenericArray::from_slice(&bytes_from_str_of_bytes(&crate::ORIGEN_CONFIG.default_encryption_key)?),
-        *GenericArray::from_slice(&bytes_from_str_of_bytes(&crate::ORIGEN_CONFIG.default_encryption_nonce)?)
+        *GenericArray::from_slice(&bytes_from_str_of_bytes(
+            &crate::ORIGEN_CONFIG.default_encryption_key,
+        )?),
+        *GenericArray::from_slice(&bytes_from_str_of_bytes(
+            &crate::ORIGEN_CONFIG.default_encryption_nonce,
+        )?),
     )
 }
 
-pub fn encrypt_with(data: &str, key: GenericArray<u8, U32>, nonce: GenericArray<u8, U12>) -> Result<Vec<u8>> {
+pub fn encrypt_with(
+    data: &str,
+    key: GenericArray<u8, U32>,
+    nonce: GenericArray<u8, U12>,
+) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new(&key);
     Ok(cipher.encrypt(&nonce, data.as_bytes())?)
 }
@@ -96,12 +111,20 @@ pub fn encrypt_with(data: &str, key: GenericArray<u8, U32>, nonce: GenericArray<
 pub fn decrypt(data: &[u8]) -> Result<String> {
     decrypt_with(
         data,
-        *GenericArray::from_slice(&bytes_from_str_of_bytes(&crate::ORIGEN_CONFIG.default_encryption_key)?),
-        *GenericArray::from_slice(&bytes_from_str_of_bytes(&crate::ORIGEN_CONFIG.default_encryption_nonce)?)
+        *GenericArray::from_slice(&bytes_from_str_of_bytes(
+            &crate::ORIGEN_CONFIG.default_encryption_key,
+        )?),
+        *GenericArray::from_slice(&bytes_from_str_of_bytes(
+            &crate::ORIGEN_CONFIG.default_encryption_nonce,
+        )?),
     )
 }
 
-pub fn decrypt_with(data: &[u8], key: GenericArray<u8, U32>, nonce: GenericArray<u8, U12>) -> Result<String> {
+pub fn decrypt_with(
+    data: &[u8],
+    key: GenericArray<u8, U32>,
+    nonce: GenericArray<u8, U12>,
+) -> Result<String> {
     let cipher = Aes256Gcm::new(&key);
     let plaintext = cipher.decrypt(&nonce, data)?;
     Ok(String::from_utf8(plaintext)?)
@@ -140,7 +163,10 @@ mod tests {
         let b1 = bytes_from_str_of_bytes(&bs1).unwrap();
         let b2 = bytes_from_str_of_bytes(&bs2).unwrap();
         assert_eq!(b1, [0x54, 0x45, 0x53, 0x54]);
-        assert_eq!(b2, [0x61, 0x6e, 0x6f, 0x74, 0x68, 0x65, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74]);
+        assert_eq!(
+            b2,
+            [0x61, 0x6e, 0x6f, 0x74, 0x68, 0x65, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74]
+        );
 
         // Convert the byte values back to a str to check the roundtrip.
         // Note: invalid utf-8 characters may arise when this is actually used for key generation,

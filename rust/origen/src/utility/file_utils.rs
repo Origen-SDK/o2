@@ -223,7 +223,7 @@ pub enum FilePermissions {
     PublicWithGroupWritable,
     Public,
     WorldWritable,
-    Custom(u16)
+    Custom(u16),
 }
 
 impl FilePermissions {
@@ -235,7 +235,7 @@ impl FilePermissions {
             Self::PublicWithGroupWritable => "public_with_group_writable".to_string(),
             Self::Public => "public".to_string(),
             Self::WorldWritable => "world_writable".to_string(),
-            Self::Custom(perms) => format!("custom({})", perms)
+            Self::Custom(perms) => format!("custom({})", perms),
         }
     }
 
@@ -247,7 +247,7 @@ impl FilePermissions {
             Self::PublicWithGroupWritable => 0775,
             Self::Public => 0755,
             Self::WorldWritable => 0777,
-            Self::Custom(perms) => *perms
+            Self::Custom(perms) => *perms,
         }
     }
 
@@ -256,10 +256,12 @@ impl FilePermissions {
             "private" | "Private" | "007" => Ok(Self::Private),
             "group" | "Group" | "057" => Ok(Self::Group),
             "group_writable" | "GroupWritable" | "0077" => Ok(Self::GroupWritable),
-            "public_with_group_writable" | "PublicWithGroupWritable" | "0577" => Ok(Self::PublicWithGroupWritable),
+            "public_with_group_writable" | "PublicWithGroupWritable" | "0577" => {
+                Ok(Self::PublicWithGroupWritable)
+            }
             "public" | "Public" | "557" => Ok(Self::Public),
             "world_writable" | "WorldWritable" | "777" => Ok(Self::WorldWritable),
-            _ => error!("Cannot infer permisions from {}", perms)
+            _ => error!("Cannot infer permisions from {}", perms),
         }
     }
 
@@ -274,7 +276,10 @@ impl FilePermissions {
             _ => {
                 if perms > MAX_PERMISSIONS {
                     // given value exceeds max Unix permissions. Very likely this is a mistake
-                    error!("Given permissions {:#o} exceeds maximum supported Unix permissions {:#o}", perms, MAX_PERMISSIONS)
+                    error!(
+                        "Given permissions {:#o} exceeds maximum supported Unix permissions {:#o}",
+                        perms, MAX_PERMISSIONS
+                    )
                 } else {
                     Ok(Self::Custom(perms))
                 }

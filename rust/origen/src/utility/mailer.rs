@@ -1,12 +1,12 @@
-use lettre;
 use crate::{Result, ORIGEN_CONFIG};
+use lettre;
 // use std::path::PathBuf;
 
-use lettre::Message;
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
+use lettre::Message;
 // use lettre::{Transport, Address};
-use lettre::{Transport};
-use lettre::message::{header, SinglePart, MultiPart, Mailbox};
+use lettre::message::{header, Mailbox, MultiPart, SinglePart};
+use lettre::Transport;
 
 // pub struct Maillist {
 //     pub to: Vec<Address>,
@@ -106,7 +106,9 @@ impl Mailer {
         if let Some(p) = self.auth_password.as_ref() {
             Ok(p.clone())
         } else {
-            error!("Tried to retrieve the mailer's 'auth_password' but no auth password has been set")
+            error!(
+                "Tried to retrieve the mailer's 'auth_password' but no auth password has been set"
+            )
         }
     }
 
@@ -119,13 +121,12 @@ impl Mailer {
     }
 
     pub fn html_singlepart(body: &str) -> Result<SinglePart> {
-        Ok(
-            SinglePart::builder()
-                .header(header::ContentType(
-                    "text/html; charset=utf8".parse().unwrap(),
-                )).header(header::ContentTransferEncoding::QuotedPrintable)
-                .body(body)
-        )
+        Ok(SinglePart::builder()
+            .header(header::ContentType(
+                "text/html; charset=utf8".parse().unwrap(),
+            ))
+            .header(header::ContentTransferEncoding::QuotedPrintable)
+            .body(body))
     }
 
     pub fn compose(
@@ -134,7 +135,7 @@ impl Mailer {
         to: Vec<&str>,
         subject: Option<&str>,
         body: Option<&str>,
-        include_origen_signature: bool
+        include_origen_signature: bool,
     ) -> Result<Message> {
         let e: Mailbox = from.parse()?;
         let mut m = Message::builder();
@@ -152,16 +153,20 @@ impl Mailer {
         if include_origen_signature {
             content.push_str("\n<p style=\"font-size:11px\">Sent using <a href=\"https://origen-sdk.org/\">Origen's Mailer</a></p>");
         }
-        Ok(m.multipart(
-            MultiPart::mixed()
-            .singlepart(Self::html_singlepart(&content)?)
-        ).unwrap())
+        Ok(
+            m.multipart(MultiPart::mixed().singlepart(Self::html_singlepart(&content)?))
+                .unwrap(),
+        )
     }
 
     pub fn send(&self, m: Message) -> Result<()> {
-        let client = lettre::transport::smtp::SmtpTransport::starttls_relay(&self.get_server()?).unwrap()
-            .authentication(vec!(Mechanism::Login))
-            .credentials(Credentials::new(self.get_auth_email()?, self.get_auth_password()?))
+        let client = lettre::transport::smtp::SmtpTransport::starttls_relay(&self.get_server()?)
+            .unwrap()
+            .authentication(vec![Mechanism::Login])
+            .credentials(Credentials::new(
+                self.get_auth_email()?,
+                self.get_auth_password()?,
+            ))
             .port(self.get_port()? as u16)
             .timeout(Some(std::time::Duration::new(300, 0)))
             .build();
@@ -175,11 +180,7 @@ impl Mailer {
         let e = crate::core::user::get_current_email()?;
         let m = self.compose(
             &e,
-            if let Some(t) = to {
-                t
-            } else {
-                vec!(&e)
-            },
+            if let Some(t) = to { t } else { vec![&e] },
             Some("Hello from Origen's Mailer!"),
             Some("<b>Hello from Origen's Mailer!<b>"),
             true,

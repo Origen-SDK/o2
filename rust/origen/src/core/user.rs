@@ -1,15 +1,20 @@
 use crate::revision_control::git;
 use crate::utility::command_helpers::exec_and_capture;
-use crate::{Error, Result, ORIGEN_CONFIG, Metadata};
 use crate::utility::ldap::LDAPs;
+use crate::utility::{
+    bytes_from_str_of_bytes, decrypt_with, encrypt_with, str_from_byte_array, str_to_bool,
+};
+use crate::{Error, Metadata, Result, ORIGEN_CONFIG};
+use aes_gcm::aead::{
+    generic_array::typenum::{U12, U32},
+    generic_array::GenericArray,
+};
+use indexmap::IndexMap;
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
-use std::sync::{Mutex, RwLock, RwLockWriteGuard, RwLockReadGuard};
-use std::path::PathBuf;
-use indexmap::IndexMap;
 use std::collections::HashMap;
-use crate::utility::{str_to_bool, decrypt_with, encrypt_with, bytes_from_str_of_bytes, str_from_byte_array};
-use aes_gcm::aead::{generic_array::GenericArray, generic_array::typenum::{U32, U12}};
+use std::path::PathBuf;
+use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 const PASSWORD_KEY: &str = "user_password__";
 
@@ -19,7 +24,7 @@ pub fn user__password_reasons<'a>() -> &'a HashMap<String, String> {
 }
 
 pub fn lookup_dataset_config<'a>(config: &str) -> Result<&'a HashMap<String, String>> {
-    if let Some(c)= ORIGEN_CONFIG.user__datasets.get(config) {
+    if let Some(c) = ORIGEN_CONFIG.user__datasets.get(config) {
         Ok(c)
     } else {
         error!("Could not lookup dataset config for {}", config)
@@ -64,7 +69,9 @@ pub fn whoami() -> Result<String> {
 }
 
 pub fn with_user_dataset<T, F>(user: Option<&str>, dataset: &str, func: F) -> Result<T>
-where F: FnMut(&Data) -> Result<T> {
+where
+    F: FnMut(&Data) -> Result<T>,
+{
     let urs = crate::users();
     let u;
     if let Some(uname) = user {
@@ -76,7 +83,9 @@ where F: FnMut(&Data) -> Result<T> {
 }
 
 pub fn with_user_dataset_mut<T, F>(user: Option<&str>, dataset: &str, func: F) -> Result<T>
-where F: FnMut(&mut Data) -> Result<T> {
+where
+    F: FnMut(&mut Data) -> Result<T>,
+{
     let urs = crate::users();
     let u;
     if let Some(uname) = user {
@@ -93,7 +102,7 @@ pub fn set_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
     if let Some(datasets) = datasets {
         let mut err_str = "".to_string();
         for ds in datasets {
-            match crate::with_current_user( |u| u._password_dialog(&ds.to_string(), None)) {
+            match crate::with_current_user(|u| u._password_dialog(&ds.to_string(), None)) {
                 Ok(_) => {}
                 Err(e) => {
                     err_str.push_str(&format!("{}\n", e.msg));
@@ -106,7 +115,7 @@ pub fn set_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
             Ok(())
         }
     } else {
-        crate::with_current_user( |u| u._password_dialog(&u.data_key, None))?;
+        crate::with_current_user(|u| u._password_dialog(&u.data_key, None))?;
         Ok(())
     }
 }
@@ -123,7 +132,7 @@ pub fn clear_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
         let mut err_str = "".to_string();
         for ds in datasets {
             log_trace!("Clearing password for {}", ds);
-            match crate::with_current_user( |u| u.clear_cached_password(Some(&ds))) {
+            match crate::with_current_user(|u| u.clear_cached_password(Some(&ds))) {
                 Ok(_) => {}
                 Err(e) => {
                     err_str.push_str(&format!("{}\n", e.msg));
@@ -137,14 +146,14 @@ pub fn clear_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
         }
     } else {
         log_trace!("Clearing password for current dataset");
-        crate::with_current_user( |u| u.clear_cached_password(None))?;
+        crate::with_current_user(|u| u.clear_cached_password(None))?;
         Ok(())
     }
 }
 
 pub fn clear_all_passwords() -> Result<()> {
     log_trace!("Clearing all cached passwords for current user");
-    crate::with_current_user( |u| u.clear_cached_passwords())
+    crate::with_current_user(|u| u.clear_cached_passwords())
 }
 
 #[derive(Debug, Clone)]
@@ -265,8 +274,8 @@ impl Data {
             Some(format!(
                 "{} {}",
                 self.first_name.as_ref().unwrap().to_string(),
-                self.last_name.as_ref().unwrap().to_string())
-            )
+                self.last_name.as_ref().unwrap().to_string()
+            ))
         } else if let Some(n) = &self.username {
             Some(n.clone())
         } else {
@@ -323,7 +332,8 @@ impl User {
     }
 
     fn add_dataset_placeholder(&mut self, dataset: &str) -> Result<()> {
-        self.data.insert(dataset.to_string(), RwLock::new(Data::new(dataset)));
+        self.data
+            .insert(dataset.to_string(), RwLock::new(Data::new(dataset)));
         Ok(())
     }
 
@@ -350,7 +360,10 @@ impl User {
             id: id.to_string(),
             data: {
                 let mut h = HashMap::new();
-                h.insert(Self::default_data_key().to_string(), RwLock::new(Data::default()));
+                h.insert(
+                    Self::default_data_key().to_string(),
+                    RwLock::new(Data::default()),
+                );
                 h
             },
             password_semaphore: Mutex::new(0),
@@ -364,13 +377,13 @@ impl User {
                 match str_to_bool(should_pop) {
                     Ok(should_pop_bool) => {
                         if !should_pop_bool {
-                            continue
+                            continue;
                         }
                     }
                     Err(e) => {
                         display_redln!("Errors occurred processing dataset config: {}", e.msg);
                         display_redln!("Unable to populate dataset '{}'", name);
-                        continue
+                        continue;
                     }
                 }
             }
@@ -381,7 +394,7 @@ impl User {
                         // (reason should have been printed in the populate function)
                         display_redln!("Unable to populate dataset '{}'", name);
                     }
-                },
+                }
                 Err(e) => {
                     // Uncaught error occurred (likely a backend problem)
                     display_redln!(
@@ -423,7 +436,10 @@ impl User {
     }
 
     pub fn set_username(&self, username: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| { d.username = username.clone(); Ok(()) })
+        self.with_dataset_mut(&self.data_key, |d| {
+            d.username = username.clone();
+            Ok(())
+        })
     }
 
     pub fn name(&self) -> Option<String> {
@@ -476,23 +492,32 @@ impl User {
     }
 
     pub fn set_email(&self, email: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| { d.email = email.clone(); Ok(()) })
+        self.with_dataset_mut(&self.data_key, |d| {
+            d.email = email.clone();
+            Ok(())
+        })
     }
 
     pub fn first_name(&self) -> Result<Option<String>> {
-        self.with_dataset(&self.data_key, |d| { Ok(d.first_name.clone()) })
+        self.with_dataset(&self.data_key, |d| Ok(d.first_name.clone()))
     }
 
     pub fn set_first_name(&self, first_name: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| { d.first_name = first_name.clone(); Ok(()) })
+        self.with_dataset_mut(&self.data_key, |d| {
+            d.first_name = first_name.clone();
+            Ok(())
+        })
     }
 
     pub fn last_name(&self) -> Result<Option<String>> {
-        self.with_dataset(&self.data_key, |d| { Ok(d.last_name.clone()) })
+        self.with_dataset(&self.data_key, |d| Ok(d.last_name.clone()))
     }
 
     pub fn set_last_name(&self, last_name: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| { d.last_name = last_name.clone(); Ok(()) })
+        self.with_dataset_mut(&self.data_key, |d| {
+            d.last_name = last_name.clone();
+            Ok(())
+        })
     }
 
     pub fn display_name(&self) -> Result<String> {
@@ -502,7 +527,7 @@ impl User {
     pub fn display_name_for(&self, dataset: Option<&str>) -> Result<String> {
         let key = dataset.unwrap_or(&self.data_key);
         self.with_dataset(key, |d| {
-            if let Some(n)= d.get_display_name().clone() {
+            if let Some(n) = d.get_display_name().clone() {
                 Ok(n.to_string())
             } else {
                 Ok(self.id.to_string())
@@ -511,12 +536,15 @@ impl User {
     }
 
     pub fn set_display_name(&self, display_name: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| { d.display_name = display_name.clone(); Ok(()) })
+        self.with_dataset_mut(&self.data_key, |d| {
+            d.display_name = display_name.clone();
+            Ok(())
+        })
     }
 
     pub fn get_email(&self) -> Result<String> {
         if let Some(e) = self.read_data(None).unwrap().email.as_ref() {
-                Ok(e.to_string())
+            Ok(e.to_string())
         } else {
             error!(
                 "Tried to retrieve email from user {} but it has not been set yet!",
@@ -530,7 +558,12 @@ impl User {
     }
 
     pub fn home_dir_string(&self) -> Result<String> {
-        Ok(self.read_data(None).unwrap().home_dir.to_string_lossy().to_string())
+        Ok(self
+            .read_data(None)
+            .unwrap()
+            .home_dir
+            .to_string_lossy()
+            .to_string())
     }
 
     pub fn set_home_dir(&self, new_dir: PathBuf) -> Result<()> {
@@ -544,13 +577,14 @@ impl User {
             // Cache the (encrypted) password in the user's session for future use
             let mut s = crate::sessions();
             let sess = s.user_session(None)?;
-            sess.store(to_session_password(dataset), crate::Metadata::String(
-                str_from_byte_array(&encrypt_with(
+            sess.store(
+                to_session_password(dataset),
+                crate::Metadata::String(str_from_byte_array(&encrypt_with(
                     password,
                     self.get_password_encryption_key()?,
-                    self.get_password_encryption_nonce()?
-                )?)?
-            ))?;
+                    self.get_password_encryption_nonce()?,
+                )?)?),
+            )?;
             Ok(true)
         } else {
             Ok(false)
@@ -576,13 +610,19 @@ impl User {
                 self._cache_password(&pass, dataset)?;
                 let mut data = self.write_data(Some(dataset)).unwrap();
                 data.password = Some(pass.clone());
-                return Ok(pass)
+                return Ok(pass);
             } else {
                 display_redln!("Sorry, that password is incorrect");
             }
         }
-        display_redln!("Maximum number of authentication attempts reached ({}), exiting...", ORIGEN_CONFIG.user__password_auth_attempts);
-        error!("Maximum number of authentication attempts reached ({})", ORIGEN_CONFIG.user__password_auth_attempts)
+        display_redln!(
+            "Maximum number of authentication attempts reached ({}), exiting...",
+            ORIGEN_CONFIG.user__password_auth_attempts
+        );
+        error!(
+            "Maximum number of authentication attempts reached ({})",
+            ORIGEN_CONFIG.user__password_auth_attempts
+        )
     }
 
     fn _try_password(&self, password: &str, dataset_name: Option<&str>) -> Result<bool> {
@@ -599,10 +639,16 @@ impl User {
                             return error!("A 'data_lookup' key corresponding to the ldap name is required to validate passwords against an LDAP");
                         }
                     } else {
-                        return error!("Cannot verify user password for user data source {}", data_source);
+                        return error!(
+                            "Cannot verify user password for user data source {}",
+                            data_source
+                        );
                     }
                 } else {
-                    return error!("Cannot validate password without data source for dataset {}", dn.unwrap());
+                    return error!(
+                        "Cannot validate password without data source for dataset {}",
+                        dn.unwrap()
+                    );
                 }
             } else {
                 return error!("No dataset config given for {}", dn.unwrap());
@@ -619,7 +665,7 @@ impl User {
                     match ans.as_str() {
                         "true" | "True" => Ok(true),
                         "false" | "False" => Ok(false),
-                        _ => error!("Could not convert string {} to boolean value", ans)
+                        _ => error!("Could not convert string {} to boolean value", ans),
                     }
                 } else {
                     Ok(false)
@@ -640,12 +686,20 @@ impl User {
         }
     }
 
-    pub fn set_password(&self, password: Option<String>, dataset: Option<&str>, validate: Option<bool>) -> Result<()> {
+    pub fn set_password(
+        &self,
+        password: Option<String>,
+        dataset: Option<&str>,
+        validate: Option<bool>,
+    ) -> Result<()> {
         let _lock = self.password_semaphore.lock().unwrap();
 
         if let Some(p) = password.as_ref() {
             let dn = dataset.unwrap_or(&self.data_key);
-            self.with_dataset_mut(dn, |d| { d.authenticated = false; Ok(()) })?;
+            self.with_dataset_mut(dn, |d| {
+                d.authenticated = false;
+                Ok(())
+            })?;
 
             if let Some(v) = validate {
                 if v {
@@ -657,7 +711,10 @@ impl User {
             }
 
             // either we aren't to validate, or the validation was successful
-            self.with_dataset_mut(dn, |d| { d.password = Some(p.to_string()); Ok(()) })?;
+            self.with_dataset_mut(dn, |d| {
+                d.password = Some(p.to_string());
+                Ok(())
+            })?;
             self._cache_password(p, dn)?;
             Ok(())
         } else {
@@ -665,7 +722,12 @@ impl User {
         }
     }
 
-    pub fn password(&self, reason_or_dataset: Option<&str>, reason_not_dataset: bool, default: Option<Option<&str>>) -> Result<String> {
+    pub fn password(
+        &self,
+        reason_or_dataset: Option<&str>,
+        reason_not_dataset: bool,
+        default: Option<Option<&str>>,
+    ) -> Result<String> {
         // In a multi-threaded scenario, this prevents concurrent threads from prompting the user for
         // the password at the same time.
         // Instead the first thread to arrive will do it, then by the time the lock is released awaiting
@@ -691,10 +753,7 @@ impl User {
                         }
                     } else {
                         // Raise an error
-                        return error!(
-                            "No password available for reason: '{}'",
-                            rod,
-                        );
+                        return error!("No password available for reason: '{}'", rod,);
                     }
                 }
             } else {
@@ -737,12 +796,12 @@ impl User {
                     let pw = decrypt_with(
                         &bytes_from_str_of_bytes(&p.as_string()?)?,
                         self.get_password_encryption_key()?,
-                        self.get_password_encryption_nonce()?
+                        self.get_password_encryption_nonce()?,
                     )?;
                     if self._try_password(&pw, Some(dataset))? {
                         let mut data = self.write_data(Some(dataset)).unwrap();
                         data.password = Some(pw.clone());
-                        return Ok(pw)
+                        return Ok(pw);
                     } else {
                         // Note: the session will be updated if the correct password is
                         // provided from the dialog
@@ -768,7 +827,7 @@ impl User {
         {
             let _ = crate::sessions();
         }
-        self.for_all_datasets_mut( |d| d.clear_cached_password(self))
+        self.for_all_datasets_mut(|d| d.clear_cached_password(self))
     }
 
     /// Clear the cached password for the current/default dataset
@@ -793,7 +852,9 @@ impl User {
         if let Some(k) = &crate::ORIGEN_CONFIG.password_encryption_key {
             Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&k)?))
         } else {
-            Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&crate::ORIGEN_CONFIG.default_encryption_key)?))
+            Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(
+                &crate::ORIGEN_CONFIG.default_encryption_key,
+            )?))
         }
     }
 
@@ -802,12 +863,19 @@ impl User {
         if let Some(k) = &crate::ORIGEN_CONFIG.password_encryption_nonce {
             Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&k)?))
         } else {
-            Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&crate::ORIGEN_CONFIG.default_encryption_nonce)?))
+            Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(
+                &crate::ORIGEN_CONFIG.default_encryption_nonce,
+            )?))
         }
     }
 
     /// Populate any data fields
-    pub fn populate(&self, name: &str, config: &HashMap<String, String>,allow_failures: bool) -> Result<bool> {
+    pub fn populate(
+        &self,
+        name: &str,
+        config: &HashMap<String, String>,
+        allow_failures: bool,
+    ) -> Result<bool> {
         fn error_or_failure(msg: &str, allow_failures: bool, popped: &mut bool) -> Result<()> {
             *popped = false;
             if allow_failures {
@@ -829,11 +897,7 @@ impl User {
                         match ldaps._get_mut(ldap_name) {
                             Ok(l) => ldap = l,
                             Err(e) => {
-                                error_or_failure(
-                                    &e.msg,
-                                    allow_failures,
-                                    &mut popped
-                                )?;
+                                error_or_failure(&e.msg, allow_failures, &mut popped)?;
                                 return Ok(popped);
                             }
                         }
@@ -843,14 +907,12 @@ impl User {
                         }
                         // Grab all available fields
                         println!("STUFF: {} {}", config.get("data_lookup").unwrap(), self.id);
-                        let fields = ldap.single_filter_search(
-                            &format!(
-                                "{}={}",
-                                config.get("data_id").unwrap(),
-                                self.id
-                            ),
-                            vec!["*"]
-                        )?.0;
+                        let fields = ldap
+                            .single_filter_search(
+                                &format!("{}={}", config.get("data_id").unwrap(), self.id),
+                                vec!["*"],
+                            )?
+                            .0;
                         println!("Fields: {:?}", fields);
                         let mut data = self.write_data(Some(name))?;
                         if let Some(mapping) = ORIGEN_CONFIG.user__dataset_mappings.get(name) {
@@ -863,17 +925,19 @@ impl User {
                                     } else if key == "username" {
                                         data.username = Some(v.first().unwrap().to_string());
                                     } else {
-                                        data.other.insert(key.to_string(), Metadata::String(v.first().unwrap().to_string()));
+                                        data.other.insert(
+                                            key.to_string(),
+                                            Metadata::String(v.first().unwrap().to_string()),
+                                        );
                                     }
                                 } else {
                                     error_or_failure(
                                         &format!(
                                             "Cannot find mapped value '{}' in LDAP {}",
-                                            val,
-                                            ldap_name
+                                            val, ldap_name
                                         ),
                                         allow_failures,
-                                        &mut popped
+                                        &mut popped,
                                     )?
                                 }
                             }
@@ -881,7 +945,7 @@ impl User {
                             error_or_failure(
                                 &format!("Cannot find dataset mapping for '{}'", name),
                                 allow_failures,
-                                &mut popped
+                                &mut popped,
                             )?
                         }
                     } else {
@@ -891,33 +955,39 @@ impl User {
                             &mut popped
                         )?
                     }
-                },
+                }
                 _ => error_or_failure(
                     &format!("Unknown dataset source {}", s),
                     allow_failures,
-                    &mut popped
-                )?
+                    &mut popped,
+                )?,
             }
         }
         Ok(popped)
     }
 
     pub fn with_dataset<T, F>(&self, dataset: &str, mut func: F) -> Result<T>
-    where F: FnMut(&Data) -> Result<T> {
+    where
+        F: FnMut(&Data) -> Result<T>,
+    {
         let d = self.read_data(Some(dataset))?;
         let retn = func(&d)?;
         Ok(retn)
     }
 
     pub fn with_dataset_mut<T, F>(&self, dataset: &str, mut func: F) -> Result<T>
-    where F: FnMut(&mut Data) -> Result<T> {
+    where
+        F: FnMut(&mut Data) -> Result<T>,
+    {
         let mut d = self.write_data(Some(dataset))?;
         let retn = func(&mut d)?;
         Ok(retn)
     }
 
     pub fn for_all_datasets<T, F>(&self, mut func: F) -> Result<()>
-    where F: FnMut(&Data) -> Result<T> {
+    where
+        F: FnMut(&Data) -> Result<T>,
+    {
         for (_n, d) in self.data.iter() {
             func(&d.read().unwrap())?;
         }
@@ -925,7 +995,9 @@ impl User {
     }
 
     pub fn for_all_datasets_mut<T, F>(&self, mut func: F) -> Result<()>
-    where F: FnMut(&mut Data) -> Result<T> {
+    where
+        F: FnMut(&mut Data) -> Result<T>,
+    {
         for (_n, d) in self.data.iter() {
             func(&mut d.write().unwrap())?;
         }

@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use pyo3::types::IntoPyDict;
-use pyo3::wrap_pyfunction;
+use super::metadata::{extract_as_metadata, metadata_to_pyobj};
 use crate::application;
 use pyo3::class::basic::CompareOp;
-use super::metadata::{metadata_to_pyobj, extract_as_metadata};
+use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
+use pyo3::wrap_pyfunction;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 #[pymodule]
 fn session_store(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -22,7 +22,7 @@ fn session_store(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-#[pyfunction(target="None")]
+#[pyfunction(target = "None")]
 pub fn app_session(session: Option<&PyAny>) -> PyResult<SessionStore> {
     // Can accept:
     //  None -> Top app's session
@@ -48,7 +48,7 @@ pub fn app_session(session: Option<&PyAny>) -> PyResult<SessionStore> {
     Ok(SessionStore::new(sess.path.clone(), true, sess.name()?))
 }
 
-#[pyfunction(target="None")]
+#[pyfunction(target = "None")]
 pub fn user_session(session: Option<&PyAny>) -> PyResult<SessionStore> {
     // Can accept:
     //  None -> Top app's session
@@ -81,11 +81,7 @@ pub fn app_sessions() -> PyResult<HashMap<String, SessionStore>> {
     for (n, p) in s.available_app_sessions()?.iter() {
         retn.insert(
             n.to_string(),
-            SessionStore::new(
-                p.to_path_buf(),
-                true,
-                n.to_string()
-            )
+            SessionStore::new(p.to_path_buf(), true, n.to_string()),
         );
     }
     Ok(retn)
@@ -98,11 +94,7 @@ pub fn user_sessions() -> PyResult<HashMap<String, SessionStore>> {
     for (n, p) in s.available_user_sessions()?.iter() {
         retn.insert(
             n.to_string(),
-            SessionStore::new(
-                p.to_path_buf(),
-                true,
-                n.to_string()
-            )
+            SessionStore::new(p.to_path_buf(), true, n.to_string()),
         );
     }
     Ok(retn)
@@ -113,10 +105,16 @@ pub fn set_app_root(root: &PyAny) -> PyResult<()> {
     let path;
     if let Ok(p) = root.extract::<String>() {
         path = p;
-    } else if root.get_type().name().to_string() == "Path" || root.get_type().name().to_string() == "WindowsPath" || root.get_type().name().to_string() == "PosixPath" {
+    } else if root.get_type().name().to_string() == "Path"
+        || root.get_type().name().to_string() == "WindowsPath"
+        || root.get_type().name().to_string() == "PosixPath"
+    {
         path = root.call_method0("__str__")?.extract::<String>()?;
     } else {
-        return crate::type_error!(&format!("Cannot extract input as either a str or pathlib.Path object. Received {}", root.get_type().name().to_string()));
+        return crate::type_error!(&format!(
+            "Cannot extract input as either a str or pathlib.Path object. Received {}",
+            root.get_type().name().to_string()
+        ));
     }
     let mut s = origen::sessions();
     s.app_session_root = Some(PathBuf::from(path));
@@ -128,10 +126,16 @@ pub fn set_user_root(root: &PyAny) -> PyResult<()> {
     let path;
     if let Ok(p) = root.extract::<String>() {
         path = p;
-    } else if root.get_type().name().to_string() == "Path" || root.get_type().name().to_string() == "WindowsPath" || root.get_type().name().to_string() == "PosixPath" {
+    } else if root.get_type().name().to_string() == "Path"
+        || root.get_type().name().to_string() == "WindowsPath"
+        || root.get_type().name().to_string() == "PosixPath"
+    {
         path = root.call_method0("__str__")?.extract::<String>()?;
     } else {
-        return crate::type_error!(&format!("Cannot extract input as either a str or pathlib.Path object. Received {}", root.get_type().name().to_string()));
+        return crate::type_error!(&format!(
+            "Cannot extract input as either a str or pathlib.Path object. Received {}",
+            root.get_type().name().to_string()
+        ));
     }
     let mut s = origen::sessions();
     s.user_session_root = PathBuf::from(path);
@@ -165,15 +169,15 @@ pub fn clear_cache() -> PyResult<()> {
 pub struct SessionStore {
     path: PathBuf,
     app_session: bool,
-    name: String
+    name: String,
 }
 
 #[pymethods]
 impl SessionStore {
-
     fn refresh(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut s = origen::sessions();
-        s.get_mut_session(slf.path.clone(), slf.app_session)?.refresh()?;
+        s.get_mut_session(slf.path.clone(), slf.app_session)?
+            .refresh()?;
         Ok(slf.into())
     }
 
@@ -183,7 +187,7 @@ impl SessionStore {
         let py = gil.python();
         Ok(crate::pypath!(py, format!("{}", self.path.display())))
     }
-    
+
     #[getter]
     fn is_app_session(&self) -> PyResult<bool> {
         Ok(self.app_session)
@@ -209,7 +213,9 @@ impl SessionStore {
 
     fn get(&self, key: &str) -> PyResult<Option<PyObject>> {
         let mut s = origen::sessions();
-        let data = s.get_mut_session(self.path.clone(), self.app_session)?.retrieve(key)?;
+        let data = s
+            .get_mut_session(self.path.clone(), self.app_session)?
+            .retrieve(key)?;
         metadata_to_pyobj(data, Some(key))
     }
 
@@ -235,13 +241,19 @@ impl SessionStore {
     fn store_serialized(slf: PyRef<Self>, key: &str, value: &[u8]) -> PyResult<Py<Self>> {
         let mut s = origen::sessions();
         let session = s.get_mut_session(slf.path.clone(), slf.app_session)?;
-        session.store_serialized(key.to_string(), value, Some("Python-Frontend".to_string()), None)?;
+        session.store_serialized(
+            key.to_string(),
+            value,
+            Some("Python-Frontend".to_string()),
+            None,
+        )?;
         Ok(slf.into())
     }
 
     fn remove_file(slf: PyRef<Self>) -> PyResult<Py<Self>> {
         let mut s = origen::sessions();
-        s.get_mut_session(slf.path.clone(), slf.app_session)?.remove_file()?;
+        s.get_mut_session(slf.path.clone(), slf.app_session)?
+            .remove_file()?;
         Ok(slf.into())
     }
 }
@@ -258,12 +270,8 @@ impl pyo3::class::basic::PyObjectProtocol for SessionStore {
         let gil = Python::acquire_gil();
         let py = gil.python();
         match op {
-            CompareOp::Eq => {
-                Ok(result.to_object(py))
-            }
-            CompareOp::Ne => {
-                Ok((!result).to_object(py))
-            }
+            CompareOp::Eq => Ok(result.to_object(py)),
+            CompareOp::Ne => Ok((!result).to_object(py)),
             _ => Ok(py.NotImplemented()),
         }
     }
@@ -274,7 +282,7 @@ impl SessionStore {
         Self {
             path: path,
             app_session: is_app_session,
-            name: name
+            name: name,
         }
     }
 

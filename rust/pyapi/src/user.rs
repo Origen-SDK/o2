@@ -1,12 +1,18 @@
-use pyo3::{wrap_pyfunction};
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, IntoPyDict};
-use super::utility::session_store::{SessionStore, user_session};
-use std::collections::HashMap;
+use super::utility::metadata::{extract_as_metadata, metadata_to_pyobj};
+use super::utility::session_store::{user_session, SessionStore};
 use pyo3::class::mapping::PyMappingProtocol;
-use super::utility::metadata::{metadata_to_pyobj, extract_as_metadata};
+use pyo3::prelude::*;
+use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::wrap_pyfunction;
+use std::collections::HashMap;
 
-const DATA_FIELDS: [&str; 5] = ["email", "first_name", "last_name", "display_name", "username"];
+const DATA_FIELDS: [&str; 5] = [
+    "email",
+    "first_name",
+    "last_name",
+    "display_name",
+    "username",
+];
 
 #[pymodule]
 fn users(py: Python, m: &PyModule) -> PyResult<()> {
@@ -38,8 +44,7 @@ fn users_cls() -> PyResult<Users> {
 /// To allow `origen.users` to act as a dict-like property without falling out of sync
 /// with the backend, this class should remain stateless.
 #[pyclass]
-pub struct Users {
-}
+pub struct Users {}
 
 #[pymethods]
 impl Users {
@@ -64,7 +69,7 @@ impl Users {
 
     fn ids(&self) -> PyResult<Vec<String>> {
         let users = origen::users();
-        Ok(users.users().keys().map( |id| id.to_string()).collect())
+        Ok(users.users().keys().map(|id| id.to_string()).collect())
     }
 
     fn keys(&self) -> PyResult<Vec<String>> {
@@ -105,8 +110,7 @@ impl PyMappingProtocol for Users {
         } else {
             Err(pyo3::exceptions::KeyError::py_err(format!(
                 "Could not find user '{}'. Add a new user with 'origen.users.add(\"{}\")'",
-                id,
-                id
+                id, id
             )))
         }
     }
@@ -152,80 +156,143 @@ impl pyo3::class::iter::PyIterProtocol for Users {
 #[pyclass]
 pub struct UserDataset {
     user_id: String,
-    dataset: String
+    dataset: String,
 }
 
 #[pymethods]
 impl UserDataset {
     #[getter]
     fn get_username(&self) -> PyResult<Option<String>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.username.clone()))?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.username.clone()),
+        )?)
     }
 
     #[setter]
     fn set_username(&self, username: Option<String>) -> PyResult<()> {
-        Ok(origen::user::with_user_dataset_mut(Some(&self.user_id), &self.dataset, |d| {d.username = username.clone(); Ok(()) })?)
+        Ok(origen::user::with_user_dataset_mut(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                d.username = username.clone();
+                Ok(())
+            },
+        )?)
     }
 
     #[getter]
     fn get_email(&self) -> PyResult<Option<String>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.email.clone()))?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.email.clone()),
+        )?)
     }
 
     #[setter]
     fn set_email(&self, email: Option<String>) -> PyResult<()> {
-        Ok(origen::user::with_user_dataset_mut(Some(&self.user_id), &self.dataset, |d| {d.email = email.clone(); Ok(()) })?)
+        Ok(origen::user::with_user_dataset_mut(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                d.email = email.clone();
+                Ok(())
+            },
+        )?)
     }
 
     #[getter]
     fn get_first_name(&self) -> PyResult<Option<String>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.first_name.clone()))?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.first_name.clone()),
+        )?)
     }
 
     #[setter]
     fn set_first_name(&self, first_name: Option<String>) -> PyResult<()> {
-        Ok(origen::user::with_user_dataset_mut(Some(&self.user_id), &self.dataset, |d| {d.first_name = first_name.clone(); Ok(()) })?)
+        Ok(origen::user::with_user_dataset_mut(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                d.first_name = first_name.clone();
+                Ok(())
+            },
+        )?)
     }
 
     #[getter]
     fn get_last_name(&self) -> PyResult<Option<String>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.last_name.clone()))?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.last_name.clone()),
+        )?)
     }
 
     #[setter]
     fn set_last_name(&self, last_name: Option<String>) -> PyResult<()> {
-        Ok(origen::user::with_user_dataset_mut(Some(&self.user_id), &self.dataset, |d| {d.last_name = last_name.clone(); Ok(()) })?)
+        Ok(origen::user::with_user_dataset_mut(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                d.last_name = last_name.clone();
+                Ok(())
+            },
+        )?)
     }
 
     #[getter]
     fn get_display_name(&self) -> PyResult<String> {
-        Ok(origen::with_user(&self.user_id, |u| u.display_name_for(Some(&self.dataset)))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.display_name_for(Some(&self.dataset))
+        })?)
     }
 
     #[allow(non_snake_case)]
     #[getter]
     fn get___display_name__(&self) -> PyResult<Option<String>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.display_name.clone()))?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.display_name.clone()),
+        )?)
     }
 
     #[setter]
     fn set_display_name(&self, display_name: Option<String>) -> PyResult<()> {
-        Ok(origen::user::with_user_dataset_mut(Some(&self.user_id), &self.dataset, |d| {d.display_name = display_name.clone(); Ok(()) })?)
+        Ok(origen::user::with_user_dataset_mut(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                d.display_name = display_name.clone();
+                Ok(())
+            },
+        )?)
     }
 
     /// Gets the password for this dataset
     #[getter]
     fn get_password(&self) -> PyResult<String> {
-        Ok(origen::with_user(&self.user_id, |u| u.password(Some(&self.dataset), false, None))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.password(Some(&self.dataset), false, None)
+        })?)
     }
 
     #[setter]
     fn set_password(&self, password: Option<String>) -> PyResult<()> {
-        Ok(origen::with_user(&self.user_id, |u| { u.set_password(password.clone(), Some(&self.dataset), None) })?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.set_password(password.clone(), Some(&self.dataset), None)
+        })?)
     }
 
     fn clear_cached_password(&self) -> PyResult<()> {
-        Ok(origen::with_user(&self.user_id, |u| u.clear_cached_password(Some(&self.dataset)))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.clear_cached_password(Some(&self.dataset))
+        })?)
     }
 
     #[getter]
@@ -234,11 +301,13 @@ impl UserDataset {
     }
 
     fn populate(&self) -> PyResult<()> {
-        origen::with_user(&self.user_id, |u| u.populate(
-            &self.dataset,
-            origen::user::lookup_dataset_config(&self.user_id)?,
-            false
-        ))?;
+        origen::with_user(&self.user_id, |u| {
+            u.populate(
+                &self.dataset,
+                origen::user::lookup_dataset_config(&self.user_id)?,
+                false,
+            )
+        })?;
         Ok(())
     }
 }
@@ -247,30 +316,31 @@ impl UserDataset {
     pub fn new(user_id: &str, dataset_name: &str) -> Self {
         Self {
             user_id: user_id.to_string(),
-            dataset: dataset_name.to_string()
+            dataset: dataset_name.to_string(),
         }
     }
 }
 
 #[pyclass(subclass)]
 pub struct User {
-    user_id: String
+    user_id: String,
 }
 
 impl User {
     fn new(id: &str) -> PyResult<Self> {
         Ok(Self {
-            user_id: id.to_string()
+            user_id: id.to_string(),
         })
     }
 }
 
 #[pymethods]
 impl User {
-
     #[getter]
     fn get_id(&self) -> PyResult<String> {
-        Ok(origen::with_user(&self.user_id, |u| Ok(u.id().to_string()))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            Ok(u.id().to_string())
+        })?)
     }
 
     #[getter]
@@ -331,18 +401,22 @@ impl User {
     /// Gets the password for the default dataset
     #[getter]
     fn password(&self) -> PyResult<String> {
-        Ok(origen::with_user(&self.user_id, |u| u.password(None, true, None))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.password(None, true, None)
+        })?)
     }
 
     #[setter]
     fn set_password(&self, password: Option<String>) -> PyResult<()> {
-        Ok(origen::with_user(&self.user_id, |u| { u.set_password(password.clone(), None, None) })?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.set_password(password.clone(), None, None)
+        })?)
     }
 
     // Note that we can't get a optional None value (as least as far as I know...)
     // Passing in None on the Python side makes this look like the argument given, so can't
     // get a nested None.
-    #[args(kwargs="**")]
+    #[args(kwargs = "**")]
     fn password_for(&self, reason: &str, kwargs: Option<&PyDict>) -> PyResult<String> {
         let default: Option<Option<&str>>;
         if let Some(opts) = kwargs {
@@ -363,11 +437,13 @@ impl User {
         } else {
             default = None;
         }
-        Ok(origen::with_user(&self.user_id, |u| { u.password(Some(reason), true, default) })?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.password(Some(reason), true, default)
+        })?)
     }
 
     fn dataset_for(&self, reason: &str) -> PyResult<Option<String>> {
-        Ok(origen::with_user(&self.user_id, |u| { 
+        Ok(origen::with_user(&self.user_id, |u| {
             if let Some(d) = u.dataset_for(reason) {
                 Ok(Some(d.to_string()))
             } else {
@@ -378,12 +454,16 @@ impl User {
 
     /// Clears all cached passwords for all datasets
     fn clear_cached_passwords(&self) -> PyResult<()> {
-        Ok(origen::with_user(&self.user_id, |u| u.clear_cached_passwords())?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.clear_cached_passwords()
+        })?)
     }
 
     /// Clears the cached password only for the default dataset
     fn clear_cache_password(&self) -> PyResult<()> {
-        Ok(origen::with_user(&self.user_id, |u| u.clear_cached_password(None))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            u.clear_cached_password(None)
+        })?)
     }
 
     #[getter]
@@ -397,7 +477,9 @@ impl User {
 
     #[getter]
     fn dataset(&self) -> PyResult<String> {
-        Ok(origen::with_user(&self.user_id, |u| Ok(u.dataset().to_string()))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            Ok(u.dataset().to_string())
+        })?)
     }
 
     #[getter]
@@ -414,14 +496,19 @@ impl User {
 
     #[getter]
     fn data_store(&self) -> PyResult<DataStore> {
-        Ok(origen::with_user(&self.user_id, |u| Ok(DataStore::new(&self.user_id, &u.dataset())))?)
+        Ok(origen::with_user(&self.user_id, |u| {
+            Ok(DataStore::new(&self.user_id, &u.dataset()))
+        })?)
     }
 
     #[getter]
     fn home_dir(&self) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        Ok(crate::pypath!(py, origen::with_user(&self.user_id, |u| u.home_dir_string())?))
+        Ok(crate::pypath!(
+            py,
+            origen::with_user(&self.user_id, |u| u.home_dir_string())?
+        ))
     }
 
     #[getter]
@@ -433,14 +520,14 @@ impl User {
 #[pyclass]
 struct DataStore {
     user_id: String,
-    dataset: String
+    dataset: String,
 }
 
 impl DataStore {
     pub fn new(user_id: &str, dataset: &str) -> Self {
         Self {
             user_id: user_id.to_string(),
-            dataset: dataset.to_string()
+            dataset: dataset.to_string(),
         }
     }
 }
@@ -448,40 +535,62 @@ impl DataStore {
 #[pymethods]
 impl DataStore {
     fn get(&self, key: &str) -> PyResult<Option<PyObject>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
-            if let Some(o) = d.other.get(key) {
-                // Ok(Some(o.clone()))
-                Ok(metadata_to_pyobj(Some(o.clone()), Some(key))?)
-            } else {
-                Ok(None)
-            }
-        })?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                if let Some(o) = d.other.get(key) {
+                    // Ok(Some(o.clone()))
+                    Ok(metadata_to_pyobj(Some(o.clone()), Some(key))?)
+                } else {
+                    Ok(None)
+                }
+            },
+        )?)
     }
 
     pub fn keys(&self) -> PyResult<Vec<String>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
-            Ok(d.other.keys().map (|k| k.to_string()).collect::<Vec<String>>())
-        })?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                Ok(d.other
+                    .keys()
+                    .map(|k| k.to_string())
+                    .collect::<Vec<String>>())
+            },
+        )?)
     }
 
     fn values(&self) -> PyResult<Vec<Option<PyObject>>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
-            let mut retn: Vec<Option<PyObject>> = vec![];
-            for (key, obj) in d.other.iter() {
-                retn.push(metadata_to_pyobj(Some(obj.clone()), Some(key))?);
-            }
-            Ok(retn)
-        })?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                let mut retn: Vec<Option<PyObject>> = vec![];
+                for (key, obj) in d.other.iter() {
+                    retn.push(metadata_to_pyobj(Some(obj.clone()), Some(key))?);
+                }
+                Ok(retn)
+            },
+        )?)
     }
 
     fn items(&self) -> PyResult<Vec<(String, Option<PyObject>)>> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
-            let mut retn: Vec<(String, Option<PyObject>)> = vec![];
-            for (key, obj) in d.other.iter() {
-                retn.push((key.to_string(), metadata_to_pyobj(Some(obj.clone()), Some(key))?));
-            }
-            Ok(retn)
-        })?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| {
+                let mut retn: Vec<(String, Option<PyObject>)> = vec![];
+                for (key, obj) in d.other.iter() {
+                    retn.push((
+                        key.to_string(),
+                        metadata_to_pyobj(Some(obj.clone()), Some(key))?,
+                    ));
+                }
+                Ok(retn)
+            },
+        )?)
     }
 }
 
@@ -500,9 +609,7 @@ impl PyMappingProtocol for DataStore {
         } else {
             Err(pyo3::exceptions::KeyError::py_err(format!(
                 "No data added with key '{}' in dataset '{}' for user '{}'",
-                key,
-                self.dataset,
-                self.user_id
+                key, self.dataset, self.user_id
             )))
         }
     }
@@ -515,7 +622,11 @@ impl PyMappingProtocol for DataStore {
     }
 
     fn __len__(&self) -> PyResult<usize> {
-        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.other.len()))?)
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.other.len()),
+        )?)
     }
 }
 

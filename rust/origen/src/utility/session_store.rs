@@ -1,14 +1,14 @@
-use std::path::PathBuf;
+use super::file_utils::FilePermissions;
+use crate::Metadata;
 use crate::Result;
+use std::convert::TryFrom;
+use std::path::PathBuf;
 use toml::map::Map;
 use toml::Value;
-use crate::Metadata;
-use std::convert::TryFrom;
-use super::file_utils::FilePermissions;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
-use std::collections::HashMap;
 
 static USER_PATH_OFFSET: &str = ".o2/.session";
 static APP_PATH_OFFSET: &str = ".session";
@@ -81,7 +81,7 @@ impl Sessions {
     pub fn create_app_session(&mut self, session_path: PathBuf) -> Result<()> {
         self.app_sessions.insert(
             session_path.clone(),
-            SessionStore::new(session_path, true, FilePermissions::Group)?
+            SessionStore::new(session_path, true, FilePermissions::Group)?,
         );
         Ok(())
     }
@@ -89,7 +89,7 @@ impl Sessions {
     pub fn create_user_session(&mut self, session_path: PathBuf) -> Result<()> {
         self.user_sessions.insert(
             session_path.clone(),
-            SessionStore::new(session_path, false, FilePermissions::Group)?
+            SessionStore::new(session_path, false, FilePermissions::Group)?,
         );
         Ok(())
     }
@@ -114,7 +114,11 @@ impl Sessions {
         }
     }
 
-    pub fn get_mut_session(&mut self, path: PathBuf, is_app_session: bool) -> Result<&mut SessionStore> {
+    pub fn get_mut_session(
+        &mut self,
+        path: PathBuf,
+        is_app_session: bool,
+    ) -> Result<&mut SessionStore> {
         if is_app_session {
             if !self.app_sessions.contains_key(&path) {
                 self.create_app_session(path.clone())?;
@@ -170,14 +174,12 @@ impl Sessions {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SessionData {
-    data: Map<String, Value>
+    data: Map<String, Value>,
 }
 
 impl Default for SessionData {
     fn default() -> Self {
-        Self {
-            data: Map::new()
-        }
+        Self { data: Map::new() }
     }
 }
 
@@ -185,7 +187,7 @@ pub struct SessionStore {
     pub path: PathBuf,
     permissions: FilePermissions,
     data: SessionData,
-    is_app_session: bool
+    is_app_session: bool,
 }
 
 impl PartialEq for SessionStore {
@@ -203,12 +205,16 @@ impl SessionStore {
     //     Self::new(origen::current_user!().home_dir, OSPermissions::Private)?
     // }
 
-    pub fn new(path_to: PathBuf, is_app_session: bool, permissions: FilePermissions) -> Result<Self> {
+    pub fn new(
+        path_to: PathBuf,
+        is_app_session: bool,
+        permissions: FilePermissions,
+    ) -> Result<Self> {
         let mut s = Self {
             permissions: permissions,
             data: SessionData::default(),
             path: path_to,
-            is_app_session: is_app_session
+            is_app_session: is_app_session,
         };
         s.refresh()?;
         Ok(s)
@@ -230,7 +236,10 @@ impl SessionStore {
             // See: https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy
             Ok(p.to_string_lossy().to_string())
         } else {
-            crate::error!("Problem occurred resolving session name. Expected a file stem in {:?}", self.path)
+            crate::error!(
+                "Problem occurred resolving session name. Expected a file stem in {:?}",
+                self.path
+            )
         }
     }
 
@@ -240,12 +249,14 @@ impl SessionStore {
         Ok(())
     }
 
-    pub fn store_serialized(&mut self, key: String, bytes: &[u8], serializer: Option<String>, source: Option<String>) -> Result<()> {
-        let metadata = Metadata::Serialized(
-            bytes.to_vec(),
-            serializer,
-            source
-        );
+    pub fn store_serialized(
+        &mut self,
+        key: String,
+        bytes: &[u8],
+        serializer: Option<String>,
+        source: Option<String>,
+    ) -> Result<()> {
+        let metadata = Metadata::Serialized(bytes.to_vec(), serializer, source);
         self.store(key, metadata)
     }
 
@@ -324,7 +335,7 @@ impl SessionStore {
                 let mut file = File::open(path).unwrap();
                 let mut buffer = String::new();
                 file.read_to_string(&mut buffer).unwrap();
-                // Accept an empty file. This will break the attempt to parse to a 
+                // Accept an empty file. This will break the attempt to parse to a
                 // SessionData, but is, IMO, a benign corner case.
                 if buffer.len() == 0 {
                     Ok(None)
@@ -332,7 +343,7 @@ impl SessionStore {
                     Ok(Some(toml::from_str(&buffer).unwrap()))
                 }
             } else {
-                return error!("Session located at {:?} does not appear to be a file", path)
+                return error!("Session located at {:?} does not appear to be a file", path);
             }
         } else {
             Ok(None)
@@ -353,8 +364,8 @@ impl SessionStore {
 
 #[cfg(all(test, not(origen_skip_frontend_tests)))]
 mod tests {
+    use crate::utility::session_store::{SessionStore, Sessions};
     use num_bigint::BigInt;
-    use crate::utility::session_store::{Sessions, SessionStore};
 
     /// Get the caller name. Taken from this SO answer:
     /// https://stackoverflow.com/a/63904992/8533619
@@ -365,7 +376,7 @@ mod tests {
                 std::any::type_name::<T>()
             }
             let name = type_name_of(f);
-    
+
             // Find and cut the rest of the path
             match &name[..name.len() - 3].rfind(':') {
                 Some(pos) => &name[pos + 1..name.len() - 3],
@@ -385,7 +396,7 @@ mod tests {
         s.clear_cache().unwrap();
     }
 
-    fn posture_session<'a>(sessions: &'a mut Sessions, name: &str) -> &'a mut SessionStore{
+    fn posture_session<'a>(sessions: &'a mut Sessions, name: &str) -> &'a mut SessionStore {
         // Update the root into the py-app's tmp area
         let mut f = std::env::current_dir().unwrap();
         f.pop();
@@ -403,14 +414,15 @@ mod tests {
         cmd.push_str("print(origen.session_store.user_root()); ");
         cmd.push_str("origen.session_store.clear_cache(); ");
 
-        let stores = vals.iter().map( |v| {
-            format!(
-                "origen.session_store.user_session('{}').store('{}', {})",
-                name,
-                v.0,
-                v.1
-            )
-        }).collect::<Vec<String>>();
+        let stores = vals
+            .iter()
+            .map(|v| {
+                format!(
+                    "origen.session_store.user_session('{}').store('{}', {})",
+                    name, v.0, v.1
+                )
+            })
+            .collect::<Vec<String>>();
         cmd.push_str(&stores.join("; "));
         crate::tests::run_python(&cmd).unwrap();
     }
@@ -421,7 +433,9 @@ mod tests {
         set_session_root(offset);
         let mut s = crate::sessions();
         s.remove_files().unwrap();
-        let session = s.user_session(Some("rust_test_session".to_string())).unwrap();
+        let session = s
+            .user_session(Some("rust_test_session".to_string()))
+            .unwrap();
         assert_eq!(session.retrieve("rust_test").unwrap(), None);
 
         let mut cmd = format!(
@@ -430,12 +444,25 @@ mod tests {
         );
         cmd.push_str("print(origen.session_store.user_root()); ");
         cmd.push_str("origen.session_store.clear_cache(); ");
-        cmd.push_str("origen.session_store.user_session('rust_test_session').store('rust_test', 'test_str')");
+        cmd.push_str(
+            "origen.session_store.user_session('rust_test_session').store('rust_test', 'test_str')",
+        );
         crate::tests::run_python(&cmd).unwrap();
         session.refresh().unwrap();
         assert_eq!(session.retrieve("rust_test").unwrap().is_some(), true);
-        assert_eq!(session.retrieve("rust_test").unwrap(), Some(crate::Metadata::String("test_str".to_string())));
-        assert_eq!(session.retrieve("rust_test").unwrap().unwrap().as_string().unwrap(), "test_str".to_string());
+        assert_eq!(
+            session.retrieve("rust_test").unwrap(),
+            Some(crate::Metadata::String("test_str".to_string()))
+        );
+        assert_eq!(
+            session
+                .retrieve("rust_test")
+                .unwrap()
+                .unwrap()
+                .as_string()
+                .unwrap(),
+            "test_str".to_string()
+        );
     }
 
     #[test]
@@ -444,17 +471,27 @@ mod tests {
         let session = posture_session(&mut s, current_func!());
         assert_eq!(session.retrieve("test_bigint").unwrap(), None);
         assert_eq!(session.retrieve("test_bigint_neg").unwrap(), None);
-        store_from_frontend(current_func!(), vec!(
-            ("test_bigint", "1000"),
-            ("test_bigint_neg", "-1000")
-        ));
+        store_from_frontend(
+            current_func!(),
+            vec![("test_bigint", "1000"), ("test_bigint_neg", "-1000")],
+        );
         session.refresh().unwrap();
         assert_eq!(
-            session.retrieve("test_bigint").unwrap().unwrap().as_bigint().unwrap(),
+            session
+                .retrieve("test_bigint")
+                .unwrap()
+                .unwrap()
+                .as_bigint()
+                .unwrap(),
             BigInt::from(1000 as usize)
         );
         assert_eq!(
-            session.retrieve("test_bigint_neg").unwrap().unwrap().as_bigint().unwrap(),
+            session
+                .retrieve("test_bigint_neg")
+                .unwrap()
+                .unwrap()
+                .as_bigint()
+                .unwrap(),
             BigInt::from(-1000)
         );
     }
@@ -465,17 +502,27 @@ mod tests {
         let session = posture_session(&mut s, current_func!());
         assert_eq!(session.retrieve("test_true").unwrap(), None);
         assert_eq!(session.retrieve("test_false").unwrap(), None);
-        store_from_frontend(current_func!(), vec!(
-            ("test_true", "True"),
-            ("test_false", "False")
-        ));
+        store_from_frontend(
+            current_func!(),
+            vec![("test_true", "True"), ("test_false", "False")],
+        );
         session.refresh().unwrap();
         assert_eq!(
-            session.retrieve("test_true").unwrap().unwrap().as_bool().unwrap(),
+            session
+                .retrieve("test_true")
+                .unwrap()
+                .unwrap()
+                .as_bool()
+                .unwrap(),
             true
         );
         assert_eq!(
-            session.retrieve("test_false").unwrap().unwrap().as_bool().unwrap(),
+            session
+                .retrieve("test_false")
+                .unwrap()
+                .unwrap()
+                .as_bool()
+                .unwrap(),
             false
         );
     }
@@ -487,22 +534,40 @@ mod tests {
         assert_eq!(session.retrieve("test_str").unwrap(), None);
         assert_eq!(session.retrieve("test_bigint").unwrap(), None);
         assert_eq!(session.retrieve("test_bool").unwrap(), None);
-        store_from_frontend(current_func!(), vec!(
-            ("test_str", "'hi'"),
-            ("test_bigint", "0"),
-            ("test_bool", "True")
-        ));
+        store_from_frontend(
+            current_func!(),
+            vec![
+                ("test_str", "'hi'"),
+                ("test_bigint", "0"),
+                ("test_bool", "True"),
+            ],
+        );
         session.refresh().unwrap();
         assert_eq!(
-            session.retrieve("test_str").unwrap().unwrap().as_string().unwrap(),
+            session
+                .retrieve("test_str")
+                .unwrap()
+                .unwrap()
+                .as_string()
+                .unwrap(),
             "hi"
         );
         assert_eq!(
-            session.retrieve("test_bigint").unwrap().unwrap().as_bigint().unwrap(),
+            session
+                .retrieve("test_bigint")
+                .unwrap()
+                .unwrap()
+                .as_bigint()
+                .unwrap(),
             BigInt::from(0)
         );
         assert_eq!(
-            session.retrieve("test_bool").unwrap().unwrap().as_bool().unwrap(),
+            session
+                .retrieve("test_bool")
+                .unwrap()
+                .unwrap()
+                .as_bool()
+                .unwrap(),
             true
         );
     }
@@ -512,54 +577,37 @@ mod tests {
         let mut s = crate::sessions();
         let session = posture_session(&mut s, current_func!());
         assert_eq!(session.retrieve("test_vec").unwrap(), None);
-        store_from_frontend(current_func!(), vec!(
-            ("test_vec", "['hi', -1, 0, True, 6.022]"),
-            ("test_vec2", "['hello', 2, -2, False, -6.022]"),
-        ));
+        store_from_frontend(
+            current_func!(),
+            vec![
+                ("test_vec", "['hi', -1, 0, True, 6.022]"),
+                ("test_vec2", "['hello', 2, -2, False, -6.022]"),
+            ],
+        );
         session.refresh().unwrap();
-        let v = session.retrieve("test_vec").unwrap().unwrap().as_vec().unwrap();
+        let v = session
+            .retrieve("test_vec")
+            .unwrap()
+            .unwrap()
+            .as_vec()
+            .unwrap();
         assert_eq!(v.len(), 5);
-        assert_eq!(
-            v[0].as_string().unwrap(),
-            "hi"
-        );
-        assert_eq!(
-            v[1].as_bigint().unwrap(),
-            BigInt::from(-1)
-        );
-        assert_eq!(
-            v[2].as_bigint().unwrap(),
-            BigInt::from(0)
-        );
-        assert_eq!(
-            v[3].as_bool().unwrap(),
-            true
-        );
-        assert_eq!(
-            v[4].as_float().unwrap(),
-            6.022
-        );
+        assert_eq!(v[0].as_string().unwrap(), "hi");
+        assert_eq!(v[1].as_bigint().unwrap(), BigInt::from(-1));
+        assert_eq!(v[2].as_bigint().unwrap(), BigInt::from(0));
+        assert_eq!(v[3].as_bool().unwrap(), true);
+        assert_eq!(v[4].as_float().unwrap(), 6.022);
 
-        let v = session.retrieve("test_vec2").unwrap().unwrap().as_vec().unwrap();
-        assert_eq!(
-            v[0].as_string().unwrap(),
-            "hello"
-        );
-        assert_eq!(
-            v[1].as_bigint().unwrap(),
-            BigInt::from(2)
-        );
-        assert_eq!(
-            v[2].as_bigint().unwrap(),
-            BigInt::from(-2)
-        );
-        assert_eq!(
-            v[3].as_bool().unwrap(),
-            false
-        );
-        assert_eq!(
-            v[4].as_float().unwrap(),
-            -6.022
-        );
+        let v = session
+            .retrieve("test_vec2")
+            .unwrap()
+            .unwrap()
+            .as_vec()
+            .unwrap();
+        assert_eq!(v[0].as_string().unwrap(), "hello");
+        assert_eq!(v[1].as_bigint().unwrap(), BigInt::from(2));
+        assert_eq!(v[2].as_bigint().unwrap(), BigInt::from(-2));
+        assert_eq!(v[3].as_bool().unwrap(), false);
+        assert_eq!(v[4].as_float().unwrap(), -6.022);
     }
 }
