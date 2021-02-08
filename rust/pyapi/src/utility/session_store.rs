@@ -128,10 +128,10 @@ pub fn set_user_root(root: &PyAny) -> PyResult<()> {
     let path;
     if let Ok(p) = root.extract::<String>() {
         path = p;
-    } else if root.get_type().name().to_string() == "Path" || root.get_type().name().to_string() == "WindowsPath" {
+    } else if root.get_type().name().to_string() == "Path" || root.get_type().name().to_string() == "WindowsPath" || root.get_type().name().to_string() == "PosixPath" {
         path = root.call_method0("__str__")?.extract::<String>()?;
     } else {
-        return crate::type_error!("Cannot extract input as either a str or pathlib.Path object");
+        return crate::type_error!(&format!("Cannot extract input as either a str or pathlib.Path object. Received {}", root.get_type().name().to_string()));
     }
     let mut s = origen::sessions();
     s.user_session_root = PathBuf::from(path);
