@@ -1,6 +1,6 @@
 use crate::revision_control::git;
 use crate::utility::command_helpers::exec_and_capture;
-use crate::{Error, Result, ORIGEN_CONFIG};
+use crate::{Error, Result, ORIGEN_CONFIG, Metadata};
 use crate::utility::ldap::LDAPs;
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
@@ -13,6 +13,7 @@ use aes_gcm::aead::{generic_array::GenericArray, generic_array::typenum::{U32, U
 
 const PASSWORD_KEY: &str = "user_password__";
 
+#[allow(non_snake_case)]
 pub fn user__password_reasons<'a>() -> &'a HashMap<String, String> {
     &ORIGEN_CONFIG.user__password_reasons
 }
@@ -163,7 +164,7 @@ pub const DEFAULT_KEY: &str = "default";
 pub struct Users {
     users: IndexMap<String, User>,
     current_id: String,
-    initial_id: String,
+    // initial_id: String,
 }
 
 impl Users {
@@ -201,17 +202,15 @@ impl Default for Users {
     fn default() -> Self {
         let u = User::current();
         let id = u.id().to_string();
-        let mut users = Self {
+        let users = Self {
             users: {
                 let mut i = IndexMap::new();
                 i.insert(id.clone(), u);
                 i
             },
             current_id: id.clone(),
-            initial_id: id
+            // initial_id: id
         };
-        // for (name, config) in ORIGEN_CONFIG.service_users.iter() {
-        // }
         users
     }
 }
@@ -235,7 +234,7 @@ pub struct Data {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub display_name: Option<String>,
-    pub other: HashMap<String, String>,
+    pub other: IndexMap<String, Metadata>,
     pub home_dir: PathBuf,
     // Will be set after trying to get a missing name, e.g. from the
     // Git config to differentiate between an name which has not been
@@ -286,7 +285,7 @@ impl Data {
         self.authenticated = false;
         if parent.is_current() {
             log_trace!("Clearing password {} from user session", k);
-            crate::with_user_session(None, |session| session.delete(&k));
+            crate::with_user_session(None, |session| session.delete(&k))?;
         }
         Ok(())
     }
@@ -337,7 +336,7 @@ impl User {
                 "".to_string()
             }
         };
-        let mut u = User::new(&id);
+        let u = User::new(&id);
         {
             let mut data = u.write_data(None).unwrap();
             data.home_dir = super::status::get_home_dir();
@@ -358,7 +357,7 @@ impl User {
             data_key: Self::default_data_key().to_string(),
         };
         for (name, config) in ORIGEN_CONFIG.user__datasets.iter() {
-            u.add_dataset_placeholder(name);
+            u.add_dataset_placeholder(name).unwrap();
 
             // Default is to populate any datasets at creation time.
             if let Some(should_pop) = config.get("auto_populate") {
@@ -540,10 +539,6 @@ impl User {
         Ok(())
     }
 
-    fn password_dataset_key(&self) -> String {
-        format!("user_password__{}", self.data_key)
-    }
-
     fn _cache_password(&self, password: &str, dataset: &str) -> Result<bool> {
         if ORIGEN_CONFIG.user__cache_passwords {
             // Cache the (encrypted) password in the user's session for future use
@@ -650,7 +645,7 @@ impl User {
 
         if let Some(p) = password.as_ref() {
             let dn = dataset.unwrap_or(&self.data_key);
-            self.with_dataset_mut(dn, |d| { d.authenticated = false; Ok(()) });
+            self.with_dataset_mut(dn, |d| { d.authenticated = false; Ok(()) })?;
 
             if let Some(v) = validate {
                 if v {
@@ -662,8 +657,8 @@ impl User {
             }
 
             // either we aren't to validate, or the validation was successful
-            self.with_dataset_mut(dn, |d| { d.password = Some(p.to_string()); Ok(()) });
-            self._cache_password(p, dn);
+            self.with_dataset_mut(dn, |d| { d.password = Some(p.to_string()); Ok(()) })?;
+            self._cache_password(p, dn)?;
             Ok(())
         } else {
             self.clear_cached_password(dataset)
@@ -868,7 +863,7 @@ impl User {
                                     } else if key == "username" {
                                         data.username = Some(v.first().unwrap().to_string());
                                     } else {
-                                        data.other.insert(key.to_string(), v.first().unwrap().to_string());
+                                        data.other.insert(key.to_string(), Metadata::String(v.first().unwrap().to_string()));
                                     }
                                 } else {
                                     error_or_failure(

@@ -5,8 +5,8 @@ from origen.web.origen_sphinx_extension.shorthand_defs import defs
 pyo3_version = '0.8.5'
 python_doc_version = '3'  # Points to latest, stable Python3 version.
 links = defs['abslinks']
-core_github_branch = "doc_system"
-github_root__python_app = "https://github.com/Origen-SDK/o2/blob/{core_github_branch}/test_apps/python_app"
+core_github_branch = "mailer_ldap_users_session_and_more"
+github_root__python_app = f"https://github.com/Origen-SDK/o2/blob/{core_github_branch}/test_apps/python_app"
 
 extlinks = {
     # Sphinx basics or built-in (non-extension) features
@@ -295,7 +295,13 @@ extlinks = {
     (f'{github_root__python_app}/config/origen.toml%s',
      ''),
     'origen_specs_users':
-    (f'{github_root__python_app}/tests/origen_utilities/users.py%s',
+    (f'{github_root__python_app}/tests/origen_utilities/test_users.py%s',
+     ''),
+    'origen_specs_ldap':
+    (f'{github_root__python_app}/tests/origen_utilities/test_ldap.py%s',
+     ''),
+    'origen_specs_session_store':
+    (f'{github_root__python_app}/tests/origen_utilities/test_session_store.py%s',
      ''),
 
     # LDAP

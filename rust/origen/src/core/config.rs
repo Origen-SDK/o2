@@ -25,6 +25,7 @@ pub static DEFAULT_ENCRYPTION_KEY: &str = "213c3c3c2d2d2d4f726967656e205374616e6
 /// default_encryption_nonce: ORIGEN NONCE
 pub static DEFAULT_ENCRYPTION_NONCE: &str = "4f524947454e204e4f4e4345";
 
+#[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
 // * pyapi/src/lib.rs to convert it to Python

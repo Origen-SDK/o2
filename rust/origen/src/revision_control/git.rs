@@ -443,7 +443,6 @@ impl Git {
             let username;
             let password;
             {
-                let last_password_attempt = self.last_password_attempt.borrow();
                 password = {
                     if self.credentials.is_some()
                         && self.credentials.as_ref().unwrap().password.is_some()

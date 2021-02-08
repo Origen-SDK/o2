@@ -1,11 +1,12 @@
-use origen::core::user::User as OrigenUser;
 use pyo3::{wrap_pyfunction};
 use pyo3::prelude::*;
-use pyo3::types::{PyTuple, PyDict, IntoPyDict};
+use pyo3::types::{PyDict, IntoPyDict};
 use super::utility::session_store::{SessionStore, user_session};
 use std::collections::HashMap;
 use pyo3::class::mapping::PyMappingProtocol;
-use std::iter::FromIterator;
+use super::utility::metadata::{metadata_to_pyobj, extract_as_metadata};
+
+const DATA_FIELDS: [&str; 5] = ["email", "first_name", "last_name", "display_name", "username"];
 
 #[pymodule]
 fn users(py: Python, m: &PyModule) -> PyResult<()> {
@@ -84,6 +85,12 @@ impl Users {
             retn.push((id.to_string(), User::new(id)?));
         }
         Ok(retn)
+    }
+
+    #[allow(non_snake_case)]
+    #[getter]
+    fn DATA_FIELDS(&self) -> PyResult<[&str; 5]> {
+        Ok(DATA_FIELDS)
     }
 }
 
@@ -193,6 +200,7 @@ impl UserDataset {
         Ok(origen::with_user(&self.user_id, |u| u.display_name_for(Some(&self.dataset)))?)
     }
 
+    #[allow(non_snake_case)]
     #[getter]
     fn get___display_name__(&self) -> PyResult<Option<String>> {
         Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.display_name.clone()))?)
@@ -216,6 +224,11 @@ impl UserDataset {
 
     fn clear_cached_password(&self) -> PyResult<()> {
         Ok(origen::with_user(&self.user_id, |u| u.clear_cached_password(Some(&self.dataset)))?)
+    }
+
+    #[getter]
+    fn data_store(&self) -> PyResult<DataStore> {
+        Ok(DataStore::new(&self.user_id, &self.dataset))
     }
 
     fn populate(&self) -> PyResult<()> {
@@ -265,7 +278,7 @@ impl User {
 
     #[setter]
     fn set_username(&self, username: Option<String>) -> PyResult<()> {
-        origen::with_user(&self.user_id, |u| Ok(u.set_username(username.clone())))?;
+        origen::with_user(&self.user_id, |u| u.set_username(username.clone()))?;
         Ok(())
     }
 
@@ -276,7 +289,7 @@ impl User {
 
     #[setter]
     fn set_email(&self, email: Option<String>) -> PyResult<()> {
-        origen::with_user(&self.user_id, |u| Ok(u.set_email(email.clone())))?;
+        origen::with_user(&self.user_id, |u| u.set_email(email.clone()))?;
         Ok(())
     }
 
@@ -287,7 +300,7 @@ impl User {
 
     #[setter]
     fn set_first_name(&self, first_name: Option<String>) -> PyResult<()> {
-        origen::with_user(&self.user_id, |u| Ok(u.set_first_name(first_name.clone())))?;
+        origen::with_user(&self.user_id, |u| u.set_first_name(first_name.clone()))?;
         Ok(())
     }
 
@@ -298,7 +311,7 @@ impl User {
 
     #[setter]
     fn last_name(&self, last_name: Option<String>) -> PyResult<()> {
-        origen::with_user(&self.user_id, |u| Ok(u.set_last_name(last_name.clone())))?;
+        origen::with_user(&self.user_id, |u| u.set_last_name(last_name.clone()))?;
         Ok(())
     }
 
@@ -309,7 +322,7 @@ impl User {
 
     #[setter]
     fn display_name(&self, display_name: Option<String>) -> PyResult<()> {
-        origen::with_user(&self.user_id, |u| Ok(u.set_display_name(display_name.clone())))?;
+        origen::with_user(&self.user_id, |u| u.set_display_name(display_name.clone()))?;
         Ok(())
     }
 
@@ -389,7 +402,7 @@ impl User {
     fn datasets(&self) -> PyResult<HashMap<String, UserDataset>> {
         let mut retn = HashMap::new();
         origen::with_user(&self.user_id, |u| {
-            for (n, d) in u.datasets().iter() {
+            for n in u.datasets().keys() {
                 retn.insert(n.to_string(), UserDataset::new(&self.user_id, n));
             }
             Ok(())
@@ -398,8 +411,8 @@ impl User {
     }
 
     #[getter]
-    fn get_datapieces(&self) -> PyResult<Vec<&str>> {
-        Ok(vec!["email", "first_name", "last_name", "display_name", "username"])
+    fn data_store(&self) -> PyResult<DataStore> {
+        Ok(origen::with_user(&self.user_id, |u| Ok(DataStore::new(&self.user_id, &u.dataset())))?)
     }
 
     #[getter]
@@ -412,5 +425,126 @@ impl User {
     #[getter]
     fn session(&self) -> PyResult<SessionStore> {
         user_session(None)
+    }
+}
+
+#[pyclass]
+struct DataStore {
+    user_id: String,
+    dataset: String
+}
+
+impl DataStore {
+    pub fn new(user_id: &str, dataset: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            dataset: dataset.to_string()
+        }
+    }
+}
+
+#[pymethods]
+impl DataStore {
+    fn get(&self, key: &str) -> PyResult<Option<PyObject>> {
+        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
+            if let Some(o) = d.other.get(key) {
+                // Ok(Some(o.clone()))
+                Ok(metadata_to_pyobj(Some(o.clone()), Some(key))?)
+            } else {
+                Ok(None)
+            }
+        })?)
+    }
+
+    pub fn keys(&self) -> PyResult<Vec<String>> {
+        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
+            Ok(d.other.keys().map (|k| k.to_string()).collect::<Vec<String>>())
+        })?)
+    }
+
+    fn values(&self) -> PyResult<Vec<Option<PyObject>>> {
+        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
+            let mut retn: Vec<Option<PyObject>> = vec![];
+            for (key, obj) in d.other.iter() {
+                retn.push(metadata_to_pyobj(Some(obj.clone()), Some(key))?);
+            }
+            Ok(retn)
+        })?)
+    }
+
+    fn items(&self) -> PyResult<Vec<(String, Option<PyObject>)>> {
+        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
+            let mut retn: Vec<(String, Option<PyObject>)> = vec![];
+            for (key, obj) in d.other.iter() {
+                retn.push((key.to_string(), metadata_to_pyobj(Some(obj.clone()), Some(key))?));
+            }
+            Ok(retn)
+        })?)
+    }
+}
+
+#[pyproto]
+impl PyMappingProtocol for DataStore {
+    fn __getitem__(&self, key: &str) -> PyResult<Option<PyObject>> {
+        let obj = origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
+            if let Some(o) = d.other.get(key) {
+                Ok(Some(o.clone()))
+            } else {
+                Ok(None)
+            }
+        })?;
+        if let Some(o) = obj {
+            metadata_to_pyobj(Some(o), Some(key))
+        } else {
+            Err(pyo3::exceptions::KeyError::py_err(format!(
+                "No data added with key '{}' in dataset '{}' for user '{}'",
+                key,
+                self.dataset,
+                self.user_id
+            )))
+        }
+    }
+
+    fn __setitem__(&mut self, key: &str, value: &PyAny) -> PyResult<()> {
+        origen::user::with_user_dataset_mut(Some(&self.user_id), &self.dataset, |d| {
+            Ok(d.other.insert(key.to_string(), extract_as_metadata(value)?))
+        })?;
+        Ok(())
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(origen::user::with_user_dataset(Some(&self.user_id), &self.dataset, |d| Ok(d.other.len()))?)
+    }
+}
+
+#[pyclass]
+pub struct DataStoreIter {
+    pub keys: Vec<String>,
+    pub i: usize,
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for DataStoreIter {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        Ok(slf.into())
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
+        if slf.i >= slf.keys.len() {
+            return Ok(None);
+        }
+        let name = slf.keys[slf.i].clone();
+        slf.i += 1;
+        Ok(Some(name))
+    }
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for DataStore {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<UsersIter> {
+        Ok(UsersIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
     }
 }

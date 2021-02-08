@@ -1,8 +1,8 @@
 import origen, _origen, pytest, os, getpass
 from tests.shared.python_like_apis import Fixture_DictLikeAPI
 
-datapieces = ["email", "first_name", "last_name"] # name?
-datapiece_exceptions = ["display_name", "username"]
+data_fields = ["email", "first_name", "last_name"] # name?
+data_fields_exceptions = ["display_name", "username"]
 
 class TestUsers:
     @property
@@ -67,25 +67,25 @@ class TestUsers:
         assert u.username == "test3"
         assert u.id == "test"
 
-    def test_confirm_datapieces(self):
-        assert self.user.datapieces == datapieces + datapiece_exceptions
+    def test_confirm_data_fields(self):
+        assert origen.users.DATA_FIELDS == data_fields + data_fields_exceptions
 
     # Test setting various data pieces
-    @pytest.mark.parametrize("datapiece", datapieces)
-    def test_accessing_datapieces(self, datapiece):
-        data = f"test_{datapiece}"
+    @pytest.mark.parametrize("field", data_fields)
+    def test_accessing_fields(self, field):
+        data = f"test_{field}"
         u = self.user
         d = u.datasets["test"]
-        assert getattr(u, datapiece) is None
-        assert getattr(d, datapiece) is None
-        setattr(u, datapiece, data)
-        assert getattr(u, datapiece) == data
-        assert getattr(d, datapiece) == data
+        assert getattr(u, field) is None
+        assert getattr(d, field) is None
+        setattr(u, field, data)
+        assert getattr(u, field) == data
+        assert getattr(d, field) == data
         data2 = f"{data}_via_dataset"
-        setattr(d, datapiece, data2) is None
-        assert getattr(u, datapiece) == data2
-        assert getattr(d, datapiece) == data2
-        assert getattr(u.datasets["test2"], datapiece) is None
+        setattr(d, field, data2) is None
+        assert getattr(u, field) == data2
+        assert getattr(d, field) == data2
+        assert getattr(u.datasets["test2"], field) is None
 
     def test_accessing_display_name(self):
         u = self.user2
@@ -147,16 +147,33 @@ class TestUsers:
         assert d.__display_name__ == "dataset_display_name"
         assert d2.display_name == "test2"
 
-    @pytest.mark.xfail
     def test_getting_and_setting_arbitrary_data(self):
         u = self.user
-        u.other == {}
-        # u.other["hi"] = "bye"
-        # u.other["?"] = 42
-        # u.other["??"] = ["1", 2, 3.0]
-        # assert u.other["hi"] == "bye"
-        # assert u.other["?"] == 42
-        # assert u.other["??"] == ["1", 2, 3.0]
+        d = u.datasets["test"]
+        d2 = u.datasets["test2"]
+
+        assert len(u.data_store) == 0
+        assert "test" not in u.data_store
+        u.data_store["test"] = 1
+        assert u.data_store["test"] == 1
+        assert d.data_store["test"] == 1
+        assert "test" not in d2.data_store
+
+    class TestDataStoreDictLike(Fixture_DictLikeAPI):
+        def parameterize(self):
+            return {
+                "keys": ["test", "test 1", "test 2"],
+                "klass": str,
+                "not_in_dut": "Blah"
+            }
+
+        def boot_dict_under_test(self):
+            if not getattr(self, "booted_up", False):
+                origen.current_user().data_store["test"] = "zero"
+                origen.current_user().data_store["test 1"] = "one"
+                origen.current_user().data_store["test 2"] = "two"
+                self.booted_up = True
+            return origen.current_user().data_store
 
     def test_passwords(self):
         u = self.user

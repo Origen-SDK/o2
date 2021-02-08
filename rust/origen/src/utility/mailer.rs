@@ -1,16 +1,17 @@
 use lettre;
 use crate::{Result, ORIGEN_CONFIG};
-use std::path::PathBuf;
+// use std::path::PathBuf;
 
 use lettre::Message;
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
-use lettre::{Transport, Address};
+// use lettre::{Transport, Address};
+use lettre::{Transport};
 use lettre::message::{header, SinglePart, MultiPart, Mailbox};
 
-pub struct Maillist {
-    pub to: Vec<Address>,
-    from_file: Option<PathBuf>,
-}
+// pub struct Maillist {
+//     pub to: Vec<Address>,
+//     from_file: Option<PathBuf>,
+// }
 
 // impl Maillist {
 //     fn from_file(f: &Path) -> Result<Self> {
@@ -136,7 +137,6 @@ impl Mailer {
         include_origen_signature: bool
     ) -> Result<Message> {
         let e: Mailbox = from.parse()?;
-        let mut email_to: Vec<Mailbox>;
         let mut m = Message::builder();
         m = m.from(e);
         for t in to {
@@ -195,37 +195,37 @@ impl Mailer {
     }
 }
 
-/// Global context for the mailer applied to every email.
-/// Overrides here apply to every email sent after the update.
-/// Individual emails can also have these fields edited after creation
-/// but before sending.
-pub struct GlobalContext {
-    server: String,
-    port: String,
-    from: String,
-    from_alias: String,
-    authentication: String,
-    domain: String,
-    pub include_website: bool,
-    pub website: String,
-    pub include_app_context: bool,
-    pub include_app_intro: bool,
-}
+// /// Global context for the mailer applied to every email.
+// /// Overrides here apply to every email sent after the update.
+// /// Individual emails can also have these fields edited after creation
+// /// but before sending.
+// pub struct GlobalContext {
+//     server: String,
+//     port: String,
+//     from: String,
+//     from_alias: String,
+//     authentication: String,
+//     domain: String,
+//     pub include_website: bool,
+//     pub website: String,
+//     pub include_app_context: bool,
+//     pub include_app_intro: bool,
+// }
 
-/// Wrapper around Lettre's Email Builder, providing some
-/// Origen-specific stuff.
-pub struct EmailContent {
-    // pub maillist: Vec!<Maillist>,
-    pub subject: String,
-    pub body: String,
+// /// Wrapper around Lettre's Email Builder, providing some
+// /// Origen-specific stuff.
+// pub struct EmailContent {
+//     // pub maillist: Vec!<Maillist>,
+//     pub subject: String,
+//     pub body: String,
 
-    /// Everything in the global context allows per-email overrides.
-    /// Rather than duplicating all the keys, just provide a copy of the
-    /// GlobalContext this email was built with. This context will be snapshot
-    /// of the GlobalContext at the time of creation.
-    pub global_context: GlobalContext,
-    //pub email: EmailBuilder,
-}
+//     /// Everything in the global context allows per-email overrides.
+//     /// Rather than duplicating all the keys, just provide a copy of the
+//     /// GlobalContext this email was built with. This context will be snapshot
+//     /// of the GlobalContext at the time of creation.
+//     pub global_context: GlobalContext,
+//     //pub email: EmailBuilder,
+// }
 
 // impl Struct EmailContent {
 //     pub fn new() -> Result<Self> {

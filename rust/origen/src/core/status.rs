@@ -4,7 +4,6 @@ use crate::core::application::Application;
 use crate::testers::SupportedTester;
 use crate::utility::file_utils::with_dir;
 use crate::Result as OrigenResult;
-use crate::core::user::User;
 use regex::Regex;
 use semver::Version;
 use std::env;
@@ -12,7 +11,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::RwLock;
-use indexmap::IndexMap;
 
 // Trait for extending std::path::PathBuf
 use path_slash::PathBufExt;

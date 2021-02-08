@@ -154,7 +154,7 @@ _plugins = {}
     mean that it hasn't been loaded yet (via an official API) rather than it not existing.
 '''
 
-mailer = _origen.utility.Mailer("default")
+mailer = _origen.utility.mailer._mailer()
 ''' Accessor to the global :class:`Mailer <_origen.utility.mailer.Mailer>`
 
 See also:

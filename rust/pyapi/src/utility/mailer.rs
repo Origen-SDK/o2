@@ -1,5 +1,17 @@
 use pyo3::prelude::*;
-use origen::utility::mailer::Mailer as OrigenMailer;
+use pyo3::wrap_pyfunction;
+
+#[pymodule]
+fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<Mailer>()?;
+    m.add_wrapped(wrap_pyfunction!(_mailer))?;
+    Ok(())
+}
+
+#[pyfunction]
+pub fn _mailer() -> PyResult<Mailer> {
+    Ok(Mailer {})
+}
 
 /// Simple Python class that wraps the Origen's mailer
 #[pyclass(subclass)]
@@ -31,8 +43,9 @@ impl Mailer {
     //     Ok(())
     // }
 
-    fn test(&self, to: Option<Vec<&PyAny>>) -> PyResult<()> {
-        let m = origen::mailer();
+    // fn test(&self, to: Option<Vec<&PyAny>>) -> PyResult<()> {
+    fn test(&self) -> PyResult<()> {
+            let m = origen::mailer();
         Ok(m.test(None)?)
     }
 

@@ -18,9 +18,9 @@ Additional users can be added with :meth:`origen.users.add('\<id\>') <_origen.us
 
 A user comes with a number of fields that can be set and queried at will:
 
-{% for d in origen.users.data_fields %}
+{% for d in origen.users.DATA_FIELDS %}
 * :meth:`{{d}} <_origen.users.User.{{d}}>`
-{% endfor -%}
+{% endfor %}
 
 The :meth:`username <_origen.users.User.username>` and :meth:`display_name <_origen.users.User.display_name>` fields act a bit differently. If they are unset, a backup is returned instead. See the API for details:
 
@@ -29,7 +29,7 @@ The :meth:`username <_origen.users.User.username>` and :meth:`display_name <_ori
 
 Passwords work in much the same way with the caveat of an unset for the current user triggers a dialog prompting the user to enter their password. Non-current users will need to explicitly set passwords with the setter method, ``password=``.
 
-``Users`` can be customized by the |origen_config|. The below sections will go through some of these, or see the |example_users_configuration| in the repository.
+``Users`` can be customized by the |origen_config|. The below sections will go through some of these while the :link-to:`sample configuration <test_app_origen_config>` in the repository contains a working example.
 
 Datasets
 ^^^^^^^^
@@ -154,7 +154,7 @@ Integrating a LDAP is done per-dataset where the ldap's name and various lookup 
     auto_populate = false       # Indicate if the LDAP should populate
                                 # the user field at initialization.
 
-|the_users_tests| contains a setup and some tests against a :link-to:`freely available LDAP<ldap:test_server>` and can be used as an example and a reference.
+:link-to:`The Users tests <users:tests>` contains a setup and some tests against a :link-to:`freely available LDAP<ldap:test_server>` and can be used as an example and a reference.
 
 More On Passwords
 ^^^^^^^^^^^^^^^^^
@@ -239,7 +239,7 @@ See Also
 
 * :class:`_origen.users.Users`
 * :class:`_origen.users.User`
-* |user_api_tests|
+* |users:tests|
 
 LDAP
 ----
@@ -274,7 +274,7 @@ LDAP instances are added via |origen_config|. A single LDAP only has a few param
     username = "u"
     password = "p"
 
-Note: the above is a configuration for a :link-to:`free LDAP server <ldap:test_server>` and should work for testing or debug. See the |ldap_tests| for example interactions with this system.
+Note: the above is a configuration for a :link-to:`free LDAP server <ldap:test_server>` and should work for testing or debug. See the |ldap:tests| for example interactions with this system.
 
 Added LDAPs are available as :class:`origen.ldaps <_origen.utilities.ldap.LDAPs>`, a |dict-like| container:
 
@@ -317,7 +317,7 @@ For more information on Origen's LDAP, see the resources below:
 * :class:`ldap API <_origen.utilities.ldap.Ldap>`
 * |ldap:filters|
 * |ldap:wiki|
-* |ldap_regression_tests|
+* |ldap:tests|
 * |ldap:test_server|
 
 Mailer
@@ -425,7 +425,7 @@ Almost any Python object can be stored in the session. Standard objects which co
 used by the Rust backend, such as strings, numbers, booleans, or lists of those types, are
 stored directly. Any other objects, such as custom classes, are serialized using |pickle|.
 
-You can opt to store and get data through your own serialization mechanism. The method :meth:`store_serialized <_origen.utility.session_store.Session.store_serialized>` will bypass any serialization or data type inference occurring in the backend and simply store the given |bytes| directly. When it is retrieved, via the standard :meth:`get <_origen.utility.session_store.Session.get>` method, the |bytes| are retrieved. See the |test case| for an example
+You can opt to store and get data through your own serialization mechanism. The method :meth:`store_serialized <_origen.utility.session_store.Session.store_serialized>` will bypass any serialization or data type inference occurring in the backend and simply store the given |bytes| directly. When it is retrieved, via the standard :meth:`get <_origen.utility.session_store.Session.get>` method, the |bytes| are retrieved. See the |session_store:tests| for an example
 of storing via |marshal|.
 
 .. Session File Data
@@ -435,4 +435,4 @@ Session Store Resources
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 * :class:`SessionStore API <_origen.utility.session_store.SessionStore>`
-* |session_store_tests|
+* |session_store:tests|

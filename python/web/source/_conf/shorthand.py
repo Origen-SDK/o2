@@ -90,7 +90,15 @@ origen_shorthand_defs = {
             'filter': ('filters', 'ldap_filters'),
             'invalid_credentials': ('LDAP invalid credential', 'ldap_invalid_credentials'),
             'test_server': ('LDAP test server', 'ldap_test_server'),
+            'tests': ('LDAP tests', 'origen_specs_ldap')
         },
+        'users': {
+            'tests': ('users tests', 'origen_specs_users')
+        },
+        'session_store': {
+            'tests': ('session store tests', 'origen_specs_session_store')
+        },
+        'test_app_origen_config': ('Origen\'s test app config', 'origen_example_config'),
 
         # Rust stuff
         'rust': 'rust_homepage',
