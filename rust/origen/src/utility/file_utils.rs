@@ -293,7 +293,7 @@ impl FilePermissions {
                 Ok(())
             } else {
                 let message = format!(
-                    "Changing file permissions to {} is not support on OS {}",
+                    "Changing file permissions to {} is not supported on OS {}",
                     self.to_str(),
                     std::env::consts::OS
                 );
