@@ -232,6 +232,7 @@ class TestUsers:
         # Check that other data fields were populated
         assert d.data_store["full_name"] == "Leonhard Euler"
 
+
 class TestUsersDictLike(Fixture_DictLikeAPI):
     def parameterize(self):
         return {

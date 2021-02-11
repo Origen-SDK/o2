@@ -1,11 +1,11 @@
 use super::file_utils::FilePermissions;
 use crate::Metadata;
 use crate::Result;
+use indexmap::IndexMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 use toml::map::Map;
 use toml::Value;
-use indexmap::IndexMap;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -375,7 +375,7 @@ impl SessionStore {
     }
 
     pub fn keys(&self) -> Vec<&str> {
-        self.data.data.keys().map( |k| k.as_str()).collect()
+        self.data.data.keys().map(|k| k.as_str()).collect()
     }
 }
 

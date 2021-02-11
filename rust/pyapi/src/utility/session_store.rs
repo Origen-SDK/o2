@@ -1,12 +1,12 @@
 use super::metadata::{extract_as_metadata, metadata_to_pyobj};
 use crate::application;
 use pyo3::class::basic::CompareOp;
+use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use pyo3::class::mapping::PyMappingProtocol;
 
 #[pymodule]
 fn session_store(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -253,7 +253,7 @@ impl SessionStore {
     fn keys(&self) -> PyResult<Vec<String>> {
         let mut s = origen::sessions();
         let session = s.get_mut_session(self.path.clone(), self.app_session)?;
-        Ok(session.keys().iter().map( |k| k.to_string()).collect())
+        Ok(session.keys().iter().map(|k| k.to_string()).collect())
     }
 
     fn values(&self) -> PyResult<Vec<Option<PyObject>>> {

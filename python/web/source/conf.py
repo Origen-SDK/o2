@@ -33,10 +33,14 @@ from web.source._conf import origen_extlinks, origen_shorthand_defs
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'origen.web.origen_sphinx_extension', 'origen.web.shorthand',
-    'origen.web.rustdoc', 'sphinx.ext.autodoc', 'sphinx.ext.autosectionlabel',
-    'origen.web.autoapi.autoapi.sphinx', # Temporary moving 'autoapi.sphinx' into Origen space
-    'recommonmark', 'sphinx.ext.napoleon',
+    'origen.web.origen_sphinx_extension',
+    'origen.web.shorthand',
+    'origen.web.rustdoc',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosectionlabel',
+    'origen.web.autoapi.autoapi.sphinx',  # Temporary moving 'autoapi.sphinx' into Origen space
+    'recommonmark',
+    'sphinx.ext.napoleon',
     'sphinx.ext.extlinks'
 ]
 

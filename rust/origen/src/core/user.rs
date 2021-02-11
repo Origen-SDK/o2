@@ -635,7 +635,15 @@ impl User {
                     if data_source == "ldap" {
                         if let Some(ldap_name) = dataset.get("data_lookup") {
                             // Attempt to bind to the ldap with this user
-                            return LDAPs::try_password(ldap_name, &self.read_data(dn)?.username.as_ref().unwrap_or(&self.username()?), password);
+                            return LDAPs::try_password(
+                                ldap_name,
+                                &self
+                                    .read_data(dn)?
+                                    .username
+                                    .as_ref()
+                                    .unwrap_or(&self.username()?),
+                                password,
+                            );
                         } else {
                             return error!("A 'data_lookup' key corresponding to the ldap name is required to validate passwords against an LDAP");
                         }
@@ -903,7 +911,11 @@ impl User {
                             }
                         }
                         if let Err(e) = ldap.bind() {
-                            error_or_failure(&format!("LDAP bind failed with error: {}", e.msg), allow_failures, &mut popped)?;
+                            error_or_failure(
+                                &format!("LDAP bind failed with error: {}", e.msg),
+                                allow_failures,
+                                &mut popped,
+                            )?;
                             return Ok(popped);
                         }
                         // See if a username has already been populated in this dataset. If so, use that.

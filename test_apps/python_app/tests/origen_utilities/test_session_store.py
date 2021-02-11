@@ -335,7 +335,7 @@ class TestSessionStore(Base):
         assert s["set_test"] == True
         s["set_test"] = 1
         assert s["set_test"] == 1
-    
+
     def test_setting_to_none_deletes_key(self):
         s = origen.session_store.app_session("dict_like_setter_test")
         assert "set_test" in s
