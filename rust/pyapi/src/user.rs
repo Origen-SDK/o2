@@ -304,11 +304,20 @@ impl UserDataset {
         origen::with_user(&self.user_id, |u| {
             u.populate(
                 &self.dataset,
-                origen::user::lookup_dataset_config(&self.user_id)?,
+                origen::user::lookup_dataset_config(&self.dataset)?,
                 false,
             )
         })?;
         Ok(())
+    }
+
+    #[getter]
+    fn populated(&self) -> PyResult<bool> {
+        Ok(origen::user::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.populated),
+        )?)
     }
 }
 

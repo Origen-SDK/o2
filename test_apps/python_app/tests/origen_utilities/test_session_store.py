@@ -296,6 +296,7 @@ class TestSessionStore(Base):
         }
         assert isinstance(s['test_roundtrip_as_string'],
                           _origen.utility.session_store.SessionStore)
+        assert 'test_roundtrip_as_string' in s
 
         # Spot check one of the sessions themselves
         assert s['test_roundtrip_as_string'].get('test_str') == 'str'
@@ -307,26 +308,36 @@ class TestSessionStore(Base):
         assert isinstance(s["test_roundtrip_user_session"],
                           _origen.utility.session_store.SessionStore)
         assert s['test_roundtrip_user_session'].get('test') == 'user_str'
+        assert 'test_roundtrip_user_session' in s
 
+    class TestSessionStoreDictLike(Fixture_DictLikeAPI, Base):
+        def parameterize(self):
+            return {
+                "keys": ["t1", "t2", "t3"],
+                "klass": str,
+                "not_in_dut": "Blah"
+            }
 
-# class TestAppSessionsDictLike(Fixture_DictLikeAPI, Base):
-#     def parameterize(self):
-#         return {
-#             "keys": [NAME],
-#             "klass": _origen.utility.ldap.LDAP,
-#             "not_in_dut": "Blah"
-#         }
+        def init_dict_under_test(self):
+            s = self.boot_dict_under_test()
+            s.store("t1", "one")
+            s.store("t2", "two")
+            s.store("t3", "three")
 
-#     def boot_dict_under_test(self):
-#         return origen.session_store.app_sessions
+        def boot_dict_under_test(self):
+            return origen.session_store.app_session("dict_like_test")
 
-# class TestUserSessionsDictLike(Fixture_DictLikeAPI, Base):
-#     def parameterize(self):
-#         return {
-#             "keys": [NAME],
-#             "klass": _origen.utility.ldap.LDAP,
-#             "not_in_dut": "Blah"
-#         }
-
-#     def boot_dict_under_test(self):
-#         return origen.session_store.user_sessions
+    def test_session_item_assignment(self):
+        s = origen.session_store.app_session("dict_like_setter_test")
+        assert "set_test" not in s
+        s["set_test"] = True
+        assert "set_test" in s
+        assert s["set_test"] == True
+        s["set_test"] = 1
+        assert s["set_test"] == 1
+    
+    def test_setting_to_none_deletes_key(self):
+        s = origen.session_store.app_session("dict_like_setter_test")
+        assert "set_test" in s
+        s["set_test"] = None
+        assert "set_test" not in s

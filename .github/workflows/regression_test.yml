@@ -41,11 +41,6 @@ jobs:
       - name: Display Origen CLI Version
         run: origen -v
 
-      # - name: Run Rust Tests
-      #   if: matrix.python-version == 3.8
-      #   working-directory: rust/origen
-      #   run: cargo test --workspace
-
       - name: Build PyAPI
         run: origen build
 

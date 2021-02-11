@@ -6,6 +6,7 @@ use pyo3::types::IntoPyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use pyo3::class::mapping::PyMappingProtocol;
 
 #[pymodule]
 fn session_store(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -74,8 +75,8 @@ pub fn user_session(session: Option<&PyAny>) -> PyResult<SessionStore> {
     Ok(SessionStore::new(sess.path.clone(), false, sess.name()?))
 }
 
-#[pyfunction]
-pub fn app_sessions() -> PyResult<HashMap<String, SessionStore>> {
+#[pyfunction()]
+pub fn app_sessions(_py: Python) -> PyResult<HashMap<String, SessionStore>> {
     let mut retn: HashMap<String, SessionStore> = HashMap::new();
     let s = origen::sessions();
     for (n, p) in s.available_app_sessions()?.iter() {
@@ -87,8 +88,8 @@ pub fn app_sessions() -> PyResult<HashMap<String, SessionStore>> {
     Ok(retn)
 }
 
-#[pyfunction]
-pub fn user_sessions() -> PyResult<HashMap<String, SessionStore>> {
+#[pyfunction()]
+pub fn user_sessions(_py: Python) -> PyResult<HashMap<String, SessionStore>> {
     let mut retn: HashMap<String, SessionStore> = HashMap::new();
     let s = origen::sessions();
     for (n, p) in s.available_user_sessions()?.iter() {
@@ -226,15 +227,7 @@ impl SessionStore {
     }
 
     fn store(slf: PyRef<Self>, key: &str, value: &PyAny) -> PyResult<Py<Self>> {
-        let mut s = origen::sessions();
-        let session = s.get_mut_session(slf.path.clone(), slf.app_session)?;
-
-        if value.is_none() {
-            session.delete(key)?;
-        } else {
-            let data = extract_as_metadata(value)?;
-            session.store(key.to_string(), data)?;
-        }
+        slf._store(key, value)?;
         Ok(slf.into())
     }
 
@@ -255,6 +248,32 @@ impl SessionStore {
         s.get_mut_session(slf.path.clone(), slf.app_session)?
             .remove_file()?;
         Ok(slf.into())
+    }
+
+    fn keys(&self) -> PyResult<Vec<String>> {
+        let mut s = origen::sessions();
+        let session = s.get_mut_session(self.path.clone(), self.app_session)?;
+        Ok(session.keys().iter().map( |k| k.to_string()).collect())
+    }
+
+    fn values(&self) -> PyResult<Vec<Option<PyObject>>> {
+        let mut s = origen::sessions();
+        let session = s.get_mut_session(self.path.clone(), self.app_session)?;
+        let mut retn: Vec<Option<PyObject>> = vec![];
+        for (k, v) in session.data()?.iter() {
+            retn.push(metadata_to_pyobj(Some(v.clone()), Some(k))?);
+        }
+        Ok(retn)
+    }
+
+    fn items(&self) -> PyResult<Vec<(String, Option<PyObject>)>> {
+        let mut s = origen::sessions();
+        let session = s.get_mut_session(self.path.clone(), self.app_session)?;
+        let mut retn: Vec<(String, Option<PyObject>)> = vec![];
+        for (k, v) in session.data()?.iter() {
+            retn.push((k.to_string(), metadata_to_pyobj(Some(v.clone()), Some(k))?));
+        }
+        Ok(retn)
     }
 }
 
@@ -277,6 +296,65 @@ impl pyo3::class::basic::PyObjectProtocol for SessionStore {
     }
 }
 
+#[pyproto]
+impl PyMappingProtocol for SessionStore {
+    fn __getitem__(&self, key: &str) -> PyResult<PyObject> {
+        if let Some(l) = self.get(key)? {
+            Ok(l)
+        } else {
+            Err(pyo3::exceptions::KeyError::py_err({
+                if self.app_session {
+                    format!("Key {} not in app session {}", key, self.name)
+                } else {
+                    format!("Key {} not in user session {}", key, self.name)
+                }
+            }))
+        }
+    }
+
+    fn __setitem__(&mut self, key: &str, value: &PyAny) -> PyResult<()> {
+        self._store(key, value)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        let mut s = origen::sessions();
+        let session = s.get_mut_session(self.path.clone(), self.app_session)?;
+        Ok(session.len())
+    }
+}
+
+#[pyclass]
+pub struct SessionStoreIter {
+    pub keys: Vec<String>,
+    pub i: usize,
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for SessionStoreIter {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
+        Ok(slf.into())
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
+        if slf.i >= slf.keys.len() {
+            return Ok(None);
+        }
+        let name = slf.keys[slf.i].clone();
+        slf.i += 1;
+        Ok(Some(name))
+    }
+}
+
+#[pyproto]
+impl pyo3::class::iter::PyIterProtocol for SessionStore {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<SessionStoreIter> {
+        Ok(SessionStoreIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
+    }
+}
+
 impl SessionStore {
     fn new(path: PathBuf, is_app_session: bool, name: String) -> Self {
         Self {
@@ -284,6 +362,19 @@ impl SessionStore {
             app_session: is_app_session,
             name: name,
         }
+    }
+
+    fn _store(&self, key: &str, value: &PyAny) -> PyResult<()> {
+        let mut s = origen::sessions();
+        let session = s.get_mut_session(self.path.clone(), self.app_session)?;
+
+        if value.is_none() {
+            session.delete(key)?;
+        } else {
+            let data = extract_as_metadata(value)?;
+            session.store(key.to_string(), data)?;
+        }
+        Ok(())
     }
 
     pub fn with_origen_session<F>(&self, mut f: F) -> origen::Result<()>

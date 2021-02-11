@@ -25,10 +25,16 @@ class Fixture_DictLikeAPI(abc.ABC):
     def parameterize(self):
         pass
 
+    def init_dict_under_test(self):
+        pass
+
     # Pytest skips classes which have an __init__ constructor (http://doc.pytest.org/en/latest/goodpractices.html#conventions-for-python-test-discovery)
     # get around this by using a fixture on the first test to boot the object.
     @pytest.fixture
     def boot(self):
+        if not getattr(self, "_init_dict_under_test_run", False):
+            self.init_dict_under_test()
+            self._init_dict_under_test_run = True
         self.expected = self.Expected(self.parameterize())
         self.dut = self.boot_dict_under_test()
 

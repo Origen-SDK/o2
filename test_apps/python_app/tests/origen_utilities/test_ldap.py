@@ -119,3 +119,8 @@ class TestLDAPs:
 
         with pytest.raises(OSError, match="invalidCredentials"):
             self.ldap.bind_as(USER_USERNAME, "?")
+        assert self.ldap.bound == False
+
+        # Restore LDAP to previous settings
+        self.ldap.bind_as(AUTH_USERNAME, PASSWORD)
+        assert self.ldap.bound == True

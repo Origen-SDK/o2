@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 use toml::map::Map;
 use toml::Value;
+use indexmap::IndexMap;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -359,6 +360,22 @@ impl SessionStore {
         write!(file, "{}", toml::to_string(&self.data).unwrap()).unwrap();
         self.permissions.apply_to(&self.path, true)?;
         Ok(())
+    }
+
+    pub fn data(&self) -> Result<IndexMap<String, Metadata>> {
+        let mut retn: IndexMap<String, Metadata> = IndexMap::new();
+        for (k, v) in self.data.data.iter() {
+            retn.insert(k.to_string(), Metadata::try_from(v)?);
+        }
+        Ok(retn)
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.data.len()
+    }
+
+    pub fn keys(&self) -> Vec<&str> {
+        self.data.data.keys().map( |k| k.as_str()).collect()
     }
 }
 

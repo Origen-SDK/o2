@@ -255,6 +255,7 @@ pub struct Data {
 
     // Authentication
     authenticated: bool,
+    pub populated: bool,
 
     roles: Vec<Roles>,
 }
@@ -634,7 +635,7 @@ impl User {
                     if data_source == "ldap" {
                         if let Some(ldap_name) = dataset.get("data_lookup") {
                             // Attempt to bind to the ldap with this user
-                            return LDAPs::try_password(ldap_name, &self.username()?, password);
+                            return LDAPs::try_password(ldap_name, &self.read_data(dn)?.username.as_ref().unwrap_or(&self.username()?), password);
                         } else {
                             return error!("A 'data_lookup' key corresponding to the ldap name is required to validate passwords against an LDAP");
                         }
@@ -902,18 +903,27 @@ impl User {
                             }
                         }
                         if let Err(e) = ldap.bind() {
-                            error_or_failure(&e.msg, allow_failures, &mut popped)?;
+                            error_or_failure(&format!("LDAP bind failed with error: {}", e.msg), allow_failures, &mut popped)?;
                             return Ok(popped);
                         }
+                        // See if a username has already been populated in this dataset. If so, use that.
+                        // Otherwise, use the current id
+                        let uname;
+                        {
+                            let data = self.read_data(Some(name))?;
+                            if let Some(n) = &data.username {
+                                uname = n.to_string();
+                            } else {
+                                uname = self.username()?;
+                            }
+                        }
                         // Grab all available fields
-                        println!("STUFF: {} {}", config.get("data_lookup").unwrap(), self.id);
                         let fields = ldap
                             .single_filter_search(
-                                &format!("{}={}", config.get("data_id").unwrap(), self.id),
+                                &format!("{}={}", config.get("data_id").unwrap(), uname),
                                 vec!["*"],
                             )?
                             .0;
-                        println!("Fields: {:?}", fields);
                         let mut data = self.write_data(Some(name))?;
                         if let Some(mapping) = ORIGEN_CONFIG.user__dataset_mappings.get(name) {
                             for (key, val) in mapping.iter() {
@@ -924,6 +934,12 @@ impl User {
                                         data.email = Some(v.first().unwrap().to_string());
                                     } else if key == "username" {
                                         data.username = Some(v.first().unwrap().to_string());
+                                    } else if key == "last_name" {
+                                        data.last_name = Some(v.first().unwrap().to_string());
+                                    } else if key == "first_name" {
+                                        data.first_name = Some(v.first().unwrap().to_string());
+                                    } else if key == "display_name" {
+                                        data.display_name = Some(v.first().unwrap().to_string());
                                     } else {
                                         data.other.insert(
                                             key.to_string(),
@@ -963,6 +979,8 @@ impl User {
                 )?,
             }
         }
+        let mut data = self.write_data(Some(name))?;
+        data.populated = true;
         Ok(popped)
     }
 

@@ -1,5 +1,6 @@
 import origen, _origen, pytest, os, getpass
 from tests.shared.python_like_apis import Fixture_DictLikeAPI
+from tests.origen_utilities.test_ldap import USER_USERNAME, PASSWORD
 
 data_fields = ["email", "first_name", "last_name"]  # name?
 data_fields_exceptions = ["display_name", "username"]
@@ -210,25 +211,26 @@ class TestUsers:
         assert u.password_for("Nothing!", default=None) == "PASSWORD"
         assert u.password_for("Nothing!", default="test2") == "!PASSWORD!"
 
-    @pytest.mark.xfail
     def test_populated_dataset(self):
         # By the config, dataset is not populated automoatically
         u = self.user
         d = u.datasets["forumsys"]
         assert d.populated == False
 
-        # Set the username/password appropriately
-        d.username = "?"
-        d.password = "?"
+        # Set the username before populating
+        d.username = "euler"
 
         # Populate
         d.populate()
         assert d.populated == True
 
         # Check some items
-        assert d.email == "?"
-        assert d.last_name == "?"
+        assert d.email == "euler@ldap.forumsys.com"
+        assert d.last_name == "Euler"
+        assert d.username == "euler"
 
+        # Check that other data fields were populated
+        assert d.data_store["full_name"] == "Leonhard Euler"
 
 class TestUsersDictLike(Fixture_DictLikeAPI):
     def parameterize(self):
