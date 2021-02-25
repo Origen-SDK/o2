@@ -237,7 +237,6 @@ class TestUsers:
         assert u.datasets["backup"].first_name == None
         assert u.datasets["test"].first_name == "test"
 
-
         u.data_lookup_hierarchy = []
         assert u.data_lookup_hierarchy == []
 

@@ -63,8 +63,15 @@ pub fn run(matches: &ArgMatches) {
     if let Ok(u) = users.current_user() {
         if let Ok(username) = u.username() {
             user_info += &username;
-            if let Some(email) = u.email() {
-                user_info += &format!(" <{}>", &email);
+            match u.email() {
+                Ok(e) => {
+                    if let Some(email) = e {
+                        user_info += &format!(" <{}>", &email);
+                    }
+                }
+                Err(e) => {
+                    origen::display_redln!("{}", e.msg);
+                }
             }
         }
     }
