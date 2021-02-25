@@ -206,6 +206,15 @@ where
     func(u)
 }
 
+pub fn with_user_mut<T, F>(user: &str, mut func: F) -> Result<T>
+where
+    F: FnMut(&mut User) -> Result<T>,
+{
+    let mut _users = users_mut();
+    let u = _users.user_mut(user).unwrap();
+    func(u)
+}
+
 pub fn mailer<'a>() -> RwLockReadGuard<'a, Mailer> {
     MAILER.read().unwrap()
 }

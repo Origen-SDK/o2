@@ -319,13 +319,19 @@ extlinks = {
     ('https://www.forumsys.com/tutorials/integration-how-to/ldap/online-ldap-test-server/%s',
      ''),
 
-    # Other
-    'mvc_dp_wiki': ('https://en.wikipedia.org/wiki/Model–view–controller%s',
-                    ''),
+    # Git
+    'git': ('https://git-scm.com/%s', ''),
+    'git_configuration': ('https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration%s', ''),
     'git_pull_requests':
     ('https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests%s',
      ''),
+
+    # Other
+    'mvc_dp_wiki': ('https://en.wikipedia.org/wiki/Model–view–controller%s',
+     ''),
     'svg_to_png_converter': ('https://svgtopng.com/%s', ''),
+    'linux_keyring': ('https://en.wikipedia.org/wiki/GNOME_Keyring%s', ''),
+    'windows_credential_manager': ('https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0%s', ''),
 
     # Python Package Servers
     'sonatype_nexus': ('https://www.sonatype.com/nexus/repository-oss%s', ''),

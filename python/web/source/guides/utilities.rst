@@ -71,54 +71,76 @@ These are then available on the |dict-like| container :meth:`datasets <_origen.u
 
 Each dataset can be configured independently from the |origen_config|. This will be most applicable when handling :ref:`data integration <guides/utilities:Data Integration>`.
 
-You may also notice the ``default`` dataset present. When a user field is accessed on any ``User``, instead of a ``dataset``, the ``default dataset`` is actually what gets queried. The default dataset can be changed the |origen_config|:
-
-.. code:: python
-
-    # Before configuration
-    origen.current_user().password = "p"
-    origen.current_user().password
-        #=> "p"
-
-    origen.current_user().datasets['git'].password = "git"
-    origen.current_user().datasets['git'].password
-        #=> "git"
-
-    origen.current_user().password
-        #=> "p"
-    origen.current_user().datasets['default'].password = "pw"
-    origen.current_user().password
-        #=> "pw"
+ When a user field is accessed on any ``User``, instead of a ``dataset`` directly, the :meth:`data_lookup_hierarchy <_origen.users.User.data_lookup_hierarchy>` is followed to actually look up what is returned. This hierarchy will go dataset-by-dataset until a "non-``None``" value is found. If ``None`` is returned anyway, then no dataset provided the given field. This hierarchy can be set in the |origen_config|:
 
 .. code:: toml
 
-    user__default_dataset = "test"
+    user__data_lookup_hierarchy = ["git", "bitbucket"]
 
-    [user__datasets]
-    [user__datasets.git]
+.. code:: python
+
+    # Set the 'first_name' fields for both datasets
+    origen.current_user().datasets['git'].first_name = "Git"
+    origen.current_user().datasets['bitbucket'].first_name = "BB"
+
+    # Get the first name. Dataset "git" will be returned
+    origen.current_user().first_name
+        #=> "Git"
+
+    # Clear Git's first name
+    # As the "Git" dataset no longer provides a first name, the "BB" dataset will be used.
+    origen.current_user().datasets['git'].first_name = None
+    origen.current_user().first_name
+        #=> "BB"
+
+This hierarchy can be set programmatically, per-``User``:
+
+.. code:: python
+
+    origen.current_user().datasets['git'].first_name = "Git"
+    origen.current_user().datasets['bitbucket'].first_name = "BB"
+
+    origen.current_user().datasets['git'].first_name
+        #=> "Git"
+    origen.current_user().datasets['bitbucket'].first_name
+        #=> "BB"
+
+    origen.current_user().first_name
+        #=> "Git"
+
+    origen.current_user().data_lookup_hierarchy = ["Bitbucket", "Git"]
+
+    origen.current_user().first_name
+        #=> "BB"
+
+Some fields, however, are exempt from this scheme, the :meth:`username <_origen.users.User.username>` and :meth:`password <_origen.users.User.password>` among them, and will stop at the :meth:`top_datakey <_origen.users.User.top_datakey>` - which is the first value in the hierarchy and of the highest priority.
 
 .. code:: python
 
     origen.current_user().datasets['git'].password = "git"
+    origen.current_user().datasets['bitbucket'].password = "bb"
+
+    origen.current_user().password
+        #=> "git"
+
     origen.current_user().datasets['git'].password
         #=> "git"
+    origen.current_user().datasets['bitbucket'].password
+        #=> "bb"
+
+    origen.current_user().clear_cached_password("git")
     origen.current_user().password
-        #=> "git"
+        #=> <- Begin Password Dialog ->
+        #=> <- Does not query bitbucket dataset ->
 
-    origen.current_user().datasets['git'].password = "git_pw"
-    origen.current_user().password
-        #=> "git_pw"
+Not all defined datasets need be in the hierarchy and a hierarchy that only include a single value will essentially alias all the fields on the ``User`` to a single dataset.
 
-    origen.current_user().datasets['default'].password
-        #=> Error
-        #=> "no dataset default is available"
-
-Notice that when a default dataset is specified, Origen will not create its own ``default`` dataset and attempts to access it without having explicitly added it will raise exceptions.
+Furthermore, an empty hierarchy will not allow any field accesses on the ``User`` - all accesses must be explicitly done though the ``Dataset``.
 
 Data Integration
 ^^^^^^^^^^^^^^^^
 
-User's can be integrated with supported ``data-sources``. Currently, the only supported source is the |origen_utilities:ldap|, but more may be added in the future.
+Users can be integrated with supported ``data-sources``, which will populate the fields for a dataset behind the scenes. Currently, the only supported sources are the |origen_utilities:ldap| and the |git_configuration|, but more may be added in the future.
 
 All data integration in done via the |origen_config|. The ``data_source`` option denotes what other options are available and how they are used.
 
@@ -156,29 +178,45 @@ Integrating a LDAP is done per-dataset where the ldap's name and various lookup 
 
 :link-to:`The Users tests <users:tests>` contains a setup and some tests against a :link-to:`freely available LDAP<ldap:test_server>` and can be used as an example and a reference.
 
+Git Configuration
+&&&&&&&&&&&&&&&&&
+
+If |git| is installed and accessible, a dataset can be populated from the |git_configuration|. Currently, the :meth:`display_name <_origen.users.User.display_name>` and :meth:`email <_origen.users.User.email>` are the only values queried.
+
+.. code:: toml
+
+    [user__datasets.git]
+    data_source = "git"
+
 More On Passwords
 ^^^^^^^^^^^^^^^^^
 
 Password Caching
 &&&&&&&&&&&&&&&&
 
-By default, users who have had their passwords set and validated will have their passwords stored in the |origen_utilities:session_store| for future retrieval. Passwords are stored encrypted using Origen's |default_encryption_key| and |default_encryption_nonce| (so this is really just to avoid plaintext password as an actual security mechanism) but can be overridden by the |origen_config|.
+By default, users who have had their passwords set and validated will have them stored in the |linux_keyring| (or the |windows_credential_manager|) for future retrieval.
+
+This can be explicitly set in the |origen_config| by setting the ``user__password_cache_option`` to either ``true`` or ``keyring``.
+
+A second option is to store the passwords in the |origen_utilities:session_store|. Passwords stored here are encrypted using Origen's |default_encryption_key| and |default_encryption_nonce|, so this is really just to avoid plaintext password storage as opposed to an actual security mechanism, but these too can be overridden by the |origen_config|.
 
 .. code:: python
 
     # Allows passwords to be stored in the user's session store
-    user__cache_passwords = false
+    user__cache_passwords = "session"
 
     # Allows custom encryption keys used by passwords only
     # These must conform to AES-256 GCM standards
     password_encryption_key = "..."
     password_encryption_nonce = "..."
 
-Passwords are stored in the ``user_session``, so retrieval will persists not just across invocations but across applications and are available in the global space.
+Regardless of the caching mechanism used, passwords stored will persists not just across invocations but across applications, as well as being available in global invocations.
 
-Passwords for the current user can be set and cleared on the command line as well using the ``credentials`` command:
+In addition to the *password dialog* and the ``password=`` method shown previously, passwords for the current user can be set and cleared on the command line with the ``credentials`` command:
 
 {{ insert_cmd_output(origen_exec + " credentials --help", shell=run_in_shell) }}
+
+Password caching can also be disabled entirely by setting ``user__password_cache_option`` to either ``false`` or ``none``.
 
 Password "Reasons"
 &&&&&&&&&&&&&&&&&&

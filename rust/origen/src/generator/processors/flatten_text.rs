@@ -102,11 +102,7 @@ impl Processor for FlattenText {
             Attrs::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
             Attrs::User => {
                 if let Err(e) = crate::with_current_user(|u| {
-                    if let Some(name) = u.name() {
-                        self.current_line += &name;
-                    } else {
-                        self.current_line += u.id();
-                    }
+                    self.current_line += &u.username()?;
                     Ok(())
                 }) {
                     // Don't kill the pattern/program generation because the user ID isn't retrievable.

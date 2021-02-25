@@ -55,10 +55,10 @@ pub struct Config {
     pub default_encryption_nonce: String,
 
     // Various user config
-    pub user__default_dataset: String,
+    pub user__data_lookup_hierarchy: Vec<String>,
     pub user__datasets: HashMap<String, HashMap<String, String>>,
     pub user__password_auth_attempts: u8,
-    pub user__cache_passwords: bool,
+    pub user__password_cache_option: String,
     pub user__password_reasons: HashMap<String, String>,
     pub password_encryption_key: Option<String>,
     pub password_encryption_nonce: Option<String>,
@@ -90,9 +90,9 @@ impl Default for Config {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h
         });
-        let _ = s.set_default("user__default_dataset", super::user::DEFAULT_KEY);
+        let _ = s.set_default("user__data_lookup_hierarchy", vec![super::user::DEFAULT_KEY]);
         let _ = s.set_default("user__password_auth_attempts", 3);
-        let _ = s.set_default("user__cache_passwords", true);
+        let _ = s.set_default("user__password_cache_option", "keyring");
         let _ = s.set_default("user__datasets", {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h

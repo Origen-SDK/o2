@@ -147,6 +147,12 @@ impl std::convert::From<std::string::FromUtf8Error> for Error {
     }
 }
 
+impl std::convert::From<keyring::KeyringError> for Error {
+    fn from(err: keyring::KeyringError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
 // On failure, the original OS string is returned
 // https://doc.rust-lang.org/std/ffi/struct.OsString.html#method.into_string
 impl std::convert::From<std::ffi::OsString> for Error {

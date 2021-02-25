@@ -19,6 +19,10 @@ class TestUsers:
     def user2(self):
         return origen.users["test2"]
 
+    @property
+    def user3(self):
+        return origen.users["test3"]
+
     # @property
     # def home_dir(self):
     #     if ENV['GITHUB_ACTIONS']:
@@ -45,13 +49,23 @@ class TestUsers:
         assert "test2" in origen.users
         assert len(origen.users) == 3
 
+        origen.users.add("test3")
+        assert "test3" in origen.users
+        assert len(origen.users) == 4
+
     def test_accessing_datasets(self):
         u = self.user
+        assert isinstance(u.datasets, dict)
         assert "test" in u.datasets
         assert "test2" in u.datasets
-        assert isinstance(u.datasets, dict)
         assert "forumsys" in u.datasets
-        assert u.dataset == "test"
+        assert set(u.datasets.keys()) == {
+            "test", "test2", "forumsys", "backup", "git"
+        }
+
+    def test_accessing_data_lookup_hierarchy(self):
+        assert self.user.data_lookup_hierarchy == ["test", "backup"]
+        assert self.user.top_datakey == "test"
 
     def test_accessing_username(self):
         u = origen.users["test"]
@@ -161,6 +175,79 @@ class TestUsers:
         assert d.data_store["test"] == 1
         assert "test" not in d2.data_store
 
+    def test_lookup_hierarch(self):
+        u = self.user3
+        d1 = u.datasets["test"]
+        d2 = u.datasets["backup"]
+        assert d1.first_name is None
+        assert d2.first_name is None
+        assert u.first_name is None
+
+        n = "backup"
+        d2.first_name = n
+        assert d1.first_name is None
+        assert d2.first_name == n
+        assert u.first_name == n
+
+    def test_customizing_data_lookup_hierarchy(self):
+        u = self.user3
+        test_n = "test"
+        backup_n = "backup"
+        u.datasets["test"].first_name = test_n
+        u.datasets["backup"].first_name = backup_n
+
+        assert u.data_lookup_hierarchy == ["test", "backup"]
+        assert u.first_name == test_n
+
+        # Swap the lookup hierarchy
+        u.data_lookup_hierarchy = list(reversed(u.data_lookup_hierarchy))
+        assert u.data_lookup_hierarchy == ["backup", "test"]
+        assert u.first_name == backup_n
+
+        # Check that the hierarchy lookup is still functioning
+        u.datasets["backup"].first_name = None
+        assert u.first_name == test_n
+
+        # Messing about with the datakey hierarchy is a per-user ordeal
+        assert self.user.data_lookup_hierarchy == ["test", "backup"]
+        assert self.user2.data_lookup_hierarchy == ["test", "backup"]
+
+    def test_data_lookup_hierarchy_is_returned_by_value(self):
+        u = self.user3
+        assert u.data_lookup_hierarchy == ["backup", "test"]
+        u.data_lookup_hierarchy.append("hi") # should be no error here as the update attempt never makes it to the backend
+        assert u.data_lookup_hierarchy == ["backup", "test"]
+
+    def test_error_on_unknown_dataset_when_setting_hierarchies(self):
+        u = self.user3
+        assert u.data_lookup_hierarchy == ["backup", "test"]
+        with pytest.raises(OSError, match="No dataset 'hi' defined! Cannot use this in the datakey hierarchy"):
+            u.data_lookup_hierarchy = ["test", "backup", "hi"]
+        assert u.data_lookup_hierarchy == ["backup", "test"]
+
+    def test_error_on_duplicate_datasets_when_setting_hierarchies(self):
+        u = self.user3
+        assert u.data_lookup_hierarchy == ["backup", "test"]
+        with pytest.raises(OSError, match=r"Dataset 'test' can only appear once in the dataset hierarchy \(first appearance at index 0 - duplicate at index 2\)"):
+            u.data_lookup_hierarchy = ["test", "backup", "test"]
+        assert u.data_lookup_hierarchy == ["backup", "test"]
+
+    def test_empty_data_lookup_hierarchy(self):
+        u = self.user3
+        assert u.datasets["backup"].first_name == None
+        assert u.datasets["test"].first_name == "test"
+
+
+        u.data_lookup_hierarchy = []
+        assert u.data_lookup_hierarchy == []
+
+        with pytest.raises(OSError, match="Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"):
+            u.first_name
+        with pytest.raises(OSError, match="Data lookup hierarchy for user 'test3' is empty"):
+            u.top_datakey
+        assert u.datasets["backup"].first_name == None
+        assert u.datasets["test"].first_name == "test"
+
     class TestDataStoreDictLike(Fixture_DictLikeAPI):
         def parameterize(self):
             return {
@@ -232,11 +319,10 @@ class TestUsers:
         # Check that other data fields were populated
         assert d.data_store["full_name"] == "Leonhard Euler"
 
-
 class TestUsersDictLike(Fixture_DictLikeAPI):
     def parameterize(self):
         return {
-            "keys": [getpass.getuser(), "test", "test2"],
+            "keys": [getpass.getuser(), "test", "test2", "test3"],
             "klass": _origen.users.User,
             "not_in_dut": "Blah"
         }

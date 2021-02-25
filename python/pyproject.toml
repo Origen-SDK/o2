@@ -17,7 +17,7 @@ beautifulsoup4 = "4.8.2"
 lxml = "4.4.2"
 mako = "1.1.0"
 sphinx = "3.0.2"
-# autoapi = {git = "https://github.com/coreyeng/autoapi.git", tag = "dev3"}
+autoapi = {git = "https://github.com/coreyeng/autoapi.git", tag = "dev4"}
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
 yapf = "0.30"

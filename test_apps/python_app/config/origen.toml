@@ -17,20 +17,24 @@
 # Various items to customize user data
 #
 # If any datasets are available, selects which is the default
-user__default_dataset = "test"
+user__data_lookup_hierarchy = ["test", "backup"]
+user__password_cache_option = "none"
 # Allows passwords to be stored in the user's session store
-user__cache_passwords = false
 #
 # User datasets allow for single user to be "registered" in multiple systems
 [user__datasets]
 [user__datasets.test]
 [user__datasets.test2]
+[user__datasets.backup]
 [user__datasets.forumsys]
 data_source = "ldap"
 data_lookup = "forumsys" # Corresponds to LDAP name
 data_id = "uid"
 data_service_user = "forumsys_read_only"
 try_password = true
+auto_populate = false
+[user__datasets.git]
+data_source = "git"
 auto_populate = false
 
 # When a password is requested for the given reason, will select the appropriate dataset

@@ -365,7 +365,7 @@ impl User {
 
     #[getter]
     fn get_email(&self) -> PyResult<Option<String>> {
-        Ok(origen::with_user(&self.user_id, |u| Ok(u.email()))?)
+        Ok(origen::with_user(&self.user_id, |u| u.email())?)
     }
 
     #[setter]
@@ -485,9 +485,23 @@ impl User {
     // }
 
     #[getter]
-    fn dataset(&self) -> PyResult<String> {
+    fn data_lookup_hierarchy(&self) -> PyResult<Vec<String>> {
         Ok(origen::with_user(&self.user_id, |u| {
-            Ok(u.dataset().to_string())
+            Ok(u.data_lookup_hierarchy().clone())
+        })?)
+    }
+
+    #[setter]
+    fn set_data_lookup_hierarchy(&self, hierarchy: Vec<String>) -> PyResult<()> {
+        Ok(origen::with_user_mut(&self.user_id, |u| {
+            u.set_data_lookup_hierarchy(hierarchy.clone())
+        })?)
+    }
+
+    #[getter]
+    fn top_datakey(&self) -> PyResult<String> {
+        Ok(origen::with_user(&self.user_id, |u| {
+            Ok(u.top_datakey()?.to_string())
         })?)
     }
 
@@ -506,7 +520,7 @@ impl User {
     #[getter]
     fn data_store(&self) -> PyResult<DataStore> {
         Ok(origen::with_user(&self.user_id, |u| {
-            Ok(DataStore::new(&self.user_id, &u.dataset()))
+            Ok(DataStore::new(&self.user_id, &u.top_datakey()?))
         })?)
     }
 

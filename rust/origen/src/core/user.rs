@@ -115,7 +115,7 @@ pub fn set_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
             Ok(())
         }
     } else {
-        crate::with_current_user(|u| u._password_dialog(&u.data_key, None))?;
+        crate::with_current_user(|u| u._password_dialog(&u.top_datakey()?, None))?;
         Ok(())
     }
 }
@@ -170,6 +170,134 @@ impl std::default::Default for Roles {
 
 pub const DEFAULT_KEY: &str = "default";
 
+#[derive(Debug)]
+pub enum PasswordCacheOptions{
+    Session,
+    Keyring,
+    None,
+}
+
+impl PasswordCacheOptions {
+    pub fn from_config()-> Result<Self> {
+        let opt = &crate::ORIGEN_CONFIG.user__password_cache_option;
+        match opt.as_str() {
+            "session" | "session_store" => Ok(Self::Session),
+            "keyring" | "true" => Ok(Self::Keyring),
+            "none" | "false" => Ok(Self::None),
+            _ => error!("'user__password_cache_option' option '{}' is not known!", opt)
+        }
+    }
+
+    pub fn cache_password(&self, user: &User, password: &str, dataset: &str) -> Result<bool> {
+        match self {
+            Self::Session => {
+                log_trace!("Caching password in session store...");
+                let mut s = crate::sessions();
+                let sess = s.user_session(None)?;
+                sess.store(
+                    to_session_password(dataset),
+                    crate::Metadata::String(str_from_byte_array(&encrypt_with(
+                        password,
+                        user.get_password_encryption_key()?,
+                        user.get_password_encryption_nonce()?,
+                    )?)?),
+                )?;
+                Ok(true)
+            }
+            Self::Keyring => {
+                log_trace!("Caching password in keyring...");
+                let k = keyring::Keyring::new(dataset, &user.id);
+                k.set_password(password)?;
+                Ok(true)
+            }
+            Self::None => {
+                log_trace!("Password caching unavailable");
+                Ok(false)
+            }
+        }
+    }
+
+    pub fn get_password(&self, user: &User, dataset: &str) -> Result<Option<String>> {
+        match self {
+            Self::Session => {
+                log_trace!("Checking for password in session store...");
+                // Check if the password is cached in the user's session
+                let mut s = crate::sessions();
+                let sess = s.user_session(None)?;
+                if let Some(p) = sess.retrieve(&to_session_password(dataset))? {
+                    // Password should be encrypted (to avoid storing as plaintext)
+                    // Decrypt the password
+                    let pw = decrypt_with(
+                        &bytes_from_str_of_bytes(&p.as_string()?)?,
+                        user.get_password_encryption_key()?,
+                        user.get_password_encryption_nonce()?,
+                    )?;
+                    Ok(Some(pw.to_string()))
+                } else {
+                    Ok(None)
+                }
+            }
+            Self::Keyring => {
+                log_trace!("Checking for password in keyring...");
+                let k = keyring::Keyring::new(dataset, &user.id);
+                match k.get_password() {
+                    Ok(password) => Ok(Some(password)),
+                    Err(e) => match e {
+                        keyring::KeyringError::NoPasswordFound => Ok(None),
+                        _ => error!("{}", e)
+                    }
+                }
+            }
+            Self::None => error!("Cannot get password when password caching is unavailable!")
+        }
+    }
+
+    pub fn clear_cached_password(&self, parent: &User, dataset: &Data) -> Result<()> {
+        match self {
+            Self::Session => {
+                let k = dataset.password_key();
+                if parent.is_current() {
+                    log_trace!("Clearing password {} from user session", k);
+                    crate::with_user_session(None, |session| session.delete(&k))?;
+                }
+            }
+            Self::Keyring => {
+                let k = keyring::Keyring::new(&dataset.dataset_name, &parent.id);
+                match k.delete_password() {
+                    Ok(_) => {},
+                    Err(e) => match e {
+                        keyring::KeyringError::NoPasswordFound => {},
+                        _ => return error!("{}", e)
+                    }
+                }
+            }
+            Self::None => {}
+        }
+        Ok(())
+    }
+
+    pub fn is_session_store(&self) -> bool {
+        match self {
+            Self::Session => true,
+            _ => false
+        }
+    }
+
+    pub fn is_keyring(&self) -> bool {
+        match self {
+            Self::Keyring => true,
+            _ => false
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        match self {
+            Self::None => true,
+            _ => false
+        }
+    }
+}
+
 pub struct Users {
     users: IndexMap<String, User>,
     current_id: String,
@@ -188,6 +316,14 @@ impl Users {
     pub fn user(&self, u: &str) -> Result<&User> {
         if let Some(user) = self.users.get(u).as_ref() {
             Ok(&user)
+        } else {
+            error!("No user '{}' has been added", u)
+        }
+    }
+
+    pub fn user_mut(&mut self, u: &str) -> Result<&mut User> {
+        if let Some(user) = self.users.get_mut(u) {
+            Ok(user)
         } else {
             error!("No user '{}' has been added", u)
         }
@@ -229,9 +365,10 @@ pub struct User {
     // All user data is stored behind a RW lock so that it can be lazily loaded
     // from the environment and cached behind the scenes
     data: HashMap<String, RwLock<Data>>,
-    data_key: String,
+    data_lookup_hierarchy: Vec<String>,
     password_semaphore: Mutex<u8>,
     id: String,
+    password_cache_option: PasswordCacheOptions,
 }
 
 #[derive(Default, Debug)]
@@ -293,25 +430,67 @@ impl Data {
         log_trace!("Clearing cached password for {}", k);
         self.password = None;
         self.authenticated = false;
-        if parent.is_current() {
-            log_trace!("Clearing password {} from user session", k);
-            crate::with_user_session(None, |session| session.delete(&k))?;
-        }
+        parent.password_cache_option.clear_cached_password(parent, self)?;
         Ok(())
     }
 }
 
 impl User {
-    pub fn default_data_key<'a>() -> &'a str {
-        &crate::ORIGEN_CONFIG.user__default_dataset
+    pub fn data_lookup_hierarchy_from_config<'a>() -> Vec<String> {
+        crate::ORIGEN_CONFIG.user__data_lookup_hierarchy.clone()
     }
 
-    pub fn dataset(&self) -> &str {
-        &self.data_key
+    pub fn top_datakey(&self) -> Result<&str> {
+        if let Some(key) = self.data_lookup_hierarchy.first() {
+            Ok(key)
+        } else {
+            error!("Data lookup hierarchy for user '{}' is empty", self.id)
+        }
+    }
+
+    pub fn data_lookup_hierarchy(&self) -> &Vec<String> {
+        &self.data_lookup_hierarchy
+    }
+
+    /// Returns the data lookup hierarchy or an error, if the hierarchy is empty
+    pub fn data_lookup_hierarchy_or_err(&self) -> Result<&Vec<String>> {
+        if self.data_lookup_hierarchy.is_empty() {
+            error!("Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query")
+        } else {
+            Ok(&self.data_lookup_hierarchy)
+        }
+    }
+
+    pub fn set_data_lookup_hierarchy(&mut self, hierarchy: Vec<String>) -> Result<()> {
+        // Check that each item in hierarchy is valid and that there are no duplicates
+        let mut indices = HashMap::new();
+        for (i, d) in hierarchy.iter().enumerate() {
+            if self.data.contains_key(d) {
+                if let Some(idx) = indices.get(d) {
+                    // Duplicate dataset
+                    return error!(
+                        "Dataset '{}' can only appear once in the dataset hierarchy (first appearance at index {} - duplicate at index {})",
+                        d,
+                        idx,
+                        i
+                    )
+                }
+                indices.insert(d, i);
+            } else {
+                return error!("No dataset '{}' defined! Cannot use this in the datakey hierarchy", d);
+            }
+        }
+        self.data_lookup_hierarchy = hierarchy;
+        Ok(())
     }
 
     fn write_data(&self, key: Option<&str>) -> Result<RwLockWriteGuard<Data>> {
-        let k = key.unwrap_or(self.data_key.as_str());
+        let k;
+        if let Some(tmp) = key {
+            k = tmp;
+        } else {
+            k = self.top_datakey()?;
+        }
         if let Some(d) = self.data.get(k) {
             Ok(d.write().unwrap())
         } else {
@@ -320,7 +499,12 @@ impl User {
     }
 
     fn read_data(&self, key: Option<&str>) -> Result<RwLockReadGuard<Data>> {
-        let k = key.unwrap_or(self.data_key.as_str());
+        let k;
+        if let Some(tmp) = key {
+            k = tmp;
+        } else {
+            k = self.top_datakey()?;
+        }
         if let Some(d) = self.data.get(k) {
             Ok(d.read().unwrap())
         } else {
@@ -362,13 +546,20 @@ impl User {
             data: {
                 let mut h = HashMap::new();
                 h.insert(
-                    Self::default_data_key().to_string(),
+                    Self::data_lookup_hierarchy_from_config().first().unwrap().to_string(),
                     RwLock::new(Data::default()),
                 );
                 h
             },
             password_semaphore: Mutex::new(0),
-            data_key: Self::default_data_key().to_string(),
+            data_lookup_hierarchy: Self::data_lookup_hierarchy_from_config(),
+            password_cache_option: match PasswordCacheOptions::from_config() {
+                Ok(opt) => opt,
+                Err(e) => {
+                    display_redln!("{}", e);
+                    PasswordCacheOptions::None
+                }
+            },
         };
         for (name, config) in ORIGEN_CONFIG.user__datasets.iter() {
             u.add_dataset_placeholder(name).unwrap();
@@ -437,85 +628,66 @@ impl User {
     }
 
     pub fn set_username(&self, username: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| {
+        self.with_dataset_mut(&self.top_datakey()?, |d| {
             d.username = username.clone();
             Ok(())
         })
     }
 
-    pub fn name(&self) -> Option<String> {
-        if self.is_current() {
-            {
-                let mut data = self.write_data(None).unwrap();
-
-                if let Some(name) = &data.name {
-                    return Some(name.to_string());
-                }
-                if data.name_tried {
-                    return None;
-                }
-                let name = git::config("name");
-                data.name_tried = true;
-                data.name = name.clone();
-                return name;
+    pub fn email(&self) -> Result<Option<String>> {
+        for dn in self.data_lookup_hierarchy_or_err()?.iter() {
+            if let Some(e) = self.with_dataset(dn, |d| Ok(d.email.clone()))? {
+                return Ok(Some(e))
             }
-        } else {
-            let data = self.read_data(None).unwrap();
-            data.name.clone()
         }
+        Ok(None)
     }
 
-    pub fn set_name(&self, name: &str) {
-        let mut data = self.write_data(None).unwrap();
-        data.name = Some(name.to_string());
-    }
-
-    pub fn email(&self) -> Option<String> {
-        if self.is_current() {
-            {
-                let mut data = self.write_data(None).unwrap();
-
-                if let Some(email) = &data.email {
-                    return Some(email.to_string());
-                }
-                if data.email_tried {
-                    return None;
-                }
-                let email = git::config("email");
-                data.email_tried = true;
-                data.email = email.clone();
-                return email;
-            }
+    pub fn get_email(&self) -> Result<String> {
+        if let Some(e) = self.email()? {
+            Ok(e)
         } else {
-            let data = self.read_data(None).unwrap();
-            data.email.clone()
+            error!(
+                "Tried to retrieve email for user {} but none is has been set across any datasets!",
+                self.id
+            )
         }
     }
 
     pub fn set_email(&self, email: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| {
+        self.with_dataset_mut(&self.top_datakey()?, |d| {
             d.email = email.clone();
             Ok(())
         })
     }
 
     pub fn first_name(&self) -> Result<Option<String>> {
-        self.with_dataset(&self.data_key, |d| Ok(d.first_name.clone()))
+        for dn in self.data_lookup_hierarchy_or_err()?.iter() {
+            if let Some(n) = self.with_dataset(&dn, |d| Ok(d.first_name.clone()))? {
+                return Ok(Some(n))
+            }
+        }
+        Ok(None)
     }
 
     pub fn set_first_name(&self, first_name: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| {
+        self.with_dataset_mut(&self.top_datakey()?, |d| {
             d.first_name = first_name.clone();
             Ok(())
         })
     }
 
     pub fn last_name(&self) -> Result<Option<String>> {
-        self.with_dataset(&self.data_key, |d| Ok(d.last_name.clone()))
+        for dn in self.data_lookup_hierarchy_or_err()?.iter() {
+            if let Some(n) = self.with_dataset(&dn, |d| Ok(d.last_name.clone()))? {
+                return Ok(Some(n))
+            }
+        }
+        Ok(None)
     }
 
     pub fn set_last_name(&self, last_name: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| {
+        self.with_dataset_mut(&self.top_datakey()?, |d| {
             d.last_name = last_name.clone();
             Ok(())
         })
@@ -526,7 +698,7 @@ impl User {
     }
 
     pub fn display_name_for(&self, dataset: Option<&str>) -> Result<String> {
-        let key = dataset.unwrap_or(&self.data_key);
+        let key = dataset.unwrap_or(&self.top_datakey()?);
         self.with_dataset(key, |d| {
             if let Some(n) = d.get_display_name().clone() {
                 Ok(n.to_string())
@@ -537,21 +709,10 @@ impl User {
     }
 
     pub fn set_display_name(&self, display_name: Option<String>) -> Result<()> {
-        self.with_dataset_mut(&self.data_key, |d| {
+        self.with_dataset_mut(&self.top_datakey()?, |d| {
             d.display_name = display_name.clone();
             Ok(())
         })
-    }
-
-    pub fn get_email(&self) -> Result<String> {
-        if let Some(e) = self.read_data(None).unwrap().email.as_ref() {
-            Ok(e.to_string())
-        } else {
-            error!(
-                "Tried to retrieve email from user {} but it has not been set yet!",
-                self.id
-            )
-        }
     }
 
     pub fn home_dir(&self) -> Result<PathBuf> {
@@ -559,12 +720,7 @@ impl User {
     }
 
     pub fn home_dir_string(&self) -> Result<String> {
-        Ok(self
-            .read_data(None)
-            .unwrap()
-            .home_dir
-            .to_string_lossy()
-            .to_string())
+        Ok(self.home_dir()?.to_string_lossy().to_string())
     }
 
     pub fn set_home_dir(&self, new_dir: PathBuf) -> Result<()> {
@@ -574,22 +730,7 @@ impl User {
     }
 
     fn _cache_password(&self, password: &str, dataset: &str) -> Result<bool> {
-        if ORIGEN_CONFIG.user__cache_passwords {
-            // Cache the (encrypted) password in the user's session for future use
-            let mut s = crate::sessions();
-            let sess = s.user_session(None)?;
-            sess.store(
-                to_session_password(dataset),
-                crate::Metadata::String(str_from_byte_array(&encrypt_with(
-                    password,
-                    self.get_password_encryption_key()?,
-                    self.get_password_encryption_nonce()?,
-                )?)?),
-            )?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        self.password_cache_option.cache_password(self, password, dataset)
     }
 
     fn _password_dialog(&self, dataset: &str, reason: Option<&str>) -> Result<String> {
@@ -628,7 +769,7 @@ impl User {
 
     fn _try_password(&self, password: &str, dataset_name: Option<&str>) -> Result<bool> {
         // Check if we are even supposed to try the password or if its already been tried
-        let dn = Some(dataset_name.unwrap_or(&self.data_key));
+        let dn = Some(dataset_name.unwrap_or(&self.top_datakey()?));
         if self.should_validate_password(dn)? && !self.read_data(dn).unwrap().authenticated {
             if let Some(dataset) = ORIGEN_CONFIG.user__datasets.get(dn.unwrap()) {
                 if let Some(data_source) = dataset.get("data_source") {
@@ -704,7 +845,7 @@ impl User {
         let _lock = self.password_semaphore.lock().unwrap();
 
         if let Some(p) = password.as_ref() {
-            let dn = dataset.unwrap_or(&self.data_key);
+            let dn = dataset.unwrap_or(&self.top_datakey()?);
             self.with_dataset_mut(dn, |d| {
                 d.authenticated = false;
                 Ok(())
@@ -758,7 +899,7 @@ impl User {
                             dataset = d2;
                         } else {
                             // A default of None was given, meaning use the current dataset
-                            dataset = &self.data_key;
+                            dataset = &self.top_datakey()?;
                         }
                     } else {
                         // Raise an error
@@ -769,7 +910,7 @@ impl User {
                 dataset = rod;
             }
         } else {
-            dataset = &self.data_key.as_str();
+            dataset = &self.top_datakey()?;
         }
 
         let reason: Option<&str>;
@@ -795,27 +936,16 @@ impl User {
 
         // Need to lookup the password, but will only do this for the current user
         if self.is_current() {
-            if ORIGEN_CONFIG.user__cache_passwords {
-                // Check if the password is cached in the user's session
-                let mut s = crate::sessions();
-                let sess = s.user_session(None)?;
-                if let Some(p) = sess.retrieve(&to_session_password(dataset))? {
-                    // Password should be encrypted (to avoid storing as plaintext)
-                    // Decrypt the password
-                    let pw = decrypt_with(
-                        &bytes_from_str_of_bytes(&p.as_string()?)?,
-                        self.get_password_encryption_key()?,
-                        self.get_password_encryption_nonce()?,
-                    )?;
-                    if self._try_password(&pw, Some(dataset))? {
-                        let mut data = self.write_data(Some(dataset)).unwrap();
-                        data.password = Some(pw.clone());
-                        return Ok(pw);
-                    } else {
-                        // Note: the session will be updated if the correct password is
-                        // provided from the dialog
-                        display_redln!("Invalid password stored in session");
-                    }
+            if let Some(pw) = self.password_cache_option.get_password(self, dataset)? {
+                // Password was cached and retrieved - test password
+                if self._try_password(&pw, Some(dataset))? {
+                    let mut data = self.write_data(Some(dataset)).unwrap();
+                    data.password = Some(pw.clone());
+                    return Ok(pw);
+                } else {
+                    // Note: the session will be updated if the correct password is
+                    // provided from the dialog
+                    display_redln!("Cached password is not valid!");
                 }
             }
             return self._password_dialog(dataset, reason);
@@ -834,7 +964,9 @@ impl User {
     pub fn clear_cached_passwords(&self) -> Result<()> {
         // Important: need to ensure sessions was instantiated prior to grabbing a write-lock to avoid deadlock
         {
-            let _ = crate::sessions();
+            if self.password_cache_option.is_session_store() {
+                let _ = crate::sessions();
+            }
         }
         self.for_all_datasets_mut(|d| d.clear_cached_password(self))
     }
@@ -843,7 +975,9 @@ impl User {
     pub fn clear_cached_password(&self, dataset: Option<&str>) -> Result<()> {
         // Important: need to ensure sessions was instantiated prior to grabbing a write-lock to avoid deadlock
         {
-            let _ = crate::sessions();
+            if self.password_cache_option.is_session_store() {
+                let _ = crate::sessions();
+            }
         }
         self.write_data(dataset)?.clear_cached_password(self)
     }
@@ -983,6 +1117,12 @@ impl User {
                             &mut popped
                         )?
                     }
+                }
+                "git" | "Git" => {
+                    // Out of the git config, try to retrieve the email and username
+                    let mut data = self.write_data(Some(name))?;
+                    data.display_name = git::config("name");
+                    data.email = git::config("email");
                 }
                 _ => error_or_failure(
                     &format!("Unknown dataset source {}", s),

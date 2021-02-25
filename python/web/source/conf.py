@@ -38,7 +38,7 @@ extensions = [
     'origen.web.rustdoc',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
-    'origen.web.autoapi.autoapi.sphinx',  # Temporary moving 'autoapi.sphinx' into Origen space
+    'autoapi.sphinx',
     'recommonmark',
     'sphinx.ext.napoleon',
     'sphinx.ext.extlinks'

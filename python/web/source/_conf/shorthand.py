@@ -126,6 +126,13 @@ origen_shorthand_defs = {
         'Rust':
         'rust_homepage',
         'cargo_doc': ('cargo doc', 'rust_cargo_doc'),
+
+        # Git
+        'git': ('Git', 'git'),
+        'git_configuration': ('Git Configuration', 'git_configuration'),
+
+        'linux_keyring': ('Linux Keyring', 'linux_keyring'),
+        'windows_credential_manager': ('Windows Credential Manager', 'windows_credential_manager'),
     },
     'substitutions': {
         'conf.py': '``conf.py``',
