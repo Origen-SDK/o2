@@ -71,7 +71,7 @@ These are then available on the |dict-like| container :meth:`datasets <_origen.u
 
 Each dataset can be configured independently from the |origen_config|. This will be most applicable when handling :ref:`data integration <guides/utilities:Data Integration>`.
 
- When a user field is accessed on any ``User``, instead of a ``dataset`` directly, the :meth:`data_lookup_hierarchy <_origen.users.User.data_lookup_hierarchy>` is followed to actually look up what is returned. This hierarchy will go dataset-by-dataset until a "non-``None``" value is found. If ``None`` is returned anyway, then no dataset provided the given field. This hierarchy can be set in the |origen_config|:
+When a user field is accessed on any ``User``, instead of a ``dataset`` directly, the :meth:`data_lookup_hierarchy <_origen.users.User.data_lookup_hierarchy>` is followed to actually look up what is returned. This hierarchy will go dataset-by-dataset until a "non-``None``" value is found. If ``None`` is returned anyway, then no dataset provided the given field. This hierarchy can be set in the |origen_config|:
 
 .. code:: toml
 
