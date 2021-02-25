@@ -90,7 +90,10 @@ impl Default for Config {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h
         });
-        let _ = s.set_default("user__data_lookup_hierarchy", vec![super::user::DEFAULT_KEY]);
+        let _ = s.set_default(
+            "user__data_lookup_hierarchy",
+            vec![super::user::DEFAULT_KEY],
+        );
         let _ = s.set_default("user__password_auth_attempts", 3);
         let _ = s.set_default("user__password_cache_option", "keyring");
         let _ = s.set_default("user__datasets", {

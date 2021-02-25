@@ -215,20 +215,30 @@ class TestUsers:
     def test_data_lookup_hierarchy_is_returned_by_value(self):
         u = self.user3
         assert u.data_lookup_hierarchy == ["backup", "test"]
-        u.data_lookup_hierarchy.append("hi") # should be no error here as the update attempt never makes it to the backend
+        u.data_lookup_hierarchy.append(
+            "hi"
+        )  # should be no error here as the update attempt never makes it to the backend
         assert u.data_lookup_hierarchy == ["backup", "test"]
 
     def test_error_on_unknown_dataset_when_setting_hierarchies(self):
         u = self.user3
         assert u.data_lookup_hierarchy == ["backup", "test"]
-        with pytest.raises(OSError, match="No dataset 'hi' defined! Cannot use this in the datakey hierarchy"):
+        with pytest.raises(
+                OSError,
+                match=
+                "No dataset 'hi' defined! Cannot use this in the datakey hierarchy"
+        ):
             u.data_lookup_hierarchy = ["test", "backup", "hi"]
         assert u.data_lookup_hierarchy == ["backup", "test"]
 
     def test_error_on_duplicate_datasets_when_setting_hierarchies(self):
         u = self.user3
         assert u.data_lookup_hierarchy == ["backup", "test"]
-        with pytest.raises(OSError, match=r"Dataset 'test' can only appear once in the dataset hierarchy \(first appearance at index 0 - duplicate at index 2\)"):
+        with pytest.raises(
+                OSError,
+                match=
+                r"Dataset 'test' can only appear once in the dataset hierarchy \(first appearance at index 0 - duplicate at index 2\)"
+        ):
             u.data_lookup_hierarchy = ["test", "backup", "test"]
         assert u.data_lookup_hierarchy == ["backup", "test"]
 
@@ -240,9 +250,15 @@ class TestUsers:
         u.data_lookup_hierarchy = []
         assert u.data_lookup_hierarchy == []
 
-        with pytest.raises(OSError, match="Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"):
+        with pytest.raises(
+                OSError,
+                match=
+                "Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"
+        ):
             u.first_name
-        with pytest.raises(OSError, match="Data lookup hierarchy for user 'test3' is empty"):
+        with pytest.raises(
+                OSError,
+                match="Data lookup hierarchy for user 'test3' is empty"):
             u.top_datakey
         assert u.datasets["backup"].first_name == None
         assert u.datasets["test"].first_name == "test"
@@ -317,6 +333,7 @@ class TestUsers:
 
         # Check that other data fields were populated
         assert d.data_store["full_name"] == "Leonhard Euler"
+
 
 class TestUsersDictLike(Fixture_DictLikeAPI):
     def parameterize(self):

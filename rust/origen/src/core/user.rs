@@ -171,20 +171,23 @@ impl std::default::Default for Roles {
 pub const DEFAULT_KEY: &str = "default";
 
 #[derive(Debug)]
-pub enum PasswordCacheOptions{
+pub enum PasswordCacheOptions {
     Session,
     Keyring,
     None,
 }
 
 impl PasswordCacheOptions {
-    pub fn from_config()-> Result<Self> {
+    pub fn from_config() -> Result<Self> {
         let opt = &crate::ORIGEN_CONFIG.user__password_cache_option;
         match opt.as_str() {
             "session" | "session_store" => Ok(Self::Session),
             "keyring" | "true" => Ok(Self::Keyring),
             "none" | "false" => Ok(Self::None),
-            _ => error!("'user__password_cache_option' option '{}' is not known!", opt)
+            _ => error!(
+                "'user__password_cache_option' option '{}' is not known!",
+                opt
+            ),
         }
     }
 
@@ -244,11 +247,11 @@ impl PasswordCacheOptions {
                     Ok(password) => Ok(Some(password)),
                     Err(e) => match e {
                         keyring::KeyringError::NoPasswordFound => Ok(None),
-                        _ => error!("{}", e)
-                    }
+                        _ => error!("{}", e),
+                    },
                 }
             }
-            Self::None => error!("Cannot get password when password caching is unavailable!")
+            Self::None => error!("Cannot get password when password caching is unavailable!"),
         }
     }
 
@@ -264,11 +267,11 @@ impl PasswordCacheOptions {
             Self::Keyring => {
                 let k = keyring::Keyring::new(&dataset.dataset_name, &parent.id);
                 match k.delete_password() {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(e) => match e {
-                        keyring::KeyringError::NoPasswordFound => {},
-                        _ => return error!("{}", e)
-                    }
+                        keyring::KeyringError::NoPasswordFound => {}
+                        _ => return error!("{}", e),
+                    },
                 }
             }
             Self::None => {}
@@ -279,21 +282,21 @@ impl PasswordCacheOptions {
     pub fn is_session_store(&self) -> bool {
         match self {
             Self::Session => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn is_keyring(&self) -> bool {
         match self {
             Self::Keyring => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn is_none(&self) -> bool {
         match self {
             Self::None => true,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -430,7 +433,9 @@ impl Data {
         log_trace!("Clearing cached password for {}", k);
         self.password = None;
         self.authenticated = false;
-        parent.password_cache_option.clear_cached_password(parent, self)?;
+        parent
+            .password_cache_option
+            .clear_cached_password(parent, self)?;
         Ok(())
     }
 }
@@ -473,11 +478,14 @@ impl User {
                         d,
                         idx,
                         i
-                    )
+                    );
                 }
                 indices.insert(d, i);
             } else {
-                return error!("No dataset '{}' defined! Cannot use this in the datakey hierarchy", d);
+                return error!(
+                    "No dataset '{}' defined! Cannot use this in the datakey hierarchy",
+                    d
+                );
             }
         }
         self.data_lookup_hierarchy = hierarchy;
@@ -546,7 +554,10 @@ impl User {
             data: {
                 let mut h = HashMap::new();
                 h.insert(
-                    Self::data_lookup_hierarchy_from_config().first().unwrap().to_string(),
+                    Self::data_lookup_hierarchy_from_config()
+                        .first()
+                        .unwrap()
+                        .to_string(),
                     RwLock::new(Data::default()),
                 );
                 h
@@ -637,7 +648,7 @@ impl User {
     pub fn email(&self) -> Result<Option<String>> {
         for dn in self.data_lookup_hierarchy_or_err()?.iter() {
             if let Some(e) = self.with_dataset(dn, |d| Ok(d.email.clone()))? {
-                return Ok(Some(e))
+                return Ok(Some(e));
             }
         }
         Ok(None)
@@ -664,7 +675,7 @@ impl User {
     pub fn first_name(&self) -> Result<Option<String>> {
         for dn in self.data_lookup_hierarchy_or_err()?.iter() {
             if let Some(n) = self.with_dataset(&dn, |d| Ok(d.first_name.clone()))? {
-                return Ok(Some(n))
+                return Ok(Some(n));
             }
         }
         Ok(None)
@@ -680,7 +691,7 @@ impl User {
     pub fn last_name(&self) -> Result<Option<String>> {
         for dn in self.data_lookup_hierarchy_or_err()?.iter() {
             if let Some(n) = self.with_dataset(&dn, |d| Ok(d.last_name.clone()))? {
-                return Ok(Some(n))
+                return Ok(Some(n));
             }
         }
         Ok(None)
@@ -730,7 +741,8 @@ impl User {
     }
 
     fn _cache_password(&self, password: &str, dataset: &str) -> Result<bool> {
-        self.password_cache_option.cache_password(self, password, dataset)
+        self.password_cache_option
+            .cache_password(self, password, dataset)
     }
 
     fn _password_dialog(&self, dataset: &str, reason: Option<&str>) -> Result<String> {
