@@ -127,6 +127,9 @@ origen_shorthand_defs = {
         'rust_homepage',
         'cargo_doc': ('cargo doc', 'rust_cargo_doc'),
 
+        # TOML
+        'toml': ('TOML', 'toml_homepage'),
+
         # Git
         'git': ('Git', 'git'),
         'git_configuration': ('Git Configuration', 'git_configuration'),
@@ -283,7 +286,9 @@ origen_shorthand_defs = {
             'user_sessions':
             ('user\'s session store', f'{utilities_root}:User Sessions'),
             'user_datasets': ('user datasets', f'{utilities_root}:Datasets'),
-            'users': ('users', f'{utilities_root}:Users'),
+            'users': ('users', f'{utilities_root}:Other Configuration Cases'),
+            'default_user_config': ('default user config', f'{utilities_root}:Default Configuration'),
+            'users_default_cases': ('default user-config cases', f'{utilities_root}:Other Configuration Cases'),
             'password_caching':
             ('password caching', f'{utilities_root}:Password Caching'),
             'mailer': ('mailer', f'{utilities_root}:Mailer')
@@ -291,7 +296,8 @@ origen_shorthand_defs = {
         'origen_config':
         ('Origen config',
          f"{getting_started_root}/configuring_your_workspace:Configuring Your Application"
-         )
+         ),
+        'origen_site_config': ('Origen site config', f'{getting_started_root}/configuring_your_workspace:Site Configuration')
     }
 }
 

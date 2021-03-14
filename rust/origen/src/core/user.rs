@@ -2,7 +2,7 @@ use crate::revision_control::git;
 use crate::utility::command_helpers::exec_and_capture;
 use crate::utility::ldap::LDAPs;
 use crate::utility::{
-    bytes_from_str_of_bytes, decrypt_with, encrypt_with, str_from_byte_array, str_to_bool,
+    bytes_from_str_of_bytes, decrypt_with, encrypt_with, str_from_byte_array, str_to_bool, unsorted_dedup,
 };
 use crate::{Error, Metadata, Result, ORIGEN_CONFIG};
 use aes_gcm::aead::{
@@ -24,11 +24,12 @@ pub fn user__password_reasons<'a>() -> &'a HashMap<String, String> {
 }
 
 pub fn lookup_dataset_config<'a>(config: &str) -> Result<&'a HashMap<String, String>> {
-    if let Some(c) = ORIGEN_CONFIG.user__datasets.get(config) {
-        Ok(c)
-    } else {
-        error!("Could not lookup dataset config for {}", config)
+    if let Some(configs) = ORIGEN_CONFIG.user__datasets.as_ref() {
+        if let Some(c) = configs.get(config) {
+            return Ok(c);
+        }
     }
+    error!("Could not lookup dataset config for {}", config)
 }
 
 fn to_session_password<'a>(dataset: &str) -> String {
@@ -94,6 +95,29 @@ where
         u = urs.current_user()?;
     }
     u.with_dataset_mut(dataset, func)
+}
+
+/// Temporarily run some function with 'new_top' being the highest priority datasets
+pub fn with_top_hierarchy<T, F>(user: Option<&str>, new_top: &Vec<String>, func: F) -> Result<T>
+where
+    F: Fn(&User) -> Result<T>
+{
+    let mut urs = crate::users_mut();
+    let u;
+    if let Some(uname) = user {
+        u = urs.user_mut(uname)?;
+    } else {
+        u = urs.current_user_mut()?;
+    }
+    
+    let old_hierarchy = u.data_lookup_hierarchy.clone();
+    let mut new_hierarchy = new_top.to_vec();
+    new_hierarchy.extend(old_hierarchy.clone());
+    unsorted_dedup(&mut new_hierarchy);
+    u.set_data_lookup_hierarchy(new_hierarchy)?;
+    let res = func(u);
+    u.data_lookup_hierarchy = old_hierarchy;
+    res
 }
 
 /// Initiates the password dialog for the current user for all the given datasets.
@@ -168,7 +192,20 @@ impl std::default::Default for Roles {
     }
 }
 
-pub const DEFAULT_KEY: &str = "default";
+pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
+
+lazy_static! {
+    pub static ref DEFAULT_DATASET_CONFIG: HashMap<String, HashMap<String, String>> = {
+        let mut h: HashMap<String, HashMap<String, String>> = HashMap::new();
+        h.insert(DEFAULT_DATASET_KEY.to_string(), {
+            let mut c: HashMap<String, String> = HashMap::new();
+            c.insert("data_source".to_string(), "git".to_string());
+            c.insert("auto_populate".to_string(), "false".to_string());
+            c
+        });
+        h
+    };
+}
 
 #[derive(Debug)]
 pub enum PasswordCacheOptions {
@@ -312,6 +349,10 @@ impl Users {
         Ok(self.users.get(&self.current_id).unwrap())
     }
 
+    pub fn current_user_mut(&mut self) -> Result<&mut User> {
+        Ok(self.users.get_mut(&self.current_id).unwrap())
+    }
+
     pub fn current_user_id(&self) -> Result<String> {
         Ok(self.current_id.clone())
     }
@@ -441,8 +482,29 @@ impl Data {
 }
 
 impl User {
-    pub fn data_lookup_hierarchy_from_config<'a>() -> Vec<String> {
-        crate::ORIGEN_CONFIG.user__data_lookup_hierarchy.clone()
+    pub fn data_lookup_hierarchy_from_config<'a>() -> Option<Result<&'a Vec<String>>> {
+        if let Some(hierarchy) = crate::ORIGEN_CONFIG.user__data_lookup_hierarchy.as_ref() {
+            Some({
+                match Self::check_vec(&hierarchy, Self::dataset_configs(), true, "dataset", "dataset hierarchy") {
+                    Ok(_) => Ok(hierarchy),
+                    Err(e) => Err(e)
+                }
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn datasets_from_config<'a>() -> &'a Option<HashMap<String, HashMap<String, String>>> {
+        &ORIGEN_CONFIG.user__datasets
+    }
+
+    pub fn dataset_configs<'a>() -> &'a HashMap<String, HashMap<String, String>> {
+        if let Some(configs) = Self::datasets_from_config() {
+            configs
+        } else {
+            &*DEFAULT_DATASET_CONFIG
+        }
     }
 
     pub fn top_datakey(&self) -> Result<&str> {
@@ -466,16 +528,17 @@ impl User {
         }
     }
 
-    pub fn set_data_lookup_hierarchy(&mut self, hierarchy: Vec<String>) -> Result<()> {
-        // Check that each item in hierarchy is valid and that there are no duplicates
+    pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(vut: &Vec<T>, valid_values_hashmap: &HashMap<T, V>, allow_duplicates: bool, obj_name: &str, container_name: &str) -> Result<()> {
         let mut indices = HashMap::new();
-        for (i, d) in hierarchy.iter().enumerate() {
-            if self.data.contains_key(d) {
+        for (i, d) in vut.iter().enumerate() {
+            if valid_values_hashmap.contains_key(d) {
                 if let Some(idx) = indices.get(d) {
                     // Duplicate dataset
                     return error!(
-                        "Dataset '{}' can only appear once in the dataset hierarchy (first appearance at index {} - duplicate at index {})",
+                        "{} '{}' can only appear once in the {} (first appearance at index {} - duplicate at index {})",
+                        obj_name,
                         d,
+                        container_name,
                         idx,
                         i
                     );
@@ -483,11 +546,19 @@ impl User {
                 indices.insert(d, i);
             } else {
                 return error!(
-                    "No dataset '{}' defined! Cannot use this in the datakey hierarchy",
-                    d
+                    "'{}' is not a valid {} and cannot be used in the {}",
+                    d,
+                    obj_name,
+                    container_name
                 );
             }
         }
+        Ok(())
+    }
+
+    pub fn set_data_lookup_hierarchy(&mut self, hierarchy: Vec<String>) -> Result<()> {
+        // Check that each item in hierarchy is valid and that there are no duplicates
+        Self::check_vec(&hierarchy, &self.data, false, "dataset", "dataset hierarchy")?;
         self.data_lookup_hierarchy = hierarchy;
         Ok(())
     }
@@ -541,29 +612,70 @@ impl User {
         };
         let u = User::new(&id);
         {
-            let mut data = u.write_data(None).unwrap();
-            data.home_dir = super::status::get_home_dir();
+            match u.write_data(None) {
+                Ok(mut data) => data.home_dir = super::status::get_home_dir(),
+                Err(e) => display_redln!("{}", e.msg)
+            }
         }
         log_trace!("Built Current User: {}", u.id());
         u
     }
 
     pub fn new(id: &str) -> User {
+        let hierarchy: Vec<String>;
+        let datasets;
+        if let Some(d) = Self::datasets_from_config() {
+            if d.is_empty() {
+                // Empty datasets are not allowed
+                display_redln!("Empty 'user__datasets' config value is not allowed");
+                display_redln!("Forcing default dataset...");
+                hierarchy = vec!(DEFAULT_DATASET_KEY.to_string());
+                datasets = &*DEFAULT_DATASET_CONFIG; // default_dataset_config!();
+            } else {
+                // Datasets were given
+                // Multiple datasets were given.
+                if let Some(config_h) = Self::data_lookup_hierarchy_from_config() {
+                    // Hierarchy was given - validate and use that.
+                    // For a single dataset, a lookup hierarchy is kind of moot but check it anyway.
+                    match config_h {
+                        Ok(h) => {
+                            hierarchy = h.to_vec();
+                        },
+                        Err(e) => {
+                            display_redln!("{}", e.msg);
+                            display_redln!("Forcing empty dataset lookup hierarchy...");
+                            hierarchy = vec!();
+                        }
+                    }
+                } else {
+                    if d.len() == 1 {
+                        // Hierarchy wasn't given but since there's only a single dataset, use that.
+                        hierarchy = vec!(d.keys().collect::<Vec<&String>>().first().unwrap().to_string());
+                    } else {
+                        // Hierarchy wasn't given. Since we cannot look up order from the config
+                        // (indexmap isn't supported and using vectors is messy) default
+                        // hierarchy with multiple datasets is an empty hierarchy.
+                        hierarchy = vec!();
+                    }
+                }
+                datasets = d;
+            }
+        } else {
+            // No datasets were provided - use the default dataset, but also
+            // do not allow a dataset hierarchy as its not used and may be confusing.
+            if let Some(_) = Self::data_lookup_hierarchy_from_config() {
+                display_redln!("Providing config value 'user__data_lookup_hierarchy' without providing 'user__datasets' is not allowed");
+                display_redln!("Forcing default dataset...");
+            }
+            hierarchy = vec![DEFAULT_DATASET_KEY.to_string()];
+            datasets = &*DEFAULT_DATASET_CONFIG; // default_dataset_config!();
+        }
         let mut u = Self {
             id: id.to_string(),
-            data: {
-                let mut h = HashMap::new();
-                h.insert(
-                    Self::data_lookup_hierarchy_from_config()
-                        .first()
-                        .unwrap()
-                        .to_string(),
-                    RwLock::new(Data::default()),
-                );
-                h
-            },
+            data: HashMap::new(),
+
             password_semaphore: Mutex::new(0),
-            data_lookup_hierarchy: Self::data_lookup_hierarchy_from_config(),
+            data_lookup_hierarchy: hierarchy,
             password_cache_option: match PasswordCacheOptions::from_config() {
                 Ok(opt) => opt,
                 Err(e) => {
@@ -572,7 +684,7 @@ impl User {
                 }
             },
         };
-        for (name, config) in ORIGEN_CONFIG.user__datasets.iter() {
+        for (name, config) in datasets {
             u.add_dataset_placeholder(name).unwrap();
 
             // Default is to populate any datasets at creation time.
@@ -783,7 +895,7 @@ impl User {
         // Check if we are even supposed to try the password or if its already been tried
         let dn = Some(dataset_name.unwrap_or(&self.top_datakey()?));
         if self.should_validate_password(dn)? && !self.read_data(dn).unwrap().authenticated {
-            if let Some(dataset) = ORIGEN_CONFIG.user__datasets.get(dn.unwrap()) {
+            if let Some(dataset) = Self::dataset_configs().get(dn.unwrap()) {
                 if let Some(data_source) = dataset.get("data_source") {
                     if data_source == "ldap" {
                         if let Some(ldap_name) = dataset.get("data_lookup") {
@@ -822,7 +934,7 @@ impl User {
 
     pub fn should_validate_password(&self, dataset_name: Option<&str>) -> Result<bool> {
         if let Some(name) = dataset_name {
-            if let Some(dataset) = ORIGEN_CONFIG.user__datasets.get(name) {
+            if let Some(dataset) = Self::dataset_configs().get(name) {
                 if let Some(ans) = dataset.get("try_password") {
                     match ans.as_str() {
                         "true" | "True" => Ok(true),

@@ -1,8 +1,10 @@
-import origen, _origen, pytest, os, getpass
+import origen, _origen, pytest, getpass
 from tests.shared.python_like_apis import Fixture_DictLikeAPI
+from tests.shared import in_new_origen_proc
 from tests.origen_utilities.test_ldap import USER_USERNAME, PASSWORD
+from configs import users as user_configs
 
-data_fields = ["email", "first_name", "last_name"]  # name?
+data_fields = ["email", "first_name", "last_name"]
 data_fields_exceptions = ["display_name", "username"]
 
 
@@ -226,7 +228,7 @@ class TestUsers:
         with pytest.raises(
                 OSError,
                 match=
-                "No dataset 'hi' defined! Cannot use this in the datakey hierarchy"
+                "'hi' is not a valid dataset and cannot be used in the dataset hierarchy"
         ):
             u.data_lookup_hierarchy = ["test", "backup", "hi"]
         assert u.data_lookup_hierarchy == ["backup", "test"]
@@ -237,7 +239,7 @@ class TestUsers:
         with pytest.raises(
                 OSError,
                 match=
-                r"Dataset 'test' can only appear once in the dataset hierarchy \(first appearance at index 0 - duplicate at index 2\)"
+                r"dataset 'test' can only appear once in the dataset hierarchy \(first appearance at index 0 - duplicate at index 2\)"
         ):
             u.data_lookup_hierarchy = ["test", "backup", "test"]
         assert u.data_lookup_hierarchy == ["backup", "test"]
@@ -334,7 +336,6 @@ class TestUsers:
         # Check that other data fields were populated
         assert d.data_store["full_name"] == "Leonhard Euler"
 
-
 class TestUsersDictLike(Fixture_DictLikeAPI):
     def parameterize(self):
         return {
@@ -346,6 +347,94 @@ class TestUsersDictLike(Fixture_DictLikeAPI):
     def boot_dict_under_test(self):
         return origen.users
 
+class TestConfigSetups:
+
+    def test_error_on_invalid_datasets_in_hierarchy(self, capfd):
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["data_lookup_hierarchy"] == []
+        assert set(retn["datasets"]) == set(['test', 'test2', 'git', 'forumsys', 'backup'])
+        stdout = capfd.readouterr().out
+        assert "'blah' is not a valid dataset and cannot be used in the dataset hierarchy" in stdout
+        assert "Forcing empty dataset lookup hierarchy..." in stdout
+        assert f"Data lookup hierarchy for user '{getpass.getuser()}' is empty" in stdout
+
+    def test_error_on_duplicate_datasets_in_hierarchy(self, capfd):
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["data_lookup_hierarchy"] == []
+        assert set(retn["datasets"]) == set(['test', 'test2', 'git', 'forumsys', 'backup'])
+        stdout = capfd.readouterr().out
+        assert "dataset 'test' can only appear once in the dataset hierarchy (first appearance at index 0 - duplicate at index 2)" in stdout
+        assert "Forcing empty dataset lookup hierarchy..." in stdout
+        assert f"Data lookup hierarchy for user '{getpass.getuser()}' is empty" in stdout
+
+    def test_single_dataset_and_default_hierarchy(self):
+        ''' Default hierarchy should be the only dataset '''
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["datasets"] == ["test"]
+        assert retn["hierarchy"] == ["test"]
+        assert retn["first_name_unset"] == None
+        assert retn["first_name_dataset_unset"] == None
+        assert retn["first_name"] == "Corey"
+        assert retn["first_name_dataset"] == "Corey"
+
+    def test_single_dataset_and_explicit_hierarchy(self):
+        ''' Very close to what is already tested, but simple enough to do'''
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["datasets"] == ["test"]
+        assert retn["hierarchy"] == ["test"]
+        assert retn["first_name_unset"] == None
+        assert retn["first_name_dataset_unset"] == None
+        assert retn["first_name"] == "Corey2"
+        assert retn["first_name_dataset"] == "Corey2"
+
+    def test_single_dataset_and_empty_hierarchy(self):
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["datasets"] == ["test"]
+        assert retn["hierarchy"] == []
+        assert isinstance(retn["first_name_unset"], OSError)
+        assert str(retn["first_name_unset"]) == "Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"
+        assert retn["first_name_dataset_unset"] == None
+        assert retn["first_name_unset_2"] == None
+
+    def test_multi_datasets_and_default_hierarchy(self):
+        ''' Default hierarchy for multiple datasets is empty '''
+        retn = in_new_origen_proc(mod=user_configs)
+        assert set(retn["datasets"]) == set(["test_1st", "test_2nd"])
+        assert retn["hierarchy"] == []
+        assert retn["hierarchy_2"] == ["test_1st", "test_2nd"]
+
+    def test_default_dataset_and_hierarchy(self):
+        ''' No datasets given, nor any hierarchy. Absolute base case '''
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["datasets"] == ["__origen__default__"]
+        assert retn["hierarchy"] == ["__origen__default__"]
+        assert retn["first_name_unset"] == None
+        assert retn["first_name_dataset_unset"] == None
+        assert retn["first_name"] == "COREY"
+        assert retn["first_name_dataset"] == "COREY"
+
+    def test_error_message_on_default_data_and_given_hierarchy(self, capfd):
+        ''' As no datasets were given, giving a hierarchy is not allowed '''
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["datasets"] == ["__origen__default__"]
+        assert retn["hierarchy"] == ["__origen__default__"]
+        stdout = capfd.readouterr().out
+        assert "Providing config value 'user__data_lookup_hierarchy' without providing 'user__datasets' is not allowed" in stdout
+        assert "Forcing default dataset..." in stdout
+
+    def test_error_message_on_default_data_and_empty_hierarchy(self, capfd):
+        ''' Same as the above - cannot give an empty hierarchy either '''
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["datasets"] == ["__origen__default__"]
+        assert retn["hierarchy"] == ["__origen__default__"]
+        stdout = capfd.readouterr().out
+        assert "Providing config value 'user__data_lookup_hierarchy' without providing 'user__datasets' is not allowed" in stdout
+        assert "Forcing default dataset..." in stdout
+
+    def test_empty_datasets(self):
+        retn = in_new_origen_proc(mod=user_configs)
+        assert retn["datasets"] == ["__origen__default__"]
+        assert retn["hierarchy"] == ["__origen__default__"]
 
 #     def test_home_dir():
 #         ...

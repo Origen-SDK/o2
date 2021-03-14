@@ -40,12 +40,14 @@ pub struct Config {
     pub some_val: u32,
 
     // Mailer
-    pub mailer_server: Option<String>,
-    pub mailer_port: Option<i64>,
-    pub mailer_auth: Option<String>,
-    pub mailer_domain: Option<String>,
-    pub mailer_auth_email: Option<String>,
-    pub mailer_auth_password: Option<String>,
+    pub mailer__server: Option<String>,
+    pub mailer__port: Option<i64>,
+    pub mailer__auth_method: Option<String>,
+    pub mailer__service_user: Option<String>,
+    pub mailer__domain: Option<String>,
+    pub mailer__auth_email: Option<String>,
+    pub mailer__auth_password: Option<String>,
+    pub mailer__timeout_seconds: u64,
 
     // LDAPs
     pub ldaps: HashMap<String, HashMap<String, String>>,
@@ -55,8 +57,8 @@ pub struct Config {
     pub default_encryption_nonce: String,
 
     // Various user config
-    pub user__data_lookup_hierarchy: Vec<String>,
-    pub user__datasets: HashMap<String, HashMap<String, String>>,
+    pub user__data_lookup_hierarchy: Option<Vec<String>>,
+    pub user__datasets: Option<HashMap<String, HashMap<String, String>>>,
     pub user__password_auth_attempts: u8,
     pub user__password_cache_option: String,
     pub user__password_reasons: HashMap<String, String>,
@@ -80,24 +82,26 @@ impl Default for Config {
         let _ = s.set_default("pkg_server_push", "");
         let _ = s.set_default("pkg_server_pull", "");
         let _ = s.set_default("some_val", 3);
-        let _ = s.set_default("mailer_server", None::<String>);
-        let _ = s.set_default("mailer_port", None::<i64>);
-        let _ = s.set_default("mailer_auth", None::<String>);
-        let _ = s.set_default("mailer_domain", None::<String>);
-        let _ = s.set_default("mailer_auth_email", None::<String>);
-        let _ = s.set_default("mailer_auth_password", None::<String>);
+        let _ = s.set_default("mailer__server", None::<String>);
+        let _ = s.set_default("mailer__port", None::<i64>);
+        let _ = s.set_default("mailer__auth_method", None::<String>);
+        let _ = s.set_default("mailer__domain", None::<String>);
+        let _ = s.set_default("mailer__auth_email", None::<String>);
+        let _ = s.set_default("mailer__auth_password", None::<String>);
+        let _ = s.set_default("mailer__service_user", None::<String>);
+        let _ = s.set_default("mailer__timeout_seconds", 60);
         let _ = s.set_default("ldaps", {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h
         });
         let _ = s.set_default(
             "user__data_lookup_hierarchy",
-            vec![super::user::DEFAULT_KEY],
+            None::<Vec<String>>
         );
         let _ = s.set_default("user__password_auth_attempts", 3);
         let _ = s.set_default("user__password_cache_option", "keyring");
         let _ = s.set_default("user__datasets", {
-            let h: HashMap<String, HashMap<String, String>> = HashMap::new();
+            let h: Option<HashMap<String, HashMap<String, String>>> = None;
             h
         });
         let _ = s.set_default("user__dataset_mappings", {
@@ -123,36 +127,79 @@ impl Default for Config {
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();
 
-        if let Some(app) = &STATUS.app {
-            let mut path = app.root.join("config");
-            let f = path.join("origen.toml");
-            log_trace!("Looking for Origen config file at '{}'", f.display());
-            if f.exists() {
-                files.push(f);
+        // Highest priority are any files added by the user from the command line
+        // If a .toml is given directly, add this file
+        // If its a directory, add non-recursively search for an origen.toml
+        // Multiple paths are allowed, separated by whatever the OS's separator is
+        if let Some(paths) = std::env::var_os("origen_config_paths") {
+            log_trace!("Found custom config paths: {:?}", paths);
+            for path in std::env::split_paths(&paths) {
+                log_trace!("Looking for Origen config file at '{}'", path.display());
+                if path.is_file() {
+                    if let Some(ext) = path.extension() {
+                        if ext == "toml" {
+                            files.push(path);
+                        } else {
+                            display_redln!(
+                                "Expected file {} to have extension '.toml'. Found '{}'",
+                                path.display(),
+                                ext.to_string_lossy()
+                            )
+                        }
+                    } else {
+                        // accept a file without an extension. will be interpreted as a .toml
+                        files.push(path);
+                    }
+                } else if path.is_dir() {
+                    let f = path.join("origen.toml");
+                    if f.exists() {
+                        files.push(f);
+                    }
+                } else {
+                    display_redln!(
+                        "Config path {} either does not exists or is not accessible",
+                        path.display()
+                    );
+                }
             }
+        }
 
-            while path.pop() {
+        if std::env::var_os("origen_bypass_config_lookup").is_some() {
+            // Bypass Origen's default configuration lookup - use only the enumerated configs
+            log_trace!("Bypassing Origen's Config Lookup");
+        } else {
+            log_trace!("Looking for Origen Configs");
+            if let Some(app) = &STATUS.app {
+                let mut path = app.root.join("config");
                 let f = path.join("origen.toml");
                 log_trace!("Looking for Origen config file at '{}'", f.display());
                 if f.exists() {
                     files.push(f);
                 }
-            }
-        }
 
-        // TODO: Should this be the Python installation dir?
-        if let Some(mut path) = STATUS.cli_location() {
-            let f = path.join("origen.toml");
-            log_trace!("Looking for Origen config file at '{}'", f.display());
-            if f.exists() {
-                files.push(f);
+                while path.pop() {
+                    let f = path.join("origen.toml");
+                    log_trace!("Looking for Origen config file at '{}'", f.display());
+                    if f.exists() {
+                        files.push(f);
+                    }
+                }
             }
 
-            while path.pop() {
+            // TODO: Should this be the Python installation dir?
+            if let Some(mut path) = STATUS.cli_location() {
                 let f = path.join("origen.toml");
                 log_trace!("Looking for Origen config file at '{}'", f.display());
                 if f.exists() {
                     files.push(f);
+                }
+
+                while path.pop() {
+                    let f = path.join("origen.toml");
+                    log_trace!("Looking for Origen config file at '{}'", f.display());
+                    if f.exists() {
+                        files.push(f);
+                    }
                 }
             }
         }

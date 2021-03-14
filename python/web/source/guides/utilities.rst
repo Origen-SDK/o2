@@ -31,6 +31,15 @@ Passwords work in much the same way with the caveat of an unset for the current 
 
 ``Users`` can be customized by the |origen_config|. The below sections will go through some of these while the :link-to:`sample configuration <test_app_origen_config>` in the repository contains a working example.
 
+Default Configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+The next sections will get into customizations for more advanced features but for simple applications, the default configuration may be enough.
+
+The default configuration supports all of the same functions above. Simply omitting the configuration values ``user__data_lookup_hierarchy`` and ``user__datasets``, you will get a default ``dataset`` of ``__origen__default__`` and a ``hierarchy`` of ``["__origen__default_"]``. Exactly what this means will be covered in the next section but, for now, just note these as the default values.
+
+For other semi-default cases, see :link-to:`further down <origen_utilities:users_default_cases>`.
+
 Datasets
 ^^^^^^^^
 
@@ -271,6 +280,16 @@ Service Users
     [service_users.service]
     username = "serv"
     password = "pass"
+
+Other Configuration Cases
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the configuration is omitted, Origen will provide a :link-to:`default setup <origen_utilities:default_user_config>`. However, other semi-default cases arise when particular conditions are met:
+
+* If no datasets are given, but a hierarchy is provided, an error message is printed and the |origen_utilities:default_user_config| is forced.
+* Likewise, invalid hierarchies (such as duplicates or missing entries), preserves the datasets, but clears the hierarchy (e.g., ``user__data_lookup_hierarchy = []``.
+* If a single dataset is provided but no hierarchy is given, the hierarchy is automatically set to that dataset.
+* However, if multiple datasets are given but not a hierarchy, then the hierarchy will be empty.
 
 See Also
 ^^^^^^^^

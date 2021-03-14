@@ -1,0 +1,11 @@
+mailer__server = "smtp.origen.org"
+mailer__auth_method = "TLS"
+
+user__data_lookup_hierarchy = ["not_mailer"]
+
+[user__datasets]
+[user__datasets.for_mailer]
+[user__datasets.not_mailer]
+
+[user__password_reasons]
+"mailer" = "for_mailer"

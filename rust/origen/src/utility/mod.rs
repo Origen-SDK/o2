@@ -130,6 +130,11 @@ pub fn decrypt_with(
     Ok(String::from_utf8(plaintext)?)
 }
 
+pub fn unsorted_dedup<T: Eq + std::hash::Hash + Clone>(v: &mut Vec<T>) {
+    let mut uniques = std::collections::HashSet::new();
+    v.retain(|e| uniques.insert(e.clone()));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

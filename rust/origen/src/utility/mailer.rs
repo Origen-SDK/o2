@@ -1,12 +1,16 @@
-use crate::{Result, ORIGEN_CONFIG};
+use crate::{Result, ORIGEN_CONFIG, with_current_user};
+use crate::core::user::with_top_hierarchy;
 use lettre;
 // use std::path::PathBuf;
 
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
+use lettre::transport::smtp::SmtpTransport;
 use lettre::Message;
 // use lettre::{Transport, Address};
 use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::Transport;
+use std::fmt::Display;
+use std::collections::HashMap;
 
 // pub struct Maillist {
 //     pub to: Vec<Address>,
@@ -41,16 +45,47 @@ use lettre::Transport;
 //     }
 // }
 
+const PASSWORD_REASON: &str = "mailer";
+
+#[derive(Debug, Display)]
+pub enum SupportedAuths {
+    TLS,
+    None
+}
+
+impl SupportedAuths {
+    pub fn from_config() -> Result<Self> {
+        if let Some(val) = &ORIGEN_CONFIG.mailer__auth_method {
+            match val.as_str() {
+                "TLS" | "tls" | "Tls" => Ok(Self::TLS),
+                "NONE" | "none" | "None" => Ok(Self::None),
+                _ => error!("Invalid auth method '{}' found in the mailer configuration", val)
+            }
+        } else {
+            Ok(Self::None)
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        match self {
+            Self::None => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Mailer {
     pub server: Option<String>,
     pub port: Option<usize>,
     pub from: Option<String>,
     pub from_alias: Option<String>,
-    pub auth_method: Option<String>,
+    pub auth_method: SupportedAuths,
     pub auth_email: Option<String>,
     pub auth_password: Option<String>,
     pub domain: Option<String>,
+    pub service_user: Option<String>,
+    pub timeout_seconds: u64,
 }
 
 impl std::default::Default for Mailer {
@@ -61,54 +96,143 @@ impl std::default::Default for Mailer {
             from: None,
             from_alias: None,
             domain: None,
-            auth_method: None,
+            auth_method: SupportedAuths::None,
             auth_email: None,
             auth_password: None,
+            service_user: None,
+            timeout_seconds: 0,
         }
     }
 }
 
 impl Mailer {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Self {
         let mut m = Self::default();
-        m.server = ORIGEN_CONFIG.mailer_server.clone();
+        m.server = {
+            if let Some(s) = ORIGEN_CONFIG.mailer__server.as_ref() {
+                Some(s.to_string())
+            } else {
+                display_redln!("Mailer's 'server' parameter has not been set. Please update config parameter 'mailer__server' to enable use of the mailer");
+                None
+            }
+        };
         m.port = {
-            if let Some(p) = ORIGEN_CONFIG.mailer_port {
+            if let Some(p) = ORIGEN_CONFIG.mailer__port {
                 Some(p as usize)
             } else {
                 None
             }
         };
-        m.domain = ORIGEN_CONFIG.mailer_domain.clone();
-        m.auth_method = ORIGEN_CONFIG.mailer_auth.clone();
-        m.auth_email = ORIGEN_CONFIG.mailer_auth_email.clone();
-        m.auth_password = ORIGEN_CONFIG.mailer_auth_password.clone();
-        Ok(m)
+        m.domain = ORIGEN_CONFIG.mailer__domain.clone();
+        m.auth_method = {
+            match SupportedAuths::from_config() {
+                Ok(a) => a,
+                Err(e) => {
+                    display_redln!("{}", e.msg);
+                    display_redln!("Unable to fully configure mailer from config!");
+                    display_redln!("Forcing no authentication (mailer__auth_method = 'None')");
+                    SupportedAuths::None
+                }
+            }
+        };
+        m.service_user = {
+            if let Some(su) = ORIGEN_CONFIG.mailer__service_user.as_ref() {
+                if !ORIGEN_CONFIG.service_users.contains_key(su) {
+                    display_redln!("Invalid service user '{}' provided in mailer configuration", su);
+                }
+                Some(su.to_string())
+            } else {
+                None
+            }
+        };
+        m.timeout_seconds = ORIGEN_CONFIG.mailer__timeout_seconds;
+        m
     }
 
     pub fn get_server(&self) -> Result<String> {
         if let Some(s) = self.server.as_ref() {
             Ok(s.clone())
         } else {
-            error!("Tried to retrieve the mailer's 'server' but no server has been set")
+            error!("Mailer's 'server' parameter has not been set. Please update config parameter 'mailer__server' to enable use of the mailer")
         }
     }
 
-    pub fn get_auth_email(&self) -> Result<String> {
-        if let Some(e) = self.auth_email.as_ref() {
-            Ok(e.clone())
+    pub fn service_user(&self) -> Result<Option<(&str, &HashMap<String, String>)>> {
+        if let Some(u) = self.service_user.as_ref() {
+            if let Some(su) = ORIGEN_CONFIG.service_users.get(u) {
+                Ok(Some((&u, su)))
+            } else {
+                error!("Invalid service user '{}' provided in mailer configuration", u)
+            }
         } else {
-            error!("Tried to retrive the mailer's 'auth_email' but no auth email has been set")
+            Ok(None)
         }
     }
 
-    pub fn get_auth_password(&self) -> Result<String> {
-        if let Some(p) = self.auth_password.as_ref() {
-            Ok(p.clone())
+    pub fn username(&self) -> Result<String> {
+        if self.auth_method.is_none() {
+            error!("Cannot retrieve username when using auth method '{}'", SupportedAuths::None)
         } else {
-            error!(
-                "Tried to retrieve the mailer's 'auth_password' but no auth password has been set"
-            )
+            if let Some(u) = self.service_user()? {
+                if let Some(n) = u.1.get("username") {
+                    Ok(n.into())
+                } else {
+                    Ok(u.0.into())
+                }
+            } else {
+                if let Some(d) = self.get_dataset()? {
+                    with_top_hierarchy(None, &vec!(d), |u| u.username())
+                } else {
+                    with_current_user( |u| u.username())
+                }
+            }
+        }
+    }
+
+    pub fn password(&self) -> Result<String> {
+        if self.auth_method.is_none() {
+            error!("Cannot retrieve password when using auth method '{}'", SupportedAuths::None)
+        } else {
+            if let Some(u) = self.service_user()? {
+                if let Some(p) = u.1.get("password") {
+                    Ok(p.into())
+                } else {
+                    error!("No password given for service user '{}'", u.0)
+                }
+            } else {
+                with_current_user( |u| u.password(Some(PASSWORD_REASON), true, Some(None)))
+            }
+        }
+    }
+
+    pub fn sender(&self) -> Result<String> {
+        if let Some(u) = self.service_user()? {
+            if let Some(e) = u.1.get("email") {
+                return Ok(e.into())
+            }
+        }
+        if let Some(d) = self.get_dataset()? {
+            with_top_hierarchy(None, &vec!(d), |u| u.get_email())
+        } else {
+            with_current_user(|u| u.get_email())
+        }
+    }
+
+    fn get_dataset(&self) -> Result<Option<String>> {
+        with_current_user( |u| {
+            if let Some(d)= u.dataset_for(PASSWORD_REASON) {
+                Ok(Some(d.to_string()))
+            } else {
+                Ok(None)
+            }
+        })
+    }
+
+    pub fn dataset(&self) -> Result<Option<String>> {
+        if let Some(_u) = self.service_user()? {
+            error!("Cannot query the user dataset for the mailer when specifying a service user")
+        } else {
+            self.get_dataset()
         }
     }
 
@@ -160,16 +284,27 @@ impl Mailer {
     }
 
     pub fn send(&self, m: Message) -> Result<()> {
-        let client = lettre::transport::smtp::SmtpTransport::starttls_relay(&self.get_server()?)
-            .unwrap()
-            .authentication(vec![Mechanism::Login])
-            .credentials(Credentials::new(
-                self.get_auth_email()?,
-                self.get_auth_password()?,
-            ))
-            .port(self.get_port()? as u16)
-            .timeout(Some(std::time::Duration::new(300, 0)))
-            .build();
+        let mut builder;
+        match self.auth_method {
+            SupportedAuths::TLS => {
+                builder = SmtpTransport::starttls_relay(&self.get_server()?)
+                    .unwrap()
+                    .authentication(vec![Mechanism::Login])
+                    .credentials(Credentials::new(
+                        self.username()?,
+                        self.password()?
+                    ))
+            }
+            SupportedAuths::None => {
+                // SMTP client with no authentication (hence the dangerous)
+                builder = SmtpTransport::builder_dangerous(&self.get_server()?)
+            }
+        }
+        builder = builder.timeout(Some(std::time::Duration::new(self.timeout_seconds, 0)));
+        if let Some(p) = self.port {
+            builder = builder.port(p as u16);
+        }
+        let client = builder.build();
 
         client.send(&m).unwrap();
 

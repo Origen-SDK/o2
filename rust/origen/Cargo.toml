@@ -60,6 +60,7 @@ aes-gcm = "0.8"
 rand = "0.8"
 # keyring = "0.10.1"
 keyring = { git = "https://github.com/hwchen/keyring-rs.git", rev = "a30e65f" }
+enum-display-derive = "0.1.1"
 
 [build-dependencies]
 built = "0.4"

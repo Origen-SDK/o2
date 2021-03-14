@@ -13,6 +13,14 @@
 #pkg_server_push = "https://pkgs.company.net:9292"
 #pkg_server_pull = "https://pkgs.company.net:9292"
 
+### Dummy Mailer Setup ###
+mailer__server = "smtp.origen.org"
+mailer__port = 25
+mailer__auth_method = "None"
+mailer__domain = "origen.org"
+mailer__auth__service_user = "forumsys_read_only"
+mailer__timeout_seconds = 120
+
 ### Users Setup ###
 # Various items to customize user data
 #

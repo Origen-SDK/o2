@@ -14,6 +14,8 @@ pub mod macros;
 extern crate indexmap;
 #[macro_use]
 extern crate cfg_if;
+#[macro_use]
+extern crate enum_display_derive;
 
 pub mod core;
 pub mod error;
@@ -90,7 +92,7 @@ lazy_static! {
     pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
     pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
-    pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new().unwrap());
+    pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new());
 }
 
 impl PartialEq<AST> for TEST {
