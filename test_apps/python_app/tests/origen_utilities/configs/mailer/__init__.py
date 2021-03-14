@@ -33,7 +33,6 @@ def test_tls_service_user(q, options):
     setenv(config_root, bypass_config_lookup=True)
 
     import origen
-    origen.current_user().password = "dummy"
     q.put(("server", origen.mailer.server))
     q.put(("auth_method", origen.mailer.auth_method))
     q.put(("service_user", origen.mailer.service_user))
