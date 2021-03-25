@@ -165,7 +165,8 @@ class Compiler:
         else:
             origen.logger.info(f"Compiling template {src}")
             if file_to_string:
-                return r.render_str(open(src, 'r').readlines(), c)
+                text = ''.join(open(src, 'r').readlines())
+                return r.render_str(text, c)
             else:
                 rendered = r.render_file(
                     src,
