@@ -317,8 +317,11 @@ class TestMaillist:
             "d4@test_apps.origen.org",
         ]
         stdout = capfd.readouterr().out
-        assert r"Errors encountered building maillist 'develop' from C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\tests\origen_utilities\configs\mailer\.\maillists\errors\invalid_toml\develop.maillist.toml: unexpected eof encountered" in stdout
-        assert r"Errors encountered building maillist 'invalid_toml' from C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\tests\origen_utilities\configs\mailer\.\maillists\errors\invalid_toml\invalid_toml.maillist.toml: unexpected eof encountered" in stdout
+
+        def err_msg_regex(name):
+            return f"Errors encountered building maillist '{name}' from .*invalid_toml.*{name}.maillist.*: unexpected eof encountered"
+        assert re.search(err_msg_regex("develop"), stdout)
+        assert re.search(err_msg_regex("invalid_toml"), stdout)
 
     def test_error_message_on_conflicting_audiences(self, capfd):
         retn = in_new_origen_proc(mod=mailer_configs)
