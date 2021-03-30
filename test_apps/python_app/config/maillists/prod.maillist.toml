@@ -1,0 +1,4 @@
+recipients = [
+    "prod1@test_apps.origen.org",
+    "prod2@test_apps.origen.org"
+]

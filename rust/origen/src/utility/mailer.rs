@@ -1,49 +1,205 @@
-use crate::{Result, ORIGEN_CONFIG, with_current_user};
+use crate::{Result, STATUS, ORIGEN_CONFIG, with_current_user};
 use crate::core::user::with_top_hierarchy;
 use lettre;
-// use std::path::PathBuf;
+use std::path::PathBuf;
 
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::Message;
-// use lettre::{Transport, Address};
 use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::Transport;
 use std::fmt::Display;
 use std::collections::HashMap;
+use crate::utility::resolve_os_str;
 
-// pub struct Maillist {
-//     pub to: Vec<Address>,
-//     from_file: Option<PathBuf>,
-// }
+#[derive(Deserialize)]
+pub struct MaillistConfig {
+    pub recipients: Vec<String>,
+    pub signature: Option<String>,
+    pub audience: Option<String>,
+    pub domain: Option<String>,
+}
 
-// impl Maillist {
-//     fn from_file(f: &Path) -> Result<Self> {
-//         // ...
-//     }
-// }
+impl MaillistConfig {
+    fn load(path: &PathBuf) -> Result<Self> {
+        let mut c = config::Config::new();
+        c.set_default("recipients", Vec::<String>::new())?;
+        c.set_default("signature", None::<String>)?;
+        c.set_default("audience", None::<String>)?;
+        c.set_default("domain", None::<String>)?;
+        c.merge(config::File::with_name(&format!("{}", path.display())))?;
+        match c.try_into() {
+            Ok(con) => Ok(con),
+            Err(e) => error!(
+                "Unable to build maillist from '{}'. Encountered errors:{}",
+                path.display(),
+                e
+            )
+        }
+    }
+}
 
-// pub enum Emailable {
-//     Maillist(Maillist),
-//     User(User),
-//     String
-// }
+#[derive(Default, Clone, Debug)]
+pub struct Maillist {
+    recipients: Vec<String>,
+    file: Option<PathBuf>,
+    audience: Option<String>,
+    signature: Option<String>,
+    domain: Option<String>,
+    pub name: String,
+}
 
-// impl Emailable {
-//     pub fn get_email_address(&self) -> Result<String> {
-//         // ...
-//     }
-// }
+impl Maillist {
+    fn from_file(f: &PathBuf) -> Result<Self> {
+        let ext = resolve_os_str(match f.extension() {
+            Some(ext) => ext,
+            None => return error!(
+                "Could not discern extension for maillist at '{}'",
+                f.display()
+            )
+        })?;
+        let mut name = resolve_os_str(match f.file_name() {
+            Some(n) => n,
+            None => return error!(
+                "Could not discern file name for maillist at '{}'",
+                f.display()
+            )
+        })?;
+        match ext.as_str() {
+            // expecting extension .maillist
+            "maillist" => {
+                name = match name.strip_suffix(".maillist") {
+                    Some(n) => n.to_string(),
+                    None => return error!(
+                        "Expected {} to end with '.maillist'",
+                        name
+                    )
+                };
+                // Support O1-style maillist format - just a list of emails separated by newline
+                let file = std::fs::File::open(f)?;
+                let reader = std::io::BufReader::new(file);
+                let mut recipients: Vec<String> = vec!();
+                for recipient in std::io::BufRead::lines(reader) {
+                    recipients.push(recipient?);
+                }
+                Ok(Self {
+                    recipients: recipients,
+                    file: Some(f.to_path_buf()),
+                    audience: Self::map_audience(&name),
+                    name: name,
+                    ..Default::default()
+                })
+            }
+            "toml" => {
+                // expecting extension .maillist.toml
+                name = match name.strip_suffix(".maillist.toml") {
+                    Some(n) => n.to_string(),
+                    None => return error!(
+                        "Expected {} to end with '.maillist.toml'",
+                        name
+                    )
+                };
+                match MaillistConfig::load(f) {
+                    Ok(c) => {
+                        Ok(Self {
+                            file: Some(f.to_path_buf()),
+                            recipients: c.recipients.clone(),
+                            audience: {
+                                if let Some(aud) = c.audience.as_ref() {
+                                    // Make sure the name and audience do not conflict
+                                    let _a = Self::map_audience(aud);
+                                    let a = _a.as_ref().unwrap_or(aud);
 
-// pub trait Emailable {
-//     pub fn get_email(&self) -> Result<String> {
-//         // ...
-//     }
+                                    if let Some(mapped_a) = Self::map_audience(&name) {
+                                        // These must match, or raise an error
+                                        if &mapped_a != a {
+                                            return error!(
+                                                "Maillist at '{}' was given audience '{}' (maps to '{}') but conflicts with the named audience '{}'. Maillist not added.",
+                                                f.display(),
+                                                aud,
+                                                a,
+                                                mapped_a
+                                            )
+                                        } else {
+                                            // Mapped audience matches given audience - redundant, but no harm done
+                                            Some(mapped_a)
+                                        }
+                                    } else {
+                                        Some(a.to_string())
+                                    }
+                                } else {
+                                    // No audience given. Use the name
+                                    Self::map_audience(&name)
+                                }
+                            },
+                            signature: c.signature.clone(),
+                            domain: c.domain.clone(),
+                            name: name,
+                        })
+                    },
+                    Err(e) => error!(
+                        "Errors encountered building maillist '{}' from {}: {}",
+                        name,
+                        f.display(),
+                        e.msg
+                    )
+                }
+            }
+            _ => error!("Unsupported file extension for maillist '{}'", f.display())
+        }
+    }
 
-//     pub fn get_emails(&self) -> Result<Vec<String>> {
-//         // ...
-//     }
-// }
+    fn map_audience(s: &str) -> Option<String> {
+        match s.to_ascii_lowercase().as_str() {
+            "dev" | "develop" | "development" => Some("development".to_string()),
+            "release" | "prod" | "production" => Some("production".to_string()),
+            _ => None
+        }
+    }
+
+    pub fn recipients(&self) -> &Vec<String> {
+        &self.recipients
+    }
+
+    pub fn signature(&self) -> &Option<String> {
+        &self.signature
+    }
+
+    pub fn audience(&self) -> &Option<String> {
+        &self.audience
+    }
+
+    pub fn domain(&self) -> &Option<String> {
+        &self.domain
+    }
+
+    pub fn file(&self) -> &Option<PathBuf> {
+        &self.file
+    }
+
+    pub fn resolve_recipients(&self, default_domain: &Option<String>) -> Result<Vec<Mailbox>> {
+        let mut retn = vec!();
+        for r in self.recipients.iter() {
+            let email_str;
+            if r.contains("@") {
+                email_str = r.to_string();
+            } else {
+                if let Some(d) = self.domain.as_ref() {
+                    email_str = format!("{}@{}", r, d);
+                } else if let Some(d) = default_domain {
+                    email_str = format!("{}@{}", r, d);
+                } else {
+                    // Getting to this will very likely throw an
+                    // error during parsing - but will let the
+                    // "parse()" function handle that
+                    email_str = r.to_string();
+                }
+            }
+            retn.push(email_str.parse()?);
+        }
+        Ok(retn)
+    }
+}
 
 const PASSWORD_REASON: &str = "mailer";
 
@@ -86,6 +242,11 @@ pub struct Mailer {
     pub domain: Option<String>,
     pub service_user: Option<String>,
     pub timeout_seconds: u64,
+    // pub include_signature: bool,
+    // pub include_app_signature: bool,
+    // pub include_user_signature: bool,
+    // pub include_origen_signature: bool,
+    pub maillists: HashMap<String, Maillist>
 }
 
 impl std::default::Default for Mailer {
@@ -101,6 +262,7 @@ impl std::default::Default for Mailer {
             auth_password: None,
             service_user: None,
             timeout_seconds: 0,
+            maillists: HashMap::new(),
         }
     }
 }
@@ -146,7 +308,64 @@ impl Mailer {
             }
         };
         m.timeout_seconds = ORIGEN_CONFIG.mailer__timeout_seconds;
+
+        // Check for maillists in the install directory
+        if let Some(path) = STATUS.cli_location() {
+            m.pop_maillists_from_dir(&path.display().to_string())
+        }
+
+        if let Some(app) = &STATUS.app {
+            m.pop_maillists_from_dir(&format!("{}/config", app.root.display()));
+            m.pop_maillists_from_dir(&format!("{}/config/maillists", app.root.display()));
+        }
+
+        // Check any custom paths for maillists
+        for ml in ORIGEN_CONFIG.mailer__maillists_dirs.iter() {
+            m.pop_maillists_from_dir(&ml);
+        }
         m
+    }
+
+    fn pop_maillists_from_dir(&mut self, path: &str) {
+        // The order of this loop matters as a ".maillists.tom" will overwrite a ".maillists"
+        for ext in ["maillist", "maillist.toml"].iter() {
+            match glob::glob(&format!("{}/*.{}", path, ext)) {
+                Ok(entries) => {
+                    for entry in entries {
+                        match entry {
+                            Ok(e) => {
+                                match Maillist::from_file(&e) {
+                                    Ok(ml) => {
+                                        if let Some(orig_ml) = self.maillists.get(&ml.name) {
+                                            log_info!(
+                                                "Replacing maillist at '{}' with maillist at '{}'",
+                                                orig_ml.name,
+                                                ml.name
+                                            )
+                                        }
+                                        self.maillists.insert(ml.name.clone(), ml);
+                                    }
+                                    Err(err) => {
+                                        display_redln!("{}", err);
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                display_redln!(
+                                    "Error accessing maillist at '{}': {}",
+                                    e.path().display(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    display_redln!("Error processing glob for '{}'", path);
+                    display_redln!("{}", e.msg);
+                }
+            }
+        }
     }
 
     pub fn get_server(&self) -> Result<String> {
@@ -251,6 +470,27 @@ impl Mailer {
             ))
             .header(header::ContentTransferEncoding::QuotedPrintable)
             .body(body))
+    }
+
+    pub fn get_maillist(&self, m: &str) -> Result<&Maillist> {
+        if let Some(ml) = self.maillists.get(m) {
+            Ok(ml)
+        } else {
+            error!("No maillist named '{}' found!", m)
+        }
+    }
+
+    pub fn maillists_for(&self, audience: &str) -> Result<HashMap<&str, &Maillist>> {
+        let mut retn: HashMap<&str, &Maillist> = HashMap::new();
+        let aud = Maillist::map_audience(audience).unwrap_or(audience.to_string());
+        for (name, mlist) in self.maillists.iter() {
+            if let Some(a) = mlist.audience.as_ref() {
+                if a == &aud {
+                    retn.insert(name, mlist);
+                }
+            }
+        }
+        Ok(retn)
     }
 
     pub fn compose(

@@ -163,3 +163,9 @@ impl std::convert::From<std::ffi::OsString> for Error {
         ))
     }
 }
+
+impl std::convert::From<config::ConfigError> for Error {
+    fn from(err: config::ConfigError) -> Self {
+        Error::new(&err.to_string())
+    }
+}

@@ -2,7 +2,7 @@ use super::utility::metadata::{extract_as_metadata, metadata_to_pyobj};
 use super::utility::session_store::{user_session, SessionStore};
 use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
-use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 

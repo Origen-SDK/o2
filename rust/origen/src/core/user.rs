@@ -2,7 +2,7 @@ use crate::revision_control::git;
 use crate::utility::command_helpers::exec_and_capture;
 use crate::utility::ldap::LDAPs;
 use crate::utility::{
-    bytes_from_str_of_bytes, decrypt_with, encrypt_with, str_from_byte_array, str_to_bool, unsorted_dedup,
+    check_vec, bytes_from_str_of_bytes, decrypt_with, encrypt_with, str_from_byte_array, str_to_bool, unsorted_dedup,
 };
 use crate::{Error, Metadata, Result, ORIGEN_CONFIG};
 use aes_gcm::aead::{
@@ -485,7 +485,7 @@ impl User {
     pub fn data_lookup_hierarchy_from_config<'a>() -> Option<Result<&'a Vec<String>>> {
         if let Some(hierarchy) = crate::ORIGEN_CONFIG.user__data_lookup_hierarchy.as_ref() {
             Some({
-                match Self::check_vec(&hierarchy, Self::dataset_configs(), true, "dataset", "dataset hierarchy") {
+                match check_vec(&hierarchy, Self::dataset_configs(), false, "dataset", "dataset hierarchy") {
                     Ok(_) => Ok(hierarchy),
                     Err(e) => Err(e)
                 }
@@ -528,37 +528,9 @@ impl User {
         }
     }
 
-    pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(vut: &Vec<T>, valid_values_hashmap: &HashMap<T, V>, allow_duplicates: bool, obj_name: &str, container_name: &str) -> Result<()> {
-        let mut indices = HashMap::new();
-        for (i, d) in vut.iter().enumerate() {
-            if valid_values_hashmap.contains_key(d) {
-                if let Some(idx) = indices.get(d) {
-                    // Duplicate dataset
-                    return error!(
-                        "{} '{}' can only appear once in the {} (first appearance at index {} - duplicate at index {})",
-                        obj_name,
-                        d,
-                        container_name,
-                        idx,
-                        i
-                    );
-                }
-                indices.insert(d, i);
-            } else {
-                return error!(
-                    "'{}' is not a valid {} and cannot be used in the {}",
-                    d,
-                    obj_name,
-                    container_name
-                );
-            }
-        }
-        Ok(())
-    }
-
     pub fn set_data_lookup_hierarchy(&mut self, hierarchy: Vec<String>) -> Result<()> {
         // Check that each item in hierarchy is valid and that there are no duplicates
-        Self::check_vec(&hierarchy, &self.data, false, "dataset", "dataset hierarchy")?;
+        check_vec(&hierarchy, &self.data, false, "dataset", "dataset hierarchy")?;
         self.data_lookup_hierarchy = hierarchy;
         Ok(())
     }

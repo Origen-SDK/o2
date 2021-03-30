@@ -1,9 +1,12 @@
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
+use origen::utility::mailer::Maillist as OrigenML;
+use std::collections::HashMap;
 
 #[pymodule]
 fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Mailer>()?;
+    m.add_class::<Maillist>()?;
     m.add_wrapped(wrap_pyfunction!(_mailer))?;
     Ok(())
 }
@@ -25,23 +28,11 @@ impl Mailer {
         Ok(m.get_server()?)
     }
 
-    // #[setter]
-    // fn set_server(&mut self, s: Option<String>) -> PyResult<()> {
-    //     self.mailer.server = s;
-    //     Ok(())
-    // }
-
     #[getter]
     fn get_port(&self) -> PyResult<Option<usize>> {
         let m = origen::mailer();
         Ok(m.port)
     }
-
-    // #[setter]
-    // fn set_port(&mut self, p: Option<usize>) -> PyResult<()> {
-    //     self.mailer.port = p;
-    //     Ok(())
-    // }
 
     #[getter]
     fn get_domain(&self) -> PyResult<Option<String>> {
@@ -82,6 +73,7 @@ impl Mailer {
         let m = origen::mailer();
         Ok(m.username()?)
     }
+
     #[getter]
     fn get_password(&self) -> PyResult<String> {
         let m = origen::mailer();
@@ -106,22 +98,150 @@ impl Mailer {
         Ok(m.test(None)?)
     }
 
-    // #[getter]
-    // fn port(&self) -> PyResult<String> {
-    //     Ok(mailer.port.unwrap())
+    // fn send(&self, message: String, to: Option<Vec<String>>, audience: Option<String>) -> PyResult<()> {
+    //     //
     // }
 
     // #[getter]
-    // fn auth(&self) -> PyResult<String> {
-    //     Ok(mailer.port.unwrap())
+    // fn signature(&self) -> PyResult<Option<String>> {
+    //     //
     // }
 
     // #[getter]
-    // fn port(&self) -> PyResult<String> {
-    //     Ok(mailer.port.unwrap())
+    // fn origen_signature(&self) -> PyResult<Option<String>> {
+    //     //
     // }
+
     // #[getter]
-    // fn port(&self) -> PyResult<String> {
-    //     Ok(mailer.port.unwrap())
+    // fn app_signature(&self) -> PyResult<Option<String>> {
+    //     //
+    // }
+
+    // #[getter]
+    // fn release_signature(&self) -> PyResult<Option<String>> {
+    //     //
+    // }
+
+    // --- Maillist Related Methods ---
+
+    #[getter]
+    fn maillists(&self) -> PyResult<HashMap<String, Maillist>> {
+        let m = origen::mailer();
+        let mut retn = HashMap::new();
+        for name in m.maillists.keys() {
+            retn.insert(name.to_string(), Maillist {name: name.to_string()});
+        }
+        Ok(retn)
+    }
+
+    fn maillists_for(&self, audience: &str) -> PyResult<HashMap<String, Maillist>> {
+        let m = origen::mailer();
+        let mut retn = HashMap::new();
+        for name in m.maillists_for(audience)?.keys() {
+            retn.insert(name.to_string(), Maillist {name: name.to_string()});
+        }
+        Ok(retn)
+    }
+
+    // --- Enumerated audience maillists ---
+
+    #[getter]
+    fn dev_maillists(&self) -> PyResult<HashMap<String, Maillist>> {
+        self.maillists_for("development")
+    }
+
+    #[getter]
+    fn develop_maillists(&self) -> PyResult<HashMap<String, Maillist>> {
+        self.maillists_for("development")
+    }
+
+    #[getter]
+    fn development_maillists(&self) -> PyResult<HashMap<String, Maillist>> {
+        self.maillists_for("development")
+    }
+
+    #[getter]
+    fn release_maillists(&self) -> PyResult<HashMap<String, Maillist>> {
+        self.maillists_for("production")
+    }
+
+    #[getter]
+    fn prod_maillists(&self) -> PyResult<HashMap<String, Maillist>> {
+        self.maillists_for("production")
+    }
+
+    #[getter]
+    fn production_maillists(&self) -> PyResult<HashMap<String, Maillist>> {
+        self.maillists_for("production")
+    }
+}
+
+#[pyclass(subclass)]
+pub struct Maillist {
+    name: String,
+}
+
+impl Maillist {
+    // Will return an error if the maillist doesn't exist
+    pub fn with_origen_ml<T, F>(&self, func: F) -> origen::Result<T> where F: Fn(&OrigenML) -> origen::Result<T> {
+        let m = origen::mailer();
+        let ml = m.get_maillist(&self.name)?;
+        func(ml)
+    }
+}
+
+#[pymethods]
+impl Maillist {
+    #[getter]
+    fn recipients(&self) -> PyResult<Vec<String>> {
+        Ok(self.with_origen_ml(|ml| Ok(ml.recipients().to_vec()))?)
+    }
+
+    #[getter]
+    fn signature(&self) -> PyResult<Option<String>> {
+        Ok(self.with_origen_ml(|ml| Ok(ml.signature().clone()))?)
+    }
+
+    #[getter]
+    fn audience(&self) -> PyResult<Option<String>> {
+        Ok(self.with_origen_ml(|ml| Ok(ml.audience().clone()))?)
+    }
+
+    #[getter]
+    fn domain(&self) -> PyResult<Option<String>> {
+        Ok(self.with_origen_ml(|ml| Ok(ml.domain().clone()))?)
+    }
+
+    #[getter]
+    fn name(&self) -> PyResult<String> {
+        Ok(self.with_origen_ml(|ml| Ok(ml.name.clone()))?)
+    }
+
+    #[getter]
+    fn file(&self) -> PyResult<PyObject> {
+        Ok(self.with_origen_ml(|ml| {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            if let Some(f) = ml.file() {
+                Ok(crate::pypath!(py, f.display()))
+            } else {
+                Ok(py.None())
+            }
+        })?)
+    }
+
+    fn resolve_recipients(&self) -> PyResult<Vec<String>> {
+        let m = origen::mailer();
+        let mailer_domain = &m.domain;
+        let ml = m.get_maillist(&self.name)?;
+        Ok(ml.resolve_recipients(mailer_domain)?.iter().map( |mailbox| mailbox.to_string()).collect::<Vec<String>>())
+    }
+
+    // fn test(&self, message: Option<String>) -> PyResult<()> {
+    //     // ...
+    // }
+
+    // fn send(&self, message: String) -> PyResult<()> {
+    //     // ...
     // }
 }

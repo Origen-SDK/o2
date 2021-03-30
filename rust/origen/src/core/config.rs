@@ -48,6 +48,7 @@ pub struct Config {
     pub mailer__auth_email: Option<String>,
     pub mailer__auth_password: Option<String>,
     pub mailer__timeout_seconds: u64,
+    pub mailer__maillists_dirs: Vec<String>,
 
     // LDAPs
     pub ldaps: HashMap<String, HashMap<String, String>>,
@@ -90,6 +91,7 @@ impl Default for Config {
         let _ = s.set_default("mailer__auth_password", None::<String>);
         let _ = s.set_default("mailer__service_user", None::<String>);
         let _ = s.set_default("mailer__timeout_seconds", 60);
+        let _ = s.set_default("mailer__maillists_dirs", Vec::<String>::new());
         let _ = s.set_default("ldaps", {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h
@@ -207,7 +209,17 @@ impl Default for Config {
         // Now add in the files, with the last one found taking lowest priority
         for f in files.iter().rev() {
             log_trace!("Loading Origen config file from '{}'", f.display());
-            match s.merge(File::with_name(&format!("{}", f.display()))) {
+            let mut c = config::Config::new();
+            match c.merge(File::with_name(&format!("{}", f.display()))) {
+                Ok(_) => {}
+                Err(error) => {
+                    term::redln(&format!("Malformed config file: {}", f.display()));
+                    term::redln(&format!("{}", error));
+                    std::process::exit(1);
+                }
+            }
+            process_config_pre_merge(&mut c, f);
+            match s.merge(c) {
                 Ok(_) => {}
                 Err(error) => {
                     term::redln(&format!("Malformed config file: {}", f.display()));
@@ -223,6 +235,50 @@ impl Default for Config {
 
         s.try_into().unwrap()
     }
+}
+
+/// Do any processing to the config that needs to happen before attempting to merge
+fn process_config_pre_merge(c: &mut config::Config, src: &PathBuf) {
+    match c.get("mailer__maillists_dirs") {
+        // Update any relative paths in this parameter to be relative to the config in which it was found
+        Ok(mut paths) => {
+            match c.set("mailer__maillists_dirs", _update_relative_paths(&mut paths, &src.parent().unwrap().to_path_buf())) {
+                Ok(_) => {},
+                Err(e) => {display_redln!(
+                    "Error setting maillist dir: '{}': {}",
+                    src.display(),
+                    e.to_string()
+                )}
+            }
+        },
+        Err(e) => {
+            match e {
+                config::ConfigError::NotFound(_) => {},
+                _ => {
+                    term::redln(&format!("Malformed config file: {}", src.display()));
+                    term::redln(&format!("{}", e));
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+}
+
+fn _update_relative_paths(paths: &mut Vec<String>, relative_to: &PathBuf) -> Vec<String> {
+    for i in 0..paths.len() {
+        let pb = PathBuf::from(&paths[i]);
+        match crate::utility::file_utils::to_abs_path(&pb, relative_to) {
+            Ok(resolved) => {
+                paths[i] = resolved.display().to_string();
+            }
+            Err(e) => display_redln!(
+                "Unable to process maillist '{}': {}",
+                pb.display(),
+                e
+            )
+        }
+    }
+    paths.to_vec()
 }
 
 impl Config {

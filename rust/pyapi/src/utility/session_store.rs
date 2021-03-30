@@ -3,7 +3,6 @@ use crate::application;
 use pyo3::class::basic::CompareOp;
 use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 use std::path::PathBuf;

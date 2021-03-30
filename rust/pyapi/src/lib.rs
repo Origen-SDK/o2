@@ -27,7 +27,6 @@ use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::Path;
@@ -52,6 +51,7 @@ use utility::PyInit_utility;
 #[macro_export]
 macro_rules! pypath {
     ($py:expr, $path:expr) => {{
+        use pyo3::types::IntoPyDict;
         let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
         let obj = $py.eval(
             &format!("pathlib.Path(r\"{}\").resolve()", $path),

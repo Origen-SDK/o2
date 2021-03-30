@@ -14,6 +14,8 @@ pub mod version;
 
 use crate::{Result, STATUS};
 use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
+use std::collections::HashMap;
 
 use aes_gcm::aead::{
     generic_array::typenum::{U12, U32},
@@ -21,6 +23,10 @@ use aes_gcm::aead::{
     Aead, NewAead,
 };
 use aes_gcm::Aes256Gcm;
+
+pub fn resolve_os_str(s: &OsStr) -> Result<String> {
+    Ok(s.to_os_string().into_string()?)
+}
 
 /// Resolves a directory path from the current application root.
 /// Accepts an optional 'user_val' and a default. The resulting directory will be resolved from:
@@ -44,6 +50,38 @@ pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> Pa
     let mut dir = STATUS.origen_wksp_root.clone();
     dir.push(offset);
     dir
+}
+
+/// Checks the given values of a vector against an enumerated set of accepted values.
+/// Optionally, check for duplicate items as well.
+pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(vut: &Vec<T>, valid_values_hashmap: &HashMap<T, V>, allow_duplicates: bool, obj_name: &str, container_name: &str) -> Result<()> {
+    let mut indices = HashMap::new();
+    for (i, d) in vut.iter().enumerate() {
+        if valid_values_hashmap.contains_key(d) {
+            if !allow_duplicates {
+                if let Some(idx) = indices.get(d) {
+                    // Duplicate dataset
+                    return error!(
+                        "{} '{}' can only appear once in the {} (first appearance at index {} - duplicate at index {})",
+                        obj_name,
+                        d,
+                        container_name,
+                        idx,
+                        i
+                    );
+                }
+            }
+            indices.insert(d, i);
+        } else {
+            return error!(
+                "'{}' is not a valid {} and cannot be used in the {}",
+                d,
+                obj_name,
+                container_name
+            );
+        }
+    }
+    Ok(())
 }
 
 pub fn str_to_bool(s: &str) -> Result<bool> {
