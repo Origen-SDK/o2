@@ -86,6 +86,14 @@ class Base(_origen.application.PyApplication):
         ''' Return this app's user session store'''
         return origen.session_store.user_session(self)
 
+    @property
+    def rc(self):
+        return self._rc
+
+    @property
+    def unit_tester(self):
+        return self._unit_tester
+
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()
@@ -93,10 +101,14 @@ class Base(_origen.application.PyApplication):
             self._plugin = False
             self._root = origen.root
             self._name = _origen.app_config()["name"]
+            self._rc = _origen.utility.revision_control.app_rc()
+            self._unit_tester = _origen.utility.unit_testers.app_unit_tester()
         else:
             self._plugin = True
             self._root = options["root"]
             self._name = options["name"]
+            self._rc = None
+            self._unit_tester = None
         self._app_dir = self.root.joinpath(self.name)
         self._block_path_cache = {}
 

@@ -2,9 +2,63 @@
 
 use crate::Result;
 use regex::Regex;
+use semver::Version;
 
 lazy_static! {
     static ref VALID_VERSION: Regex = Regex::new(r#"^\d+\.\d+\.\d+([\.-]?[a-z]+\d+)?$"#).unwrap();
+}
+
+#[derive(Clone, Debug)]
+pub enum ReleaseType {
+    Major,
+    Minor,
+    Patch,
+    Prerelease
+}
+
+impl ReleaseType {
+    pub fn to_vec() -> Vec<Self> {
+        vec![
+            Self::Major,
+            Self::Minor,
+            Self::Patch,
+            Self::Prerelease
+        ]
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::Major => "Major",
+            Self::Minor => "Minor",
+            Self::Patch => "Patch",
+            Self::Prerelease => "Prerelease"
+        }.to_string()
+    }
+
+    pub fn from_idx(idx: usize) -> Self {
+        Self::to_vec()[idx].clone()
+    }
+
+    pub fn bump_version(&self, v: &mut Version) -> Result<()> {
+        // let mut v = version.clone();
+        match self {
+            Self::Major => v.increment_major(),
+            Self::Minor => v.increment_minor(),
+            Self::Patch => v.increment_patch(),
+            Self::Prerelease => {
+                // if v.is_pre() {
+                //     match v.pre.find( |c| c.is_char()) {
+                //         Some(pre_ver) => {
+                //             let i = pre_ver.parse::<usize>();
+                            
+                //         }
+                //     }
+                // }
+                panic!("Prerelease not supported yet!");
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Converts a version number like 1.2.3-dev4 to 1.2.3.dev4, the latter being compatible with

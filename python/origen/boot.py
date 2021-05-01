@@ -234,8 +234,12 @@ def run_cmd(command,
         _origen.set_operation("web")
         from origen.web import run_cmd
         return run_cmd("clean", args)
-    # Internal command to give the Origen version loaded by the application to the CLI
 
+    elif command == "app:publish":
+        _origen.set_operation("app")
+        origen.app.publish(args)
+
+    # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":
         print(f"{origen.status['origen_version']}")
 

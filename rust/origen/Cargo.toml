@@ -37,7 +37,7 @@ enum-utils = "0.1.2"
 shellexpand = "1.1.1"
 # Need to be careful with this version, couldn't build on RHEL6 with versions greater
 # than this. Can probably drop this constraint once NXP transitions to RHEL7.
-git2 = "0.8"
+git2 = "0.13"
 rpassword = "4.0"
 num-bigint = {version = "0.3.0", features = ["serde"]}
 # Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
@@ -62,6 +62,7 @@ rand = "0.8"
 keyring = { git = "https://github.com/hwchen/keyring-rs.git", rev = "a30e65f" }
 enum-display-derive = "0.1.1"
 glob = "0.3.0"
+dialoguer = "0.8.0"
 
 [build-dependencies]
 built = "0.4"

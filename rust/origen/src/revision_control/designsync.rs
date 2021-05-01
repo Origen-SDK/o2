@@ -8,6 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+#[derive(Debug)]
 pub struct Designsync {
     /// Path to the local directory for the repository
     pub local: PathBuf,
@@ -107,6 +108,18 @@ impl RevisionControlAPI for Designsync {
 
     fn tag(&self, tagname: &str, force: bool, _message: Option<&str>) -> Result<()> {
         self._tag(tagname, force, _message, true)
+    }
+
+    fn is_initialized(&self) -> Result<bool> {
+        todo!();
+    }
+
+    fn init(&self) -> Result<bool> {
+        todo!();
+    }
+
+    fn checkin(&self, _files_or_dirs: Option<Vec<&Path>>, _msg: &str) -> Result<String> {
+        todo!();
     }
 }
 

@@ -38,6 +38,7 @@ pub fn raises_error(yes: bool) -> Result<()> {
 
 // To add a conversion from other type of errors
 use pyo3::{exceptions, PyErr};
+use pyo3::prelude::*;
 
 //impl std::convert::Into<PyErr> for Error {
 //    fn into(self) -> PyErr {
@@ -53,7 +54,19 @@ impl std::convert::From<Error> for PyErr {
 
 impl std::convert::From<PyErr> for Error {
     fn from(err: PyErr) -> Self {
-        Error::new(&format!("{:?}", err))
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Error::new(&format!(
+            "Encountered Exception '{}' with message: {}",
+            err.ptype.as_ref(py).name(),
+            match err.pvalue {
+                pyo3::PyErrValue::Value(e) => {
+                    let r = e.call_method0(py, "__str__").unwrap();
+                    r.extract::<String>(py).unwrap()
+                }
+                _ => "--No Message Available--".to_string()
+            }
+        ))
     }
 }
 

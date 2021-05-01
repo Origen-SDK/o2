@@ -3,6 +3,7 @@ use crate::core::term;
 use crate::utility::location::Location;
 use config::File;
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -24,6 +25,8 @@ pub struct Config {
     pub website_release_location: Option<Location>,
     pub website_release_name: Option<String>,
     pub root: Option<PathBuf>,
+    pub revision_control: Option<HashMap<String, String>>,
+    pub unit_tester: Option<HashMap<String, String>>,
 }
 
 impl Config {
@@ -37,6 +40,8 @@ impl Config {
         self.website_source_directory = latest.website_source_directory;
         self.website_release_location = latest.website_release_location;
         self.website_release_name = latest.website_release_name;
+        self.revision_control = latest.revision_control;
+        self.unit_tester = latest.unit_tester;
     }
 
     pub fn check_defaults(root: &Path) {
@@ -72,6 +77,8 @@ impl Config {
         // not to handle these errors
         let _ = s.set_default("target", None::<Vec<String>>);
         let _ = s.set_default("mode", "development".to_string());
+        let _ = s.set_default("revision_control", None::<HashMap<String, String>>);
+        let _ = s.set_default("unit_tester", None::<HashMap<String, String>>);
 
         // Find all the application.toml files
         let mut files: Vec<PathBuf> = Vec::new();

@@ -1,9 +1,10 @@
 use super::fmt::cd;
 use clap::ArgMatches;
 use std::process::Command;
+use indexmap::IndexMap;
 
-pub fn run(matches: &ArgMatches) {
-    match matches.subcommand_name() {
+pub fn run(cmd: &ArgMatches) {
+    match cmd.subcommand_name() {
         Some("package") => {
             let wheel_dir = origen::app().unwrap().root.join("dist");
             // Make sure we are not about to upload any stale/old artifacts
@@ -39,6 +40,31 @@ pub fn run(matches: &ArgMatches) {
             //        .expect("failed to publish origen");
             //}
         }
+        Some("publish") => {
+            // Will handle all the following in one go:
+            // * Checking for changes in the current environment
+            // * Checking in those changes
+            // * Building the wheel
+            // * Uploading ^
+            // * Building the website
+            // * Publishing ^
+            // * Sending release emails
+            let mut args = IndexMap::new();
+            super::launch(
+                "app:publish",
+                if let Some(targets) = cmd.values_of("target") {
+                    Some(targets.collect())
+                } else {
+                    Option::None
+                },
+                &None,
+                None,
+                None,
+                None,
+                false,
+                Some(args),
+            );
+       }
 
         None | _ => unreachable!(),
     }

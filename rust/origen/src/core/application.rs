@@ -3,13 +3,15 @@ pub mod target;
 
 use super::application::config::Config;
 use crate::utility::file_actions as fa;
-use crate::utility::version::{to_pep440, to_semver};
+use crate::utility::version::{to_pep440, to_semver, ReleaseType};
 use crate::Result;
 use regex::Regex;
 use semver::Version;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
+use crate::revision_control::{RevisionControl};
+use indexmap::IndexMap;
 
 /// Represents the current application, an instance of this is returned by
 /// origen::app().
@@ -56,12 +58,16 @@ impl Application {
         }
     }
 
+    pub fn version_file(&self) -> PathBuf {
+        self.root.join("pyproject.toml")
+    }
+
     /// Sets the application version by writing it out to config/version.toml
     /// The normal way to do this is to call app.version(), bump the returned version object
     /// as required, then return it back to this function.
     /// See here for the API - https://docs.rs/semver
     pub fn set_version(&self, version: &Version) -> Result<()> {
-        let version_file = self.root.join("pyproject.toml");
+        let version_file = self.version_file();
         let r = Regex::new(r#"^\s*version\s*=\s*['"]"#).unwrap();
         fa::remove_line(&version_file, &r)?;
 
@@ -89,6 +95,10 @@ impl Application {
         func(&mut cfg)
     }
 
+    pub fn config(&self) -> std::sync::RwLockReadGuard<Config> {
+        self.config.read().unwrap()
+    }
+
     /// Returns the application name
     pub fn name(&self) -> String {
         self.with_config(|cfg| Ok(cfg.name.to_string())).unwrap()
@@ -97,6 +107,94 @@ impl Application {
     /// Returns a path to the current application's 'app' dir which is the root + app name.
     pub fn app_dir(&self) -> PathBuf {
         self.root.join(self.name())
+    }
+
+    /// Return an RevisionControl, containing a driver, based on the app's config
+    pub fn rc(&self) -> Result<RevisionControl> {
+        self.with_config(|cfg| match cfg.revision_control.as_ref() {
+            Some(rc) => RevisionControl::from_config(rc),
+            None => error!("No app RC was given. Cannot create RC driver")
+        })
+    }
+
+    pub fn publish(&self) -> Result<()> {
+        Ok(crate::with_frontend_app( |app| {
+            log_info!("Performing pre-publish checks...");
+            app.check_production_status()?;
+
+            let mut v = self.version()?;
+            let release_type = ReleaseType::from_idx(dialoguer::Select::new()
+                .with_prompt("Please select the release type")
+                .items(&ReleaseType::to_vec().iter().map( |r| r.to_string()).collect::<Vec<String>>())
+                .default(3)
+                .interact()?);
+
+            release_type.bump_version(&mut v)?;
+            self.set_version(&v)?;
+            //let files = vec!(self.version_file().as_path());
+
+            Ok(crate::with_frontend_app( |app| {
+                // let rn = app.get_release_notes()?;
+                // rn.update_history();
+                // files.push(rn.history_file());
+
+                let rc = app.get_rc()?;
+                rc.checkin(
+                    Some(vec!(
+                        self.version_file().as_path()
+                    )),
+                    "Recorded new version in the version tracker"
+                )?;
+                rc.tag(&v.to_string(), false, None)?;
+
+                // let mailer = app.get_mailer()?;
+                // mailer.send("...")?;
+
+                // let website = app.get_website()?;
+                // website.publish()?;
+
+                Ok(())
+            })?)
+        })?)
+        // let app = crate::frontend()?.app()?;
+        // // origen::frontend()
+        // Ok(())
+    }
+
+    pub fn check_production_status(&self, stop_at_first_fail: bool) -> Result<ProductionStatus> {
+        log_info!("Checking production status...");
+        let mut stat = ProductionStatus::default();
+        crate::with_frontend_app( |app| {
+            // Check for modified files
+            log_info!("Checking for modified files...");
+            let s = app.get_rc()?.status()?;
+            stat.push_clean_work_space_check(!s.is_modified(), None);
+
+            if stat.failed() && stop_at_first_fail {
+                return Ok(());
+            }
+
+            log_info!("Running unit tests...");
+            let s = app.get_unit_tester()?.run()?;
+            stat.push_unit_test_check(s.passed(), s.text);
+
+            // TODOs:
+            // log_info!("Checking for local dependencies...");
+            // log_info!("Checking for lint errors...");
+            // log_info!("Ensuring the package builds...")
+            // log_info!("Ensuring the website builds...")
+
+            Ok(())
+        })?;
+        Ok(stat)
+
+        // // Check any application specifics
+        // let cb = frontend.app.callbacks.get(PRODUCTION_READINESS_CALLBACK).call()?;
+        // if !cb.0 {
+        //     return Ok(false, "Cannot publish due to application checks: {}", cb.1);
+        // }
+
+        //Ok(())
     }
 
     /// Resolves a directory/file path relative to the application's root.
@@ -151,6 +249,55 @@ impl Application {
             Ok(self.resolve_path(config.website_source_directory.as_ref(), "web/source"))
         })
         .unwrap()
+    }
+}
+
+pub struct ProductionStatus {
+    checks: IndexMap<String, (bool, Option<String>, Option<String>)>,
+    passed: bool,
+}
+
+impl Default for ProductionStatus {
+    fn default() -> Self {
+        Self {
+            checks: IndexMap::new(),
+            passed: true,
+        }
+    }
+}
+
+impl ProductionStatus {
+    pub fn push_check(&mut self, check: &str, desc: Option<String>, result: bool, result_text: Option<String>) {
+        self.checks.insert(check.to_string(), (result, desc, result_text));
+        if !result {
+            self.passed = false;
+        }
+    }
+
+    pub fn push_clean_work_space_check(&mut self, clean: bool, txt: Option<String>) {
+        self.push_check(
+            "Clean Workspace",
+            Some("Fails if there are modified or untracked, but not ignored, files in the workspace.".to_string()),
+            clean,
+            txt
+        );
+    }
+
+    pub fn push_unit_test_check(&mut self, passed: bool, txt: Option<String>) {
+        self.push_check(
+            "Unit Tests",
+            Some("Fails if any of the unit tests fail".to_string()),
+            passed,
+            txt
+        );
+    }
+
+    pub fn passed(&self)-> bool {
+        self.passed
+    }
+
+    pub fn failed(&self) -> bool {
+        !self.passed
     }
 }
 

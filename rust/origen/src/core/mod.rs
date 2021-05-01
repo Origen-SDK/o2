@@ -12,3 +12,4 @@ pub mod status;
 pub mod term;
 pub mod tester;
 pub mod user;
+pub mod frontend;

@@ -25,6 +25,7 @@ pub enum Operation {
     Compile,
     Interactive,
     Web,
+    App,
     AppCommand,
 }
 
@@ -43,6 +44,7 @@ impl FromStr for Operation {
             "compile" => Ok(Operation::Compile),
             "interactive" => Ok(Operation::Interactive),
             "web" => Ok(Operation::Web),
+            "app" => Ok(Operation::App),
             "appcommand" => Ok(Operation::AppCommand),
             _ => Err(format!("Unknown Operation: '{}'", &s)),
         }

@@ -6,6 +6,8 @@ pub mod mailer;
 pub mod metadata;
 pub mod session_store;
 pub mod transaction;
+pub mod revision_control;
+pub mod unit_testers;
 
 use ldap::PyInit_ldap;
 use location::Location;
@@ -14,6 +16,8 @@ use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use session_store::PyInit_session_store;
 use transaction::Transaction;
+use revision_control::PyInit_revision_control;
+use unit_testers::PyInit_unit_testers;
 
 use num_bigint::BigUint;
 use origen::utility::big_uint_helpers::BigUintHelpers;
@@ -26,6 +30,8 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(mailer))?;
     m.add_wrapped(wrap_pymodule!(session_store))?;
     m.add_wrapped(wrap_pymodule!(ldap))?;
+    m.add_wrapped(wrap_pymodule!(revision_control))?;
+    m.add_wrapped(wrap_pymodule!(unit_testers))?;
     Ok(())
 }
 

@@ -21,6 +21,7 @@ mod tester;
 mod tester_apis;
 mod user;
 mod utility;
+mod _helpers;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
@@ -221,6 +222,7 @@ fn exit_pass() -> PyResult<()> {
 #[pyfunction]
 fn initialize(log_verbosity: Option<u8>, cli_location: Option<String>) -> PyResult<()> {
     origen::initialize(log_verbosity, cli_location);
+    origen::FRONTEND.write().unwrap().set_frontend(Box::new(Frontend::new()))?;
     Ok(())
 }
 
@@ -475,4 +477,19 @@ pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
     let pickle = PyModule::import(py, "pickle")?;
     let bytes = PyBytes::new(py, object);
     pickle.call1("loads", (bytes,))
+}
+
+pub struct Frontend {}
+
+impl Frontend {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl origen::core::frontend::Frontend for Frontend {
+    fn app(&self) -> origen::Result<Option<Box<dyn origen::core::frontend::App>>> {
+        let app_frontend = application::_frontend::App::new()?;
+       Ok(Some(Box::new(app_frontend)))
+    }
 }

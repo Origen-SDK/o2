@@ -54,6 +54,9 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::ldap::LDAPs;
 use utility::mailer::Mailer;
 use utility::session_store::{SessionStore, Sessions};
+use self::core::frontend::Handle;
+
+pub use self::core::frontend::{with_frontend_app};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -93,6 +96,7 @@ lazy_static! {
     pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
     pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new());
+    pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
 impl PartialEq<AST> for TEST {
