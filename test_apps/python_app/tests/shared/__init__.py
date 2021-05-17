@@ -16,6 +16,13 @@ def clean_eagle():
     assert origen.dut
     return origen.dut
 
+@pytest.fixture
+def clean_bald_eagle():
+    instantiate_dut("dut.eagle.bald_eagle")
+    if len(origen.tester.targets) == 0:
+        origen.tester.target("DummyRenderer")
+    assert origen.dut
+    return origen.dut
 
 @pytest.fixture
 def clean_falcon():

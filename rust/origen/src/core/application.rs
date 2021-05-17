@@ -164,7 +164,11 @@ impl Application {
     pub fn check_production_status(&self, stop_at_first_fail: bool) -> Result<ProductionStatus> {
         log_info!("Checking production status...");
         let mut stat = ProductionStatus::default();
+
         crate::with_frontend_app( |app| {
+            // log_info!("Running any application-defined checks: pre-Origen checks...");
+            // stat.push_checks(app.production_status_checks_pre(stop_at_first_fail)?);
+
             // Check for modified files
             log_info!("Checking for modified files...");
             let s = app.get_rc()?.status()?;
@@ -178,23 +182,21 @@ impl Application {
             let s = app.get_unit_tester()?.run()?;
             stat.push_unit_test_check(s.passed(), s.text);
 
+            // log_info!("Checking for local dependencies...");
+            // let s = app.list_local_dependencies()?;
+            // stat.push_local_deps_check(s.empty?(), )
+
             // TODOs:
             // log_info!("Checking for local dependencies...");
             // log_info!("Checking for lint errors...");
             // log_info!("Ensuring the package builds...")
             // log_info!("Ensuring the website builds...")
+            // log_info!("Running any application-defined checks: post-Origen checks...");
+            // stat.push_checks(app.production_status_checks_post(stop_at_first_fail)?);
 
             Ok(())
         })?;
         Ok(stat)
-
-        // // Check any application specifics
-        // let cb = frontend.app.callbacks.get(PRODUCTION_READINESS_CALLBACK).call()?;
-        // if !cb.0 {
-        //     return Ok(false, "Cannot publish due to application checks: {}", cb.1);
-        // }
-
-        //Ok(())
     }
 
     /// Resolves a directory/file path relative to the application's root.

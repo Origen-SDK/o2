@@ -56,7 +56,8 @@ use utility::mailer::Mailer;
 use utility::session_store::{SessionStore, Sessions};
 use self::core::frontend::Handle;
 
-pub use self::core::frontend::{with_frontend_app};
+pub use self::core::frontend::{with_frontend_app, with_frontend, with_optional_frontend, emit_callback};
+pub use self::core::frontend::callbacks as CALLBACKS;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -291,8 +292,8 @@ pub fn clean_mode(name: &str) -> String {
 
 /// This will be called immediately before loading a fresh set of targets. Everything
 /// required to clear previous state from the existing targets should be initiated from here.
-pub fn prepare_for_target_load() {
-    tester().reset();
+pub fn prepare_for_target_load() -> Result<()> {
+    tester().reset()
 }
 
 /// Clears the current test (pattern) AST and starts a new one, this will be called by the

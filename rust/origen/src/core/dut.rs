@@ -135,7 +135,10 @@ impl Dut {
     /// deletes all current DUT metadata and state, and updates the name/ID field
     /// with the given value
     // This is called once per DUT load
-    pub fn change(&mut self, name: &str) {
+    pub fn change(&mut self, name: &str) -> Result<()> {
+        crate::with_optional_frontend( |f| {
+            f.on_dut_change()
+        })?;
         self.name = name.to_string();
         self.models.clear();
         self.memory_maps.clear();
@@ -153,6 +156,7 @@ impl Dut {
         self.reg_descriptions.clear();
         // Add the model for the DUT top-level (always ID 0)
         let _ = self.create_model(None, "dut", None);
+        Ok(())
     }
 
     /// Returns a mutable reference to the top-level model

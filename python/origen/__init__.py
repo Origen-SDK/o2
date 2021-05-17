@@ -192,6 +192,7 @@ if status["is_app_present"]:
     sys.path.insert(0, status["root"])
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
     app = a.Application()
+    # origen.callbacks.emit("on_app_init", args=[app])
 
 
 def set_mode(val: str) -> None:

@@ -7,6 +7,7 @@ from origen.controller import TopLevel
 from origen.translator import Translator
 from origen.compiler import Compiler
 from origen.errors import *
+from origen.callbacks import _callbacks
 from types import ModuleType
 
 
@@ -135,6 +136,8 @@ class Base(_origen.application.PyApplication):
                     filepath = filepath.joinpath('blocks').joinpath(field)
                 elif filepath.joinpath(field).exists():
                     filepath = filepath.joinpath(field)
+                elif filepath.joinpath(f"{field}.py").exists():
+                    break
                 else:
                     self._block_path_cache[path] = (False, None)
                     break
@@ -244,15 +247,16 @@ class Base(_origen.application.PyApplication):
         controller_dir = block_dir
         controller_file = None
         blocks_dir = self.app_dir.joinpath("blocks")
-        if controller_dir.joinpath(f"{path}.py").exists():
-            controller_file = controller_dir.joinpath(f"{path}.py")
+        p = f"{path.split('.')[-1]}.py"
+        if controller_dir.joinpath(p).exists():
+            controller_file = controller_dir.joinpath(p)
         else:
             while controller_dir != blocks_dir:
                 if controller_dir.joinpath("controller.py").exists():
                     controller_file = controller_dir.joinpath("controller.py")
                     break
-                elif controller_dir.joinpath(f"{path}.py").exists():
-                    controller_file = controller_dir.joinpath(f"{path}.py")
+                elif controller_dir.joinpath(p).exists():
+                    controller_file = controller_dir.joinpath(p)
                     break
                 controller_dir = controller_dir.parent
                 d = os.path.basename(controller_dir)
@@ -383,7 +387,10 @@ class Base(_origen.application.PyApplication):
         '''
         self.compiler.run(*args, **options)
         return self.compiler
-
+    
+# def on_app_init(func):
+#     _callbacks.register_listener("on_app_init", None, func)
+#     return func
 
 class Application(Base):
     def hey(self):

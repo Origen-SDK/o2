@@ -37,10 +37,10 @@ pub struct PyDUT {
 impl PyDUT {
     #[new]
     /// Instantiating a new instance of PyDUT means re-loading the target
-    fn new(name: &str) -> Self {
-        origen::dut().change(name);
+    fn new(name: &str) -> PyResult<Self> {
+        origen::dut().change(name)?;
         origen::services().change();
-        PyDUT { metadata: vec![] }
+        Ok(PyDUT { metadata: vec![] })
     }
 
     /// Creates a new model at the given path

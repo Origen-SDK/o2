@@ -1,8 +1,9 @@
-use crate::Result;
+use crate::{Result, Metadata};
 
 pub mod callbacks;
 use indexmap::IndexMap;
-use std::path::{Path};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 pub fn with_frontend_app<T, F>(mut func: F) -> Result<T>
 where
@@ -20,6 +21,32 @@ where
     }
 }
 
+pub fn emit_callback(
+    callback: &str,
+    args: Option<Vec<Metadata>>,
+    kwargs: Option<IndexMap::<String, Metadata>>,
+    opts: Option<HashMap<String, Metadata>>
+) -> Result<Vec<Metadata>> {
+    with_frontend( |f| {
+        f.emit_callback(callback, args.as_ref(), kwargs.as_ref(), opts.as_ref())
+    })
+}
+
+pub fn with_frontend<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&dyn Frontend) -> Result<T>,
+{
+    let handle = crate::FRONTEND.read().unwrap();
+    handle.with_frontend( |f| func(f))
+}
+
+pub fn with_optional_frontend<T, F>(mut func: F) -> Result<Option<T>>
+where
+    F: FnMut(&dyn Frontend) -> Result<T>,
+{
+    let handle = crate::FRONTEND.read().unwrap();
+    handle.with_optional_frontend( |f| func(f))
+}
 
 pub struct Handle {
     // callbacks: IndexMap<String, Callback>,
@@ -44,13 +71,38 @@ impl Handle {
     }
 
     pub fn set_frontend(&mut self, frontend: Box<dyn Frontend + std::marker::Sync + std::marker::Send>) -> Result<()> {
+        callbacks::register_callbacks(frontend.as_ref())?;
         self.frontend = Some(frontend);
         Ok(())
+    }
+
+    pub fn with_frontend<T, F>(&self, mut func: F) -> Result<T>
+    where
+        F: FnMut(&dyn Frontend) -> Result<T>,
+    {
+        match self.frontend.as_ref() {
+            Some(f) => func(f.as_ref()),
+            None => error!("No frontend is currently available!")
+        }
+    }
+
+    pub fn with_optional_frontend<T, F>(&self, mut func: F) -> Result<Option<T>>
+    where
+        F: FnMut(&dyn Frontend) -> Result<T>,
+    {
+        Ok(match self.frontend.as_ref() {
+            Some(f) => Some(func(f.as_ref())?),
+            None => None
+        })
     }
 }
 
 pub trait Frontend {
     fn app(&self) -> Result<Option<Box<dyn App>>>;
+    fn emit_callback(&self, callback: &str, args: Option<&Vec<Metadata>>, kwargs: Option<&IndexMap<String, Metadata>>, opts: Option<&HashMap<String, Metadata>>) -> Result<Vec<Metadata>>;
+    fn register_callback(&self, callback: &str, description: &str) -> Result<()>;
+    fn list_local_dependencies(&self) -> Result<Vec<String>>;
+    fn on_dut_change(&self) -> Result<()>;
 }
 
 pub trait App {
@@ -70,6 +122,11 @@ pub trait App {
             None => error!("No unit tester is available on the application!")
         }
     }
+
+    // fn setup_production_status_checks(&self) -> Result<()>;
+    // fn cleanup_production_status_checks(&self) -> Result<()>;
+    // fn production_status_checks_pre(&self, stop_at_first_fail: bool) -> Result<IndexMap<String, (bool, String)>>;
+    // fn production_status_checks_post(&self, stop_at_first_fail: bool) -> Result<IndexMap<String, (bool, String)>>;
 
     // fn lint(&self) -> Result<Box<dyn Linter>>;
     // fn package(&self) -> Result<Box<dyn Package>>;
