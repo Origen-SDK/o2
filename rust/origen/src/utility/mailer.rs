@@ -1,16 +1,16 @@
-use crate::{Result, STATUS, ORIGEN_CONFIG, with_current_user};
 use crate::core::user::with_top_hierarchy;
+use crate::{with_current_user, Result, ORIGEN_CONFIG, STATUS};
 use lettre;
 use std::path::PathBuf;
 
+use crate::utility::resolve_os_str;
+use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::Message;
-use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::Transport;
-use std::fmt::Display;
 use std::collections::HashMap;
-use crate::utility::resolve_os_str;
+use std::fmt::Display;
 
 #[derive(Deserialize)]
 pub struct MaillistConfig {
@@ -34,7 +34,7 @@ impl MaillistConfig {
                 "Unable to build maillist from '{}'. Encountered errors:{}",
                 path.display(),
                 e
-            )
+            ),
         }
     }
 }
@@ -53,32 +53,33 @@ impl Maillist {
     fn from_file(f: &PathBuf) -> Result<Self> {
         let ext = resolve_os_str(match f.extension() {
             Some(ext) => ext,
-            None => return error!(
-                "Could not discern extension for maillist at '{}'",
-                f.display()
-            )
+            None => {
+                return error!(
+                    "Could not discern extension for maillist at '{}'",
+                    f.display()
+                )
+            }
         })?;
         let mut name = resolve_os_str(match f.file_name() {
             Some(n) => n,
-            None => return error!(
-                "Could not discern file name for maillist at '{}'",
-                f.display()
-            )
+            None => {
+                return error!(
+                    "Could not discern file name for maillist at '{}'",
+                    f.display()
+                )
+            }
         })?;
         match ext.as_str() {
             // expecting extension .maillist
             "maillist" => {
                 name = match name.strip_suffix(".maillist") {
                     Some(n) => n.to_string(),
-                    None => return error!(
-                        "Expected {} to end with '.maillist'",
-                        name
-                    )
+                    None => return error!("Expected {} to end with '.maillist'", name),
                 };
                 // Support O1-style maillist format - just a list of emails separated by newline
                 let file = std::fs::File::open(f)?;
                 let reader = std::io::BufReader::new(file);
-                let mut recipients: Vec<String> = vec!();
+                let mut recipients: Vec<String> = vec![];
                 for recipient in std::io::BufRead::lines(reader) {
                     recipients.push(recipient?);
                 }
@@ -94,10 +95,7 @@ impl Maillist {
                 // expecting extension .maillist.toml
                 name = match name.strip_suffix(".maillist.toml") {
                     Some(n) => n.to_string(),
-                    None => return error!(
-                        "Expected {} to end with '.maillist.toml'",
-                        name
-                    )
+                    None => return error!("Expected {} to end with '.maillist.toml'", name),
                 };
                 match MaillistConfig::load(f) {
                     Ok(c) => {
@@ -119,7 +117,7 @@ impl Maillist {
                                                 aud,
                                                 a,
                                                 mapped_a
-                                            )
+                                            );
                                         } else {
                                             // Mapped audience matches given audience - redundant, but no harm done
                                             Some(mapped_a)
@@ -136,16 +134,16 @@ impl Maillist {
                             domain: c.domain.clone(),
                             name: name,
                         })
-                    },
+                    }
                     Err(e) => error!(
                         "Errors encountered building maillist '{}' from {}: {}",
                         name,
                         f.display(),
                         e.msg
-                    )
+                    ),
                 }
             }
-            _ => error!("Unsupported file extension for maillist '{}'", f.display())
+            _ => error!("Unsupported file extension for maillist '{}'", f.display()),
         }
     }
 
@@ -153,7 +151,7 @@ impl Maillist {
         match s.to_ascii_lowercase().as_str() {
             "dev" | "develop" | "development" => Some("development".to_string()),
             "release" | "prod" | "production" => Some("production".to_string()),
-            _ => None
+            _ => None,
         }
     }
 
@@ -178,7 +176,7 @@ impl Maillist {
     }
 
     pub fn resolve_recipients(&self, default_domain: &Option<String>) -> Result<Vec<Mailbox>> {
-        let mut retn = vec!();
+        let mut retn = vec![];
         for r in self.recipients.iter() {
             let email_str;
             if r.contains("@") {
@@ -206,7 +204,7 @@ const PASSWORD_REASON: &str = "mailer";
 #[derive(Debug, Display)]
 pub enum SupportedAuths {
     TLS,
-    None
+    None,
 }
 
 impl SupportedAuths {
@@ -215,7 +213,10 @@ impl SupportedAuths {
             match val.as_str() {
                 "TLS" | "tls" | "Tls" => Ok(Self::TLS),
                 "NONE" | "none" | "None" => Ok(Self::None),
-                _ => error!("Invalid auth method '{}' found in the mailer configuration", val)
+                _ => error!(
+                    "Invalid auth method '{}' found in the mailer configuration",
+                    val
+                ),
             }
         } else {
             Ok(Self::None)
@@ -246,7 +247,7 @@ pub struct Mailer {
     // pub include_app_signature: bool,
     // pub include_user_signature: bool,
     // pub include_origen_signature: bool,
-    pub maillists: HashMap<String, Maillist>
+    pub maillists: HashMap<String, Maillist>,
 }
 
 impl std::default::Default for Mailer {
@@ -300,7 +301,10 @@ impl Mailer {
         m.service_user = {
             if let Some(su) = ORIGEN_CONFIG.mailer__service_user.as_ref() {
                 if !ORIGEN_CONFIG.service_users.contains_key(su) {
-                    display_redln!("Invalid service user '{}' provided in mailer configuration", su);
+                    display_redln!(
+                        "Invalid service user '{}' provided in mailer configuration",
+                        su
+                    );
                 }
                 Some(su.to_string())
             } else {
@@ -333,23 +337,21 @@ impl Mailer {
                 Ok(entries) => {
                     for entry in entries {
                         match entry {
-                            Ok(e) => {
-                                match Maillist::from_file(&e) {
-                                    Ok(ml) => {
-                                        if let Some(orig_ml) = self.maillists.get(&ml.name) {
-                                            log_info!(
-                                                "Replacing maillist at '{}' with maillist at '{}'",
-                                                orig_ml.name,
-                                                ml.name
-                                            )
-                                        }
-                                        self.maillists.insert(ml.name.clone(), ml);
+                            Ok(e) => match Maillist::from_file(&e) {
+                                Ok(ml) => {
+                                    if let Some(orig_ml) = self.maillists.get(&ml.name) {
+                                        log_info!(
+                                            "Replacing maillist at '{}' with maillist at '{}'",
+                                            orig_ml.name,
+                                            ml.name
+                                        )
                                     }
-                                    Err(err) => {
-                                        display_redln!("{}", err);
-                                    }
+                                    self.maillists.insert(ml.name.clone(), ml);
                                 }
-                            }
+                                Err(err) => {
+                                    display_redln!("{}", err);
+                                }
+                            },
                             Err(e) => {
                                 display_redln!(
                                     "Error accessing maillist at '{}': {}",
@@ -381,7 +383,10 @@ impl Mailer {
             if let Some(su) = ORIGEN_CONFIG.service_users.get(u) {
                 Ok(Some((&u, su)))
             } else {
-                error!("Invalid service user '{}' provided in mailer configuration", u)
+                error!(
+                    "Invalid service user '{}' provided in mailer configuration",
+                    u
+                )
             }
         } else {
             Ok(None)
@@ -390,7 +395,10 @@ impl Mailer {
 
     pub fn username(&self) -> Result<String> {
         if self.auth_method.is_none() {
-            error!("Cannot retrieve username when using auth method '{}'", SupportedAuths::None)
+            error!(
+                "Cannot retrieve username when using auth method '{}'",
+                SupportedAuths::None
+            )
         } else {
             if let Some(u) = self.service_user()? {
                 if let Some(n) = u.1.get("username") {
@@ -400,9 +408,9 @@ impl Mailer {
                 }
             } else {
                 if let Some(d) = self.get_dataset()? {
-                    with_top_hierarchy(None, &vec!(d), |u| u.username())
+                    with_top_hierarchy(None, &vec![d], |u| u.username())
                 } else {
-                    with_current_user( |u| u.username())
+                    with_current_user(|u| u.username())
                 }
             }
         }
@@ -410,7 +418,10 @@ impl Mailer {
 
     pub fn password(&self) -> Result<String> {
         if self.auth_method.is_none() {
-            error!("Cannot retrieve password when using auth method '{}'", SupportedAuths::None)
+            error!(
+                "Cannot retrieve password when using auth method '{}'",
+                SupportedAuths::None
+            )
         } else {
             if let Some(u) = self.service_user()? {
                 if let Some(p) = u.1.get("password") {
@@ -419,7 +430,7 @@ impl Mailer {
                     error!("No password given for service user '{}'", u.0)
                 }
             } else {
-                with_current_user( |u| u.password(Some(PASSWORD_REASON), true, Some(None)))
+                with_current_user(|u| u.password(Some(PASSWORD_REASON), true, Some(None)))
             }
         }
     }
@@ -427,19 +438,19 @@ impl Mailer {
     pub fn sender(&self) -> Result<String> {
         if let Some(u) = self.service_user()? {
             if let Some(e) = u.1.get("email") {
-                return Ok(e.into())
+                return Ok(e.into());
             }
         }
         if let Some(d) = self.get_dataset()? {
-            with_top_hierarchy(None, &vec!(d), |u| u.get_email())
+            with_top_hierarchy(None, &vec![d], |u| u.get_email())
         } else {
             with_current_user(|u| u.get_email())
         }
     }
 
     fn get_dataset(&self) -> Result<Option<String>> {
-        with_current_user( |u| {
-            if let Some(d)= u.dataset_for(PASSWORD_REASON) {
+        with_current_user(|u| {
+            if let Some(d) = u.dataset_for(PASSWORD_REASON) {
                 Ok(Some(d.to_string()))
             } else {
                 Ok(None)
@@ -530,10 +541,7 @@ impl Mailer {
                 builder = SmtpTransport::starttls_relay(&self.get_server()?)
                     .unwrap()
                     .authentication(vec![Mechanism::Login])
-                    .credentials(Credentials::new(
-                        self.username()?,
-                        self.password()?
-                    ))
+                    .credentials(Credentials::new(self.username()?, self.password()?))
             }
             SupportedAuths::None => {
                 // SMTP client with no authentication (hence the dangerous)

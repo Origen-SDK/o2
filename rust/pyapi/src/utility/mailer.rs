@@ -1,6 +1,6 @@
+use origen::utility::mailer::Maillist as OrigenML;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use origen::utility::mailer::Maillist as OrigenML;
 use std::collections::HashMap;
 
 #[pymodule]
@@ -129,7 +129,12 @@ impl Mailer {
         let m = origen::mailer();
         let mut retn = HashMap::new();
         for name in m.maillists.keys() {
-            retn.insert(name.to_string(), Maillist {name: name.to_string()});
+            retn.insert(
+                name.to_string(),
+                Maillist {
+                    name: name.to_string(),
+                },
+            );
         }
         Ok(retn)
     }
@@ -138,7 +143,12 @@ impl Mailer {
         let m = origen::mailer();
         let mut retn = HashMap::new();
         for name in m.maillists_for(audience)?.keys() {
-            retn.insert(name.to_string(), Maillist {name: name.to_string()});
+            retn.insert(
+                name.to_string(),
+                Maillist {
+                    name: name.to_string(),
+                },
+            );
         }
         Ok(retn)
     }
@@ -183,7 +193,10 @@ pub struct Maillist {
 
 impl Maillist {
     // Will return an error if the maillist doesn't exist
-    pub fn with_origen_ml<T, F>(&self, func: F) -> origen::Result<T> where F: Fn(&OrigenML) -> origen::Result<T> {
+    pub fn with_origen_ml<T, F>(&self, func: F) -> origen::Result<T>
+    where
+        F: Fn(&OrigenML) -> origen::Result<T>,
+    {
         let m = origen::mailer();
         let ml = m.get_maillist(&self.name)?;
         func(ml)
@@ -234,7 +247,11 @@ impl Maillist {
         let m = origen::mailer();
         let mailer_domain = &m.domain;
         let ml = m.get_maillist(&self.name)?;
-        Ok(ml.resolve_recipients(mailer_domain)?.iter().map( |mailbox| mailbox.to_string()).collect::<Vec<String>>())
+        Ok(ml
+            .resolve_recipients(mailer_domain)?
+            .iter()
+            .map(|mailbox| mailbox.to_string())
+            .collect::<Vec<String>>())
     }
 
     // fn test(&self, message: Option<String>) -> PyResult<()> {
