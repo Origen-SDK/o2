@@ -797,6 +797,126 @@ Examples:
         );
 
         /************************************************************************************/
+        let mailer_help =
+            "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
+        origen_commands.push(CommandHelp {
+            name: "mailer".to_string(),
+            help: mailer_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("mailer")
+                .about(mailer_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .subcommand(
+                    SubCommand::with_name("send")
+                        .about("Quickly send an email")
+                        .arg(
+                            Arg::with_name("body")
+                                .help("Email message body")
+                                .long("body")
+                                .takes_value(true)
+                                .required(true)
+                                .value_name("BODY")
+                                .index(1),
+                        )
+                        .arg(
+                            Arg::with_name("subject")
+                                .help("Email subject line")
+                                .long("subject")
+                                .short("s")
+                                .takes_value(true)
+                                .value_name("SUBJECT"),
+                        )
+                        .arg(
+                            Arg::with_name("to")
+                                .help("Recipient list")
+                                .long("to")
+                                .short("t")
+                                .takes_value(true)
+                                .required(true)
+                                .multiple(true)
+                                .value_name("TO"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("test")
+                        .about("Send a test email")
+                        .arg(
+                            Arg::with_name("to")
+                                .help(
+                                    "Recipient list. If omitted, will be sent to the current user",
+                                )
+                                .long("to")
+                                .short("t")
+                                .takes_value(true)
+                                .required(false)
+                                .multiple(true)
+                                .value_name("TO"),
+                        ),
+                ),
+        );
+
+        /************************************************************************************/
+        let credentials_help = "Set or clear user credentials";
+        origen_commands.push(CommandHelp {
+            name: "credentials".to_string(),
+            help: credentials_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("credentials")
+                .about(credentials_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .subcommand(
+                    SubCommand::with_name("set")
+                        .about("Set the current user's password")
+                        .arg(
+                            Arg::with_name("all")
+                                .help("Set the password for all datasets")
+                                .takes_value(false)
+                                .required(false)
+                                .long("all")
+                                .short("a"),
+                        )
+                        .arg(
+                            Arg::with_name("dataset")
+                                .help("Specify the dataset to set the password for")
+                                .takes_value(true)
+                                .required(false)
+                                .value_name("DATASET")
+                                .multiple(true)
+                                .conflicts_with("all")
+                                .long("dataset")
+                                .short("d"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("clear")
+                        .about("Clear the user's password")
+                        .arg(
+                            Arg::with_name("all")
+                                .help("Clear the password for all datasets")
+                                .takes_value(false)
+                                .required(false)
+                                .conflicts_with("dataset")
+                                .long("all")
+                                .short("a"),
+                        )
+                        .arg(
+                            Arg::with_name("dataset")
+                                .help("Specify the dataset to clear the password for")
+                                .takes_value(true)
+                                .required(false)
+                                .value_name("DATASET")
+                                .multiple(true)
+                                .long("dataset")
+                                .short("d"),
+                        ),
+                ),
+        );
+
+        /************************************************************************************/
         let mode_help = "Set/view the default execution mode";
         origen_commands.push(CommandHelp {
             name: "mode".to_string(),
@@ -1117,6 +1237,134 @@ CORE COMMANDS:
                 "view" => commands::launch("web:view", None, &None, None, None, None, false, None),
                 "clean" => {
                     commands::launch("web:clean", None, &None, None, None, None, false, None)
+                }
+                _ => {}
+            }
+        }
+        Some("mailer") => {
+            let cmd = matches.subcommand_matches("mailer").unwrap();
+            let subcmd = cmd.subcommand();
+            let sub = subcmd.1.unwrap();
+            match subcmd.0 {
+                "send" => {
+                    let m = origen::mailer();
+                    let e = origen::core::user::get_current_email()
+                        .expect("Could not resolve current user's email");
+                    let email = m.compose(
+                        &e,
+                        if let Some(recipients) = sub.values_of("to") {
+                            recipients.collect()
+                        } else {
+                            vec![&e]
+                        },
+                        sub.value_of("subject"),
+                        sub.value_of("body"),
+                        true,
+                    );
+                    match email {
+                        Ok(e) => match m.send(e) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!("Errors occurred sending email:\n{}", e.msg);
+                            }
+                        },
+                        Err(e) => {
+                            origen::display_redln!("Errors occurred composing email:\n{}", e.msg);
+                        }
+                    }
+                }
+                "test" => {
+                    let m = origen::mailer();
+                    if let Some(t) = sub.values_of("to") {
+                        match m.test(Some(t.collect())) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Error occurred sending test email:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    } else {
+                        match m.test(None) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Errors occurred sending test email:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        Some("credentials") => {
+            let cmd = matches.subcommand_matches("credentials").unwrap();
+            let subcmd = cmd.subcommand();
+            let sub = subcmd.1.unwrap();
+            match subcmd.0 {
+                "set" => {
+                    if sub.is_present("all") {
+                        match origen::core::user::set_all_passwords() {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Could not set all passwords. Errors were encountered:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    } else {
+                        if let Some(datasets) = sub.values_of("dataset") {
+                            match origen::core::user::set_passwords(Some(datasets.collect())) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!("Could not set all requested passwords. Errors were encountered:\n{}", e.msg);
+                                }
+                            }
+                        } else {
+                            match origen::core::user::set_passwords(None) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!("Could not clear all passwords. Errors were encountered:\n{}", e.msg);
+                                }
+                            }
+                        }
+                    }
+                }
+                "clear" => {
+                    if sub.is_present("all") {
+                        match origen::core::user::clear_all_passwords() {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Could not clear all passwords. Errors were encountered:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    } else {
+                        if let Some(datasets) = sub.values_of("dataset") {
+                            match origen::core::user::clear_passwords(Some(datasets.collect())) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!("Could not clear all given passwords. Errors were encountered:\n{}", e.msg);
+                                }
+                            }
+                        } else {
+                            match origen::core::user::clear_passwords(None) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!(
+                                        "Could not clear password. Errors were encountered:\n{}",
+                                        e.msg
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
                 _ => {}
             }

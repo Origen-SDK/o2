@@ -14,6 +14,7 @@ Welcome to The Origen Guides!
    guides/testers
    guides/documenting
    guides/plugins
+   guides/utilities
    guides/developers
    interbuild/autoapi/origen/origen
 

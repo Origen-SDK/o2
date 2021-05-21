@@ -1,7 +1,6 @@
 use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::Result as OrigenResult;
-use crate::USER;
 use git2::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -444,7 +443,6 @@ impl Git {
             let username;
             let password;
             {
-                let last_password_attempt = self.last_password_attempt.borrow();
                 password = {
                     if self.credentials.is_some()
                         && self.credentials.as_ref().unwrap().password.is_some()
@@ -457,10 +455,13 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        USER.password(
-                            Some(&format!("to access repository '{}'", url)),
-                            last_password_attempt.as_deref(),
-                        )
+                        crate::with_current_user(|u| {
+                            u.password(
+                                Some(&format!("to access repository '{}'", url)),
+                                true,
+                                Some(None),
+                            )
+                        })
                         .expect("Couldn't prompt for password")
                     }
                 };
@@ -476,7 +477,7 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        USER.id().unwrap()
+                        crate::core::user::get_current_id().unwrap()
                     }
                 };
             }

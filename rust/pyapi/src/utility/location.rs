@@ -1,7 +1,6 @@
 use crate::pypath;
 use origen::utility::location::Location as OrigenLoc;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 
 /// Helper class to store and query "location" types, which could be local paths, git URLs, as either SSH or HTTPS, or something else.
 /// The location need not be valid to create an instance of this class.

@@ -1,0 +1,5 @@
+recipients = [
+    "u1",
+    "u2",
+]
+domain = "override.origen.org"

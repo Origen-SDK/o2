@@ -46,7 +46,6 @@ pyo3 = {version = "0.11.1", features = ["extension-module"]}
 chrono = "0.4.11"
 meta = { path = "./meta" }
 whoami = "0.8"
-keyring = {version = "0.8", optional = true}
 dirs = "2.0"
 tempfile = "3"
 toml = "0.5"
@@ -54,6 +53,15 @@ path-slash = "0.1.2"
 phf = { version = "0.8.0", features = ["macros"] }
 serde_json = "1.0"
 tera = "1"
+lettre = {version = "=0.10.0-alpha.4", features = ["builder"]}
+ldap3 = "0.8.1"
+cfg-if = "1"
+aes-gcm = "0.8"
+rand = "0.8"
+# keyring = "0.10.1"
+keyring = { git = "https://github.com/hwchen/keyring-rs.git", rev = "a30e65f" }
+enum-display-derive = "0.1.1"
+glob = "0.3.0"
 
 [build-dependencies]
 built = "0.4"
@@ -65,4 +73,3 @@ openssl = { version = "0.10", features = ["vendored"] }
 
 [features]
 default = []
-password-cache = ["keyring"]
