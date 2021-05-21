@@ -96,10 +96,7 @@ impl Default for Config {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h
         });
-        let _ = s.set_default(
-            "user__data_lookup_hierarchy",
-            None::<Vec<String>>
-        );
+        let _ = s.set_default("user__data_lookup_hierarchy", None::<Vec<String>>);
         let _ = s.set_default("user__password_auth_attempts", 3);
         let _ = s.set_default("user__password_cache_option", "keyring");
         let _ = s.set_default("user__datasets", {
@@ -242,25 +239,26 @@ fn process_config_pre_merge(c: &mut config::Config, src: &PathBuf) {
     match c.get("mailer__maillists_dirs") {
         // Update any relative paths in this parameter to be relative to the config in which it was found
         Ok(mut paths) => {
-            match c.set("mailer__maillists_dirs", _update_relative_paths(&mut paths, &src.parent().unwrap().to_path_buf())) {
-                Ok(_) => {},
-                Err(e) => {display_redln!(
+            match c.set(
+                "mailer__maillists_dirs",
+                _update_relative_paths(&mut paths, &src.parent().unwrap().to_path_buf()),
+            ) {
+                Ok(_) => {}
+                Err(e) => display_redln!(
                     "Error setting maillist dir: '{}': {}",
                     src.display(),
                     e.to_string()
-                )}
-            }
-        },
-        Err(e) => {
-            match e {
-                config::ConfigError::NotFound(_) => {},
-                _ => {
-                    term::redln(&format!("Malformed config file: {}", src.display()));
-                    term::redln(&format!("{}", e));
-                    std::process::exit(1);
-                }
+                ),
             }
         }
+        Err(e) => match e {
+            config::ConfigError::NotFound(_) => {}
+            _ => {
+                term::redln(&format!("Malformed config file: {}", src.display()));
+                term::redln(&format!("{}", e));
+                std::process::exit(1);
+            }
+        },
     }
 }
 
@@ -271,11 +269,7 @@ fn _update_relative_paths(paths: &mut Vec<String>, relative_to: &PathBuf) -> Vec
             Ok(resolved) => {
                 paths[i] = resolved.display().to_string();
             }
-            Err(e) => display_redln!(
-                "Unable to process maillist '{}': {}",
-                pb.display(),
-                e
-            )
+            Err(e) => display_redln!("Unable to process maillist '{}': {}", pb.display(), e),
         }
     }
     paths.to_vec()

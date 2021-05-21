@@ -2,7 +2,8 @@ use crate::revision_control::git;
 use crate::utility::command_helpers::exec_and_capture;
 use crate::utility::ldap::LDAPs;
 use crate::utility::{
-    check_vec, bytes_from_str_of_bytes, decrypt_with, encrypt_with, str_from_byte_array, str_to_bool, unsorted_dedup,
+    bytes_from_str_of_bytes, check_vec, decrypt_with, encrypt_with, str_from_byte_array,
+    str_to_bool, unsorted_dedup,
 };
 use crate::{Error, Metadata, Result, ORIGEN_CONFIG};
 use aes_gcm::aead::{
@@ -100,7 +101,7 @@ where
 /// Temporarily run some function with 'new_top' being the highest priority datasets
 pub fn with_top_hierarchy<T, F>(user: Option<&str>, new_top: &Vec<String>, func: F) -> Result<T>
 where
-    F: Fn(&User) -> Result<T>
+    F: Fn(&User) -> Result<T>,
 {
     let mut urs = crate::users_mut();
     let u;
@@ -109,7 +110,7 @@ where
     } else {
         u = urs.current_user_mut()?;
     }
-    
+
     let old_hierarchy = u.data_lookup_hierarchy.clone();
     let mut new_hierarchy = new_top.to_vec();
     new_hierarchy.extend(old_hierarchy.clone());
@@ -485,9 +486,15 @@ impl User {
     pub fn data_lookup_hierarchy_from_config<'a>() -> Option<Result<&'a Vec<String>>> {
         if let Some(hierarchy) = crate::ORIGEN_CONFIG.user__data_lookup_hierarchy.as_ref() {
             Some({
-                match check_vec(&hierarchy, Self::dataset_configs(), false, "dataset", "dataset hierarchy") {
+                match check_vec(
+                    &hierarchy,
+                    Self::dataset_configs(),
+                    false,
+                    "dataset",
+                    "dataset hierarchy",
+                ) {
                     Ok(_) => Ok(hierarchy),
-                    Err(e) => Err(e)
+                    Err(e) => Err(e),
                 }
             })
         } else {
@@ -530,7 +537,13 @@ impl User {
 
     pub fn set_data_lookup_hierarchy(&mut self, hierarchy: Vec<String>) -> Result<()> {
         // Check that each item in hierarchy is valid and that there are no duplicates
-        check_vec(&hierarchy, &self.data, false, "dataset", "dataset hierarchy")?;
+        check_vec(
+            &hierarchy,
+            &self.data,
+            false,
+            "dataset",
+            "dataset hierarchy",
+        )?;
         self.data_lookup_hierarchy = hierarchy;
         Ok(())
     }
@@ -586,7 +599,7 @@ impl User {
         {
             match u.write_data(None) {
                 Ok(mut data) => data.home_dir = super::status::get_home_dir(),
-                Err(e) => display_redln!("{}", e.msg)
+                Err(e) => display_redln!("{}", e.msg),
             }
         }
         log_trace!("Built Current User: {}", u.id());
@@ -601,7 +614,7 @@ impl User {
                 // Empty datasets are not allowed
                 display_redln!("Empty 'user__datasets' config value is not allowed");
                 display_redln!("Forcing default dataset...");
-                hierarchy = vec!(DEFAULT_DATASET_KEY.to_string());
+                hierarchy = vec![DEFAULT_DATASET_KEY.to_string()];
                 datasets = &*DEFAULT_DATASET_CONFIG; // default_dataset_config!();
             } else {
                 // Datasets were given
@@ -612,22 +625,27 @@ impl User {
                     match config_h {
                         Ok(h) => {
                             hierarchy = h.to_vec();
-                        },
+                        }
                         Err(e) => {
                             display_redln!("{}", e.msg);
                             display_redln!("Forcing empty dataset lookup hierarchy...");
-                            hierarchy = vec!();
+                            hierarchy = vec![];
                         }
                     }
                 } else {
                     if d.len() == 1 {
                         // Hierarchy wasn't given but since there's only a single dataset, use that.
-                        hierarchy = vec!(d.keys().collect::<Vec<&String>>().first().unwrap().to_string());
+                        hierarchy = vec![d
+                            .keys()
+                            .collect::<Vec<&String>>()
+                            .first()
+                            .unwrap()
+                            .to_string()];
                     } else {
                         // Hierarchy wasn't given. Since we cannot look up order from the config
                         // (indexmap isn't supported and using vectors is messy) default
                         // hierarchy with multiple datasets is an empty hierarchy.
-                        hierarchy = vec!();
+                        hierarchy = vec![];
                     }
                 }
                 datasets = d;

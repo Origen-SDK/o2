@@ -13,9 +13,9 @@ pub mod session_store;
 pub mod version;
 
 use crate::{Result, STATUS};
-use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
 use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
 use aes_gcm::aead::{
     generic_array::typenum::{U12, U32},
@@ -54,7 +54,13 @@ pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> Pa
 
 /// Checks the given values of a vector against an enumerated set of accepted values.
 /// Optionally, check for duplicate items as well.
-pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(vut: &Vec<T>, valid_values_hashmap: &HashMap<T, V>, allow_duplicates: bool, obj_name: &str, container_name: &str) -> Result<()> {
+pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(
+    vut: &Vec<T>,
+    valid_values_hashmap: &HashMap<T, V>,
+    allow_duplicates: bool,
+    obj_name: &str,
+    container_name: &str,
+) -> Result<()> {
     let mut indices = HashMap::new();
     for (i, d) in vut.iter().enumerate() {
         if valid_values_hashmap.contains_key(d) {
@@ -75,9 +81,7 @@ pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(vut: 
         } else {
             return error!(
                 "'{}' is not a valid {} and cannot be used in the {}",
-                d,
-                obj_name,
-                container_name
+                d, obj_name, container_name
             );
         }
     }

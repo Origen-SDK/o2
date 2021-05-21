@@ -2,6 +2,7 @@ import getpass
 from tests.shared import in_new_origen_proc
 from _shared.configs import func__test_with_config, func__test_users_are_reset
 
+
 def test_in_new_origen_proc():
     import origen
 

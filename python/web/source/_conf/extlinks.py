@@ -248,8 +248,8 @@ extlinks = {
     ('https://doc.rust-lang.org/stable/rust-by-example/meta/doc.html#doc-comments%s',
      ''),
 
-     # TOML
-     'toml_homepage': ('https://toml.io/en/%s', ''),
+    # TOML
+    'toml_homepage': ('https://toml.io/en/%s', ''),
 
     # Origen Github links
     'origen_sdk_home': (f'{links["home"]}%s', ''),

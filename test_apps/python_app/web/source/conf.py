@@ -35,7 +35,7 @@ release = '0.0.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'origen.web.origen_sphinx_extension', 'autoapi.sphinx',
+    'origen.web.origen_sphinx_extension', 'origen_autoapi.sphinx',
     'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autosectionlabel',
     'recommonmark', 'origen.web.shorthand'
 ]

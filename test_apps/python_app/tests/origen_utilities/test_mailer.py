@@ -3,6 +3,7 @@ from tests.shared.python_like_apis import Fixture_DictLikeAPI
 from tests.shared import in_new_origen_proc
 from configs import mailer as mailer_configs
 
+
 class TestMailer:
     def test_mailer_is_accessible(self):
         assert origen.mailer
@@ -30,7 +31,6 @@ class TestMailer:
     #     assert 1 == 0
 
     class TestConfigs:
-
         def test_mailer_minimum(self):
             retn = in_new_origen_proc(mod=mailer_configs)
             assert retn["server"] == "smtp_minimum.origen.org"
@@ -41,9 +41,11 @@ class TestMailer:
             assert retn["service_user"] == None
             assert retn["dataset"] == None
             assert isinstance(retn["username"], OSError)
-            assert "Cannot retrieve username when using auth method 'None'" in str(retn["username"])
+            assert "Cannot retrieve username when using auth method 'None'" in str(
+                retn["username"])
             assert isinstance(retn["password"], OSError)
-            assert "Cannot retrieve password when using auth method 'None'" in str(retn["password"])
+            assert "Cannot retrieve password when using auth method 'None'" in str(
+                retn["password"])
             assert retn["sender"] == "minimum@origen.orgs"
 
         def test_tls_service_user(self):
@@ -52,7 +54,8 @@ class TestMailer:
             assert retn["auth_method"] == "TLS"
             assert retn["service_user"] == "mailer_service_user"
             assert isinstance(retn["dataset"], OSError)
-            assert "Cannot query the user dataset for the mailer when specifying a service user" in str(retn["dataset"])
+            assert "Cannot query the user dataset for the mailer when specifying a service user" in str(
+                retn["dataset"])
             assert retn["username"] == "mailer"
             assert retn["password"] == "test"
             assert retn["sender"] == "service@origen.org"
@@ -122,12 +125,13 @@ class TestMailer:
 
         # def test_disabling_origen_sig(self):
         #     assert 1 == 0
-        
+
         # def test_overriding_app_sig(self):
         #     assert 1 == 0
 
         # def test_disabling_app_sig(self):
         #     assert 1 == 0
+
 
 class TestMaillist:
     @property
@@ -148,16 +152,18 @@ class TestMaillist:
             *self.prod_maillists,
 
             # Empty
-            "empty_toml", "empty",
+            "empty_toml",
+            "empty",
 
             # Other
-            "example", "config_level"
+            "example",
+            "config_level"
         ])
 
     @property
     def dev_maillists(self):
         return set(["develop", "dev", "development"])
-    
+
     @property
     def prod_maillists(self):
         return set(["release", "release2", "prod", "production"])
@@ -219,7 +225,8 @@ class TestMaillist:
         assert ml.audience == "development"
         assert ml.domain is None
         assert isinstance(ml.file, pathlib.Path)
-        assert ml.file == origen.app.root.joinpath("config/maillists/develop.maillist")
+        assert ml.file == origen.app.root.joinpath(
+            "config/maillists/develop.maillist")
 
     def test_toml_maillists_parameters_can_be_queried(self):
         ml = self.mls["release2"]
@@ -239,7 +246,8 @@ class TestMaillist:
         ]
         assert ml.signature == "You are received this as a recipient of the 'release2' maillist!"
         assert ml.audience == "production"
-        assert ml.file == origen.app.root.joinpath("config/maillists/release2.maillist.toml")
+        assert ml.file == origen.app.root.joinpath(
+            "config/maillists/release2.maillist.toml")
 
     def test_empty_maillists_do_not_crash_anything(self):
         ml = self.mls["empty"]
@@ -249,7 +257,8 @@ class TestMaillist:
         assert ml.signature is None
         assert ml.audience is None
         assert ml.domain is None
-        assert ml.file == origen.app.root.joinpath("config/maillists/empty.maillist")
+        assert ml.file == origen.app.root.joinpath(
+            "config/maillists/empty.maillist")
 
         ml = self.mls["empty_toml"]
         assert ml.name == "empty_toml"
@@ -258,50 +267,66 @@ class TestMaillist:
         assert ml.signature is None
         assert ml.audience is None
         assert ml.domain is None
-        assert ml.file == origen.app.root.joinpath("config/maillists/empty_toml.maillist.toml")
+        assert ml.file == origen.app.root.joinpath(
+            "config/maillists/empty_toml.maillist.toml")
 
     @property
     def config_tests_maillists_root(self):
-        return pathlib.Path(__file__).parent.joinpath("configs/mailer/maillists")
+        return pathlib.Path(__file__).parent.joinpath(
+            "configs/mailer/maillists")
 
     def test_adding_custom_mailist_directories(self):
         retn = in_new_origen_proc(mod=mailer_configs)
-        assert set(retn["maillists"]) == set([*self.available_maillists, "custom1", "custom2", "other"])
+        assert set(retn["maillists"]) == set(
+            [*self.available_maillists, "custom1", "custom2", "other"])
         ml = retn["custom1"]
         assert ml["name"] == "custom1"
         assert ml["resolve_recipients"] == ["u1@custom1.org", "u2@custom2.org"]
         assert ml["audience"] == None
-        assert ml["file"] == self.config_tests_maillists_root.joinpath("custom/custom1.maillist")
+        assert ml["file"] == self.config_tests_maillists_root.joinpath(
+            "custom/custom1.maillist")
         ml = retn["custom2"]
         assert ml["name"] == "custom2"
         assert ml["resolve_recipients"] == ["u1@custom2.org", "u2@custom2.org"]
         assert ml["audience"] == "development"
-        assert ml["file"] == self.config_tests_maillists_root.joinpath("custom/custom2.maillist.toml")
-        assert set(retn["dev_maillists"]) == set([*self.dev_maillists, "other", "custom2"])
+        assert ml["file"] == self.config_tests_maillists_root.joinpath(
+            "custom/custom2.maillist.toml")
+        assert set(retn["dev_maillists"]) == set(
+            [*self.dev_maillists, "other", "custom2"])
 
     def test_mailists_overwrite_lower_priority_ones(self):
         retn = in_new_origen_proc(mod=mailer_configs)
-        assert set(retn["maillists"]) == set([*self.available_maillists, "custom1", "custom2"])
+        assert set(retn["maillists"]) == set(
+            [*self.available_maillists, "custom1", "custom2"])
         ml = retn["custom2"]
         assert ml["name"] == "custom2"
-        assert ml["resolve_recipients"] == ["u1@custom2.override.org", "u2@custom2.override.org"]
+        assert ml["resolve_recipients"] == [
+            "u1@custom2.override.org", "u2@custom2.override.org"
+        ]
         assert ml["audience"] == None
-        assert ml["file"] == self.config_tests_maillists_root.joinpath("override/custom2.maillist")
+        assert ml["file"] == self.config_tests_maillists_root.joinpath(
+            "override/custom2.maillist")
         ml = retn["develop"]
         assert ml["name"] == "develop"
-        assert ml["resolve_recipients"] == ["u1@override.origen.org", "u2@override.origen.org"]
+        assert ml["resolve_recipients"] == [
+            "u1@override.origen.org", "u2@override.origen.org"
+        ]
         assert ml["audience"] == "development"
-        assert ml["file"] == self.config_tests_maillists_root.joinpath("override/develop.maillist.toml")
+        assert ml["file"] == self.config_tests_maillists_root.joinpath(
+            "override/develop.maillist.toml")
 
     def test_maillist_toml_ext_overwrite_maillist_ext(self):
         ''' Confirm that, within the same directory, a .maillist.toml overwrites a .maillist '''
         retn = in_new_origen_proc(mod=mailer_configs)
-        ml_file = self.config_tests_maillists_root.joinpath("ext_overwrite/ext_overwrite.maillist")
+        ml_file = self.config_tests_maillists_root.joinpath(
+            "ext_overwrite/ext_overwrite.maillist")
         assert ml_file.exists
-        assert set(retn["maillists"]) == set([*self.available_maillists, "ext_overwrite"])
+        assert set(retn["maillists"]) == set(
+            [*self.available_maillists, "ext_overwrite"])
         ml = retn["ext_overwrite"]
         assert ml["resolve_recipients"] == ["ext@overwrite.origen.org"]
-        assert ml["file"] == self.config_tests_maillists_root.joinpath("ext_overwrite/ext_overwrite.maillist.toml")
+        assert ml["file"] == self.config_tests_maillists_root.joinpath(
+            "ext_overwrite/ext_overwrite.maillist.toml")
 
     def test_error_nessage_on_invalid_toml(self, capfd):
         retn = in_new_origen_proc(mod=mailer_configs)
@@ -320,6 +345,7 @@ class TestMaillist:
 
         def err_msg_regex(name):
             return f"Errors encountered building maillist '{name}' from .*invalid_toml.*{name}.maillist.*: unexpected eof encountered"
+
         assert re.search(err_msg_regex("develop"), stdout)
         assert re.search(err_msg_regex("invalid_toml"), stdout)
 
@@ -328,6 +354,7 @@ class TestMaillist:
 
         def err_msg_regex(f, given_aud, mapped_given_aud, mapped_aud):
             return f"Maillist at '.*{f}.maillist.*' was given audience '{given_aud}' \\(maps to '{mapped_given_aud}'\\) but conflicts with the named audience '{mapped_aud}'. Maillist not added."
+
         stdout = capfd.readouterr().out
         assert set(retn["maillists"]) == self.available_maillists
 
@@ -339,30 +366,34 @@ class TestMaillist:
         assert ml["resolve_recipients"] == ["dev@test_apps.origen.org"]
         assert ml["audience"] == "development"
         assert ml["file"] == f
-        assert re.search(err_msg_regex(n, "other", "other", "development"), stdout)
+        assert re.search(err_msg_regex(n, "other", "other", "development"),
+                         stdout)
 
         n = "develop"
         ml = retn[n]
         f = self.app_ml_base.joinpath("develop.maillist")
         assert ml["name"] == n
         assert ml["resolve_recipients"] == [
-            "d1@test_apps.origen.org",
-            "d2@test_apps.origen.org",
-            "d3@test_apps.origen.org",
-            "d4@test_apps.origen.org"
+            "d1@test_apps.origen.org", "d2@test_apps.origen.org",
+            "d3@test_apps.origen.org", "d4@test_apps.origen.org"
         ]
         assert ml["audience"] == "development"
         assert ml["file"] == f
-        assert re.search(err_msg_regex(n, "prod", "production", "development"), stdout)
+        assert re.search(err_msg_regex(n, "prod", "production", "development"),
+                         stdout)
 
         n = "prod"
         ml = retn[n]
         f = self.app_ml_base.joinpath("prod.maillist.toml")
         assert ml["name"] == n
-        assert ml["resolve_recipients"] == ['prod1@test_apps.origen.org', 'prod2@test_apps.origen.org']
+        assert ml["resolve_recipients"] == [
+            'prod1@test_apps.origen.org', 'prod2@test_apps.origen.org'
+        ]
         assert ml["audience"] == "production"
         assert ml["file"] == f
-        assert re.search(err_msg_regex(n, "development", "development", "production"), stdout)
+        assert re.search(
+            err_msg_regex(n, "development", "development", "production"),
+            stdout)
 
     def test_redundant_audience_parameter(self):
         # This should be fine, albeit redundant
@@ -374,11 +405,13 @@ class TestMaillist:
         assert ml["name"] == "development"
         assert ml["resolve_recipients"] == ["u1_dev@redundant.org"]
         assert ml["audience"] == "development"
-        assert ml["file"] == self.config_tests_maillists_root.joinpath("redundant_audience/development.maillist.toml")
+        assert ml["file"] == self.config_tests_maillists_root.joinpath(
+            "redundant_audience/development.maillist.toml")
 
         # dev.toml -> set to production
         ml = retn["release"]
         assert ml["name"] == "release"
         assert ml["resolve_recipients"] == ["u1_release@redundant.org"]
         assert ml["audience"] == "production"
-        assert ml["file"] == self.config_tests_maillists_root.joinpath("redundant_audience/release.maillist.toml")
+        assert ml["file"] == self.config_tests_maillists_root.joinpath(
+            "redundant_audience/release.maillist.toml")
