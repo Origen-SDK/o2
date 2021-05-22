@@ -1,6 +1,6 @@
 // ******************************************************************************************
 // Generated
-//   Time: 2020-11-22 08:59:33.852978800 -06:00
+//   Time: 2021-05-22 14:26:31.859109500 -05:00
 //   By: nxa13790
 //   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\captures.py
 // ******************************************************************************************
@@ -54,12 +54,6 @@ repeat 2 > simple 0 X AA ;
  > simple 0 X XX ;
 // Capture next two cycles with symbol 'B' masking the second bit (portc)
 repeat 2 > simple 0 X BX ;
- > simple 0 X XX ;
-// Corner case: two captures stepping on each other
-// ---
-// (capture on portc with symbol 'A' is essentially ignored)
-// Capture on portc with symbol 'B'
-repeat 2 > simple 0 X BB ;
  > simple 0 X XX ;
 // Two captures with symbols
 // ---
@@ -177,6 +171,210 @@ repeat 2 > simple 1 L XX ;
  stv > simple 1 X XX ;
  stv > simple 1 X XX ;
  stv > simple 1 X XX ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple 1 X XX ;
+ > simple 1 0 XX ;
+// Capture 'reg1' with symbol 'A'
+// SWD: Write AP - AP: 0, Data: 0x23000012
+// SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+repeat 2 > simple 1 1 XX ;
+repeat 3 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+ > simple 1 X XX ;
+// SWD: Drive data
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 2 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 19 > simple 1 0 XX ;
+repeat 2 > simple 1 1 XX ;
+repeat 3 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 2 > simple 1 0 XX ;
+// SWD: Drive data's parity bit
+ > simple 1 1 XX ;
+// SWD: Write AP - AP: 4, Data: 0x0
+// SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+repeat 2 > simple 1 1 XX ;
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 3 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+ > simple 1 X XX ;
+// SWD: Drive data
+repeat 32 > simple 1 0 XX ;
+// SWD: Drive data's parity bit
+ > simple 1 0 XX ;
+// SWD: Verify AP - AP: 12, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple 1 1 XX ;
+repeat 2 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+// SWD: Verify data
+repeat 32 > simple 1 A XX ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple 1 X XX ;
+ > simple 1 0 XX ;
+// SWD: Verify DP - DP: 12, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
+ > simple 1 1 XX ;
+ > simple 1 0 XX ;
+repeat 4 > simple 1 1 XX ;
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+// SWD: Verify data
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+ stv > simple 1 A XX ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple 1 X XX ;
+ > simple 1 0 XX ;
+// Capture 'reg1' with symbol 'B' and mask 0xFFFF
+// SWD: Write AP - AP: 0, Data: 0x23000012
+// SWD: Header: host -> target (A: 0, ap_access: 1, verify: 0) 
+repeat 2 > simple 1 1 XX ;
+repeat 3 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+ > simple 1 X XX ;
+// SWD: Drive data
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 2 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 19 > simple 1 0 XX ;
+repeat 2 > simple 1 1 XX ;
+repeat 3 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 2 > simple 1 0 XX ;
+// SWD: Drive data's parity bit
+ > simple 1 1 XX ;
+// SWD: Write AP - AP: 4, Data: 0x0
+// SWD: Header: host -> target (A: 1, ap_access: 1, verify: 0) 
+repeat 2 > simple 1 1 XX ;
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+repeat 3 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+ > simple 1 X XX ;
+// SWD: Drive data
+repeat 32 > simple 1 0 XX ;
+// SWD: Drive data's parity bit
+ > simple 1 0 XX ;
+// SWD: Verify AP - AP: 12, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 1, verify: 1) 
+repeat 5 > simple 1 1 XX ;
+repeat 2 > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+// SWD: Verify data
+repeat 32 > simple 1 B XX ;
+// SWD: Ignoring parity bit on SWD READ operation
+repeat 2 > simple 1 X XX ;
+ > simple 1 0 XX ;
+// SWD: Verify DP - DP: 12, Data: 0x0
+// SWD: Header: host -> target (A: 3, ap_access: 0, verify: 1) 
+ > simple 1 1 XX ;
+ > simple 1 0 XX ;
+repeat 4 > simple 1 1 XX ;
+ > simple 1 0 XX ;
+ > simple 1 1 XX ;
+ > simple 1 X XX ;
+// SWD: Acknowledge Ok: target -> host
+ > simple 1 H XX ;
+repeat 2 > simple 1 L XX ;
+// SWD: Verify data
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
+ stv > simple 1 B XX ;
 // SWD: Ignoring parity bit on SWD READ operation
 repeat 2 > simple 1 X XX ;
  > simple 1 0 XX ;

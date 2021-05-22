@@ -7,8 +7,7 @@ use crate::error::Error;
 use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::testers::vector_based::api::{cycle, repeat, repeat2, repeat2_node};
-use crate::{node, Transaction, Capture, Overlay, TEST, Result};
-use num::integer;
+use crate::{node, Transaction, TEST, Result};
 
 use regex::Regex;
 
@@ -341,7 +340,7 @@ impl<'a> PinCollection<'a> {
     }
 
     /// Internal function to update all pins in this collection from a single PinAction
-    fn update_from_bit_actions(&self, bit_actions: &Vec<(String, bool, bool)>, overlay_str: &Option<String>) -> crate::Result<Vec<Node>> {
+    fn update_from_bit_actions(&self, bit_actions: &Vec<(String, bool, bool)>, _overlay_str: &Option<String>) -> crate::Result<Vec<Node>> {
         let mut action_nodes: Vec<Node> = vec![];
 
         let mut this_grp_nodes: Vec<Node> = vec![];
@@ -354,18 +353,18 @@ impl<'a> PinCollection<'a> {
                 let p = &self.pins[i];
 
                 let n = node!(PinAction, p.id, bit_action.0.to_string(), None);
-                let mut context_node: Option<Node> = None;
-                if bit_action.1 {
-                    // context_node = Some(node!(Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
-                }
-                if bit_action.2 {
-                    // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
-                    // if let Some(mut cnode) = context_node.as_mut() {
-                    //     cnode.add_child(capture_node);
-                    // } else {
-                    //     context_node = Some(capture_node);
-                    // }
-                }
+                let context_node: Option<Node> = None;
+                // if bit_action.1 {
+                //     // context_node = Some(node!(Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                // }
+                // if bit_action.2 {
+                //     // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                //     // if let Some(mut cnode) = context_node.as_mut() {
+                //     //     cnode.add_child(capture_node);
+                //     // } else {
+                //     //     context_node = Some(capture_node);
+                //     // }
+                // }
                 if let Some(mut cnode) = context_node {
                     cnode.add_child(n);
                     this_grp_nodes.push(cnode);
@@ -398,19 +397,19 @@ impl<'a> PinCollection<'a> {
                 let mut paction = p.action.write().unwrap();
                 *paction = PinAction::new(bit_action.0.to_string());
 
-                let mut context_node: Option<Node> = None;
+                let context_node: Option<Node> = None;
                 let n = node!(PinAction, p.id, bit_action.0.to_string(), None);
-                if bit_action.1 {
-                    // context_node = Some(node!(Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
-                }
-                if bit_action.2 {
-                    // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
-                    // if let Some(mut cnode) = context_node.as_mut() {
-                    //     cnode.add_child(capture_node);
-                    // } else {
-                    //     context_node = Some(capture_node);
-                    // }
-                }
+                // if bit_action.1 {
+                //     // context_node = Some(node!(Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                // }
+                // if bit_action.2 {
+                //     // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                //     // if let Some(mut cnode) = context_node.as_mut() {
+                //     //     cnode.add_child(capture_node);
+                //     // } else {
+                //     //     context_node = Some(capture_node);
+                //     // }
+                // }
                 if let Some(mut cnode) = context_node {
                     cnode.add_child(n);
                     action_nodes.push(cnode);
@@ -434,8 +433,8 @@ impl<'a> PinCollection<'a> {
     pub fn push_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
         let bit_actions = trans.to_symbols()?;
         let mut pin_states: Vec<Node> = vec![];
-        let capture_sym;
         if let Some(c) = &trans.capture {
+            let capture_sym;
             // Push the capture node and note if a custom character is given.
             // Masking will be resolved in trans.bit_actions function
             if let Some(s) = &c.symbol {
@@ -453,8 +452,6 @@ impl<'a> PinCollection<'a> {
                 },
                 None
             ));
-        } else {
-            capture_sym = None;
         }
 
         for (_idx, chunk) in bit_actions.chunks(self.pins.len()).enumerate() {
@@ -468,18 +465,18 @@ impl<'a> PinCollection<'a> {
                 if self.grp_ids.is_some() {
                     let p = &self.pins[pos];
                     let n = node!(PinAction, p.id, bit_action.0.to_string(), None);
-                    let mut context_node: Option<Node> = None;
-                    if bit_action.1 {
-                        // context_node = Some(node!(Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
-                    }
-                    if bit_action.2 {
-                        // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
-                        // if let Some(mut cnode) = context_node.as_mut() {
-                        //     cnode.add_child(capture_node);
-                        // } else {
-                        //     context_node = Some(capture_node);
-                        // }
-                    }
+                    let context_node: Option<Node> = None;
+                    // if bit_action.1 {
+                    //     // context_node = Some(node!(Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                    // }
+                    // if bit_action.2 {
+                    //     // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                    //     // if let Some(mut cnode) = context_node.as_mut() {
+                    //     //     cnode.add_child(capture_node);
+                    //     // } else {
+                    //     //     context_node = Some(capture_node);
+                    //     // }
+                    // }
                     if let Some(mut cnode) = context_node {
                         cnode.add_child(n);
                         this_grp_nodes.push(cnode);

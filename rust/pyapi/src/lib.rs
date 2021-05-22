@@ -132,7 +132,7 @@ fn unpack_transaction_options(
 ) -> PyResult<()> {
     if let Some(opts) = kwargs {
         if let Some(address) = opts.get_item("address") {
-            trans.address = Some(address.extract::<u128>()?);
+            trans.address = Some(address.extract::<BigUint>()?);
         }
         if let Some(w) = opts.get_item("address_width") {
             trans.address_width = Some(w.extract::<usize>()?);
@@ -150,19 +150,38 @@ fn unpack_transaction_options(
     Ok(())
 }
 
-// fn unpack_capture_kwargs(kwargs: Option<&PyDict>) -> PyResult<Option<origen::Capture>> {
-//     if let Some(opts) = kwargs {
-//         let mut c = origen::Capture::placeholder();
-//         if let Some(sym) = opts.get_item("symbol") {
-//             c.symbol = Some(sym.extract::<String>()?);
-//         }
-//         if let Some(enables) = opts.get_item("mask") {
-//             c.enables = Some(enables.extract::<BigUint>()?);
-//         }
-//     } else {
-//         None
-//     }
-// }
+fn unpack_capture_kwargs(
+    dut: &origen::Dut,
+    cap_trans: &mut origen::Capture,
+    kwargs: Option<&PyDict>,
+    pins_allowed: bool,
+    cycles_allowed: bool
+) -> PyResult<()> {
+    if let Some(opts) = kwargs {
+        if let Some(sym) = opts.get_item("symbol") {
+            cap_trans.symbol = Some(sym.extract::<String>()?);
+        }
+        if let Some(enables) = opts.get_item("mask") {
+            cap_trans.enables = Some(enables.extract::<BigUint>()?);
+        }
+        if let Some(cycles) = opts.get_item("cycles") {
+            if cycles_allowed {
+                cap_trans.cycles = Some(cycles.extract::<usize>()?);
+            } else {
+                return runtime_error!("'cycles' capture option is not valid in this context");
+            }
+        }
+        if let Some(pins) = opts.get_item("pins") {
+            if pins_allowed {
+                let pins_vec = pins.extract::<Vec<&PyAny>>()?;
+                cap_trans.pin_ids = Some(pins::vec_to_ppin_ids(&dut, pins_vec)?);
+            } else {
+                return runtime_error!("'pins' capture option is not valid in this context");
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Unpacks/extracts common transaction options, updating the transaction directly
 /// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
@@ -226,7 +245,11 @@ fn resolve_transaction(
         match a {
             origen::TransactionAction::Write => trans = value.to_write_transaction(&dut)?,
             origen::TransactionAction::Verify => trans = value.to_verify_transaction(&dut)?,
-            origen::TransactionAction::Capture => trans = value.to_capture_transaction(&dut)?,
+            origen::TransactionAction::Capture => {
+                trans = value.to_capture_transaction(&dut)?;
+                unpack_capture_kwargs(&dut, &mut trans.capture.as_mut().unwrap(), kwargs, false, false)?;
+                return Ok(trans);
+            },
             _ => {
                 return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
                     "Resolving transactions for {:?} is not supported",
@@ -242,7 +265,7 @@ fn resolve_transaction(
     if let Some(opts) = kwargs {
         if let Some(address) = opts.get_item("address") {
             if !address.is_none() {
-                trans.address = Some(address.extract::<u128>()?);
+                trans.address = Some(address.extract::<BigUint>()?);
             }
         }
         if let Some(w) = opts.get_item("address_width") {

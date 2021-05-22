@@ -395,21 +395,13 @@ impl PyTester {
         {
             if let Some(p) = pins {
                 let dut = origen::dut();
-                // let t = PyTuple::new(py, p);
                 pin_ids = Some(vec_to_ppin_ids(&dut, p)?);
-
-                // let gil = Python::acquire_gil();
-                // let py = gil.python();
-                // let t = PyTuple::new(py, p);
-                // let pin_lookups = pins_to_backend_lookup_fields(py, t)?;
-                // let flat_pins = dut._resolve_to_flattened_pins(&pin_lookups)?; 
-                // pin_ids = Some(flat_pins.iter().map(|p| p.id).collect::<Vec<usize>>());
             } else {
                 pin_ids = None
             }
         }
         {
-            let mut tester = origen::tester();
+            let tester = origen::tester();
             tester.overlay(&origen::Overlay::new(
                 label,
                 symbol,
@@ -417,19 +409,6 @@ impl PyTester {
                 mask,
                 pin_ids
             )?)?;
-            // tester.overlay(
-            //     overlay_str,
-            //     overlay_symbol,
-            //     {
-            //         if let Some(p) = pins {
-
-            //         } else {
-            //             vec![]
-            //         }
-            //     },
-            //     cycles,
-            //     mask
-            // )?;
         }
         slf.issue_callbacks("overlay")?;
         Ok(slf.into())
@@ -446,6 +425,7 @@ impl PyTester {
         let pin_ids;
         {
             if let Some(p) = pins {
+                crate::dut::PyDUT::ensure_pins("dut")?;
                 let dut = origen::dut();
                 pin_ids = Some(vec_to_ppin_ids(&dut, p)?);
             } else {
@@ -453,7 +433,7 @@ impl PyTester {
             }
         }
         {
-            let mut tester = origen::tester();
+            let tester = origen::tester();
             tester.capture(&origen::Capture::new(
                 symbol,
                 cycles,

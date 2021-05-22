@@ -94,18 +94,22 @@ impl PinCollection {
         Ok(())
     }
 
-    fn capture(&mut self) -> PyResult<()> {
-        let dut = DUT.lock().unwrap();
-        self.pin_collection
-            .update(&dut, &Transaction::new_capture(self.pin_collection.len(), None)?)?;
-        Ok(())
-    }
-
     fn highz(&mut self) -> PyResult<()> {
         let dut = DUT.lock().unwrap();
         self.pin_collection
             .update(&dut, &Transaction::new_highz(self.pin_collection.len())?)?;
         Ok(())
+    }
+
+    #[args(symbol="None", cycles="None", mask="None")]
+    fn capture(
+        slf: PyRef<Self>,
+        symbol: Option<String>,
+        cycles: Option<usize>,
+        mask: Option<BigUint>
+    ) -> PyResult<Py<Self>> {
+        slf.pin_collection.capture(&mut origen::Capture::placeholder(symbol, cycles, mask))?;
+        Ok(slf.into())
     }
 
     fn reset(&mut self) -> PyResult<()> {
@@ -176,6 +180,12 @@ impl PinCollection {
             Some(&locals),
         )?;
         Ok(slf.into())
+    }
+
+    #[getter]
+    #[allow(non_snake_case)]
+    fn get___origen_pin_ids__(&self) -> PyResult<Vec<usize>> {
+        Ok(self.pin_collection.pin_ids.clone())
     }
 }
 

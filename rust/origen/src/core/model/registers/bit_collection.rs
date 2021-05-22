@@ -463,7 +463,7 @@ impl<'a> BitCollection<'a> {
             let bits = reg.bits(dut);
             let mut t = Transaction::new_verify(bits.data()?, reg.size)?;
             t.reg_id = Some(id);
-            t.address = Some(reg.address(dut, None)?);
+            t.address = Some(BigUint::from(reg.address(dut, None)?));
             t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = bits.verify_enables();
             let captures = bits.capture_enables();
@@ -537,7 +537,7 @@ impl<'a> BitCollection<'a> {
             let bits = reg.bits(dut);
             let mut t = Transaction::new_write(bits.data()?, reg.size)?;
             t.reg_id = Some(id);
-            t.address = Some(reg.address(dut, None)?);
+            t.address = Some(BigUint::from(reg.address(dut, None)?));
             t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = Transaction::enable_of_width(reg.size)?;
             t.overlay_enable = Some(bits.overlay_enables());
@@ -559,7 +559,7 @@ impl<'a> BitCollection<'a> {
                 Some(bits.capture_enables())
             )?;
             t.reg_id = Some(id);
-            t.address = Some(reg.address(dut, None)?);
+            t.address = Some(BigUint::from(reg.address(dut, None)?));
             t.address_width = Some(reg.width(&dut)? as usize);
             t.overlay_enable = Some(bits.overlay_enables());
             t.overlay_string = bits.get_overlay()?;

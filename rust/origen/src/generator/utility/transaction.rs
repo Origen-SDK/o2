@@ -4,10 +4,11 @@ use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Error, Metadata, Result, Capture, Overlay};
+use crate::{Error, Metadata, Result, Capture};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
+use num_traits::ToPrimitive;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
@@ -22,7 +23,7 @@ pub enum Action {
 pub struct Transaction {
     pub action: Option<Action>, // Can keep this as None for a generalized transaction
     pub reg_id: Option<Id>,
-    pub address: Option<u128>,
+    pub address: Option<BigUint>,
     pub address_width: Option<usize>,
     pub width: usize,
     pub data: BigUint,
@@ -74,7 +75,7 @@ impl Transaction {
 
     pub fn new_write_with_addr(data: BigUint, width: usize, addr: u128) -> Result<Self> {
         let mut t = Self::new_write(data, width)?;
-        t.address = Some(addr);
+        t.address = Some(BigUint::from(addr));
         Ok(t)
     }
 
@@ -179,8 +180,11 @@ impl Transaction {
     }
 
     pub fn addr(&self) -> Result<u128> {
-        match self.address {
-            Some(a) => Ok(a),
+        match self.address.as_ref() {
+            Some(a) => match a.to_u128() {
+                Some(addr) => Ok(addr),
+                None => error!("Could not convert value {:?} to u128", a)
+            },
             None => Err(Error::new(&format!(
                 "Tried to retrieve address from transaction {:?}, but an address has not be set",
                 self
@@ -230,8 +234,8 @@ impl Transaction {
         let t = BigUint::from(1 as u8);
 
         let big0 = BigUint::from(0 as u8);
-        let mut overlays = self.overlay_enable.as_ref().unwrap_or(&big0);
-        let mut captures;
+        let overlays = self.overlay_enable.as_ref().unwrap_or(&big0);
+        let captures;
         if let Some(c) = &self.capture {
             if let Some(cap_enables) = &c.enables {
                 captures = cap_enables.clone();
@@ -297,7 +301,7 @@ impl Transaction {
         Ok(Self {
             action: self.action.clone(),
             reg_id: self.reg_id.clone(),
-            address: self.address,
+            address: self.address.clone(),
             address_width: None,
             width: self.width,
             data: self.data.clone(),
@@ -328,7 +332,7 @@ impl Transaction {
         } else {
             return Err(Error::new("Could not create transaction from address as this transaction does not supply an address width nor was a default one provided"));
         }
-        t.data = BigUint::from(self.address.unwrap());
+        t.data = BigUint::from(self.address.as_ref().unwrap().clone());
         t.bit_enable = Self::enable_of_width(t.width)?;
         t.action = Some(Action::Write);
         Ok(t)

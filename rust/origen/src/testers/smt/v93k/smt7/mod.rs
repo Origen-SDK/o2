@@ -4,7 +4,7 @@ use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
 use crate::{Result, DUT};
 use crate::generator::ast::{Attrs, Node};
-use crate::generator::processor::{Processor, Return};
+use crate::generator::processor::{Return};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -69,24 +69,23 @@ impl VectorBased for SMT7 {
     fn override_node(&self, renderer: &mut Renderer, node: &Node) -> Option<Result<Return>> {
         match &node.attrs {
             Attrs::Capture(capture, _metadata) => {
-                match capture.enabled_capture_pins() {
-                    Ok(ids) => {
-                        for pin in ids.iter() {
-                            if let Some(sym) = capture.symbol.as_ref() {
-                                renderer.capturing.insert(
-                                    Some(*pin),
-                                    capture.symbol.clone()
-                                );
-                            } else {
-                                renderer.capturing.insert(
-                                    Some(*pin),
-                                    Some(crate::standards::actions::CAPTURE.to_string())
-                                );
-                            }
+                if let Ok(ids) = capture.enabled_capture_pins() {
+                    for pin in ids.iter() {
+                        if let Some(_) = capture.symbol.as_ref() {
+                            renderer.capturing.insert(
+                                Some(*pin),
+                                capture.symbol.clone()
+                            );
+                        } else {
+                            renderer.capturing.insert(
+                                Some(*pin),
+                                Some(crate::standards::actions::CAPTURE.to_string())
+                            );
                         }
-                        Some(Ok(Return::Unmodified))
-                    },
-                    Err(e) => None
+                    }
+                    Some(Ok(Return::Unmodified))
+                } else {
+                    None
                 }
             }
             _ => None

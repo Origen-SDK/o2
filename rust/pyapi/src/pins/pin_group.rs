@@ -52,7 +52,7 @@ impl PinGroup {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
         let mut t = Transaction::new_write(data, grp.len())?;
-        unpack_pin_transaction_kwargs(&mut t, kwargs);
+        unpack_pin_transaction_kwargs(&mut t, kwargs)?;
         grp.update(&dut, &t)?;
         Ok(slf.into())
     }
@@ -188,6 +188,22 @@ impl PinGroup {
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
         grp.capture(&mut origen::Capture::placeholder(symbol, cycles, mask))?;
         Ok(slf.into())
+    }
+
+    #[getter]
+    #[allow(non_snake_case)]
+    fn get___origen_id__(&self) -> PyResult<usize> {
+        let dut = DUT.lock().unwrap();
+        let grp = dut._get_pin_group(self.model_id, &self.name)?;
+        Ok(grp.id)
+    }
+
+    #[getter]
+    #[allow(non_snake_case)]
+    fn get___origen_pin_ids__(&self) -> PyResult<Vec<usize>> {
+        let dut = DUT.lock().unwrap();
+        let grp = dut._get_pin_group(self.model_id, &self.name)?;
+        Ok(grp.pin_ids.clone())
     }
 }
 

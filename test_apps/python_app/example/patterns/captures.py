@@ -38,15 +38,6 @@ with Pattern(pin_header="cap_test") as pat:
     portc.capture(cycles=2, symbol="B", mask=0x2).repeat(2)
     tester.cycle()
 
-    tester.cc("Corner case: two captures stepping on each other")
-    tester.cc("---")
-    tester.cc("(capture on portc with symbol 'A' is essentially ignored)")
-    portc.capture(cycles=2, symbol="A")
-    tester.cc("Capture on portc with symbol 'B'")
-    portc.capture(cycles=2, symbol="B")
-    tester.repeat(2)
-    tester.cycle()
-
     tester.cc("Two captures with symbols")
     tester.cc("---")
     tester.cc("This however, is fine.")
@@ -59,10 +50,10 @@ with Pattern(pin_header="cap_test") as pat:
     tester.cc("---")
     tester.cc("Capture 'reg1'")
     reg.capture()
-    # tester.cc("Capture 'reg1' with symbol '0'")
-    # reg.capture(symbol='A')
-    # tester.cc("Capture 'reg1' with symbol '0' and mask 0xFFFF")
-    # reg.capture(mask=0xFFFF, symbol='A')
+    tester.cc("Capture 'reg1' with symbol 'A'")
+    reg.capture(symbol='A')
+    tester.cc("Capture 'reg1' with symbol 'B' and mask 0xFFFF")
+    reg.capture(mask=0xFFFF, symbol='B')
 
     # tester.cc("Verify with capture options")
     # tester.cc("---")
@@ -83,4 +74,16 @@ with Pattern(pin_header="cap_test") as pat:
     reg.clear_capture()
     tester.cc("This should not be captured")
     reg.verify()
+
+    # Changing capture configuration
+    # with tester.eq("v93k") as v93k:
+    #     tester.cc("V93K NODE!!")
+    #     tester.cycle()
+    # tester.capture_config.digcap.method = "digcap"
+    # tester.capture_config.symbol = "E"
+    # tester.capture(cycles=4)
+    # tester.capture_config.digcap.method = None
+    # tester.capture_config.symbol = None
+    # tester.capture(cycles=4)
+
     # To Do: Capture with Options

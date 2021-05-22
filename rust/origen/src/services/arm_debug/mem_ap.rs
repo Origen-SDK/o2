@@ -1,6 +1,5 @@
 use super::super::super::services::Service;
 use crate::core::model::pins::PinCollection;
-use crate::core::model::registers::BitCollection;
 use crate::Transaction;
 use crate::{add_reg_32bit, field, get_reg, some_hard_reset_val, Dut, Error, Result, TEST};
 use num_bigint::BigUint;
@@ -271,13 +270,13 @@ impl MemAP {
                     self.prep_for_transfer(&trans, dut, services)?;
 
                     if jtag_dp.is_some() {
-                        trans.address = Some(0xC);
+                        trans.address = Some(BigUint::from(0xC as u32));
                         jtag_dp
                             .unwrap()
                             .verify_ap(dut, services, trans.to_dummy()?, true)?;
                         crate::testers::vector_based::api::repeat(100);
 
-                        trans.address = Some(0xC);
+                        trans.address = Some(BigUint::from(0xC as u32));
                         jtag_dp.unwrap().verify_dp(dut, services, trans, false)?;
                     } else {
                         let swdio = PinCollection::from_group(
@@ -285,11 +284,11 @@ impl MemAP {
                             &swd.unwrap().swdio.0,
                             swd.unwrap().swdio.1,
                         )?;
-                        trans.address = Some(0xC); // DRW
+                        trans.address = Some(BigUint::from(0xC as u32)); // DRW
                         swd.unwrap()
                             .verify_ap(dut, trans.to_dummy()?, crate::swd_ok!(), None)?;
                         swdio.drive_low().cycle();
-                        trans.address = Some(0xC); // RDBUFF
+                        trans.address = Some(BigUint::from(0xC as u32)); // RDBUFF
                         swd.unwrap().verify_dp(dut, trans, crate::swd_ok!(), None)?;
                         swdio.drive_low().cycle();
                     }

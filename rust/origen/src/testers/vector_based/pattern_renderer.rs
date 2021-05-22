@@ -4,8 +4,7 @@ use crate::core::model::pins::StateTracker;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::STATUS;
-use crate::{Result, DUT, Capture};
-use indexmap::IndexMap;
+use crate::{Result, DUT};
 use std::path::PathBuf;
 use std::collections::HashMap;
 
@@ -184,7 +183,7 @@ impl<'a> Processor for Renderer<'a> {
                 return self.update_states(grp_id, &vec![action.clone()], &dut);
             }
             Attrs::Capture(capture, _metadata) => {
-                if let Some(pids) = capture.pin_ids.as_ref() {
+                if capture.pin_ids.is_some() {
                     for pin in capture.enabled_capture_pins()? {
                         self.capturing.insert(Some(pin), capture.symbol.clone());
                     }
@@ -236,6 +235,12 @@ impl<'a> Processor for Renderer<'a> {
                 Ok(Return::Unmodified)
             }
             Attrs::PatternEnd => {
+                // Raise an error is any leftover captures remain
+                if !self.capturing.is_empty() {
+                    return error!(
+                        "Pattern end reached but requested captures still remain"
+                    );
+                }
                 match self.tester.print_pattern_end(self) {
                     Some(end) => {
                         self.output_file.as_mut().unwrap().write_ln(&end?);

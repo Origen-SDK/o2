@@ -83,12 +83,26 @@ impl Processor for UnpackCaptures {
                 let cycles = capture.cycles.unwrap_or(1);
                 if let Some(pids) = capture.pin_ids.as_ref() {
                     for pin in pids.iter() {
+                        if self.capturing.contains_key(&Some(*pin)) {
+                            // Already capturing this pin. Raise an error.
+                            return error!(
+                                "Capture requested on pin '{}' but this pin is already capturing",
+                                {
+                                    let dut = crate::dut();
+                                    let p = &dut.pins[*pin];
+                                    p.name.clone()
+                                }
+                            );
+                        }
                         self.capturing.insert(Some(*pin), (cycles, capture.symbol.clone()));
                         if cycles < self.least_cycles_remaining {
                             self.least_cycles_remaining = cycles;
                         }
                     }
                 } else {
+                    if self.capturing.contains_key(&None) {
+                        return error!("Generic capture is already occurring. Cannot initiate another capture");
+                    }
                     self.capturing.insert(None, (cycles, capture.symbol.clone()));
                 }
                 Ok(Return::Unmodified)

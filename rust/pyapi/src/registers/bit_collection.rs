@@ -528,6 +528,7 @@ impl BitCollection {
         Ok(self.clone())
     }
 
+    // #[args(kwargs = "**")]
     fn set_capture(&self) -> PyResult<BitCollection> {
         self.materialize(&origen::dut())?.capture();
         Ok(self.clone())
@@ -991,7 +992,7 @@ impl BitCollection {
         Ok(slf.into())
     }
 
-    #[args(_kwargs = "**")]
+    #[args(kwargs = "**")]
     fn capture(slf: &PyCell<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         // let bc = slf.extract::<PyRef<Self>>()?;
         // bc.capture();
