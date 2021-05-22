@@ -1,0 +1,3 @@
+mailer__maillists_dirs = [
+    "./maillists/errors/conflicting_audiences",
+]

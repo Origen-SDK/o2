@@ -46,16 +46,21 @@ macro_rules! extract_pinactions {
 /// Note that this represents the pin values **at that instant** and will **not** reflect changes
 /// that occur to the underlying pins:
 ///
-/// >> # From the above
-/// >> state = pins.actions
-///    => HHLL
-/// >> pins.data = "0xF"
-/// >> pins.drive()
-/// >> pins.actions
-///    #=> "1111"
-/// >> state
-///    #=> HHLL
+/// .. code:: python
 ///
+///     # From the above
+///     state = pins.actions
+///         #=> HHLL
+///
+/// .. code:: python
+///
+///     pins.data = "0xF"
+///     pins.drive()
+///     pins.actions
+///         #=> "1111"
+///
+/// >> state
+///    => HHLL
 pub struct PinActions {
     pub actions: Vec<OrigenPinAction>,
 }

@@ -110,3 +110,62 @@ impl std::convert::From<std::string::String> for Error {
         Error::new(&err)
     }
 }
+
+impl std::convert::From<lettre::address::AddressError> for Error {
+    fn from(err: lettre::address::AddressError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<toml::de::Error> for Error {
+    fn from(err: toml::de::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<num_bigint::ParseBigIntError> for Error {
+    fn from(err: num_bigint::ParseBigIntError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<ldap3::LdapError> for Error {
+    fn from(err: ldap3::LdapError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<aes_gcm::Error> for Error {
+    fn from(err: aes_gcm::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::string::FromUtf8Error> for Error {
+    fn from(err: std::string::FromUtf8Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<keyring::KeyringError> for Error {
+    fn from(err: keyring::KeyringError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+// On failure, the original OS string is returned
+// https://doc.rust-lang.org/std/ffi/struct.OsString.html#method.into_string
+impl std::convert::From<std::ffi::OsString> for Error {
+    fn from(os_string: std::ffi::OsString) -> Self {
+        Error::new(&format!(
+            "Unable to convert OsString {:?} to String",
+            os_string
+        ))
+    }
+}
+
+impl std::convert::From<config::ConfigError> for Error {
+    fn from(err: config::ConfigError) -> Self {
+        Error::new(&err.to_string())
+    }
+}

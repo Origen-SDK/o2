@@ -76,6 +76,16 @@ class Base(_origen.application.PyApplication):
         ''' An alias for app_dir '''
         return self._app_dir
 
+    @property
+    def session(self):
+        ''' Return this app's session store'''
+        return origen.session_store.app_session(self)
+
+    @property
+    def user_session(self):
+        ''' Return this app's user session store'''
+        return origen.session_store.user_session(self)
+
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()

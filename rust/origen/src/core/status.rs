@@ -418,6 +418,10 @@ impl Status {
             f(dir.as_ref())
         }
     }
+
+    // pub fn current_user(&self) -> &User {
+    //     &self._current_user.read().unwrap()
+    // }
 }
 
 pub fn search_for_from_pwd(paths: Vec<&str>, searching_for_app: bool) -> (bool, PathBuf) {
@@ -462,7 +466,7 @@ pub fn search_for(paths: Vec<&str>, searching_for_app: bool, base: &Path) -> (bo
     }
 }
 
-fn get_home_dir() -> PathBuf {
+pub fn get_home_dir() -> PathBuf {
     if cfg!(windows) {
         PathBuf::from(env::var("USERPROFILE").expect("Please set environment variable USERPROFILE to point to your home directory, then try again"))
     } else {

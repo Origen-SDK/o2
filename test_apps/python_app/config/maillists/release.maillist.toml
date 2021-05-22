@@ -1,0 +1,9 @@
+recipients = [
+    "r1",
+    "r2",
+    "r3",
+    "r4",
+]
+
+signature = "You are received this as a recipient of the 'release' maillist!"
+domain = "release.origen.org"

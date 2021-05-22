@@ -8,6 +8,7 @@ _origen.pyd
 log/
 .vscode
 /test_apps/python_app/example/templates/dut_info.txt
+/test_apps/**/.session
 /python/dist
 rls/
 

@@ -12,6 +12,10 @@ pub mod macros;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
+#[macro_use]
+extern crate cfg_if;
+#[macro_use]
+extern crate enum_display_derive;
 
 pub mod core;
 pub mod error;
@@ -26,6 +30,7 @@ pub mod utility;
 
 pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
+pub use self::core::user;
 pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
@@ -38,12 +43,17 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::{Capture, Overlay, Tester};
+use self::core::user::Users;
 use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use utility::ldap::LDAPs;
+use utility::mailer::Mailer;
+use utility::session_store::{SessionStore, Sessions};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -79,8 +89,10 @@ lazy_static! {
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
-    /// Provides info about the current user
-    pub static ref USER: User = User::current();
+    pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
+    pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
+    pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
+    pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new());
 }
 
 impl PartialEq<AST> for TEST {
@@ -165,6 +177,66 @@ pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
 }
 
+pub fn sessions() -> MutexGuard<'static, Sessions> {
+    SESSIONS.lock().unwrap()
+}
+
+pub fn with_user_session<T, F>(session: Option<String>, mut func: F) -> Result<T>
+where
+    F: FnMut(&mut SessionStore) -> Result<T>,
+{
+    let mut sessions = crate::sessions();
+    let s = sessions.user_session(session)?;
+    func(s)
+}
+
+pub fn ldaps() -> MutexGuard<'static, LDAPs> {
+    LDAPS.lock().unwrap()
+}
+
+pub fn users<'a>() -> RwLockReadGuard<'a, Users> {
+    USERS.read().unwrap()
+}
+
+pub fn users_mut<'a>() -> RwLockWriteGuard<'a, Users> {
+    USERS.write().unwrap()
+}
+
+pub fn with_current_user<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&User) -> Result<T>,
+{
+    let _users = users();
+    let u = _users.current_user()?;
+    func(u)
+}
+
+pub fn with_user<T, F>(user: &str, mut func: F) -> Result<T>
+where
+    F: FnMut(&User) -> Result<T>,
+{
+    let _users = users();
+    let u = _users.user(user).unwrap();
+    func(u)
+}
+
+pub fn with_user_mut<T, F>(user: &str, mut func: F) -> Result<T>
+where
+    F: FnMut(&mut User) -> Result<T>,
+{
+    let mut _users = users_mut();
+    let u = _users.user_mut(user).unwrap();
+    func(u)
+}
+
+pub fn mailer<'a>() -> RwLockReadGuard<'a, Mailer> {
+    MAILER.read().unwrap()
+}
+
+pub fn mailer_mut<'a>() -> RwLockWriteGuard<'a, Mailer> {
+    MAILER.write().unwrap()
+}
+
 /// Execute the given function with a reference to the current job.
 /// Returns an error if there is no current job, otherwise the result of the given function.
 pub fn with_current_job<T, F>(mut func: F) -> Result<T>
@@ -238,5 +310,28 @@ pub fn start_new_test(name: Option<String>) {
         TEST.start(&name);
     } else {
         TEST.start("ad-hoc");
+    }
+}
+
+#[cfg(all(test, not(origen_skip_frontend_tests)))]
+mod tests {
+    pub fn run_python(code: &str) -> crate::Result<()> {
+        let mut c = std::process::Command::new("origen");
+        c.arg("exec");
+        c.arg("python");
+        c.arg("-c");
+        c.arg(&format!("import origen; {}", code));
+        // Assume we're in the root of the Origen rust package
+        let mut f = std::env::current_dir().unwrap();
+        f.pop();
+        f.pop();
+        f.push("test_apps/python_app");
+        c.current_dir(f);
+        let res = c.output().unwrap();
+        println!("status: {}", res.status);
+        println!("{:?}", std::str::from_utf8(&res.stdout).unwrap());
+        println!("{:?}", std::str::from_utf8(&res.stderr).unwrap());
+        assert_eq!(res.status.success(), true);
+        Ok(())
     }
 }

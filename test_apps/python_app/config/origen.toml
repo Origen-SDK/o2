@@ -12,3 +12,64 @@
 # or here, if you need to use different urls for push and pull (write and read):
 #pkg_server_push = "https://pkgs.company.net:9292"
 #pkg_server_pull = "https://pkgs.company.net:9292"
+
+### Dummy Mailer Setup ###
+mailer__server = "smtp.origen.org"
+mailer__port = 25
+mailer__auth_method = "None"
+mailer__domain = "origen.org"
+mailer__auth__service_user = "forumsys_read_only"
+mailer__timeout_seconds = 120
+
+### Users Setup ###
+# Various items to customize user data
+#
+# If any datasets are available, selects which is the default
+user__data_lookup_hierarchy = ["test", "backup"]
+user__password_cache_option = "none"
+# Allows passwords to be stored in the user's session store
+#
+# User datasets allow for single user to be "registered" in multiple systems
+[user__datasets]
+[user__datasets.test]
+[user__datasets.test2]
+[user__datasets.backup]
+[user__datasets.forumsys]
+data_source = "ldap"
+data_lookup = "forumsys" # Corresponds to LDAP name
+data_id = "uid"
+data_service_user = "forumsys_read_only"
+try_password = true
+auto_populate = false
+[user__datasets.git]
+data_source = "git"
+auto_populate = false
+
+# When a password is requested for the given reason, will select the appropriate dataset
+[user__password_reasons]
+"just because" = "test2"
+
+[user__dataset_mappings]
+[user__dataset_mappings.forumsys]
+email = "mail"
+# username = "userPrincipalName"
+last_name = "sn"
+# display_name = "cn"
+uid = "uid"
+full_name = "cn"
+
+# LDAP configuration
+# Test server:
+# https://www.forumsys.com/tutorials/integration-how-to/ldap/online-ldap-test-server/
+[ldaps]
+[ldaps.forumsys]
+server = "ldap://ldap.forumsys.com:389"
+base = "dc=example,dc=com"
+auth = "simple_bind"
+service_user = "forumsys_read_only"
+
+# Service/functional accounts
+[service_users]
+[service_users.forumsys_read_only]
+username = "cn=read-only-admin,dc=example,dc=com"
+password = "password"

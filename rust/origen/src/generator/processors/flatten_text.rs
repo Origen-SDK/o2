@@ -2,7 +2,7 @@ use chrono::prelude::*;
 
 use crate::generator::ast::*;
 use crate::generator::processor::*;
-use crate::{app, STATUS, USER};
+use crate::{app, STATUS};
 
 /// Flattens nested text, textlines, text sections, etc. into 'text' types.
 /// Also evaluates text placeholder or shorthand nodes, such User, Timestamp, etc.
@@ -101,13 +101,16 @@ impl Processor for FlattenText {
             }
             Attrs::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
             Attrs::User => {
-                if let Some(name) = USER.name() {
-                    self.current_line += &name;
-                } else if let Some(id) = USER.id() {
-                    self.current_line += &id;
-                } else {
-                    self.current_line += "Unknown";
-                }
+                if let Err(e) = crate::with_current_user(|u| {
+                    self.current_line += &u.username()?;
+                    Ok(())
+                }) {
+                    // Don't kill the pattern/program generation because the user ID isn't retrievable.
+                    // Just be annoying about it.
+                    crate::display_redln!("Unable to retrieve current user ID");
+                    crate::display_redln!("Failed with error: \"{}\"", e.msg);
+                    self.current_line += "Error - Could not retrieve current user ID";
+                };
                 Ok(Return::None)
             }
             Attrs::Timestamp => {

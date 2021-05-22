@@ -19,14 +19,15 @@ mod prog_gen;
 mod standard_sub_blocks;
 mod tester;
 mod tester_apis;
+mod user;
 mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::Path;
 use std::str::FromStr;
@@ -43,12 +44,14 @@ use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
 use tester_apis::PyInit_tester_apis;
+use user::PyInit_users;
 use utility::location::Location;
 use utility::PyInit_utility;
 
 #[macro_export]
 macro_rules! pypath {
     ($py:expr, $path:expr) => {{
+        use pyo3::types::IntoPyDict;
         let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
         let obj = $py.eval(
             &format!("pathlib.Path(r\"{}\").resolve()", $path),
@@ -100,6 +103,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(tester_apis))?;
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
+    m.add_wrapped(wrap_pymodule!(users))?;
     Ok(())
 }
 
@@ -552,4 +556,15 @@ macro_rules! runtime_error {
     ($message:expr) => {{
         Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>($message))
     }};
+}
+
+pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
+    let pickle = PyModule::import(py, "pickle")?;
+    pickle.call1("dumps", (object,))?.extract::<Vec<u8>>()
+}
+
+pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
+    let pickle = PyModule::import(py, "pickle")?;
+    let bytes = PyBytes::new(py, object);
+    pickle.call1("loads", (bytes,))
 }

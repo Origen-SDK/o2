@@ -70,8 +70,8 @@ fn check_for_jtag() -> PyResult<Option<usize>> {
 
 #[pyclass(subclass)]
 #[derive(Clone)]
-/// Backend controller connecting the :link-to:`origen.standard_sub_blocks.ArmDebug` view
-/// with the :link-to:`origen::standard_sub_blocks::ArmDebug` model.
+/// Controller connecting the :class:`origen.blocks.arm_debug.controller.Controller` view
+/// with the :link-to:`backend model <backend_arm_debug_model>`.
 /// The controller here is responsible for instantiating and initializing the
 /// ArmDebug model.
 pub struct ArmDebug {
