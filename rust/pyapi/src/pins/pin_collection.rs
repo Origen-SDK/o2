@@ -5,8 +5,8 @@ use num_bigint::BigUint;
 use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
-use origen::{Transaction, TransactionAction};
 use origen::{dut, DUT};
+use origen::{Transaction, TransactionAction};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
@@ -58,8 +58,10 @@ impl PinCollection {
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
-        slf.pin_collection
-            .update(&dut, &extract_pin_transaction(actions, TransactionAction::Set, kwargs)?)?;
+        slf.pin_collection.update(
+            &dut,
+            &extract_pin_transaction(actions, TransactionAction::Set, kwargs)?,
+        )?;
         Ok(slf.into())
     }
 
@@ -101,14 +103,15 @@ impl PinCollection {
         Ok(())
     }
 
-    #[args(symbol="None", cycles="None", mask="None")]
+    #[args(symbol = "None", cycles = "None", mask = "None")]
     fn capture(
         slf: PyRef<Self>,
         symbol: Option<String>,
         cycles: Option<usize>,
-        mask: Option<BigUint>
+        mask: Option<BigUint>,
     ) -> PyResult<Py<Self>> {
-        slf.pin_collection.capture(&mut origen::Capture::placeholder(symbol, cycles, mask))?;
+        slf.pin_collection
+            .capture(&mut origen::Capture::placeholder(symbol, cycles, mask))?;
         Ok(slf.into())
     }
 

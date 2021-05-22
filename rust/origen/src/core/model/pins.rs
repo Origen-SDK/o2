@@ -7,7 +7,7 @@ use crate::error::Error;
 use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::testers::vector_based::api::{cycle, repeat, repeat2, repeat2_node};
-use crate::{node, Transaction, TEST, Result};
+use crate::{node, Result, Transaction, TEST};
 
 use regex::Regex;
 
@@ -340,7 +340,11 @@ impl<'a> PinCollection<'a> {
     }
 
     /// Internal function to update all pins in this collection from a single PinAction
-    fn update_from_bit_actions(&self, bit_actions: &Vec<(String, bool, bool)>, _overlay_str: &Option<String>) -> crate::Result<Vec<Node>> {
+    fn update_from_bit_actions(
+        &self,
+        bit_actions: &Vec<(String, bool, bool)>,
+        _overlay_str: &Option<String>,
+    ) -> crate::Result<Vec<Node>> {
         let mut action_nodes: Vec<Node> = vec![];
 
         let mut this_grp_nodes: Vec<Node> = vec![];
@@ -973,12 +977,7 @@ impl Dut {
     }
 
     /// Given a pin or alias name, finds either its name or alias in the group.
-    pub fn index_of(
-        &self,
-        model_id: usize,
-        name: &str,
-        query_name: &str,
-    ) -> Result<Option<usize>> {
+    pub fn index_of(&self, model_id: usize, name: &str, query_name: &str) -> Result<Option<usize>> {
         if !self.models[model_id].pin_groups.contains_key(name) {
             // Pin group doesn't exists. Raise an error.
             return Err(Error::new(&format!(
@@ -1036,11 +1035,7 @@ impl Dut {
         }
     }
 
-    pub fn verify_action_string_fits(
-        &self,
-        width: u32,
-        action_string: &Vec<u8>,
-    ) -> Result<()> {
+    pub fn verify_action_string_fits(&self, width: u32, action_string: &Vec<u8>) -> Result<()> {
         if action_string.len() != (width as usize) {
             Err(Error::new(&format!(
                 "Action string of length {} must match width {}!",
@@ -1096,10 +1091,7 @@ impl Dut {
         Ok(retn)
     }
 
-    pub fn _resolve_to_flattened_pins(
-        &self,
-        pins: &Vec<(usize, String)>,
-    ) -> Result<Vec<&Pin>> {
+    pub fn _resolve_to_flattened_pins(&self, pins: &Vec<(usize, String)>) -> Result<Vec<&Pin>> {
         let mut retn: Vec<&Pin> = vec![];
         for lookup in pins.iter() {
             let mut ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
@@ -1218,7 +1210,7 @@ impl StateTracker {
         target: String,
         dut: &Dut,
         t: &super::timesets::timeset::Timeset,
-        overrides: Option<&std::collections::HashMap<usize, String>>
+        overrides: Option<&std::collections::HashMap<usize, String>>,
     ) -> Result<Vec<String>> {
         let mut syms: Vec<String> = vec![];
         let final_states;
@@ -1232,10 +1224,7 @@ impl StateTracker {
         for (_n, states) in final_states_ref.iter() {
             let mut s: Vec<String> = vec![];
             for action in states.iter() {
-                s.push(t._resolve_pin_action(
-                    target.clone(),
-                    &PinAction::new(action)
-                )?);
+                s.push(t._resolve_pin_action(target.clone(), &PinAction::new(action))?);
             }
             syms.push(s.join(""));
         }
@@ -1245,7 +1234,7 @@ impl StateTracker {
     pub fn apply_overrides(
         &self,
         dut: &Dut,
-        overrides: &std::collections::HashMap<usize, String>
+        overrides: &std::collections::HashMap<usize, String>,
     ) -> Result<IndexMap<String, Vec<String>>> {
         let mut state_overrides = self.pins.clone();
         for (ppid, override_state) in overrides {

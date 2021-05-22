@@ -155,7 +155,7 @@ fn unpack_capture_kwargs(
     cap_trans: &mut origen::Capture,
     kwargs: Option<&PyDict>,
     pins_allowed: bool,
-    cycles_allowed: bool
+    cycles_allowed: bool,
 ) -> PyResult<()> {
     if let Some(opts) = kwargs {
         if let Some(sym) = opts.get_item("symbol") {
@@ -185,10 +185,7 @@ fn unpack_capture_kwargs(
 
 /// Unpacks/extracts common transaction options, updating the transaction directly
 /// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
-fn unpack_transaction_kwargs(
-    trans: &mut origen::Transaction,
-    kwargs: &PyDict,
-) -> PyResult<()> {
+fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -> PyResult<()> {
     if let Some(mask) = kwargs.get_item("mask") {
         if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
             trans.bit_enable = big_mask;
@@ -217,7 +214,9 @@ fn unpack_transaction_kwargs(
             trans.overlay_enable = overlay_mask;
             trans.overlay_string = Some(overlay_name);
         } else {
-            return crate::type_error!("Could not extract kwarg 'overlay' as either a bool or a string");
+            return crate::type_error!(
+                "Could not extract kwarg 'overlay' as either a bool or a string"
+            );
         }
     }
     Ok(())
@@ -247,9 +246,15 @@ fn resolve_transaction(
             origen::TransactionAction::Verify => trans = value.to_verify_transaction(&dut)?,
             origen::TransactionAction::Capture => {
                 trans = value.to_capture_transaction(&dut)?;
-                unpack_capture_kwargs(&dut, &mut trans.capture.as_mut().unwrap(), kwargs, false, false)?;
+                unpack_capture_kwargs(
+                    &dut,
+                    &mut trans.capture.as_mut().unwrap(),
+                    kwargs,
+                    false,
+                    false,
+                )?;
                 return Ok(trans);
-            },
+            }
             _ => {
                 return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
                     "Resolving transactions for {:?} is not supported",
@@ -298,7 +303,11 @@ fn exit_pass() -> PyResult<()> {
 
 /// Called automatically when Origen is first loaded
 #[pyfunction]
-fn initialize(log_verbosity: Option<u8>, verbosity_keywords: Vec<String>, cli_location: Option<String>) -> PyResult<()> {
+fn initialize(
+    log_verbosity: Option<u8>,
+    verbosity_keywords: Vec<String>,
+    cli_location: Option<String>,
+) -> PyResult<()> {
     origen::initialize(log_verbosity, verbosity_keywords, cli_location);
     Ok(())
 }
@@ -541,8 +550,6 @@ fn start_new_test(name: Option<String>) -> PyResult<()> {
 #[macro_export]
 macro_rules! runtime_error {
     ($message:expr) => {{
-        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(
-            $message,
-        ))
+        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>($message))
     }};
 }

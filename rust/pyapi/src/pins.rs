@@ -1,7 +1,7 @@
 use crate::dut::PyDUT;
+use crate::unpack_transaction_kwargs;
 use origen::DUT;
 use pyo3::prelude::*;
-use crate::unpack_transaction_kwargs;
 
 #[macro_use]
 pub mod pin_actions;
@@ -49,9 +49,12 @@ pub fn extract_pin_transaction(
     let mut t;
     match action {
         origen::TransactionAction::Set => t = origen::Transaction::new_set(&actions)?,
-        _ => return crate::runtime_error!(
-            format!("Extracting Pin transaction of action {:?} is not supported", action)
-        )
+        _ => {
+            return crate::runtime_error!(format!(
+                "Extracting Pin transaction of action {:?} is not supported",
+                action
+            ))
+        }
     }
     unpack_pin_transaction_kwargs(&mut t, kwargs)?;
     Ok(t)
@@ -89,14 +92,17 @@ pub fn extract_pin_transaction(
     //         }
     //     }
 
-        // if let Some(_overlay_str) = opts.get_item("overlay_str") {
-        //     panic!("option not supported yet!");
-        // }
+    // if let Some(_overlay_str) = opts.get_item("overlay_str") {
+    //     panic!("option not supported yet!");
+    // }
     // }
     // Ok(t)
 }
 
-fn unpack_pin_transaction_kwargs(trans: &mut origen::Transaction, kwargs: Option<&PyDict>) -> PyResult<()> {
+fn unpack_pin_transaction_kwargs(
+    trans: &mut origen::Transaction,
+    kwargs: Option<&PyDict>,
+) -> PyResult<()> {
     if let Some(opts) = kwargs {
         unpack_transaction_kwargs(trans, opts)?;
     }
@@ -143,7 +149,7 @@ pub fn vec_to_ppin_ids(dut: &origen::Dut, pins: Vec<&PyAny>) -> PyResult<Vec<usi
     let py = gil.python();
     let t = PyTuple::new(py, pins);
     let pin_lookups = pins_to_backend_lookup_fields(py, t)?;
-    let flat_pins = dut._resolve_to_flattened_pins(&pin_lookups)?; 
+    let flat_pins = dut._resolve_to_flattened_pins(&pin_lookups)?;
     Ok(flat_pins.iter().map(|p| p.id).collect::<Vec<usize>>())
 }
 

@@ -28,7 +28,7 @@ pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
 pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
-pub use self::generator::utility::transaction::{Transaction};
+pub use self::generator::utility::transaction::Transaction;
 pub use error::Error;
 
 use self::core::application::Application;
@@ -37,7 +37,7 @@ pub use self::core::dut::Dut;
 use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
-pub use self::core::tester::{Tester, Capture, Overlay};
+pub use self::core::tester::{Capture, Overlay, Tester};
 use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
@@ -135,7 +135,11 @@ impl<'a> Value<'a> {
 }
 
 /// This is called immediately upon Origen booting
-pub fn initialize(verbosity: Option<u8>, verbosity_keywords: Vec<String>, cli_location: Option<String>) {
+pub fn initialize(
+    verbosity: Option<u8>,
+    verbosity_keywords: Vec<String>,
+    cli_location: Option<String>,
+) {
     if let Some(v) = verbosity {
         let _ = LOGGER.set_verbosity(v);
         let _ = LOGGER.set_verbosity_keywords(verbosity_keywords);

@@ -4,11 +4,11 @@ pub mod pattern_renderer;
 use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::ast::Node;
+use crate::generator::processor::Return;
 use crate::utility::differ::{ASCIIDiffer, Differ};
 use crate::Result;
-use std::path::{Path, PathBuf};
-use crate::generator::processor::Return;
 use pattern_renderer::Renderer;
+use std::path::{Path, PathBuf};
 
 pub trait VectorBased:
     std::fmt::Debug + std::default::Default + crate::core::tester::Interceptor + TesterID + Clone + Send

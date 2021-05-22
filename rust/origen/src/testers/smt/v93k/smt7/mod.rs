@@ -1,10 +1,10 @@
 use crate::core::tester::{Interceptor, TesterAPI, TesterID};
+use crate::generator::ast::{Attrs, Node};
+use crate::generator::processor::Return;
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
 use crate::{Result, DUT};
-use crate::generator::ast::{Attrs, Node};
-use crate::generator::processor::{Return};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -72,14 +72,13 @@ impl VectorBased for SMT7 {
                 if let Ok(ids) = capture.enabled_capture_pins() {
                     for pin in ids.iter() {
                         if let Some(_) = capture.symbol.as_ref() {
-                            renderer.capturing.insert(
-                                Some(*pin),
-                                capture.symbol.clone()
-                            );
+                            renderer
+                                .capturing
+                                .insert(Some(*pin), capture.symbol.clone());
                         } else {
                             renderer.capturing.insert(
                                 Some(*pin),
-                                Some(crate::standards::actions::CAPTURE.to_string())
+                                Some(crate::standards::actions::CAPTURE.to_string()),
                             );
                         }
                     }
@@ -88,7 +87,7 @@ impl VectorBased for SMT7 {
                     None
                 }
             }
-            _ => None
+            _ => None,
         }
     }
 }

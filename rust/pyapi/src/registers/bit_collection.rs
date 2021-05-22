@@ -1011,7 +1011,7 @@ impl BitCollection {
                 let py = gil.python();
                 let args = PyTuple::new(py, &[slf.to_object(py)]);
                 c.call_method(py, "capture_register", args, kwargs)?;
-            },
+            }
             None => {
                 // No controller specifies a "capture_register" method, so fall back to
                 // using verify with the capture bits set and no additional arguments which
@@ -1022,7 +1022,7 @@ impl BitCollection {
                         let py = gil.python();
                         let args = PyTuple::new(py, &[slf.to_object(py)]);
                         c.call_method(py, "verify_register", args, None)?;
-                    },
+                    }
                     None => {
                         return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
                             "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",

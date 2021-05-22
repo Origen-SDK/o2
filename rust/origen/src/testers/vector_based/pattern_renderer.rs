@@ -5,8 +5,8 @@ use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::STATUS;
 use crate::{Result, DUT};
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner, UnpackCaptures};
 
@@ -237,9 +237,7 @@ impl<'a> Processor for Renderer<'a> {
             Attrs::PatternEnd => {
                 // Raise an error is any leftover captures remain
                 if !self.capturing.is_empty() {
-                    return error!(
-                        "Pattern end reached but requested captures still remain"
-                    );
+                    return error!("Pattern end reached but requested captures still remain");
                 }
                 match self.tester.print_pattern_end(self) {
                     Some(end) => {

@@ -94,16 +94,20 @@ impl Processor for UnpackCaptures {
                                 }
                             );
                         }
-                        self.capturing.insert(Some(*pin), (cycles, capture.symbol.clone()));
+                        self.capturing
+                            .insert(Some(*pin), (cycles, capture.symbol.clone()));
                         if cycles < self.least_cycles_remaining {
                             self.least_cycles_remaining = cycles;
                         }
                     }
                 } else {
                     if self.capturing.contains_key(&None) {
-                        return error!("Generic capture is already occurring. Cannot initiate another capture");
+                        return error!(
+                            "Generic capture is already occurring. Cannot initiate another capture"
+                        );
                     }
-                    self.capturing.insert(None, (cycles, capture.symbol.clone()));
+                    self.capturing
+                        .insert(None, (cycles, capture.symbol.clone()));
                 }
                 Ok(Return::Unmodified)
             }
@@ -113,7 +117,8 @@ impl Processor for UnpackCaptures {
                     let mut to_repeat = *repeat as usize;
                     let mut nodes: Vec<Node> = vec![];
                     while to_repeat > 0 {
-                        let mut this_cycle_captures: HashMap<Option<usize>, Option<String>> = HashMap::new();
+                        let mut this_cycle_captures: HashMap<Option<usize>, Option<String>> =
+                            HashMap::new();
                         let this_repeat;
                         if to_repeat >= self.least_cycles_remaining {
                             this_repeat = self.least_cycles_remaining;
@@ -144,7 +149,7 @@ impl Processor for UnpackCaptures {
                             this_cycle_captures.insert(*pin_id, cap.1.clone());
                         }
                         nodes.push(node!(Cycle, this_repeat as u32, *compressable));
-                        finished_captures.iter().for_each(|pin_id| { 
+                        finished_captures.iter().for_each(|pin_id| {
                             self.capturing.remove(pin_id);
                             nodes.push(node!(EndCapture, pin_id.clone()));
                         });

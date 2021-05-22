@@ -2,6 +2,7 @@ import pytest
 import origen, _origen
 from tests.shared import clean_eagle, get_last_node, clean_tester
 
+
 class Base:
     @pytest.fixture(autouse=True)
     def clean_eagle(self, clean_eagle, clean_tester):
@@ -10,8 +11,12 @@ class Base:
     @property
     def t(self):
         return origen.tester
-    
-    def assert_node(self, symbol=None, cycles=None, enables=None, pin_ids=None):
+
+    def assert_node(self,
+                    symbol=None,
+                    cycles=None,
+                    enables=None,
+                    pin_ids=None):
         node = get_last_node()
         assert node['attrs'][0] == 'Capture'
         assert node['attrs'][1][0]['symbol'] == symbol
@@ -20,13 +25,13 @@ class Base:
         assert node['attrs'][1][0]['pin_ids'] == pin_ids
         assert len(node['children']) == 0
 
+
 class TestCaptureInterface(Base):
     ''' Mostly simple tests to make sure the node gets into the AST correctly.
 
         Whether the node gets handled correctly is a matter for the
         individual renders to resolved.
     '''
-
     @pytest.fixture(autouse=True)
     def clean_eagle(self, clean_eagle, clean_tester):
         pass
@@ -37,7 +42,9 @@ class TestCaptureInterface(Base):
 
     def test_capture_with_options(self):
         origen.tester.capture(symbol='A', cycles=5, pins=['portc'])
-        self.assert_node(cycles=5, symbol='A', pin_ids=origen.dut.pins['portc'].__origen_pin_ids__)
+        self.assert_node(cycles=5,
+                         symbol='A',
+                         pin_ids=origen.dut.pins['portc'].__origen_pin_ids__)
 
     def test_pin_capture(self):
         origen.dut.pins['portc'].capture()
@@ -45,7 +52,9 @@ class TestCaptureInterface(Base):
 
     def test_pin_capture_with_options(self):
         origen.dut.pins['portc'].capture(cycles=2, symbol='B')
-        self.assert_node(cycles=2, symbol='B', pin_ids=origen.dut.pins['portc'].__origen_pin_ids__)
+        self.assert_node(cycles=2,
+                         symbol='B',
+                         pin_ids=origen.dut.pins['portc'].__origen_pin_ids__)
 
     def test_pin_collection_capture(self):
         p = origen.dut.pins.collect('portc', 'clk')
@@ -91,9 +100,13 @@ class TestCaptureInterface(Base):
 
     def test_error_on_bit_collection_invalid_options(self):
         origen.dut.arm_debug.switch_to_swd()
-        with pytest.raises(RuntimeError, match="'cycles' capture option is not valid in this context"):
+        with pytest.raises(
+                RuntimeError,
+                match="'cycles' capture option is not valid in this context"):
             origen.dut.reg('reg1').capture(cycles=3)
-        with pytest.raises(RuntimeError, match="'pins' capture option is not valid in this context"):
+        with pytest.raises(
+                RuntimeError,
+                match="'pins' capture option is not valid in this context"):
             origen.dut.reg('reg1').capture(pins=[])
 
     def test_capture_while_verifying_bit_collection(self):
@@ -159,47 +172,78 @@ class TestCaptureInterface(Base):
         assert cap["cycles"] == None
         assert cap["pin_ids"] == None
 
+
 class TestVectorBasedCaptures(Base):
     ''' Corner & error cases specific to the 'VectorBased' renderer '''
-
     def test_error_on_captures_exceeding_cycles(self):
         origen.target.setup(["tester/v93k_smt7.py", "dut/eagle.py"])
         origen.producer.continue_on_fail = False
+
         def error_on_captures_exceeding_cycles(self):
-            with origen.producer.Pattern(pin_header="cap_test", name="test_error_on_captures_exceeding_cycles") as _pat:
+            with origen.producer.Pattern(
+                    pin_header="cap_test",
+                    name="test_error_on_captures_exceeding_cycles") as _pat:
                 origen.tester.capture(cycles=1000).cycle()
+
         def error_on_captures_exceeding_cycles_with_pins(self):
-            with origen.producer.Pattern(pin_header="cap_test", name="error_on_captures_exceeding_cycles_with_pins") as _pat:
+            with origen.producer.Pattern(
+                    pin_header="cap_test",
+                    name="error_on_captures_exceeding_cycles_with_pins"
+            ) as _pat:
                 origen.tester.capture(cycles=1000, pins=['clk']).cycle()
 
         origen.target.setup(["tester/j750.py", "dut/eagle.py"])
-        with pytest.raises(OSError, match="Pattern end reached but requested captures still remain"):
+        with pytest.raises(
+                OSError,
+                match="Pattern end reached but requested captures still remain"
+        ):
             origen.producer.generate(error_on_captures_exceeding_cycles)
         origen.target.setup(["tester/j750.py", "dut/eagle.py"])
-        with pytest.raises(OSError, match="Pattern end reached but requested captures still remain"):
-            origen.producer.generate(error_on_captures_exceeding_cycles_with_pins)
+        with pytest.raises(
+                OSError,
+                match="Pattern end reached but requested captures still remain"
+        ):
+            origen.producer.generate(
+                error_on_captures_exceeding_cycles_with_pins)
 
         # V93K overrides the capture node as standalone capture cycles are meaningless to it (currently)
         origen.target.setup(["tester/v93k_smt7.py", "dut/eagle.py"])
-        with pytest.raises(OSError, match="Pattern end reached but requested captures still remain"):
-            origen.producer.generate(error_on_captures_exceeding_cycles_with_pins)
+        with pytest.raises(
+                OSError,
+                match="Pattern end reached but requested captures still remain"
+        ):
+            origen.producer.generate(
+                error_on_captures_exceeding_cycles_with_pins)
 
     def test_error_on_overlapping_captures(self):
         def error_on_overlapping_captures(context):
-            with origen.producer.Pattern(pin_header="cap_test", name="test_error_on_overlapping_captures") as _pat:
+            with origen.producer.Pattern(
+                    pin_header="cap_test",
+                    name="test_error_on_overlapping_captures") as _pat:
                 origen.tester.capture(cycles=5).cycle()
                 origen.tester.capture(cycles=5).repeat(9)
+
         def error_on_overlapping_pin_captures(context):
-            with origen.producer.Pattern(pin_header="cap_test", name="test_error_on_overlapping_pin_captures") as _pat:
+            with origen.producer.Pattern(
+                    pin_header="cap_test",
+                    name="test_error_on_overlapping_pin_captures") as _pat:
                 origen.dut.pin('clk').capture(cycles=5).cycle()
                 origen.dut.pin('clk').capture(cycles=5).repeat(9)
 
         origen.producer.continue_on_fail = False
 
         origen.target.setup(["tester/v93k_smt7.py", "dut/eagle.py"])
-        with pytest.raises(OSError, match="Generic capture is already occurring. Cannot initiate another capture"):
+        with pytest.raises(
+                OSError,
+                match=
+                "Generic capture is already occurring. Cannot initiate another capture"
+        ):
             origen.producer.generate(error_on_overlapping_captures)
 
         origen.target.setup(["tester/v93k_smt7.py", "dut/eagle.py"])
-        with pytest.raises(OSError, match="Capture requested on pin 'clk' but this pin is already capturing"):
+        with pytest.raises(
+                OSError,
+                match=
+                "Capture requested on pin 'clk' but this pin is already capturing"
+        ):
             origen.producer.generate(error_on_overlapping_pin_captures)

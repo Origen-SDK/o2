@@ -3,8 +3,8 @@ use super::super::pins::{extract_pin_transaction, unpack_pin_transaction_kwargs}
 use super::pin_actions::PinActions;
 use super::pin_collection::PinCollection;
 use num_bigint::BigUint;
-use origen::{Transaction, TransactionAction};
 use origen::DUT;
+use origen::{Transaction, TransactionAction};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
@@ -88,7 +88,10 @@ impl PinGroup {
     ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-        grp.update(&dut, &extract_pin_transaction(actions, TransactionAction::Set, kwargs)?)?;
+        grp.update(
+            &dut,
+            &extract_pin_transaction(actions, TransactionAction::Set, kwargs)?,
+        )?;
         Ok(slf.into())
     }
 
@@ -163,26 +166,28 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    #[args(label="None", symbol="None", cycles="None", mask="None")]
+    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
     fn overlay(
         slf: PyRef<Self>,
         label: Option<String>,
         symbol: Option<String>,
         cycles: Option<usize>,
-        mask: Option<BigUint>
+        mask: Option<BigUint>,
     ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-        grp.overlay(&mut origen::Overlay::placeholder(label, symbol, cycles, mask))?;
+        grp.overlay(&mut origen::Overlay::placeholder(
+            label, symbol, cycles, mask,
+        ))?;
         Ok(slf.into())
     }
 
-    #[args(symbol="None", cycles="None", mask="None")]
+    #[args(symbol = "None", cycles = "None", mask = "None")]
     fn capture(
         slf: PyRef<Self>,
         symbol: Option<String>,
         cycles: Option<usize>,
-        mask: Option<BigUint>
+        mask: Option<BigUint>,
     ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;

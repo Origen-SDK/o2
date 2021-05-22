@@ -57,7 +57,7 @@ fn main() {
                 let captures = verbosity_re.captures(&args[0]).unwrap();
                 let x = captures.get(1).unwrap().as_str();
                 let verbosity = x.chars().count() as u8;
-                origen::initialize(Some(verbosity), vec!(), None);
+                origen::initialize(Some(verbosity), vec![], None);
                 args = args.drain(1..).collect();
             }
             // Commmand is not actually available outside an app, so just fall through
@@ -91,7 +91,7 @@ fn main() {
             None
         }
     };
-    origen::initialize(Some(verbosity), vec!(), exe);
+    origen::initialize(Some(verbosity), vec![], exe);
 
     let version = match STATUS.is_app_present {
         true => format!(
@@ -121,7 +121,7 @@ fn main() {
                 .short("v")
                 .multiple(true)
                 .global(true)
-                .help(VERBOSITY_HELP_STR)
+                .help(VERBOSITY_HELP_STR),
         )
         .arg(
             Arg::with_name("verbosity_keywords")
@@ -129,7 +129,7 @@ fn main() {
                 .multiple(true)
                 .takes_value(true)
                 .global(true)
-                .help(VERBOSITY_KEYWORD_HELP_STR)
+                .help(VERBOSITY_KEYWORD_HELP_STR),
         );
 
     // The main help message is going to be automatically generated to allow us to handle and clearly
@@ -983,9 +983,7 @@ FLAGS:
 
 CORE COMMANDS:
 ",
-        version,
-        VERBOSITY_HELP_STR,
-        VERBOSITY_KEYWORD_HELP_STR
+        version, VERBOSITY_HELP_STR, VERBOSITY_KEYWORD_HELP_STR
     );
 
     for command in &origen_commands {
@@ -1007,7 +1005,7 @@ CORE COMMANDS:
 
     let _ = LOGGER.set_verbosity(matches.occurrences_of("verbose") as u8);
     if let Some(keywords) = matches.values_of("verbosity_keywords") {
-        let _ = LOGGER.set_verbosity_keywords(keywords.map( |k| k.to_string()).collect());
+        let _ = LOGGER.set_verbosity_keywords(keywords.map(|k| k.to_string()).collect());
     }
 
     match matches.subcommand_name() {

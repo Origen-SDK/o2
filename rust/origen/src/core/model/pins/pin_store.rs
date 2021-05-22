@@ -2,7 +2,7 @@ use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
 use super::pin::PinAction;
 use crate::error::Error;
-use crate::{Result, Capture};
+use crate::{Capture, Result};
 
 /// Model for an anonymous pin group
 #[derive(Debug, Clone)]

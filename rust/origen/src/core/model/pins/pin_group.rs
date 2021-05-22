@@ -3,7 +3,7 @@ use super::super::pins::Endianness;
 use super::pin::PinAction;
 use super::pin_store::PinStore;
 use crate::error::Error;
-use crate::{Result, Transaction, Overlay, Capture};
+use crate::{Capture, Overlay, Result, Transaction};
 
 // We'll maintain both the pin_names which the group was built with, but we'll also maintain the list
 // of physical names. Even though we can resolve this later, most operations wil

@@ -5,8 +5,7 @@ use num_bigint::BigUint;
 fn err(obj: &str, field: &str) -> Error {
     Error::new(&format!(
         "Tried to retrieve {}'s field {} but this field has not been set",
-        obj,
-        field
+        obj, field
     ))
 }
 
@@ -15,7 +14,7 @@ pub struct Capture {
     pub symbol: Option<String>,
     pub cycles: Option<usize>,
     pub enables: Option<BigUint>,
-    pub pin_ids: Option<Vec<usize>>
+    pub pin_ids: Option<Vec<usize>>,
 }
 
 impl Capture {
@@ -24,7 +23,7 @@ impl Capture {
             symbol: None,
             cycles: None,
             enables: None,
-            pin_ids: None
+            pin_ids: None,
         }
     }
 
@@ -32,13 +31,13 @@ impl Capture {
         symbol: Option<String>,
         cycles: Option<usize>,
         enables: Option<BigUint>,
-        pin_ids: Option<Vec<usize>>
+        pin_ids: Option<Vec<usize>>,
     ) -> Result<Self> {
         Ok(Self {
             symbol: symbol,
             cycles: cycles,
             enables: enables,
-            pin_ids: pin_ids
+            pin_ids: pin_ids,
         })
     }
 
@@ -51,7 +50,7 @@ impl Capture {
             symbol: symbol,
             cycles: cycles,
             enables: enables,
-            pin_ids: None
+            pin_ids: None,
         }
     }
 
@@ -117,7 +116,7 @@ pub struct Overlay {
     pub symbol: Option<String>,
     pub cycles: Option<usize>,
     pub enables: Option<BigUint>,
-    pub pin_ids: Option<Vec<usize>>
+    pub pin_ids: Option<Vec<usize>>,
 }
 
 impl Overlay {
@@ -136,14 +135,14 @@ impl Overlay {
         symbol: Option<String>,
         cycles: Option<usize>,
         enables: Option<BigUint>,
-        pin_ids: Option<Vec<usize>>
+        pin_ids: Option<Vec<usize>>,
     ) -> Result<Self> {
         Ok(Self {
             label: label,
             symbol: symbol,
             cycles: cycles,
             enables: enables,
-            pin_ids: pin_ids
+            pin_ids: pin_ids,
         })
     }
 
@@ -151,14 +150,14 @@ impl Overlay {
         label: Option<String>,
         symbol: Option<String>,
         cycles: Option<usize>,
-        enables: Option<BigUint>
+        enables: Option<BigUint>,
     ) -> Self {
         Self {
             label: label,
             symbol: symbol,
             cycles: cycles,
             enables: enables,
-            pin_ids: None 
+            pin_ids: None,
         }
     }
 

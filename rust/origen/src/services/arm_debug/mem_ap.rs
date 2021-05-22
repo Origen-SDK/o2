@@ -259,13 +259,7 @@ impl MemAP {
                     TEST.close(trans_node_id)?;
                 } else {
                     // External (to the MemAP) register - that is, part of the register map
-                    trans_node = node!(
-                        ArmDebugMemAPVerifyReg,
-                        self.id,
-                        self.addr,
-                        t.clone(),
-                        None
-                    );
+                    trans_node = node!(ArmDebugMemAPVerifyReg, self.id, self.addr, t.clone(), None);
                     let trans_node_id = TEST.push_and_open(trans_node);
                     self.prep_for_transfer(&trans, dut, services)?;
 

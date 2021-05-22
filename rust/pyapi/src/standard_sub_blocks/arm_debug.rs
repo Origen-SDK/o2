@@ -572,11 +572,7 @@ impl MemAP {
     /// Assumes that all posturing has been completed - that is, the bits' data, overlay
     /// status, etc. is current.
     #[args(write_opts = "**")]
-    fn write_register(
-        &self,
-        bits: &PyAny,
-        write_opts: Option<&PyDict>,
-    ) -> PyResult<()> {
+    fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
         let ap = services.get_as_mem_ap(self.mem_ap_id.unwrap())?;
@@ -591,11 +587,7 @@ impl MemAP {
     }
 
     #[args(verify_opts = "**")]
-    fn verify_register(
-        &self,
-        bits: &PyAny,
-        verify_opts: Option<&PyDict>,
-    ) -> PyResult<()> {
+    fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
         let ap = services.get_as_mem_ap(self.mem_ap_id.unwrap())?;
@@ -610,11 +602,7 @@ impl MemAP {
     }
 
     #[args(capture_opts = "**")]
-    fn capture_register(
-        &self,
-        bits: &PyAny,
-        capture_opts: Option<&PyDict>,
-    ) -> PyResult<()> {
+    fn capture_register(&self, bits: &PyAny, capture_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
         let ap = services.get_as_mem_ap(self.mem_ap_id.unwrap())?;

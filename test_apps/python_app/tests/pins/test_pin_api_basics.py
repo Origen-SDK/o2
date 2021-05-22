@@ -190,7 +190,8 @@ class TestSettingStates:
         is_pin_group(grp.verify(0x7))
         assert grp.actions == "HHH"
 
-    def test_capturing_pins_does_not_alter_pin_states(self, clean_falcon, pins, grp):
+    def test_capturing_pins_does_not_alter_pin_states(self, clean_falcon, pins,
+                                                      grp):
         grp = origen.dut.pin("grp")
         is_pin_group(grp.capture())
         assert grp.actions == "ZZZ"

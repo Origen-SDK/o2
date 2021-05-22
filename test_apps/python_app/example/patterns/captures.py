@@ -34,7 +34,9 @@ with Pattern(pin_header="cap_test") as pat:
     tester.cc("Capture next two cycles with symbol 'A' (portc)")
     portc.capture(cycles=2, symbol="A").repeat(2)
     tester.cycle()
-    tester.cc("Capture next two cycles with symbol 'B' masking the second bit (portc)")
+    tester.cc(
+        "Capture next two cycles with symbol 'B' masking the second bit (portc)"
+    )
     portc.capture(cycles=2, symbol="B", mask=0x2).repeat(2)
     tester.cycle()
 
@@ -65,7 +67,9 @@ with Pattern(pin_header="cap_test") as pat:
     # tester.cc("Verify 'reg1' with data 0 while capturing with symbol 'B' and mask 0xFFFF")
     # reg.verify(capture={"symbol": 'B', "mask": 0xFFFF})
 
-    tester.cc("Verify with captures previously set. Next two transactions will be captured and verified")
+    tester.cc(
+        "Verify with captures previously set. Next two transactions will be captured and verified"
+    )
     tester.cc("---")
     tester.cc("Capture next two transactions")
     reg.set_capture()

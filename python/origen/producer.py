@@ -43,8 +43,7 @@ class Producer(_origen.producer.PyProducer):
             self._generate_prepared = True
         for (i, src) in enumerate(sources):
             origen.logger.info(
-                f"Executing source {i+1} of {len(sources)}: {src}"
-            )
+                f"Executing source {i+1} of {len(sources)}: {src}")
             if isinstance(src, Path):
                 src = str(src)
 

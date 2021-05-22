@@ -1,5 +1,6 @@
 use super::pins::pin_header::PinHeader;
 use super::timesets::timeset::Timeset;
+use crate::pins::vec_to_ppin_ids;
 use origen::core::tester::TesterSource;
 use origen::error::Error;
 use origen::testers::SupportedTester;
@@ -7,7 +8,6 @@ use origen::{Operation, STATUS, TEST};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use std::collections::HashMap;
-use crate::pins::vec_to_ppin_ids;
 
 #[pymodule]
 pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -382,14 +382,20 @@ impl PyTester {
         Self::cycle(slf, Some(&kwargs))
     }
 
-    #[args(label="None", symbol="None", pins="None", cycles="None", mask="None")]
+    #[args(
+        label = "None",
+        symbol = "None",
+        pins = "None",
+        cycles = "None",
+        mask = "None"
+    )]
     fn overlay(
         slf: PyRef<Self>,
         label: Option<String>,
         symbol: Option<String>,
         pins: Option<Vec<&PyAny>>,
         cycles: Option<usize>,
-        mask: Option<num_bigint::BigUint>
+        mask: Option<num_bigint::BigUint>,
     ) -> PyResult<Py<Self>> {
         let pin_ids;
         {
@@ -402,25 +408,19 @@ impl PyTester {
         }
         {
             let tester = origen::tester();
-            tester.overlay(&origen::Overlay::new(
-                label,
-                symbol,
-                cycles,
-                mask,
-                pin_ids
-            )?)?;
+            tester.overlay(&origen::Overlay::new(label, symbol, cycles, mask, pin_ids)?)?;
         }
         slf.issue_callbacks("overlay")?;
         Ok(slf.into())
     }
 
-    #[args(symbol="None", cycles="None", mask="None", pins="None")]
+    #[args(symbol = "None", cycles = "None", mask = "None", pins = "None")]
     fn capture(
         slf: PyRef<Self>,
         symbol: Option<String>,
         cycles: Option<usize>,
         mask: Option<num_bigint::BigUint>,
-        pins: Option<Vec<&PyAny>>
+        pins: Option<Vec<&PyAny>>,
     ) -> PyResult<Py<Self>> {
         let pin_ids;
         {
@@ -434,12 +434,7 @@ impl PyTester {
         }
         {
             let tester = origen::tester();
-            tester.capture(&origen::Capture::new(
-                symbol,
-                cycles,
-                mask,
-                pin_ids
-            )?)?;
+            tester.capture(&origen::Capture::new(symbol, cycles, mask, pin_ids)?)?;
         }
         slf.issue_callbacks("capture")?;
         Ok(slf.into())

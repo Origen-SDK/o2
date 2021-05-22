@@ -4,7 +4,7 @@ use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Error, Metadata, Result, Capture};
+use crate::{Capture, Error, Metadata, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
@@ -183,7 +183,7 @@ impl Transaction {
         match self.address.as_ref() {
             Some(a) => match a.to_u128() {
                 Some(addr) => Ok(addr),
-                None => error!("Could not convert value {:?} to u128", a)
+                None => error!("Could not convert value {:?} to u128", a),
             },
             None => Err(Error::new(&format!(
                 "Tried to retrieve address from transaction {:?}, but an address has not be set",
@@ -253,7 +253,11 @@ impl Transaction {
             capture = ((&captures >> i) & &t) == t;
             if ((&enables >> i) & &t) == t {
                 if self.is_set_action() {
-                    bits.push((self.set_actions.as_ref().unwrap()[i].to_string(), overlay, capture));
+                    bits.push((
+                        self.set_actions.as_ref().unwrap()[i].to_string(),
+                        overlay,
+                        capture,
+                    ));
                 } else {
                     if ((&self.data >> i) & &t) == t {
                         bits.push((high_sym.to_string(), overlay, capture));

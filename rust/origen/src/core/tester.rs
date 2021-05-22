@@ -1,5 +1,5 @@
 pub mod api_structs;
-pub use api_structs::{Overlay, Capture};
+pub use api_structs::{Capture, Overlay};
 
 use super::model::pins::pin::Resolver;
 use super::model::pins::pin_header::PinHeader;

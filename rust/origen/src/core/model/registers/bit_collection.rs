@@ -554,10 +554,7 @@ impl<'a> BitCollection<'a> {
         if let Some(id) = self.reg_id {
             let reg = self.reg(dut)?;
             let bits = reg.bits(dut);
-            let mut t = Transaction::new_capture(
-                reg.size,
-                Some(bits.capture_enables())
-            )?;
+            let mut t = Transaction::new_capture(reg.size, Some(bits.capture_enables()))?;
             t.reg_id = Some(id);
             t.address = Some(BigUint::from(reg.address(dut, None)?));
             t.address_width = Some(reg.width(&dut)? as usize);
