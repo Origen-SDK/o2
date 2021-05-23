@@ -25,3 +25,18 @@ class Controller(Parent):
         origen.tester.repeat(10)
         self.shutdowns_called += 1
         self.shutdown_source = "eagle"
+
+    def write_register(self, reg_or_val, size=None, address=None, **kwargs):
+        return self.arm_debug.sys.write_register(reg_or_val,
+                                                 size=None,
+                                                 address=None,
+                                                 **kwargs)
+
+    def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
+        return self.arm_debug.sys.verify_register(reg_or_val,
+                                                  size=None,
+                                                  address=None,
+                                                  **kwargs)
+
+    def capture_register(self, reg_or_val, **kwargs):
+        return self.arm_debug.sys.capture_register(reg_or_val, **kwargs)

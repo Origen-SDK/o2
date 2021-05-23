@@ -14,7 +14,8 @@ class GenericClkCtrl(Base):
     def enable_cc(self, **startup_opts):
         # self.cc("Enabling clks", include_source=True)
         self.callbacks.append("base__enable_cc_called")
-        self.ctrl.fields["enable"].write(1)
+        self.ctrl.fields["enable"].set_data(1)
+        self.ctrl.write()
     
     @Base.startup
     def wait_for_enable(self):
@@ -26,7 +27,8 @@ class GenericClkCtrl(Base):
     def disable_cc(self, *startup_opts):
         self.callbacks.append("base__disable_cc_called")
         # self.cc("Disabling clks", include_source=True)
-        self.ctrl.fields["enable"].write(0)
+        self.ctrl.fields["enable"].set_data(0)
+        self.ctrl.write()
     
     @Base.shutdown
     def wait_for_disable(self):

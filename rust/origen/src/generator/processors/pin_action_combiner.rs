@@ -16,7 +16,7 @@ pub struct PinActionCombiner {
 
 /// Combines pin actions so that only pin actions which change the pin states are left.
 /// Note: this processor assumes that anything that touches PinAction nodes has already completed.
-/// Because some form of lookahead is needed, and to avoid missing actions that may occur in chlid nodes,
+/// Because some form of lookahead is needed, and to avoid missing actions that may occur in child nodes,
 ///  this processor is run in two passes:
 ///   First, all nodes are run through and indices of pin changes are marked.
 ///   Second, all non-PinAction nodes are copied over, with only PinAction nodes whose indices were marked are copied over.

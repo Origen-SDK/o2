@@ -22,7 +22,8 @@ class FastClkCtrl(GenericClkCtrl):
     @Base.startup
     def check_enabled(self):
         self.callbacks.append("fast_clk_ctrl__check_enabled_called")
-        self.ctrl.fields["enable"].verify(1)
+        self.ctrl.fields["enable"].set_data(1)
+        self.ctrl.verify()
 
 class SlowClkCtrl(GenericClkCtrl):
     @Base.startup

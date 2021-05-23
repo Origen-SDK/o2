@@ -152,6 +152,10 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     cmd.arg(&code);
     cmd.arg("-");
     cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
+    cmd.arg(&format!(
+        "verbosity_keywords={}",
+        origen::LOGGER.keywords_to_cmd()
+    ));
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {

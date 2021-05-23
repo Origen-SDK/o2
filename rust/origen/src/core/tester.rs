@@ -1,3 +1,6 @@
+pub mod api_structs;
+pub use api_structs::{Capture, Overlay};
+
 use super::model::pins::pin::Resolver;
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
@@ -126,7 +129,12 @@ impl Tester {
     pub fn start_tester_eq_block(&self, testers: Vec<SupportedTester>) -> Result<(usize, usize)> {
         let n = node!(TesterEq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
-        let prog_ref_id = FLOW.push_and_open(n)?;
+        let prog_ref_id;
+        if FLOW.selected().is_some() {
+            prog_ref_id = FLOW.push_and_open(n)?;
+        } else {
+            prog_ref_id = 0;
+        }
         // This also verifies that the given tester selection is valid
         crate::STATUS.push_testers_eq(testers)?;
         Ok((pat_ref_id, prog_ref_id))
@@ -137,7 +145,9 @@ impl Tester {
     /// as the main argument.
     pub fn end_tester_eq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
-        FLOW.close(prog_ref_id)?;
+        if FLOW.selected().is_some() {
+            FLOW.close(prog_ref_id)?;
+        }
         crate::STATUS.pop_testers_eq()?;
         Ok(())
     }
@@ -147,7 +157,12 @@ impl Tester {
     pub fn start_tester_neq_block(&self, testers: Vec<SupportedTester>) -> Result<(usize, usize)> {
         let n = node!(TesterNeq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
-        let prog_ref_id = FLOW.push_and_open(n)?;
+        let prog_ref_id;
+        if FLOW.selected().is_some() {
+            prog_ref_id = FLOW.push_and_open(n)?;
+        } else {
+            prog_ref_id = 0;
+        }
         // This also verifies that the given tester selection is valid
         crate::STATUS.push_testers_neq(testers)?;
         Ok((pat_ref_id, prog_ref_id))
@@ -155,7 +170,9 @@ impl Tester {
 
     pub fn end_tester_neq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
-        FLOW.close(prog_ref_id)?;
+        if FLOW.selected().is_some() {
+            FLOW.close(prog_ref_id)?;
+        }
         crate::STATUS.pop_testers_neq()?;
         Ok(())
     }
@@ -314,6 +331,16 @@ impl Tester {
     pub fn cycle(&mut self, repeat: Option<usize>) -> Result<()> {
         let cycle_node = node!(Cycle, repeat.unwrap_or(1) as u32, true);
         TEST.push(cycle_node);
+        Ok(())
+    }
+
+    pub fn overlay(&self, overlay: &Overlay) -> Result<()> {
+        TEST.push(overlay.to_node());
+        Ok(())
+    }
+
+    pub fn capture(&self, capture: &Capture) -> Result<()> {
+        TEST.push(capture.to_node());
         Ok(())
     }
 

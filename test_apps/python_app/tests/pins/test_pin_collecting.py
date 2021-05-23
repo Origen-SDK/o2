@@ -87,13 +87,14 @@ class TestCollecting:
         assert origen.dut.physical_pin("p2").action == "Z"
         assert origen.dut.physical_pin("p3").action == "Z"
 
-    def test_capturing_pin_collection(self, clean_falcon, pins):
+    def test_capturing_pin_collection_does_not_alter_pin_state(
+            self, clean_falcon, pins):
         c = origen.dut.pins.collect("p1", "p2", "p3")
         c.capture()
-        assert c.actions == "CCC"
-        assert origen.dut.physical_pin("p1").action == "C"
-        assert origen.dut.physical_pin("p2").action == "C"
-        assert origen.dut.physical_pin("p3").action == "C"
+        assert c.actions == "ZZZ"
+        assert origen.dut.physical_pin("p1").action == "Z"
+        assert origen.dut.physical_pin("p2").action == "Z"
+        assert origen.dut.physical_pin("p3").action == "Z"
 
     def test_reset_values_persist_in_collections(self, clean_falcon, pins):
         origen.dut.add_pin("port", width=2, reset_data=0x3, reset_action="DD")
@@ -144,12 +145,13 @@ class TestCollecting:
         assert grp.actions == "ZZZZZZ"
         assert c.actions == "ZZZZZZ"
 
-    def test_setting_nested_actions(self, clean_falcon, ports):
+    def test_setting_nested_actions_does_not_alter_pin_states(
+            self, clean_falcon, ports):
         grp = origen.dut.group_pins("ports", "porta", "portb")
         c = origen.dut.pins.collect("porta", "portb")
         grp.capture()
-        assert grp.actions == "CCCCCC"
-        assert c.actions == "CCCCCC"
+        assert grp.actions == "ZZZZZZ"
+        assert c.actions == "ZZZZZZ"
         c.verify(0x0)
         assert c.actions == "LLLLLL"
         assert grp.actions == "LLLLLL"

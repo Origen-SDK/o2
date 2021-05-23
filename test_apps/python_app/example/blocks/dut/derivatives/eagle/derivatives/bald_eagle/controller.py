@@ -7,3 +7,4 @@ class Controller(Parent):
     def startup(self, **kwargs):
         Parent.startup(self, **kwargs)
         self.startup_source = "bald_eagle"
+        self.arm_debug.switch_to_swd()

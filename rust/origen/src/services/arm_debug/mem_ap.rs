@@ -1,6 +1,5 @@
 use super::super::super::services::Service;
 use crate::core::model::pins::PinCollection;
-use crate::core::model::registers::BitCollection;
 use crate::Transaction;
 use crate::{add_reg_32bit, field, get_reg, some_hard_reset_val, Dut, Error, Result, TEST};
 use num_bigint::BigUint;
@@ -91,30 +90,30 @@ impl MemAP {
         transaction: &Transaction,
         dut: &'b MutexGuard<'b, Dut>,
         services: &crate::Services,
-    ) -> Result<BitCollection<'b>> {
+    ) -> Result<Transaction> {
         let reg = get_reg!(dut, self.address_block_id, "csw");
         let bc = reg.bits(dut);
         bc.set_data(BigUint::from(0x2300_0012 as u32));
-        self.write_register(dut, services, &bc)?;
+        self.write_register(dut, services, &bc.to_write_transaction(dut)?)?;
 
         let reg = get_reg!(dut, self.address_block_id, "tar");
         let bc = reg.bits(dut);
         bc.set_data(BigUint::from(transaction.addr()?));
-        self.write_register(dut, services, &bc)?;
+        self.write_register(dut, services, &bc.to_write_transaction(dut)?)?;
 
         let drw = get_reg!(dut, self.address_block_id, "drw");
         let bc = drw.bits(dut);
         bc.set_data(transaction.data.clone());
-        Ok(bc)
+        Ok(bc.to_write_transaction(dut)?)
     }
 
     pub fn write_register(
         &self,
         dut: &MutexGuard<Dut>,
         services: &crate::Services,
-        bc: &BitCollection,
+        t: &Transaction,
     ) -> Result<()> {
-        let reg_write_node = bc.to_write_node(dut)?.unwrap();
+        let reg_write_node = t.as_write_node()?;
         let n_id = TEST.push_and_open(reg_write_node.clone());
         let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
 
@@ -140,7 +139,7 @@ impl MemAP {
             Attrs::RegWrite(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
                 let reg = dut.get_register(reg_id)?;
-                let trans = bc.to_write_transaction(dut)?;
+                let trans = t.clone();
                 let addr = trans.addr()?;
 
                 if reg.address_block_id == self.address_block_id {
@@ -173,7 +172,7 @@ impl MemAP {
                         None // metadata
                     );
                     let trans_node_id = TEST.push_and_open(trans_node);
-                    let trans = bc.to_write_transaction(dut)?;
+                    let trans = t.clone();
                     let drw_bits = self.prep_for_transfer(&trans, dut, services)?;
                     self.write_register(dut, services, &drw_bits)?;
                     TEST.close(trans_node_id)?;
@@ -194,11 +193,16 @@ impl MemAP {
         &self,
         dut: &MutexGuard<Dut>,
         services: &crate::Services,
-        bc: &BitCollection,
+        t: &Transaction,
     ) -> Result<()> {
         let trans_node;
-        let reg_verify_node = bc.to_verify_node(None, true, dut)?.unwrap();
-        let n_id = TEST.push_and_open(reg_verify_node.clone());
+        let reg_node;
+        if t.is_capture() {
+            reg_node = t.as_capture_node()?;
+        } else {
+            reg_node = t.as_verify_node()?;
+        }
+        let n_id = TEST.push_and_open(reg_node.clone());
 
         let arm_debug = services.get_as_arm_debug(self.arm_debug_id)?;
         let jtag_dp;
@@ -219,11 +223,11 @@ impl MemAP {
             jtag_dp = None;
         }
 
-        match &reg_verify_node.attrs {
-            Attrs::RegVerify(reg_trans) => {
+        match &reg_node.attrs {
+            Attrs::RegVerify(reg_trans) | Attrs::RegCapture(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
                 let reg = dut.get_register(reg_id)?;
-                let mut trans = bc.to_verify_transaction(None, false, dut)?;
+                let mut trans = t.clone();
                 if reg.address_block_id == self.address_block_id {
                     // Internal (to the MemAP) register
                     let addr = trans.addr()?;
@@ -255,24 +259,18 @@ impl MemAP {
                     TEST.close(trans_node_id)?;
                 } else {
                     // External (to the MemAP) register - that is, part of the register map
-                    trans_node = node!(
-                        ArmDebugMemAPVerifyReg,
-                        self.id,
-                        self.addr,
-                        bc.to_verify_transaction(None, false, dut)?,
-                        None
-                    );
+                    trans_node = node!(ArmDebugMemAPVerifyReg, self.id, self.addr, t.clone(), None);
                     let trans_node_id = TEST.push_and_open(trans_node);
                     self.prep_for_transfer(&trans, dut, services)?;
 
                     if jtag_dp.is_some() {
-                        trans.address = Some(0xC);
+                        trans.address = Some(BigUint::from(0xC as u32));
                         jtag_dp
                             .unwrap()
                             .verify_ap(dut, services, trans.to_dummy()?, true)?;
                         crate::testers::vector_based::api::repeat(100);
 
-                        trans.address = Some(0xC);
+                        trans.address = Some(BigUint::from(0xC as u32));
                         jtag_dp.unwrap().verify_dp(dut, services, trans, false)?;
                     } else {
                         let swdio = PinCollection::from_group(
@@ -280,11 +278,11 @@ impl MemAP {
                             &swd.unwrap().swdio.0,
                             swd.unwrap().swdio.1,
                         )?;
-                        trans.address = Some(0xC); // DRW
+                        trans.address = Some(BigUint::from(0xC as u32)); // DRW
                         swd.unwrap()
                             .verify_ap(dut, trans.to_dummy()?, crate::swd_ok!(), None)?;
                         swdio.drive_low().cycle();
-                        trans.address = Some(0xC); // RDBUFF
+                        trans.address = Some(BigUint::from(0xC as u32)); // RDBUFF
                         swd.unwrap().verify_dp(dut, trans, crate::swd_ok!(), None)?;
                         swdio.drive_low().cycle();
                     }
@@ -294,7 +292,7 @@ impl MemAP {
             _ => {
                 return Err(Error::new(&format!(
                     "Unexpected node in ArmDebug MemAP driver: {:?}",
-                    reg_verify_node
+                    reg_node
                 )))
             }
         }

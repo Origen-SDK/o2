@@ -34,6 +34,15 @@ impl FlowManager {
         }
     }
 
+    pub fn selected(&self) -> Option<String> {
+        let inner = self.inner.read().unwrap();
+        if let Some(f) = &inner.selected_flow {
+            Some(f.to_string())
+        } else {
+            None
+        }
+    }
+
     /// Select the given flow such that the majority of FlowManager methods will act on it.
     /// Returns an error if no flow of the given name exists.
     pub fn select(&self, name: &str) -> Result<()> {

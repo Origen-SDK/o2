@@ -51,6 +51,7 @@ class TestStartupShutdownCallbacks:
         assert origen.dut.shutdown_source == "eagle"
 
     def test_startups_and_shutdowns_occur(self, clean_bald_eagle):
+        origen.callbacks.emit("toplevel__startup")
         blk = origen.dut.generic_clk_ctrl
         assert len(blk.callbacks) == 0
 
@@ -69,6 +70,7 @@ class TestStartupShutdownCallbacks:
         ]
 
     def test_startups_and_shutdowns_can_be_overridden(self, clean_bald_eagle):
+        origen.callbacks.emit("toplevel__startup")
         blk = origen.dut.fast_clk_ctrl
         assert len(blk.callbacks) == 0
         origen.callbacks.emit("controller__startup")
