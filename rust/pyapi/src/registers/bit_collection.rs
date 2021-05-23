@@ -528,6 +528,17 @@ impl BitCollection {
         Ok(self.clone())
     }
 
+    // #[args(kwargs = "**")]
+    fn set_capture(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.capture();
+        Ok(self.clone())
+    }
+
+    fn clear_capture(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.clear_capture();
+        Ok(self.clone())
+    }
+
     fn overlay(&self) -> PyResult<Option<String>> {
         self.get_overlay()
     }
@@ -822,11 +833,6 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn capture(&self) -> PyResult<BitCollection> {
-        self.materialize(&origen::dut())?.capture();
-        Ok(self.clone())
-    }
-
     fn set_undefined(&self) -> PyResult<BitCollection> {
         self.materialize(&origen::dut())?.set_undefined();
         Ok(self.clone())
@@ -983,6 +989,75 @@ impl BitCollection {
                 bc.model_path()?
             ))),
         }
+        Ok(slf.into())
+    }
+
+    #[args(kwargs = "**")]
+    fn capture(slf: &PyCell<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+        // let bc = slf.extract::<PyRef<Self>>()?;
+        // bc.capture();
+        //slf.materialize(&origen::dut())?.capture();
+        {
+            let slf_bc = slf.extract::<PyRefMut<Self>>()?;
+            slf_bc.materialize(&origen::dut())?.capture();
+        }
+        let bc = slf.extract::<PyRef<Self>>()?;
+
+        // Attempt to find a controller which implements "capture_register"
+        match bc._controller_for(Some("capture_register"))? {
+            Some(c) => {
+                // If we've found a matching controller, capture the register
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                let args = PyTuple::new(py, &[slf.to_object(py)]);
+                c.call_method(py, "capture_register", args, kwargs)?;
+            }
+            None => {
+                // No controller specifies a "capture_register" method, so fall back to
+                // using verify with the capture bits set and no additional arguments which
+                // may change its state.
+                match bc._controller_for(Some("verify_register"))? {
+                    Some(c) => {
+                        let gil = Python::acquire_gil();
+                        let py = gil.python();
+                        let args = PyTuple::new(py, &[slf.to_object(py)]);
+                        c.call_method(py, "verify_register", args, None)?;
+                    }
+                    None => {
+                        return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                            "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",
+                            bc.model_path()?
+                        )));
+                    }
+                }
+                // match Self::verify(slf, None, None) {
+                //     Ok(c) => {},
+                //     Err(e) => {
+                //         let err = &e.pvalue;
+                //         match err {
+                //             pyo3::PyErrValue::Value(obj) =>{
+                //                 let gil = Python::acquire_gil();
+                //                 let py = gil.python();
+                //                 let message = obj.extract::<String>(py)?;
+                //                 if message.contains("No controller in the path") && message.contains("implements a 'verify_register'. Cannot verify this register.") {
+                //                     // Change the error message slightly as "capture_register" is also applicable
+                //                     return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                //                         "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",
+                //                         bc.model_path()?
+                //                     )));
+                //                 } else {
+                //                     // Some other error
+                //                     return Err(e);
+                //                 }
+                //             },
+                //             _ => return Err(e)
+                //         }
+                //     }
+                // }
+            }
+        }
+
+        // Ok(self.clone())
         Ok(slf.into())
     }
 }

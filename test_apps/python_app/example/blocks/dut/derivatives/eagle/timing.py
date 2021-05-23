@@ -61,7 +61,7 @@ t.symbol_map['0'] = '1'
 t.symbol_map[origen.pins.PinActions.VerifyHigh()] = 'L'
 t.symbol_map[origen.pins.PinActions.VerifyLow()] = 'H'
 
-t = Timeset("nonesense", default_period=10)
+t = Timeset("nonsense", default_period=10)
 t.symbol_map['0'] = 'a'
 t.symbol_map['1'] = 'b'
 t.symbol_map['2'] = 'c'

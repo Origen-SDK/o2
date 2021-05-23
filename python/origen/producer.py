@@ -10,6 +10,11 @@ top_level_flow_open = False
 
 
 class Producer(_origen.producer.PyProducer):
+    def __init__(self):
+        _origen.producer.PyProducer.__init__(self)
+        self._generate_prepared = False
+        self.continue_on_fail = True
+
     def issue_callback(self, c, kwargs):
         if origen.helpers.has_method(origen.dut, c) and not kwargs.get(
                 "skip_all_callbacks") and not kwargs.get(f"skip_callback_{c}"):
@@ -24,6 +29,58 @@ class Producer(_origen.producer.PyProducer):
             "Flow": self.Flow,
         }
 
+    def generate(self, *sources):
+        ''' Generate a pattern, either from a file or function source.
+
+            Note: changing the directories, mode, verbosity levels, etc. are not supported here but
+            can be changed prior to calling this method.
+        '''
+        _origen.set_operation("generate")
+        # Just do this once, consider a case like the examples command where this is being called
+        # multiple times in the same thread of execution
+        if not self._generate_prepared:
+            origen.tester._prepare_for_generate()
+            self._generate_prepared = True
+        for (i, src) in enumerate(sources):
+            origen.logger.info(
+                f"Executing source {i+1} of {len(sources)}: {src}")
+            if isinstance(src, Path):
+                src = str(src)
+
+            context = origen.producer.api()
+            # Starts a new JOB in Origen which provides some long term storage and tracking
+            # of files that are referenced on the Rust side
+            # The JOB API can be accessed via origen.producer.current_job
+            if isinstance(src, str):
+                origen.producer.create_job("generate", src)
+                origen.load_file(src, locals=context)
+            elif callable(src):
+                origen.producer.create_job("generate", src.__name__)
+                src(context)
+            else:
+                origen.logger.error(
+                    f"Cannot generate source {src} at index {i}. Unrecognized type {type(src)}"
+                )
+        _origen.prog_gen.render()
+
+    def summarize(self):
+        stats = origen.tester.stats()
+        changes = stats['changed_pattern_files'] > 0 or stats[
+            'changed_program_files'] > 0
+        new_files = stats['new_pattern_files'] > 0 or stats[
+            'new_program_files'] > 0
+        if changes or new_files:
+            print("")
+            if changes:
+                print("To save all changed files run:")
+                print("  origen save_ref --changed")
+            if new_files:
+                print("To save all new files run:")
+                print("  origen save_ref --new")
+            if changes and new_files:
+                print("To save both run:")
+                print("  origen save_ref --new --changed")
+
     @contextmanager
     def Pattern(self, **kwargs):
         _origen.set_operation("generatepattern")
@@ -34,7 +91,7 @@ class Producer(_origen.producer.PyProducer):
         origen.target.load()
 
         job = origen.producer.current_job
-        name = Path(job.source_file).stem
+        name = kwargs.pop("name", None) or Path(job.source_file).stem
         pat = PatternClass(name, **kwargs)
 
         # This initializes a new AST for the pattern we are about to generate
@@ -49,7 +106,7 @@ class Producer(_origen.producer.PyProducer):
         origen.tester.end_pattern()
         # True means continue on fail, should make this dynamic in future so that the user can
         # decide whether to blow up upon an error or continue to the next pattern.
-        origen.tester.render_pattern(True)
+        origen.tester.render_pattern(origen.producer.continue_on_fail)
 
     @contextmanager
     def Flow(self, **kwargs):

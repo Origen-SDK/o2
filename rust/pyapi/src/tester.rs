@@ -1,5 +1,6 @@
 use super::pins::pin_header::PinHeader;
 use super::timesets::timeset::Timeset;
+use crate::pins::vec_to_ppin_ids;
 use origen::core::tester::TesterSource;
 use origen::error::Error;
 use origen::testers::SupportedTester;
@@ -381,6 +382,64 @@ impl PyTester {
         Self::cycle(slf, Some(&kwargs))
     }
 
+    #[args(
+        label = "None",
+        symbol = "None",
+        pins = "None",
+        cycles = "None",
+        mask = "None"
+    )]
+    fn overlay(
+        slf: PyRef<Self>,
+        label: Option<String>,
+        symbol: Option<String>,
+        pins: Option<Vec<&PyAny>>,
+        cycles: Option<usize>,
+        mask: Option<num_bigint::BigUint>,
+    ) -> PyResult<Py<Self>> {
+        let pin_ids;
+        {
+            if let Some(p) = pins {
+                let dut = origen::dut();
+                pin_ids = Some(vec_to_ppin_ids(&dut, p)?);
+            } else {
+                pin_ids = None
+            }
+        }
+        {
+            let tester = origen::tester();
+            tester.overlay(&origen::Overlay::new(label, symbol, cycles, mask, pin_ids)?)?;
+        }
+        slf.issue_callbacks("overlay")?;
+        Ok(slf.into())
+    }
+
+    #[args(symbol = "None", cycles = "None", mask = "None", pins = "None")]
+    fn capture(
+        slf: PyRef<Self>,
+        symbol: Option<String>,
+        cycles: Option<usize>,
+        mask: Option<num_bigint::BigUint>,
+        pins: Option<Vec<&PyAny>>,
+    ) -> PyResult<Py<Self>> {
+        let pin_ids;
+        {
+            if let Some(p) = pins {
+                crate::dut::PyDUT::ensure_pins("dut")?;
+                let dut = origen::dut();
+                pin_ids = Some(vec_to_ppin_ids(&dut, p)?);
+            } else {
+                pin_ids = None
+            }
+        }
+        {
+            let tester = origen::tester();
+            tester.capture(&origen::Capture::new(symbol, cycles, mask, pin_ids)?)?;
+        }
+        slf.issue_callbacks("capture")?;
+        Ok(slf.into())
+    }
+
     fn register_tester(&mut self, g: &PyAny) -> PyResult<()> {
         let mut tester = origen::tester();
         let gil = Python::acquire_gil();
@@ -446,6 +505,10 @@ impl PyTester {
     /// it will blow up and immediately return an error to Python.
     #[args(continue_on_fail = false)]
     fn render_pattern(&self, continue_on_fail: bool) -> PyResult<Vec<String>> {
+        if origen::LOGGER.has_keyword("show_unprocessed_ast") {
+            origen::LOGGER.info("Showing Unprocessed AST");
+            origen::LOGGER.info(&format!("{:?}", origen::TEST));
+        }
         let mut rendered_patterns: Vec<String> = vec![];
         let targets;
         {

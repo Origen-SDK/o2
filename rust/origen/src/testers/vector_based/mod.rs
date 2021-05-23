@@ -4,8 +4,10 @@ pub mod pattern_renderer;
 use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::ast::Node;
+use crate::generator::processor::Return;
 use crate::utility::differ::{ASCIIDiffer, Differ};
 use crate::Result;
+use pattern_renderer::Renderer;
 use std::path::{Path, PathBuf};
 
 pub trait VectorBased:
@@ -29,6 +31,10 @@ pub trait VectorBased:
     }
 
     fn pin_action_resolver(&self) -> Option<Resolver> {
+        None
+    }
+
+    fn override_node(&self, _renderer: &mut Renderer, _node: &Node) -> Option<Result<Return>> {
         None
     }
 }
@@ -66,6 +72,10 @@ where
         renderer: &mut pattern_renderer::Renderer,
     ) -> Option<Result<String>> {
         VectorBased::print_pattern_end(self, renderer)
+    }
+
+    fn override_node(&self, renderer: &mut Renderer, node: &Node) -> Option<Result<Return>> {
+        VectorBased::override_node(self, renderer, node)
     }
 }
 

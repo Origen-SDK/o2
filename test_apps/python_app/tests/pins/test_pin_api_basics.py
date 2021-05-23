@@ -190,13 +190,14 @@ class TestSettingStates:
         is_pin_group(grp.verify(0x7))
         assert grp.actions == "HHH"
 
-    def test_capturing_pins(self, clean_falcon, pins, grp):
+    def test_capturing_pins_does_not_alter_pin_states(self, clean_falcon, pins,
+                                                      grp):
         grp = origen.dut.pin("grp")
         is_pin_group(grp.capture())
-        assert grp.actions == "CCC"
-        assert origen.dut.pins["p1"].actions == "C"
-        assert origen.dut.pins["p2"].actions == "C"
-        assert origen.dut.pins["p3"].actions == "C"
+        assert grp.actions == "ZZZ"
+        assert origen.dut.pins["p1"].actions == "Z"
+        assert origen.dut.pins["p2"].actions == "Z"
+        assert origen.dut.pins["p3"].actions == "Z"
 
     def test_tristating_pins(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
