@@ -1,7 +1,7 @@
 use super::fmt::cd;
 use clap::ArgMatches;
-use std::process::Command;
 use indexmap::IndexMap;
+use std::process::Command;
 
 pub fn run(cmd: &ArgMatches) {
     match cmd.subcommand_name() {
@@ -64,7 +64,7 @@ pub fn run(cmd: &ArgMatches) {
                 false,
                 Some(args),
             );
-       }
+        }
 
         None | _ => unreachable!(),
     }

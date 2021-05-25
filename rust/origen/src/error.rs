@@ -37,8 +37,8 @@ pub fn raises_error(yes: bool) -> Result<()> {
 }
 
 // To add a conversion from other type of errors
-use pyo3::{exceptions, PyErr};
 use pyo3::prelude::*;
+use pyo3::{exceptions, PyErr};
 
 //impl std::convert::Into<PyErr> for Error {
 //    fn into(self) -> PyErr {
@@ -64,7 +64,7 @@ impl std::convert::From<PyErr> for Error {
                     let r = e.call_method0(py, "__str__").unwrap();
                     r.extract::<String>(py).unwrap()
                 }
-                _ => "--No Message Available--".to_string()
+                _ => "--No Message Available--".to_string(),
             }
         ))
     }

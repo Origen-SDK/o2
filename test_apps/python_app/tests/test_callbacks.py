@@ -1,6 +1,7 @@
 import origen, pytest
 from tests.shared import clean_eagle, clean_bald_eagle
 
+
 class TestCallbacks:
     before_tester_reset_called = False
     after_tester_reset_called = False
@@ -30,6 +31,7 @@ class TestCallbacks:
         assert TestCallbacks.after_tester_reset_called == True
         # This will increase from the callback at in the example application
         assert origen.app.__class__.tester_resets == resets + 1
+
 
 class TestStartupShutdownCallbacks:
     def test_toplevel_startups_and_shutdowns_occur(self, clean_eagle):
@@ -63,10 +65,8 @@ class TestStartupShutdownCallbacks:
 
         origen.callbacks.emit("controller__shutdown")
         assert blk.callbacks == [
-            "base__enable_cc_called",
-            "base__wait_for_enable_called",
-            "base__disable_cc_called",
-            "base__wait_for_disable_called"
+            "base__enable_cc_called", "base__wait_for_enable_called",
+            "base__disable_cc_called", "base__wait_for_disable_called"
         ]
 
     def test_startups_and_shutdowns_can_be_overridden(self, clean_bald_eagle):

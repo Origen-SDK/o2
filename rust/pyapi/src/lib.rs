@@ -13,6 +13,7 @@ mod registers;
 mod services;
 #[macro_use]
 mod timesets;
+mod _helpers;
 mod application;
 mod producer;
 mod prog_gen;
@@ -21,21 +22,20 @@ mod tester;
 mod tester_apis;
 mod user;
 mod utility;
-mod _helpers;
 
 use crate::registers::bit_collection::BitCollection;
+use indexmap::IndexMap;
 use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBytes, PyDict, PyTuple, PyList};
+use pyo3::types::{PyAny, PyBytes, PyDict, PyList, PyTuple};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::MutexGuard;
-use std::collections::HashMap;
-use indexmap::IndexMap;
-use utility::metadata::{metadata_to_pyobj, extract_as_metadata};
+use utility::metadata::{extract_as_metadata, metadata_to_pyobj};
 
 // Imported pyapi modules
 use application::PyInit_application;
@@ -317,7 +317,10 @@ fn initialize(
     cli_location: Option<String>,
 ) -> PyResult<()> {
     origen::initialize(log_verbosity, verbosity_keywords, cli_location);
-    origen::FRONTEND.write().unwrap().set_frontend(Box::new(Frontend::new()))?;
+    origen::FRONTEND
+        .write()
+        .unwrap()
+        .set_frontend(Box::new(Frontend::new()))?;
     Ok(())
 }
 
@@ -575,7 +578,9 @@ pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
 }
 
 pub fn with_pycallbacks<T, F>(mut func: F) -> PyResult<T>
-where F: FnMut(Python, &PyAny) -> PyResult<T>, {
+where
+    F: FnMut(Python, &PyAny) -> PyResult<T>,
+{
     let gil = Python::acquire_gil();
     let py = gil.python();
 
@@ -594,49 +599,49 @@ impl Frontend {
 impl origen::core::frontend::Frontend for Frontend {
     fn app(&self) -> origen::Result<Option<Box<dyn origen::core::frontend::App>>> {
         let app_frontend = application::_frontend::App::new()?;
-       Ok(Some(Box::new(app_frontend)))
+        Ok(Some(Box::new(app_frontend)))
     }
 
     fn emit_callback(
         &self,
         callback: &str,
-        args: Option<&Vec<origen::Metadata>>, 
+        args: Option<&Vec<origen::Metadata>>,
         kwargs: Option<&IndexMap<String, origen::Metadata>>,
         // source: Option<String>,
-        _opts: Option<&HashMap<String, origen::Metadata>>
+        _opts: Option<&HashMap<String, origen::Metadata>>,
     ) -> origen::Result<Vec<origen::Metadata>> {
-        Ok(with_pycallbacks( |py, cbs| {
-            let pyargs = PyTuple::new(py, vec!(
-                callback.to_object(py),
-                {
-                    let v: Vec<PyObject> = vec!();
-                    let py_args = PyList::new(py, v);
-                    if let Some(_args) = args {
-                        for arg in _args {
-                            py_args.append(metadata_to_pyobj(Some(arg.clone()), None)?)?;
+        Ok(with_pycallbacks(|py, cbs| {
+            let pyargs = PyTuple::new(
+                py,
+                vec![
+                    callback.to_object(py),
+                    {
+                        let v: Vec<PyObject> = vec![];
+                        let py_args = PyList::new(py, v);
+                        if let Some(_args) = args {
+                            for arg in _args {
+                                py_args.append(metadata_to_pyobj(Some(arg.clone()), None)?)?;
+                            }
                         }
-                    }
-                    py_args.to_object(py)
-                },
-                {
-                    let py_kwargs = PyDict::new(py);
-                    if let Some(_kwargs) = kwargs {
-                        for (kw, arg) in _kwargs {
-                            py_kwargs.set_item(kw, metadata_to_pyobj(Some(arg.clone()), None)?)?;
+                        py_args.to_object(py)
+                    },
+                    {
+                        let py_kwargs = PyDict::new(py);
+                        if let Some(_kwargs) = kwargs {
+                            for (kw, arg) in _kwargs {
+                                py_kwargs
+                                    .set_item(kw, metadata_to_pyobj(Some(arg.clone()), None)?)?;
+                            }
                         }
-                    }
-                    py_kwargs.to_object(py)
-                }
-            ));
+                        py_kwargs.to_object(py)
+                    },
+                ],
+            );
             let pykwargs = PyDict::new(py);
-            let r = cbs.call_method(
-                "emit",
-                pyargs,
-                Some(pykwargs)
-            )?;
+            let r = cbs.call_method("emit", pyargs, Some(pykwargs))?;
 
             let pyretn = r.extract::<Vec<&PyAny>>()?;
-            let mut retn = vec!();
+            let mut retn = vec![];
             for i in pyretn {
                 retn.push(extract_as_metadata(i)?);
             }
@@ -646,17 +651,15 @@ impl origen::core::frontend::Frontend for Frontend {
 
     fn register_callback(&self, callback: &str, _description: &str) -> origen::Result<()> {
         with_pycallbacks(|py, cbs| {
-            cbs.call_method(
-                "register_callback",
-                PyTuple::new(py, &[callback]),
-                None
-            )?;
+            cbs.call_method("register_callback", PyTuple::new(py, &[callback]), None)?;
             Ok(())
         })?;
         Ok(())
     }
 
-    fn list_local_dependencies(&self) -> origen::Result<Vec<String>> { todo!() }
+    fn list_local_dependencies(&self) -> origen::Result<Vec<String>> {
+        todo!()
+    }
 
     fn on_dut_change(&self) -> Result<()> {
         with_pycallbacks(|_py, cbs| {

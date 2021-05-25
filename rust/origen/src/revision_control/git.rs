@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
-use git2::{Cred, CredentialType, FetchOptions, PushOptions, RemoteCallbacks, Direction};
+use git2::{Cred, CredentialType, Direction, FetchOptions, PushOptions, RemoteCallbacks};
 use std::cell::RefCell;
 
 enum VersionType {
@@ -207,12 +207,10 @@ impl RevisionControlAPI for Git {
     fn is_initialized(&self) -> OrigenResult<bool> {
         match Repository::open(&self.local) {
             Ok(_) => Ok(true),
-            Err(e) => {
-                match e.code() {
-                    git2::ErrorCode::NotFound => Ok(false),
-                    _ => error!("{}", e)
-                }
-            }
+            Err(e) => match e.code() {
+                git2::ErrorCode::NotFound => Ok(false),
+                _ => error!("{}", e),
+            },
         }
     }
 
@@ -243,7 +241,10 @@ impl RevisionControlAPI for Git {
                 log_trace!("RevisionControl: Git: No pathspecs specified - no checkins occurred");
                 return self.current_commit_id(&repo);
             } else {
-                log_trace!("RevisionControl: Git: Adding files from pathspecs: {:?}", pathspecs);
+                log_trace!(
+                    "RevisionControl: Git: Adding files from pathspecs: {:?}",
+                    pathspecs
+                );
                 for p in pathspecs {
                     index.add_all(p, git2::IndexAddOption::DEFAULT, None)?;
                 }
@@ -259,7 +260,14 @@ impl RevisionControlAPI for Git {
         let sig = Self::signature(&repo)?;
         let obj = repo.head()?.resolve()?.peel(git2::ObjectType::Commit)?;
         let c = obj.into_commit().unwrap();
-        let commit_id = repo.commit(Some("HEAD"), &sig, &sig, msg, &repo.find_tree(tree_id)?, &[&c])?;
+        let commit_id = repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            msg,
+            &repo.find_tree(tree_id)?,
+            &[&c],
+        )?;
         log_trace!("RevisionControl: Git: Committed Updates");
 
         log_trace!("Pushing new commit");
@@ -273,12 +281,10 @@ impl RevisionControlAPI for Git {
             });
             match remote.connect_auth(Direction::Push, Some(cb), None) {
                 Ok(_) => keep_trying = false,
-                Err(e) => {
-                    match e.class() {
-                        git2::ErrorClass::Ssh => {},
-                        _ => return Err(e.into())
-                    }
-                }
+                Err(e) => match e.class() {
+                    git2::ErrorClass::Ssh => {}
+                    _ => return Err(e.into()),
+                },
             }
         }
         self.reset_temps();
@@ -527,12 +533,10 @@ impl Git {
             });
             match remote.connect_auth(Direction::Push, Some(cb), None) {
                 Ok(_) => keep_trying = false,
-                Err(e) => {
-                    match e.class() {
-                        git2::ErrorClass::Ssh => {},
-                        _ => return Err(e.into())
-                    }
-                }
+                Err(e) => match e.class() {
+                    git2::ErrorClass::Ssh => {}
+                    _ => return Err(e.into()),
+                },
             }
         }
         self.reset_temps();
@@ -550,7 +554,7 @@ impl Git {
                 from.unwrap_or("refs/heads/master"),
                 to.unwrap_or("refs/heads/master")
             )],
-            Some(&mut po)
+            Some(&mut po),
         )?;
         log_trace!("Push successful!");
         self.reset_temps();
@@ -596,7 +600,7 @@ impl Git {
                         None
                     },
                     &ssh_keys[*ssh_attempts],
-                    None
+                    None,
                 );
                 *ssh_attempts += 1;
                 return key;

@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use crate::application::{get_pyapp, PyApplication};
 use super::RunResult;
+use crate::application::{get_pyapp, PyApplication};
 use crate::runtime_error;
+use pyo3::prelude::*;
 
 pub struct UnitTester {}
 
@@ -15,7 +15,7 @@ impl origen::core::frontend::UnitTester for UnitTester {
         let stat = pystat.extract::<PyRef<RunResult>>(py)?;
         match stat.orr.as_ref() {
             Some(rr) => Ok(rr.clone()),
-            None => runtime_error!("Incomplete or Uninitialized RunResult encountered")?
+            None => runtime_error!("Incomplete or Uninitialized RunResult encountered")?,
         }
     }
 }

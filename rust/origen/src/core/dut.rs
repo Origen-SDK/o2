@@ -136,9 +136,7 @@ impl Dut {
     /// with the given value
     // This is called once per DUT load
     pub fn change(&mut self, name: &str) -> Result<()> {
-        crate::with_optional_frontend( |f| {
-            f.on_dut_change()
-        })?;
+        crate::with_optional_frontend(|f| f.on_dut_change())?;
         self.name = name.to_string();
         self.models.clear();
         self.memory_maps.clear();

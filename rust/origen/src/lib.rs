@@ -39,6 +39,7 @@ pub use error::Error;
 use self::core::application::Application;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
+use self::core::frontend::Handle;
 use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
@@ -54,10 +55,11 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::ldap::LDAPs;
 use utility::mailer::Mailer;
 use utility::session_store::{SessionStore, Sessions};
-use self::core::frontend::Handle;
 
-pub use self::core::frontend::{with_frontend_app, with_frontend, with_optional_frontend, emit_callback};
 pub use self::core::frontend::callbacks as CALLBACKS;
+pub use self::core::frontend::{
+    emit_callback, with_frontend, with_frontend_app, with_optional_frontend,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 

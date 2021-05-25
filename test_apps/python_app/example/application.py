@@ -1,11 +1,11 @@
-from origen.application import Base #, on_app_init
+from origen.application import Base  #, on_app_init
 import origen
+
 
 # This class represents this application and is automatically instantiated as origen.app
 # It is required by Origen and should not be renamed or removed under any circumstances
 class Application(Base):
     tester_resets = 0
-
     ''' Origen Application '''
     def yo(self):
         ''' Say hello '''

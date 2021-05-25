@@ -1,8 +1,8 @@
+use crate::application::{get_pyapp, PyApplication};
+use origen::Result as OResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::Path;
-use origen::Result as OResult;
-use crate::application::{PyApplication, get_pyapp};
 
 pub struct RC {}
 
@@ -32,16 +32,26 @@ impl origen::core::frontend::RC for RC {
         let py = gil.python();
         let pyapp = get_pyapp(py)?;
         let rc = PyApplication::_get_rc(pyapp, py)?;
-        
+
         let kwargs = PyDict::new(py);
         kwargs.set_item("msg", msg)?;
 
         let r;
         if let Some(f) = files_or_dirs {
-            let pyfiles = PyTuple::new(py, f.iter().map( |fd| fd.display().to_string() ).collect::<Vec<String>>());
+            let pyfiles = PyTuple::new(
+                py,
+                f.iter()
+                    .map(|fd| fd.display().to_string())
+                    .collect::<Vec<String>>(),
+            );
             r = rc.call_method(py, "checkin", pyfiles, Some(kwargs))?;
         } else {
-            r = rc.call_method(py, "checkin_all", PyTuple::new(py, Vec::<u8>::new()), Some(kwargs))?;
+            r = rc.call_method(
+                py,
+                "checkin_all",
+                PyTuple::new(py, Vec::<u8>::new()),
+                Some(kwargs),
+            )?;
         }
         Ok(r.extract::<String>(py)?)
     }
@@ -51,7 +61,7 @@ impl origen::core::frontend::RC for RC {
         let py = gil.python();
         let pyapp = get_pyapp(py)?;
         let rc = PyApplication::_get_rc(pyapp, py)?;
-        
+
         let kwargs = PyDict::new(py);
         kwargs.set_item("msg", msg)?;
         kwargs.set_item("force", force)?;

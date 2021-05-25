@@ -4,9 +4,9 @@ pub mod location;
 #[allow(non_snake_case)]
 pub mod mailer;
 pub mod metadata;
+pub mod revision_control;
 pub mod session_store;
 pub mod transaction;
-pub mod revision_control;
 pub mod unit_testers;
 
 use ldap::PyInit_ldap;
@@ -14,9 +14,9 @@ use location::Location;
 use mailer::PyInit_mailer;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use revision_control::PyInit_revision_control;
 use session_store::PyInit_session_store;
 use transaction::Transaction;
-use revision_control::PyInit_revision_control;
 use unit_testers::PyInit_unit_testers;
 
 use num_bigint::BigUint;

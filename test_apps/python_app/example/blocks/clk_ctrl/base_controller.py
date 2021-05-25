@@ -1,6 +1,7 @@
 import origen
 from origen.controller import Base
 
+
 class GenericClkCtrl(Base):
     def __init__(self):
         Base.__init__(self)
@@ -15,7 +16,7 @@ class GenericClkCtrl(Base):
         # self.cc("Enabling clks", include_source=True)
         self.callbacks.append("base__enable_cc_called")
         self.ctrl.fields["enable"].write(1)
-    
+
     @Base.startup
     def wait_for_enable(self):
         # self.cc("Waiting for clks to enable", include_source=True)
@@ -28,7 +29,7 @@ class GenericClkCtrl(Base):
         # self.cc("Disabling clks", include_source=True)
         self.ctrl.fields["enable"].set_data(0)
         self.ctrl.write()
-    
+
     @Base.shutdown
     def wait_for_disable(self):
         self.callbacks.append("base__wait_for_disable_called")

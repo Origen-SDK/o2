@@ -961,10 +961,7 @@ Examples:
                     SubCommand::with_name("package")
                         .about("Build the app into a Python package (a wheel)"),
                 )
-                .subcommand(
-                    SubCommand::with_name("publish")
-                        .about("Publish (release) the app"),
-                ),
+                .subcommand(SubCommand::with_name("publish").about("Publish (release) the app")),
         );
 
         /************************************************************************************/

@@ -4,8 +4,8 @@ pub mod git;
 use crate::Result;
 use designsync::Designsync;
 use git::Git;
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct RevisionControl {
@@ -22,9 +22,9 @@ impl std::fmt::Debug for Credentials {
     // Purposefully leave off the passwrd
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Credentials")
-         .field("username", &self.username)
-         .field("password", &"<-- Plaintext Password Withheld -->")
-         .finish()
+            .field("username", &self.username)
+            .field("password", &"<-- Plaintext Password Withheld -->")
+            .finish()
     }
 }
 
@@ -60,7 +60,7 @@ impl SupportedSystems {
         match s.as_str() {
             "git" => Ok(Self::Git),
             "design_sync" | "designsync" => Ok(Self::Designsync),
-            _ => error!("Unsupported revision control system '{}'", system)
+            _ => error!("Unsupported revision control system '{}'", system),
         }
     }
 }
@@ -89,13 +89,15 @@ impl RevisionControl {
     }
 
     pub fn from_config(config: &HashMap<String, String>) -> Result<Self> {
-        let driver: Box::<dyn RevisionControlAPI>;
+        let driver: Box<dyn RevisionControlAPI>;
         if let Some(c) = config.get("system") {
             let _c = c.to_lowercase();
             match _c.as_str() {
                 "git" => driver = Box::new(Self::git_from_config(config)?),
-                "designsync" | "design_sync" => driver = Box::new(Self::designsync_from_config(config)?),
-                _ => return error!("Unknown RC system '{}'", _c)
+                "designsync" | "design_sync" => {
+                    driver = Box::new(Self::designsync_from_config(config)?)
+                }
+                _ => return error!("Unknown RC system '{}'", _c),
             }
         } else {
             // Check for some specific parameters to discern the system
@@ -111,9 +113,7 @@ impl RevisionControl {
                 return error!("Could not discern revision control system. None of 'remote', 'vault', or 'system' were given");
             }
         }
-        Ok(Self {
-            driver: driver
-        })
+        Ok(Self { driver: driver })
     }
 
     pub fn git(local: &Path, remotes: Vec<&str>, credentials: Option<Credentials>) -> Git {
@@ -124,10 +124,10 @@ impl RevisionControl {
         Ok(Self::git(
             &Path::new(config.get("local").unwrap()),
             match config.get("remote") {
-                Some(r) => vec!(r),
-                None => return error!("Git driver must be given a 'remote' parameter")
+                Some(r) => vec![r],
+                None => return error!("Git driver must be given a 'remote' parameter"),
             },
-            None
+            None,
         ))
     }
 
@@ -146,16 +146,17 @@ impl RevisionControl {
         Ok(Self::designsync(
             &Path::new(config.get("local").unwrap()),
             match config.get("vault") {
-                Some(v) => vec!(v),
-                None => return error!("DesignSync driver muust be given a 'vault' parameter")
+                Some(v) => vec![v],
+                None => return error!("DesignSync driver muust be given a 'vault' parameter"),
             },
-            None
+            None,
         ))
     }
 }
 
 /// Defines a common minimum API that all revision control system drivers should support
-pub trait RevisionControlAPI: std::fmt::Debug { // + Sync + Send {
+pub trait RevisionControlAPI: std::fmt::Debug {
+    // + Sync + Send {
     /// Initially populate the local directory with the remote, this is equivalent to a 'git clone'
     /// or a 'dssc pop' operation.
     /// A progress instance will be returned indicating how many objects were fetched.

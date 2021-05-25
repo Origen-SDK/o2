@@ -2,16 +2,16 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
+use crate::revision_control::RevisionControl;
 use crate::utility::file_actions as fa;
 use crate::utility::version::{to_pep440, to_semver, ReleaseType};
 use crate::Result;
+use indexmap::IndexMap;
 use regex::Regex;
 use semver::Version;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
-use crate::revision_control::{RevisionControl};
-use indexmap::IndexMap;
 
 /// Represents the current application, an instance of this is returned by
 /// origen::app().
@@ -113,37 +113,42 @@ impl Application {
     pub fn rc(&self) -> Result<RevisionControl> {
         self.with_config(|cfg| match cfg.revision_control.as_ref() {
             Some(rc) => RevisionControl::from_config(rc),
-            None => error!("No app RC was given. Cannot create RC driver")
+            None => error!("No app RC was given. Cannot create RC driver"),
         })
     }
 
     pub fn publish(&self) -> Result<()> {
-        Ok(crate::with_frontend_app( |app| {
+        Ok(crate::with_frontend_app(|app| {
             log_info!("Performing pre-publish checks...");
             app.check_production_status()?;
 
             let mut v = self.version()?;
-            let release_type = ReleaseType::from_idx(dialoguer::Select::new()
-                .with_prompt("Please select the release type")
-                .items(&ReleaseType::to_vec().iter().map( |r| r.to_string()).collect::<Vec<String>>())
-                .default(3)
-                .interact()?);
+            let release_type = ReleaseType::from_idx(
+                dialoguer::Select::new()
+                    .with_prompt("Please select the release type")
+                    .items(
+                        &ReleaseType::to_vec()
+                            .iter()
+                            .map(|r| r.to_string())
+                            .collect::<Vec<String>>(),
+                    )
+                    .default(3)
+                    .interact()?,
+            );
 
             release_type.bump_version(&mut v)?;
             self.set_version(&v)?;
             //let files = vec!(self.version_file().as_path());
 
-            Ok(crate::with_frontend_app( |app| {
+            Ok(crate::with_frontend_app(|app| {
                 // let rn = app.get_release_notes()?;
                 // rn.update_history();
                 // files.push(rn.history_file());
 
                 let rc = app.get_rc()?;
                 rc.checkin(
-                    Some(vec!(
-                        self.version_file().as_path()
-                    )),
-                    "Recorded new version in the version tracker"
+                    Some(vec![self.version_file().as_path()]),
+                    "Recorded new version in the version tracker",
                 )?;
                 rc.tag(&v.to_string(), false, None)?;
 
@@ -165,7 +170,7 @@ impl Application {
         log_info!("Checking production status...");
         let mut stat = ProductionStatus::default();
 
-        crate::with_frontend_app( |app| {
+        crate::with_frontend_app(|app| {
             // log_info!("Running any application-defined checks: pre-Origen checks...");
             // stat.push_checks(app.production_status_checks_pre(stop_at_first_fail)?);
 
@@ -269,8 +274,15 @@ impl Default for ProductionStatus {
 }
 
 impl ProductionStatus {
-    pub fn push_check(&mut self, check: &str, desc: Option<String>, result: bool, result_text: Option<String>) {
-        self.checks.insert(check.to_string(), (result, desc, result_text));
+    pub fn push_check(
+        &mut self,
+        check: &str,
+        desc: Option<String>,
+        result: bool,
+        result_text: Option<String>,
+    ) {
+        self.checks
+            .insert(check.to_string(), (result, desc, result_text));
         if !result {
             self.passed = false;
         }
@@ -290,11 +302,11 @@ impl ProductionStatus {
             "Unit Tests",
             Some("Fails if any of the unit tests fail".to_string()),
             passed,
-            txt
+            txt,
         );
     }
 
-    pub fn passed(&self)-> bool {
+    pub fn passed(&self) -> bool {
         self.passed
     }
 

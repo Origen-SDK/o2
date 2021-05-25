@@ -284,13 +284,20 @@ class Base:
 
     @staticmethod
     def startup(func):
-        origen.callbacks.proxies.append("controller__startup", func, unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        origen.callbacks.proxies.append(
+            "controller__startup",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
         return func
 
     @staticmethod
     def shutdown(func):
-        origen.callbacks.proxies.append("controller__shutdown", func, unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        origen.callbacks.proxies.append(
+            "controller__shutdown",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
         return func
+
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
@@ -310,10 +317,14 @@ class TopLevel(Base):
 
     @staticmethod
     def startup(func):
-        origen.callbacks.proxies.append("toplevel__startup", func, unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        origen.callbacks.proxies.append(
+            "toplevel__startup", func, unload_on=callbacks.UnloadOn.DUT_CHANGE)
         return func
 
     @staticmethod
     def shutdown(func):
-        origen.callbacks.proxies.append("toplevel__shutdown", func, unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        origen.callbacks.proxies.append(
+            "toplevel__shutdown",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
         return func

@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyType, PyDict, PyTuple};
-use std::collections::HashMap;
-use std::path::Path;
+use super::Status;
+use crate::runtime_error;
 use origen::revision_control::git::Git as OrigenGit;
 use origen::revision_control::RevisionControlAPI;
-use crate::runtime_error;
-use super::Status;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyTuple, PyType};
+use std::collections::HashMap;
+use std::path::Path;
 
 pub static PY_GIT_MOD_PATH: &str = "origen.utility.revision_control.git";
 
@@ -17,12 +17,11 @@ fn git(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyclass(subclass)]
 pub struct Git {
-    config: HashMap<String, String>
+    config: HashMap<String, String>,
 }
 
 #[pymethods]
 impl Git {
-
     #[classmethod]
     fn __init__(_cls: &PyType, instance: &PyAny, config: Option<&PyDict>) -> PyResult<()> {
         let mut c: HashMap<String, String> = HashMap::new();
@@ -44,9 +43,7 @@ impl Git {
                 c.insert(k.extract::<String>()?, v.extract::<String>()?);
             }
         }
-        Ok(Self {
-            config: c
-        })
+        Ok(Self { config: c })
     }
 
     fn populate(&self, version: &str) -> PyResult<()> {
@@ -76,11 +73,11 @@ impl Git {
             rusty_path = None;
         }
         Ok(Status {
-            stat: self.rc()?.status(rusty_path)?
+            stat: self.rc()?.status(rusty_path)?,
         })
     }
 
-    #[args(kwargs="**")]
+    #[args(kwargs = "**")]
     fn tag(&self, tagname: &str, kwargs: Option<&PyDict>) -> PyResult<()> {
         let msg: Option<&str>;
         Ok(self.rc()?.tag(
@@ -103,7 +100,7 @@ impl Git {
                 }
             } else {
                 None
-            }
+            },
         )?)
     }
 
@@ -115,15 +112,15 @@ impl Git {
         Ok(self.rc()?.is_initialized()?)
     }
 
-    #[args(paths="*", kwargs="**")]
+    #[args(paths = "*", kwargs = "**")]
     fn checkin(&self, paths: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<String> {
         let msg;
         if let Some(kw) = kwargs {
             match kw.get_item("msg") {
                 Some(m) => {
                     msg = m.extract::<String>()?;
-                },
-                None => return runtime_error!("A 'msg' is required for checkin operations")
+                }
+                None => return runtime_error!("A 'msg' is required for checkin operations"),
             }
         } else {
             return runtime_error!("A 'msg' is required for checkin operations");

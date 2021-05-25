@@ -387,10 +387,12 @@ class Base(_origen.application.PyApplication):
         '''
         self.compiler.run(*args, **options)
         return self.compiler
-    
+
+
 # def on_app_init(func):
 #     _callbacks.register_listener("on_app_init", None, func)
 #     return func
+
 
 class Application(Base):
     def hey(self):

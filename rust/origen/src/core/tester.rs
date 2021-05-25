@@ -207,21 +207,11 @@ impl Tester {
     /// This will be called by Origen immediately before it is about to load the target, it unloads
     /// all tester targets and all other state making it ready to accept a new set of targets
     pub fn reset(&mut self) -> Result<()> {
-        crate::emit_callback(
-            crate::CALLBACKS::BEFORE_TESTER_RESET,
-            None,
-            None,
-            None
-        )?;
+        crate::emit_callback(crate::CALLBACKS::BEFORE_TESTER_RESET, None, None, None)?;
 
         self.init()?;
 
-        crate::emit_callback(
-            crate::CALLBACKS::AFTER_TESTER_RESET,
-            None,
-            None,
-            None
-        )?;
+        crate::emit_callback(crate::CALLBACKS::AFTER_TESTER_RESET, None, None, None)?;
         Ok(())
     }
 

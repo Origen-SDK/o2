@@ -1,9 +1,9 @@
 pub mod _frontend;
 
+use crate::runtime_error;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::PathBuf;
-use crate::{runtime_error};
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -33,7 +33,7 @@ impl PyApplication {
         Ok(r.passed())
     }
 
-    #[args(args="*")]
+    #[args(args = "*")]
     fn publish(&self, _args: &PyTuple) -> PyResult<()> {
         Ok(origen::app().unwrap().publish()?)
     }
@@ -83,11 +83,7 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
     origen::log_trace!("Retrieving PyApplication object from Python heap...");
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
-    let result = py.eval(
-        "origen.app",
-        Some(locals),
-        None,
-    )?;
+    let result = py.eval("origen.app", Some(locals), None)?;
 
     if result.is_none() {
         return runtime_error!("No Origen application is present");
@@ -97,8 +93,10 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
         Ok(app) => {
             origen::log_trace!("Retrieved PyApplication object");
             Ok(app)
-        },
-        Err(_e) => runtime_error!("'origen.app' points to an object which cannot be extracted as an Origen application")
+        }
+        Err(_e) => runtime_error!(
+            "'origen.app' points to an object which cannot be extracted as an Origen application"
+        ),
     }
 }
 

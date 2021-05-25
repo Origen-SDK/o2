@@ -13,17 +13,12 @@ pub enum ReleaseType {
     Major,
     Minor,
     Patch,
-    Prerelease
+    Prerelease,
 }
 
 impl ReleaseType {
     pub fn to_vec() -> Vec<Self> {
-        vec![
-            Self::Major,
-            Self::Minor,
-            Self::Patch,
-            Self::Prerelease
-        ]
+        vec![Self::Major, Self::Minor, Self::Patch, Self::Prerelease]
     }
 
     pub fn to_string(&self) -> String {
@@ -31,8 +26,9 @@ impl ReleaseType {
             Self::Major => "Major",
             Self::Minor => "Minor",
             Self::Patch => "Patch",
-            Self::Prerelease => "Prerelease"
-        }.to_string()
+            Self::Prerelease => "Prerelease",
+        }
+        .to_string()
     }
 
     pub fn from_idx(idx: usize) -> Self {
@@ -50,7 +46,7 @@ impl ReleaseType {
                 //     match v.pre.find( |c| c.is_char()) {
                 //         Some(pre_ver) => {
                 //             let i = pre_ver.parse::<usize>();
-                            
+
                 //         }
                 //     }
                 // }

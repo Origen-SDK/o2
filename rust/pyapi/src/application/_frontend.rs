@@ -1,13 +1,13 @@
 // use origen::core::frontend::App as OApp;
 
-use pyo3::prelude::*;
 use super::get_pyapp;
 use crate::utility::revision_control::_frontend::RC;
 use crate::utility::unit_testers::_frontend::UnitTester;
+use pyo3::prelude::*;
 
 pub struct App {
     rc: RC,
-    unit_tester: UnitTester
+    unit_tester: UnitTester,
 }
 
 impl App {

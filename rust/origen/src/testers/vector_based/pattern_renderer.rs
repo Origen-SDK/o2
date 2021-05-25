@@ -8,7 +8,9 @@ use crate::{Result, DUT};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner, UnpackCaptures, TargetTester};
+use crate::generator::processors::{
+    CycleCombiner, FlattenText, PinActionCombiner, TargetTester, UnpackCaptures,
+};
 
 pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
     fn file_ext(&self) -> &str;

@@ -1,5 +1,5 @@
-use crate::Result;
 use super::Frontend;
+use crate::Result;
 
 pub static BEFORE_TESTER_RESET: &str = "before_tester_reset";
 pub static AFTER_TESTER_RESET: &str = "after_tester_reset";

@@ -2,8 +2,8 @@ use crate::core::application::target::matches;
 use crate::core::term;
 use crate::utility::location::Location;
 use config::File;
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
