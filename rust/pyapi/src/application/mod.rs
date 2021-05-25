@@ -34,7 +34,7 @@ impl PyApplication {
     }
 
     #[args(args="*")]
-    fn publish(&self, args: &PyTuple) -> PyResult<()> {
+    fn publish(&self, _args: &PyTuple) -> PyResult<()> {
         Ok(origen::app().unwrap().publish()?)
     }
 }

@@ -579,7 +579,6 @@ where F: FnMut(Python, &PyAny) -> PyResult<T>, {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
-    let locals = PyDict::new(py);
     let pycallbacks = py.import("origen.callbacks")?;
     func(py, pycallbacks)
 }
@@ -604,7 +603,7 @@ impl origen::core::frontend::Frontend for Frontend {
         args: Option<&Vec<origen::Metadata>>, 
         kwargs: Option<&IndexMap<String, origen::Metadata>>,
         // source: Option<String>,
-        opts: Option<&HashMap<String, origen::Metadata>>
+        _opts: Option<&HashMap<String, origen::Metadata>>
     ) -> origen::Result<Vec<origen::Metadata>> {
         Ok(with_pycallbacks( |py, cbs| {
             let pyargs = PyTuple::new(py, vec!(
@@ -645,7 +644,7 @@ impl origen::core::frontend::Frontend for Frontend {
         })?)
     }
 
-    fn register_callback(&self, callback: &str, description: &str) -> origen::Result<()> {
+    fn register_callback(&self, callback: &str, _description: &str) -> origen::Result<()> {
         with_pycallbacks(|py, cbs| {
             cbs.call_method(
                 "register_callback",
@@ -660,7 +659,7 @@ impl origen::core::frontend::Frontend for Frontend {
     fn list_local_dependencies(&self) -> origen::Result<Vec<String>> { todo!() }
 
     fn on_dut_change(&self) -> Result<()> {
-        with_pycallbacks(|py, cbs| {
+        with_pycallbacks(|_py, cbs| {
             cbs.call_method0("unload_on_dut_change")?;
             Ok(())
         })?;

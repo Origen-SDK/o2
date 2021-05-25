@@ -3,7 +3,7 @@ use crate::{Result, Metadata};
 pub mod callbacks;
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub fn with_frontend_app<T, F>(mut func: F) -> Result<T>
 where
@@ -49,16 +49,13 @@ where
 }
 
 pub struct Handle {
-    // callbacks: IndexMap<String, Callback>,
     frontend: Option<Box<dyn Frontend + std::marker::Sync + std::marker::Send>>,
-    callbacks: IndexMap<String, callbacks::Callback>
 }
 
 impl Handle {
     pub fn new() -> Self {
         Self {
             frontend: None,
-            callbacks: IndexMap::new(),
         }
     }
 
