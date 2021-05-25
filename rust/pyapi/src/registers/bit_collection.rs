@@ -202,6 +202,7 @@ impl PyObjectProtocol for BitCollection {
                             .cloned(),
                     ));
                     bc.field = Some(field.name.clone());
+                    bc.whole_field = true;
                     fields.set_item(field.name, Py::new(py, bc)?.to_object(py))?;
                 }
                 Ok(fields.into())

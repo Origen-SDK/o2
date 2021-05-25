@@ -545,7 +545,7 @@ impl<'a> BitCollection<'a> {
             Ok(t)
         } else {
             Err(Error::new(&format!(
-                "bit collection 'to_verify_transaction' is only supported for register-based bit collections"
+                "bit collection 'to_write_transaction' is only supported for register-based bit collections"
             )))
         }
     }
@@ -563,7 +563,7 @@ impl<'a> BitCollection<'a> {
             Ok(t)
         } else {
             Err(Error::new(&format!(
-                "bit collection 'to_verify_transaction' is only supported for register-based bit collections"
+                "bit collection 'to_capture_transaction' is only supported for register-based bit collections"
             )))
         }
     }
