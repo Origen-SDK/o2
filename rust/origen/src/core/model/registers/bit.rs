@@ -147,6 +147,15 @@ impl Bit {
         *state = state_val | 0b1_0000;
     }
 
+    pub fn clear_capture(&self) {
+        let state_val;
+        {
+            state_val = *self.state.read().unwrap();
+        }
+        let mut state = self.state.write().unwrap();
+        *state = state_val & 0b0_1111;
+    }
+
     /// Sets the bit's data value to X
     pub fn set_undefined(&self) {
         let state_val;

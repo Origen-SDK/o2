@@ -7,7 +7,7 @@ use crate::error::Error;
 use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::testers::vector_based::api::{cycle, repeat, repeat2, repeat2_node};
-use crate::{node, Transaction, TEST};
+use crate::{node, Result, Transaction, TEST};
 
 use regex::Regex;
 
@@ -82,6 +82,10 @@ impl<'a> PinCollection<'a> {
 
     pub fn pin_names(&self) -> Vec<String> {
         self.pins.iter().map(|p| p.name.to_string()).collect()
+    }
+
+    pub fn width(&self) -> usize {
+        self.pins.len()
     }
 
     pub fn contains_group_identifier(
@@ -283,7 +287,7 @@ impl<'a> PinCollection<'a> {
     pub fn set_from_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
         self.verify_size(trans)?;
         let bit_actions = trans.to_symbols()?;
-        self.update_from_bit_actions(&bit_actions)
+        self.update_from_bit_actions(&bit_actions, &trans.overlay_string)
     }
 
     pub fn get_actions(&self) -> Vec<PinAction> {
@@ -336,7 +340,11 @@ impl<'a> PinCollection<'a> {
     }
 
     /// Internal function to update all pins in this collection from a single PinAction
-    fn update_from_bit_actions(&self, bit_actions: &Vec<String>) -> crate::Result<Vec<Node>> {
+    fn update_from_bit_actions(
+        &self,
+        bit_actions: &Vec<(String, bool, bool)>,
+        _overlay_str: &Option<String>,
+    ) -> crate::Result<Vec<Node>> {
         let mut action_nodes: Vec<Node> = vec![];
 
         let mut this_grp_nodes: Vec<Node> = vec![];
@@ -347,10 +355,31 @@ impl<'a> PinCollection<'a> {
         for (i, bit_action) in bit_actions.iter().enumerate() {
             if self.grp_ids.is_some() {
                 let p = &self.pins[i];
-                this_grp_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
-                this_grp_action.push(bit_action.to_string());
+
+                let n = node!(PinAction, p.id, bit_action.0.to_string(), None);
+                let context_node: Option<Node> = None;
+                // if bit_action.1 {
+                //     // context_node = Some(node!(Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                // }
+                // if bit_action.2 {
+                //     // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                //     // if let Some(mut cnode) = context_node.as_mut() {
+                //     //     cnode.add_child(capture_node);
+                //     // } else {
+                //     //     context_node = Some(capture_node);
+                //     // }
+                // }
+                if let Some(mut cnode) = context_node {
+                    cnode.add_child(n);
+                    this_grp_nodes.push(cnode);
+                } else {
+                    this_grp_nodes.push(n);
+                }
+
+                //this_grp_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
+                this_grp_action.push(bit_action.0.to_string());
                 let mut paction = p.action.write().unwrap();
-                *paction = PinAction::new(bit_action);
+                *paction = PinAction::new(bit_action.0.to_string());
                 current_cnt += 1;
                 if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
                     let mut n = node!(
@@ -370,8 +399,28 @@ impl<'a> PinCollection<'a> {
                 // no pin groups. Just push the straight pins
                 let p = &self.pins[i];
                 let mut paction = p.action.write().unwrap();
-                *paction = PinAction::new(bit_action);
-                action_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
+                *paction = PinAction::new(bit_action.0.to_string());
+
+                let context_node: Option<Node> = None;
+                let n = node!(PinAction, p.id, bit_action.0.to_string(), None);
+                // if bit_action.1 {
+                //     // context_node = Some(node!(Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                // }
+                // if bit_action.2 {
+                //     // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                //     // if let Some(mut cnode) = context_node.as_mut() {
+                //     //     cnode.add_child(capture_node);
+                //     // } else {
+                //     //     context_node = Some(capture_node);
+                //     // }
+                // }
+                if let Some(mut cnode) = context_node {
+                    cnode.add_child(n);
+                    action_nodes.push(cnode);
+                } else {
+                    action_nodes.push(n);
+                }
+                //action_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
             }
         }
         Ok(action_nodes)
@@ -388,6 +437,26 @@ impl<'a> PinCollection<'a> {
     pub fn push_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
         let bit_actions = trans.to_symbols()?;
         let mut pin_states: Vec<Node> = vec![];
+        if let Some(c) = &trans.capture {
+            let capture_sym;
+            // Push the capture node and note if a custom character is given.
+            // Masking will be resolved in trans.bit_actions function
+            if let Some(s) = &c.symbol {
+                capture_sym = Some(s.clone());
+            } else {
+                capture_sym = None;
+            }
+            pin_states.push(node!(
+                Capture,
+                crate::Capture {
+                    pin_ids: Some(self.as_ids()),
+                    cycles: Some(self.cycles_to_push(trans)),
+                    enables: c.enables.clone(),
+                    symbol: capture_sym.clone()
+                },
+                None
+            ));
+        }
 
         for (_idx, chunk) in bit_actions.chunks(self.pins.len()).enumerate() {
             let mut this_cycle: Vec<Node> = vec![];
@@ -399,10 +468,28 @@ impl<'a> PinCollection<'a> {
             for (pos, bit_action) in chunk.iter().enumerate() {
                 if self.grp_ids.is_some() {
                     let p = &self.pins[pos];
-                    this_grp_nodes.push(node!(PinAction, p.id, bit_action.to_string(), None));
-                    this_grp_action.push(bit_action.to_string());
+                    let n = node!(PinAction, p.id, bit_action.0.to_string(), None);
+                    let context_node: Option<Node> = None;
+                    // if bit_action.1 {
+                    //     // context_node = Some(node!(Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                    // }
+                    // if bit_action.2 {
+                    //     // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                    //     // if let Some(mut cnode) = context_node.as_mut() {
+                    //     //     cnode.add_child(capture_node);
+                    //     // } else {
+                    //     //     context_node = Some(capture_node);
+                    //     // }
+                    // }
+                    if let Some(mut cnode) = context_node {
+                        cnode.add_child(n);
+                        this_grp_nodes.push(cnode);
+                    } else {
+                        this_grp_nodes.push(n);
+                    }
+                    this_grp_action.push(bit_action.0.to_string());
                     let mut paction = p.action.write().unwrap();
-                    *paction = PinAction::new(bit_action);
+                    *paction = PinAction::new(bit_action.0.to_string());
                     current_cnt += 1;
                     if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
                         let mut n = node!(
@@ -421,9 +508,29 @@ impl<'a> PinCollection<'a> {
                 } else {
                     // no pin groups. Just push the straight pins
                     let p = &self.pins[pos];
+
+                    let mut context_node: Option<Node> = None;
+                    let n = node!(PinAction, p.id, bit_action.0.to_string(), None);
+                    if bit_action.1 {
+                        // context_node = Some(node!(Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                    }
+                    if bit_action.2 {
+                        // let capture_node = node!(Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                        // if let Some(mut cnode) = context_node.as_mut() {
+                        //     cnode.add_child(capture_node);
+                        // } else {
+                        //     context_node = Some(capture_node);
+                        // }
+                    }
+                    if context_node.is_some() {
+                        context_node.as_mut().unwrap().add_child(n);
+                        this_cycle.push(context_node.unwrap());
+                    } else {
+                        this_cycle.push(n);
+                    }
+
                     let mut paction = p.action.write().unwrap();
-                    *paction = PinAction::new(bit_action);
-                    this_cycle.push(node!(PinAction, p.id, bit_action.to_string(), None));
+                    *paction = PinAction::new(bit_action.0.to_string());
                 }
             }
             // Push the cycle updates and cycle the tester
@@ -453,6 +560,10 @@ impl<'a> PinCollection<'a> {
     pub fn repeat2(&self, count: u32, compressable: bool) -> &Self {
         repeat2(count, compressable);
         &self
+    }
+
+    pub fn cycles_to_push(&self, trans: &Transaction) -> usize {
+        num::integer::Integer::div_ceil(&trans.width, &self.width())
     }
 
     // /// Find the most recent nodes in the AST which set the current pin action and update the internal pin state accordingly
@@ -490,7 +601,7 @@ impl Model {
         name: &str,
         reset_action: Option<PinAction>,
         endianness: Option<Endianness>,
-    ) -> Result<(PinGroup, Pin), Error> {
+    ) -> Result<(PinGroup, Pin)> {
         let pin_group = PinGroup::new(
             self.id,
             pin_group_id,
@@ -510,7 +621,7 @@ impl Model {
         name: &str,
         pin_ids: Vec<usize>,
         endianness: Option<Endianness>,
-    ) -> Result<PinGroup, Error> {
+    ) -> Result<PinGroup> {
         let pin_group = PinGroup::new(
             self.id,
             pin_group_id,
@@ -546,7 +657,7 @@ impl Dut {
         offset: Option<u32>,
         reset_action: Option<Vec<PinAction>>,
         endianness: Option<Endianness>,
-    ) -> Result<&PinGroup, Error> {
+    ) -> Result<&PinGroup> {
         // Check some of the parameters before we go much further. We can error out quickly if something is awry.
         // Check the width and offset
         if !width.is_some() && offset.is_some() {
@@ -643,7 +754,7 @@ impl Dut {
         }
     }
 
-    pub fn add_pin_alias(&mut self, model_id: usize, name: &str, alias: &str) -> Result<(), Error> {
+    pub fn add_pin_alias(&mut self, model_id: usize, name: &str, alias: &str) -> Result<()> {
         // First, check that the pin exists.
         if self.models[model_id].pin_groups.contains_key(alias) {
             return Err(Error::new(&format!(
@@ -687,7 +798,7 @@ impl Dut {
         name: &str,
         pins: Vec<String>,
         endianness: Option<Endianness>,
-    ) -> Result<&PinGroup, Error> {
+    ) -> Result<&PinGroup> {
         let id;
         {
             id = self.pin_groups.len();
@@ -712,7 +823,7 @@ impl Dut {
     ///     * Each pin exist
     ///     * Each pin is unique (no duplicate pins) AND it points to a unique physical pin. That is, each pin is unique after resolving aliases.
     /// If all the above is met, we can group/collect these names.
-    pub fn verify_names(&self, model_id: usize, names: &Vec<String>) -> Result<Vec<String>, Error> {
+    pub fn verify_names(&self, model_id: usize, names: &Vec<String>) -> Result<Vec<String>> {
         let mut physical_names: Vec<String> = vec![];
         for (_i, pin_name) in names.iter().enumerate() {
             if pin_name.starts_with("/") && pin_name.ends_with("/") {
@@ -824,7 +935,7 @@ impl Dut {
         &self,
         grps: &Vec<(String, usize)>,
         endianness: Option<Endianness>,
-    ) -> Result<PinStore, Error> {
+    ) -> Result<PinStore> {
         let pids = self.collect_grp_ids_as_pin_ids(grps)?;
         Ok(PinStore::new(pids, endianness))
     }
@@ -834,7 +945,7 @@ impl Dut {
         model_id: usize,
         names: &Vec<String>,
         query_name: &str,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool> {
         let result = self.find_in_names(model_id, names, query_name)?.is_some();
         Ok(result)
     }
@@ -844,7 +955,7 @@ impl Dut {
         model_id: usize,
         names: &Vec<String>,
         query_name: &str,
-    ) -> Result<Option<usize>, Error> {
+    ) -> Result<Option<usize>> {
         if let Some(p) = self.get_pin(model_id, query_name) {
             let idx = names
                 .iter()
@@ -866,12 +977,7 @@ impl Dut {
     }
 
     /// Given a pin or alias name, finds either its name or alias in the group.
-    pub fn index_of(
-        &self,
-        model_id: usize,
-        name: &str,
-        query_name: &str,
-    ) -> Result<Option<usize>, Error> {
+    pub fn index_of(&self, model_id: usize, name: &str, query_name: &str) -> Result<Option<usize>> {
         if !self.models[model_id].pin_groups.contains_key(name) {
             // Pin group doesn't exists. Raise an error.
             return Err(Error::new(&format!(
@@ -904,7 +1010,7 @@ impl Dut {
         Option::None
     }
 
-    pub fn data_fits_in_pins(&mut self, pins: &Vec<String>, data: u32) -> Result<(), Error> {
+    pub fn data_fits_in_pins(&mut self, pins: &Vec<String>, data: u32) -> Result<()> {
         let two: u32 = 2;
         if data > (two.pow(pins.len() as u32) - 1) {
             Err(Error::new(&format!(
@@ -917,7 +1023,7 @@ impl Dut {
         }
     }
 
-    pub fn verify_data_fits(&mut self, width: u32, data: u32) -> Result<(), Error> {
+    pub fn verify_data_fits(&mut self, width: u32, data: u32) -> Result<()> {
         let two: u32 = 2;
         if data > (two.pow(width) - 1) {
             Err(Error::new(&format!(
@@ -929,11 +1035,7 @@ impl Dut {
         }
     }
 
-    pub fn verify_action_string_fits(
-        &self,
-        width: u32,
-        action_string: &Vec<u8>,
-    ) -> Result<(), Error> {
+    pub fn verify_action_string_fits(&self, width: u32, action_string: &Vec<u8>) -> Result<()> {
         if action_string.len() != (width as usize) {
             Err(Error::new(&format!(
                 "Action string of length {} must match width {}!",
@@ -951,7 +1053,7 @@ impl Dut {
         model_id: usize,
         name: &str,
         query_name: &str,
-    ) -> Result<bool, Error> {
+    ) -> Result<bool> {
         let result = self.index_of(model_id, name, query_name)?.is_some();
         Ok(result)
     }
@@ -968,7 +1070,7 @@ impl Dut {
         &self,
         model_id: usize,
         name: &str,
-    ) -> Result<Vec<&Pin>, Error> {
+    ) -> Result<Vec<&Pin>> {
         let mut retn: Vec<&Pin> = vec![];
         let grp = self._get_pin_group(model_id, name)?;
         for p_id in grp.pin_ids.iter() {
@@ -980,7 +1082,7 @@ impl Dut {
     pub fn _resolve_groups_to_physical_pin_ids(
         &self,
         pins: &Vec<(usize, String)>,
-    ) -> Result<Vec<Vec<usize>>, Error> {
+    ) -> Result<Vec<Vec<usize>>> {
         let mut retn: Vec<Vec<usize>> = vec![];
         for lookup in pins.iter() {
             let ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
@@ -989,10 +1091,7 @@ impl Dut {
         Ok(retn)
     }
 
-    pub fn _resolve_to_flattened_pins(
-        &self,
-        pins: &Vec<(usize, String)>,
-    ) -> Result<Vec<&Pin>, Error> {
+    pub fn _resolve_to_flattened_pins(&self, pins: &Vec<(usize, String)>) -> Result<Vec<&Pin>> {
         let mut retn: Vec<&Pin> = vec![];
         for lookup in pins.iter() {
             let mut ppins = self._resolve_group_to_physical_pins(lookup.0, &lookup.1)?;
@@ -1008,7 +1107,7 @@ impl Dut {
         &self,
         model_id: usize,
         pin_grp_name: &str,
-    ) -> Result<(Vec<usize>, usize), Error> {
+    ) -> Result<(Vec<usize>, usize)> {
         let p_ids: Vec<usize> = self
             ._resolve_group_to_physical_pins(model_id, pin_grp_name)?
             .iter()
@@ -1062,22 +1161,20 @@ impl StateTracker {
     }
 
     /// Given a physical pin name, action, and data, updates the state appropriately
-    pub fn update(&mut self, grp_id: usize, actions: &Vec<String>, dut: &Dut) -> Result<(), Error> {
-        // for (i, physical_pin) in dut.pin_groups[grp_id].pin_names.iter().enumerate() {
+    pub fn update(&mut self, grp_id: usize, actions: &Vec<String>, dut: &Dut) -> Result<()> {
         for (i, pid) in dut.pin_groups[grp_id].pin_ids.iter().enumerate() {
-            // let p = dut._get_pin(self.model_id, &physical_pin)?;
             let p = &dut.pins[*pid];
+            let action = &actions[i];
             // Check for the header pin in the aliases
-            // if let Some(states) = self.pins.get_mut(physical_pin) {
             if let Some(states) = self.pins.get_mut(&p.name) {
-                states[0] = actions[i].clone();
+                states[0] = action.to_string();
                 continue;
             }
 
             // Check for the header pin in the groups
             for (grp, offset) in p.groups.iter() {
                 if let Some(states) = self.pins.get_mut(grp) {
-                    states[*offset] = actions[i].clone();
+                    states[*offset] = action.to_string();
                     continue;
                 }
             }
@@ -1085,7 +1182,7 @@ impl StateTracker {
             // Check for the header pin in the aliases
             for alias in p.aliases.iter() {
                 if let Some(states) = self.pins.get_mut(alias) {
-                    states[0] = actions[i].clone();
+                    states[0] = action.to_string();
                     continue;
                 }
             }
@@ -1111,11 +1208,20 @@ impl StateTracker {
     pub fn to_symbols(
         &self,
         target: String,
-        _dut: &Dut,
+        dut: &Dut,
         t: &super::timesets::timeset::Timeset,
-    ) -> Result<Vec<String>, Error> {
+        overrides: Option<&std::collections::HashMap<usize, String>>,
+    ) -> Result<Vec<String>> {
         let mut syms: Vec<String> = vec![];
-        for (_n, states) in self.pins.iter() {
+        let final_states;
+        let final_states_ref;
+        if let Some(o) = overrides.as_ref() {
+            final_states = self.apply_overrides(dut, o)?;
+            final_states_ref = &final_states;
+        } else {
+            final_states_ref = &self.pins;
+        }
+        for (_n, states) in final_states_ref.iter() {
             let mut s: Vec<String> = vec![];
             for action in states.iter() {
                 s.push(t._resolve_pin_action(target.clone(), &PinAction::new(action))?);
@@ -1123,6 +1229,39 @@ impl StateTracker {
             syms.push(s.join(""));
         }
         Ok(syms)
+    }
+
+    pub fn apply_overrides(
+        &self,
+        dut: &Dut,
+        overrides: &std::collections::HashMap<usize, String>,
+    ) -> Result<IndexMap<String, Vec<String>>> {
+        let mut state_overrides = self.pins.clone();
+        for (ppid, override_state) in overrides {
+            let p = &dut.pins[*ppid];
+            // Check for the header pin in the aliases
+            if let Some(states) = state_overrides.get_mut(&p.name) {
+                states[0] = override_state.to_string();
+                continue;
+            }
+
+            // Check for the header pin in the groups
+            for (grp, offset) in p.groups.iter() {
+                if let Some(states) = state_overrides.get_mut(grp) {
+                    states[*offset] = override_state.to_string();
+                    continue;
+                }
+            }
+
+            // Check for the header pin in the aliases
+            for alias in p.aliases.iter() {
+                if let Some(states) = state_overrides.get_mut(alias) {
+                    states[0] = override_state.to_string();
+                    continue;
+                }
+            }
+        }
+        Ok(state_overrides)
     }
 
     pub fn names(&self) -> Vec<String> {

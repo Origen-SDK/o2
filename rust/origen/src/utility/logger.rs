@@ -99,6 +99,7 @@ pub struct Logger {
 #[derive(Default)]
 pub struct Inner {
     level: u8,
+    keywords: Vec<String>,
     // The currently open log files, the last one is the one that will be written to
     // (unless there is an open thread-specific log file)
     files: Vec<(PathBuf, fs::File)>,
@@ -122,6 +123,28 @@ impl Logger {
         let mut inner = self.inner.write().unwrap();
         inner.level = level;
         Ok(())
+    }
+
+    pub fn set_verbosity_keywords(&self, keywords: Vec<String>) -> Result<()> {
+        log_debug!("Setting verbosity keywords: {:?}", keywords);
+        let mut inner = self.inner.write().unwrap();
+        inner.keywords = keywords;
+        Ok(())
+    }
+
+    pub fn keywords_to_cmd(&self) -> String {
+        let keywords;
+        {
+            let inner = self.inner.read().unwrap();
+            keywords = inner.keywords.join(",");
+        }
+        log_debug!("Converted Verbosity Keywords to: {}", keywords);
+        keywords
+    }
+
+    pub fn has_keyword(&self, keyword: &str) -> bool {
+        let inner = self.inner.read().unwrap();
+        inner.keywords.contains(&keyword.to_string())
     }
 
     /// This is called automatically by Origen during the boot process to inform when the logger

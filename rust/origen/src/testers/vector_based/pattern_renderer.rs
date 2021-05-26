@@ -5,9 +5,10 @@ use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::STATUS;
 use crate::{Result, DUT};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner};
+use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner, UnpackCaptures};
 
 pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
     fn file_ext(&self) -> &str;
@@ -27,6 +28,10 @@ pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
     fn print_pattern_end(&self, _renderer: &mut Renderer) -> Option<Result<String>> {
         None
     }
+
+    fn to_overlay(&self, _renderer: &mut Renderer, overlay: &str) -> Result<String> {
+        Ok(format!("Overlay: {}", overlay))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +43,9 @@ pub struct Renderer<'a> {
     pub states: Option<StateTracker>,
     pub pin_header_printed: bool,
     pub pin_header_id: Option<usize>,
+    pub least_cycles_remaining: usize,
+    pub capturing: HashMap<Option<usize>, Option<String>>,
+    // pub overlaying: HashMap<usize, (usize, Option<String>)>
 }
 
 impl<'a> Renderer<'a> {
@@ -45,13 +53,17 @@ impl<'a> Renderer<'a> {
         // Optimize the vectors
         let mut n = PinActionCombiner::run(ast)?;
         n = CycleCombiner::run(&n)?;
+        n = UnpackCaptures::run(&n)?;
 
         // Generate comments
         n = FlattenText::run(&n)?;
 
         // Finally, generate the output
         let mut p = Self::new(tester);
-        // println!("{}", n);
+        if crate::LOGGER.has_keyword("vector_based_dump_final_ast") {
+            crate::LOGGER.info("Vector Based Tester- Printing Final AST");
+            crate::LOGGER.info(&format!("{}", n));
+        }
         n.process(&mut p)?;
         Ok(vec![p.path.unwrap()])
     }
@@ -65,6 +77,9 @@ impl<'a> Renderer<'a> {
             states: None,
             pin_header_printed: false,
             pin_header_id: None,
+            least_cycles_remaining: std::usize::MAX,
+            capturing: HashMap::new(),
+            // overlaying: HashMap::new()
         }
     }
 
@@ -95,11 +110,17 @@ impl<'a> Renderer<'a> {
     pub fn render_states(&self) -> Result<String> {
         let dut = DUT.lock().unwrap();
         let t = &dut.timesets[self.current_timeset_id.unwrap()];
+        let mut ppin_overrides: HashMap<usize, String> = HashMap::new();
+        for (ppin, symbol) in self.capturing.iter() {
+            if ppin.is_some() && symbol.is_some() {
+                ppin_overrides.insert(ppin.unwrap(), symbol.as_ref().unwrap().to_string());
+            }
+        }
         Ok(self
             .states
             .as_ref()
             .unwrap()
-            .to_symbols(self.tester.name(), &dut, &t)
+            .to_symbols(self.tester.name(), &dut, &t, Some(&ppin_overrides))
             .unwrap()
             .join(" "))
     }
@@ -161,6 +182,27 @@ impl<'a> Processor for Renderer<'a> {
                 let grp_id = dut.get_pin_group(pin.model_id, &pin.name).unwrap().id;
                 return self.update_states(grp_id, &vec![action.clone()], &dut);
             }
+            Attrs::Capture(capture, _metadata) => {
+                if capture.pin_ids.is_some() {
+                    for pin in capture.enabled_capture_pins()? {
+                        self.capturing.insert(Some(pin), capture.symbol.clone());
+                    }
+                } else {
+                    self.capturing.insert(None, capture.symbol.clone());
+                }
+                Ok(Return::Unmodified)
+            }
+            // Attrs::Overlay(overlay, pin_id, action, _) => {
+            //     if let Some(o) = overlay {
+            //         let ovl = self.tester.to_overlay(self, o)?;
+            //         self.output_file.as_mut().unwrap().write_ln(&format!(
+            //             "{} {}",
+            //             self.tester.comment_str(),
+            //             ovl
+            //         ));
+            //     }
+            //     Ok(Return::Unmodified)
+            // }
             Attrs::Cycle(repeat, compressable) => {
                 if !self.pin_header_printed {
                     match self.tester.print_pinlist(self) {
@@ -188,7 +230,15 @@ impl<'a> Processor for Renderer<'a> {
                 self.pin_header_id = Some(*pin_header_id);
                 Ok(Return::Unmodified)
             }
+            Attrs::EndCapture(pin_id) => {
+                self.capturing.remove(&pin_id);
+                Ok(Return::Unmodified)
+            }
             Attrs::PatternEnd => {
+                // Raise an error is any leftover captures remain
+                if !self.capturing.is_empty() {
+                    return error!("Pattern end reached but requested captures still remain");
+                }
                 match self.tester.print_pattern_end(self) {
                     Some(end) => {
                         self.output_file.as_mut().unwrap().write_ln(&end?);

@@ -16,6 +16,7 @@ fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(trace))?;
     m.add_wrapped(wrap_pyfunction!(output_file))?;
     m.add_wrapped(wrap_pyfunction!(set_verbosity))?;
+    m.add_wrapped(wrap_pyfunction!(set_verbosity_keywords))?;
     Ok(())
 }
 
@@ -93,5 +94,11 @@ fn output_file(_py: Python) -> PyResult<String> {
 #[pyfunction]
 fn set_verbosity(level: u8) -> PyResult<()> {
     LOGGER.set_verbosity(level)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn set_verbosity_keywords(keywords: Vec<String>) -> PyResult<()> {
+    LOGGER.set_verbosity_keywords(keywords)?;
     Ok(())
 }
