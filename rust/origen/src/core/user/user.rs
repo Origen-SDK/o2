@@ -1,73 +1,37 @@
 use crate::revision_control::git;
-use crate::utility::command_helpers::exec_and_capture;
 use crate::utility::ldap::LDAPs;
-use crate::utility::{
-    bytes_from_str_of_bytes, check_vec, decrypt_with, encrypt_with, str_from_byte_array,
-    str_to_bool, unsorted_dedup,
-};
+use crate::utility::{bytes_from_str_of_bytes, check_vec, str_to_bool, unsorted_dedup};
 use crate::{Error, Metadata, Result, ORIGEN_CONFIG};
 use aes_gcm::aead::{
     generic_array::typenum::{U12, U32},
     generic_array::GenericArray,
 };
-use indexmap::IndexMap;
-#[cfg(feature = "password-cache")]
-use keyring::Keyring;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-const PASSWORD_KEY: &str = "user_password__";
+use super::data::Data;
+use super::password_cache_options::PasswordCacheOptions;
+use super::whoami;
+
+pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
+
+lazy_static! {
+    pub static ref DEFAULT_DATASET_CONFIG: HashMap<String, HashMap<String, String>> = {
+        let mut h: HashMap<String, HashMap<String, String>> = HashMap::new();
+        h.insert(DEFAULT_DATASET_KEY.to_string(), {
+            let mut c: HashMap<String, String> = HashMap::new();
+            c.insert("data_source".to_string(), "git".to_string());
+            c.insert("auto_populate".to_string(), "false".to_string());
+            c
+        });
+        h
+    };
+}
 
 #[allow(non_snake_case)]
 pub fn user__password_reasons<'a>() -> &'a HashMap<String, String> {
     &ORIGEN_CONFIG.user__password_reasons
-}
-
-pub fn lookup_dataset_config<'a>(config: &str) -> Result<&'a HashMap<String, String>> {
-    if let Some(configs) = ORIGEN_CONFIG.user__datasets.as_ref() {
-        if let Some(c) = configs.get(config) {
-            return Ok(c);
-        }
-    }
-    error!("Could not lookup dataset config for {}", config)
-}
-
-fn to_session_password<'a>(dataset: &str) -> String {
-    format!("{}{}", PASSWORD_KEY, dataset)
-}
-
-pub fn get_current_email() -> Result<String> {
-    crate::with_current_user(|u| u.get_email())
-}
-
-pub fn current_home_dir() -> Result<PathBuf> {
-    crate::with_current_user(|u| u.home_dir())
-}
-
-pub fn get_current_id() -> Result<String> {
-    crate::with_current_user(|u| Ok(u.id().to_string()))
-}
-
-pub fn whoami() -> Result<String> {
-    let id;
-    if cfg!(unix) {
-        let output = exec_and_capture("whoami", None);
-        if let Ok((status, mut lines, _stderr)) = output {
-            if status.success() {
-                id = lines.pop().unwrap();
-            } else {
-                return error!("Failed to run 'whoami'");
-            }
-        } else {
-            return error!("Failed to run 'whoami'");
-        }
-        log_debug!("User ID read from the system: '{}'", &id);
-    } else {
-        id = whoami::username();
-        log_debug!("User ID read from whoami: '{}'", &id);
-    }
-    Ok(id)
 }
 
 pub fn with_user_dataset<T, F>(user: Option<&str>, dataset: &str, func: F) -> Result<T>
@@ -121,290 +85,6 @@ where
     res
 }
 
-/// Initiates the password dialog for the current user for all the given datasets.
-/// If None, the current dataset is used.
-pub fn set_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
-    if let Some(datasets) = datasets {
-        let mut err_str = "".to_string();
-        for ds in datasets {
-            match crate::with_current_user(|u| u._password_dialog(&ds.to_string(), None)) {
-                Ok(_) => {}
-                Err(e) => {
-                    err_str.push_str(&format!("{}\n", e.msg));
-                }
-            }
-        }
-        if err_str != "" {
-            error!("{}", err_str)
-        } else {
-            Ok(())
-        }
-    } else {
-        crate::with_current_user(|u| u._password_dialog(&u.top_datakey()?, None))?;
-        Ok(())
-    }
-}
-
-pub fn set_all_passwords() -> Result<()> {
-    let users = crate::users();
-    let u = users.current_user()?;
-    let datasets = u.datasets().keys();
-    set_passwords(Some(datasets.map(|s| s.as_str()).collect()))
-}
-
-pub fn clear_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
-    if let Some(datasets) = datasets {
-        let mut err_str = "".to_string();
-        for ds in datasets {
-            log_trace!("Clearing password for {}", ds);
-            match crate::with_current_user(|u| u.clear_cached_password(Some(&ds))) {
-                Ok(_) => {}
-                Err(e) => {
-                    err_str.push_str(&format!("{}\n", e.msg));
-                }
-            }
-        }
-        if err_str != "" {
-            error!("{}", err_str)
-        } else {
-            Ok(())
-        }
-    } else {
-        log_trace!("Clearing password for current dataset");
-        crate::with_current_user(|u| u.clear_cached_password(None))?;
-        Ok(())
-    }
-}
-
-pub fn clear_all_passwords() -> Result<()> {
-    log_trace!("Clearing all cached passwords for current user");
-    crate::with_current_user(|u| u.clear_cached_passwords())
-}
-
-#[derive(Debug, Clone)]
-pub enum Roles {
-    User(Option<IndexMap<String, crate::Metadata>>),
-    Service(Option<IndexMap<String, crate::Metadata>>),
-}
-
-impl std::default::Default for Roles {
-    fn default() -> Self {
-        Self::User(Option::None)
-    }
-}
-
-pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
-
-lazy_static! {
-    pub static ref DEFAULT_DATASET_CONFIG: HashMap<String, HashMap<String, String>> = {
-        let mut h: HashMap<String, HashMap<String, String>> = HashMap::new();
-        h.insert(DEFAULT_DATASET_KEY.to_string(), {
-            let mut c: HashMap<String, String> = HashMap::new();
-            c.insert("data_source".to_string(), "git".to_string());
-            c.insert("auto_populate".to_string(), "false".to_string());
-            c
-        });
-        h
-    };
-}
-
-#[derive(Debug)]
-pub enum PasswordCacheOptions {
-    Session,
-    Keyring,
-    None,
-}
-
-impl PasswordCacheOptions {
-    pub fn from_config() -> Result<Self> {
-        let opt = &crate::ORIGEN_CONFIG.user__password_cache_option;
-        match opt.as_str() {
-            "session" | "session_store" => Ok(Self::Session),
-            "keyring" | "true" => Ok(Self::Keyring),
-            "none" | "false" => Ok(Self::None),
-            _ => error!(
-                "'user__password_cache_option' option '{}' is not known!",
-                opt
-            ),
-        }
-    }
-
-    pub fn cache_password(&self, user: &User, password: &str, dataset: &str) -> Result<bool> {
-        match self {
-            Self::Session => {
-                log_trace!("Caching password in session store...");
-                let mut s = crate::sessions();
-                let sess = s.user_session(None)?;
-                sess.store(
-                    to_session_password(dataset),
-                    crate::Metadata::String(str_from_byte_array(&encrypt_with(
-                        password,
-                        user.get_password_encryption_key()?,
-                        user.get_password_encryption_nonce()?,
-                    )?)?),
-                )?;
-                Ok(true)
-            }
-            Self::Keyring => {
-                log_trace!("Caching password in keyring...");
-                let k = keyring::Keyring::new(dataset, &user.id);
-                k.set_password(password)?;
-                Ok(true)
-            }
-            Self::None => {
-                log_trace!("Password caching unavailable");
-                Ok(false)
-            }
-        }
-    }
-
-    pub fn get_password(&self, user: &User, dataset: &str) -> Result<Option<String>> {
-        match self {
-            Self::Session => {
-                log_trace!("Checking for password in session store...");
-                // Check if the password is cached in the user's session
-                let mut s = crate::sessions();
-                let sess = s.user_session(None)?;
-                if let Some(p) = sess.retrieve(&to_session_password(dataset))? {
-                    // Password should be encrypted (to avoid storing as plaintext)
-                    // Decrypt the password
-                    let pw = decrypt_with(
-                        &bytes_from_str_of_bytes(&p.as_string()?)?,
-                        user.get_password_encryption_key()?,
-                        user.get_password_encryption_nonce()?,
-                    )?;
-                    Ok(Some(pw.to_string()))
-                } else {
-                    Ok(None)
-                }
-            }
-            Self::Keyring => {
-                log_trace!("Checking for password in keyring...");
-                let k = keyring::Keyring::new(dataset, &user.id);
-                match k.get_password() {
-                    Ok(password) => Ok(Some(password)),
-                    Err(e) => match e {
-                        keyring::KeyringError::NoPasswordFound => Ok(None),
-                        _ => error!("{}", e),
-                    },
-                }
-            }
-            Self::None => error!("Cannot get password when password caching is unavailable!"),
-        }
-    }
-
-    pub fn clear_cached_password(&self, parent: &User, dataset: &Data) -> Result<()> {
-        match self {
-            Self::Session => {
-                let k = dataset.password_key();
-                if parent.is_current() {
-                    log_trace!("Clearing password {} from user session", k);
-                    crate::with_user_session(None, |session| session.delete(&k))?;
-                }
-            }
-            Self::Keyring => {
-                let k = keyring::Keyring::new(&dataset.dataset_name, &parent.id);
-                match k.delete_password() {
-                    Ok(_) => {}
-                    Err(e) => match e {
-                        keyring::KeyringError::NoPasswordFound => {}
-                        _ => return error!("{}", e),
-                    },
-                }
-            }
-            Self::None => {}
-        }
-        Ok(())
-    }
-
-    pub fn is_session_store(&self) -> bool {
-        match self {
-            Self::Session => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_keyring(&self) -> bool {
-        match self {
-            Self::Keyring => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_none(&self) -> bool {
-        match self {
-            Self::None => true,
-            _ => false,
-        }
-    }
-}
-
-pub struct Users {
-    users: IndexMap<String, User>,
-    current_id: String,
-    // initial_id: String,
-}
-
-impl Users {
-    pub fn current_user(&self) -> Result<&User> {
-        Ok(self.users.get(&self.current_id).unwrap())
-    }
-
-    pub fn current_user_mut(&mut self) -> Result<&mut User> {
-        Ok(self.users.get_mut(&self.current_id).unwrap())
-    }
-
-    pub fn current_user_id(&self) -> Result<String> {
-        Ok(self.current_id.clone())
-    }
-
-    pub fn user(&self, u: &str) -> Result<&User> {
-        if let Some(user) = self.users.get(u).as_ref() {
-            Ok(&user)
-        } else {
-            error!("No user '{}' has been added", u)
-        }
-    }
-
-    pub fn user_mut(&mut self, u: &str) -> Result<&mut User> {
-        if let Some(user) = self.users.get_mut(u) {
-            Ok(user)
-        } else {
-            error!("No user '{}' has been added", u)
-        }
-    }
-
-    pub fn users(&self) -> &IndexMap<String, User> {
-        &self.users
-    }
-
-    pub fn add(&mut self, id: &str) -> Result<()> {
-        if self.users.contains_key(id) {
-            error!("User '{}' has already been added", id)
-        } else {
-            self.users.insert(id.to_string(), User::new(id));
-            Ok(())
-        }
-    }
-}
-
-impl Default for Users {
-    fn default() -> Self {
-        let u = User::current();
-        let id = u.id().to_string();
-        let users = Self {
-            users: {
-                let mut i = IndexMap::new();
-                i.insert(id.clone(), u);
-                i
-            },
-            current_id: id.clone(),
-            // initial_id: id
-        };
-        users
-    }
-}
-
 #[derive(Debug)]
 pub struct User {
     // All user data is stored behind a RW lock so that it can be lazily loaded
@@ -414,72 +94,6 @@ pub struct User {
     password_semaphore: Mutex<u8>,
     id: String,
     password_cache_option: PasswordCacheOptions,
-}
-
-#[derive(Default, Debug)]
-pub struct Data {
-    dataset_name: String,
-    password: Option<String>,
-    pub name: Option<String>,
-    pub username: Option<String>,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub display_name: Option<String>,
-    pub other: IndexMap<String, Metadata>,
-    pub home_dir: PathBuf,
-    // Will be set after trying to get a missing name, e.g. from the
-    // Git config to differentiate between an name which has not been
-    // looked up and name which has been looked up but which could not
-    // be found.
-    pub name_tried: bool,
-    pub email: Option<String>,
-    pub email_tried: bool,
-
-    // Authentication
-    authenticated: bool,
-    pub populated: bool,
-
-    roles: Vec<Roles>,
-}
-
-impl Data {
-    pub fn new(dataset_name: &str) -> Self {
-        Self {
-            dataset_name: dataset_name.to_string(),
-            ..Default::default()
-        }
-    }
-
-    pub fn get_display_name(&self) -> Option<String> {
-        if let Some(n) = &self.display_name {
-            Some(n.clone())
-        } else if self.first_name.is_some() && self.last_name.is_some() {
-            Some(format!(
-                "{} {}",
-                self.first_name.as_ref().unwrap().to_string(),
-                self.last_name.as_ref().unwrap().to_string()
-            ))
-        } else if let Some(n) = &self.username {
-            Some(n.clone())
-        } else {
-            None
-        }
-    }
-
-    pub fn password_key(&self) -> String {
-        format!("{}{}", PASSWORD_KEY, self.dataset_name)
-    }
-
-    pub fn clear_cached_password(&mut self, parent: &User) -> Result<()> {
-        let k = self.password_key();
-        log_trace!("Clearing cached password for {}", k);
-        self.password = None;
-        self.authenticated = false;
-        parent
-            .password_cache_option
-            .clear_cached_password(parent, self)?;
-        Ok(())
-    }
 }
 
 impl User {
@@ -598,7 +212,7 @@ impl User {
         let u = User::new(&id);
         {
             match u.write_data(None) {
-                Ok(mut data) => data.home_dir = super::status::get_home_dir(),
+                Ok(mut data) => data.home_dir = crate::core::status::get_home_dir(),
                 Err(e) => display_redln!("{}", e.msg),
             }
         }
@@ -727,6 +341,10 @@ impl User {
         &self.id
     }
 
+    pub fn password_cache_option(&self) -> &PasswordCacheOptions {
+        &self.password_cache_option
+    }
+
     pub fn username(&self) -> Result<String> {
         let uname;
         {
@@ -842,12 +460,12 @@ impl User {
         Ok(())
     }
 
-    fn _cache_password(&self, password: &str, dataset: &str) -> Result<bool> {
+    pub fn _cache_password(&self, password: &str, dataset: &str) -> Result<bool> {
         self.password_cache_option
             .cache_password(self, password, dataset)
     }
 
-    fn _password_dialog(&self, dataset: &str, reason: Option<&str>) -> Result<String> {
+    pub fn _password_dialog(&self, dataset: &str, reason: Option<&str>) -> Result<String> {
         for _attempt in 0..ORIGEN_CONFIG.user__password_auth_attempts {
             let msg;
             if dataset == "" {
@@ -1105,7 +723,7 @@ impl User {
     /// not even store the key in text.
     /// If no particular password encryption key is given, the standard
     /// encryption key will be used.
-    fn get_password_encryption_key(&self) -> Result<GenericArray<u8, U32>> {
+    pub fn get_password_encryption_key(&self) -> Result<GenericArray<u8, U32>> {
         if let Some(k) = &crate::ORIGEN_CONFIG.password_encryption_key {
             Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&k)?))
         } else {
@@ -1116,7 +734,7 @@ impl User {
     }
 
     /// Similar to get_password_encryption_key, but for nonce instead.
-    fn get_password_encryption_nonce(&self) -> Result<GenericArray<u8, U12>> {
+    pub fn get_password_encryption_nonce(&self) -> Result<GenericArray<u8, U12>> {
         if let Some(k) = &crate::ORIGEN_CONFIG.password_encryption_nonce {
             Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&k)?))
         } else {
