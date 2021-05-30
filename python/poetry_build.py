@@ -20,10 +20,10 @@ _origen_src = current.joinpath("../rust/pyapi/target/debug")
 if _origen_src.joinpath("_origen.dll").exists():
     # Windows
     _origen_src = _origen_src.joinpath("_origen.dll")
-elif _origen_src.joinpath("_origen.so").exists():
-    _origen_src = _origen_src.joinpath("_origen.so")
+elif _origen_src.joinpath("lib_origen.so").exists():
+    _origen_src = _origen_src.joinpath("lib_origen.so")
 else:
-    raise RuntimeError(f"Could not locate built CLI in {_origen_src}")
+    raise RuntimeError(f"Could not locate compiled library in {_origen_src}")
 _origen_pkg = current.joinpath("_origen.pyd")
 print(f"Copying _origen library for packaging ({_origen_src} to {_origen_pkg})")
 shutil.copy2(_origen_src, _origen_pkg)
