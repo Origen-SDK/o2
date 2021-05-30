@@ -1,8 +1,20 @@
 [tool.poetry]
 name = "origen"
 version = "2.0.0.dev4"
-description = ""
-authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
+description = "Python interface to the Origen-SDK backend: https://origen-sdk.org/o2"
+authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>", "Corey Engelken <corey.engelken@gmail.com>"]
+include = [
+    "_origen.pyd",
+    "bin/origen.exe",
+    "bin/origen"
+]
+
+[tool.poetry.build]
+script = "poetry_build.py"
+generate-setup-file = false
+
+[tool.poetry.scripts]
+o2 = 'origen.__bin__:run_origen'
 
 [tool.poetry.dependencies]
 # This MUST be uncommented before the final build, though the build/release scripts will take care of that.
