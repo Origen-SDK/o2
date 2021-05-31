@@ -62,6 +62,10 @@ jobs:
         working-directory: test_apps/python_app
         run: origen -v
 
+      - name: Display Poetry Version
+        working-directory: test_apps/python_app
+        run: poetry --version
+
       - name: Run Python Unit Tests
         working-directory: test_apps/python_app
         run: origen exec pytest -vv
