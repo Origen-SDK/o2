@@ -25,8 +25,10 @@ elif _origen_src.joinpath("lib_origen.so").exists():
 else:
     raise RuntimeError(f"Could not locate compiled library in {_origen_src}")
 _origen_pkg = current.joinpath("_origen.pyd")
-print(f"Copying _origen library for packaging ({_origen_src} to {_origen_pkg})")
+print(
+    f"Copying _origen library for packaging ({_origen_src} to {_origen_pkg})")
 shutil.copy2(_origen_src, _origen_pkg)
+
 
 def build(arg):
     pass
