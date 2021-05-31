@@ -5,8 +5,8 @@ description = "Python interface to the Origen-SDK backend: https://origen-sdk.or
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>", "Corey Engelken <corey.engelken@gmail.com>"]
 include = [
     "_origen.pyd",
-    "bin/origen.exe",
-    "bin/origen"
+    "origen/__bin__/bin/origen.exe",
+    "origen/__bin__/bin/origen",
 ]
 
 [tool.poetry.build]
@@ -33,12 +33,12 @@ origen_autoapi = "2.0.1"
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
 yapf = "0.30"
-poetry = "1.1.2"
+poetry = "1.1.6"
 Jinja2 = "^2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["setuptools", "poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
