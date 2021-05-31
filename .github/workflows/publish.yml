@@ -3,23 +3,23 @@ name: Publish Packages
 # straight building should always work.
 on:
   workflow_dispatch:
-    inputs:
-      # build_only:
-      #   description: "Builds without publishing anywhere"
-      #   required: true
-      #   default: false
-      publish_pypi:
-        description: Publish built packages to PyPi
-        required: true
-        default: false
-      publish_pypi_test:
-        description: Publish built packages to PyPI Test Server
-        required: true
-        default: false
-      publish_github_release:
-        description: Publish built packages to Github Release page
-        required: true
-        default: false
+    # inputs:
+    #   # build_only:
+    #   #   description: "Builds without publishing anywhere"
+    #   #   required: true
+    #   #   default: false
+    #   publish_pypi:
+    #     description: Publish built packages to PyPi
+    #     required: true
+    #     default: false
+    #   publish_pypi_test:
+    #     description: Publish built packages to PyPI Test Server
+    #     required: true
+    #     default: false
+    #   publish_github_release:
+    #     description: Publish built packages to Github Release page
+    #     required: true
+    #     default: false
     tags:
       description: "Publish Packages"
 jobs:
