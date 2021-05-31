@@ -26,3 +26,7 @@ rls/
 
 # Output files from regressions
 python/templates/dut_info.txt
+
+# Bin directory for packaging
+python/origen/__bin__/bin/*
+!python/origen/__bin__/bin/.keep
