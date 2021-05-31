@@ -1,8 +1,9 @@
-import pathlib, shutil
+import pathlib, shutil, os
 current = pathlib.Path(__file__).parent.absolute()
+rust_build_target = os.getenv("ORIGEN__BUILD_TARGET", "release")
 
 # Package the CLI
-cli_src = current.joinpath("../rust/origen/target/debug")
+cli_src = current.joinpath(f"../rust/origen/target/{rust_build_target}")
 if cli_src.joinpath("origen.exe").exists():
     # Windows
     cli_src = cli_src.joinpath("origen.exe")
@@ -16,7 +17,7 @@ print(f"Copying CLI for packaging ({cli_src} to {cli_pkg_dir})")
 shutil.copy2(cli_src, cli_pkg_dir)
 
 # Package the _origen compiled library
-_origen_src = current.joinpath("../rust/pyapi/target/debug")
+_origen_src = current.joinpath(f"../rust/pyapi/target/{rust_build_target}")
 if _origen_src.joinpath("_origen.dll").exists():
     # Windows
     _origen_src = _origen_src.joinpath("_origen.dll")

@@ -1,13 +1,11 @@
 name: Publish Packages
-# Always attempt to build the packages, even on non-releases. Acts more as a regression since
-# straight building should always work.
 on:
   workflow_dispatch:
     inputs:
-    #   # build_only:
-    #   #   description: "Builds without publishing anywhere"
-    #   #   required: true
-    #   #   default: false
+      # build_for_debug_target:
+      #   description: If 'true', does not use the '--release' switch when building Rust libraries
+      #   required: false
+      #   default: "false"
     #   publish_pypi:
     #     description: Publish built packages to PyPi
     #     required: true
@@ -55,15 +53,15 @@ jobs:
 
       - name: Build Origen CLI
         working-directory: rust/origen/cli
-        run: cargo build --bins
+        run: cargo build --bins --release
           
       - name: Add Origen to PATH (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
+        run: echo "${{ github.workspace }}/rust/origen/target/release" >> $GITHUB_PATH
 
       - name: Add Origen to PATH (Windows)
         if: matrix.os == 'windows-latest'
-        run: echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        run: echo "${{ github.workspace }}/rust/origen/target/release" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
  
       - name: Display Python Version
         run: python -c "import sys; print(sys.version)"
@@ -72,7 +70,8 @@ jobs:
         run: origen -v
 
       - name: Build PyAPI
-        run: origen build
+        working-directory: rust/pyapi
+        run: cargo build --release
 
       - name: Setup App Env
         working-directory: python
@@ -108,7 +107,15 @@ jobs:
         working-directory: python
         run: |
           echo "Publishing to PyPi Test Server"
-        # poetry publish ...
+
+      - name: pypi-publish
+        if: ${{ github.event.inputs.publish_pypi_test }} == "true"
+        uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+          skip_existing: true
 
       # - name: "Publish To Github Releases"
       #   if: ${{ github.event.inputs.publish_github_release }} == true
