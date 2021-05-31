@@ -9,15 +9,15 @@ on:
       #   required: true
       #   default: false
       publish_pypi:
-        description: "Publish built packages to PyPi"
+        description: Publish built packages to PyPi
         required: true
         default: false
       publish_pypi_test:
-        description: "Publish built packages to PyPI Test Server"
+        description: Publish built packages to PyPI Test Server
         required: true
         default: false
       publish_github_release:
-        description: "Publish built packages to Github Release page"
+        description: Publish built packages to Github Release page
         required: true
         default: false
     tags:
@@ -98,23 +98,23 @@ jobs:
         working-directory: python/dist
         run: ls -al
 
-      - name: "Publish To PyPi"
-        if: ${{ github.event.inputs.publish_pypi }}
-        working_directory: python
-        run: |
-          echo "Publishing to PyPi"
-        # poetry publish ...
+      # - name: "Publish To PyPi"
+      #   if: ${{ github.event.inputs.publish_pypi }} == true
+      #   working_directory: python
+      #   run: |
+      #     echo "Publishing to PyPi"
+      #   # poetry publish ...
 
       - name: "Publish To PyPi Test Server"
-        if: ${{ github.event.inputs.publish_pypi_test }}
+        if: ${{ github.event.inputs.publish_pypi_test }} == true
         working_directory: python
         run: |
           echo "Publishing to PyPi Test Server"
         # poetry publish ...
 
-      - name: "Publish To Github Releases"
-        if: ${{ github.event.inputs.publish_github_release }}
-        working_directory: python
-        run: |
-          echo "Publishing to Github Releases"
-        # ...
+      # - name: "Publish To Github Releases"
+      #   if: ${{ github.event.inputs.publish_github_release }} == true
+      #   working_directory: python
+      #   run: |
+      #     echo "Publishing to Github Releases"
+      #   # ...
