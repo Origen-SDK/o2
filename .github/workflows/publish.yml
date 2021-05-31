@@ -3,7 +3,7 @@ name: Publish Packages
 # straight building should always work.
 on:
   workflow_dispatch:
-    # inputs:
+    inputs:
     #   # build_only:
     #   #   description: "Builds without publishing anywhere"
     #   #   required: true
@@ -12,16 +12,14 @@ on:
     #     description: Publish built packages to PyPi
     #     required: true
     #     default: false
-    #   publish_pypi_test:
-    #     description: Publish built packages to PyPI Test Server
-    #     required: true
-    #     default: false
+      publish_pypi_test:
+        description: Publish built packages to PyPI Test Server
+        required: true
+        default: "false"
     #   publish_github_release:
     #     description: Publish built packages to Github Release page
     #     required: true
     #     default: false
-    tags:
-      description: "Publish Packages"
 jobs:
   build:
     strategy:
@@ -106,8 +104,8 @@ jobs:
       #   # poetry publish ...
 
       - name: "Publish To PyPi Test Server"
-        if: ${{ github.event.inputs.publish_pypi_test }} == true
-        working_directory: python
+        if: ${{ github.event.inputs.publish_pypi_test }} == "true"
+        working-directory: python
         run: |
           echo "Publishing to PyPi Test Server"
         # poetry publish ...
