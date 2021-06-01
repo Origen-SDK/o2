@@ -5,6 +5,7 @@ __pycache__
 /rust/pyapi/target
 pip-wheel-metadata/
 _origen.pyd
+_origen.so
 log/
 .vscode
 /test_apps/python_app/example/templates/dut_info.txt
@@ -26,3 +27,7 @@ rls/
 
 # Output files from regressions
 python/templates/dut_info.txt
+
+# Bin directory for packaging
+python/origen/__bin__/bin/*
+!python/origen/__bin__/bin/.keep

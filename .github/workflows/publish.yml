@@ -1,0 +1,129 @@
+name: Publish Packages
+on:
+  workflow_dispatch:
+    inputs:
+      # build_for_debug_target:
+      #   description: If 'true', does not use the '--release' switch when building Rust libraries
+      #   required: false
+      #   default: "false"
+    #   publish_pypi:
+    #     description: Publish built packages to PyPi
+    #     required: true
+    #     default: false
+      publish_pypi_test:
+        description: Publish To PyPI Test Server
+        required: true
+        default: "false"
+    #   publish_github_release:
+    #     description: Publish built packages to Github Release page
+    #     required: true
+    #     default: false
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: [3.6, 3.7, 3.8]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: "nightly-2020-11-01"
+            override: true
+            #components: rustfmt, clippy
+            
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Needed to compile keyring library
+      # Install taken from keyring library:
+      #  https://github.com/hwchen/keyring-rs/blob/v0.10.1/.github/workflows/ci.yaml#L80-L84
+      - name: install libdbus
+        run: |
+          sudo apt update
+          sudo apt install libdbus-1-dev
+        if: contains(matrix.os, 'ubuntu')
+
+      - name: Build Origen CLI
+        working-directory: rust/origen/cli
+        run: cargo build --bins --release
+          
+      - name: Add Origen to PATH (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: echo "${{ github.workspace }}/rust/origen/target/release" >> $GITHUB_PATH
+
+      - name: Add Origen to PATH (Windows)
+        if: matrix.os == 'windows-latest'
+        run: echo "${{ github.workspace }}/rust/origen/target/release" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+ 
+      - name: Display Python Version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Display Origen CLI Version
+        run: origen -v
+
+      - name: Build PyAPI
+        working-directory: rust/pyapi
+        run: cargo build --release
+
+      - name: Setup App Env
+        working-directory: python
+        run: origen env setup
+
+      - name: Display Origen App Version
+        working-directory: python
+        run: origen -v
+
+      - name: Build The Package
+        working-directory: python
+        run: poetry build --format wheel
+
+      - name: Display Dist Directory (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: python/dist
+        run: ls
+
+      - name: Display Dist Directory (Others)
+        if: matrix.os != 'windows-latest'
+        working-directory: python/dist
+        run: ls -al
+
+      # - name: "Publish To PyPi"
+      #   if: ${{ github.event.inputs.publish_pypi }} == true
+      #   working_directory: python
+      #   run: |
+      #     echo "Publishing to PyPi"
+      #   # poetry publish ...
+
+      - name: "Publish To PyPi Test Server"
+        if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+        working-directory: python
+        run: |
+          echo "Publishing to PyPi Test Server"
+          poetry config repositories.pypi-test https://test.pypi.org/legacy/
+          poetry config pypi-token.pypi-test ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+          poetry publish -r pypi-test
+
+      # - name: pypi-publish
+      #   if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+        # uses: pypa/gh-action-pypi-publish@v1.4.2
+        # with:
+        #   packages_dir: python/dist/
+        #   user: __token__
+        #   password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+        #   repository_url: https://test.pypi.org/legacy/
+        #   skip_existing: true
+
+      # - name: "Publish To Github Releases"
+      #   if: ${{ github.event.inputs.publish_github_release }} == true
+      #   working_directory: python
+      #   run: |
+      #     echo "Publishing to Github Releases"
+      #   # ...

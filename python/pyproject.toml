@@ -1,8 +1,24 @@
 [tool.poetry]
 name = "origen"
 version = "2.0.0.dev4"
-description = ""
-authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
+description = "Semiconductor Developer's Kit"
+homepage = "https://origen-sdk.org/o2"
+license = "MIT"
+readme = "README.md"
+authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>", "Corey Engelken <corey.engelken@gmail.com>"]
+include = [
+    "_origen.pyd",
+    "_origen.so",
+    "origen/__bin__/bin/origen.exe",
+    "origen/__bin__/bin/origen",
+]
+
+[tool.poetry.build]
+script = "poetry_build.py"
+generate-setup-file = false
+
+[tool.poetry.scripts]
+o2 = 'origen.__bin__:run_origen'
 
 [tool.poetry.dependencies]
 # This MUST be uncommented before the final build, though the build/release scripts will take care of that.
@@ -21,12 +37,12 @@ origen_autoapi = "2.0.1"
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
 yapf = "0.30"
-poetry = "1.1.2"
+poetry = "1.1.6"
 Jinja2 = "^2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["setuptools", "poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

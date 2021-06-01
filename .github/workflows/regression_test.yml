@@ -3,6 +3,7 @@ on: [push]
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: [3.6, 3.7, 3.8]
@@ -60,6 +61,10 @@ jobs:
       - name: Display Origen App Version
         working-directory: test_apps/python_app
         run: origen -v
+
+      - name: Display Poetry Version
+        working-directory: test_apps/python_app
+        run: poetry --version
 
       - name: Run Python Unit Tests
         working-directory: test_apps/python_app
