@@ -11,7 +11,7 @@ on:
     #     required: true
     #     default: false
       publish_pypi_test:
-        description: Publish built packages to PyPI Test Server
+        description: Publish To PyPI Test Server
         required: true
         default: "false"
     #   publish_github_release:
@@ -107,16 +107,19 @@ jobs:
         working-directory: python
         run: |
           echo "Publishing to PyPi Test Server"
+          poetry config repositories.pypi-test https://test.pypi.org/legacy/
+          poetry config pypi-token.pypi-test ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+          poetry publish -r pypi-test
 
-      - name: pypi-publish
-        if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
-        uses: pypa/gh-action-pypi-publish@v1.4.2
-        with:
-          packages_dir: python/dist/
-          user: __token__
-          password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
-          skip_existing: true
+      # - name: pypi-publish
+      #   if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+        # uses: pypa/gh-action-pypi-publish@v1.4.2
+        # with:
+        #   packages_dir: python/dist/
+        #   user: __token__
+        #   password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+        #   repository_url: https://test.pypi.org/legacy/
+        #   skip_existing: true
 
       # - name: "Publish To Github Releases"
       #   if: ${{ github.event.inputs.publish_github_release }} == true
