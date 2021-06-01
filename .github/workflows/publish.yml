@@ -103,16 +103,16 @@ jobs:
       #   # poetry publish ...
 
       - name: "Publish To PyPi Test Server"
-        if: ${{ github.event.inputs.publish_pypi_test == "true" }}
+        if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
         working-directory: python
         run: |
           echo "Publishing to PyPi Test Server"
 
       - name: pypi-publish
-        if: ${{ github.event.inputs.publish_pypi_test == "true" }}
-        working-directory: python
+        if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
         uses: pypa/gh-action-pypi-publish@v1.4.2
         with:
+          packages_dir: python/dist/
           user: __token__
           password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
