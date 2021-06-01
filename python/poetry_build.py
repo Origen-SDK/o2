@@ -28,9 +28,11 @@ if __name__ == '__main__':
         _origen_pkg = current.joinpath("_origen.so")
         _origen_src = _origen_src.joinpath("lib_origen.so")
     else:
-        raise RuntimeError(f"Could not locate compiled library in {_origen_src}")
+        raise RuntimeError(
+            f"Could not locate compiled library in {_origen_src}")
     print(
-        f"Copying _origen library for packaging ({_origen_src} to {_origen_pkg})")
+        f"Copying _origen library for packaging ({_origen_src} to {_origen_pkg})"
+    )
     shutil.copy2(_origen_src, _origen_pkg)
 
 
