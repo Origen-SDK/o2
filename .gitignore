@@ -5,6 +5,7 @@ __pycache__
 /rust/pyapi/target
 pip-wheel-metadata/
 _origen.pyd
+_origen.so
 log/
 .vscode
 /test_apps/python_app/example/templates/dut_info.txt

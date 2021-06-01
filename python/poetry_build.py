@@ -22,12 +22,13 @@ if __name__ == '__main__':
     _origen_src = current.joinpath(f"../rust/pyapi/target/{rust_build_target}")
     if _origen_src.joinpath("_origen.dll").exists():
         # Windows
+        _origen_pkg = current.joinpath("_origen.pyd")
         _origen_src = _origen_src.joinpath("_origen.dll")
     elif _origen_src.joinpath("lib_origen.so").exists():
+        _origen_pkg = current.joinpath("_origen.so")
         _origen_src = _origen_src.joinpath("lib_origen.so")
     else:
         raise RuntimeError(f"Could not locate compiled library in {_origen_src}")
-    _origen_pkg = current.joinpath("_origen.pyd")
     print(
         f"Copying _origen library for packaging ({_origen_src} to {_origen_pkg})")
     shutil.copy2(_origen_src, _origen_pkg)

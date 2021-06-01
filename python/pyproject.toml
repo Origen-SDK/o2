@@ -8,6 +8,7 @@ readme = "README.md"
 authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>", "Corey Engelken <corey.engelken@gmail.com>"]
 include = [
     "_origen.pyd",
+    "_origen.so",
     "origen/__bin__/bin/origen.exe",
     "origen/__bin__/bin/origen",
 ]
