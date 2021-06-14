@@ -1,6 +1,7 @@
 use origen::Metadata;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyDict, PyBytes};
+use indexmap::IndexMap;
 
 pub fn metadata_to_pyobj(data: Option<Metadata>, key: Option<&str>) -> PyResult<Option<PyObject>> {
     if let Some(d) = data {
@@ -106,4 +107,45 @@ pub fn extract_as_metadata(value: &PyAny) -> PyResult<Metadata> {
         );
     }
     Ok(data)
+}
+
+pub fn from_optional_pydict(pydict: Option<&PyDict>) -> PyResult<Option<IndexMap<String, Metadata>>> {
+    if let Some(pyd) = pydict {
+        Ok(Some(from_pydict(pyd)?))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn from_pydict(pydict: &PyDict) -> PyResult<IndexMap<String, Metadata>> {
+    let mut retn = IndexMap::new();
+    for (key, val) in pydict.iter() {
+        retn.insert(key.extract::<String>()?, extract_as_metadata(val)?);
+    }
+    Ok(retn)
+}
+
+pub fn into_pydict<'a>(py: Python<'a>, metadata: &IndexMap<String, Metadata>) -> PyResult<&'a PyDict> {
+    let retn = PyDict::new(py);
+    for (key, m) in metadata {
+        retn.set_item(key.clone(), metadata_to_pyobj(Some(m.clone()), Some(&key))?)?;
+    }
+    Ok(retn)
+}
+
+#[allow(dead_code)]
+pub fn into_optional_pydict<'a>(py: Python<'a>, metadata: Option<&IndexMap<String, Metadata>>) -> PyResult<Option<&'a PyDict>> {
+    if let Some(m) = metadata {
+        Ok(Some(into_pydict(py, m)?))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn into_optional_pyobj<'a>(py: Python<'a>, metadata: Option<&IndexMap<String, Metadata>>) -> PyResult<PyObject> {
+    Ok(if let Some(m) = metadata {
+        into_pydict(py, m)?.to_object(py)
+    } else {
+        py.None()
+    })
 }

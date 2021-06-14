@@ -4,7 +4,7 @@ pub mod target;
 use super::application::config::Config;
 use crate::revision_control::RevisionControl;
 use crate::utility::file_actions as fa;
-use crate::utility::version::{to_pep440, to_semver, ReleaseType};
+use crate::utility::version::{to_pep440, to_semver};
 use crate::Result;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -120,37 +120,47 @@ impl Application {
     pub fn publish(&self) -> Result<()> {
         Ok(crate::with_frontend_app(|app| {
             log_info!("Performing pre-publish checks...");
-            app.check_production_status()?;
+            // app.check_production_status()?;
 
-            let mut v = self.version()?;
-            let release_type = ReleaseType::from_idx(
-                dialoguer::Select::new()
-                    .with_prompt("Please select the release type")
-                    .items(
-                        &ReleaseType::to_vec()
-                            .iter()
-                            .map(|r| r.to_string())
-                            .collect::<Vec<String>>(),
-                    )
-                    .default(3)
-                    .interact()?,
-            );
+            let mut v = crate::utility::version::Version::new_pep440(&self.version()?.to_string())?;
+            let new_v = v.update_dialogue()?;
+            // let release_type = ReleaseType::from_idx(
+            //     dialoguer::Select::new()
+            //         .with_prompt("Please select the release type")
+            //         .items(
+            //             &ReleaseType::to_vec()
+            //                 .iter()
+            //                 .map(|r| r.to_string())
+            //                 .collect::<Vec<String>>(),
+            //         )
+            //         .default(3)
+            //         .interact()?,
+            // );
 
-            release_type.bump_version(&mut v)?;
-            self.set_version(&v)?;
-            //let files = vec!(self.version_file().as_path());
+            // let new_v = release_type.bump_version(&mut v)?;
+            log_info!("Updating version from {} to {}", v, new_v);
+            println!("Updating version from {} to {}", v, new_v);
+            // //self.set_version(&v)?;
+            // //let files = vec!(self.version_file().as_path());
 
             Ok(crate::with_frontend_app(|app| {
                 // let rn = app.get_release_notes()?;
                 // rn.update_history();
                 // files.push(rn.history_file());
 
-                let rc = app.get_rc()?;
-                rc.checkin(
-                    Some(vec![self.version_file().as_path()]),
-                    "Recorded new version in the version tracker",
-                )?;
-                rc.tag(&v.to_string(), false, None)?;
+                // let rc = app.get_rc()?;
+                // rc.checkin(
+                //     Some(vec![self.version_file().as_path()]),
+                //     "Recorded new version in the version tracker",
+                // )?;
+                // rc.tag(&v.to_string(), false, None)?;
+
+                let publisher = app.get_publisher()?;
+                log_info!("Building Package...");
+                let package_result = publisher.build_package()?;
+
+                log_info!("Uploading Package...");
+                publisher.upload(&package_result)?;
 
                 // let mailer = app.get_mailer()?;
                 // mailer.send("...")?;

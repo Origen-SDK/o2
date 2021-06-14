@@ -1,9 +1,9 @@
 pub mod _frontend;
 
-use crate::runtime_error;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::PathBuf;
+use crate::{runtime_error};
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -33,7 +33,7 @@ impl PyApplication {
         Ok(r.passed())
     }
 
-    #[args(args = "*")]
+    #[args(_args="*")]
     fn publish(&self, _args: &PyTuple) -> PyResult<()> {
         Ok(origen::app().unwrap().publish()?)
     }
@@ -55,6 +55,15 @@ impl PyApplication {
         let r = slf.as_ref(py).getattr("unit_tester")?;
         if r.is_none() {
             return crate::runtime_error!("No unit tester is available on the application");
+        }
+
+        Ok(r.to_object(py))
+    }
+
+    pub fn _get_publisher<'py>(slf: Py<Self>, py: Python<'py>) -> PyResult<PyObject> {
+        let r = slf.as_ref(py).getattr("publisher")?;
+        if r.is_none() {
+            return crate::runtime_error!("No publisher is available on the application");
         }
 
         Ok(r.to_object(py))
@@ -83,7 +92,11 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
     origen::log_trace!("Retrieving PyApplication object from Python heap...");
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
-    let result = py.eval("origen.app", Some(locals), None)?;
+    let result = py.eval(
+        "origen.app",
+        Some(locals),
+        None,
+    )?;
 
     if result.is_none() {
         return runtime_error!("No Origen application is present");
@@ -93,10 +106,8 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
         Ok(app) => {
             origen::log_trace!("Retrieved PyApplication object");
             Ok(app)
-        }
-        Err(_e) => runtime_error!(
-            "'origen.app' points to an object which cannot be extracted as an Origen application"
-        ),
+        },
+        Err(_e) => runtime_error!("'origen.app' points to an object which cannot be extracted as an Origen application")
     }
 }
 
@@ -112,14 +123,6 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
 
 // impl ofrontend::Website for Website {
 //     fn build(&self) -> OResult<WebBuildStatus> {
-//         // ...
-//     }
-// }
-
-// pub struct Packager {}
-
-// impl ofrontend::Packager for Packager {
-//     fn package(&self) -> OResult<PackageStatus> {
 //         // ...
 //     }
 // }

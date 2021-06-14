@@ -10,3 +10,11 @@ name = "core"
 # Manually doing the RC for now
 website_release_location = "../../Origen-SDK.github.io"
 website_release_name = "o2"
+
+[revision_control]
+remote = 'https://github.com/Origen-SDK/o2.git'
+release_branch = 'master'
+system = 'git'
+
+[publisher]
+system = "core.application.Publisher"

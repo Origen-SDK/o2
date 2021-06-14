@@ -352,7 +352,7 @@ version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8504b63dd1249fd1745b7b4ef9b6f7b107ddeb3c95370043c7dbcc38653a2679"
 dependencies = [
- "semver",
+ "semver 0.9.0",
  "serde 1.0.123",
  "toml 0.5.8",
  "url 2.2.1",
@@ -441,7 +441,7 @@ dependencies = [
  "phf",
  "regex",
  "reqwest",
- "semver",
+ "semver 0.9.0",
  "serde 1.0.123",
  "sha2",
  "tar",
@@ -2320,7 +2320,7 @@ dependencies = [
  "rand 0.8.3",
  "regex",
  "rpassword",
- "semver",
+ "semver 1.0.2",
  "serde 1.0.123",
  "serde-pickle",
  "serde_json",
@@ -2330,6 +2330,7 @@ dependencies = [
  "termcolor",
  "time",
  "toml 0.5.8",
+ "wait-timeout",
  "walkdir",
  "whoami",
 ]
@@ -3091,7 +3092,7 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 dependencies = [
- "semver",
+ "semver 0.9.0",
 ]
 
 [[package]]
@@ -3223,6 +3224,12 @@ dependencies = [
  "semver-parser",
  "serde 1.0.123",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "965645ad4a66d27024921aa1e2e47a76524a4cfd55e038b62104eca65c363230"
 
 [[package]]
 name = "semver-parser"
@@ -3891,7 +3898,7 @@ dependencies = [
  "dirs 1.0.5",
  "lazy_static 1.4.0",
  "regex",
- "semver",
+ "semver 0.9.0",
  "walkdir",
 ]
 
@@ -4103,6 +4110,15 @@ name = "version_check"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
+
+[[package]]
+name = "wait-timeout"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f200f5b12eb75f8c1ed65abd4b2db8a6e1b138a20de009dacee265a2498f3f6"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "walkdir"

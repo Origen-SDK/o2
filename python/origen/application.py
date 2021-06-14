@@ -92,6 +92,14 @@ class Base(_origen.application.PyApplication):
         return self._rc
 
     @property
+    def linter(self):
+        return self._linter
+
+    @property
+    def publisher(self):
+        return self._publisher
+
+    @property
     def unit_tester(self):
         return self._unit_tester
 
@@ -104,12 +112,16 @@ class Base(_origen.application.PyApplication):
             self._name = _origen.app_config()["name"]
             self._rc = _origen.utility.revision_control.app_rc()
             self._unit_tester = _origen.utility.unit_testers.app_unit_tester()
+            #self._linter = _origen.utility.linter.app_linter()
+            self._publisher = _origen.utility.publisher.app_publisher()
         else:
             self._plugin = True
             self._root = options["root"]
             self._name = options["name"]
             self._rc = None
             self._unit_tester = None
+            self._linter = None
+            self._publisher = None
         self._app_dir = self.root.joinpath(self.name)
         self._block_path_cache = {}
 

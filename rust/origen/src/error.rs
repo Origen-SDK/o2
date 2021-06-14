@@ -106,8 +106,8 @@ impl std::convert::From<regex::Error> for Error {
     }
 }
 
-impl std::convert::From<semver::SemVerError> for Error {
-    fn from(err: semver::SemVerError) -> Self {
+impl std::convert::From<semver::Error> for Error {
+    fn from(err: semver::Error) -> Self {
         Error::new(&err.to_string())
     }
 }
@@ -132,6 +132,12 @@ impl std::convert::From<lettre::address::AddressError> for Error {
 
 impl std::convert::From<toml::de::Error> for Error {
     fn from(err: toml::de::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Self {
         Error::new(&err.to_string())
     }
 }

@@ -3,11 +3,17 @@
 use super::get_pyapp;
 use crate::utility::revision_control::_frontend::RC;
 use crate::utility::unit_testers::_frontend::UnitTester;
+use crate::utility::publisher::_frontend::Publisher;
+use crate::utility::linter::_frontend::Linter;
+use crate::utility::website::_frontend::Website;
 use pyo3::prelude::*;
 
 pub struct App {
     rc: RC,
     unit_tester: UnitTester,
+    publisher: Publisher,
+    linter: Linter,
+    website: Website
 }
 
 impl App {
@@ -15,6 +21,9 @@ impl App {
         Ok(Self {
             rc: RC {},
             unit_tester: UnitTester {},
+            publisher: Publisher {},
+            linter: Linter {},
+            website: Website {},
         })
     }
 }
@@ -38,5 +47,17 @@ impl origen::core::frontend::App for App {
 
     fn unit_tester(&self) -> origen::Result<Option<&dyn origen::core::frontend::UnitTester>> {
         Ok(Some(&self.unit_tester))
+    }
+
+    fn publisher(&self) -> origen::Result<Option<&dyn origen::core::frontend::Publisher>> {
+        Ok(Some(&self.publisher))
+    }
+    
+    fn linter(&self) -> origen::Result<Option<&dyn origen::core::frontend::Linter>> {
+        Ok(Some(&self.linter))
+    }
+
+    fn website(&self) -> origen::Result<Option<&dyn origen::core::frontend::Website>> {
+        Ok(Some(&self.website))
     }
 }

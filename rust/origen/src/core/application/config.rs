@@ -27,6 +27,8 @@ pub struct Config {
     pub root: Option<PathBuf>,
     pub revision_control: Option<HashMap<String, String>>,
     pub unit_tester: Option<HashMap<String, String>>,
+    pub publisher: Option<HashMap<String, String>>,
+    pub linter: Option<HashMap<String, String>>,
 }
 
 impl Config {
@@ -42,6 +44,8 @@ impl Config {
         self.website_release_name = latest.website_release_name;
         self.revision_control = latest.revision_control;
         self.unit_tester = latest.unit_tester;
+        self.publisher = latest.publisher;
+        self.linter = latest.linter;
     }
 
     pub fn check_defaults(root: &Path) {
@@ -79,6 +83,8 @@ impl Config {
         let _ = s.set_default("mode", "development".to_string());
         let _ = s.set_default("revision_control", None::<HashMap<String, String>>);
         let _ = s.set_default("unit_tester", None::<HashMap<String, String>>);
+        let _ = s.set_default("publisher", None::<HashMap<String, String>>);
+        let _ = s.set_default("linter", None::<HashMap<String, String>>);
 
         // Find all the application.toml files
         let mut files: Vec<PathBuf> = Vec::new();

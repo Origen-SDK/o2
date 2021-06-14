@@ -108,6 +108,9 @@ pub trait Frontend {
 pub trait App {
     fn rc(&self) -> Result<Option<&dyn RC>>;
     fn unit_tester(&self) -> Result<Option<&dyn UnitTester>>;
+    fn publisher(&self) -> Result<Option<&dyn Publisher>>;
+    fn linter(&self) -> Result<Option<&dyn Linter>>;
+    fn website(&self) -> Result<Option<&dyn Website>>;
 
     fn get_rc(&self) -> Result<&dyn RC> {
         match self.rc()? {
@@ -123,14 +126,32 @@ pub trait App {
         }
     }
 
+    fn get_publisher(&self) -> Result<&dyn Publisher> {
+        match self.publisher()? {
+            Some(pb) => Ok(pb),
+            None => error!("No publisher is available on the application!")
+        }
+    }
+
+    fn get_linter(&self) -> Result<&dyn Linter> {
+        match self.linter()? {
+            Some(l) => Ok(l),
+            None => error!("No linter is available on the application!")
+        }
+    }
+
+    fn get_website(&self) -> Result<&dyn Website> {
+        match self.website()? {
+            Some(w) => Ok(w),
+            None => error!("No website is available on the application!")
+        }
+    }
+
     // fn setup_production_status_checks(&self) -> Result<()>;
     // fn cleanup_production_status_checks(&self) -> Result<()>;
     // fn production_status_checks_pre(&self, stop_at_first_fail: bool) -> Result<IndexMap<String, (bool, String)>>;
     // fn production_status_checks_post(&self, stop_at_first_fail: bool) -> Result<IndexMap<String, (bool, String)>>;
 
-    // fn lint(&self) -> Result<Box<dyn Linter>>;
-    // fn package(&self) -> Result<Box<dyn Package>>;
-    // fn website(&self) -> Result<Box<dyn Website>>;
     fn check_production_status(&self) -> Result<bool>;
     fn publish(&self) -> Result<()>;
 }
@@ -148,12 +169,18 @@ pub trait RC {
     fn tag(&self, tag: &str, force: bool, msg: Option<&str>) -> Result<()>;
 }
 
-pub trait Package {
-    fn build(&self) -> Result<()>;
+pub trait Publisher {
+    fn build_package(&self) -> Result<BuildResult>;
+    fn upload(&self, build: &BuildResult) -> Result<UploadResult>;
+
+    fn build_and_upload(&self) -> Result<(BuildResult, UploadResult)> {
+        let br = self.build_package()?;
+        Ok((br.clone(), self.upload(&br)?))
+    }
 }
 
 pub trait Website {
-    fn build(&self) -> Result<()>;
+    fn build(&self) -> Result<BuildResult>;
 }
 
 #[derive(Debug, Clone)]
@@ -197,4 +224,21 @@ impl UnitTestStatus {
     //     fn tests(&self) -> &Vec<TestResult> {
     //         &self.tests
     //     }
+}
+
+#[derive(Debug, Clone)]
+pub struct BuildResult {
+    pub succeeded: bool,
+    pub build_contents: Option<Vec<String>>,
+    pub message: Option<String>,
+    pub metadata: Option<IndexMap<String, Metadata>>
+}
+
+impl BuildResult {}
+
+#[derive(Debug, Clone)]
+pub struct UploadResult {
+    pub succeeded: bool,
+    pub message: Option<String>,
+    pub metadata: Option<IndexMap<String, Metadata>>
 }
