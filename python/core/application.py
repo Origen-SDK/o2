@@ -1,7 +1,8 @@
 import origen
 from origen.application import Base
 from origen.utility.publishers.poetry import Poetry
-from origen.utility.results import BuildResult
+from origen.utility.results import BuildResult, UploadResult
+from origen.utility import github
 
 # This class represents this application and is automatically instantiated as origen.app
 # It is required by Origen and should not be renamed or removed under any circumstances
@@ -35,5 +36,20 @@ class Publisher(Poetry):
 
         return Poetry.build_package(self)
 
-    def upload(self, _build_result):
-        ...
+    def upload(self, build_result, dry_run):
+        # The mechanism to actually build, load, and publish the libraries is
+        # a github action.
+        # Running this action with no arguments essentially does nothing - it'll
+        # build everything but won't actually publish any libraries.
+        # When running for real, all inputs will be given to publish the libraries.
+        if dry_run:
+            inputs = {}
+        else:
+            # Need to fill these out yet when final publishing action is done
+            inputs = {}
+        res = github.dispatch_workflow("Origen-SDK", "o2", "publish.yml", "master", inputs)
+        if res.succeeded:
+            print("Publish action successfully started. Check https://github.com/Origen-SDK/o2/actions/workflows/publish.yml for further status")
+        else:
+            origen.logger.error(f"Encountered errors starting the publish action. Message from Github: {res.message}")
+        return UploadResult(res.succeeded)

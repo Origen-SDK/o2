@@ -959,9 +959,19 @@ Examples:
                 .setting(AppSettings::ArgRequiredElseHelp)
                 .subcommand(
                     SubCommand::with_name("package")
-                        .about("Build the app into a Python package (a wheel)"),
+                        .about("Build the app into publishable package (e.g., a 'python wheel')"),
                 )
-                .subcommand(SubCommand::with_name("publish").about("Publish (release) the app")),
+                .subcommand(SubCommand::with_name("run_publish_checks")
+                    .about("Run production-ready and publish-ready checks")
+                )
+                .subcommand(SubCommand::with_name("publish")
+                    .about("Publish (release) the app")
+                    .arg(Arg::with_name("dry-run")
+                        .long("dry-run")
+                        .takes_value(false)
+                        .help("Runs through the entire process except the uploading and mailer steps")
+                    )
+                ),
         );
 
         /************************************************************************************/

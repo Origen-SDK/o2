@@ -171,11 +171,11 @@ pub trait RC {
 
 pub trait Publisher {
     fn build_package(&self) -> Result<BuildResult>;
-    fn upload(&self, build: &BuildResult) -> Result<UploadResult>;
+    fn upload(&self, build: &BuildResult, dry_run: bool) -> Result<UploadResult>;
 
-    fn build_and_upload(&self) -> Result<(BuildResult, UploadResult)> {
+    fn build_and_upload(&self, dry_run: bool) -> Result<(BuildResult, UploadResult)> {
         let br = self.build_package()?;
-        Ok((br.clone(), self.upload(&br)?))
+        Ok((br.clone(), self.upload(&br, dry_run)?))
     }
 }
 
@@ -241,4 +241,25 @@ pub struct UploadResult {
     pub succeeded: bool,
     pub message: Option<String>,
     pub metadata: Option<IndexMap<String, Metadata>>
+}
+
+#[derive(Debug, Clone)]
+pub struct GenericResult {
+    pub succeeded: bool,
+    pub message: Option<String>,
+    pub metadata: Option<IndexMap<String, Metadata>>
+}
+
+impl GenericResult {
+    pub fn new(succeeded: bool, message: Option<String>, metadata: Option<IndexMap<String, Metadata>>) -> Self {
+        Self {
+            succeeded: succeeded,
+            message: message,
+            metadata: metadata
+        }
+    }
+
+    pub fn new_with_empty_metadata(succeeded: bool, message: Option<String>) -> Self {
+        Self::new(succeeded, message, Some(IndexMap::new()))
+    }
 }

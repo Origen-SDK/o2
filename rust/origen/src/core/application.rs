@@ -8,7 +8,8 @@ use crate::utility::version::{to_pep440, to_semver};
 use crate::Result;
 use indexmap::IndexMap;
 use regex::Regex;
-use semver::Version;
+use crate::utility::version::Version;
+use crate::core::frontend::BuildResult;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
@@ -49,7 +50,7 @@ impl Application {
         }
         if VERSION_LINE.is_match(&content) {
             let captures = VERSION_LINE.captures(&content).unwrap();
-            Ok(Version::parse(&to_semver(&captures[1])?)?)
+            Ok(Version::new_pep440(&captures[1])?)
         } else {
             error!(
                 "Failed to read a version from file '{}'",
@@ -117,33 +118,30 @@ impl Application {
         })
     }
 
-    pub fn publish(&self) -> Result<()> {
+    pub fn build_package(&self) -> Result<BuildResult> {
+        crate::with_frontend_app(|app| {
+            let publisher = app.get_publisher()?;
+            log_info!("Building Package...");
+            publisher.build_package()
+        })
+    }
+
+    pub fn publish(&self, dry_run: bool) -> Result<()> {
         Ok(crate::with_frontend_app(|app| {
-            log_info!("Performing pre-publish checks...");
+            // log_info!("Performing pre-publish checks...");
             // app.check_production_status()?;
 
-            let mut v = crate::utility::version::Version::new_pep440(&self.version()?.to_string())?;
+            let v = Version::new_pep440(&self.version()?.to_string())?;
             let new_v = v.update_dialogue()?;
-            // let release_type = ReleaseType::from_idx(
-            //     dialoguer::Select::new()
-            //         .with_prompt("Please select the release type")
-            //         .items(
-            //             &ReleaseType::to_vec()
-            //                 .iter()
-            //                 .map(|r| r.to_string())
-            //                 .collect::<Vec<String>>(),
-            //         )
-            //         .default(3)
-            //         .interact()?,
-            // );
-
-            // let new_v = release_type.bump_version(&mut v)?;
-            log_info!("Updating version from {} to {}", v, new_v);
             println!("Updating version from {} to {}", v, new_v);
-            // //self.set_version(&v)?;
-            // //let files = vec!(self.version_file().as_path());
+            if dry_run {
+                log_info!("(Dry run - not updating version file)");
+            } else {
+                self.set_version(&v)?;
+            }
+            let files = vec!(self.version_file().as_path());
 
-            Ok(crate::with_frontend_app(|app| {
+            // Ok(crate::with_frontend_app(|app| {
                 // let rn = app.get_release_notes()?;
                 // rn.update_history();
                 // files.push(rn.history_file());
@@ -160,7 +158,7 @@ impl Application {
                 let package_result = publisher.build_package()?;
 
                 log_info!("Uploading Package...");
-                publisher.upload(&package_result)?;
+                publisher.upload(&package_result, dry_run)?;
 
                 // let mailer = app.get_mailer()?;
                 // mailer.send("...")?;
@@ -168,12 +166,17 @@ impl Application {
                 // let website = app.get_website()?;
                 // website.publish()?;
 
-                Ok(())
-            })?)
+            //     Ok(())
+            // })?)
+            Ok(())
         })?)
         // let app = crate::frontend()?.app()?;
         // // origen::frontend()
         // Ok(())
+    }
+
+    pub fn run_publish_checks(&self, stop_at_first_fail: bool) -> Result<ProductionStatus> {
+        self.check_production_status(stop_at_first_fail)
     }
 
     pub fn check_production_status(&self, stop_at_first_fail: bool) -> Result<ProductionStatus> {
@@ -329,7 +332,8 @@ impl ProductionStatus {
 mod tests {
     use crate::core::application::Application;
     use crate::STATUS;
-    use semver::Version;
+    // use semver::Version;
+    use crate::utility::version::Version;
 
     #[test]
     fn reading_and_writing_version() {

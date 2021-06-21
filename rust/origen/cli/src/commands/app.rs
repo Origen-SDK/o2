@@ -1,71 +1,41 @@
-use super::fmt::cd;
 use clap::ArgMatches;
 use indexmap::IndexMap;
-use std::process::Command;
+
+fn _run(cmd: &str, proc_cmd: &ArgMatches, args: Option<IndexMap<&str, String>>) {
+    super::launch(
+        cmd,
+        if let Some(targets) = proc_cmd.values_of("target") {
+            Some(targets.collect())
+        } else {
+            Option::None
+        },
+        &None,
+        None,
+        None,
+        None,
+        false,
+        args,
+    );
+}
 
 pub fn run(cmd: &ArgMatches) {
-    match cmd.subcommand_name() {
-        Some("package") => {
-            let wheel_dir = origen::app().unwrap().root.join("dist");
-            // Make sure we are not about to upload any stale/old artifacts
-            if wheel_dir.exists() {
-                std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing dist dir");
-            }
-            cd(&origen::app().unwrap().root);
-
-            Command::new("poetry")
-                .args(&["build", "--no-interaction", "--format", "wheel"])
-                .status()
-                .expect("failed to build the application package for release");
-
-            //if matches.is_present("publish") {
-            //    let pypi_token =
-            //        std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
-
-            //    let args: Vec<&str> = vec![
-            //        "upload",
-            //        //"-r",
-            //        //"testpypi",
-            //        "--username",
-            //        "__token__",
-            //        "--password",
-            //        &pypi_token,
-            //        "--non-interactive",
-            //        "dist/*",
-            //    ];
-
-            //    Command::new("twine")
-            //        .args(&args)
-            //        .status()
-            //        .expect("failed to publish origen");
-            //}
+    let subcmd = cmd.subcommand();
+    let sub = subcmd.1.unwrap();
+    match subcmd.0 {
+        "package" => {
+            _run("app:package", sub, None);
         }
-        Some("publish") => {
-            // Will handle all the following in one go:
-            // * Checking for changes in the current environment
-            // * Checking in those changes
-            // * Building the wheel
-            // * Uploading ^
-            // * Building the website
-            // * Publishing ^
-            // * Sending release emails
+        "publish" => {
             let mut args = IndexMap::new();
-            super::launch(
-                "app:publish",
-                if let Some(targets) = cmd.values_of("target") {
-                    Some(targets.collect())
-                } else {
-                    Option::None
-                },
-                &None,
-                None,
-                None,
-                None,
-                false,
-                Some(args),
-            );
+            if sub.is_present("dry-run") {
+                args.insert("dry-run", "True".to_string());
+            }
+            _run("app:publish", sub, Some(args));
+        }
+        "run_publish_checks" => {
+            _run("app:run_publish_checks", sub, None);
         }
 
-        None | _ => unreachable!(),
+        _ => unreachable!(),
     }
 }

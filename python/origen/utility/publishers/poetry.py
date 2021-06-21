@@ -23,6 +23,6 @@ class Poetry(Publisher):
                 succeeded=False,
             )
 
-    def upload(self, _build_result):
+    def upload(self, build_result, dry_run):
         # Kicks off the build
         ...

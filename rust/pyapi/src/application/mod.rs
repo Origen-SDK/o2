@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::PathBuf;
 use crate::{runtime_error};
+use crate::utility::results::BuildResult;
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -33,9 +34,28 @@ impl PyApplication {
         Ok(r.passed())
     }
 
+    #[args(kwargs="**")]
+    fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<()> {
+        let mut dry_run = false;
+        if let Some(kw) = kwargs {
+            if let Some(d) = kw.get_item("dry-run") {
+                dry_run = d.extract::<bool>()?;
+            }
+        }
+        Ok(origen::app().unwrap().publish(dry_run)?)
+    }
+
     #[args(_args="*")]
-    fn publish(&self, _args: &PyTuple) -> PyResult<()> {
-        Ok(origen::app().unwrap().publish()?)
+    fn __build_package__(&self, _args: &PyTuple) -> PyResult<BuildResult> {
+        Ok(BuildResult {
+            build_result: Some(origen::app().unwrap().build_package()?)
+        })
+    }
+
+    #[args(_args="*")]
+    fn __run_publish_checks__(&self, _args: &PyTuple) -> PyResult<bool> {
+        let r = origen::app().unwrap().run_publish_checks(false)?;
+        Ok(r.passed())
     }
 }
 

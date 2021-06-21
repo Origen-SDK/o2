@@ -2,6 +2,7 @@ use crate::utility::metadata::{from_optional_pydict, into_optional_pyobj};
 use pyo3::prelude::*;
 use origen::core::frontend::BuildResult as OrigenBuildResult;
 use origen::core::frontend::UploadResult as OrigenUploadResult;
+use origen::core::frontend::GenericResult as OrigenGenericResult;
 use origen::utility::command_helpers::ExecResult as OrigenExecResult;
 use pyo3::types::{PyDict, PyType};
 
@@ -18,6 +19,84 @@ pub fn results(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<UploadResult>()?;
     m.add_class::<ExecResult>()?;
     Ok(())
+}
+
+/// Generic result
+#[pyclass(subclass)]
+pub struct GenericResult {
+    // Origen Generic Result
+    pub generic_result: Option<OrigenGenericResult>,
+}
+
+#[pymethods]
+impl GenericResult {
+    #[classmethod]
+    #[args(message="None",  metadata="None")]
+    fn __init__(
+        _cls: &PyType,
+        instance: &PyAny,
+        succeeded: bool,
+        message: Option<String>,
+        metadata: Option<&PyDict>
+    ) -> PyResult<()> {
+        let mut i = instance.extract::<PyRefMut<Self>>()?;
+        i.generic_result = Some(OrigenGenericResult {
+            succeeded: succeeded,
+            message: message,
+            metadata: from_optional_pydict(metadata)?
+        });
+        Ok(())
+    }
+
+    #[new]
+    fn new() -> Self {
+        Self { generic_result: None }
+    }
+
+    #[getter]
+    fn succeeded(&self) -> PyResult<bool> {
+        Ok(self.generic_result()?.succeeded)
+    }
+
+    #[getter]
+    fn failed(&self) -> PyResult<bool> {
+        Ok(!self.succeeded()?)
+    }
+
+    #[getter]
+    fn message(&self) -> PyResult<Option<String>> {
+        Ok(self.generic_result()?.message.clone())
+    }
+
+    #[getter]
+    fn metadata(&self) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        into_optional_pyobj(py, self.generic_result()?.metadata.as_ref())
+    }
+}
+
+impl GenericResult {
+    pub fn generic_result(&self) -> PyResult<&OrigenGenericResult> {
+        match self.generic_result.as_ref() {
+            Some(r) => Ok(r),
+            None => {
+                return crate::incomplete_result_error!("Generic Result")
+            }
+        }
+    }
+
+    pub fn to_py(py: Python, generic_result: &OrigenGenericResult) -> PyResult<Py<Self>> {
+        Py::new(py, Self {
+            generic_result: Some(generic_result.clone())
+        })
+    }
+
+    pub fn from_origen(origen_generic_result: OrigenGenericResult) -> Self {
+        Self {
+            generic_result: Some(origen_generic_result)
+        }
+    }
 }
 
 /// Generic build result

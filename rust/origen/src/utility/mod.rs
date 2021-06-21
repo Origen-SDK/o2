@@ -11,6 +11,7 @@ pub mod mailer;
 pub mod num_helpers;
 pub mod session_store;
 pub mod version;
+pub mod github;
 
 use crate::{Result, STATUS};
 use std::collections::HashMap;

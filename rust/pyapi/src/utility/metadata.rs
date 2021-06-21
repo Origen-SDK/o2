@@ -9,6 +9,7 @@ pub fn metadata_to_pyobj(data: Option<Metadata>, key: Option<&str>) -> PyResult<
         let py = gil.python();
         match d {
             Metadata::String(s) => Ok(Some(s.to_object(py))),
+            Metadata::Usize(u) => Ok(Some(u.to_object(py))),
             Metadata::BigInt(big) => Ok(Some(big.to_object(py))),
             Metadata::BigUint(big) => Ok(Some(big.to_object(py))),
             Metadata::Bool(b) => Ok(Some(b.to_object(py))),
@@ -63,13 +64,6 @@ pub fn metadata_to_pyobj(data: Option<Metadata>, key: Option<&str>) -> PyResult<
                     pylist.push(metadata_to_pyobj(Some(l), None)?.unwrap());
                 }
                 Ok(Some(pylist.to_object(py)))
-            }
-            _ => {
-                if let Some(k) = key {
-                    crate::runtime_error!(format!("Cannot decode stored value at {} ({:?})", k, d))
-                } else {
-                    crate::runtime_error!(format!("Cannot decode stored value: ({:?})", d))
-                }
             }
         }
     } else {

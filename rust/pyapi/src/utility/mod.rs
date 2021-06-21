@@ -53,6 +53,7 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(results))?;
     m.add_wrapped(wrap_pymodule!(website))?;
     m.add_wrapped(wrap_pyfunction!(exec))?;
+    m.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;
     Ok(())
 }
 
@@ -158,4 +159,10 @@ where F: FnMut(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>
             Ok(None)
         }
     }
+}
+
+#[pyfunction(inputs="None")]
+pub fn dispatch_workflow(owner: &str, repo: &str, workflow: &str, git_ref: &str, inputs: Option<HashMap<String, String>>) -> PyResult<results::GenericResult> {
+    let res = origen::utility::github::dispatch_workflow(owner, repo, workflow, git_ref, inputs)?;
+    Ok(results::GenericResult::from_origen(res))
 }

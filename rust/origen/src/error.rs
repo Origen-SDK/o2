@@ -188,3 +188,21 @@ impl std::convert::From<config::ConfigError> for Error {
         Error::new(&err.to_string())
     }
 }
+
+impl std::convert::From<octocrab::Error> for Error {
+    fn from(err: octocrab::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::env::VarError> for Error {
+    fn from(err: std::env::VarError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}

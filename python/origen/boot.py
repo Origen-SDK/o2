@@ -206,7 +206,15 @@ def run_cmd(command,
 
     elif command == "app:publish":
         _origen.set_operation("app")
-        origen.app.publish(args)
+        origen.app.__publish__(**args)
+
+    elif command == "app:package":
+        _origen.set_operation("app")
+        origen.app.build_package(args)
+
+    elif command == "app:run_publish_checks":
+        _origen.set_operation("app")
+        origen.app.run_publish_checks(args)
 
     # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":
