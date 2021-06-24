@@ -10,7 +10,7 @@ description = "Backend implementation for the full Origen SDK"
 readme = "README.md"
 homepage = "https://origen-sdk.org/o2/"
 repository = "https://github.com/Origen-SDK/o2"
-keywords = ["Product/Test Engineering", "Semiconductor Devices", "Software Development Kit"]
+keywords = ["Product-Test-Engineering", "Semiconductors", "SDKs"]
 categories = ["embedded", "science"]
 
 [workspace]
