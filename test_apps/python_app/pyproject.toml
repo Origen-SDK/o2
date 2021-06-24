@@ -2,7 +2,7 @@
 name = "example"
 version = "1.2.3"
 description = ""
-authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
+authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
 python = "^3.6"

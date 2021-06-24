@@ -4,7 +4,6 @@
 mod new_resource;
 
 use clap::ArgMatches;
-use origen::utility::version::to_pep440;
 use origen::STATUS;
 use phf::map::Map;
 use phf::phf_map;
@@ -54,10 +53,7 @@ pub fn run(matches: &ArgMatches) {
     //// in reverse order when given the index map
     //let packages: Vec<&Package> = bom.packages.iter().map(|(_id, pkg)| pkg).collect();
     context.insert("app_name", name);
-    context.insert(
-        "origen_version",
-        &to_pep440(&origen::STATUS.origen_version.to_string()).unwrap(),
-    );
+    context.insert("origen_version", &origen::STATUS.origen_version.to_string());
     let mut user_info = "".to_string();
     let users = origen::users();
     if let Ok(u) = users.current_user() {

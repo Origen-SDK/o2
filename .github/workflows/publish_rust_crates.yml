@@ -1,0 +1,39 @@
+# Isolated action to publish the origen crates
+name: Publish Crates
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Perform a dry-run only
+        required: true
+        default: "true"
+      publish_origen:
+        description: Publish Origen crate to crates.io
+        required: true
+        default: "false"
+      publish_origen_core_support:
+        description: Publish Origen crate to crates.io
+        required: true
+        default: "false"
+
+jobs:
+  Publish-Crates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: "nightly-2020-11-01"
+          override: true
+
+      - name: "Publish origen-core-support"
+        if: ${{ github.event.inputs.publish_origen_core_support == 'true' }} && ${{ github.event.inputs.dry_run == 'true' }}
+        working-directory: rust/origen-core-support
+        run: cargo publish --dry-run
+
+      - name: "Publish origen"
+        if: ${{ github.event.inputs.publish_origen == 'true' }} && ${{ github.event.inputs.dry_run == 'true' }}
+        working-directory: rust/origen
+        run: cargo publish --dry-run

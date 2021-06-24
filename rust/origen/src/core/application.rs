@@ -2,11 +2,12 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
-use crate::utility::file_actions as fa;
-use crate::utility::version::{to_pep440, to_semver};
+use crate::core::frontend::BuildResult;
+use crate::revision_control::RevisionControl;
+use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
+use indexmap::IndexMap;
 use regex::Regex;
-use semver::Version;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
@@ -47,7 +48,7 @@ impl Application {
         }
         if VERSION_LINE.is_match(&content) {
             let captures = VERSION_LINE.captures(&content).unwrap();
-            Ok(Version::parse(&to_semver(&captures[1])?)?)
+            Ok(Version::new_pep440(&captures[1])?)
         } else {
             error!(
                 "Failed to read a version from file '{}'",
@@ -56,19 +57,16 @@ impl Application {
         }
     }
 
+    pub fn version_file(&self) -> PathBuf {
+        self.root.join("pyproject.toml")
+    }
+
     /// Sets the application version by writing it out to config/version.toml
     /// The normal way to do this is to call app.version(), bump the returned version object
     /// as required, then return it back to this function.
     /// See here for the API - https://docs.rs/semver
     pub fn set_version(&self, version: &Version) -> Result<()> {
-        let version_file = self.root.join("pyproject.toml");
-        let r = Regex::new(r#"^\s*version\s*=\s*['"]"#).unwrap();
-        fa::remove_line(&version_file, &r)?;
-
-        let r = Regex::new(r#"^\s*name\s*=\s+['"].*$"#).unwrap();
-        let line = format!("\nversion = \"{}\"", &to_pep440(&version.to_string())?);
-        fa::insert_after(&version_file, &r, &line)?;
-        Ok(())
+        set_version_in_toml(&self.version_file(), version)
     }
 
     /// Execute the given function with a reference to the application config.
@@ -89,6 +87,10 @@ impl Application {
         func(&mut cfg)
     }
 
+    pub fn config(&self) -> std::sync::RwLockReadGuard<Config> {
+        self.config.read().unwrap()
+    }
+
     /// Returns the application name
     pub fn name(&self) -> String {
         self.with_config(|cfg| Ok(cfg.name.to_string())).unwrap()
@@ -97,6 +99,113 @@ impl Application {
     /// Returns a path to the current application's 'app' dir which is the root + app name.
     pub fn app_dir(&self) -> PathBuf {
         self.root.join(self.name())
+    }
+
+    /// Return an RevisionControl, containing a driver, based on the app's config
+    pub fn rc(&self) -> Result<RevisionControl> {
+        self.with_config(|cfg| match cfg.revision_control.as_ref() {
+            Some(rc) => RevisionControl::from_config(rc),
+            None => error!("No app RC was given. Cannot create RC driver"),
+        })
+    }
+
+    pub fn build_package(&self) -> Result<BuildResult> {
+        crate::with_frontend_app(|app| {
+            let publisher = app.get_publisher()?;
+            log_info!("Building Package...");
+            publisher.build_package()
+        })
+    }
+
+    pub fn publish(&self, dry_run: bool) -> Result<()> {
+        Ok(crate::with_frontend_app(|app| {
+            // log_info!("Performing pre-publish checks...");
+            // app.check_production_status()?;
+
+            let v = Version::new_pep440(&self.version()?.to_string())?;
+            let new_v = v.update_dialogue()?;
+            println!("Updating version from {} to {}", v, new_v);
+            if dry_run {
+                log_info!("(Dry run - not updating version file)");
+            } else {
+                self.set_version(&v)?;
+            }
+            let files = vec![self.version_file().as_path()];
+
+            // Ok(crate::with_frontend_app(|app| {
+            // let rn = app.get_release_notes()?;
+            // rn.update_history();
+            // files.push(rn.history_file());
+
+            // let rc = app.get_rc()?;
+            // rc.checkin(
+            //     Some(vec![self.version_file().as_path()]),
+            //     "Recorded new version in the version tracker",
+            // )?;
+            // rc.tag(&v.to_string(), false, None)?;
+
+            let publisher = app.get_publisher()?;
+            log_info!("Building Package...");
+            let package_result = publisher.build_package()?;
+
+            log_info!("Uploading Package...");
+            publisher.upload(&package_result, dry_run)?;
+
+            // let mailer = app.get_mailer()?;
+            // mailer.send("...")?;
+
+            // let website = app.get_website()?;
+            // website.publish()?;
+
+            //     Ok(())
+            // })?)
+            Ok(())
+        })?)
+        // let app = crate::frontend()?.app()?;
+        // // origen::frontend()
+        // Ok(())
+    }
+
+    pub fn run_publish_checks(&self, stop_at_first_fail: bool) -> Result<ProductionStatus> {
+        self.check_production_status(stop_at_first_fail)
+    }
+
+    pub fn check_production_status(&self, stop_at_first_fail: bool) -> Result<ProductionStatus> {
+        log_info!("Checking production status...");
+        let mut stat = ProductionStatus::default();
+
+        crate::with_frontend_app(|app| {
+            // log_info!("Running any application-defined checks: pre-Origen checks...");
+            // stat.push_checks(app.production_status_checks_pre(stop_at_first_fail)?);
+
+            // Check for modified files
+            log_info!("Checking for modified files...");
+            let s = app.get_rc()?.status()?;
+            stat.push_clean_work_space_check(!s.is_modified(), None);
+
+            if stat.failed() && stop_at_first_fail {
+                return Ok(());
+            }
+
+            log_info!("Running unit tests...");
+            let s = app.get_unit_tester()?.run()?;
+            stat.push_unit_test_check(s.passed(), s.text);
+
+            // log_info!("Checking for local dependencies...");
+            // let s = app.list_local_dependencies()?;
+            // stat.push_local_deps_check(s.empty?(), )
+
+            // TODOs:
+            // log_info!("Checking for local dependencies...");
+            // log_info!("Checking for lint errors...");
+            // log_info!("Ensuring the package builds...")
+            // log_info!("Ensuring the website builds...")
+            // log_info!("Running any application-defined checks: post-Origen checks...");
+            // stat.push_checks(app.production_status_checks_post(stop_at_first_fail)?);
+
+            Ok(())
+        })?;
+        Ok(stat)
     }
 
     /// Resolves a directory/file path relative to the application's root.
@@ -154,22 +263,78 @@ impl Application {
     }
 }
 
+pub struct ProductionStatus {
+    checks: IndexMap<String, (bool, Option<String>, Option<String>)>,
+    passed: bool,
+}
+
+impl Default for ProductionStatus {
+    fn default() -> Self {
+        Self {
+            checks: IndexMap::new(),
+            passed: true,
+        }
+    }
+}
+
+impl ProductionStatus {
+    pub fn push_check(
+        &mut self,
+        check: &str,
+        desc: Option<String>,
+        result: bool,
+        result_text: Option<String>,
+    ) {
+        self.checks
+            .insert(check.to_string(), (result, desc, result_text));
+        if !result {
+            self.passed = false;
+        }
+    }
+
+    pub fn push_clean_work_space_check(&mut self, clean: bool, txt: Option<String>) {
+        self.push_check(
+            "Clean Workspace",
+            Some("Fails if there are modified or untracked, but not ignored, files in the workspace.".to_string()),
+            clean,
+            txt
+        );
+    }
+
+    pub fn push_unit_test_check(&mut self, passed: bool, txt: Option<String>) {
+        self.push_check(
+            "Unit Tests",
+            Some("Fails if any of the unit tests fail".to_string()),
+            passed,
+            txt,
+        );
+    }
+
+    pub fn passed(&self) -> bool {
+        self.passed
+    }
+
+    pub fn failed(&self) -> bool {
+        !self.passed
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::core::application::Application;
+    use crate::utility::version::Version;
     use crate::STATUS;
-    use semver::Version;
 
     #[test]
     fn reading_and_writing_version() {
         let app_root = STATUS.origen_wksp_root.join("test_apps").join("python_app");
         let app = Application::new(app_root);
 
-        let v = Version::parse("2.21.5-pre7").unwrap();
+        let v = Version::new_pep440("2.21.5-dev7").unwrap();
         let _res = app.set_version(&v);
         assert_eq!(app.version().unwrap(), v);
 
-        let v = Version::new(1, 2, 3);
+        let v = Version::new_pep440("1.2.3").unwrap();
         let _res = app.set_version(&v);
         assert_eq!(app.version().unwrap(), v);
     }

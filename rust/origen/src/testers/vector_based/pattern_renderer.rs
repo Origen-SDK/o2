@@ -8,7 +8,9 @@ use crate::{Result, DUT};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::generator::processors::{CycleCombiner, FlattenText, PinActionCombiner, UnpackCaptures};
+use crate::generator::processors::{
+    CycleCombiner, FlattenText, PinActionCombiner, TargetTester, UnpackCaptures,
+};
 
 pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
     fn file_ext(&self) -> &str;
@@ -50,8 +52,11 @@ pub struct Renderer<'a> {
 
 impl<'a> Renderer<'a> {
     pub fn run(tester: &'a dyn RendererAPI, ast: &Node) -> Result<Vec<PathBuf>> {
+        // Screen out nodes not relevant to this renderer
+        let mut n = TargetTester::run(ast, tester.id())?;
+
         // Optimize the vectors
-        let mut n = PinActionCombiner::run(ast)?;
+        n = PinActionCombiner::run(&n)?;
         n = CycleCombiner::run(&n)?;
         n = UnpackCaptures::run(&n)?;
 

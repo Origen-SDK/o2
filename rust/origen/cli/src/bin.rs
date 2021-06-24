@@ -12,7 +12,6 @@ mod python;
 use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use indexmap::map::IndexMap;
-use origen::utility::version::to_pep440;
 use origen::{LOGGER, STATUS};
 use std::path::Path;
 
@@ -94,14 +93,8 @@ fn main() {
     origen::initialize(Some(verbosity), vec![], exe);
 
     let version = match STATUS.is_app_present {
-        true => format!(
-            "Origen CLI: {}",
-            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
-        ),
-        false => format!(
-            "Origen: {}",
-            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
-        ),
+        true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
+        false => format!("Origen: {}", STATUS.origen_version.to_string()),
     };
     if STATUS.app.is_some() {
         origen::core::application::config::Config::check_defaults(
@@ -959,7 +952,18 @@ Examples:
                 .setting(AppSettings::ArgRequiredElseHelp)
                 .subcommand(
                     SubCommand::with_name("package")
-                        .about("Build the app into a Python package (a wheel)"),
+                        .about("Build the app into publishable package (e.g., a 'python wheel')"),
+                )
+                .subcommand(SubCommand::with_name("run_publish_checks")
+                    .about("Run production-ready and publish-ready checks")
+                )
+                .subcommand(SubCommand::with_name("publish")
+                    .about("Publish (release) the app")
+                    .arg(Arg::with_name("dry-run")
+                        .long("dry-run")
+                        .takes_value(false)
+                        .help("Runs through the entire process except the uploading and mailer steps")
+                    )
                 ),
         );
 
@@ -1425,26 +1429,21 @@ CORE COMMANDS:
                 if STATUS.is_app_in_origen_dev_mode {
                     println!(
                         "App:    {}\nOrigen: {} (from {})\nCLI:    {}",
-                        to_pep440(&app_version).unwrap_or("Error".to_string()),
-                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
+                        app_version.to_string(),
+                        origen_version.to_string(),
                         STATUS.origen_wksp_root.display(),
-                        to_pep440(&STATUS.origen_version.to_string())
-                            .unwrap_or("Error".to_string())
+                        &STATUS.origen_version.to_string()
                     );
                 } else {
                     println!(
                         "App:    {}\nOrigen: {}\nCLI:    {}",
-                        to_pep440(&app_version).unwrap_or("Error".to_string()),
-                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
-                        to_pep440(&STATUS.origen_version.to_string())
-                            .unwrap_or("Error".to_string())
+                        app_version.to_string(),
+                        origen_version.to_string(),
+                        STATUS.origen_version.to_string()
                     );
                 }
             } else {
-                println!(
-                    "Origen: {}",
-                    to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
-                );
+                println!("Origen: {}", STATUS.origen_version.to_string());
             }
         }
         _ => {

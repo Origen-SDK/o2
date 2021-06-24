@@ -15,13 +15,6 @@ class Producer(_origen.producer.PyProducer):
         self._generate_prepared = False
         self.continue_on_fail = True
 
-    def issue_callback(self, c, kwargs):
-        if origen.helpers.has_method(origen.dut, c) and not kwargs.get(
-                "skip_all_callbacks") and not kwargs.get(f"skip_callback_{c}"):
-            getattr(origen.dut, c)(**kwargs)
-            return True  # Callback ran or raised an exception
-        return False  # Callback didn't run
-
     # Defines the methods that are accessible within blocks/<block>/registers.py
     def api(self):
         return {
@@ -99,9 +92,11 @@ class Producer(_origen.producer.PyProducer):
         origen.tester.generate_pattern_header(pat.header_comments)
 
         origen.logger.debug(f"Producing pattern {pat.name} in job {job.id}")
-        origen.producer.issue_callback('startup', kwargs)
+        origen.callbacks.emit("toplevel__startup", kwargs=kwargs)
+        origen.callbacks.emit("controller__startup", kwargs=kwargs)
         yield pat
-        origen.producer.issue_callback('shutdown', kwargs)
+        origen.callbacks.emit("controller__shutdown", kwargs=kwargs)
+        origen.callbacks.emit("toplevel__shutdown", kwargs=kwargs)
 
         origen.tester.end_pattern()
         # True means continue on fail, should make this dynamic in future so that the user can

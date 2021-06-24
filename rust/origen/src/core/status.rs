@@ -3,9 +3,9 @@ use crate::built_info;
 use crate::core::application::Application;
 use crate::testers::SupportedTester;
 use crate::utility::file_utils::with_dir;
+use crate::utility::version::Version;
 use crate::Result as OrigenResult;
 use regex::Regex;
-use semver::Version;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
@@ -25,6 +25,7 @@ pub enum Operation {
     Compile,
     Interactive,
     Web,
+    App,
     AppCommand,
 }
 
@@ -43,6 +44,7 @@ impl FromStr for Operation {
             "compile" => Ok(Operation::Compile),
             "interactive" => Ok(Operation::Interactive),
             "web" => Ok(Operation::Web),
+            "app" => Ok(Operation::App),
             "appcommand" => Ok(Operation::AppCommand),
             _ => Err(format!("Unknown Operation: '{}'", &s)),
         }
@@ -135,9 +137,9 @@ impl Default for Status {
             }
         }
 
-        let version = match Version::parse(built_info::PKG_VERSION) {
+        let version = match Version::new_semver(built_info::PKG_VERSION) {
             Ok(v) => v,
-            Err(_e) => Version::parse("0.0.0").unwrap(),
+            Err(_e) => Version::default(),
         };
         let s = Status {
             is_app_present: app_present,

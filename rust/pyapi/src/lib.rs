@@ -13,6 +13,8 @@ mod registers;
 mod services;
 #[macro_use]
 mod timesets;
+mod _frontend;
+mod _helpers;
 mod application;
 mod producer;
 mod prog_gen;
@@ -313,6 +315,10 @@ fn initialize(
     cli_location: Option<String>,
 ) -> PyResult<()> {
     origen::initialize(log_verbosity, verbosity_keywords, cli_location);
+    origen::FRONTEND
+        .write()
+        .unwrap()
+        .set_frontend(Box::new(_frontend::Frontend::new()))?;
     Ok(())
 }
 
@@ -410,9 +416,10 @@ fn status(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen version formatted into PEP440, e.g. "1.2.3.dev4"
 #[pyfunction]
 fn version() -> PyResult<String> {
-    Ok(origen::utility::version::to_pep440(
-        &STATUS.origen_version.to_string(),
-    )?)
+    Ok(
+        origen::utility::version::Version::new_pep440(&STATUS.origen_version.to_string())?
+            .to_string(),
+    )
 }
 
 /// Returns the Origen configuration (as defined in origen.toml files)
@@ -540,7 +547,7 @@ fn on_linux() -> PyResult<bool> {
 #[pyfunction]
 /// This will be called by Origen immediately before loading a fresh set of targets
 fn prepare_for_target_load() -> PyResult<()> {
-    origen::prepare_for_target_load();
+    origen::prepare_for_target_load()?;
     Ok(())
 }
 
@@ -567,4 +574,15 @@ pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
     let pickle = PyModule::import(py, "pickle")?;
     let bytes = PyBytes::new(py, object);
     pickle.call1("loads", (bytes,))
+}
+
+pub fn with_pycallbacks<T, F>(mut func: F) -> PyResult<T>
+where
+    F: FnMut(Python, &PyAny) -> PyResult<T>,
+{
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let pycallbacks = py.import("origen.callbacks")?;
+    func(py, pycallbacks)
 }

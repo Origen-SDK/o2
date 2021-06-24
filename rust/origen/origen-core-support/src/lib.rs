@@ -3,7 +3,6 @@ use crate::proc_macro::TokenStream;
 use syn;
 
 mod id_getters_derive;
-mod meta;
 
 #[proc_macro_derive(IdGetters, attributes(id_getters_by_index, id_getters_by_mapping))]
 pub fn id_getters_derive(input: TokenStream) -> TokenStream {

@@ -80,9 +80,9 @@ with Pattern(pin_header="cap_test") as pat:
     reg.verify()
 
     # Changing capture configuration
-    # with tester.eq("v93k") as v93k:
-    #     tester.cc("V93K NODE!!")
-    #     tester.cycle()
+    with tester.eq("v93k") as v93k:
+        tester.cc("--Should only render on v39k--")
+        tester.cycle()
     # tester.capture_config.digcap.method = "digcap"
     # tester.capture_config.symbol = "E"
     # tester.capture(cycles=4)

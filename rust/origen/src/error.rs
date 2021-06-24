@@ -37,6 +37,7 @@ pub fn raises_error(yes: bool) -> Result<()> {
 }
 
 // To add a conversion from other type of errors
+use pyo3::prelude::*;
 use pyo3::{exceptions, PyErr};
 
 //impl std::convert::Into<PyErr> for Error {
@@ -53,7 +54,19 @@ impl std::convert::From<Error> for PyErr {
 
 impl std::convert::From<PyErr> for Error {
     fn from(err: PyErr) -> Self {
-        Error::new(&format!("{:?}", err))
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Error::new(&format!(
+            "Encountered Exception '{}' with message: {}",
+            err.ptype.as_ref(py).name(),
+            match err.pvalue {
+                pyo3::PyErrValue::Value(e) => {
+                    let r = e.call_method0(py, "__str__").unwrap();
+                    r.extract::<String>(py).unwrap()
+                }
+                _ => "--No Message Available--".to_string(),
+            }
+        ))
     }
 }
 
@@ -93,8 +106,8 @@ impl std::convert::From<regex::Error> for Error {
     }
 }
 
-impl std::convert::From<semver::SemVerError> for Error {
-    fn from(err: semver::SemVerError) -> Self {
+impl std::convert::From<semver::Error> for Error {
+    fn from(err: semver::Error) -> Self {
         Error::new(&err.to_string())
     }
 }
@@ -119,6 +132,12 @@ impl std::convert::From<lettre::address::AddressError> for Error {
 
 impl std::convert::From<toml::de::Error> for Error {
     fn from(err: toml::de::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Self {
         Error::new(&err.to_string())
     }
 }
@@ -166,6 +185,24 @@ impl std::convert::From<std::ffi::OsString> for Error {
 
 impl std::convert::From<config::ConfigError> for Error {
     fn from(err: config::ConfigError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<octocrab::Error> for Error {
+    fn from(err: octocrab::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::env::VarError> for Error {
+    fn from(err: std::env::VarError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
         Error::new(&err.to_string())
     }
 }

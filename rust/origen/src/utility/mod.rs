@@ -6,6 +6,7 @@ pub mod location;
 #[macro_use]
 pub mod logger;
 pub mod command_helpers;
+pub mod github;
 pub mod ldap;
 pub mod mailer;
 pub mod num_helpers;

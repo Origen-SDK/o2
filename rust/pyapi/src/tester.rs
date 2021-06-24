@@ -27,13 +27,13 @@ pub struct PyTester {
 #[pymethods]
 impl PyTester {
     #[new]
-    fn new() -> Self {
-        origen::tester().reset();
-        PyTester {
+    fn new() -> PyResult<Self> {
+        origen::tester().init()?;
+        Ok(PyTester {
             python_testers: HashMap::new(),
             instantiated_testers: HashMap::new(),
             metadata: vec![],
-        }
+        })
     }
 
     fn _start_eq_block(&self, testers: Vec<&str>) -> PyResult<(usize, usize, Vec<String>)> {
@@ -85,8 +85,8 @@ impl PyTester {
     /// it ready for a fresh target load.
     /// This should only be called from Python code for testing, it will be called automatically
     /// by Origen before loading targets.
-    fn reset(_self: PyRef<Self>) {
-        origen::tester().reset();
+    fn reset(_self: PyRef<Self>) -> PyResult<()> {
+        Ok(origen::tester().reset()?)
     }
 
     /// This is called by Origen at the start of a generate command, it should never be called by

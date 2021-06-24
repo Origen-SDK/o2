@@ -4,7 +4,7 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate serde;
-extern crate meta;
+extern crate origen_core_support;
 #[macro_use]
 extern crate pest_derive;
 #[macro_use]
@@ -39,6 +39,7 @@ pub use error::Error;
 use self::core::application::Application;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
+use self::core::frontend::Handle;
 use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
@@ -54,6 +55,11 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::ldap::LDAPs;
 use utility::mailer::Mailer;
 use utility::session_store::{SessionStore, Sessions};
+
+pub use self::core::frontend::callbacks as CALLBACKS;
+pub use self::core::frontend::{
+    emit_callback, with_frontend, with_frontend_app, with_optional_frontend,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -93,6 +99,7 @@ lazy_static! {
     pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
     pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new());
+    pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
 impl PartialEq<AST> for TEST {
@@ -299,8 +306,8 @@ pub fn clean_mode(name: &str) -> String {
 
 /// This will be called immediately before loading a fresh set of targets. Everything
 /// required to clear previous state from the existing targets should be initiated from here.
-pub fn prepare_for_target_load() {
-    tester().reset();
+pub fn prepare_for_target_load() -> Result<()> {
+    tester().reset()
 }
 
 /// Clears the current test (pattern) AST and starts a new one, this will be called by the
