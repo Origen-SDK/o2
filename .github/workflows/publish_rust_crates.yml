@@ -8,11 +8,11 @@ on:
         required: true
         default: "true"
       publish_origen:
-        description: Publish Origen crate to crates.io
+        description: Publish 'origen' crate to crates.io
         required: true
         default: "false"
       publish_origen_core_support:
-        description: Publish Origen crate to crates.io
+        description: Publish 'origen-core-support' crate to crates.io
         required: true
         default: "false"
 
