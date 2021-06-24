@@ -416,9 +416,9 @@ fn status(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen version formatted into PEP440, e.g. "1.2.3.dev4"
 #[pyfunction]
 fn version() -> PyResult<String> {
-    Ok(origen::utility::version::to_pep440(
+    Ok(origen::utility::version::Version::new_pep440(
         &STATUS.origen_version.to_string(),
-    )?)
+    )?.to_string())
 }
 
 /// Returns the Origen configuration (as defined in origen.toml files)

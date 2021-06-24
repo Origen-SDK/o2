@@ -5,7 +5,7 @@ description = "Semiconductor Developer's Kit"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"
 readme = "README.md"
-authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>", "Corey Engelken <corey.engelken@gmail.com>"]
+authors = ["Origen-SDK"]
 include = [
     "_origen.pyd",
     "_origen.so",

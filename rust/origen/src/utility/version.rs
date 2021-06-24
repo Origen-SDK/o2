@@ -4,22 +4,20 @@ use crate::Result;
 use regex::Regex;
 use std::fmt;
 use semver;
-
-lazy_static! {
-    static ref VALID_VERSION: Regex = Regex::new(r#"^\d+\.\d+\.\d+([\.-]?[a-z]+\d+)?$"#).unwrap();
-}
+use crate::utility::file_actions as fa;
+use std::path::PathBuf;
 
 const BETA: &str = "beta";
 const ALPHA: &str = "alpha";
 const DEV: &str = "dev";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VersionSpec {
     Pep440,
     Semver,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Version {
     semver: semver::Version,
     spec: VersionSpec,
@@ -27,21 +25,21 @@ pub struct Version {
 
 impl std::default::Default for Version {
     fn default() -> Self {
-        Self::new("0.0.0.pre0", VersionSpec::Semver).unwrap()
+        Self::new("0.0.0-dev.0", VersionSpec::Semver).unwrap()
     }
 }
 
 impl Version {
     pub fn new(ver: &str, spec: VersionSpec) -> Result<Self> {
-        let split = ver.splitn(5, ".").collect::<Vec<&str>>();
+        let split = ver.splitn(4, |c| c == '.' || c == '-').collect::<Vec<&str>>();
         let mut v: String = ver.to_string();
         let mut pre: Option<semver::Prerelease> = None;
         if split.len() == 4 {
             v = format!("{}.{}.{}", split[0], split[1], split[2]);
 
             // Check that the prerelease is of expected format
-            Self::split_prerelease(split[3])?;
-            pre = Some(semver::Prerelease::new(split[3])?);
+            let (t, num) = Self::split_prerelease(split[3])?;
+            pre = Some(semver::Prerelease::new(&format!("{}.{}", t, num))?);
         } else if split.len() > 4 {
             return error!("Unexpected extra content after pre-release: '{}'", split[4]);
         }
@@ -63,7 +61,8 @@ impl Version {
     fn split_prerelease(pre: &str) -> Result<(&str, usize)> {
         match pre.find( |c: char| c.is_digit(10)) {
             Some(i) => {
-                let split = pre.split_at(i);
+                let mut split = pre.split_at(i);
+                split.0 = split.0.trim_end_matches(".");
                 match split.0 {
                     DEV | ALPHA | BETA => Ok((split.0, split.1.parse::<usize>()?)),
                     _ => error!(
@@ -209,13 +208,18 @@ impl Version {
         Ok(self)
     }
 
+    pub fn is_prerelease(&self) -> Result<bool> {
+        Ok(self.is_dev()? || self.is_alpha()? || self.is_beta()?)
+    }
+
     fn is_of_prerelease(&self, prerelease: &str) -> Result<bool> {
         if self.semver.pre.is_empty() {
             return Ok(false);
         } else {
             match self.semver.pre.as_str().find( |c: char| c.is_digit(10)) {
                 Some(i) => {
-                    let split = self.semver.pre.as_str().split_at(i);
+                    let mut split = self.semver.pre.as_str().split_at(i);
+                    split.0 = split.0.trim_end_matches(".");
                     if split.0 == prerelease {
                         return Ok(true);
                     } else {
@@ -233,11 +237,12 @@ impl Version {
         }
         match self.semver.pre.as_str().find( |c: char| c.is_digit(10)) {
             Some(i) => {
-                let split = self.semver.pre.as_str().split_at(i);
+                let mut split = self.semver.pre.as_str().split_at(i);
+                split.0 = split.0.trim_end_matches(".");
                 if split.0 == prerelease {
                     // Same prerelease type - increment existing
                     let current = split.1.parse::<usize>()?;
-                    self.semver.pre = semver::Prerelease::new(&format!("{}{}", prerelease, current + 1))?;
+                    self.semver.pre = semver::Prerelease::new(&format!("{}.{}", prerelease, current + 1))?;
                 } else {
                     return error!("Attempted to increment existing prerelease '{}' but found existing prerelease of '{}'", prerelease, split.0);
                 }
@@ -254,12 +259,12 @@ impl Version {
             ReleaseType::Patch => self.increment_patch(),
             _ => return error!("Cannot create a {} tag from release type {:?}", prerelease, release_type)
         };
-        self.semver.pre = semver::Prerelease::new(&format!("{}0", prerelease))?;
+        self.semver.pre = semver::Prerelease::new(&format!("{}.0", prerelease))?;
         Ok(self)
     }
 
     fn force_prerelease(&mut self, prerelease: &str) -> Result<&Self> {
-        self.semver.pre = semver::Prerelease::new(&format!("{}0", prerelease))?;
+        self.semver.pre = semver::Prerelease::new(&format!("{}.0", prerelease))?;
         Ok(self)
     }
 
@@ -313,9 +318,13 @@ impl fmt::Display for Version {
         // Customize so only `x` and `y` are denoted.
         match self.spec {
             VersionSpec::Semver => self.semver.fmt(f),
-            VersionSpec::Pep440 => match to_pep440(&self.semver.to_string()) {
-                Ok(v) => write!(f, "{}", v),
-                Err(_e) => Err(fmt::Error)
+            VersionSpec::Pep440 => {
+                let v = &self.semver;
+                if v.pre.is_empty() {
+                    write!(f, "{}.{}.{}", v.major, v.minor, v.patch)
+                } else {
+                    write!(f, "{}.{}.{}.{}", v.major, v.minor, v.patch, v.pre.replace(".", ""))
+                }
             }
         }
     }
@@ -392,37 +401,14 @@ impl ReleaseType {
 
 }
 
-/// Converts a version number like 1.2.3-dev4 to 1.2.3.dev4, the latter being compatible with
-/// the Python PEP440 version number spec.
-/// Version numbers without a dev number will be returned un-modified, as will any versions which
-/// are already PEP440 compliant.
-pub fn to_pep440(version: &str) -> Result<String> {
-    if VALID_VERSION.is_match(version) {
-        let v = version.replace("-", ".");
-        Ok(v)
-    } else {
-        error!("Invalid version: '{}', must be a semantic version like 1.2.3 or 1.2.3.dev4 (1.2.3-dev4 also accepted)", &version)
-    }
-}
+pub fn set_version_in_toml(toml_file: &PathBuf, version: &Version) -> Result<()> {
+    let r = Regex::new(r#"^\s*version\s*=\s*['"]"#).unwrap();
+    fa::remove_line(&toml_file, &r)?;
 
-/// Converts a PEP440 version number like 1.2.3.dev4 to 1.2.3-dev4, the latter being compatible with
-/// the semver spec.
-/// Version numbers without a dev number will be returned un-modified, as will any versions which
-/// are already semver compliant.
-pub fn to_semver(version: &str) -> Result<String> {
-    lazy_static! {
-        static ref WITH_DEV: Regex = Regex::new(r#"^(\d+\.\d+\.\d+)[\.-]?([a-z]+\d+)$"#).unwrap();
-    }
-    if VALID_VERSION.is_match(version) {
-        if WITH_DEV.is_match(version) {
-            let cap = WITH_DEV.captures(version).unwrap();
-            Ok(format!("{}-{}", &cap[1], &cap[2]))
-        } else {
-            Ok(version.to_string())
-        }
-    } else {
-        error!("Invalid version: '{}', must be a semantic version like 1.2.3 or 1.2.3.dev4 (1.2.3-dev4 also accepted)", &version)
-    }
+    let r = Regex::new(r#"^\s*name\s*=\s+['"].*$"#).unwrap();
+    let line = format!("\nversion = \"{}\"", version.to_string());
+    fa::insert_after(&toml_file, &r, &line)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -435,7 +421,10 @@ mod tests {
         assert_eq!(v.to_string(), "0.0.0");
 
         let v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
+
+        let v = Version::new_semver("0.0.0-dev0").unwrap();
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
     }
 
     #[test]
@@ -445,6 +434,9 @@ mod tests {
 
         let v = Version::new_pep440("0.0.0.dev0").unwrap();
         assert_eq!(v.to_string(), "0.0.0.dev0");
+
+        let v = Version::new_pep440("0.0.0-dev0").unwrap();
+        assert_eq!(v.to_string(), "0.0.0.dev0");
     }
 
     #[test]
@@ -453,19 +445,28 @@ mod tests {
         assert_eq!(v.to_string(), "1.2.3");
 
         let v = Version::new("1.2.3.dev4", VersionSpec::Semver).unwrap();
-        assert_eq!(v.to_string(), "1.2.3-dev4");
+        assert_eq!(v.to_string(), "1.2.3-dev.4");
 
         let v = Version::new("1.2.3.alpha0", VersionSpec::Semver).unwrap();
-        assert_eq!(v.to_string(), "1.2.3-alpha0");
+        assert_eq!(v.to_string(), "1.2.3-alpha.0");
 
         let v = Version::new("1.2.3.beta10", VersionSpec::Semver).unwrap();
-        assert_eq!(v.to_string(), "1.2.3-beta10");
+        assert_eq!(v.to_string(), "1.2.3-beta.10");
 
         // Missing version number
         assert_eq!(Version::new("0.0.0.dev", VersionSpec::Semver).is_err(), true);
 
         // Invalid prerelease
         assert_eq!(Version::new("0.0.0.blah", VersionSpec::Semver).is_err(), true);
+    }
+
+    #[test]
+    fn test_default() {
+        let v = Version::default();
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
+
+        let v = Version::new_pep440(&Version::default().to_string()).unwrap();
+        assert_eq!(v.to_string(), "0.0.0.dev0");
     }
 
     #[test]
@@ -481,7 +482,7 @@ mod tests {
         assert_eq!(v.to_string(), "2.0.0");
 
         let mut v = Version::new_semver("3.2.1.dev0").unwrap();
-        assert_eq!(v.to_string(), "3.2.1-dev0");
+        assert_eq!(v.to_string(), "3.2.1-dev.0");
         v.increment_major();
         assert_eq!(v.to_string(), "4.0.0");
     }
@@ -499,7 +500,7 @@ mod tests {
         assert_eq!(v.to_string(), "1.3.0");
 
         let mut v = Version::new_semver("3.2.1.dev0").unwrap();
-        assert_eq!(v.to_string(), "3.2.1-dev0");
+        assert_eq!(v.to_string(), "3.2.1-dev.0");
         v.increment_minor();
         assert_eq!(v.to_string(), "3.3.0");
     }
@@ -517,7 +518,7 @@ mod tests {
         assert_eq!(v.to_string(), "1.2.4");
 
         let mut v = Version::new_semver("3.2.1.dev0").unwrap();
-        assert_eq!(v.to_string(), "3.2.1-dev0");
+        assert_eq!(v.to_string(), "3.2.1-dev.0");
         v.increment_patch();
         assert_eq!(v.to_string(), "3.2.2");
     }
@@ -525,32 +526,32 @@ mod tests {
     #[test]
     fn test_increment_dev_version() {
         let mut v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
         v.increment_dev().unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev1");
+        assert_eq!(v.to_string(), "0.0.0-dev.1");
 
         let mut v = Version::new_semver("0.0.0").unwrap();
         assert_eq!(v.to_string(), "0.0.0");
         v.increment_dev().unwrap();
-        assert_eq!(v.to_string(), "0.0.1-dev0");
+        assert_eq!(v.to_string(), "0.0.1-dev.0");
 
         let mut v = Version::new_semver("1.2.3").unwrap();
         assert_eq!(v.to_string(), "1.2.3");
         v.increment_dev().unwrap();
-        assert_eq!(v.to_string(), "1.2.4-dev0");
+        assert_eq!(v.to_string(), "1.2.4-dev.0");
 
         let mut v = Version::new_semver("1.2.3.dev10").unwrap();
-        assert_eq!(v.to_string(), "1.2.3-dev10");
+        assert_eq!(v.to_string(), "1.2.3-dev.10");
         v.increment_dev().unwrap();
-        assert_eq!(v.to_string(), "1.2.3-dev11");
+        assert_eq!(v.to_string(), "1.2.3-dev.11");
     }
 
     #[test]
     fn test_increment_existing_dev_version() {
         let mut v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
         v.increment_existing_dev().unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev1");
+        assert_eq!(v.to_string(), "0.0.0-dev.1");
 
         let mut v = Version::new_semver("0.0.0").unwrap();
         assert_eq!(v.to_string(), "0.0.0");
@@ -560,162 +561,162 @@ mod tests {
     #[test]
     fn test_append_dev() {
         let mut v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
         v.append_dev(ReleaseType::Major).unwrap();
-        assert_eq!(v.to_string(), "1.0.0-dev0");
+        assert_eq!(v.to_string(), "1.0.0-dev.0");
 
         let mut v = Version::new_semver("0.0.0.dev1").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev1");
+        assert_eq!(v.to_string(), "0.0.0-dev.1");
         v.append_dev(ReleaseType::Minor).unwrap();
-        assert_eq!(v.to_string(), "0.1.0-dev0");
+        assert_eq!(v.to_string(), "0.1.0-dev.0");
 
         let mut v = Version::new_semver("0.0.0.dev2").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev2");
+        assert_eq!(v.to_string(), "0.0.0-dev.2");
         v.append_dev(ReleaseType::Patch).unwrap();
-        assert_eq!(v.to_string(), "0.0.1-dev0");
+        assert_eq!(v.to_string(), "0.0.1-dev.0");
 
         let mut v = Version::new_semver("0.0.0.dev3").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev3");
+        assert_eq!(v.to_string(), "0.0.0-dev.3");
         assert_eq!(v.append_dev(ReleaseType::Dev).is_err(), true);
     }
 
     #[test]
     fn test_increment_alpha_version() {
         let mut v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
         v.increment_alpha().unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha0");
+        assert_eq!(v.to_string(), "0.0.0-alpha.0");
 
         let mut v = Version::new_semver("0.0.0").unwrap();
         assert_eq!(v.to_string(), "0.0.0");
         v.increment_alpha().unwrap();
-        assert_eq!(v.to_string(), "0.0.1-alpha0");
+        assert_eq!(v.to_string(), "0.0.1-alpha.0");
 
         let mut v = Version::new_semver("1.2.3").unwrap();
         assert_eq!(v.to_string(), "1.2.3");
         v.increment_alpha().unwrap();
-        assert_eq!(v.to_string(), "1.2.4-alpha0");
+        assert_eq!(v.to_string(), "1.2.4-alpha.0");
 
         let mut v = Version::new_semver("1.2.3.alpha4").unwrap();
-        assert_eq!(v.to_string(), "1.2.3-alpha4");
+        assert_eq!(v.to_string(), "1.2.3-alpha.4");
         v.increment_alpha().unwrap();
-        assert_eq!(v.to_string(), "1.2.3-alpha5");
+        assert_eq!(v.to_string(), "1.2.3-alpha.5");
 
         let mut v = Version::new_semver("1.2.3.beta4").unwrap();
-        assert_eq!(v.to_string(), "1.2.3-beta4");
+        assert_eq!(v.to_string(), "1.2.3-beta.4");
         v.increment_alpha().unwrap();
-        assert_eq!(v.to_string(), "1.2.4-alpha0");
+        assert_eq!(v.to_string(), "1.2.4-alpha.0");
     }
 
     #[test]
     fn test_increment_existing_alpha_version() {
         let mut v = Version::new_semver("0.0.0.alpha0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha0");
+        assert_eq!(v.to_string(), "0.0.0-alpha.0");
         v.increment_existing_alpha().unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha1");
+        assert_eq!(v.to_string(), "0.0.0-alpha.1");
 
         let mut v = Version::new_semver("0.0.0").unwrap();
         assert_eq!(v.to_string(), "0.0.0");
         assert_eq!(v.increment_existing_alpha().is_err(), true);
 
         let mut v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
         assert_eq!(v.increment_existing_alpha().is_err(), true);
     }
 
     #[test]
     fn test_append_alpha() {
         let mut v = Version::new_semver("0.0.0.alpha0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha0");
+        assert_eq!(v.to_string(), "0.0.0-alpha.0");
         v.append_alpha(ReleaseType::Major).unwrap();
-        assert_eq!(v.to_string(), "1.0.0-alpha0");
+        assert_eq!(v.to_string(), "1.0.0-alpha.0");
 
         let mut v = Version::new_semver("0.0.0.alpha1").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha1");
+        assert_eq!(v.to_string(), "0.0.0-alpha.1");
         v.append_alpha(ReleaseType::Minor).unwrap();
-        assert_eq!(v.to_string(), "0.1.0-alpha0");
+        assert_eq!(v.to_string(), "0.1.0-alpha.0");
 
         let mut v = Version::new_semver("0.0.0.alpha2").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha2");
+        assert_eq!(v.to_string(), "0.0.0-alpha.2");
         v.append_alpha(ReleaseType::Patch).unwrap();
-        assert_eq!(v.to_string(), "0.0.1-alpha0");
+        assert_eq!(v.to_string(), "0.0.1-alpha.0");
 
         let mut v = Version::new_semver("0.0.0.alpha3").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha3");
+        assert_eq!(v.to_string(), "0.0.0-alpha.3");
         assert_eq!(v.append_alpha(ReleaseType::Dev).is_err(), true);
 
         let mut v = Version::new_semver("0.0.0.alpha4").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha4");
+        assert_eq!(v.to_string(), "0.0.0-alpha.4");
         assert_eq!(v.append_alpha(ReleaseType::Alpha).is_err(), true);
     }
 
     #[test]
     fn test_increment_beta_version() {
         let mut v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
         v.increment_beta().unwrap();
-        assert_eq!(v.to_string(), "0.0.0-beta0");
+        assert_eq!(v.to_string(), "0.0.0-beta.0");
 
         let mut v = Version::new_semver("0.0.0").unwrap();
         assert_eq!(v.to_string(), "0.0.0");
         v.increment_beta().unwrap();
-        assert_eq!(v.to_string(), "0.0.1-beta0");
+        assert_eq!(v.to_string(), "0.0.1-beta.0");
 
         let mut v = Version::new_semver("1.2.3").unwrap();
         assert_eq!(v.to_string(), "1.2.3");
         v.increment_beta().unwrap();
-        assert_eq!(v.to_string(), "1.2.4-beta0");
+        assert_eq!(v.to_string(), "1.2.4-beta.0");
 
         let mut v = Version::new_semver("1.2.3.beta4").unwrap();
-        assert_eq!(v.to_string(), "1.2.3-beta4");
+        assert_eq!(v.to_string(), "1.2.3-beta.4");
         v.increment_beta().unwrap();
-        assert_eq!(v.to_string(), "1.2.3-beta5");
+        assert_eq!(v.to_string(), "1.2.3-beta.5");
 
         let mut v = Version::new_semver("1.2.3.alpha4").unwrap();
-        assert_eq!(v.to_string(), "1.2.3-alpha4");
+        assert_eq!(v.to_string(), "1.2.3-alpha.4");
         v.increment_beta().unwrap();
-        assert_eq!(v.to_string(), "1.2.3-beta0");
+        assert_eq!(v.to_string(), "1.2.3-beta.0");
     }
 
     #[test]
     fn test_increment_existing_beta_version() {
         let mut v = Version::new_semver("0.0.0.beta0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-beta0");
+        assert_eq!(v.to_string(), "0.0.0-beta.0");
         v.increment_existing_beta().unwrap();
-        assert_eq!(v.to_string(), "0.0.0-beta1");
+        assert_eq!(v.to_string(), "0.0.0-beta.1");
 
         let mut v = Version::new_semver("0.0.0").unwrap();
         assert_eq!(v.to_string(), "0.0.0");
         assert_eq!(v.increment_existing_beta().is_err(), true);
 
         let mut v = Version::new_semver("0.0.0.dev0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-dev0");
+        assert_eq!(v.to_string(), "0.0.0-dev.0");
         assert_eq!(v.increment_existing_beta().is_err(), true);
     }
 
     #[test]
     fn test_append_beta() {
         let mut v = Version::new_semver("0.0.0.beta0").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-beta0");
+        assert_eq!(v.to_string(), "0.0.0-beta.0");
         v.append_beta(ReleaseType::Major).unwrap();
-        assert_eq!(v.to_string(), "1.0.0-beta0");
+        assert_eq!(v.to_string(), "1.0.0-beta.0");
 
         let mut v = Version::new_semver("0.0.0").unwrap();
         assert_eq!(v.to_string(), "0.0.0");
         v.append_beta(ReleaseType::Minor).unwrap();
-        assert_eq!(v.to_string(), "0.1.0-beta0");
+        assert_eq!(v.to_string(), "0.1.0-beta.0");
 
         let mut v = Version::new_semver("0.0.0.beta2").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-beta2");
+        assert_eq!(v.to_string(), "0.0.0-beta.2");
         v.append_beta(ReleaseType::Patch).unwrap();
-        assert_eq!(v.to_string(), "0.0.1-beta0");
+        assert_eq!(v.to_string(), "0.0.1-beta.0");
 
         let mut v = Version::new_semver("0.0.0.alpha3").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha3");
+        assert_eq!(v.to_string(), "0.0.0-alpha.3");
         assert_eq!(v.append_beta(ReleaseType::Dev).is_err(), true);
 
         let mut v = Version::new_semver("0.0.0.alpha4").unwrap();
-        assert_eq!(v.to_string(), "0.0.0-alpha4");
+        assert_eq!(v.to_string(), "0.0.0-alpha.4");
         assert_eq!(v.append_beta(ReleaseType::Beta).is_err(), true);
     }
 }

@@ -5,7 +5,7 @@ use crate::testers::SupportedTester;
 use crate::utility::file_utils::with_dir;
 use crate::Result as OrigenResult;
 use regex::Regex;
-use semver::Version;
+use crate::utility::version::Version;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
@@ -137,9 +137,9 @@ impl Default for Status {
             }
         }
 
-        let version = match Version::parse(built_info::PKG_VERSION) {
+        let version = match Version::new_semver(built_info::PKG_VERSION) {
             Ok(v) => v,
-            Err(_e) => Version::parse("0.0.0").unwrap(),
+            Err(_e) => Version::default(),
         };
         let s = Status {
             is_app_present: app_present,

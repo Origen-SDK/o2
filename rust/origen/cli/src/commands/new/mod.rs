@@ -4,7 +4,6 @@
 mod new_resource;
 
 use clap::ArgMatches;
-use origen::utility::version::to_pep440;
 use origen::STATUS;
 use phf::map::Map;
 use phf::phf_map;
@@ -56,7 +55,7 @@ pub fn run(matches: &ArgMatches) {
     context.insert("app_name", name);
     context.insert(
         "origen_version",
-        &to_pep440(&origen::STATUS.origen_version.to_string()).unwrap(),
+        &origen::STATUS.origen_version.to_string()
     );
     let mut user_info = "".to_string();
     let users = origen::users();

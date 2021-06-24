@@ -3,12 +3,10 @@ pub mod target;
 
 use super::application::config::Config;
 use crate::revision_control::RevisionControl;
-use crate::utility::file_actions as fa;
-use crate::utility::version::{to_pep440, to_semver};
 use crate::Result;
 use indexmap::IndexMap;
 use regex::Regex;
-use crate::utility::version::Version;
+use crate::utility::version::{Version, set_version_in_toml};
 use crate::core::frontend::BuildResult;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -68,14 +66,7 @@ impl Application {
     /// as required, then return it back to this function.
     /// See here for the API - https://docs.rs/semver
     pub fn set_version(&self, version: &Version) -> Result<()> {
-        let version_file = self.version_file();
-        let r = Regex::new(r#"^\s*version\s*=\s*['"]"#).unwrap();
-        fa::remove_line(&version_file, &r)?;
-
-        let r = Regex::new(r#"^\s*name\s*=\s+['"].*$"#).unwrap();
-        let line = format!("\nversion = \"{}\"", &to_pep440(&version.to_string())?);
-        fa::insert_after(&version_file, &r, &line)?;
-        Ok(())
+        set_version_in_toml(&self.version_file(), version)
     }
 
     /// Execute the given function with a reference to the application config.
@@ -332,7 +323,6 @@ impl ProductionStatus {
 mod tests {
     use crate::core::application::Application;
     use crate::STATUS;
-    // use semver::Version;
     use crate::utility::version::Version;
 
     #[test]
@@ -340,11 +330,11 @@ mod tests {
         let app_root = STATUS.origen_wksp_root.join("test_apps").join("python_app");
         let app = Application::new(app_root);
 
-        let v = Version::parse("2.21.5-pre7").unwrap();
+        let v = Version::new_pep440("2.21.5-dev7").unwrap();
         let _res = app.set_version(&v);
         assert_eq!(app.version().unwrap(), v);
 
-        let v = Version::new(1, 2, 3);
+        let v = Version::new_pep440("1.2.3").unwrap();
         let _res = app.set_version(&v);
         assert_eq!(app.version().unwrap(), v);
     }

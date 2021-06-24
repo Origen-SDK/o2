@@ -1501,7 +1501,8 @@ dependencies = [
 [[package]]
 name = "keyring"
 version = "0.10.1"
-source = "git+https://github.com/hwchen/keyring-rs.git?rev=a30e65f#a30e65fadd1c30e99d4c51a6991dbb8612ae3865"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bcd64f48199f69993c705fd2f76882e53969db93bc6345021bc8bb6462a9ffa"
 dependencies = [
  "byteorder",
  "secret-service",
@@ -1714,14 +1715,6 @@ name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
-
-[[package]]
-name = "meta"
-version = "0.1.0"
-dependencies = [
- "quote 1.0.9",
- "syn 1.0.73",
-]
 
 [[package]]
 name = "mime"
@@ -2072,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "2.0.0-dev4"
+version = "2.0.0-dev.4"
 dependencies = [
  "aes-gcm",
  "built",
@@ -2093,12 +2086,12 @@ dependencies = [
  "lazy_static 1.4.0",
  "ldap3",
  "lettre",
- "meta",
  "num 0.3.1",
  "num-bigint 0.3.1",
  "num-traits 0.2.14",
  "octocrab",
  "openssl",
+ "origen-core-support",
  "path-clean",
  "path-slash",
  "pathdiff",
@@ -2127,8 +2120,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "origen-core-support"
+version = "0.1.0-dev.0"
+dependencies = [
+ "quote 1.0.9",
+ "syn 1.0.73",
+]
+
+[[package]]
 name = "origen_pyapi"
-version = "2.0.0-dev4"
+version = "2.0.0-dev.4"
 dependencies = [
  "curl-sys",
  "indexmap",

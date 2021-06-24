@@ -4,7 +4,7 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate serde;
-extern crate meta;
+extern crate origen_core_support;
 #[macro_use]
 extern crate pest_derive;
 #[macro_use]

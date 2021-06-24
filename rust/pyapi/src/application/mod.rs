@@ -26,7 +26,7 @@ impl PyApplication {
     #[getter]
     fn version(&self) -> PyResult<String> {
         let v = origen::app().unwrap().version()?.to_string();
-        Ok(format!("{}", origen::utility::version::to_pep440(&v)?))
+        Ok(format!("{}", origen::utility::version::Version::new_pep440(&v)?.to_string()))
     }
 
     fn check_production_status(&self) -> PyResult<bool> {

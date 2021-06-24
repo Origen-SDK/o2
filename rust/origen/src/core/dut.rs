@@ -7,7 +7,7 @@ use crate::core::model::registers::{
 use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 use crate::core::model::Model;
 use crate::error::Error;
-use crate::meta::IdGetters;
+use crate::origen_core_support::IdGetters;
 use crate::Result;
 use crate::DUT;
 use indexmap::IndexMap;
