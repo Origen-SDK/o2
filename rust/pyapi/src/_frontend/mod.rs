@@ -1,10 +1,10 @@
+use crate::utility::metadata::{extract_as_metadata, metadata_to_pyobj};
+use crate::with_pycallbacks;
 use indexmap::IndexMap;
 use origen::Result;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyList, PyTuple};
 use std::collections::HashMap;
-use crate::utility::metadata::{extract_as_metadata, metadata_to_pyobj};
-use crate::with_pycallbacks;
 
 pub struct Frontend {}
 

@@ -1,9 +1,9 @@
+use crate::application::{get_pyapp, PyApplication};
+use crate::utility::results::BuildResult;
 use ofrontend::BuildResult as OrigenBuildResult;
 use origen::core::frontend as ofrontend;
-use crate::application::{get_pyapp, PyApplication};
 use origen::Result as OResult;
 use pyo3::prelude::*;
-use crate::utility::results::{BuildResult};
 
 pub struct Website {}
 

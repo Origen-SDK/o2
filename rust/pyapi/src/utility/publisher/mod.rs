@@ -1,11 +1,11 @@
 pub mod _frontend;
 
+use super::app_utility;
+use crate::runtime_error;
 use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
-use crate::runtime_error;
-use super::app_utility;
 
 #[pymodule]
 pub fn publisher(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -19,7 +19,11 @@ fn app_publisher() -> PyResult<Option<PyObject>> {
     match &STATUS.app {
         Some(a) => {
             let c = a.config();
-            app_utility("publisher", c.publisher.as_ref(), None::<fn(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>>)
+            app_utility(
+                "publisher",
+                c.publisher.as_ref(),
+                None::<fn(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>>,
+            )
         }
         None => {
             return runtime_error!(

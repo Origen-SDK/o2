@@ -1,10 +1,10 @@
 pub mod _frontend;
 
+use crate::runtime_error;
+use crate::utility::results::BuildResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::PathBuf;
-use crate::{runtime_error};
-use crate::utility::results::BuildResult;
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -26,7 +26,10 @@ impl PyApplication {
     #[getter]
     fn version(&self) -> PyResult<String> {
         let v = origen::app().unwrap().version()?.to_string();
-        Ok(format!("{}", origen::utility::version::Version::new_pep440(&v)?.to_string()))
+        Ok(format!(
+            "{}",
+            origen::utility::version::Version::new_pep440(&v)?.to_string()
+        ))
     }
 
     fn check_production_status(&self) -> PyResult<bool> {
@@ -34,7 +37,7 @@ impl PyApplication {
         Ok(r.passed())
     }
 
-    #[args(kwargs="**")]
+    #[args(kwargs = "**")]
     fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<()> {
         let mut dry_run = false;
         if let Some(kw) = kwargs {
@@ -45,14 +48,14 @@ impl PyApplication {
         Ok(origen::app().unwrap().publish(dry_run)?)
     }
 
-    #[args(_args="*")]
+    #[args(_args = "*")]
     fn __build_package__(&self, _args: &PyTuple) -> PyResult<BuildResult> {
         Ok(BuildResult {
-            build_result: Some(origen::app().unwrap().build_package()?)
+            build_result: Some(origen::app().unwrap().build_package()?),
         })
     }
 
-    #[args(_args="*")]
+    #[args(_args = "*")]
     fn __run_publish_checks__(&self, _args: &PyTuple) -> PyResult<bool> {
         let r = origen::app().unwrap().run_publish_checks(false)?;
         Ok(r.passed())
@@ -112,11 +115,7 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
     origen::log_trace!("Retrieving PyApplication object from Python heap...");
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
-    let result = py.eval(
-        "origen.app",
-        Some(locals),
-        None,
-    )?;
+    let result = py.eval("origen.app", Some(locals), None)?;
 
     if result.is_none() {
         return runtime_error!("No Origen application is present");
@@ -126,8 +125,10 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
         Ok(app) => {
             origen::log_trace!("Retrieved PyApplication object");
             Ok(app)
-        },
-        Err(_e) => runtime_error!("'origen.app' points to an object which cannot be extracted as an Origen application")
+        }
+        Err(_e) => runtime_error!(
+            "'origen.app' points to an object which cannot be extracted as an Origen application"
+        ),
     }
 }
 

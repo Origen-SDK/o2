@@ -28,7 +28,8 @@ if __name__ == '__main__':
     # with the target one. So, just assume all is well when running for debugging reasons,
     # or run the poetry build command manually to build the package.
     if copy_build_target:
-        _origen_src = current.joinpath(f"../rust/pyapi/target/{rust_build_target}")
+        _origen_src = current.joinpath(
+            f"../rust/pyapi/target/{rust_build_target}")
         if _origen_src.joinpath("_origen.dll").exists():
             # Windows
             _origen_pkg = current.joinpath("_origen.pyd")
@@ -45,6 +46,7 @@ if __name__ == '__main__':
         shutil.copy2(_origen_src, _origen_pkg)
     else:
         print("Skipping copy of built library")
+
 
 def build(arg):
     # This method is called during install. Very important this is defined and

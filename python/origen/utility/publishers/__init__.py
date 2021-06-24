@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 
 
 class Publisher(ABC):
-
     def __init__(self, **config):
         pass
 

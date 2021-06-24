@@ -1,10 +1,10 @@
 //! Utility functions for dealing with app/Origen version numbers
 
+use crate::utility::file_actions as fa;
 use crate::Result;
 use regex::Regex;
-use std::fmt;
 use semver;
-use crate::utility::file_actions as fa;
+use std::fmt;
 use std::path::PathBuf;
 
 const BETA: &str = "beta";
@@ -31,7 +31,9 @@ impl std::default::Default for Version {
 
 impl Version {
     pub fn new(ver: &str, spec: VersionSpec) -> Result<Self> {
-        let split = ver.splitn(4, |c| c == '.' || c == '-').collect::<Vec<&str>>();
+        let split = ver
+            .splitn(4, |c| c == '.' || c == '-')
+            .collect::<Vec<&str>>();
         let mut v: String = ver.to_string();
         let mut pre: Option<semver::Prerelease> = None;
         if split.len() == 4 {
@@ -47,7 +49,10 @@ impl Version {
         if let Some(p) = pre {
             semver.pre = p;
         }
-        Ok(Self { semver: semver, spec: spec })
+        Ok(Self {
+            semver: semver,
+            spec: spec,
+        })
     }
 
     pub fn new_semver(ver: &str) -> Result<Self> {
@@ -59,7 +64,7 @@ impl Version {
     }
 
     fn split_prerelease(pre: &str) -> Result<(&str, usize)> {
-        match pre.find( |c: char| c.is_digit(10)) {
+        match pre.find(|c: char| c.is_digit(10)) {
             Some(i) => {
                 let mut split = pre.split_at(i);
                 split.0 = split.0.trim_end_matches(".");
@@ -67,14 +72,14 @@ impl Version {
                     DEV | ALPHA | BETA => Ok((split.0, split.1.parse::<usize>()?)),
                     _ => error!(
                         "Expected prerelease of {}, {}, or {} but found {}",
-                        DEV,
-                        ALPHA,
-                        BETA,
-                        split.0
-                    )
+                        DEV, ALPHA, BETA, split.0
+                    ),
                 }
-            },
-            None => error!("Found existing prerelease '{}' but was unable to extract integer portion", pre)
+            }
+            None => error!(
+                "Found existing prerelease '{}' but was unable to extract integer portion",
+                pre
+            ),
         }
     }
 
@@ -86,7 +91,7 @@ impl Version {
     pub fn next_major(&self) -> Self {
         Self {
             semver: semver::Version::new(self.semver.major + 1, 0, 0),
-            spec: self.spec.clone()
+            spec: self.spec.clone(),
         }
     }
 
@@ -98,19 +103,24 @@ impl Version {
     pub fn next_minor(&self) -> Self {
         Self {
             semver: semver::Version::new(self.semver.major, self.semver.minor + 1, 0),
-            spec: self.spec.clone()
+            spec: self.spec.clone(),
         }
     }
 
     pub fn increment_patch(&mut self) -> &Self {
-        self.semver = semver::Version::new(self.semver.major, self.semver.minor, self.semver.patch + 1);
+        self.semver =
+            semver::Version::new(self.semver.major, self.semver.minor, self.semver.patch + 1);
         self
     }
 
     pub fn next_patch(&self) -> Self {
         Self {
-            semver: semver::Version::new(self.semver.major, self.semver.minor, self.semver.patch + 1),
-            spec: self.spec.clone()
+            semver: semver::Version::new(
+                self.semver.major,
+                self.semver.minor,
+                self.semver.patch + 1,
+            ),
+            spec: self.spec.clone(),
         }
     }
 
@@ -216,7 +226,7 @@ impl Version {
         if self.semver.pre.is_empty() {
             return Ok(false);
         } else {
-            match self.semver.pre.as_str().find( |c: char| c.is_digit(10)) {
+            match self.semver.pre.as_str().find(|c: char| c.is_digit(10)) {
                 Some(i) => {
                     let mut split = self.semver.pre.as_str().split_at(i);
                     split.0 = split.0.trim_end_matches(".");
@@ -225,8 +235,13 @@ impl Version {
                     } else {
                         return Ok(false);
                     }
-                },
-                None => return error!("Found existing prerelease '{}' but was unable to extract integer portion", self.semver.pre.as_str())
+                }
+                None => {
+                    return error!(
+                        "Found existing prerelease '{}' but was unable to extract integer portion",
+                        self.semver.pre.as_str()
+                    )
+                }
             }
         }
     }
@@ -235,19 +250,25 @@ impl Version {
         if self.semver.pre.is_empty() {
             return error!("No {} release currently on version {}", prerelease, self);
         }
-        match self.semver.pre.as_str().find( |c: char| c.is_digit(10)) {
+        match self.semver.pre.as_str().find(|c: char| c.is_digit(10)) {
             Some(i) => {
                 let mut split = self.semver.pre.as_str().split_at(i);
                 split.0 = split.0.trim_end_matches(".");
                 if split.0 == prerelease {
                     // Same prerelease type - increment existing
                     let current = split.1.parse::<usize>()?;
-                    self.semver.pre = semver::Prerelease::new(&format!("{}.{}", prerelease, current + 1))?;
+                    self.semver.pre =
+                        semver::Prerelease::new(&format!("{}.{}", prerelease, current + 1))?;
                 } else {
                     return error!("Attempted to increment existing prerelease '{}' but found existing prerelease of '{}'", prerelease, split.0);
                 }
             }
-            None => return error!("Found existing prerelease '{}' but was unable to extract integer portion", self.semver.pre.as_str())
+            None => {
+                return error!(
+                    "Found existing prerelease '{}' but was unable to extract integer portion",
+                    self.semver.pre.as_str()
+                )
+            }
         }
         Ok(self)
     }
@@ -257,7 +278,12 @@ impl Version {
             ReleaseType::Major => self.increment_major(),
             ReleaseType::Minor => self.increment_minor(),
             ReleaseType::Patch => self.increment_patch(),
-            _ => return error!("Cannot create a {} tag from release type {:?}", prerelease, release_type)
+            _ => {
+                return error!(
+                    "Cannot create a {} tag from release type {:?}",
+                    prerelease, release_type
+                )
+            }
         };
         self.semver.pre = semver::Prerelease::new(&format!("{}.0", prerelease))?;
         Ok(self)
@@ -284,19 +310,25 @@ impl Version {
             ReleaseType::Beta => self.next_beta()?,
             ReleaseType::BetaCustom => {
                 let mut v = self.clone();
-                v.append_beta(Self::_update_custom_dialogue(&ReleaseType::Beta.to_string())?)?;
+                v.append_beta(Self::_update_custom_dialogue(
+                    &ReleaseType::Beta.to_string(),
+                )?)?;
                 v
-            },
+            }
             ReleaseType::Alpha => self.next_alpha()?,
             ReleaseType::AlphaCustom => {
                 let mut v = self.clone();
-                v.append_alpha(Self::_update_custom_dialogue(&ReleaseType::Alpha.to_string())?)?;
+                v.append_alpha(Self::_update_custom_dialogue(
+                    &ReleaseType::Alpha.to_string(),
+                )?)?;
                 v
-            },
+            }
             ReleaseType::Dev => self.next_dev()?,
             ReleaseType::DevCustom => {
                 let mut v = self.clone();
-                v.append_dev(Self::_update_custom_dialogue(&ReleaseType::Dev.to_string())?)?;
+                v.append_dev(Self::_update_custom_dialogue(
+                    &ReleaseType::Dev.to_string(),
+                )?)?;
                 v
             }
         })
@@ -305,10 +337,13 @@ impl Version {
     pub fn _update_custom_dialogue(release_type: &str) -> Result<ReleaseType> {
         Ok(ReleaseType::from_idx(
             dialoguer::Select::new()
-                .with_prompt(&format!("Which official release would you like to make a {} release for?", release_type))
+                .with_prompt(&format!(
+                    "Which official release would you like to make a {} release for?",
+                    release_type
+                ))
                 .items(&ReleaseType::official_releases_as_strings())
                 .default(2)
-                .interact()?
+                .interact()?,
         ))
     }
 }
@@ -323,7 +358,14 @@ impl fmt::Display for Version {
                 if v.pre.is_empty() {
                     write!(f, "{}.{}.{}", v.major, v.minor, v.patch)
                 } else {
-                    write!(f, "{}.{}.{}.{}", v.major, v.minor, v.patch, v.pre.replace(".", ""))
+                    write!(
+                        f,
+                        "{}.{}.{}.{}",
+                        v.major,
+                        v.minor,
+                        v.patch,
+                        v.pre.replace(".", "")
+                    )
                 }
             }
         }
@@ -354,7 +396,7 @@ impl ReleaseType {
             Self::Alpha,
             Self::AlphaCustom,
             Self::Dev,
-            Self::DevCustom
+            Self::DevCustom,
         ]
     }
 
@@ -398,7 +440,6 @@ impl ReleaseType {
     pub fn from_idx(idx: usize) -> Self {
         Self::to_vec()[idx].clone()
     }
-
 }
 
 pub fn set_version_in_toml(toml_file: &PathBuf, version: &Version) -> Result<()> {
@@ -454,10 +495,16 @@ mod tests {
         assert_eq!(v.to_string(), "1.2.3-beta.10");
 
         // Missing version number
-        assert_eq!(Version::new("0.0.0.dev", VersionSpec::Semver).is_err(), true);
+        assert_eq!(
+            Version::new("0.0.0.dev", VersionSpec::Semver).is_err(),
+            true
+        );
 
         // Invalid prerelease
-        assert_eq!(Version::new("0.0.0.blah", VersionSpec::Semver).is_err(), true);
+        assert_eq!(
+            Version::new("0.0.0.blah", VersionSpec::Semver).is_err(),
+            true
+        );
     }
 
     #[test]

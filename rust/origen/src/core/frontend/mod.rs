@@ -129,21 +129,21 @@ pub trait App {
     fn get_publisher(&self) -> Result<&dyn Publisher> {
         match self.publisher()? {
             Some(pb) => Ok(pb),
-            None => error!("No publisher is available on the application!")
+            None => error!("No publisher is available on the application!"),
         }
     }
 
     fn get_linter(&self) -> Result<&dyn Linter> {
         match self.linter()? {
             Some(l) => Ok(l),
-            None => error!("No linter is available on the application!")
+            None => error!("No linter is available on the application!"),
         }
     }
 
     fn get_website(&self) -> Result<&dyn Website> {
         match self.website()? {
             Some(w) => Ok(w),
-            None => error!("No website is available on the application!")
+            None => error!("No website is available on the application!"),
         }
     }
 
@@ -231,7 +231,7 @@ pub struct BuildResult {
     pub succeeded: bool,
     pub build_contents: Option<Vec<String>>,
     pub message: Option<String>,
-    pub metadata: Option<IndexMap<String, Metadata>>
+    pub metadata: Option<IndexMap<String, Metadata>>,
 }
 
 impl BuildResult {}
@@ -240,22 +240,26 @@ impl BuildResult {}
 pub struct UploadResult {
     pub succeeded: bool,
     pub message: Option<String>,
-    pub metadata: Option<IndexMap<String, Metadata>>
+    pub metadata: Option<IndexMap<String, Metadata>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GenericResult {
     pub succeeded: bool,
     pub message: Option<String>,
-    pub metadata: Option<IndexMap<String, Metadata>>
+    pub metadata: Option<IndexMap<String, Metadata>>,
 }
 
 impl GenericResult {
-    pub fn new(succeeded: bool, message: Option<String>, metadata: Option<IndexMap<String, Metadata>>) -> Self {
+    pub fn new(
+        succeeded: bool,
+        message: Option<String>,
+        metadata: Option<IndexMap<String, Metadata>>,
+    ) -> Self {
         Self {
             succeeded: succeeded,
             message: message,
-            metadata: metadata
+            metadata: metadata,
         }
     }
 

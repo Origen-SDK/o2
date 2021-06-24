@@ -93,14 +93,8 @@ fn main() {
     origen::initialize(Some(verbosity), vec![], exe);
 
     let version = match STATUS.is_app_present {
-        true => format!(
-            "Origen CLI: {}",
-            STATUS.origen_version.to_string()
-        ),
-        false => format!(
-            "Origen: {}",
-            STATUS.origen_version.to_string()
-        ),
+        true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
+        false => format!("Origen: {}", STATUS.origen_version.to_string()),
     };
     if STATUS.app.is_some() {
         origen::core::application::config::Config::check_defaults(
@@ -1449,10 +1443,7 @@ CORE COMMANDS:
                     );
                 }
             } else {
-                println!(
-                    "Origen: {}",
-                    STATUS.origen_version.to_string()
-                );
+                println!("Origen: {}", STATUS.origen_version.to_string());
             }
         }
         _ => {

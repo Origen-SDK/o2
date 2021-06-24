@@ -1,10 +1,10 @@
 use crate::Result;
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
-use wait_timeout::ChildExt;
-use std::time::Duration;
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::time::Duration;
+use wait_timeout::ChildExt;
 
 /// Executes the given command/args, returning all captured stdout and stderr lines and
 /// the exit code of the process.
@@ -97,7 +97,7 @@ pub fn exec<S: Into<String> + Clone>(
     cd: Option<PathBuf>,
     add_env: Option<HashMap<String, String>>,
     remove_env: Option<Vec<String>>,
-    clear_env: bool
+    clear_env: bool,
 ) -> Result<ExecResult> {
     let mut command;
     if cfg!(windows) {
@@ -177,16 +177,8 @@ pub fn exec<S: Into<String> + Clone>(
         } else {
             -1
         },
-        stdout: if capture {
-            Some(stdout_lines)
-        } else {
-            None
-        },
-        stderr: if capture {
-            Some(stderr_lines)
-        } else {
-            None
-        }
+        stdout: if capture { Some(stdout_lines) } else { None },
+        stderr: if capture { Some(stderr_lines) } else { None },
     })
 }
 

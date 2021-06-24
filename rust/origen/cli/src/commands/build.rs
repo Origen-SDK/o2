@@ -2,9 +2,9 @@ use super::fmt::cd;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
 use origen::utility::file_utils::{symlink, with_dir};
+use origen::utility::version::Version;
 use origen::{Result, STATUS};
 use regex::Regex;
-use origen::utility::version::Version;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
@@ -60,7 +60,9 @@ pub fn run(matches: &ArgMatches) {
                 .origen_wksp_root
                 .join("python")
                 .join("pyproject.toml"),
-            &Version::new_pep440(&version.to_string()).unwrap().to_string(),
+            &Version::new_pep440(&version.to_string())
+                .unwrap()
+                .to_string(),
         )
         .expect("Couldn't write version");
         return;

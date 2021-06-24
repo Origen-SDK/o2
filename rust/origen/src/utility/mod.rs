@@ -6,12 +6,12 @@ pub mod location;
 #[macro_use]
 pub mod logger;
 pub mod command_helpers;
+pub mod github;
 pub mod ldap;
 pub mod mailer;
 pub mod num_helpers;
 pub mod session_store;
 pub mod version;
-pub mod github;
 
 use crate::{Result, STATUS};
 use std::collections::HashMap;

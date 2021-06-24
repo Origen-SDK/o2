@@ -2,12 +2,12 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
+use crate::core::frontend::BuildResult;
 use crate::revision_control::RevisionControl;
+use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
 use regex::Regex;
-use crate::utility::version::{Version, set_version_in_toml};
-use crate::core::frontend::BuildResult;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
@@ -130,32 +130,32 @@ impl Application {
             } else {
                 self.set_version(&v)?;
             }
-            let files = vec!(self.version_file().as_path());
+            let files = vec![self.version_file().as_path()];
 
             // Ok(crate::with_frontend_app(|app| {
-                // let rn = app.get_release_notes()?;
-                // rn.update_history();
-                // files.push(rn.history_file());
+            // let rn = app.get_release_notes()?;
+            // rn.update_history();
+            // files.push(rn.history_file());
 
-                // let rc = app.get_rc()?;
-                // rc.checkin(
-                //     Some(vec![self.version_file().as_path()]),
-                //     "Recorded new version in the version tracker",
-                // )?;
-                // rc.tag(&v.to_string(), false, None)?;
+            // let rc = app.get_rc()?;
+            // rc.checkin(
+            //     Some(vec![self.version_file().as_path()]),
+            //     "Recorded new version in the version tracker",
+            // )?;
+            // rc.tag(&v.to_string(), false, None)?;
 
-                let publisher = app.get_publisher()?;
-                log_info!("Building Package...");
-                let package_result = publisher.build_package()?;
+            let publisher = app.get_publisher()?;
+            log_info!("Building Package...");
+            let package_result = publisher.build_package()?;
 
-                log_info!("Uploading Package...");
-                publisher.upload(&package_result, dry_run)?;
+            log_info!("Uploading Package...");
+            publisher.upload(&package_result, dry_run)?;
 
-                // let mailer = app.get_mailer()?;
-                // mailer.send("...")?;
+            // let mailer = app.get_mailer()?;
+            // mailer.send("...")?;
 
-                // let website = app.get_website()?;
-                // website.publish()?;
+            // let website = app.get_website()?;
+            // website.publish()?;
 
             //     Ok(())
             // })?)
@@ -322,8 +322,8 @@ impl ProductionStatus {
 #[cfg(test)]
 mod tests {
     use crate::core::application::Application;
-    use crate::STATUS;
     use crate::utility::version::Version;
+    use crate::STATUS;
 
     #[test]
     fn reading_and_writing_version() {

@@ -1,41 +1,41 @@
 pub mod caller;
 pub mod ldap;
+pub mod linter;
 pub mod location;
 #[allow(non_snake_case)]
 pub mod mailer;
 pub mod metadata;
+pub mod publisher;
+pub mod results;
 pub mod revision_control;
 pub mod session_store;
 pub mod transaction;
 pub mod unit_testers;
-pub mod website;
-pub mod linter;
-pub mod publisher;
-pub mod results;
 pub mod version;
+pub mod website;
 
 use ldap::PyInit_ldap;
+use linter::PyInit_linter;
 use location::Location;
 use mailer::PyInit_mailer;
+use publisher::PyInit_publisher;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use results::PyInit_results;
 use revision_control::PyInit_revision_control;
 use session_store::PyInit_session_store;
 use transaction::Transaction;
 use unit_testers::PyInit_unit_testers;
-use publisher::PyInit_publisher;
-use linter::PyInit_linter;
-use website::PyInit_website;
-use results::PyInit_results;
 use version::Version;
+use website::PyInit_website;
 
+use crate::_helpers::hashmap_to_pydict;
+use crate::runtime_error;
 use num_bigint::BigUint;
 use origen::utility::big_uint_helpers::BigUintHelpers;
-use std::path::PathBuf;
-use crate::runtime_error;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
-use crate::_helpers::hashmap_to_pydict;
+use std::path::PathBuf;
 
 #[pymodule]
 pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -62,7 +62,14 @@ pub fn reverse_bits(_py: Python, num: BigUint, width: Option<u64>) -> PyResult<B
     Ok(num.reverse(width.unwrap_or(num.bits()) as usize)?)
 }
 
-#[pyfunction(capture = "true", timeout = "None", cd = "None", add_env="None", remove_env="None", clear_env="false")]
+#[pyfunction(
+    capture = "true",
+    timeout = "None",
+    cd = "None",
+    add_env = "None",
+    remove_env = "None",
+    clear_env = "false"
+)]
 pub fn exec(
     _py: Python,
     cmd: Vec<String>,
@@ -71,7 +78,7 @@ pub fn exec(
     cd: Option<String>,
     add_env: Option<HashMap<String, String>>,
     remove_env: Option<Vec<String>>,
-    clear_env: bool
+    clear_env: bool,
 ) -> PyResult<results::ExecResult> {
     let result = origen::utility::command_helpers::exec(
         cmd,
@@ -92,9 +99,11 @@ pub fn exec(
         },
         add_env,
         remove_env,
-        clear_env
+        clear_env,
     )?;
-    Ok(results::ExecResult { exec_result: Some(result) })
+    Ok(results::ExecResult {
+        exec_result: Some(result),
+    })
 }
 
 fn new_obj(py: Python, class: &str, kwargs: &PyDict) -> PyResult<PyObject> {
@@ -103,17 +112,14 @@ fn new_obj(py: Python, class: &str, kwargs: &PyDict) -> PyResult<PyObject> {
     locals.set_item("kwargs", kwargs)?;
     let mut class_mod = "";
     if let Some(m) = split.get(1) {
-        locals.set_item(
-            "mod",
-            py.import(m)?.to_object(py),
-        )?;
+        locals.set_item("mod", py.import(m)?.to_object(py))?;
         class_mod = "mod."
     }
 
     let obj = py.eval(
         &format!("{}{}(**kwargs)", class_mod, split[0]),
         Some(locals),
-        None
+        None,
     )?;
     Ok(obj.to_object(py))
 }
@@ -121,9 +127,10 @@ fn new_obj(py: Python, class: &str, kwargs: &PyDict) -> PyResult<PyObject> {
 fn app_utility<F>(
     name: &str,
     config: Option<&HashMap<String, String>>,
-    callback_function: Option<F>
-) -> PyResult<Option<PyObject>> 
-where F: FnMut(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>
+    callback_function: Option<F>,
+) -> PyResult<Option<PyObject>>
+where
+    F: FnMut(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>,
 {
     let gil = Python::acquire_gil();
     let py = gil.python();
@@ -161,8 +168,14 @@ where F: FnMut(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>
     }
 }
 
-#[pyfunction(inputs="None")]
-pub fn dispatch_workflow(owner: &str, repo: &str, workflow: &str, git_ref: &str, inputs: Option<HashMap<String, String>>) -> PyResult<results::GenericResult> {
+#[pyfunction(inputs = "None")]
+pub fn dispatch_workflow(
+    owner: &str,
+    repo: &str,
+    workflow: &str,
+    git_ref: &str,
+    inputs: Option<HashMap<String, String>>,
+) -> PyResult<results::GenericResult> {
     let res = origen::utility::github::dispatch_workflow(owner, repo, workflow, git_ref, inputs)?;
     Ok(results::GenericResult::from_origen(res))
 }
