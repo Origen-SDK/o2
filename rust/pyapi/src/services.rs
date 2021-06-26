@@ -1,5 +1,6 @@
 pub mod jtag;
 pub mod swd;
+pub mod simple;
 // pub mod ahb;
 
 use pyo3::prelude::*;
@@ -9,6 +10,7 @@ use pyo3::prelude::*;
 pub fn services(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<jtag::JTAG>()?;
     m.add_class::<swd::SWD>()?;
+    m.add_class::<simple::Simple>()?;
     // m.add_class::<ahb::AHB>()?;
 
     Ok(())

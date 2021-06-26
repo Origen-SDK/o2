@@ -380,6 +380,14 @@ impl Transaction {
             false
         }
     }
+
+    /// Updates the width, returning an error if data doesn't
+    /// fit in the new width.
+    pub fn resize(&mut self, new_width: usize) -> Result<()> {
+        Self::check_size(&self.data, new_width)?;
+        self.width = new_width;
+        Ok(())
+    }
 }
 
 impl NumHelpers for Transaction {
