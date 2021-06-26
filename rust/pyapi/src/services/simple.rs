@@ -1,8 +1,8 @@
-use crate::{extract_value, unpack_transaction_options};
 use crate::model::Model;
+use crate::{extract_value, unpack_transaction_options};
+use origen::services::{simple, Service};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use origen::services::{simple, Service};
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -10,31 +10,25 @@ pub struct Simple {
     id: Option<usize>,
 
     // Temporarily store the arguments, then clean up after initialized
-    args: Option<(String, String, String, usize)>
+    args: Option<(String, String, String, usize)>,
 }
 
 #[pymethods]
 impl Simple {
     #[new]
-    fn new(
-        clk: &str,
-        data: &str,
-        read_nwrite: &str,
-        width: usize
-) -> Self {
-        Self { id: None, args: Some((
-            clk.to_string(),
-            data.to_string(),
-            read_nwrite.to_string(),
-            width)
-        ) }
+    fn new(clk: &str, data: &str, read_nwrite: &str, width: usize) -> Self {
+        Self {
+            id: None,
+            args: Some((
+                clk.to_string(),
+                data.to_string(),
+                read_nwrite.to_string(),
+                width,
+            )),
+        }
     }
 
-    pub fn set_model(
-        &mut self,
-        name: &str,
-        model: &Model,
-    ) -> PyResult<Self> {
+    pub fn set_model(&mut self, name: &str, model: &Model) -> PyResult<Self> {
         // crate::dut::PyDUT::ensure_pins("dut")?;
         let mut dut = origen::dut();
         let mut services = origen::services();
@@ -73,9 +67,12 @@ impl Simple {
         Ok(slf.into())
     }
 
-
     #[args(kwargs = "**")]
-    fn write_register(slf: PyRef<Self>, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    fn write_register(
+        slf: PyRef<Self>,
+        bits_or_val: &PyAny,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
         let dut = origen::dut();
         let services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
@@ -87,7 +84,11 @@ impl Simple {
     }
 
     #[args(kwargs = "**")]
-    fn verify_register(slf: PyRef<Self>, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    fn verify_register(
+        slf: PyRef<Self>,
+        bits_or_val: &PyAny,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Py<Self>> {
         let dut = origen::dut();
         let services = origen::services();
         let value = extract_value(bits_or_val, Some(32), &dut)?;
@@ -103,7 +104,7 @@ impl Simple {
     fn id(&self) -> PyResult<usize> {
         match self.id {
             Some(id) => Ok(id),
-            None => crate::runtime_error!("Protocol 'Simple' has not been properly initialized")
+            None => crate::runtime_error!("Protocol 'Simple' has not been properly initialized"),
         }
     }
 }

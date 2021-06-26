@@ -31,11 +31,16 @@ impl Service {
             clk: clk.to_identifier(),
             data: data.to_identifier(),
             read_nwrite: read_nwrite.to_identifier(),
-            width: width
+            width: width,
         })
     }
 
-    fn _reset(&self, clk: &PinCollection, data: &PinCollection, read_nwrite: &PinCollection) -> Result<()> {
+    fn _reset(
+        &self,
+        clk: &PinCollection,
+        data: &PinCollection,
+        read_nwrite: &PinCollection,
+    ) -> Result<()> {
         clk.drive_low();
         data.highz();
         read_nwrite.highz().cycle();
@@ -68,16 +73,14 @@ impl Service {
         let addr_t = t.to_addr_trans(Some(self.width))?;
         self.comment(&format!(
             "Writing Address: {} (address width: {})",
-            addr_t.data,
-            addr_t.width
+            addr_t.data, addr_t.width
         ));
         clk.drive_high();
         read_nwrite.drive_low();
         data.push_transaction(&addr_t)?;
         self.comment(&format!(
             "Writing Data: {} (data width: {})",
-            t.data,
-            t.width
+            t.data, t.width
         ));
         data.push_transaction(&t)?;
         self._reset(&clk, &data, &read_nwrite)?;
@@ -98,16 +101,14 @@ impl Service {
         let addr_t = t.to_addr_trans(Some(self.width))?;
         self.comment(&format!(
             "Verifying Address: {} (address width: {})",
-            addr_t.data,
-            addr_t.width
+            addr_t.data, addr_t.width
         ));
         clk.drive_high();
         read_nwrite.drive_high();
         data.push_transaction(&addr_t)?;
         self.comment(&format!(
             "Verifying Data: {} (data width: {})",
-            t.data,
-            t.width
+            t.data, t.width
         ));
         data.push_transaction(&t)?;
         self._reset(&clk, &data, &read_nwrite)?;

@@ -1,6 +1,6 @@
 pub mod jtag;
-pub mod swd;
 pub mod simple;
+pub mod swd;
 // pub mod ahb;
 
 use pyo3::prelude::*;

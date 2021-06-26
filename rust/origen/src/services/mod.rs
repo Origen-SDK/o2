@@ -1,7 +1,7 @@
 pub mod arm_debug;
 pub mod jtag;
-pub mod swd;
 pub mod simple;
+pub mod swd;
 
 pub use arm_debug::ArmDebug;
 
