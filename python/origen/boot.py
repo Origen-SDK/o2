@@ -240,7 +240,7 @@ def run_cmd(command,
             try:
                 res = subprocess.run(cmd,
                                      shell=True,
-                                     capture_output=True,
+                                     stdout=subprocess.PIPE,
                                      universal_newlines=True,
                                      check=True)
                 v = str(res.stdout).split("\n")[1].split(":")[1].strip()
