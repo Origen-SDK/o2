@@ -241,7 +241,7 @@ def run_cmd(command,
                 res = subprocess.run(cmd,
                                      shell=True,
                                      capture_output=True,
-                                     text=True,
+                                     universal_newlines=True,
                                      check=True)
                 v = str(res.stdout).split("\n")[1].split(":")[1].strip()
                 print(f"Success\n{tabify(v)}")
