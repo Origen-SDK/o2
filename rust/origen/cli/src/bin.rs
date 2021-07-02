@@ -13,8 +13,8 @@ use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use indexmap::map::IndexMap;
 use origen::{LOGGER, STATUS};
-use std::path::Path;
 use std::iter::FromIterator;
+use std::path::Path;
 
 static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
 static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
@@ -62,7 +62,12 @@ fn main() {
                 let captures = verbosity_re.captures(&args[0]).unwrap();
                 let x = captures.get(1).unwrap().as_str();
                 let verbosity = x.chars().count() as u8;
-                origen::initialize(Some(verbosity), vec![], None, Some(built_info::PKG_VERSION.to_string()));
+                origen::initialize(
+                    Some(verbosity),
+                    vec![],
+                    None,
+                    Some(built_info::PKG_VERSION.to_string()),
+                );
                 args = args.drain(1..).collect();
             }
             // Command is not actually available outside an app, so just fall through
@@ -96,7 +101,12 @@ fn main() {
             None
         }
     };
-    origen::initialize(Some(verbosity), vec![], exe, Some(built_info::PKG_VERSION.to_string()));
+    origen::initialize(
+        Some(verbosity),
+        vec![],
+        exe,
+        Some(built_info::PKG_VERSION.to_string()),
+    );
 
     let version = match STATUS.is_app_present {
         true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
@@ -1424,7 +1434,9 @@ CORE COMMANDS:
                     Ok(_) => {
                         let lines = output_lines.split("\n").collect::<Vec<&str>>();
                         if lines.len() == 0 || lines.len() == 1 {
-                            log_error!("Unable to parse in-application version output. Expected newlines:");
+                            log_error!(
+                                "Unable to parse in-application version output. Expected newlines:"
+                            );
                             log_error!("{}", output_lines);
                         } else {
                             let mut phase = 0;
@@ -1459,7 +1471,11 @@ CORE COMMANDS:
                                             } else {
                                                 versions.insert(
                                                     current.to_string(),
-                                                    (is_okay, is_private, ver_or_message.to_string())
+                                                    (
+                                                        is_okay,
+                                                        is_private,
+                                                        ver_or_message.to_string(),
+                                                    ),
                                                 );
                                                 let ver = parse_version_token(l);
                                                 current = ver.0;
@@ -1470,7 +1486,7 @@ CORE COMMANDS:
                                                 ver_or_message = "".to_string();
                                                 phase = 1;
                                             }
-                                        },
+                                        }
                                         None => {
                                             log_error!("Unable to parse in-application version output - unexpected empty line:");
                                             log_error!("{}", output_lines);
@@ -1485,22 +1501,30 @@ CORE COMMANDS:
                             if phase == 2 {
                                 versions.insert(
                                     current.clone(),
-                                    (is_okay, is_private, ver_or_message.clone())
+                                    (is_okay, is_private, ver_or_message.clone()),
                                 );
                             } else {
                                 log_error!("Unable to parse in-application version output - unexpected format:");
                                 log_error!("{}", output_lines);
                             }
                         }
-                    },
+                    }
                     Err(e) => {
                         log_error!("{}", e);
-                        log_error!("Couldn't boot app to determine the in-application Origen version");
+                        log_error!(
+                            "Couldn't boot app to determine the in-application Origen version"
+                        );
                     }
                 }
             } else {
-                versions.insert("Origen".to_string(), (true, false, STATUS.origen_version.to_string()));
-                versions.insert("CLI".to_string(), (true, false, built_info::PKG_VERSION.to_string()));
+                versions.insert(
+                    "Origen".to_string(),
+                    (true, false, STATUS.origen_version.to_string()),
+                );
+                versions.insert(
+                    "CLI".to_string(),
+                    (true, false, built_info::PKG_VERSION.to_string()),
+                );
                 max_len = 6; // 'Origen'
             }
 

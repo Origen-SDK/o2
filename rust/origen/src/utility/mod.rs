@@ -101,7 +101,7 @@ pub fn status_to_bool(s: &str) -> Result<bool> {
     match s.to_lowercase().as_str() {
         "pass" | "success" | "true" => Ok(true),
         "fail" | "error" | "false" => Ok(false),
-        _ => error!("Could not convert '{}' to boolean value", s)
+        _ => error!("Could not convert '{}' to boolean value", s),
     }
 }
 

@@ -18,8 +18,9 @@ fn main() {
             let mut built_out = out_dir.clone();
             built_out.push("built.rs");
             built_out
-        }
-    ).expect("Failed to acquire build-time information");
+        },
+    )
+    .expect("Failed to acquire build-time information");
 
     // This creates a file which defines a map of all files in the test program test_templates dir.
     // This file is then included by the test program module to give it access to the template files.

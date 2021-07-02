@@ -1,10 +1,10 @@
 // Responsible for managing Python execution
 
+use crate::built_info;
 use origen::Result;
 use semver::Version;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use crate::built_info;
 
 const PYTHONS: &[&str] = &[
     "python",

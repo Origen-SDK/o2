@@ -317,7 +317,14 @@ fn origen_mod_path() -> PyResult<PathBuf> {
     let py = gil.python();
     let locals = PyDict::new(py);
     locals.set_item("importlib", py.import("importlib")?)?;
-    let p = PathBuf::from(py.eval("importlib.util.find_spec('_origen').origin", None, Some(&locals))?.extract::<String>()?);
+    let p = PathBuf::from(
+        py.eval(
+            "importlib.util.find_spec('_origen').origin",
+            None,
+            Some(&locals),
+        )?
+        .extract::<String>()?,
+    );
     Ok(p.parent().unwrap().to_path_buf())
 }
 
@@ -335,7 +342,7 @@ fn initialize(
         .write()
         .unwrap()
         .set_frontend(Box::new(_frontend::Frontend::new()))?;
-    
+
     if let Some(app) = &STATUS.app {
         origen::STATUS.set_in_origen_core_app(origen_mod_path()? == app.root);
     } else {
@@ -432,13 +439,25 @@ fn status(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     let _ = ret.set_item("on_windows", cfg!(windows));
-    ret.set_item("origen_core_support_version", STATUS.origen_core_support_version.to_string())?;
-    ret.set_item("other_build_info", _helpers::hashmap_to_pydict(py, &STATUS.other_build_info())?)?;
-    ret.set_item("cli_version", match STATUS.cli_version() {
-        Some(v) => Some(v.to_string()).to_object(py),
-        None => py.None()
-    })?;
-    ret.set_item("is_app_in_origen_dev_mode", STATUS.is_app_in_origen_dev_mode)?;
+    ret.set_item(
+        "origen_core_support_version",
+        STATUS.origen_core_support_version.to_string(),
+    )?;
+    ret.set_item(
+        "other_build_info",
+        _helpers::hashmap_to_pydict(py, &STATUS.other_build_info())?,
+    )?;
+    ret.set_item(
+        "cli_version",
+        match STATUS.cli_version() {
+            Some(v) => Some(v.to_string()).to_object(py),
+            None => py.None(),
+        },
+    )?;
+    ret.set_item(
+        "is_app_in_origen_dev_mode",
+        STATUS.is_app_in_origen_dev_mode,
+    )?;
     ret.set_item("in_origen_core_app", STATUS.in_origen_core_app())?;
     Ok(ret.into())
 }

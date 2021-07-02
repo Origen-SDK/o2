@@ -6,12 +6,12 @@ use crate::utility::file_utils::with_dir;
 use crate::utility::version::Version;
 use crate::Result as OrigenResult;
 use regex::Regex;
+use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::RwLock;
-use std::collections::HashMap;
 
 // Trait for extending std::path::PathBuf
 use path_slash::PathBufExt;
@@ -178,7 +178,8 @@ impl Default for Status {
                     panic!("Could not determine origen-core-support version")
                 }
                 v
-            }).unwrap(),
+            })
+            .unwrap(),
             other_build_info: RwLock::new(HashMap::new()),
             is_app_in_origen_dev_mode: origen_dev_mode,
             in_origen_core_app: RwLock::new(false),
@@ -355,7 +356,10 @@ impl Status {
     }
 
     pub fn update_other_build_info(&self, key: &str, item: &str) -> OrigenResult<()> {
-        self.other_build_info.write().unwrap().insert(key.to_string(), item.to_string());
+        self.other_build_info
+            .write()
+            .unwrap()
+            .insert(key.to_string(), item.to_string());
         Ok(())
     }
 

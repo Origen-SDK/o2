@@ -218,6 +218,7 @@ def run_cmd(command,
 
     # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":
+
         def tabify(message):
             return "\n".join([f"\t{l}" for l in message.split("\n")])
 
@@ -237,7 +238,11 @@ def run_cmd(command,
             origen.logger.trace(f"Retrieving Origen version from {cmd}")
             print("Origen")
             try:
-                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+                res = subprocess.run(cmd,
+                                     shell=True,
+                                     capture_output=True,
+                                     text=True,
+                                     check=True)
                 v = str(res.stdout).split("\n")[1].split(":")[1].strip()
                 print(f"Success\n{tabify(v)}")
             except Exception as e:
@@ -253,7 +258,9 @@ def run_cmd(command,
 
         print("_ PyAPI")
         try:
-            print(f"Success\n{tabify(origen.status['other_build_info']['pyapi_version'])}")
+            print(
+                f"Success\n{tabify(origen.status['other_build_info']['pyapi_version'])}"
+            )
         except Exception as e:
             print("Error")
             print(tabify(repr(e)))
@@ -267,7 +274,9 @@ def run_cmd(command,
 
         print("_ Origen-Core-Support")
         try:
-            print(f"Success\n{tabify(origen.status['origen_core_support_version'])}")
+            print(
+                f"Success\n{tabify(origen.status['origen_core_support_version'])}"
+            )
         except Exception as e:
             print("Error")
             print(tabify(repr(e)))
