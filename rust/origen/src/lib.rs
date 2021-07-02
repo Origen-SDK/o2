@@ -158,12 +158,14 @@ pub fn initialize(
     verbosity: Option<u8>,
     verbosity_keywords: Vec<String>,
     cli_location: Option<String>,
+    cli_version: Option<String>,
 ) {
     if let Some(v) = verbosity {
         let _ = LOGGER.set_verbosity(v);
         let _ = LOGGER.set_verbosity_keywords(verbosity_keywords);
     }
     STATUS.set_cli_location(cli_location);
+    STATUS.set_cli_version(cli_version);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
     LOGGER.set_status_ready();
 }

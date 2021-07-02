@@ -3,10 +3,12 @@ import re
 import os
 init_verbosity = 0
 cli_path = None
+cli_ver = None
 vks = []
 
 regexp = re.compile(r'verbosity=(\d+)')
 cli_re = re.compile(r'origen_cli=(.+)')
+cli_ver_re = re.compile(r'origen_cli_version=(.+)')
 vk_re = re.compile(r'verbosity_keywords=(.+)')
 for arg in sys.argv:
     matches = regexp.search(arg)
@@ -20,9 +22,14 @@ for arg in sys.argv:
             matches = cli_re.search(arg)
             if matches:
                 cli_path = matches.group(1)
+                next
+            matches = cli_ver_re.search(arg)
+            if matches:
+                cli_ver = matches.group(1)
+                next
 
 import _origen
-_origen.initialize(init_verbosity, vks, cli_path)
+_origen.initialize(init_verbosity, vks, cli_path, cli_ver)
 from pathlib import Path
 import importlib
 from contextlib import contextmanager
@@ -64,6 +71,13 @@ if status["is_app_present"]:
     Returns:
         pathlib.Path: Application's root as an OS-specific path object.
         None: If not in an application's workspace.
+'''
+
+__in_origen_core_app = status["in_origen_core_app"]
+''' Indicates if the current application is the Origen core package
+
+    Returns:
+        bool
 '''
 
 version = _origen.version()
@@ -198,7 +212,6 @@ if status["is_app_present"]:
     sys.path.insert(0, status["root"])
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
     app = a.Application()
-    # origen.callbacks.emit("on_app_init", args=[app])
 
 
 def set_mode(val: str) -> None:

@@ -97,6 +97,14 @@ pub fn str_to_bool(s: &str) -> Result<bool> {
     }
 }
 
+pub fn status_to_bool(s: &str) -> Result<bool> {
+    match s.to_lowercase().as_str() {
+        "pass" | "success" | "true" => Ok(true),
+        "fail" | "error" | "false" => Ok(false),
+        _ => error!("Could not convert '{}' to boolean value", s)
+    }
+}
+
 /// For convenience in converting to/from configs, allow bytes to be converted
 /// to a string representation of byte values (NOT characters themselves).
 /// This allows for invalid UTF-8 characters to still be encoded in a string.

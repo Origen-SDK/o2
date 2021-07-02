@@ -66,6 +66,7 @@ impl Application {
     /// as required, then return it back to this function.
     /// See here for the API - https://docs.rs/semver
     pub fn set_version(&self, version: &Version) -> Result<()> {
+        log_info!("Updating version file: '{}'", self.version_file().into_os_string().into_string()?);
         set_version_in_toml(&self.version_file(), version)
     }
 
@@ -128,9 +129,9 @@ impl Application {
             if dry_run {
                 log_info!("(Dry run - not updating version file)");
             } else {
-                self.set_version(&v)?;
+                self.set_version(&new_v)?;
             }
-            let _files = vec![self.version_file().as_path()];
+            let files = vec![self.version_file().as_path()];
 
             // Ok(crate::with_frontend_app(|app| {
             // let rn = app.get_release_notes()?;

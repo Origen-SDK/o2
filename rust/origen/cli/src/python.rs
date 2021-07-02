@@ -4,6 +4,7 @@ use origen::Result;
 use semver::Version;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
+use crate::built_info;
 
 const PYTHONS: &[&str] = &[
     "python",
@@ -161,6 +162,7 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     if let Ok(p) = std::env::current_exe() {
         cmd.arg(&format!("origen_cli={}", p.display()));
     };
+    cmd.arg(&format!("origen_cli_version={}", built_info::PKG_VERSION));
 
     add_origen_env(&mut cmd);
 
@@ -191,6 +193,7 @@ pub fn run_with_callbacks(
     if let Ok(p) = std::env::current_exe() {
         cmd.arg(&format!("origen_cli={}", p.display()));
     };
+    cmd.arg(&format!("origen_cli_version={}", built_info::PKG_VERSION));
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 

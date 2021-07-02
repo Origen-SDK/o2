@@ -218,7 +218,59 @@ def run_cmd(command,
 
     # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":
-        print(f"{origen.status['origen_version']}")
+        def tabify(message):
+            return "\n".join([f"\t{l}" for l in message.split("\n")])
+
+        try:
+            if origen.app:
+                print(f"App\nSuccess\n{tabify(origen.app.version)}")
+        except Exception as e:
+            print("App")
+            print("Error")
+            print(tabify(repr(e)))
+
+        if origen.__in_origen_core_app:
+            origen.logger.info("Running in Origen core application")
+        else:
+            import subprocess, sys
+            cmd = f"{sys.executable} -m poetry show origen"
+            origen.logger.trace(f"Retrieving Origen version from {cmd}")
+            print("Origen")
+            try:
+                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+                v = str(res.stdout).split("\n")[1].split(":")[1].strip()
+                print(f"Success\n{tabify(v)}")
+            except Exception as e:
+                print("Error")
+                print(tabify(repr(e)))
+
+        print("_ CLI")
+        try:
+            print(f"Success\n{tabify(origen.status['cli_version'])}")
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ PyAPI")
+        try:
+            print(f"Success\n{tabify(origen.status['other_build_info']['pyapi_version'])}")
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ Origen (Rust Backend)")
+        try:
+            print(f"Success\n{tabify(origen.status['origen_version'])}")
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ Origen-Core-Support")
+        try:
+            print(f"Success\n{tabify(origen.status['origen_core_support_version'])}")
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
 
     # Internal command to dispatch an app/plugin command
     elif command == "_dispatch_":

@@ -267,9 +267,9 @@ dependencies = [
 
 [[package]]
 name = "built"
-version = "0.4.4"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8f1b029cb3929cb0c99780b0c10fe512f60be5438adf5f757e4afa1bc75a984"
+checksum = "4f346b6890a0dfa7266974910e7df2d5088120dd54721b9b0e5aae1ae5e05715"
 dependencies = [
  "cargo-lock",
 ]
@@ -334,11 +334,11 @@ dependencies = [
 
 [[package]]
 name = "cargo-lock"
-version = "4.0.1"
+version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8504b63dd1249fd1745b7b4ef9b6f7b107ddeb3c95370043c7dbcc38653a2679"
+checksum = "a19807e9f4f8af2c8ece4236ed7d229b9179da1f3f2ba44e765c7ba934748f99"
 dependencies = [
- "semver 0.9.0",
+ "semver 1.0.1",
  "serde 1.0.126",
  "toml 0.5.8",
  "url",
@@ -2131,6 +2131,7 @@ dependencies = [
 name = "origen_pyapi"
 version = "2.0.0-dev.4"
 dependencies = [
+ "built",
  "curl-sys",
  "indexmap",
  "itertools",
@@ -2882,7 +2883,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 dependencies = [
  "semver-parser",
- "serde 1.0.126",
 ]
 
 [[package]]
@@ -2890,6 +2890,9 @@ name = "semver"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d023dabf011d5dcb5ac64e3685d97d3b0ef412911077a2851455c6098524a723"
+dependencies = [
+ "serde 1.0.126",
+]
 
 [[package]]
 name = "semver-parser"

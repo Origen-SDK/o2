@@ -31,7 +31,7 @@ use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
 
@@ -49,6 +49,11 @@ use tester_apis::PyInit_tester_apis;
 use user::PyInit_users;
 use utility::location::Location;
 use utility::PyInit_utility;
+
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
 
 #[macro_export]
 macro_rules! pypath {
@@ -307,18 +312,35 @@ fn exit_pass() -> PyResult<()> {
     exit_pass!();
 }
 
+fn origen_mod_path() -> PyResult<PathBuf> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let locals = PyDict::new(py);
+    locals.set_item("importlib", py.import("importlib")?)?;
+    let p = PathBuf::from(py.eval("importlib.util.find_spec('_origen').origin", None, Some(&locals))?.extract::<String>()?);
+    Ok(p.parent().unwrap().to_path_buf())
+}
+
 /// Called automatically when Origen is first loaded
 #[pyfunction]
 fn initialize(
     log_verbosity: Option<u8>,
     verbosity_keywords: Vec<String>,
     cli_location: Option<String>,
+    cli_version: Option<String>,
 ) -> PyResult<()> {
-    origen::initialize(log_verbosity, verbosity_keywords, cli_location);
+    origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version);
+    origen::STATUS.update_other_build_info("pyapi_version", built_info::PKG_VERSION)?;
     origen::FRONTEND
         .write()
         .unwrap()
         .set_frontend(Box::new(_frontend::Frontend::new()))?;
+    
+    if let Some(app) = &STATUS.app {
+        origen::STATUS.set_in_origen_core_app(origen_mod_path()? == app.root);
+    } else {
+        origen::STATUS.set_in_origen_core_app(false);
+    }
     Ok(())
 }
 
@@ -410,6 +432,14 @@ fn status(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     let _ = ret.set_item("on_windows", cfg!(windows));
+    ret.set_item("origen_core_support_version", STATUS.origen_core_support_version.to_string())?;
+    ret.set_item("other_build_info", _helpers::hashmap_to_pydict(py, &STATUS.other_build_info())?)?;
+    ret.set_item("cli_version", match STATUS.cli_version() {
+        Some(v) => Some(v.to_string()).to_object(py),
+        None => py.None()
+    })?;
+    ret.set_item("is_app_in_origen_dev_mode", STATUS.is_app_in_origen_dev_mode)?;
+    ret.set_item("in_origen_core_app", STATUS.in_origen_core_app())?;
     Ok(ret.into())
 }
 
@@ -438,33 +468,6 @@ fn config(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen application configuration (as defined in application.toml)
 #[pyfunction]
 fn app_config(py: Python) -> PyResult<PyObject> {
-    // let ret = PyDict::new(py);
-    // // Don't think an error can really happen here, so not handled
-    // let app_config = origen_app_config();
-    // let _ = ret.set_item("name", &app_config.name);
-    // let _ = ret.set_item("target", &app_config.target);
-    // let _ = ret.set_item("mode", &app_config.mode);
-    // let _ = ret.set_item("__output_directory__", &app_config.output_directory);
-    // let _ = ret.set_item(
-    //     "__website_output_directory__",
-    //     &app_config.website_output_directory,
-    // );
-    // let _ = ret.set_item(
-    //     "__website_source_directory__",
-    //     &app_config.website_source_directory,
-    // );
-    // let _ = ret.set_item(
-    //     "website_release_location",
-    //     match &app_config.website_release_location {
-    //         Some(loc) => Py::new(py, Location {location: (*loc).clone()}).unwrap().to_object(py),
-    //         None => py.None()
-    //     }
-    // );
-    // let _ = ret.set_item(
-    //     "website_release_name",
-    //     &app_config.website_release_name,
-    // );
-
     let ret = PyDict::new(py);
     let _ = origen::app().unwrap().with_config(|config| {
         let _ = ret.set_item("name", &config.name);
