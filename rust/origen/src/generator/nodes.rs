@@ -179,6 +179,13 @@ pub enum Attrs {
     // ArmDebugSWJ__EnterDormant, // Switch DP to dormant
     // ArmDebugSWJ__ExitDormant, // Switch DP from dormant back to whatever it was prior to entering dormant.
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Simple (Dummy) Protocol nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    SimpleProtocolReset(Id),
+    SimpleProtocolWrite(Id, Transaction),
+    SimpleProtocolVerify(Id, Transaction),
+
     //// Text (Comment) nodes
     //// Useful for formatting comment blocks in the AST.
     TextSection(Option<String>, Option<u8>), // The start of a new section.
