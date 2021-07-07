@@ -1,6 +1,6 @@
 [package]
 name = "origen"
-version = "2.0.0-dev.4"
+version = "2.0.0-dev.5"
 authors = ["Origen-SDK"]
 license = "MIT"
 edition = "2018"
@@ -50,7 +50,7 @@ num-bigint = {version = "0.3.0", features = ["serde"]}
 # in origen to enable conversion of an Origen error to a PyErr.
 pyo3 = {version = "0.11.1", features = ["extension-module"]}
 chrono = "0.4.11"
-origen-core-support = { version = "0.1.0-dev.0", path = "./origen-core-support" }
+origen-core-support = { version = "0.1.0-dev.1", path = "./origen-core-support" }
 whoami = "0.8"
 dirs = "2.0"
 tempfile = "3"

@@ -134,7 +134,7 @@ impl Application {
             } else {
                 self.set_version(&new_v)?;
             }
-            let files = vec![self.version_file().as_path()];
+            let _files = vec![self.version_file().as_path()];
 
             // Ok(crate::with_frontend_app(|app| {
             // let rn = app.get_release_notes()?;
