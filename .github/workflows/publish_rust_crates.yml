@@ -28,12 +28,22 @@ jobs:
           toolchain: "nightly-2020-11-01"
           override: true
 
-      - name: "Publish origen-core-support"
+      - name: "Publish origen-core-support (dry-run)"
         if: ${{ github.event.inputs.publish_origen_core_support == 'true' && github.event.inputs.dry_run == 'true' }}
         working-directory: rust/origen/origen-core-support
         run: cargo publish --dry-run
 
-      - name: "Publish origen"
+      - name: "Publish origen-core-support"
+        if: ${{ github.event.inputs.publish_origen_core_support == 'true' && github.event.inputs.dry_run == 'false' }}
+        working-directory: rust/origen/origen-core-support
+        run: cargo publish
+
+      - name: "Publish origen (dry-run)"
         if: ${{ github.event.inputs.publish_origen == 'true' && github.event.inputs.dry_run == 'true' }}
         working-directory: rust/origen
         run: cargo publish --dry-run
+
+      - name: "Publish origen"
+        if: ${{ github.event.inputs.publish_origen == 'true' && github.event.inputs.dry_run == 'false' }}
+        working-directory: rust/origen
+        run: cargo publish
