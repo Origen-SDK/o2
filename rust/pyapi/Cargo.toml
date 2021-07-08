@@ -1,6 +1,6 @@
 [package]
 name = "origen_pyapi"
-version = "2.0.0-dev.4"
+version = "2.0.0-dev.5"
 authors = ["Origen-SDK"]
 edition = "2018"
 

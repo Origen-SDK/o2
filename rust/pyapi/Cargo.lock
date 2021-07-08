@@ -2065,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "2.0.0-dev.4"
+version = "2.0.0-dev.5"
 dependencies = [
  "aes-gcm",
  "built",
@@ -2121,7 +2121,7 @@ dependencies = [
 
 [[package]]
 name = "origen-core-support"
-version = "0.1.0-dev.0"
+version = "0.1.0-dev.1"
 dependencies = [
  "quote 1.0.9",
  "syn 1.0.73",
@@ -2129,7 +2129,7 @@ dependencies = [
 
 [[package]]
 name = "origen_pyapi"
-version = "2.0.0-dev.4"
+version = "2.0.0-dev.5"
 dependencies = [
  "built",
  "curl-sys",

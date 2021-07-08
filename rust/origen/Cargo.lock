@@ -441,7 +441,7 @@ dependencies = [
 
 [[package]]
 name = "cli"
-version = "2.0.0-dev.4"
+version = "2.0.0-dev.5"
 dependencies = [
  "base64-url",
  "built",
