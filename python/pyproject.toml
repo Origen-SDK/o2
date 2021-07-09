@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "origen"
-version = "2.0.0.dev4"
+version = "2.0.0.dev5"
 description = "Semiconductor Developer's Kit"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"

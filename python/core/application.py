@@ -35,16 +35,18 @@ class Publisher(Poetry):
                                 capture=False,
                                 cd=str(origen.app.rust_dir.joinpath("origen")))
         if r.failed():
-            origen.logger.error("Failed to build Origen release")
-            return BuildResult(False)
+            msg = "Failed to build Origen release"
+            origen.logger.error(msg)
+            return BuildResult(succeeded=False, message=msg)
 
         origen.logger.info("Building Origen Release Libraries (pyapi)")
         r = origen.utility.exec(self.cargo_release_cmd,
                                 capture=False,
                                 cd=str(origen.app.rust_dir.joinpath("pyapi")))
         if r.failed():
-            origen.logger.error("Failed to build PyAPI release")
-            return BuildResult(False)
+            msg = "Failed to build PyAPI release"
+            origen.logger.error(msg)
+            return BuildResult(succeeded=False, message=msg)
 
         return Poetry.build_package(self)
 
@@ -58,15 +60,14 @@ class Publisher(Poetry):
             inputs = {}
         else:
             # Need to fill these out yet when final publishing action is done
-            inputs = {}
+            inputs = {
+                "publish_pypi_test": "true",
+                # "publish_pypi": "true"
+            }
         res = github.dispatch_workflow("Origen-SDK", "o2", "publish.yml",
                                        "master", inputs)
         if res.succeeded:
-            print(
-                "Publish action successfully started. Check https://github.com/Origen-SDK/o2/actions/workflows/publish.yml for further status"
-            )
+            msg = "Publish action successfully started. Check https://github.com/Origen-SDK/o2/actions/workflows/publish.yml for further status"
         else:
-            origen.logger.error(
-                f"Encountered errors starting the publish action. Message from Github: {res.message}"
-            )
-        return UploadResult(res.succeeded)
+            msg = f"Encountered errors starting the publish action. Message from Github: {res.message}"
+        return UploadResult(res.succeeded, message=msg)

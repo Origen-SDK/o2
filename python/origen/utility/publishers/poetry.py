@@ -19,7 +19,7 @@ class Poetry(Publisher):
                 "format": "wheel",
             })
         else:
-            return BuildResult(succeeded=False, )
+            return BuildResult(succeeded=False)
 
     def upload(self, build_result, dry_run):
         # Kicks off the build
