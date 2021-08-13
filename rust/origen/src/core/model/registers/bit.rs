@@ -2,8 +2,8 @@ use super::AccessType;
 use super::AccessType::Unimplemented;
 use crate::{Error, Result};
 use std::collections::HashMap;
-use std::sync::RwLock;
 use std::fmt;
+use std::sync::RwLock;
 
 // State values for common initialization cases
 pub const ZERO: u8 = 0;
@@ -14,7 +14,7 @@ pub const UNDEFINED: u8 = 0b10;
 pub struct Overlay {
     pub label: Option<String>,
     pub symbol: Option<String>,
-    pub persistent: bool
+    pub persistent: bool,
 }
 
 impl fmt::Display for Overlay {
@@ -31,11 +31,11 @@ impl fmt::Display for Overlay {
             },
             match &self.label {
                 Some(l) => format!("'{}'", l),
-                None => "<Anonymous Overlay>".to_string()
+                None => "<Anonymous Overlay>".to_string(),
             },
             match &self.symbol {
                 Some(s) => format!("(Symbol '{}'", s),
-                None => "".to_string()
+                None => "".to_string(),
             },
         )
     }
@@ -46,7 +46,7 @@ impl Overlay {
         Self {
             label,
             symbol,
-            persistent
+            persistent,
         }
     }
 }

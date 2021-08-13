@@ -51,8 +51,8 @@ pub enum Attrs {
     EndCapture(Option<usize>),
     Overlay(crate::Overlay, Metadata),
     EndOverlay(Option<String>, Option<usize>), // Label, PinID
-    Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
-    Cycle(u32, bool),                         // repeat (0 not allowed), compressable
+    Opcode(String, IndexMap<String, String>),  // Opcode, Arguments<Argument Key, Argument Value>
+    Cycle(u32, bool),                          // repeat (0 not allowed), compressable
     PatternHeader,
     PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
     // represents the end of the 'pattern vectors', for vector-based testers.

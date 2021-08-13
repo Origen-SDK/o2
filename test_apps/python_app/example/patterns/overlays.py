@@ -20,28 +20,47 @@ with Pattern(pin_header="all") as pat:
     t.repeat(4)
 
     t.cc("Overlaying on pins, with options")
-    t.overlay("test overlaying on pins, with options", pins=["portc"], cycles=2, mask=0x2, symbol='A').repeat(2)
+    t.overlay("test overlaying on pins, with options",
+              pins=["portc"],
+              cycles=2,
+              mask=0x2,
+              symbol='A').repeat(2)
     t.repeat(4)
 
-    t.cc("Overlay from pin group. This should functionally be the same as previous overlay")
+    t.cc(
+        "Overlay from pin group. This should functionally be the same as previous overlay"
+    )
     port.overlay("test overlaying from pin group", cycles=2)
     t.repeat(4)
 
     t.cc("Overlay from pin group, with options")
-    port.overlay("test overlaying from pin group, with options", cycles=2, mask=0x1, symbol='A')
+    port.overlay("test overlaying from pin group, with options",
+                 cycles=2,
+                 mask=0x1,
+                 symbol='A')
     t.repeat(4)
 
     t.cc("Overlay during drive operation")
-    port.drive(0x3, overlay="test overlaying while driving pin group", overlay_cycles=2, overlay_symbol="B")
+    port.drive(0x3,
+               overlay="test overlaying while driving pin group",
+               overlay_cycles=2,
+               overlay_symbol="B")
     t.repeat(4)
 
-    t.cc("Overlay during drive (again). Functionally, this should the same as the above")
-    port.overlay("test overlaying from pin group - version 2", cycles=2, symbol="B")
+    t.cc(
+        "Overlay during drive (again). Functionally, this should the same as the above"
+    )
+    port.overlay("test overlaying from pin group - version 2",
+                 cycles=2,
+                 symbol="B")
     port.drive(0x3)
     t.repeat(4)
 
     t.cc("Overlay during drive operation")
-    port.verify(0x0, overlay="test overlaying while verifying pin group", overlay_cycles=2, overlay_symbol='A')
+    port.verify(0x0,
+                overlay="test overlaying while verifying pin group",
+                overlay_cycles=2,
+                overlay_symbol='A')
     t.repeat(4)
 
     # origen.tester.cc("Overlay while setting actions")

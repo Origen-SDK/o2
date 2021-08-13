@@ -146,8 +146,10 @@ impl Processor for UnpackCaptures {
                                 }
                             );
                         }
-                        self.overlaying
-                            .insert(Some(*pin), (cycles, overlay.label.clone(), overlay.symbol.clone()));
+                        self.overlaying.insert(
+                            Some(*pin),
+                            (cycles, overlay.label.clone(), overlay.symbol.clone()),
+                        );
                         if cycles < self.overlays__least_cycles_remaining {
                             self.overlays__least_cycles_remaining = cycles;
                         }
@@ -158,8 +160,10 @@ impl Processor for UnpackCaptures {
                             "Generic overlay is already occurring. Cannot initiate another overlay"
                         );
                     }
-                    self.overlaying
-                        .insert(None, (cycles, overlay.label.clone(), overlay.symbol.clone()));
+                    self.overlaying.insert(
+                        None,
+                        (cycles, overlay.label.clone(), overlay.symbol.clone()),
+                    );
                     if cycles < self.overlays__least_cycles_remaining {
                         self.overlays__least_cycles_remaining = cycles;
                     }
@@ -172,12 +176,18 @@ impl Processor for UnpackCaptures {
                     let mut to_repeat = *repeat as usize;
                     let mut nodes: Vec<Node> = vec![];
                     while to_repeat > 0 {
-                        let mut this_cycle_captures: HashMap<Option<usize>, Option<String>> = HashMap::new();
-                        let mut this_cycle_overlays: HashMap<Option<usize>, (Option<String>, Option<String>)> = HashMap::new();
+                        let mut this_cycle_captures: HashMap<Option<usize>, Option<String>> =
+                            HashMap::new();
+                        let mut this_cycle_overlays: HashMap<
+                            Option<usize>,
+                            (Option<String>, Option<String>),
+                        > = HashMap::new();
                         let this_repeat;
 
                         let least_cycles_remaining;
-                        if self.captures__least_cycles_remaining < self.overlays__least_cycles_remaining {
+                        if self.captures__least_cycles_remaining
+                            < self.overlays__least_cycles_remaining
+                        {
                             least_cycles_remaining = self.captures__least_cycles_remaining;
                         } else {
                             least_cycles_remaining = self.overlays__least_cycles_remaining;

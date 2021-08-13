@@ -1,3 +1,4 @@
+use super::bit::Overlay as BitOverlay;
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
 use crate::node;
@@ -6,7 +7,6 @@ use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
-use super::bit::Overlay as BitOverlay;
 
 const DONT_CARE_CHAR: &str = "X";
 const OVERLAY_CHAR: &str = "V";
@@ -207,7 +207,7 @@ impl<'a> BitCollection<'a> {
                     None => {
                         overlay = Some(this_overlay.clone());
                         first_overlay = i;
-                    },
+                    }
                     Some(ref previous_overlay) => {
                         if this_overlay != previous_overlay {
                             return error!(
@@ -219,14 +219,20 @@ impl<'a> BitCollection<'a> {
                             );
                         }
                     }
-                }
+                },
             }
         }
         Ok(overlay)
     }
 
     /// Set the overlay value of the BitCollection.
-    pub fn set_overlay(&self, label: Option<String>, symbol: Option<String>, mask: Option<BigUint>, persistent: bool) -> &BitCollection {
+    pub fn set_overlay(
+        &self,
+        label: Option<String>,
+        symbol: Option<String>,
+        mask: Option<BigUint>,
+        persistent: bool,
+    ) -> &BitCollection {
         match mask {
             Some(m) => {
                 let mut bytes = m.to_bytes_be();
@@ -733,7 +739,7 @@ impl<'a> BitCollection<'a> {
         if l.is_some() || e.is_some() {
             match l {
                 Some(ovl) => t.apply_overlay(ovl.label.clone(), ovl.symbol.clone(), e)?,
-                None => t.apply_overlay(None, None, e)?
+                None => t.apply_overlay(None, None, e)?,
             }
         }
         Ok(())

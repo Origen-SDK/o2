@@ -112,7 +112,9 @@ impl PinCollection {
         mask: Option<BigUint>,
     ) -> PyResult<Py<Self>> {
         slf.pin_collection
-            .overlay(&mut origen::Overlay::placeholder(label, symbol, cycles, mask))?;
+            .overlay(&mut origen::Overlay::placeholder(
+                label, symbol, cycles, mask,
+            ))?;
         Ok(slf.into())
     }
 

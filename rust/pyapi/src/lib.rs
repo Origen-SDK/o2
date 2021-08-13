@@ -238,7 +238,9 @@ fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -
             if let Ok(i) = c.extract::<usize>() {
                 overlay_cycles = Some(i);
             } else {
-                return crate::type_error!("Could not extract kwarg 'overlay_cycles' as an Integer");
+                return crate::type_error!(
+                    "Could not extract kwarg 'overlay_cycles' as an Integer"
+                );
             }
         } else {
             if let Some(ovl) = trans.overlay.as_ref() {

@@ -32,15 +32,15 @@ class Controller(Parent):
 
     def write_register(self, reg_or_val, size=None, address=None, **kwargs):
         return self.current_protocol.write_register(reg_or_val,
-                                                 size=None,
-                                                 address=None,
-                                                 **kwargs)
+                                                    size=None,
+                                                    address=None,
+                                                    **kwargs)
 
     def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
         return self.current_protocol.verify_register(reg_or_val,
-                                                  size=None,
-                                                  address=None,
-                                                  **kwargs)
+                                                     size=None,
+                                                     address=None,
+                                                     **kwargs)
 
     def capture_register(self, reg_or_val, **kwargs):
         return self.current_protocol.capture_register(reg_or_val, **kwargs)

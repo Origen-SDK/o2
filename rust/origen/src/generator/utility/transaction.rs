@@ -4,7 +4,7 @@ use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Capture, Overlay, Error, Metadata, Result};
+use crate::{Capture, Error, Metadata, Overlay, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
@@ -150,7 +150,7 @@ impl Transaction {
         &mut self,
         label: Option<String>,
         symbol: Option<String>,
-        enables: Option<BigUint>
+        enables: Option<BigUint>,
     ) -> Result<()> {
         self.overlay = Some(Overlay::new(label, symbol, None, enables, None)?);
         Ok(())
@@ -163,8 +163,8 @@ impl Transaction {
             Some(o) => {
                 o.pin_ids = Some(pin_ids.clone());
                 Ok(true)
-            },
-            None => Ok(false)
+            }
+            None => Ok(false),
         }
     }
 

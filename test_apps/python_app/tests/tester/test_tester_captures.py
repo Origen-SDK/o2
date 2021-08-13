@@ -24,13 +24,13 @@ class Base:
         assert node['attrs'][1][0]['enables'] == enables
         assert node['attrs'][1][0]['pin_ids'] == pin_ids
         assert len(node['children']) == 0
-    
+
     def assert_overlay_node(self,
-                    overlay,
-                    symbol=None,
-                    cycles=None,
-                    enables=None,
-                    pin_ids=None):
+                            overlay,
+                            symbol=None,
+                            cycles=None,
+                            enables=None,
+                            pin_ids=None):
         node = get_last_node()
         assert node['attrs'][0] == 'Overlay'
         assert node['attrs'][1][0]['label'] == overlay
@@ -40,13 +40,13 @@ class Base:
         assert node['attrs'][1][0]['pin_ids'] == pin_ids
         assert len(node['children']) == 0
 
+
 class TestCaptureInterface(Base):
     ''' Mostly simple tests to make sure the node gets into the AST correctly.
 
         Whether the node gets handled correctly is a matter for the
         individual renders to resolved.
     '''
-
     def test_blank_capture(self):
         origen.tester.capture()
         self.assert_node(None, None, None, None)

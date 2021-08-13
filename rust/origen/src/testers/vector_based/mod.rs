@@ -53,9 +53,12 @@ pub trait VectorBased:
         &self,
         _renderer: &mut pattern_renderer::Renderer,
         label: &Option<String>,
-        _pin_id: &Option<usize>
+        _pin_id: &Option<usize>,
     ) -> Option<Result<String>> {
-        Some(Ok(format!("End Overlay: {}", label.as_ref().unwrap_or(&"".to_string()))))
+        Some(Ok(format!(
+            "End Overlay: {}",
+            label.as_ref().unwrap_or(&"".to_string())
+        )))
     }
 }
 
@@ -106,7 +109,7 @@ where
         &self,
         renderer: &mut pattern_renderer::Renderer,
         label: &Option<String>,
-        pin_id: &Option<usize>
+        pin_id: &Option<usize>,
     ) -> Option<Result<String>> {
         VectorBased::end_overlay(self, renderer, label, pin_id)
     }

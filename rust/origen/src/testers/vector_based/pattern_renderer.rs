@@ -4,7 +4,7 @@ use crate::core::model::pins::StateTracker;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::STATUS;
-use crate::{Result, DUT, Overlay};
+use crate::{Overlay, Result, DUT};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -31,11 +31,20 @@ pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
         None
     }
 
-    fn start_overlay(&self, _renderer: &mut Renderer, _overlay: &Overlay,) -> Option<Result<String>> {
+    fn start_overlay(
+        &self,
+        _renderer: &mut Renderer,
+        _overlay: &Overlay,
+    ) -> Option<Result<String>> {
         None
     }
 
-    fn end_overlay(&self, _renderer: &mut Renderer, _label: &Option<String>, _pin_id: &Option<usize>) -> Option<Result<String>> {
+    fn end_overlay(
+        &self,
+        _renderer: &mut Renderer,
+        _label: &Option<String>,
+        _pin_id: &Option<usize>,
+    ) -> Option<Result<String>> {
         None
     }
 }
@@ -51,7 +60,7 @@ pub struct Renderer<'a> {
     pub pin_header_id: Option<usize>,
     pub least_cycles_remaining: usize,
     pub capturing: HashMap<Option<usize>, Option<String>>,
-    pub overlaying: HashMap<Option<usize>, (Option<String>, Option<String>)>
+    pub overlaying: HashMap<Option<usize>, (Option<String>, Option<String>)>,
 }
 
 impl<'a> Renderer<'a> {
@@ -88,7 +97,7 @@ impl<'a> Renderer<'a> {
             pin_header_id: None,
             least_cycles_remaining: std::usize::MAX,
             capturing: HashMap::new(),
-            overlaying: HashMap::new()
+            overlaying: HashMap::new(),
         }
     }
 
@@ -209,10 +218,12 @@ impl<'a> Processor for Renderer<'a> {
             Attrs::Overlay(overlay, _) => {
                 if overlay.pin_ids.is_some() {
                     for pin in overlay.enabled_overlay_pins()? {
-                        self.overlaying.insert(Some(pin), (overlay.label.clone(), overlay.symbol.clone()));
+                        self.overlaying
+                            .insert(Some(pin), (overlay.label.clone(), overlay.symbol.clone()));
                     }
                 } else {
-                    self.overlaying.insert(None, (overlay.label.clone(), overlay.symbol.clone()));
+                    self.overlaying
+                        .insert(None, (overlay.label.clone(), overlay.symbol.clone()));
                 }
 
                 if let Some(s) = self.tester.start_overlay(self, overlay) {
