@@ -258,11 +258,6 @@ impl JtagDP {
         trans: Transaction,
     ) -> Result<()> {
         let n_id = TEST.push_and_open(trans.as_write_node()?);
-        {
-            let jtag_service = services.get_service(self.jtag_id)?;
-            let jtag = jtag_service.as_jtag()?;
-            jtag.reset(&dut)?;
-        }
         self.update_ir(&dut, &services, trans.addr()? as u32)?;
 
         let jtag_service = services.get_service(self.jtag_id)?;
@@ -280,11 +275,6 @@ impl JtagDP {
         transaction: Transaction,
     ) -> Result<()> {
         let n_id = TEST.push_and_open(transaction.as_verify_node()?);
-        {
-            let jtag_service = services.get_service(self.jtag_id)?;
-            let jtag = jtag_service.as_jtag()?;
-            jtag.reset(&dut)?;
-        }
         self.update_ir(&dut, &services, transaction.addr()? as u32)?;
 
         let jtag_service = services.get_service(self.jtag_id)?;

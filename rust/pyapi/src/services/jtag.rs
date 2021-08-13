@@ -51,10 +51,15 @@ impl JTAG {
         Ok(())
     }
 
-    #[args(kwargs = "**")]
-    fn write_dr(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    #[args(width = "None", kwargs = "**")]
+    fn write_dr(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
-        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_write_transaction(&dut)?;
         unpack_transaction_options(&mut trans, kwargs)?;
 
@@ -65,10 +70,15 @@ impl JTAG {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
-    fn verify_dr(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    #[args(width = "None", kwargs = "**")]
+    fn verify_dr(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
-        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_verify_transaction(&dut)?;
         unpack_transaction_options(&mut trans, kwargs)?;
 
@@ -79,10 +89,15 @@ impl JTAG {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
-    fn write_ir(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    #[args(width = "None", kwargs = "**")]
+    fn write_ir(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
-        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_write_transaction(&dut)?;
         unpack_transaction_options(&mut trans, kwargs)?;
 
@@ -93,10 +108,15 @@ impl JTAG {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
-    fn verify_ir(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    #[args(width = "None", kwargs = "**")]
+    fn verify_ir(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
-        let value = extract_value(bits_or_val, Some(32), &dut)?;
+        let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_verify_transaction(&dut)?;
         unpack_transaction_options(&mut trans, kwargs)?;
 

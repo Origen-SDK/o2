@@ -206,7 +206,7 @@ def run_cmd(command,
 
     elif command == "app:publish":
         _origen.set_operation("app")
-        origen.app.__publish__(**args)
+        origen.app.__publish__(**args).summarize_and_exit()
 
     elif command == "app:package":
         _origen.set_operation("app")
@@ -215,6 +215,26 @@ def run_cmd(command,
     elif command == "app:run_publish_checks":
         _origen.set_operation("app")
         origen.app.__run_publish_checks__(args).summarize_and_exit()
+
+    elif command == "app:init":
+        _origen.set_operation("app")
+        r = origen.app.__rc_init__()
+        r.summarize_and_exit()
+
+    elif command == "app:status":
+        _origen.set_operation("app")
+        r = origen.app.__rc_status__()
+        r.summarize()
+
+    elif command == "app:checkin":
+        _origen.set_operation("app")
+        checkin_all = args.pop("all", False)
+        args["dry_run"] = args.pop("dry-run", False)
+        if 'pathspecs' in args and not checkin_all:
+            r = origen.app.__rc_checkin__(**args)
+        else:
+            r = origen.app.__rc_checkin__(pathspecs=None, **args)
+        r.gist()
 
     # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":

@@ -1,5 +1,6 @@
 use super::Status;
 use crate::runtime_error;
+use crate::utility::results::GenericResult as PyGenericResult;
 use origen::revision_control::git::Git as OrigenGit;
 use origen::revision_control::RevisionControlAPI;
 use pyo3::prelude::*;
@@ -104,8 +105,8 @@ impl Git {
         )?)
     }
 
-    fn init(&self) -> PyResult<bool> {
-        Ok(self.rc()?.init()?)
+    fn init(&self) -> PyResult<PyGenericResult> {
+        Ok(PyGenericResult::from_origen(self.rc()?.init()?))
     }
 
     fn is_initialized(&self) -> PyResult<bool> {
@@ -113,14 +114,19 @@ impl Git {
     }
 
     #[args(paths = "*", kwargs = "**")]
-    fn checkin(&self, paths: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<String> {
+    fn checkin(&self, paths: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyGenericResult> {
         let msg;
+        let dry_run;
         if let Some(kw) = kwargs {
             match kw.get_item("msg") {
                 Some(m) => {
                     msg = m.extract::<String>()?;
                 }
                 None => return runtime_error!("A 'msg' is required for checkin operations"),
+            }
+            match kw.get_item("dry-run") {
+                Some(d) => dry_run = d.extract::<bool>()?,
+                None => dry_run = false,
             }
         } else {
             return runtime_error!("A 'msg' is required for checkin operations");
@@ -131,11 +137,22 @@ impl Git {
             let p = path.extract::<&str>()?;
             rusty_paths.push(Path::new(p));
         }
-        Ok(self.rc()?.checkin(Some(rusty_paths), &msg)?)
+        Ok(PyGenericResult::from_origen(self.rc()?.checkin(
+            Some(rusty_paths),
+            &msg,
+            dry_run,
+        )?))
     }
 
-    fn checkin_all(&self, msg: &str) -> PyResult<String> {
-        Ok(self.rc()?.checkin(None, msg)?)
+    #[args(dry_run = "false")]
+    fn checkin_all(&self, msg: &str, dry_run: bool) -> PyResult<PyGenericResult> {
+        Ok(PyGenericResult::from_origen(
+            self.rc()?.checkin(None, msg, dry_run)?,
+        ))
+    }
+
+    fn system(&self) -> PyResult<String> {
+        Ok(self.rc()?.system().to_string())
     }
 }
 

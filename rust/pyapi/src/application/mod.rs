@@ -1,10 +1,11 @@
 pub mod _frontend;
 
 use crate::runtime_error;
-use crate::utility::results::BuildResult;
+use crate::utility::results::{BuildResult, GenericResult};
+use crate::utility::revision_control::Status;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -38,14 +39,52 @@ impl PyApplication {
     }
 
     #[args(kwargs = "**")]
-    fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<()> {
+    fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<GenericResult> {
         let mut dry_run = false;
         if let Some(kw) = kwargs {
             if let Some(d) = kw.get_item("dry-run") {
                 dry_run = d.extract::<bool>()?;
             }
         }
-        Ok(origen::app().unwrap().publish(dry_run)?)
+        Ok(GenericResult::from_origen(
+            origen::app().unwrap().publish(dry_run)?,
+        ))
+    }
+
+    fn __rc_init__(&self) -> PyResult<GenericResult> {
+        Ok(GenericResult::from_origen(
+            origen::app().unwrap().rc_init()?,
+        ))
+    }
+
+    fn __rc_status__(&self) -> PyResult<Status> {
+        Ok(Status::from_origen(origen::app().unwrap().rc_status()?))
+    }
+
+    fn __rc_checkin__(
+        &self,
+        pathspecs: Option<Vec<String>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> PyResult<GenericResult> {
+        let mut paths = vec![];
+        if let Some(ps) = pathspecs.as_ref() {
+            paths = ps.iter().map(|p| Path::new(p)).collect();
+        }
+
+        Ok(GenericResult::from_origen(
+            origen::app().unwrap().rc_checkin(
+                {
+                    if pathspecs.is_some() {
+                        Some(paths)
+                    } else {
+                        None
+                    }
+                },
+                msg,
+                dry_run,
+            )?,
+        ))
     }
 
     #[args(_args = "*")]
@@ -105,6 +144,15 @@ impl PyApplication {
         let r = slf.as_ref(py).call_method0("website")?;
         if r.is_none() {
             return runtime_error!("No website is available on the application");
+        }
+
+        Ok(r.to_object(py))
+    }
+
+    pub fn _get_release_scribe<'py>(slf: Py<Self>, py: Python<'py>) -> PyResult<PyObject> {
+        let r = slf.as_ref(py).getattr("release_scribe")?;
+        if r.is_none() {
+            return runtime_error!("No release_scribe is available on the application");
         }
 
         Ok(r.to_object(py))

@@ -6,6 +6,7 @@ pub mod location;
 pub mod mailer;
 pub mod metadata;
 pub mod publisher;
+pub mod release_scribe;
 pub mod results;
 pub mod revision_control;
 pub mod session_store;
@@ -21,6 +22,7 @@ use mailer::PyInit_mailer;
 use publisher::PyInit_publisher;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
+use release_scribe::PyInit_release_scribe;
 use results::PyInit_results;
 use revision_control::PyInit_revision_control;
 use session_store::PyInit_session_store;
@@ -50,6 +52,7 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(unit_testers))?;
     m.add_wrapped(wrap_pymodule!(publisher))?;
     m.add_wrapped(wrap_pymodule!(linter))?;
+    m.add_wrapped(wrap_pymodule!(release_scribe))?;
     m.add_wrapped(wrap_pymodule!(results))?;
     m.add_wrapped(wrap_pymodule!(website))?;
     m.add_wrapped(wrap_pyfunction!(exec))?;
@@ -157,7 +160,11 @@ where
             }
         } else {
             // Invalid config
-            return runtime_error!(format!("Could not discern {} from app config", name));
+            return runtime_error!(format!(
+                "Could not discern {} from the app config! \
+                No 'system' was specified and default is available!",
+                name
+            ));
         }
     } else {
         if let Some(mut cb) = callback_function {

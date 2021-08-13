@@ -1,7 +1,7 @@
 pub mod designsync;
 pub mod git;
 
-use crate::Result;
+use crate::{GenericResult, Result};
 use designsync::Designsync;
 use git::Git;
 use std::collections::HashMap;
@@ -46,6 +46,34 @@ impl Status {
             || !self.changed.is_empty()
             || !self.conflicted.is_empty()
             || !self.added.is_empty()
+    }
+
+    pub fn summarize(&self) {
+        displayln!("Workspace Status");
+        if !self.added.is_empty() {
+            displayln!("  ADDED: {} ITEMS", self.added.len());
+            for file in &self.added {
+                displayln!("    {}", file.display());
+            }
+        }
+        if !self.removed.is_empty() {
+            displayln!("  DELETED: {} ITEMS", self.removed.len());
+            for file in &self.removed {
+                displayln!("    {}", file.display());
+            }
+        }
+        if !self.changed.is_empty() {
+            displayln!("  CHANGED: {} ITEMS", self.changed.len());
+            for file in &self.changed {
+                displayln!("    {}", file.display());
+            }
+        }
+        if !self.conflicted.is_empty() {
+            displayln!("  CONFLICTED: {} ITEMS", self.conflicted.len());
+            for file in &self.conflicted {
+                display_redln!("    {}", file.display());
+            }
+        }
     }
 }
 
@@ -156,7 +184,6 @@ impl RevisionControl {
 
 /// Defines a common minimum API that all revision control system drivers should support
 pub trait RevisionControlAPI: std::fmt::Debug {
-    // + Sync + Send {
     /// Initially populate the local directory with the remote, this is equivalent to a 'git clone'
     /// or a 'dssc pop' operation.
     /// A progress instance will be returned indicating how many objects were fetched.
@@ -187,12 +214,19 @@ pub trait RevisionControlAPI: std::fmt::Debug {
     /// Initialize a new local workspace at path, pointing to the given location
     /// Returns true if a new workspace was created, false if the workspace already
     /// existed (no action), or an error.
-    fn init(&self) -> Result<bool>;
+    fn init(&self) -> Result<GenericResult>;
 
     /// Indicate if the path of the RC driver is initialized
     fn is_initialized(&self) -> Result<bool>;
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str) -> Result<String>;
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> Result<GenericResult>;
+
+    fn system(&self) -> &str;
 }
 
 impl RevisionControlAPI for RevisionControl {
@@ -216,7 +250,7 @@ impl RevisionControlAPI for RevisionControl {
         self.driver.tag(tagname, force, message)
     }
 
-    fn init(&self) -> Result<bool> {
+    fn init(&self) -> Result<GenericResult> {
         self.driver.init()
     }
 
@@ -224,7 +258,16 @@ impl RevisionControlAPI for RevisionControl {
         self.driver.is_initialized()
     }
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str) -> Result<String> {
-        self.driver.checkin(files_or_dirs, msg)
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> Result<GenericResult> {
+        self.driver.checkin(files_or_dirs, msg, dry_run)
+    }
+
+    fn system(&self) -> &str {
+        self.driver.system()
     }
 }

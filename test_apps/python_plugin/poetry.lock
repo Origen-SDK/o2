@@ -390,11 +390,11 @@ python-versions = "*"
 
 [[package]]
 name = "origen"
-version = "2.0.0.dev4"
-description = "Python interface to the Origen-SDK backend: https://origen-sdk.org/o2"
+version = "2.0.0.dev5"
+description = "Semiconductor Developer's Kit"
 category = "main"
 optional = false
-python-versions = "^3.6"
+python-versions = ">=3.6,<3.9"
 develop = true
 
 [package.dependencies]
@@ -885,8 +885,8 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 
 [metadata]
 lock-version = "1.1"
-python-versions = "^3.6"
-content-hash = "cf670c1ad77d7638fcdd9e213ea0ddc3a9bb8a0fc2c0378f00fc69d26d53879c"
+python-versions = ">=3.6,<3.9"
+content-hash = "6d259f109cdcbdd728c8379a3827e2d03a9e30a58dd209be262c29c0e3df8c35"
 
 [metadata.files]
 alabaster = [

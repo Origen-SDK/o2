@@ -10,6 +10,7 @@ pub mod github;
 pub mod ldap;
 pub mod mailer;
 pub mod num_helpers;
+pub mod release_scribe;
 pub mod session_store;
 pub mod version;
 

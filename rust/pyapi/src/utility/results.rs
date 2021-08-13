@@ -34,20 +34,25 @@ pub struct GenericResult {
 #[pymethods]
 impl GenericResult {
     #[classmethod]
-    #[args(message = "None", metadata = "None")]
+    #[args(message = "None", metadata = "None", use_pass_fail = "false")]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
         succeeded: bool,
         message: Option<String>,
+        use_pass_fail: bool,
         metadata: Option<&PyDict>,
     ) -> PyResult<()> {
         let mut i = instance.extract::<PyRefMut<Self>>()?;
-        i.generic_result = Some(OrigenGenericResult {
-            succeeded: succeeded,
-            message: message,
-            metadata: from_optional_pydict(metadata)?,
-        });
+        let mut gr;
+        if use_pass_fail {
+            gr = OrigenGenericResult::new_pass_or_fail(succeeded);
+        } else {
+            gr = OrigenGenericResult::new_success_or_fail(succeeded);
+        }
+        gr.message = message;
+        gr.metadata = from_optional_pydict(metadata)?;
+        i.generic_result = Some(gr);
         Ok(())
     }
 
@@ -60,7 +65,7 @@ impl GenericResult {
 
     #[getter]
     fn succeeded(&self) -> PyResult<bool> {
-        Ok(self.generic_result()?.succeeded)
+        Ok(self.generic_result()?.succeeded())
     }
 
     #[getter]
@@ -79,6 +84,14 @@ impl GenericResult {
         let py = gil.python();
         into_optional_pyobj(py, self.generic_result()?.metadata.as_ref())
     }
+
+    pub fn gist(&self) -> PyResult<()> {
+        Ok(self.generic_result()?.gist())
+    }
+
+    pub fn summarize_and_exit(&self) -> PyResult<()> {
+        Ok(self.generic_result()?.summarize_and_exit())
+    }
 }
 
 impl GenericResult {
@@ -87,6 +100,10 @@ impl GenericResult {
             Some(r) => Ok(r),
             None => return crate::incomplete_result_error!("Generic Result"),
         }
+    }
+
+    pub fn into_origen(&self) -> PyResult<OrigenGenericResult> {
+        Ok(self.generic_result()?.clone())
     }
 
     pub fn to_py(py: Python, generic_result: &OrigenGenericResult) -> PyResult<Py<Self>> {
