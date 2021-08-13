@@ -1,7 +1,7 @@
 use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::utility::file_utils::with_dir;
-use crate::{Error, Result, GenericResult};
+use crate::{Error, GenericResult, Result};
 use chrono::offset::Utc;
 use regex::Regex;
 use std::fs;
@@ -122,7 +122,12 @@ impl RevisionControlAPI for Designsync {
         todo!();
     }
 
-    fn checkin(&self, _files_or_dirs: Option<Vec<&Path>>, _msg: &str, _dry_run: bool) -> Result<GenericResult> {
+    fn checkin(
+        &self,
+        _files_or_dirs: Option<Vec<&Path>>,
+        _msg: &str,
+        _dry_run: bool,
+    ) -> Result<GenericResult> {
         todo!();
     }
 }

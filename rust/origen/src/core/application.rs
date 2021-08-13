@@ -128,7 +128,12 @@ impl Application {
         })
     }
 
-    pub fn rc_checkin(&self, pathspecs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> Result<GenericResult> {
+    pub fn rc_checkin(
+        &self,
+        pathspecs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> Result<GenericResult> {
         crate::with_frontend_app(|app| {
             let rc = app.get_rc()?;
             rc.checkin(pathspecs.clone(), msg, dry_run)
@@ -183,9 +188,9 @@ impl Application {
             } else {
                 let rc = app.get_rc()?;
                 rc.checkin(
-                    Some(files.iter().map( |f| f.as_path()).collect()),
+                    Some(files.iter().map(|f| f.as_path()).collect()),
                     "Recorded new version in the version tracker",
-                    false
+                    false,
                 )?;
                 rc.tag(&new_v.to_string(), false, None)?;
             }
@@ -229,7 +234,7 @@ impl Application {
                 log_trace!("Bypassing building and uploading app");
             }
 
-            // Mailer here is 'optional', in that we won't hold up the 
+            // Mailer here is 'optional', in that we won't hold up the
             // release because of it, but will throw out lots of red text
             // if not explicitly marked as okay to skip
             // if let Some(m) = app.mailer()? {

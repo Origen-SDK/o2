@@ -1,10 +1,10 @@
 use crate::{Metadata, Result};
 
 pub mod callbacks;
+use crate::utility::version::Version;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use crate::utility::version::Version;
 
 pub fn with_frontend_app<T, F>(mut func: F) -> Result<T>
 where
@@ -182,7 +182,12 @@ pub trait UnitTester {
 pub trait RC {
     fn is_modified(&self) -> Result<bool>;
     fn status(&self) -> Result<crate::revision_control::Status>;
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> Result<GenericResult>;
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> Result<GenericResult>;
     fn tag(&self, tag: &str, force: bool, msg: Option<&str>) -> Result<()>;
     fn system(&self) -> Result<String>;
     fn init(&self) -> Result<GenericResult>;
@@ -224,7 +229,13 @@ pub trait ReleaseScribe {
     fn history_tracking_file(&self) -> Result<PathBuf>;
 
     /// Updates the history file given the release, title, and release note body
-    fn append_history(&self, version: &Version, title: Option<&str>, text: &str, dry_run: bool) -> Result<()>;
+    fn append_history(
+        &self,
+        version: &Version,
+        title: Option<&str>,
+        text: &str,
+        dry_run: bool,
+    ) -> Result<()>;
 
     // fn read_history(&self) -> Result<Option<ReleaseHistory>>;
     // fn last_update(&self) -> Result<Option<ReleaseHistory>>;
@@ -232,14 +243,20 @@ pub trait ReleaseScribe {
     /// Returns a list of all files that should be checked into revision control.
     /// By default, this is only the history toml file.
     fn rc_files(&self) -> Result<Vec<PathBuf>> {
-        Ok(vec!(self.history_tracking_file()?.clone()))
+        Ok(vec![self.history_tracking_file()?.clone()])
     }
 
     /// Goes through the process of getting release notes, updating the files, and
     /// returning whatever should be checked into revision control.
     /// Title and body can be given if derived elsewhere (e.g., from CLI),
     /// but normal retrieval process ensues if empty.
-    fn publish(&self, release: &Version, title: Option<Option<&str>>, body: Option<&str>, dry_run: bool) -> Result<Vec<PathBuf>> {
+    fn publish(
+        &self,
+        release: &Version,
+        title: Option<Option<&str>>,
+        body: Option<&str>,
+        dry_run: bool,
+    ) -> Result<Vec<PathBuf>> {
         let t: String;
         let b: String;
         self.append_history(
@@ -262,7 +279,7 @@ pub trait ReleaseScribe {
                     &b
                 }
             },
-            dry_run
+            dry_run,
         )?;
         self.rc_files()
     }
@@ -335,7 +352,7 @@ type AsVerb = String;
 pub enum GenericResultState {
     Success(AsNoun, AsVerb),
     Fail(AsNoun, AsVerb),
-    Error(AsNoun, AsVerb)
+    Error(AsNoun, AsVerb),
 }
 
 impl GenericResultState {
@@ -390,7 +407,7 @@ impl GenericResult {
         Self {
             state,
             message: None,
-            metadata: None
+            metadata: None,
         }
     }
 
@@ -457,21 +474,21 @@ impl GenericResult {
     pub fn succeeded(&self) -> bool {
         match self.state {
             GenericResultState::Success(_, _) => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn failed(&self) -> bool {
         match self.state {
             GenericResultState::Fail(_, _) => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn errored(&self) -> bool {
         match self.state {
             GenericResultState::Error(_, _) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -479,7 +496,6 @@ impl GenericResult {
         self.message = Some(message.to_string());
         self
     }
-
 
     pub fn add_metadata(&mut self, key: &str, m: Metadata) -> Result<&mut Self> {
         if self.metadata.is_none() {
@@ -494,10 +510,10 @@ impl GenericResult {
         match &self.state {
             GenericResultState::Success(_, _) => {
                 display_greenln!("{}", self.as_verb());
-            },
+            }
             GenericResultState::Fail(_, _) => {
                 display_redln!("{}", self.as_verb());
-            },
+            }
             GenericResultState::Error(_, _) => {
                 display_redln!("{}", self.as_verb());
             }
@@ -513,11 +529,11 @@ impl GenericResult {
                 } else {
                     exit_success!();
                 }
-            },
+            }
             GenericResultState::Fail(_, _) => {
                 display_redln!("{}", self.as_verb());
                 exit_fail!();
-            },
+            }
             GenericResultState::Error(_, _) => {
                 display_redln!("{}", self.as_verb());
                 exit_error!();

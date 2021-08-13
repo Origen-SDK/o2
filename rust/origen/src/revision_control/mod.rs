@@ -1,7 +1,7 @@
 pub mod designsync;
 pub mod git;
 
-use crate::{Result, GenericResult};
+use crate::{GenericResult, Result};
 use designsync::Designsync;
 use git::Git;
 use std::collections::HashMap;
@@ -219,7 +219,12 @@ pub trait RevisionControlAPI: std::fmt::Debug {
     /// Indicate if the path of the RC driver is initialized
     fn is_initialized(&self) -> Result<bool>;
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> Result<GenericResult>;
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> Result<GenericResult>;
 
     fn system(&self) -> &str;
 }
@@ -253,7 +258,12 @@ impl RevisionControlAPI for RevisionControl {
         self.driver.is_initialized()
     }
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> Result<GenericResult> {
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> Result<GenericResult> {
         self.driver.checkin(files_or_dirs, msg, dry_run)
     }
 

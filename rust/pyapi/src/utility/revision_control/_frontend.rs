@@ -1,10 +1,10 @@
 use crate::application::{get_pyapp, PyApplication};
-use origen::Result as OResult;
+use crate::utility::results::GenericResult as PyGenericResult;
 use origen::core::frontend::GenericResult as OGenericResult;
+use origen::Result as OResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::Path;
-use crate::utility::results::GenericResult as PyGenericResult;
 
 pub struct RC {}
 
@@ -29,7 +29,12 @@ impl origen::core::frontend::RC for RC {
         Ok(rusty_stat.stat().clone())
     }
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> OResult<OGenericResult> {
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> OResult<OGenericResult> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pyapp = get_pyapp(py)?;

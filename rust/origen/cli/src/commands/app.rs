@@ -44,10 +44,15 @@ pub fn run(cmd: &ArgMatches) {
                 args.insert("dry-run", "True".to_string());
             }
             if let Some(pathspecs) = sub.values_of("pathspecs") {
-                let p = pathspecs.map(|ps| format!("\"{}\"", ps)).collect::<Vec<String>>();
+                let p = pathspecs
+                    .map(|ps| format!("\"{}\"", ps))
+                    .collect::<Vec<String>>();
                 args.insert("pathspecs", format!("[{}]", p.join(",")));
             }
-            args.insert("msg", format!("\"{}\"", sub.value_of("message").unwrap().to_string()));
+            args.insert(
+                "msg",
+                format!("\"{}\"", sub.value_of("message").unwrap().to_string()),
+            );
             _run("app:checkin", sub, Some(args));
         }
         "package" => {

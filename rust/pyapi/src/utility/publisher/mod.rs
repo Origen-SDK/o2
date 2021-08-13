@@ -26,7 +26,10 @@ fn app_publisher() -> PyResult<Option<PyObject>> {
                     Some(config) => Some(config),
                     None => {
                         default = HashMap::new();
-                        default.insert("system".to_string(), "origen.utility.publishers.poetry.Poetry".to_string());
+                        default.insert(
+                            "system".to_string(),
+                            "origen.utility.publishers.poetry.Poetry".to_string(),
+                        );
                         Some(&default)
                     }
                 },

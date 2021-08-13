@@ -63,7 +63,7 @@ impl std::convert::From<PyErr> for Error {
                 pyo3::PyErrValue::Value(e) => {
                     let r = e.call_method0(py, "__str__").unwrap();
                     r.extract::<String>(py).unwrap()
-                },
+                }
                 pyo3::PyErrValue::ToObject(e) => {
                     let pyobj_e = e.to_object(py);
                     let r = pyobj_e.call_method0(py, "__str__").unwrap();
@@ -85,7 +85,7 @@ impl std::convert::From<PyErr> for Error {
 
                     format!("\nWith traceback:\n{}", text.join(""))
                 }
-                _ => "".to_string()
+                _ => "".to_string(),
             }
         ))
     }

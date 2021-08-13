@@ -118,7 +118,8 @@ class Base(_origen.application.PyApplication):
             self._unit_tester = _origen.utility.unit_testers.app_unit_tester()
             #self._linter = _origen.utility.linter.app_linter()
             self._publisher = _origen.utility.publisher.app_publisher()
-            self._release_scribe = _origen.utility.release_scribe.app_release_scribe()
+            self._release_scribe = _origen.utility.release_scribe.app_release_scribe(
+            )
         else:
             self._plugin = True
             self._root = options["root"]

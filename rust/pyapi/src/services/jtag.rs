@@ -52,7 +52,12 @@ impl JTAG {
     }
 
     #[args(width = "None", kwargs = "**")]
-    fn write_dr(&self, bits_or_val: &PyAny, width: Option<u32>, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    fn write_dr(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
         let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_write_transaction(&dut)?;
@@ -66,7 +71,12 @@ impl JTAG {
     }
 
     #[args(width = "None", kwargs = "**")]
-    fn verify_dr(&self, bits_or_val: &PyAny, width: Option<u32>, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    fn verify_dr(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
         let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_verify_transaction(&dut)?;
@@ -80,7 +90,12 @@ impl JTAG {
     }
 
     #[args(width = "None", kwargs = "**")]
-    fn write_ir(&self, bits_or_val: &PyAny, width: Option<u32>, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    fn write_ir(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
         let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_write_transaction(&dut)?;
@@ -94,7 +109,12 @@ impl JTAG {
     }
 
     #[args(width = "None", kwargs = "**")]
-    fn verify_ir(&self, bits_or_val: &PyAny, width: Option<u32>, kwargs: Option<&PyDict>) -> PyResult<Self> {
+    fn verify_ir(
+        &self,
+        bits_or_val: &PyAny,
+        width: Option<u32>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<Self> {
         let dut = origen::dut();
         let value = extract_value(bits_or_val, Some(width.unwrap_or(32)), &dut)?;
         let mut trans = value.to_verify_transaction(&dut)?;

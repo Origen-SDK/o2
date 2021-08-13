@@ -2,12 +2,12 @@
 
 use super::get_pyapp;
 use crate::utility::linter::_frontend::Linter;
+use crate::utility::mailer::_frontend::Mailer;
 use crate::utility::publisher::_frontend::Publisher;
+use crate::utility::release_scribe::_frontend::ReleaseScribe;
 use crate::utility::revision_control::_frontend::RC;
 use crate::utility::unit_testers::_frontend::UnitTester;
 use crate::utility::website::_frontend::Website;
-use crate::utility::mailer::_frontend::Mailer;
-use crate::utility::release_scribe::_frontend::ReleaseScribe;
 use pyo3::prelude::*;
 
 pub struct App {

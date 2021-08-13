@@ -1,10 +1,10 @@
-use std::path::PathBuf;
-use crate::{Result, STATUS};
 use crate::utility::version::Version;
+use crate::{Result, STATUS};
 use dialoguer::{Input, Select};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
-use std::collections::HashMap;
+use std::path::PathBuf;
 
 const TITLE_ID: &str = "title";
 const BODY_ID: &str = "body";
@@ -14,7 +14,7 @@ const HISTORY_FILE_NAME: &str = "history.generated.toml";
 
 pub struct ReleaseScribe {
     pub history_toml: PathBuf,
-    pub release_file: PathBuf
+    pub release_file: PathBuf,
 }
 
 impl ReleaseScribe {
@@ -23,12 +23,16 @@ impl ReleaseScribe {
         let dir;
         match &STATUS.app {
             Some(app) => dir = &app.root,
-            None => return error!("ReleaseScribe currently requires an application! No application found.")
+            None => {
+                return error!(
+                    "ReleaseScribe currently requires an application! No application found."
+                )
+            }
         }
 
         Ok(Self {
             history_toml: PathBuf::from(format!("{}/config/{}", dir.display(), HISTORY_FILE_NAME)),
-            release_file: PathBuf::from(format!("{}/release_note.txt", dir.display()))
+            release_file: PathBuf::from(format!("{}/release_note.txt", dir.display())),
         })
     }
 
@@ -59,7 +63,10 @@ impl ReleaseScribe {
                 content = self.release_body_dialog()?;
             }
         } else {
-            log_trace!("No release note found at {}. Running dialog...", self.release_file.display());
+            log_trace!(
+                "No release note found at {}. Running dialog...",
+                self.release_file.display()
+            );
             content = self.release_body_dialog()?;
         }
         Ok(content)
@@ -74,24 +81,18 @@ impl ReleaseScribe {
             .with_prompt("Enter release title (leave empty for no title)")
             .allow_empty(true)
             .interact()?;
-        Ok(if title.is_empty() {
-            None
-        } else {
-            Some(title)
-        })
+        Ok(if title.is_empty() { None } else { Some(title) })
     }
 
     fn release_body_dialog(&self) -> Result<String> {
         let mut body: String;
         loop {
-            body = Input::new()
-                .with_prompt("Enter release note")
-                .interact()?;
+            body = Input::new().with_prompt("Enter release note").interact()?;
 
             if body.is_empty() {
                 log_error!("Release body cannot be empty!");
             } else {
-                return Ok(body)
+                return Ok(body);
             }
         }
     }
@@ -112,29 +113,43 @@ impl ReleaseScribe {
             .item("No")
             .default(1)
             .interact()?;
-        
+
         Ok(choice == 0)
     }
 
     pub fn create_history_toml(&self) -> Result<()> {
         let mut f = File::create(&self.history_toml)?;
-        f.write_all(format!(
-            "# This file is automatically handled by Origen's release scribe.\n\
+        f.write_all(
+            format!(
+                "# This file is automatically handled by Origen's release scribe.\n\
             # Initial version created with Origen-backend version {}\n\
             \n[releases]\n\n",
-            &crate::STATUS.origen_version
-        ).as_bytes())?;
+                &crate::STATUS.origen_version
+            )
+            .as_bytes(),
+        )?;
         Ok(())
     }
 
-    fn append_history_inner(&self, version: &Version, title: Option<String>, body: Option<String>) -> Result<()> {
+    fn append_history_inner(
+        &self,
+        version: &Version,
+        title: Option<String>,
+        body: Option<String>,
+    ) -> Result<()> {
         if !self.history_toml.is_file() {
-            log_trace!("Creating history toml file at {}", self.history_toml.display());
+            log_trace!(
+                "Creating history toml file at {}",
+                self.history_toml.display()
+            );
             self.create_history_toml()?;
         }
 
         let mut m = toml::value::Map::new();
-        m.insert(DATETIME_ID.to_string(), chrono::Local::now().to_string().into());
+        m.insert(
+            DATETIME_ID.to_string(),
+            chrono::Local::now().to_string().into(),
+        );
         if let Some(t) = title {
             m.insert(TITLE_ID.to_string(), t.into());
         }
@@ -142,19 +157,31 @@ impl ReleaseScribe {
             m.insert(BODY_ID.to_string(), b.into());
         }
 
-        let mut f = std::fs::OpenOptions::new().append(true).open(&self.history_toml)?;
-        f.write(format!(
-            "[releases.\"{}\"]\n{}\n",
-            version.to_string(),
-            toml::to_string_pretty(&m)?
-        ).as_bytes())?;
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&self.history_toml)?;
+        f.write(
+            format!(
+                "[releases.\"{}\"]\n{}\n",
+                version.to_string(),
+                toml::to_string_pretty(&m)?
+            )
+            .as_bytes(),
+        )?;
         Ok(())
     }
 
-    pub fn append_history(&mut self, version: &Version, title: Option<String>, body: Option<String>, dry_run: bool) -> Result<()> {
+    pub fn append_history(
+        &mut self,
+        version: &Version,
+        title: Option<String>,
+        body: Option<String>,
+        dry_run: bool,
+    ) -> Result<()> {
         if dry_run {
             log_trace!("Switching history file to dry-run temp file");
-            self.history_toml.set_file_name(HISTORY_FILE_NAME.replace(".toml", ".dry_run.toml"));
+            self.history_toml
+                .set_file_name(HISTORY_FILE_NAME.replace(".toml", ".dry_run.toml"));
         }
         let r = self.append_history_inner(version, title, body);
         if dry_run {
@@ -178,7 +205,7 @@ impl ReleaseScribe {
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct ReleaseHistory {
-    releases: indexmap::IndexMap<String, Release>
+    releases: indexmap::IndexMap<String, Release>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]

@@ -153,8 +153,6 @@ impl Status {
     }
 
     pub fn from_origen(stat: OrigenStatus) -> Self {
-        Self {
-            stat
-        }
+        Self { stat }
     }
 }

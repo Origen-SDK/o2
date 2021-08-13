@@ -1,7 +1,7 @@
 use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
-use crate::Result as OrigenResult;
 use crate::GenericResult;
+use crate::Result as OrigenResult;
 use git2::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -228,7 +228,9 @@ impl RevisionControlAPI for Git {
 
         if self.is_initialized()? {
             // Already initialized. Return Ok but indicate that nothing actually happened
-            return Ok(GenericResult::new_success_with_msg("Workspace already initialized"));
+            return Ok(GenericResult::new_success_with_msg(
+                "Workspace already initialized",
+            ));
         }
 
         let repo;
@@ -254,13 +256,20 @@ impl RevisionControlAPI for Git {
         Ok(GenericResult::new_success_with_msg(msg))
     }
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> OrigenResult<GenericResult> {
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> OrigenResult<GenericResult> {
         let repo = Repository::open(&self.local)?;
         let mut index = repo.index()?;
         if let Some(pathspecs) = files_or_dirs {
             if pathspecs.is_empty() {
                 log_trace!("RevisionControl: Git: No pathspecs specified - no checkins occurred");
-                return Ok(GenericResult::new_success_with_msg(self.current_commit_id(&repo)?));
+                return Ok(GenericResult::new_success_with_msg(
+                    self.current_commit_id(&repo)?,
+                ));
             } else {
                 log_trace!(
                     "RevisionControl: Git: Adding files from pathspecs: {:?}",
@@ -276,7 +285,13 @@ impl RevisionControlAPI for Git {
                         let pbuf = p.canonicalize()?;
                         match pbuf.strip_prefix(&self.local.canonicalize()?) {
                             Ok(_p) => doctored.push(_p.to_path_buf()),
-                            Err(_) => return error!("Pathspec {} is outside of the current repo {}", p.display().to_string(), self.local.display().to_string())
+                            Err(_) => {
+                                return error!(
+                                    "Pathspec {} is outside of the current repo {}",
+                                    p.display().to_string(),
+                                    self.local.display().to_string()
+                                )
+                            }
                         }
                     } else {
                         doctored.push(p.to_path_buf());
@@ -285,15 +300,16 @@ impl RevisionControlAPI for Git {
                 for p in doctored {
                     log_trace!("Git: Processing spec \"{}\"", p.display());
                     index.add_all(
-                        vec!(p),
-                        git2::IndexAddOption::DEFAULT, Some(&mut |p, _spec| {
+                        vec![p],
+                        git2::IndexAddOption::DEFAULT,
+                        Some(&mut |p, _spec| {
                             log_trace!("Git: Updating item \"{}\"", p.display());
                             if dry_run {
                                 1
                             } else {
                                 0
                             }
-                        })
+                        }),
                     )?;
                 }
             }
@@ -302,14 +318,15 @@ impl RevisionControlAPI for Git {
             log_trace!("Git: Processing spec: \"*\"");
             index.add_all(
                 vec!["*"],
-                git2::IndexAddOption::DEFAULT, Some(&mut |p, _spec| {
+                git2::IndexAddOption::DEFAULT,
+                Some(&mut |p, _spec| {
                     log_trace!("Git: Updating item \"{:?}\"", p);
                     if dry_run {
                         1
                     } else {
                         0
                     }
-                })
+                }),
             )?;
         }
         if dry_run {

@@ -1,12 +1,12 @@
 use super::Status;
 use crate::runtime_error;
+use crate::utility::results::GenericResult as PyGenericResult;
 use origen::revision_control::git::Git as OrigenGit;
 use origen::revision_control::RevisionControlAPI;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple, PyType};
 use std::collections::HashMap;
 use std::path::Path;
-use crate::utility::results::GenericResult as PyGenericResult;
 
 pub static PY_GIT_MOD_PATH: &str = "origen.utility.revision_control.git";
 
@@ -126,7 +126,7 @@ impl Git {
             }
             match kw.get_item("dry-run") {
                 Some(d) => dry_run = d.extract::<bool>()?,
-                None => dry_run = false
+                None => dry_run = false,
             }
         } else {
             return runtime_error!("A 'msg' is required for checkin operations");
@@ -137,12 +137,18 @@ impl Git {
             let p = path.extract::<&str>()?;
             rusty_paths.push(Path::new(p));
         }
-        Ok(PyGenericResult::from_origen(self.rc()?.checkin(Some(rusty_paths), &msg, dry_run)?))
+        Ok(PyGenericResult::from_origen(self.rc()?.checkin(
+            Some(rusty_paths),
+            &msg,
+            dry_run,
+        )?))
     }
 
     #[args(dry_run = "false")]
     fn checkin_all(&self, msg: &str, dry_run: bool) -> PyResult<PyGenericResult> {
-        Ok(PyGenericResult::from_origen(self.rc()?.checkin(None, msg, dry_run)?))
+        Ok(PyGenericResult::from_origen(
+            self.rc()?.checkin(None, msg, dry_run)?,
+        ))
     }
 
     fn system(&self) -> PyResult<String> {
