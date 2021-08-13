@@ -13,6 +13,7 @@ pub mod transaction;
 pub mod unit_testers;
 pub mod version;
 pub mod website;
+pub mod release_scribe;
 
 use ldap::PyInit_ldap;
 use linter::PyInit_linter;
@@ -24,6 +25,7 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 use results::PyInit_results;
 use revision_control::PyInit_revision_control;
 use session_store::PyInit_session_store;
+use release_scribe::PyInit_release_scribe;
 use transaction::Transaction;
 use unit_testers::PyInit_unit_testers;
 use version::Version;
@@ -50,6 +52,7 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(unit_testers))?;
     m.add_wrapped(wrap_pymodule!(publisher))?;
     m.add_wrapped(wrap_pymodule!(linter))?;
+    m.add_wrapped(wrap_pymodule!(release_scribe))?;
     m.add_wrapped(wrap_pymodule!(results))?;
     m.add_wrapped(wrap_pymodule!(website))?;
     m.add_wrapped(wrap_pyfunction!(exec))?;
@@ -157,7 +160,11 @@ where
             }
         } else {
             // Invalid config
-            return runtime_error!(format!("Could not discern {} from app config", name));
+            return runtime_error!(format!(
+                "Could not discern {} from the app config! \
+                No 'system' was specified and default is available!",
+                name
+            ));
         }
     } else {
         if let Some(mut cb) = callback_function {

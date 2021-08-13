@@ -16,12 +16,20 @@ pub fn publisher(_py: Python, m: &PyModule) -> PyResult<()> {
 /// Creates a publisher from the application's ``config.toml``
 #[pyfunction]
 fn app_publisher() -> PyResult<Option<PyObject>> {
+    let mut default;
     match &STATUS.app {
         Some(a) => {
             let c = a.config();
             app_utility(
                 "publisher",
-                c.publisher.as_ref(),
+                match &c.release_scribe {
+                    Some(config) => Some(config),
+                    None => {
+                        default = HashMap::new();
+                        default.insert("system".to_string(), "origen.utility.publishers.poetry.Poetry".to_string());
+                        Some(&default)
+                    }
+                },
                 None::<fn(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>>,
             )
         }

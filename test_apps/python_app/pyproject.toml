@@ -5,7 +5,7 @@ description = ""
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = ">=3.6,<3.9"
 origen = { path = "../../python", develop = true }
 python_plugin = { path = "../python_plugin", develop = true }
 

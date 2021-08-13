@@ -59,14 +59,9 @@ pub fn dispatch_workflow(
     let status = response.status().as_u16() as usize;
     let body = futures::executor::block_on(response.text())?;
 
-    let mut res = GenericResult::new_with_empty_metadata(body.is_empty(), Some(body));
-    res.metadata.as_mut().unwrap().insert(
-        "header".to_string(),
-        Metadata::String(format!("{:?}", headers)),
-    );
-    res.metadata
-        .as_mut()
-        .unwrap()
-        .insert("status".to_string(), Metadata::Usize(status));
+    let mut res = GenericResult::new_success_or_fail(body.is_empty());
+    res.set_msg(body);
+    res.add_metadata("header", Metadata::String(format!("{:?}", headers)))?;
+    res.add_metadata("status", Metadata::Usize(status))?;
     Ok(res)
 }

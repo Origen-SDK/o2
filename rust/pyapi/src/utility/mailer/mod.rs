@@ -1,3 +1,5 @@
+pub mod _frontend;
+
 use origen::utility::mailer::Maillist as OrigenML;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;

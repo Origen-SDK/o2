@@ -1,8 +1,10 @@
 use crate::application::{get_pyapp, PyApplication};
 use origen::Result as OResult;
+use origen::core::frontend::GenericResult as OGenericResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::Path;
+use crate::utility::results::GenericResult as PyGenericResult;
 
 pub struct RC {}
 
@@ -27,7 +29,7 @@ impl origen::core::frontend::RC for RC {
         Ok(rusty_stat.stat().clone())
     }
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str) -> OResult<String> {
+    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> OResult<OGenericResult> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pyapp = get_pyapp(py)?;
@@ -35,6 +37,7 @@ impl origen::core::frontend::RC for RC {
 
         let kwargs = PyDict::new(py);
         kwargs.set_item("msg", msg)?;
+        kwargs.set_item("dry_run", dry_run)?;
 
         let r;
         if let Some(f) = files_or_dirs {
@@ -53,7 +56,8 @@ impl origen::core::frontend::RC for RC {
                 Some(kwargs),
             )?;
         }
-        Ok(r.extract::<String>(py)?)
+        let gr = r.extract::<PyRef<PyGenericResult>>(py)?;
+        Ok(gr.into_origen()?)
     }
 
     fn tag(&self, tag: &str, force: bool, msg: Option<&str>) -> OResult<()> {
@@ -68,5 +72,26 @@ impl origen::core::frontend::RC for RC {
 
         rc.call_method(py, "tag", PyTuple::new(py, &[tag]), Some(kwargs))?;
         Ok(())
+    }
+
+    fn init(&self) -> OResult<OGenericResult> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let pyapp = get_pyapp(py)?;
+        let rc = PyApplication::_get_rc(pyapp, py)?;
+
+        let r = rc.call_method0(py, "init")?;
+        let gr = r.extract::<PyRef<PyGenericResult>>(py)?;
+        Ok(gr.into_origen()?)
+    }
+
+    fn system(&self) -> OResult<String> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let pyapp = get_pyapp(py)?;
+        let rc = PyApplication::_get_rc(pyapp, py)?;
+
+        let r = rc.call_method0(py, "system")?;
+        Ok(r.extract::<String>(py)?)
     }
 }

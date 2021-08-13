@@ -1,6 +1,7 @@
 use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::Result as OrigenResult;
+use crate::GenericResult;
 use git2::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -78,6 +79,10 @@ pub struct Git {
 }
 
 impl RevisionControlAPI for Git {
+    fn system(&self) -> &str {
+        "Git"
+    }
+
     fn populate(&self, version: &str) -> OrigenResult<()> {
         let mut ssh_remotes: Vec<&str> = vec![];
         let mut https_remotes: Vec<&str> = vec![];
@@ -214,7 +219,7 @@ impl RevisionControlAPI for Git {
         }
     }
 
-    fn init(&self) -> OrigenResult<bool> {
+    fn init(&self) -> OrigenResult<GenericResult> {
         log_trace!(
             "Initializing new Git workspace at '{}' (Remote(s): '{:?}')",
             &self.local.display(),
@@ -223,36 +228,95 @@ impl RevisionControlAPI for Git {
 
         if self.is_initialized()? {
             // Already initialized. Return Ok but indicate that nothing actually happened
-            return Ok(false);
+            return Ok(GenericResult::new_success_with_msg("Workspace already initialized"));
         }
 
         let repo;
         repo = Repository::init(&self.local)?;
         repo.remote("origin", &self.remotes[0])?;
-        log_trace!("Initialized git workspace at '{}'", self.local.display());
-        Ok(true)
+
+        // Create a first commit, but without actually adding anything.
+        // This will just be the parents for other commits.
+        log_trace!("Initializing Git index file");
+        let tree_id = {
+            let mut index = repo.index()?;
+            index.write_tree()?
+        };
+        let tree = repo.find_tree(tree_id)?;
+
+        // Create the first commit. Will not be pushed, however.
+        log_trace!("Creating first commit");
+        let sig = repo.signature()?;
+        repo.commit(Some("HEAD"), &sig, &sig, "Initialing Workspace", &tree, &[])?;
+
+        let msg = format!("Initialized git workspace at '{}'", self.local.display());
+        log_trace!("{}", &msg);
+        Ok(GenericResult::new_success_with_msg(msg))
     }
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str) -> OrigenResult<String> {
+    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> OrigenResult<GenericResult> {
         let repo = Repository::open(&self.local)?;
         let mut index = repo.index()?;
         if let Some(pathspecs) = files_or_dirs {
             if pathspecs.is_empty() {
                 log_trace!("RevisionControl: Git: No pathspecs specified - no checkins occurred");
-                return self.current_commit_id(&repo);
+                return Ok(GenericResult::new_success_with_msg(self.current_commit_id(&repo)?));
             } else {
                 log_trace!(
                     "RevisionControl: Git: Adding files from pathspecs: {:?}",
                     pathspecs
                 );
+
+                // The git driver requires all paths to be relative to the root. Convert any absolute paths here.
+                // We'll also check that the pathspecs are valid. If an error is thrown in the middle of processing,
+                // we'll get into an intermediate state. Easy enough to just pre-check the values.
+                let mut doctored: Vec<PathBuf> = vec![];
                 for p in pathspecs {
-                    index.add_all(p, git2::IndexAddOption::DEFAULT, None)?;
+                    if p.is_absolute() {
+                        let pbuf = p.canonicalize()?;
+                        match pbuf.strip_prefix(&self.local.canonicalize()?) {
+                            Ok(_p) => doctored.push(_p.to_path_buf()),
+                            Err(_) => return error!("Pathspec {} is outside of the current repo {}", p.display().to_string(), self.local.display().to_string())
+                        }
+                    } else {
+                        doctored.push(p.to_path_buf());
+                    }
+                }
+                for p in doctored {
+                    log_trace!("Git: Processing spec \"{}\"", p.display());
+                    index.add_all(
+                        vec!(p),
+                        git2::IndexAddOption::DEFAULT, Some(&mut |p, _spec| {
+                            log_trace!("Git: Updating item \"{}\"", p.display());
+                            if dry_run {
+                                1
+                            } else {
+                                0
+                            }
+                        })
+                    )?;
                 }
             }
         } else {
             log_trace!("RevisionControl: Git: Adding all files ");
-            index.update_all(&["."], None)?;
+            log_trace!("Git: Processing spec: \"*\"");
+            index.add_all(
+                vec!["*"],
+                git2::IndexAddOption::DEFAULT, Some(&mut |p, _spec| {
+                    log_trace!("Git: Updating item \"{:?}\"", p);
+                    if dry_run {
+                        1
+                    } else {
+                        0
+                    }
+                })
+            )?;
         }
+        if dry_run {
+            log_trace!("RevisionControl: Git: Bailing early due to dry-run option");
+            return Ok(GenericResult::new_success_with_msg("Dry-Run-Only"));
+        }
+
         let tree_id = index.write_tree()?;
         log_trace!("RevisionControl: Git: Wrote index file");
 
@@ -306,7 +370,7 @@ impl RevisionControlAPI for Git {
         });
         log_trace!("Cleaning up after push...");
         repo.checkout_index(None, None)?;
-        Ok(commit_id.to_string())
+        Ok(GenericResult::new_success_with_msg(commit_id))
     }
 }
 

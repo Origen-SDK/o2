@@ -103,6 +103,10 @@ class Base(_origen.application.PyApplication):
     def unit_tester(self):
         return self._unit_tester
 
+    @property
+    def release_scribe(self):
+        return self._release_scribe
+
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()
@@ -114,6 +118,7 @@ class Base(_origen.application.PyApplication):
             self._unit_tester = _origen.utility.unit_testers.app_unit_tester()
             #self._linter = _origen.utility.linter.app_linter()
             self._publisher = _origen.utility.publisher.app_publisher()
+            self._release_scribe = _origen.utility.release_scribe.app_release_scribe()
         else:
             self._plugin = True
             self._root = options["root"]

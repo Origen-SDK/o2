@@ -58,7 +58,7 @@ use utility::session_store::{SessionStore, Sessions};
 
 pub use self::core::frontend::callbacks as CALLBACKS;
 pub use self::core::frontend::{
-    emit_callback, with_frontend, with_frontend_app, with_optional_frontend,
+    emit_callback, with_frontend, with_frontend_app, with_optional_frontend, GenericResult
 };
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -59,7 +59,15 @@ fn app_rc() -> PyResult<Option<PyObject>> {
             for (k, v) in rc_config.iter() {
                 py_rc_config.set_item(k, v)?;
             }
-            py_rc_config.set_item("local", app.root.display().to_string())?;
+            if let Some(r) = rc_config.get("local") {
+                let mut p = std::path::PathBuf::from(r);
+                if p.is_relative() {
+                    p = app.root.join(p);
+                }
+                py_rc_config.set_item("local", p.display().to_string())?;
+            } else {
+                py_rc_config.set_item("local", app.root.display().to_string())?;
+            }
             locals.set_item("py_rc_config", py_rc_config)?;
             locals.set_item("origen_git", py.import(PY_GIT_MOD_PATH)?.to_object(py))?;
 
@@ -133,10 +141,20 @@ impl Status {
     fn is_modified(&self) -> PyResult<bool> {
         Ok(self.stat.is_modified())
     }
+
+    fn summarize(&self) -> PyResult<()> {
+        Ok(self.stat.summarize())
+    }
 }
 
 impl Status {
     pub fn stat(&self) -> &OrigenStatus {
         &self.stat
+    }
+
+    pub fn from_origen(stat: OrigenStatus) -> Self {
+        Self {
+            stat
+        }
     }
 }

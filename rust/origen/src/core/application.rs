@@ -2,8 +2,9 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
-use crate::core::frontend::BuildResult;
-use crate::revision_control::RevisionControl;
+use crate::core::frontend::{BuildResult, GenericResult};
+use crate::revision_control::{RevisionControl, Status};
+use crate::utility::str_to_bool;
 use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
@@ -113,6 +114,27 @@ impl Application {
         })
     }
 
+    pub fn rc_init(&self) -> Result<GenericResult> {
+        crate::with_frontend_app(|app| {
+            let rc = app.get_rc()?;
+            rc.init()
+        })
+    }
+
+    pub fn rc_status(&self) -> Result<Status> {
+        crate::with_frontend_app(|app| {
+            let rc = app.get_rc()?;
+            Ok(rc.status()?)
+        })
+    }
+
+    pub fn rc_checkin(&self, pathspecs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> Result<GenericResult> {
+        crate::with_frontend_app(|app| {
+            let rc = app.get_rc()?;
+            rc.checkin(pathspecs.clone(), msg, dry_run)
+        })
+    }
+
     pub fn build_package(&self) -> Result<BuildResult> {
         crate::with_frontend_app(|app| {
             let publisher = app.get_publisher()?;
@@ -121,7 +143,21 @@ impl Application {
         })
     }
 
-    pub fn publish(&self, dry_run: bool) -> Result<()> {
+    // Note that the default is to publish the app. But,
+    // if not publisher configured, this will likely generate
+    // an expected error later on.
+    pub fn should_package_app(&self) -> Result<bool> {
+        self.with_config(|config| {
+            if let Some(pc) = &config.publisher {
+                if let Some(s) = pc.get("package_app") {
+                    return str_to_bool(s);
+                }
+            }
+            Ok(true)
+        })
+    }
+
+    pub fn publish(&self, dry_run: bool) -> Result<GenericResult> {
         Ok(crate::with_frontend_app(|app| {
             // log_info!("Performing pre-publish checks...");
             // app.check_production_status()?;
@@ -134,40 +170,84 @@ impl Application {
             } else {
                 self.set_version(&new_v)?;
             }
-            let _files = vec![self.version_file().as_path()];
+            let mut files = vec![self.version_file()];
 
-            // Ok(crate::with_frontend_app(|app| {
-            // let rn = app.get_release_notes()?;
-            // rn.update_history();
-            // files.push(rn.history_file());
+            let rs = app.get_release_scribe()?;
+            files.append(&mut rs.publish(&new_v, None, None, dry_run)?);
 
-            // let rc = app.get_rc()?;
-            // rc.checkin(
-            //     Some(vec![self.version_file().as_path()]),
-            //     "Recorded new version in the version tracker",
-            // )?;
-            // rc.tag(&v.to_string(), false, None)?;
+            if dry_run {
+                println!("(Dry run - not checking in any files. Would check in:");
+                for f in files.iter() {
+                    println!("\t{}", f.display());
+                }
+            } else {
+                let rc = app.get_rc()?;
+                rc.checkin(
+                    Some(files.iter().map( |f| f.as_path()).collect()),
+                    "Recorded new version in the version tracker",
+                    false
+                )?;
+                rc.tag(&new_v.to_string(), false, None)?;
+            }
 
-            let publisher = app.get_publisher()?;
-            log_info!("Building Package...");
-            let package_result = publisher.build_package()?;
+            if self.should_package_app()? {
+                let publisher = app.get_publisher()?;
+                log_info!("Building Package...");
+                let package_result = publisher.build_package()?;
+                if package_result.succeeded {
+                    if let Some(m) = &package_result.message {
+                        log_info!("{}", m);
+                    }
+                } else {
+                    if let Some(m) = &package_result.message {
+                        log_error!("Failed to build package: {}", m);
+                        return error!("Failed to build package: {}", m);
+                    } else {
+                        log_error!("Failed to build package");
+                        return error!("Failed to build package");
+                    }
+                }
 
-            log_info!("Uploading Package...");
-            publisher.upload(&package_result, dry_run)?;
+                log_info!("Uploading Package...");
+                let publish_result = publisher.upload(&package_result, dry_run)?;
+                if publish_result.succeeded {
+                    if let Some(m) = publish_result.message {
+                        log_info!("{}", m);
+                    } else {
+                        log_info!("Package published successfully!");
+                    }
+                } else {
+                    if let Some(m) = publish_result.message {
+                        log_error!("{}", m);
+                        return error!("{}", m);
+                    } else {
+                        log_error!("Failed to upload package!");
+                        return error!("Failed to upload package!");
+                    }
+                }
+            } else {
+                log_trace!("Bypassing building and uploading app");
+            }
 
-            // let mailer = app.get_mailer()?;
-            // mailer.send("...")?;
+            // Mailer here is 'optional', in that we won't hold up the 
+            // release because of it, but will throw out lots of red text
+            // if not explicitly marked as okay to skip
+            // if let Some(m) = app.mailer()? {
+            //     // let mailer = app.get_mailer_or_none()?;
+            //     // mailer.send("...")?;
+            // } else {
+            //     log_error!("No mailer available - no release email sent");
+            // }
 
             // let website = app.get_website()?;
             // website.publish()?;
 
             //     Ok(())
             // })?)
-            Ok(())
+            let mut r = GenericResult::new_success();
+            r.set_msg("Successfully released application!");
+            Ok(r)
         })?)
-        // let app = crate::frontend()?.app()?;
-        // // origen::frontend()
-        // Ok(())
     }
 
     pub fn run_publish_checks(&self, stop_at_first_fail: bool) -> Result<ProductionStatus> {
@@ -320,6 +400,25 @@ impl ProductionStatus {
 
     pub fn failed(&self) -> bool {
         !self.passed
+    }
+
+    pub fn summarize_and_exit(&self) {
+        if self.passed() {
+            exit_pass!();
+        } else {
+            for (n, check) in self.checks.iter() {
+                if check.0 {
+                    display_greenln!("{}... PASSED!", n);
+                } else {
+                    if let Some(m) = check.2.as_ref() {
+                        display_redln!("{}... FAILED with message: {}", n, m);
+                    } else {
+                        display_redln!("{}... FAILED", n);
+                    }
+                }
+            }
+            exit_fail!();
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
 use crate::utility::file_utils::with_dir;
-use crate::{Error, Result};
+use crate::{Error, Result, GenericResult};
 use chrono::offset::Utc;
 use regex::Regex;
 use std::fs;
@@ -26,6 +26,10 @@ impl Designsync {
 }
 
 impl RevisionControlAPI for Designsync {
+    fn system(&self) -> &str {
+        "DesignSync"
+    }
+
     fn populate(&self, version: &str) -> Result<()> {
         log_info!("Populating {}", &self.local.display());
         fs::create_dir_all(&self.local)?;
@@ -114,11 +118,11 @@ impl RevisionControlAPI for Designsync {
         todo!();
     }
 
-    fn init(&self) -> Result<bool> {
+    fn init(&self) -> Result<GenericResult> {
         todo!();
     }
 
-    fn checkin(&self, _files_or_dirs: Option<Vec<&Path>>, _msg: &str) -> Result<String> {
+    fn checkin(&self, _files_or_dirs: Option<Vec<&Path>>, _msg: &str, _dry_run: bool) -> Result<GenericResult> {
         todo!();
     }
 }
