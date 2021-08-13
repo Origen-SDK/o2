@@ -103,6 +103,19 @@ impl PinCollection {
         Ok(())
     }
 
+    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
+    fn overlay(
+        slf: PyRef<Self>,
+        label: Option<String>,
+        symbol: Option<String>,
+        cycles: Option<usize>,
+        mask: Option<BigUint>,
+    ) -> PyResult<Py<Self>> {
+        slf.pin_collection
+            .overlay(&mut origen::Overlay::placeholder(label, symbol, cycles, mask))?;
+        Ok(slf.into())
+    }
+
     #[args(symbol = "None", cycles = "None", mask = "None")]
     fn capture(
         slf: PyRef<Self>,

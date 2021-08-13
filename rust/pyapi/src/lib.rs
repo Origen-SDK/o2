@@ -206,6 +206,8 @@ fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -
     }
     if let Some(overlay) = kwargs.get_item("overlay") {
         let overlay_mask;
+        let overlay_symbol;
+        let overlay_cycles;
         if let Some(mask) = kwargs.get_item("overlay_mask") {
             if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
                 overlay_mask = Some(big_mask);
@@ -213,17 +215,48 @@ fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -
                 return crate::type_error!("Could not extract kwarg 'overlay_mask' as an integer");
             }
         } else {
-            overlay_mask = Some(trans.enable_width()?)
+            if let Some(ovl) = trans.overlay.as_ref() {
+                overlay_mask = ovl.enables.clone();
+            } else {
+                overlay_mask = None;
+            }
         }
-        // panic!("option not supported yet!");
+        if let Some(s) = kwargs.get_item("overlay_symbol") {
+            if let Ok(sym) = s.extract::<String>() {
+                overlay_symbol = Some(sym);
+            } else {
+                return crate::type_error!("Could not extract kwarg 'overlay_symbol' as a String");
+            }
+        } else {
+            if let Some(ovl) = trans.overlay.as_ref() {
+                overlay_symbol = ovl.symbol.clone();
+            } else {
+                overlay_symbol = None;
+            }
+        }
+        if let Some(c) = kwargs.get_item("overlay_cycles") {
+            if let Ok(i) = c.extract::<usize>() {
+                overlay_cycles = Some(i);
+            } else {
+                return crate::type_error!("Could not extract kwarg 'overlay_cycles' as an Integer");
+            }
+        } else {
+            if let Some(ovl) = trans.overlay.as_ref() {
+                overlay_cycles = ovl.cycles.clone();
+            } else {
+                overlay_cycles = None;
+            }
+        }
         if let Ok(should_overlay) = overlay.extract::<bool>() {
             if should_overlay {
                 // Unnamed overlay
-                trans.overlay_enable = overlay_mask;
+                trans.apply_overlay(None, overlay_symbol, overlay_mask)?;
             }
         } else if let Ok(overlay_name) = overlay.extract::<String>() {
-            trans.overlay_enable = overlay_mask;
-            trans.overlay_string = Some(overlay_name);
+            trans.apply_overlay(Some(overlay_name), overlay_symbol, overlay_mask)?;
+            if overlay_cycles.is_some() {
+                trans.overlay.as_mut().unwrap().cycles = overlay_cycles;
+            }
         } else {
             return crate::type_error!(
                 "Could not extract kwarg 'overlay' as either a bool or a string"

@@ -4,7 +4,7 @@ use crate::core::model::pins::StateTracker;
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::{Processor, Return};
 use crate::STATUS;
-use crate::{Result, DUT};
+use crate::{Result, DUT, Overlay};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -31,8 +31,12 @@ pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
         None
     }
 
-    fn to_overlay(&self, _renderer: &mut Renderer, overlay: &str) -> Result<String> {
-        Ok(format!("Overlay: {}", overlay))
+    fn start_overlay(&self, _renderer: &mut Renderer, _overlay: &Overlay,) -> Option<Result<String>> {
+        None
+    }
+
+    fn end_overlay(&self, _renderer: &mut Renderer, _label: &Option<String>, _pin_id: &Option<usize>) -> Option<Result<String>> {
+        None
     }
 }
 
@@ -47,7 +51,7 @@ pub struct Renderer<'a> {
     pub pin_header_id: Option<usize>,
     pub least_cycles_remaining: usize,
     pub capturing: HashMap<Option<usize>, Option<String>>,
-    // pub overlaying: HashMap<usize, (usize, Option<String>)>
+    pub overlaying: HashMap<Option<usize>, (Option<String>, Option<String>)>
 }
 
 impl<'a> Renderer<'a> {
@@ -84,7 +88,7 @@ impl<'a> Renderer<'a> {
             pin_header_id: None,
             least_cycles_remaining: std::usize::MAX,
             capturing: HashMap::new(),
-            // overlaying: HashMap::new()
+            overlaying: HashMap::new()
         }
     }
 
@@ -117,6 +121,11 @@ impl<'a> Renderer<'a> {
         let t = &dut.timesets[self.current_timeset_id.unwrap()];
         let mut ppin_overrides: HashMap<usize, String> = HashMap::new();
         for (ppin, symbol) in self.capturing.iter() {
+            if ppin.is_some() && symbol.is_some() {
+                ppin_overrides.insert(ppin.unwrap(), symbol.as_ref().unwrap().to_string());
+            }
+        }
+        for (ppin, (_label, symbol)) in self.overlaying.iter() {
             if ppin.is_some() && symbol.is_some() {
                 ppin_overrides.insert(ppin.unwrap(), symbol.as_ref().unwrap().to_string());
             }
@@ -197,17 +206,24 @@ impl<'a> Processor for Renderer<'a> {
                 }
                 Ok(Return::Unmodified)
             }
-            // Attrs::Overlay(overlay, pin_id, action, _) => {
-            //     if let Some(o) = overlay {
-            //         let ovl = self.tester.to_overlay(self, o)?;
-            //         self.output_file.as_mut().unwrap().write_ln(&format!(
-            //             "{} {}",
-            //             self.tester.comment_str(),
-            //             ovl
-            //         ));
-            //     }
-            //     Ok(Return::Unmodified)
-            // }
+            Attrs::Overlay(overlay, _) => {
+                if overlay.pin_ids.is_some() {
+                    for pin in overlay.enabled_overlay_pins()? {
+                        self.overlaying.insert(Some(pin), (overlay.label.clone(), overlay.symbol.clone()));
+                    }
+                } else {
+                    self.overlaying.insert(None, (overlay.label.clone(), overlay.symbol.clone()));
+                }
+
+                if let Some(s) = self.tester.start_overlay(self, overlay) {
+                    self.output_file.as_mut().unwrap().write_ln(&format!(
+                        "{} {}",
+                        self.tester.comment_str(),
+                        s?
+                    ));
+                }
+                Ok(Return::Unmodified)
+            }
             Attrs::Cycle(repeat, compressable) => {
                 if !self.pin_header_printed {
                     match self.tester.print_pinlist(self) {
@@ -237,6 +253,17 @@ impl<'a> Processor for Renderer<'a> {
             }
             Attrs::EndCapture(pin_id) => {
                 self.capturing.remove(&pin_id);
+                Ok(Return::Unmodified)
+            }
+            Attrs::EndOverlay(label, pin_id) => {
+                self.overlaying.remove(&pin_id);
+                if let Some(s) = self.tester.end_overlay(self, label, pin_id) {
+                    self.output_file.as_mut().unwrap().write_ln(&format!(
+                        "{} {}",
+                        self.tester.comment_str(),
+                        s?
+                    ));
+                }
                 Ok(Return::Unmodified)
             }
             Attrs::PatternEnd => {

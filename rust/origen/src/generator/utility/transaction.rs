@@ -4,7 +4,7 @@ use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Capture, Error, Metadata, Result};
+use crate::{Capture, Overlay, Error, Metadata, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
@@ -29,8 +29,7 @@ pub struct Transaction {
     pub data: BigUint,
     pub bit_enable: BigUint,
     pub capture: Option<Capture>,
-    pub overlay_enable: Option<BigUint>,
-    pub overlay_string: Option<String>,
+    pub overlay: Option<Overlay>,
     pub set_actions: Option<Vec<PinAction>>,
     pub metadata: Option<Metadata>,
 }
@@ -46,8 +45,7 @@ impl Default for Transaction {
             data: BigUint::from(0 as usize),
             bit_enable: BigUint::from(0 as usize),
             capture: None,
-            overlay_enable: None,
-            overlay_string: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         }
@@ -66,8 +64,7 @@ impl Transaction {
             data: data,
             bit_enable: Self::enable_of_width(width)?,
             capture: None,
-            overlay_enable: None,
-            overlay_string: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
@@ -90,8 +87,7 @@ impl Transaction {
             data: data,
             bit_enable: Self::enable_of_width(width)?,
             capture: None,
-            overlay_enable: None,
-            overlay_string: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
@@ -111,8 +107,7 @@ impl Transaction {
                 c.enables = capture_enables.clone();
                 c
             }),
-            overlay_enable: None,
-            overlay_string: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
@@ -136,8 +131,7 @@ impl Transaction {
             data: BigUint::from(0 as u8),
             bit_enable: BigUint::from(0 as u8),
             capture: None,
-            overlay_enable: None,
-            overlay_string: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
@@ -152,6 +146,32 @@ impl Transaction {
     //     let t = Self::default();
     // }
 
+    pub fn apply_overlay(
+        &mut self,
+        label: Option<String>,
+        symbol: Option<String>,
+        enables: Option<BigUint>
+    ) -> Result<()> {
+        self.overlay = Some(Overlay::new(label, symbol, None, enables, None)?);
+        Ok(())
+    }
+
+    // Update an embedded overlay with the pin ids.
+    // Returns true if updated, false if an overlay wasn't present
+    pub fn apply_overlay_pin_ids(&mut self, pin_ids: &Vec<usize>) -> Result<bool> {
+        match self.overlay.as_mut() {
+            Some(o) => {
+                o.pin_ids = Some(pin_ids.clone());
+                Ok(true)
+            },
+            None => Ok(false)
+        }
+    }
+
+    pub fn has_overlay(&self) -> bool {
+        self.overlay.is_some()
+    }
+
     pub fn new_set(actions: &Vec<PinAction>) -> Result<Self> {
         Ok(Self {
             action: Some(Action::Set),
@@ -162,8 +182,7 @@ impl Transaction {
             data: BigUint::from(0 as u8),
             bit_enable: Self::enable_of_width(actions.len())?,
             capture: None,
-            overlay_enable: None,
-            overlay_string: None,
+            overlay: None,
             set_actions: Some(actions.clone()),
             metadata: None,
         })
@@ -233,8 +252,6 @@ impl Transaction {
         let enables = self.bit_enable.clone();
         let t = BigUint::from(1 as u8);
 
-        let big0 = BigUint::from(0 as u8);
-        let overlays = self.overlay_enable.as_ref().unwrap_or(&big0);
         let captures;
         if let Some(c) = &self.capture {
             if let Some(cap_enables) = &c.enables {
@@ -246,10 +263,21 @@ impl Transaction {
             // no captures
             captures = BigUint::from(0 as u8);
         }
+        let overlays;
+        if let Some(o) = &self.overlay {
+            if let Some(ovl_enables) = &o.enables {
+                overlays = ovl_enables.clone();
+            } else {
+                overlays = self.enable_width()?;
+            }
+        } else {
+            // no overlay
+            overlays = BigUint::from(0 as u8);
+        }
         let mut overlay;
         let mut capture;
         for i in 0..self.width {
-            overlay = ((overlays >> i) & &t) == t;
+            overlay = ((&overlays >> i) & &t) == t;
             capture = ((&captures >> i) & &t) == t;
             if ((&enables >> i) & &t) == t {
                 if self.is_set_action() {
@@ -311,8 +339,7 @@ impl Transaction {
             data: self.data.clone(),
             bit_enable: BigUint::from(0 as u8),
             capture: self.capture.clone(),
-            overlay_enable: self.overlay_enable.clone(),
-            overlay_string: self.overlay_string.clone(),
+            overlay: None,
             set_actions: None,
             metadata: self.metadata.clone(),
         })

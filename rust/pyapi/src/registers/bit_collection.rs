@@ -2,6 +2,7 @@ use itertools::Itertools;
 use num_bigint::BigUint;
 use origen::core::model::registers::BitCollection as RichBC;
 use origen::core::model::registers::{BitOrder, Field, Register};
+use origen::core::model::registers::bit::Overlay as OrigenBitOverlay;
 use origen::{Dut, Result, TEST};
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::class::PyMappingProtocol;
@@ -14,6 +15,41 @@ use std::iter::FromIterator;
 use std::sync::MutexGuard;
 
 import_exception!(origen.errors, UndefinedDataError);
+
+#[pyclass]
+pub struct Overlay {
+    label: Option<String>,
+    symbol: Option<String>,
+    persistent: bool
+}
+
+#[pymethods]
+impl Overlay {
+    #[getter]
+    fn label(&self) -> Option<String> {
+        self.label.clone()
+    }
+
+    #[getter]
+    fn symbol(&self) -> Option<String> {
+        self.symbol.clone()
+    }
+
+    #[getter]
+    fn persistent(&self) -> bool {
+        self.persistent
+    }
+}
+
+impl Overlay {
+    fn from_origen(overlay: &OrigenBitOverlay) -> Self {
+        Self {
+            label: overlay.label.clone(),
+            symbol: overlay.symbol.clone(),
+            persistent: overlay.persistent
+        }
+    }
+}
 
 /// A BitCollection represents either a whole register or a subset of a
 /// registers bits (not necessarily contiguous bits) and provides the user
@@ -523,9 +559,16 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn set_overlay(&self, value: Option<&str>) -> PyResult<BitCollection> {
+    #[args(label="None", symbol="None", mask="None")]
+    fn set_overlay(&self, label: Option<String>, symbol: Option<String>, mask: Option<BigUint>) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        self.materialize(&dut)?.set_overlay(value);
+        self.materialize(&dut)?.set_overlay(label, symbol, mask, true);
+        Ok(self.clone())
+    }
+
+    fn clear_overlay(&self) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        self.materialize(&dut)?.clear_persistent_overlay();
         Ok(self.clone())
     }
 
@@ -540,13 +583,13 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn overlay(&self) -> PyResult<Option<String>> {
-        self.get_overlay()
-    }
 
-    fn get_overlay(&self) -> PyResult<Option<String>> {
+    fn get_overlay(&self) -> PyResult<Option<Overlay>> {
         let dut = origen::dut();
-        Ok(self.materialize(&dut)?.get_overlay()?)
+        Ok(match self.materialize(&dut)?.get_overlay()? {
+            Some(o) => Some(Overlay::from_origen(&o)),
+            None => None
+        })
     }
 
     fn copy(&self, src: &BitCollection) -> PyResult<BitCollection> {

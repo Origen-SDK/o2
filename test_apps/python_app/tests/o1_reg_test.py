@@ -432,7 +432,7 @@ def test_reg_state_can_be_copied():
     reg1.set_overlay("hello")
     reg1.set_data(0x1234)
     reg2.copy(reg1)
-    assert reg2.overlay() == "hello"
+    assert reg2.get_overlay().label == "hello"
     assert reg2.data() == 0x1234
 
 
@@ -466,7 +466,7 @@ def test_status_string_methods_work():
     assert reg.status_str("write") == "A[1v10]V5"
     reg.reset()
     reg.clear_flags()
-    reg.set_overlay(None)
+    reg.clear_overlay()
     assert reg.status_str("write") == "0000"
     assert reg.status_str("verify") == "XXXX"
     verify(reg[7:4].set_data(5))

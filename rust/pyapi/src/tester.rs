@@ -385,9 +385,9 @@ impl PyTester {
     #[args(
         label = "None",
         symbol = "None",
-        pins = "None",
         cycles = "None",
-        mask = "None"
+        mask = "None",
+        pins = "None"
     )]
     fn overlay(
         slf: PyRef<Self>,
@@ -400,6 +400,7 @@ impl PyTester {
         let pin_ids;
         {
             if let Some(p) = pins {
+                crate::dut::PyDUT::ensure_pins("dut")?;
                 let dut = origen::dut();
                 pin_ids = Some(vec_to_ppin_ids(&dut, p)?);
             } else {

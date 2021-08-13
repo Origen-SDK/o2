@@ -66,6 +66,7 @@ impl Service {
         let read_nwrite = PinCollection::from_group(dut, &self.read_nwrite.0, self.read_nwrite.1)?;
         let mut t = transaction.clone();
         t.resize(self.width)?;
+        t.apply_overlay_pin_ids(&data.as_ids())?;
 
         let trans = node!(SimpleProtocolWrite, self.id, t.clone());
         let n_id = TEST.push_and_open(trans.clone());
@@ -94,6 +95,7 @@ impl Service {
         let read_nwrite = PinCollection::from_group(dut, &self.read_nwrite.0, self.read_nwrite.1)?;
         let mut t = transaction.clone();
         t.resize(self.width)?;
+        t.apply_overlay_pin_ids(&data.as_ids())?;
 
         let trans = node!(SimpleProtocolWrite, self.id, t.clone());
         let n_id = TEST.push_and_open(trans.clone());

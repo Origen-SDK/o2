@@ -287,7 +287,13 @@ impl<'a> PinCollection<'a> {
     pub fn set_from_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node>> {
         self.verify_size(trans)?;
         let bit_actions = trans.to_symbols()?;
-        self.update_from_bit_actions(&bit_actions, &trans.overlay_string)
+        let mut nodes: Vec<Node> = self.update_from_bit_actions(&bit_actions)?;
+        if let Some(ovl) = trans.overlay.as_ref() {
+            let mut o = ovl.clone();
+            o.pin_ids = Some(self.as_ids());
+            nodes.insert(0, node!(Overlay, o, None));
+        }
+        Ok(nodes)
     }
 
     pub fn get_actions(&self) -> Vec<PinAction> {
@@ -343,7 +349,6 @@ impl<'a> PinCollection<'a> {
     fn update_from_bit_actions(
         &self,
         bit_actions: &Vec<(String, bool, bool)>,
-        _overlay_str: &Option<String>,
     ) -> crate::Result<Vec<Node>> {
         let mut action_nodes: Vec<Node> = vec![];
 
@@ -458,6 +463,14 @@ impl<'a> PinCollection<'a> {
             ));
         }
 
+        if let Some(o) = &trans.overlay {
+            let mut ovl = o.clone();
+            if ovl.cycles.is_none() {
+                ovl.cycles = Some(self.cycles_to_push(trans));
+            }
+            pin_states.push(node!(Overlay, ovl, None));
+        }
+
         for (_idx, chunk) in bit_actions.chunks(self.pins.len()).enumerate() {
             let mut this_cycle: Vec<Node> = vec![];
             let mut this_grp_nodes: Vec<Node> = vec![];
@@ -535,7 +548,7 @@ impl<'a> PinCollection<'a> {
             }
             // Push the cycle updates and cycle the tester
             pin_states.append(&mut this_cycle);
-            pin_states.push(repeat2_node(1, !trans.overlay_string.is_some()));
+            pin_states.push(repeat2_node(1, !trans.has_overlay()));
         }
         Ok(pin_states)
     }

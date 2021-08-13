@@ -24,7 +24,21 @@ class Base:
         assert node['attrs'][1][0]['enables'] == enables
         assert node['attrs'][1][0]['pin_ids'] == pin_ids
         assert len(node['children']) == 0
-
+    
+    def assert_overlay_node(self,
+                    overlay,
+                    symbol=None,
+                    cycles=None,
+                    enables=None,
+                    pin_ids=None):
+        node = get_last_node()
+        assert node['attrs'][0] == 'Overlay'
+        assert node['attrs'][1][0]['label'] == overlay
+        assert node['attrs'][1][0]['symbol'] == symbol
+        assert node['attrs'][1][0]['cycles'] == cycles
+        assert node['attrs'][1][0]['enables'] == enables
+        assert node['attrs'][1][0]['pin_ids'] == pin_ids
+        assert len(node['children']) == 0
 
 class TestCaptureInterface(Base):
     ''' Mostly simple tests to make sure the node gets into the AST correctly.
@@ -32,11 +46,8 @@ class TestCaptureInterface(Base):
         Whether the node gets handled correctly is a matter for the
         individual renders to resolved.
     '''
-    @pytest.fixture(autouse=True)
-    def clean_eagle(self, clean_eagle, clean_tester):
-        pass
 
-    def test_blank_capture(self, clean_eagle):
+    def test_blank_capture(self):
         origen.tester.capture()
         self.assert_node(None, None, None, None)
 

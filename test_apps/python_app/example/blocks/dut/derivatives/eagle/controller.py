@@ -11,6 +11,10 @@ class Controller(Parent):
         self.startup_source = None
         self.shutdown_source = None
 
+    @TopLevel.initialized
+    def on_top_level_initialized(self, **kwargs):
+        self.current_protocol = self.arm_debug.sys
+
     @TopLevel.startup
     def startup(self, **kwargs):
         origen.tester.set_timeset("simple")
@@ -27,16 +31,16 @@ class Controller(Parent):
         self.shutdown_source = "eagle"
 
     def write_register(self, reg_or_val, size=None, address=None, **kwargs):
-        return self.arm_debug.sys.write_register(reg_or_val,
+        return self.current_protocol.write_register(reg_or_val,
                                                  size=None,
                                                  address=None,
                                                  **kwargs)
 
     def verify_register(self, reg_or_val, size=None, address=None, **kwargs):
-        return self.arm_debug.sys.verify_register(reg_or_val,
+        return self.current_protocol.verify_register(reg_or_val,
                                                   size=None,
                                                   address=None,
                                                   **kwargs)
 
     def capture_register(self, reg_or_val, **kwargs):
-        return self.arm_debug.sys.capture_register(reg_or_val, **kwargs)
+        return self.current_protocol.capture_register(reg_or_val, **kwargs)

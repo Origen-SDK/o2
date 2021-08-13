@@ -1,6 +1,6 @@
 // ******************************************************************************************
 // Generated
-//   Time: 2021-05-22 14:26:31.859109500 -05:00
+//   Time: 2021-07-15 07:56:37.610552800 -05:00
 //   By: nxa13790
 //   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\captures.py
 // ******************************************************************************************
@@ -14,7 +14,7 @@
 //   Application
 //     Local Path: C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app
 //   Origen Core
-//     Version: 2.0.0-dev4
+//     Version: 2.0.0-dev.5
 //     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
 // ******************************************************************************************
 // Header Comments
@@ -28,7 +28,8 @@ repeat 100 > simple 0 X XX ;
 // Basics
 // ---
 // Capture a single cycle
-repeat 2 > simple 0 X XX ;
+ > simple 0 X XX ;
+ > simple 0 X XX ;
 // Capture a single cycle on portc
  > simple 0 X XX ;
  > simple 0 X XX ;

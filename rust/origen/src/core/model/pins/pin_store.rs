@@ -2,7 +2,7 @@ use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
 use super::pin::PinAction;
 use crate::error::Error;
-use crate::{Capture, Result};
+use crate::{Capture, Overlay, Result};
 
 /// Model for an anonymous pin group
 #[derive(Debug, Clone)]
@@ -115,6 +115,12 @@ impl PinStore {
         let mut v = vec![];
         actions.iter().for_each(|a| v.push(a.to_string()));
         pc.set_actions(&v)?;
+        Ok(())
+    }
+
+    pub fn overlay(&self, overlay: &mut Overlay) -> Result<()> {
+        overlay.pin_ids = Some(self.pin_ids.clone());
+        crate::TEST.push(overlay.to_node());
         Ok(())
     }
 

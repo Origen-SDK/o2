@@ -60,18 +60,34 @@ impl Processor for CycleCombiner {
     }
 }
 
+#[allow(non_snake_case)]
 pub struct UnpackCaptures {
-    pub least_cycles_remaining: usize,
+    // Captures
+    pub captures__least_cycles_remaining: usize,
     pub capturing: HashMap<Option<usize>, (usize, Option<String>)>,
+
+    // Overlays
+    pub overlays__least_cycles_remaining: usize,
+    pub overlaying: HashMap<Option<usize>, (usize, Option<String>, Option<String>)>,
 }
 
 impl UnpackCaptures {
     pub fn run(node: &Node) -> Result<Node> {
         let mut p = UnpackCaptures {
-            least_cycles_remaining: std::usize::MAX,
+            captures__least_cycles_remaining: std::usize::MAX,
             capturing: HashMap::new(),
+            overlays__least_cycles_remaining: std::usize::MAX,
+            overlaying: HashMap::new(),
         };
         Ok(node.process(&mut p)?.unwrap())
+    }
+
+    fn is_capturing(&self) -> bool {
+        self.capturing.len() > 0
+    }
+
+    fn is_overlaying(&self) -> bool {
+        self.overlaying.len() > 0
     }
 }
 
@@ -96,8 +112,8 @@ impl Processor for UnpackCaptures {
                         }
                         self.capturing
                             .insert(Some(*pin), (cycles, capture.symbol.clone()));
-                        if cycles < self.least_cycles_remaining {
-                            self.least_cycles_remaining = cycles;
+                        if cycles < self.captures__least_cycles_remaining {
+                            self.captures__least_cycles_remaining = cycles;
                         }
                     }
                 } else {
@@ -108,31 +124,96 @@ impl Processor for UnpackCaptures {
                     }
                     self.capturing
                         .insert(None, (cycles, capture.symbol.clone()));
+                    if cycles < self.captures__least_cycles_remaining {
+                        self.captures__least_cycles_remaining = cycles;
+                    }
+                }
+                Ok(Return::Unmodified)
+            }
+            Attrs::Overlay(overlay, _metadata) => {
+                // For unpacking an overlay, this is almost identical to a capture.
+                let cycles = overlay.cycles.unwrap_or(1);
+                if let Some(pids) = overlay.pin_ids.as_ref() {
+                    for pin in pids.iter() {
+                        if self.overlaying.contains_key(&Some(*pin)) {
+                            // Already overlaying this pin. Raise an error.
+                            return error!(
+                                "Overlay requested on pin '{}' but this pin is already overlaying",
+                                {
+                                    let dut = crate::dut();
+                                    let p = &dut.pins[*pin];
+                                    p.name.clone()
+                                }
+                            );
+                        }
+                        self.overlaying
+                            .insert(Some(*pin), (cycles, overlay.label.clone(), overlay.symbol.clone()));
+                        if cycles < self.overlays__least_cycles_remaining {
+                            self.overlays__least_cycles_remaining = cycles;
+                        }
+                    }
+                } else {
+                    if self.overlaying.contains_key(&None) {
+                        return error!(
+                            "Generic overlay is already occurring. Cannot initiate another overlay"
+                        );
+                    }
+                    self.overlaying
+                        .insert(None, (cycles, overlay.label.clone(), overlay.symbol.clone()));
+                    if cycles < self.overlays__least_cycles_remaining {
+                        self.overlays__least_cycles_remaining = cycles;
+                    }
                 }
                 Ok(Return::Unmodified)
             }
             Attrs::Cycle(repeat, compressable) => {
-                if self.capturing.len() > 0 {
-                    // De-compress the cycles to account for captures
+                if self.capturing.len() > 0 || self.overlaying.len() > 0 {
+                    // De-compress the cycles to account for captures and overlays
                     let mut to_repeat = *repeat as usize;
                     let mut nodes: Vec<Node> = vec![];
                     while to_repeat > 0 {
-                        let mut this_cycle_captures: HashMap<Option<usize>, Option<String>> =
-                            HashMap::new();
+                        let mut this_cycle_captures: HashMap<Option<usize>, Option<String>> = HashMap::new();
+                        let mut this_cycle_overlays: HashMap<Option<usize>, (Option<String>, Option<String>)> = HashMap::new();
                         let this_repeat;
-                        if to_repeat >= self.least_cycles_remaining {
-                            this_repeat = self.least_cycles_remaining;
-                            self.least_cycles_remaining = std::usize::MAX;
+
+                        let least_cycles_remaining;
+                        if self.captures__least_cycles_remaining < self.overlays__least_cycles_remaining {
+                            least_cycles_remaining = self.captures__least_cycles_remaining;
+                        } else {
+                            least_cycles_remaining = self.overlays__least_cycles_remaining;
+                        }
+
+                        if to_repeat >= least_cycles_remaining {
+                            this_repeat = least_cycles_remaining;
+
+                            if self.is_capturing() {
+                                self.captures__least_cycles_remaining -= this_repeat;
+                                if self.captures__least_cycles_remaining == 0 {
+                                    self.captures__least_cycles_remaining = std::usize::MAX;
+                                }
+                            }
+
+                            if self.is_overlaying() {
+                                self.overlays__least_cycles_remaining -= this_repeat;
+                                if self.overlays__least_cycles_remaining == 0 {
+                                    self.overlays__least_cycles_remaining = std::usize::MAX;
+                                }
+                            }
                         } else {
                             this_repeat = to_repeat;
-                            self.least_cycles_remaining -= this_repeat;
-                            if self.least_cycles_remaining == 0 {
-                                self.least_cycles_remaining = std::usize::MAX;
+                            if self.is_capturing() {
+                                self.captures__least_cycles_remaining -= this_repeat;
+                            }
+                            if self.is_overlaying() {
+                                self.overlays__least_cycles_remaining -= this_repeat;
                             }
                         }
                         to_repeat -= this_repeat;
 
                         let mut finished_captures: Vec<Option<usize>> = vec![];
+                        let mut finished_overlays: Vec<(Option<usize>, Option<String>)> = vec![];
+
+                        // Decrease the cycle count for all captures
                         for (pin_id, mut cap) in self.capturing.iter_mut() {
                             if cap.0 <= this_repeat {
                                 // This capture will be exhausted by the end of this node
@@ -142,16 +223,44 @@ impl Processor for UnpackCaptures {
                                 // This capture won't be exhausted, but will
                                 // decrease the remaining cycles a bit.
                                 cap.0 -= this_repeat;
-                                if cap.0 > self.least_cycles_remaining {
-                                    self.least_cycles_remaining = cap.0;
+                                if cap.0 > self.captures__least_cycles_remaining {
+                                    self.captures__least_cycles_remaining = cap.0;
                                 }
                             }
                             this_cycle_captures.insert(*pin_id, cap.1.clone());
                         }
-                        nodes.push(node!(Cycle, this_repeat as u32, *compressable));
+
+                        // Do the same for overlays
+                        for (pin_id, mut ovl) in self.overlaying.iter_mut() {
+                            if ovl.0 <= this_repeat {
+                                // This overlay will be exhausted by the end of this node
+                                // Remove it from the list to overlay
+                                finished_overlays.push((*pin_id, ovl.1.clone()));
+                            } else {
+                                // This overlay won't be exhausted, but will
+                                // decrease the remaining cycles a bit.
+                                ovl.0 -= this_repeat;
+                                if ovl.0 > self.overlays__least_cycles_remaining {
+                                    self.overlays__least_cycles_remaining = ovl.0;
+                                }
+                            }
+                            this_cycle_overlays.insert(*pin_id, (ovl.1.clone(), ovl.2.clone()));
+                        }
+
+                        if this_cycle_overlays.len() > 0 {
+                            for _ in 0..this_repeat {
+                                nodes.push(node!(Cycle, 1 as u32, false));
+                            }
+                        } else {
+                            nodes.push(node!(Cycle, this_repeat as u32, *compressable));
+                        }
                         finished_captures.iter().for_each(|pin_id| {
                             self.capturing.remove(pin_id);
                             nodes.push(node!(EndCapture, pin_id.clone()));
+                        });
+                        finished_overlays.iter().for_each(|(pin_id, label)| {
+                            self.overlaying.remove(pin_id);
+                            nodes.push(node!(EndOverlay, label.clone(), pin_id.clone()));
                         });
                     }
                     Ok(Return::Inline(nodes))

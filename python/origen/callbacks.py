@@ -122,6 +122,7 @@ class Callbacks:
         # self.register_new("on_app_init", None)
         self.register_new("toplevel__startup", None)
         self.register_new("toplevel__shutdown", None)
+        self.register_new("toplevel__initialized", None)
         self.register_new("controller__startup", None)
         self.register_new("controller__shutdown", None)
 

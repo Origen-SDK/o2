@@ -6,7 +6,7 @@ use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::ast::Node;
 use crate::generator::processor::Return;
 use crate::utility::differ::{ASCIIDiffer, Differ};
-use crate::Result;
+use crate::{Overlay, Result};
 use pattern_renderer::Renderer;
 use std::path::{Path, PathBuf};
 
@@ -36,6 +36,26 @@ pub trait VectorBased:
 
     fn override_node(&self, _renderer: &mut Renderer, _node: &Node) -> Option<Result<Return>> {
         None
+    }
+
+    fn start_overlay(
+        &self,
+        _renderer: &mut pattern_renderer::Renderer,
+        overlay: &Overlay,
+    ) -> Option<Result<String>> {
+        Some(Ok(format!(
+            "Start Overlay: {}",
+            overlay.label.as_ref().unwrap_or(&"".to_string())
+        )))
+    }
+
+    fn end_overlay(
+        &self,
+        _renderer: &mut pattern_renderer::Renderer,
+        label: &Option<String>,
+        _pin_id: &Option<usize>
+    ) -> Option<Result<String>> {
+        Some(Ok(format!("End Overlay: {}", label.as_ref().unwrap_or(&"".to_string()))))
     }
 }
 
@@ -72,6 +92,23 @@ where
         renderer: &mut pattern_renderer::Renderer,
     ) -> Option<Result<String>> {
         VectorBased::print_pattern_end(self, renderer)
+    }
+
+    default fn start_overlay(
+        &self,
+        renderer: &mut pattern_renderer::Renderer,
+        overlay: &Overlay,
+    ) -> Option<Result<String>> {
+        VectorBased::start_overlay(self, renderer, overlay)
+    }
+
+    default fn end_overlay(
+        &self,
+        renderer: &mut pattern_renderer::Renderer,
+        label: &Option<String>,
+        pin_id: &Option<usize>
+    ) -> Option<Result<String>> {
+        VectorBased::end_overlay(self, renderer, label, pin_id)
     }
 
     fn override_node(&self, renderer: &mut Renderer, node: &Node) -> Option<Result<Return>> {

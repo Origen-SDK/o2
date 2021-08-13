@@ -1,0 +1,161 @@
+// ******************************************************************************************
+// Generated
+//   Time: 2021-08-13 07:28:04.887470400 -05:00
+//   By: nxa13790
+//   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\overlays.py
+// ******************************************************************************************
+// Workspace
+//   Environment
+//     OS: Windows Unknown
+//     Mode: development
+//     Targets
+//         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\dut\eagle.py
+//         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\tester\v93k_smt7.py
+//   Application
+//     Local Path: C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app
+//   Origen Core
+//     Version: 2.0.0-dev.5
+//     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
+// ******************************************************************************************
+// Header Comments
+//   From the Application
+//     Hello pattern from the application!
+// ******************************************************************************************
+vector ($tset, clk, porta, portb, portc)
+{
+start_label pattern_st:
+repeat 100 > simple 0 XX XXXX XX ;
+// Overlay the next cycle
+// Start Overlay: test_overlaying_on_next_cycle
+ > simple 0 XX XXXX XX ;
+// End Overlay: test_overlaying_on_next_cycle
+ > simple 0 XX XXXX XX ;
+// Overlay the next two cycles
+// Start Overlay: test_overlaying_on_next_two_cycles
+ > simple 0 XX XXXX XX ;
+ > simple 0 XX XXXX XX ;
+// End Overlay: test_overlaying_on_next_two_cycles
+repeat 4 > simple 0 XX XXXX XX ;
+// Overlaying on pins
+// Start Overlay: test overlaying on pins
+ > simple 0 XX XXXX XX ;
+ > simple 0 XX XXXX XX ;
+// End Overlay: test overlaying on pins
+// End Overlay: test overlaying on pins
+repeat 4 > simple 0 XX XXXX XX ;
+// Overlaying on pins, with options
+// Start Overlay: test overlaying on pins, with options
+ > simple 0 XX XXXX AX ;
+ > simple 0 XX XXXX AX ;
+// End Overlay: test overlaying on pins, with options
+// End Overlay: test overlaying on pins, with options
+repeat 4 > simple 0 XX XXXX XX ;
+// Overlay from pin group. This should functionally be the same as previous overlay
+// Start Overlay: test overlaying from pin group
+ > simple 0 XX XXXX XX ;
+ > simple 0 XX XXXX XX ;
+// End Overlay: test overlaying from pin group
+// End Overlay: test overlaying from pin group
+repeat 2 > simple 0 XX XXXX XX ;
+// Overlay from pin group, with options
+// Start Overlay: test overlaying from pin group, with options
+ > simple 0 XX XXXX XA ;
+ > simple 0 XX XXXX XA ;
+// End Overlay: test overlaying from pin group, with options
+// End Overlay: test overlaying from pin group, with options
+repeat 2 > simple 0 XX XXXX XX ;
+// Overlay during drive operation
+// Start Overlay: test overlaying while driving pin group
+ > simple 0 XX XXXX BB ;
+ > simple 0 XX XXXX BB ;
+// End Overlay: test overlaying while driving pin group
+// End Overlay: test overlaying while driving pin group
+repeat 2 > simple 0 XX XXXX 11 ;
+// Overlay during drive (again). Functionally, this should the same as the above
+// Start Overlay: test overlaying from pin group - version 2
+ > simple 0 XX XXXX BB ;
+ > simple 0 XX XXXX BB ;
+// End Overlay: test overlaying from pin group - version 2
+// End Overlay: test overlaying from pin group - version 2
+repeat 2 > simple 0 XX XXXX 11 ;
+// Overlay during drive operation
+// Start Overlay: test overlaying while verifying pin group
+ > simple 0 XX XXXX AA ;
+ > simple 0 XX XXXX AA ;
+// End Overlay: test overlaying while verifying pin group
+// End Overlay: test overlaying while verifying pin group
+repeat 2 > simple 0 XX XXXX LL ;
+// Overlay a register write and verify with the same overlay
+// SimpleProtocol: Simple Write: 0 <- 3435982574
+// SimpleProtocol: Writing Address: 0 (address width: 32)
+repeat 8 > simple 0 XX 0000 10 ;
+// SimpleProtocol: Writing Data: 3435982574 (data width: 32)
+// Start Overlay: Register Write/Verify Overlay
+ > simple 0 XX 0111 10 ;
+ > simple 0 XX 0111 10 ;
+ > simple 0 XX 0111 10 ;
+ > simple 0 XX 0111 10 ;
+ > simple 0 XX 0011 10 ;
+ > simple 0 XX 0011 10 ;
+ > simple 0 XX 0011 10 ;
+ > simple 0 XX 0011 10 ;
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+ > simple 0 XX XXXX 0X ;
+// SimpleProtocol: Simple Verify: 0 =? 3435982574
+// SimpleProtocol: Verifying Address: 0 (address width: 32)
+repeat 8 > simple 0 XX 0000 11 ;
+// SimpleProtocol: Verifying Data: 3435982574 (data width: 32)
+// Start Overlay: Register Write/Verify Overlay
+ > simple 0 XX LHHH 11 ;
+ > simple 0 XX LHHH 11 ;
+ > simple 0 XX LHHH 11 ;
+ > simple 0 XX LHHH 11 ;
+ > simple 0 XX LLHH 11 ;
+ > simple 0 XX LLHH 11 ;
+ > simple 0 XX LLHH 11 ;
+ > simple 0 XX LLHH 11 ;
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+ > simple 0 XX XXXX 0X ;
+// These should not be overlayed
+// SimpleProtocol: Simple Write: 0 <- 3435982574
+// SimpleProtocol: Writing Address: 0 (address width: 32)
+repeat 8 > simple 0 XX 0000 10 ;
+// SimpleProtocol: Writing Data: 3435982574 (data width: 32)
+repeat 4 > simple 0 XX 0111 10 ;
+repeat 4 > simple 0 XX 0011 10 ;
+ > simple 0 XX XXXX 0X ;
+// SimpleProtocol: Simple Verify: 0 =? 3435982574
+// SimpleProtocol: Verifying Address: 0 (address width: 32)
+repeat 8 > simple 0 XX 0000 11 ;
+// SimpleProtocol: Verifying Data: 3435982574 (data width: 32)
+repeat 4 > simple 0 XX LHHH 11 ;
+repeat 4 > simple 0 XX LLHH 11 ;
+ > simple 0 XX XXXX 0X ;
+// Overlay On Register Write with symbol and mask
+// SimpleProtocol: Simple Write: 0 <- 3435982574
+// SimpleProtocol: Writing Address: 0 (address width: 32)
+repeat 8 > simple 0 XX 0000 10 ;
+// SimpleProtocol: Writing Data: 3435982574 (data width: 32)
+// Start Overlay: Register Write/Verify Overlay
+ > simple 0 XX AAAA 10 ;
+ > simple 0 XX AAAA 10 ;
+ > simple 0 XX AAAA 10 ;
+ > simple 0 XX AAAA 10 ;
+ > simple 0 XX AAAA 10 ;
+ > simple 0 XX AAAA 10 ;
+ > simple 0 XX AAAA 10 ;
+ > simple 0 XX AAAA 10 ;
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+// End Overlay: Register Write/Verify Overlay
+ > simple 0 XX XXXX 0X ;
+repeat 10 > simple 0 XX XXXX 0X ;
+end_module > simple 0 XX XXXX 0X ;
+}

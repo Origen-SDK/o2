@@ -1,0 +1,158 @@
+# ******************************************************************************************
+# Generated
+#   Time: 2021-08-13 07:28:04.835460 -05:00
+#   By: nxa13790
+#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\overlays.py
+# ******************************************************************************************
+# Workspace
+#   Environment
+#     OS: Windows Unknown
+#     Mode: development
+#     Targets
+#         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\dut\eagle.py
+#         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\tester\v93k_smt7.py
+#   Application
+#     Local Path: C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app
+#   Origen Core
+#     Version: 2.0.0-dev.5
+#     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
+# ******************************************************************************************
+# Header Comments
+#   From the Application
+#     Hello pattern from the application!
+# ******************************************************************************************
+FORMAT clk porta portb portc;
+R100 simple 0 XX XXXX XX # <EoL Comment>;
+# Overlay the next cycle
+# Start Overlay: test_overlaying_on_next_cycle
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+# End Overlay: test_overlaying_on_next_cycle
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+# Overlay the next two cycles
+# Start Overlay: test_overlaying_on_next_two_cycles
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+# End Overlay: test_overlaying_on_next_two_cycles
+R4 simple 0 XX XXXX XX # <EoL Comment>;
+# Overlaying on pins
+# Start Overlay: test overlaying on pins
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+# End Overlay: test overlaying on pins
+# End Overlay: test overlaying on pins
+R4 simple 0 XX XXXX XX # <EoL Comment>;
+# Overlaying on pins, with options
+# Start Overlay: test overlaying on pins, with options
+R1 simple 0 XX XXXX AX # <EoL Comment>;
+R1 simple 0 XX XXXX AX # <EoL Comment>;
+# End Overlay: test overlaying on pins, with options
+# End Overlay: test overlaying on pins, with options
+R4 simple 0 XX XXXX XX # <EoL Comment>;
+# Overlay from pin group. This should functionally be the same as previous overlay
+# Start Overlay: test overlaying from pin group
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+R1 simple 0 XX XXXX XX # <EoL Comment>;
+# End Overlay: test overlaying from pin group
+# End Overlay: test overlaying from pin group
+R2 simple 0 XX XXXX XX # <EoL Comment>;
+# Overlay from pin group, with options
+# Start Overlay: test overlaying from pin group, with options
+R1 simple 0 XX XXXX XA # <EoL Comment>;
+R1 simple 0 XX XXXX XA # <EoL Comment>;
+# End Overlay: test overlaying from pin group, with options
+# End Overlay: test overlaying from pin group, with options
+R2 simple 0 XX XXXX XX # <EoL Comment>;
+# Overlay during drive operation
+# Start Overlay: test overlaying while driving pin group
+R1 simple 0 XX XXXX BB # <EoL Comment>;
+R1 simple 0 XX XXXX BB # <EoL Comment>;
+# End Overlay: test overlaying while driving pin group
+# End Overlay: test overlaying while driving pin group
+R2 simple 0 XX XXXX 11 # <EoL Comment>;
+# Overlay during drive (again). Functionally, this should the same as the above
+# Start Overlay: test overlaying from pin group - version 2
+R1 simple 0 XX XXXX BB # <EoL Comment>;
+R1 simple 0 XX XXXX BB # <EoL Comment>;
+# End Overlay: test overlaying from pin group - version 2
+# End Overlay: test overlaying from pin group - version 2
+R2 simple 0 XX XXXX 11 # <EoL Comment>;
+# Overlay during drive operation
+# Start Overlay: test overlaying while verifying pin group
+R1 simple 0 XX XXXX AA # <EoL Comment>;
+R1 simple 0 XX XXXX AA # <EoL Comment>;
+# End Overlay: test overlaying while verifying pin group
+# End Overlay: test overlaying while verifying pin group
+R2 simple 0 XX XXXX LL # <EoL Comment>;
+# Overlay a register write and verify with the same overlay
+# SimpleProtocol: Simple Write: 0 <- 3435982574
+# SimpleProtocol: Writing Address: 0 (address width: 32)
+R8 simple 0 XX 0000 10 # <EoL Comment>;
+# SimpleProtocol: Writing Data: 3435982574 (data width: 32)
+# Start Overlay: Register Write/Verify Overlay
+R1 simple 0 XX 0111 10 # <EoL Comment>;
+R1 simple 0 XX 0111 10 # <EoL Comment>;
+R1 simple 0 XX 0111 10 # <EoL Comment>;
+R1 simple 0 XX 0111 10 # <EoL Comment>;
+R1 simple 0 XX 0011 10 # <EoL Comment>;
+R1 simple 0 XX 0011 10 # <EoL Comment>;
+R1 simple 0 XX 0011 10 # <EoL Comment>;
+R1 simple 0 XX 0011 10 # <EoL Comment>;
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+R1 simple 0 XX XXXX 0X # <EoL Comment>;
+# SimpleProtocol: Simple Verify: 0 =? 3435982574
+# SimpleProtocol: Verifying Address: 0 (address width: 32)
+R8 simple 0 XX 0000 11 # <EoL Comment>;
+# SimpleProtocol: Verifying Data: 3435982574 (data width: 32)
+# Start Overlay: Register Write/Verify Overlay
+R1 simple 0 XX LHHH 11 # <EoL Comment>;
+R1 simple 0 XX LHHH 11 # <EoL Comment>;
+R1 simple 0 XX LHHH 11 # <EoL Comment>;
+R1 simple 0 XX LHHH 11 # <EoL Comment>;
+R1 simple 0 XX LLHH 11 # <EoL Comment>;
+R1 simple 0 XX LLHH 11 # <EoL Comment>;
+R1 simple 0 XX LLHH 11 # <EoL Comment>;
+R1 simple 0 XX LLHH 11 # <EoL Comment>;
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+R1 simple 0 XX XXXX 0X # <EoL Comment>;
+# These should not be overlayed
+# SimpleProtocol: Simple Write: 0 <- 3435982574
+# SimpleProtocol: Writing Address: 0 (address width: 32)
+R8 simple 0 XX 0000 10 # <EoL Comment>;
+# SimpleProtocol: Writing Data: 3435982574 (data width: 32)
+R4 simple 0 XX 0111 10 # <EoL Comment>;
+R4 simple 0 XX 0011 10 # <EoL Comment>;
+R1 simple 0 XX XXXX 0X # <EoL Comment>;
+# SimpleProtocol: Simple Verify: 0 =? 3435982574
+# SimpleProtocol: Verifying Address: 0 (address width: 32)
+R8 simple 0 XX 0000 11 # <EoL Comment>;
+# SimpleProtocol: Verifying Data: 3435982574 (data width: 32)
+R4 simple 0 XX LHHH 11 # <EoL Comment>;
+R4 simple 0 XX LLHH 11 # <EoL Comment>;
+R1 simple 0 XX XXXX 0X # <EoL Comment>;
+# Overlay On Register Write with symbol and mask
+# SimpleProtocol: Simple Write: 0 <- 3435982574
+# SimpleProtocol: Writing Address: 0 (address width: 32)
+R8 simple 0 XX 0000 10 # <EoL Comment>;
+# SimpleProtocol: Writing Data: 3435982574 (data width: 32)
+# Start Overlay: Register Write/Verify Overlay
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+R1 simple 0 XX AAAA 10 # <EoL Comment>;
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+# End Overlay: Register Write/Verify Overlay
+R1 simple 0 XX XXXX 0X # <EoL Comment>;
+R10 simple 0 XX XXXX 0X # <EoL Comment>;
+SQPG STOP;

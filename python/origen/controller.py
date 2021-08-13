@@ -328,3 +328,11 @@ class TopLevel(Base):
             func,
             unload_on=callbacks.UnloadOn.DUT_CHANGE)
         return func
+
+    @staticmethod
+    def initialized(func):
+        origen.callbacks.proxies.append(
+            "toplevel__initialized",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        return func

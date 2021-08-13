@@ -1,5 +1,5 @@
 use crate::model::Model;
-use crate::{extract_value, unpack_transaction_options};
+use crate::resolve_transaction;
 use origen::services::{simple, Service};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -67,33 +67,41 @@ impl Simple {
         Ok(slf.into())
     }
 
-    #[args(kwargs = "**")]
+    #[args(write_opts = "**")]
     fn write_register(
         slf: PyRef<Self>,
         bits_or_val: &PyAny,
-        kwargs: Option<&PyDict>,
+        write_opts: Option<&PyDict>,
     ) -> PyResult<Py<Self>> {
         let dut = origen::dut();
         let services = origen::services();
-        let value = extract_value(bits_or_val, Some(32), &dut)?;
-        let mut trans = value.to_write_transaction(&dut)?;
-        unpack_transaction_options(&mut trans, kwargs)?;
+        let trans = resolve_transaction(
+            &dut,
+            bits_or_val,
+            Some(origen::TransactionAction::Write),
+            write_opts,
+        )?;
+
         let simple = services.get_as_simple(slf.id()?)?;
         simple.write(&dut, trans)?;
         Ok(slf.into())
     }
 
-    #[args(kwargs = "**")]
+    #[args(verify_opts = "**")]
     fn verify_register(
         slf: PyRef<Self>,
         bits_or_val: &PyAny,
-        kwargs: Option<&PyDict>,
+        verify_opts: Option<&PyDict>,
     ) -> PyResult<Py<Self>> {
         let dut = origen::dut();
         let services = origen::services();
-        let value = extract_value(bits_or_val, Some(32), &dut)?;
-        let mut trans = value.to_verify_transaction(&dut)?;
-        unpack_transaction_options(&mut trans, kwargs)?;
+        let trans = resolve_transaction(
+            &dut,
+            bits_or_val,
+            Some(origen::TransactionAction::Verify),
+            verify_opts,
+        )?;
+
         let simple = services.get_as_simple(slf.id()?)?;
         simple.verify(&dut, trans)?;
         Ok(slf.into())

@@ -1,20 +1,20 @@
 # ******************************************************************************************
 # Generated
-#   Time: 2021-05-23 17:34:47.585908600 -05:00
+#   Time: 2021-07-15 07:56:37.525952600 -05:00
 #   By: nxa13790
-#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\example\patterns\captures.py
+#   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\captures.py
 # ******************************************************************************************
 # Workspace
 #   Environment
 #     OS: Windows Unknown
 #     Mode: development
 #     Targets
-#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\dut\eagle.py
-#         C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app\targets\tester\v93k_smt7.py
+#         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\dut\eagle.py
+#         C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\targets\tester\v93k_smt7.py
 #   Application
-#     Local Path: C:\Users\nxa13790\Documents\origen\o2\test_apps\python_app
+#     Local Path: C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app
 #   Origen Core
-#     Version: 2.0.0-dev4
+#     Version: 2.0.0-dev.5
 #     Executable Path: C:\Users\nxa13790\AppData\Local\Programs\Python\Python38\python.exe
 # ******************************************************************************************
 # Header Comments
@@ -26,7 +26,8 @@ R100 simple 0 X XX # <EoL Comment>;
 # Basics
 # ---
 # Capture a single cycle
-R2 simple 0 X XX # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
+R1 simple 0 X XX # <EoL Comment>;
 # Capture a single cycle on portc
 R1 simple 0 X CC # <EoL Comment>;
 R1 simple 0 X XX # <EoL Comment>;

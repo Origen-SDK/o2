@@ -164,4 +164,23 @@ impl Overlay {
     pub fn to_node(&self) -> Node {
         node!(Overlay, self.clone(), None)
     }
+
+    pub fn enabled_overlay_pins(&self) -> Result<Vec<usize>> {
+        let mut retn: Vec<usize> = vec![];
+        if let Some(ppids) = self.pin_ids.as_ref() {
+            if let Some(enables) = self.enables.as_ref() {
+                let mut e = enables.clone();
+                let big_one = BigUint::from(1 as u8);
+                for p in ppids.iter().rev() {
+                    if &e & &big_one == big_one {
+                        retn.push(*p);
+                    }
+                    e >>= 1;
+                }
+            } else {
+                retn = ppids.clone();
+            }
+        }
+        Ok(retn)
+    }
 }

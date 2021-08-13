@@ -50,7 +50,7 @@ pub enum Attrs {
     Capture(crate::Capture, Metadata),
     EndCapture(Option<usize>),
     Overlay(crate::Overlay, Metadata),
-    EndOverlay(Option<usize>),
+    EndOverlay(Option<String>, Option<usize>), // Label, PinID
     Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
     Cycle(u32, bool),                         // repeat (0 not allowed), compressable
     PatternHeader,

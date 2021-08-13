@@ -166,7 +166,7 @@ class Base(_origen.application.PyApplication):
 
         return self._block_path_cache[path]
 
-    def instantiate_dut(self, path):
+    def instantiate_dut(self, path, **kwargs):
         ''' Instantiate the given DUT and return it, this must be called first before any
             sub-blocks can be instantiated '''
         if origen.dut is not None:
@@ -183,6 +183,7 @@ class Base(_origen.application.PyApplication):
                 "The DUT object is not an instance of origen.application::TopLevel"
             )
         origen.dut = dut
+        origen.callbacks.emit("toplevel__initialized", kwargs=kwargs)
         return dut
 
     def instantiate_block_from_mod(self,
