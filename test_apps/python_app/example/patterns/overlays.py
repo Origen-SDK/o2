@@ -78,6 +78,18 @@ with Pattern(pin_header="all") as pat:
     # Test with overlay mask
 
     # Test with Pin Collections
+    t.cc("Overlay pin collection porta0, portb0, and portc")
+    c = dut().pins.collect("porta0", "portb0", "portc")
+    c.overlay().cycle()
+    c.repeat(2)
+
+    t.cc("Overlay pin collection with symbol 'A' for 4 cycles")
+    c.overlay(symbol="A", cycles=4)
+    c.repeat(8)
+
+    t.cc("Overlay pin collection with symbol 'A' for 4 cycles, with mask 0b11_0001")
+    c.overlay(symbol="A", cycles=4, mask=0b1101)
+    c.repeat(8)
 
     # Test with registers
 

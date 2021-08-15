@@ -1,6 +1,6 @@
 // ******************************************************************************************
 // Generated
-//   Time: 2021-08-13 07:28:04.887470400 -05:00
+//   Time: 2021-08-14 20:48:13.680929900 -05:00
 //   By: nxa13790
 //   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\overlays.py
 // ******************************************************************************************
@@ -85,6 +85,36 @@ repeat 2 > simple 0 XX XXXX 11 ;
 // End Overlay: test overlaying while verifying pin group
 // End Overlay: test overlaying while verifying pin group
 repeat 2 > simple 0 XX XXXX LL ;
+// Overlay pin collection porta0, portb0, and portc
+// Start Overlay: 
+ > simple 0 XX XXXX LL ;
+// End Overlay: 
+// End Overlay: 
+// End Overlay: 
+// End Overlay: 
+repeat 2 > simple 0 XX XXXX LL ;
+// Overlay pin collection with symbol 'A' for 4 cycles
+// Start Overlay: 
+ > simple 0 AX AXXX AA ;
+ > simple 0 AX AXXX AA ;
+ > simple 0 AX AXXX AA ;
+ > simple 0 AX AXXX AA ;
+// End Overlay: 
+// End Overlay: 
+// End Overlay: 
+// End Overlay: 
+repeat 4 > simple 0 XX XXXX LL ;
+// Overlay pin collection with symbol 'A' for 4 cycles, with mask 0b11_0001
+// Start Overlay: 
+ > simple 0 AX AXXX LA ;
+ > simple 0 AX AXXX LA ;
+ > simple 0 AX AXXX LA ;
+ > simple 0 AX AXXX LA ;
+// End Overlay: 
+// End Overlay: 
+// End Overlay: 
+// End Overlay: 
+repeat 4 > simple 0 XX XXXX LL ;
 // Overlay a register write and verify with the same overlay
 // SimpleProtocol: Simple Write: 0 <- 3435982574
 // SimpleProtocol: Writing Address: 0 (address width: 32)
@@ -137,7 +167,6 @@ repeat 8 > simple 0 XX 0000 11 ;
 repeat 4 > simple 0 XX LHHH 11 ;
 repeat 4 > simple 0 XX LLHH 11 ;
  > simple 0 XX XXXX 0X ;
-// Overlay On Register Write with symbol and mask
 // SimpleProtocol: Simple Write: 0 <- 3435982574
 // SimpleProtocol: Writing Address: 0 (address width: 32)
 repeat 8 > simple 0 XX 0000 10 ;

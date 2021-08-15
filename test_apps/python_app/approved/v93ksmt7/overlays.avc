@@ -1,6 +1,6 @@
 # ******************************************************************************************
 # Generated
-#   Time: 2021-08-13 07:28:04.835460 -05:00
+#   Time: 2021-08-14 20:48:13.652605 -05:00
 #   By: nxa13790
 #   Command: origen generate \\?\C:\Users\nxa13790\Documents\origen\o2_scratch\test_apps\python_app\example\patterns\overlays.py
 # ******************************************************************************************
@@ -83,6 +83,36 @@ R1 simple 0 XX XXXX AA # <EoL Comment>;
 # End Overlay: test overlaying while verifying pin group
 # End Overlay: test overlaying while verifying pin group
 R2 simple 0 XX XXXX LL # <EoL Comment>;
+# Overlay pin collection porta0, portb0, and portc
+# Start Overlay: 
+R1 simple 0 XX XXXX LL # <EoL Comment>;
+# End Overlay: 
+# End Overlay: 
+# End Overlay: 
+# End Overlay: 
+R2 simple 0 XX XXXX LL # <EoL Comment>;
+# Overlay pin collection with symbol 'A' for 4 cycles
+# Start Overlay: 
+R1 simple 0 AX AXXX AA # <EoL Comment>;
+R1 simple 0 AX AXXX AA # <EoL Comment>;
+R1 simple 0 AX AXXX AA # <EoL Comment>;
+R1 simple 0 AX AXXX AA # <EoL Comment>;
+# End Overlay: 
+# End Overlay: 
+# End Overlay: 
+# End Overlay: 
+R4 simple 0 XX XXXX LL # <EoL Comment>;
+# Overlay pin collection with symbol 'A' for 4 cycles, with mask 0b11_0001
+# Start Overlay: 
+R1 simple 0 AX AXXX LA # <EoL Comment>;
+R1 simple 0 AX AXXX LA # <EoL Comment>;
+R1 simple 0 AX AXXX LA # <EoL Comment>;
+R1 simple 0 AX AXXX LA # <EoL Comment>;
+# End Overlay: 
+# End Overlay: 
+# End Overlay: 
+# End Overlay: 
+R4 simple 0 XX XXXX LL # <EoL Comment>;
 # Overlay a register write and verify with the same overlay
 # SimpleProtocol: Simple Write: 0 <- 3435982574
 # SimpleProtocol: Writing Address: 0 (address width: 32)
@@ -135,7 +165,6 @@ R8 simple 0 XX 0000 11 # <EoL Comment>;
 R4 simple 0 XX LHHH 11 # <EoL Comment>;
 R4 simple 0 XX LLHH 11 # <EoL Comment>;
 R1 simple 0 XX XXXX 0X # <EoL Comment>;
-# Overlay On Register Write with symbol and mask
 # SimpleProtocol: Simple Write: 0 <- 3435982574
 # SimpleProtocol: Writing Address: 0 (address width: 32)
 R8 simple 0 XX 0000 10 # <EoL Comment>;
