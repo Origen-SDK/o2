@@ -27,7 +27,7 @@ impl DuplicateIDs {
                 );
             } else {
                 return error!(
-                    "The ID '{}' was assigned more than once, run again with the --degug \
+                    "The ID '{}' was assigned more than once, run again with the --debug \
                  switch enabled to trace back to a flow line",
                     id
                 );
