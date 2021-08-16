@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 /// Does the final writing of the flow AST to a SMT7 flow file
 pub struct FlowGenerator {
+    #[allow(dead_code)]
     name: String,
     description: Option<String>,
     sub_flow_open: bool,
@@ -578,7 +579,7 @@ impl Processor for FlowGenerator {
                 if node
                     .children
                     .iter()
-                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
+                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_) | Attrs::PGMOnPassed(_)))
                     || !self.on_fails.is_empty()
                     || !self.on_passes.is_empty()
                 {
@@ -618,7 +619,7 @@ impl Processor for FlowGenerator {
                 if node
                     .children
                     .iter()
-                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_)| Attrs::PGMOnPassed(_)))
+                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_) | Attrs::PGMOnPassed(_)))
                     || !self.on_fails.is_empty()
                     || !self.on_passes.is_empty()
                 {

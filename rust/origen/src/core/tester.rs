@@ -433,7 +433,7 @@ impl Tester {
                 if !paths.is_empty() {
                     for path in &paths {
                         self.stats.generated_pattern_files += 1;
-                        log_debug!("Tester '{}' created file '{}'", gen.name(),  path.display());
+                        log_debug!("Tester '{}' created file '{}'", gen.name(), path.display());
                         if diff_and_display {
                             if let Ok(p) = to_relative_path(path, None) {
                                 display!("Created: {}", p.display());
@@ -447,33 +447,54 @@ impl Tester {
                                         let ref_pat = ref_dir.join(&stem);
                                         display!(" - ");
                                         if ref_pat.exists() {
-                                            if let Some(mut differ) = gen.pattern_differ(path, &ref_pat) {
+                                            if let Some(mut differ) =
+                                                gen.pattern_differ(path, &ref_pat)
+                                            {
                                                 if differ.has_diffs()? {
-                                                    if let Err(e) = reference_files::create_changed_ref(&stem, &path, &ref_pat) {
+                                                    if let Err(e) =
+                                                        reference_files::create_changed_ref(
+                                                            &stem, &path, &ref_pat,
+                                                        )
+                                                    {
                                                         log_error!("{}", e);
                                                     }
                                                     self.stats.changed_pattern_files += 1;
                                                     display_redln!("Diffs found");
-                                                    let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
-                                                    let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
-                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                                                    displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
-                                                    display!("  origen save_ref {}", stem.display());
+                                                    let old = to_relative_path(&ref_pat, None)
+                                                        .unwrap_or(ref_pat);
+                                                    let new = to_relative_path(&path, None)
+                                                        .unwrap_or(path.to_owned());
+                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL")
+                                                        .unwrap_or("tkdiff".to_string());
+                                                    displayln!(
+                                                        "  {} {} {} &",
+                                                        &diff_tool,
+                                                        old.display(),
+                                                        new.display()
+                                                    );
+                                                    display!(
+                                                        "  origen save_ref {}",
+                                                        stem.display()
+                                                    );
                                                 } else {
                                                     display_green!("No diffs");
                                                 }
                                             } else {
-                                                log_debug!("No differ defined for tester '{}'", gen.name());
+                                                log_debug!(
+                                                    "No differ defined for tester '{}'",
+                                                    gen.name()
+                                                );
                                                 display_yellow!("Diff not checked");
                                             }
                                         } else {
                                             self.stats.new_pattern_files += 1;
-                                            if let Err(e) = reference_files::create_new_ref(&stem, &path, &ref_pat) {
+                                            if let Err(e) = reference_files::create_new_ref(
+                                                &stem, &path, &ref_pat,
+                                            ) {
                                                 log_error!("{}", e);
                                             }
                                             display_cyanln!("New pattern");
                                             display!("  origen save_ref {}", stem.display());
-
                                         }
                                     }
                                 }
@@ -509,7 +530,7 @@ impl Tester {
                 if !paths.is_empty() {
                     for path in &paths {
                         self.stats.generated_program_files += 1;
-                        log_debug!("Tester '{}' created file '{}'", gen.name(),  path.display());
+                        log_debug!("Tester '{}' created file '{}'", gen.name(), path.display());
                         if diff_and_display {
                             if let Ok(p) = to_relative_path(path, None) {
                                 display!("Created: {}", p.display());
@@ -523,33 +544,54 @@ impl Tester {
                                         let ref_pat = ref_dir.join(&stem);
                                         display!(" - ");
                                         if ref_pat.exists() {
-                                            if let Some(mut differ) = gen.program_differ(path, &ref_pat) {
+                                            if let Some(mut differ) =
+                                                gen.program_differ(path, &ref_pat)
+                                            {
                                                 if differ.has_diffs()? {
-                                                    if let Err(e) = reference_files::create_changed_ref(&stem, &path, &ref_pat) {
+                                                    if let Err(e) =
+                                                        reference_files::create_changed_ref(
+                                                            &stem, &path, &ref_pat,
+                                                        )
+                                                    {
                                                         log_error!("{}", e);
                                                     }
                                                     self.stats.changed_program_files += 1;
                                                     display_redln!("Diffs found");
-                                                    let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
-                                                    let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
-                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                                                    displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
-                                                    display!("  origen save_ref {}", stem.display());
+                                                    let old = to_relative_path(&ref_pat, None)
+                                                        .unwrap_or(ref_pat);
+                                                    let new = to_relative_path(&path, None)
+                                                        .unwrap_or(path.to_owned());
+                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL")
+                                                        .unwrap_or("tkdiff".to_string());
+                                                    displayln!(
+                                                        "  {} {} {} &",
+                                                        &diff_tool,
+                                                        old.display(),
+                                                        new.display()
+                                                    );
+                                                    display!(
+                                                        "  origen save_ref {}",
+                                                        stem.display()
+                                                    );
                                                 } else {
                                                     display_green!("No diffs");
                                                 }
                                             } else {
-                                                log_debug!("No differ defined for tester '{}'", gen.name());
+                                                log_debug!(
+                                                    "No differ defined for tester '{}'",
+                                                    gen.name()
+                                                );
                                                 display_yellow!("Diff not checked");
                                             }
                                         } else {
                                             self.stats.new_program_files += 1;
-                                            if let Err(e) = reference_files::create_new_ref(&stem, &path, &ref_pat) {
+                                            if let Err(e) = reference_files::create_new_ref(
+                                                &stem, &path, &ref_pat,
+                                            ) {
                                                 log_error!("{}", e);
                                             }
                                             display_cyanln!("New file");
                                             display!("  origen save_ref {}", stem.display());
-
                                         }
                                     }
                                 }
@@ -560,7 +602,9 @@ impl Tester {
                     // Now write the pattern referenced list
                     let mut referenced_patterns = HashSet::new();
                     for pat in &model.patterns {
-                        if pat.reference_type == PatternReferenceType::All || pat.reference_type == PatternReferenceType::Origen {
+                        if pat.reference_type == PatternReferenceType::All
+                            || pat.reference_type == PatternReferenceType::Origen
+                        {
                             let _ = referenced_patterns.insert(pat.path.to_owned());
                         }
                     }
@@ -588,22 +632,36 @@ impl Tester {
                             let mut differ = ASCIIDiffer::new(&ref_list, &list);
                             differ.ignore_comments("#")?;
                             if differ.has_diffs()? {
-                                if let Err(e) = reference_files::create_changed_ref(Path::new("referenced.list"), &list, &ref_list) {
+                                if let Err(e) = reference_files::create_changed_ref(
+                                    Path::new("referenced.list"),
+                                    &list,
+                                    &ref_list,
+                                ) {
                                     log_error!("{}", e);
                                 }
                                 self.stats.changed_program_files += 1;
                                 display_redln!("Diffs found");
                                 let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
                                 let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
-                                let diff_tool = std::env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                                displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
+                                let diff_tool = std::env::var("ORIGEN_DIFF_TOOL")
+                                    .unwrap_or("tkdiff".to_string());
+                                displayln!(
+                                    "  {} {} {} &",
+                                    &diff_tool,
+                                    old.display(),
+                                    new.display()
+                                );
                                 display!("  origen save_ref referenced.list");
                             } else {
                                 display_green!("No diffs");
                             }
                         } else {
                             self.stats.new_program_files += 1;
-                            if let Err(e) = reference_files::create_new_ref(Path::new("referenced.list"), &list, &ref_list) {
+                            if let Err(e) = reference_files::create_new_ref(
+                                Path::new("referenced.list"),
+                                &list,
+                                &ref_list,
+                            ) {
                                 log_error!("{}", e);
                             }
                             display_cyanln!("New file");
@@ -611,7 +669,6 @@ impl Tester {
                         }
                     }
                     displayln!("");
-
                 } else {
                     log_debug!("No files generated by tester '{}", gen.name());
                 }

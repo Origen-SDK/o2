@@ -10,6 +10,7 @@ enum Operation {
     InsertBefore,
     InsertBeforeAll,
     InsertAfter,
+    #[allow(dead_code)]
     InsertAfterAll,
     Prepend,
     Append,

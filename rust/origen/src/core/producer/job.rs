@@ -1,6 +1,6 @@
 use crate::Result;
-use std::path::{Path, PathBuf};
 use normpath::PathExt;
+use std::path::{Path, PathBuf};
 
 /// A job represents the execution of an Origen application source file.
 /// For example, if the user runs `origen g <pat1> <pat2>` then two jobs will be created,
@@ -96,7 +96,7 @@ impl Job {
                                 return Some(f.into_path_buf());
                             }
                         }
-                        Err(_e) => { }//dbg!(e); } 
+                        Err(_e) => {} //dbg!(e); }
                     }
                     // dbg!("Does not exist!");
                 }
