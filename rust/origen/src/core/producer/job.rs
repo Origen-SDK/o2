@@ -67,8 +67,6 @@ impl Job {
                 }
             }
         }
-        dbg!(file);
-        dbg!(&self.files);
         error!("Could not find '{}'", file.display())
     }
 
@@ -80,25 +78,19 @@ impl Job {
         } else {
             if let Some(root) = self.files.last() {
                 let root_norm = root.normalize().unwrap();
-                // dbg!(root_norm.parent());
                 if let Ok(Some(dir)) = root_norm.parent() {
                     let f = dir.join(file);
-                    // dbg!(&f);
                     if f.exists() {
-                        // dbg!("Does exist!");
                         return Some(f.into_path_buf());
                     }
                     match f.canonicalize() {
                         Ok(f) => {
-                            // dbg!(&f);
                             if f.exists() {
-                                // dbg!("Does exist!");
                                 return Some(f.into_path_buf());
                             }
                         }
-                        Err(_e) => {} //dbg!(e); }
+                        Err(_e) => {}
                     }
-                    // dbg!("Does not exist!");
                 }
             }
             if let Some(root) = self.files.first() {

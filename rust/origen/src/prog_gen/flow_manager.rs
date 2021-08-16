@@ -34,6 +34,21 @@ impl FlowManager {
         }
     }
 
+    /// Returns true if a program flow is currently being generated
+    pub fn is_open(&self) -> bool {
+        let inner = self.inner.read().unwrap();
+        if let Some(name) = &inner.selected_flow {
+            if inner.flows.get(name).is_some() {
+                return true;
+            }
+        } else {
+            if inner.flows.values().last().is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn selected(&self) -> Option<String> {
         let inner = self.inner.read().unwrap();
         if let Some(f) = &inner.selected_flow {

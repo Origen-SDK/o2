@@ -133,7 +133,7 @@ impl Tester {
         let n = node!(TesterEq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             prog_ref_id = FLOW.push_and_open(n)?;
         } else {
             prog_ref_id = 0;
@@ -148,7 +148,7 @@ impl Tester {
     /// as the main argument.
     pub fn end_tester_eq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             FLOW.close(prog_ref_id)?;
         }
         crate::STATUS.pop_testers_eq()?;
@@ -161,7 +161,7 @@ impl Tester {
         let n = node!(TesterNeq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             prog_ref_id = FLOW.push_and_open(n)?;
         } else {
             prog_ref_id = 0;
@@ -173,7 +173,7 @@ impl Tester {
 
     pub fn end_tester_neq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             FLOW.close(prog_ref_id)?;
         }
         crate::STATUS.pop_testers_neq()?;
