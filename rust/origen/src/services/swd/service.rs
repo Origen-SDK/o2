@@ -83,7 +83,10 @@ impl Service {
         transaction: Transaction,
         ack: Acknowledgements,
     ) -> Result<()> {
-        let mut trans = node!(SWDWriteAP, self.id, transaction.clone(), ack, None);
+        let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
+        let mut t2 = transaction.clone();
+        t2.apply_overlay_pin_ids(&swdio.as_ids())?;
+        let mut trans = node!(SWDWriteAP, self.id, t2, ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -97,7 +100,10 @@ impl Service {
         ack: Acknowledgements,
         parity: Option<bool>,
     ) -> Result<()> {
-        let mut trans = node!(SWDVerifyAP, self.id, transaction.clone(), ack, parity, None);
+        let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
+        let mut t2 = transaction.clone();
+        t2.apply_overlay_pin_ids(&swdio.as_ids())?;
+        let mut trans = node!(SWDVerifyAP, self.id, t2, ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -110,7 +116,10 @@ impl Service {
         transaction: Transaction,
         ack: Acknowledgements,
     ) -> Result<()> {
-        let mut trans = node!(SWDWriteDP, self.id, transaction.clone(), ack, None);
+        let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
+        let mut t2 = transaction.clone();
+        t2.apply_overlay_pin_ids(&swdio.as_ids())?;
+        let mut trans = node!(SWDWriteDP, self.id, t2, ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -124,7 +133,10 @@ impl Service {
         ack: Acknowledgements,
         parity: Option<bool>,
     ) -> Result<()> {
-        let mut trans = node!(SWDVerifyDP, self.id, transaction.clone(), ack, parity, None);
+        let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
+        let mut t2 = transaction.clone();
+        t2.apply_overlay_pin_ids(&swdio.as_ids())?;
+        let mut trans = node!(SWDVerifyDP, self.id, t2, ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;

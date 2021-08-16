@@ -1,0 +1,18 @@
+[package]
+name = "origen-core-support"
+version = "0.1.0-dev.1"
+authors = ["Origen-SDK"]
+license = "MIT"
+edition = "2018"
+description = "Support crate for the separate 'origen' crate"
+repository = "https://github.com/Origen-SDK/o2"
+keywords = ["Origen", "Origen-SDK"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0.14"
+quote = "1.0.2"

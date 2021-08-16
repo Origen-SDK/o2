@@ -2,10 +2,10 @@
 name = "python_plugin"
 version = "0.1.0"
 description = ""
-authors = ["Stephen McGinty <stephen.f.mcginty@gmail.com>"]
+authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = ">=3.6,<3.9"
 origen = { path = "../../python", develop = true }
 
 [tool.poetry.dev-dependencies]

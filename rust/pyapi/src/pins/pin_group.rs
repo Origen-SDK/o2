@@ -1,10 +1,10 @@
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
-use super::super::pins::extract_pin_transaction;
+use super::super::pins::{extract_pin_transaction, unpack_pin_transaction_kwargs};
 use super::pin_actions::PinActions;
 use super::pin_collection::PinCollection;
 use num_bigint::BigUint;
-use origen::Transaction;
 use origen::DUT;
+use origen::{Transaction, TransactionAction};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
@@ -47,24 +47,23 @@ impl PinGroup {
         .into_py(py))
     }
 
-    fn drive(slf: PyRef<Self>, data: BigUint) -> PyResult<Py<Self>> {
+    #[args(kwargs = "**")]
+    fn drive(slf: PyRef<Self>, data: BigUint, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-        grp.update(&dut, &Transaction::new_write(data, grp.len())?)?;
+        let mut t = Transaction::new_write(data, grp.len())?;
+        unpack_pin_transaction_kwargs(&mut t, kwargs)?;
+        grp.update(&dut, &t)?;
         Ok(slf.into())
     }
 
-    fn verify(slf: PyRef<Self>, data: BigUint) -> PyResult<Py<Self>> {
+    #[args(kwargs = "**")]
+    fn verify(slf: PyRef<Self>, data: BigUint, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-        grp.update(&dut, &Transaction::new_verify(data, grp.len())?)?;
-        Ok(slf.into())
-    }
-
-    fn capture(slf: PyRef<Self>) -> PyResult<Py<Self>> {
-        let dut = DUT.lock().unwrap();
-        let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-        grp.update(&dut, &Transaction::new_capture(grp.len())?)?;
+        let mut t = Transaction::new_verify(data, grp.len())?;
+        unpack_pin_transaction_kwargs(&mut t, kwargs)?;
+        grp.update(&dut, &t)?;
         Ok(slf.into())
     }
 
@@ -89,7 +88,10 @@ impl PinGroup {
     ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-        grp.update(&dut, &extract_pin_transaction(actions, kwargs)?)?;
+        grp.update(
+            &dut,
+            &extract_pin_transaction(actions, TransactionAction::Set, kwargs)?,
+        )?;
         Ok(slf.into())
     }
 
@@ -163,7 +165,62 @@ impl PinGroup {
         )?;
         Ok(slf.into())
     }
+
+    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
+    fn overlay(
+        slf: PyRef<Self>,
+        label: Option<String>,
+        symbol: Option<String>,
+        cycles: Option<usize>,
+        mask: Option<BigUint>,
+    ) -> PyResult<Py<Self>> {
+        let dut = DUT.lock().unwrap();
+        let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
+        grp.overlay(&mut origen::Overlay::placeholder(
+            label, symbol, cycles, mask,
+        ))?;
+        Ok(slf.into())
+    }
+
+    #[args(symbol = "None", cycles = "None", mask = "None")]
+    fn capture(
+        slf: PyRef<Self>,
+        symbol: Option<String>,
+        cycles: Option<usize>,
+        mask: Option<BigUint>,
+    ) -> PyResult<Py<Self>> {
+        let dut = DUT.lock().unwrap();
+        let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
+        grp.capture(&mut origen::Capture::placeholder(symbol, cycles, mask))?;
+        Ok(slf.into())
+    }
+
+    #[getter]
+    #[allow(non_snake_case)]
+    fn get___origen_id__(&self) -> PyResult<usize> {
+        let dut = DUT.lock().unwrap();
+        let grp = dut._get_pin_group(self.model_id, &self.name)?;
+        Ok(grp.id)
+    }
+
+    #[getter]
+    #[allow(non_snake_case)]
+    fn get___origen_pin_ids__(&self) -> PyResult<Vec<usize>> {
+        let dut = DUT.lock().unwrap();
+        let grp = dut._get_pin_group(self.model_id, &self.name)?;
+        Ok(grp.pin_ids.clone())
+    }
 }
+
+// impl PinAPI for PinGroup {
+//     type T = Self;
+
+//     fn update(slf: &PyRef<Self::T>, dut: &origen::Dut, trans: Transaction) -> PyResult<()> {
+//         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
+//         grp.update(&dut, &trans)?;
+//         Ok(())
+//     }
+// }
 
 #[pyproto]
 impl pyo3::class::sequence::PySequenceProtocol for PinGroup {

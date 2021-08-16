@@ -2,6 +2,7 @@ use super::AccessType;
 use super::AccessType::Unimplemented;
 use crate::{Error, Result};
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::RwLock;
 
 // State values for common initialization cases
@@ -9,13 +10,54 @@ pub const ZERO: u8 = 0;
 pub const ONE: u8 = 1;
 pub const UNDEFINED: u8 = 0b10;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Overlay {
+    pub label: Option<String>,
+    pub symbol: Option<String>,
+    pub persistent: bool,
+}
+
+impl fmt::Display for Overlay {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}Overlay {}{}",
+            {
+                if self.persistent {
+                    "Persistent "
+                } else {
+                    ""
+                }
+            },
+            match &self.label {
+                Some(l) => format!("'{}'", l),
+                None => "<Anonymous Overlay>".to_string(),
+            },
+            match &self.symbol {
+                Some(s) => format!("(Symbol '{}'", s),
+                None => "".to_string(),
+            },
+        )
+    }
+}
+
+impl Overlay {
+    pub fn new(label: Option<String>, symbol: Option<String>, persistent: bool) -> Self {
+        Self {
+            label,
+            symbol,
+            persistent,
+        }
+    }
+}
+
 // TODO: Would one RwLock wrapping a BitInner struct instantiate faster?
 #[derive(Debug)]
 pub struct Bit {
     pub id: usize,
     pub register_id: usize,
-    pub overlay: RwLock<Option<String>>,
-    pub overlay_snapshots: RwLock<HashMap<String, Option<String>>>,
+    pub overlay: RwLock<Option<Overlay>>,
+    pub overlay_snapshots: RwLock<HashMap<String, Option<Overlay>>>,
     /// The individual bits mean the following:
     /// 0 - Data value
     /// 1 - Value is X
@@ -36,22 +78,14 @@ pub struct Bit {
 impl Bit {
     pub fn snapshot(&self, name: &str) {
         let state = *self.state.read().unwrap();
-        let overlay = match &*self.overlay.read().unwrap() {
-            Some(x) => Some(x.to_string()),
-            None => None,
-        };
         let mut state_snapshots = self.state_snapshots.write().unwrap();
         let mut overlay_snapshots = self.overlay_snapshots.write().unwrap();
         state_snapshots.insert(name.to_string(), state);
-        overlay_snapshots.insert(name.to_string(), overlay);
+        overlay_snapshots.insert(name.to_string(), self.overlay.read().unwrap().clone());
     }
 
     pub fn is_changed(&self, name: &str) -> Result<bool> {
         let state = *self.state.read().unwrap();
-        let overlay = match &*self.overlay.read().unwrap() {
-            Some(x) => Some(x.to_string()),
-            None => None,
-        };
         match self.state_snapshots.read().unwrap().get(name) {
             None => {
                 return Err(Error::new(&format!(
@@ -73,7 +107,7 @@ impl Bit {
                 )))
             }
             Some(x) => {
-                if *x != overlay {
+                if *x != *self.overlay.read().unwrap() {
                     return Ok(true);
                 }
             }
@@ -101,10 +135,10 @@ impl Bit {
                     name
                 )))
             }
-            Some(x) => match x {
-                None => self.set_overlay(None),
-                Some(y) => self.set_overlay(Some(&*y.as_str())),
-            },
+            Some(x) => {
+                let mut ovl = self.overlay.write().unwrap();
+                *ovl = x.clone();
+            }
         };
         Ok(())
     }
@@ -114,10 +148,7 @@ impl Bit {
         let mut state = self.state.write().unwrap();
         *state = *source.state.read().unwrap();
         let mut overlay = self.overlay.write().unwrap();
-        match &*source.overlay.read().unwrap() {
-            Some(x) => *overlay = Some(x.to_string()),
-            None => *overlay = None,
-        }
+        *overlay = source.overlay.read().unwrap().clone();
     }
 
     pub fn clear_flags(&self) {
@@ -145,6 +176,31 @@ impl Bit {
         }
         let mut state = self.state.write().unwrap();
         *state = state_val | 0b1_0000;
+    }
+
+    pub fn clear_capture(&self) {
+        let state_val;
+        {
+            state_val = *self.state.read().unwrap();
+        }
+        let mut state = self.state.write().unwrap();
+        *state = state_val & 0b0_1111;
+    }
+
+    pub fn clear_persistent_overlay(&self) {
+        let mut overlay = self.overlay.write().unwrap();
+        *overlay = None;
+    }
+
+    pub fn clear_nonpersistent_overlay(&self) -> bool {
+        let mut overlay = self.overlay.write().unwrap();
+        if let Some(o) = &*overlay {
+            if !o.persistent {
+                *overlay = None;
+                return true;
+            }
+        }
+        return false;
     }
 
     /// Sets the bit's data value to X
@@ -282,19 +338,16 @@ impl Bit {
         *state = state_val | (val & 0b1) | 0b0010_0000;
     }
 
-    pub fn get_overlay(&self) -> Option<String> {
+    pub fn get_overlay(&self) -> Option<Overlay> {
         match &*self.overlay.read().unwrap() {
-            Some(x) => Some(x.to_string()),
+            Some(x) => Some(x.clone()),
             None => None,
         }
     }
 
-    pub fn set_overlay(&self, val: Option<&str>) {
+    pub fn set_overlay(&self, label: Option<String>, sym: Option<String>, persistent: bool) {
         let mut overlay = self.overlay.write().unwrap();
-        match val {
-            Some(x) => *overlay = Some(x.to_string()),
-            None => *overlay = None,
-        }
+        *overlay = Some(Overlay::new(label, sym, persistent));
     }
 
     pub fn verify_enable_flag(&self) -> u8 {

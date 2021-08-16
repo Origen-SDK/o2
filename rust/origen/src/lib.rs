@@ -4,7 +4,7 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate serde;
-extern crate meta;
+extern crate origen_core_support;
 #[macro_use]
 extern crate pest_derive;
 #[macro_use]
@@ -14,6 +14,10 @@ pub mod macros;
 extern crate indexmap;
 #[macro_use]
 extern crate strum_macros;
+#[macro_use]
+extern crate cfg_if;
+#[macro_use]
+extern crate enum_display_derive;
 
 pub mod core;
 pub mod error;
@@ -28,6 +32,7 @@ pub mod utility;
 
 pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
+pub use self::core::user;
 pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
@@ -36,16 +41,27 @@ pub use error::Error;
 use self::core::application::Application;
 use self::core::config::Config as OrigenConfig;
 pub use self::core::dut::Dut;
+use self::core::frontend::Handle;
 use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
-pub use self::core::tester::Tester;
+pub use self::core::tester::{Capture, Overlay, Tester};
+use self::core::user::Users;
 use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use utility::ldap::LDAPs;
+use utility::mailer::Mailer;
+use utility::session_store::{SessionStore, Sessions};
+
+pub use self::core::frontend::callbacks as CALLBACKS;
+pub use self::core::frontend::{
+    emit_callback, with_frontend, with_frontend_app, with_optional_frontend, GenericResult,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -81,8 +97,11 @@ lazy_static! {
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
-    /// Provides info about the current user
-    pub static ref USER: User = User::current();
+    pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
+    pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
+    pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
+    pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new());
+    pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
 impl PartialEq<AST> for TEST {
@@ -127,14 +146,28 @@ impl<'a> Value<'a> {
             Self::Data(data, width) => Transaction::new_verify(data.clone(), (*width) as usize),
         }
     }
+
+    pub fn to_capture_transaction(&self, dut: &MutexGuard<Dut>) -> Result<Transaction> {
+        match &self {
+            Self::Bits(bits, _size) => bits.to_capture_transaction(dut),
+            Self::Data(_data, width) => Transaction::new_capture((*width) as usize, None),
+        }
+    }
 }
 
 /// This is called immediately upon Origen booting
-pub fn initialize(verbosity: Option<u8>, cli_location: Option<String>) {
+pub fn initialize(
+    verbosity: Option<u8>,
+    verbosity_keywords: Vec<String>,
+    cli_location: Option<String>,
+    cli_version: Option<String>,
+) {
     if let Some(v) = verbosity {
         let _ = LOGGER.set_verbosity(v);
+        let _ = LOGGER.set_verbosity_keywords(verbosity_keywords);
     }
     STATUS.set_cli_location(cli_location);
+    STATUS.set_cli_version(cli_version);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
     LOGGER.set_status_ready();
 }
@@ -153,6 +186,66 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
+}
+
+pub fn sessions() -> MutexGuard<'static, Sessions> {
+    SESSIONS.lock().unwrap()
+}
+
+pub fn with_user_session<T, F>(session: Option<String>, mut func: F) -> Result<T>
+where
+    F: FnMut(&mut SessionStore) -> Result<T>,
+{
+    let mut sessions = crate::sessions();
+    let s = sessions.user_session(session)?;
+    func(s)
+}
+
+pub fn ldaps() -> MutexGuard<'static, LDAPs> {
+    LDAPS.lock().unwrap()
+}
+
+pub fn users<'a>() -> RwLockReadGuard<'a, Users> {
+    USERS.read().unwrap()
+}
+
+pub fn users_mut<'a>() -> RwLockWriteGuard<'a, Users> {
+    USERS.write().unwrap()
+}
+
+pub fn with_current_user<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(&User) -> Result<T>,
+{
+    let _users = users();
+    let u = _users.current_user()?;
+    func(u)
+}
+
+pub fn with_user<T, F>(user: &str, mut func: F) -> Result<T>
+where
+    F: FnMut(&User) -> Result<T>,
+{
+    let _users = users();
+    let u = _users.user(user).unwrap();
+    func(u)
+}
+
+pub fn with_user_mut<T, F>(user: &str, mut func: F) -> Result<T>
+where
+    F: FnMut(&mut User) -> Result<T>,
+{
+    let mut _users = users_mut();
+    let u = _users.user_mut(user).unwrap();
+    func(u)
+}
+
+pub fn mailer<'a>() -> RwLockReadGuard<'a, Mailer> {
+    MAILER.read().unwrap()
+}
+
+pub fn mailer_mut<'a>() -> RwLockWriteGuard<'a, Mailer> {
+    MAILER.write().unwrap()
 }
 
 /// Execute the given function with a reference to the current job.
@@ -217,8 +310,8 @@ pub fn clean_mode(name: &str) -> String {
 
 /// This will be called immediately before loading a fresh set of targets. Everything
 /// required to clear previous state from the existing targets should be initiated from here.
-pub fn prepare_for_target_load() {
-    tester().reset();
+pub fn prepare_for_target_load() -> Result<()> {
+    tester().reset()
 }
 
 /// Clears the current test (pattern) AST and starts a new one, this will be called by the
@@ -228,5 +321,28 @@ pub fn start_new_test(name: Option<String>) {
         TEST.start(&name);
     } else {
         TEST.start("ad-hoc");
+    }
+}
+
+#[cfg(all(test, not(origen_skip_frontend_tests)))]
+mod tests {
+    pub fn run_python(code: &str) -> crate::Result<()> {
+        let mut c = std::process::Command::new("origen");
+        c.arg("exec");
+        c.arg("python");
+        c.arg("-c");
+        c.arg(&format!("import origen; {}", code));
+        // Assume we're in the root of the Origen rust package
+        let mut f = std::env::current_dir().unwrap();
+        f.pop();
+        f.pop();
+        f.push("test_apps/python_app");
+        c.current_dir(f);
+        let res = c.output().unwrap();
+        println!("status: {}", res.status);
+        println!("{:?}", std::str::from_utf8(&res.stdout).unwrap());
+        println!("{:?}", std::str::from_utf8(&res.stderr).unwrap());
+        assert_eq!(res.status.success(), true);
+        Ok(())
     }
 }

@@ -1,0 +1,2 @@
+mailer__server = "smtp.origen.org"
+mailer__auth_method = "blah!"

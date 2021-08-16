@@ -67,7 +67,7 @@ impl Transaction {
         let gil = Python::acquire_gil();
         let py = gil.python();
 
-        if let Some(a) = self.transaction.address {
+        if let Some(a) = &self.transaction.address {
             Ok(a.to_object(py))
         } else {
             Ok(py.None())

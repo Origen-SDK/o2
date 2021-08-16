@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 
 fn main() {
+    built::write_built_file().expect("Failed to acquire build-time information");
+
     // This creates a file which defines a map of all files in the 'new' command's template dirs.
     // This file is then included by the 'new' command to allow it to iterate over each template
     // file.

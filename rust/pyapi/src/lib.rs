@@ -13,22 +13,25 @@ mod registers;
 mod services;
 #[macro_use]
 mod timesets;
+mod _frontend;
+mod _helpers;
 mod application;
 mod producer;
 mod prog_gen;
 mod standard_sub_blocks;
 mod tester;
 mod tester_apis;
+mod user;
 mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-use pyo3::types::{PyAny, PyDict};
+use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
 
@@ -43,12 +46,19 @@ use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
 use tester_apis::PyInit_tester_apis;
+use user::PyInit_users;
 use utility::location::Location;
 use utility::PyInit_utility;
+
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
 
 #[macro_export]
 macro_rules! pypath {
     ($py:expr, $path:expr) => {{
+        use pyo3::types::IntoPyDict;
         let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
         let obj = $py.eval(
             &format!("pathlib.Path(r\"{}\").resolve()", $path),
@@ -100,6 +110,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(tester_apis))?;
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
+    m.add_wrapped(wrap_pymodule!(users))?;
     Ok(())
 }
 
@@ -132,7 +143,7 @@ fn unpack_transaction_options(
 ) -> PyResult<()> {
     if let Some(opts) = kwargs {
         if let Some(address) = opts.get_item("address") {
-            trans.address = Some(address.extract::<u128>()?);
+            trans.address = Some(address.extract::<BigUint>()?);
         }
         if let Some(w) = opts.get_item("address_width") {
             trans.address_width = Some(w.extract::<usize>()?);
@@ -149,6 +160,117 @@ fn unpack_transaction_options(
     }
     Ok(())
 }
+
+fn unpack_capture_kwargs(
+    dut: &origen::Dut,
+    cap_trans: &mut origen::Capture,
+    kwargs: Option<&PyDict>,
+    pins_allowed: bool,
+    cycles_allowed: bool,
+) -> PyResult<()> {
+    if let Some(opts) = kwargs {
+        if let Some(sym) = opts.get_item("symbol") {
+            cap_trans.symbol = Some(sym.extract::<String>()?);
+        }
+        if let Some(enables) = opts.get_item("mask") {
+            cap_trans.enables = Some(enables.extract::<BigUint>()?);
+        }
+        if let Some(cycles) = opts.get_item("cycles") {
+            if cycles_allowed {
+                cap_trans.cycles = Some(cycles.extract::<usize>()?);
+            } else {
+                return runtime_error!("'cycles' capture option is not valid in this context");
+            }
+        }
+        if let Some(pins) = opts.get_item("pins") {
+            if pins_allowed {
+                let pins_vec = pins.extract::<Vec<&PyAny>>()?;
+                cap_trans.pin_ids = Some(pins::vec_to_ppin_ids(&dut, pins_vec)?);
+            } else {
+                return runtime_error!("'pins' capture option is not valid in this context");
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Unpacks/extracts common transaction options, updating the transaction directly
+/// Unpacks: addr(u128), overlay (BigUint), overlay_str(String), mask(BigUint),
+fn unpack_transaction_kwargs(trans: &mut origen::Transaction, kwargs: &PyDict) -> PyResult<()> {
+    if let Some(mask) = kwargs.get_item("mask") {
+        if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+            trans.bit_enable = big_mask;
+        } else {
+            return crate::type_error!("Could not extract kwarg 'mask' as an integer");
+        }
+    }
+    if let Some(overlay) = kwargs.get_item("overlay") {
+        let overlay_mask;
+        let overlay_symbol;
+        let overlay_cycles;
+        if let Some(mask) = kwargs.get_item("overlay_mask") {
+            if let Ok(big_mask) = mask.extract::<num_bigint::BigUint>() {
+                overlay_mask = Some(big_mask);
+            } else {
+                return crate::type_error!("Could not extract kwarg 'overlay_mask' as an integer");
+            }
+        } else {
+            if let Some(ovl) = trans.overlay.as_ref() {
+                overlay_mask = ovl.enables.clone();
+            } else {
+                overlay_mask = None;
+            }
+        }
+        if let Some(s) = kwargs.get_item("overlay_symbol") {
+            if let Ok(sym) = s.extract::<String>() {
+                overlay_symbol = Some(sym);
+            } else {
+                return crate::type_error!("Could not extract kwarg 'overlay_symbol' as a String");
+            }
+        } else {
+            if let Some(ovl) = trans.overlay.as_ref() {
+                overlay_symbol = ovl.symbol.clone();
+            } else {
+                overlay_symbol = None;
+            }
+        }
+        if let Some(c) = kwargs.get_item("overlay_cycles") {
+            if let Ok(i) = c.extract::<usize>() {
+                overlay_cycles = Some(i);
+            } else {
+                return crate::type_error!(
+                    "Could not extract kwarg 'overlay_cycles' as an Integer"
+                );
+            }
+        } else {
+            if let Some(ovl) = trans.overlay.as_ref() {
+                overlay_cycles = ovl.cycles.clone();
+            } else {
+                overlay_cycles = None;
+            }
+        }
+        if let Ok(should_overlay) = overlay.extract::<bool>() {
+            if should_overlay {
+                // Unnamed overlay
+                trans.apply_overlay(None, overlay_symbol, overlay_mask)?;
+            }
+        } else if let Ok(overlay_name) = overlay.extract::<String>() {
+            trans.apply_overlay(Some(overlay_name), overlay_symbol, overlay_mask)?;
+            if overlay_cycles.is_some() {
+                trans.overlay.as_mut().unwrap().cycles = overlay_cycles;
+            }
+        } else {
+            return crate::type_error!(
+                "Could not extract kwarg 'overlay' as either a bool or a string"
+            );
+        }
+    }
+    Ok(())
+}
+
+// fn unpack_register_transaction() -> PyResult<Transaction> {
+//     // ...
+// }
 
 fn resolve_transaction(
     dut: &std::sync::MutexGuard<origen::Dut>,
@@ -168,7 +290,17 @@ fn resolve_transaction(
         match a {
             origen::TransactionAction::Write => trans = value.to_write_transaction(&dut)?,
             origen::TransactionAction::Verify => trans = value.to_verify_transaction(&dut)?,
-            // origen::TransactionAction::Capture => trans = value.to_capture_transaction(&dut)?,
+            origen::TransactionAction::Capture => {
+                trans = value.to_capture_transaction(&dut)?;
+                unpack_capture_kwargs(
+                    &dut,
+                    &mut trans.capture.as_mut().unwrap(),
+                    kwargs,
+                    false,
+                    false,
+                )?;
+                return Ok(trans);
+            }
             _ => {
                 return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
                     "Resolving transactions for {:?} is not supported",
@@ -183,7 +315,9 @@ fn resolve_transaction(
 
     if let Some(opts) = kwargs {
         if let Some(address) = opts.get_item("address") {
-            trans.address = Some(address.extract::<u128>()?);
+            if !address.is_none() {
+                trans.address = Some(address.extract::<BigUint>()?);
+            }
         }
         if let Some(w) = opts.get_item("address_width") {
             trans.address_width = Some(w.extract::<usize>()?);
@@ -213,10 +347,42 @@ fn exit_pass() -> PyResult<()> {
     exit_pass!();
 }
 
+fn origen_mod_path() -> PyResult<PathBuf> {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let locals = PyDict::new(py);
+    locals.set_item("importlib", py.import("importlib")?)?;
+    let p = PathBuf::from(
+        py.eval(
+            "importlib.util.find_spec('_origen').origin",
+            None,
+            Some(&locals),
+        )?
+        .extract::<String>()?,
+    );
+    Ok(p.parent().unwrap().to_path_buf())
+}
+
 /// Called automatically when Origen is first loaded
 #[pyfunction]
-fn initialize(log_verbosity: Option<u8>, cli_location: Option<String>) -> PyResult<()> {
-    origen::initialize(log_verbosity, cli_location);
+fn initialize(
+    log_verbosity: Option<u8>,
+    verbosity_keywords: Vec<String>,
+    cli_location: Option<String>,
+    cli_version: Option<String>,
+) -> PyResult<()> {
+    origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version);
+    origen::STATUS.update_other_build_info("pyapi_version", built_info::PKG_VERSION)?;
+    origen::FRONTEND
+        .write()
+        .unwrap()
+        .set_frontend(Box::new(_frontend::Frontend::new()))?;
+
+    if let Some(app) = &STATUS.app {
+        origen::STATUS.set_in_origen_core_app(origen_mod_path()? == app.root);
+    } else {
+        origen::STATUS.set_in_origen_core_app(false);
+    }
     Ok(())
 }
 
@@ -308,15 +474,36 @@ fn status(py: Python) -> PyResult<PyObject> {
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
     let _ = ret.set_item("on_windows", cfg!(windows));
+    ret.set_item(
+        "origen_core_support_version",
+        STATUS.origen_core_support_version.to_string(),
+    )?;
+    ret.set_item(
+        "other_build_info",
+        _helpers::hashmap_to_pydict(py, &STATUS.other_build_info())?,
+    )?;
+    ret.set_item(
+        "cli_version",
+        match STATUS.cli_version() {
+            Some(v) => Some(v.to_string()).to_object(py),
+            None => py.None(),
+        },
+    )?;
+    ret.set_item(
+        "is_app_in_origen_dev_mode",
+        STATUS.is_app_in_origen_dev_mode,
+    )?;
+    ret.set_item("in_origen_core_app", STATUS.in_origen_core_app())?;
     Ok(ret.into())
 }
 
 /// Returns the Origen version formatted into PEP440, e.g. "1.2.3.dev4"
 #[pyfunction]
 fn version() -> PyResult<String> {
-    Ok(origen::utility::version::to_pep440(
-        &STATUS.origen_version.to_string(),
-    )?)
+    Ok(
+        origen::utility::version::Version::new_pep440(&STATUS.origen_version.to_string())?
+            .to_string(),
+    )
 }
 
 /// Returns the Origen configuration (as defined in origen.toml files)
@@ -335,33 +522,6 @@ fn config(py: Python) -> PyResult<PyObject> {
 /// Returns the Origen application configuration (as defined in application.toml)
 #[pyfunction]
 fn app_config(py: Python) -> PyResult<PyObject> {
-    // let ret = PyDict::new(py);
-    // // Don't think an error can really happen here, so not handled
-    // let app_config = origen_app_config();
-    // let _ = ret.set_item("name", &app_config.name);
-    // let _ = ret.set_item("target", &app_config.target);
-    // let _ = ret.set_item("mode", &app_config.mode);
-    // let _ = ret.set_item("__output_directory__", &app_config.output_directory);
-    // let _ = ret.set_item(
-    //     "__website_output_directory__",
-    //     &app_config.website_output_directory,
-    // );
-    // let _ = ret.set_item(
-    //     "__website_source_directory__",
-    //     &app_config.website_source_directory,
-    // );
-    // let _ = ret.set_item(
-    //     "website_release_location",
-    //     match &app_config.website_release_location {
-    //         Some(loc) => Py::new(py, Location {location: (*loc).clone()}).unwrap().to_object(py),
-    //         None => py.None()
-    //     }
-    // );
-    // let _ = ret.set_item(
-    //     "website_release_name",
-    //     &app_config.website_release_name,
-    // );
-
     let ret = PyDict::new(py);
     let _ = origen::app().unwrap().with_config(|config| {
         let _ = ret.set_item("name", &config.name);
@@ -444,7 +604,7 @@ fn on_linux() -> PyResult<bool> {
 #[pyfunction]
 /// This will be called by Origen immediately before loading a fresh set of targets
 fn prepare_for_target_load() -> PyResult<()> {
-    origen::prepare_for_target_load();
+    origen::prepare_for_target_load()?;
     Ok(())
 }
 
@@ -453,4 +613,33 @@ fn prepare_for_target_load() -> PyResult<()> {
 fn start_new_test(name: Option<String>) -> PyResult<()> {
     origen::start_new_test(name);
     Ok(())
+}
+
+#[macro_export]
+macro_rules! runtime_error {
+    ($message:expr) => {{
+        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>($message))
+    }};
+}
+
+pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
+    let pickle = PyModule::import(py, "pickle")?;
+    pickle.call1("dumps", (object,))?.extract::<Vec<u8>>()
+}
+
+pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
+    let pickle = PyModule::import(py, "pickle")?;
+    let bytes = PyBytes::new(py, object);
+    pickle.call1("loads", (bytes,))
+}
+
+pub fn with_pycallbacks<T, F>(mut func: F) -> PyResult<T>
+where
+    F: FnMut(Python, &PyAny) -> PyResult<T>,
+{
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+
+    let pycallbacks = py.import("origen.callbacks")?;
+    func(py, pycallbacks)
 }

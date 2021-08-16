@@ -1,5 +1,6 @@
 pub mod arm_debug;
 pub mod jtag;
+pub mod simple;
 pub mod swd;
 
 pub use arm_debug::ArmDebug;
@@ -10,6 +11,7 @@ use crate::{Error, Result};
 pub enum Service {
     JTAG(jtag::Service),
     SWD(swd::Service),
+    Simple(simple::Service),
     ArmDebug(arm_debug::ArmDebug),
     ArmDebugDP(arm_debug::dp::DP),
     ArmDebugJtagDP(arm_debug::jtag_dp::JtagDP),
@@ -32,6 +34,16 @@ impl Service {
             Self::JTAG(s) => Ok(s),
             _ => Err(Error::new(&format!(
                 "Expected service JTAG but received {:?}",
+                self
+            ))),
+        }
+    }
+
+    pub fn as_simple(&self) -> Result<&simple::Service> {
+        match self {
+            Self::Simple(s) => Ok(s),
+            _ => Err(Error::new(&format!(
+                "Expected service Simple but received {:?}",
                 self
             ))),
         }
@@ -181,6 +193,11 @@ impl Services {
     pub fn get_as_jtag(&self, id: usize) -> Result<&jtag::Service> {
         let s = self.get_service(id)?;
         s.as_jtag()
+    }
+
+    pub fn get_as_simple(&self, id: usize) -> Result<&simple::Service> {
+        let s = self.get_service(id)?;
+        s.as_simple()
     }
 
     pub fn get_as_arm_debug(&self, id: usize) -> Result<&arm_debug::ArmDebug> {

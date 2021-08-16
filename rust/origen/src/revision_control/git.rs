@@ -1,14 +1,14 @@
 use super::{Credentials, RevisionControlAPI, Status};
 use crate::utility::command_helpers::log_stdout_and_stderr;
+use crate::GenericResult;
 use crate::Result as OrigenResult;
-use crate::USER;
 use git2::Repository;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
-use git2::{Cred, CredentialType, FetchOptions, RemoteCallbacks};
+use git2::{Cred, CredentialType, Direction, FetchOptions, PushOptions, RemoteCallbacks};
 use std::cell::RefCell;
 
 enum VersionType {
@@ -61,6 +61,7 @@ pub fn config(attr_name: &str) -> Option<String> {
     }
 }
 
+#[derive(Debug)]
 pub struct Git {
     /// Path to the local directory for the repository
     pub local: PathBuf,
@@ -78,6 +79,10 @@ pub struct Git {
 }
 
 impl RevisionControlAPI for Git {
+    fn system(&self) -> &str {
+        "Git"
+    }
+
     fn populate(&self, version: &str) -> OrigenResult<()> {
         let mut ssh_remotes: Vec<&str> = vec![];
         let mut https_remotes: Vec<&str> = vec![];
@@ -197,7 +202,192 @@ impl RevisionControlAPI for Git {
         } else {
             repo.tag_lightweight(tagname, &obj, force)?;
         }
+
+        let tag_ref = format!("refs/tags/{}", tagname);
+        log_trace!("Pushing tag '{}' to '{}'", tagname, tag_ref);
+        self._push(&repo, None, Some(&tag_ref))?;
         Ok(())
+    }
+
+    fn is_initialized(&self) -> OrigenResult<bool> {
+        match Repository::open(&self.local) {
+            Ok(_) => Ok(true),
+            Err(e) => match e.code() {
+                git2::ErrorCode::NotFound => Ok(false),
+                _ => error!("{}", e),
+            },
+        }
+    }
+
+    fn init(&self) -> OrigenResult<GenericResult> {
+        log_trace!(
+            "Initializing new Git workspace at '{}' (Remote(s): '{:?}')",
+            &self.local.display(),
+            self.remotes
+        );
+
+        if self.is_initialized()? {
+            // Already initialized. Return Ok but indicate that nothing actually happened
+            return Ok(GenericResult::new_success_with_msg(
+                "Workspace already initialized",
+            ));
+        }
+
+        let repo;
+        repo = Repository::init(&self.local)?;
+        repo.remote("origin", &self.remotes[0])?;
+
+        // Create a first commit, but without actually adding anything.
+        // This will just be the parents for other commits.
+        log_trace!("Initializing Git index file");
+        let tree_id = {
+            let mut index = repo.index()?;
+            index.write_tree()?
+        };
+        let tree = repo.find_tree(tree_id)?;
+
+        // Create the first commit. Will not be pushed, however.
+        log_trace!("Creating first commit");
+        let sig = repo.signature()?;
+        repo.commit(Some("HEAD"), &sig, &sig, "Initialing Workspace", &tree, &[])?;
+
+        let msg = format!("Initialized git workspace at '{}'", self.local.display());
+        log_trace!("{}", &msg);
+        Ok(GenericResult::new_success_with_msg(msg))
+    }
+
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> OrigenResult<GenericResult> {
+        let repo = Repository::open(&self.local)?;
+        let mut index = repo.index()?;
+        if let Some(pathspecs) = files_or_dirs {
+            if pathspecs.is_empty() {
+                log_trace!("RevisionControl: Git: No pathspecs specified - no checkins occurred");
+                return Ok(GenericResult::new_success_with_msg(
+                    self.current_commit_id(&repo)?,
+                ));
+            } else {
+                log_trace!(
+                    "RevisionControl: Git: Adding files from pathspecs: {:?}",
+                    pathspecs
+                );
+
+                // The git driver requires all paths to be relative to the root. Convert any absolute paths here.
+                // We'll also check that the pathspecs are valid. If an error is thrown in the middle of processing,
+                // we'll get into an intermediate state. Easy enough to just pre-check the values.
+                let mut doctored: Vec<PathBuf> = vec![];
+                for p in pathspecs {
+                    if p.is_absolute() {
+                        let pbuf = p.canonicalize()?;
+                        match pbuf.strip_prefix(&self.local.canonicalize()?) {
+                            Ok(_p) => doctored.push(_p.to_path_buf()),
+                            Err(_) => {
+                                return error!(
+                                    "Pathspec {} is outside of the current repo {}",
+                                    p.display().to_string(),
+                                    self.local.display().to_string()
+                                )
+                            }
+                        }
+                    } else {
+                        doctored.push(p.to_path_buf());
+                    }
+                }
+                for p in doctored {
+                    log_trace!("Git: Processing spec \"{}\"", p.display());
+                    index.add_all(
+                        vec![p],
+                        git2::IndexAddOption::DEFAULT,
+                        Some(&mut |p, _spec| {
+                            log_trace!("Git: Updating item \"{}\"", p.display());
+                            if dry_run {
+                                1
+                            } else {
+                                0
+                            }
+                        }),
+                    )?;
+                }
+            }
+        } else {
+            log_trace!("RevisionControl: Git: Adding all files ");
+            log_trace!("Git: Processing spec: \"*\"");
+            index.add_all(
+                vec!["*"],
+                git2::IndexAddOption::DEFAULT,
+                Some(&mut |p, _spec| {
+                    log_trace!("Git: Updating item \"{:?}\"", p);
+                    if dry_run {
+                        1
+                    } else {
+                        0
+                    }
+                }),
+            )?;
+        }
+        if dry_run {
+            log_trace!("RevisionControl: Git: Bailing early due to dry-run option");
+            return Ok(GenericResult::new_success_with_msg("Dry-Run-Only"));
+        }
+
+        let tree_id = index.write_tree()?;
+        log_trace!("RevisionControl: Git: Wrote index file");
+
+        log_trace!("RevisionControl: Git: Committing Updates...");
+        let sig = Self::signature(&repo)?;
+        let obj = repo.head()?.resolve()?.peel(git2::ObjectType::Commit)?;
+        let c = obj.into_commit().unwrap();
+        let commit_id = repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            msg,
+            &repo.find_tree(tree_id)?,
+            &[&c],
+        )?;
+        log_trace!("RevisionControl: Git: Committed Updates");
+
+        log_trace!("Pushing new commit");
+        let mut remote = repo.find_remote("origin")?;
+
+        let mut keep_trying = true;
+        while keep_trying {
+            let mut cb = RemoteCallbacks::new();
+            cb.credentials(|url, username_from_url, allowed_types| {
+                self.credentials_callback(url, username_from_url, allowed_types)
+            });
+            match remote.connect_auth(Direction::Push, Some(cb), None) {
+                Ok(_) => keep_trying = false,
+                Err(e) => match e.class() {
+                    git2::ErrorClass::Ssh => {}
+                    _ => return Err(e.into()),
+                },
+            }
+        }
+        self.reset_temps();
+        let mut po = PushOptions::new();
+
+        let mut cb = RemoteCallbacks::new();
+        cb.credentials(|url, username_from_url, allowed_types| {
+            self.credentials_callback(url, username_from_url, allowed_types)
+        });
+        po.remote_callbacks(cb);
+        log_trace!("Pushing...");
+        remote.push(&["refs/heads/master:refs/heads/master"], Some(&mut po))?;
+        log_trace!("Push successful!");
+        self.reset_temps();
+
+        let mut cb = RemoteCallbacks::new();
+        cb.credentials(|url, username_from_url, allowed_types| {
+            self.credentials_callback(url, username_from_url, allowed_types)
+        });
+        log_trace!("Cleaning up after push...");
+        repo.checkout_index(None, None)?;
+        Ok(GenericResult::new_success_with_msg(commit_id))
     }
 }
 
@@ -213,6 +403,10 @@ impl Git {
             deltas_pct: RefCell::new(0),
             ssh_attempts: RefCell::new(0),
         }
+    }
+
+    fn current_commit_id(&self, repo: &Repository) -> OrigenResult<String> {
+        Ok(repo.revparse("HEAD")?.from().unwrap().id().to_string())
     }
 
     fn _populate(&self, version: &str, remote: &str) -> OrigenResult<()> {
@@ -409,6 +603,52 @@ impl Git {
         Ok(!self.status(None)?.conflicted.is_empty())
     }
 
+    fn _push(&self, repo: &Repository, from: Option<&str>, to: Option<&str>) -> crate::Result<()> {
+        let mut remote = repo.find_remote("origin")?;
+
+        let mut keep_trying = true;
+        while keep_trying {
+            let mut cb = RemoteCallbacks::new();
+            cb.credentials(|url, username_from_url, allowed_types| {
+                self.credentials_callback(url, username_from_url, allowed_types)
+            });
+            match remote.connect_auth(Direction::Push, Some(cb), None) {
+                Ok(_) => keep_trying = false,
+                Err(e) => match e.class() {
+                    git2::ErrorClass::Ssh => {}
+                    _ => return Err(e.into()),
+                },
+            }
+        }
+        self.reset_temps();
+        let mut po = PushOptions::new();
+
+        let mut cb = RemoteCallbacks::new();
+        cb.credentials(|url, username_from_url, allowed_types| {
+            self.credentials_callback(url, username_from_url, allowed_types)
+        });
+        po.remote_callbacks(cb);
+        log_trace!("Pushing...");
+        remote.push(
+            &[&format!(
+                "{}:{}",
+                from.unwrap_or("refs/heads/master"),
+                to.unwrap_or("refs/heads/master")
+            )],
+            Some(&mut po),
+        )?;
+        log_trace!("Push successful!");
+        self.reset_temps();
+
+        let mut cb = RemoteCallbacks::new();
+        cb.credentials(|url, username_from_url, allowed_types| {
+            self.credentials_callback(url, username_from_url, allowed_types)
+        });
+        log_trace!("Cleaning up after push...");
+        repo.checkout_index(None, None)?;
+        Ok(())
+    }
+
     // Returns a signature (to attribute commits etc.) for the current user, falling
     // back to a default Origen signature if necessary
     fn signature(repo: &Repository) -> OrigenResult<git2::Signature> {
@@ -431,11 +671,18 @@ impl Git {
             let mut ssh_attempts = self.ssh_attempts.borrow_mut();
             let ssh_keys = ssh_keys();
             if *ssh_attempts < ssh_keys.len() {
-                //let key = Cred::ssh_key_from_agent(username.unwrap());
-                //if key.is_ok() {
-                //    return key;
-                //}
-                let key = Cred::ssh_key(username.unwrap(), None, &ssh_keys[*ssh_attempts], None);
+                log_trace!("Trying key from: {}", &ssh_keys[*ssh_attempts].display());
+                let pub_key = PathBuf::from(format!("{}.pub", &ssh_keys[*ssh_attempts].display()));
+                let key = Cred::ssh_key(
+                    username.unwrap_or("git"),
+                    if pub_key.is_file() {
+                        Some(pub_key.as_path())
+                    } else {
+                        None
+                    },
+                    &ssh_keys[*ssh_attempts],
+                    None,
+                );
                 *ssh_attempts += 1;
                 return key;
             }
@@ -444,7 +691,6 @@ impl Git {
             let username;
             let password;
             {
-                let last_password_attempt = self.last_password_attempt.borrow();
                 password = {
                     if self.credentials.is_some()
                         && self.credentials.as_ref().unwrap().password.is_some()
@@ -457,10 +703,13 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        USER.password(
-                            Some(&format!("to access repository '{}'", url)),
-                            last_password_attempt.as_deref(),
-                        )
+                        crate::with_current_user(|u| {
+                            u.password(
+                                Some(&format!("to access repository '{}'", url)),
+                                true,
+                                Some(None),
+                            )
+                        })
                         .expect("Couldn't prompt for password")
                     }
                 };
@@ -476,7 +725,7 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        USER.id().unwrap()
+                        crate::core::user::get_current_id().unwrap()
                     }
                 };
             }
@@ -605,7 +854,7 @@ impl Git {
         remote.download(&[] as &[&str], Some(&mut fo))?;
 
         // Disconnect the underlying connection to prevent from idling.
-        remote.disconnect();
+        remote.disconnect()?;
 
         // Update the references in the remote's namespace to point to the right
         // commits. This may be needed even if there was no packfile to download,

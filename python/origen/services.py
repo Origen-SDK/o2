@@ -2,6 +2,7 @@ import origen
 import _origen
 JTAG = _origen.services.JTAG
 SWD = _origen.services.SWD
+Simple = _origen.services.Simple
 
 
 # This defines the methods for defining sub-blocks in Python and then handles serializing

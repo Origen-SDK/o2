@@ -2,10 +2,9 @@ use super::fmt::cd;
 use clap::ArgMatches;
 use origen::core::file_handler::File;
 use origen::utility::file_utils::{symlink, with_dir};
-use origen::utility::version::{to_pep440, to_semver};
+use origen::utility::version::Version;
 use origen::{Result, STATUS};
 use regex::Regex;
-use semver::Version;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
@@ -14,14 +13,14 @@ pub fn run(matches: &ArgMatches) {
     if let Some(v) = matches.value_of("version") {
         let mut version_bad = false;
         let version;
-        match to_semver(v) {
-            Ok(ver) => version = ver,
+        match Version::new_semver(v) {
+            Ok(ver) => version = ver.to_string(),
             Err(_e) => {
                 version = v.to_string();
                 version_bad = true;
             }
         }
-        if version_bad || Version::parse(&version).is_err() {
+        if version_bad || Version::new_semver(&version).is_err() {
             display_redln!(
                 "Invalid version: '{}', must be a semantic version like 1.2.3 or 1.2.3.dev4 (1.2.3-dev4 also accepted)",
                 &version
@@ -35,7 +34,7 @@ pub fn run(matches: &ArgMatches) {
                 .join("origen")
                 .join("cli")
                 .join("Cargo.toml"),
-            &version,
+            &version.to_string(),
         )
         .expect("Couldn't write version");
         write_version(
@@ -44,7 +43,7 @@ pub fn run(matches: &ArgMatches) {
                 .join("rust")
                 .join("origen")
                 .join("Cargo.toml"),
-            &version,
+            &version.to_string(),
         )
         .expect("Couldn't write version");
         write_version(
@@ -53,7 +52,7 @@ pub fn run(matches: &ArgMatches) {
                 .join("rust")
                 .join("pyapi")
                 .join("Cargo.toml"),
-            &version,
+            &version.to_string(),
         )
         .expect("Couldn't write version");
         write_version(
@@ -61,7 +60,9 @@ pub fn run(matches: &ArgMatches) {
                 .origen_wksp_root
                 .join("python")
                 .join("pyproject.toml"),
-            &to_pep440(&version).unwrap(),
+            &Version::new_pep440(&version.to_string())
+                .unwrap()
+                .to_string(),
         )
         .expect("Couldn't write version");
         return;
@@ -167,7 +168,7 @@ pub fn run(matches: &ArgMatches) {
             // Maturin picks up the version from Rust (pyapi) which is semver-compliant. Need to ensure the version
             // of the generated Python package is pep440 compliant
             let old = STATUS.origen_version.to_string();
-            let new = to_pep440(&old).unwrap();
+            let new = Version::new_pep440(&old.to_string()).unwrap().to_string();
             if old != new {
                 change_pyapi_wheel_version(&wheel_dir, &old, &new);
             }
@@ -270,7 +271,7 @@ pub fn run(matches: &ArgMatches) {
 }
 
 fn change_pyapi_wheel_version(dist_dir: &Path, old_version: &str, new_version: &str) {
-    if STATUS.origen_version.pre.is_empty() {
+    if STATUS.origen_version.is_prerelease().unwrap() {
         return;
     }
     let underscored_old_version = old_version.replace("-", "_");

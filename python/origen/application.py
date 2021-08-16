@@ -7,6 +7,7 @@ from origen.controller import TopLevel
 from origen.translator import Translator
 from origen.compiler import Compiler
 from origen.errors import *
+from origen.callbacks import _callbacks
 from types import ModuleType
 
 
@@ -76,6 +77,36 @@ class Base(_origen.application.PyApplication):
         ''' An alias for app_dir '''
         return self._app_dir
 
+    @property
+    def session(self):
+        ''' Return this app's session store'''
+        return origen.session_store.app_session(self)
+
+    @property
+    def user_session(self):
+        ''' Return this app's user session store'''
+        return origen.session_store.user_session(self)
+
+    @property
+    def rc(self):
+        return self._rc
+
+    @property
+    def linter(self):
+        return self._linter
+
+    @property
+    def publisher(self):
+        return self._publisher
+
+    @property
+    def unit_tester(self):
+        return self._unit_tester
+
+    @property
+    def release_scribe(self):
+        return self._release_scribe
+
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()
@@ -83,10 +114,20 @@ class Base(_origen.application.PyApplication):
             self._plugin = False
             self._root = origen.root
             self._name = _origen.app_config()["name"]
+            self._rc = _origen.utility.revision_control.app_rc()
+            self._unit_tester = _origen.utility.unit_testers.app_unit_tester()
+            #self._linter = _origen.utility.linter.app_linter()
+            self._publisher = _origen.utility.publisher.app_publisher()
+            self._release_scribe = _origen.utility.release_scribe.app_release_scribe(
+            )
         else:
             self._plugin = True
             self._root = options["root"]
             self._name = options["name"]
+            self._rc = None
+            self._unit_tester = None
+            self._linter = None
+            self._publisher = None
         self._app_dir = self.root.joinpath(self.name)
         self._block_path_cache = {}
 
@@ -113,6 +154,8 @@ class Base(_origen.application.PyApplication):
                     filepath = filepath.joinpath('blocks').joinpath(field)
                 elif filepath.joinpath(field).exists():
                     filepath = filepath.joinpath(field)
+                elif filepath.joinpath(f"{field}.py").exists():
+                    break
                 else:
                     self._block_path_cache[path] = (False, None)
                     break
@@ -129,7 +172,7 @@ class Base(_origen.application.PyApplication):
 
         return self._block_path_cache[path]
 
-    def instantiate_dut(self, path):
+    def instantiate_dut(self, path, **kwargs):
         ''' Instantiate the given DUT and return it, this must be called first before any
             sub-blocks can be instantiated '''
         if origen.dut is not None:
@@ -146,6 +189,7 @@ class Base(_origen.application.PyApplication):
                 "The DUT object is not an instance of origen.application::TopLevel"
             )
         origen.dut = dut
+        origen.callbacks.emit("toplevel__initialized", kwargs=kwargs)
         return dut
 
     def instantiate_block_from_mod(self,
@@ -222,15 +266,16 @@ class Base(_origen.application.PyApplication):
         controller_dir = block_dir
         controller_file = None
         blocks_dir = self.app_dir.joinpath("blocks")
-        if controller_dir.joinpath(f"{path}.py").exists():
-            controller_file = controller_dir.joinpath(f"{path}.py")
+        p = f"{path.split('.')[-1]}.py"
+        if controller_dir.joinpath(p).exists():
+            controller_file = controller_dir.joinpath(p)
         else:
             while controller_dir != blocks_dir:
                 if controller_dir.joinpath("controller.py").exists():
                     controller_file = controller_dir.joinpath("controller.py")
                     break
-                elif controller_dir.joinpath(f"{path}.py").exists():
-                    controller_file = controller_dir.joinpath(f"{path}.py")
+                elif controller_dir.joinpath(p).exists():
+                    controller_file = controller_dir.joinpath(p)
                     break
                 controller_dir = controller_dir.parent
                 d = os.path.basename(controller_dir)
@@ -361,6 +406,11 @@ class Base(_origen.application.PyApplication):
         '''
         self.compiler.run(*args, **options)
         return self.compiler
+
+
+# def on_app_init(func):
+#     _callbacks.register_listener("on_app_init", None, func)
+#     return func
 
 
 class Application(Base):

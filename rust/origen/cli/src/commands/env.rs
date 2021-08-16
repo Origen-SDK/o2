@@ -13,6 +13,9 @@ use regex::Regex;
 use semver::VersionReq;
 use std::process::Command;
 
+static MINIMUM_PIP_VERSION: &str = "21.1.2";
+static POETRY_VERSION: &str = "1.1.6";
+
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
         Some("update") => {
@@ -173,11 +176,12 @@ pub fn run(matches: &ArgMatches) {
             }
 
             // Lower than this version has a bug which can crash with local path dependencies
-            print!("Is PIP version >= 19.1?         ... ");
+            print!("Is PIP version >= {}?         ... ", MINIMUM_PIP_VERSION);
 
             // This gives an error that suggests it is not working when run on Windows, yet it solves the problem
             // seen with the earlier version on CI
-            let args = vec!["run", "pip", "install", "pip==20.2.3"];
+            let pip_version = format!("pip=={}", MINIMUM_PIP_VERSION);
+            let args = vec!["run", "pip", "install", &pip_version];
             let status = PYTHON_CONFIG.poetry_command().args(&args).status();
 
             if status.is_ok() {
@@ -234,7 +238,7 @@ fn install_poetry() {
     while attempts < 3 {
         print!("Is a suitable Poetry available? ... ");
         let version = poetry_version();
-        let required_poetry_version = VersionReq::parse("=1.1.2").unwrap();
+        let required_poetry_version = VersionReq::parse(&format!("={}", POETRY_VERSION)).unwrap();
 
         if version.is_some() && required_poetry_version.matches(&version.unwrap()) {
             greenln("YES");
@@ -260,7 +264,7 @@ fn install_poetry() {
                     displayln!("Installing Poetry, please wait a few moments")
                 }
                 c.arg("--ignore-installed");
-                c.arg("poetry==1.1.2");
+                c.arg(format!("poetry=={}", POETRY_VERSION));
                 match c.output() {
                     Ok(output) => {
                         let text = std::str::from_utf8(&output.stdout).unwrap();

@@ -3,20 +3,33 @@ import re
 import os
 init_verbosity = 0
 cli_path = None
+cli_ver = None
+vks = []
 
 regexp = re.compile(r'verbosity=(\d+)')
 cli_re = re.compile(r'origen_cli=(.+)')
+cli_ver_re = re.compile(r'origen_cli_version=(.+)')
+vk_re = re.compile(r'verbosity_keywords=(.+)')
 for arg in sys.argv:
     matches = regexp.search(arg)
     if matches:
         init_verbosity = int(matches.group(1))
     else:
-        matches = cli_re.search(arg)
+        matches = vk_re.search(arg)
         if matches:
-            cli_path = matches.group(1)
+            vks = matches.group(1).split(",")
+        else:
+            matches = cli_re.search(arg)
+            if matches:
+                cli_path = matches.group(1)
+                next
+            matches = cli_ver_re.search(arg)
+            if matches:
+                cli_ver = matches.group(1)
+                next
 
 import _origen
-_origen.initialize(init_verbosity, cli_path)
+_origen.initialize(init_verbosity, vks, cli_path, cli_ver)
 from pathlib import Path
 import importlib
 from contextlib import contextmanager
@@ -58,6 +71,13 @@ if status["is_app_present"]:
     Returns:
         pathlib.Path: Application's root as an OS-specific path object.
         None: If not in an application's workspace.
+'''
+
+__in_origen_core_app = status["in_origen_core_app"]
+''' Indicates if the current application is the Origen core package
+
+    Returns:
+        bool
 '''
 
 version = _origen.version()
@@ -154,6 +174,38 @@ _plugins = {}
     mean that it hasn't been loaded yet (via an official API) rather than it not existing.
 '''
 
+mailer = _origen.utility.mailer._mailer()
+''' Accessor to the global :class:`Mailer <_origen.utility.mailer.Mailer>`
+
+See also:
+    * :link-to:`Mailers in the guides <origen_utilities:mailer>`
+'''
+
+session_store = _origen.utility.session_store
+''' Accessor to the global :class:`SessionStore <_origen.utility.session_store.SessionStore`
+
+See also:
+    * :link-to:`Sessions in the guides <origen_utilities:session_store>`
+'''
+
+users = _origen.users.users()
+''' |dict-like| container for current and added :class:`Users <_origen.users.Users>`
+
+Put another way, accessor for global :class:`Users <_origen.users.Users>` object
+
+See also:
+    * :link-to:`Users in the guides <origen_utilities:users>`
+'''
+
+ldaps = _origen.utility.ldap.ldaps()
+''' |dict-like| container for current and added :class:`Users <_origen.utility.ldap.LDAP>`
+
+Put another way, accessor for global :class:`LDAPs <_origen.utility.ldap.LDAPs>` object
+
+See also:
+    * :link-to:`LDAPs in the guides <origen_utilities:ldap>`
+'''
+
 __instantiate_dut_called = False
 
 if status["is_app_present"]:
@@ -242,8 +294,13 @@ def plugin(name):
         )
 
 
+def current_user():
+    return _origen.users.current_user()
+
+
 __all__ = [
     *internal_members(sys.modules[__name__]), 'config', 'status', 'root',
     'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
-    'frontend_root', 'app', 'dut', 'tester', 'producer', 'has_plugin', 'plugin'
+    'frontend_root', 'app', 'dut', 'tester', 'producer', 'has_plugin',
+    'plugin', 'current_user', 'users', 'mailer', 'ldaps'
 ]

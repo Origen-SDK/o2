@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use num_bigint::BigUint;
+use origen::core::model::registers::bit::Overlay as OrigenBitOverlay;
 use origen::core::model::registers::BitCollection as RichBC;
 use origen::core::model::registers::{BitOrder, Field, Register};
 use origen::{Dut, Result, TEST};
@@ -14,6 +15,41 @@ use std::iter::FromIterator;
 use std::sync::MutexGuard;
 
 import_exception!(origen.errors, UndefinedDataError);
+
+#[pyclass]
+pub struct Overlay {
+    label: Option<String>,
+    symbol: Option<String>,
+    persistent: bool,
+}
+
+#[pymethods]
+impl Overlay {
+    #[getter]
+    fn label(&self) -> Option<String> {
+        self.label.clone()
+    }
+
+    #[getter]
+    fn symbol(&self) -> Option<String> {
+        self.symbol.clone()
+    }
+
+    #[getter]
+    fn persistent(&self) -> bool {
+        self.persistent
+    }
+}
+
+impl Overlay {
+    fn from_origen(overlay: &OrigenBitOverlay) -> Self {
+        Self {
+            label: overlay.label.clone(),
+            symbol: overlay.symbol.clone(),
+            persistent: overlay.persistent,
+        }
+    }
+}
 
 /// A BitCollection represents either a whole register or a subset of a
 /// registers bits (not necessarily contiguous bits) and provides the user
@@ -202,6 +238,7 @@ impl PyObjectProtocol for BitCollection {
                             .cloned(),
                     ));
                     bc.field = Some(field.name.clone());
+                    bc.whole_field = true;
                     fields.set_item(field.name, Py::new(py, bc)?.to_object(py))?;
                 }
                 Ok(fields.into())
@@ -522,19 +559,42 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn set_overlay(&self, value: Option<&str>) -> PyResult<BitCollection> {
+    #[args(label = "None", symbol = "None", mask = "None")]
+    fn set_overlay(
+        &self,
+        label: Option<String>,
+        symbol: Option<String>,
+        mask: Option<BigUint>,
+    ) -> PyResult<BitCollection> {
         let dut = origen::dut();
-        self.materialize(&dut)?.set_overlay(value);
+        self.materialize(&dut)?
+            .set_overlay(label, symbol, mask, true);
         Ok(self.clone())
     }
 
-    fn overlay(&self) -> PyResult<Option<String>> {
-        self.get_overlay()
+    fn clear_overlay(&self) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        self.materialize(&dut)?.clear_persistent_overlay();
+        Ok(self.clone())
     }
 
-    fn get_overlay(&self) -> PyResult<Option<String>> {
+    // #[args(kwargs = "**")]
+    fn set_capture(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.capture();
+        Ok(self.clone())
+    }
+
+    fn clear_capture(&self) -> PyResult<BitCollection> {
+        self.materialize(&origen::dut())?.clear_capture();
+        Ok(self.clone())
+    }
+
+    fn get_overlay(&self) -> PyResult<Option<Overlay>> {
         let dut = origen::dut();
-        Ok(self.materialize(&dut)?.get_overlay()?)
+        Ok(match self.materialize(&dut)?.get_overlay()? {
+            Some(o) => Some(Overlay::from_origen(&o)),
+            None => None,
+        })
     }
 
     fn copy(&self, src: &BitCollection) -> PyResult<BitCollection> {
@@ -822,11 +882,6 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    fn capture(&self) -> PyResult<BitCollection> {
-        self.materialize(&origen::dut())?.capture();
-        Ok(self.clone())
-    }
-
     fn set_undefined(&self) -> PyResult<BitCollection> {
         self.materialize(&origen::dut())?.set_undefined();
         Ok(self.clone())
@@ -983,6 +1038,75 @@ impl BitCollection {
                 bc.model_path()?
             ))),
         }
+        Ok(slf.into())
+    }
+
+    #[args(kwargs = "**")]
+    fn capture(slf: &PyCell<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+        // let bc = slf.extract::<PyRef<Self>>()?;
+        // bc.capture();
+        //slf.materialize(&origen::dut())?.capture();
+        {
+            let slf_bc = slf.extract::<PyRefMut<Self>>()?;
+            slf_bc.materialize(&origen::dut())?.capture();
+        }
+        let bc = slf.extract::<PyRef<Self>>()?;
+
+        // Attempt to find a controller which implements "capture_register"
+        match bc._controller_for(Some("capture_register"))? {
+            Some(c) => {
+                // If we've found a matching controller, capture the register
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                let args = PyTuple::new(py, &[slf.to_object(py)]);
+                c.call_method(py, "capture_register", args, kwargs)?;
+            }
+            None => {
+                // No controller specifies a "capture_register" method, so fall back to
+                // using verify with the capture bits set and no additional arguments which
+                // may change its state.
+                match bc._controller_for(Some("verify_register"))? {
+                    Some(c) => {
+                        let gil = Python::acquire_gil();
+                        let py = gil.python();
+                        let args = PyTuple::new(py, &[slf.to_object(py)]);
+                        c.call_method(py, "verify_register", args, None)?;
+                    }
+                    None => {
+                        return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                            "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",
+                            bc.model_path()?
+                        )));
+                    }
+                }
+                // match Self::verify(slf, None, None) {
+                //     Ok(c) => {},
+                //     Err(e) => {
+                //         let err = &e.pvalue;
+                //         match err {
+                //             pyo3::PyErrValue::Value(obj) =>{
+                //                 let gil = Python::acquire_gil();
+                //                 let py = gil.python();
+                //                 let message = obj.extract::<String>(py)?;
+                //                 if message.contains("No controller in the path") && message.contains("implements a 'verify_register'. Cannot verify this register.") {
+                //                     // Change the error message slightly as "capture_register" is also applicable
+                //                     return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                //                         "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",
+                //                         bc.model_path()?
+                //                     )));
+                //                 } else {
+                //                     // Some other error
+                //                     return Err(e);
+                //                 }
+                //             },
+                //             _ => return Err(e)
+                //         }
+                //     }
+                // }
+            }
+        }
+
+        // Ok(self.clone())
         Ok(slf.into())
     }
 }

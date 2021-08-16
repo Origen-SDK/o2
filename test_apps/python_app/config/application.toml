@@ -5,3 +5,13 @@ target = ["falcon"]
 #environment = "v93k"
 # To make your application workspace run in production mode by default
 #mode = "production"
+
+# Revision control parameters for the app itself
+app_rc = { system = "git", remote = "https://dummy.origen.git" }
+
+# Unit tester parameters for the app itself
+# By default, Origen apps use Pytest: https://docs.pytest.org/
+app_unit_tester = { system = "pytest" }
+
+# Linter
+# Package Manager

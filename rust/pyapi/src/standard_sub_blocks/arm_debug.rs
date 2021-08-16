@@ -6,7 +6,7 @@ use origen::services::arm_debug::MemAP as OrigenMemAP;
 use origen::services::arm_debug::DP as OrigenDP;
 // use origen::standard_sub_blocks::arm_debug::mem_ap::MemAP as OrigenMemAP;
 use crate::registers::bit_collection::BitCollection;
-use crate::{extract_value, unpack_transaction_options};
+use crate::{extract_value, resolve_transaction, unpack_transaction_options};
 use pyo3::exceptions;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple, PyType};
@@ -70,8 +70,8 @@ fn check_for_jtag() -> PyResult<Option<usize>> {
 
 #[pyclass(subclass)]
 #[derive(Clone)]
-/// Backend controller connecting the :link-to:`origen.standard_sub_blocks.ArmDebug` view
-/// with the :link-to:`origen::standard_sub_blocks::ArmDebug` model.
+/// Controller connecting the :class:`origen.blocks.arm_debug.controller.Controller` view
+/// with the :link-to:`backend model <backend_arm_debug_model>`.
 /// The controller here is responsible for instantiating and initializing the
 /// ArmDebug model.
 pub struct ArmDebug {
@@ -572,32 +572,47 @@ impl MemAP {
     /// Assumes that all posturing has been completed - that is, the bits' data, overlay
     /// status, etc. is current.
     #[args(write_opts = "**")]
-    fn write_register(
-        &self,
-        bits: &PyAny,
-        _latency: Option<u32>,
-        _write_opts: Option<&PyDict>,
-    ) -> PyResult<()> {
-        let bc = bits.extract::<PyRef<BitCollection>>()?;
+    fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
         let ap = services.get_as_mem_ap(self.mem_ap_id.unwrap())?;
-        ap.write_register(&dut, &services, &bc.materialize(&dut)?)?;
+        let trans = resolve_transaction(
+            &dut,
+            bits,
+            Some(origen::TransactionAction::Write),
+            write_opts,
+        )?;
+        ap.write_register(&dut, &services, &trans)?;
         Ok(())
     }
 
     #[args(verify_opts = "**")]
-    fn verify_register(
-        &self,
-        bits: &PyAny,
-        _latency: Option<u32>,
-        _verify_opts: Option<&PyDict>,
-    ) -> PyResult<()> {
-        let bc = bits.extract::<PyRef<BitCollection>>()?;
+    fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
         let ap = services.get_as_mem_ap(self.mem_ap_id.unwrap())?;
-        ap.verify_register(&dut, &services, &bc.materialize(&dut)?)?;
+        let trans = resolve_transaction(
+            &dut,
+            bits,
+            Some(origen::TransactionAction::Verify),
+            verify_opts,
+        )?;
+        ap.verify_register(&dut, &services, &trans)?;
+        Ok(())
+    }
+
+    #[args(capture_opts = "**")]
+    fn capture_register(&self, bits: &PyAny, capture_opts: Option<&PyDict>) -> PyResult<()> {
+        let dut = origen::dut();
+        let services = origen::services();
+        let ap = services.get_as_mem_ap(self.mem_ap_id.unwrap())?;
+        let trans = resolve_transaction(
+            &dut,
+            bits,
+            Some(origen::TransactionAction::Capture),
+            capture_opts,
+        )?;
+        ap.verify_register(&dut, &services, &trans)?;
         Ok(())
     }
 }

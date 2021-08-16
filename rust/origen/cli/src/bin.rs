@@ -12,9 +12,12 @@ mod python;
 use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use indexmap::map::IndexMap;
-use origen::utility::version::to_pep440;
 use origen::{LOGGER, STATUS};
+use std::iter::FromIterator;
 use std::path::Path;
+
+static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
+static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
 
 #[derive(Clone)]
 pub struct CommandHelp {
@@ -33,6 +36,11 @@ impl CommandHelp {
         msg += "\n";
         msg
     }
+}
+
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
 // This is the entry point for the Origen CLI tool
@@ -54,10 +62,15 @@ fn main() {
                 let captures = verbosity_re.captures(&args[0]).unwrap();
                 let x = captures.get(1).unwrap().as_str();
                 let verbosity = x.chars().count() as u8;
-                origen::initialize(Some(verbosity), None);
+                origen::initialize(
+                    Some(verbosity),
+                    vec![],
+                    None,
+                    Some(built_info::PKG_VERSION.to_string()),
+                );
                 args = args.drain(1..).collect();
             }
-            // Commmand is not actually available outside an app, so just fall through
+            // Command is not actually available outside an app, so just fall through
             // to generate the appropriate error
             if STATUS.is_app_present {
                 if args.len() > 0 {
@@ -88,17 +101,16 @@ fn main() {
             None
         }
     };
-    origen::initialize(Some(verbosity), exe);
+    origen::initialize(
+        Some(verbosity),
+        vec![],
+        exe,
+        Some(built_info::PKG_VERSION.to_string()),
+    );
 
     let version = match STATUS.is_app_present {
-        true => format!(
-            "Origen CLI: {}",
-            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
-        ),
-        false => format!(
-            "Origen: {}",
-            to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
-        ),
+        true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
+        false => format!("Origen: {}", STATUS.origen_version.to_string()),
     };
     if STATUS.app.is_some() {
         origen::core::application::config::Config::check_defaults(
@@ -118,7 +130,15 @@ fn main() {
                 .short("v")
                 .multiple(true)
                 .global(true)
-                .help("Terminal verbosity level e.g. -v, -vv, -vvv"),
+                .help(VERBOSITY_HELP_STR),
+        )
+        .arg(
+            Arg::with_name("verbosity_keywords")
+                .short("k")
+                .multiple(true)
+                .takes_value(true)
+                .global(true)
+                .help(VERBOSITY_KEYWORD_HELP_STR),
         );
 
     // The main help message is going to be automatically generated to allow us to handle and clearly
@@ -797,6 +817,126 @@ Examples:
         );
 
         /************************************************************************************/
+        let mailer_help =
+            "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
+        origen_commands.push(CommandHelp {
+            name: "mailer".to_string(),
+            help: mailer_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("mailer")
+                .about(mailer_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .subcommand(
+                    SubCommand::with_name("send")
+                        .about("Quickly send an email")
+                        .arg(
+                            Arg::with_name("body")
+                                .help("Email message body")
+                                .long("body")
+                                .takes_value(true)
+                                .required(true)
+                                .value_name("BODY")
+                                .index(1),
+                        )
+                        .arg(
+                            Arg::with_name("subject")
+                                .help("Email subject line")
+                                .long("subject")
+                                .short("s")
+                                .takes_value(true)
+                                .value_name("SUBJECT"),
+                        )
+                        .arg(
+                            Arg::with_name("to")
+                                .help("Recipient list")
+                                .long("to")
+                                .short("t")
+                                .takes_value(true)
+                                .required(true)
+                                .multiple(true)
+                                .value_name("TO"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("test")
+                        .about("Send a test email")
+                        .arg(
+                            Arg::with_name("to")
+                                .help(
+                                    "Recipient list. If omitted, will be sent to the current user",
+                                )
+                                .long("to")
+                                .short("t")
+                                .takes_value(true)
+                                .required(false)
+                                .multiple(true)
+                                .value_name("TO"),
+                        ),
+                ),
+        );
+
+        /************************************************************************************/
+        let credentials_help = "Set or clear user credentials";
+        origen_commands.push(CommandHelp {
+            name: "credentials".to_string(),
+            help: credentials_help.to_string(),
+            shortcut: None,
+        });
+        app = app.subcommand(
+            SubCommand::with_name("credentials")
+                .about(credentials_help)
+                .setting(AppSettings::ArgRequiredElseHelp)
+                .subcommand(
+                    SubCommand::with_name("set")
+                        .about("Set the current user's password")
+                        .arg(
+                            Arg::with_name("all")
+                                .help("Set the password for all datasets")
+                                .takes_value(false)
+                                .required(false)
+                                .long("all")
+                                .short("a"),
+                        )
+                        .arg(
+                            Arg::with_name("dataset")
+                                .help("Specify the dataset to set the password for")
+                                .takes_value(true)
+                                .required(false)
+                                .value_name("DATASET")
+                                .multiple(true)
+                                .conflicts_with("all")
+                                .long("dataset")
+                                .short("d"),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("clear")
+                        .about("Clear the user's password")
+                        .arg(
+                            Arg::with_name("all")
+                                .help("Clear the password for all datasets")
+                                .takes_value(false)
+                                .required(false)
+                                .conflicts_with("dataset")
+                                .long("all")
+                                .short("a"),
+                        )
+                        .arg(
+                            Arg::with_name("dataset")
+                                .help("Specify the dataset to clear the password for")
+                                .takes_value(true)
+                                .required(false)
+                                .value_name("DATASET")
+                                .multiple(true)
+                                .long("dataset")
+                                .short("d"),
+                        ),
+                ),
+        );
+
+        /************************************************************************************/
         let mode_help = "Set/view the default execution mode";
         origen_commands.push(CommandHelp {
             name: "mode".to_string(),
@@ -827,8 +967,67 @@ Examples:
                 .about(app_help)
                 .setting(AppSettings::ArgRequiredElseHelp)
                 .subcommand(
+                    SubCommand::with_name("init")
+                        .about("Initialize the application's revision control")
+                )
+                .subcommand(
+                    SubCommand::with_name("status")
+                        .about("Show any local changes")
+                        .arg(Arg::with_name("modified")
+                            .long("modified")
+                            .takes_value(false)
+                            .help("Show tracked, modified files")
+                        )
+                        .arg(Arg::with_name("untracked")
+                            .long("untracked")
+                            .takes_value(false)
+                            .help("Show untracked files")
+                        )
+                )
+                .subcommand(
+                    SubCommand::with_name("checkin")
+                        .about("Check in the given pathspecs")
+                        .arg(Arg::with_name("pathspecs")
+                            .help("The paths to be checked in")
+                            .takes_value(true)
+                            .value_name("PATHSPECS")
+                            .multiple(true)
+                        )
+                        .arg(Arg::with_name("all")
+                            .long("all")
+                            .short("a")
+                            .takes_value(false)
+                            .conflicts_with("pathspecs")
+                            .help("Check in all changes in the workspace")
+                        )
+                        .arg(Arg::with_name("dry-run")
+                            .long("dry-run")
+                            .takes_value(false)
+                            .conflicts_with("pathspecs")
+                            .help("Perform a dry-run only")
+                        )
+                        .arg(Arg::with_name("message")
+                            .long("message")
+                            .short("m")
+                            .takes_value(true)
+                            .required(true)
+                            .help("Message to provide with the check-in operation")
+                        )
+                )
+                .subcommand(
                     SubCommand::with_name("package")
-                        .about("Build the app into a Python package (a wheel)"),
+                        .about("Build the app into publishable package (e.g., a 'python wheel')"),
+                )
+                .subcommand(SubCommand::with_name("run_publish_checks")
+                    .about("Run production-ready and publish-ready checks")
+                )
+                .subcommand(SubCommand::with_name("publish")
+                    .about("Publish (release) the app")
+                    .arg(Arg::with_name("dry-run")
+                        .long("dry-run")
+                        .takes_value(false)
+                        .help("Runs through the entire process except the uploading and mailer steps")
+                    )
                 ),
         );
 
@@ -966,12 +1165,13 @@ Examples:
 USAGE:
     origen [FLAGS] [COMMAND]
 FLAGS:
-    -h, --help       Prints help information
-    -v               Terminal verbosity level e.g. -v, -vv, -vvv
+    -h, --help                Prints help information
+    -v                        {}
+    -vk, --verbosity_keywords {}
 
 CORE COMMANDS:
 ",
-        version
+        version, VERBOSITY_HELP_STR, VERBOSITY_KEYWORD_HELP_STR
     );
 
     for command in &origen_commands {
@@ -992,6 +1192,9 @@ CORE COMMANDS:
     let matches = app.get_matches();
 
     let _ = LOGGER.set_verbosity(matches.occurrences_of("verbose") as u8);
+    if let Some(keywords) = matches.values_of("verbosity_keywords") {
+        let _ = LOGGER.set_verbosity_keywords(keywords.map(|k| k.to_string()).collect());
+    }
 
     match matches.subcommand_name() {
         Some("app") => commands::app::run(matches.subcommand_matches("app").unwrap()),
@@ -1121,6 +1324,134 @@ CORE COMMANDS:
                 _ => {}
             }
         }
+        Some("mailer") => {
+            let cmd = matches.subcommand_matches("mailer").unwrap();
+            let subcmd = cmd.subcommand();
+            let sub = subcmd.1.unwrap();
+            match subcmd.0 {
+                "send" => {
+                    let m = origen::mailer();
+                    let e = origen::core::user::get_current_email()
+                        .expect("Could not resolve current user's email");
+                    let email = m.compose(
+                        &e,
+                        if let Some(recipients) = sub.values_of("to") {
+                            recipients.collect()
+                        } else {
+                            vec![&e]
+                        },
+                        sub.value_of("subject"),
+                        sub.value_of("body"),
+                        true,
+                    );
+                    match email {
+                        Ok(e) => match m.send(e) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!("Errors occurred sending email:\n{}", e.msg);
+                            }
+                        },
+                        Err(e) => {
+                            origen::display_redln!("Errors occurred composing email:\n{}", e.msg);
+                        }
+                    }
+                }
+                "test" => {
+                    let m = origen::mailer();
+                    if let Some(t) = sub.values_of("to") {
+                        match m.test(Some(t.collect())) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Error occurred sending test email:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    } else {
+                        match m.test(None) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Errors occurred sending test email:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        Some("credentials") => {
+            let cmd = matches.subcommand_matches("credentials").unwrap();
+            let subcmd = cmd.subcommand();
+            let sub = subcmd.1.unwrap();
+            match subcmd.0 {
+                "set" => {
+                    if sub.is_present("all") {
+                        match origen::core::user::set_all_passwords() {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Could not set all passwords. Errors were encountered:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    } else {
+                        if let Some(datasets) = sub.values_of("dataset") {
+                            match origen::core::user::set_passwords(Some(datasets.collect())) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!("Could not set all requested passwords. Errors were encountered:\n{}", e.msg);
+                                }
+                            }
+                        } else {
+                            match origen::core::user::set_passwords(None) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!("Could not clear all passwords. Errors were encountered:\n{}", e.msg);
+                                }
+                            }
+                        }
+                    }
+                }
+                "clear" => {
+                    if sub.is_present("all") {
+                        match origen::core::user::clear_all_passwords() {
+                            Ok(_) => {}
+                            Err(e) => {
+                                origen::display_redln!(
+                                    "Could not clear all passwords. Errors were encountered:\n{}",
+                                    e.msg
+                                );
+                            }
+                        }
+                    } else {
+                        if let Some(datasets) = sub.values_of("dataset") {
+                            match origen::core::user::clear_passwords(Some(datasets.collect())) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!("Could not clear all given passwords. Errors were encountered:\n{}", e.msg);
+                                }
+                            }
+                        } else {
+                            match origen::core::user::clear_passwords(None) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    origen::display_redln!(
+                                        "Could not clear password. Errors were encountered:\n{}",
+                                        e.msg
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
         Some("mode") => {
             let matches = matches.subcommand_matches("mode").unwrap();
             commands::mode::run(matches.value_of("mode"));
@@ -1132,56 +1463,130 @@ CORE COMMANDS:
         // To get here means the user has typed "origen -v", which officially means
         // verbosity level 1 with no command, but this is what they really mean
         None => {
+            let mut max_len = 0;
+            let mut versions: IndexMap<String, (bool, bool, String)> = IndexMap::new();
             if STATUS.is_app_present {
-                // Run a short command line operation to get the Origen version back from the Python domain
                 let cmd = "from origen.boot import run_cmd; run_cmd('_version_');";
-                let mut origen_version = "".to_string();
+                let mut output_lines = "".to_string();
 
                 let res = python::run_with_callbacks(
                     cmd,
                     Some(&mut |line| {
-                        origen_version += line;
+                        output_lines += &format!("{}\n", line);
                     }),
                     None,
                 );
+                output_lines.pop();
 
-                if let Err(e) = res {
-                    log_error!("{}", e);
-                    log_error!("Couldn't boot app to determine the in-application Origen version");
-                    origen_version = "Unknown".to_string();
-                }
+                match res {
+                    Ok(_) => {
+                        let lines = output_lines.split("\n").collect::<Vec<&str>>();
+                        if lines.len() == 0 || lines.len() == 1 {
+                            log_error!(
+                                "Unable to parse in-application version output. Expected newlines:"
+                            );
+                            log_error!("{}", output_lines);
+                        } else {
+                            let mut phase = 0;
+                            let mut current = "".to_string();
+                            let mut is_private = false;
+                            let mut is_okay = false;
+                            let mut ver_or_message = "".to_string();
+                            for l in lines {
+                                if phase == 0 {
+                                    let ver = parse_version_token(l);
+                                    current = ver.0;
+                                    is_private = ver.1;
+                                    if !is_private && current.len() > max_len {
+                                        max_len = current.len();
+                                    }
+                                    phase += 1;
+                                } else if phase == 1 {
+                                    match origen::utility::status_to_bool(l) {
+                                        Ok(stat) => is_okay = stat,
+                                        Err(e) => {
+                                            log_error!("{}", e.msg);
+                                            log_error!("Unable to parse version information");
+                                            break;
+                                        }
+                                    }
+                                    phase += 1;
+                                } else if phase == 2 {
+                                    match l.chars().next() {
+                                        Some(t) => {
+                                            if t == '\t' {
+                                                ver_or_message += &l[1..];
+                                            } else {
+                                                versions.insert(
+                                                    current.to_string(),
+                                                    (
+                                                        is_okay,
+                                                        is_private,
+                                                        ver_or_message.to_string(),
+                                                    ),
+                                                );
+                                                let ver = parse_version_token(l);
+                                                current = ver.0;
+                                                is_private = ver.1;
+                                                if !is_private && current.len() > max_len {
+                                                    max_len = current.len();
+                                                }
+                                                ver_or_message = "".to_string();
+                                                phase = 1;
+                                            }
+                                        }
+                                        None => {
+                                            log_error!("Unable to parse in-application version output - unexpected empty line:");
+                                            log_error!("{}", output_lines);
+                                        }
+                                    }
+                                } else {
+                                    log_error!("Unable to parse in-application version output:");
+                                    log_error!("{}", output_lines);
+                                }
+                            }
 
-                let app_version = match origen::app().unwrap().version() {
+                            if phase == 2 {
+                                versions.insert(
+                                    current.clone(),
+                                    (is_okay, is_private, ver_or_message.clone()),
+                                );
+                            } else {
+                                log_error!("Unable to parse in-application version output - unexpected format:");
+                                log_error!("{}", output_lines);
+                            }
+                        }
+                    }
                     Err(e) => {
                         log_error!("{}", e);
-                        "Error".to_string()
+                        log_error!(
+                            "Couldn't boot app to determine the in-application Origen version"
+                        );
                     }
-                    Ok(v) => format!("{}", v),
-                };
-
-                if STATUS.is_app_in_origen_dev_mode {
-                    println!(
-                        "App:    {}\nOrigen: {} (from {})\nCLI:    {}",
-                        to_pep440(&app_version).unwrap_or("Error".to_string()),
-                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
-                        STATUS.origen_wksp_root.display(),
-                        to_pep440(&STATUS.origen_version.to_string())
-                            .unwrap_or("Error".to_string())
-                    );
-                } else {
-                    println!(
-                        "App:    {}\nOrigen: {}\nCLI:    {}",
-                        to_pep440(&app_version).unwrap_or("Error".to_string()),
-                        to_pep440(&origen_version).unwrap_or("Error".to_string()),
-                        to_pep440(&STATUS.origen_version.to_string())
-                            .unwrap_or("Error".to_string())
-                    );
                 }
             } else {
-                println!(
-                    "Origen: {}",
-                    to_pep440(&STATUS.origen_version.to_string()).unwrap_or("Error".to_string())
+                versions.insert(
+                    "Origen".to_string(),
+                    (true, false, STATUS.origen_version.to_string()),
                 );
+                versions.insert(
+                    "CLI".to_string(),
+                    (true, false, built_info::PKG_VERSION.to_string()),
+                );
+                max_len = 6; // 'Origen'
+            }
+
+            for (n, v) in versions.iter() {
+                if v.0 == true {
+                    if v.1 == true {
+                        log_debug!("{}: {}", n, v.2);
+                    } else {
+                        println!("{}: {}{}", n, " ".repeat(max_len - n.len()), v.2);
+                    }
+                } else {
+                    log_error!("Errors encountered retrieving version info for '{}':", n);
+                    log_error!("{}", v.2);
+                }
             }
         }
         _ => {
@@ -1245,4 +1650,17 @@ fn build_command(cmd_def: &app_commands::Command) -> App {
         }
     }
     cmd
+}
+
+fn parse_version_token(input: &str) -> (String, bool) {
+    let chars = input.chars().collect::<Vec<char>>();
+    if chars.len() > 2 {
+        if chars[0] == '_' && chars[1] == ' ' {
+            (String::from_iter(chars[2..].iter()), true)
+        } else {
+            (input.to_string(), false)
+        }
+    } else {
+        (input.to_string(), false)
+    }
 }

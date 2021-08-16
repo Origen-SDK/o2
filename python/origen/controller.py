@@ -1,6 +1,6 @@
 import origen
 import _origen
-from origen import pins
+from origen import pins, callbacks
 from origen import timesets
 from origen.registers.loader import Loader as RegLoader
 from origen.sub_blocks import Loader as SubBlockLoader
@@ -91,6 +91,7 @@ class Base:
         self.timesets_loaded = False
         self.services_loaded = False
         self.attributes_loaded = False
+        origen.callbacks.proxies.apply(self)
 
     def __repr__(self):
         self._load_regs()
@@ -281,6 +282,22 @@ class Base:
     def cc(self, message):
         return origen.tester.cc(f"{self.preface()}{message}")
 
+    @staticmethod
+    def startup(func):
+        origen.callbacks.proxies.append(
+            "controller__startup",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        return func
+
+    @staticmethod
+    def shutdown(func):
+        origen.callbacks.proxies.append(
+            "controller__shutdown",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        return func
+
 
 # The base class of all Origen controller objects which are also
 # the top-level (DUT)
@@ -297,3 +314,25 @@ class TopLevel(Base):
         # TODO: Probably pass the name of the target in here to act as the DUT name/ID
         self.db = _origen.dut.PyDUT("tbd")
         Base.__init__(self)
+
+    @staticmethod
+    def startup(func):
+        origen.callbacks.proxies.append(
+            "toplevel__startup", func, unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        return func
+
+    @staticmethod
+    def shutdown(func):
+        origen.callbacks.proxies.append(
+            "toplevel__shutdown",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        return func
+
+    @staticmethod
+    def initialized(func):
+        origen.callbacks.proxies.append(
+            "toplevel__initialized",
+            func,
+            unload_on=callbacks.UnloadOn.DUT_CHANGE)
+        return func

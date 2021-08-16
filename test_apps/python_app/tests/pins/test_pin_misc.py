@@ -111,7 +111,7 @@ class TestPinLoaderAPI:
         assert origen.dut.pin("clk").reset_actions == "0"
         assert origen.dut.pin_headers.keys() == [
             "ports", "clk", "all", "pins-for-toggle", "pins-for-toggle-rev",
-            "swd"
+            "swd", 'cap_test'
         ]
         assert origen.dut.pin_headers["ports"].pin_names == [
             "porta", "portb", "portc"

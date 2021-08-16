@@ -250,11 +250,11 @@ def test_snapshots():
     assert reg.is_changed("snap2") == True
     reg.rollback("snap1")
     assert reg.is_changed("snap1") == False
-    reg.set_overlay(None)
+    reg.clear_overlay()
     assert reg.is_changed("snap1") == True
-    assert reg.overlay() == None
+    assert reg.get_overlay() == None
     reg.rollback("snap1")
-    assert reg.overlay() == "blah"
+    assert reg.get_overlay().label == "blah"
 
 
 def test_x_bits_reset_correctly():

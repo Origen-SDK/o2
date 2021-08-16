@@ -4,16 +4,18 @@ use crate::generator::ast::Node;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Error, Metadata, Result};
+use crate::{Capture, Error, Metadata, Overlay, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
+use num_traits::ToPrimitive;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
     Write,
     Verify,
     Capture,
+    // Overlay,
     Set,
 }
 
@@ -21,14 +23,13 @@ pub enum Action {
 pub struct Transaction {
     pub action: Option<Action>, // Can keep this as None for a generalized transaction
     pub reg_id: Option<Id>,
-    pub address: Option<u128>,
+    pub address: Option<BigUint>,
     pub address_width: Option<usize>,
     pub width: usize,
     pub data: BigUint,
     pub bit_enable: BigUint,
-    pub capture_enable: Option<BigUint>,
-    pub overlay_enable: Option<BigUint>,
-    pub overlay_string: Option<String>,
+    pub capture: Option<Capture>,
+    pub overlay: Option<Overlay>,
     pub set_actions: Option<Vec<PinAction>>,
     pub metadata: Option<Metadata>,
 }
@@ -43,9 +44,8 @@ impl Default for Transaction {
             width: 0,
             data: BigUint::from(0 as usize),
             bit_enable: BigUint::from(0 as usize),
-            capture_enable: None,
-            overlay_enable: None,
-            overlay_string: None,
+            capture: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         }
@@ -63,9 +63,8 @@ impl Transaction {
             width: width,
             data: data,
             bit_enable: Self::enable_of_width(width)?,
-            capture_enable: None,
-            overlay_enable: None,
-            overlay_string: None,
+            capture: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
@@ -73,7 +72,7 @@ impl Transaction {
 
     pub fn new_write_with_addr(data: BigUint, width: usize, addr: u128) -> Result<Self> {
         let mut t = Self::new_write(data, width)?;
-        t.address = Some(addr);
+        t.address = Some(BigUint::from(addr));
         Ok(t)
     }
 
@@ -87,15 +86,14 @@ impl Transaction {
             width: width,
             data: data,
             bit_enable: Self::enable_of_width(width)?,
-            capture_enable: None,
-            overlay_enable: None,
-            overlay_string: None,
+            capture: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
     }
 
-    pub fn new_capture(width: usize) -> Result<Self> {
+    pub fn new_capture(width: usize, capture_enables: Option<BigUint>) -> Result<Self> {
         Ok(Self {
             action: Some(Action::Capture),
             reg_id: None,
@@ -104,12 +102,23 @@ impl Transaction {
             width: width,
             data: BigUint::from(0 as u8),
             bit_enable: Self::enable_of_width(width)?,
-            capture_enable: Some(Self::enable_of_width(width)?),
-            overlay_enable: None,
-            overlay_string: None,
+            capture: Some({
+                let mut c = Capture::default();
+                c.enables = capture_enables.clone();
+                c
+            }),
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
+    }
+
+    pub fn set_capture_enables(&mut self, capture_enables: Option<BigUint>) -> Result<()> {
+        if self.capture.is_none() {
+            self.capture = Some(Capture::default());
+        }
+        self.capture.as_mut().unwrap().enables = capture_enables;
+        Ok(())
     }
 
     pub fn new_highz(width: usize) -> Result<Self> {
@@ -121,12 +130,46 @@ impl Transaction {
             width: width,
             data: BigUint::from(0 as u8),
             bit_enable: BigUint::from(0 as u8),
-            capture_enable: None,
-            overlay_enable: None,
-            overlay_string: None,
+            capture: None,
+            overlay: None,
             set_actions: None,
             metadata: None,
         })
+    }
+
+    // pub new_overlay(
+    //     overlay_string: Option<String>,
+    //     symbol: Option<String>,
+    //     overlay_enable: Option<BigUuint>,
+    //     cycles: usize
+    // ) -> Result<Self> {
+    //     let t = Self::default();
+    // }
+
+    pub fn apply_overlay(
+        &mut self,
+        label: Option<String>,
+        symbol: Option<String>,
+        enables: Option<BigUint>,
+    ) -> Result<()> {
+        self.overlay = Some(Overlay::new(label, symbol, None, enables, None)?);
+        Ok(())
+    }
+
+    // Update an embedded overlay with the pin ids.
+    // Returns true if updated, false if an overlay wasn't present
+    pub fn apply_overlay_pin_ids(&mut self, pin_ids: &Vec<usize>) -> Result<bool> {
+        match self.overlay.as_mut() {
+            Some(o) => {
+                o.pin_ids = Some(pin_ids.clone());
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    pub fn has_overlay(&self) -> bool {
+        self.overlay.is_some()
     }
 
     pub fn new_set(actions: &Vec<PinAction>) -> Result<Self> {
@@ -138,9 +181,8 @@ impl Transaction {
             width: actions.len(),
             data: BigUint::from(0 as u8),
             bit_enable: Self::enable_of_width(actions.len())?,
-            capture_enable: None,
-            overlay_enable: None,
-            overlay_string: None,
+            capture: None,
+            overlay: None,
             set_actions: Some(actions.clone()),
             metadata: None,
         })
@@ -157,8 +199,11 @@ impl Transaction {
     }
 
     pub fn addr(&self) -> Result<u128> {
-        match self.address {
-            Some(a) => Ok(a),
+        match self.address.as_ref() {
+            Some(a) => match a.to_u128() {
+                Some(addr) => Ok(addr),
+                None => error!("Could not convert value {:?} to u128", a),
+            },
             None => Err(Error::new(&format!(
                 "Tried to retrieve address from transaction {:?}, but an address has not be set",
                 self
@@ -176,7 +221,7 @@ impl Transaction {
         }
     }
 
-    pub fn to_symbols(&self) -> Result<Vec<String>> {
+    pub fn to_symbols(&self) -> Result<Vec<(String, bool, bool)>> {
         let low_sym;
         let high_sym;
         if let Some(action) = &self.action {
@@ -203,22 +248,53 @@ impl Transaction {
             high_sym = HIGHZ;
         }
 
-        let mut bits: Vec<String> = Vec::with_capacity(self.width);
+        let mut bits: Vec<(String, bool, bool)> = Vec::with_capacity(self.width);
         let enables = self.bit_enable.clone();
         let t = BigUint::from(1 as u8);
+
+        let captures;
+        if let Some(c) = &self.capture {
+            if let Some(cap_enables) = &c.enables {
+                captures = cap_enables.clone();
+            } else {
+                captures = self.enable_width()?;
+            }
+        } else {
+            // no captures
+            captures = BigUint::from(0 as u8);
+        }
+        let overlays;
+        if let Some(o) = &self.overlay {
+            if let Some(ovl_enables) = &o.enables {
+                overlays = ovl_enables.clone();
+            } else {
+                overlays = self.enable_width()?;
+            }
+        } else {
+            // no overlay
+            overlays = BigUint::from(0 as u8);
+        }
+        let mut overlay;
+        let mut capture;
         for i in 0..self.width {
+            overlay = ((&overlays >> i) & &t) == t;
+            capture = ((&captures >> i) & &t) == t;
             if ((&enables >> i) & &t) == t {
                 if self.is_set_action() {
-                    bits.push(self.set_actions.as_ref().unwrap()[i].to_string());
+                    bits.push((
+                        self.set_actions.as_ref().unwrap()[i].to_string(),
+                        overlay,
+                        capture,
+                    ));
                 } else {
                     if ((&self.data >> i) & &t) == t {
-                        bits.push(high_sym.to_string());
+                        bits.push((high_sym.to_string(), overlay, capture));
                     } else {
-                        bits.push(low_sym.to_string());
+                        bits.push((low_sym.to_string(), overlay, capture));
                     }
                 }
             } else {
-                bits.push(HIGHZ.to_string());
+                bits.push((HIGHZ.to_string(), overlay, capture));
             }
         }
         // Should probably add this
@@ -257,14 +333,13 @@ impl Transaction {
         Ok(Self {
             action: self.action.clone(),
             reg_id: self.reg_id.clone(),
-            address: self.address,
+            address: self.address.clone(),
             address_width: None,
             width: self.width,
             data: self.data.clone(),
             bit_enable: BigUint::from(0 as u8),
-            capture_enable: Some(BigUint::from(0 as u8)),
-            overlay_enable: self.overlay_enable.clone(),
-            overlay_string: self.overlay_string.clone(),
+            capture: self.capture.clone(),
+            overlay: None,
             set_actions: None,
             metadata: self.metadata.clone(),
         })
@@ -288,7 +363,7 @@ impl Transaction {
         } else {
             return Err(Error::new("Could not create transaction from address as this transaction does not supply an address width nor was a default one provided"));
         }
-        t.data = BigUint::from(self.address.unwrap());
+        t.data = BigUint::from(self.address.as_ref().unwrap().clone());
         t.bit_enable = Self::enable_of_width(t.width)?;
         t.action = Some(Action::Write);
         Ok(t)
@@ -310,12 +385,35 @@ impl Transaction {
         Ok(node!(RegVerify, self.clone()))
     }
 
+    pub fn as_capture_node(&self) -> Result<Node> {
+        Ok(node!(RegCapture, self.clone()))
+    }
+
     pub fn chunk_data(&self, chunk_width: usize) -> Result<Vec<BigUint>> {
         self.data.chunk(chunk_width, self.width)
     }
 
     pub fn chunk_addr(&self, chunk_width: usize) -> Result<Vec<BigUint>> {
         BigUint::from(self.addr()?).chunk(chunk_width, self.addr_width()?)
+    }
+
+    pub fn is_capture(&self) -> bool {
+        if let Some(a) = &self.action {
+            match a {
+                Action::Capture => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Updates the width, returning an error if data doesn't
+    /// fit in the new width.
+    pub fn resize(&mut self, new_width: usize) -> Result<()> {
+        Self::check_size(&self.data, new_width)?;
+        self.width = new_width;
+        Ok(())
     }
 }
 

@@ -41,9 +41,8 @@ def test_origen_v():
     first_stdout_line = process.stdout.readline()
     assert "App:" in first_stdout_line
     second_stdout_line = process.stdout.readline()
-    third_stdout_line = process.stdout.readline()
+    assert "Origen" in second_stdout_line
     assert " 2." in second_stdout_line
-    assert " 2." in third_stdout_line
 
 
 def test_bad_command():

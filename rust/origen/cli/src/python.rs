@@ -1,5 +1,6 @@
 // Responsible for managing Python execution
 
+use crate::built_info;
 use origen::Result;
 use semver::Version;
 use std::path::PathBuf;
@@ -152,11 +153,16 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     cmd.arg(&code);
     cmd.arg("-");
     cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
+    cmd.arg(&format!(
+        "verbosity_keywords={}",
+        origen::LOGGER.keywords_to_cmd()
+    ));
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {
         cmd.arg(&format!("origen_cli={}", p.display()));
     };
+    cmd.arg(&format!("origen_cli_version={}", built_info::PKG_VERSION));
 
     add_origen_env(&mut cmd);
 
@@ -187,6 +193,7 @@ pub fn run_with_callbacks(
     if let Ok(p) = std::env::current_exe() {
         cmd.arg(&format!("origen_cli={}", p.display()));
     };
+    cmd.arg(&format!("origen_cli_version={}", built_info::PKG_VERSION));
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 

@@ -8,16 +8,21 @@ device_modeling_root = 'guides/device_modeling'
 utility_root = 'guides/runtime/utilities'
 autoapi_root = 'interbuild/autoapi'
 getting_started_root = 'guides/getting_started'
+utilities_root = 'guides/utilities'
+plugins_root = 'guides/plugins'
+_origen_api_root = 'interbuild/autoapi/_origen/_origen'
 
 origen_shorthand_defs = {
     'extlinks': {
         'core_team': ('Origen core team', 'origen_core_team'),
         'issues_page': ('Origen issues page', 'origen_issues_home'),
+        'open_a_ticket': ('open a ticket', 'origen_issues_home'),
         'github_home': ('Origen Github project', 'origen_github_home'),
         'project_tracker':
         ("Origen's project tracker", 'origen_project_tracker'),
         'so_tag': ('Origen stack overflow', 'origen_so_home'),
-        'jinja': 'jinja_home',
+        'jinja':
+        'jinja_home',
         'sphinx_app': ('Sphinx app', 'sphinx_app'),
         'sphinx_ext': ('sphinx extension', 'sphinx_extensions'),
         'sphinx_exts': ('sphinx extensions', 'sphinx_extensions'),
@@ -32,20 +37,27 @@ origen_shorthand_defs = {
         ('Sphinx configuration variables', 'sphinx_conf'),
         'sphinx_conf_vars': ('Sphinx configuration variables', 'sphinx_conf'),
         'sphinx_build_cmd': ('sphinx-build command', 'sphinx_build_cmd'),
-        'autosectionlabel': 'autosectionlabel_home',
+        'autosectionlabel':
+        'autosectionlabel_home',
         'autosectionlabel_prefix_document':
         'autosectionlabel_prefix_document_config',
         'inheritance_diagram':
         ('inheritance diagram', 'inheritance_diagram_home'),
-        'napoleon': 'napoleon_home',
-        'extlinks': 'extlinks_home',
-        'recommonmark': 'recommonmark_home',
-        'markdown': 'markdown_home',
+        'napoleon':
+        'napoleon_home',
+        'extlinks':
+        'extlinks_home',
+        'recommonmark':
+        'recommonmark_home',
+        'markdown':
+        'markdown_home',
         'rst_subs': ('RST substitutions', 'rst_substitutions'),
-        'rst_include_directive': ('RST include directive',
-                                  'rst_include_directive'),
-        'docstrings': 'docstrings_intro',
-        'docstring': 'docstrings_intro',
+        'rst_include_directive':
+        ('RST include directive', 'rst_include_directive'),
+        'docstrings':
+        'docstrings_intro',
+        'docstring':
+        'docstrings_intro',
         'google_docstring_spec': ('Google Docstring Spec',
                                   'google_docstring_spec'),
         'numpy_docstring_spec': ('Numpy Docstring Spec',
@@ -58,13 +70,26 @@ origen_shorthand_defs = {
 
         # Python data structures. Link to the API instead of
         # placing in quotes, italics, or inline code blocks.
-        'dict': 'python_docs_dict',
-        'dicts': 'python_docs_dict',
-        'tuple': 'python_docs_tuple',
-        'tuples': 'python_docs_tuple',
-        'list': 'python_docs_list',
-        'lists': 'python_docs_list',
-        'pathlib.Path': 'python_docs_pathlib',
+        'dict':
+        'python_docs_dict',
+        'dicts':
+        'python_docs_dict',
+        'tuple':
+        'python_docs_tuple',
+        'tuples':
+        'python_docs_tuple',
+        'list':
+        'python_docs_list',
+        'lists':
+        'python_docs_list',
+        'pathlib.Path':
+        'python_docs_pathlib',
+        'pickle':
+        'python_docs_pickle',
+        'marshal':
+        'python_docs_marshal',
+        'bytes':
+        'python_docs_bytes',
         'src_code': {
             'origen_init': 'origen_core_init_src',
             'ose_init': 'origen_core_ose_src',
@@ -77,15 +102,45 @@ origen_shorthand_defs = {
             'core_conf': ('Origen core conf.py', 'origen_core_guides__conf'),
             '_conf_dir': 'origen_core_guides__conf_dir_src',
         },
+        'ldap': {
+            'wiki': ('LDAP Wiki', 'ldap_wiki'),
+            'filters': ('filters', 'ldap_filters'),
+            'filter': ('filters', 'ldap_filters'),
+            'invalid_credentials':
+            ('LDAP invalid credential', 'ldap_invalid_credentials'),
+            'test_server': ('LDAP test server', 'ldap_test_server'),
+            'tests': ('LDAP tests', 'origen_specs_ldap')
+        },
+        'users': {
+            'tests': ('users tests', 'origen_specs_users')
+        },
+        'session_store': {
+            'tests': ('session store tests', 'origen_specs_session_store')
+        },
+        'test_app_origen_config': ('Origen\'s test app config',
+                                   'origen_example_config'),
 
         # Rust stuff
-        'rust': 'rust_homepage',
-        'Rust': 'rust_homepage',
+        'rust':
+        'rust_homepage',
+        'Rust':
+        'rust_homepage',
         'cargo_doc': ('cargo doc', 'rust_cargo_doc'),
+
+        # TOML
+        'toml': ('TOML', 'toml_homepage'),
+
+        # Git
+        'git': ('Git', 'git'),
+        'git_configuration': ('Git Configuration', 'git_configuration'),
+        'linux_keyring': ('Linux Keyring', 'linux_keyring'),
+        'windows_credential_manager': ('Windows Credential Manager',
+                                       'windows_credential_manager'),
     },
     'substitutions': {
         'conf.py': '``conf.py``',
         'inline_ose': '``origen sphinx extensions``',
+        'dict-like': '``dict-like``'
     },
     'statics': {
         'rustdoc_origen': (
@@ -100,7 +155,20 @@ origen_shorthand_defs = {
         ),
         'example_application_docs':
         ('example application',
-         '_static/build/origen_sphinx_extension/example/sphinx_build/index')
+         '_static/build/origen_sphinx_extension/example/sphinx_build/index'),
+        'rust_whoami':
+        ('whoami',
+         '_static/build/rustdoc/origen/doc/origen/core/user/fn.whoami'),
+        'backend_arm_debug_model':
+        '_static/build/rustdoc/origen/doc/origen/services/arm_debug/struct.ArmDebug',
+        'default_encryption_key':
+        ('default encryption key',
+         '_static/build/rustdoc/origen/doc/origen/core/config/static.DEFAULT_ENCRYPTION_KEY'
+         ),
+        'default_encryption_nonce':
+        ('default encryption nonce',
+         '_static/build/rustdoc/origen/doc/origen/core/config/static.DEFAULT_ENCRYPTION_NONCE'
+         )
     },
     'shorthand_defs': {
         'shorthand_referencing':
@@ -130,6 +198,8 @@ origen_shorthand_defs = {
         'origen_app':
         ('Origen app',
          f'{getting_started_root}/the_origen_app:The Origen App'),
+        'origen_plugins':
+        ('Origen plugins', f'{plugins_root}/introduction:Introduction'),
         'origen_cli':
         ('Origen CLI', f'{getting_started_root}/core_concepts:The Origen CLI'),
         'timesets': ('Timesets', f'{device_modeling_root}/timesets:Timesets'),
@@ -138,8 +208,8 @@ origen_shorthand_defs = {
         'registers':
         ('Registers', f'{device_modeling_root}/bits_and_registers:Registers'),
         'logger': ('logger', f'{utility_root}/logger:Logger'),
-        'community_contributions':
-        ('community contributions', 'community:Contributing'),
+        'community_contributions': ('community contributions',
+                                    'community:Contributing'),
         'web_output_dir':
         ('web output directory',
          f"{doc_root}/further_customizing_your_sphinx_app:Application Customizations"
@@ -208,7 +278,32 @@ origen_shorthand_defs = {
             'origen_shorthand_defs':
             ("Origen's shorthand defs",
              f"{doc_root}/reference:Origen's Shorthand Defs")
-        }
+        },
+        'origen_utilities': {
+            'ldap': ('Origen\'s LDAP', f'{utilities_root}:LDAP'),
+            'session_store':
+            ('session store', f'{utilities_root}:Session Storage'),
+            'user_sessions':
+            ('user\'s session store', f'{utilities_root}:User Sessions'),
+            'user_datasets': ('user datasets', f'{utilities_root}:Datasets'),
+            'users': ('users', f'{utilities_root}:Other Configuration Cases'),
+            'default_user_config':
+            ('default user config', f'{utilities_root}:Default Configuration'),
+            'users_default_cases':
+            ('default user-config cases',
+             f'{utilities_root}:Other Configuration Cases'),
+            'password_caching': ('password caching',
+                                 f'{utilities_root}:Password Caching'),
+            'mailer': ('mailer', f'{utilities_root}:Mailer')
+        },
+        'origen_config':
+        ('Origen config',
+         f"{getting_started_root}/configuring_your_workspace:Configuring Your Application"
+         ),
+        'origen_site_config':
+        ('Origen site config',
+         f'{getting_started_root}/configuring_your_workspace:Site Configuration'
+         )
     }
 }
 

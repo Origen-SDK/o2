@@ -1,0 +1,9 @@
+mailer__server = "smtp.origen.org"
+mailer__auth_method = "TLS"
+mailer__service_user = "mailer_service_user"
+
+[service_users]
+[service_users.mailer_service_user]
+username = "mailer"
+password = "test"
+email = "service@origen.org"

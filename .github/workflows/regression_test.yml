@@ -3,6 +3,7 @@ on: [push]
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: [3.6, 3.7, 3.8]
@@ -22,7 +23,16 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-            
+
+      # Needed to compile keyring library
+      # Install taken from keyring library:
+      #  https://github.com/hwchen/keyring-rs/blob/v0.10.1/.github/workflows/ci.yaml#L80-L84
+      - name: install libdbus
+        run: |
+          sudo apt update
+          sudo apt install libdbus-1-dev
+        if: contains(matrix.os, 'ubuntu')
+
       - name: Build Origen CLI
         working-directory: rust/origen/cli
         run: cargo build --bins
@@ -41,11 +51,6 @@ jobs:
       - name: Display Origen CLI Version
         run: origen -v
 
-      - name: Run Rust Tests
-        if: matrix.python-version == 3.8
-        working-directory: rust/origen
-        run: cargo test --workspace
-
       - name: Build PyAPI
         run: origen build
 
@@ -57,6 +62,10 @@ jobs:
         working-directory: test_apps/python_app
         run: origen -v
 
+      - name: Display Poetry Version
+        working-directory: test_apps/python_app
+        run: poetry --version
+
       - name: Run Python Unit Tests
         working-directory: test_apps/python_app
         run: origen exec pytest -vv
@@ -64,3 +73,8 @@ jobs:
       - name: Run Diff Tests
         working-directory: test_apps/python_app
         run: origen examples
+
+      - name: Run Rust Tests
+        if: matrix.python-version == 3.8
+        working-directory: rust/origen
+        run: cargo test --workspace

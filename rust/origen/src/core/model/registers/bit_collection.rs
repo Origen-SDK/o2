@@ -1,3 +1,4 @@
+use super::bit::Overlay as BitOverlay;
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
 use crate::node;
@@ -195,30 +196,79 @@ impl<'a> BitCollection<'a> {
 
     /// Returns the overlay value of the BitCollection. This will return an error if
     /// not all bits return the same value.
-    pub fn get_overlay(&self) -> Result<Option<String>> {
-        let mut result: Option<String> = None;
-        for &bit in self.bits.iter() {
-            match &bit.get_overlay() {
+    pub fn get_overlay(&self) -> Result<Option<BitOverlay>> {
+        let mut overlay: Option<BitOverlay> = None;
+        let mut first_overlay: usize = 0;
+
+        for (i, &bit) in self.bits.iter().enumerate() {
+            match bit.get_overlay() {
                 None => {}
-                Some(val) => match &result {
-                    None => result = Some(val.to_string()),
-                    Some(existing) => {
-                        if val != existing {
-                            return Err(Error::new(
-                                format!("The bits in the collection have different overlay values, found: '{}' and '{}'", val, existing).as_str(),
-                            ));
+                Some(ref this_overlay) => match overlay {
+                    None => {
+                        overlay = Some(this_overlay.clone());
+                        first_overlay = i;
+                    }
+                    Some(ref previous_overlay) => {
+                        if this_overlay != previous_overlay {
+                            return error!(
+                                "The bits in the collection have different overlay values, found: '{}' at index {} and '{}' at index {}",
+                                previous_overlay,
+                                first_overlay,
+                                this_overlay,
+                                i
+                            );
                         }
                     }
                 },
             }
         }
-        Ok(result)
+        Ok(overlay)
     }
 
     /// Set the overlay value of the BitCollection.
-    pub fn set_overlay(&self, val: Option<&str>) -> &BitCollection {
+    pub fn set_overlay(
+        &self,
+        label: Option<String>,
+        symbol: Option<String>,
+        mask: Option<BigUint>,
+        persistent: bool,
+    ) -> &BitCollection {
+        match mask {
+            Some(m) => {
+                let mut bytes = m.to_bytes_be();
+                let mut byte = bytes.pop().unwrap();
+
+                for (i, &bit) in self.bits.iter().enumerate() {
+                    if (byte >> i % 8) & 1 == 1 {
+                        bit.set_overlay(label.clone(), symbol.clone(), persistent);
+                    }
+                    if i % 8 == 7 {
+                        match bytes.pop() {
+                            Some(x) => byte = x,
+                            None => byte = 0,
+                        }
+                    }
+                }
+            }
+            None => {
+                for &bit in self.bits.iter() {
+                    bit.set_overlay(label.clone(), symbol.clone(), persistent);
+                }
+            }
+        }
+        self
+    }
+
+    pub fn clear_nonpersistent_overlay(&self) -> &BitCollection {
         for &bit in self.bits.iter() {
-            bit.set_overlay(val);
+            bit.clear_nonpersistent_overlay();
+        }
+        self
+    }
+
+    pub fn clear_persistent_overlay(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.clear_persistent_overlay();
         }
         self
     }
@@ -307,6 +357,13 @@ impl<'a> BitCollection<'a> {
     pub fn capture(&self) -> &BitCollection {
         for &bit in self.bits.iter() {
             bit.capture();
+        }
+        self
+    }
+
+    pub fn clear_capture(&self) -> &BitCollection {
+        for &bit in self.bits.iter() {
+            bit.clear_capture();
         }
         self
     }
@@ -456,12 +513,14 @@ impl<'a> BitCollection<'a> {
             let bits = reg.bits(dut);
             let mut t = Transaction::new_verify(bits.data()?, reg.size)?;
             t.reg_id = Some(id);
-            t.address = Some(reg.address(dut, None)?);
+            t.address = Some(BigUint::from(reg.address(dut, None)?));
             t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = bits.verify_enables();
-            t.capture_enable = Some(bits.capture_enables());
-            t.overlay_enable = Some(bits.overlay_enables());
-            t.overlay_string = bits.get_overlay()?;
+            let captures = bits.capture_enables();
+            if captures != BigUint::from(0 as u8) {
+                t.set_capture_enables(Some(bits.capture_enables()))?;
+            }
+            bits.apply_overlay(&mut t)?;
             Ok(t)
         } else {
             Err(Error::new(&format!(
@@ -527,15 +586,31 @@ impl<'a> BitCollection<'a> {
             let bits = reg.bits(dut);
             let mut t = Transaction::new_write(bits.data()?, reg.size)?;
             t.reg_id = Some(id);
-            t.address = Some(reg.address(dut, None)?);
+            t.address = Some(BigUint::from(reg.address(dut, None)?));
             t.address_width = Some(reg.width(&dut)? as usize);
             t.bit_enable = Transaction::enable_of_width(reg.size)?;
-            t.overlay_enable = Some(bits.overlay_enables());
-            t.overlay_string = bits.get_overlay()?;
+            bits.apply_overlay(&mut t)?;
             Ok(t)
         } else {
             Err(Error::new(&format!(
-                "bit collection 'to_verify_transaction' is only supported for register-based bit collections"
+                "bit collection 'to_write_transaction' is only supported for register-based bit collections"
+            )))
+        }
+    }
+
+    pub fn to_capture_transaction(&self, dut: &'a MutexGuard<Dut>) -> Result<Transaction> {
+        if let Some(id) = self.reg_id {
+            let reg = self.reg(dut)?;
+            let bits = reg.bits(dut);
+            let mut t = Transaction::new_capture(reg.size, Some(bits.capture_enables()))?;
+            t.reg_id = Some(id);
+            t.address = Some(BigUint::from(reg.address(dut, None)?));
+            t.address_width = Some(reg.width(&dut)? as usize);
+            bits.apply_overlay(&mut t)?;
+            Ok(t)
+        } else {
+            Err(Error::new(&format!(
+                "bit collection 'to_capture_transaction' is only supported for register-based bit collections"
             )))
         }
     }
@@ -650,6 +725,24 @@ impl<'a> BitCollection<'a> {
             bytes.push(byte);
         }
         BigUint::from_bytes_le(&bytes)
+    }
+
+    fn apply_overlay(&self, t: &mut Transaction) -> Result<()> {
+        let l = self.get_overlay()?;
+        let enables = self.overlay_enables();
+        let e;
+        if enables == BigUint::from(0 as u8) {
+            e = None;
+        } else {
+            e = Some(enables);
+        }
+        if l.is_some() || e.is_some() {
+            match l {
+                Some(ovl) => t.apply_overlay(ovl.label.clone(), ovl.symbol.clone(), e)?,
+                None => t.apply_overlay(None, None, e)?,
+            }
+        }
+        Ok(())
     }
 
     pub fn status_str(&mut self, operation: &str) -> Result<String> {

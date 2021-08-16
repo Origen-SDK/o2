@@ -3,9 +3,10 @@ use crate::built_info;
 use crate::core::application::Application;
 use crate::testers::SupportedTester;
 use crate::utility::file_utils::with_dir;
+use crate::utility::version::Version;
 use crate::Result as OrigenResult;
 use regex::Regex;
-use semver::Version;
+use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
@@ -25,6 +26,7 @@ pub enum Operation {
     Compile,
     Interactive,
     Web,
+    App,
     AppCommand,
 }
 
@@ -43,6 +45,7 @@ impl FromStr for Operation {
             "compile" => Ok(Operation::Compile),
             "interactive" => Ok(Operation::Interactive),
             "web" => Ok(Operation::Web),
+            "app" => Ok(Operation::App),
             "appcommand" => Ok(Operation::AppCommand),
             _ => Err(format!("Unknown Operation: '{}'", &s)),
         }
@@ -77,6 +80,7 @@ pub struct Status {
     /// When true it means that Origen is running within an app and that app is using a local
     /// development version of Origen
     pub is_app_in_origen_dev_mode: bool,
+    in_origen_core_app: RwLock<bool>,
     unhandled_error_count: RwLock<usize>,
     /// This must remain private, forcing it to be accessed by a function. That ensures
     /// that it will always be created if it doesn't exist and all other code can forget about
@@ -87,6 +91,9 @@ pub struct Status {
     /// checking for that.
     reference_dir: RwLock<Option<PathBuf>>,
     cli_location: RwLock<Option<PathBuf>>,
+    cli_version: RwLock<Option<Version>>,
+    pub origen_core_support_version: Version,
+    other_build_info: RwLock<HashMap<String, String>>,
     _custom_tester_ids: RwLock<Vec<String>>,
     testers_eq: RwLock<Vec<Vec<SupportedTester>>>,
     testers_neq: RwLock<Vec<Vec<SupportedTester>>>,
@@ -135,9 +142,9 @@ impl Default for Status {
             }
         }
 
-        let version = match Version::parse(built_info::PKG_VERSION) {
+        let version = match Version::new_semver(built_info::PKG_VERSION) {
             Ok(v) => v,
-            Err(_e) => Version::parse("0.0.0").unwrap(),
+            Err(_e) => Version::default(),
         };
         let s = Status {
             is_app_present: app_present,
@@ -158,7 +165,24 @@ impl Default for Status {
             output_dir: RwLock::new(None),
             reference_dir: RwLock::new(None),
             cli_location: RwLock::new(None),
+            cli_version: RwLock::new(None),
+            origen_core_support_version: Version::new_semver({
+                let mut v: &str = "";
+                for d in built_info::DEPENDENCIES.iter() {
+                    if d.0 == "origen-core-support" {
+                        v = d.1;
+                        break;
+                    }
+                }
+                if v == "" {
+                    panic!("Could not determine origen-core-support version")
+                }
+                v
+            })
+            .unwrap(),
+            other_build_info: RwLock::new(HashMap::new()),
             is_app_in_origen_dev_mode: origen_dev_mode,
+            in_origen_core_app: RwLock::new(false),
             _custom_tester_ids: RwLock::new(vec![]),
             testers_eq: RwLock::new(vec![]),
             testers_neq: RwLock::new(vec![]),
@@ -316,8 +340,31 @@ impl Status {
         }
     }
 
+    pub fn set_cli_version(&self, ver: Option<String>) {
+        if let Some(v) = ver {
+            let mut cli_ver = self.cli_version.write().unwrap();
+            *cli_ver = Some(Version::new_semver(&v).unwrap());
+        }
+    }
+
     pub fn cli_location(&self) -> Option<PathBuf> {
         self.cli_location.read().unwrap().to_owned()
+    }
+
+    pub fn cli_version(&self) -> Option<Version> {
+        self.cli_version.read().unwrap().to_owned()
+    }
+
+    pub fn update_other_build_info(&self, key: &str, item: &str) -> OrigenResult<()> {
+        self.other_build_info
+            .write()
+            .unwrap()
+            .insert(key.to_string(), item.to_string());
+        Ok(())
+    }
+
+    pub fn other_build_info(&self) -> HashMap<String, String> {
+        self.other_build_info.read().unwrap().to_owned()
     }
 
     /// Set the base output dir to the given path, it is <APP ROOT>/output by default
@@ -330,6 +377,15 @@ impl Status {
     pub fn set_reference_dir(&self, path: &Path) {
         let mut dir = self.reference_dir.write().unwrap();
         *dir = Some(clean_path(path));
+    }
+
+    pub fn in_origen_core_app(&self) -> bool {
+        *self.in_origen_core_app.read().unwrap()
+    }
+
+    pub fn set_in_origen_core_app(&self, stat: bool) {
+        let mut s = self.in_origen_core_app.write().unwrap();
+        *s = stat;
     }
 
     /// This is the main method to get the current output directory, accounting for all
@@ -418,6 +474,10 @@ impl Status {
             f(dir.as_ref())
         }
     }
+
+    // pub fn current_user(&self) -> &User {
+    //     &self._current_user.read().unwrap()
+    // }
 }
 
 pub fn search_for_from_pwd(paths: Vec<&str>, searching_for_app: bool) -> (bool, PathBuf) {
@@ -462,7 +522,7 @@ pub fn search_for(paths: Vec<&str>, searching_for_app: bool, base: &Path) -> (bo
     }
 }
 
-fn get_home_dir() -> PathBuf {
+pub fn get_home_dir() -> PathBuf {
     if cfg!(windows) {
         PathBuf::from(env::var("USERPROFILE").expect("Please set environment variable USERPROFILE to point to your home directory, then try again"))
     } else {

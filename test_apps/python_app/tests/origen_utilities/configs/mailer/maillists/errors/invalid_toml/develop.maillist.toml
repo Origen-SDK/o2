@@ -1,0 +1,5 @@
+# Purposefully invalid TOML
+recipients = [
+    "invalid@origen.org"
+]
+domain = 

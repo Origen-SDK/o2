@@ -5,8 +5,6 @@ import sys
 import pathlib
 import importlib
 
-_generate_prepared = False
-
 if sys.platform == "win32":
     # The below is needed only for pyreadline, which is needed only for Windows support.
     # This setup was taken from the pyreadline documentation:
@@ -100,6 +98,7 @@ if sys.platform == "win32":
 def run_cmd(command,
             targets=None,
             verbosity=None,
+            verbosity_keywords="",
             mode=None,
             files=None,
             output_dir=None,
@@ -115,7 +114,6 @@ def run_cmd(command,
         --------
         * :link-to:`Example Application Commands <src_code:example_commands>`
     '''
-    global _generate_prepared
 
     import origen
     import _origen
@@ -133,6 +131,7 @@ def run_cmd(command,
 
     if verbosity is not None:
         _origen.logger.set_verbosity(verbosity)
+        _origen.logger.set_verbosity_keywords(verbosity_keywords.split(","))
 
     if output_dir is not None:
         _origen.set_output_dir(output_dir)
@@ -149,40 +148,10 @@ def run_cmd(command,
     # Future: Add options to generate patterns concurrently, or send them off to LSF.
     # For now, just looping over the patterns.
     if command == "generate":
-        _origen.set_operation("generate")
-        # Just do this once, consider a case like the examples command where this is being called
-        # multiple times in the same thread of execution
-        if not _generate_prepared:
-            origen.tester._prepare_for_generate()
-            _generate_prepared = True
-        for (i, f) in enumerate(_origen.file_handler()):
-            origen.logger.info(
-                f"Executing source {i+1} of {len(_origen.file_handler())}: {f}"
-            )
-            # Starts a new JOB in Origen which provides some long term storage and tracking
-            # of files that are referenced on the Rust side
-            # The JOB API can be accessed via origen.producer.current_job
-            origen.producer.create_job("generate", f)
-            context = origen.producer.api()
-            origen.load_file(f, locals=context)
-        _origen.prog_gen.render()
-        # Print a summary here...
-        stats = origen.tester.stats()
-        changes = stats['changed_pattern_files'] > 0 or stats[
-            'changed_program_files'] > 0
-        new_files = stats['new_pattern_files'] > 0 or stats[
-            'new_program_files'] > 0
-        if changes or new_files:
-            print("")
-            if changes:
-                print("To save all changed files run:")
-                print("  origen save_ref --changed")
-            if new_files:
-                print("To save all new files run:")
-                print("  origen save_ref --new")
-            if changes and new_files:
-                print("To save both run:")
-                print("  origen save_ref --new --changed")
+        origen.producer.generate(*[f for f in _origen.file_handler()])
+
+        # Alway print a summary when initiated from the CLI
+        origen.producer.summarize()
 
     elif command == "compile":
         _origen.set_operation("compile")
@@ -234,10 +203,103 @@ def run_cmd(command,
         _origen.set_operation("web")
         from origen.web import run_cmd
         return run_cmd("clean", args)
-    # Internal command to give the Origen version loaded by the application to the CLI
 
+    elif command == "app:publish":
+        _origen.set_operation("app")
+        origen.app.__publish__(**args).summarize_and_exit()
+
+    elif command == "app:package":
+        _origen.set_operation("app")
+        origen.app.build_package(args)
+
+    elif command == "app:run_publish_checks":
+        _origen.set_operation("app")
+        origen.app.__run_publish_checks__(args).summarize_and_exit()
+
+    elif command == "app:init":
+        _origen.set_operation("app")
+        r = origen.app.__rc_init__()
+        r.summarize_and_exit()
+
+    elif command == "app:status":
+        _origen.set_operation("app")
+        r = origen.app.__rc_status__()
+        r.summarize()
+
+    elif command == "app:checkin":
+        _origen.set_operation("app")
+        checkin_all = args.pop("all", False)
+        args["dry_run"] = args.pop("dry-run", False)
+        if 'pathspecs' in args and not checkin_all:
+            r = origen.app.__rc_checkin__(**args)
+        else:
+            r = origen.app.__rc_checkin__(pathspecs=None, **args)
+        r.gist()
+
+    # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":
-        print(f"{origen.status['origen_version']}")
+
+        def tabify(message):
+            return "\n".join([f"\t{l}" for l in message.split("\n")])
+
+        try:
+            if origen.app:
+                print(f"App\nSuccess\n{tabify(origen.app.version)}")
+        except Exception as e:
+            print("App")
+            print("Error")
+            print(tabify(repr(e)))
+
+        if origen.__in_origen_core_app:
+            origen.logger.info("Running in Origen core application")
+        else:
+            import subprocess, sys
+            cmd = f"{sys.executable} -m poetry show origen"
+            origen.logger.trace(f"Retrieving Origen version from {cmd}")
+            print("Origen")
+            try:
+                res = subprocess.run(cmd,
+                                     shell=True,
+                                     stdout=subprocess.PIPE,
+                                     universal_newlines=True,
+                                     check=True)
+                v = str(res.stdout).split("\n")[1].split(":")[1].strip()
+                print(f"Success\n{tabify(v)}")
+            except Exception as e:
+                print("Error")
+                print(tabify(repr(e)))
+
+        print("_ CLI")
+        try:
+            print(f"Success\n{tabify(origen.status['cli_version'])}")
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ PyAPI")
+        try:
+            print(
+                f"Success\n{tabify(origen.status['other_build_info']['pyapi_version'])}"
+            )
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ Origen (Rust Backend)")
+        try:
+            print(f"Success\n{tabify(origen.status['origen_version'])}")
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ Origen-Core-Support")
+        try:
+            print(
+                f"Success\n{tabify(origen.status['origen_core_support_version'])}"
+            )
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
 
     # Internal command to dispatch an app/plugin command
     elif command == "_dispatch_":

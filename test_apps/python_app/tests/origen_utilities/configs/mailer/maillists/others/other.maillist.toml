@@ -1,0 +1,3 @@
+recipients = ["o1", "o2"]
+domain = "other.org"
+audience = "dev"

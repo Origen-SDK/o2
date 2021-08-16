@@ -1,45 +1,74 @@
-use super::fmt::cd;
 use clap::ArgMatches;
-use std::process::Command;
+use indexmap::IndexMap;
 
-pub fn run(matches: &ArgMatches) {
-    match matches.subcommand_name() {
-        Some("package") => {
-            let wheel_dir = origen::app().unwrap().root.join("dist");
-            // Make sure we are not about to upload any stale/old artifacts
-            if wheel_dir.exists() {
-                std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing dist dir");
+fn _run(cmd: &str, proc_cmd: &ArgMatches, args: Option<IndexMap<&str, String>>) {
+    super::launch(
+        cmd,
+        if let Some(targets) = proc_cmd.values_of("target") {
+            Some(targets.collect())
+        } else {
+            Option::None
+        },
+        &None,
+        None,
+        None,
+        None,
+        false,
+        args,
+    );
+}
+
+pub fn run(cmd: &ArgMatches) {
+    let subcmd = cmd.subcommand();
+    let sub = subcmd.1.unwrap();
+    match subcmd.0 {
+        "init" => {
+            _run("app:init", sub, None);
+        }
+        "status" => {
+            let mut args = IndexMap::new();
+            if sub.is_present("modified") {
+                args.insert("modified", "True".to_string());
             }
-            cd(&origen::app().unwrap().root);
-
-            Command::new("poetry")
-                .args(&["build", "--no-interaction", "--format", "wheel"])
-                .status()
-                .expect("failed to build the application package for release");
-
-            //if matches.is_present("publish") {
-            //    let pypi_token =
-            //        std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
-
-            //    let args: Vec<&str> = vec![
-            //        "upload",
-            //        //"-r",
-            //        //"testpypi",
-            //        "--username",
-            //        "__token__",
-            //        "--password",
-            //        &pypi_token,
-            //        "--non-interactive",
-            //        "dist/*",
-            //    ];
-
-            //    Command::new("twine")
-            //        .args(&args)
-            //        .status()
-            //        .expect("failed to publish origen");
-            //}
+            if sub.is_present("untracked") {
+                args.insert("untracked", "True".to_string());
+            }
+            _run("app:status", sub, Some(args));
+        }
+        "checkin" => {
+            let mut args = IndexMap::new();
+            if sub.is_present("all") {
+                args.insert("all", "True".to_string());
+            }
+            if sub.is_present("dry-run") {
+                args.insert("dry-run", "True".to_string());
+            }
+            if let Some(pathspecs) = sub.values_of("pathspecs") {
+                let p = pathspecs
+                    .map(|ps| format!("\"{}\"", ps))
+                    .collect::<Vec<String>>();
+                args.insert("pathspecs", format!("[{}]", p.join(",")));
+            }
+            args.insert(
+                "msg",
+                format!("\"{}\"", sub.value_of("message").unwrap().to_string()),
+            );
+            _run("app:checkin", sub, Some(args));
+        }
+        "package" => {
+            _run("app:package", sub, None);
+        }
+        "publish" => {
+            let mut args = IndexMap::new();
+            if sub.is_present("dry-run") {
+                args.insert("dry-run", "True".to_string());
+            }
+            _run("app:publish", sub, Some(args));
+        }
+        "run_publish_checks" => {
+            _run("app:run_publish_checks", sub, None);
         }
 
-        None | _ => unreachable!(),
+        _ => unreachable!(),
     }
 }

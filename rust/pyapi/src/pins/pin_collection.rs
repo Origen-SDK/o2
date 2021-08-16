@@ -5,8 +5,8 @@ use num_bigint::BigUint;
 use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
 use origen::error::Error;
-use origen::Transaction;
 use origen::{dut, DUT};
+use origen::{Transaction, TransactionAction};
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
@@ -58,8 +58,10 @@ impl PinCollection {
         kwargs: Option<&PyDict>,
     ) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
-        slf.pin_collection
-            .update(&dut, &extract_pin_transaction(actions, kwargs)?)?;
+        slf.pin_collection.update(
+            &dut,
+            &extract_pin_transaction(actions, TransactionAction::Set, kwargs)?,
+        )?;
         Ok(slf.into())
     }
 
@@ -94,18 +96,38 @@ impl PinCollection {
         Ok(())
     }
 
-    fn capture(&mut self) -> PyResult<()> {
-        let dut = DUT.lock().unwrap();
-        self.pin_collection
-            .update(&dut, &Transaction::new_capture(self.pin_collection.len())?)?;
-        Ok(())
-    }
-
     fn highz(&mut self) -> PyResult<()> {
         let dut = DUT.lock().unwrap();
         self.pin_collection
             .update(&dut, &Transaction::new_highz(self.pin_collection.len())?)?;
         Ok(())
+    }
+
+    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
+    fn overlay(
+        slf: PyRef<Self>,
+        label: Option<String>,
+        symbol: Option<String>,
+        cycles: Option<usize>,
+        mask: Option<BigUint>,
+    ) -> PyResult<Py<Self>> {
+        slf.pin_collection
+            .overlay(&mut origen::Overlay::placeholder(
+                label, symbol, cycles, mask,
+            ))?;
+        Ok(slf.into())
+    }
+
+    #[args(symbol = "None", cycles = "None", mask = "None")]
+    fn capture(
+        slf: PyRef<Self>,
+        symbol: Option<String>,
+        cycles: Option<usize>,
+        mask: Option<BigUint>,
+    ) -> PyResult<Py<Self>> {
+        slf.pin_collection
+            .capture(&mut origen::Capture::placeholder(symbol, cycles, mask))?;
+        Ok(slf.into())
     }
 
     fn reset(&mut self) -> PyResult<()> {
@@ -176,6 +198,12 @@ impl PinCollection {
             Some(&locals),
         )?;
         Ok(slf.into())
+    }
+
+    #[getter]
+    #[allow(non_snake_case)]
+    fn get___origen_pin_ids__(&self) -> PyResult<Vec<usize>> {
+        Ok(self.pin_collection.pin_ids.clone())
     }
 }
 

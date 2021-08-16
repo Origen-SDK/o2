@@ -50,13 +50,14 @@ pub enum Attrs {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Pattern generation nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //PinAction(HashMap<String, (PinActions, u8)>), // Pin IDs, (PinActions, Pin Data)
-    //SetPin(HashMap<String, String>), // Pin IDs, Waveform Symbol
-    //PinAction(IndexMap<usize, (String, Option<HashMap<String, crate::Metadata>>)>, Option<(usize, Option<HashMap<String, crate::Metadata>>)>),
     PinGroupAction(usize, Vec<String>, Option<HashMap<String, crate::Metadata>>),
     PinAction(usize, String, Option<HashMap<String, crate::Metadata>>),
-    Opcode(String, IndexMap<String, String>), // Opcode, Arguments<Argument Key, Argument Value>
-    Cycle(u32, bool),                         // repeat (0 not allowed), compressable
+    Capture(crate::Capture, Metadata),
+    EndCapture(Option<usize>),
+    Overlay(crate::Overlay, Metadata),
+    EndOverlay(Option<String>, Option<usize>), // Label, PinID
+    Opcode(String, IndexMap<String, String>),  // Opcode, Arguments<Argument Key, Argument Value>
+    Cycle(u32, bool),                          // repeat (0 not allowed), compressable
     PatternHeader,
     PatternEnd, // Represents the end of a pattern. Note: this doesn't necessarily need to be the last node, but
     // represents the end of the 'pattern vectors', for vector-based testers.
@@ -72,6 +73,8 @@ pub enum Attrs {
                      // Option<BigUint>,
                      // Option<String>
     ), // reg_id, data, verify_enable, capture_enable, overlay_enable, overlay_str
+    RegCapture(Transaction),
+    RegOverlay(Transaction),
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// JTAG nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +183,13 @@ pub enum Attrs {
     ArmDebugSwjSWDToJTAG(Id), // arm_debug_id - Switch DP from SWD to JTAG
     // ArmDebugSWJ__EnterDormant, // Switch DP to dormant
     // ArmDebugSWJ__ExitDormant, // Switch DP from dormant back to whatever it was prior to entering dormant.
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //// Simple (Dummy) Protocol nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    SimpleProtocolReset(Id),
+    SimpleProtocolWrite(Id, Transaction),
+    SimpleProtocolVerify(Id, Transaction),
 
     //// Text (Comment) nodes
     //// Useful for formatting comment blocks in the AST.

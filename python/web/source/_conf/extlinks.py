@@ -5,7 +5,8 @@ from origen.web.origen_sphinx_extension.shorthand_defs import defs
 pyo3_version = '0.8.5'
 python_doc_version = '3'  # Points to latest, stable Python3 version.
 links = defs['abslinks']
-core_github_branch = "doc_system"
+core_github_branch = "mailer_ldap_users_session_and_more"
+github_root__python_app = f"https://github.com/Origen-SDK/o2/blob/{core_github_branch}/test_apps/python_app"
 
 extlinks = {
     # Sphinx basics or built-in (non-extension) features
@@ -219,6 +220,15 @@ extlinks = {
     'docstrings_guide_tc':
     ('https://thomas-cokelaer.info/tutorials/sphinx/docstring_python.html%s',
      ''),
+    'python_docs_pickle': (
+        f'https://docs.python.org/{python_doc_version}/library/pickle.html%s',
+        ''),
+    'python_docs_bytes':
+    (f'https://docs.python.org/{python_doc_version}/library/stdtypes.html#binary-sequence-types-bytes-bytearray-memoryview%s',
+     ''),
+    'python_docs_marshal': (
+        f'https://docs.python.org/{python_doc_version}/library/marshal.html%s',
+        ''),
 
     # PyO3 Stuff
     'pyo3_crate_home': (f'https://docs.rs/crate/pyo3/{pyo3_version}%s', ''),
@@ -237,6 +247,9 @@ extlinks = {
     'rust_docstrings':
     ('https://doc.rust-lang.org/stable/rust-by-example/meta/doc.html#doc-comments%s',
      ''),
+
+    # TOML
+    'toml_homepage': ('https://toml.io/en/%s', ''),
 
     # Origen Github links
     'origen_sdk_home': (f'{links["home"]}%s', ''),
@@ -284,14 +297,48 @@ extlinks = {
     'origen_src_example_commands':
     (f'https://github.com/Origen-SDK/o2/blob/{core_github_branch}/test_apps/python_app/example/commands/examples.py%s',
      ''),
+    'origen_example_app_config': (
+        f'{github_root__python_app}/config/application.toml%s', ''),
+    'origen_example_config': (
+        f'{github_root__python_app}/config/origen.toml%s', ''),
+    'origen_specs_users': (
+        f'{github_root__python_app}/tests/origen_utilities/test_users.py%s',
+        ''),
+    'origen_specs_ldap': (
+        f'{github_root__python_app}/tests/origen_utilities/test_ldap.py%s',
+        ''),
+    'origen_specs_session_store':
+    (f'{github_root__python_app}/tests/origen_utilities/test_session_store.py%s',
+     ''),
+
+    # LDAP
+    'ldap_wiki': ('https://ldapwiki.com/wiki/LDAP%s', ''),
+    'ldap_invalid_credentials': (
+        'https://ldapwiki.com/wiki/LDAP_INVALID_CREDENTIALS%s', ''),
+    'ldap_filters':
+    ('https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html%s',
+     ''),
+    'ldap_test_server':
+    ('https://www.forumsys.com/tutorials/integration-how-to/ldap/online-ldap-test-server/%s',
+     ''),
+
+    # Git
+    'git': ('https://git-scm.com/%s', ''),
+    'git_configuration': (
+        'https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration%s',
+        ''),
+    'git_pull_requests':
+    ('https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests%s',
+     ''),
 
     # Other
     'mvc_dp_wiki': ('https://en.wikipedia.org/wiki/Model–view–controller%s',
                     ''),
-    'git_pull_requests':
-    ('https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests%s',
-     ''),
     'svg_to_png_converter': ('https://svgtopng.com/%s', ''),
+    'linux_keyring': ('https://en.wikipedia.org/wiki/GNOME_Keyring%s', ''),
+    'windows_credential_manager':
+    ('https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0%s',
+     ''),
 
     # Python Package Servers
     'sonatype_nexus': ('https://www.sonatype.com/nexus/repository-oss%s', ''),
