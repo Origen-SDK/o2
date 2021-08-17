@@ -1,12 +1,15 @@
 use super::ParamValue;
-use super::{BinType, FlowCondition, FlowID, GroupType, PatternGroupType};
+use super::{
+    BinType, FlowCondition, FlowID, GroupType, Limit, LimitSelector, PatternGroupType,
+    ResourcesType, UniquenessOption,
+};
 use crate::generator::ast::Meta;
 use crate::testers::SupportedTester;
 use crate::{Result, FLOW};
 
 /// Start a sub-flow, the returned reference should be retained and passed to end_block
-pub fn start_sub_flow(name: &str, meta: Option<Meta>) -> Result<usize> {
-    let n = node!(PGMSubFlow, name.to_owned(); meta);
+pub fn start_sub_flow(name: &str, flow_id: Option<FlowID>, meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMSubFlow, name.to_owned(), flow_id; meta);
     FLOW.push_and_open(n)
 }
 
@@ -45,8 +48,31 @@ pub fn define_test_invocation(
 }
 
 /// Set an attribute of either a test or a test invocation
-pub fn set_test_attr(id: usize, name: &str, value: ParamValue, meta: Option<Meta>) -> Result<()> {
+pub fn set_test_attr(
+    id: usize,
+    name: &str,
+    value: Option<ParamValue>,
+    meta: Option<Meta>,
+) -> Result<()> {
     let n = node!(PGMSetAttr, id, name.to_owned(), value; meta);
+    FLOW.push(n)?;
+    Ok(())
+}
+
+pub fn set_test_limit(
+    test_id: Option<usize>,
+    inv_id: Option<usize>,
+    hilo: LimitSelector,
+    value: Option<Limit>,
+    meta: Option<Meta>,
+) -> Result<()> {
+    if test_id.is_none() && inv_id.is_none() {
+        return error!("Either a test ID or an invocation ID must be supplied to set_test_limit");
+    }
+    if test_id.is_some() && inv_id.is_some() {
+        return error!("Either a test ID *OR* an invocation ID must be supplied to set_test_limit, but not both");
+    }
+    let n = node!(PGMSetLimit, test_id, inv_id, hilo, value; meta);
     FLOW.push(n)?;
     Ok(())
 }
@@ -174,5 +200,49 @@ pub fn start_on_failed(flow_id: FlowID, meta: Option<Meta>) -> Result<usize> {
 /// reference should be retained and passed to end_block
 pub fn start_on_passed(flow_id: FlowID, meta: Option<Meta>) -> Result<usize> {
     let n = node!(PGMOnPassed, flow_id; meta);
+    FLOW.push_and_open(n)
+}
+
+/// Start a resources block, contained tests will not appear in the flow but the test definitions
+/// will appear in the generated test program (e.g. in the test instances sheet)
+pub fn start_resources(meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMResources; meta);
+    FLOW.push_and_open(n)
+}
+
+pub fn set_flag(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMSetFlag, name, state, false; meta);
+    FLOW.push(n)
+}
+
+pub fn set_default_flag_state(name: String, state: bool, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMSetDefaultFlagState, name, state; meta);
+    FLOW.push(n)
+}
+
+pub fn continue_on_fail(meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMContinue; meta);
+    FLOW.push(n)
+}
+
+pub fn set_resources_filename(name: String, kind: ResourcesType, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMResourcesFilename, name, kind; meta);
+    FLOW.push(n)
+}
+
+/// Contained flows will be bypassed
+pub fn start_bypass_sub_flows(meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMBypassSubFlows; meta);
+    FLOW.push_and_open(n)
+}
+
+pub fn flow_description(desc: String, meta: Option<Meta>) -> Result<()> {
+    let n = node!(PGMFlowDescription, desc; meta);
+    FLOW.push(n)
+}
+
+/// Contained test names and similar will the use the given uniqueness option
+pub fn start_uniqueness(option: UniquenessOption, meta: Option<Meta>) -> Result<usize> {
+    let n = node!(PGMUniqueness, option; meta);
     FLOW.push_and_open(n)
 }

@@ -81,6 +81,19 @@ impl PyTester {
         Ok(())
     }
 
+    /// Write out the AST to the given file (for debugging)
+    fn ast_to_file(&self, file: &str) -> PyResult<()> {
+        let contents = {
+            if Operation::GenerateFlow == STATUS.operation() {
+                origen::FLOW.to_string()
+            } else {
+                origen::TEST.to_string()
+            }
+        };
+        std::fs::write(file, contents)?;
+        Ok(())
+    }
+
     /// This resets the tester, clearing all loaded targets and any other state, making
     /// it ready for a fresh target load.
     /// This should only be called from Python code for testing, it will be called automatically

@@ -9,6 +9,6 @@ pub fn id_getters_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     match id_getters_derive::impl_id_getters(&ast) {
         Ok(obj) => obj,
-        Err(message) => panic!(message),
+        Err(message) => panic!("{}", message),
     }
 }

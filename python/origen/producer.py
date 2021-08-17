@@ -138,15 +138,24 @@ class Producer(_origen.producer.PyProducer):
             top_level = False
             origen.logger.debug(
                 f"Producing sub-flow '{flow.name}' in job '{job.id}'")
-            flow_ref = _origen.prog_gen.start_new_flow(flow.name,
-                                                       sub_flow=True)
+            flow_refs = _origen.prog_gen.start_new_flow(flow.name,
+                                                        sub_flow=True)
         else:
             origen.logger.debug(
                 f"Producing flow '{flow.name}' in job '{job.id}'")
             top_level = True
             top_level_flow_open = True
             origen.target.load()
-            flow_ref = _origen.prog_gen.start_new_flow(flow.name)
+            options = {}
+            if kwargs.get(
+                    "bypass_sub_flows") or origen.interface.bypass_sub_flows:
+                options["bypass_sub_flows"] = True
+            if kwargs.get("add_flow_enable"):
+                options["add_flow_enable"] = kwargs["add_flow_enable"]
+            else:
+                options["add_flow_enable"] = origen.interface.add_flow_enable
+            flow_refs = _origen.prog_gen.start_new_flow(flow.name, **options)
+            origen.interface.top_level_options = kwargs
 
         #origen.tester.reset()
         #origen.target.reload()
@@ -159,9 +168,8 @@ class Producer(_origen.producer.PyProducer):
 
         if top_level:
             top_level_flow_open = False
-            _origen.prog_gen.end_flow(flow_ref)
-        else:
-            _origen.prog_gen.end_flow(flow_ref, sub_flow=True)
+
+        _origen.prog_gen.end_flow(flow_refs)
 
         #origen.tester.end_pattern()
         #origen.tester.render()

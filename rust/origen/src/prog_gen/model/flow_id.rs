@@ -20,7 +20,7 @@ impl FlowID {
     /// to guarantee uniqueness, but it will be checked later in the generation process.
     pub fn from_int(id: usize) -> FlowID {
         FlowID {
-            id: format!("{}", id),
+            id: format!("t{}", id),
             _private: (),
         }
     }
@@ -28,6 +28,20 @@ impl FlowID {
     /// Generate a new unique ID
     pub fn new() -> FlowID {
         FlowID::from_int(crate::STATUS.generate_unique_id())
+    }
+
+    /// Returns true if the ID refers to a test external to this flow, currently defined by the ID
+    /// starting with "extern_"
+    pub fn is_external(&self) -> bool {
+        self.id.starts_with("extern")
+    }
+
+    pub fn to_string(&self) -> String {
+        self.id.clone()
+    }
+
+    pub fn to_str(&self) -> &str {
+        &self.id
     }
 }
 

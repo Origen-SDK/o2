@@ -13,6 +13,7 @@ pub struct Group {
     pub kind: GroupType,
     ref_id: usize,
     flow_id: Option<FlowID>,
+    pub open_conditions: Option<Vec<usize>>,
 }
 
 impl Group {
@@ -28,6 +29,7 @@ impl Group {
             kind: kind,
             flow_id: flow_id,
             ref_id: 0,
+            open_conditions: None,
         }
     }
 }
@@ -47,14 +49,24 @@ impl PyContextProtocol for Group {
 
     fn __exit__(
         &mut self,
-        _ty: Option<&'p PyType>,
+        ty: Option<&'p PyType>,
         _value: Option<&'p PyAny>,
         _traceback: Option<&'p PyAny>,
     ) -> bool {
-        flow_api::end_block(self.ref_id).expect(&format!(
-            "Something has gone wrong closing group '{}'",
-            self.name
-        ));
-        true
+        if ty.is_none() {
+            flow_api::end_block(self.ref_id).expect(&format!(
+                "Something has gone wrong closing group '{}'",
+                self.name
+            ));
+            if let Some(ref_ids) = &self.open_conditions {
+                for id in ref_ids {
+                    flow_api::end_block(*id).expect(&format!(
+                        "Something has gone wrong closing a condition that is wrapping group '{}'",
+                        self.name
+                    ));
+                }
+            }
+        }
+        false
     }
 }

@@ -85,7 +85,8 @@ fn main() {
                 .unwrap()
                 .display()
                 .to_string()
-                .replace(".tera", "");
+                .replace(".tera", "")
+                .replace("\\", "/");
             let contents = std::fs::read_to_string(path).unwrap();
             data += &format!("r#\"{}\"# => r#\"{}\"#,\n", &file, &contents);
         }

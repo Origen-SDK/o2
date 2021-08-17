@@ -1,4 +1,5 @@
 use crate::Result;
+use normpath::PathExt;
 use std::path::{Path, PathBuf};
 
 /// A job represents the execution of an Origen application source file.
@@ -76,10 +77,19 @@ impl Job {
             }
         } else {
             if let Some(root) = self.files.last() {
-                if let Some(dir) = root.parent() {
+                let root_norm = root.normalize().unwrap();
+                if let Ok(Some(dir)) = root_norm.parent() {
                     let f = dir.join(file);
                     if f.exists() {
-                        return Some(f.to_path_buf());
+                        return Some(f.into_path_buf());
+                    }
+                    match f.canonicalize() {
+                        Ok(f) => {
+                            if f.exists() {
+                                return Some(f.into_path_buf());
+                            }
+                        }
+                        Err(_e) => {}
                     }
                 }
             }

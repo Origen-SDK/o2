@@ -29,14 +29,16 @@ impl PyContextProtocol for Condition {
 
     fn __exit__(
         &mut self,
-        _ty: Option<&'p PyType>,
+        ty: Option<&'p PyType>,
         _value: Option<&'p PyAny>,
         _traceback: Option<&'p PyAny>,
     ) -> bool {
-        flow_api::end_block(self.ref_id).expect(&format!(
-            "Something has gone wrong closing condition '{:?}'",
-            self.kind
-        ));
-        true
+        if let None = ty {
+            flow_api::end_block(self.ref_id).expect(&format!(
+                "Something has gone wrong closing condition '{:?}'",
+                self.kind
+            ));
+        }
+        false
     }
 }

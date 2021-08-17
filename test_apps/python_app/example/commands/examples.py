@@ -11,7 +11,13 @@ def run(**kwargs):
             reference_dir="approved",
             targets=["dut/eagle", "tester/v93k_smt7", "tester/j750"])
 
+    run_cmd("generate",
+            files=["example/flows/o1_testcases/prb1.py"],
+            reference_dir="approved",
+            targets=["dut/o1_dut", "tester/v93k_smt7"])
+
     stats = origen.tester.stats()
+
     changes = stats['changed_pattern_files'] > 0 or stats[
         'changed_program_files'] > 0
     new_files = stats['new_pattern_files'] > 0 or stats['new_program_files'] > 0

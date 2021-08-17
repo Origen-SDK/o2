@@ -5,6 +5,7 @@ use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::ast::Node;
 use crate::generator::processor::Return;
+use crate::prog_gen::Model;
 use crate::utility::differ::{ASCIIDiffer, Differ};
 use crate::{Overlay, Result};
 use pattern_renderer::Renderer;
@@ -143,9 +144,9 @@ where
         VectorBased::pin_action_resolver(self)
     }
 
-    default fn render_program(&mut self) -> crate::Result<Vec<PathBuf>> {
+    default fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
         log_debug!("Tester '{}' does not implement render_program", &self.id());
-        Ok(vec![])
+        Ok((vec![], Model::new(self.id())))
     }
 
     default fn output_dir(&self) -> Result<PathBuf> {

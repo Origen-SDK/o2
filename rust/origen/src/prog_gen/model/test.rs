@@ -1,5 +1,6 @@
 use super::template_loader::TestTemplate;
-use super::{Constraint, ParamType, ParamValue};
+use super::Model;
+use super::{Constraint, Limit, ParamType, ParamValue};
 use crate::testers::SupportedTester;
 use crate::Result;
 use indexmap::IndexMap;
@@ -27,7 +28,13 @@ pub struct Test {
     pub constraints: IndexMap<String, Vec<Constraint>>,
     pub tester: SupportedTester,
     pub class_name: Option<String>,
+    /// References an invocation and vice versa
     pub test_id: Option<usize>,
+    pub sub_tests: Vec<usize>,
+    pub number: Option<usize>,
+    /// Tests can directly have a single set of limits, tests with multiple limits are modeled as sub-tests
+    pub lo_limit: Option<Limit>,
+    pub hi_limit: Option<Limit>,
     // Should remain private, this is to ensure there is no direct construction of test objects
     _private: (),
 }
@@ -84,6 +91,10 @@ impl Test {
             /// If the test is modelling an invocation then this will reflect the ID of the
             /// test being invoked
             test_id: None,
+            sub_tests: vec![],
+            number: None,
+            lo_limit: None,
+            hi_limit: None,
             _private: (),
         };
         let clean_name = clean(name);
@@ -115,6 +126,10 @@ impl Test {
                     None => ParamType::String,
                 };
                 self.params.insert(name.to_owned(), kind.clone());
+                let clean_name = clean(name);
+                if &clean_name != name {
+                    self.aliases.insert(clean_name, name.to_owned());
+                }
                 if let Some(aliases) = &param.aliases {
                     for alias in aliases {
                         self.aliases.insert(clean(alias), name.to_owned());
@@ -145,6 +160,10 @@ impl Test {
                     }
                     Ok(t) => {
                         self.params.insert(name.to_string(), t);
+                        let clean_name = clean(name);
+                        if &clean_name != name {
+                            self.aliases.insert(clean_name, name.to_owned());
+                        }
                     }
                 }
             }
@@ -255,11 +274,13 @@ impl Test {
 
     /// Set the value of the given parameter to the given value, returns an error if the
     /// parameter is not found (unless allow_missing = true), if its type does match the type of the
-    /// given value or if any constraints placed on the possible values is violated
+    /// given value or if any constraints placed on the possible values is violated.
+    /// Supplying None for the value will cause any existing value assignment for the given parameter
+    /// to be removed.
     pub fn set(
         &mut self,
         param_name_or_alias: &str,
-        value: ParamValue,
+        value: Option<ParamValue>,
         allow_mising: bool,
     ) -> Result<()> {
         if allow_mising && !self.has_param(param_name_or_alias) {
@@ -267,21 +288,26 @@ impl Test {
         }
         let param_name = { self.to_param_name(param_name_or_alias)?.to_owned() };
         let kind = self.get_type(&param_name)?;
-        if value.is_type(kind) || kind == &ParamType::Any {
-            if let Some(constraints) = self.constraints.get(&param_name) {
-                for constraint in constraints {
-                    if let Err(e) = constraint.is_satisfied(&value) {
-                        return error!(
-                            "Illegal value applied to attribute '{}' of test '{}': {}",
-                            param_name_or_alias, &self.name, e
-                        );
+        if let Some(value) = value {
+            if value.is_type(kind) || kind == &ParamType::Any {
+                if let Some(constraints) = self.constraints.get(&param_name) {
+                    for constraint in constraints {
+                        if let Err(e) = constraint.is_satisfied(&value) {
+                            return error!(
+                                "Illegal value applied to attribute '{}' of test '{}': {}",
+                                param_name_or_alias, &self.name, e
+                            );
+                        }
                     }
                 }
+                self.values.insert(param_name, value);
+                Ok(())
+            } else {
+                error!("The type of the given value for '{}' in test '{}' does not match the required type: expected {:?}, given {:?}", param_name, &self.name, kind, value)
             }
-            self.values.insert(param_name, value);
-            Ok(())
         } else {
-            error!("The type of the given value for '{}' in test '{}' does not match the required type: expected {:?}, given {:?}", param_name, &self.name, kind, value)
+            self.values.remove(&param_name);
+            Ok(())
         }
     }
 
@@ -358,6 +384,38 @@ impl Test {
                 )
             }
         }
+    }
+
+    /// Returns the invocation for the test if there is one
+    pub fn invocation<'a>(&self, model: &'a Model) -> Option<&'a Test> {
+        if let Some(inv_id) = self.test_id {
+            return model.test_invocations.get(&inv_id);
+        }
+        None
+    }
+
+    /// Returns a mutable reference to invocation for the test if there is one
+    pub fn invocation_mut<'a>(&self, model: &'a mut Model) -> Option<&'a mut Test> {
+        if let Some(inv_id) = self.test_id {
+            return model.test_invocations.get_mut(&inv_id);
+        }
+        None
+    }
+
+    /// Returns the test for the invocation if there is one
+    pub fn test<'a>(&self, model: &'a Model) -> Option<&'a Test> {
+        if let Some(test_id) = self.test_id {
+            return model.tests.get(&test_id);
+        }
+        None
+    }
+
+    /// Returns a mutable reference to the test for the invocation if there is one
+    pub fn test_mut<'a>(&self, model: &'a mut Model) -> Option<&'a mut Test> {
+        if let Some(test_id) = self.test_id {
+            return model.tests.get_mut(&test_id);
+        }
+        None
     }
 }
 

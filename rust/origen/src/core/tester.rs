@@ -7,14 +7,17 @@ use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
 use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
+use crate::prog_gen::{Model, PatternReferenceType};
 use crate::testers::{instantiate_tester, SupportedTester};
-use crate::utility::differ::Differ;
+use crate::utility::differ::{ASCIIDiffer, Differ};
 use crate::utility::file_utils::to_relative_path;
 use crate::{add_children, node, text, text_line, with_current_job};
 use crate::{Error, Result};
 use crate::{FLOW, TEST};
 use indexmap::IndexMap;
+use std::collections::HashSet;
 use std::env;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -130,7 +133,7 @@ impl Tester {
         let n = node!(TesterEq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             prog_ref_id = FLOW.push_and_open(n)?;
         } else {
             prog_ref_id = 0;
@@ -145,7 +148,7 @@ impl Tester {
     /// as the main argument.
     pub fn end_tester_eq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             FLOW.close(prog_ref_id)?;
         }
         crate::STATUS.pop_testers_eq()?;
@@ -158,7 +161,7 @@ impl Tester {
         let n = node!(TesterNeq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             prog_ref_id = FLOW.push_and_open(n)?;
         } else {
             prog_ref_id = 0;
@@ -170,7 +173,7 @@ impl Tester {
 
     pub fn end_tester_neq_block(&self, pat_ref_id: usize, prog_ref_id: usize) -> Result<()> {
         TEST.close(pat_ref_id)?;
-        if FLOW.selected().is_some() {
+        if FLOW.is_open() {
             FLOW.close(prog_ref_id)?;
         }
         crate::STATUS.pop_testers_neq()?;
@@ -430,7 +433,7 @@ impl Tester {
                 if !paths.is_empty() {
                     for path in &paths {
                         self.stats.generated_pattern_files += 1;
-                        log_debug!("Tester '{}' created file '{}'", gen.name(),  path.display());
+                        log_debug!("Tester '{}' created file '{}'", gen.name(), path.display());
                         if diff_and_display {
                             if let Ok(p) = to_relative_path(path, None) {
                                 display!("Created: {}", p.display());
@@ -444,33 +447,54 @@ impl Tester {
                                         let ref_pat = ref_dir.join(&stem);
                                         display!(" - ");
                                         if ref_pat.exists() {
-                                            if let Some(mut differ) = gen.pattern_differ(path, &ref_pat) {
+                                            if let Some(mut differ) =
+                                                gen.pattern_differ(path, &ref_pat)
+                                            {
                                                 if differ.has_diffs()? {
-                                                    if let Err(e) = reference_files::create_changed_ref(&stem, &path, &ref_pat) {
+                                                    if let Err(e) =
+                                                        reference_files::create_changed_ref(
+                                                            &stem, &path, &ref_pat,
+                                                        )
+                                                    {
                                                         log_error!("{}", e);
                                                     }
                                                     self.stats.changed_pattern_files += 1;
                                                     display_redln!("Diffs found");
-                                                    let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
-                                                    let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
-                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                                                    displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
-                                                    display!("  origen save_ref {}", stem.display());
+                                                    let old = to_relative_path(&ref_pat, None)
+                                                        .unwrap_or(ref_pat);
+                                                    let new = to_relative_path(&path, None)
+                                                        .unwrap_or(path.to_owned());
+                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL")
+                                                        .unwrap_or("tkdiff".to_string());
+                                                    displayln!(
+                                                        "  {} {} {} &",
+                                                        &diff_tool,
+                                                        old.display(),
+                                                        new.display()
+                                                    );
+                                                    display!(
+                                                        "  origen save_ref {}",
+                                                        stem.display()
+                                                    );
                                                 } else {
                                                     display_green!("No diffs");
                                                 }
                                             } else {
-                                                log_debug!("No differ defined for tester '{}'", gen.name());
+                                                log_debug!(
+                                                    "No differ defined for tester '{}'",
+                                                    gen.name()
+                                                );
                                                 display_yellow!("Diff not checked");
                                             }
                                         } else {
                                             self.stats.new_pattern_files += 1;
-                                            if let Err(e) = reference_files::create_new_ref(&stem, &path, &ref_pat) {
+                                            if let Err(e) = reference_files::create_new_ref(
+                                                &stem, &path, &ref_pat,
+                                            ) {
                                                 log_error!("{}", e);
                                             }
                                             display_cyanln!("New pattern");
                                             display!("  origen save_ref {}", stem.display());
-
                                         }
                                     }
                                 }
@@ -494,7 +518,7 @@ impl Tester {
         &mut self,
         idx: usize,
         diff_and_display: bool,
-    ) -> Result<Vec<PathBuf>> {
+    ) -> Result<(Vec<PathBuf>, Model)> {
         let g = &mut self.target_testers[idx];
         match g {
             TesterSource::External(gen) => {
@@ -502,11 +526,11 @@ impl Tester {
             }
             TesterSource::Internal(gen) => {
                 log_info!("Rendering program for {}", &gen.name());
-                let paths = gen.render_program()?;
+                let (paths, model) = gen.render_program()?;
                 if !paths.is_empty() {
                     for path in &paths {
                         self.stats.generated_program_files += 1;
-                        log_debug!("Tester '{}' created file '{}'", gen.name(),  path.display());
+                        log_debug!("Tester '{}' created file '{}'", gen.name(), path.display());
                         if diff_and_display {
                             if let Ok(p) = to_relative_path(path, None) {
                                 display!("Created: {}", p.display());
@@ -520,33 +544,54 @@ impl Tester {
                                         let ref_pat = ref_dir.join(&stem);
                                         display!(" - ");
                                         if ref_pat.exists() {
-                                            if let Some(mut differ) = gen.program_differ(path, &ref_pat) {
+                                            if let Some(mut differ) =
+                                                gen.program_differ(path, &ref_pat)
+                                            {
                                                 if differ.has_diffs()? {
-                                                    if let Err(e) = reference_files::create_changed_ref(&stem, &path, &ref_pat) {
+                                                    if let Err(e) =
+                                                        reference_files::create_changed_ref(
+                                                            &stem, &path, &ref_pat,
+                                                        )
+                                                    {
                                                         log_error!("{}", e);
                                                     }
                                                     self.stats.changed_program_files += 1;
                                                     display_redln!("Diffs found");
-                                                    let old = to_relative_path(&ref_pat, None).unwrap_or(ref_pat);
-                                                    let new = to_relative_path(&path, None).unwrap_or(path.to_owned());
-                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL").unwrap_or("tkdiff".to_string());
-                                                    displayln!("  {} {} {} &", &diff_tool, old.display(), new.display());
-                                                    display!("  origen save_ref {}", stem.display());
+                                                    let old = to_relative_path(&ref_pat, None)
+                                                        .unwrap_or(ref_pat);
+                                                    let new = to_relative_path(&path, None)
+                                                        .unwrap_or(path.to_owned());
+                                                    let diff_tool = env::var("ORIGEN_DIFF_TOOL")
+                                                        .unwrap_or("tkdiff".to_string());
+                                                    displayln!(
+                                                        "  {} {} {} &",
+                                                        &diff_tool,
+                                                        old.display(),
+                                                        new.display()
+                                                    );
+                                                    display!(
+                                                        "  origen save_ref {}",
+                                                        stem.display()
+                                                    );
                                                 } else {
                                                     display_green!("No diffs");
                                                 }
                                             } else {
-                                                log_debug!("No differ defined for tester '{}'", gen.name());
+                                                log_debug!(
+                                                    "No differ defined for tester '{}'",
+                                                    gen.name()
+                                                );
                                                 display_yellow!("Diff not checked");
                                             }
                                         } else {
                                             self.stats.new_program_files += 1;
-                                            if let Err(e) = reference_files::create_new_ref(&stem, &path, &ref_pat) {
+                                            if let Err(e) = reference_files::create_new_ref(
+                                                &stem, &path, &ref_pat,
+                                            ) {
                                                 log_error!("{}", e);
                                             }
                                             display_cyanln!("New file");
                                             display!("  origen save_ref {}", stem.display());
-
                                         }
                                     }
                                 }
@@ -554,10 +599,80 @@ impl Tester {
                             displayln!("");
                         }
                     }
+                    // Now write the pattern referenced list
+                    let mut referenced_patterns = HashSet::new();
+                    for pat in &model.patterns {
+                        if pat.reference_type == PatternReferenceType::All
+                            || pat.reference_type == PatternReferenceType::Origen
+                        {
+                            let _ = referenced_patterns.insert(pat.path.to_owned());
+                        }
+                    }
+                    let dir = gen.output_dir()?.join("test_program");
+                    if !dir.exists() {
+                        std::fs::create_dir_all(&dir)?;
+                    }
+                    let list = dir.join("referenced.list");
+                    let mut f = std::fs::File::create(&list)?;
+                    let mut pats: Vec<_> = referenced_patterns.into_iter().collect();
+                    pats.sort();
+                    for pat in pats {
+                        writeln!(&mut f, "{}", pat)?;
+                    }
+
+                    if let Ok(p) = to_relative_path(&list, None) {
+                        display!("Created: {}", p.display());
+                    } else {
+                        display!("Created: {}", list.display());
+                    }
+                    if let Some(ref_dir) = crate::STATUS.reference_dir() {
+                        let ref_list = ref_dir.join("referenced.list");
+                        display!(" - ");
+                        if ref_list.exists() {
+                            let mut differ = ASCIIDiffer::new(&ref_list, &list);
+                            differ.ignore_comments("#")?;
+                            if differ.has_diffs()? {
+                                if let Err(e) = reference_files::create_changed_ref(
+                                    Path::new("referenced.list"),
+                                    &list,
+                                    &ref_list,
+                                ) {
+                                    log_error!("{}", e);
+                                }
+                                self.stats.changed_program_files += 1;
+                                display_redln!("Diffs found");
+                                let old = to_relative_path(&ref_list, None).unwrap_or(ref_list);
+                                let new = to_relative_path(&list, None).unwrap_or(list.to_owned());
+                                let diff_tool = std::env::var("ORIGEN_DIFF_TOOL")
+                                    .unwrap_or("tkdiff".to_string());
+                                displayln!(
+                                    "  {} {} {} &",
+                                    &diff_tool,
+                                    old.display(),
+                                    new.display()
+                                );
+                                display!("  origen save_ref referenced.list");
+                            } else {
+                                display_green!("No diffs");
+                            }
+                        } else {
+                            self.stats.new_program_files += 1;
+                            if let Err(e) = reference_files::create_new_ref(
+                                Path::new("referenced.list"),
+                                &list,
+                                &ref_list,
+                            ) {
+                                log_error!("{}", e);
+                            }
+                            display_cyanln!("New file");
+                            display!("  origen save_ref referenced.list");
+                        }
+                    }
+                    displayln!("");
                 } else {
                     log_debug!("No files generated by tester '{}", gen.name());
                 }
-                Ok(paths)
+                Ok((paths, model))
             }
         }
     }
@@ -684,9 +799,9 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// if successful.
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
-    fn render_program(&mut self) -> crate::Result<Vec<PathBuf>> {
+    fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
         log_debug!("Tester '{}' does not implement render_program", &self.id());
-        Ok(vec![])
+        Ok((vec![], Model::new(self.id())))
     }
 
     /// The tester should implement this to return a differ instance which is configured

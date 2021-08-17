@@ -15,6 +15,7 @@ impl Default for Renderer {
 }
 
 impl Processor for Renderer {}
+
 impl Interceptor for Renderer {
     fn clear_timeset(&mut self, _node: &Node) -> Result<(), Error> {
         println!("<Issue command to clear the timeset in the simulator...>");

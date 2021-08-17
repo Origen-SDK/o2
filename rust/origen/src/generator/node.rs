@@ -67,23 +67,27 @@ impl Node {
         }
     }
 
+    /// Returns "<filename>:<lineno>" if present, else ""
+    pub fn meta_string(&self) -> String {
+        if let Some(meta) = &self.meta {
+            if let Some(f) = &meta.filename {
+                let mut s = format!("{}", f);
+                if let Some(l) = &meta.lineno {
+                    s += &format!(":{}", l);
+                }
+                return s;
+            }
+        }
+        "".to_string()
+    }
+
     pub fn error(&self, error: Error) -> Result<()> {
         // Messaging may need to be slightly different for patgen
         if STATUS.operation() == Operation::GenerateFlow {
             let help = {
-                if self.meta.is_some() && self.meta.as_ref().unwrap().filename.is_some() {
-                    let mut m = self
-                        .meta
-                        .as_ref()
-                        .unwrap()
-                        .filename
-                        .as_ref()
-                        .unwrap()
-                        .to_string();
-                    if let Some(l) = self.meta.as_ref().unwrap().lineno {
-                        m += &format!(":{}", l);
-                    }
-                    m
+                let s = self.meta_string();
+                if s != "" {
+                    s
                 } else {
                     if STATUS.is_debug_enabled() {
                         // Don't display children since it's potentially huge
@@ -104,7 +108,7 @@ impl Node {
     /// Returning None means that the processor has decided that the node should be removed
     /// from the next stage AST.
     pub fn process(&self, processor: &mut dyn Processor) -> Result<Option<Node>> {
-        let r = processor.on_node(&self)?;
+        let r = { processor.on_node(&self)? };
         self.process_return_code(r, processor)
     }
 
@@ -189,6 +193,22 @@ impl Node {
         }
         let index = self.children.len() - 1 - offset;
         Ok(*self.children[index].clone())
+    }
+
+    /// Removes the child node at the given offset and returns it
+    pub fn remove_child(&mut self, offset: usize) -> Result<Node> {
+        let len = self.children.len();
+        if len == 0 {
+            return Err(Error::new(
+                "Attempted to remove a child in a node with no children",
+            ));
+        } else if offset > len - 1 {
+            return Err(Error::new(&format!(
+                "An offset of {} was given to remove a child in a node with only {} children",
+                offset, len
+            )));
+        }
+        Ok(*self.children.remove(offset))
     }
 
     pub fn depth(&self) -> usize {
@@ -320,6 +340,11 @@ impl Node {
         Ok(nodes)
     }
 
+    /// Returns a new node which is a copy of self with its children removed
+    pub fn without_children(&self) -> Node {
+        self.replace_children(vec![])
+    }
+
     /// Returns a new node which is a copy of self with its children replaced
     /// by the given collection of nodes.
     pub fn replace_children(&self, nodes: Vec<Box<Node>>) -> Node {
@@ -351,5 +376,37 @@ impl Node {
             children: self.children.clone(),
         };
         new_node
+    }
+
+    /// Ensures the the given node type is present in the nodes immediate children,
+    /// inserting it if not
+    pub fn ensure_node_present(&mut self, attrs: Attrs) {
+        if self.children.iter().any(|c| c.attrs == attrs) {
+            return;
+        }
+        self.children.push(Box::new(Node::new(attrs)));
+    }
+
+    /// Returns a new node which is a copy of self with its components replaced by the given values
+    pub fn updated(
+        &self,
+        attrs: Option<Attrs>,
+        children: Option<Vec<Box<Node>>>,
+        meta: Option<Meta>,
+    ) -> Node {
+        Node {
+            attrs: match attrs {
+                Some(x) => x,
+                None => self.attrs.clone(),
+            },
+            children: match children {
+                Some(x) => x,
+                None => self.children.clone(),
+            },
+            meta: match meta {
+                Some(x) => Some(x),
+                None => self.meta.clone(),
+            },
+        }
     }
 }

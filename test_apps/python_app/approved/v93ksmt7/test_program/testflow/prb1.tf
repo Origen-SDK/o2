@@ -522,7 +522,7 @@ tm_109:
 tm_11:
   "Functional" = "":"NA":"":"NA":"":"":"";
 tm_110:
-  "passLimit_uA_mV" = "[1.0e-06, 2.0e-06, 3.0e-06]":"GE":"[4.0e-06, 5.0e-06]":"LE":"":"":"0";
+  "passLimit_uA_mV" = "[1e-06, 2e-06, 3e-06]":"GE":"[4e-06, 5e-06]":"LE":"":"":"0";
 tm_111:
   "Functional" = "":"NA":"":"NA":"":"":"";
 tm_112:
@@ -2206,8 +2206,10 @@ test_flow
              else
              {
              }
-             run(erase_all_40_864CE8F);
           }, open,"additional_erase", ""
+          {
+             run(erase_all_40_864CE8F);
+          }, open,"additional_erase_2", ""
        }
        else
        {

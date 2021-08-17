@@ -2,20 +2,33 @@
 //! test templates, test instances, etc.
 
 mod bin;
+mod flow;
 mod flow_id;
 mod limit;
 mod model;
+mod pattern;
+mod sub_test;
 mod template_loader;
 mod test;
+mod variable;
 
+pub use super::ResourcesType;
 use crate::Result as OrigenResult;
 pub use bin::Bin;
+pub use flow::Flow;
 pub use flow_id::FlowID;
-pub use limit::Limit;
+pub use limit::{Limit, LimitType};
 pub use model::Model;
+pub use pattern::Pattern;
+pub use pattern::PatternReferenceType;
+pub use pattern::PatternType;
 use std::fmt;
 use std::str::FromStr;
+pub use sub_test::SubTest;
 pub use test::Test;
+pub use variable::Variable;
+pub use variable::VariableOperation;
+pub use variable::VariableType;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum PatternGroupType {
@@ -36,17 +49,33 @@ pub enum BinType {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum LimitSelector {
+    Lo,
+    Hi,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum FlowCondition {
     IfJob(Vec<String>),
     UnlessJob(Vec<String>),
     IfEnable(Vec<String>),
     UnlessEnable(Vec<String>),
-    IfPassed(Vec<String>),
-    UnlessPassed(Vec<String>),
-    IfFailed(Vec<String>),
-    UnlessFailed(Vec<String>),
-    IfRan(Vec<String>),
-    UnlessRan(Vec<String>),
+    IfPassed(Vec<FlowID>),
+    IfAnyPassed(Vec<FlowID>),
+    IfAllPassed(Vec<FlowID>),
+    IfAnySitesPassed(Vec<FlowID>),
+    IfAllSitesPassed(Vec<FlowID>),
+    IfFailed(Vec<FlowID>),
+    IfAnyFailed(Vec<FlowID>),
+    IfAllFailed(Vec<FlowID>),
+    IfAnySitesFailed(Vec<FlowID>),
+    IfAllSitesFailed(Vec<FlowID>),
+    IfRan(Vec<FlowID>),
+    UnlessRan(Vec<FlowID>),
+    IfFlag(Vec<String>),
+    UnlessFlag(Vec<String>),
+    IfAnySitesFlag(Vec<String>),
+    IfAllSitesFlag(Vec<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -79,19 +108,28 @@ impl ParamValue {
             ParamValue::Any(_) => true,
         }
     }
+
+    pub fn to_bool(&self) -> OrigenResult<bool> {
+        if let ParamValue::Bool(v) = self {
+            Ok(*v)
+        } else {
+            error!("Not a boolean value")
+        }
+    }
 }
 
 impl fmt::Display for ParamValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            // This can probably go, decided to handle the type specific formatting in the testers instead
             ParamValue::String(v) => write!(f, "{}", v),
             ParamValue::Int(v) => write!(f, "{}", v),
             ParamValue::UInt(v) => write!(f, "{}", v),
             ParamValue::Float(v) => write!(f, "{}", v),
-            ParamValue::Current(v) => write!(f, "{}A", v),
-            ParamValue::Voltage(v) => write!(f, "{}V", v),
-            ParamValue::Time(v) => write!(f, "{}s", v),
-            ParamValue::Frequency(v) => write!(f, "{}Hz", v),
+            ParamValue::Current(v) => write!(f, "{}", v),
+            ParamValue::Voltage(v) => write!(f, "{}", v),
+            ParamValue::Time(v) => write!(f, "{}", v),
+            ParamValue::Frequency(v) => write!(f, "{}", v),
             ParamValue::Bool(v) => write!(f, "{}", v),
             ParamValue::Any(v) => write!(f, "{}", v),
         }

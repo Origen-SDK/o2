@@ -1,6 +1,7 @@
 use crate::core::tester::{Interceptor, TesterAPI, TesterID};
 use crate::generator::ast::{Attrs, Node};
 use crate::generator::processor::Return;
+use crate::prog_gen::Model;
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
@@ -95,7 +96,7 @@ impl VectorBased for SMT7 {
 impl Interceptor for SMT7 {}
 
 impl TesterAPI for SMT7 {
-    fn render_program(&mut self) -> crate::Result<Vec<PathBuf>> {
+    fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
         crate::prog_gen::advantest::smt7::render_test_program(&self)
     }
 }

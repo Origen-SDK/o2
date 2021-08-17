@@ -1,8 +1,7 @@
-#Flow.create interface: 'OrigenTesters::Test::Interface', flow_description: 'Probe1 Main' do
 with Flow(flow_description="Probe1 Main") as flow:
 
     #unless Origen.app.environment.name == 'v93k_global'
-    flow.resources_filename = 'prb1'
+    flow.set_resources_filename('prb1')
 
     flow.include('components/prb1_main')
 
@@ -16,3 +15,6 @@ with Flow(flow_description="Probe1 Main") as flow:
                   test_text="some_custom_text")
 
     flow.good_die(1, description="Good die!", softbin=1)
+
+    with flow.resources():
+        flow.include('prb1_resources')

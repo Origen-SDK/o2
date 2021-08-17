@@ -6,6 +6,8 @@ import _origen
 class BaseInterface(_origen.interface.PyInterface):
     def __init__(self):
         self._options = []
+        self.bypass_sub_flows = False
+        self.add_flow_enable = None
         pass
 
     def include(self, path, **kwargs):

@@ -15,7 +15,7 @@ with Flow() as flow:
     else:
         flow.func('margin_read0_ckbd', number=1030)
 
-    # Include a sub flow, example of
+    ## Include a sub flow, example of
     # parameter passing
     flow.include('../erase', pulses=6, number=2000)
 
@@ -54,12 +54,15 @@ with Flow() as flow:
     flow.log('Verify that a test with an external instance works')
     flow.por(number=3130)
 
+    # Not supporting the current context feature from O1, doesn't seem to be the best
+    # thought out thing and it can be achieved easily enough with app-side code.
+    # The flow has been modified here vs. the O1 version to produce the same output.
     flow.log('Verify that a request to use the current context works')
-    flow.func("erase_all", if_job="p1", number=3140)  # Job should be P1
-    flow.func("erase_all", context="current", number=3150)  # Job should be P1
+    with flow.if_job("p1"):
+        flow.func("erase_all", number=3140)  # Job should be P1
+        flow.func("erase_all", number=3150)  # Job should be P1
+        flow.func("erase_all", number=3160)  # Job should be P1
     with flow.unless_job("p2"):
-        flow.func("erase_all", context="current",
-                  number=3160)  # Job should be P1
         flow.func("erase_all", number=3170)  # Job should be !P2
 
     # Deliver an initial erase pulse
