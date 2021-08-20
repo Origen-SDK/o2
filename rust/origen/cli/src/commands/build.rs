@@ -1,5 +1,6 @@
 use super::fmt::cd;
-use clap::ArgMatches;
+use crate::CommandHelp;
+use clap::{App, Arg, ArgMatches, SubCommand};
 use origen::core::file_handler::File;
 use origen::utility::file_utils::{symlink, with_dir};
 use origen::utility::version::Version;
@@ -9,7 +10,83 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
 
-pub fn run(matches: &ArgMatches) {
+pub fn define<'a>(app: App<'a, 'a>) -> (App<'a, 'a>, CommandHelp) {
+    let help = match STATUS.is_origen_present {
+        true => "Build and publish Origen, builds the pyapi Rust package by default",
+        false => "Build Origen",
+    };
+
+    let mut cmd = SubCommand::with_name("build").about(help).arg(
+        Arg::with_name("cli")
+            .long("cli")
+            .required(false)
+            .takes_value(false)
+            .display_order(1)
+            .help("Build the CLI (instead of the Python API)"),
+    );
+
+    if STATUS.is_origen_present {
+        cmd = cmd
+            .arg(
+                Arg::with_name("release")
+                    .long("release")
+                    .required(false)
+                    .takes_value(false)
+                    .display_order(1)
+                    .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
+            )
+            .arg(
+                Arg::with_name("target")
+                    .long("target")
+                    .required(false)
+                    .takes_value(true)
+                    .display_order(1)
+                    .help("The Rust h/ware target (passed directly to Cargo build)"),
+            )
+            .arg(
+                Arg::with_name("publish")
+                    .long("publish")
+                    .required(false)
+                    .takes_value(false)
+                    .display_order(1)
+                    .help("Publish packages (e.g. to PyPI) after building"),
+            )
+            .arg(
+                Arg::with_name("dry_run")
+                    .long("dry-run")
+                    .required(false)
+                    .takes_value(false)
+                    .display_order(1)
+                    .help("Use with --publish to perform a full dry run of the publishable build without actually publishing it"),
+            )
+            .arg(
+                Arg::with_name("version")
+                    .long("version")
+                    .required(false)
+                    .takes_value(true)
+                    .value_name("VERSION")
+                    .display_order(1)
+                    .help("Set the version (of all components) to the given value"),
+            )
+            .arg(
+                Arg::with_name("metal")
+                    .long("metal")
+                    .takes_value(false)
+                    .display_order(1)
+                    .help("Build the metal_pyapi"),
+            );
+    }
+
+    let help = CommandHelp {
+        name: "build".to_string(),
+        help: help.to_string(),
+        shortcut: None,
+    };
+
+    (app.subcommand(cmd), help)
+}
+
+pub fn run(matches: &ArgMatches) -> Result<()> {
     if let Some(v) = matches.value_of("version") {
         let mut version_bad = false;
         let version;
@@ -59,13 +136,14 @@ pub fn run(matches: &ArgMatches) {
             &STATUS
                 .origen_wksp_root
                 .join("python")
+                .join("origen")
                 .join("pyproject.toml"),
             &Version::new_pep440(&version.to_string())
                 .unwrap()
                 .to_string(),
         )
         .expect("Couldn't write version");
-        return;
+        return Ok(());
     }
 
     // Build the latest CLI, this can be requested from an Origen workspace or an app workspace that is
@@ -87,46 +165,89 @@ pub fn run(matches: &ArgMatches) {
             .expect("failed to execute process");
         display!("");
 
-    // Builds the top-level 'origen' Python package, no rust involvement, only available within an Origen workspace
-    } else if matches.is_present("python") {
-        let wheel_dir = &STATUS.origen_wksp_root.join("python").join("dist");
-        // Make sure we are not about to upload any stale/old artifacts
-        if wheel_dir.exists() {
-            std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing wheel dir");
+    // Build the metal_pyapi
+    } else if matches.is_present("metal") {
+        let pyapi_dir = &STATUS.origen_wksp_root.join("rust").join("pyapi_metal");
+        cd(&pyapi_dir);
+
+        let mut args = vec!["build"];
+        let mut target = "debug";
+        let mut arch_target = None;
+
+        if matches.is_present("release") {
+            args.push("--release");
+            target = "release";
         }
-        cd(&STATUS.origen_wksp_root.join("python"));
+        if let Some(t) = matches.value_of("target") {
+            args.push("--target");
+            args.push(t);
+            arch_target = Some(t);
+        }
 
-        dependency_on_pyapi(true).expect("Couldn't enable dependency on origen_pyapi");
-
-        Command::new("poetry")
-            .args(&["build", "--no-interaction", "--format", "wheel"])
+        Command::new("cargo")
+            .args(&args)
             .status()
-            .expect("failed to build origen for release");
+            .expect("failed to execute process");
 
-        cd(&STATUS.origen_wksp_root.join("python"));
-
-        dependency_on_pyapi(false).expect("Couldn't disable dependency on origen_pyapi");
-
-        if matches.is_present("publish") && !matches.is_present("dry_run") {
-            let pypi_token =
-                std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
-
-            let args: Vec<&str> = vec![
-                "upload",
-                //"-r",
-                //"testpypi",
-                "--username",
-                "__token__",
-                "--password",
-                &pypi_token,
-                "--non-interactive",
-                "dist/*",
-            ];
-
-            Command::new("twine")
-                .args(&args)
-                .status()
-                .expect("failed to publish origen");
+        if cfg!(windows) {
+            let link = &STATUS
+                .origen_wksp_root
+                .join("python")
+                .join("origen_metal")
+                .join("origen_metal")
+                .join("origen_metal.pyd");
+            let target = match arch_target {
+                None => pyapi_dir
+                    .join("target")
+                    .join(target)
+                    .join("origen_metal.dll"),
+                Some(t) => pyapi_dir
+                    .join("target")
+                    .join(t)
+                    .join(target)
+                    .join("origen_metal.dll"),
+            };
+            if link.exists() {
+                std::fs::remove_file(&link).expect(&format!(
+                    "Couldn't delete existing origen_metal.pyd at '{}'",
+                    link.display()
+                ));
+            }
+            // Copy rather than link the file for now to avoid any issues with symlinks not working in user env
+            std::fs::copy(&target, &link).expect(&format!(
+                "Couldn't copy file from '{}' to '{}",
+                target.display(),
+                link.display()
+            ));
+        } else {
+            let link = &STATUS
+                .origen_wksp_root
+                .join("python")
+                .join("origen_metal")
+                .join("origen_metal")
+                .join("origen_metal.so");
+            let target = match arch_target {
+                None => pyapi_dir
+                    .join("target")
+                    .join(target)
+                    .join("liborigen_metal.so"),
+                Some(t) => pyapi_dir
+                    .join("target")
+                    .join(t)
+                    .join(target)
+                    .join("liborigen_metal.so"),
+            };
+            if link.exists() {
+                std::fs::remove_file(&link).expect(&format!(
+                    "Couldn't delete existing origen_metal.so at '{}'",
+                    link.display()
+                ));
+            }
+            symlink(&target, &link).expect(&format!(
+                "Couldn't create symlink from '{}' to '{}",
+                link.display(),
+                target.display()
+            ));
         }
 
     // Build the PyAPI by default
@@ -268,6 +389,7 @@ pub fn run(matches: &ArgMatches) {
             display!("");
         }
     }
+    Ok(())
 }
 
 fn change_pyapi_wheel_version(dist_dir: &Path, old_version: &str, new_version: &str) {
@@ -385,23 +507,6 @@ fn hash(file: &Path) -> (String, usize) {
     let hash = hasher.finalize();
     let b = base64_url::encode(&hash);
     (b, contents.as_bytes().len())
-}
-
-// Enables/disables the dependency on origen_pyapi for the main origen Python package
-fn dependency_on_pyapi(enable: bool) -> Result<()> {
-    let filepath = &STATUS
-        .origen_wksp_root
-        .join("python")
-        .join("pyproject.toml");
-    let contents = std::fs::read_to_string(&filepath)?;
-
-    let new_content = match enable {
-        true => contents.replace("#origen_pyapi", "origen_pyapi"),
-        false => contents.replace("origen_pyapi", "#origen_pyapi"),
-    };
-
-    File::create(filepath.to_path_buf()).write(&new_content);
-    Ok(())
 }
 
 fn write_version(filepath: &Path, version: &str) -> Result<()> {

@@ -1,0 +1,19 @@
+[package]
+name = "origen_metal"
+version = "0.1.0"
+authors = ["Origen-SDK"]
+license = "MIT"
+edition = "2018"
+description = "Bare metal APIs for the Origen SDK"
+homepage = "https://origen-sdk.org/metal"
+repository = "https://github.com/Origen-SDK/origen_metal"
+keywords = ["Product-Test-Eng", "Semiconductors", "SDKs"]
+categories = ["embedded", "science"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lazy_static = "1"
+time = "0.1"
+termcolor = "1"
+anyhow = "1"

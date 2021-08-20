@@ -20,6 +20,16 @@ pub fn run() {
         cd(&STATUS.origen_wksp_root.join("rust").join("pyapi"));
 
         cargo_fmt();
+
+        starting("rust/origen_metal ... ");
+        cd(&STATUS.origen_wksp_root.join("rust").join("origen_metal"));
+
+        cargo_fmt();
+
+        starting("rust/pyapi_metal ... ");
+        cd(&STATUS.origen_wksp_root.join("rust").join("pyapi_metal"));
+
+        cargo_fmt();
     }
 
     let root = match STATUS.is_origen_present {
@@ -38,8 +48,12 @@ pub fn run() {
     py_fmt(&root);
 
     if STATUS.is_origen_present {
-        starting("python ... ");
-        let dir = &STATUS.origen_wksp_root.join("python");
+        starting("python/origen ... ");
+        let dir = &STATUS.origen_wksp_root.join("python").join("origen");
+        py_fmt(&dir);
+
+        starting("python/origen_metal ... ");
+        let dir = &STATUS.origen_wksp_root.join("python").join("origen_metal");
         py_fmt(&dir);
     }
 

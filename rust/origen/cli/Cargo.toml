@@ -14,6 +14,7 @@ path = "src/bin.rs"
 [dependencies]
 clap = "2.33.0"
 origen = { path = ".." }
+origen_metal = { path = "../../origen_metal" }
 pathdiff = "0.1"
 online = "0.2"
 reqwest = "0.9"

@@ -3,21 +3,26 @@ __pycache__
 /rust/origen/target
 /rust/origen/cli/target
 /rust/pyapi/target
+/rust/origen_metal/target
+/rust/pyapi_metal/target
 pip-wheel-metadata/
 _origen.pyd
 _origen.so
+_origen_metal.pyd
+_origen_metal.so
 log/
 .vscode
 /test_apps/python_app/example/templates/dut_info.txt
 /test_apps/**/.session
-/python/dist
+/python/origen/dist
+/python/origen_metal/dist
 rls/
 
 # Output directories
-/python/output
-/python/.origen
-/python/web/source/_static/build
-/python/web/source/interbuild
+/python/origen/output
+/python/origen/.origen
+/python/origen/web/source/_static/build
+/python/origen/web/source/interbuild
 
 # Editor cruft
 *.swp
@@ -26,8 +31,10 @@ rls/
 *.pylintrc
 
 # Output files from regressions
-python/templates/dut_info.txt
+python/origen/templates/dut_info.txt
 
 # Bin directory for packaging
 python/origen/__bin__/bin/*
 !python/origen/__bin__/bin/.keep
+python/origen_metal/__bin__/bin/*
+!python/origen_metal/__bin__/bin/.keep

@@ -6,7 +6,7 @@ authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
 python = ">=3.6,<3.9"
-origen = { path = "../../python", develop = true }
+origen = { path = "../../python/origen", develop = true }
 
 [tool.poetry.dev-dependencies]
 pytest = "^3"
