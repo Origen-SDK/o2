@@ -3,6 +3,7 @@ from tests.shared.python_like_apis import Fixture_DictLikeAPI
 from tests.shared import in_new_origen_proc
 from configs import mailer as mailer_configs
 
+
 class TestMailer:
     def test_mailer_is_accessible(self):
         assert origen.mailer

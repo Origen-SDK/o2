@@ -249,7 +249,14 @@ impl RevisionControlAPI for Git {
         // Create the first commit. Will not be pushed, however.
         log_trace!("Creating first commit");
         let sig = repo.signature()?;
-        repo.commit(Some("HEAD"), &sig, &sig, "Initializing Workspace", &tree, &[])?;
+        repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            "Initializing Workspace",
+            &tree,
+            &[],
+        )?;
 
         let msg = format!("Initialized git workspace at '{}'", self.local.display());
         log_trace!("{}", &msg);

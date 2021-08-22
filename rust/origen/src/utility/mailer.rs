@@ -1,9 +1,10 @@
 use crate::core::user::with_top_hierarchy;
-use crate::{with_current_user, Result, ORIGEN_CONFIG, STATUS, GenericResult, Metadata};
+use crate::{with_current_user, GenericResult, Metadata, Result, ORIGEN_CONFIG, STATUS};
 use lettre;
 use std::path::PathBuf;
 
 use crate::utility::resolve_os_str;
+use indexmap::IndexMap;
 use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
@@ -11,7 +12,6 @@ use lettre::Message;
 use lettre::Transport;
 use std::collections::HashMap;
 use std::fmt::Display;
-use indexmap::IndexMap;
 
 #[derive(Deserialize)]
 pub struct MaillistConfig {
@@ -48,7 +48,7 @@ pub struct Maillists {
 impl Maillists {
     pub fn new() -> Self {
         let mut m = Self {
-            maillists: HashMap::new()
+            maillists: HashMap::new(),
         };
 
         // Check for maillists in the install directory
@@ -377,7 +377,9 @@ impl Mailer {
                         Err(e) => {
                             display_redln!("{}", e.msg);
                             display_redln!("Unable to fully configure mailer from config!");
-                            display_redln!("Forcing no authentication (mailer__auth_method = 'None')");
+                            display_redln!(
+                                "Forcing no authentication (mailer__auth_method = 'None')"
+                            );
                             SupportedAuths::None
                         }
                     }
@@ -415,37 +417,69 @@ impl Mailer {
 
     pub fn config(&self) -> Result<IndexMap<String, Option<Metadata>>> {
         let mut retn = IndexMap::new();
-        retn.insert("server".to_string(), Some(Metadata::String(self.server.to_string())));
-        retn.insert("port".to_string(), match self.port {
-            Some(p) => Some(Metadata::Usize(p)),
-            None => None
-        });
-        retn.insert("domain".to_string(), match self.domain.as_ref() {
-            Some(d) => Some(Metadata::String(d.to_string())),
-            None => None
-        });
-        retn.insert("auth_method".to_string(), Some(Metadata::String(self.auth_method.to_string())));
-        retn.insert("service_user".to_string(), match self.service_user.as_ref() {
-            Some(s) => Some(Metadata::String(s.to_string())),
-            None => None
-        });
-        retn.insert("timeout_seconds".to_string(), Some(Metadata::BigUint(num_bigint::BigUint::from(self.timeout_seconds))));
-        retn.insert("auth_email".to_string(), match self.auth_email.as_ref() {
-            Some(a) => Some(Metadata::String(a.to_string())),
-            None => None
-        });
-        retn.insert("auth_password".to_string(), match self.auth_password.as_ref() {
-            Some(a) => Some(Metadata::String(a.to_string())),
-            None=> None
-        });
-        retn.insert("from".to_string(), match self.from.as_ref() {
-            Some(f) => Some(Metadata::String(f.to_string())),
-            None => None
-        });
-        retn.insert("from_alias".to_string(), match self.from_alias.as_ref() {
-            Some(f) => Some(Metadata::String(f.to_string())),
-            None => None
-        });
+        retn.insert(
+            "server".to_string(),
+            Some(Metadata::String(self.server.to_string())),
+        );
+        retn.insert(
+            "port".to_string(),
+            match self.port {
+                Some(p) => Some(Metadata::Usize(p)),
+                None => None,
+            },
+        );
+        retn.insert(
+            "domain".to_string(),
+            match self.domain.as_ref() {
+                Some(d) => Some(Metadata::String(d.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "auth_method".to_string(),
+            Some(Metadata::String(self.auth_method.to_string())),
+        );
+        retn.insert(
+            "service_user".to_string(),
+            match self.service_user.as_ref() {
+                Some(s) => Some(Metadata::String(s.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "timeout_seconds".to_string(),
+            Some(Metadata::BigUint(num_bigint::BigUint::from(
+                self.timeout_seconds,
+            ))),
+        );
+        retn.insert(
+            "auth_email".to_string(),
+            match self.auth_email.as_ref() {
+                Some(a) => Some(Metadata::String(a.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "auth_password".to_string(),
+            match self.auth_password.as_ref() {
+                Some(a) => Some(Metadata::String(a.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "from".to_string(),
+            match self.from.as_ref() {
+                Some(f) => Some(Metadata::String(f.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "from_alias".to_string(),
+            match self.from_alias.as_ref() {
+                Some(f) => Some(Metadata::String(f.to_string())),
+                None => None,
+            },
+        );
         Ok(retn)
     }
 

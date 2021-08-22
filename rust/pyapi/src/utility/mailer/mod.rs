@@ -2,14 +2,14 @@ pub mod _frontend;
 pub mod maillist;
 use crate::utility::metadata::metadata_to_pyobj;
 
+use super::app_utility;
+use crate::utility::results::GenericResult as PyGenericResult;
+use maillist::{Maillist, Maillists};
 use origen::utility::mailer::Mailer as OMailer;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
-use super::app_utility;
-use crate::utility::results::GenericResult as PyGenericResult;
-use maillist::{Maillist, Maillists};
 
 #[pymodule]
 fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -28,7 +28,7 @@ pub fn _mailer() -> PyResult<Option<PyObject>> {
         "mailer",
         c.mailer.as_ref(),
         Some("origen.utility.mailer.Mailer"),
-        false
+        false,
     );
     match m {
         Ok(_) => m,
@@ -42,17 +42,15 @@ pub fn _mailer() -> PyResult<Option<PyObject>> {
     }
 }
 
-
 #[pyfunction]
 pub fn maillists() -> PyResult<Maillists> {
     Ok(Maillists {})
 }
 
-
 /// Simple Python class that wraps the Origen's mailer
 #[pyclass(subclass)]
 pub struct Mailer {
-    mailer: OMailer
+    mailer: OMailer,
 }
 
 #[pymethods]
@@ -78,10 +76,7 @@ impl Mailer {
 
         let retn = PyDict::new(py);
         for (key, m) in self.mailer.config()? {
-            retn.set_item(
-                key.clone(),
-                metadata_to_pyobj(m, Some(&key))?
-            )?;
+            retn.set_item(key.clone(), metadata_to_pyobj(m, Some(&key))?)?;
         }
         Ok(retn.to_object(py))
     }
@@ -149,7 +144,12 @@ impl Mailer {
         Ok(PyGenericResult::from_origen(self.mailer.test(to)?))
     }
 
-    fn send(&self, to: Vec<&str>, body: Option<&str>, subject: Option<&str>) -> PyResult<PyGenericResult> {
+    fn send(
+        &self,
+        to: Vec<&str>,
+        body: Option<&str>,
+        subject: Option<&str>,
+    ) -> PyResult<PyGenericResult> {
         let e = origen::core::user::get_current_email()?;
         let m = self.mailer.compose(&e, to, subject, body, true)?;
         Ok(PyGenericResult::from_origen(self.mailer.send(m)?))

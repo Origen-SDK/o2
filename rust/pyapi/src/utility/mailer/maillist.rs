@@ -1,11 +1,13 @@
 use origen::utility::mailer::Maillist as OrigenML;
+use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use std::collections::HashMap;
-use pyo3::class::mapping::PyMappingProtocol;
 
 macro_rules! ml {
     ($name:expr) => {{
-        crate::utility::mailer::maillist::Maillist { name: $name.to_string() }
+        crate::utility::mailer::maillist::Maillist {
+            name: $name.to_string(),
+        }
     }};
 }
 
@@ -18,7 +20,7 @@ impl Maillists {
         let ml = origen::maillists();
         Ok(match ml.maillists.get(key) {
             Some(_) => Some(ml!(key)),
-            None => None
+            None => None,
         })
     }
 
@@ -34,7 +36,11 @@ impl Maillists {
 
     fn items(&self) -> PyResult<Vec<(String, Maillist)>> {
         let ml = origen::maillists();
-        Ok(ml.maillists.iter().map(|(n, _)| (n.to_string(), ml!(n))).collect())
+        Ok(ml
+            .maillists
+            .iter()
+            .map(|(n, _)| (n.to_string(), ml!(n)))
+            .collect())
     }
 
     fn maillists_for(&self, audience: &str) -> PyResult<HashMap<String, Maillist>> {
@@ -191,7 +197,11 @@ impl Maillist {
 
     fn resolve_recipients(&self, domain: Option<String>) -> PyResult<Vec<String>> {
         Ok(self.with_origen_ml(|ml| {
-            Ok(ml.resolve_recipients(&domain)?.iter().map(|mb| mb.to_string()).collect::<Vec<String>>())
+            Ok(ml
+                .resolve_recipients(&domain)?
+                .iter()
+                .map(|mb| mb.to_string())
+                .collect::<Vec<String>>())
         })?)
     }
 

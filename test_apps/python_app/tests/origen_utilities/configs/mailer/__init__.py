@@ -30,12 +30,14 @@ def test_mailer_minimum(q, options):
     q.put(("sender", origen.mailer.sender))
     q.put(("dataset", origen.mailer.dataset))
 
+
 def test_mailer_empty(q, options):
     setenv(config_root, bypass_config_lookup=True)
 
     import origen
     q.put(("mailer", origen.mailer))
     q.put(("app_mailer", origen.app.mailer))
+
 
 def test_tls_service_user(q, options):
     setenv(config_root, bypass_config_lookup=True)
@@ -109,11 +111,13 @@ def test_error_on_missing_server(q, options):
     q.put(("mailer", origen.mailer))
     q.put(("app_mailer", origen.app.mailer))
 
+
 def test_error_on_bad_system(q, options):
     setenv(err_root, bypass_config_lookup=True)
     import origen
     q.put(("mailer", origen.mailer))
     q.put(("app_mailer", origen.app.mailer))
+
 
 def test_error_on_tls_with_invalid_service_user(q, options):
     setenv(err_root, bypass_config_lookup=True)
@@ -141,6 +145,7 @@ def test_error_on_tls_with_invalid_service_user(q, options):
         q.put(("test", origen.mailer.test()))
     except Exception as e:
         q.put(("test", e))
+
 
 def test_error_on_invalid_auth_method(q, options):
     setenv(err_root, bypass_config_lookup=True)

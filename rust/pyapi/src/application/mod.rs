@@ -3,10 +3,10 @@ pub mod _frontend;
 use crate::runtime_error;
 use crate::utility::results::{BuildResult, GenericResult};
 use crate::utility::revision_control::Status;
+use origen::utility::version::Version as OVersion;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::{Path, PathBuf};
-use origen::utility::version::Version as OVersion;
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -57,7 +57,9 @@ impl PyApplication {
             }
             if let Some(_r) = kw.get_item("no-release-title") {
                 if rt.is_some() {
-                    return runtime_error!("A release title cannot be given along with option 'no-release-title'");
+                    return runtime_error!(
+                        "A release title cannot be given along with option 'no-release-title'"
+                    );
                 } else {
                     rt = Some(None);
                 }
@@ -186,7 +188,6 @@ impl PyApplication {
 
         Ok(r.to_object(py))
     }
-
 }
 
 pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {

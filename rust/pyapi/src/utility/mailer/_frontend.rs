@@ -1,13 +1,13 @@
-use origen::core::frontend as ofrontend;
-use origen::Result as OResult;
 use crate::application::{get_pyapp, PyApplication};
-use pyo3::prelude::*;
-use std::collections::HashMap;
-use origen::Metadata;
 use crate::utility::metadata::extract_as_metadata;
-use pyo3::types::{PyTuple, PyDict};
 use crate::utility::results::GenericResult as PyGenericResult;
+use origen::core::frontend as ofrontend;
 use origen::core::frontend::GenericResult as OGenericResult;
+use origen::Metadata;
+use origen::Result as OResult;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyTuple};
+use std::collections::HashMap;
 
 pub struct Mailer {}
 
@@ -24,14 +24,15 @@ impl ofrontend::Mailer for Mailer {
                         None
                     } else {
                         Some(extract_as_metadata(m)?)
-                    }
+                    },
                 );
             }
             Ok(retn)
         })?)
     }
 
-    fn send(&self, 
+    fn send(
+        &self,
         _from: &str,
         to: Vec<&str>,
         subject: Option<&str>,
@@ -39,8 +40,16 @@ impl ofrontend::Mailer for Mailer {
         _include_origen_signature: bool,
     ) -> OResult<OGenericResult> {
         Ok(self.with_py_mailer(|py, mailer| {
-            let r = mailer.call_method(py, "send", PyTuple::new(py, [to.to_object(py), body.to_object(py), subject.to_object(py)]), None)?;
-            let pyr = r.extract::<PyRef::<PyGenericResult>>(py)?;
+            let r = mailer.call_method(
+                py,
+                "send",
+                PyTuple::new(
+                    py,
+                    [to.to_object(py), body.to_object(py), subject.to_object(py)],
+                ),
+                None,
+            )?;
+            let pyr = r.extract::<PyRef<PyGenericResult>>(py)?;
             Ok(pyr.into_origen()?)
         })?)
     }
@@ -53,7 +62,7 @@ impl ofrontend::Mailer for Mailer {
             } else {
                 r = mailer.call_method0(py, "test")?;
             }
-            let pyr = r.extract::<PyRef::<PyGenericResult>>(py)?;
+            let pyr = r.extract::<PyRef<PyGenericResult>>(py)?;
             Ok(pyr.into_origen()?)
         })?)
     }

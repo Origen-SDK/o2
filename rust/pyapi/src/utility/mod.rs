@@ -132,8 +132,7 @@ fn app_utility(
     config: Option<&HashMap<String, String>>,
     default: Option<&str>,
     use_by_default: bool,
-) -> PyResult<Option<PyObject>>
-{
+) -> PyResult<Option<PyObject>> {
     let gil = Python::acquire_gil();
     let py = gil.python();
 
@@ -169,7 +168,7 @@ fn app_utility(
                 ));
             }
         } else {
-            return Ok(None)
+            return Ok(None);
         }
     }
 

@@ -212,7 +212,8 @@ pub trait Mailer {
     fn get_config(&self) -> Result<HashMap<String, Option<Metadata>>>;
 
     /// Sends an email
-    fn send(&self,
+    fn send(
+        &self,
         from: &str,
         to: Vec<&str>,
         subject: Option<&str>,

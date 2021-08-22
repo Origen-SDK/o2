@@ -239,9 +239,7 @@ def run_cmd(command,
     elif command == "mailer:test":
         if origen.mailer is None:
             r = origen.utility.results.GenericResult(
-                succeeded=False,
-                message="No mailer available!"
-            )
+                succeeded=False, message="No mailer available!")
         else:
             r = origen.app.mailer.test(args.get("to", None))
         r.summarize_and_exit()
@@ -249,15 +247,11 @@ def run_cmd(command,
     elif command == "mailer:send":
         if origen.mailer is None:
             r = origen.utility.results.GenericResult(
-                succeeded=False,
-                message="No mailer available!"
-            )
+                succeeded=False, message="No mailer available!")
         else:
-            r = origen.app.mailer.send(
-                subject=args.get("subject", None),
-                to=args.get("to", None),
-                body=args["body"]
-            )
+            r = origen.app.mailer.send(subject=args.get("subject", None),
+                                       to=args.get("to", None),
+                                       body=args["body"])
         r.summarize_and_exit()
 
     # Internal command to give the Origen version loaded by the application to the CLI

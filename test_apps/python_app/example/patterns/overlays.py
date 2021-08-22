@@ -87,7 +87,9 @@ with Pattern(pin_header="all") as pat:
     c.overlay(symbol="A", cycles=4)
     c.repeat(8)
 
-    t.cc("Overlay pin collection with symbol 'A' for 4 cycles, with mask 0b11_0001")
+    t.cc(
+        "Overlay pin collection with symbol 'A' for 4 cycles, with mask 0b11_0001"
+    )
     c.overlay(symbol="A", cycles=4, mask=0b1101)
     c.repeat(8)
 
