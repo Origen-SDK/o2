@@ -181,6 +181,8 @@ See also:
     * :link-to:`Mailers in the guides <origen_utilities:mailer>`
 '''
 
+maillists = _origen.utility.mailer.maillists()
+
 session_store = _origen.utility.session_store
 ''' Accessor to the global :class:`SessionStore <_origen.utility.session_store.SessionStore`
 

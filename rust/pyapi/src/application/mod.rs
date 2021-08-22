@@ -6,6 +6,7 @@ use crate::utility::revision_control::Status;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::{Path, PathBuf};
+use origen::utility::version::Version as OVersion;
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -41,13 +42,32 @@ impl PyApplication {
     #[args(kwargs = "**")]
     fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<GenericResult> {
         let mut dry_run = false;
+        let mut rn: Option<&str> = None;
+        let mut rt: Option<Option<&str>> = None;
+        let mut ver: Option<OVersion> = None;
         if let Some(kw) = kwargs {
             if let Some(d) = kw.get_item("dry-run") {
                 dry_run = d.extract::<bool>()?;
             }
+            if let Some(r) = kw.get_item("release-note") {
+                rn = Some(r.extract::<&str>()?);
+            }
+            if let Some(r) = kw.get_item("release-title") {
+                rt = Some(Some(r.extract::<&str>()?));
+            }
+            if let Some(_r) = kw.get_item("no-release-title") {
+                if rt.is_some() {
+                    return runtime_error!("A release title cannot be given along with option 'no-release-title'");
+                } else {
+                    rt = Some(None);
+                }
+            }
+            if let Some(v) = kw.get_item("version") {
+                ver = Some(OVersion::new_pep440(&v.extract::<String>()?)?);
+            }
         }
         Ok(GenericResult::from_origen(
-            origen::app().unwrap().publish(dry_run)?,
+            origen::app().unwrap().publish(ver, rt, rn, dry_run)?,
         ))
     }
 
@@ -157,6 +177,16 @@ impl PyApplication {
 
         Ok(r.to_object(py))
     }
+
+    pub fn _get_mailer<'py>(slf: Py<Self>, py: Python<'py>) -> PyResult<PyObject> {
+        let r = slf.as_ref(py).getattr("mailer")?;
+        if r.is_none() {
+            return runtime_error!("No mailer is available on the application");
+        }
+
+        Ok(r.to_object(py))
+    }
+
 }
 
 pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {

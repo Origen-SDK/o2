@@ -1,5 +1,8 @@
 import _origen
 
+class GenericResult(_origen.utility.results.GenericResult):
+    def __init__(self, **kwargs):
+        _origen.utility.results.GenericResult.__init__(self, **kwargs)
 
 class BuildResult(_origen.utility.results.BuildResult):
     def __init__(self, **kwargs):

@@ -162,13 +162,17 @@ impl Application {
         })
     }
 
-    pub fn publish(&self, dry_run: bool) -> Result<GenericResult> {
+    pub fn publish(&self, version: Option<Version>, release_title: Option<Option<&str>>, release_note: Option<&str>, dry_run: bool) -> Result<GenericResult> {
         Ok(crate::with_frontend_app(|app| {
             // log_info!("Performing pre-publish checks...");
             // app.check_production_status()?;
 
             let v = Version::new_pep440(&self.version()?.to_string())?;
-            let new_v = v.update_dialogue()?;
+            let new_v = match version.as_ref() {
+                Some(ver) => ver.clone(),
+                None => v.update_dialogue()?
+            };
+
             println!("Updating version from {} to {}", v, new_v);
             if dry_run {
                 log_info!("(Dry run - not updating version file)");
@@ -178,7 +182,7 @@ impl Application {
             let mut files = vec![self.version_file()];
 
             let rs = app.get_release_scribe()?;
-            files.append(&mut rs.publish(&new_v, None, None, dry_run)?);
+            files.append(&mut rs.publish(&new_v, release_title, release_note, dry_run)?);
 
             if dry_run {
                 println!("(Dry run - not checking in any files. Would check in:");

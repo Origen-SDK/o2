@@ -3,7 +3,6 @@ from tests.shared.python_like_apis import Fixture_DictLikeAPI
 from tests.shared import in_new_origen_proc
 from configs import mailer as mailer_configs
 
-
 class TestMailer:
     def test_mailer_is_accessible(self):
         assert origen.mailer
@@ -16,6 +15,18 @@ class TestMailer:
         assert origen.mailer.domain == "origen.org"
         assert origen.mailer.timeout == 120
         assert origen.mailer.timeout_seconds == origen.mailer.timeout
+        assert origen.mailer.config == {
+            "server": "smtp.origen.org",
+            "port": 25,
+            "domain": "origen.org",
+            "auth_method": "None",
+            "service_user": "forumsys_read_only",
+            "timeout_seconds": 120,
+            "auth_email": None,
+            "auth_password": None,
+            "from": None,
+            "from_alias": None
+        }
 
     # def test_default_body_contents(self):
     #     assert origen.mailer.test_body == ...
@@ -47,6 +58,12 @@ class TestMailer:
             assert "Cannot retrieve password when using auth method 'None'" in str(
                 retn["password"])
             assert retn["sender"] == "minimum@origen.orgs"
+
+        def test_mailer_empty(self, capfd):
+            retn = in_new_origen_proc(mod=mailer_configs)
+            assert retn["mailer"] is None
+            assert retn["app_mailer"] is None
+            assert capfd.readouterr().err == ""
 
         def test_tls_service_user(self):
             retn = in_new_origen_proc(mod=mailer_configs)
@@ -87,14 +104,18 @@ class TestMailer:
             assert retn["hierarchy"] == ["not_mailer"]
 
         def test_error_on_missing_server(self, capfd):
-            err = "Mailer's 'server' parameter has not been set. Please update config parameter 'mailer__server' to enable use of the mailer"
+            err = "Mailer\'s \'server\' parameter has not been set. Please provide a \'server\' to enable use of the mailer"
             retn = in_new_origen_proc(mod=mailer_configs)
-            assert isinstance(retn["server"], OSError)
-            assert err in str(retn["server"])
-            assert isinstance(retn["test"], OSError)
-            assert err in str(retn["test"])
-            assert retn["port"] == 123
-            assert err in capfd.readouterr().out
+            assert retn["mailer"] is None
+            assert retn["app_mailer"] is None
+            assert err in capfd.readouterr().err
+
+        def test_error_on_bad_system(self, capfd):
+            err = "Unrecognized mailer system 'blah'"
+            retn = in_new_origen_proc(mod=mailer_configs)
+            assert retn["mailer"] is None
+            assert retn["app_mailer"] is None
+            assert err in capfd.readouterr().err
 
         def test_error_on_tls_with_invalid_service_user(self, capfd):
             err = "Invalid service user 'blah' provided in mailer configuration"
@@ -136,7 +157,7 @@ class TestMailer:
 class TestMaillist:
     @property
     def mls(self):
-        return origen.mailer.maillists
+        return origen.maillists
 
     @property
     def app_ml_base(self):
@@ -169,41 +190,41 @@ class TestMaillist:
         return set(["release", "release2", "prod", "production"])
 
     def test_maillists_are_available(self):
-        assert isinstance(self.mls, dict)
+        assert isinstance(self.mls, _origen.utility.mailer.Maillists)
         assert set(self.mls.keys()) == set(self.available_maillists)
         assert isinstance(self.mls["develop"], _origen.utility.mailer.Maillist)
 
     def test_maillists_can_be_filtered_by_audience(self):
-        mls = origen.mailer.maillists_for("release")
+        mls = origen.maillists.maillists_for("release")
         assert isinstance(mls, dict)
         assert set(mls.keys()) == self.prod_maillists
         assert isinstance(mls["release"], _origen.utility.mailer.Maillist)
 
-        mls = origen.mailer.maillists_for("example")
+        mls = origen.maillists.maillists_for("example")
         assert isinstance(mls, dict)
         assert set(mls.keys()) == set(["example"])
 
-        mls = origen.mailer.maillists_for("None")
+        mls = origen.maillists.maillists_for("None")
         assert isinstance(mls, dict)
         assert set(mls.keys()) == set([])
 
     def test_enumerated_maillist_filters(self):
-        mls = origen.mailer.development_maillists
+        mls = origen.maillists.development_maillists
         assert set(mls.keys()) == self.dev_maillists
 
-        mls = origen.mailer.develop_maillists
+        mls = origen.maillists.develop_maillists
         assert set(mls.keys()) == self.dev_maillists
 
-        mls = origen.mailer.dev_maillists
+        mls = origen.maillists.dev_maillists
         assert set(mls.keys()) == self.dev_maillists
 
-        mls = origen.mailer.release_maillists
+        mls = origen.maillists.release_maillists
         assert set(mls.keys()) == self.prod_maillists
 
-        mls = origen.mailer.prod_maillists
+        mls = origen.maillists.prod_maillists
         assert set(mls.keys()) == self.prod_maillists
 
-        mls = origen.mailer.production_maillists
+        mls = origen.maillists.production_maillists
         assert set(mls.keys()) == self.prod_maillists
 
     def test_non_toml_maillists_parameters_can_be_queried(self):

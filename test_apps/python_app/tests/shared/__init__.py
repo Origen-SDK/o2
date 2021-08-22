@@ -75,7 +75,7 @@ def _get_calling_file_stem():
     return pathlib.Path(inspect.stack()[2].filename).stem
 
 
-def in_new_origen_proc(func=None, mod=None, options=None):
+def in_new_origen_proc(func=None, mod=None, options=None, expect_fail=False):
     if func is None:
         func = getattr(mod, inspect.stack()[1].function)
     context = mp.get_context("spawn")
@@ -88,7 +88,10 @@ def in_new_origen_proc(func=None, mod=None, options=None):
         # Convert the populated Queue to a dictionary
         obj = q.get()
         results[obj[0]] = obj[1]
-    assert proc.exitcode == 0
+    if expect_fail:
+        assert proc.exitcode == 1
+    else:
+        assert proc.exitcode == 0
     return results
 
 

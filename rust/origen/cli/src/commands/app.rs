@@ -63,6 +63,18 @@ pub fn run(cmd: &ArgMatches) {
             if sub.is_present("dry-run") {
                 args.insert("dry-run", "True".to_string());
             }
+            if let Some(v) = sub.value_of("version") {
+                args.insert("version", format!("\"{}\"", v.to_string()));
+            }
+            if let Some(r) = sub.value_of("release-note") {
+                args.insert("release-note", format!("\"{}\"", r.to_string()));
+            }
+            if let Some(t) = sub.value_of("release-title") {
+                args.insert("release-title", format!("\"{}\"", t.to_string()));
+            }
+            if sub.is_present("no-release-title") {
+                args.insert("no-release-title", "True".to_string());
+            }
             _run("app:publish", sub, Some(args));
         }
         "run_publish_checks" => {

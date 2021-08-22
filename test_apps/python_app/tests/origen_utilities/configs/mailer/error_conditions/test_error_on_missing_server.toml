@@ -1,1 +1,2 @@
-mailer__port = 123
+[mailer]
+port = 123

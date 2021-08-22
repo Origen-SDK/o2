@@ -30,6 +30,12 @@ def test_mailer_minimum(q, options):
     q.put(("sender", origen.mailer.sender))
     q.put(("dataset", origen.mailer.dataset))
 
+def test_mailer_empty(q, options):
+    setenv(config_root, bypass_config_lookup=True)
+
+    import origen
+    q.put(("mailer", origen.mailer))
+    q.put(("app_mailer", origen.app.mailer))
 
 def test_tls_service_user(q, options):
     setenv(config_root, bypass_config_lookup=True)
@@ -100,18 +106,14 @@ def test_error_on_missing_server(q, options):
     setenv(err_root, bypass_config_lookup=True)
     import origen
     origen.current_user().email = "mailer@origen.org"
+    q.put(("mailer", origen.mailer))
+    q.put(("app_mailer", origen.app.mailer))
 
-    try:
-        q.put(("server", origen.mailer.server))
-    except Exception as e:
-        q.put(("server", e))
-
-    try:
-        q.put(("test", origen.mailer.test()))
-    except Exception as e:
-        q.put(("test", e))
-    q.put(("port", origen.mailer.port))
-
+def test_error_on_bad_system(q, options):
+    setenv(err_root, bypass_config_lookup=True)
+    import origen
+    q.put(("mailer", origen.mailer))
+    q.put(("app_mailer", origen.app.mailer))
 
 def test_error_on_tls_with_invalid_service_user(q, options):
     setenv(err_root, bypass_config_lookup=True)
@@ -139,7 +141,6 @@ def test_error_on_tls_with_invalid_service_user(q, options):
         q.put(("test", origen.mailer.test()))
     except Exception as e:
         q.put(("test", e))
-
 
 def test_error_on_invalid_auth_method(q, options):
     setenv(err_root, bypass_config_lookup=True)
@@ -176,47 +177,47 @@ def dump_ml(ml):
 def test_adding_custom_mailist_directories(q, options):
     setenv(config_root)
     import origen
-    q.put(("maillists", list(origen.mailer.maillists.keys())))
-    q.put(("custom1", dump_ml(origen.mailer.maillists["custom1"])))
-    q.put(("custom2", dump_ml(origen.mailer.maillists["custom2"])))
-    q.put(("other", dump_ml(origen.mailer.maillists["other"])))
-    q.put(("dev_maillists", list(origen.mailer.dev_maillists.keys())))
+    q.put(("maillists", list(origen.maillists.keys())))
+    q.put(("custom1", dump_ml(origen.maillists["custom1"])))
+    q.put(("custom2", dump_ml(origen.maillists["custom2"])))
+    q.put(("other", dump_ml(origen.maillists["other"])))
+    q.put(("dev_maillists", list(origen.maillists.dev_maillists.keys())))
 
 
 def test_mailists_overwrite_lower_priority_ones(q, options):
     setenv(config_root)
     import origen
-    q.put(("maillists", list(origen.mailer.maillists.keys())))
-    q.put(("custom2", dump_ml(origen.mailer.maillists["custom2"])))
-    q.put(("develop", dump_ml(origen.mailer.maillists["develop"])))
+    q.put(("maillists", list(origen.maillists.keys())))
+    q.put(("custom2", dump_ml(origen.maillists["custom2"])))
+    q.put(("develop", dump_ml(origen.maillists["develop"])))
 
 
 def test_maillist_toml_ext_overwrite_maillist_ext(q, options):
     setenv(config_root)
     import origen
-    q.put(("maillists", list(origen.mailer.maillists.keys())))
-    q.put(("ext_overwrite", dump_ml(origen.mailer.maillists["ext_overwrite"])))
+    q.put(("maillists", list(origen.maillists.keys())))
+    q.put(("ext_overwrite", dump_ml(origen.maillists["ext_overwrite"])))
 
 
 def test_error_nessage_on_invalid_toml(q, options):
     setenv(config_root)
     import origen
-    q.put(("maillists", list(origen.mailer.maillists.keys())))
-    q.put(("develop", dump_ml(origen.mailer.maillists["develop"])))
+    q.put(("maillists", list(origen.maillists.keys())))
+    q.put(("develop", dump_ml(origen.maillists["develop"])))
 
 
 def test_error_message_on_conflicting_audiences(q, options):
     setenv(config_root)
     import origen
-    q.put(("maillists", list(origen.mailer.maillists.keys())))
-    q.put(("dev", dump_ml(origen.mailer.maillists["dev"])))
-    q.put(("develop", dump_ml(origen.mailer.maillists["develop"])))
-    q.put(("prod", dump_ml(origen.mailer.maillists["prod"])))
+    q.put(("maillists", list(origen.maillists.keys())))
+    q.put(("dev", dump_ml(origen.maillists["dev"])))
+    q.put(("develop", dump_ml(origen.maillists["develop"])))
+    q.put(("prod", dump_ml(origen.maillists["prod"])))
 
 
 def test_redundant_audience_parameter(q, options):
     setenv(config_root)
     import origen
-    q.put(("maillists", list(origen.mailer.maillists.keys())))
-    q.put(("development", dump_ml(origen.mailer.maillists["development"])))
-    q.put(("release", dump_ml(origen.mailer.maillists["release"])))
+    q.put(("maillists", list(origen.maillists.keys())))
+    q.put(("development", dump_ml(origen.maillists["development"])))
+    q.put(("release", dump_ml(origen.maillists["release"])))
