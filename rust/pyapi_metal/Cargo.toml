@@ -1,6 +1,6 @@
 [package]
 name = "pyapi_metal"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 authors = ["Origen-SDK"]
 
@@ -23,5 +23,5 @@ version = "0.14.2"
 features = ["extension-module"]
 
 [package.metadata.maturin]
-name = "origen_metal"
+name = "origen_metal._origen_metal"
 #requires-dist = ["black"]

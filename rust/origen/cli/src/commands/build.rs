@@ -195,7 +195,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
                 .join("python")
                 .join("origen_metal")
                 .join("origen_metal")
-                .join("origen_metal.pyd");
+                .join("_origen_metal.pyd");
             let target = match arch_target {
                 None => pyapi_dir
                     .join("target")
@@ -209,7 +209,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             };
             if link.exists() {
                 std::fs::remove_file(&link).expect(&format!(
-                    "Couldn't delete existing origen_metal.pyd at '{}'",
+                    "Couldn't delete existing _origen_metal.pyd at '{}'",
                     link.display()
                 ));
             }
@@ -225,7 +225,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
                 .join("python")
                 .join("origen_metal")
                 .join("origen_metal")
-                .join("origen_metal.so");
+                .join("_origen_metal.so");
             let target = match arch_target {
                 None => pyapi_dir
                     .join("target")
@@ -239,7 +239,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             };
             if link.exists() {
                 std::fs::remove_file(&link).expect(&format!(
-                    "Couldn't delete existing origen_metal.so at '{}'",
+                    "Couldn't delete existing _origen_metal.so at '{}'",
                     link.display()
                 ));
             }

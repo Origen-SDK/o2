@@ -8,7 +8,7 @@ pub fn ping() -> PyResult<String> {
 }
 
 #[pymodule]
-fn origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ping, m)?)?;
     user::register(py, m)?;
     Ok(())
