@@ -84,7 +84,7 @@ pub fn run(matches: &ArgMatches) {
             }
 
             if let Some(p) = origen_root {
-                let origen_root = p.join("python");
+                let origen_root = p.join("python").join("origen");
 
                 // Poetry seems to have a number of bugs when switching back and forth between path and version
                 // references, this step ensures it comes up correctly, but should be removed in future
