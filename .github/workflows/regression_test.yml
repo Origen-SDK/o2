@@ -53,28 +53,50 @@ jobs:
 
       - name: Build PyAPI
         run: origen build
-
+      
       - name: Setup App Env
         working-directory: test_apps/python_app
         run: origen env setup
-
+      
       - name: Display Origen App Version
         working-directory: test_apps/python_app
         run: origen -v
-
+      
       - name: Display Poetry Version
         working-directory: test_apps/python_app
         run: poetry --version
-
+      
       - name: Run Python Unit Tests
         working-directory: test_apps/python_app
         run: origen exec pytest -vv
-
+      
       - name: Run Diff Tests
         working-directory: test_apps/python_app
         run: origen examples
-
+      
       - name: Run Rust Tests
         if: matrix.python-version == 3.8
         working-directory: rust/origen
         run: cargo test --workspace
+
+      - name: Build PyAPI - Metal
+        run: origen build --metal
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: 1.1.7
+
+      - name: Setup Python Env - Metal
+        working-directory: python/origen_metal
+        run: poetry install
+
+      - name: Run Python Unit Tests - Metal
+        working-directory: python/origen_metal
+        run: poetry run pytest -vv
+
+      - name: Run Rust Tests - Metal
+        if: matrix.python-version == 3.8
+        working-directory: rust/origen_metal
+        run: cargo test
+

@@ -19,6 +19,7 @@ members = ["cli", "origen-core-support"]
 [lib]
 
 [dependencies]
+origen_metal = { path = "../origen_metal" }
 lazy_static = "1.4.0"
 walkdir = "2"
 pathdiff = "0.1"
@@ -77,6 +78,7 @@ octocrab = "0.9.1"
 futures = {version = "0.3.15", features = ["executor"]}
 tokio = {version = "1.7", features = ["full"] }
 reqwest = {version = "0.11.3", features = ["blocking", "json"]}
+anyhow = "1"
 
 [patch.crates-io]
 keyring = { git = "https://github.com/hwchen/keyring-rs.git", rev = "a30e65f" }

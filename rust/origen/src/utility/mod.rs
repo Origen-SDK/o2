@@ -1,5 +1,4 @@
 pub mod big_uint_helpers;
-pub mod differ;
 pub mod file_actions;
 pub mod file_utils;
 pub mod location;

@@ -12,7 +12,7 @@ mod python;
 use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use indexmap::map::IndexMap;
-use origen::{LOGGER, STATUS};
+use origen::{Result, LOGGER, STATUS};
 use std::iter::FromIterator;
 use std::path::Path;
 
@@ -44,7 +44,7 @@ pub mod built_info {
 }
 
 // This is the entry point for the Origen CLI tool
-fn main() {
+fn main() -> Result<()> {
     let verbosity_re = regex::Regex::new(r"-([vV]+)").unwrap();
 
     // Intercept the 'origen exec' command immediately to prevent further parsing of it, this
@@ -326,81 +326,9 @@ fn main() {
     }
 
     if STATUS.is_origen_present || STATUS.is_app_in_origen_dev_mode {
-        let build_help = match STATUS.is_origen_present {
-            true => "Build and publish Origen, builds the pyapi Rust package by default",
-            false => "Build Origen",
-        };
-
-        origen_commands.push(CommandHelp {
-            name: "build".to_string(),
-            help: build_help.to_string(),
-            shortcut: None,
-        });
-
-        //************************************************************************************/
-        let mut sub = SubCommand::with_name("build").about(build_help).arg(
-            Arg::with_name("cli")
-                .long("cli")
-                .required(false)
-                .takes_value(false)
-                .display_order(1)
-                .help("Build the CLI (instead of the Python API)"),
-        );
-
-        if STATUS.is_origen_present {
-            sub = sub
-                .arg(
-                    Arg::with_name("release")
-                        .long("release")
-                        .required(false)
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
-                )
-                .arg(
-                    Arg::with_name("target")
-                        .long("target")
-                        .required(false)
-                        .takes_value(true)
-                        .display_order(1)
-                        .help("The Rust h/ware target (passed directly to Cargo build)"),
-                )
-                .arg(
-                    Arg::with_name("python")
-                        .long("python")
-                        .required(false)
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Build the pure Python package (instead of the Python API)"),
-                )
-                .arg(
-                    Arg::with_name("publish")
-                        .long("publish")
-                        .required(false)
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Publish packages (e.g. to PyPI) after building"),
-                )
-                .arg(
-                    Arg::with_name("dry_run")
-                        .long("dry-run")
-                        .required(false)
-                        .takes_value(false)
-                        .display_order(1)
-                        .help("Use with --publish to perform a full dry run of the publishable build without actually publishing it"),
-                )
-                .arg(
-                    Arg::with_name("version")
-                        .long("version")
-                        .required(false)
-                        .takes_value(true)
-                        .value_name("VERSION")
-                        .display_order(1)
-                        .help("Set the version (of all components) to the given value"),
-                );
-        }
-
-        app = app.subcommand(sub);
+        let (app_, help) = commands::build::define(app);
+        app = app_;
+        origen_commands.push(help);
     }
 
     /************************************************************************************/
@@ -1223,9 +1151,9 @@ CORE COMMANDS:
     match matches.subcommand_name() {
         Some("app") => commands::app::run(matches.subcommand_matches("app").unwrap()),
         Some("env") => commands::env::run(matches.subcommand_matches("env").unwrap()),
-        Some("fmt") => commands::fmt::run(),
+        Some("fmt") => commands::fmt::run()?,
         Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
-        Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap()),
+        Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap())?,
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some("interactive") => {
             log_trace!("Launching interactive session");
@@ -1616,6 +1544,7 @@ CORE COMMANDS:
             app_command_defs.dispatch(&matches);
         }
     }
+    Ok(())
 }
 
 fn build_command(cmd_def: &app_commands::Command) -> App {

@@ -14,6 +14,7 @@ path = "src/bin.rs"
 [dependencies]
 clap = "2.33.0"
 origen = { path = ".." }
+origen_metal = { path = "../../origen_metal" }
 pathdiff = "0.1"
 online = "0.2"
 reqwest = "0.9"
@@ -31,6 +32,7 @@ tar = "0.4"
 sha2 = "0.9"
 base64-url = "1.4.6"
 phf = { version = "0.8.0", features = ["macros"] }
+anyhow = "1"
 
 [build-dependencies]
 walkdir = "2"

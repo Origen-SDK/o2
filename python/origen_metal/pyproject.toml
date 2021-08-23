@@ -1,0 +1,11 @@
+[tool.poetry]
+name = "origen_metal"
+version = "0.2.0"
+description = "Bare metal APIs for the Origen SDK"
+authors = ["Origen-SDK"]
+
+[tool.poetry.dependencies]
+python = ">=3.6,<3.9"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
