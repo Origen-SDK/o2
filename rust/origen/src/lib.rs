@@ -55,7 +55,7 @@ use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::ldap::LDAPs;
-use utility::mailer::Mailer;
+use utility::mailer::Maillists;
 use utility::session_store::{SessionStore, Sessions};
 
 pub use self::core::frontend::callbacks as CALLBACKS;
@@ -100,7 +100,7 @@ lazy_static! {
     pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
     pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
-    pub static ref MAILER: RwLock<Mailer> = RwLock::new(Mailer::new());
+    pub static ref MAILLISTS: RwLock<Maillists> = RwLock::new(Maillists::new());
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
@@ -240,12 +240,12 @@ where
     func(u)
 }
 
-pub fn mailer<'a>() -> RwLockReadGuard<'a, Mailer> {
-    MAILER.read().unwrap()
+pub fn maillists<'a>() -> RwLockReadGuard<'a, Maillists> {
+    MAILLISTS.read().unwrap()
 }
 
-pub fn mailer_mut<'a>() -> RwLockWriteGuard<'a, Mailer> {
-    MAILER.write().unwrap()
+pub fn maillists_mut<'a>() -> RwLockWriteGuard<'a, Maillists> {
+    MAILLISTS.write().unwrap()
 }
 
 /// Execute the given function with a reference to the current job.

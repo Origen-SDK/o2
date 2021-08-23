@@ -1,6 +1,3 @@
-mailer__server = "smtp.origen.org"
-mailer__auth_method = "TLS"
-
 user__data_lookup_hierarchy = ["not_mailer"]
 user__password_cache_option = "none"
 
@@ -10,3 +7,7 @@ user__password_cache_option = "none"
 
 [user__password_reasons]
 "mailer" = "for_mailer"
+
+[mailer]
+server = "smtp.origen.org"
+auth_method = "TLS"

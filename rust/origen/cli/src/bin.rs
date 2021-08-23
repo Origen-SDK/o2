@@ -956,6 +956,30 @@ Examples:
                         .takes_value(false)
                         .help("Runs through the entire process except the uploading and mailer steps")
                     )
+                    .arg(Arg::with_name("version")
+                        .long("version")
+                        .takes_value(true)
+                        .value_name("VERSION")
+                        .help("Publish with the given version increment")
+                    )
+                    .arg(Arg::with_name("release-note")
+                        .long("release-note")
+                        .takes_value(true)
+                        .value_name("NOTE")
+                        .help("Publish with the given release note")
+                    )
+                    .arg(Arg::with_name("release-title")
+                        .long("release-title")
+                        .takes_value(true)
+                        .value_name("TITLE")
+                        .help("Publish with the given release title")
+                    )
+                    .arg(Arg::with_name("no-release-title")
+                        .long("no-release-title")
+                        .takes_value(false)
+                        .help("Indicate no release title will be provided")
+                        .conflicts_with("release-title")
+                    )
                 ),
         );
 
@@ -1258,55 +1282,53 @@ CORE COMMANDS:
             let sub = subcmd.1.unwrap();
             match subcmd.0 {
                 "send" => {
-                    let m = origen::mailer();
-                    let e = origen::core::user::get_current_email()
-                        .expect("Could not resolve current user's email");
-                    let email = m.compose(
-                        &e,
-                        if let Some(recipients) = sub.values_of("to") {
-                            recipients.collect()
-                        } else {
-                            vec![&e]
-                        },
-                        sub.value_of("subject"),
-                        sub.value_of("body"),
-                        true,
-                    );
-                    match email {
-                        Ok(e) => match m.send(e) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                origen::display_redln!("Errors occurred sending email:\n{}", e.msg);
-                            }
-                        },
-                        Err(e) => {
-                            origen::display_redln!("Errors occurred composing email:\n{}", e.msg);
-                        }
+                    let mut args = IndexMap::new();
+                    if let Some(t) = sub.values_of("to") {
+                        let r = t.map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
+                        args.insert("to", format!("[{}]", r.join(",")));
                     }
+                    if let Some(s) = sub.value_of("subject") {
+                        args.insert("subject", format!("\"{}\"", s));
+                    }
+                    if let Some(b) = sub.value_of("body") {
+                        args.insert("body", format!("\"{}\"", b));
+                    }
+
+                    commands::launch(
+                        "mailer:send",
+                        if let Some(targets) = cmd.values_of("target") {
+                            Some(targets.collect())
+                        } else {
+                            Option::None
+                        },
+                        &None,
+                        None,
+                        None,
+                        None,
+                        false,
+                        Some(args),
+                    )
                 }
                 "test" => {
-                    let m = origen::mailer();
+                    let mut args = IndexMap::new();
                     if let Some(t) = sub.values_of("to") {
-                        match m.test(Some(t.collect())) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                origen::display_redln!(
-                                    "Error occurred sending test email:\n{}",
-                                    e.msg
-                                );
-                            }
-                        }
-                    } else {
-                        match m.test(None) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                origen::display_redln!(
-                                    "Errors occurred sending test email:\n{}",
-                                    e.msg
-                                );
-                            }
-                        }
+                        let r = t.map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
+                        args.insert("to", format!("[{}]", r.join(",")));
                     }
+                    commands::launch(
+                        "mailer:test",
+                        if let Some(targets) = cmd.values_of("target") {
+                            Some(targets.collect())
+                        } else {
+                            Option::None
+                        },
+                        &None,
+                        None,
+                        None,
+                        None,
+                        false,
+                        Some(args),
+                    )
                 }
                 _ => {}
             }

@@ -1,6 +1,7 @@
-mailer__server = "smtp.origen.org"
-mailer__auth_method = "TLS"
-mailer__service_user = "blah"
+[mailer]
+server = "smtp.origen.org"
+auth_method = "TLS"
+service_user = "blah"
 
 [service_users]
 [service_users.mailer_service_user]

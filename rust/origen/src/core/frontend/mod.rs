@@ -207,7 +207,23 @@ pub trait Website {
     fn build(&self) -> Result<BuildResult>;
 }
 
-pub trait Mailer {}
+pub trait Mailer {
+    /// Returns the mailer's configuration
+    fn get_config(&self) -> Result<HashMap<String, Option<Metadata>>>;
+
+    /// Sends an email
+    fn send(
+        &self,
+        from: &str,
+        to: Vec<&str>,
+        subject: Option<&str>,
+        body: Option<&str>,
+        include_origen_signature: bool,
+    ) -> Result<GenericResult>;
+
+    /// Sends a test email. By default, sends only to the current user
+    fn test(&self, to: Option<Vec<&str>>) -> Result<GenericResult>;
+}
 
 pub trait ReleaseScribe {
     /// Returns the path to where a release note *could* be.

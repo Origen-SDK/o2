@@ -21,6 +21,7 @@ pub fn results(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BuildResult>()?;
     m.add_class::<UploadResult>()?;
     m.add_class::<ExecResult>()?;
+    m.add_class::<GenericResult>()?;
     Ok(())
 }
 

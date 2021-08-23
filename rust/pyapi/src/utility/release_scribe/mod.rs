@@ -19,24 +19,14 @@ pub fn release_scribe(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyfunction]
 fn app_release_scribe() -> PyResult<Option<PyObject>> {
-    let mut default;
     match &STATUS.app {
         Some(a) => {
             let c = a.config();
             app_utility(
                 "release_scribe",
-                match &c.release_scribe {
-                    Some(config) => Some(config),
-                    None => {
-                        default = HashMap::new();
-                        default.insert(
-                            "system".to_string(),
-                            "origen.utility.release_scribe.ReleaseScribe".to_string(),
-                        );
-                        Some(&default)
-                    }
-                },
-                None::<fn(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>>,
+                c.release_scribe.as_ref(),
+                Some("origen.utility.release_scribe.ReleaseScribe"),
+                true,
             )
         }
         None => {

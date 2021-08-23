@@ -40,15 +40,8 @@ pub struct Config {
     pub some_val: u32,
 
     // Mailer
-    pub mailer__server: Option<String>,
-    pub mailer__port: Option<i64>,
-    pub mailer__auth_method: Option<String>,
-    pub mailer__service_user: Option<String>,
-    pub mailer__domain: Option<String>,
-    pub mailer__auth_email: Option<String>,
-    pub mailer__auth_password: Option<String>,
-    pub mailer__timeout_seconds: u64,
     pub mailer__maillists_dirs: Vec<String>,
+    pub mailer: Option<HashMap<String, String>>,
 
     // LDAPs
     pub ldaps: HashMap<String, HashMap<String, String>>,
@@ -83,15 +76,8 @@ impl Default for Config {
         let _ = s.set_default("pkg_server_push", "");
         let _ = s.set_default("pkg_server_pull", "");
         let _ = s.set_default("some_val", 3);
-        let _ = s.set_default("mailer__server", None::<String>);
-        let _ = s.set_default("mailer__port", None::<i64>);
-        let _ = s.set_default("mailer__auth_method", None::<String>);
-        let _ = s.set_default("mailer__domain", None::<String>);
-        let _ = s.set_default("mailer__auth_email", None::<String>);
-        let _ = s.set_default("mailer__auth_password", None::<String>);
-        let _ = s.set_default("mailer__service_user", None::<String>);
-        let _ = s.set_default("mailer__timeout_seconds", 60);
         let _ = s.set_default("mailer__maillists_dirs", Vec::<String>::new());
+        let _ = s.set_default("mailer", None::<HashMap<String, String>>);
         let _ = s.set_default("ldaps", {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h

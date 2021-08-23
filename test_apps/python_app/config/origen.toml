@@ -73,3 +73,11 @@ service_user = "forumsys_read_only"
 [service_users.forumsys_read_only]
 username = "cn=read-only-admin,dc=example,dc=com"
 password = "password"
+
+[mailer]
+server = "smtp.origen.org"
+port = 25
+auth_method = "None"
+domain = "origen.org"
+service_user = "forumsys_read_only"
+timeout_seconds = 120

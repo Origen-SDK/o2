@@ -1,9 +1,10 @@
 use crate::core::user::with_top_hierarchy;
-use crate::{with_current_user, Result, ORIGEN_CONFIG, STATUS};
+use crate::{with_current_user, GenericResult, Metadata, Result, ORIGEN_CONFIG, STATUS};
 use lettre;
 use std::path::PathBuf;
 
 use crate::utility::resolve_os_str;
+use indexmap::IndexMap;
 use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
@@ -35,6 +36,97 @@ impl MaillistConfig {
                 path.display(),
                 e
             ),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Maillists {
+    pub maillists: HashMap<String, Maillist>,
+}
+
+impl Maillists {
+    pub fn new() -> Self {
+        let mut m = Self {
+            maillists: HashMap::new(),
+        };
+
+        // Check for maillists in the install directory
+        if let Some(path) = STATUS.cli_location() {
+            m.pop_maillists_from_dir(&path.display().to_string());
+        }
+
+        if let Some(app) = &STATUS.app {
+            m.pop_maillists_from_dir(&format!("{}/config", app.root.display()));
+            m.pop_maillists_from_dir(&format!("{}/config/maillists", app.root.display()));
+        }
+
+        // Check any custom paths for maillists
+        for ml in ORIGEN_CONFIG.mailer__maillists_dirs.iter() {
+            m.pop_maillists_from_dir(&ml);
+        }
+
+        m
+    }
+
+    pub fn get_maillist(&self, m: &str) -> Result<&Maillist> {
+        if let Some(ml) = self.maillists.get(m) {
+            Ok(ml)
+        } else {
+            error!("No maillist named '{}' found!", m)
+        }
+    }
+
+    pub fn maillists_for(&self, audience: &str) -> Result<HashMap<&str, &Maillist>> {
+        let mut retn: HashMap<&str, &Maillist> = HashMap::new();
+        let aud = Maillist::map_audience(audience).unwrap_or(audience.to_string());
+        for (name, mlist) in self.maillists.iter() {
+            if let Some(a) = mlist.audience.as_ref() {
+                if a == &aud {
+                    retn.insert(name, mlist);
+                }
+            }
+        }
+        Ok(retn)
+    }
+
+    fn pop_maillists_from_dir(&mut self, path: &str) {
+        // The order of this loop matters as a ".maillists.tom" will overwrite a ".maillists"
+        for ext in ["maillist", "maillist.toml"].iter() {
+            match glob::glob(&format!("{}/*.{}", path, ext)) {
+                Ok(entries) => {
+                    for entry in entries {
+                        match entry {
+                            Ok(e) => match Maillist::from_file(&e) {
+                                Ok(ml) => {
+                                    if let Some(orig_ml) = self.maillists.get(&ml.name) {
+                                        log_info!(
+                                            "Replacing maillist at '{}' with maillist at '{}'",
+                                            orig_ml.name,
+                                            ml.name
+                                        )
+                                    }
+                                    self.maillists.insert(ml.name.clone(), ml);
+                                }
+                                Err(err) => {
+                                    display_redln!("{}", err);
+                                }
+                            },
+                            Err(e) => {
+                                display_redln!(
+                                    "Error accessing maillist at '{}': {}",
+                                    e.path().display(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    display_redln!("Error processing glob for '{}'", path);
+                    display_redln!("{}", e.msg);
+                }
+            }
         }
     }
 }
@@ -200,6 +292,12 @@ impl Maillist {
 }
 
 const PASSWORD_REASON: &str = "mailer";
+const SERVER_STR: &str = "server";
+const PORT_STR: &str = "port";
+const DOMAIN_STR: &str = "domain";
+const AUTH_METHOD_STR: &str = "auth_method";
+const TIMEOUT_STR: &str = "timeout_seconds";
+const SERVICE_USER_STR: &str = "service_user";
 
 #[derive(Debug, Display)]
 pub enum SupportedAuths {
@@ -208,18 +306,14 @@ pub enum SupportedAuths {
 }
 
 impl SupportedAuths {
-    pub fn from_config() -> Result<Self> {
-        if let Some(val) = &ORIGEN_CONFIG.mailer__auth_method {
-            match val.as_str() {
-                "TLS" | "tls" | "Tls" => Ok(Self::TLS),
-                "NONE" | "none" | "None" => Ok(Self::None),
-                _ => error!(
-                    "Invalid auth method '{}' found in the mailer configuration",
-                    val
-                ),
-            }
-        } else {
-            Ok(Self::None)
+    pub fn from_str(auth: &str) -> Result<Self> {
+        match auth {
+            "TLS" | "tls" | "Tls" => Ok(Self::TLS),
+            "NONE" | "none" | "None" => Ok(Self::None),
+            _ => error!(
+                "Invalid auth method '{}' found in the mailer configuration",
+                auth
+            ),
         }
     }
 
@@ -233,7 +327,7 @@ impl SupportedAuths {
 
 #[derive(Debug)]
 pub struct Mailer {
-    pub server: Option<String>,
+    pub server: String,
     pub port: Option<usize>,
     pub from: Option<String>,
     pub from_alias: Option<String>,
@@ -247,135 +341,146 @@ pub struct Mailer {
     // pub include_app_signature: bool,
     // pub include_user_signature: bool,
     // pub include_origen_signature: bool,
-    pub maillists: HashMap<String, Maillist>,
-}
-
-impl std::default::Default for Mailer {
-    fn default() -> Self {
-        Self {
-            server: None,
-            port: None,
-            from: None,
-            from_alias: None,
-            domain: None,
-            auth_method: SupportedAuths::None,
-            auth_email: None,
-            auth_password: None,
-            service_user: None,
-            timeout_seconds: 0,
-            maillists: HashMap::new(),
-        }
-    }
 }
 
 impl Mailer {
-    pub fn new() -> Self {
-        let mut m = Self::default();
-        m.server = {
-            if let Some(s) = ORIGEN_CONFIG.mailer__server.as_ref() {
-                Some(s.to_string())
-            } else {
-                display_redln!("Mailer's 'server' parameter has not been set. Please update config parameter 'mailer__server' to enable use of the mailer");
-                None
-            }
-        };
-        m.port = {
-            if let Some(p) = ORIGEN_CONFIG.mailer__port {
-                Some(p as usize)
-            } else {
-                None
-            }
-        };
-        m.domain = ORIGEN_CONFIG.mailer__domain.clone();
-        m.auth_method = {
-            match SupportedAuths::from_config() {
-                Ok(a) => a,
-                Err(e) => {
-                    display_redln!("{}", e.msg);
-                    display_redln!("Unable to fully configure mailer from config!");
-                    display_redln!("Forcing no authentication (mailer__auth_method = 'None')");
-                    SupportedAuths::None
-                }
-            }
-        };
-        m.service_user = {
-            if let Some(su) = ORIGEN_CONFIG.mailer__service_user.as_ref() {
-                if !ORIGEN_CONFIG.service_users.contains_key(su) {
-                    display_redln!(
-                        "Invalid service user '{}' provided in mailer configuration",
-                        su
+    pub fn new(config: &HashMap<String, String>) -> Result<Self> {
+        Ok(Self {
+            server: {
+                if let Some(s) = config.get(SERVER_STR) {
+                    s.to_string()
+                } else {
+                    return error!(
+                        "Mailer's 'server' parameter has not been set. \
+                        Please provide a 'server' to enable use of the mailer"
                     );
                 }
-                Some(su.to_string())
-            } else {
-                None
-            }
-        };
-        m.timeout_seconds = ORIGEN_CONFIG.mailer__timeout_seconds;
-
-        // Check for maillists in the install directory
-        if let Some(path) = STATUS.cli_location() {
-            m.pop_maillists_from_dir(&path.display().to_string())
-        }
-
-        if let Some(app) = &STATUS.app {
-            m.pop_maillists_from_dir(&format!("{}/config", app.root.display()));
-            m.pop_maillists_from_dir(&format!("{}/config/maillists", app.root.display()));
-        }
-
-        // Check any custom paths for maillists
-        for ml in ORIGEN_CONFIG.mailer__maillists_dirs.iter() {
-            m.pop_maillists_from_dir(&ml);
-        }
-        m
-    }
-
-    fn pop_maillists_from_dir(&mut self, path: &str) {
-        // The order of this loop matters as a ".maillists.tom" will overwrite a ".maillists"
-        for ext in ["maillist", "maillist.toml"].iter() {
-            match glob::glob(&format!("{}/*.{}", path, ext)) {
-                Ok(entries) => {
-                    for entry in entries {
-                        match entry {
-                            Ok(e) => match Maillist::from_file(&e) {
-                                Ok(ml) => {
-                                    if let Some(orig_ml) = self.maillists.get(&ml.name) {
-                                        log_info!(
-                                            "Replacing maillist at '{}' with maillist at '{}'",
-                                            orig_ml.name,
-                                            ml.name
-                                        )
-                                    }
-                                    self.maillists.insert(ml.name.clone(), ml);
-                                }
-                                Err(err) => {
-                                    display_redln!("{}", err);
-                                }
-                            },
-                            Err(e) => {
-                                display_redln!(
-                                    "Error accessing maillist at '{}': {}",
-                                    e.path().display(),
-                                    e
-                                );
-                            }
+            },
+            port: {
+                if let Some(p) = config.get(PORT_STR) {
+                    Some(p.parse::<usize>()?)
+                } else {
+                    None
+                }
+            },
+            domain: {
+                if let Some(d) = config.get(DOMAIN_STR) {
+                    Some(d.to_string())
+                } else {
+                    None
+                }
+            },
+            auth_method: {
+                if let Some(auth) = config.get(AUTH_METHOD_STR).as_ref() {
+                    match SupportedAuths::from_str(auth) {
+                        Ok(a) => a,
+                        Err(e) => {
+                            display_redln!("{}", e.msg);
+                            display_redln!("Unable to fully configure mailer from config!");
+                            display_redln!(
+                                "Forcing no authentication (mailer__auth_method = 'None')"
+                            );
+                            SupportedAuths::None
                         }
                     }
+                } else {
+                    SupportedAuths::None
                 }
-                Err(e) => {
-                    display_redln!("Error processing glob for '{}'", path);
-                    display_redln!("{}", e.msg);
+            },
+            service_user: {
+                if let Some(su) = config.get(SERVICE_USER_STR).as_ref() {
+                    if !ORIGEN_CONFIG.service_users.contains_key(*su) {
+                        display_redln!(
+                            "Invalid service user '{}' provided in mailer configuration",
+                            su
+                        );
+                    }
+                    Some(su.to_string())
+                } else {
+                    None
                 }
-            }
-        }
+            },
+            timeout_seconds: {
+                if let Some(t) = config.get(TIMEOUT_STR) {
+                    t.parse::<u64>()?
+                } else {
+                    60
+                }
+            },
+
+            auth_email: None,
+            auth_password: None,
+            from: None,
+            from_alias: None,
+        })
     }
 
-    pub fn get_server(&self) -> Result<String> {
-        if let Some(s) = self.server.as_ref() {
-            Ok(s.clone())
-        } else {
-            error!("Mailer's 'server' parameter has not been set. Please update config parameter 'mailer__server' to enable use of the mailer")
-        }
+    pub fn config(&self) -> Result<IndexMap<String, Option<Metadata>>> {
+        let mut retn = IndexMap::new();
+        retn.insert(
+            "server".to_string(),
+            Some(Metadata::String(self.server.to_string())),
+        );
+        retn.insert(
+            "port".to_string(),
+            match self.port {
+                Some(p) => Some(Metadata::Usize(p)),
+                None => None,
+            },
+        );
+        retn.insert(
+            "domain".to_string(),
+            match self.domain.as_ref() {
+                Some(d) => Some(Metadata::String(d.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "auth_method".to_string(),
+            Some(Metadata::String(self.auth_method.to_string())),
+        );
+        retn.insert(
+            "service_user".to_string(),
+            match self.service_user.as_ref() {
+                Some(s) => Some(Metadata::String(s.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "timeout_seconds".to_string(),
+            Some(Metadata::BigUint(num_bigint::BigUint::from(
+                self.timeout_seconds,
+            ))),
+        );
+        retn.insert(
+            "auth_email".to_string(),
+            match self.auth_email.as_ref() {
+                Some(a) => Some(Metadata::String(a.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "auth_password".to_string(),
+            match self.auth_password.as_ref() {
+                Some(a) => Some(Metadata::String(a.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "from".to_string(),
+            match self.from.as_ref() {
+                Some(f) => Some(Metadata::String(f.to_string())),
+                None => None,
+            },
+        );
+        retn.insert(
+            "from_alias".to_string(),
+            match self.from_alias.as_ref() {
+                Some(f) => Some(Metadata::String(f.to_string())),
+                None => None,
+            },
+        );
+        Ok(retn)
     }
 
     pub fn service_user(&self) -> Result<Option<(&str, &HashMap<String, String>)>> {
@@ -483,27 +588,6 @@ impl Mailer {
             .body(body))
     }
 
-    pub fn get_maillist(&self, m: &str) -> Result<&Maillist> {
-        if let Some(ml) = self.maillists.get(m) {
-            Ok(ml)
-        } else {
-            error!("No maillist named '{}' found!", m)
-        }
-    }
-
-    pub fn maillists_for(&self, audience: &str) -> Result<HashMap<&str, &Maillist>> {
-        let mut retn: HashMap<&str, &Maillist> = HashMap::new();
-        let aud = Maillist::map_audience(audience).unwrap_or(audience.to_string());
-        for (name, mlist) in self.maillists.iter() {
-            if let Some(a) = mlist.audience.as_ref() {
-                if a == &aud {
-                    retn.insert(name, mlist);
-                }
-            }
-        }
-        Ok(retn)
-    }
-
     pub fn compose(
         &self,
         from: &str,
@@ -534,18 +618,18 @@ impl Mailer {
         )
     }
 
-    pub fn send(&self, m: Message) -> Result<()> {
+    pub fn send(&self, m: Message) -> Result<GenericResult> {
         let mut builder;
         match self.auth_method {
             SupportedAuths::TLS => {
-                builder = SmtpTransport::starttls_relay(&self.get_server()?)
+                builder = SmtpTransport::starttls_relay(&self.server)
                     .unwrap()
                     .authentication(vec![Mechanism::Login])
                     .credentials(Credentials::new(self.username()?, self.password()?))
             }
             SupportedAuths::None => {
                 // SMTP client with no authentication (hence the dangerous)
-                builder = SmtpTransport::builder_dangerous(&self.get_server()?)
+                builder = SmtpTransport::builder_dangerous(&self.server)
             }
         }
         builder = builder.timeout(Some(std::time::Duration::new(self.timeout_seconds, 0)));
@@ -556,10 +640,10 @@ impl Mailer {
 
         client.send(&m).unwrap();
 
-        Ok(())
+        Ok(GenericResult::new_succeeded())
     }
 
-    pub fn test(&self, to: Option<Vec<&str>>) -> Result<()> {
+    pub fn test(&self, to: Option<Vec<&str>>) -> Result<GenericResult> {
         let e = crate::core::user::get_current_email()?;
         let m = self.compose(
             &e,
@@ -569,7 +653,7 @@ impl Mailer {
             true,
         )?;
         self.send(m)?;
-        Ok(())
+        Ok(GenericResult::new_succeeded())
     }
 
     pub fn origen_sig(&self) -> Result<MultiPart> {

@@ -127,50 +127,64 @@ fn new_obj(py: Python, class: &str, kwargs: &PyDict) -> PyResult<PyObject> {
     Ok(obj.to_object(py))
 }
 
-fn app_utility<F>(
+fn app_utility(
     name: &str,
     config: Option<&HashMap<String, String>>,
-    callback_function: Option<F>,
-) -> PyResult<Option<PyObject>>
-where
-    F: FnMut(Option<&HashMap<String, String>>) -> PyResult<Option<PyObject>>,
-{
+    default: Option<&str>,
+    use_by_default: bool,
+) -> PyResult<Option<PyObject>> {
     let gil = Python::acquire_gil();
     let py = gil.python();
-    if let Some(conf) = config.as_ref() {
+
+    let system: &str;
+    let conf_t: HashMap<String, String>;
+    let conf_;
+    if let Some(conf) = config {
         if let Some(c) = conf.get("system") {
-            // Get the module and try to import it
-            let split = c.rsplitn(2, ".");
-            if split.count() == 2 {
-                // Have a class (hopefully) of the form 'a.b.Class'
-                let py_conf = hashmap_to_pydict(py, conf)?;
-                Ok(Some(new_obj(py, c, py_conf)?))
+            system = c;
+        } else {
+            if let Some(s) = default {
+                system = s;
             } else {
-                // fall back to some enumerated systems
-                if &c.to_lowercase() == "none" {
-                    // "none" always implies no system
-                    Ok(None)
-                } else {
-                    if let Some(mut cb) = callback_function {
-                        cb(config)
-                    } else {
-                        return runtime_error!(format!("Unrecognized {} system '{}'", name, c));
-                    }
-                }
+                return runtime_error!(format!(
+                    "Could not discern {} from the app config! \
+                    No 'system' was specified and no default was given!",
+                    name
+                ));
+            }
+        }
+        conf_ = conf;
+    } else {
+        if use_by_default {
+            if let Some(s) = default {
+                system = s;
+                conf_t = HashMap::new();
+                conf_ = &conf_t;
+            } else {
+                return runtime_error!(format!(
+                    "Could not discern {} from the app config! \
+                     Expected a default system but none was given!",
+                    name
+                ));
             }
         } else {
-            // Invalid config
-            return runtime_error!(format!(
-                "Could not discern {} from the app config! \
-                No 'system' was specified and default is available!",
-                name
-            ));
+            return Ok(None);
         }
+    }
+
+    // Get the module and try to import it
+    let split = system.rsplitn(2, ".");
+    if split.count() == 2 {
+        // Have a class (hopefully) of the form 'a.b.Class'
+        let py_conf = hashmap_to_pydict(py, conf_)?;
+        Ok(Some(new_obj(py, system, py_conf)?))
     } else {
-        if let Some(mut cb) = callback_function {
-            Ok(cb(config)?)
-        } else {
+        // fall back to some enumerated systems
+        if &system.to_lowercase() == "none" {
+            // "none" always implies no system
             Ok(None)
+        } else {
+            runtime_error!(format!("Unrecognized {} system '{}'", name, system))
         }
     }
 }
