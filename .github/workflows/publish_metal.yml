@@ -1,0 +1,73 @@
+name: Publish the Python Package
+on: workflow_dispatch
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build the Python Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: messense/maturin-action@v1
+        with: 
+          maturin-version: v0.11.3-beta.6
+          command: build
+          args: --release --no-sdist --manifest-path rust/pyapi/Cargo.toml --interpreter python3.6 python3.7 python3.8
+          manylinux: 2010
+          container: quay.io/pypa/manylinux2010_x86_64:2021-08-16-2fbce44
+          rust-toolchain: 1.54.0
+
+      - name: Build the Python Package (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: messense/maturin-action@v1
+        with: 
+          maturin-version: v0.11.3-beta.6
+          command: build
+          args: --release --no-sdist --manifest-path rust/pyapi/Cargo.toml --interpreter C:\hostedtoolcache\windows\Python\3.6.8\x64\python.exe C:\hostedtoolcache\windows\Python\3.7.9\x64\python.exe C:\hostedtoolcache\windows\Python\3.8.10\x64\python.exe
+          target: x86_64-pc-windows-msvc
+          rust-toolchain: 1.54.0
+
+      - name: Store the wheels for later publishing
+        uses: actions/upload-artifact@v2
+        with:
+          name: python-wheels
+          path: rust/pyapi/target/wheels/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: python-wheels
+          path: dist
+    
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_ORIGEN_METAL }}
+          verify_metadata: false
+          verbose: true
+
+  publish_rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: "1.54.0"
+            override: true
+            #components: rustfmt, clippy
+
+      - name: "Publish origen_metal"
+        working-directory: rust/origen_metal
+        run: cargo publish --token ${{ secrets.CARGO_ORIGEN_METAL }}
