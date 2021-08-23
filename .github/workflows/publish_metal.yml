@@ -1,4 +1,4 @@
-name: Publish the Python Package
+name: Publish Origen Metal
 on: workflow_dispatch
 jobs:
   build:
