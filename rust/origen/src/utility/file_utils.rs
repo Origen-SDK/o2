@@ -104,33 +104,6 @@ where
     result
 }
 
-/// Create a symlink, works on Linux or Windows.
-/// The dst path will be a symbolic link pointing to the src path.
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::path::Path;
-/// use origen::utility::file_utils::symlink;
-///
-/// // Create a symlink from my_file.rs to proj/files/my_file.rs
-/// symlink(Path::new("my_file.rs"), Path::new("proj/files/my_file.rs"));
-/// ```
-pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> Result<()> {
-    #[cfg(windows)]
-    {
-        if src.as_ref().is_dir() {
-            Ok(std::os::windows::fs::symlink_dir(src, dst)?)
-        } else {
-            Ok(std::os::windows::fs::symlink_file(src, dst)?)
-        }
-    }
-    #[cfg(unix)]
-    {
-        Ok(std::os::unix::fs::symlink(src, dst)?)
-    }
-}
-
 /// Move a file or directory
 pub fn mv(source: &Path, dest: &Path) -> Result<()> {
     if cfg!(windows) {

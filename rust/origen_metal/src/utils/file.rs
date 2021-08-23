@@ -64,7 +64,7 @@ pub fn cd(dir: &Path) -> Result<()> {
 ///
 /// ```no_run
 /// use std::path::Path;
-/// use origen_metal::file_utils::symlink;
+/// use origen_metal::utils::file::symlink;
 ///
 /// // Create a symlink at my_file.rs pointing to proj/files/my_file.rs
 /// symlink(Path::new("proj/files/my_file.rs"), Path::new("my_file.rs"));

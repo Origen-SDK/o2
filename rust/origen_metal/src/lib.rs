@@ -5,7 +5,7 @@ extern crate anyhow;
 #[macro_use]
 pub mod macros;
 
-pub mod file_utils;
+pub mod utils;
 pub mod logger;
 pub mod terminal;
 

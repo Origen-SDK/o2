@@ -451,6 +451,7 @@ dependencies = [
 name = "cli"
 version = "2.0.0-dev.5"
 dependencies = [
+ "anyhow",
  "base64-url",
  "built",
  "clap",
@@ -2407,6 +2408,7 @@ name = "origen"
 version = "2.0.0-dev.5"
 dependencies = [
  "aes-gcm",
+ "anyhow",
  "built",
  "cargo-expand",
  "cfg-if 1.0.0",
@@ -2433,6 +2435,7 @@ dependencies = [
  "octocrab",
  "openssl",
  "origen-core-support",
+ "origen_metal",
  "path-clean",
  "path-slash",
  "pathdiff",
@@ -2476,6 +2479,8 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "lazy_static 1.4.0",
+ "regex",
+ "tempfile",
  "termcolor",
  "time",
 ]

@@ -1,8 +1,8 @@
-use super::fmt::cd;
 use crate::CommandHelp;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use origen::core::file_handler::File;
-use origen::utility::file_utils::{symlink, with_dir};
+use origen_metal::utils::file::{symlink, cd};
+use origen::utility::file_utils::with_dir;
 use origen::utility::version::Version;
 use origen::{Result, STATUS};
 use regex::Regex;
@@ -153,7 +153,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             .origen_wksp_root
             .join("rust")
             .join("origen")
-            .join("cli"));
+            .join("cli"))?;
         display!("");
         let mut args = vec!["build"];
         if matches.is_present("release") || matches.is_present("publish") {
@@ -168,7 +168,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
     // Build the metal_pyapi
     } else if matches.is_present("metal") {
         let pyapi_dir = &STATUS.origen_wksp_root.join("rust").join("pyapi_metal");
-        cd(&pyapi_dir);
+        cd(&pyapi_dir)?;
 
         let mut args = vec!["build"];
         let mut target = "debug";
@@ -265,7 +265,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             if wheel_dir.exists() {
                 std::fs::remove_dir_all(&wheel_dir).expect("Couldn't delete existing wheel dir");
             }
-            cd(&STATUS.origen_wksp_root.join("rust").join("pyapi"));
+            cd(&STATUS.origen_wksp_root.join("rust").join("pyapi"))?;
             let mut maturin_args = vec![
                 "build",
                 "--no-sdist", // Local building of the pyapi will not be supported
@@ -320,7 +320,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
         // is locally referencing an Origen workspace
         } else {
             let pyapi_dir = STATUS.origen_wksp_root.join("rust").join("pyapi");
-            cd(&pyapi_dir);
+            cd(&pyapi_dir)?;
             display!("");
 
             let mut args = vec!["build"];

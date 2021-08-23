@@ -1127,7 +1127,7 @@ CORE COMMANDS:
     match matches.subcommand_name() {
         Some("app") => commands::app::run(matches.subcommand_matches("app").unwrap()),
         Some("env") => commands::env::run(matches.subcommand_matches("env").unwrap()),
-        Some("fmt") => commands::fmt::run(),
+        Some("fmt") => commands::fmt::run()?,
         Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
         Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap())?,
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),

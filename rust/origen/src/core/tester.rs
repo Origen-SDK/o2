@@ -9,7 +9,7 @@ use crate::core::reference_files;
 use crate::generator::ast::{Attrs, Node};
 use crate::prog_gen::{Model, PatternReferenceType};
 use crate::testers::{instantiate_tester, SupportedTester};
-use crate::utility::differ::{ASCIIDiffer, Differ};
+use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 use crate::utility::file_utils::to_relative_path;
 use crate::{add_children, node, text, text_line, with_current_job};
 use crate::{Error, Result};

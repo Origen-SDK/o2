@@ -1,4 +1,4 @@
-use crate::Result;
+use anyhow::Result;
 use regex::Regex;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
@@ -21,7 +21,7 @@ pub trait Differ {
 /// ```
 /// use std::io::Write;
 /// # use tempfile::NamedTempFile;
-/// use origen::utility::differ::{ASCIIDiffer, Differ};
+/// use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 ///
 /// # let mut file_a = NamedTempFile::new().unwrap();
 /// # let mut file_b = NamedTempFile::new().unwrap();
@@ -206,7 +206,7 @@ impl ASCIIDiffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::utility::differ::{ASCIIDiffer, Differ};
+    use crate::utils::differ::{ASCIIDiffer, Differ};
     use std::io::Write;
     use tempfile::NamedTempFile;
 
