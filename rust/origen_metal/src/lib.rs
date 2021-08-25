@@ -5,9 +5,9 @@ extern crate anyhow;
 #[macro_use]
 pub mod macros;
 
-pub mod utils;
 pub mod logger;
 pub mod terminal;
+pub mod utils;
 
 lazy_static! {
     pub static ref LOGGER: logger::Logger = logger::Logger::default();

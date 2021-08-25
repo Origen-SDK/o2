@@ -6,8 +6,8 @@ use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::ast::Node;
 use crate::generator::processor::Return;
 use crate::prog_gen::Model;
-use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 use crate::{Overlay, Result};
+use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 use pattern_renderer::Renderer;
 use std::path::{Path, PathBuf};
 

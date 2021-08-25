@@ -6,7 +6,10 @@ use pyo3::prelude::*;
 #[macro_export]
 macro_rules! type_error {
     ($message:expr) => {
-        Err(pyo3::exceptions::PyTypeError::new_err(format!("{}", $message)))
+        Err(pyo3::exceptions::PyTypeError::new_err(format!(
+            "{}",
+            $message
+        )))
     };
 }
 

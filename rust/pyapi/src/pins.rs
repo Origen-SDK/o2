@@ -125,9 +125,7 @@ pub fn pins_to_backend_lookup_fields(
             // item is a String (or extract-able as a String)
             // Model ID is 0.
             retn.push((0, s.clone()));
-        } else if p.get_type().name()? == "Pin"
-            || p.get_type().name()? == "PinGroup"
-        {
+        } else if p.get_type().name()? == "Pin" || p.get_type().name()? == "PinGroup" {
             let obj = p.to_object(py);
             let model_id = obj
                 .getattr(py, "__origen__model_id__")?

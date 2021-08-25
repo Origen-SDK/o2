@@ -163,20 +163,20 @@ impl PinActions {
     fn new(actions: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Self> {
         let mut temp: Vec<OrigenPinAction> = vec![];
         // if let Some(actions_) = actions {
-            for a in actions.iter() {
-                if let Ok(s) = a.extract::<String>() {
-                    temp.extend(OrigenPinAction::from_action_str(&s)?);
-                } else if a.get_type().name()? == "PinActions" {
-                    let s = a.extract::<PyRef<Self>>().unwrap();
-                    let mut s_ = s.actions.clone();
-                    s_.reverse();
-                    temp.extend(s_);
-                } else {
-                    return super::super::type_error!(&format!(
-                        "Cannot cast type {} to a valid PinAction",
-                        a.get_type().name()?
-                    ));
-                }
+        for a in actions.iter() {
+            if let Ok(s) = a.extract::<String>() {
+                temp.extend(OrigenPinAction::from_action_str(&s)?);
+            } else if a.get_type().name()? == "PinActions" {
+                let s = a.extract::<PyRef<Self>>().unwrap();
+                let mut s_ = s.actions.clone();
+                s_.reverse();
+                temp.extend(s_);
+            } else {
+                return super::super::type_error!(&format!(
+                    "Cannot cast type {} to a valid PinAction",
+                    a.get_type().name()?
+                ));
+            }
             // }
         }
         temp.reverse();

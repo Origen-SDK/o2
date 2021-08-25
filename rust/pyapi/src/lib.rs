@@ -624,7 +624,10 @@ macro_rules! runtime_error {
 
 pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
     let pickle = PyModule::import(py, "pickle")?;
-    pickle.getattr("dumps")?.call1((object,))?.extract::<Vec<u8>>()
+    pickle
+        .getattr("dumps")?
+        .call1((object,))?
+        .extract::<Vec<u8>>()
 }
 
 pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
