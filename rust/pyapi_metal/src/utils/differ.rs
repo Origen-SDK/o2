@@ -3,7 +3,6 @@ use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 use pyo3::prelude::*;
 use std::path::Path;
 
-/// This function compares the given two files a
 #[pyfunction(
     ignore_comments = "None",
     suspend_on = "None",

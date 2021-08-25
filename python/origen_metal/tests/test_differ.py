@@ -104,3 +104,24 @@ def test_blank_lines_works():
 
     assert (not has_diffs(file_a, file_b))
     assert (has_diffs(file_a, file_b, ignore_blank_lines=False))
+
+
+def test_c_style_comments():
+    fa, file_a = tempfile.mkstemp()
+    fb, file_b = tempfile.mkstemp()
+    os.write(
+        fa, b"""This part is the same
+         about to change /* jdhkjdghsg
+         dfdfsfsf ioihjsdgs sdfsdf */ and we're back
+         This part is the same
+         This part is the same""")
+    os.write(
+        fb, b"""This part is the same
+         about to change /*
+         dflslkj ebiuhw sdogih
+         dflslkj ebiuhw sdogih */ and we're back
+         This part is the same
+         This part is the same""")
+
+    assert (has_diffs(file_a, file_b))
+    assert (not has_diffs(file_a, file_b, suspend_on="/*", resume_on="*/"))
