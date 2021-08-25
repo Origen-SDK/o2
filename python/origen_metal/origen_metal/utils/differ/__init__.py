@@ -1,3 +1,5 @@
+from typing import Optional
+
 def has_diffs(
     file_a: str,
     file_b: str,
@@ -10,7 +12,7 @@ def has_diffs(
     This function compares the two ASCII files at the given paths and returns True if any
     differences are found between them.
 
-    By default, any blank lines will be ignored and additional blank lines in one file will
+    Blank lines will be ignored by default, so additional blank lines in one file will
     not result in a diff being reported if they are otherwise the same.
 
     Differences in comments can be ignored by specifying the comment char(s) to be used,
