@@ -3,14 +3,8 @@ mod utils;
 use pyo3::prelude::*;
 use pyo3::py_run;
 
-#[pyfunction]
-pub fn ping() -> PyResult<String> {
-    Ok("pong".to_string())
-}
-
 #[pymodule]
 fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(ping, m)?)?;
     utils::define(py, m)?;
     Ok(())
 }

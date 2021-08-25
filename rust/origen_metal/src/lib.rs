@@ -17,15 +17,16 @@ lazy_static! {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub trait Context<T, E> {
-    fn context(self, msg: &str) -> crate::Result<T>;
+pub trait Context<T, E, M> {
+    fn context(self, msg: M) -> crate::Result<T>;
 }
 
-impl<T, E> Context<T, E> for std::result::Result<T, E>
+impl<T, E, M> Context<T, E, M> for std::result::Result<T, E>
 where
     E: Display,
+    M: Display,
 {
-    fn context(self, msg: &str) -> crate::Result<T> {
+    fn context(self, msg: M) -> crate::Result<T> {
         match self {
             Ok(x) => Ok(x),
             Err(e) => Err(crate::Error {

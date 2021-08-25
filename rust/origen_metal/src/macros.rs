@@ -1,13 +1,13 @@
 #[macro_export]
 macro_rules! bail {
     ($msg:literal $(,)?) => {
-        return Err($crate::error!($msg));
+        return Err($crate::error!($msg))
     };
     ($err:expr $(,)?) => {
-        return Err($crate::error!($err));
+        return Err($crate::error!($err))
     };
     ($fmt:expr, $($arg:tt)*) => {
-        return Err($crate::error!($fmt, $($arg)*));
+        return Err($crate::error!($fmt, $($arg)*))
     };
 }
 

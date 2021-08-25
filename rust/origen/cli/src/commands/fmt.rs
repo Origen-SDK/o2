@@ -1,5 +1,5 @@
 use crate::python::PYTHON_CONFIG;
-use anyhow::Result;
+use crate::Result;
 use origen::core::term::*;
 use origen::STATUS;
 use origen_metal::utils::file::cd;

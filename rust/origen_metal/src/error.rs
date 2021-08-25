@@ -27,12 +27,12 @@ impl BaseError for Error {
 }
 
 // To add a conversion from other type of errors
-use pyo3::exceptions::PyOSError;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 
 impl std::convert::From<Error> for PyErr {
     fn from(err: Error) -> PyErr {
-        PyOSError::new_err(err.to_string())
+        PyRuntimeError::new_err(err.to_string())
     }
 }
 

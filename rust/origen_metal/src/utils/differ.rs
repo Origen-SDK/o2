@@ -103,11 +103,11 @@ impl ASCIIDiffer {
     /// other problem with reading them.
     pub fn run(&mut self) -> Result<bool> {
         let fa = File::open(&self.file_a)
-            .context(&format!("When opening '{}'", &self.file_a.display()))?;
+            .context(format!("When opening '{}'", &self.file_a.display()))?;
         let mut fa = BufReader::new(fa).lines();
 
         let fb = File::open(&self.file_b)
-            .context(&format!("When opening '{}'", &self.file_b.display()))?;
+            .context(format!("When opening '{}'", &self.file_b.display()))?;
         let mut fb = BufReader::new(fb).lines();
 
         let mut a_suspended = false;
