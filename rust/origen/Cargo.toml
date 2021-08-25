@@ -49,7 +49,7 @@ rpassword = "4.0"
 num-bigint = {version = "0.4.0", features = ["serde"]}
 # Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
 # in origen to enable conversion of an Origen error to a PyErr.
-pyo3 = {version = "0.14.2", features = ["extension-module"]}
+pyo3 = {version = "0.14.2", features = ["extension-module", "auto-initialize"]}
 chrono = "0.4.11"
 origen-core-support = { version = "0.1.0-dev.1", path = "./origen-core-support" }
 whoami = "0.8"
