@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::{Context, Result};
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -53,7 +53,7 @@ pub fn search_backwards_for(files: Vec<&str>, base: &Path) -> (bool, PathBuf) {
 
 /// Change the current directory to the given one
 pub fn cd(dir: &Path) -> Result<()> {
-    env::set_current_dir(&dir).context(format!("When cd'ing to '{}'", dir.display()))?;
+    env::set_current_dir(&dir).context(&format!("When cd'ing to '{}'", dir.display()))?;
     Ok(())
 }
 

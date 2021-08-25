@@ -1,10 +1,10 @@
 use crate::CommandHelp;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use origen::core::file_handler::File;
-use origen_metal::utils::file::{symlink, cd};
 use origen::utility::file_utils::with_dir;
 use origen::utility::version::Version;
 use origen::{Result, STATUS};
+use origen_metal::utils::file::{cd, symlink};
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::path::Path;

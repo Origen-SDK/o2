@@ -12,12 +12,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28ae2b3dec75a406790005a200b1bd89785afc02517a00ca99ecfe093ee9e6cf"
-
-[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -57,6 +51,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "eyre"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "221239d1d5ea86bf5d6f91c9d6bc3646ffe471b08ff9b0f91c44f115ac969d2b"
+dependencies = [
+ "indenter",
+ "once_cell",
+ "pyo3 0.13.2",
+]
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -81,6 +86,12 @@ dependencies = [
  "libc",
  "wasi",
 ]
+
+[[package]]
+name = "indenter"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 
 [[package]]
 name = "indoc"
@@ -200,8 +211,8 @@ dependencies = [
 name = "origen_metal"
 version = "0.2.0"
 dependencies = [
- "anyhow",
  "lazy_static",
+ "pyo3 0.14.2",
  "regex",
  "tempfile",
  "termcolor",
@@ -284,10 +295,22 @@ name = "pyapi_metal"
 version = "0.2.0"
 dependencies = [
  "curl-sys",
+ "eyre",
  "libz-sys",
  "openssl",
  "origen_metal",
- "pyo3",
+ "pyo3 0.14.2",
+]
+
+[[package]]
+name = "pyo3"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4837b8e8e18a102c23f79d1e9a110b597ea3b684c95e874eb1ad88f8683109c3"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "parking_lot",
 ]
 
 [[package]]
