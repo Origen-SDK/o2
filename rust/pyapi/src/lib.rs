@@ -302,7 +302,7 @@ fn resolve_transaction(
                 return Ok(trans);
             }
             _ => {
-                return Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>(format!(
+                return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                     "Resolving transactions for {:?} is not supported",
                     a
                 )))
@@ -618,19 +618,19 @@ fn start_new_test(name: Option<String>) -> PyResult<()> {
 #[macro_export]
 macro_rules! runtime_error {
     ($message:expr) => {{
-        Err(PyErr::new::<pyo3::exceptions::RuntimeError, _>($message))
+        Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>($message))
     }};
 }
 
 pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
     let pickle = PyModule::import(py, "pickle")?;
-    pickle.call1("dumps", (object,))?.extract::<Vec<u8>>()
+    pickle.getattr("dumps")?.call1((object,))?.extract::<Vec<u8>>()
 }
 
 pub fn depickle<'a>(py: Python<'a>, object: &Vec<u8>) -> PyResult<&'a PyAny> {
     let pickle = PyModule::import(py, "pickle")?;
     let bytes = PyBytes::new(py, object);
-    pickle.call1("loads", (bytes,))
+    pickle.getattr("loads")?.call1((bytes,))
 }
 
 pub fn with_pycallbacks<T, F>(mut func: F) -> PyResult<T>
@@ -642,4 +642,15 @@ where
 
     let pycallbacks = py.import("origen.callbacks")?;
     func(py, pycallbacks)
+}
+
+pub fn get_full_class_name(obj: &PyAny) -> PyResult<String> {
+    // let obj = g.to_object(py);
+    let cls = obj.getattr("__class__")?;
+    let mut n = cls.getattr("__module__")?.extract::<String>()?;
+    n.push_str(&format!(
+        ".{}",
+        cls.getattr("__qualname__")?.extract::<String>()?
+    ));
+    Ok(n)
 }

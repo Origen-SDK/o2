@@ -105,15 +105,15 @@ pub fn set_app_root(root: &PyAny) -> PyResult<()> {
     let path;
     if let Ok(p) = root.extract::<String>() {
         path = p;
-    } else if root.get_type().name().to_string() == "Path"
-        || root.get_type().name().to_string() == "WindowsPath"
-        || root.get_type().name().to_string() == "PosixPath"
+    } else if root.get_type().name()?.to_string() == "Path"
+        || root.get_type().name()?.to_string() == "WindowsPath"
+        || root.get_type().name()?.to_string() == "PosixPath"
     {
         path = root.call_method0("__str__")?.extract::<String>()?;
     } else {
         return crate::type_error!(&format!(
             "Cannot extract input as either a str or pathlib.Path object. Received {}",
-            root.get_type().name().to_string()
+            root.get_type().name()?.to_string()
         ));
     }
     let mut s = origen::sessions();
@@ -126,15 +126,15 @@ pub fn set_user_root(root: &PyAny) -> PyResult<()> {
     let path;
     if let Ok(p) = root.extract::<String>() {
         path = p;
-    } else if root.get_type().name().to_string() == "Path"
-        || root.get_type().name().to_string() == "WindowsPath"
-        || root.get_type().name().to_string() == "PosixPath"
+    } else if root.get_type().name()?.to_string() == "Path"
+        || root.get_type().name()?.to_string() == "WindowsPath"
+        || root.get_type().name()?.to_string() == "PosixPath"
     {
         path = root.call_method0("__str__")?.extract::<String>()?;
     } else {
         return crate::type_error!(&format!(
             "Cannot extract input as either a str or pathlib.Path object. Received {}",
-            root.get_type().name().to_string()
+            root.get_type().name()?.to_string()
         ));
     }
     let mut s = origen::sessions();
@@ -301,7 +301,7 @@ impl PyMappingProtocol for SessionStore {
         if let Some(l) = self.get(key)? {
             Ok(l)
         } else {
-            Err(pyo3::exceptions::KeyError::py_err({
+            Err(pyo3::exceptions::PyKeyError::new_err({
                 if self.app_session {
                     format!("Key {} not in app session {}", key, self.name)
                 } else {

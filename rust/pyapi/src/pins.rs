@@ -1,4 +1,5 @@
 use crate::dut::PyDUT;
+use crate::get_full_class_name;
 use crate::unpack_transaction_kwargs;
 use origen::DUT;
 use pyo3::prelude::*;
@@ -124,8 +125,8 @@ pub fn pins_to_backend_lookup_fields(
             // item is a String (or extract-able as a String)
             // Model ID is 0.
             retn.push((0, s.clone()));
-        } else if p.get_type().name().to_string() == "Pin"
-            || p.get_type().name().to_string() == "PinGroup"
+        } else if p.get_type().name()? == "Pin"
+            || p.get_type().name()? == "PinGroup"
         {
             let obj = p.to_object(py);
             let model_id = obj
@@ -137,7 +138,7 @@ pub fn pins_to_backend_lookup_fields(
             return Err(PyErr::from(origen::error::Error::new(&format!(
                 "Could not resolve object at index {} as String, Pin, or Pin Group. Got: {}",
                 i,
-                p.get_type().name()
+                p.get_type().name()?
             ))));
         }
     }
@@ -274,7 +275,8 @@ impl PyDUT {
         }
         let mut name_strs: Vec<String> = vec![];
         for (_i, n) in pins.iter().enumerate() {
-            if n.get_type().name() == "re.Pattern" || n.get_type().name() == "_sre.SRE_Pattern" {
+            let cls = get_full_class_name(n)?;
+            if cls == "re.Pattern" || cls == "_sre.SRE_Pattern" {
                 let r = n.getattr("pattern").unwrap();
                 name_strs.push(format!("/{}/", r));
             } else {

@@ -170,14 +170,14 @@ impl PyTester {
             model_id = 0;
             timeset_name = _timeset;
         } else {
-            if timeset.get_type().name().to_string() == "NoneType" {
+            if timeset.get_type().name()?.to_string() == "NoneType" {
                 {
                     let mut tester = origen::TESTER.lock().unwrap();
                     tester.clear_timeset()?;
                 }
                 self.issue_callbacks("clear_timeset")?;
                 return Ok(());
-            } else if timeset.get_type().name().to_string() == "Timeset" {
+            } else if timeset.get_type().name()?.to_string() == "Timeset" {
                 let gil = Python::acquire_gil();
                 let py = gil.python();
                 let obj = timeset.to_object(py);
@@ -186,7 +186,7 @@ impl PyTester {
                     .extract::<usize>(py)?;
                 timeset_name = obj.getattr(py, "name")?.extract::<String>(py)?;
             } else {
-                return type_error!(format!("Could not interpret 'timeset' argument as String or _origen.dut.timesets.Timeset object! (class '{}')", timeset.get_type().name()));
+                return type_error!(format!("Could not interpret 'timeset' argument as String or _origen.dut.timesets.Timeset object! (class '{}')", timeset.get_type().name()?));
             }
         }
 
@@ -247,14 +247,14 @@ impl PyTester {
     fn pin_header(&self, pin_header: &PyAny) -> PyResult<()> {
         let (model_id, pin_header_name);
 
-        if pin_header.get_type().name().to_string() == "NoneType" {
+        if pin_header.get_type().name()?.to_string() == "NoneType" {
             {
                 let mut tester = origen::TESTER.lock().unwrap();
                 tester.clear_pin_header()?;
             }
             self.issue_callbacks("clear_pin_header")?;
             return Ok(());
-        } else if pin_header.get_type().name().to_string() == "PinHeader" {
+        } else if pin_header.get_type().name()?.to_string() == "PinHeader" {
             let gil = Python::acquire_gil();
             let py = gil.python();
             let obj = pin_header.to_object(py);
@@ -263,7 +263,7 @@ impl PyTester {
                 .extract::<usize>(py)?;
             pin_header_name = obj.getattr(py, "name")?.extract::<String>(py)?;
         } else {
-            return type_error!(format!("Could not interpret 'pin_header' argument as _origen.dut.Pins.PinHeader object! (class '{}')", pin_header.get_type().name()));
+            return type_error!(format!("Could not interpret 'pin_header' argument as _origen.dut.Pins.PinHeader object! (class '{}')", pin_header.get_type().name()?));
         }
 
         {
@@ -304,7 +304,7 @@ impl PyTester {
         Ok(slf.into())
     }
 
-    #[text_signature = "($self, header_comments)"]
+    #[pyo3(text_signature = "($self, header_comments)")]
     pub fn generate_pattern_header(&self, header_comments: &PyDict) -> PyResult<()> {
         let tester = origen::tester();
         Ok(tester.generate_pattern_header(

@@ -111,7 +111,7 @@ pub trait DictLikeAPI {
             let dut = DUT.lock().unwrap();
             let items = self.lookup_table(&dut);
             if items.get(name).is_none() {
-                return Err(pyo3::exceptions::KeyError::py_err(format!(
+                return Err(pyo3::exceptions::PyKeyError::new_err(format!(
                     "No item found for {}",
                     name
                 )));

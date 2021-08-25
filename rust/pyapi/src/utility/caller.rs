@@ -117,7 +117,7 @@ fn _get_stack(max_depth: Option<usize>, filter: Filter) -> Result<Vec<FrameInfo>
     let gil = Python::acquire_gil();
     let py = gil.python();
     let inspect = PyModule::import(py, "inspect")?;
-    let stack: Vec<Vec<&PyAny>> = inspect.call0("stack")?.extract()?;
+    let stack: Vec<Vec<&PyAny>> = inspect.getattr("stack")?.call0()?.extract()?;
     let mut frames: Vec<FrameInfo> = vec![];
     for f in stack {
         let filename: String = f[1].extract()?;

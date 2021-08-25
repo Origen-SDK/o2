@@ -46,10 +46,10 @@ shellexpand = "1.1.1"
 # than this. Can probably drop this constraint once NXP transitions to RHEL7.
 git2 = "0.13"
 rpassword = "4.0"
-num-bigint = {version = "0.3.0", features = ["serde"]}
+num-bigint = {version = "0.4.0", features = ["serde"]}
 # Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
 # in origen to enable conversion of an Origen error to a PyErr.
-pyo3 = {version = "0.11.1", features = ["extension-module"]}
+pyo3 = {version = "0.14.2", features = ["extension-module"]}
 chrono = "0.4.11"
 origen-core-support = { version = "0.1.0-dev.1", path = "./origen-core-support" }
 whoami = "0.8"

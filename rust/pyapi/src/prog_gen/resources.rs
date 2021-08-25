@@ -1,6 +1,5 @@
 use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::flow_api;
-use pyo3::class::PyContextProtocol;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyType};
 
@@ -16,8 +15,8 @@ impl Resources {
     }
 }
 
-#[pyproto]
-impl PyContextProtocol for Resources {
+#[pymethods]
+impl Resources {
     fn __enter__(&mut self) -> PyResult<()> {
         self.ref_id = flow_api::start_resources(src_caller_meta())?;
         Ok(())
@@ -25,9 +24,9 @@ impl PyContextProtocol for Resources {
 
     fn __exit__(
         &mut self,
-        ty: Option<&'p PyType>,
-        _value: Option<&'p PyAny>,
-        _traceback: Option<&'p PyAny>,
+        ty: Option<&PyType>,
+        _value: Option<&PyAny>,
+        _traceback: Option<&PyAny>,
     ) -> bool {
         if ty.is_none() {
             flow_api::end_block(self.ref_id)

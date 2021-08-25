@@ -5,7 +5,7 @@ use crate::dut::PyDUT;
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;
-use pyo3::exceptions::{AttributeError, KeyError, TypeError};
+use pyo3::exceptions::{PyAttributeError, PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 
 /// Implements the user APIs dut[.sub_block].memory_map() and
@@ -24,7 +24,7 @@ impl PyDUT {
     //    let acc: AccessType = match access {
     //        Some(x) => match x.parse() {
     //            Ok(y) => y,
-    //            Err(msg) => return Err(exceptions::OSError::py_err(msg)),
+    //            Err(msg) => return Err(exceptions::OSError::new_err(msg)),
     //        },
     //        None => AccessType::ReadWrite,
     //    };
@@ -151,7 +151,7 @@ impl PyMappingProtocol for AddressBlocks {
                 name: query.to_string(),
             })
         } else {
-            Err(KeyError::py_err(format!(
+            Err(PyKeyError::new_err(format!(
                 "'{}' does not have an address block called '{}'",
                 map.name, query
             )))
@@ -171,7 +171,7 @@ impl PyObjectProtocol for AddressBlocks {
                 name: query.to_string(),
             })
         } else {
-            Err(AttributeError::py_err(format!(
+            Err(PyAttributeError::new_err(format!(
                 "'AddressBlocks' object has no attribute '{}'",
                 query
             )))
@@ -293,7 +293,7 @@ impl PyObjectProtocol for AddressBlock {
                     let pyobj = Py::new(py, BitCollection::from_reg_id(id, &dut))?;
                     Ok(pyobj.to_object(py))
                 }
-                Err(_) => Err(AttributeError::py_err(format!(
+                Err(_) => Err(PyAttributeError::new_err(format!(
                     "'AddressBlock' object has no attribute '{}'",
                     query
                 ))),
@@ -305,16 +305,16 @@ impl PyObjectProtocol for AddressBlock {
         match op {
             CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
             CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),
-            CompareOp::Lt => Err(TypeError::py_err(
+            CompareOp::Lt => Err(PyTypeError::new_err(
                 "'<' not supported between instances of 'AddressBlock'",
             )),
-            CompareOp::Le => Err(TypeError::py_err(
+            CompareOp::Le => Err(PyTypeError::new_err(
                 "'<=' not supported between instances of 'AddressBlock'",
             )),
-            CompareOp::Gt => Err(TypeError::py_err(
+            CompareOp::Gt => Err(PyTypeError::new_err(
                 "'>' not supported between instances of 'AddressBlock'",
             )),
-            CompareOp::Ge => Err(TypeError::py_err(
+            CompareOp::Ge => Err(PyTypeError::new_err(
                 "'>=' not supported between instances of 'AddressBlock'",
             )),
         }

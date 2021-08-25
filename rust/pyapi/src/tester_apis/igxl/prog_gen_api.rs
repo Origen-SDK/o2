@@ -17,12 +17,12 @@ pub struct Patset {
 
 #[pymethods]
 impl IGXL {
-    #[args(kwargs = "**")]
+    #[args(library = "None", kwargs = "**")]
     fn new_test_instance(
         &mut self,
         name: String,
-        library: Option<String>,
         template: String,
+        library: Option<String>,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Test> {
         let library = match library {

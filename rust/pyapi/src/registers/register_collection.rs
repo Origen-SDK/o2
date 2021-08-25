@@ -1,7 +1,7 @@
 use super::bit_collection::BitCollection;
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::class::{PyMappingProtocol, PySequenceProtocol};
-use pyo3::exceptions::KeyError;
+use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 
 /// Implements the user API to work with a collection of registers. The collection could be associated
@@ -63,7 +63,7 @@ impl PyMappingProtocol for RegisterCollection {
                     return Ok(BitCollection::from_reg_id(*id, &dut));
                 }
             }
-            return Err(KeyError::py_err(format!(
+            return Err(PyKeyError::new_err(format!(
                 "The register collection does not contain a register named '{}'",
                 name
             )));
@@ -78,7 +78,7 @@ impl PyMappingProtocol for RegisterCollection {
             let id = ab.get_register_id(name)?;
             return Ok(BitCollection::from_reg_id(id, &dut));
         }
-        Err(KeyError::py_err(format!(
+        Err(PyKeyError::new_err(format!(
             "Register collection does not contain a register named '{}'",
             name
         )))

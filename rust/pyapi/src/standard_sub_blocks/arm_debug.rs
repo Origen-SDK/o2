@@ -230,7 +230,7 @@ impl ArmDebug {
 }
 
 #[pyclass(subclass)]
-#[text_signature = "()"]
+#[pyo3(text_signature = "()")]
 #[derive(Clone)]
 struct DP {
     pub dp_id: Option<usize>,
@@ -262,17 +262,17 @@ impl DP {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
-                    return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                    return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                         "Subblock arm_debug.dp was given an arm_debug _id block option but could not extract it as an integer"
                     ));
                 }
             } else {
-                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                     "Subblock arm_debug.dp was not given required block option 'arm_debug_id'",
                 ));
             }
         } else {
-            return Err(PyErr::new::<exceptions::RuntimeError, _>(
+            return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Subblock arm_debug.dp requires an arm_debug_id block option, but no block options were given."
             ));
         }
@@ -332,7 +332,7 @@ impl DP {
 }
 
 #[pyclass(subclass)]
-#[text_signature = "()"]
+#[pyo3(text_signature = "()")]
 #[derive(Clone)]
 struct JtagDP {
     pub id: Option<usize>,
@@ -364,17 +364,17 @@ impl JtagDP {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
-                    return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                    return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                         "Subblock arm_debug.dp was given an arm_debug _id block option but could not extract it as an integer"
                     ));
                 }
             } else {
-                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                     "Subblock arm_debug.dp was not given required block option 'arm_debug_id'",
                 ));
             }
         } else {
-            return Err(PyErr::new::<exceptions::RuntimeError, _>(
+            return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Subblock arm_debug.dp requires an arm_debug_id block option, but no block options were given."
             ));
         }
@@ -399,7 +399,7 @@ impl JtagDP {
                             if let Ok(_default_ir_size) = default_ir_size.extract::<usize>() {
                                 Some(_default_ir_size)
                             } else {
-                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                                     "Subblock arm_debug.jtag_dp was given a 'default_ifr_size' block option but could not extract it as an integer"
                                 ));
                             }
@@ -416,7 +416,7 @@ impl JtagDP {
                             if let Ok(_default_idcode) = default_idcode.extract::<u32>() {
                                 Some(_default_idcode)
                             } else {
-                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                                     "Subblock arm_debug.jtag_dp was given a 'default_idcode' block option but could not extract it as an integer"
                                 ));
                             }
@@ -433,7 +433,7 @@ impl JtagDP {
                             if let Ok(_dpacc_select) = dpacc_select.extract::<u32>() {
                                 Some(_dpacc_select)
                             } else {
-                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                                     "Subblock arm_debug.jtag_dp was given a 'dpacc_select' block option but could not extract it as an integer"
                                 ));
                             }
@@ -450,7 +450,7 @@ impl JtagDP {
                             if let Ok(_apacc_select) = apacc_select.extract::<u32>() {
                                 Some(_apacc_select)
                             } else {
-                                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                                return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                                     "Subblock arm_debug.jtag_dp was given a 'apacc_select' block option but could not extract it as an integer"
                                 ));
                             }
@@ -522,17 +522,17 @@ impl MemAP {
                 if let Ok(id) = ad_id.extract::<usize>() {
                     arm_debug_id = id;
                 } else {
-                    return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                    return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                         "Subblock arm_debug.mem_ap was given an arm_debug _id block option but could not extract it as an integer"
                     ));
                 }
             } else {
-                return Err(PyErr::new::<exceptions::RuntimeError, _>(
+                return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                     "Subblock arm_debug.mem_ap was not given required block option 'arm_debug_id'",
                 ));
             }
         } else {
-            return Err(PyErr::new::<exceptions::RuntimeError, _>(
+            return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Subblock arm_debug.mem_ap requires an arm_debug_id block option, but no block options were given."
             ));
         }

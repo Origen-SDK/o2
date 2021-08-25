@@ -1,6 +1,5 @@
 use origen::prog_gen::{flow_api, FlowID, GroupType};
 use origen::testers::SupportedTester;
-use pyo3::class::PyContextProtocol;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyType};
 
@@ -34,8 +33,8 @@ impl Group {
     }
 }
 
-#[pyproto]
-impl PyContextProtocol for Group {
+#[pymethods]
+impl Group {
     fn __enter__(&mut self) -> PyResult<Group> {
         self.ref_id = flow_api::start_group(
             self.name.clone(),
@@ -49,9 +48,9 @@ impl PyContextProtocol for Group {
 
     fn __exit__(
         &mut self,
-        ty: Option<&'p PyType>,
-        _value: Option<&'p PyAny>,
-        _traceback: Option<&'p PyAny>,
+        ty: Option<&PyType>,
+        _value: Option<&PyAny>,
+        _traceback: Option<&PyAny>,
     ) -> bool {
         if ty.is_none() {
             flow_api::end_block(self.ref_id).expect(&format!(

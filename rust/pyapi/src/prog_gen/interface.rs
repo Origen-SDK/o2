@@ -5,7 +5,7 @@ use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType};
 use origen::testers::SupportedTester;
 use origen::Result;
-use pyo3::exceptions::TypeError;
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use regex::Regex;
@@ -52,7 +52,7 @@ impl PyInterface {
 
     #[setter(resources_filename)]
     fn _set_resources_filename(&self, path: String) -> PyResult<()> {
-        Err(TypeError::py_err(format!(
+        Err(PyTypeError::new_err(format!(
             "The resources filename should be set like this: flow.set_resources_filename(\"{}\")",
             path
         )))
@@ -64,7 +64,7 @@ impl PyInterface {
             Some(n) => match ResourcesType::from_str(&n) {
                 Ok(n) => n,
                 Err(e) => {
-                    return Err(TypeError::py_err(format!(
+                    return Err(PyTypeError::new_err(format!(
                         "Illegal resources filename kind: {}",
                         e
                     )))
@@ -140,7 +140,7 @@ impl PyInterface {
         } else if let Ok(t) = test_obj.extract::<Test>() {
             flow_api::execute_cz_test(t.id, cz_setup, id, src_caller_meta())?;
         } else {
-            return Err(TypeError::py_err(format!(
+            return Err(PyTypeError::new_err(format!(
                 "add_cz_test must be given a valid test object, this is something else: {:?}",
                 test_obj
             )));
@@ -179,7 +179,7 @@ impl PyInterface {
     fn if_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfJob(v))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -187,7 +187,7 @@ impl PyInterface {
     fn unless_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessJob(v))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -195,7 +195,7 @@ impl PyInterface {
     fn if_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -203,7 +203,7 @@ impl PyInterface {
     fn unless_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -211,7 +211,7 @@ impl PyInterface {
     fn if_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -219,7 +219,7 @@ impl PyInterface {
     fn unless_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -229,7 +229,7 @@ impl PyInterface {
             Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
             ))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -239,7 +239,7 @@ impl PyInterface {
             Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
             ))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -249,7 +249,7 @@ impl PyInterface {
             Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
             ))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -259,7 +259,7 @@ impl PyInterface {
             Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
             ))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -269,7 +269,7 @@ impl PyInterface {
             Ok(v) => Ok(Condition::new(FlowCondition::IfRan(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
             ))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
@@ -279,7 +279,7 @@ impl PyInterface {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessRan(
                 v.iter().map(|id| FlowID::from_str(id)).collect(),
             ))),
-            Err(e) => Err(TypeError::py_err(e.to_string())),
+            Err(e) => Err(PyTypeError::new_err(e.to_string())),
         }
     }
 
