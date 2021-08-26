@@ -1,5 +1,6 @@
 from typing import Optional
 
+
 def has_diffs(
     file_a: str,
     file_b: str,

@@ -9,3 +9,5 @@ python = ">=3.6,<3.9"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
+# Only works with 3.7 and above
+#pdoc = "^7"
