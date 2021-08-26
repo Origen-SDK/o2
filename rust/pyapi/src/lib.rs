@@ -371,6 +371,10 @@ fn initialize(
     cli_location: Option<String>,
     cli_version: Option<String>,
 ) -> PyResult<()> {
+    unsafe {
+        pyo3::ffi::PyEval_InitThreads();
+    }
+
     origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version);
     origen::STATUS.update_other_build_info("pyapi_version", built_info::PKG_VERSION)?;
     origen::FRONTEND
