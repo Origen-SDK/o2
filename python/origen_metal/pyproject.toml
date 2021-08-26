@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "origen_metal"
-version = "0.2.0"
+version = "0.3.0"
 description = "Bare metal APIs for the Origen SDK"
 authors = ["Origen-SDK"]
 

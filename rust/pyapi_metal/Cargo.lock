@@ -209,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "origen_metal"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "lazy_static",
  "pyo3 0.14.2",
@@ -292,7 +292,7 @@ dependencies = [
 
 [[package]]
 name = "pyapi_metal"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "curl-sys",
  "eyre",
