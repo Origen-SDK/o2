@@ -4,7 +4,7 @@ use crate::dut::PyDUT;
 use origen::DUT;
 use pyo3::class::basic::{CompareOp, PyObjectProtocol};
 use pyo3::class::PyMappingProtocol;
-use pyo3::exceptions::{AttributeError, KeyError, TypeError};
+use pyo3::exceptions::{PyAttributeError, PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 
 /// Implements the user APIs dut[.sub_block].memory_map() and
@@ -136,7 +136,7 @@ impl PyMappingProtocol for MemoryMaps {
                 name: query.to_string(),
             })
         } else {
-            Err(KeyError::py_err(format!(
+            Err(PyKeyError::new_err(format!(
                 "'{}' does not have a memory map called '{}'",
                 model.display_path(&dut),
                 query
@@ -157,7 +157,7 @@ impl PyObjectProtocol for MemoryMaps {
                 name: query.to_string(),
             })
         } else {
-            Err(AttributeError::py_err(format!(
+            Err(PyAttributeError::new_err(format!(
                 "'MemoryMaps' object has no attribute '{}'",
                 query
             )))
@@ -291,7 +291,7 @@ impl PyObjectProtocol for MemoryMap {
                     )?;
                     Ok(pyobj.to_object(py))
                 }
-                Err(_) => Err(AttributeError::py_err(format!(
+                Err(_) => Err(PyAttributeError::new_err(format!(
                     "'MemoryMap' object has no attribute '{}'",
                     query
                 ))),
@@ -303,16 +303,16 @@ impl PyObjectProtocol for MemoryMap {
         match op {
             CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
             CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),
-            CompareOp::Lt => Err(TypeError::py_err(
+            CompareOp::Lt => Err(PyTypeError::new_err(
                 "'<' not supported between instances of 'MemoryMap'",
             )),
-            CompareOp::Le => Err(TypeError::py_err(
+            CompareOp::Le => Err(PyTypeError::new_err(
                 "'<=' not supported between instances of 'MemoryMap'",
             )),
-            CompareOp::Gt => Err(TypeError::py_err(
+            CompareOp::Gt => Err(PyTypeError::new_err(
                 "'>' not supported between instances of 'MemoryMap'",
             )),
-            CompareOp::Ge => Err(TypeError::py_err(
+            CompareOp::Ge => Err(PyTypeError::new_err(
                 "'>=' not supported between instances of 'MemoryMap'",
             )),
         }

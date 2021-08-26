@@ -466,10 +466,10 @@ impl Wavetable {
             wt.set_period(Some(Box::new(p)))?;
         } else if let Ok(p) = period.extract::<f64>() {
             wt.set_period(Some(Box::new(p)))?;
-        } else if period.get_type().name() == "NoneType" {
+        } else if period.get_type().name()? == "NoneType" {
             wt.set_period(Option::None)?;
         } else {
-            return super::super::type_error!(format!("Could not interpret 'period' argument as Numeric, String, or NoneType! (class '{}')", period.get_type().name()));
+            return super::super::type_error!(format!("Could not interpret 'period' argument as Numeric, String, or NoneType! (class '{}')", period.get_type().name()?));
         };
         Ok(())
     }
@@ -933,21 +933,21 @@ fn action_from_pyany(action: &PyAny) -> PyResult<origen::core::model::pins::pin:
                 let t;
                 if let Ok(a) = action.extract::<String>() {
                     t = a.clone();
-                } else if action.get_type().name() == "PinActions" {
+                } else if action.get_type().name()? == "PinActions" {
                     let pin_actions = action
                         .extract::<PyRef<super::super::pins::pin_actions::PinActions>>()
                         .unwrap();
                     if pin_actions.actions.len() == 1 {
                         t = pin_actions.actions.first().unwrap().to_string();
                     } else {
-                        return Err(pyo3::exceptions::ValueError::py_err(
+                        return Err(pyo3::exceptions::PyValueError::new_err(
                             "SymbolMap lookups can only retrieve single symbols at a time",
                         ));
                     }
                 } else {
                     return super::super::type_error!(&format!(
                         "Cannot cast type {} to a valid PinAction",
-                        action.get_type().name()
+                        action.get_type().name()?
                     ));
                 }
                 t
@@ -1027,7 +1027,7 @@ impl SymbolMap {
                 resolver.update_mapping(action_from_pyany(action)?, new_resolution.clone());
                 Ok(())
             } else {
-                Err(pyo3::exceptions::KeyError::py_err(format!(
+                Err(pyo3::exceptions::PyKeyError::new_err(format!(
                     "Timeset '{}' does not have a symbol map targeting '{}' (The target must be set prior to timeset creation)",
                     tset.name,
                     t
@@ -1043,7 +1043,7 @@ impl SymbolMap {
         {
             let t = &dut.timesets[self.timeset_id];
             if !t.pin_action_resolvers.contains_key(&target) {
-                return Err(pyo3::exceptions::KeyError::py_err(format!(
+                return Err(pyo3::exceptions::PyKeyError::new_err(format!(
                     "Timeset '{}' does not have a symbol map targeting '{}' (The target must be set prior to timeset creation)",
                     t.name,
                     target
@@ -1074,7 +1074,7 @@ impl PyMappingProtocol for SymbolMap {
         if let Some(r) = resolver.resolve(&action_from_pyany(action)?) {
             Ok(r)
         } else {
-            Err(pyo3::exceptions::KeyError::py_err(format!(
+            Err(pyo3::exceptions::PyKeyError::new_err(format!(
                 "No symbol found for {}",
                 action
             )))

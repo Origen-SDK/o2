@@ -23,13 +23,13 @@ pub trait ListLikeAPI {
             item_ids = self.item_ids(&dut);
         }
         if idx >= (item_ids.len() as isize) {
-            return Err(pyo3::exceptions::IndexError::py_err(format!(
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                 "Index {} is out range of container of size {}",
                 idx,
                 item_ids.len()
             )));
         } else if idx.abs() > (item_ids.len() as isize) {
-            return Err(pyo3::exceptions::IndexError::py_err(format!(
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                 "Index {} is out range of container of size {}",
                 idx,
                 item_ids.len()
@@ -119,13 +119,13 @@ pub trait GeneralizedListLikeAPI {
 
     fn ___getitem__(&self, idx: isize) -> PyResult<PyObject> {
         if idx >= (self.items().len() as isize) {
-            return Err(pyo3::exceptions::IndexError::py_err(format!(
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                 "Index {} is out range of container of size {}",
                 idx,
                 self.items().len()
             )));
         } else if idx.abs() > (self.items().len() as isize) {
-            return Err(pyo3::exceptions::IndexError::py_err(format!(
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                 "Index {} is out range of container of size {}",
                 idx,
                 self.items().len()

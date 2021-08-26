@@ -6,7 +6,7 @@ use origen::prog_gen::{flow_api, Limit, LimitSelector, ParamValue};
 use origen::testers::SupportedTester;
 use origen::Result;
 use pyo3::class::basic::PyObjectProtocol;
-use pyo3::exceptions::AttributeError;
+use pyo3::exceptions::PyAttributeError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -25,7 +25,7 @@ pub struct TestInvocation {
 impl TestInvocation {
     pub fn set_test_obj(&mut self, test: Test) -> PyResult<()> {
         if !test.tester.is_compatible_with(&self.tester) {
-            return Err(AttributeError::py_err(format!(
+            return Err(PyAttributeError::new_err(format!(
                 "Attempted to associate a test for '{}' with an invocation for '{}'",
                 test.tester, self.tester
             )));

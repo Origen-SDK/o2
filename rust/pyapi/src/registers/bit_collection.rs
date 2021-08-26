@@ -7,7 +7,7 @@ use origen::{Dut, Result, TEST};
 use pyo3::class::basic::PyObjectProtocol;
 use pyo3::class::PyMappingProtocol;
 use pyo3::exceptions;
-use pyo3::exceptions::AttributeError;
+use pyo3::exceptions::PyAttributeError;
 use pyo3::import_exception;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyInt, PyList, PySlice, PyString, PyTuple};
@@ -251,14 +251,14 @@ impl PyObjectProtocol for BitCollection {
                     bc.whole_field = true;
                     Ok(Py::new(py, bc)?.to_object(py))
                 } else {
-                    Err(AttributeError::py_err(format!(
+                    Err(PyAttributeError::new_err(format!(
                         "'BitCollection' object has no attribute '{}'",
                         query
                     )))
                 }
             }
         } else {
-            Err(AttributeError::py_err(format!(
+            Err(PyAttributeError::new_err(format!(
                 "'BitCollection' object has no attribute '{}'",
                 query
             )))
@@ -316,7 +316,7 @@ impl PyMappingProtocol for BitCollection {
                 bc.field = field;
                 Ok(bc)
             } else {
-                Err(PyErr::new::<exceptions::RuntimeError, _>(
+                Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                     "The given bit index is out of range",
                 ))
             }
@@ -325,12 +325,12 @@ impl PyMappingProtocol for BitCollection {
                 let name = idx.extract::<&str>().unwrap();
                 self.field(name)
             } else {
-                Err(PyErr::new::<exceptions::RuntimeError, _>(
+                Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                     "Illegal bit index given",
                 ))
             }
         } else {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Illegal bit index given",
             ))
         }
@@ -382,7 +382,7 @@ impl BitCollection {
                         "The BitCollection.subset() method can accept multiple integers or an array of integer arguments only, this invalid: '{:?}'",
                         args
                     );
-                    return Err(PyErr::new::<exceptions::RuntimeError, _>(msg));
+                    return Err(PyErr::new::<exceptions::PyRuntimeError, _>(msg));
                 }
             }
         }
@@ -537,11 +537,11 @@ impl BitCollection {
             Err(_) => {
                 if self.reg_id.is_some() {
                     match dut.get_register(self.reg_id.unwrap()) {
-                        Ok(v) => Err(UndefinedDataError::py_err(format!("Attempted to reference data from register '{}' but it contains undefined (X) bits!", v.name))),
-                        Err(_) => Err(UndefinedDataError::py_err("Attempted to reference a data value that contains undefined (X) bits!")),
+                        Ok(v) => Err(UndefinedDataError::new_err(format!("Attempted to reference data from register '{}' but it contains undefined (X) bits!", v.name))),
+                        Err(_) => Err(UndefinedDataError::new_err("Attempted to reference a data value that contains undefined (X) bits!")),
                     }
                 } else {
-                    Err(UndefinedDataError::py_err(
+                    Err(UndefinedDataError::new_err(
                         "Attempted to reference a data value that contains undefined (X) bits!",
                     ))
                 }
@@ -616,7 +616,7 @@ impl BitCollection {
         if let Some(id) = self.reg_id {
             Ok(BitCollection::from_reg_id(id, &dut))
         } else {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Called as_reg() on a bit collection with no association to a register",
             ))
         }
@@ -656,7 +656,7 @@ impl BitCollection {
 
     pub fn _internal_write(&self) -> PyResult<Option<usize>> {
         if self.transaction != 0 {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Can't call write() from within a transaction block, did you mean to call set_data()?",
             ))
         } else {
@@ -686,7 +686,7 @@ impl BitCollection {
     pub fn _internal_start_verify_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if bc.transaction != 0 {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Attempted to start a verify transaction on a BitCollection that already has a transaction underway",
             ))
         } else {
@@ -698,7 +698,7 @@ impl BitCollection {
     pub fn _internal_end_verify_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if self.transaction != 1 {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Attempted to end a verify transaction on a BitCollection that does not have a transaction underway",
             ))
         } else {
@@ -710,7 +710,7 @@ impl BitCollection {
     pub fn _internal_start_write_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if bc.transaction != 0 {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Attempted to start a write transaction on a BitCollection that already has a transaction underway",
             ))
         } else {
@@ -722,7 +722,7 @@ impl BitCollection {
     pub fn _internal_end_write_transaction(&self) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         if self.transaction != 2 {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Attempted to end a write transaction on a BitCollection that does not have a transaction underway",
             ))
         } else {
@@ -793,10 +793,10 @@ impl BitCollection {
                     "Register '{}' does not have a bit field called '{}'",
                     reg.name, name
                 );
-                Err(PyErr::new::<exceptions::RuntimeError, _>(msg))
+                Err(PyErr::new::<exceptions::PyRuntimeError, _>(msg))
             }
         } else {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "'.field()' method can only be called on registers",
             ))
         }
@@ -837,7 +837,7 @@ impl BitCollection {
                     "Register '{}' does not have any bit fields called {:?}",
                     reg.name, args
                 );
-                Err(PyErr::new::<exceptions::RuntimeError, _>(msg))
+                Err(PyErr::new::<exceptions::PyRuntimeError, _>(msg))
             } else {
                 if found > 1 {
                     bc.field = None;
@@ -845,7 +845,7 @@ impl BitCollection {
                 Ok(BitCollection::from_rich_bc(&bc))
             }
         } else {
-            Err(PyErr::new::<exceptions::RuntimeError, _>(
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "'.try_fields()' method can only be called on registers",
             ))
         }
@@ -856,7 +856,7 @@ impl BitCollection {
         let dut = origen::dut();
         match self.reg(&dut) {
             Some(x) => Ok(x.address(&dut, None)?),
-            None => Err(PyErr::new::<exceptions::RuntimeError, _>(
+            None => Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Called 'address()' on a BitCollection that is not associated with a register",
             )),
         }
@@ -867,7 +867,7 @@ impl BitCollection {
         let dut = origen::dut();
         match self.reg(&dut) {
             Some(x) => Ok(x.offset),
-            None => Err(PyErr::new::<exceptions::RuntimeError, _>(
+            None => Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Called 'offset()' on a BitCollection that is not associated with a register",
             )),
         }
@@ -957,7 +957,7 @@ impl BitCollection {
         let dut = origen::dut();
         match self.reg(&dut) {
             Some(x) => Ok(x.model_path(&dut)?),
-            None => Err(PyErr::new::<exceptions::RuntimeError, _>(
+            None => Err(PyErr::new::<exceptions::PyRuntimeError, _>(
                 "Called 'model_path()' on a BitCollection that is not associated with a register",
             )),
         }
@@ -1001,7 +1001,7 @@ impl BitCollection {
                 let args = PyTuple::new(py, &[slf.to_object(py)]);
                 c.call_method(py, "write_register", args, None)?;
             },
-            None => return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+            None => return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
                 "No controller in the path {} implements a 'write_register'. Cannot write this register.",
                 bc.model_path()?
             ))),
@@ -1033,7 +1033,7 @@ impl BitCollection {
                 let args = PyTuple::new(py, &[slf.to_object(py)]);
                 c.call_method(py, "verify_register", args, None)?;
             },
-            None => return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+            None => return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
                 "No controller in the path {} implements a 'verify_register'. Cannot verify this register.",
                 bc.model_path()?
             ))),
@@ -1073,7 +1073,7 @@ impl BitCollection {
                         c.call_method(py, "verify_register", args, None)?;
                     }
                     None => {
-                        return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                        return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
                             "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",
                             bc.model_path()?
                         )));
@@ -1090,7 +1090,7 @@ impl BitCollection {
                 //                 let message = obj.extract::<String>(py)?;
                 //                 if message.contains("No controller in the path") && message.contains("implements a 'verify_register'. Cannot verify this register.") {
                 //                     // Change the error message slightly as "capture_register" is also applicable
-                //                     return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                //                     return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
                 //                         "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",
                 //                         bc.model_path()?
                 //                     )));

@@ -94,7 +94,7 @@ impl PyMappingProtocol for Maillists {
         if let Some(l) = self.get(key)? {
             Ok(l)
         } else {
-            Err(pyo3::exceptions::KeyError::py_err({
+            Err(pyo3::exceptions::PyKeyError::new_err({
                 format!("No maillist {} is available!", key)
             }))
         }

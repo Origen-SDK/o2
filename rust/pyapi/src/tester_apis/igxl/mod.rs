@@ -25,7 +25,7 @@ impl IGXL {
                         "J750" => SupportedTester::J750,
                         "ULTRAFLEX" => SupportedTester::ULTRAFLEX,
                         _ => {
-                            return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                            return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
                                 "IGXL tester must be 'J750' or 'ULTRAFLEX', '{}' is not supported",
                                 t
                             )))

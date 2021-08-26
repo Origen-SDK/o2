@@ -23,7 +23,7 @@ impl V93K {
                 Some(7) => SupportedTester::V93KSMT7,
                 Some(8) => SupportedTester::V93KSMT8,
                 Some(ver) => {
-                    return Err(PyErr::new::<exceptions::RuntimeError, _>(format!(
+                    return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
                         "SMT version must be 7 or 8, '{}' is not supported",
                         ver
                     )))

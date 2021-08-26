@@ -81,7 +81,7 @@ pub fn extract_as_metadata(value: &PyAny) -> PyResult<Metadata> {
             metadata_vec.push(extract_as_metadata(any)?);
         }
         data = Metadata::Vec(metadata_vec);
-    } else if value.get_type().name().to_string() == "bool" {
+    } else if value.get_type().name()?.to_string() == "bool" {
         data = Metadata::Bool(value.extract::<bool>()?);
     } else if let Ok(bigint) = value.extract::<num_bigint::BigInt>() {
         data = Metadata::BigInt(bigint);
@@ -97,7 +97,7 @@ pub fn extract_as_metadata(value: &PyAny) -> PyResult<Metadata> {
         data = Metadata::Serialized(
             crate::pickle(py, value)?,
             Some("Python-Pickle".to_string()),
-            Some(value.get_type().name().to_string()),
+            Some(value.get_type().name()?.to_string()),
         );
     }
     Ok(data)

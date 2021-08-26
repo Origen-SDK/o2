@@ -10,13 +10,13 @@ macro_rules! extract_pinactions {
             let mut acts = origen::core::model::pins::pin::PinAction::from_action_str(&s)?;
             acts.reverse();
             Ok(acts)
-        } else if $actions.get_type().name() == "PinActions" {
+        } else if $actions.get_type().name()? == "PinActions" {
             let acts = $actions.extract::<PyRef<crate::pins::pin_actions::PinActions>>()?;
             Ok(acts.actions.clone())
         } else {
-            Err(pyo3::exceptions::TypeError::py_err(format!(
+            Err(pyo3::exceptions::PyTypeError::new_err(format!(
                 "Cannot extract _origen.pin.PinActions from type {}",
-                $actions.get_type().name()
+                $actions.get_type().name()?
             )))
         }
     }};
@@ -160,24 +160,24 @@ impl PinActions {
 
     #[new]
     #[args(actions = "*", _kwargs = "**")]
-    fn new(actions: Option<&PyTuple>, _kwargs: Option<&PyDict>) -> PyResult<Self> {
+    fn new(actions: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Self> {
         let mut temp: Vec<OrigenPinAction> = vec![];
-        if let Some(actions_) = actions {
-            for a in actions_.iter() {
-                if let Ok(s) = a.extract::<String>() {
-                    temp.extend(OrigenPinAction::from_action_str(&s)?);
-                } else if a.get_type().name() == "PinActions" {
-                    let s = a.extract::<PyRef<Self>>().unwrap();
-                    let mut s_ = s.actions.clone();
-                    s_.reverse();
-                    temp.extend(s_);
-                } else {
-                    return super::super::type_error!(&format!(
-                        "Cannot cast type {} to a valid PinAction",
-                        a.get_type().name()
-                    ));
-                }
+        // if let Some(actions_) = actions {
+        for a in actions.iter() {
+            if let Ok(s) = a.extract::<String>() {
+                temp.extend(OrigenPinAction::from_action_str(&s)?);
+            } else if a.get_type().name()? == "PinActions" {
+                let s = a.extract::<PyRef<Self>>().unwrap();
+                let mut s_ = s.actions.clone();
+                s_.reverse();
+                temp.extend(s_);
+            } else {
+                return super::super::type_error!(&format!(
+                    "Cannot cast type {} to a valid PinAction",
+                    a.get_type().name()?
+                ));
             }
+            // }
         }
         temp.reverse();
         let obj = Self { actions: temp };
@@ -209,7 +209,7 @@ impl pyo3::class::basic::PyObjectProtocol for PinActions {
         let other_string;
         if let Ok(s) = other.extract::<String>() {
             other_string = s;
-        } else if other.get_type().name() == "PinActions" {
+        } else if other.get_type().name()? == "PinActions" {
             let other_actions = other.extract::<PyRef<Self>>()?;
             other_string = OrigenPinAction::to_action_string(&other_actions.actions)?;
         } else {
@@ -263,13 +263,13 @@ impl GeneralizedListLikeAPI for PinActions {
 
     fn ___getitem__(&self, idx: isize) -> PyResult<PyObject> {
         if idx >= (self.items().len() as isize) {
-            return Err(pyo3::exceptions::IndexError::py_err(format!(
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                 "Index {} is out range of container of size {}",
                 idx,
                 self.items().len()
             )));
         } else if idx.abs() > (self.items().len() as isize) {
-            return Err(pyo3::exceptions::IndexError::py_err(format!(
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                 "Index {} is out range of container of size {}",
                 idx,
                 self.items().len()

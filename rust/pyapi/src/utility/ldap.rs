@@ -70,7 +70,7 @@ impl PyMappingProtocol for LDAPs {
         if let Some(l) = self.get(ldap)? {
             Ok(l)
         } else {
-            Err(pyo3::exceptions::KeyError::py_err(format!(
+            Err(pyo3::exceptions::PyKeyError::new_err(format!(
                 "No LDAP named '{}' available",
                 ldap
             )))

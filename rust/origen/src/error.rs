@@ -42,13 +42,13 @@ use pyo3::{exceptions, PyErr};
 
 //impl std::convert::Into<PyErr> for Error {
 //    fn into(self) -> PyErr {
-//        exceptions::OSError::py_err(self.msg)
+//        exceptions::OSError::new_err(self.msg)
 //    }
 //}
 
 impl std::convert::From<Error> for PyErr {
     fn from(err: Error) -> Self {
-        exceptions::OSError::py_err(err.msg)
+        exceptions::PyOSError::new_err(err.msg)
     }
 }
 
@@ -58,35 +58,36 @@ impl std::convert::From<PyErr> for Error {
         let py = gil.python();
         Error::new(&format!(
             "Encountered Exception '{}' with message: {}{}",
-            err.ptype.as_ref(py).name(),
-            match err.pvalue {
-                pyo3::PyErrValue::Value(e) => {
-                    let r = e.call_method0(py, "__str__").unwrap();
-                    r.extract::<String>(py).unwrap()
-                }
-                pyo3::PyErrValue::ToObject(e) => {
-                    let pyobj_e = e.to_object(py);
-                    let r = pyobj_e.call_method0(py, "__str__").unwrap();
-                    r.extract::<String>(py).unwrap()
-                }
-                _ => {
-                    "--No Message Available--".to_string()
-                }
+            err.ptype(py).name().unwrap(),
+            {
+                let r = err.pvalue(py).call_method0("__str__").unwrap();
+                r.extract::<String>().unwrap()
             },
-            match err.ptraceback {
-                Some(tb) => {
-                    let m = py.import("traceback").unwrap();
-                    let temp = pyo3::types::PyTuple::new(py, &[tb]);
-                    let et = m.call_method1("extract_tb", temp).unwrap();
+            {
+                let tb = err.ptraceback(py);
+                let m = py.import("traceback").unwrap();
+                let temp = pyo3::types::PyTuple::new(py, &[tb]);
+                let et = m.call_method1("extract_tb", temp).unwrap();
 
-                    let temp = pyo3::types::PyTuple::new(py, &[et]);
-                    let text_list = m.call_method1("format_list", temp).unwrap();
-                    let text = text_list.extract::<Vec<String>>().unwrap();
+                let temp = pyo3::types::PyTuple::new(py, &[et]);
+                let text_list = m.call_method1("format_list", temp).unwrap();
+                let text = text_list.extract::<Vec<String>>().unwrap();
 
-                    format!("\nWith traceback:\n{}", text.join(""))
-                }
-                _ => "".to_string(),
-            }
+                format!("\nWith traceback:\n{}", text.join(""))
+            } // match err.ptraceback {
+              //     Some(tb) => {
+              //         let m = py.import("traceback").unwrap();
+              //         let temp = pyo3::types::PyTuple::new(py, &[tb]);
+              //         let et = m.call_method1("extract_tb", temp).unwrap();
+
+              //         let temp = pyo3::types::PyTuple::new(py, &[et]);
+              //         let text_list = m.call_method1("format_list", temp).unwrap();
+              //         let text = text_list.extract::<Vec<String>>().unwrap();
+
+              //         format!("\nWith traceback:\n{}", text.join(""))
+              //     }
+              //     _ => "".to_string(),
+              // }
         ))
     }
 }

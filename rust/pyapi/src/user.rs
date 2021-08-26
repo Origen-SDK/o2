@@ -17,7 +17,7 @@ const DATA_FIELDS: [&str; 5] = [
 #[pymodule]
 fn users(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(current_user))?;
-    m.add("users", wrap_pyfunction!(users_cls)(py))?;
+    m.add("users", wrap_pyfunction!(users_cls)(py)?)?;
     m.add_class::<Users>()?;
     m.add_class::<User>()?;
     m.add_class::<UserDataset>()?;
@@ -108,7 +108,7 @@ impl PyMappingProtocol for Users {
         if let Ok(u) = users.user(id) {
             Ok(User::new(u.id())?)
         } else {
-            Err(pyo3::exceptions::KeyError::py_err(format!(
+            Err(pyo3::exceptions::PyKeyError::new_err(format!(
                 "Could not find user '{}'. Add a new user with 'origen.users.add(\"{}\")'",
                 id, id
             )))
@@ -630,7 +630,7 @@ impl PyMappingProtocol for DataStore {
         if let Some(o) = obj {
             metadata_to_pyobj(Some(o), Some(key))
         } else {
-            Err(pyo3::exceptions::KeyError::py_err(format!(
+            Err(pyo3::exceptions::PyKeyError::new_err(format!(
                 "No data added with key '{}' in dataset '{}' for user '{}'",
                 key, self.dataset, self.user_id
             )))
