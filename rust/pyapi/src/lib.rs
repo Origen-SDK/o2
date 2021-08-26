@@ -372,6 +372,10 @@ fn initialize(
     cli_version: Option<String>,
 ) -> PyResult<()> {
     unsafe {
+        // Required to initialize trims in Python 3.6-
+        // PyO3 used to do this pre 0.14, but now need to do it manually
+        // Not sure how best to handle a "only if python 3.6", but doesn't
+        // seem to cause problems on newer versions.
         pyo3::ffi::PyEval_InitThreads();
     }
 
