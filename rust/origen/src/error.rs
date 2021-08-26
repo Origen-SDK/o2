@@ -200,8 +200,8 @@ impl std::convert::From<keyring::KeyringError> for Error {
     }
 }
 
-impl std::convert::From<anyhow::Error> for Error {
-    fn from(err: anyhow::Error) -> Self {
+impl std::convert::From<origen_metal::Error> for Error {
+    fn from(err: origen_metal::Error) -> Self {
         Error::new(&err.to_string())
     }
 }

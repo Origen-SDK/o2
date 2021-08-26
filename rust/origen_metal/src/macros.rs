@@ -1,4 +1,32 @@
 #[macro_export]
+macro_rules! bail {
+    ($msg:literal $(,)?) => {
+        return Err($crate::error!($msg))
+    };
+    ($err:expr $(,)?) => {
+        return Err($crate::error!($err))
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        return Err($crate::error!($fmt, $($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! error {
+    ($msg:literal $(,)?) => {
+        // Handle $:literal as a special case to make cargo-expanded code more
+        // concise in the common case.
+        $crate::Error::new($msg)
+    };
+    ($err:expr $(,)?) => ({
+        $crate::Error::new($err)
+    });
+    ($fmt:expr, $($arg:tt)*) => {
+        $crate::Error(format!($fmt, $($arg)*))
+    };
+}
+
+#[macro_export]
 macro_rules! display {
     ($($arg:tt)*) => {{
         let formatted = std::fmt::format(format_args!($($arg)*));

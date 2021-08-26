@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::{Context, Result};
 use regex::Regex;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
@@ -102,10 +102,12 @@ impl ASCIIDiffer {
     /// An error will be returned if either of the files doesn't exist or if there is some
     /// other problem with reading them.
     pub fn run(&mut self) -> Result<bool> {
-        let fa = File::open(&self.file_a)?;
+        let fa = File::open(&self.file_a)
+            .context(format!("When opening '{}'", &self.file_a.display()))?;
         let mut fa = BufReader::new(fa).lines();
 
-        let fb = File::open(&self.file_b)?;
+        let fb = File::open(&self.file_b)
+            .context(format!("When opening '{}'", &self.file_b.display()))?;
         let mut fb = BufReader::new(fb).lines();
 
         let mut a_suspended = false;

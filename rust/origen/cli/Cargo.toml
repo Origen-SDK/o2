@@ -32,7 +32,6 @@ tar = "0.4"
 sha2 = "0.9"
 base64-url = "1.4.6"
 phf = { version = "0.8.0", features = ["macros"] }
-anyhow = "1"
 
 [build-dependencies]
 walkdir = "2"
