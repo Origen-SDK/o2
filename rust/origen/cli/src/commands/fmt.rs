@@ -1,13 +1,13 @@
 use crate::python::PYTHON_CONFIG;
+use crate::Result;
 use origen::core::term::*;
 use origen::STATUS;
+use origen_metal::utils::file::cd;
 use std::env;
 use std::io::stdout;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
-use origen_metal::utils::file::cd;
-use anyhow::Result;
 
 pub fn run() -> Result<()> {
     let orig_dir = env::current_dir().expect("Couldn't read the PWD");

@@ -1,6 +1,6 @@
 [package]
 name = "pyapi_metal"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2018"
 authors = ["Origen-SDK"]
 
@@ -19,7 +19,7 @@ curl-sys = { version = "0.4.34", features = ["static-curl"] }
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]
-version = "0.14.2"
+version = "0.14.3"
 features = ["extension-module"]
 
 [package.metadata.maturin]

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "origen_metal"
-version = "0.2.0"
+version = "0.3.0"
 description = "Bare metal APIs for the Origen SDK"
 authors = ["Origen-SDK"]
 
@@ -9,3 +9,5 @@ python = ">=3.6,<3.9"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
+# Only works with 3.7 and above
+#pdoc = "^7"

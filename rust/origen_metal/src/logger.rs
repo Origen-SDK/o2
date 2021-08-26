@@ -55,7 +55,7 @@
 extern crate time;
 
 use crate::terminal;
-use anyhow::Result;
+use crate::Result;
 use std::cell::RefCell;
 use std::fs;
 use std::io::Write;
