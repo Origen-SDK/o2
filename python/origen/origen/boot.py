@@ -1,99 +1,8 @@
 # These must come before all other imports.
 from __future__ import print_function, unicode_literals, absolute_import
 
-import sys
 import pathlib
 import importlib
-
-if sys.platform == "win32":
-    # The below is needed only for pyreadline, which is needed only for Windows support.
-    # This setup was taken from the pyreadline documentation:
-    #   https://pythonhosted.org/pyreadline/introduction.html
-    # The below was copied directly from the above source.
-    #
-    #this file is needed in site-packages to emulate readline
-    #necessary for rlcompleter since it relies on the existance
-    #of a readline module
-    from pyreadline.rlmain import Readline
-    __all__ = [
-        'parse_and_bind',
-        'get_line_buffer',
-        'insert_text',
-        'clear_history',
-        'read_init_file',
-        'read_history_file',
-        'write_history_file',
-        'get_current_history_length',
-        'get_history_length',
-        'get_history_item',
-        'set_history_length',
-        'set_startup_hook',
-        'set_pre_input_hook',
-        'set_completer',
-        'get_completer',
-        'get_begidx',
-        'get_endidx',
-        'set_completer_delims',
-        'get_completer_delims',
-        'add_history',
-        'callback_handler_install',
-        'callback_handler_remove',
-        'callback_read_char',
-    ]  #Some other objects are added below
-
-    # create a Readline object to contain the state
-    rl = Readline()
-
-    if rl.disable_readline:
-
-        def dummy(completer=""):
-            pass
-
-        for funk in __all__:
-            globals()[funk] = dummy
-    else:
-
-        def GetOutputFile():
-            '''Return the console object used by readline so that it can be used for printing in color.'''
-            return rl.console
-
-        __all__.append("GetOutputFile")
-
-        import pyreadline.console as console
-
-        # make these available so this looks like the python readline module
-        read_init_file = rl.read_init_file
-        parse_and_bind = rl.parse_and_bind
-        clear_history = rl.clear_history
-        add_history = rl.add_history
-        insert_text = rl.insert_text
-
-        write_history_file = rl.write_history_file
-        read_history_file = rl.read_history_file
-
-        get_completer_delims = rl.get_completer_delims
-        get_current_history_length = rl.get_current_history_length
-        get_history_length = rl.get_history_length
-        get_history_item = rl.get_history_item
-        get_line_buffer = rl.get_line_buffer
-        set_completer = rl.set_completer
-        get_completer = rl.get_completer
-        get_begidx = rl.get_begidx
-        get_endidx = rl.get_endidx
-
-        set_completer_delims = rl.set_completer_delims
-        set_history_length = rl.set_history_length
-        set_pre_input_hook = rl.set_pre_input_hook
-        set_startup_hook = rl.set_startup_hook
-
-        callback_handler_install = rl.callback_handler_install
-        callback_handler_remove = rl.callback_handler_remove
-        callback_read_char = rl.callback_read_char
-
-        console.install_readline(rl.readline)
-
-    __all__ += ["rl", "run_cmd"]
-
 
 def run_cmd(command,
             targets=None,
@@ -117,6 +26,7 @@ def run_cmd(command,
 
     import origen
     import _origen
+    import origen_metal
 
     import origen.application
     import origen.target
@@ -162,32 +72,15 @@ def run_cmd(command,
         _origen.set_operation("interactive")
         origen.logger.trace("Starting interactive session (on Python side)")
         origen.target.load()
-        import atexit, os, sys, colorama, termcolor, readline, rlcompleter
 
-        # Colorama init only required on windows, but place it here to keep consistent with all platforms, or in case options
-        # need to be added
-        # Also, its a known issue that powershell doesn't display yellow text correctly. The standard command prompt will
-        # though.
-        colorama.init()
-        historyPath = origen.root.joinpath(".origen").joinpath(
-            "console_history")
-
-        def save_history(historyPath=historyPath):
-            import readline
-            readline.write_history_file(historyPath)
-
-        if os.path.exists(historyPath):
-            readline.read_history_file(historyPath)
-
-        atexit.register(save_history)
-        del os, atexit, readline, rlcompleter, sys, colorama, termcolor, save_history, historyPath
-
-        import code
+        from origen_metal._helpers import interactive
         from origen import dut, tester
         from origen.registers.actions import write, verify, write_transaction, verify_transaction
-        code.interact(banner=f"Origen {origen.version}",
-                      local=locals(),
-                      exitmsg="")
+        interactive.prep_shell(origen.__console_history_file__)
+        interactive.interact(
+            banner=f"Origen {origen.version}",
+            context = origen.__interactive_context__()
+        )
 
     elif command == "web:build":
         _origen.set_operation("web")
@@ -256,6 +149,7 @@ def run_cmd(command,
 
     # Internal command to give the Origen version loaded by the application to the CLI
     elif command == "_version_":
+        import importlib_metadata
 
         def tabify(message):
             return "\n".join([f"\t{l}" for l in message.split("\n")])
@@ -271,18 +165,9 @@ def run_cmd(command,
         if origen.__in_origen_core_app:
             origen.logger.info("Running in Origen core application")
         else:
-            import subprocess, sys
-            cmd = f"{sys.executable} -m poetry show origen"
-            origen.logger.trace(f"Retrieving Origen version from {cmd}")
             print("Origen")
             try:
-                res = subprocess.run(cmd,
-                                     shell=True,
-                                     stdout=subprocess.PIPE,
-                                     universal_newlines=True,
-                                     check=True)
-                v = str(res.stdout).split("\n")[1].split(":")[1].strip()
-                print(f"Success\n{tabify(v)}")
+                print(f"Success\n{tabify(importlib_metadata.version('origen'))}")
             except Exception as e:
                 print("Error")
                 print(tabify(repr(e)))
@@ -314,6 +199,40 @@ def run_cmd(command,
         try:
             print(
                 f"Success\n{tabify(origen.status['origen_core_support_version'])}"
+            )
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ OrigenMetal (Rust Backend - Origen)")
+        try:
+            print(
+                f"Success\n{tabify(origen.status['origen_metal_backend_version'])}"
+            )
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+        
+        print("_ origen_metal")
+        try:
+            print(f"Success\n{tabify(importlib_metadata.version('origen_metal'))}")
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ _origen_metal (PyAPI Metal)")
+        try:
+            print(
+                f"Success\n{tabify(origen_metal._origen_metal.__version__)}"
+            )
+        except Exception as e:
+            print("Error")
+            print(tabify(repr(e)))
+
+        print("_ OrigenMetal (Rust Backend - PyAPI Metal)")
+        try:
+            print(
+                f"Success\n{tabify(origen_metal._origen_metal.__origen_metal_backend_version__)}"
             )
         except Exception as e:
             print("Error")

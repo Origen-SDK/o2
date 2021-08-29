@@ -5,7 +5,9 @@ description = "Bare metal APIs for the Origen SDK"
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.6,<3.9"
+python = ">=3.6,<3.11"
+pyreadline3 = { version="^3.3", platform="win32" }
+termcolor = ">= 1.1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

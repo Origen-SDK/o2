@@ -11,8 +11,14 @@ use std::fmt::Display;
 
 pub use error::Error;
 
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 lazy_static! {
     pub static ref LOGGER: logger::Logger = logger::Logger::default();
+    pub static ref VERSION: &'static str = built_info::PKG_VERSION;
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

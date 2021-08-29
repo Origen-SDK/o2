@@ -14,6 +14,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 origen = { path = "../origen" }
+origen_metal = { path = "../origen_metal" }
+pyapi_metal = { path = "../pyapi_metal", package = "pyapi_metal" }
 num-bigint = "0.4.0"
 num-traits = "0.2.0"
 num = "0.2.0"

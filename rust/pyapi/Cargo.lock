@@ -2145,6 +2145,7 @@ dependencies = [
 name = "origen_metal"
 version = "0.3.0"
 dependencies = [
+ "built",
  "lazy_static 1.4.0",
  "pyo3",
  "regex",
@@ -2166,6 +2167,8 @@ dependencies = [
  "num-bigint 0.4.0",
  "num-traits 0.2.14",
  "origen",
+ "origen_metal",
+ "pyapi_metal",
  "pyo3",
  "regex",
 ]
@@ -2482,6 +2485,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c7ed8b8c7b886ea3ed7dde405212185f423ab44682667c8c6dd14aa1d9f6612"
 dependencies = [
  "unicode-xid 0.2.2",
+]
+
+[[package]]
+name = "pyapi_metal"
+version = "0.3.0"
+dependencies = [
+ "built",
+ "curl-sys",
+ "libz-sys",
+ "openssl",
+ "origen_metal",
+ "pyo3",
 ]
 
 [[package]]

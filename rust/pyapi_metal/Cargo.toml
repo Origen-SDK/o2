@@ -8,7 +8,7 @@ authors = ["Origen-SDK"]
 
 [lib]
 name = "origen_metal"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
 
 [dependencies]
 origen_metal = { path = "../origen_metal" }
@@ -16,11 +16,16 @@ origen_metal = { path = "../origen_metal" }
 # Statically links these libs to make the Python extension more portable
 libz-sys = { version = "1.0.25", features = ["static"] }
 curl-sys = { version = "0.4.34", features = ["static-curl"] }
+
+[target.x86_64-unknown-linux-musl.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]
 version = "0.14.3"
 features = ["extension-module"]
+
+[build-dependencies]
+built = "0.5.1"
 
 [package.metadata.maturin]
 name = "origen_metal._origen_metal"

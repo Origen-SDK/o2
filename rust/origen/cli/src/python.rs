@@ -9,12 +9,13 @@ use std::process::{Command, ExitStatus, Stdio};
 const PYTHONS: &[&str] = &[
     "python",
     "python3",
+    "python3.10",
+    "python3.9",
     "python3.8",
     "python3.7",
     "python3.6",
-    "python3.5",
 ];
-pub const MIN_PYTHON_VERSION: &str = "3.5.0";
+pub const MIN_PYTHON_VERSION: &str = "3.6.0";
 
 lazy_static! {
     pub static ref PYTHON_CONFIG: Config = Config::default();

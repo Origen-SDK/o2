@@ -93,6 +93,7 @@ pub struct Status {
     cli_location: RwLock<Option<PathBuf>>,
     cli_version: RwLock<Option<Version>>,
     pub origen_core_support_version: Version,
+    pub origen_metal_backend_version: Version,
     other_build_info: RwLock<HashMap<String, String>>,
     _custom_tester_ids: RwLock<Vec<String>>,
     testers_eq: RwLock<Vec<Vec<SupportedTester>>>,
@@ -178,8 +179,8 @@ impl Default for Status {
                     panic!("Could not determine origen-core-support version")
                 }
                 v
-            })
-            .unwrap(),
+            }).unwrap(),
+            origen_metal_backend_version: Version::new_semver(&origen_metal::VERSION).unwrap(),
             other_build_info: RwLock::new(HashMap::new()),
             is_app_in_origen_dev_mode: origen_dev_mode,
             in_origen_core_app: RwLock::new(false),
