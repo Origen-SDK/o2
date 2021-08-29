@@ -14,7 +14,7 @@ use semver::VersionReq;
 use std::process::Command;
 
 static MINIMUM_PIP_VERSION: &str = "21.1.2";
-static POETRY_VERSION: &str = "1.1.6";
+static MINIMUM_POETRY_VERSION: &str = "1.1.6";
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
@@ -237,10 +237,13 @@ fn install_poetry() {
     let mut attempts = 0;
     while attempts < 3 {
         print!("Is a suitable Poetry available? ... ");
-        let version = poetry_version();
-        let required_poetry_version = VersionReq::parse(&format!("={}", POETRY_VERSION)).unwrap();
+        let mut version = poetry_version();
+        let required_poetry_version = VersionReq::parse(&format!(">={}", MINIMUM_POETRY_VERSION)).unwrap();
 
-        if version.is_some() && required_poetry_version.matches(&version.unwrap()) {
+        if version.is_some() && required_poetry_version.matches(&{
+            version.as_mut().unwrap().pre = vec![]; // The comparison below will fail with any prereleases, which we don't want, so just ignore it.
+            version.unwrap()
+        }) {
             greenln("YES");
             attempts = 3;
         } else {
@@ -264,7 +267,7 @@ fn install_poetry() {
                     displayln!("Installing Poetry, please wait a few moments")
                 }
                 c.arg("--ignore-installed");
-                c.arg(format!("poetry=={}", POETRY_VERSION));
+                c.arg(format!("poetry=={}", MINIMUM_POETRY_VERSION));
                 match c.output() {
                     Ok(output) => {
                         let text = std::str::from_utf8(&output.stdout).unwrap();
