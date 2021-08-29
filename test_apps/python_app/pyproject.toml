@@ -13,6 +13,9 @@ python_plugin = { path = "../python_plugin", develop = true }
 pytest = "^6.0"
 origen_metal = { path = "../../python/origen_metal", develop = true }
 
+# Only needed for Python 3.10 currently
+crashtest = { version = "^ 0.3.1", python = "3.10" }
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
