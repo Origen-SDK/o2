@@ -13,7 +13,7 @@ use regex::Regex;
 use semver::VersionReq;
 use std::process::Command;
 
-static MINIMUM_PIP_VERSION: &str = "21.1.2";
+static MINIMUM_PIP_VERSION: &str = "21.2.4";
 static MINIMUM_POETRY_VERSION: &str = "1.1.6";
 
 pub fn run(matches: &ArgMatches) {
