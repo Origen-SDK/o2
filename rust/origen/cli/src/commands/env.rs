@@ -238,12 +238,15 @@ fn install_poetry() {
     while attempts < 3 {
         print!("Is a suitable Poetry available? ... ");
         let mut version = poetry_version();
-        let required_poetry_version = VersionReq::parse(&format!(">={}", MINIMUM_POETRY_VERSION)).unwrap();
+        let required_poetry_version =
+            VersionReq::parse(&format!(">={}", MINIMUM_POETRY_VERSION)).unwrap();
 
-        if version.is_some() && required_poetry_version.matches(&{
-            version.as_mut().unwrap().pre = vec![]; // The comparison below will fail with any prereleases, which we don't want, so just ignore it.
-            version.unwrap()
-        }) {
+        if version.is_some()
+            && required_poetry_version.matches(&{
+                version.as_mut().unwrap().pre = vec![]; // The comparison below will fail with any prereleases, which we don't want, so just ignore it.
+                version.unwrap()
+            })
+        {
             greenln("YES");
             attempts = 3;
         } else {

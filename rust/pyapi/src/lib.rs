@@ -29,6 +29,7 @@ mod utility;
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use pyapi_metal::pypath;
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
@@ -36,7 +37,6 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
-use pyapi_metal::pypath;
 
 // Imported pyapi modules
 use application::PyInit_application;

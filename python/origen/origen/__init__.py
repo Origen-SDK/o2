@@ -77,7 +77,8 @@ __console_history_file__ = None
 
 if status["is_app_present"]:
     root = Path(status["root"])
-    __console_history_file__ = root.joinpath(".origen").joinpath("console_history")
+    __console_history_file__ = root.joinpath(".origen").joinpath(
+        "console_history")
 
 __in_origen_core_app = status["in_origen_core_app"]
 ''' Indicates if the current application is the Origen core package

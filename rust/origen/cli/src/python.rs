@@ -139,7 +139,7 @@ fn extract_version(text: &str) -> Option<Version> {
             match Version::parse(&c) {
                 Ok(v) => {
                     return Some(v);
-                },
+                }
                 Err(e) => {
                     panic!("Unable to parse version {}. Received Error:\n {}", c, e);
                 }

@@ -1,5 +1,6 @@
 import sys, code
 
+
 def prep_shell(history_file):
     if sys.platform == "win32":
         # The below is needed only for pyreadline, which is needed only for Windows support.
@@ -107,18 +108,16 @@ def prep_shell(history_file):
 
         readline.write_history_file(history)
 
-
     if os.path.exists(history_file):
         readline.read_history_file(str(history_file))
 
     atexit.register(save_history)
 
+
 def metal_context():
     import origen_metal
-    return {
-        "origen_metal": origen_metal,
-        "om": origen_metal
-    }
+    return {"origen_metal": origen_metal, "om": origen_metal}
+
 
 def interact(banner=None, context=None):
     code.interact(

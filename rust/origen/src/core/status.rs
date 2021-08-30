@@ -179,7 +179,8 @@ impl Default for Status {
                     panic!("Could not determine origen-core-support version")
                 }
                 v
-            }).unwrap(),
+            })
+            .unwrap(),
             origen_metal_backend_version: Version::new_semver(&origen_metal::VERSION).unwrap(),
             other_build_info: RwLock::new(HashMap::new()),
             is_app_in_origen_dev_mode: origen_dev_mode,

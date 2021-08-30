@@ -4,6 +4,7 @@ from __future__ import print_function, unicode_literals, absolute_import
 import pathlib
 import importlib
 
+
 def run_cmd(command,
             targets=None,
             verbosity=None,
@@ -77,10 +78,8 @@ def run_cmd(command,
         from origen import dut, tester
         from origen.registers.actions import write, verify, write_transaction, verify_transaction
         interactive.prep_shell(origen.__console_history_file__)
-        interactive.interact(
-            banner=f"Origen {origen.version}",
-            context = origen.__interactive_context__()
-        )
+        interactive.interact(banner=f"Origen {origen.version}",
+                             context=origen.__interactive_context__())
 
     elif command == "web:build":
         _origen.set_operation("web")
@@ -167,7 +166,8 @@ def run_cmd(command,
         else:
             print("Origen")
             try:
-                print(f"Success\n{tabify(importlib_metadata.version('origen'))}")
+                print(
+                    f"Success\n{tabify(importlib_metadata.version('origen'))}")
             except Exception as e:
                 print("Error")
                 print(tabify(repr(e)))
@@ -212,19 +212,19 @@ def run_cmd(command,
         except Exception as e:
             print("Error")
             print(tabify(repr(e)))
-        
+
         print("_ origen_metal")
         try:
-            print(f"Success\n{tabify(importlib_metadata.version('origen_metal'))}")
+            print(
+                f"Success\n{tabify(importlib_metadata.version('origen_metal'))}"
+            )
         except Exception as e:
             print("Error")
             print(tabify(repr(e)))
 
         print("_ _origen_metal (PyAPI Metal)")
         try:
-            print(
-                f"Success\n{tabify(origen_metal._origen_metal.__version__)}"
-            )
+            print(f"Success\n{tabify(origen_metal._origen_metal.__version__)}")
         except Exception as e:
             print("Error")
             print(tabify(repr(e)))
