@@ -6,7 +6,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: [3.6, 3.7, 3.8, 3.9, 3.10.0-rc.1]
+        python-version: [3.6, 3.7, 3.8, 3.9]
 
     runs-on: ${{ matrix.os }}
     env:
@@ -56,32 +56,6 @@ jobs:
       - name: Build PyAPI
         run: origen build
 
-      - name: Install Prerelease Poetry For Python 3.10
-        if: matrix.python-version == '3.10.0-rc.1'
-        uses: abatilo/actions-poetry@v2.0.0
-        with:
-          poetry-version: 1.2.0a2
-
-      - name: Display Poetry Version
-        if: matrix.python-version == '3.10.0-rc.1'
-        working-directory: test_apps/python_app
-        run: poetry --version
-
-      - name: Run Update Specifically for 3.10 (OrigenMetal)
-        if: matrix.python-version == '3.10.0-rc.1'
-        working-directory: python/origen_metal
-        run: poetry update
-
-      - name: Run Update Specifically for 3.10 (Origen)
-        if: matrix.python-version == '3.10.0-rc.1'
-        working-directory: python/origen
-        run: poetry update
-
-      - name: Run Update Specifically for 3.10
-        if: matrix.python-version == '3.10.0-rc.1'
-        working-directory: test_apps/python_app
-        run: poetry update
-
       - name: Setup App Env
         working-directory: test_apps/python_app
         run: origen env setup
@@ -111,7 +85,6 @@ jobs:
         run: origen build --metal
 
       - name: Install Poetry
-        if: matrix.python-version != '3.10.0-rc.1'
         uses: abatilo/actions-poetry@v2.0.0
         with:
           poetry-version: 1.1.7

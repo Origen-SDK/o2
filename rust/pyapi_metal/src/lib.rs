@@ -9,7 +9,7 @@ pub mod built_info {
 }
 
 #[pymodule]
-pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
     utils::define(py, m)?;
     m.setattr("__version__", built_info::PKG_VERSION)?;
     m.setattr("__origen_metal_backend_version__", origen_metal::VERSION.to_string())?;

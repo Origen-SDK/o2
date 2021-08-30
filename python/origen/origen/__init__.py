@@ -63,16 +63,20 @@ status = _origen.status()
         dict: Application and/or workspace attributes as key-value pairs.
 '''
 
-# root = Path(status["root"])
+root = None
+''' If applicable, returns the application's root.
+
+    Returns:
+        pathlib.Path: Application's root as an OS-specific path object.
+        None: If not in an application's workspace.
+'''
+
+__console_history_file__ = None
+''' History file when ``origen i`` is run. Only valid when an app is present.
+'''
+
 if status["is_app_present"]:
     root = Path(status["root"])
-    ''' If applicable, returns the application's root.
-
-        Returns:
-            pathlib.Path: Application's root as an OS-specific path object.
-            None: If not in an application's workspace.
-    '''
-
     __console_history_file__ = root.joinpath(".origen").joinpath("console_history")
 
 __in_origen_core_app = status["in_origen_core_app"]
@@ -303,6 +307,8 @@ def current_user():
 
 
 def __interactive_context__():
+    ''' Returns the local context passed to an interactive section ``origen i`` is run.
+    '''
     from origen_metal._helpers import interactive
     from origen.registers.actions import write, verify, write_transaction, verify_transaction
     context = {
