@@ -62,9 +62,10 @@ jobs:
         with:
           poetry-version: 1.2.0a2
 
-      - name: Setup App Env
+      - name: Display Poetry Version
+        if: matrix.python-version == '3.10.0-rc.1'
         working-directory: test_apps/python_app
-        run: origen env setup
+        run: poetry --version
 
       - name: Run Update Specifically for 3.10 (OrigenMetal)
         if: matrix.python-version == '3.10.0-rc.1'
@@ -75,6 +76,10 @@ jobs:
         if: matrix.python-version == '3.10.0-rc.1'
         working-directory: python/origen
         run: poetry update
+
+      - name: Setup App Env
+        working-directory: test_apps/python_app
+        run: origen env setup
 
       - name: Run Update Specifically for 3.10
         if: matrix.python-version == '3.10.0-rc.1'
