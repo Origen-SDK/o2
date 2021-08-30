@@ -77,17 +77,14 @@ jobs:
         working-directory: python/origen
         run: poetry update
 
-      - name: Setup App Env
-        working-directory: test_apps/python_app
-        run: origen env setup
-
       - name: Run Update Specifically for 3.10
         if: matrix.python-version == '3.10.0-rc.1'
         working-directory: test_apps/python_app
-        run: |
-          rm setup.py
-          rm poetry.lock
-          poetry update
+        run: poetry update
+
+      - name: Setup App Env
+        working-directory: test_apps/python_app
+        run: origen env setup
 
       - name: Display Origen App Version
         working-directory: test_apps/python_app
