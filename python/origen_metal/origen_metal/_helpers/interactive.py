@@ -90,7 +90,7 @@ def prep_shell(history_file):
 
             console.install_readline(rl.readline)
 
-        __all__ += ["rl", "run_cmd"]
+        __all__ += ["rl"]
 
     import atexit, readline, os, colorama
 
