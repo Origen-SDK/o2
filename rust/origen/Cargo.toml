@@ -87,7 +87,7 @@ built = "0.5.1"
 walkdir = "2"
 
 # Additional items required to build a full self-contained origen CLI binary for Linux
-[target.x86_64-unknown-linux-musl.dependencies]
+[target.x86_64-unknown-linux-gnu.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
 [features]

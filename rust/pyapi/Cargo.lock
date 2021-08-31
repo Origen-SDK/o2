@@ -2166,6 +2166,7 @@ dependencies = [
  "num 0.2.1",
  "num-bigint 0.4.0",
  "num-traits 0.2.14",
+ "openssl",
  "origen",
  "origen_metal",
  "pyapi_metal",
