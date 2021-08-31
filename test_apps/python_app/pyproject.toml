@@ -5,12 +5,17 @@ description = ""
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.6,<3.9"
-origen = { path = "../../python/origen", develop = true }
+python = ">=3.6,<3.11"
+origen = "= 2.0.0.dev5"
 python_plugin = { path = "../python_plugin", develop = true }
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.0"
+origen = { path = "../../python/origen", develop = true }
+origen_metal = { path = "../../python/origen_metal", develop = true }
+
+# Only needed for Python 3.10 currently
+crashtest = { version = "^ 0.3.1", python = "3.10.*" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

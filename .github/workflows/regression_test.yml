@@ -6,7 +6,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7, 3.8, 3.9]
 
     runs-on: ${{ matrix.os }}
     env:
@@ -55,11 +55,11 @@ jobs:
 
       - name: Build PyAPI
         run: origen build
-      
+
       - name: Setup App Env
         working-directory: test_apps/python_app
         run: origen env setup
-      
+
       - name: Display Origen App Version
         working-directory: test_apps/python_app
         run: origen -v

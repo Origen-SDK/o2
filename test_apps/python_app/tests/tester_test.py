@@ -166,25 +166,30 @@ class TestTesterAPI:
 
 
 def test_adding_frontend_renderer(clean_eagle, clean_tester):
-    assert "CUSTOM::tester_test.PyTestRenderer" not in origen.tester.testers
+    t = "CUSTOM::tests.tester_test.PyTestRenderer"
+    assert t not in origen.tester.testers
     origen.tester.register_tester(PyTestRenderer)
-    assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
+    assert t in origen.tester.testers
 
 
 def test_frontend_testers_can_be_targeted():
     origen.tester.reset()
-    assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
+    tname = "tests.tester_test.PyTestRenderer"
+    t = f"CUSTOM::{tname}"
+    assert t in origen.tester.testers
     assert origen.tester.targets == []
-    origen.tester.target("CUSTOM::tester_test.PyTestRenderer")
-    assert origen.tester.targets == ['CUSTOM("tester_test.PyTestRenderer")']
+    origen.tester.target(t)
+    assert origen.tester.targets == [f'CUSTOM(\"{tname}\")']
 
 
 def test_frontend_testers_can_be_targeted_as_class():
     origen.tester.reset()
-    assert "CUSTOM::tester_test.PyTestRenderer" in origen.tester.testers
+    tname = "tests.tester_test.PyTestRenderer"
+    t = f"CUSTOM::{tname}"
+    assert t in origen.tester.testers
     assert origen.tester.targets == []
     origen.tester.target(PyTestRenderer)
-    assert origen.tester.targets == ['CUSTOM("tester_test.PyTestRenderer")']
+    assert origen.tester.targets == [f'CUSTOM(\"{tname}\")']
 
 
 def run_pattern():
@@ -205,7 +210,7 @@ def tester_target_frontend_dummy():
     except OSError:
         # If we get an error back that shows it's already been added, that's fine. Ignore it.
         pass
-    origen.tester.target("CUSTOM::tester_test.PyTestRenderer")
+    origen.tester.target("CUSTOM::tests.tester_test.PyTestRenderer")
 
 
 class TestBackendRenderer:

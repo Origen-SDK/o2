@@ -9,12 +9,13 @@ use std::process::{Command, ExitStatus, Stdio};
 const PYTHONS: &[&str] = &[
     "python",
     "python3",
+    "python3.10",
+    "python3.9",
     "python3.8",
     "python3.7",
     "python3.6",
-    "python3.5",
 ];
-pub const MIN_PYTHON_VERSION: &str = "3.5.0";
+pub const MIN_PYTHON_VERSION: &str = "3.6.0";
 
 lazy_static! {
     pub static ref PYTHON_CONFIG: Config = Config::default();
@@ -115,7 +116,7 @@ pub fn poetry_version() -> Option<Version> {
 }
 
 fn extract_version(text: &str) -> Option<Version> {
-    let re = regex::Regex::new(r".*(\d+\.\d+\.\d+)([^\s]+)?").unwrap();
+    let re = regex::Regex::new(r".*(\d+\.\d+\.\d+)([^\s\)]+)?").unwrap();
 
     match re.captures(text) {
         Some(x) => {
@@ -135,8 +136,14 @@ fn extract_version(text: &str) -> Option<Version> {
                     v.to_string()
                 }
             };
-            let v = Version::parse(&c).unwrap();
-            return Some(v);
+            match Version::parse(&c) {
+                Ok(v) => {
+                    return Some(v);
+                }
+                Err(e) => {
+                    panic!("Unable to parse version {}. Received Error:\n {}", c, e);
+                }
+            }
         }
         None => {
             return None;

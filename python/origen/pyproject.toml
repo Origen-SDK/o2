@@ -21,9 +21,9 @@ generate-setup-file = false
 o2 = 'origen.__bin__:run_origen'
 
 [tool.poetry.dependencies]
-python =  ">=3.6,<3.9"
+python =  ">=3.6,<3.11"
+origen_metal = "= 0.3.0"
 termcolor = ">= 1.1.0"
-pyreadline = { version = "^2.1",  platform = "win32" }
 colorama = "^0.4"
 bs4 = "0.0.1"
 beautifulsoup4 = "4.8.2"
@@ -36,9 +36,11 @@ sphinxbootstrap4theme = ">= 0"
 yapf = "0.30"
 poetry = "1.1.6"
 Jinja2 = "^2"
+importlib-metadata = ">= 1.7.0" # For use with Python pre-3.8
 
 [tool.poetry.dev-dependencies]
-pytest = "^3.0"
+pytest = "^6.2.4"
+origen_metal = { path = "../origen_metal", develop = true }
 
 [build-system]
 requires = ["setuptools", "poetry-core>=1.0.0"]

@@ -49,7 +49,7 @@ rpassword = "4.0"
 num-bigint = {version = "0.4.0", features = ["serde"]}
 # Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
 # in origen to enable conversion of an Origen error to a PyErr.
-pyo3 = {version = "0.14.3", features = ["extension-module", "auto-initialize"]}
+pyo3 = {version = "0.14.4", features = ["extension-module", "auto-initialize"]}
 chrono = "0.4.11"
 origen-core-support = { version = "0.1.0-dev.1", path = "./origen-core-support" }
 whoami = "0.8"
@@ -87,7 +87,7 @@ built = "0.5.1"
 walkdir = "2"
 
 # Additional items required to build a full self-contained origen CLI binary for Linux
-[target.x86_64-unknown-linux-musl.dependencies]
+[target.x86_64-unknown-linux-gnu.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
 [features]

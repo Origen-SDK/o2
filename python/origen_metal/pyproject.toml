@@ -5,9 +5,12 @@ description = "Bare metal APIs for the Origen SDK"
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.6,<3.9"
+python = ">=3.6,<3.11"
+pyreadline3 = { version="^3.3", platform="win32" }
+termcolor = ">= 1.1.0"
+colorama = ">= 0.4.4" # Note: colorama is usually installed on the system already, but it isn't actually required (e.g. WSL won't have this by default)
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^6.2.4"
 # Only works with 3.7 and above
 #pdoc = "^7"

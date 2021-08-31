@@ -3,9 +3,19 @@ mod utils;
 use pyo3::prelude::*;
 use pyo3::py_run;
 
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 #[pymodule]
 fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
     utils::define(py, m)?;
+    m.setattr("__version__", built_info::PKG_VERSION)?;
+    m.setattr(
+        "__origen_metal_backend_version__",
+        origen_metal::VERSION.to_string(),
+    )?;
     Ok(())
 }
 
@@ -19,6 +29,20 @@ where
     py_run!(py, m, &format!("import sys; sys.modules['{}'] = m", path));
     parent.add_submodule(m)?;
     Ok(())
+}
+
+#[macro_export]
+macro_rules! pypath {
+    ($py:expr, $path:expr) => {{
+        use pyo3::types::IntoPyDict;
+        let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
+        let obj = $py.eval(
+            &format!("pathlib.Path(r\"{}\").resolve()", $path),
+            None,
+            Some(&locals),
+        )?;
+        obj.to_object($py)
+    }};
 }
 
 #[cfg(test)]

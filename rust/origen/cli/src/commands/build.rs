@@ -167,89 +167,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
 
     // Build the metal_pyapi
     } else if matches.is_present("metal") {
-        let pyapi_dir = &STATUS.origen_wksp_root.join("rust").join("pyapi_metal");
-        cd(&pyapi_dir)?;
-
-        let mut args = vec!["build"];
-        let mut target = "debug";
-        let mut arch_target = None;
-
-        if matches.is_present("release") {
-            args.push("--release");
-            target = "release";
-        }
-        if let Some(t) = matches.value_of("target") {
-            args.push("--target");
-            args.push(t);
-            arch_target = Some(t);
-        }
-
-        Command::new("cargo")
-            .args(&args)
-            .status()
-            .expect("failed to execute process");
-
-        if cfg!(windows) {
-            let link = &STATUS
-                .origen_wksp_root
-                .join("python")
-                .join("origen_metal")
-                .join("origen_metal")
-                .join("_origen_metal.pyd");
-            let target = match arch_target {
-                None => pyapi_dir
-                    .join("target")
-                    .join(target)
-                    .join("origen_metal.dll"),
-                Some(t) => pyapi_dir
-                    .join("target")
-                    .join(t)
-                    .join(target)
-                    .join("origen_metal.dll"),
-            };
-            if link.exists() {
-                std::fs::remove_file(&link).expect(&format!(
-                    "Couldn't delete existing _origen_metal.pyd at '{}'",
-                    link.display()
-                ));
-            }
-            // Copy rather than link the file for now to avoid any issues with symlinks not working in user env
-            std::fs::copy(&target, &link).expect(&format!(
-                "Couldn't copy file from '{}' to '{}",
-                target.display(),
-                link.display()
-            ));
-        } else {
-            let link = &STATUS
-                .origen_wksp_root
-                .join("python")
-                .join("origen_metal")
-                .join("origen_metal")
-                .join("_origen_metal.so");
-            let target = match arch_target {
-                None => pyapi_dir
-                    .join("target")
-                    .join(target)
-                    .join("liborigen_metal.so"),
-                Some(t) => pyapi_dir
-                    .join("target")
-                    .join(t)
-                    .join(target)
-                    .join("liborigen_metal.so"),
-            };
-            if link.exists() {
-                std::fs::remove_file(&link).expect(&format!(
-                    "Couldn't delete existing _origen_metal.so at '{}'",
-                    link.display()
-                ));
-            }
-            symlink(&target, &link).expect(&format!(
-                "Couldn't create symlink from '{}' to '{}",
-                link.display(),
-                target.display()
-            ));
-        }
-
+        build_metal(matches)?;
     // Build the PyAPI by default
     } else {
         // A publish build will also build the origen_pyapi Python package and
@@ -319,6 +237,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
         // A standard (non-published) build, this can be requested from an Origen workspace or an app workspace that
         // is locally referencing an Origen workspace
         } else {
+            build_metal(matches)?;
             let pyapi_dir = STATUS.origen_wksp_root.join("rust").join("pyapi");
             cd(&pyapi_dir)?;
             display!("");
@@ -388,6 +307,92 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             }
             display!("");
         }
+    }
+    Ok(())
+}
+
+fn build_metal(matches: &ArgMatches) -> Result<()> {
+    let pyapi_dir = &STATUS.origen_wksp_root.join("rust").join("pyapi_metal");
+    cd(&pyapi_dir)?;
+
+    let mut args = vec!["build"];
+    let mut target = "debug";
+    let mut arch_target = None;
+
+    if matches.is_present("release") {
+        args.push("--release");
+        target = "release";
+    }
+    if let Some(t) = matches.value_of("target") {
+        args.push("--target");
+        args.push(t);
+        arch_target = Some(t);
+    }
+
+    Command::new("cargo")
+        .args(&args)
+        .status()
+        .expect("failed to execute process");
+
+    if cfg!(windows) {
+        let link = &STATUS
+            .origen_wksp_root
+            .join("python")
+            .join("origen_metal")
+            .join("origen_metal")
+            .join("_origen_metal.pyd");
+        let target = match arch_target {
+            None => pyapi_dir
+                .join("target")
+                .join(target)
+                .join("origen_metal.dll"),
+            Some(t) => pyapi_dir
+                .join("target")
+                .join(t)
+                .join(target)
+                .join("origen_metal.dll"),
+        };
+        if link.exists() {
+            std::fs::remove_file(&link).expect(&format!(
+                "Couldn't delete existing _origen_metal.pyd at '{}'",
+                link.display()
+            ));
+        }
+        // Copy rather than link the file for now to avoid any issues with symlinks not working in user env
+        std::fs::copy(&target, &link).expect(&format!(
+            "Couldn't copy file from '{}' to '{}",
+            target.display(),
+            link.display()
+        ));
+    } else {
+        let link = &STATUS
+            .origen_wksp_root
+            .join("python")
+            .join("origen_metal")
+            .join("origen_metal")
+            .join("_origen_metal.so");
+        let target = match arch_target {
+            None => pyapi_dir
+                .join("target")
+                .join(target)
+                .join("liborigen_metal.so"),
+            Some(t) => pyapi_dir
+                .join("target")
+                .join(t)
+                .join(target)
+                .join("liborigen_metal.so"),
+        };
+        if link.exists() {
+            std::fs::remove_file(&link).expect(&format!(
+                "Couldn't delete existing _origen_metal.so at '{}'",
+                link.display()
+            ));
+        }
+        symlink(&target, &link).expect(&format!(
+            "Couldn't create symlink from '{}' to '{}",
+            link.display(),
+            target.display()
+        ));
     }
     Ok(())
 }

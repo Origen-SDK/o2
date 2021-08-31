@@ -2,6 +2,8 @@
 #[macro_use]
 extern crate origen;
 
+use pyapi_metal;
+
 mod dut;
 mod file_handler;
 mod logger;
@@ -27,6 +29,7 @@ mod utility;
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use pyapi_metal::pypath;
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
@@ -53,20 +56,6 @@ use utility::PyInit_utility;
 pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
-
-#[macro_export]
-macro_rules! pypath {
-    ($py:expr, $path:expr) => {{
-        use pyo3::types::IntoPyDict;
-        let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
-        let obj = $py.eval(
-            &format!("pathlib.Path(r\"{}\").resolve()", $path),
-            None,
-            Some(&locals),
-        )?;
-        obj.to_object($py)
-    }};
 }
 
 #[pymodule]
@@ -485,6 +474,10 @@ fn status(py: Python) -> PyResult<PyObject> {
     ret.set_item(
         "origen_core_support_version",
         STATUS.origen_core_support_version.to_string(),
+    )?;
+    ret.set_item(
+        "origen_metal_backend_version",
+        STATUS.origen_metal_backend_version.to_string(),
     )?;
     ret.set_item(
         "other_build_info",
