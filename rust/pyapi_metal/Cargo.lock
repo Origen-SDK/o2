@@ -246,9 +246,11 @@ dependencies = [
  "lazy_static",
  "pyo3",
  "regex",
+ "serde",
  "tempfile",
  "termcolor",
  "time",
+ "toml",
 ]
 
 [[package]]

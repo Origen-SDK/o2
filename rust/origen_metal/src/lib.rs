@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
+extern crate serde;
+#[macro_use]
 pub mod macros;
 
 mod error;
-pub mod logger;
-pub mod terminal;
+pub mod framework;
 pub mod utils;
 use std::fmt::Display;
 
@@ -17,7 +18,7 @@ pub mod built_info {
 }
 
 lazy_static! {
-    pub static ref LOGGER: logger::Logger = logger::Logger::default();
+    pub static ref LOGGER: framework::logger::Logger = framework::logger::Logger::default();
     pub static ref VERSION: &'static str = built_info::PKG_VERSION;
 }
 

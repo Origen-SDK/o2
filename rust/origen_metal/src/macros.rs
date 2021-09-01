@@ -22,7 +22,7 @@ macro_rules! error {
         $crate::Error::new($err)
     });
     ($fmt:expr, $($arg:tt)*) => {
-        $crate::Error(format!($fmt, $($arg)*))
+        $crate::Error { msg: format!($fmt, $($arg)*) }
     };
 }
 

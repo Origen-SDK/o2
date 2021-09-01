@@ -8,6 +8,7 @@ use crate::utility::str_to_bool;
 use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
+use origen_metal::framework::reference_files;
 use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -25,6 +26,9 @@ pub struct Application {
 impl Application {
     pub fn new(root: PathBuf) -> Application {
         log_trace!("Building new Application");
+        // Configure origen_metal
+        reference_files::set_save_ref_dir(root.join(".origen").join("save_refs"));
+        // Now create the app instance
         let config = Config::build(&root, false);
         Application {
             root: root,

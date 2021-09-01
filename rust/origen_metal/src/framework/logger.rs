@@ -54,7 +54,7 @@
 //!
 extern crate time;
 
-use crate::terminal;
+use crate::utils::terminal;
 use crate::Result;
 use std::cell::RefCell;
 use std::fs;
