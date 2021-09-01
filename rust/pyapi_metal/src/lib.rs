@@ -1,3 +1,4 @@
+mod framework;
 mod utils;
 
 use pyo3::prelude::*;
@@ -10,6 +11,7 @@ pub mod built_info {
 
 #[pymodule]
 fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+    framework::define(py, m)?;
     utils::define(py, m)?;
     m.setattr("__version__", built_info::PKG_VERSION)?;
     m.setattr(

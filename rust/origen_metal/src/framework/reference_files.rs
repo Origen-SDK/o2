@@ -129,30 +129,30 @@ fn apply_all_refs(dir: &Path, kind: SaveRefType) -> Result<()> {
 }
 
 /// Create a new record of a changed file, providing a key with which to reference it by in future,
-/// a path to the new file (the source) and a path to the reference file (the dest).
+/// a path to the new file and a path to the reference file.
 ///
 /// The reference file can be updated to the new file in future by either calling apply_all_changed_refs()
 /// or by calling apply_ref(key), where key should match the value given here.
-pub fn create_changed_ref(key: &Path, source: &Path, dest: &Path) -> Result<()> {
+pub fn create_changed_ref(key: &Path, new_file: &Path, ref_file: &Path) -> Result<()> {
     let s = SaveRef {
         kind: SaveRefType::Changed,
-        source: source.to_owned(),
-        dest: dest.to_owned(),
+        source: new_file.to_owned(),
+        dest: ref_file.to_owned(),
     };
     s.save(key)?;
     Ok(())
 }
 
 /// Create a new record of a new file, providing a key with which to reference it by in future,
-/// a path to the new file (the source) and a path to the reference file (the dest).
+/// a path to the new file and a path to the reference file (which doesn't exist yet).
 ///
 /// The reference file can be updated to the new file in future by either calling apply_all_new_refs()
 /// or by calling apply_ref(key), where key should match the value given here.
-pub fn create_new_ref(key: &Path, source: &Path, dest: &Path) -> Result<()> {
+pub fn create_new_ref(key: &Path, new_file: &Path, ref_file: &Path) -> Result<()> {
     let s = SaveRef {
         kind: SaveRefType::New,
-        source: source.to_owned(),
-        dest: dest.to_owned(),
+        source: new_file.to_owned(),
+        dest: ref_file.to_owned(),
     };
     s.save(key)?;
     Ok(())
