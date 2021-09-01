@@ -25,7 +25,7 @@ fn py_submodule<F>(py: Python, parent: &PyModule, path: &str, func: F) -> PyResu
 where
     F: FnOnce(&PyModule) -> PyResult<()>,
 {
-    let m = PyModule::new(py, "differ")?;
+    let m = PyModule::new(py, path)?;
     func(m)?;
     // py_run! is quick-and-dirty; should be replaced by PyO3 API calls in actual code
     py_run!(py, m, &format!("import sys; sys.modules['{}'] = m", path));
