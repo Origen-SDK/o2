@@ -1,12 +1,11 @@
-from typing import Optional
+from typing import Optional, Tuple, List
 
 
 def has_diffs(
     file_a: str,
     file_b: str,
-    ignore_comments: Optional[str] = None,
-    suspend_on: Optional[str] = None,
-    resume_on: Optional[str] = None,
+    ignore_comments: Optional[List[str]] = None,
+    ignore_block: Optional[List[Tuple[str, str]]] = None,
     ignore_blank_lines: bool = True,
 ) -> bool:
     """
@@ -23,11 +22,10 @@ def has_diffs(
 
     ```python
     # Ignore Python style comments
-    has_diffs("file_a.py", "file_b.py", ignore_comments="#")
+    has_diffs("file_a.py", "file_b.py", ignore_comments=["#"])
 
     # Ignore C++ style comments, including blocks
-    has_diffs("file_a.cpp", "file_b.cpp", ignore_comments="//", suspend_on="/*", resume_on="*/")
-
+    has_diffs("file_a.cpp", "file_b.cpp", ignore_comments=["//"], ignore_block=[("/*", "*/")])
     ```
     """
     ...
