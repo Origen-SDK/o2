@@ -13,10 +13,10 @@ def test_basic_operation():
     os.close(fb)
 
     assert (has_diffs(file_a, file_b))
-    assert (not has_diffs(file_a, file_b, ignore_comments="//"))
+    assert (not has_diffs(file_a, file_b, ignore_comments=["//"]))
     assert (has_diffs(file_a,
                       file_b,
-                      ignore_comments="//",
+                      ignore_comments=["//"],
                       ignore_blank_lines=False))
 
 
@@ -40,7 +40,7 @@ def test_basic_suspend_works():
 
     assert (has_diffs(file_a, file_b))
     assert (not has_diffs(
-        file_a, file_b, suspend_on="<START>", resume_on="<STOP>"))
+        file_a, file_b, ignore_blocks=[("<START>", "<STOP>")]))
 
 
 def test_pre_suspend_works():
@@ -62,8 +62,7 @@ def test_pre_suspend_works():
     os.close(fb)
 
     assert (has_diffs(file_a, file_b))
-    assert (has_diffs(file_a, file_b, suspend_on="<START>",
-                      resume_on="<STOP>"))
+    assert (has_diffs(file_a, file_b, ignore_blocks=[("<START>", "<STOP>")]))
 
 
 def test_post_suspend_works():
@@ -85,8 +84,7 @@ def test_post_suspend_works():
     os.close(fb)
 
     assert (has_diffs(file_a, file_b))
-    assert (has_diffs(file_a, file_b, suspend_on="<START>",
-                      resume_on="<STOP>"))
+    assert (has_diffs(file_a, file_b, ignore_blocks=[("<START>", "<STOP>")]))
 
 
 def test_blank_lines_works():
@@ -124,4 +122,4 @@ def test_c_style_comments():
          This part is the same""")
 
     assert (has_diffs(file_a, file_b))
-    assert (not has_diffs(file_a, file_b, suspend_on="/*", resume_on="*/"))
+    assert (not has_diffs(file_a, file_b, ignore_blocks=[("/*", "*/")]))

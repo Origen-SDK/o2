@@ -1,5 +1,5 @@
 """
-This module provides APIs that are closely related to creating feature for an application framework
+This module provides APIs that are closely related to creating features for an application framework
 like Origen, e.g. a logging system.
 
 They are generic enough to allow you to use them to create a similar feature in your own

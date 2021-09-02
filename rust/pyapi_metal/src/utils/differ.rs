@@ -5,14 +5,14 @@ use std::path::Path;
 
 #[pyfunction(
     ignore_comments = "None",
-    ignore_block = "None",
+    ignore_blocks = "None",
     ignore_blank_lines = "true"
 )]
 pub fn has_diffs(
     file_a: &str,
     file_b: &str,
     ignore_comments: Option<Vec<String>>,
-    ignore_block: Option<Vec<Vec<String>>>,
+    ignore_blocks: Option<Vec<Vec<String>>>,
     ignore_blank_lines: bool,
 ) -> PyResult<bool> {
     let mut differ = ASCIIDiffer::new(Path::new(file_a), Path::new(file_b));
@@ -22,9 +22,9 @@ pub fn has_diffs(
             differ.ignore_comments(&c)?;
         }
     }
-    if let Some(blocks) = ignore_block {
+    if let Some(blocks) = ignore_blocks {
         for b in blocks {
-            differ.suspend_on(&c)?;
+            differ.ignore_block(&b[0], &b[1])?;
         }
     }
     Ok(differ.has_diffs()?)

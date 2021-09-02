@@ -5,7 +5,7 @@ def has_diffs(
     file_a: str,
     file_b: str,
     ignore_comments: Optional[List[str]] = None,
-    ignore_block: Optional[List[Tuple[str, str]]] = None,
+    ignore_blocks: Optional[List[Tuple[str, str]]] = None,
     ignore_blank_lines: bool = True,
 ) -> bool:
     """
@@ -16,8 +16,9 @@ def has_diffs(
     not result in a diff being reported if they are otherwise the same.
 
     Differences in comments can be ignored by specifying the comment char(s) to be used,
-    and also start and end sequences for C-style block comments
-
+    and blocks of content can be ignored (e.g. C-style block comments) by specifying start
+    and end characters.
+    
     # Examples
 
     ```python
@@ -25,7 +26,13 @@ def has_diffs(
     has_diffs("file_a.py", "file_b.py", ignore_comments=["#"])
 
     # Ignore C++ style comments, including blocks
-    has_diffs("file_a.cpp", "file_b.cpp", ignore_comments=["//"], ignore_block=[("/*", "*/")])
+    has_diffs("file_a.cpp", "file_b.cpp", ignore_comments=["//"], ignore_blocks=[("/*", "*/")])
+    
+    # Multiple entries can be given to both the ignore_comments and ignore_blocks arguments
+    has_diffs("file_a.cpp",
+              "file_b.cpp",
+              ignore_comments=["//", "#"],
+              ignore_blocks=[("/*", "*/"), ("{{", "}}")])
     ```
     """
     ...
