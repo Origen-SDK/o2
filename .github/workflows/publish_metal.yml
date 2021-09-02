@@ -17,7 +17,7 @@ jobs:
         with: 
           maturin-version: v0.11.3-beta.6
           command: build
-          args: --release --no-sdist --manifest-path rust/pyapi_metal/Cargo.toml --interpreter python3.6 python3.7 python3.8 python3.9
+          args: --release --no-sdist --manifest-path rust/pyapi_metal/Cargo.toml --interpreter python3.7 python3.8 python3.9
           manylinux: 2010
           container: quay.io/pypa/manylinux2010_x86_64:2021-08-16-2fbce44
           rust-toolchain: 1.54.0
@@ -28,7 +28,7 @@ jobs:
         with: 
           maturin-version: v0.11.3-beta.6
           command: build
-          args: --release --no-sdist --manifest-path rust/pyapi_metal/Cargo.toml --interpreter C:\hostedtoolcache\windows\Python\3.6.8\x64\python.exe C:\hostedtoolcache\windows\Python\3.7.9\x64\python.exe C:\hostedtoolcache\windows\Python\3.8.10\x64\python.exe C:\hostedtoolcache\windows\Python\3.9.6\x64\python.exe
+          args: --release --no-sdist --manifest-path rust/pyapi_metal/Cargo.toml --interpreter C:\hostedtoolcache\windows\Python\3.7.9\x64\python.exe C:\hostedtoolcache\windows\Python\3.8.10\x64\python.exe C:\hostedtoolcache\windows\Python\3.9.6\x64\python.exe
           target: x86_64-pc-windows-msvc
           rust-toolchain: 1.54.0
 

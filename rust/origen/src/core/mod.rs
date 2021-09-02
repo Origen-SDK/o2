@@ -8,7 +8,6 @@ pub mod metadata;
 pub mod model;
 pub mod os;
 pub mod producer;
-pub mod reference_files;
 pub mod status;
 pub mod term;
 pub mod tester;

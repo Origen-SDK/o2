@@ -2143,15 +2143,17 @@ dependencies = [
 
 [[package]]
 name = "origen_metal"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "built",
  "lazy_static 1.4.0",
  "pyo3",
  "regex",
+ "serde 1.0.127",
  "tempfile",
  "termcolor",
  "time",
+ "toml 0.5.8",
 ]
 
 [[package]]
@@ -2490,7 +2492,7 @@ dependencies = [
 
 [[package]]
 name = "pyapi_metal"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "built",
  "curl-sys",

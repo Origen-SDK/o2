@@ -1,3 +1,4 @@
+mod framework;
 mod utils;
 
 use pyo3::prelude::*;
@@ -10,6 +11,7 @@ pub mod built_info {
 
 #[pymodule]
 fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+    framework::define(py, m)?;
     utils::define(py, m)?;
     m.setattr("__version__", built_info::PKG_VERSION)?;
     m.setattr(
@@ -23,7 +25,7 @@ fn py_submodule<F>(py: Python, parent: &PyModule, path: &str, func: F) -> PyResu
 where
     F: FnOnce(&PyModule) -> PyResult<()>,
 {
-    let m = PyModule::new(py, "differ")?;
+    let m = PyModule::new(py, path)?;
     func(m)?;
     // py_run! is quick-and-dirty; should be replaced by PyO3 API calls in actual code
     py_run!(py, m, &format!("import sys; sys.modules['{}'] = m", path));

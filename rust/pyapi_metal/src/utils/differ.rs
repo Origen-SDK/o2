@@ -5,28 +5,27 @@ use std::path::Path;
 
 #[pyfunction(
     ignore_comments = "None",
-    suspend_on = "None",
-    resume_on = "None",
+    ignore_blocks = "None",
     ignore_blank_lines = "true"
 )]
 pub fn has_diffs(
     file_a: &str,
     file_b: &str,
-    ignore_comments: Option<String>,
-    suspend_on: Option<String>,
-    resume_on: Option<String>,
+    ignore_comments: Option<Vec<String>>,
+    ignore_blocks: Option<Vec<Vec<String>>>,
     ignore_blank_lines: bool,
 ) -> PyResult<bool> {
     let mut differ = ASCIIDiffer::new(Path::new(file_a), Path::new(file_b));
     differ.ignore_blank_lines = ignore_blank_lines;
-    if let Some(c) = ignore_comments {
-        differ.ignore_comments(&c)?;
+    if let Some(chars) = ignore_comments {
+        for c in chars {
+            differ.ignore_comments(&c)?;
+        }
     }
-    if let Some(c) = suspend_on {
-        differ.suspend_on(&c)?;
-    }
-    if let Some(c) = resume_on {
-        differ.resume_on(&c)?;
+    if let Some(blocks) = ignore_blocks {
+        for b in blocks {
+            differ.ignore_block(&b[0], &b[1])?;
+        }
     }
     Ok(differ.has_diffs()?)
 }
