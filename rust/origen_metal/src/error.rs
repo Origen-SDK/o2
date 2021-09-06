@@ -27,55 +27,39 @@ impl BaseError for Error {
 }
 
 // To add a conversion from other type of errors
-use pyo3::exceptions::PyRuntimeError;
-use pyo3::PyErr;
 
-impl std::convert::From<Error> for PyErr {
-    fn from(err: Error) -> PyErr {
-        PyRuntimeError::new_err(err.to_string())
+impl std::convert::From<Error> for pyo3::PyErr {
+    fn from(err: Error) -> pyo3::PyErr {
+        pyo3::exceptions::PyRuntimeError::new_err(err.to_string())
     }
 }
 
-// This needs re-worked for current PYO3
-//
-//impl std::convert::From<PyErr> for Error {
-//    fn from(err: PyErr) -> Self {
-//        let gil = Python::acquire_gil();
-//        let py = gil.python();
-//        Error::new(&format!(
-//            "Encountered Exception '{}' with message: {}{}",
-//            err.ptype.as_ref(py).name(),
-//            match err.pvalue {
-//                pyo3::PyErrValue::Value(e) => {
-//                    let r = e.call_method0(py, "__str__").unwrap();
-//                    r.extract::<String>(py).unwrap()
-//                }
-//                pyo3::PyErrValue::ToObject(e) => {
-//                    let pyobj_e = e.to_object(py);
-//                    let r = pyobj_e.call_method0(py, "__str__").unwrap();
-//                    r.extract::<String>(py).unwrap()
-//                }
-//                _ => {
-//                    "--No Message Available--".to_string()
-//                }
-//            },
-//            match err.ptraceback {
-//                Some(tb) => {
-//                    let m = py.import("traceback").unwrap();
-//                    let temp = pyo3::types::PyTuple::new(py, &[tb]);
-//                    let et = m.call_method1("extract_tb", temp).unwrap();
-//
-//                    let temp = pyo3::types::PyTuple::new(py, &[et]);
-//                    let text_list = m.call_method1("format_list", temp).unwrap();
-//                    let text = text_list.extract::<Vec<String>>().unwrap();
-//
-//                    format!("\nWith traceback:\n{}", text.join(""))
-//                }
-//                _ => "".to_string(),
-//            }
-//        ))
-//    }
-//}
+impl std::convert::From<pyo3::PyErr> for Error {
+    fn from(err: pyo3::PyErr) -> Self {
+        let gil = pyo3::Python::acquire_gil();
+        let py = gil.python();
+        Error::new(&format!(
+            "Encountered Exception '{}' with message: {}{}",
+            err.ptype(py).name().unwrap(),
+            {
+                let r = err.pvalue(py).call_method0("__str__").unwrap();
+                r.extract::<String>().unwrap()
+            },
+            {
+                let tb = err.ptraceback(py);
+                let m = py.import("traceback").unwrap();
+                let temp = pyo3::types::PyTuple::new(py, &[tb]);
+                let et = m.call_method1("extract_tb", temp).unwrap();
+
+                let temp = pyo3::types::PyTuple::new(py, &[et]);
+                let text_list = m.call_method1("format_list", temp).unwrap();
+                let text = text_list.extract::<Vec<String>>().unwrap();
+
+                format!("\nWith traceback:\n{}", text.join(""))
+            }
+        ))
+    }
+}
 
 impl std::convert::From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {

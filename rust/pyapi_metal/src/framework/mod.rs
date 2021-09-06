@@ -1,11 +1,14 @@
+pub mod outcomes;
 mod reference_files;
 
-use crate::py_submodule;
 use pyo3::prelude::*;
 
+pub use outcomes::Outcome;
+
 pub(crate) fn define(py: Python, parent: &PyModule) -> PyResult<()> {
-    py_submodule(py, parent, "origen_metal.framework", |m| {
-        reference_files::define(py, m)?;
-        Ok(())
-    })
+    let m = PyModule::new(py, "framework")?;
+    reference_files::define(py, m)?;
+    outcomes::define(py, m)?;
+    parent.add_submodule(m)?;
+    Ok(())
 }

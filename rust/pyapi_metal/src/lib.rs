@@ -1,4 +1,5 @@
 mod framework;
+mod frontend;
 mod utils;
 
 use pyo3::prelude::*;
@@ -13,11 +14,21 @@ pub mod built_info {
 fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
     framework::define(py, m)?;
     utils::define(py, m)?;
+    frontend::define(py, m)?;
     m.setattr("__version__", built_info::PKG_VERSION)?;
     m.setattr(
         "__origen_metal_backend_version__",
         origen_metal::VERSION.to_string(),
     )?;
+
+    #[cfg(debug_assertions)]
+    {
+        // For debug builds, include the __test__ module in _origen_metal
+        let test_sm = PyModule::new(py, "__test__")?;
+        utils::revision_control::define_tests(py, test_sm)?;
+        m.add_submodule(test_sm)?;
+    }
+
     Ok(())
 }
 
@@ -44,6 +55,13 @@ macro_rules! pypath {
             Some(&locals),
         )?;
         obj.to_object($py)
+    }};
+}
+
+#[macro_export]
+macro_rules! bail_with_runtime_error {
+    ($message:expr) => {{
+        Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>($message))
     }};
 }
 
