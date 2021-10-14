@@ -87,7 +87,7 @@ jobs:
       - name: Install Poetry
         uses: abatilo/actions-poetry@v2.0.0
         with:
-          poetry-version: 1.1.6
+          poetry-version: 1.1.9
 
       - name: Setup Python Env - Metal
         working-directory: python/origen_metal
