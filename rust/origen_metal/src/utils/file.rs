@@ -93,7 +93,7 @@ pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> Result<()> {
 ///
 /// ```no_run
 /// use std::path::Path;
-/// use origen::utility::file_utils::with_dir;
+/// use origen_metal::utils::file::with_dir;
 ///
 /// let result = with_dir(Path::new("path/to/some/dir"), || {
 ///   // Do something in that dir
