@@ -8,13 +8,13 @@ use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
 use origen_metal::framework::reference_files;
+use origen_metal::utils::revision_control::RevisionControl;
+use origen_metal::utils::revision_control::Status;
+use origen_metal::Outcome;
 use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
-use origen_metal::Outcome;
-use origen_metal::utils::revision_control::Status;
-use origen_metal::utils::revision_control::RevisionControl;
 
 /// Represents the current application, an instance of this is returned by
 /// origen::app().

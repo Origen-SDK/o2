@@ -5,7 +5,7 @@ pub mod supported;
 use crate::framework::Outcome;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyTuple, PyDict};
+use pyo3::types::{PyDict, PyTuple};
 use status::Status;
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
@@ -23,7 +23,7 @@ pub struct Base {}
 #[pymethods]
 impl Base {
     #[new]
-    #[args(_args="*", _config="**")]
+    #[args(_args = "*", _config = "**")]
     fn new(_args: &PyTuple, _config: Option<&PyDict>) -> PyResult<Self> {
         Ok(Self {})
     }

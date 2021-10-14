@@ -1,3 +1,4 @@
+use super::Status as PyStatus;
 use crate::framework::Outcome as PyOutcome;
 use origen_metal::frontend::RevisionControlFrontendAPI;
 use origen_metal::utils::revision_control::Status;
@@ -6,7 +7,6 @@ use origen_metal::Result as OMResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::Path;
-use super::Status as PyStatus;
 
 pub struct RevisionControlFrontend {}
 
@@ -25,7 +25,12 @@ impl RevisionControlFrontendAPI for RevisionControlFrontend {
         Ok(r)
     }
 
-    fn checkin(&self, files_or_dirs: Option<Vec<&Path>>, msg: &str, dry_run: bool) -> OMResult<OMOutcome> {
+    fn checkin(
+        &self,
+        files_or_dirs: Option<Vec<&Path>>,
+        msg: &str,
+        dry_run: bool,
+    ) -> OMResult<OMOutcome> {
         let r = crate::frontend::with_required_rc(|py, rc| {
             let kwargs = PyDict::new(py);
             kwargs.set_item("msg", msg)?;
@@ -59,7 +64,7 @@ impl RevisionControlFrontendAPI for RevisionControlFrontend {
             let kwargs = PyDict::new(py);
             kwargs.set_item("msg", msg)?;
             kwargs.set_item("force", force)?;
-    
+
             rc.call_method(py, "tag", PyTuple::new(py, &[tag]), Some(kwargs))?;
             Ok(())
         });

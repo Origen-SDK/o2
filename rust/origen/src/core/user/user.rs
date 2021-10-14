@@ -1,4 +1,3 @@
-use origen_metal::utils::revision_control::supported::git;
 use crate::utility::ldap::LDAPs;
 use crate::utility::{bytes_from_str_of_bytes, check_vec, str_to_bool, unsorted_dedup};
 use crate::{Error, Metadata, Result, ORIGEN_CONFIG};
@@ -6,6 +5,7 @@ use aes_gcm::aead::{
     generic_array::typenum::{U12, U32},
     generic_array::GenericArray,
 };
+use origen_metal::utils::revision_control::supported::git;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};

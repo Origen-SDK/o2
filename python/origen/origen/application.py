@@ -11,6 +11,7 @@ from origen.callbacks import _callbacks
 from types import ModuleType
 import origen_metal
 
+
 class Base(_origen.application.PyApplication):
     '''
         The base class of all Origen ``applications``.
@@ -118,7 +119,8 @@ class Base(_origen.application.PyApplication):
             self._plugin = False
             self._root = origen.root
             self._name = _origen.app_config()["name"]
-            origen_metal.frontend.frontend().rc = _origen.utility.revision_control.app_rc()
+            origen_metal.frontend.frontend(
+            ).rc = _origen.utility.revision_control.app_rc()
             self._unit_tester = _origen.utility.unit_testers.app_unit_tester()
             #self._linter = _origen.utility.linter.app_linter()
             self._publisher = _origen.utility.publisher.app_publisher()

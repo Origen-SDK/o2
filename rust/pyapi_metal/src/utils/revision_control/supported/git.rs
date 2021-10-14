@@ -1,6 +1,6 @@
-use super::super::{Status, Base};
-use crate::{OMResult, bail_with_runtime_error};
+use super::super::{Base, Status};
 use crate::framework::Outcome as PyOutcome;
+use crate::{bail_with_runtime_error, OMResult};
 use origen_metal::utils::revision_control::supported::Git as OrigenGit;
 use origen_metal::utils::revision_control::{RevisionControl, RevisionControlAPI};
 use pyo3::prelude::*;
@@ -37,7 +37,7 @@ impl Git {
     }
 
     #[new]
-    #[args(args="*", config="**")]
+    #[args(args = "*", config = "**")]
     fn new(args: &PyTuple, config: Option<&PyDict>) -> PyResult<(Self, Base)> {
         let mut c: HashMap<String, String> = HashMap::new();
         if let Some(cfg) = config {
@@ -123,7 +123,9 @@ impl Git {
                 Some(m) => {
                     msg = m.extract::<String>()?;
                 }
-                None => return bail_with_runtime_error!("A 'msg' is required for checkin operations"),
+                None => {
+                    return bail_with_runtime_error!("A 'msg' is required for checkin operations")
+                }
             }
             match kw.get_item("dry-run") {
                 Some(d) => dry_run = d.extract::<bool>()?,

@@ -14,8 +14,8 @@ macro_rules! frontend_mod {
 mod _frontend;
 mod py_frontend;
 
-use pyo3::prelude::*;
 use origen_metal::log_trace;
+use pyo3::prelude::*;
 
 pub use _frontend::Frontend;
 pub use py_frontend::PyFrontend;

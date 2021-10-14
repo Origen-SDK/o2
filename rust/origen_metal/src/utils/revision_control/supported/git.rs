@@ -5,8 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use git2::Repository;
 use git2::build::{CheckoutBuilder, RepoBuilder};
+use git2::Repository;
 use git2::{Cred, CredentialType, Direction, FetchOptions, PushOptions, RemoteCallbacks};
 use std::cell::RefCell;
 

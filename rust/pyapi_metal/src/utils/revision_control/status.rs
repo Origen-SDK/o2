@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use origen_metal::utils::revision_control::Status as OrigenStatus;
 use crate::_helpers::to_py_paths;
 use crate::pypath;
+use origen_metal::utils::revision_control::Status as OrigenStatus;
+use pyo3::prelude::*;
 
 #[pyclass(subclass)]
 pub struct Status {

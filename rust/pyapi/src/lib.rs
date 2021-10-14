@@ -45,6 +45,7 @@ use logger::PyInit_logger;
 use producer::PyInit_producer;
 use prog_gen::interface::PyInit_interface;
 use prog_gen::PyInit_prog_gen;
+use pyapi_metal::PyInit__origen_metal;
 use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
@@ -52,7 +53,6 @@ use tester_apis::PyInit_tester_apis;
 use user::PyInit_users;
 use utility::location::Location;
 use utility::PyInit_utility;
-use pyapi_metal::PyInit__origen_metal;
 
 pub mod built_info {
     // The file has been placed there by the build script.

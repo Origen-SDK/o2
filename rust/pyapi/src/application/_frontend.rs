@@ -5,8 +5,8 @@ use crate::utility::publisher::_frontend::Publisher;
 use crate::utility::release_scribe::_frontend::ReleaseScribe;
 use crate::utility::unit_testers::_frontend::UnitTester;
 use crate::utility::website::_frontend::Website;
-use pyo3::prelude::*;
 use pyapi_metal::prelude::frontend::*;
+use pyo3::prelude::*;
 
 pub struct App {
     rc: RevisionControlFrontend,

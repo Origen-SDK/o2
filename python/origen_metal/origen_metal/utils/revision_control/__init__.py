@@ -3,6 +3,7 @@ from abc import ABC, abstractclassmethod
 
 Base = origen_metal._origen_metal.utils.revision_control.Base
 
+
 class RevisionControlAPI(ABC):
     @abstractclassmethod
     def system(self):

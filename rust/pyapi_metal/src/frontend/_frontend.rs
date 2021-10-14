@@ -1,8 +1,8 @@
 use super::{with_py_frontend, PyFrontend};
 use origen_metal::frontend::RevisionControlFrontendAPI;
+use origen_metal::log_trace;
 use origen_metal::Result as OMResult;
 use pyo3::prelude::*;
-use origen_metal::log_trace;
 
 pub struct Frontend {
     rc: crate::utils::revision_control::_frontend::RevisionControlFrontend,

@@ -5,7 +5,7 @@ use crate::{Outcome, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use supported::{Git, Designsync};
+use supported::{Designsync, Git};
 
 #[derive(Clone, Default, Debug)]
 pub struct Status {

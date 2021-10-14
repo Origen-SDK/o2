@@ -4,8 +4,8 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 
-use origen_metal::utils::revision_control::SupportedSystems;
 use origen::STATUS;
+use origen_metal::utils::revision_control::SupportedSystems;
 
 use crate::runtime_error;
 
