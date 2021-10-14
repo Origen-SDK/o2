@@ -15,6 +15,7 @@ mod _frontend;
 mod py_frontend;
 
 use pyo3::prelude::*;
+use origen_metal::log_trace;
 
 pub use _frontend::Frontend;
 pub use py_frontend::PyFrontend;
@@ -53,10 +54,12 @@ pub(crate) fn frontend(py: Python) -> PyResult<Option<PyRef<PyFrontend>>> {
 }
 
 #[pyfunction]
-pub(crate) fn initialize(_py: Python) -> PyResult<bool> {
+pub fn initialize(_py: Python) -> PyResult<bool> {
     if origen_metal::frontend::frontend_set()? {
+        log_trace!("PyAPI Metal Frontend Already Initialized");
         Ok(false)
     } else {
+        log_trace!("PyAPI Metal Frontend Not Initialized... Initializing...");
         origen_metal::frontend::set_frontend(Box::new(Frontend::new()?))?;
         Ok(true)
     }

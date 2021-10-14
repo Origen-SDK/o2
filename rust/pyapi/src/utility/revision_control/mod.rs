@@ -1,24 +1,17 @@
-pub mod _frontend;
-mod git;
+use pyapi_metal::utils::revision_control::supported::git::PY_GIT_MOD_PATH;
 
-use git::{PyInit_git, PY_GIT_MOD_PATH};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::wrap_pyfunction;
 
-use origen::revision_control::Status as OrigenStatus;
-use origen::revision_control::SupportedSystems;
+use origen_metal::utils::revision_control::SupportedSystems;
 use origen::STATUS;
 
-use crate::_helpers::to_py_paths;
-use crate::{pypath, runtime_error};
+use crate::runtime_error;
 
 #[pymodule]
 fn revision_control(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(app_rc))?;
-    m.add_wrapped(wrap_pymodule!(git))?;
-    m.add_class::<Base>()?;
-    m.add_class::<Status>()?;
     Ok(())
 }
 
@@ -79,8 +72,7 @@ fn app_rc() -> PyResult<Option<PyObject>> {
                 }
                 SupportedSystems::Designsync => {
                     // Use the DS driver through Python
-                    // runtime_error!("DesignSync not support yet!")
-                    todo!();
+                    todo!("DesignSync not support yet!");
                 }
             }
         } else {
@@ -90,69 +82,5 @@ fn app_rc() -> PyResult<Option<PyObject>> {
     } else {
         // Return None if no revision_control parameter is given
         Ok(None)
-    }
-}
-
-#[pyclass(subclass)]
-pub struct Base {}
-
-#[pymethods]
-impl Base {}
-
-#[pyclass(subclass)]
-pub struct Status {
-    stat: OrigenStatus,
-}
-
-#[pymethods]
-impl Status {
-    #[getter]
-    fn added(&self) -> PyResult<Vec<PyObject>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut retn: Vec<PyObject> = vec![];
-        for added in self.stat.added.iter() {
-            retn.push(pypath!(py, added.display()));
-        }
-        Ok(retn)
-    }
-
-    #[getter]
-    fn removed(&self) -> PyResult<Vec<PyObject>> {
-        to_py_paths(&self.stat.removed.iter().map(|p| p.display()).collect())
-    }
-
-    #[getter]
-    fn conflicted(&self) -> PyResult<Vec<PyObject>> {
-        to_py_paths(&self.stat.conflicted.iter().map(|p| p.display()).collect())
-    }
-
-    #[getter]
-    fn changed(&self) -> PyResult<Vec<PyObject>> {
-        to_py_paths(&self.stat.changed.iter().map(|p| p.display()).collect())
-    }
-
-    #[getter]
-    fn revision(&self) -> PyResult<String> {
-        Ok(self.stat.revision.clone())
-    }
-
-    #[getter]
-    fn is_modified(&self) -> PyResult<bool> {
-        Ok(self.stat.is_modified())
-    }
-
-    fn summarize(&self) -> PyResult<()> {
-        Ok(self.stat.summarize())
-    }
-}
-
-impl Status {
-    pub fn stat(&self) -> &OrigenStatus {
-        &self.stat
-    }
-
-    pub fn from_origen(stat: OrigenStatus) -> Self {
-        Self { stat }
     }
 }

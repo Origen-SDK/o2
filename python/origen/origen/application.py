@@ -9,7 +9,7 @@ from origen.compiler import Compiler
 from origen.errors import *
 from origen.callbacks import _callbacks
 from types import ModuleType
-
+import origen_metal
 
 class Base(_origen.application.PyApplication):
     '''
@@ -89,7 +89,7 @@ class Base(_origen.application.PyApplication):
 
     @property
     def rc(self):
-        return self._rc
+        return origen_metal.frontend.frontend().revision_control
 
     @property
     def linter(self):
@@ -118,7 +118,7 @@ class Base(_origen.application.PyApplication):
             self._plugin = False
             self._root = origen.root
             self._name = _origen.app_config()["name"]
-            self._rc = _origen.utility.revision_control.app_rc()
+            origen_metal.frontend.frontend().rc = _origen.utility.revision_control.app_rc()
             self._unit_tester = _origen.utility.unit_testers.app_unit_tester()
             #self._linter = _origen.utility.linter.app_linter()
             self._publisher = _origen.utility.publisher.app_publisher()
@@ -128,7 +128,7 @@ class Base(_origen.application.PyApplication):
             self._plugin = True
             self._root = options["root"]
             self._name = options["name"]
-            self._rc = None
+            origen_metal.frontend.frontend().rc = None
             self._unit_tester = None
             self._linter = None
             self._publisher = None

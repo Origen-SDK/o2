@@ -31,9 +31,30 @@ def test_multiple_frontend_initializes_are_benign(frontend_init):
 
 
 class TestRevisionControlFrontend:
-    class DummyRC(revision_control.RevisionControl):
+    class DummyRC(revision_control.RevisionControlAPI):
         def init(self):
             return Outcome(succeeded=True, message="From Dummy RC")
+
+        def is_initialized(self):
+            return True
+
+        def checkout(self):
+            raise NotImplemented("checkout not available for DummyRC")
+
+        def populate(self):
+            raise NotImplemented("populate not available for DummyRC")
+
+        def revert(self):
+            raise NotImplemented("revert not available for DummyRC")
+
+        def status(self):
+            raise NotImplemented("status not available for DummyRC")
+
+        def system(self):
+            self.__class__.name
+
+        def tag(self):
+            raise NotImplemented("tag not available for DummyRC")
 
     @pytest.fixture
     def dummy_rc(self):

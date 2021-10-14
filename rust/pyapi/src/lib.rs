@@ -52,6 +52,7 @@ use tester_apis::PyInit_tester_apis;
 use user::PyInit_users;
 use utility::location::Location;
 use utility::PyInit_utility;
+use pyapi_metal::PyInit__origen_metal;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -100,6 +101,10 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
     m.add_wrapped(wrap_pymodule!(users))?;
+
+    // Compile the _origen_metal library along with this one
+    // to allow re-use from that library
+    m.add_wrapped(wrap_pymodule!(_origen_metal))?;
     Ok(())
 }
 
@@ -355,6 +360,7 @@ fn origen_mod_path() -> PyResult<PathBuf> {
 /// Called automatically when Origen is first loaded
 #[pyfunction]
 fn initialize(
+    _py: Python,
     log_verbosity: Option<u8>,
     verbosity_keywords: Vec<String>,
     cli_location: Option<String>,

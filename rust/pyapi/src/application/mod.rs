@@ -2,11 +2,12 @@ pub mod _frontend;
 
 use crate::runtime_error;
 use crate::utility::results::{BuildResult, GenericResult};
-use crate::utility::revision_control::Status;
+use pyapi_metal::utils::revision_control::status::Status;
 use origen::utility::version::Version as OVersion;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::{Path, PathBuf};
+use pyapi_metal::prelude::*;
 
 #[pymodule]
 pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -73,8 +74,8 @@ impl PyApplication {
         ))
     }
 
-    fn __rc_init__(&self) -> PyResult<GenericResult> {
-        Ok(GenericResult::from_origen(
+    fn __rc_init__(&self) -> PyResult<PyOutcome> {
+        Ok(PyOutcome::from_origen(
             origen::app().unwrap().rc_init()?,
         ))
     }
@@ -88,13 +89,13 @@ impl PyApplication {
         pathspecs: Option<Vec<String>>,
         msg: &str,
         dry_run: bool,
-    ) -> PyResult<GenericResult> {
+    ) -> PyResult<PyOutcome> {
         let mut paths = vec![];
         if let Some(ps) = pathspecs.as_ref() {
             paths = ps.iter().map(|p| Path::new(p)).collect();
         }
 
-        Ok(GenericResult::from_origen(
+        Ok(PyOutcome::from_origen(
             origen::app().unwrap().rc_checkin(
                 {
                     if pathspecs.is_some() {

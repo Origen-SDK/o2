@@ -1,9 +1,13 @@
-mod framework;
-mod frontend;
-mod utils;
+pub mod framework;
+pub mod frontend;
+pub mod utils;
+pub mod prelude;
+mod _helpers;
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+
+pub(crate) use origen_metal::Result as OMResult;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -11,7 +15,7 @@ pub mod built_info {
 }
 
 #[pymodule]
-fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
     framework::define(py, m)?;
     utils::define(py, m)?;
     frontend::define(py, m)?;

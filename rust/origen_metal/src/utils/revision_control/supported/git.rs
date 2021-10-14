@@ -1,12 +1,11 @@
-use super::{Credentials, RevisionControlAPI, Status};
-use crate::utility::command_helpers::log_stdout_and_stderr;
-use crate::GenericResult;
-use crate::Result as OrigenResult;
-use git2::Repository;
+use super::super::{Credentials, RevisionControlAPI, Status};
+use crate::utils::command::log_stdout_and_stderr;
+use crate::{Outcome, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use git2::Repository;
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{Cred, CredentialType, Direction, FetchOptions, PushOptions, RemoteCallbacks};
 use std::cell::RefCell;
@@ -83,7 +82,7 @@ impl RevisionControlAPI for Git {
         "Git"
     }
 
-    fn populate(&self, version: &str) -> OrigenResult<()> {
+    fn populate(&self, version: &str) -> Result<()> {
         let mut ssh_remotes: Vec<&str> = vec![];
         let mut https_remotes: Vec<&str> = vec![];
         for remote in &self.remotes {
@@ -93,10 +92,10 @@ impl RevisionControlAPI for Git {
                 ssh_remotes.push(remote);
             }
         }
-        let mut result = error!(
+        let mut result = Err(error!(
             "Can't populate a Git workspace at '{}' because no remote has been supplied",
             self.local.display()
-        );
+        ));
         for remote in ssh_remotes {
             result = self._populate(version, remote);
             if result.is_ok() {
@@ -112,12 +111,12 @@ impl RevisionControlAPI for Git {
         result
     }
 
-    fn revert(&self, path: Option<&Path>) -> OrigenResult<()> {
+    fn revert(&self, path: Option<&Path>) -> Result<()> {
         let _ = self._checkout(true, path, "HEAD", false)?;
         Ok(())
     }
 
-    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> OrigenResult<bool> {
+    fn checkout(&self, force: bool, path: Option<&Path>, version: &str) -> Result<bool> {
         self._checkout(force, path, version, true)
     }
 
@@ -125,14 +124,12 @@ impl RevisionControlAPI for Git {
     /// mainly that there is no differentiation between changes that are staged vs unstaged.
     /// It also doesn't bother to track renamed files, simply reporting them as a deleted file
     /// and an added file.
-    fn status(&self, _path: Option<&Path>) -> OrigenResult<Status> {
+    fn status(&self, _path: Option<&Path>) -> Result<Status> {
         let mut status = Status::default();
         log_trace!("Checking status of '{}'", &self.local.display());
         let repo = Repository::open(&self.local)?;
         let stat = repo.statuses(None)?;
         for entry in stat.iter() {
-            //(entry.status());
-
             if entry.status().contains(git2::Status::WT_NEW) {
                 let old = entry.index_to_workdir().unwrap().old_file().path();
                 let new = entry.index_to_workdir().unwrap().new_file().path();
@@ -190,7 +187,7 @@ impl RevisionControlAPI for Git {
         Ok(status)
     }
 
-    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> OrigenResult<()> {
+    fn tag(&self, tagname: &str, force: bool, message: Option<&str>) -> Result<()> {
         log_trace!("Tagging '{}' with '{}'", &self.local.display(), tagname);
         let repo = Repository::open(&self.local)?;
         let target = "HEAD";
@@ -209,17 +206,17 @@ impl RevisionControlAPI for Git {
         Ok(())
     }
 
-    fn is_initialized(&self) -> OrigenResult<bool> {
+    fn is_initialized(&self) -> Result<bool> {
         match Repository::open(&self.local) {
             Ok(_) => Ok(true),
             Err(e) => match e.code() {
                 git2::ErrorCode::NotFound => Ok(false),
-                _ => error!("{}", e),
+                _ => bail!("{}", e),
             },
         }
     }
 
-    fn init(&self) -> OrigenResult<GenericResult> {
+    fn init(&self) -> Result<Outcome> {
         log_trace!(
             "Initializing new Git workspace at '{}' (Remote(s): '{:?}')",
             &self.local.display(),
@@ -228,7 +225,7 @@ impl RevisionControlAPI for Git {
 
         if self.is_initialized()? {
             // Already initialized. Return Ok but indicate that nothing actually happened
-            return Ok(GenericResult::new_success_with_msg(
+            return Ok(Outcome::new_success_with_msg(
                 "Workspace already initialized",
             ));
         }
@@ -264,7 +261,7 @@ impl RevisionControlAPI for Git {
         log_trace!("Cleaning up after push...");
         repo.checkout_index(None, None)?;
 
-        Ok(GenericResult::new_success_with_msg(msg))
+        Ok(Outcome::new_success_with_msg(msg))
     }
 
     fn checkin(
@@ -272,13 +269,13 @@ impl RevisionControlAPI for Git {
         files_or_dirs: Option<Vec<&Path>>,
         msg: &str,
         dry_run: bool,
-    ) -> OrigenResult<GenericResult> {
+    ) -> Result<Outcome> {
         let repo = Repository::open(&self.local)?;
         let mut index = repo.index()?;
         if let Some(pathspecs) = files_or_dirs {
             if pathspecs.is_empty() {
                 log_trace!("RevisionControl: Git: No pathspecs specified - no checkins occurred");
-                return Ok(GenericResult::new_success_with_msg(
+                return Ok(Outcome::new_success_with_msg(
                     self.current_commit_id(&repo)?,
                 ));
             } else {
@@ -297,7 +294,7 @@ impl RevisionControlAPI for Git {
                         match pbuf.strip_prefix(&self.local.canonicalize()?) {
                             Ok(_p) => doctored.push(_p.to_path_buf()),
                             Err(_) => {
-                                return error!(
+                                bail!(
                                     "Pathspec {} is outside of the current repo {}",
                                     p.display().to_string(),
                                     self.local.display().to_string()
@@ -342,7 +339,7 @@ impl RevisionControlAPI for Git {
         }
         if dry_run {
             log_trace!("RevisionControl: Git: Bailing early due to dry-run option");
-            return Ok(GenericResult::new_success_with_msg("Dry-Run-Only"));
+            return Ok(Outcome::new_success_with_msg("Dry-Run-Only"));
         }
 
         let tree_id = index.write_tree()?;
@@ -398,7 +395,7 @@ impl RevisionControlAPI for Git {
         });
         log_trace!("Cleaning up after push...");
         repo.checkout_index(None, None)?;
-        Ok(GenericResult::new_success_with_msg(commit_id))
+        Ok(Outcome::new_success_with_msg(commit_id))
     }
 }
 
@@ -416,11 +413,11 @@ impl Git {
         }
     }
 
-    fn current_commit_id(&self, repo: &Repository) -> OrigenResult<String> {
+    fn current_commit_id(&self, repo: &Repository) -> Result<String> {
         Ok(repo.revparse("HEAD")?.from().unwrap().id().to_string())
     }
 
-    fn _populate(&self, version: &str, remote: &str) -> OrigenResult<()> {
+    fn _populate(&self, version: &str, remote: &str) -> Result<()> {
         log_info!("Populating '{}' from '{}'", &self.local.display(), remote);
         self.reset_temps();
         let mut cb = RemoteCallbacks::new();
@@ -454,7 +451,7 @@ impl Git {
         path: Option<&Path>,
         version: &str,
         prefetch: bool,
-    ) -> OrigenResult<bool> {
+    ) -> Result<bool> {
         log_info!(
             "Checking out version '{}' in '{}'",
             version,
@@ -509,7 +506,7 @@ impl Git {
                 }
             }
             if oid.is_none() {
-                return error!(
+                bail!(
                     "Something went wrong, the commit for tag '{}' was not found",
                     version
                 );
@@ -593,7 +590,7 @@ impl Git {
                         if stash_pop_required {
                             repo.stash_pop(0, None)?;
                         }
-                        return e;
+                        return Err(e);
                     }
                 }
                 _ => unreachable!(),
@@ -602,7 +599,7 @@ impl Git {
             if stash_pop_required {
                 repo.stash_pop(0, None)?;
             }
-            return error!(
+            bail!(
                 "Could not resolve version '{}' to a commit, tag or branch reference",
                 version
             );
@@ -662,7 +659,7 @@ impl Git {
 
     // Returns a signature (to attribute commits etc.) for the current user, falling
     // back to a default Origen signature if necessary
-    fn signature(repo: &Repository) -> OrigenResult<git2::Signature> {
+    fn signature(repo: &Repository) -> Result<git2::Signature> {
         Ok(repo
             .signature()
             .unwrap_or(git2::Signature::now("Origen", "noreply@origen-sdk.org")?))
@@ -674,10 +671,10 @@ impl Git {
 
     fn credentials_callback(
         &self,
-        url: &str,
+        _url: &str,
         username: Option<&str>,
         allowed_types: CredentialType,
-    ) -> Result<Cred, git2::Error> {
+    ) -> std::result::Result<Cred, git2::Error> {
         if allowed_types.contains(CredentialType::SSH_KEY) {
             let mut ssh_attempts = self.ssh_attempts.borrow_mut();
             let ssh_keys = ssh_keys();
@@ -714,14 +711,16 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        crate::with_current_user(|u| {
-                            u.password(
-                                Some(&format!("to access repository '{}'", url)),
-                                true,
-                                Some(None),
-                            )
-                        })
-                        .expect("Couldn't prompt for password")
+                        // TODO Restore password from current user
+                        todo!("Git: Password from current user");
+                        // crate::with_current_user(|u| {
+                        //     u.password(
+                        //         Some(&format!("to access repository '{}'", url)),
+                        //         true,
+                        //         Some(None),
+                        //     )
+                        // })
+                        // .expect("Couldn't prompt for password")
                     }
                 };
                 username = {
@@ -736,7 +735,9 @@ impl Git {
                             .unwrap()
                             .clone()
                     } else {
-                        crate::core::user::get_current_id().unwrap()
+                        // crate::core::user::get_current_id().unwrap()
+                        // TODO Restore password from current user
+                        todo!("Git: Add support for current user ID");
                     }
                 };
             }
@@ -819,7 +820,7 @@ impl Git {
 
     /// Equivalent to calling 'git fetch' within a repo, this will download all available remote
     /// branches, tags and commits
-    pub fn fetch(&self, remote_name: Option<&str>) -> OrigenResult<()> {
+    pub fn fetch(&self, remote_name: Option<&str>) -> Result<()> {
         let repo = Repository::open(&self.local)?;
         let remote = remote_name.unwrap_or("origin");
 

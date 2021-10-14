@@ -5,6 +5,8 @@ extern crate serde;
 #[macro_use]
 pub mod macros;
 
+pub mod prelude;
+
 mod error;
 pub mod framework;
 pub mod frontend;

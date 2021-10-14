@@ -72,19 +72,19 @@ impl std::convert::From<std::io::Error> for Error {
 //        Error::new(&err.to_string())
 //    }
 //}
-//
-//impl std::convert::From<Error> for git2::Error {
-//    fn from(err: Error) -> Self {
-//        git2::Error::from_str(&err.msg)
-//    }
-//}
-//
-//impl std::convert::From<git2::Error> for Error {
-//    fn from(err: git2::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
+
+impl std::convert::From<Error> for git2::Error {
+   fn from(err: Error) -> Self {
+       git2::Error::from_str(&err.msg)
+   }
+}
+
+impl std::convert::From<git2::Error> for Error {
+   fn from(err: git2::Error) -> Self {
+       Error::new(&err.to_string())
+   }
+}
+
 //impl std::convert::From<walkdir::Error> for Error {
 //    fn from(err: walkdir::Error) -> Self {
 //        Error::new(&err.to_string())

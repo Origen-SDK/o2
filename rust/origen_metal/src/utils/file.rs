@@ -83,3 +83,32 @@ pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> Result<()> {
         Ok(std::os::unix::fs::symlink(src, dst)?)
     }
 }
+
+/// Temporarily sets the current dir to the given dir for the duration of the given
+/// function and then restores it at the end.
+/// An error will be returned if there is a problem switching to the given directory,
+/// e.g. if it doesn't exist, otherwise the result from the given function is returned.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+/// use origen::utility::file_utils::with_dir;
+///
+/// let result = with_dir(Path::new("path/to/some/dir"), || {
+///   // Do something in that dir
+///   Ok(())
+/// });
+/// ```
+pub fn with_dir<T, F>(path: &Path, mut f: F) -> Result<T>
+where
+    F: FnMut() -> Result<T>,
+{
+    log_trace!("Changing directory to '{}'", path.display());
+    let orig = env::current_dir()?;
+    env::set_current_dir(path)?;
+    let result = f();
+    log_trace!("Restoring directory to '{}'", orig.display());
+    env::set_current_dir(&orig)?;
+    result
+}

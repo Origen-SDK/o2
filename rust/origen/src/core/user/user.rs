@@ -1,4 +1,4 @@
-use crate::revision_control::git;
+use origen_metal::utils::revision_control::supported::git;
 use crate::utility::ldap::LDAPs;
 use crate::utility::{bytes_from_str_of_bytes, check_vec, str_to_bool, unsorted_dedup};
 use crate::{Error, Metadata, Result, ORIGEN_CONFIG};

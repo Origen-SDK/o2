@@ -4,7 +4,7 @@ mod package;
 #[cfg(test)]
 mod tests;
 
-use crate::origen::revision_control::RevisionControlAPI;
+use origen_metal::utils::revision_control::RevisionControlAPI;
 use bom::BOM;
 use clap::ArgMatches;
 use group::Group;
