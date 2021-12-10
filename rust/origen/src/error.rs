@@ -74,20 +74,7 @@ impl std::convert::From<PyErr> for Error {
                 let text = text_list.extract::<Vec<String>>().unwrap();
 
                 format!("\nWith traceback:\n{}", text.join(""))
-            } // match err.ptraceback {
-              //     Some(tb) => {
-              //         let m = py.import("traceback").unwrap();
-              //         let temp = pyo3::types::PyTuple::new(py, &[tb]);
-              //         let et = m.call_method1("extract_tb", temp).unwrap();
-
-              //         let temp = pyo3::types::PyTuple::new(py, &[et]);
-              //         let text_list = m.call_method1("format_list", temp).unwrap();
-              //         let text = text_list.extract::<Vec<String>>().unwrap();
-
-              //         format!("\nWith traceback:\n{}", text.join(""))
-              //     }
-              //     _ => "".to_string(),
-              // }
+            }
         ))
     }
 }

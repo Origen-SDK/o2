@@ -2438,6 +2438,9 @@ name = "origen_metal"
 version = "0.4.0"
 dependencies = [
  "built",
+ "chrono",
+ "dirs 2.0.2",
+ "git2",
  "lazy_static 1.4.0",
  "pyo3",
  "regex",
@@ -2446,6 +2449,7 @@ dependencies = [
  "termcolor",
  "time",
  "toml 0.5.8",
+ "wait-timeout",
 ]
 
 [[package]]

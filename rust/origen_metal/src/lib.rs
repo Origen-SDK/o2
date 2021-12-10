@@ -5,12 +5,19 @@ extern crate serde;
 #[macro_use]
 pub mod macros;
 
+pub mod prelude;
+
 mod error;
 pub mod framework;
+pub mod frontend;
 pub mod utils;
 use std::fmt::Display;
 
 pub use error::Error;
+pub use utils::outcome::Outcome;
+
+use self::frontend::Frontend;
+use std::sync::RwLock;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -20,6 +27,7 @@ pub mod built_info {
 lazy_static! {
     pub static ref LOGGER: framework::logger::Logger = framework::logger::Logger::default();
     pub static ref VERSION: &'static str = built_info::PKG_VERSION;
+    pub static ref FRONTEND: RwLock<Frontend> = RwLock::new(Frontend::new());
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

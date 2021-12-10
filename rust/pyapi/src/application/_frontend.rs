@@ -1,17 +1,15 @@
-// use origen::core::frontend::App as OApp;
-
 use super::get_pyapp;
 use crate::utility::linter::_frontend::Linter;
 use crate::utility::mailer::_frontend::Mailer;
 use crate::utility::publisher::_frontend::Publisher;
 use crate::utility::release_scribe::_frontend::ReleaseScribe;
-use crate::utility::revision_control::_frontend::RC;
 use crate::utility::unit_testers::_frontend::UnitTester;
 use crate::utility::website::_frontend::Website;
+use pyapi_metal::prelude::frontend::*;
 use pyo3::prelude::*;
 
 pub struct App {
-    rc: RC,
+    rc: RevisionControlFrontend,
     unit_tester: UnitTester,
     publisher: Publisher,
     linter: Linter,
@@ -23,7 +21,7 @@ pub struct App {
 impl App {
     pub fn new() -> origen::Result<Self> {
         Ok(Self {
-            rc: RC {},
+            rc: RevisionControlFrontend {},
             unit_tester: UnitTester {},
             publisher: Publisher {},
             linter: Linter {},
@@ -47,7 +45,7 @@ impl origen::core::frontend::App for App {
         todo!()
     }
 
-    fn rc(&self) -> origen::Result<Option<&dyn origen::core::frontend::RC>> {
+    fn rc(&self) -> origen::Result<Option<&dyn RevisionControlFrontendAPI>> {
         Ok(Some(&self.rc))
     }
 

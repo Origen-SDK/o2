@@ -45,6 +45,7 @@ use logger::PyInit_logger;
 use producer::PyInit_producer;
 use prog_gen::interface::PyInit_interface;
 use prog_gen::PyInit_prog_gen;
+use pyapi_metal::PyInit__origen_metal;
 use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
@@ -100,6 +101,10 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
     m.add_wrapped(wrap_pymodule!(users))?;
+
+    // Compile the _origen_metal library along with this one
+    // to allow re-use from that library
+    m.add_wrapped(wrap_pymodule!(_origen_metal))?;
     Ok(())
 }
 
@@ -355,6 +360,7 @@ fn origen_mod_path() -> PyResult<PathBuf> {
 /// Called automatically when Origen is first loaded
 #[pyfunction]
 fn initialize(
+    _py: Python,
     log_verbosity: Option<u8>,
     verbosity_keywords: Vec<String>,
     cli_location: Option<String>,

@@ -1,7 +1,7 @@
-use super::{Credentials, RevisionControlAPI, Status};
-use crate::utility::command_helpers::log_stdout_and_stderr;
-use crate::utility::file_utils::with_dir;
-use crate::{Error, GenericResult, Result};
+use super::super::{Credentials, RevisionControlAPI, Status};
+use crate::utils::command::log_stdout_and_stderr;
+use crate::utils::file::with_dir;
+use crate::{Outcome, Result};
 use chrono::offset::Utc;
 use regex::Regex;
 use std::fs;
@@ -17,7 +17,7 @@ pub struct Designsync {
 }
 
 impl Designsync {
-    pub fn new(local: &Path, remote: &str, _credentials: Option<Credentials>) -> Designsync {
+    pub fn new(local: &Path, remote: &str, _credentials: Option<Credentials>) -> Self {
         Designsync {
             local: local.to_path_buf(),
             remote: remote.to_string(),
@@ -102,7 +102,7 @@ impl RevisionControlAPI for Designsync {
             if process.wait()?.success() {
                 Ok(status)
             } else {
-                error!(
+                bail!(
                     "Something went wrong reporting the dssc status for '{}', see log for details",
                     self.local.display()
                 )
@@ -115,11 +115,11 @@ impl RevisionControlAPI for Designsync {
     }
 
     fn is_initialized(&self) -> Result<bool> {
-        todo!();
+        todo!("Initializing with DesignSync is not supported yet!");
     }
 
-    fn init(&self) -> Result<GenericResult> {
-        todo!();
+    fn init(&self) -> Result<Outcome> {
+        todo!("Initializing with DesignSync is not supported yet!");
     }
 
     fn checkin(
@@ -127,8 +127,8 @@ impl RevisionControlAPI for Designsync {
         _files_or_dirs: Option<Vec<&Path>>,
         _msg: &str,
         _dry_run: bool,
-    ) -> Result<GenericResult> {
-        todo!();
+    ) -> Result<Outcome> {
+        todo!("Checkins with DesignSync is not supported yet!");
     }
 }
 
@@ -146,10 +146,10 @@ impl Designsync {
             if process.wait()?.success() {
                 Ok(())
             } else {
-                Err(Error::new(&format!(
+                bail!(
                     "Something went wrong setting the vault in '{}', see log for details",
                     self.local.display()
-                )))
+                )
             }
         })
     }
@@ -178,7 +178,7 @@ impl Designsync {
             log_debug!("get_selector returned '{}'", &selector);
             Ok(selector)
         } else {
-            error!(
+            bail!(
                 "Something went wrong setting the selector in '{}', see log for details",
                 self.local.display()
             )
@@ -195,7 +195,7 @@ impl Designsync {
         let r = self.set_selector(selector);
         if r.is_err() {
             let _ = self.set_selector(&existing);
-            return error!("{:?}", r);
+            bail!("{:?}", r);
         }
         let result = f();
         self.set_selector(&existing)?;
@@ -219,11 +219,11 @@ impl Designsync {
         if process.wait()?.success() {
             Ok(())
         } else {
-            Err(Error::new(&format!(
+            bail!(
                 "Something went wrong setting the selector to '{}' in '{}', see log for details",
                 selector,
                 self.local.display()
-            )))
+            )
         }
     }
 
@@ -272,11 +272,11 @@ impl Designsync {
             let p = process.wait()?;
 
             if let Some(msg) = err_msg {
-                error!("{}", msg)
+                bail!("{}", msg)
             } else if p.success() {
                 Ok(())
             } else {
-                error!(
+                bail!(
                     "Something went wrong tagging '{}', see log for details",
                     self.local.display()
                 )
@@ -299,7 +299,7 @@ impl Designsync {
             if p.success() {
                 Ok(())
             } else {
-                error!(
+                bail!(
                     "Something went wrong deleting tag '{}', see log for details",
                     tagname
                 )
@@ -332,10 +332,10 @@ impl Designsync {
             if process.wait()?.success() {
                 Ok(())
             } else {
-                Err(Error::new(&format!(
+                bail!(
                     "Something went wrong populating '{}', see log for details",
                     self.remote
-                )))
+                )
             }
         })
     }

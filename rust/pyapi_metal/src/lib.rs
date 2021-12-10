@@ -1,8 +1,13 @@
-mod framework;
-mod utils;
+mod _helpers;
+pub mod framework;
+pub mod frontend;
+pub mod prelude;
+pub mod utils;
 
 use pyo3::prelude::*;
 use pyo3::py_run;
+
+pub(crate) use origen_metal::Result as OMResult;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -10,14 +15,24 @@ pub mod built_info {
 }
 
 #[pymodule]
-fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
     framework::define(py, m)?;
     utils::define(py, m)?;
+    frontend::define(py, m)?;
     m.setattr("__version__", built_info::PKG_VERSION)?;
     m.setattr(
         "__origen_metal_backend_version__",
         origen_metal::VERSION.to_string(),
     )?;
+
+    #[cfg(debug_assertions)]
+    {
+        // For debug builds, include the __test__ module in _origen_metal
+        let test_sm = PyModule::new(py, "__test__")?;
+        utils::revision_control::define_tests(py, test_sm)?;
+        m.add_submodule(test_sm)?;
+    }
+
     Ok(())
 }
 
@@ -44,6 +59,13 @@ macro_rules! pypath {
             Some(&locals),
         )?;
         obj.to_object($py)
+    }};
+}
+
+#[macro_export]
+macro_rules! bail_with_runtime_error {
+    ($message:expr) => {{
+        Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>($message))
     }};
 }
 

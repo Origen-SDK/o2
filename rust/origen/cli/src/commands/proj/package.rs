@@ -1,9 +1,9 @@
 use super::error_and_exit;
 use flate2::read::GzDecoder;
-use origen::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
 use origen::utility::file_utils::{copy, copy_contents, mv};
 use origen::Result;
 use origen_metal::utils::file::symlink;
+use origen_metal::utils::revision_control::{Credentials, RevisionControl, RevisionControlAPI};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};

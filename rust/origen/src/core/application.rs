@@ -3,12 +3,14 @@ pub mod target;
 
 use super::application::config::Config;
 use crate::core::frontend::{BuildResult, GenericResult};
-use crate::revision_control::{RevisionControl, Status};
 use crate::utility::str_to_bool;
 use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
 use origen_metal::framework::reference_files;
+use origen_metal::utils::revision_control::RevisionControl;
+use origen_metal::utils::revision_control::Status;
+use origen_metal::Outcome;
 use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -112,16 +114,16 @@ impl Application {
 
     /// Return an RevisionControl, containing a driver, based on the app's config
     pub fn rc(&self) -> Result<RevisionControl> {
-        self.with_config(|cfg| match cfg.revision_control.as_ref() {
-            Some(rc) => RevisionControl::from_config(rc),
+        Ok(self.with_config(|cfg| match cfg.revision_control.as_ref() {
+            Some(rc) => Ok(RevisionControl::from_config(rc)?),
             None => error!("No app RC was given. Cannot create RC driver"),
-        })
+        })?)
     }
 
-    pub fn rc_init(&self) -> Result<GenericResult> {
+    pub fn rc_init(&self) -> Result<Outcome> {
         crate::with_frontend_app(|app| {
             let rc = app.get_rc()?;
-            rc.init()
+            Ok(rc.init()?)
         })
     }
 
@@ -137,10 +139,10 @@ impl Application {
         pathspecs: Option<Vec<&Path>>,
         msg: &str,
         dry_run: bool,
-    ) -> Result<GenericResult> {
+    ) -> Result<Outcome> {
         crate::with_frontend_app(|app| {
             let rc = app.get_rc()?;
-            rc.checkin(pathspecs.clone(), msg, dry_run)
+            Ok(rc.checkin(pathspecs.clone(), msg, dry_run)?)
         })
     }
 

@@ -1,11 +1,12 @@
 mod differ;
+pub mod revision_control;
 
-use crate::py_submodule;
 use pyo3::prelude::*;
 
 pub(crate) fn define(py: Python, parent: &PyModule) -> PyResult<()> {
-    py_submodule(py, parent, "origen_metal.utils", |m| {
-        differ::define(py, m)?;
-        Ok(())
-    })
+    let subm = PyModule::new(py, "utils")?;
+    revision_control::define(py, subm)?;
+    differ::define(py, subm)?;
+    parent.add_submodule(subm)?;
+    Ok(())
 }

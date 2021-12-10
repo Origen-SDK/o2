@@ -4,12 +4,12 @@ mod package;
 #[cfg(test)]
 mod tests;
 
-use crate::origen::revision_control::RevisionControlAPI;
 use bom::BOM;
 use clap::ArgMatches;
 use group::Group;
 use origen::core::file_handler::File;
 use origen::core::term;
+use origen_metal::utils::revision_control::RevisionControlAPI;
 use package::Package;
 use std::path::{Path, PathBuf};
 use std::process::exit;

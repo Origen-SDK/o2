@@ -4,7 +4,9 @@ pub mod callbacks;
 use crate::utility::version::Version;
 use indexmap::IndexMap;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+use origen_metal::prelude::frontend::*;
 
 pub fn with_frontend_app<T, F>(mut func: F) -> Result<T>
 where
@@ -107,7 +109,7 @@ pub trait Frontend {
 }
 
 pub trait App {
-    fn rc(&self) -> Result<Option<&dyn RC>>;
+    fn rc(&self) -> Result<Option<&dyn RcAPI>>;
     fn unit_tester(&self) -> Result<Option<&dyn UnitTester>>;
     fn publisher(&self) -> Result<Option<&dyn Publisher>>;
     fn linter(&self) -> Result<Option<&dyn Linter>>;
@@ -115,7 +117,7 @@ pub trait App {
     fn mailer(&self) -> Result<Option<&dyn Mailer>>;
     fn release_scribe(&self) -> Result<Option<&dyn ReleaseScribe>>;
 
-    fn get_rc(&self) -> Result<&dyn RC> {
+    fn get_rc(&self) -> Result<&dyn RcAPI> {
         match self.rc()? {
             Some(rc) => Ok(rc),
             None => error!("No RC is available on the application!"),
@@ -177,20 +179,6 @@ pub trait Linter {}
 
 pub trait UnitTester {
     fn run(&self) -> Result<UnitTestStatus>;
-}
-
-pub trait RC {
-    fn is_modified(&self) -> Result<bool>;
-    fn status(&self) -> Result<crate::revision_control::Status>;
-    fn checkin(
-        &self,
-        files_or_dirs: Option<Vec<&Path>>,
-        msg: &str,
-        dry_run: bool,
-    ) -> Result<GenericResult>;
-    fn tag(&self, tag: &str, force: bool, msg: Option<&str>) -> Result<()>;
-    fn system(&self) -> Result<String>;
-    fn init(&self) -> Result<GenericResult>;
 }
 
 pub trait Publisher {

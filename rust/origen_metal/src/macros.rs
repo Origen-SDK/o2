@@ -161,3 +161,71 @@ macro_rules! log_trace {
         $crate::LOGGER.trace(&formatted);
     }}
 }
+
+/// Exit the origen process with a passing exit code and a big SUCCESS banner
+#[macro_export]
+macro_rules! exit_success {
+    () => {
+        display_greenln!(
+            r#"     _______. __    __    ______   ______  _______      _______.     _______."#
+        );
+        display_greenln!(
+            r#"    /       ||  |  |  |  /      | /      ||   ____|    /       |    /       |"#
+        );
+        display_greenln!(
+            r#"   |   (----`|  |  |  | |  ,----'|  ,----'|  |__      |   (----`   |   (----`"#
+        );
+        display_greenln!(
+            r#"    \   \    |  |  |  | |  |     |  |     |   __|      \   \        \   \    "#
+        );
+        display_greenln!(
+            r#".----)   |   |  `--'  | |  `----.|  `----.|  |____ .----)   |   .----)   |   "#
+        );
+        display_greenln!(
+            r#"|_______/     \______/   \______| \______||_______||_______/    |_______/    "#
+        );
+        std::process::exit(0);
+    };
+}
+
+/// Exit the origen process with a passing exit code and a big PASS banner
+#[macro_export]
+macro_rules! exit_pass {
+    () => {
+        display_greenln!(r#".______      ___           _______.     _______."#);
+        display_greenln!(r#"|   _  \    /   \         /       |    /       |"#);
+        display_greenln!(r#"|  |_)  |  /  ^  \       |   (----`   |   (----`"#);
+        display_greenln!(r#"|   ___/  /  /_\  \       \   \        \   \    "#);
+        display_greenln!(r#"|  |     /  _____  \  .----)   |   .----)   |   "#);
+        display_greenln!(r#"| _|    /__/     \__\ |_______/    |_______/    "#);
+        std::process::exit(0);
+    };
+}
+
+/// Exit the origen process with a failing exit code and a big FAIL banner
+#[macro_export]
+macro_rules! exit_fail {
+    () => {
+        display_redln!(r#" _______    ___       __   __      "#);
+        display_redln!(r#"|   ____|  /   \     |  | |  |     "#);
+        display_redln!(r#"|  |__    /  ^  \    |  | |  |     "#);
+        display_redln!(r#"|   __|  /  /_\  \   |  | |  |     "#);
+        display_redln!(r#"|  |    /  _____  \  |  | |  `----."#);
+        display_redln!(r#"|__|   /__/     \__\ |__| |_______|"#);
+        std::process::exit(1);
+    };
+}
+
+/// Exit the origen process with a failing exit code and a big ERROR banner
+#[macro_export]
+macro_rules! exit_error {
+    () => {
+        display_redln!(r#" _______ .______      .______        ______   .______      "#);
+        display_redln!(r#"|   ____||   _  \     |   _  \      /  __  \  |   _  \     "#);
+        display_redln!(r#"|  |__   |  |_)  |    |  |_)  |    |  |  |  | |  |_)  |    "#);
+        display_redln!(r#"|   __|  |      /     |      /     |  |  |  | |      /     "#);
+        display_redln!(r#"|  |____ |  |\  \----.|  |\  \----.|  `--'  | |  |\  \----."#);
+        display_redln!(r#"|_______|| _| `._____|| _| `._____| \______/  | _| `._____|"#);
+        std::process::exit(1);
+    };
+}

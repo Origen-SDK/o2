@@ -1,32 +1,11 @@
-pub mod designsync;
-pub mod git;
+pub mod frontend;
+pub mod supported;
 
-use crate::{GenericResult, Result};
-use designsync::Designsync;
-use git::Git;
+use crate::{Outcome, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-pub struct RevisionControl {
-    driver: Box<dyn RevisionControlAPI>,
-}
-
-#[derive(Clone, Default)]
-pub struct Credentials {
-    pub username: Option<String>,
-    pub password: Option<String>,
-}
-
-impl std::fmt::Debug for Credentials {
-    // Purposefully leave off the passwrd
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Credentials")
-            .field("username", &self.username)
-            .field("password", &"<-- Plaintext Password Withheld -->")
-            .finish()
-    }
-}
+use supported::{Designsync, Git};
 
 #[derive(Clone, Default, Debug)]
 pub struct Status {
@@ -88,9 +67,30 @@ impl SupportedSystems {
         match s.as_str() {
             "git" => Ok(Self::Git),
             "design_sync" | "designsync" => Ok(Self::Designsync),
-            _ => error!("Unsupported revision control system '{}'", system),
+            _ => bail!("Unsupported revision control system '{}'", system),
         }
     }
+}
+
+#[derive(Clone, Default)]
+pub struct Credentials {
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
+impl std::fmt::Debug for Credentials {
+    // Purposefully leave off the password
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credentials")
+            .field("username", &self.username)
+            .field("password", &"<-- Plaintext Password Withheld -->")
+            .finish()
+    }
+}
+
+#[derive(Debug)]
+pub struct RevisionControl {
+    driver: Box<dyn RevisionControlAPI>,
 }
 
 impl RevisionControl {
@@ -125,20 +125,20 @@ impl RevisionControl {
                 "designsync" | "design_sync" => {
                     driver = Box::new(Self::designsync_from_config(config)?)
                 }
-                _ => return error!("Unknown RC system '{}'", _c),
+                _ => bail!("Unknown RC system '{}'", _c),
             }
         } else {
             // Check for some specific parameters to discern the system
             if config.contains_key("vault") {
                 if config.contains_key("remote") {
-                    return error!("Both 'vault' and 'remote' cannot be used without specifying the 'system' parameter");
+                    bail!("Both 'vault' and 'remote' cannot be used without specifying the 'system' parameter");
                 } else {
                     driver = Box::new(Self::designsync_from_config(config)?);
                 }
             } else if config.contains_key("remote") {
                 driver = Box::new(Self::git_from_config(config)?);
             } else {
-                return error!("Could not discern revision control system. None of 'remote', 'vault', or 'system' were given");
+                bail!("Could not discern revision control system. None of 'remote', 'vault', or 'system' were given");
             }
         }
         Ok(Self { driver: driver })
@@ -150,10 +150,13 @@ impl RevisionControl {
 
     pub fn git_from_config(config: &HashMap<String, String>) -> Result<Git> {
         Ok(Self::git(
-            &Path::new(config.get("local").unwrap()),
+            match config.get("local") {
+                Some(l) => &Path::new(l),
+                None => bail!("Git driver must be given a 'local' parameter"),
+            },
             match config.get("remote") {
                 Some(r) => vec![r],
-                None => return error!("Git driver must be given a 'remote' parameter"),
+                None => bail!("Git driver must be given a 'remote' parameter"),
             },
             None,
         ))
@@ -175,7 +178,7 @@ impl RevisionControl {
             &Path::new(config.get("local").unwrap()),
             match config.get("vault") {
                 Some(v) => vec![v],
-                None => return error!("DesignSync driver muust be given a 'vault' parameter"),
+                None => bail!("DesignSync driver muust be given a 'vault' parameter"),
             },
             None,
         ))
@@ -214,7 +217,7 @@ pub trait RevisionControlAPI: std::fmt::Debug {
     /// Initialize a new local workspace at path, pointing to the given location
     /// Returns true if a new workspace was created, false if the workspace already
     /// existed (no action), or an error.
-    fn init(&self) -> Result<GenericResult>;
+    fn init(&self) -> Result<Outcome>;
 
     /// Indicate if the path of the RC driver is initialized
     fn is_initialized(&self) -> Result<bool>;
@@ -224,7 +227,7 @@ pub trait RevisionControlAPI: std::fmt::Debug {
         files_or_dirs: Option<Vec<&Path>>,
         msg: &str,
         dry_run: bool,
-    ) -> Result<GenericResult>;
+    ) -> Result<Outcome>;
 
     fn system(&self) -> &str;
 }
@@ -250,7 +253,7 @@ impl RevisionControlAPI for RevisionControl {
         self.driver.tag(tagname, force, message)
     }
 
-    fn init(&self) -> Result<GenericResult> {
+    fn init(&self) -> Result<Outcome> {
         self.driver.init()
     }
 
@@ -263,7 +266,7 @@ impl RevisionControlAPI for RevisionControl {
         files_or_dirs: Option<Vec<&Path>>,
         msg: &str,
         dry_run: bool,
-    ) -> Result<GenericResult> {
+    ) -> Result<Outcome> {
         self.driver.checkin(files_or_dirs, msg, dry_run)
     }
 

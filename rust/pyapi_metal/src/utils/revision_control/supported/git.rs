@@ -1,14 +1,14 @@
-use super::Status;
-use crate::runtime_error;
-use crate::utility::results::GenericResult as PyGenericResult;
-use origen::revision_control::git::Git as OrigenGit;
-use origen::revision_control::RevisionControlAPI;
+use super::super::{Base, Status};
+use crate::framework::Outcome as PyOutcome;
+use crate::{bail_with_runtime_error, OMResult};
+use origen_metal::utils::revision_control::supported::Git as OrigenGit;
+use origen_metal::utils::revision_control::{RevisionControl, RevisionControlAPI};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple, PyType};
 use std::collections::HashMap;
 use std::path::Path;
 
-pub static PY_GIT_MOD_PATH: &str = "origen.utility.revision_control.git";
+pub static PY_GIT_MOD_PATH: &str = "origen_metal.utils.revision_control.supported.git";
 
 #[pymodule]
 fn git(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -16,7 +16,7 @@ fn git(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-#[pyclass(subclass)]
+#[pyclass(subclass, extends=Base)]
 pub struct Git {
     config: HashMap<String, String>,
 }
@@ -37,14 +37,15 @@ impl Git {
     }
 
     #[new]
-    fn new(config: Option<&PyDict>) -> PyResult<Self> {
+    #[args(args = "*", config = "**")]
+    fn new(args: &PyTuple, config: Option<&PyDict>) -> PyResult<(Self, Base)> {
         let mut c: HashMap<String, String> = HashMap::new();
         if let Some(cfg) = config {
             for (k, v) in cfg {
                 c.insert(k.extract::<String>()?, v.extract::<String>()?);
             }
         }
-        Ok(Self { config: c })
+        Ok((Self { config: c }, Base::new(args, config)?))
     }
 
     fn populate(&self, version: &str) -> PyResult<()> {
@@ -105,8 +106,8 @@ impl Git {
         )?)
     }
 
-    fn init(&self) -> PyResult<PyGenericResult> {
-        Ok(PyGenericResult::from_origen(self.rc()?.init()?))
+    fn init(&self) -> PyResult<PyOutcome> {
+        Ok(PyOutcome::from_origen(self.rc()?.init()?))
     }
 
     fn is_initialized(&self) -> PyResult<bool> {
@@ -114,7 +115,7 @@ impl Git {
     }
 
     #[args(paths = "*", kwargs = "**")]
-    fn checkin(&self, paths: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyGenericResult> {
+    fn checkin(&self, paths: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyOutcome> {
         let msg;
         let dry_run;
         if let Some(kw) = kwargs {
@@ -122,14 +123,16 @@ impl Git {
                 Some(m) => {
                     msg = m.extract::<String>()?;
                 }
-                None => return runtime_error!("A 'msg' is required for checkin operations"),
+                None => {
+                    return bail_with_runtime_error!("A 'msg' is required for checkin operations")
+                }
             }
             match kw.get_item("dry-run") {
                 Some(d) => dry_run = d.extract::<bool>()?,
                 None => dry_run = false,
             }
         } else {
-            return runtime_error!("A 'msg' is required for checkin operations");
+            return bail_with_runtime_error!("A 'msg' is required for checkin operations");
         }
 
         let mut rusty_paths = vec![];
@@ -137,7 +140,7 @@ impl Git {
             let p = path.extract::<&str>()?;
             rusty_paths.push(Path::new(p));
         }
-        Ok(PyGenericResult::from_origen(self.rc()?.checkin(
+        Ok(PyOutcome::from_origen(self.rc()?.checkin(
             Some(rusty_paths),
             &msg,
             dry_run,
@@ -145,8 +148,8 @@ impl Git {
     }
 
     #[args(dry_run = "false")]
-    fn checkin_all(&self, msg: &str, dry_run: bool) -> PyResult<PyGenericResult> {
-        Ok(PyGenericResult::from_origen(
+    fn checkin_all(&self, msg: &str, dry_run: bool) -> PyResult<PyOutcome> {
+        Ok(PyOutcome::from_origen(
             self.rc()?.checkin(None, msg, dry_run)?,
         ))
     }
@@ -157,7 +160,7 @@ impl Git {
 }
 
 impl Git {
-    fn rc(&self) -> origen::Result<OrigenGit> {
-        origen::revision_control::RevisionControl::git_from_config(&self.config)
+    fn rc(&self) -> OMResult<OrigenGit> {
+        RevisionControl::git_from_config(&self.config)
     }
 }

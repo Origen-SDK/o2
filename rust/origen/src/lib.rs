@@ -24,7 +24,6 @@ pub mod error;
 pub mod generator;
 pub mod precludes;
 pub mod prog_gen;
-pub mod revision_control;
 pub mod services;
 pub mod standards;
 pub mod testers;
