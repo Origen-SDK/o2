@@ -32,9 +32,9 @@ class Fixture_DictLikeAPI(abc.ABC):
     # get around this by using a fixture on the first test to boot the object.
     @pytest.fixture
     def boot(self):
-        if not getattr(self, "_init_dict_under_test_run", False):
+        if not getattr(self.__class__, "_init_dict_under_test_run", False):
             self.init_dict_under_test()
-            self._init_dict_under_test_run = True
+            setattr(self.__class__, '_init_dict_under_test_run', True)
         self.expected = self.Expected(self.parameterize())
         self.dut = self.boot_dict_under_test()
 
@@ -67,11 +67,11 @@ class Fixture_DictLikeAPI(abc.ABC):
 
     def test_getitem(self, boot):
         assert self.dut.get
-        assert self.dut.get(self.expected.in_dut)
+        assert self.dut.get(self.expected.in_dut) is not None
         assert self.dut.get(self.expected.not_in_dut) is None
 
     def test_index_notation(self, boot):
-        assert self.dut[self.expected.in_dut]
+        assert self.dut[self.expected.in_dut] is not None
         with pytest.raises(KeyError):
             self.dut[self.expected.not_in_dut]
 
@@ -101,7 +101,7 @@ class Fixture_DictLikeAPI(abc.ABC):
         assert l == self.expected.keys
 
 
-# Test Dict-Like API
+# Test List-Like API
 class Fixture_ListLikeAPI(abc.ABC):
     class Expected:
         def __init__(self, parent, parameters):
@@ -241,6 +241,7 @@ class Fixture_ListLikeAPI(abc.ABC):
         for i, x in enumerate(self.lut):
             getattr(self.expected, f"verify_i{i}")(x)
 
+    # TODO need to revisit contains. Maybe make an option
     #def test_contains(self, boot):
     #  assert self.expected.in_list in self.lut
     #  assert self.expected.not_in_list not in self.lut

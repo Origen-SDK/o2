@@ -139,17 +139,17 @@ impl std::convert::From<std::num::ParseIntError> for Error {
     }
 }
 
-//impl std::convert::From<num_bigint::ParseBigIntError> for Error {
-//    fn from(err: num_bigint::ParseBigIntError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
-//impl std::convert::From<ldap3::LdapError> for Error {
-//    fn from(err: ldap3::LdapError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<num_bigint::ParseBigIntError> for Error {
+   fn from(err: num_bigint::ParseBigIntError) -> Self {
+       Error::new(&err.to_string())
+   }
+}
+
+impl std::convert::From<ldap3::LdapError> for Error {
+   fn from(err: ldap3::LdapError) -> Self {
+       Error::new(&err.to_string())
+   }
+}
 //
 //impl std::convert::From<aes_gcm::Error> for Error {
 //    fn from(err: aes_gcm::Error) -> Self {
@@ -209,3 +209,9 @@ impl std::convert::From<std::env::VarError> for Error {
 //        Error::new(&err.to_string())
 //    }
 //}
+
+impl<T> std::convert::From<std::sync::PoisonError<T>> for Error {
+    fn from(err: std::sync::PoisonError<T>) -> Self {
+        Error::new(&err.to_string())
+    }
+}

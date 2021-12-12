@@ -55,7 +55,13 @@ use std::sync::{Mutex, MutexGuard};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::ldap::LDAPs;
 use utility::mailer::Maillists;
-use utility::session_store::{SessionStore, Sessions};
+pub use origen_metal as om;
+pub use om::TypedValue;
+use self::utility::sessions::setup_sessions;
+pub use self::utility::sessions::{
+    with_user_session, with_user_session_group,
+    with_app_session, with_app_session_group
+};
 
 pub use self::core::frontend::callbacks as CALLBACKS;
 pub use self::core::frontend::{
@@ -96,7 +102,6 @@ lazy_static! {
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
-    pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
     pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
     pub static ref MAILLISTS: RwLock<Maillists> = RwLock::new(Maillists::new());
@@ -169,6 +174,13 @@ pub fn initialize(
     STATUS.set_cli_version(cli_version);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
     LOGGER.set_status_ready();
+    match setup_sessions() {
+        Ok(_) => {},
+        Err(e) => log_error!(
+            "Failed to setup user and application sessions. Received error: \n{}",
+            e
+        )
+    }
 }
 
 pub fn app() -> Option<&'static Application> {
@@ -185,19 +197,6 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
-}
-
-pub fn sessions() -> MutexGuard<'static, Sessions> {
-    SESSIONS.lock().unwrap()
-}
-
-pub fn with_user_session<T, F>(session: Option<String>, mut func: F) -> Result<T>
-where
-    F: FnMut(&mut SessionStore) -> Result<T>,
-{
-    let mut sessions = crate::sessions();
-    let s = sessions.user_session(session)?;
-    func(s)
 }
 
 pub fn ldaps() -> MutexGuard<'static, LDAPs> {
@@ -323,6 +322,7 @@ pub fn start_new_test(name: Option<String>) {
     }
 }
 
+// TODO change name?
 #[cfg(all(test, not(origen_skip_frontend_tests)))]
 mod tests {
     pub fn run_python(code: &str) -> crate::Result<()> {

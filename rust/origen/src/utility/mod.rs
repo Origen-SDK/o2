@@ -10,7 +10,7 @@ pub mod ldap;
 pub mod mailer;
 pub mod num_helpers;
 pub mod release_scribe;
-pub mod session_store;
+pub mod sessions;
 pub mod version;
 
 use crate::{Result, STATUS};
@@ -53,6 +53,7 @@ pub fn resolve_dir_from_app_root(user_val: Option<&String>, default: &str) -> Pa
     dir
 }
 
+// TODO remove this
 /// Checks the given values of a vector against an enumerated set of accepted values.
 /// Optionally, check for duplicate items as well.
 pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(
@@ -89,6 +90,7 @@ pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(
     Ok(())
 }
 
+// TODO remove this
 pub fn str_to_bool(s: &str) -> Result<bool> {
     match s {
         "true" | "True" => Ok(true),

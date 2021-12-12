@@ -69,6 +69,23 @@ macro_rules! bail_with_runtime_error {
     }};
 }
 
+#[macro_export]
+macro_rules! runtime_error {
+    ($message:expr) => {{
+        crate::bail_with_runtime_error!($message)
+    }};
+}
+
+#[macro_export]
+macro_rules! type_error {
+    ($message:expr) => {
+        Err(pyo3::exceptions::PyTypeError::new_err(format!(
+            "{}",
+            $message
+        )))
+    };
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

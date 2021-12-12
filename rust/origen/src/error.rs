@@ -193,6 +193,12 @@ impl std::convert::From<origen_metal::Error> for Error {
     }
 }
 
+impl std::convert::From<Error> for origen_metal::Error {
+    fn from(err: Error) -> Self {
+        origen_metal::Error::new(&err.to_string())
+    }
+}
+
 // On failure, the original OS string is returned
 // https://doc.rust-lang.org/std/ffi/struct.OsString.html#method.into_string
 impl std::convert::From<std::ffi::OsString> for Error {

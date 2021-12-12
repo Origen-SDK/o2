@@ -1,5 +1,6 @@
 use super::utility::metadata::{extract_as_metadata, metadata_to_pyobj};
-use super::utility::session_store::{user_session, SessionStore};
+use pyapi_metal::framework::sessions::SessionStore;
+use origen::with_user_session;
 use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -536,7 +537,9 @@ impl User {
 
     #[getter]
     fn session(&self) -> PyResult<SessionStore> {
-        user_session(None)
+        Ok(with_user_session(None, |s| {
+            Ok(SessionStore::from_metal(s)?)
+        })?)
     }
 }
 

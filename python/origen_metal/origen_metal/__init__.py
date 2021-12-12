@@ -9,3 +9,5 @@ if "origen_metal._origen_metal" in sys.modules:
     _origen_metal = sys.modules["origen_metal._origen_metal"]
 else:
     from ._origen_metal import *
+
+sessions = _origen_metal.framework.sessions.sessions()

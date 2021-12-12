@@ -6,3 +6,5 @@
 //! similar to Origen's implementation of the given feature.
 pub mod logger;
 pub mod reference_files;
+pub mod typed_value;
+pub mod sessions;

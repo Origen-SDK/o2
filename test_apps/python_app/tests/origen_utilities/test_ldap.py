@@ -1,5 +1,7 @@
+# TODO Remove when moved fully to metal
+
 import pytest, origen, _origen
-from tests.shared.python_like_apis import Fixture_DictLikeAPI
+from om_tests.shared.python_like_apis import Fixture_DictLikeAPI
 
 SERVER = "ldap://ldap.forumsys.com:389"
 BASE = "dc=example,dc=com"

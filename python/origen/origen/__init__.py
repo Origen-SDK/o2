@@ -200,7 +200,7 @@ See also:
 
 maillists = _origen.utility.mailer.maillists()
 
-session_store = _origen.utility.session_store
+sessions = _origen.utility.sessions.OrigenSessions()
 ''' Accessor to the global :class:`SessionStore <_origen.utility.session_store.SessionStore`
 
 See also:

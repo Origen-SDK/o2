@@ -1,37 +1,49 @@
-import pytest, shutil, pathlib, marshal, inspect, pickle, origen, _origen
+import pytest, pathlib, origen, _origen
+import origen_metal as om
+from tests import om_shared
 from tests.shared import tmp_dir
-from tests.shared.python_like_apis import Fixture_DictLikeAPI
 
+with om_shared():
+    from om_tests.utils.test_sessions import Common
 
-class Dummy:
-    def __init__(self, data):
-        self.data = data
-
-
-class Base:
+class Base(Common):
     @property
     def app_test_session_root(self):
-        return pathlib.Path(tmp_dir().joinpath(".session"))
+        return pathlib.Path(tmp_dir().joinpath(".session/__app__"))
 
     @property
     def user_test_session_root(self):
-        return pathlib.Path(tmp_dir().joinpath(".user.session"))
+        return pathlib.Path(tmp_dir().joinpath(".o2/.session/__user__"))
 
     @property
-    def _plugin_app_session(self):
-        return _origen.utility.session_store.app_session(self.pl_name)
+    def user_sg(self):
+        return origen.sessions.user_sessions
 
     @property
-    def _plugin_user_session(self):
-        return _origen.utility.session_store.user_session(self.pl_name)
+    def app_sg(self):
+        return origen.sessions.app_sessions
 
     @property
-    def plugin_app_session_path(self):
-        return self.app_test_session_root.joinpath(self.pl_name)
+    def user_sessions(self):
+        return origen.sessions.user_sessions
 
     @property
-    def plugin_user_session_path(self):
-        return self.user_test_session_root.joinpath(self.pl_name)
+    def app_sessions(self):
+        return origen.sessions.app_sessions
+
+    def user_session(self, s=None):
+        return origen.sessions.user_session(s)
+
+    def app_session(self, s=None):
+        return origen.sessions.app_session(s)
+
+    @property
+    def app_name(self):
+        return origen.app.name
+
+    @property
+    def user_id(self):
+        return origen.current_user().id
 
     @property
     def pl(self):
@@ -42,302 +54,139 @@ class Base:
         return "python_plugin"
 
     @property
-    def session_store(self):
-        return origen.session_store
-
-    def blank_app_session_for(self):
-        name = inspect.stack()[1][3]
-        s = origen.session_store.app_session(name)
-        s.remove_file()
-        return s
-
-    def blank_user_session_for(self):
-        name = inspect.stack()[1][3]
-        s = origen.session_store.user_session(name)
-        s.remove_file()
-        return s
+    def sessions(self):
+        return origen.sessions
 
     @pytest.fixture
     def clear_test_sessions(self):
-        if self.app_test_session_root.exists():
-            shutil.rmtree(self.app_test_session_root)
-        if self.user_test_session_root.exists():
-            shutil.rmtree(self.user_test_session_root)
-        self.session_store.clear_cache()
+        assert self.sessions.user_session_root == self.user_test_session_root
+        assert self.sessions.app_session_root == self.app_test_session_root
+
+        self.sessions.clean()
         assert self.app_test_session_root.exists() is False
         assert self.user_test_session_root.exists() is False
 
-    def update_roots(self):
-        self.session_store.clear_cache()
-        origen.session_store.set_app_root(self.app_test_session_root)
-        origen.session_store.set_user_root(self.user_test_session_root)
 
-
-class TestSessionStoreDefaults(Base):
+class TestOrigenSessions(Base):
     def test_blank_sessions(self, clear_test_sessions):
         ''' Should return a Session class but not actually create any files yet'''
-        assert origen.session_store == _origen.utility.session_store
-        assert isinstance(origen.session_store.app_session(),
-                          _origen.utility.session_store.SessionStore)
-        assert isinstance(origen.session_store.user_session(),
-                          _origen.utility.session_store.SessionStore)
-        assert origen.session_store.app_session().is_app_session
-        assert not origen.session_store.app_session().is_user_session
-        assert not origen.session_store.user_session().is_app_session
-        assert origen.session_store.user_session().is_user_session
+        assert isinstance(self.sessions, _origen.utility.sessions.OrigenSessions)
+        assert isinstance(self.user_sg, self.sg_class)
+        assert isinstance(self.app_sg, self.sg_class)
+
+        assert set(self.sessions.groups.keys()) == {"__user__", "__app__"}
+        assert len(self.sessions.standalones) == 0
+
+        # Only the default session should be in the group initially
+        assert len(self.user_sg) == 1
+        assert len(self.app_sg) == 1
+        assert self.user_id in self.user_sg
+        assert self.app_name in self.app_sg
+
+        assert isinstance(self.sessions.user_session(), self.ss_class)
+        assert isinstance(self.sessions.app_session(), self.ss_class)
         assert not self.app_test_session_root.exists()
         assert not self.user_test_session_root.exists()
+        assert len(self.user_session()) == 0
+        assert len(self.app_session()) == 0
 
-    def test_updating_session_roots(self):
-        ''' The user path will move around and is more dependent on the 
-            `User` class than the session.
-            Just make sure its loosly valid. We'll be changing it anyway so
-            just ensure the change is observed.
-        '''
-        assert origen.session_store.app_root() == origen.app.root.joinpath(
-            '.session')
-        assert origen.session_store.user_root() == origen.current_user(
-        ).home_dir.joinpath('.o2/.session')
-        assert origen.session_store.user_root() != self.user_test_session_root
-        self.update_roots()
-        assert origen.session_store.app_root() == self.app_test_session_root
-        assert origen.session_store.user_root() == self.user_test_session_root
+        # TODO update this to enums (when available)
+        assert str(self.user_sg.permissions) == "private"
+        assert str(self.app_sg.permissions) == "group_writable"
+
+    def test_app_session_paths(self):
+        assert self.app_session().path == self.app_test_session_root.joinpath(self.app_name)
+        assert self.app_session("blah").path == self.app_test_session_root.joinpath("blah")
+
+    def test_user_session_paths(self):
+        assert self.user_session().path == self.user_test_session_root.joinpath(self.user_id)
+        assert self.user_session("blah").path == self.user_test_session_root.joinpath("blah")
 
     def test_app_session_aliases(self):
-        assert origen.session_store.app_session(
-        ) == _origen.utility.session_store.app_session()
-        assert origen.session_store.app_session(
-            "example") == _origen.utility.session_store.app_session()
-        assert origen.app.session == _origen.utility.session_store.app_session(
-        )
-        assert origen.session_store.app_session(
-            origen.app) == _origen.utility.session_store.app_session()
+        assert self.app_session() == self.app_session(self.app_name)
+        assert self.app_session() == self.app_session(origen.app)
+        assert self.app_session() == origen.app.session
+        assert self.app_session() != self.app_session("blah")
 
     def test_user_session_aliases(self):
-        assert origen.session_store.user_session(
-        ) == _origen.utility.session_store.user_session()
-        assert origen.current_user(
-        ).session == _origen.utility.session_store.user_session()
-        assert origen.session_store.user_session(
-            origen.app) == _origen.utility.session_store.user_session(
-                origen.app)
+        assert self.user_session() == self.user_session(self.user_id)
+        assert self.user_session() == origen.current_user().session
 
     def test_user_session_for_app(self):
-        assert origen.app.user_session == _origen.utility.session_store.user_session(
-            origen.app)
+        assert self.user_session(self.app_name) == self.user_session(origen.app)
+        assert self.user_session(self.app_name) == origen.app.user_session
 
-    def test_plugin_session_aliases(self):
-        assert self._plugin_app_session.path == self.plugin_app_session_path
-        assert self._plugin_user_session.path == self.plugin_user_session_path
+    def test_plugin_app_session_aliases(self):
+        assert self.app_session(self.pl_name).path == self.app_test_session_root.joinpath(self.pl_name)
+        assert self.app_session(self.pl_name) == self.app_session(self.pl)
+        assert self.app_session(self.pl_name) == origen.plugin(self.pl_name).session
 
-        assert origen.session_store.app_session(
-            self.pl_name) == self._plugin_app_session
-        assert origen.session_store.app_session(
-            self.pl) == self._plugin_app_session
-        assert origen.plugin(self.pl_name).session == self._plugin_app_session
-
-        assert origen.session_store.user_session(
-            self.pl_name) == self._plugin_user_session
-        assert origen.session_store.user_session(
-            self.pl) == self._plugin_user_session
-        assert origen.plugin(
-            self.pl_name).user_session == self._plugin_user_session
-
+    def test_plugin_user_session_aliases(self):
+        assert self.user_session(self.pl_name).path == self.user_test_session_root.joinpath(self.pl_name)
+        assert self.user_session(self.pl_name) == self.user_session(self.pl)
+        assert self.user_session(self.pl_name) == origen.plugin(self.pl_name).user_session
 
 class TestSessionStore(Base):
-    @pytest.fixture(autouse=True)
-    def update_roots(self):
-        Base.update_roots(self)
-
     def test_adding_app_sessions(self):
-        s = origen.session_store.app_session("hi")
-        assert isinstance(s, _origen.utility.session_store.SessionStore)
-        assert s.path == self.app_test_session_root.joinpath("hi")
-        assert s == origen.session_store.app_session("hi")
+        n = "app_session"
+        s = self.app_session(n)
+        assert isinstance(s, self.ss_class)
+        assert s.path == self.app_test_session_root.joinpath(n)
 
     def test_adding_user_sessions(self):
-        s = origen.session_store.user_session("hi")
-        assert isinstance(s, _origen.utility.session_store.SessionStore)
-        assert s.path == self.user_test_session_root.joinpath("hi")
-        assert s == origen.session_store.user_session("hi")
+        n = "my_session"
+        assert n not in self.user_sessions
+        s = self.user_session(n)
+        assert isinstance(s, self.ss_class)
+        assert s.path == self.user_test_session_root.joinpath(n)
 
-    def test_roundtrip(self):
-        s = self.blank_app_session_for()
-        assert s.get("test") == None
-        assert s.path.exists() is False
-        s.store("test", "str")
-        s.store("test2", "strA")
-        assert s.path.exists() is True
-
-        s.refresh()
-        assert s.get("test") == "str"
-        assert s.get("test2") == "strA"
-
-        # Overide an item
-        s.store("test", "str2")
-        s.refresh()
-        assert s.get("test") == "str2"
+    def test_default_user_session(self):
+        assert self.user_session().get("test") == None
+        self.user_session().store("test", 123)
+        assert self.user_session().get("test") == 123
 
     def test_roundtrip_user_session(self):
-        s = self.blank_user_session_for()
+        s = self.user_session("test_roundtrip_user_session")
         assert s.get("test") == None
         assert s.path.exists() is False
 
-        s.store("test", "user_str")
-        s.store("test2", "user_strA")
+        s.store("test", "abc")
+        s.store("test2", "def")
         assert s.path.exists() is True
 
-        s.refresh()
-        assert s.get("test") == "user_str"
-        assert s.get("test2") == "user_strA"
+        assert s.get("test") == "abc"
+        assert s.get("test2") == "def"
 
-    def test_roundtrip_for_fancier_objects(self):
-        s = self.blank_app_session_for()
-        assert s.get("list test") == None
-        s.store("list test", [1, 2, "three", 1.23, -5])
-        s.refresh()
-        assert s.get("list test") == [1, 2, "three", 1.23, -5]
+        # Should not be added to default user session
+        assert self.user_session().get("test") == 123
 
-    def test_roundtrip_for_custom_class(self):
-        s = self.blank_app_session_for()
-        assert s.get("dummy") == None
-        s.store("dummy", Dummy(1))
-        d = s.get("dummy")
-        assert isinstance(d, Dummy)
-        assert d.data == 1
+    def test_getting_all_user_sessions(self):
+        ''' This will include all added sessions under 'user', even if no data (and no actual file) is present'''
+        assert set(self.user_sessions.keys()) == {
+            self.user_id, self.app_name, 'my_session', 'python_plugin', 'blah', 'test_roundtrip_user_session'
+        }
 
-    def test_clearing_session_values(self):
-        s = self.blank_app_session_for()
-        assert s.store("test_str", "str").refresh().get("test_str") == "str"
-        assert s.store("test_str2",
-                       "str2").refresh().get("test_str2") == "str2"
-        assert s.store("test_str3",
-                       "str3").refresh().get("test_str3") == "str3"
+    def test_default_app_session(self):
+        assert self.app_session().get("test") == None
+        self.app_session().store("test", 123)
+        assert self.app_session().get("test") == 123
 
-        # Set an item to None
-        assert s.store("test_str", None).refresh().get("test_str") == None
-        assert s.get("test_str2") == "str2"
-        assert s.get("test_str3") == "str3"
+    def test_roundtrip_app_session(self):
+        s = self.app_session("test_roundtrip_app_session")
+        assert s.get("test") == None
+        assert s.path.exists() is False
 
-        # Use delete method
-        assert s.delete("test_str2") == "str2"
-        s.refresh()
-        assert s.get("test_str2") == None
-        assert s.get("test_str3") == "str3"
+        s.store("test", "abc")
+        s.store("test2", "def")
+        assert s.path.exists() is True
 
-    def test_data_is_returned_by_value(self):
-        s = self.blank_app_session_for()
-        assert s.get("test") is None
-        d = {"i0": 0, "i1": 1}
-        s.store("test", d).refresh()
-        roundtrip_d = s.get("test")
-        assert roundtrip_d == d
-        roundtrip_d["i2"] = 2
-        assert roundtrip_d != d
-        roundtrip_d_2 = s.get("test")
-        assert roundtrip_d_2 == d
-        assert not roundtrip_d_2 == roundtrip_d
+        assert s.get("test") == "abc"
+        assert s.get("test2") == "def"
 
-        s.store("test", roundtrip_d).refresh()
-        assert roundtrip_d == s.get("test")
-
-    def test_roundtrip_serialized(self):
-        ''' The session will automatically serialize data by default. However,
-            if the data is pre-serialized, can store it verbatim as a byte array.
-
-            When this is retrieved, it will not be de-serialized by the session.
-        '''
-        s = self.blank_app_session_for()
-        assert s.get("serialized") == None
-        s.store_serialized("serialized", marshal.dumps("serialized?"))
-        s.refresh()
-        serialized = s.get("serialized")
-        assert isinstance(serialized, bytes)
-        assert marshal.loads(serialized) == "serialized?"
-
-        # Pickle is used under the hood to serialize/de-serialize Python objects.
-        # Test that we can get it back using just `get` confirming that:
-        #   1. `get` and `get_serialized` are returning the same data, just different formats
-        #   2. serialization didn't occur on the Rust side (though, already tested above).
-        s.store_serialized("pickle_serialized", pickle.dumps("Pickle!"))
-        s.refresh()
-        assert pickle.loads(s.get("pickle_serialized")) == "Pickle!"
-
-    def test_roundtrip_as_string(self):
-        s = self.blank_app_session_for()
-        assert s.store("test_str", "str").refresh().get("test_str") == "str"
-
-    def test_roundtrip_as_int(self):
-        s = self.blank_app_session_for()
-        assert s.store("test_int", 1).refresh().get("test_int") == 1
-        assert s.store("test_int_neg", -1).refresh().get("test_int_neg") == -1
-
-    def test_roundtrip_as_bool(self):
-        s = self.blank_app_session_for()
-        assert s.store("test_true", True).refresh().get("test_true") == True
-        assert s.store("test_false",
-                       False).refresh().get("test_false") == False
-
-    def test_roundtrip_as_float(self):
-        s = self.blank_app_session_for()
-        assert s.store("test_float", 3.14).refresh().get("test_float") == 3.14
-        assert s.store("test_float_neg",
-                       -3.14).refresh().get("test_float_neg") == -3.14
+        # Should not be added to default user session
+        assert self.app_session().get("test") == 123
 
     def test_getting_all_app_sessions(self):
-        s = origen.session_store.app_sessions()
-        assert isinstance(s, dict)
-        assert set(s.keys()) == {
-            'test_roundtrip_for_fancier_objects', 'test_roundtrip_as_string',
-            'test_roundtrip_serialized', 'test_roundtrip_as_bool',
-            'test_roundtrip_for_custom_class', 'test_roundtrip',
-            'test_clearing_session_values', 'test_roundtrip_as_int',
-            'test_data_is_returned_by_value', 'test_roundtrip_as_float'
+        assert set(self.app_sessions.keys()) == {
+            self.app_name, 'app_session', 'python_plugin', 'blah', 'test_roundtrip_app_session'
         }
-        assert isinstance(s['test_roundtrip_as_string'],
-                          _origen.utility.session_store.SessionStore)
-        assert 'test_roundtrip_as_string' in s
-
-        # Spot check one of the sessions themselves
-        assert s['test_roundtrip_as_string'].get('test_str') == 'str'
-
-    def test_getting_all_user_sessios(self):
-        s = origen.session_store.user_sessions()
-        assert isinstance(s, dict)
-        assert set(s.keys()) == {'test_roundtrip_user_session'}
-        assert isinstance(s["test_roundtrip_user_session"],
-                          _origen.utility.session_store.SessionStore)
-        assert s['test_roundtrip_user_session'].get('test') == 'user_str'
-        assert 'test_roundtrip_user_session' in s
-
-    class TestSessionStoreDictLike(Fixture_DictLikeAPI, Base):
-        def parameterize(self):
-            return {
-                "keys": ["t1", "t2", "t3"],
-                "klass": str,
-                "not_in_dut": "Blah"
-            }
-
-        def init_dict_under_test(self):
-            s = self.boot_dict_under_test()
-            s.store("t1", "one")
-            s.store("t2", "two")
-            s.store("t3", "three")
-
-        def boot_dict_under_test(self):
-            return origen.session_store.app_session("dict_like_test")
-
-    def test_session_item_assignment(self):
-        s = origen.session_store.app_session("dict_like_setter_test")
-        assert "set_test" not in s
-        s["set_test"] = True
-        assert "set_test" in s
-        assert s["set_test"] == True
-        s["set_test"] = 1
-        assert s["set_test"] == 1
-
-    def test_setting_to_none_deletes_key(self):
-        s = origen.session_store.app_session("dict_like_setter_test")
-        assert "set_test" in s
-        s["set_test"] = None
-        assert "set_test" not in s

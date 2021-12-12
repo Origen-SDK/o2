@@ -81,12 +81,12 @@ class Base(_origen.application.PyApplication):
     @property
     def session(self):
         ''' Return this app's session store'''
-        return origen.session_store.app_session(self)
+        return origen.sessions.app_session(self)
 
     @property
     def user_session(self):
         ''' Return this app's user session store'''
-        return origen.session_store.user_session(self)
+        return origen.sessions.user_session(self)
 
     @property
     def rc(self):

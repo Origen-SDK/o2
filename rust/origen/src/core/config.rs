@@ -62,6 +62,8 @@ pub struct Config {
     // or regression test launcher
     pub user__dataset_mappings: HashMap<String, HashMap<String, String>>,
     pub service_users: HashMap<String, HashMap<String, String>>,
+    // User session root path
+    pub session__user_root: Option<String>,
 }
 
 impl Default for Config {
@@ -108,6 +110,9 @@ impl Default for Config {
         // Encryption keys specifically for passwords
         let _ = s.set_default("password_encryption_key", None::<String>);
         let _ = s.set_default("password_encryption_nonce", None::<String>);
+
+        // Session setup
+        let _ = s.set_default("session__user_root", None::<String>);
 
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();
@@ -232,6 +237,39 @@ fn process_config_pre_merge(c: &mut config::Config, src: &PathBuf) {
                 Ok(_) => {}
                 Err(e) => display_redln!(
                     "Error setting maillist dir: '{}': {}",
+                    src.display(),
+                    e.to_string()
+                ),
+            }
+        }
+        Err(e) => match e {
+            config::ConfigError::NotFound(_) => {}
+            _ => {
+                term::redln(&format!("Malformed config file: {}", src.display()));
+                term::redln(&format!("{}", e));
+                std::process::exit(1);
+            }
+        },
+    }
+    match c.get("session__user_root") {
+        Ok(root) => {
+            match c.set(
+                "session__user_root",
+                match crate::utility::file_utils::to_abs_path(&root, &src.parent().unwrap().to_path_buf()) {
+                    Ok(resolved) => Some(resolved.display().to_string()),
+                    Err(e) => {
+                        display_redln!(
+                            "Unable to process config value for 'session__user_root' (in '{}'): {}",
+                            src.display(),
+                            e
+                        );
+                        None
+                    }
+                }
+            ) {
+                Ok(_) => {}
+                Err(e) => display_redln!(
+                    "Error setting user session root: '{}': {}",
                     src.display(),
                     e.to_string()
                 ),

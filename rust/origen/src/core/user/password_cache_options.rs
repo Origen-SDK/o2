@@ -36,16 +36,17 @@ impl PasswordCacheOptions {
         match self {
             Self::Session => {
                 log_trace!("Caching password in session store...");
-                let mut s = crate::sessions();
-                let sess = s.user_session(None)?;
-                sess.store(
-                    to_session_password(dataset),
-                    crate::Metadata::String(str_from_byte_array(&encrypt_with(
-                        password,
-                        user.get_password_encryption_key()?,
-                        user.get_password_encryption_nonce()?,
-                    )?)?),
-                )?;
+                crate::with_user_session(None, |s| {
+                    s.store(
+                        to_session_password(dataset),
+                        crate::TypedValue::String(str_from_byte_array(&encrypt_with(
+                            password,
+                            user.get_password_encryption_key()?,
+                            user.get_password_encryption_nonce()?,
+                        )?)?)
+                    )?;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::Keyring => {
@@ -66,20 +67,20 @@ impl PasswordCacheOptions {
             Self::Session => {
                 log_trace!("Checking for password in session store...");
                 // Check if the password is cached in the user's session
-                let mut s = crate::sessions();
-                let sess = s.user_session(None)?;
-                if let Some(p) = sess.retrieve(&to_session_password(dataset))? {
-                    // Password should be encrypted (to avoid storing as plaintext)
-                    // Decrypt the password
-                    let pw = decrypt_with(
-                        &bytes_from_str_of_bytes(&p.as_string()?)?,
-                        user.get_password_encryption_key()?,
-                        user.get_password_encryption_nonce()?,
-                    )?;
-                    Ok(Some(pw.to_string()))
-                } else {
-                    Ok(None)
-                }
+                Ok(crate::with_user_session(None, |s| {
+                    if let Some(p) = s.retrieve(&to_session_password(dataset))? {
+                        // Password should be encrypted (to avoid storing as plaintext)
+                        // Decrypt the password
+                        let pw = decrypt_with(
+                            &bytes_from_str_of_bytes(&p.as_string()?)?,
+                            user.get_password_encryption_key()?,
+                            user.get_password_encryption_nonce()?,
+                        )?;
+                        Ok(Some(pw.to_string()))
+                    } else {
+                        Ok(None)
+                    }
+                })?)
             }
             Self::Keyring => {
                 log_trace!("Checking for password in keyring...");
@@ -102,7 +103,7 @@ impl PasswordCacheOptions {
                 let k = dataset.password_key();
                 if parent.is_current() {
                     log_trace!("Clearing password {} from user session", k);
-                    crate::with_user_session(None, |session| session.delete(&k))?;
+                    crate::with_user_session(None, |session| Ok(session.delete(&k)?))?;
                 }
             }
             Self::Keyring => {

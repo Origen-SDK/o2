@@ -694,23 +694,25 @@ impl User {
 
     /// Clear the cached password for all datasets
     pub fn clear_cached_passwords(&self) -> Result<()> {
-        // Important: need to ensure sessions was instantiated prior to grabbing a write-lock to avoid deadlock
-        {
-            if self.password_cache_option.is_session_store() {
-                let _ = crate::sessions();
-            }
-        }
+        // TEST_NEEDED not sure if this is still an issue.
+        // // Important: need to ensure sessions was instantiated prior to grabbing a write-lock to avoid deadlock
+        // {
+        //     if self.password_cache_option.is_session_store() {
+        //         let _ = crate::sessions();
+        //     }
+        // }
         self.for_all_datasets_mut(|d| d.clear_cached_password(self))
     }
 
     /// Clear the cached password for the current/default dataset
     pub fn clear_cached_password(&self, dataset: Option<&str>) -> Result<()> {
+        // TEST_NEEDED not sure if this is still an issue.
         // Important: need to ensure sessions was instantiated prior to grabbing a write-lock to avoid deadlock
-        {
-            if self.password_cache_option.is_session_store() {
-                let _ = crate::sessions();
-            }
-        }
+        // {
+        //     if self.password_cache_option.is_session_store() {
+        //         let _ = crate::sessions();
+        //     }
+        // }
         self.write_data(dataset)?.clear_cached_password(self)
     }
 

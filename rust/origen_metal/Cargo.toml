@@ -25,6 +25,11 @@ git2 = "0.13"
 dirs = "2.0"
 wait-timeout = "0.2.0"
 chrono = "0.4.11"
+indexmap = { version = "1.6.0", features = ["serde-1"] }
+num-bigint = {version = "0.4.0", features = ["serde"]}
+config = "0.11"
+ldap3 = "0.8.1"
+cfg-if = "1"
 
 [build-dependencies]
 built = "0.5.1"

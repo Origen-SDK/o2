@@ -91,6 +91,7 @@ pub fn to_relative_path(abs_path: &Path, relative_to: Option<&Path>) -> Result<P
 ///   Ok(())
 /// });
 /// ```
+// TODO remove this (use origen metal's)
 pub fn with_dir<T, F>(path: &Path, mut f: F) -> Result<T>
 where
     F: FnMut() -> Result<T>,
@@ -214,6 +215,7 @@ pub fn to_abs_path(path: &PathBuf, relative_to: &PathBuf) -> Result<PathBuf> {
     }
 }
 
+// TODO remove this stuff (use metal's)
 pub enum FilePermissions {
     Private,
     Group,

@@ -1,7 +1,7 @@
 use crate::core::application::target::matches;
 use crate::core::term;
 use crate::utility::location::Location;
-use config::File;
+use config::{Environment, File};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -32,6 +32,7 @@ pub struct Config {
     pub publisher: Option<HashMap<String, String>>,
     pub linter: Option<HashMap<String, String>>,
     pub release_scribe: Option<HashMap<String, String>>,
+    pub app_session_root: Option<String>,
 }
 
 impl Config {
@@ -50,6 +51,7 @@ impl Config {
         self.publisher = latest.publisher;
         self.linter = latest.linter;
         self.release_scribe = latest.release_scribe;
+        self.app_session_root = latest.app_session_root;
     }
 
     pub fn check_defaults(root: &Path) {
@@ -90,6 +92,7 @@ impl Config {
         let _ = s.set_default("publisher", None::<HashMap<String, String>>);
         let _ = s.set_default("linter", None::<HashMap<String, String>>);
         let _ = s.set_default("release_scribe", None::<HashMap<String, String>>);
+        let _ = s.set_default("app_session_root", None::<String>);
 
         // Find all the application.toml files
         let mut files: Vec<PathBuf> = Vec::new();
@@ -117,6 +120,7 @@ impl Config {
                 }
             }
         }
+        let _ = s.merge(Environment::with_prefix("origen_app"));
 
         // Couldn't figure out how to get the config::Config to recognize the Location struct since the
         // underlying converter to config::value::ValueKind is private.

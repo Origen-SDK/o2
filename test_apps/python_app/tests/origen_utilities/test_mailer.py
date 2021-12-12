@@ -1,5 +1,5 @@
 import pytest, origen, _origen, pathlib, re
-from tests.shared.python_like_apis import Fixture_DictLikeAPI
+from om_tests.shared.python_like_apis import Fixture_DictLikeAPI
 from tests.shared import in_new_origen_proc
 from configs import mailer as mailer_configs
 

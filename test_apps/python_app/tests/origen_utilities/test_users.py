@@ -1,5 +1,5 @@
 import origen, _origen, pytest, getpass
-from tests.shared.python_like_apis import Fixture_DictLikeAPI
+from om_tests.shared.python_like_apis import Fixture_DictLikeAPI
 from tests.shared import in_new_origen_proc
 from tests.origen_utilities.test_ldap import USER_USERNAME, PASSWORD
 from configs import users as user_configs
