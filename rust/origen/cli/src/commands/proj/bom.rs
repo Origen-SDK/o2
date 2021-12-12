@@ -2,7 +2,7 @@ use super::group::{Group, TempGroup};
 use super::package::Package;
 use super::{error_and_exit, BOM_FILE};
 use indexmap::IndexMap;
-use origen::utility::file_utils::with_dir;
+use origen_metal::utils::file::with_dir;
 use origen::Result;
 use origen_metal::utils::file::symlink;
 use std::path::{Path, PathBuf};
@@ -293,7 +293,7 @@ impl BOM {
 
     pub fn create_links(&self, force: bool) -> Result<bool> {
         let mut force_required = false;
-        with_dir(self.root(), || {
+        Ok(with_dir(self.root(), || {
             for (dest, source) in self.links.iter() {
                 let dest = Path::new(dest);
                 let source = Path::new(source);
@@ -327,7 +327,7 @@ impl BOM {
                     if source.exists() {
                         symlink(source, dest)?;
                     } else {
-                        return error!(
+                        origen_metal::bail!(
                             "The target of link '{}' does not exist - '{}'",
                             dest.display(),
                             source.display()
@@ -336,6 +336,6 @@ impl BOM {
                 }
             }
             Ok(force_required)
-        })
+        })?)
     }
 }

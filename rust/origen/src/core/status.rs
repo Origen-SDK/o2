@@ -2,7 +2,7 @@ extern crate time;
 use crate::built_info;
 use crate::core::application::Application;
 use crate::testers::SupportedTester;
-use crate::utility::file_utils::with_dir;
+use origen_metal::utils::file::with_dir;
 use crate::utility::version::Version;
 use crate::Result as OrigenResult;
 use regex::Regex;
@@ -428,7 +428,7 @@ impl Status {
     {
         let dir = self.output_dir();
         if change_dir {
-            with_dir(&dir, || f(&dir))
+            Ok(with_dir(&dir, || Ok(f(&dir)?))?)
         } else {
             f(&dir)
         }
@@ -471,7 +471,7 @@ impl Status {
         let dir = self.reference_dir();
         if change_dir && dir.is_some() {
             let dir = dir.unwrap();
-            with_dir(&dir, || f(Some(&dir)))
+            Ok(with_dir(&dir, || Ok(f(Some(&dir))?))?)
         } else {
             f(dir.as_ref())
         }

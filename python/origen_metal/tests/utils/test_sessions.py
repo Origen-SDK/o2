@@ -44,7 +44,9 @@ class Common:
         n = name or inspect.stack()[1][3]
         r = self.root
         if remove:
-            r.joinpath(n).unlink(missing_ok=True)
+            if r.joinpath(n).exists():
+                # 'missing_ok' option isn't support in pre python 3.8. So, need the manual check.
+                r.joinpath(n).unlink()
         s = om.sessions.add_standalone(n, r)
         return s
     
