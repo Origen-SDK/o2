@@ -142,44 +142,42 @@ impl FilePermissions {
             Self::PublicWithGroupWritable => "public_with_group_writable".to_string(),
             Self::Public => "public".to_string(),
             Self::WorldWritable => "world_writable".to_string(),
-            Self::Custom(perms) => format!("custom({})", perms),
+            Self::Custom(perms) => format!("custom({:#05o})", perms),
         }
     }
 
     pub fn to_i(&self) -> u16 {
         match self {
-            Self::Private => 0700,
-            Self::Group => 0750,
-            Self::GroupWritable => 0770,
-            Self::PublicWithGroupWritable => 0775,
-            Self::Public => 0755,
-            Self::WorldWritable => 0777,
+            Self::Private => 0o700,
+            Self::Group => 0o750,
+            Self::GroupWritable => 0o770,
+            Self::PublicWithGroupWritable => 0o775,
+            Self::Public => 0o755,
+            Self::WorldWritable => 0o777,
             Self::Custom(perms) => *perms,
         }
     }
 
     pub fn from_str(perms: &str) -> Result<Self> {
-        match perms {
-            "private" | "Private" | "007" => Ok(Self::Private),
-            "group" | "Group" | "057" => Ok(Self::Group),
-            "group_writable" | "GroupWritable" | "0077" => Ok(Self::GroupWritable),
-            "public_with_group_writable" | "PublicWithGroupWritable" | "0577" => {
-                Ok(Self::PublicWithGroupWritable)
-            }
-            "public" | "Public" | "557" => Ok(Self::Public),
-            "world_writable" | "WorldWritable" | "777" => Ok(Self::WorldWritable),
-            _ => Err(error!("Cannot infer permissions from {}", perms)),
+        match perms.to_lowercase().as_str() {
+            "private" => Ok(Self::Private),
+            "group" => Ok(Self::Group),
+            "group_writable" => Ok(Self::GroupWritable),
+            "public_with_group_writable" => Ok(Self::PublicWithGroupWritable),
+            "public" => Ok(Self::Public),
+            "world_writable" => Ok(Self::WorldWritable),
+            _ => Err(error!("Cannot infer permissions from input '{}'", perms)),
         }
     }
 
     pub fn from_i(perms: u16) -> Result<Self> {
         match perms {
-            0700 => Ok(Self::Private),
-            0750 => Ok(Self::Group),
-            0770 => Ok(Self::GroupWritable),
-            0775 => Ok(Self::PublicWithGroupWritable),
-            0755 => Ok(Self::Public),
-            0777 => Ok(Self::WorldWritable),
+            0o700 => Ok(Self::Private),
+            0o750 => Ok(Self::Group),
+            0o770 => Ok(Self::GroupWritable),
+            0o775 => Ok(Self::PublicWithGroupWritable),
+            0o755 => Ok(Self::Public),
+            0o777 => Ok(Self::WorldWritable),
             _ => {
                 if perms > MAX_PERMISSIONS {
                     // given value exceeds max Unix permissions. Very likely this is a mistake

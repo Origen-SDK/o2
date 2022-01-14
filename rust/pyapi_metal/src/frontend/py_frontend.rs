@@ -2,9 +2,12 @@ use super::{with_frontend_mod, PY_FRONTEND};
 use crate::{bail_with_runtime_error, frontend_mod};
 use pyo3::prelude::*;
 
+use super::py_data_stores::PyDataStores;
+
 #[pyclass]
 pub struct PyFrontend {
     pub rc: Option<PyObject>,
+    pub data_stores: Py<PyDataStores>,
 }
 
 #[pymethods]
@@ -34,11 +37,21 @@ impl PyFrontend {
     fn set_revision_control(&mut self, rc: Option<&PyAny>) -> PyResult<()> {
         self.set_rc(rc)
     }
+
+    #[getter]
+    fn data_stores(&self) -> PyResult<&Py<PyDataStores>> {
+        Ok(&self.data_stores)
+    }
 }
 
 impl PyFrontend {
     pub fn new() -> Self {
-        Self { rc: None }
+        Self { 
+            rc: None,
+            data_stores: Python::with_gil(|py| {
+                Py::new(py, PyDataStores::new())
+            }).unwrap()
+        }
     }
 
     pub fn initialize() -> PyResult<()> {

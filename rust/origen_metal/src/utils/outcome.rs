@@ -1,3 +1,5 @@
+use crate::{TypedValueVec, TypedValueMap};
+
 type AsNoun = String;
 type AsVerb = String;
 
@@ -46,7 +48,10 @@ impl OutcomeState {
 pub struct Outcome {
     pub state: OutcomeState,
     pub message: Option<String>,
-    // pub metadata: Option<IndexMap<String, Metadata>>,
+    pub positional_results: Option<TypedValueVec>,
+    pub keyword_results: Option<TypedValueMap>,
+    pub metadata: Option<TypedValueMap>,
+    pub inferred: Option<bool>
 }
 
 impl std::fmt::Display for Outcome {
@@ -60,7 +65,10 @@ impl Outcome {
         Self {
             state,
             message: None,
-            // metadata: None,
+            positional_results: None,
+            keyword_results: None,
+            metadata: None,
+            inferred: None
         }
     }
 

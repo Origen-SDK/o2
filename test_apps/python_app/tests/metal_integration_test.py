@@ -4,9 +4,11 @@ particularly as it related to the _origen_metal compiled library.
 '''
 
 import origen, origen_metal
+from tests import om_shared
 
 # Grab the dummy RC from origen_metal's tests
-from om_tests import test_frontend
+with om_shared():
+    from om_tests import test_frontend
 
 def test_frontend_is_set():
     assert (origen_metal.frontend.frontend() is not None)

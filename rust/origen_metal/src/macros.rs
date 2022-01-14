@@ -229,3 +229,22 @@ macro_rules! exit_error {
         std::process::exit(1);
     };
 }
+
+/// Get the caller name. Taken from this SO answer:
+/// https://stackoverflow.com/a/63904992/8533619
+#[macro_export]
+macro_rules! current_func {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+
+        // Find and cut the rest of the path
+        match &name[..name.len() - 3].rfind(':') {
+            Some(pos) => &name[pos + 1..name.len() - 3],
+            None => &name[..name.len() - 3],
+        }
+    }};
+}

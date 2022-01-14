@@ -1,7 +1,14 @@
+pub mod data_store;
+pub mod data_store_category;
+
 use crate::Result;
 use std::any::Any;
+use indexmap::IndexMap;
+use std::sync::RwLockReadGuard;
 
 pub use crate::utils::revision_control::frontend::RevisionControlFrontendAPI;
+pub use data_store::{DataStoreFrontendAPI, DataStoreFeature};
+pub use data_store_category::DataStoreCategoryFrontendAPI;
 
 pub fn set_frontend(
     frontend: Box<dyn FrontendAPI + std::marker::Sync + std::marker::Send>,
@@ -20,6 +27,14 @@ pub fn reset() -> Result<()> {
 pub fn frontend_set() -> Result<bool> {
     let f = crate::FRONTEND.read().unwrap();
     Ok(f.frontend.is_some())
+}
+
+pub fn require<'a>() -> Result<RwLockReadGuard<'a, Frontend>> {
+    let f = crate::FRONTEND.read().unwrap();
+    if f.frontend.is_none() {
+        bail!("No frontend is currently available!");
+    }
+    Ok(f)
 }
 
 pub fn with_frontend<T, F>(mut func: F) -> Result<T>
@@ -77,6 +92,27 @@ impl Frontend {
         })
     }
 
+    pub fn with_data_store_category<T, F>(&self, category: &str, mut func: F) -> Result<T>
+    where
+        F: FnMut(Box<dyn DataStoreCategoryFrontendAPI>) -> Result<T>,
+    {
+        self.with_frontend( |f| {
+            let cat = f.require_data_store_category(category)?;
+            func(cat)
+        })
+    }
+
+    pub fn with_data_store<T, F>(&self, category: &str, data_store: &str, mut func: F) -> Result<T>
+    where
+        F: FnMut(Box<dyn DataStoreFrontendAPI>) -> Result<T>,
+    {
+        self.with_frontend( |f| {
+            let cat = f.require_data_store_category(category)?;
+            let ds = cat.require_data_store(data_store)?;
+            func(ds)
+        })
+    }
+
     pub fn reset(&mut self) -> Result<()> {
         self.frontend = None;
         Ok(())
@@ -102,6 +138,29 @@ pub trait FrontendAPI {
             "A {} component is required to run the previous operation, but is not available!",
             obj,
         )
+    }
+
+    fn data_store_categories(&self) -> Result<IndexMap<String, Box<dyn DataStoreCategoryFrontendAPI>>>;
+    fn get_data_store_category(&self, category: &str) -> Result<Option<Box<dyn DataStoreCategoryFrontendAPI>>>;
+    fn add_data_store_category(&self, category: &str) -> Result<Box<dyn DataStoreCategoryFrontendAPI>>;
+    fn remove_data_store_category(&self, category: &str) -> Result<()>;
+
+    fn require_data_store_category(&self, category: &str) -> Result<Box<dyn DataStoreCategoryFrontendAPI>> {
+        match self.get_data_store_category(category)? {
+            Some(cat) => Ok(cat),
+            None => bail!("Required data store category '{}' was not found!", category)
+        }
+    }
+
+    fn contains_data_store_category(&self, category: &str) -> Result<bool> {
+        Ok(match self.get_data_store_category(category)? {
+            Some(_) => true,
+            None => false
+        })
+    }
+
+    fn available_data_store_categories(&self) -> Result<Vec<String>> {
+        Ok(self.data_store_categories()?.keys().map( |k| k.to_string()).collect())
     }
 
     fn as_any(&self) -> &dyn Any;

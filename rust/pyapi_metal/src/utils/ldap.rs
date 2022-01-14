@@ -1,127 +1,17 @@
 // TODO Need to clean up
 
-// use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
-// use origen_metal::utils::ldap::LDAPs as OmLdaps;
 use origen_metal::utils::ldap::LDAP as OmLdap;
 use origen_metal::utils::ldap::SupportedAuths;
 use origen_metal::Result as OMResult;
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "ldap")?;
-    subm.add_class::<LDAPs>()?;
     subm.add_class::<LDAP>()?;
-    subm.add_wrapped(wrap_pyfunction!(ldaps))?;
     m.add_submodule(subm)?;
     Ok(())
 }
-
-#[pyfunction]
-fn ldaps(_py: Python) -> PyResult<LDAPs> {
-    Ok(LDAPs {})
-}
-
-/// Dict-like container to retrieve defined LDAP instances.
-#[pyclass]
-pub struct LDAPs {}
-/*
-#[pymethods]
-impl LDAPs {
-    fn keys(&self) -> PyResult<Vec<String>> {
-        let ldaps = origen::ldaps();
-        Ok(ldaps.ldaps().keys().cloned().collect())
-    }
-
-    fn values(&self) -> PyResult<Vec<LDAP>> {
-        let ldaps = origen::ldaps();
-        let mut retn = vec![];
-        for n in ldaps.ldaps().keys() {
-            retn.push(LDAP {
-                name: n.to_string(),
-            });
-        }
-        Ok(retn)
-    }
-
-    fn items(&self) -> PyResult<Vec<(String, LDAP)>> {
-        let ldaps = origen::ldaps();
-        let mut retn = vec![];
-        for n in ldaps.ldaps().keys() {
-            retn.push((
-                n.to_string(),
-                LDAP {
-                    name: n.to_string(),
-                },
-            ));
-        }
-        Ok(retn)
-    }
-
-    fn get(&self, ldap: &str) -> PyResult<Option<LDAP>> {
-        let ldaps = origen::ldaps();
-        if ldaps.ldaps().contains_key(ldap) {
-            Ok(Some(LDAP {
-                name: ldap.to_string(),
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for LDAPs {
-    fn __getitem__(&self, ldap: &str) -> PyResult<LDAP> {
-        if let Some(l) = self.get(ldap)? {
-            Ok(l)
-        } else {
-            Err(pyo3::exceptions::PyKeyError::new_err(format!(
-                "No LDAP named '{}' available",
-                ldap
-            )))
-        }
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        let ldaps = origen::ldaps();
-        Ok(ldaps.ldaps().len())
-    }
-}
-
-#[pyclass]
-pub struct LDAPsIter {
-    pub keys: Vec<String>,
-    pub i: usize,
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for LDAPsIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
-        Ok(slf.into())
-    }
-
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
-        if slf.i >= slf.keys.len() {
-            return Ok(None);
-        }
-        let name = slf.keys[slf.i].clone();
-        slf.i += 1;
-        Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for LDAPs {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<LDAPsIter> {
-        Ok(LDAPsIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
-    }
-}
-*/
 
 enum InnerLDAP {
     // https://github.com/rust-lang/rust/issues/33685

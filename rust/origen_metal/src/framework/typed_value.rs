@@ -1,10 +1,10 @@
-// TODO pull error messages into a macro
-
 use crate::Result;
 use num_bigint::{BigInt, BigUint};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use toml::Value;
+use indexmap::IndexMap as IM;
+use std::iter::FromIterator;
 
 const DATA: &str = "data";
 const CLASS: &str = "__origen_encoded_class__";
@@ -98,61 +98,53 @@ impl TypedValue {
     pub fn as_string(&self) -> Result<String> {
         match self {
             Self::String(s) => Ok(s.clone()),
-            _ => bail!(
-                "Requested TypedValue as string, but it is of type {}",
-                self.to_class_str()
-            ),
+            _ => bail!(&self.conversion_error_msg("string"))
         }
     }
 
     pub fn as_bigint(&self) -> Result<BigInt> {
         match self {
             Self::BigInt(b) => Ok(b.clone()),
-            _ => bail!(
-                "Requested TypedValue as bigint, but it is of type {}",
-                self.to_class_str()
-            ),
+            _ => bail!(&self.conversion_error_msg("bigint"))
         }
     }
 
     pub fn as_biguint(&self) -> Result<BigUint> {
         match self {
             Self::BigUint(b) => Ok(b.clone()),
-            _ => bail!(
-                "Requested TypedValue as biguint, but it is of type {}",
-                self.to_class_str()
-            ),
+            _ => bail!(&self.conversion_error_msg("biguint"))
         }
     }
 
     pub fn as_bool(&self) -> Result<bool> {
         match self {
             Self::Bool(b) => Ok(*b),
-            _ => bail!(
-                "Requested TypedValue as bool, but it is of type {}",
-                self.to_class_str()
-            ),
+            _ => bail!(&self.conversion_error_msg("bool"))
         }
     }
 
     pub fn as_float(&self) -> Result<f64> {
         match self {
             Self::Float(f) => Ok(*f),
-            _ => bail!(
-                "Requested TypedValue as float, but it is of type {}",
-                self.to_class_str()
-            ),
+            _ => bail!(&self.conversion_error_msg("float"))
         }
     }
 
     pub fn as_vec(&self) -> Result<Vec<Self>> {
         match self {
             Self::Vec(v) => Ok(v.clone()),
-            _ => bail!(
-                "Requested TypedValue as float, but it is of type {}",
-                self.to_class_str()
-            ),
+            _ => bail!(&self.conversion_error_msg("vector"))
         }
+    }
+
+    fn conversion_error_msg(&self, expected: &str) -> String {
+        format!("Requested TypedValue as '{}', but it is of type '{}'", expected, self.to_class_str())
+    }
+}
+
+impl From<&str> for TypedValue {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_string())
     }
 }
 
@@ -249,8 +241,94 @@ impl TryFrom<&Value> for TypedValue {
     }
 }
 
-// TODO Adding some pre-configured mapping of typed values would be convenient
-// use indexmap::IndexMap as IM;
-// pub struct IndexMap {
-//     typed_values: IM<String, TypedValue>,
-// }
+/// Wrapper around a vector of typed values
+#[derive(Debug, Clone)]
+pub struct TypedValueVec {
+    pub typed_values: Vec<TypedValue>
+}
+
+impl Default for TypedValueVec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TypedValueVec {
+    pub fn new() -> Self {
+        Self {
+            typed_values: vec![]
+        }
+    }
+
+    pub fn typed_values(&self) -> &Vec<TypedValue> {
+        &self.typed_values
+    }
+}
+
+impl FromIterator<TypedValue> for TypedValueVec {
+    fn from_iter<I: IntoIterator<Item=TypedValue>>(iter: I) -> Self {
+        Self {
+            typed_values: {
+                let mut v = vec![];
+                for i in iter {
+                    v.push(i);
+                }
+                v
+            }
+        }
+    }
+}
+
+type Tvm = IM<String, TypedValue>;
+
+/// Wrapper around an indexmap of typed values.
+#[derive(Debug, Clone)]
+pub struct Map {
+    pub typed_values: IM<String, TypedValue>,
+}
+
+impl Default for Map {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Map {
+    pub fn new() -> Self {
+        Self {
+            typed_values: IM::new()
+        }
+    }
+
+    pub fn typed_values(&self) -> &Tvm {
+        &self.typed_values
+    }
+
+    pub fn insert(&mut self, key: &str, obj: impl Into<TypedValue>) -> Option<TypedValue> {
+        self.typed_values.insert(key.to_string(), obj.into())
+    }
+}
+
+impl From<&Self> for Map {
+    fn from(map: &Self) -> Self {
+        Self {
+            typed_values: map.typed_values.to_owned()
+        }
+    }
+}
+
+impl From<IM<String, TypedValue>> for Map {
+    fn from(map: IM<String, TypedValue>) -> Self {
+        Self {
+            typed_values: map
+        }
+    }
+}
+
+impl From<&IM<String, TypedValue>> for Map {
+    fn from(map: &IM<String, TypedValue>) -> Self {
+        Self {
+            typed_values: map.to_owned()
+        }
+    }
+}

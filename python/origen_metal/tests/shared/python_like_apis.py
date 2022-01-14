@@ -1,4 +1,4 @@
-import pytest, abc
+import pytest, abc, inspect
 
 
 # Test Dict-Like API
@@ -6,7 +6,10 @@ class Fixture_DictLikeAPI(abc.ABC):
     class Expected:
         def __init__(self, parameters):
             self.keys = parameters["keys"]
-            self.klass = parameters["klass"]
+            if inspect.isclass(parameters["klass"]):
+                self.klass = [parameters["klass"]] * self.len
+            else:
+                self.klass = parameters["klass"]
             self.not_in_dut = parameters["not_in_dut"]
 
         @property
@@ -47,7 +50,7 @@ class Fixture_DictLikeAPI(abc.ABC):
         assert self.dut.values
         assert isinstance(self.dut.values(), list)
         assert len(self.dut.values()) == self.expected.len
-        assert isinstance(self.dut.values()[0], self.expected.klass)
+        assert isinstance(self.dut.values()[0], self.expected.klass[0])
 
     def test_items(self, boot):
         items = self.dut.items()
@@ -86,7 +89,7 @@ class Fixture_DictLikeAPI(abc.ABC):
         i = 0
         for _i, (k, v) in enumerate(self.dut.items()):
             assert k == self.expected.keys[_i]
-            assert isinstance(v, self.expected.klass)
+            assert isinstance(v, self.expected.klass[_i])
             i += 1
         assert i == self.expected.len
 

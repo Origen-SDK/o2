@@ -11,7 +11,7 @@ use crate::_helpers::typed_value::{extract_as_typed_value, typed_value_to_pyobj}
 use std::collections::HashMap;
 use origen_metal::sessions as om_sessions;
 use std::sync::MutexGuard;
-use crate::utils::FilePermissions;
+use super::FilePermissions;
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "sessions")?;

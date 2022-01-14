@@ -19,12 +19,14 @@ _om_tests_spec.loader.exec_module(_om_tests)
 
 @contextlib.contextmanager
 def om_shared():
-    _tests = sys.modules["tests"]
-    _tests_shared = sys.modules["tests.shared"]
-    sys.modules["tests"] = sys.modules["om_tests"]
-    sys.modules["tests.shared"] = sys.modules["om_tests.shared"]
+    _tests_modules_ = dict(filter(lambda mod: mod[0].split('.')[0] == "tests", sys.modules.items()))
+    for name, mod in _tests_modules_.items():
+        if f"om_{name}" in sys.modules:
+            sys.modules[name] = sys.modules[f"om_{name}"]
+        else:
+            sys.modules.pop(name)
     try:
         yield
     finally:
-        sys.modules["tests.shared"] = _tests_shared
-        sys.modules["tests"] = _tests
+        for name, mod in _tests_modules_.items():
+            sys.modules[name] = mod

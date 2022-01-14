@@ -6,6 +6,8 @@ extern crate serde;
 pub mod macros;
 #[macro_use]
 extern crate cfg_if;
+#[macro_use]
+extern crate enum_display_derive;
 
 pub mod prelude;
 mod error;
@@ -19,6 +21,8 @@ pub use error::Error;
 pub use utils::file;
 pub use utils::outcome::Outcome;
 pub use framework::typed_value::TypedValue;
+pub use framework::typed_value::Map as TypedValueMap;
+pub use framework::typed_value::TypedValueVec;
 pub use framework::sessions::{sessions, Sessions};
 
 use self::frontend::Frontend;
@@ -64,25 +68,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    /// Get the caller name. Taken from this SO answer:
-    /// https://stackoverflow.com/a/63904992/8533619
-    #[macro_export]
-    macro_rules! current_func {
-        () => {{
-            fn f() {}
-            fn type_name_of<T>(_: T) -> &'static str {
-                std::any::type_name::<T>()
-            }
-            let name = type_name_of(f);
-
-            // Find and cut the rest of the path
-            match &name[..name.len() - 3].rfind(':') {
-                Some(pos) => &name[pos + 1..name.len() - 3],
-                None => &name[..name.len() - 3],
-            }
-        }};
-    }
-
     #[cfg(all(test, not(origen_skip_frontend_tests)))]
     pub fn run_python(code: &str) -> crate::Result<()> {
         let mut c = std::process::Command::new("poetry");

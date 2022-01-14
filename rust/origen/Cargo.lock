@@ -2482,6 +2482,7 @@ dependencies = [
  "chrono",
  "config 0.11.0",
  "dirs 2.0.2",
+ "enum-display-derive",
  "git2",
  "indexmap",
  "lazy_static 1.4.0",

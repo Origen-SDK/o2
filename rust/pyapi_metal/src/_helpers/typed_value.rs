@@ -1,8 +1,11 @@
 use indexmap::IndexMap;
-use origen_metal::TypedValue;
+use origen_metal::{TypedValue, TypedValueMap, TypedValueVec};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict};
+use pyo3::types::{PyBytes, PyDict, PyTuple, PyList};
 use super::pickle::{pickle, depickle};
+
+pub use typed_value_to_pyobj as to_pyobject;
+pub use extract_as_typed_value as from_pyany;
 
 pub fn typed_value_to_pyobj(data: Option<TypedValue>, key: Option<&str>) -> PyResult<Option<PyObject>> {
     if let Some(d) = data {
@@ -104,11 +107,47 @@ pub fn extract_as_typed_value(value: &PyAny) -> PyResult<TypedValue> {
     Ok(data)
 }
 
-// TODO needed?
+pub fn from_pylist(pylist: &PyList) -> PyResult<TypedValueVec> {
+    pylist.iter().map(|i| extract_as_typed_value(i)).collect::<PyResult<TypedValueVec>>()
+}
+
+pub fn from_optional_pylist(
+    pylist: Option<&PyList>,
+) -> PyResult<Option<TypedValueVec>> {
+    if let Some(pyl) = pylist {
+        Ok(Some(from_pylist(pyl)?))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn into_pytuple<'a>(
+    py: Python<'a>,
+    typed_values: &mut dyn Iterator<Item=&TypedValue>
+) -> PyResult<&'a PyTuple> {
+    Ok(PyTuple::new(py, typed_values.map(|tv| typed_value_to_pyobj(Some(tv.clone()), None)).collect::<PyResult<Vec<Option<PyObject>>>>()?))
+}
+
 #[allow(dead_code)]
+pub fn into_optional_pytuple<'a>(py: Python<'a>, typed_values: Option<&mut dyn Iterator<Item=&TypedValue>>) -> PyResult<Option<&'a PyTuple>> {
+    Ok(if let Some(tv) = typed_values {
+        Some(into_pytuple(py, tv)?)
+    } else {
+        None
+    })
+}
+
+#[allow(dead_code)]
+pub fn into_pylist<'a>(
+    py: Python<'a>,
+    typed_values: &Vec<TypedValue>,
+) -> PyResult<&'a PyList> {
+    Ok(PyList::new(py, typed_values.iter().map(|tv| typed_value_to_pyobj(Some(tv.clone()), None)).collect::<PyResult<Vec<Option<PyObject>>>>()))
+}
+
 pub fn from_optional_pydict(
     pydict: Option<&PyDict>,
-) -> PyResult<Option<IndexMap<String, TypedValue>>> {
+) -> PyResult<Option<TypedValueMap>> {
     if let Some(pyd) = pydict {
         Ok(Some(from_pydict(pyd)?))
     } else {
@@ -116,32 +155,29 @@ pub fn from_optional_pydict(
     }
 }
 
-// TODO needed?
-#[allow(dead_code)]
-pub fn from_pydict(pydict: &PyDict) -> PyResult<IndexMap<String, TypedValue>> {
-    let mut retn = IndexMap::new();
+pub fn from_pydict(pydict: &PyDict) -> PyResult<TypedValueMap> {
+    let mut retn = TypedValueMap::new();
     for (key, val) in pydict.iter() {
-        retn.insert(key.extract::<String>()?, extract_as_typed_value(val)?);
+        retn.insert(key.extract::<&str>()?, extract_as_typed_value(val)?);
     }
     Ok(retn)
 }
 
 pub fn into_pydict<'a>(
     py: Python<'a>,
-    typed_values: &IndexMap<String, TypedValue>,
+    typed_values: impl Into<TypedValueMap>
 ) -> PyResult<&'a PyDict> {
+    let t = typed_values.into();
     let retn = PyDict::new(py);
-    for (key, m) in typed_values {
+    for (key, m) in t.typed_values() {
         retn.set_item(key.clone(), typed_value_to_pyobj(Some(m.clone()), Some(&key))?)?;
     }
     Ok(retn)
 }
 
-// TODO needed?
-#[allow(dead_code)]
 pub fn into_optional_pydict<'a>(
     py: Python<'a>,
-    typed_values: Option<&IndexMap<String, TypedValue>>,
+    typed_values: Option<impl Into<TypedValueMap>>
 ) -> PyResult<Option<&'a PyDict>> {
     if let Some(m) = typed_values {
         Ok(Some(into_pydict(py, m)?))
@@ -150,7 +186,6 @@ pub fn into_optional_pydict<'a>(
     }
 }
 
-// TODO needed?
 #[allow(dead_code)]
 pub fn into_optional_pyobj<'a>(
     py: Python<'a>,
