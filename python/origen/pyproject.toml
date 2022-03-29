@@ -34,7 +34,7 @@ origen_autoapi = "2.0.1"
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
 yapf = "0.30"
-poetry = "1.1.6"
+poetry = "1.1.9"
 Jinja2 = "^2"
 importlib-metadata = ">= 1.7.0" # For use with Python pre-3.8
 
