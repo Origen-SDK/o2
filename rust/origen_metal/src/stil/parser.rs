@@ -1,16 +1,17 @@
-use crate::generator::ast::*;
-use crate::node;
 use crate::{Error, Result};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use std::fs;
 use std::path::Path;
+use crate::ast::node::Node;
+use crate::ast::ast::AST;
+use super::nodes::STIL;
 
 #[derive(Parser)]
-#[grammar = "generator/stil/stil.pest"]
+#[grammar = "stil/stil.pest"]
 pub struct STILParser;
 
-pub fn parse_file(path: &Path) -> Result<Node> {
+pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
     if path.exists() {
         match parse_str(&fs::read_to_string(path)?) {
             Ok(n) => Ok(n),
@@ -28,7 +29,7 @@ pub fn parse_file(path: &Path) -> Result<Node> {
     }
 }
 
-pub fn parse_str(stil: &str) -> Result<Node> {
+pub fn parse_str(stil: &str) -> Result<Node<STIL>> {
     match STILParser::parse(Rule::stil_source, stil) {
         Err(e) => Err(Error::new(&format!("{}", e))),
         Ok(mut stil) => Ok(to_ast(stil.next().unwrap())?.unwrap()),
@@ -51,7 +52,7 @@ fn unquote(text: &str) -> String {
     }
 }
 
-fn build_expression(pair: Pair<Rule>) -> Result<Node> {
+fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
     let mut pairs = pair.into_inner();
     let p2 = pairs.next().unwrap();
     let mut term = to_ast(p2)?.unwrap();
@@ -62,7 +63,7 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node> {
                 Rule::add => {
                     pairs.next();
                     let next_term = to_ast(pairs.next().unwrap())?.unwrap();
-                    let mut n = node!(STILAdd);
+                    let mut n = node!(STIL::Add);
                     n.add_child(term);
                     n.add_child(next_term);
                     term = n;
@@ -70,7 +71,7 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node> {
                 Rule::subtract => {
                     pairs.next();
                     let next_term = to_ast(pairs.next().unwrap())?.unwrap();
-                    let mut n = node!(STILSubtract);
+                    let mut n = node!(STIL::Subtract);
                     n.add_child(term);
                     n.add_child(next_term);
                     term = n;
@@ -84,7 +85,7 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node> {
     Ok(term)
 }
 
-fn build_term(pair: Pair<Rule>) -> Result<Node> {
+fn build_term(pair: Pair<Rule>) -> Result<Node<STIL>> {
     let mut pairs = pair.into_inner();
     let mut term = to_ast(pairs.next().unwrap())?.unwrap();
     let mut done = false;
@@ -94,7 +95,7 @@ fn build_term(pair: Pair<Rule>) -> Result<Node> {
                 Rule::multiply => {
                     pairs.next();
                     let next_term = to_ast(pairs.next().unwrap())?.unwrap();
-                    let mut n = node!(STILMultiply);
+                    let mut n = node!(STIL::Multiply);
                     n.add_child(term);
                     n.add_child(next_term);
                     term = n;
@@ -102,7 +103,7 @@ fn build_term(pair: Pair<Rule>) -> Result<Node> {
                 Rule::divide => {
                     pairs.next();
                     let next_term = to_ast(pairs.next().unwrap())?.unwrap();
-                    let mut n = node!(STILDivide);
+                    let mut n = node!(STIL::Divide);
                     n.add_child(term);
                     n.add_child(next_term);
                     term = n;
@@ -117,7 +118,7 @@ fn build_term(pair: Pair<Rule>) -> Result<Node> {
 }
 
 // This is the main function responsible for transforming the parsed strings into an AST
-pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
+pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
     let mut ast = AST::new();
     let mut ids: Vec<usize> = vec![];
     let mut pairs: Vec<Pairs<Rule>> = vec![];
@@ -125,44 +126,44 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
     loop {
         match pair.as_rule() {
             Rule::stil_source => {
-                ids.push(ast.push_and_open(node!(STIL)));
+                ids.push(ast.push_and_open(node!(STIL::Root)));
                 pairs.push(pair.into_inner());
             }
             Rule::stil_version => {
                 let vals = inner_strs(pair);
                 ast.push(node!(
-                    STILVersion,
+                    STIL::Version,
                     vals[0].parse().unwrap(),
                     vals[1].parse().unwrap()
                 ));
             }
-            Rule::label => ast.push(node!(STILLabel, unquote(inner_strs(pair)[0]))),
+            Rule::label => ast.push(node!(STIL::Label, unquote(inner_strs(pair)[0]))),
             Rule::header_block => {
-                ids.push(ast.push_and_open(node!(STILHeader)));
+                ids.push(ast.push_and_open(node!(STIL::Header)));
                 pairs.push(pair.into_inner());
             }
-            Rule::title => ast.push(node!(STILTitle, unquote(inner_strs(pair)[0]))),
-            Rule::date => ast.push(node!(STILDate, unquote(inner_strs(pair)[0]))),
-            Rule::source => ast.push(node!(STILSource, unquote(inner_strs(pair)[0]))),
+            Rule::title => ast.push(node!(STIL::Title, unquote(inner_strs(pair)[0]))),
+            Rule::date => ast.push(node!(STIL::Date, unquote(inner_strs(pair)[0]))),
+            Rule::source => ast.push(node!(STIL::Source, unquote(inner_strs(pair)[0]))),
             Rule::history => {
-                ids.push(ast.push_and_open(node!(STILHistory)));
+                ids.push(ast.push_and_open(node!(STIL::History)));
                 pairs.push(pair.into_inner());
             }
-            Rule::annotation => ast.push(node!(STILAnnotation, inner_strs(pair)[0].to_string())),
+            Rule::annotation => ast.push(node!(STIL::Annotation, inner_strs(pair)[0].to_string())),
             Rule::include => {
                 let vals = inner_strs(pair);
                 if vals.len() == 1 {
-                    ast.push(node!(STILInclude, unquote(vals[0]), None))
+                    ast.push(node!(STIL::Include, unquote(vals[0]), None))
                 } else {
                     ast.push(node!(
-                        STILInclude,
+                        STIL::Include,
                         unquote(vals[0]),
                         Some(vals[1].to_string())
                     ))
                 }
             }
             Rule::signals_block => {
-                ids.push(ast.push_and_open(node!(STILSignals)));
+                ids.push(ast.push_and_open(node!(STIL::Signals)));
                 pairs.push(pair.into_inner());
             }
             Rule::signal => {
@@ -170,32 +171,32 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 let v1 = p.next().unwrap().as_str();
                 let v2 = p.next().unwrap().as_str();
                 ids.push(ast.push_and_open(node!(
-                    STILSignal,
+                    STIL::Signal,
                     v1.parse().unwrap(),
                     v2.parse().unwrap()
                 )));
                 pairs.push(p);
             }
             Rule::termination => {
-                ast.push(node!(STILTermination, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::Termination, inner_strs(pair)[0].parse().unwrap()))
             }
             Rule::default_state => ast.push(node!(
-                STILDefaultState,
+                STIL::DefaultState,
                 inner_strs(pair)[0].parse().unwrap()
             )),
             Rule::base => {
                 let vals = inner_strs(pair);
                 ast.push(node!(
-                    STILBase,
+                    STIL::Base,
                     vals[0].parse().unwrap(),
                     vals[1].parse().unwrap()
                 ))
             }
-            Rule::alignment => ast.push(node!(STILAlignment, inner_strs(pair)[0].parse().unwrap())),
-            Rule::scan_in => ast.push(node!(STILScanIn, inner_strs(pair)[0].parse().unwrap())),
-            Rule::scan_out => ast.push(node!(STILScanOut, inner_strs(pair)[0].parse().unwrap())),
+            Rule::alignment => ast.push(node!(STIL::Alignment, inner_strs(pair)[0].parse().unwrap())),
+            Rule::scan_in => ast.push(node!(STIL::ScanIn, inner_strs(pair)[0].parse().unwrap())),
+            Rule::scan_out => ast.push(node!(STIL::ScanOut, inner_strs(pair)[0].parse().unwrap())),
             Rule::data_bit_count => ast.push(node!(
-                STILDataBitCount,
+                STIL::DataBitCount,
                 inner_strs(pair)[0].parse().unwrap()
             )),
             Rule::signal_groups_block => {
@@ -204,13 +205,13 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
                         Rule::name => node!(
-                            STILSignalGroups,
+                            STIL::SignalGroups,
                             Some(p.next().unwrap().as_str().to_string())
                         ),
-                        _ => node!(STILSignalGroups, None),
+                        _ => node!(STIL::SignalGroups, None),
                     };
                 } else {
-                    n = node!(STILSignalGroups, None);
+                    n = node!(STIL::SignalGroups, None);
                 }
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
@@ -218,24 +219,24 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::signal_group => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILSignalGroup, unquote(p.next().unwrap().as_str()))),
+                    ast.push_and_open(node!(STIL::SignalGroup, unquote(p.next().unwrap().as_str()))),
                 );
                 pairs.push(p);
             }
             Rule::sigref_expr => {
-                ids.push(ast.push_and_open(node!(STILSigRefExpr)));
+                ids.push(ast.push_and_open(node!(STIL::SigRefExpr)));
                 pairs.push(pair.into_inner());
             }
-            Rule::name => ast.push(node!(String, unquote(pair.as_str()))),
+            Rule::name => ast.push(node!(STIL::String, unquote(pair.as_str()))),
             Rule::expression | Rule::expression_ => {
                 ast.push(build_expression(pair)?);
             }
             Rule::time_expr => {
-                ids.push(ast.push_and_open(node!(STILTimeExpr)));
+                ids.push(ast.push_and_open(node!(STIL::TimeExpr)));
                 pairs.push(pair.into_inner());
             }
             Rule::paren_expression | Rule::paren_expression_ => {
-                ids.push(ast.push_and_open(node!(STILParens)));
+                ids.push(ast.push_and_open(node!(STIL::Parens)));
                 pairs.push(pair.into_inner());
             }
             Rule::number => {
@@ -243,81 +244,81 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 pairs.push(pair.into_inner());
             }
             Rule::number_with_unit => {
-                ids.push(ast.push_and_open(node!(STILNumberWithUnit)));
+                ids.push(ast.push_and_open(node!(STIL::NumberWithUnit)));
                 pairs.push(pair.into_inner());
             }
-            Rule::si_unit => ast.push(node!(STILSIUnit, pair.as_str().parse().unwrap())),
+            Rule::si_unit => ast.push(node!(STIL::SIUnit, pair.as_str().parse().unwrap())),
             Rule::engineering_prefix => {
-                ast.push(node!(STILEngPrefix, pair.as_str().parse().unwrap()))
+                ast.push(node!(STIL::EngPrefix, pair.as_str().parse().unwrap()))
             }
             Rule::integer | Rule::signed_integer => {
-                ast.push(node!(Integer, pair.as_str().parse().unwrap()))
+                ast.push(node!(STIL::Integer, pair.as_str().parse().unwrap()))
             }
-            Rule::float_number => ast.push(node!(Float, pair.as_str().parse().unwrap())),
+            Rule::float_number => ast.push(node!(STIL::Float, pair.as_str().parse().unwrap())),
             Rule::pattern_exec_block => {
                 let mut p = pair.into_inner();
                 let n;
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
                         Rule::name => {
-                            node!(STILPatternExec, Some(unquote(p.next().unwrap().as_str())))
+                            node!(STIL::PatternExec, Some(unquote(p.next().unwrap().as_str())))
                         }
-                        _ => node!(STILPatternExec, None),
+                        _ => node!(STIL::PatternExec, None),
                     };
                 } else {
-                    n = node!(STILPatternExec, None);
+                    n = node!(STIL::PatternExec, None);
                 }
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
             }
             Rule::category => {
-                ast.push(node!(STILCategoryRef, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::CategoryRef, inner_strs(pair)[0].parse().unwrap()))
             }
             Rule::selector => {
-                ast.push(node!(STILSelectorRef, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::SelectorRef, inner_strs(pair)[0].parse().unwrap()))
             }
-            Rule::timing => ast.push(node!(STILTimingRef, unquote(inner_strs(pair)[0]))),
+            Rule::timing => ast.push(node!(STIL::TimingRef, unquote(inner_strs(pair)[0]))),
             Rule::pattern_burst => {
-                ast.push(node!(STILPatternBurstRef, unquote(inner_strs(pair)[0])))
+                ast.push(node!(STIL::PatternBurstRef, unquote(inner_strs(pair)[0])))
             }
             Rule::pattern_burst_block => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILPatternBurst, unquote(p.next().unwrap().as_str()))),
+                    ast.push_and_open(node!(STIL::PatternBurst, unquote(p.next().unwrap().as_str()))),
                 );
                 pairs.push(p);
             }
             Rule::signal_groups => ast.push(node!(
-                STILSignalGroupsRef,
+                STIL::SignalGroupsRef,
                 inner_strs(pair)[0].parse().unwrap()
             )),
             Rule::macro_defs => {
-                ast.push(node!(STILMacroDefs, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::MacroDefs, inner_strs(pair)[0].parse().unwrap()))
             }
             Rule::procedures => {
-                ast.push(node!(STILProcedures, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::Procedures, inner_strs(pair)[0].parse().unwrap()))
             }
             Rule::scan_structures => ast.push(node!(
-                STILScanStructuresRef,
+                STIL::ScanStructuresRef,
                 inner_strs(pair)[0].parse().unwrap()
             )),
-            Rule::start => ast.push(node!(STILStart, inner_strs(pair)[0].parse().unwrap())),
-            Rule::stop => ast.push(node!(STILStop, inner_strs(pair)[0].parse().unwrap())),
+            Rule::start => ast.push(node!(STIL::Start, inner_strs(pair)[0].parse().unwrap())),
+            Rule::stop => ast.push(node!(STIL::Stop, inner_strs(pair)[0].parse().unwrap())),
             Rule::termination_block => {
-                ids.push(ast.push_and_open(node!(STILTerminations)));
+                ids.push(ast.push_and_open(node!(STIL::Terminations)));
                 pairs.push(pair.into_inner());
             }
             Rule::termination_item => {
-                ids.push(ast.push_and_open(node!(STILTerminationItem)));
+                ids.push(ast.push_and_open(node!(STIL::TerminationItem)));
                 pairs.push(pair.into_inner());
             }
             Rule::pat_list => {
-                ids.push(ast.push_and_open(node!(STILPatList)));
+                ids.push(ast.push_and_open(node!(STIL::PatList)));
                 pairs.push(pair.into_inner());
             }
             Rule::pat_list_item => {
                 let mut p = pair.into_inner();
-                ids.push(ast.push_and_open(node!(STILPat, unquote(p.next().unwrap().as_str()))));
+                ids.push(ast.push_and_open(node!(STIL::Pat, unquote(p.next().unwrap().as_str()))));
                 pairs.push(p);
             }
             Rule::timing_block => {
@@ -325,11 +326,11 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 let n;
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
-                        Rule::name => node!(STILTiming, Some(unquote(p.next().unwrap().as_str()))),
-                        _ => node!(STILTiming, None),
+                        Rule::name => node!(STIL::Timing, Some(unquote(p.next().unwrap().as_str()))),
+                        _ => node!(STIL::Timing, None),
                     };
                 } else {
-                    n = node!(STILTiming, None);
+                    n = node!(STIL::Timing, None);
                 }
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
@@ -337,43 +338,43 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::waveform_table => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(
-                    STILWaveformTable,
+                    STIL::WaveformTable,
                     unquote(p.next().unwrap().as_str())
                 )));
                 pairs.push(p);
             }
             Rule::period => {
-                ids.push(ast.push_and_open(node!(STILPeriod)));
+                ids.push(ast.push_and_open(node!(STIL::Period)));
                 pairs.push(pair.into_inner());
             }
             Rule::inherit_waveform_table | Rule::inherit_waveform | Rule::inherit_waveform_wfc => {
-                ast.push(node!(STILInherit, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::Inherit, inner_strs(pair)[0].parse().unwrap()))
             }
             Rule::sub_waveforms => {
-                ids.push(ast.push_and_open(node!(STILSubWaveforms)));
+                ids.push(ast.push_and_open(node!(STIL::SubWaveforms)));
                 pairs.push(pair.into_inner());
             }
             Rule::sub_waveform => {
-                ids.push(ast.push_and_open(node!(STILSubWaveform)));
+                ids.push(ast.push_and_open(node!(STIL::SubWaveform)));
                 pairs.push(pair.into_inner());
             }
             Rule::waveforms => {
-                ids.push(ast.push_and_open(node!(STILWaveforms)));
+                ids.push(ast.push_and_open(node!(STIL::Waveforms)));
                 pairs.push(pair.into_inner());
             }
             Rule::waveform => {
-                ids.push(ast.push_and_open(node!(STILWaveform)));
+                ids.push(ast.push_and_open(node!(STIL::Waveform)));
                 pairs.push(pair.into_inner());
             }
             Rule::wfc_definition => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILWFChar, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::WFChar, p.next().unwrap().as_str().to_string())),
                 );
                 pairs.push(p);
             }
             Rule::event => {
-                ids.push(ast.push_and_open(node!(STILEvent)));
+                ids.push(ast.push_and_open(node!(STIL::Event)));
                 pairs.push(pair.into_inner());
             }
             Rule::event_list => {
@@ -384,18 +385,18 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                         _ => unreachable!(),
                     };
                 }
-                ast.push(node!(STILEventList, vals))
+                ast.push(node!(STIL::EventList, vals))
             }
             Rule::spec_block => {
                 let mut p = pair.into_inner();
                 let n;
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
-                        Rule::name => node!(STILSpec, Some(unquote(p.next().unwrap().as_str()))),
-                        _ => node!(STILSpec, None),
+                        Rule::name => node!(STIL::Spec, Some(unquote(p.next().unwrap().as_str()))),
+                        _ => node!(STIL::Spec, None),
                     };
                 } else {
-                    n = node!(STILSpec, None);
+                    n = node!(STIL::Spec, None);
                 }
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
@@ -403,18 +404,18 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::category_block => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILCategory, unquote(p.next().unwrap().as_str()))),
+                    ast.push_and_open(node!(STIL::Category, unquote(p.next().unwrap().as_str()))),
                 );
                 pairs.push(p);
             }
             Rule::spec_item => {
-                ids.push(ast.push_and_open(node!(STILSpecItem)));
+                ids.push(ast.push_and_open(node!(STIL::SpecItem)));
                 pairs.push(pair.into_inner());
             }
             Rule::typical_var => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(
-                    STILTypicalVar,
+                    STIL::TypicalVar,
                     p.next().unwrap().as_str().to_string()
                 )));
                 pairs.push(p);
@@ -422,14 +423,14 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::spec_var => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILSpecVar, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::SpecVar, p.next().unwrap().as_str().to_string())),
                 );
                 pairs.push(p);
             }
             Rule::spec_var_item => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(
-                    STILSpecVarItem,
+                    STIL::SpecVarItem,
                     p.next().unwrap().as_str().parse().unwrap()
                 )));
                 pairs.push(p);
@@ -437,21 +438,21 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::variable_block => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILVariable, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::Variable, p.next().unwrap().as_str().to_string())),
                 );
                 pairs.push(p);
             }
             Rule::selector_block => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILSelector, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::Selector, p.next().unwrap().as_str().to_string())),
                 );
                 pairs.push(p);
             }
             Rule::selector_item => {
                 let strs: Vec<&str> = pair.into_inner().map(|v| v.as_str()).collect();
                 ast.push(node!(
-                    STILSelectorItem,
+                    STIL::SelectorItem,
                     strs[0].parse().unwrap(),
                     strs[1].parse().unwrap()
                 ))
@@ -462,13 +463,13 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 if let Some(nxt) = p.peek() {
                     n = match nxt.as_rule() {
                         Rule::name => node!(
-                            STILScanStructures,
+                            STIL::ScanStructures,
                             Some(unquote(p.next().unwrap().as_str()))
                         ),
-                        _ => node!(STILScanStructures, None),
+                        _ => node!(STIL::ScanStructures, None),
                     };
                 } else {
-                    n = node!(STILScanStructures, None);
+                    n = node!(STIL::ScanStructures, None);
                 }
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
@@ -476,61 +477,61 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::scan_chain => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILScanChain, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::ScanChain, p.next().unwrap().as_str().to_string())),
                 );
                 pairs.push(p);
             }
-            Rule::scan_in_name => ast.push(node!(STILScanInName, unquote(inner_strs(pair)[0]))),
-            Rule::scan_out_name => ast.push(node!(STILScanOutName, unquote(inner_strs(pair)[0]))),
+            Rule::scan_in_name => ast.push(node!(STIL::ScanInName, unquote(inner_strs(pair)[0]))),
+            Rule::scan_out_name => ast.push(node!(STIL::ScanOutName, unquote(inner_strs(pair)[0]))),
             Rule::scan_length => {
-                ast.push(node!(STILScanLength, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::ScanLength, inner_strs(pair)[0].parse().unwrap()))
             }
             Rule::scan_out_length => ast.push(node!(
-                STILScanOutLength,
+                STIL::ScanOutLength,
                 inner_strs(pair)[0].parse().unwrap()
             )),
-            Rule::not => ast.push(node!(STILNot)),
+            Rule::not => ast.push(node!(STIL::Not)),
             Rule::scan_cells => {
-                ids.push(ast.push_and_open(node!(STILScanCells)));
+                ids.push(ast.push_and_open(node!(STIL::ScanCells)));
                 pairs.push(pair.into_inner());
             }
             Rule::scan_master_clock => {
-                ids.push(ast.push_and_open(node!(STILScanMasterClock)));
+                ids.push(ast.push_and_open(node!(STIL::ScanMasterClock)));
                 pairs.push(pair.into_inner());
             }
             Rule::scan_slave_clock => {
-                ids.push(ast.push_and_open(node!(STILScanSlaveClock)));
+                ids.push(ast.push_and_open(node!(STIL::ScanSlaveClock)));
                 pairs.push(pair.into_inner());
             }
             Rule::scan_inversion => ast.push(node!(
-                STILScanInversion,
+                STIL::ScanInversion,
                 inner_strs(pair)[0].parse().unwrap()
             )),
             Rule::pattern_block => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILPattern, unquote(p.next().unwrap().as_str()))),
+                    ast.push_and_open(node!(STIL::Pattern, unquote(p.next().unwrap().as_str()))),
                 );
                 pairs.push(p);
             }
             Rule::time_unit => {
-                ids.push(ast.push_and_open(node!(STILTimeUnit)));
+                ids.push(ast.push_and_open(node!(STIL::TimeUnit)));
                 pairs.push(pair.into_inner());
             }
             Rule::vector => {
-                ids.push(ast.push_and_open(node!(STILVector)));
+                ids.push(ast.push_and_open(node!(STIL::Vector)));
                 pairs.push(pair.into_inner());
             }
             Rule::cyclized_data => {
-                ids.push(ast.push_and_open(node!(STILCyclizedData)));
+                ids.push(ast.push_and_open(node!(STIL::CyclizedData)));
                 pairs.push(pair.into_inner());
             }
             Rule::non_cyclized_data => {
-                ids.push(ast.push_and_open(node!(STILNonCyclizedData)));
+                ids.push(ast.push_and_open(node!(STIL::NonCyclizedData)));
                 pairs.push(pair.into_inner());
             }
-            Rule::repeat => ast.push(node!(STILRepeat, inner_strs(pair)[0].parse().unwrap())),
-            Rule::waveform_format => ast.push(node!(STILWaveformFormat)),
+            Rule::repeat => ast.push(node!(STIL::Repeat, inner_strs(pair)[0].parse().unwrap())),
+            Rule::waveform_format => ast.push(node!(STIL::WaveformFormat)),
             Rule::pattern_statement => {
                 ids.push(0);
                 pairs.push(pair.into_inner());
@@ -538,52 +539,52 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
             Rule::hex_format => {
                 let vals = inner_strs(pair);
                 ast.push(if vals.len() == 0 {
-                    node!(STILHexFormat, None)
+                    node!(STIL::HexFormat, None)
                 } else {
-                    node!(STILHexFormat, Some(vals[0].to_string()))
+                    node!(STIL::HexFormat, Some(vals[0].to_string()))
                 })
             }
             Rule::dec_format => {
                 let vals = inner_strs(pair);
                 ast.push(if vals.len() == 0 {
-                    node!(STILDecFormat, None)
+                    node!(STIL::DecFormat, None)
                 } else {
-                    node!(STILDecFormat, Some(vals[0].to_string()))
+                    node!(STIL::DecFormat, Some(vals[0].to_string()))
                 })
             }
-            Rule::data_string => ast.push(node!(STILData, pair.as_str().to_string())),
+            Rule::data_string => ast.push(node!(STIL::Data, pair.as_str().to_string())),
             Rule::vec_data => {
                 ids.push(0);
                 pairs.push(pair.into_inner());
             }
             Rule::time_value => {
-                ast.push(node!(STILTimeValue, inner_strs(pair)[0].parse().unwrap()))
+                ast.push(node!(STIL::TimeValue, inner_strs(pair)[0].parse().unwrap()))
             }
             Rule::waveform_statement => {
-                ast.push(node!(STILWaveformRef, unquote(inner_strs(pair)[0])))
+                ast.push(node!(STIL::WaveformRef, unquote(inner_strs(pair)[0])))
             }
             Rule::condition => {
-                ids.push(ast.push_and_open(node!(STILCondition)));
+                ids.push(ast.push_and_open(node!(STIL::Condition)));
                 pairs.push(pair.into_inner());
             }
             Rule::call => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILCall, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::Call, p.next().unwrap().as_str().to_string())),
                 );
                 pairs.push(p);
             }
             Rule::macro_statement => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILMacro, p.next().unwrap().as_str().to_string())),
+                    ast.push_and_open(node!(STIL::Macro, p.next().unwrap().as_str().to_string())),
                 );
                 pairs.push(p);
             }
             Rule::loop_statement => {
                 let mut p = pair.into_inner();
                 ids.push(
-                    ast.push_and_open(node!(STILLoop, p.next().unwrap().as_str().parse().unwrap())),
+                    ast.push_and_open(node!(STIL::Loop, p.next().unwrap().as_str().parse().unwrap())),
                 );
                 pairs.push(p);
             }
@@ -591,20 +592,20 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST> {
                 let mut p = pair.into_inner();
                 let timeout = p.next().unwrap();
                 let n = match timeout.as_rule() {
-                    Rule::integer => node!(STILMatchLoop, Some(timeout.as_str().parse().unwrap())),
-                    Rule::infinite => node!(STILMatchLoop, None),
+                    Rule::integer => node!(STIL::MatchLoop, Some(timeout.as_str().parse().unwrap())),
+                    Rule::infinite => node!(STIL::MatchLoop, None),
                     _ => unreachable!(),
                 };
                 ids.push(ast.push_and_open(n));
                 pairs.push(p);
             }
-            Rule::goto => ast.push(node!(STILGoto, inner_strs(pair)[0].parse().unwrap())),
+            Rule::goto => ast.push(node!(STIL::Goto, inner_strs(pair)[0].parse().unwrap())),
             Rule::breakpoint => {
-                ids.push(ast.push_and_open(node!(STILBreakPoint)));
+                ids.push(ast.push_and_open(node!(STIL::BreakPoint)));
                 pairs.push(pair.into_inner());
             }
-            Rule::iddq => ast.push(node!(STILIDDQ)),
-            Rule::stop_statement => ast.push(node!(STILStopStatement)),
+            Rule::iddq => ast.push(node!(STIL::IDDQ)),
+            Rule::stop_statement => ast.push(node!(STIL::StopStatement)),
             Rule::term => {
                 ast.push(build_term(pair)?);
             }

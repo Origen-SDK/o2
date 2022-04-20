@@ -1,4 +1,40 @@
 #[macro_export]
+macro_rules! node {
+    ( $attr:path, $( $x:expr ),* => $( $c:expr ),* $(,)?) => {
+        {
+            $crate::ast::node::Node::new_with_children($crate::generator::ast::Attrs::$attr($( $x ),*), vec![$( $c ),*])
+        }
+    };
+    ( $attr:path, $( $x:expr ),* ; $m:expr) => {
+        {
+            $crate::ast::node::Node::new_with_meta($crate::generator::ast::Attrs::$attr($( $x ),*), $m)
+        }
+    };
+    ( $attr:path, $( $x:expr ),* ) => {
+        {
+            $crate::ast::node::Node::new($attr($( $x ),*))
+        }
+    };
+    ( $attr:path ; $m:expr) => {
+        {
+            $crate::ast::node::Node::new_with_meta($crate::generator::ast::Attrs::$attr, $m)
+        }
+    };
+    ( $attr:path => $( $c:expr ),* $(,)?) => {
+        {
+            $crate::ast::node::Node::new_with_children($crate::generator::ast::Attrs::$attr, vec![$( $c ),*])
+        }
+    };
+    ( $attr:path ) => {
+        {
+            $crate::ast::node::Node::new($attr)
+        }
+    };
+}
+
+
+
+#[macro_export]
 macro_rules! bail {
     ($msg:literal $(,)?) => {
         return Err($crate::error!($msg))

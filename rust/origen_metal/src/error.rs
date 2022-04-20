@@ -67,11 +67,11 @@ impl std::convert::From<std::io::Error> for Error {
     }
 }
 
-//impl std::convert::From<shellexpand::LookupError<std::env::VarError>> for Error {
-//    fn from(err: shellexpand::LookupError<std::env::VarError>) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<shellexpand::LookupError<std::env::VarError>> for Error {
+    fn from(err: shellexpand::LookupError<std::env::VarError>) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 impl std::convert::From<Error> for git2::Error {
     fn from(err: Error) -> Self {
