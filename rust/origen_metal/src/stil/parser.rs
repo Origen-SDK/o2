@@ -1,6 +1,6 @@
 use super::nodes::STIL;
-use crate::ast::ast::AST;
-use crate::ast::node::Node;
+use crate::ast::Node;
+use crate::ast::AST;
 use crate::{Error, Result};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;

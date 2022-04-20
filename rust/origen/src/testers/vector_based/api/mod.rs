@@ -6,7 +6,7 @@ pub fn cycle() {
 }
 
 pub fn cycle_node() -> Node {
-    node!(Cycle, 1, true)
+    node!(Pattern::Cycle, 1, true)
 }
 
 pub fn repeat(cnt: u32) {
@@ -14,7 +14,7 @@ pub fn repeat(cnt: u32) {
 }
 
 pub fn repeat_node(cnt: u32) -> Node {
-    node!(Cycle, cnt, true)
+    node!(Pattern::Cycle, cnt, true)
 }
 
 pub fn repeat2(cnt: u32, compressable: bool) {
@@ -22,5 +22,5 @@ pub fn repeat2(cnt: u32, compressable: bool) {
 }
 
 pub fn repeat2_node(cnt: u32, compressable: bool) -> Node {
-    node!(Cycle, cnt, compressable)
+    node!(Pattern::Cycle, cnt, compressable)
 }

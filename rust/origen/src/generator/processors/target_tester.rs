@@ -1,9 +1,10 @@
 //! A simple example processor which will screen out all sections of the AST that
 //! are not intended for the given tester
 
-use crate::generator::ast::*;
-use crate::generator::processor::*;
+use super::super::nodes::Pattern;
 use crate::testers::SupportedTester;
+use crate::Result;
+use origen_metal::ast::*;
 
 pub struct TargetTester {
     tester: SupportedTester,
@@ -11,16 +12,16 @@ pub struct TargetTester {
 
 impl TargetTester {
     #[allow(dead_code)]
-    pub fn run(node: &Node, tester: SupportedTester) -> Result<Node> {
+    pub fn run(node: &Node<Pattern>, tester: SupportedTester) -> Result<Node<Pattern>> {
         let mut p = TargetTester { tester: tester };
         Ok(node.process(&mut p)?.unwrap())
     }
 }
 
-impl Processor for TargetTester {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<Pattern> for TargetTester {
+    fn on_node(&mut self, node: &Node<Pattern>) -> Result<Return<Pattern>> {
         match &node.attrs {
-            Attrs::TesterEq(testers) => {
+            Pattern::TesterEq(testers) => {
                 if testers
                     .iter()
                     .any(|t_eq| self.tester.is_compatible_with(t_eq))
@@ -30,7 +31,7 @@ impl Processor for TargetTester {
                     Ok(Return::None)
                 }
             }
-            Attrs::TesterNeq(testers) => {
+            Pattern::TesterNeq(testers) => {
                 if testers
                     .iter()
                     .any(|t_neq| self.tester.is_compatible_with(t_neq))

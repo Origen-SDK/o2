@@ -3,19 +3,20 @@
 //! application code to always deal with an immutable reference to an instance of this
 //! struct at origen::TEST.
 
-use crate::generator::ast::*;
+use super::nodes::Pattern;
 use crate::Result;
+use origen_metal::ast::{Node, AST};
 use std::fmt;
 use std::sync::RwLock;
 
 pub struct TestManager {
-    pub ast: RwLock<AST>,
+    pub ast: RwLock<AST<Pattern>>,
 }
 
 impl TestManager {
     pub fn new() -> TestManager {
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "ad-hoc".to_string()));
+        ast.push_and_open(node!(Pattern::Test, "ad-hoc".to_string()));
         TestManager {
             ast: RwLock::new(ast),
         }
@@ -24,17 +25,17 @@ impl TestManager {
     /// Starts a new test (deletes the current AST and starts a new one)
     pub fn start(&self, name: &str) {
         let mut ast = self.ast.write().unwrap();
-        let node = node!(Test, name.to_string());
+        let node = node!(Pattern::Test, name.to_string());
         ast.start(node);
     }
 
     /// Push a new terminal node into the AST
-    pub fn push(&self, node: Node) {
+    pub fn push(&self, node: Node<Pattern>) {
         let mut ast = self.ast.write().unwrap();
         ast.push(node);
     }
 
-    pub fn append(&self, nodes: &mut Vec<Node>) {
+    pub fn append(&self, nodes: &mut Vec<Node<Pattern>>) {
         let mut ast = self.ast.write().unwrap();
         ast.append(nodes);
     }
@@ -45,7 +46,7 @@ impl TestManager {
     /// when calling close(). If the reference does not match the expected an error will
     /// be raised. This will catch any cases of application code forgetting to close
     /// a node before closing one of its parents.
-    pub fn push_and_open(&self, node: Node) -> usize {
+    pub fn push_and_open(&self, node: Node<Pattern>) -> usize {
         let mut ast = self.ast.write().unwrap();
         ast.push_and_open(node)
     }
@@ -60,7 +61,7 @@ impl TestManager {
     /// replace the last node that was pushed.
     /// Fails if the AST has no children yet or if the offset is otherwise out
     /// of range.
-    pub fn replace(&self, node: Node, offset: usize) -> Result<()> {
+    pub fn replace(&self, node: Node<Pattern>, offset: usize) -> Result<()> {
         let mut ast = self.ast.write().unwrap();
         ast.replace(node, offset)
     }
@@ -68,7 +69,7 @@ impl TestManager {
     /// Returns a copy of node n - offset, an offset of 0 means
     /// the last node pushed.
     /// Fails if the offset is out of range.
-    pub fn get(&self, offset: usize) -> Result<Node> {
+    pub fn get(&self, offset: usize) -> Result<Node<Pattern>> {
         let ast = self.ast.write().unwrap();
         ast.get(offset)
     }
@@ -88,14 +89,14 @@ impl TestManager {
     ///  2      |       n1    |     n2.1
     ///
     /// Fails if the offset is out of range.
-    pub fn get_with_descendants(&self, offset: usize) -> Result<Node> {
+    pub fn get_with_descendants(&self, offset: usize) -> Result<Node<Pattern>> {
         let ast = self.ast.read().unwrap();
         ast.get_with_descendants(offset)
     }
 
     /// Insert the node at position n - offset, using offset = 0 is equivalent
     /// calling push().
-    pub fn insert(&self, node: Node, offset: usize) -> Result<()> {
+    pub fn insert(&self, node: Node<Pattern>, offset: usize) -> Result<()> {
         let mut ast = self.ast.write().unwrap();
         ast.insert(node, offset)
     }
@@ -105,7 +106,10 @@ impl TestManager {
         format!("{}", ast)
     }
 
-    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Result<Node>) -> Result<Node> {
+    pub fn process(
+        &self,
+        process_fn: &mut dyn FnMut(&Node<Pattern>) -> Result<Node<Pattern>>,
+    ) -> Result<Node<Pattern>> {
         let ast = self.ast.read().unwrap();
         ast.process(process_fn)
     }
@@ -114,13 +118,13 @@ impl TestManager {
     /// an input, returning the result of the function
     pub fn with_ast<T, F>(&self, mut process_fn: F) -> Result<T>
     where
-        F: FnMut(&Node) -> Result<T>,
+        F: FnMut(&Node<Pattern>) -> Result<T>,
     {
         let ast = self.ast.read().unwrap();
         ast.with_node(&mut process_fn)
     }
 
-    pub fn to_node(&self) -> Node {
+    pub fn to_node(&self) -> Node<Pattern> {
         let ast = self.ast.read().unwrap();
         ast.to_node()
     }
@@ -145,14 +149,14 @@ impl fmt::Debug for TestManager {
     }
 }
 
-impl PartialEq<AST> for TestManager {
-    fn eq(&self, ast: &AST) -> bool {
+impl PartialEq<AST<Pattern>> for TestManager {
+    fn eq(&self, ast: &AST<Pattern>) -> bool {
         self.to_node() == ast.to_node()
     }
 }
 
-impl PartialEq<Node> for TestManager {
-    fn eq(&self, node: &Node) -> bool {
+impl PartialEq<Node<Pattern>> for TestManager {
+    fn eq(&self, node: &Node<Pattern>) -> bool {
         self.to_node() == *node
     }
 }

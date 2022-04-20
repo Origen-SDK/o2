@@ -1,38 +1,4 @@
 #[macro_export]
-macro_rules! node {
-    ( $attr:ident, $( $x:expr ),* => $( $c:expr ),* $(,)?) => {
-        {
-            $crate::generator::ast::Node::new_with_children($crate::generator::ast::Attrs::$attr($( $x ),*), vec![$( $c ),*])
-        }
-    };
-    ( $attr:ident, $( $x:expr ),* ; $m:expr) => {
-        {
-            $crate::generator::ast::Node::new_with_meta($crate::generator::ast::Attrs::$attr($( $x ),*), $m)
-        }
-    };
-    ( $attr:ident, $( $x:expr ),* ) => {
-        {
-            $crate::generator::ast::Node::new($crate::generator::ast::Attrs::$attr($( $x ),*))
-        }
-    };
-    ( $attr:ident ; $m:expr) => {
-        {
-            $crate::generator::ast::Node::new_with_meta($crate::generator::ast::Attrs::$attr, $m)
-        }
-    };
-    ( $attr:ident => $( $c:expr ),* $(,)?) => {
-        {
-            $crate::generator::ast::Node::new_with_children($crate::generator::ast::Attrs::$attr, vec![$( $c ),*])
-        }
-    };
-    ( $attr:ident ) => {
-        {
-            $crate::generator::ast::Node::new($crate::generator::ast::Attrs::$attr)
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! trace {
     ( $e:expr , $n:expr ) => {{
         $e.or_else(|e| return $n.error(e))?

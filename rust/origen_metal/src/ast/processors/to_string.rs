@@ -1,27 +1,31 @@
 //! This is used to implement the fmt::Display trait for nodes and is a
 //! good example of a simple AST processor
 
-use crate::generator::ast::*;
-use crate::generator::processor::*;
+use crate::ast::{node::Attrs, Node, Processor, Return};
+use crate::Result;
 
-pub struct ToString {
+pub struct ToString<T> {
     indent: usize,
     output: String,
+    // Had to use T somewhere in here to get Rust to compile, gave up trying to find
+    // a more elegant solution
+    _not_used: Option<T>,
 }
 
-impl ToString {
-    pub fn run(node: &Node) -> String {
+impl<T: Attrs> ToString<T> {
+    pub fn run(node: &Node<T>) -> String {
         let mut p = ToString {
             indent: 0,
             output: "".to_string(),
+            _not_used: None,
         };
         node.process(&mut p).unwrap();
         p.output
     }
 }
 
-impl Processor for ToString {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl<T: Attrs> Processor<T> for ToString<T> {
+    fn on_node(&mut self, node: &Node<T>) -> Result<Return<T>> {
         self.output += &" ".repeat(self.indent);
         self.output += &format!("{}\n", node.attrs);
         self.indent += 4;

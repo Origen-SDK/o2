@@ -1,6 +1,6 @@
 use super::super::nodes::Id;
 use crate::core::model::pins::pin::PinAction;
-use crate::generator::ast::Node;
+use crate::generator::Pattern;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
@@ -9,6 +9,7 @@ use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
 use num_traits::ToPrimitive;
+use origen_metal::ast::Node;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
@@ -377,16 +378,16 @@ impl Transaction {
         Ok(())
     }
 
-    pub fn as_write_node(&self) -> Result<Node> {
-        Ok(node!(RegWrite, self.clone()))
+    pub fn as_write_node(&self) -> Result<Node<Pattern>> {
+        Ok(node!(Pattern::RegWrite, self.clone()))
     }
 
-    pub fn as_verify_node(&self) -> Result<Node> {
-        Ok(node!(RegVerify, self.clone()))
+    pub fn as_verify_node(&self) -> Result<Node<Pattern>> {
+        Ok(node!(Pattern::RegVerify, self.clone()))
     }
 
-    pub fn as_capture_node(&self) -> Result<Node> {
-        Ok(node!(RegCapture, self.clone()))
+    pub fn as_capture_node(&self) -> Result<Node<Pattern>> {
+        Ok(node!(Pattern::RegCapture, self.clone()))
     }
 
     pub fn chunk_data(&self, chunk_width: usize) -> Result<Vec<BigUint>> {

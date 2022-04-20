@@ -3,7 +3,7 @@
 mod nodes;
 mod parser;
 mod processors;
-use crate::ast::node::Node;
+use crate::ast::Node;
 use crate::Result as OrigenResult;
 use nodes::STIL;
 use std::path::Path;

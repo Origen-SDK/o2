@@ -2,32 +2,32 @@
 macro_rules! node {
     ( $attr:path, $( $x:expr ),* => $( $c:expr ),* $(,)?) => {
         {
-            $crate::ast::node::Node::new_with_children($crate::generator::ast::Attrs::$attr($( $x ),*), vec![$( $c ),*])
+            $crate::ast::Node::new_with_children($attr($( $x ),*), vec![$( $c ),*])
         }
     };
     ( $attr:path, $( $x:expr ),* ; $m:expr) => {
         {
-            $crate::ast::node::Node::new_with_meta($crate::generator::ast::Attrs::$attr($( $x ),*), $m)
+            $crate::ast::Node::new_with_meta($attr($( $x ),*), $m)
         }
     };
     ( $attr:path, $( $x:expr ),* ) => {
         {
-            $crate::ast::node::Node::new($attr($( $x ),*))
+            $crate::ast::Node::new($attr($( $x ),*))
         }
     };
     ( $attr:path ; $m:expr) => {
         {
-            $crate::ast::node::Node::new_with_meta($crate::generator::ast::Attrs::$attr, $m)
+            $crate::ast::Node::new_with_meta($attr, $m)
         }
     };
     ( $attr:path => $( $c:expr ),* $(,)?) => {
         {
-            $crate::ast::node::Node::new_with_children($crate::generator::ast::Attrs::$attr, vec![$( $c ),*])
+            $crate::ast::Node::new_with_children($attr, vec![$( $c ),*])
         }
     };
     ( $attr:path ) => {
         {
-            $crate::ast::node::Node::new($attr)
+            $crate::ast::Node::new($attr)
         }
     };
 }

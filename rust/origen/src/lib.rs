@@ -6,7 +6,7 @@ extern crate lazy_static;
 extern crate serde;
 extern crate origen_core_support;
 #[macro_use]
-extern crate pest_derive;
+extern crate origen_metal;
 #[macro_use]
 pub mod macros;
 #[allow(unused_imports)]
@@ -46,7 +46,6 @@ pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::{Capture, Overlay, Tester};
 use self::core::user::Users;
-use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 use num_bigint::BigUint;
@@ -56,6 +55,9 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::ldap::LDAPs;
 use utility::mailer::Maillists;
 use utility::session_store::{SessionStore, Sessions};
+
+use generator::Pattern;
+use origen_metal::ast::{Node, AST};
 
 pub use self::core::frontend::callbacks as CALLBACKS;
 pub use self::core::frontend::{
@@ -103,14 +105,14 @@ lazy_static! {
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
-impl PartialEq<AST> for TEST {
-    fn eq(&self, ast: &AST) -> bool {
+impl PartialEq<AST<Pattern>> for TEST {
+    fn eq(&self, ast: &AST<Pattern>) -> bool {
         self.to_node() == ast.to_node()
     }
 }
 
-impl PartialEq<Node> for TEST {
-    fn eq(&self, node: &Node) -> bool {
+impl PartialEq<Node<Pattern>> for TEST {
+    fn eq(&self, node: &Node<Pattern>) -> bool {
         self.to_node() == *node
     }
 }

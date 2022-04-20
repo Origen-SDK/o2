@@ -1,8 +1,8 @@
 //! A simple processor which will combine pin actions not separated by a cycle into a single PinAction node
 
-use crate::generator::ast::*;
-use crate::generator::processor::*;
+use super::super::nodes::Pattern;
 use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 
 /// Combines adjacent pin actions into a single pin action
@@ -21,7 +21,7 @@ pub struct PinActionCombiner {
 ///   First, all nodes are run through and indices of pin changes are marked.
 ///   Second, all non-PinAction nodes are copied over, with only PinAction nodes whose indices were marked are copied over.
 impl PinActionCombiner {
-    pub fn run(node: &Node) -> Result<Node> {
+    pub fn run(node: &Node<Pattern>) -> Result<Node<Pattern>> {
         let mut p = PinActionCombiner {
             current_state: HashMap::new(),
             i: 0,
@@ -42,11 +42,11 @@ impl PinActionCombiner {
     }
 }
 
-impl Processor for PinActionCombiner {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<Pattern> for PinActionCombiner {
+    fn on_node(&mut self, node: &Node<Pattern>) -> Result<Return<Pattern>> {
         match &node.attrs {
             // Grab the pins and push them into the running vectors, then delete this node.
-            Attrs::PinGroupAction(_grp_id, _actions, _metadata) => {
+            Pattern::PinGroupAction(_grp_id, _actions, _metadata) => {
                 if self.first_pass {
                     // On the first pass, only mark the pin group's index
                     self.delete_current_index = true;
@@ -62,7 +62,7 @@ impl Processor for PinActionCombiner {
                     }
                 }
             }
-            Attrs::PinAction(pin_id, action, _metadata) => {
+            Pattern::PinAction(pin_id, action, _metadata) => {
                 if self.first_pass {
                     // Compare to the last seen pin actions. If these are the same, then this node can be deleted on the next pass.
                     // If they're different, then these updates must be saved.
@@ -82,9 +82,9 @@ impl Processor for PinActionCombiner {
         }
     }
 
-    fn on_end_of_block(&mut self, node: &Node) -> Result<Return> {
+    fn on_end_of_block(&mut self, node: &Node<Pattern>) -> Result<Return<Pattern>> {
         match &node.attrs {
-            Attrs::PinGroupAction(_grp_id, _actions, _metadata) => {
+            Pattern::PinGroupAction(_grp_id, _actions, _metadata) => {
                 if self.first_pass {
                     if self.delete_current_index {
                         self.indices_to_delete.push(self.i);

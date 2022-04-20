@@ -1,8 +1,8 @@
 //! Resolves all time expressions in the given AST
 
 use super::super::nodes::STIL;
-use crate::ast::node::Node;
-use crate::ast::processor::{Processor, Return};
+use crate::ast::Node;
+use crate::ast::{Processor, Return};
 use crate::Result;
 use std::collections::HashMap;
 
@@ -202,7 +202,7 @@ impl Processor<STIL> for TimeExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::node::Node;
+    use crate::ast::Node;
     use crate::stil::nodes::STIL;
     use crate::stil::parser::*;
     use pest::Parser;

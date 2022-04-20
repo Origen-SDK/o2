@@ -1,3 +1,4 @@
+use crate::generator::Pattern;
 use crate::precludes::controller::*;
 use crate::Result;
 
@@ -52,7 +53,7 @@ impl Service {
         let data = PinCollection::from_group(dut, &self.data.0, self.data.1)?;
         let read_nwrite = PinCollection::from_group(dut, &self.read_nwrite.0, self.read_nwrite.1)?;
 
-        let trans = node!(SimpleProtocolReset, self.id);
+        let trans = node!(Pattern::SimpleProtocolReset, self.id);
         let n_id = TEST.push_and_open(trans.clone());
         self.comment("Return SimpleProtocol to default pin states");
         self._reset(&clk, &data, &read_nwrite)?;
@@ -68,7 +69,7 @@ impl Service {
         t.resize(self.width)?;
         t.apply_overlay_pin_ids(&data.as_ids())?;
 
-        let trans = node!(SimpleProtocolWrite, self.id, t.clone());
+        let trans = node!(Pattern::SimpleProtocolWrite, self.id, t.clone());
         let n_id = TEST.push_and_open(trans.clone());
         self.comment(&format!("Simple Write: {} <- {}", t.addr()?, t.data));
         let addr_t = t.to_addr_trans(Some(self.width))?;
@@ -97,7 +98,7 @@ impl Service {
         t.resize(self.width)?;
         t.apply_overlay_pin_ids(&data.as_ids())?;
 
-        let trans = node!(SimpleProtocolWrite, self.id, t.clone());
+        let trans = node!(Pattern::SimpleProtocolWrite, self.id, t.clone());
         let n_id = TEST.push_and_open(trans.clone());
         self.comment(&format!("Simple Verify: {} =? {}", t.addr()?, t.data));
         let addr_t = t.to_addr_trans(Some(self.width))?;

@@ -1,6 +1,7 @@
-use crate::generator::ast::Node;
+use crate::generator::Pattern;
 use crate::{Error, Result};
 use num_bigint::BigUint;
+use origen_metal::ast::Node;
 
 fn err(obj: &str, field: &str) -> Error {
     Error::new(&format!(
@@ -54,8 +55,8 @@ impl Capture {
         }
     }
 
-    pub fn to_node(&self) -> Node {
-        node!(Capture, self.clone(), None)
+    pub fn to_node(&self) -> Node<Pattern> {
+        node!(Pattern::Capture, self.clone(), None)
     }
 
     pub fn get_symbol(&self) -> Result<&String> {
@@ -161,8 +162,8 @@ impl Overlay {
         }
     }
 
-    pub fn to_node(&self) -> Node {
-        node!(Overlay, self.clone(), None)
+    pub fn to_node(&self) -> Node<Pattern> {
+        node!(Pattern::Overlay, self.clone(), None)
     }
 
     pub fn enabled_overlay_pins(&self) -> Result<Vec<usize>> {

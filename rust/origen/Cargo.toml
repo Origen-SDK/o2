@@ -38,8 +38,6 @@ cargo-expand = "0.4.17"
 num = "0.3.0"
 num-traits = "0.2.12"
 serde-pickle = "0.6"
-pest = "2.1"
-pest_derive = "2.1"
 enum-utils = "0.1.2"
 shellexpand = "1.1.1"
 # Need to be careful with this version, couldn't build on RHEL6 with versions greater

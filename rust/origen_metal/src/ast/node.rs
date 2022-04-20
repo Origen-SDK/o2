@@ -1,13 +1,12 @@
-//use super::processors::ToString;
 use super::ast::AST;
-//use crate::generator::processor::*;
+use super::processors::ToString;
 //use crate::{Error, Operation, STATUS};
 use crate::ast::processor::{Processor, Return};
 use crate::Result;
-use std::fmt;
+use std::fmt::{self, Display};
 
-pub trait Attrs: Clone + std::cmp::PartialEq + serde::Serialize {}
-impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Attrs for T {}
+pub trait Attrs: Clone + std::cmp::PartialEq + serde::Serialize + Display {}
+impl<T: Clone + std::cmp::PartialEq + serde::Serialize + Display> Attrs for T {}
 
 #[derive(Clone, PartialEq, Serialize)]
 pub struct Node<T> {
@@ -130,9 +129,9 @@ impl<T: Attrs> Node<T> {
         }
     }
 
-    //pub fn to_string(&self) -> String {
-    //    ToString::run(self)
-    //}
+    pub fn to_string(&self) -> String {
+        ToString::run(self)
+    }
 
     /// Serializes the AST for import into Python
     pub fn to_pickle(&self) -> Vec<u8> {

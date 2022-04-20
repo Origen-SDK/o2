@@ -1,4 +1,5 @@
 use crate::core::dut::Dut;
+use crate::generator::Pattern;
 use crate::precludes::controller::*;
 use crate::{Error, Result, TEST};
 
@@ -86,7 +87,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDWriteAP, self.id, t2, ack, None);
+        let mut trans = node!(Pattern::SWDWriteAP, self.id, t2, ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -103,7 +104,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDVerifyAP, self.id, t2, ack, parity, None);
+        let mut trans = node!(Pattern::SWDVerifyAP, self.id, t2, ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -119,7 +120,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDWriteDP, self.id, t2, ack, None);
+        let mut trans = node!(Pattern::SWDWriteDP, self.id, t2, ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -136,7 +137,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDVerifyDP, self.id, t2, ack, parity, None);
+        let mut trans = node!(Pattern::SWDVerifyDP, self.id, t2, ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;

@@ -1,25 +1,22 @@
-#[macro_use]
-pub mod ast;
-mod node;
 mod nodes;
-pub mod processor;
 pub mod processors;
-pub mod stil;
 mod test_manager;
 pub mod utility;
 
+pub use nodes::Pattern;
 pub use test_manager::TestManager;
 
 #[cfg(test)]
 mod tests {
-    use crate::generator::ast::*;
     use crate::generator::processors::*;
+    use crate::generator::Pattern;
     use crate::generator::TestManager;
+    use origen_metal::ast::{Node, AST};
 
-    fn reg_write_node() -> Node {
+    fn reg_write_node() -> Node<Pattern> {
         let mut trans = crate::Transaction::new_write(0x12345678_u32.into(), 32).unwrap();
         trans.reg_id = Some(10);
-        node!(RegWrite, trans)
+        node!(Pattern::RegWrite, trans)
     }
 
     #[test]
@@ -27,15 +24,19 @@ mod tests {
         let test = TestManager::new();
 
         test.start("trim_vbgap");
-        let c = node!(Comment, 1, "Hello".to_string());
+        let c = node!(Pattern::Comment, 1, "Hello".to_string());
         test.push(c);
 
         let tid = test.push_and_open(reg_write_node());
-        let c = node!(Comment, 1, "Should be inside reg transaction".to_string());
+        let c = node!(
+            Pattern::Comment,
+            1,
+            "Should be inside reg transaction".to_string()
+        );
         test.push(c);
-        let cyc = node!(Cycle, 1, false);
+        let cyc = node!(Pattern::Cycle, 1, false);
         test.push(cyc);
-        let cyc = node!(Cycle, 1, true);
+        let cyc = node!(Pattern::Cycle, 1, true);
         for _i in 0..5 {
             test.push(cyc.clone());
         }
@@ -43,16 +44,16 @@ mod tests {
         // Verify comparisons work
 
         let mut ast1 = AST::new();
-        ast1.push_and_open(node!(Test, "trim_vbgap".to_string()));
-        ast1.push(node!(Comment, 1, "Hello".to_string()));
+        ast1.push_and_open(node!(Pattern::Test, "trim_vbgap".to_string()));
+        ast1.push(node!(Pattern::Comment, 1, "Hello".to_string()));
         let r = ast1.push_and_open(reg_write_node());
         ast1.push(node!(
-            Comment,
+            Pattern::Comment,
             1,
             "Should be inside reg transaction".to_string()
         ));
-        ast1.push(node!(Cycle, 1, false));
-        let cyc = node!(Cycle, 1, true);
+        ast1.push(node!(Pattern::Cycle, 1, false));
+        let cyc = node!(Pattern::Cycle, 1, true);
         for _i in 0..5 {
             ast1.push(cyc.clone());
         }
@@ -62,26 +63,30 @@ mod tests {
         // Complete the AST and test again
 
         test.close(tid).expect("Closed reg trans properly");
-        let c = node!(Comment, 1, "Should be outside reg transaction".to_string());
+        let c = node!(
+            Pattern::Comment,
+            1,
+            "Should be outside reg transaction".to_string()
+        );
         test.push(c);
 
         let mut ast2 = AST::new();
-        ast2.push_and_open(node!(Test, "trim_vbgap".to_string()));
-        ast2.push(node!(Comment, 1, "Hello".to_string()));
+        ast2.push_and_open(node!(Pattern::Test, "trim_vbgap".to_string()));
+        ast2.push(node!(Pattern::Comment, 1, "Hello".to_string()));
         let r = ast2.push_and_open(reg_write_node());
         ast2.push(node!(
-            Comment,
+            Pattern::Comment,
             1,
             "Should be inside reg transaction".to_string()
         ));
-        ast2.push(node!(Cycle, 1, false));
-        let cyc = node!(Cycle, 1, true);
+        ast2.push(node!(Pattern::Cycle, 1, false));
+        let cyc = node!(Pattern::Cycle, 1, true);
         for _i in 0..5 {
             ast2.push(cyc.clone());
         }
         ast2.close(r).unwrap();
         ast2.push(node!(
-            Comment,
+            Pattern::Comment,
             1,
             "Should be outside reg transaction".to_string()
         ));
@@ -95,22 +100,22 @@ mod tests {
             .expect("Couldn't upcase comments");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "trim_vbgap".to_string()));
-        ast.push(node!(Comment, 1, "HELLO".to_string()));
+        ast.push_and_open(node!(Pattern::Test, "trim_vbgap".to_string()));
+        ast.push(node!(Pattern::Comment, 1, "HELLO".to_string()));
         let r = ast.push_and_open(reg_write_node());
         ast.push(node!(
-            Comment,
+            Pattern::Comment,
             1,
             "SHOULD BE INSIDE REG TRANSACTION".to_string()
         ));
-        ast.push(node!(Cycle, 1, false));
-        let cyc = node!(Cycle, 1, true);
+        ast.push(node!(Pattern::Cycle, 1, false));
+        let cyc = node!(Pattern::Cycle, 1, true);
         for _i in 0..5 {
             ast.push(cyc.clone());
         }
         ast.close(r).unwrap();
         ast.push(node!(
-            Comment,
+            Pattern::Comment,
             1,
             "SHOULD BE OUTSIDE REG TRANSACTION".to_string()
         ));
@@ -122,19 +127,19 @@ mod tests {
         let new_ast = CycleCombiner::run(&new_ast).unwrap();
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "trim_vbgap".to_string()));
-        ast.push(node!(Comment, 1, "HELLO".to_string()));
+        ast.push_and_open(node!(Pattern::Test, "trim_vbgap".to_string()));
+        ast.push(node!(Pattern::Comment, 1, "HELLO".to_string()));
         let r = ast.push_and_open(reg_write_node());
         ast.push(node!(
-            Comment,
+            Pattern::Comment,
             1,
             "SHOULD BE INSIDE REG TRANSACTION".to_string()
         ));
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 5, true));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 5, true));
         ast.close(r).unwrap();
         ast.push(node!(
-            Comment,
+            Pattern::Comment,
             1,
             "SHOULD BE OUTSIDE REG TRANSACTION".to_string()
         ));
@@ -149,75 +154,81 @@ mod tests {
         let test = TestManager::new();
 
         test.start("t1");
-        test.push(node!(Cycle, 1, false));
+        test.push(node!(Pattern::Cycle, 1, false));
         let _tid = test.push_and_open(reg_write_node());
-        test.push(node!(Cycle, 1, false));
-        test.push(node!(Cycle, 1, true));
-        test.push(node!(Cycle, 1, true));
+        test.push(node!(Pattern::Cycle, 1, false));
+        test.push(node!(Pattern::Cycle, 1, true));
+        test.push(node!(Pattern::Cycle, 1, true));
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 1, true));
         assert_eq!(test, ast);
 
         // Test replacing the last node
-        test.replace(node!(Cycle, 5, false), 0).expect("Ok1");
+        test.replace(node!(Pattern::Cycle, 5, false), 0)
+            .expect("Ok1");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 5, false));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 5, false));
         assert_eq!(test, ast);
 
         // Test replacing with offset
-        test.replace(node!(Cycle, 10, false), 2).expect("Ok2");
+        test.replace(node!(Pattern::Cycle, 10, false), 2)
+            .expect("Ok2");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 10, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 5, false));
+        ast.push(node!(Pattern::Cycle, 10, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 5, false));
         assert_eq!(test, ast);
 
         // Test replacing an open node
         let test2 = test.clone();
-        test2.replace(node!(Cycle, 15, true), 3).expect("Ok3");
+        test2
+            .replace(node!(Pattern::Cycle, 15, true), 3)
+            .expect("Ok3");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 15, true));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 15, true));
         assert_eq!(test2, ast);
 
         // Test replacing an upstream node
-        test.replace(node!(Cycle, 15, true), 4).expect("Ok4");
+        test.replace(node!(Pattern::Cycle, 15, true), 4)
+            .expect("Ok4");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 15, true));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 15, true));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 10, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 5, false));
+        ast.push(node!(Pattern::Cycle, 10, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 5, false));
         assert_eq!(test, ast);
 
-        test.replace(node!(Test, "t2".to_string()), 5).expect("Ok5");
+        test.replace(node!(Pattern::Test, "t2".to_string()), 5)
+            .expect("Ok5");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t2".to_string()));
+        ast.push_and_open(node!(Pattern::Test, "t2".to_string()));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 10, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 5, false));
+        ast.push(node!(Pattern::Cycle, 10, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 5, false));
         assert_eq!(test, ast);
     }
 
@@ -226,93 +237,98 @@ mod tests {
         let test = TestManager::new();
 
         test.start("t1");
-        test.push(node!(Cycle, 1, false));
+        test.push(node!(Pattern::Cycle, 1, false));
         let _tid = test.push_and_open(reg_write_node());
-        test.push(node!(Cycle, 1, false));
-        test.push(node!(Cycle, 1, true));
-        test.push(node!(Cycle, 1, true));
+        test.push(node!(Pattern::Cycle, 1, false));
+        test.push(node!(Pattern::Cycle, 1, true));
+        test.push(node!(Pattern::Cycle, 1, true));
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 1, true));
         assert_eq!(test, ast);
 
         // Test inserting the last node
-        test.insert(node!(Cycle, 6, false), 0).expect("Ok1");
+        test.insert(node!(Pattern::Cycle, 6, false), 0)
+            .expect("Ok1");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 6, false));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 6, false));
         assert_eq!(test, ast);
 
         // Test inserting within immediate children
-        test.insert(node!(Cycle, 7, false), 2).expect("Ok2");
+        test.insert(node!(Pattern::Cycle, 7, false), 2)
+            .expect("Ok2");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 7, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 6, false));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 7, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 6, false));
         assert_eq!(test, ast);
 
-        test.insert(node!(Cycle, 8, false), 5).expect("Ok2");
+        test.insert(node!(Pattern::Cycle, 8, false), 5)
+            .expect("Ok2");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 8, false));
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 7, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 6, false));
+        ast.push(node!(Pattern::Cycle, 8, false));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 7, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 6, false));
         assert_eq!(test, ast);
 
         // Test inserting within next level up children
 
-        test.insert(node!(Cycle, 9, false), 7).expect("Ok2");
+        test.insert(node!(Pattern::Cycle, 9, false), 7)
+            .expect("Ok2");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 9, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 9, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 8, false));
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 7, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 6, false));
+        ast.push(node!(Pattern::Cycle, 8, false));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 7, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 6, false));
         assert_eq!(test, ast);
 
-        test.insert(node!(Cycle, 10, false), 9).expect("Ok2");
+        test.insert(node!(Pattern::Cycle, 10, false), 9)
+            .expect("Ok2");
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 10, false));
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 9, false));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 10, false));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 9, false));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 8, false));
-        ast.push(node!(Cycle, 1, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 7, false));
-        ast.push(node!(Cycle, 1, true));
-        ast.push(node!(Cycle, 6, false));
+        ast.push(node!(Pattern::Cycle, 8, false));
+        ast.push(node!(Pattern::Cycle, 1, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 7, false));
+        ast.push(node!(Pattern::Cycle, 1, true));
+        ast.push(node!(Pattern::Cycle, 6, false));
         assert_eq!(test, ast);
     }
 
@@ -321,31 +337,32 @@ mod tests {
         let test = TestManager::new();
 
         test.start("t1");
-        test.push(node!(Cycle, 1, true));
+        test.push(node!(Pattern::Cycle, 1, true));
         let _tid = test.push_and_open(reg_write_node());
-        test.push(node!(Cycle, 2, true));
-        test.push(node!(Cycle, 3, true));
-        test.push(node!(Cycle, 4, true));
+        test.push(node!(Pattern::Cycle, 2, true));
+        test.push(node!(Pattern::Cycle, 3, true));
+        test.push(node!(Pattern::Cycle, 4, true));
 
-        assert_eq!(test.get(0).unwrap(), node!(Cycle, 4, true));
-        assert_eq!(test.get(1).unwrap(), node!(Cycle, 3, true));
-        assert_eq!(test.get(2).unwrap(), node!(Cycle, 2, true));
-        assert_eq!(test.get(4).unwrap(), node!(Cycle, 1, true));
+        assert_eq!(test.get(0).unwrap(), node!(Pattern::Cycle, 4, true));
+        assert_eq!(test.get(1).unwrap(), node!(Pattern::Cycle, 3, true));
+        assert_eq!(test.get(2).unwrap(), node!(Pattern::Cycle, 2, true));
+        assert_eq!(test.get(4).unwrap(), node!(Pattern::Cycle, 1, true));
 
         // Test cycle optimizer code
-        if let Attrs::Cycle(repeat, compressable) = test.get(0).unwrap().attrs {
+        if let Pattern::Cycle(repeat, compressable) = test.get(0).unwrap().attrs {
             if compressable {
-                test.replace(node!(Cycle, repeat + 1, true), 0).expect("ok");
+                test.replace(node!(Pattern::Cycle, repeat + 1, true), 0)
+                    .expect("ok");
             }
         }
 
         let mut ast = AST::new();
-        ast.push_and_open(node!(Test, "t1".to_string()));
-        ast.push(node!(Cycle, 1, true));
+        ast.push_and_open(node!(Pattern::Test, "t1".to_string()));
+        ast.push(node!(Pattern::Cycle, 1, true));
         let _r = ast.push_and_open(reg_write_node());
-        ast.push(node!(Cycle, 2, true));
-        ast.push(node!(Cycle, 3, true));
-        ast.push(node!(Cycle, 5, true));
+        ast.push(node!(Pattern::Cycle, 2, true));
+        ast.push(node!(Pattern::Cycle, 3, true));
+        ast.push(node!(Pattern::Cycle, 5, true));
         assert_eq!(test, ast);
     }
 }

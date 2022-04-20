@@ -1,7 +1,7 @@
 use super::bit::Overlay as BitOverlay;
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
-use crate::node;
+use crate::generator::Pattern;
 use crate::Transaction;
 use crate::{Dut, Error, Result, TEST};
 use num_bigint::BigUint;
@@ -478,7 +478,7 @@ impl<'a> BitCollection<'a> {
     ) -> Result<Option<usize>> {
         let trans = self.to_verify_transaction(enable, preset, dut);
         if let Ok(t) = trans {
-            Ok(Some(TEST.push_and_open(node!(RegVerify, t))))
+            Ok(Some(TEST.push_and_open(node!(Pattern::RegVerify, t))))
         } else {
             Ok(None)
         }
@@ -489,10 +489,10 @@ impl<'a> BitCollection<'a> {
         enable: Option<BigUint>,
         preset: bool,
         dut: &'a MutexGuard<Dut>,
-    ) -> Result<Option<crate::generator::ast::Node>> {
+    ) -> Result<Option<origen_metal::ast::Node<Pattern>>> {
         let trans = self.to_verify_transaction(enable, preset, dut);
         if let Ok(t) = trans {
-            Ok(Some(node!(RegVerify, t)))
+            Ok(Some(node!(Pattern::RegVerify, t)))
         } else {
             Ok(None)
         }
@@ -561,7 +561,7 @@ impl<'a> BitCollection<'a> {
     pub fn write(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<usize>> {
         let trans = self.to_write_transaction(dut);
         if let Ok(t) = trans {
-            Ok(Some(TEST.push_and_open(node!(RegWrite, t))))
+            Ok(Some(TEST.push_and_open(node!(Pattern::RegWrite, t))))
         } else {
             Ok(None)
         }
@@ -570,10 +570,10 @@ impl<'a> BitCollection<'a> {
     pub fn to_write_node(
         &self,
         dut: &'a MutexGuard<Dut>,
-    ) -> Result<Option<crate::generator::ast::Node>> {
+    ) -> Result<Option<origen_metal::ast::Node<Pattern>>> {
         let trans = self.to_write_transaction(dut);
         if let Ok(t) = trans {
-            Ok(Some(node!(RegWrite, t)))
+            Ok(Some(node!(Pattern::RegWrite, t)))
         } else {
             Ok(None)
         }

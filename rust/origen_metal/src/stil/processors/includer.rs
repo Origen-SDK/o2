@@ -2,8 +2,8 @@
 
 use super::super::nodes::STIL;
 use super::super::parser;
-use crate::ast::node::Node;
-use crate::ast::processor::{Processor, Return};
+use crate::ast::Node;
+use crate::ast::{Processor, Return};
 use crate::Result;
 use shellexpand;
 use std::env;

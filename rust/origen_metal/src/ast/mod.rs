@@ -1,3 +1,8 @@
-pub mod ast;
-pub mod node;
-pub mod processor;
+mod ast;
+mod node;
+mod processor;
+mod processors;
+
+pub use ast::AST;
+pub use node::Node;
+pub use processor::{Processor, Return};

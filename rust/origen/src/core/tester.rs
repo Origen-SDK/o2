@@ -5,20 +5,53 @@ use super::model::pins::pin::Resolver;
 use super::model::pins::pin_header::PinHeader;
 use super::model::timesets::timeset::Timeset;
 use crate::core::dut::Dut;
-use crate::generator::ast::{Attrs, Node};
+use crate::generator::Pattern;
 use crate::prog_gen::{Model, PatternReferenceType};
 use crate::testers::{instantiate_tester, SupportedTester};
 use crate::utility::file_utils::to_relative_path;
-use crate::{add_children, node, text, text_line, with_current_job};
+use crate::with_current_job;
 use crate::{Error, Result};
 use crate::{FLOW, TEST};
 use indexmap::IndexMap;
+use origen_metal::ast::Node;
 use origen_metal::framework::reference_files;
 use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 use std::collections::HashSet;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+#[macro_export]
+macro_rules! push_pin_actions {
+    ($pin_info:expr) => {{
+        crate::TEST.push(node!(Pattern::PinAction, $pin_info));
+    }};
+}
+
+#[macro_export]
+macro_rules! text {
+    ($txt:expr) => {{
+        node!(Pattern::Text, $txt.to_string())
+    }};
+}
+
+#[macro_export]
+macro_rules! add_children {
+    ( $parent:expr, $( $child:expr ),* ) => {{
+        let mut p = $parent;
+        $( p.add_child($child); )*
+        p
+    }};
+}
+
+#[macro_export]
+macro_rules! text_line {
+    ( $( $elem:expr ),* ) => {{
+        let mut n = node!(Pattern::TextLine);
+        $( n.add_child($elem); )*
+        n
+    }};
+}
 
 #[derive(Debug)]
 pub enum TesterSource {
@@ -130,7 +163,7 @@ impl Tester {
     /// The returned ID should be kept and given to end_tester_eq_block when the
     /// tester specific section is complete.
     pub fn start_tester_eq_block(&self, testers: Vec<SupportedTester>) -> Result<(usize, usize)> {
-        let n = node!(TesterEq, testers.clone());
+        let n = node!(Pattern::TesterEq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
         if FLOW.is_open() {
@@ -158,7 +191,7 @@ impl Tester {
     /// Like start_tester_eq_block, but the contained block will be included for all testers
     /// except those in the given list
     pub fn start_tester_neq_block(&self, testers: Vec<SupportedTester>) -> Result<(usize, usize)> {
-        let n = node!(TesterNeq, testers.clone());
+        let n = node!(Pattern::TesterNeq, testers.clone());
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
         if FLOW.is_open() {
@@ -246,13 +279,13 @@ impl Tester {
 
     pub fn set_timeset(&mut self, dut: &Dut, model_id: usize, timeset_name: &str) -> Result<()> {
         self.current_timeset_id = Some(dut._get_timeset(model_id, timeset_name)?.id);
-        TEST.push(node!(SetTimeset, self.current_timeset_id.unwrap()));
+        TEST.push(node!(Pattern::SetTimeset, self.current_timeset_id.unwrap()));
         Ok(())
     }
 
     pub fn clear_timeset(&mut self) -> Result<()> {
         self.current_timeset_id = Option::None;
-        TEST.push(node!(ClearTimeset));
+        TEST.push(node!(Pattern::ClearTimeset));
         Ok(())
     }
 
@@ -279,13 +312,16 @@ impl Tester {
         pin_header_name: &str,
     ) -> Result<()> {
         self.current_pin_header_id = Some(dut._get_pin_header(model_id, pin_header_name)?.id);
-        TEST.push(node!(SetPinHeader, self.current_pin_header_id.unwrap()));
+        TEST.push(node!(
+            Pattern::SetPinHeader,
+            self.current_pin_header_id.unwrap()
+        ));
         Ok(())
     }
 
     pub fn clear_pin_header(&mut self) -> Result<()> {
         self.current_pin_header_id = Option::None;
-        TEST.push(node!(ClearPinHeader));
+        TEST.push(node!(Pattern::ClearPinHeader));
         Ok(())
     }
 
@@ -297,16 +333,16 @@ impl Tester {
             TesterSource::Internal(g_) => {
                 let last_node = TEST.get(0).unwrap();
                 match &last_node.attrs {
-                    Attrs::Cycle(repeat, compressable) => {
+                    Pattern::Cycle(repeat, compressable) => {
                         g_.cycle(*repeat, *compressable, &last_node)?
                     }
-                    Attrs::Comment(level, msg) => g_.cc(*level, &msg, &last_node)?,
-                    Attrs::SetTimeset(timeset_id) => g_.set_timeset(*timeset_id, &last_node)?,
-                    Attrs::ClearTimeset => g_.clear_timeset(&last_node)?,
-                    Attrs::SetPinHeader(pin_header_id) => {
+                    Pattern::Comment(level, msg) => g_.cc(*level, &msg, &last_node)?,
+                    Pattern::SetTimeset(timeset_id) => g_.set_timeset(*timeset_id, &last_node)?,
+                    Pattern::ClearTimeset => g_.clear_timeset(&last_node)?,
+                    Pattern::SetPinHeader(pin_header_id) => {
                         g_.set_pin_header(*pin_header_id, &last_node)?
                     }
-                    Attrs::ClearPinHeader => g_.clear_pin_header(&last_node)?,
+                    Pattern::ClearPinHeader => g_.clear_pin_header(&last_node)?,
                     _ => {}
                 }
             }
@@ -316,13 +352,13 @@ impl Tester {
     }
 
     pub fn cc(&mut self, comment: &str) -> Result<()> {
-        let comment_node = node!(Comment, 1, comment.to_string());
+        let comment_node = node!(Pattern::Comment, 1, comment.to_string());
         TEST.push(comment_node);
         Ok(())
     }
 
     pub fn cycle(&mut self, repeat: Option<usize>) -> Result<()> {
-        let cycle_node = node!(Cycle, repeat.unwrap_or(1) as u32, true);
+        let cycle_node = node!(Pattern::Cycle, repeat.unwrap_or(1) as u32, true);
         TEST.push(cycle_node);
         Ok(())
     }
@@ -342,75 +378,97 @@ impl Tester {
         app_comments: Option<Vec<String>>,
         pattern_comments: Option<Vec<String>>,
     ) -> Result<()> {
-        let mut header = node!(PatternHeader);
-        header.add_child(node!(TextBoundaryLine));
-        let mut section = node!(TextSection, Some("Generated".to_string()), None);
+        let mut header = node!(Pattern::PatternHeader);
+        header.add_child(node!(Pattern::TextBoundaryLine));
+        let mut section = node!(Pattern::TextSection, Some("Generated".to_string()), None);
         section.add_children(vec![
-            text_line!(text!("Time: "), node!(Timestamp)),
-            text_line!(text!("By: "), node!(User)),
+            text_line!(text!("Time: "), node!(Pattern::Timestamp)),
+            text_line!(text!("By: "), node!(Pattern::User)),
             with_current_job(|job| {
                 Ok(text_line!(
                     text!("Command: "),
-                    node!(OrigenCommand, job.command())
+                    node!(Pattern::OrigenCommand, job.command())
                 ))
             })
             .unwrap(),
         ]);
         header.add_child(section);
 
-        header.add_child(node!(TextBoundaryLine));
-        section = node!(TextSection, Some("Workspace".to_string()), None);
+        header.add_child(node!(Pattern::TextBoundaryLine));
+        section = node!(Pattern::TextSection, Some("Workspace".to_string()), None);
         section.add_children(vec![
             add_children!(
-                node!(TextSection, Some("Environment".to_string()), None),
-                text_line!(text!("OS: "), node!(OS)),
-                text_line!(text!("Mode: "), node!(Mode)),
+                node!(Pattern::TextSection, Some("Environment".to_string()), None),
+                text_line!(text!("OS: "), node!(Pattern::OS)),
+                text_line!(text!("Mode: "), node!(Pattern::Mode)),
                 add_children!(
-                    node!(TextSection, Some("Targets".to_string()), None),
-                    node!(TargetsStacked)
+                    node!(Pattern::TextSection, Some("Targets".to_string()), None),
+                    node!(Pattern::TargetsStacked)
                 )
             ),
             add_children!(
-                node!(TextSection, Some("Application".to_string()), None),
+                node!(Pattern::TextSection, Some("Application".to_string()), None),
                 // To-do: Add this
-                //text_line!(text!("Version: "), node!(AppVersion)),
-                text_line!(text!("Local Path: "), node!(AppRoot))
+                //text_line!(text!("Version: "), node!(Pattern::AppVersion)),
+                text_line!(text!("Local Path: "), node!(Pattern::AppRoot))
             ),
             add_children!(
-                node!(TextSection, Some("Origen Core".to_string()), None),
-                text_line!(text!("Version: "), node!(OrigenVersion)),
-                text_line!(text!("Executable Path: "), node!(OrigenRoot))
+                node!(Pattern::TextSection, Some("Origen Core".to_string()), None),
+                text_line!(text!("Version: "), node!(Pattern::OrigenVersion)),
+                text_line!(text!("Executable Path: "), node!(Pattern::OrigenRoot))
             ), // To-do: Add these as well
-               // node!(TextSection, Some("Application".to_string()), None).add_children(vec!(
+               // node!(Pattern::TextSection, Some("Application".to_string()), None).add_children(vec!(
                // )),
-               // node!(TextSection, Some("Origen Core".to_string()), None).add_children(vec!(
+               // node!(Pattern::TextSection, Some("Origen Core".to_string()), None).add_children(vec!(
                // ))
         ]);
         header.add_child(section);
 
         if app_comments.is_some() || pattern_comments.is_some() {
-            header.add_child(node!(TextBoundaryLine));
-            section = node!(TextSection, Some("Header Comments".to_string()), None);
+            header.add_child(node!(Pattern::TextBoundaryLine));
+            section = node!(
+                Pattern::TextSection,
+                Some("Header Comments".to_string()),
+                None
+            );
             if let Some(comments) = app_comments {
-                let mut s = node!(TextSection, Some("From the Application".to_string()), None);
-                s.add_children(comments.iter().map(|c| text!(c)).collect::<Vec<Node>>());
+                let mut s = node!(
+                    Pattern::TextSection,
+                    Some("From the Application".to_string()),
+                    None
+                );
+                s.add_children(
+                    comments
+                        .iter()
+                        .map(|c| text!(c))
+                        .collect::<Vec<Node<Pattern>>>(),
+                );
                 section.add_child(s);
             }
             if let Some(comments) = pattern_comments {
-                let mut s = node!(TextSection, Some("From the Pattern".to_string()), None);
-                s.add_children(comments.iter().map(|c| text!(c)).collect::<Vec<Node>>());
+                let mut s = node!(
+                    Pattern::TextSection,
+                    Some("From the Pattern".to_string()),
+                    None
+                );
+                s.add_children(
+                    comments
+                        .iter()
+                        .map(|c| text!(c))
+                        .collect::<Vec<Node<Pattern>>>(),
+                );
                 section.add_child(s);
             }
             header.add_child(section);
         }
-        header.add_child(node!(TextBoundaryLine));
+        header.add_child(node!(Pattern::TextBoundaryLine));
 
         TEST.push(header);
         Ok(())
     }
 
     pub fn end_pattern(&self) -> Result<()> {
-        TEST.push(node!(PatternEnd));
+        TEST.push(node!(Pattern::PatternEnd));
         Ok(())
     }
 
@@ -747,27 +805,27 @@ impl Tester {
 /// Each method will be given the resulting node after processing.
 /// Note: the node given is only a clone of what will be stored in the AST.
 pub trait Interceptor {
-    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<()> {
+    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node<Pattern>) -> Result<()> {
         Ok(())
     }
 
-    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Result<()> {
+    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node<Pattern>) -> Result<()> {
         Ok(())
     }
 
-    fn clear_timeset(&mut self, _node: &Node) -> Result<()> {
+    fn clear_timeset(&mut self, _node: &Node<Pattern>) -> Result<()> {
         Ok(())
     }
 
-    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<()> {
+    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node<Pattern>) -> Result<()> {
         Ok(())
     }
 
-    fn set_pin_header(&mut self, _pin_header_id: usize, _node: &Node) -> Result<()> {
+    fn set_pin_header(&mut self, _pin_header_id: usize, _node: &Node<Pattern>) -> Result<()> {
         Ok(())
     }
 
-    fn clear_pin_header(&mut self, _node: &Node) -> Result<()> {
+    fn clear_pin_header(&mut self, _node: &Node<Pattern>) -> Result<()> {
         Ok(())
     }
 }
@@ -789,7 +847,7 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// if successful.
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
+    fn render_pattern(&mut self, ast: &Node<Pattern>) -> crate::Result<Vec<PathBuf>> {
         let _ = ast;
         log_debug!("Tester '{}' does not implement render_pattern", &self.id());
         Ok(vec![])

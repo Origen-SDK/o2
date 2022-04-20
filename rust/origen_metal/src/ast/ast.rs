@@ -5,38 +5,6 @@ pub use super::node::{Attrs, Node};
 use crate::{Error, Result};
 use std::fmt;
 
-#[macro_export]
-macro_rules! push_pin_actions {
-    ($pin_info:expr) => {{
-        crate::TEST.push(crate::node!(PinAction, $pin_info));
-    }};
-}
-
-#[macro_export]
-macro_rules! text {
-    ($txt:expr) => {{
-        crate::node!(Text, $txt.to_string())
-    }};
-}
-
-#[macro_export]
-macro_rules! add_children {
-    ( $parent:expr, $( $child:expr ),* ) => {{
-        let mut p = $parent;
-        $( p.add_child($child); )*
-        p
-    }};
-}
-
-#[macro_export]
-macro_rules! text_line {
-    ( $( $elem:expr ),* ) => {{
-        let mut n = node!(TextLine);
-        $( n.add_child($elem); )*
-        n
-    }};
-}
-
 /// An AST provides an API for constructing a node tree, when completed it can be unwrapped
 /// to a node by calling the unwrap() method
 #[derive(Clone)]

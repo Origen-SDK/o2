@@ -1,7 +1,8 @@
 //! A simple example processor which will combine adjacent cycle nodes
 
-use crate::generator::ast::*;
-use crate::generator::processor::*;
+use super::super::nodes::Pattern;
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 
 pub struct CycleCombiner {
@@ -9,22 +10,22 @@ pub struct CycleCombiner {
 }
 
 impl CycleCombiner {
-    pub fn run(node: &Node) -> Result<Node> {
+    pub fn run(node: &Node<Pattern>) -> Result<Node<Pattern>> {
         let mut p = CycleCombiner { cycle_count: 0 };
         Ok(node.process(&mut p)?.unwrap())
     }
 
-    fn consume_cycles(&mut self) -> Node {
-        let cyc = node!(Cycle, self.cycle_count, true);
+    fn consume_cycles(&mut self) -> Node<Pattern> {
+        let cyc = node!(Pattern::Cycle, self.cycle_count, true);
         self.cycle_count = 0;
         cyc
     }
 }
 
-impl Processor for CycleCombiner {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<Pattern> for CycleCombiner {
+    fn on_node(&mut self, node: &Node<Pattern>) -> Result<Return<Pattern>> {
         match &node.attrs {
-            Attrs::Cycle(repeat, compressable) => {
+            Pattern::Cycle(repeat, compressable) => {
                 if *compressable {
                     self.cycle_count += repeat;
                     Ok(Return::None)
@@ -51,7 +52,7 @@ impl Processor for CycleCombiner {
     }
 
     // Don't let it leave an open block with cycles pending
-    fn on_end_of_block(&mut self, _node: &Node) -> Result<Return> {
+    fn on_end_of_block(&mut self, _node: &Node<Pattern>) -> Result<Return<Pattern>> {
         if self.cycle_count > 0 {
             Ok(Return::Replace(self.consume_cycles()))
         } else {
@@ -72,7 +73,7 @@ pub struct UnpackCaptures {
 }
 
 impl UnpackCaptures {
-    pub fn run(node: &Node) -> Result<Node> {
+    pub fn run(node: &Node<Pattern>) -> Result<Node<Pattern>> {
         let mut p = UnpackCaptures {
             captures__least_cycles_remaining: std::usize::MAX,
             capturing: HashMap::new(),
@@ -91,10 +92,10 @@ impl UnpackCaptures {
     }
 }
 
-impl Processor for UnpackCaptures {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<Pattern> for UnpackCaptures {
+    fn on_node(&mut self, node: &Node<Pattern>) -> Result<Return<Pattern>> {
         match &node.attrs {
-            Attrs::Capture(capture, _metadata) => {
+            Pattern::Capture(capture, _metadata) => {
                 // Keep track of which pins we need to capture and for how long
                 let cycles = capture.cycles.unwrap_or(1);
                 if let Some(pids) = capture.pin_ids.as_ref() {
@@ -130,7 +131,7 @@ impl Processor for UnpackCaptures {
                 }
                 Ok(Return::Unmodified)
             }
-            Attrs::Overlay(overlay, _metadata) => {
+            Pattern::Overlay(overlay, _metadata) => {
                 // For unpacking an overlay, this is almost identical to a capture.
                 let cycles = overlay.cycles.unwrap_or(1);
                 if let Some(pids) = overlay.pin_ids.as_ref() {
@@ -170,7 +171,7 @@ impl Processor for UnpackCaptures {
                 }
                 Ok(Return::Unmodified)
             }
-            Attrs::Cycle(repeat, compressable) => {
+            Pattern::Cycle(repeat, compressable) => {
                 if self.capturing.len() > 0 || self.overlaying.len() > 0 {
                     // De-compress the cycles to account for captures and overlays
                     let mut to_repeat = *repeat as usize;
@@ -259,18 +260,18 @@ impl Processor for UnpackCaptures {
 
                         if this_cycle_overlays.len() > 0 {
                             for _ in 0..this_repeat {
-                                nodes.push(node!(Cycle, 1 as u32, false));
+                                nodes.push(node!(Pattern::Cycle, 1 as u32, false));
                             }
                         } else {
-                            nodes.push(node!(Cycle, this_repeat as u32, *compressable));
+                            nodes.push(node!(Pattern::Cycle, this_repeat as u32, *compressable));
                         }
                         finished_captures.iter().for_each(|pin_id| {
                             self.capturing.remove(pin_id);
-                            nodes.push(node!(EndCapture, pin_id.clone()));
+                            nodes.push(node!(Pattern::EndCapture, pin_id.clone()));
                         });
                         finished_overlays.iter().for_each(|(pin_id, label)| {
                             self.overlaying.remove(pin_id);
-                            nodes.push(node!(EndOverlay, label.clone(), pin_id.clone()));
+                            nodes.push(node!(Pattern::EndOverlay, label.clone(), pin_id.clone()));
                         });
                     }
                     Ok(Return::Inline(nodes))
