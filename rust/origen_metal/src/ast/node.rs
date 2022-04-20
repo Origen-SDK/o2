@@ -2,9 +2,12 @@
 use super::ast::AST;
 //use crate::generator::processor::*;
 //use crate::{Error, Operation, STATUS};
+use crate::ast::processor::{Processor, Return};
 use crate::Result;
 use std::fmt;
-use crate::ast::processor::{Processor, Return};
+
+pub trait Attrs: Clone + std::cmp::PartialEq + serde::Serialize {}
+impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Attrs for T {}
 
 #[derive(Clone, PartialEq, Serialize)]
 pub struct Node<T> {
@@ -32,13 +35,13 @@ impl<T> fmt::Debug for Node<T> {
     }
 }
 
-impl<T> PartialEq<AST<T>> for Node<T> {
+impl<T: Attrs> PartialEq<AST<T>> for Node<T> {
     fn eq(&self, ast: &AST<T>) -> bool {
         *self == ast.to_node()
     }
 }
 
-impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Node<T> {
+impl<T: Attrs> Node<T> {
     pub fn new(attrs: T) -> Node<T> {
         Node {
             attrs: attrs,
@@ -120,7 +123,7 @@ impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Node<T> {
 
     fn inline(nodes: Vec<Box<Node<T>>>) -> Node<T> {
         Node {
-            attrs: nodes[0].attrs.clone(),  // This will be ignored downstream whenever inline = true
+            attrs: nodes[0].attrs.clone(), // This will be ignored downstream whenever inline = true
             inline: true,
             meta: None,
             children: nodes,
@@ -152,7 +155,8 @@ impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Node<T> {
         if offset > len {
             bail!(
                 "An offset of {} was given to insert a child into a node with only {} children",
-                offset, len
+                offset,
+                len
             );
         }
         let index = self.children.len() - offset;
@@ -171,7 +175,8 @@ impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Node<T> {
         } else if offset > len - 1 {
             bail!(
                 "An offset of {} was given to replace a child in a node with only {} children",
-                offset, len
+                offset,
+                len
             );
         }
         let index = self.children.len() - 1 - offset;
@@ -191,7 +196,8 @@ impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Node<T> {
         } else if offset > len - 1 {
             bail!(
                 "An offset of {} was given to get a child in a node with only {} children",
-                offset, len
+                offset,
+                len
             );
         }
         let index = self.children.len() - 1 - offset;
@@ -206,7 +212,8 @@ impl<T: Clone + std::cmp::PartialEq + serde::Serialize> Node<T> {
         } else if offset > len - 1 {
             bail!(
                 "An offset of {} was given to remove a child in a node with only {} children",
-                offset, len
+                offset,
+                len
             );
         }
         Ok(*self.children.remove(offset))

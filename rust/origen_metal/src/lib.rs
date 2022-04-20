@@ -13,8 +13,8 @@ pub mod ast;
 mod error;
 pub mod framework;
 pub mod frontend;
-pub mod utils;
 pub mod stil;
+pub mod utils;
 use std::fmt::Display;
 
 pub use error::Error;

@@ -1,13 +1,13 @@
 //! Resolves all include statements in the given AST
 
+use super::super::nodes::STIL;
 use super::super::parser;
+use crate::ast::node::Node;
+use crate::ast::processor::{Processor, Return};
 use crate::Result;
 use shellexpand;
 use std::env;
 use std::path::{Path, PathBuf};
-use crate::ast::node::Node;
-use crate::ast::processor::{Processor, Return};
-use super::super::nodes::STIL;
 
 pub struct Includer {
     dir: PathBuf,

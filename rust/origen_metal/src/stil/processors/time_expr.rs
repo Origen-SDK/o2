@@ -1,10 +1,10 @@
 //! Resolves all time expressions in the given AST
 
+use super::super::nodes::STIL;
+use crate::ast::node::Node;
+use crate::ast::processor::{Processor, Return};
 use crate::Result;
 use std::collections::HashMap;
-use crate::ast::node::Node;
-use super::super::nodes::STIL;
-use crate::ast::processor::{Processor, Return};
 
 pub struct TimeExpr {
     process_children: bool,
@@ -13,7 +13,10 @@ pub struct TimeExpr {
 
 impl TimeExpr {
     #[allow(dead_code)]
-    pub fn run(node: &Node<STIL>, params: Option<HashMap<String, Node<STIL>>>) -> Result<Node<STIL>> {
+    pub fn run(
+        node: &Node<STIL>,
+        params: Option<HashMap<String, Node<STIL>>>,
+    ) -> Result<Node<STIL>> {
         let mut p = TimeExpr {
             process_children: false,
             params: params,
@@ -199,10 +202,12 @@ impl Processor<STIL> for TimeExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generator::stil::parser::*;
+    use crate::ast::node::Node;
+    use crate::stil::nodes::STIL;
+    use crate::stil::parser::*;
     use pest::Parser;
 
-    fn parse(expr: &str) -> Node {
+    fn parse(expr: &str) -> Node<STIL> {
         let e = &format!("'{}'", expr);
         //println!("{:?}", STILParser::parse(Rule::time_expr, e));
         let mut p = STILParser::parse(Rule::time_expr, e).unwrap();
@@ -214,58 +219,58 @@ mod tests {
         let expr = "1+2+3+4";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Integer, 10)
+            node!(STIL::Integer, 10)
         );
         let expr = "1+2+3-3+4";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Integer, 7)
+            node!(STIL::Integer, 7)
         );
         let expr = "1+2+3-(3+4)";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Integer, -1)
+            node!(STIL::Integer, -1)
         );
         let expr = "1.0+2";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Float, 3.0)
+            node!(STIL::Float, 3.0)
         );
         let expr = "1+2+3-3+4+5.234e3";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Float, 5241.0)
+            node!(STIL::Float, 5241.0)
         );
         let expr = "10*5";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Integer, 50)
+            node!(STIL::Integer, 50)
         );
         let expr = "5ns";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Float, 5e-9)
+            node!(STIL::Float, 5e-9)
         );
         let expr = "5ns+35ns";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Float, 40e-9)
+            node!(STIL::Float, 40e-9)
         );
         let expr = "5ns+35e-9";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(Float, 40e-9)
+            node!(STIL::Float, 40e-9)
         );
         let expr = "period-5ns-5ns";
         //println!("{:?}", parse(expr));
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(String, "period-0.000000005-0.000000005".to_string())
+            node!(STIL::String, "period-0.000000005-0.000000005".to_string())
         );
         let expr = "period-5ns-5ns";
-        let mut params: HashMap<String, Node> = HashMap::new();
-        params.insert("period".to_string(), node!(Float, 40e-9));
-        if let Attrs::Float(val) = TimeExpr::run(&parse(expr), Some(params)).unwrap().attrs {
+        let mut params: HashMap<String, Node<STIL>> = HashMap::new();
+        params.insert("period".to_string(), node!(STIL::Float, 40e-9));
+        if let STIL::Float(val) = TimeExpr::run(&parse(expr), Some(params)).unwrap().attrs {
             assert_eq!(true, val > 29e-9 && val < 31e-9);
         } else {
             assert_eq!(true, false);

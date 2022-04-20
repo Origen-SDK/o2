@@ -1,12 +1,12 @@
 // This file defines the public API for consuming and generating STIL
 
+mod nodes;
 mod parser;
 mod processors;
-mod nodes;
 use crate::ast::node::Node;
 use crate::Result as OrigenResult;
-use std::path::Path;
 use nodes::STIL;
+use std::path::Path;
 
 pub fn from_file(path: &Path) -> OrigenResult<Node<STIL>> {
     let ast = parser::parse_file(path)?;

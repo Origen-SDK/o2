@@ -32,8 +32,6 @@ macro_rules! node {
     };
 }
 
-
-
 #[macro_export]
 macro_rules! bail {
     ($msg:literal $(,)?) => {

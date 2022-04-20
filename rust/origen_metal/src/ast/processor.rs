@@ -3,8 +3,8 @@
 //! internals (i.e. children vector) which could be subject to change.
 
 //use crate::generator::ast::*;
-pub use crate::Result;
 use crate::ast::node::Node;
+pub use crate::Result;
 
 /// All procesor handler methods should return this
 pub enum Return<T> {

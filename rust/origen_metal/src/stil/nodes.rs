@@ -1,4 +1,4 @@
-use crate::stil as stil;
+use crate::stil;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum STIL {
@@ -104,5 +104,5 @@ pub enum STIL {
     Goto(String),
     BreakPoint,
     IDDQ,
-    StopStatement
+    StopStatement,
 }

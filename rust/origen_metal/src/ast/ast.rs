@@ -1,10 +1,9 @@
 pub use super::node::Meta;
-pub use super::node::Node;
+pub use super::node::{Attrs, Node};
 //use crate::generator::TestManager;
 //use crate::TEST;
 use crate::{Error, Result};
 use std::fmt;
-use super::NodeAttrs;
 
 #[macro_export]
 macro_rules! push_pin_actions {
@@ -45,7 +44,7 @@ pub struct AST<T> {
     nodes: Vec<Node<T>>,
 }
 
-impl<T: Clone + PartialEq + Serialize> AST<T> {
+impl<T: Attrs> AST<T> {
     /// Create a new AST with the given node as the top-level
     pub fn new() -> AST<T> {
         AST { nodes: vec![] }
@@ -227,7 +226,10 @@ impl<T: Clone + PartialEq + Serialize> AST<T> {
         self.nodes.push(node);
     }
 
-    pub fn process(&self, process_fn: &mut dyn FnMut(&Node<T>) -> Result<Node<T>>) -> Result<Node<T>> {
+    pub fn process(
+        &self,
+        process_fn: &mut dyn FnMut(&Node<T>) -> Result<Node<T>>,
+    ) -> Result<Node<T>> {
         if self.nodes.len() > 1 {
             let node = self.to_node();
             process_fn(&node)
@@ -296,7 +298,7 @@ impl<T> fmt::Debug for AST<T> {
     }
 }
 
-impl<T> PartialEq<Node<T>> for AST<T> {
+impl<T: Attrs> PartialEq<Node<T>> for AST<T> {
     fn eq(&self, node: &Node<T>) -> bool {
         self.to_node() == *node
     }
