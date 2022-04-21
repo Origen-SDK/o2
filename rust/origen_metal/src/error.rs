@@ -163,8 +163,8 @@ impl std::convert::From<std::string::FromUtf8Error> for Error {
     }
 }
 
-impl std::convert::From<keyring::KeyringError> for Error {
-    fn from(err: keyring::KeyringError) -> Self {
+impl std::convert::From<keyring::Error> for Error {
+    fn from(err: keyring::Error) -> Self {
         Error::new(&err.to_string())
     }
 }

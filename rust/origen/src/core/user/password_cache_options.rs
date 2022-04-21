@@ -50,7 +50,7 @@ impl PasswordCacheOptions {
             }
             Self::Keyring => {
                 log_trace!("Caching password in keyring...");
-                let k = keyring::Keyring::new(dataset, &user.id());
+                let k = keyring::Entry::new(dataset, &user.id());
                 k.set_password(password)?;
                 Ok(true)
             }
@@ -83,11 +83,11 @@ impl PasswordCacheOptions {
             }
             Self::Keyring => {
                 log_trace!("Checking for password in keyring...");
-                let k = keyring::Keyring::new(dataset, &user.id());
+                let k = keyring::Entry::new(dataset, &user.id());
                 match k.get_password() {
                     Ok(password) => Ok(Some(password)),
                     Err(e) => match e {
-                        keyring::KeyringError::NoPasswordFound => Ok(None),
+                        keyring::Error::NoEntry => Ok(None),
                         _ => bail!("{}", e),
                     },
                 }
@@ -106,11 +106,11 @@ impl PasswordCacheOptions {
                 }
             }
             Self::Keyring => {
-                let k = keyring::Keyring::new(&dataset.dataset_name, &parent.id());
+                let k = keyring::Entry::new(&dataset.dataset_name, &parent.id());
                 match k.delete_password() {
                     Ok(_) => {}
                     Err(e) => match e {
-                        keyring::KeyringError::NoPasswordFound => {}
+                        keyring::Error::NoEntry => {}
                         _ => bail!("{}", e),
                     },
                 }
