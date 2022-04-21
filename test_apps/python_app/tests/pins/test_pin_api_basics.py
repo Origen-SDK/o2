@@ -106,7 +106,7 @@ class TestDefiningPins:
 
     def test_exception_on_invalid_width(self, clean_falcon):
         assert "porta" not in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("porta", width=0)
         with pytest.raises(OverflowError):
             origen.dut.add_pin("porta", width=-1)
@@ -121,7 +121,7 @@ class TestDefiningPins:
         origen.dut.add_pin("p0")
         assert len(origen.dut.pins) == 1
         assert len(origen.dut.physical_pins) == 1
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("p0")
         assert len(origen.dut.pins) == 1
         assert len(origen.dut.physical_pins) == 1
@@ -130,7 +130,7 @@ class TestDefiningPins:
     def test_exception_on_implicit_duplicate(self, clean_falcon):
         origen.dut.add_pin("port", width=4)
         assert len(origen.dut.pins) == 5
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("port0")
         assert len(origen.dut.pins) == 5
 
@@ -141,23 +141,23 @@ class TestDefiningPins:
 
     def test_exception_on_offset_with_no_width(self, clean_falcon):
         assert len(origen.dut.pins) == 0
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("invalid", offset=2)
         assert len(origen.dut.pins) == 0
 
     def test_exception_on_invalid_reset_actions(self, clean_falcon):
         assert "invalid" not in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("invalid", reset_action="ZZ")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("invalid", width=2, reset_action="Z")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("invalid",
                                width=2,
                                reset_action=PinActions("Z"))
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("invalid", width=2, reset_action="ZZZ")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin("invalid",
                                width=2,
                                reset_action=PinActions("ZZZ"))
@@ -244,9 +244,9 @@ class TestSettingStates:
     def test_exception_on_overflow_actions(self, clean_falcon, pins, grp):
         grp = origen.dut.pin("grp")
         assert grp.actions == "ZZZ"
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             grp.drive(8)
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             grp.verify(8)
         assert grp.actions == "ZZZ"
 

@@ -60,16 +60,16 @@ class TestPinHeaders:
 
     def test_exception_on_missing_pins(self, clean_falcon, pins):
         assert "invalid" not in origen.dut.pin_headers
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin_header("header", "p0", "missing")
         assert "invalid" not in origen.dut.pin_headers
 
     def test_exception_on_duplicate_pins(self, clean_falcon, pins, ports):
         assert "invalid" not in origen.dut.pin_headers
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin_header("header", "p0", "p0")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin_header("header", "p0", "a0")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin_header("header", "portb0", "portb")
         assert "invalid" not in origen.dut.pin_headers

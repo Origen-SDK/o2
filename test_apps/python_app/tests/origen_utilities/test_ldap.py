@@ -82,7 +82,7 @@ class TestLDAPs:
         assert results == ({}, {})
 
     def test_error_if_single_filter_search_returns_multiple_dns(self):
-        with pytest.raises(OSError,
+        with pytest.raises(RuntimeError,
                            match="expected a single DN result from filter"):
             self.ldap.single_filter_search("(|(uid=tesla)(uid=Curie))",
                                            ["mail"])
@@ -117,7 +117,7 @@ class TestLDAPs:
             'password': PASSWORD
         }
 
-        with pytest.raises(OSError, match="invalidCredentials"):
+        with pytest.raises(RuntimeError, match="invalidCredentials"):
             self.ldap.bind_as(USER_USERNAME, "?")
         assert self.ldap.bound == False
 

@@ -226,7 +226,7 @@ class TestUsers:
         u = self.user3
         assert u.data_lookup_hierarchy == ["backup", "test"]
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match=
                 "'hi' is not a valid dataset and cannot be used in the dataset hierarchy"
         ):
@@ -237,7 +237,7 @@ class TestUsers:
         u = self.user3
         assert u.data_lookup_hierarchy == ["backup", "test"]
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match=
                 r"dataset 'test' can only appear once in the dataset hierarchy \(first appearance at index 0 - duplicate at index 2\)"
         ):
@@ -253,13 +253,13 @@ class TestUsers:
         assert u.data_lookup_hierarchy == []
 
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match=
                 "Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"
         ):
             u.first_name
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match="Data lookup hierarchy for user 'test3' is empty"):
             u.top_datakey
         assert u.datasets["backup"].first_name == None
@@ -307,7 +307,7 @@ class TestUsers:
 
         assert u.password_for("just because") == "!PASSWORD!"
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match=f"No password available for reason: 'Nothing!'"):
             u.password_for("Nothing!")
         assert u.dataset_for("just because") == "test2"
@@ -394,7 +394,7 @@ class TestConfigSetups:
         retn = in_new_origen_proc(mod=user_configs)
         assert retn["datasets"] == ["test"]
         assert retn["hierarchy"] == []
-        assert isinstance(retn["first_name_unset"], OSError)
+        assert isinstance(retn["first_name_unset"], RuntimeError)
         assert str(
             retn["first_name_unset"]
         ) == "Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"
