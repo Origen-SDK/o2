@@ -22,8 +22,8 @@ pub fn interface(_py: Python, m: &PyModule) -> PyResult<()> {
 #[derive(Debug)]
 pub struct PyInterface {
     //python_testers: HashMap<String, PyObject>,
-//instantiated_testers: HashMap<String, PyObject>,
-//metadata: Vec<PyObject>,
+    //instantiated_testers: HashMap<String, PyObject>,
+    //metadata: Vec<PyObject>,
 }
 
 #[pymethods]

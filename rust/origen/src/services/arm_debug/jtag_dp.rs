@@ -10,9 +10,12 @@ use std::sync::MutexGuard;
 #[derive(Clone, Debug)]
 pub struct JtagDP {
     pub id: usize,
+    #[allow(dead_code)]
     model_id: usize,
+    #[allow(dead_code)]
     memory_map_id: usize,
     address_block_id: usize,
+    #[allow(dead_code)]
     arm_debug_id: usize,
     pub jtag_id: usize,
     pub default_ir_size: usize,

@@ -14,7 +14,7 @@ use semver::VersionReq;
 use std::process::Command;
 
 static MINIMUM_PIP_VERSION: &str = "21.1.2";
-static MINIMUM_POETRY_VERSION: &str = "1.1.6";
+static MINIMUM_POETRY_VERSION: &str = "1.1.13";
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {
@@ -271,6 +271,7 @@ fn install_poetry() {
                 }
                 c.arg("--ignore-installed");
                 c.arg(format!("poetry=={}", MINIMUM_POETRY_VERSION));
+                log_debug!("Running command {:?}", c);
                 match c.output() {
                     Ok(output) => {
                         let text = std::str::from_utf8(&output.stdout).unwrap();

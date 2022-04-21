@@ -32,6 +32,7 @@ pub struct Data {
     pub authenticated: bool,
     pub populated: bool,
 
+    #[allow(dead_code)]
     roles: Vec<Roles>,
 }
 

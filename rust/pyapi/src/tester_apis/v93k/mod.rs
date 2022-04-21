@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 #[derive(Debug)]
 /// Python interface for the tester backend.
 pub struct V93K {
+    #[allow(dead_code)]
     smt_major_version: Option<u32>,
     tester: SupportedTester,
 }

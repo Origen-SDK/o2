@@ -21,6 +21,7 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 pub struct PyTester {
     python_testers: HashMap<SupportedTester, PyObject>,
     instantiated_testers: HashMap<SupportedTester, PyObject>,
+    #[allow(dead_code)]
     metadata: Vec<PyObject>,
 }
 

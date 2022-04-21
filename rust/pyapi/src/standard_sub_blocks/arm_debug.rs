@@ -234,6 +234,7 @@ impl ArmDebug {
 #[derive(Clone)]
 struct DP {
     pub dp_id: Option<usize>,
+    #[allow(dead_code)]
     pub arm_debug_id: Option<usize>,
 }
 
@@ -336,6 +337,7 @@ impl DP {
 #[derive(Clone)]
 struct JtagDP {
     pub id: Option<usize>,
+    #[allow(dead_code)]
     pub arm_debug_id: Option<usize>,
 }
 
