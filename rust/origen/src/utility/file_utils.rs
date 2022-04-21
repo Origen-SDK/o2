@@ -304,7 +304,7 @@ impl FilePermissions {
                     crate::LOGGER.warning(&message);
                     Ok(())
                 } else {
-                    error!("{}", message)
+                    bail!("{}", message)
                 }
             }
         }
