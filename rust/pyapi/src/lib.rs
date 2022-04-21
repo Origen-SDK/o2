@@ -1,6 +1,8 @@
 #[allow(unused_imports)]
 #[macro_use]
 extern crate origen;
+#[macro_use]
+extern crate origen_metal;
 
 use pyapi_metal;
 

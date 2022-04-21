@@ -175,21 +175,21 @@ pub fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<Para
             if let Ok(v) = value.extract::<bool>() {
                 Ok(ParamValue::Bool(v))
             } else {
-                error!("Illegal value, expected a Boolean, got: '{}'", value)
+                bail!("Illegal value, expected a Boolean, got: '{}'", value)
             }
         }
         ParamType::Int => {
             if let Ok(v) = value.extract::<i64>() {
                 Ok(ParamValue::Int(v))
             } else {
-                error!("Illegal value, expected an Integer, got: '{}'", value)
+                bail!("Illegal value, expected an Integer, got: '{}'", value)
             }
         }
         ParamType::UInt => {
             if let Ok(v) = value.extract::<u64>() {
                 Ok(ParamValue::UInt(v))
             } else {
-                error!(
+                bail!(
                     "Illegal value, expected an Unsigned Integer, got: '{}'",
                     value
                 )
@@ -199,42 +199,42 @@ pub fn to_param_value_with_type(ptype: &ParamType, value: &PyAny) -> Result<Para
             if let Ok(v) = value.extract::<f64>() {
                 Ok(ParamValue::Float(v))
             } else {
-                error!("Illegal value, expected a Float, got: '{}'", value)
+                bail!("Illegal value, expected a Float, got: '{}'", value)
             }
         }
         ParamType::Current => {
             if let Ok(v) = value.extract::<f64>() {
                 Ok(ParamValue::Current(v))
             } else {
-                error!("Illegal value, expected a Float, got: '{}'", value)
+                bail!("Illegal value, expected a Float, got: '{}'", value)
             }
         }
         ParamType::Voltage => {
             if let Ok(v) = value.extract::<f64>() {
                 Ok(ParamValue::Voltage(v))
             } else {
-                error!("Illegal value, expected a Float, got: '{}'", value)
+                bail!("Illegal value, expected a Float, got: '{}'", value)
             }
         }
         ParamType::Time => {
             if let Ok(v) = value.extract::<f64>() {
                 Ok(ParamValue::Time(v))
             } else {
-                error!("Illegal value, expected a Float, got: '{}'", value)
+                bail!("Illegal value, expected a Float, got: '{}'", value)
             }
         }
         ParamType::Frequency => {
             if let Ok(v) = value.extract::<f64>() {
                 Ok(ParamValue::Frequency(v))
             } else {
-                error!("Illegal value, expected a Float, got: '{}'", value)
+                bail!("Illegal value, expected a Float, got: '{}'", value)
             }
         }
         ParamType::String => {
             if let Ok(v) = value.extract::<String>() {
                 Ok(ParamValue::String(v))
             } else {
-                error!("Illegal value, expected a String, got: '{}'", value)
+                bail!("Illegal value, expected a String, got: '{}'", value)
             }
         }
         ParamType::Any => Ok(ParamValue::Any(format!("{}", value.str()?))),

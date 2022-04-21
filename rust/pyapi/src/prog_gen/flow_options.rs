@@ -149,7 +149,7 @@ fn extract_condition(name: &str, kwargs: &PyDict) -> Result<Option<Vec<String>>>
         } else if let Ok(v) = v.extract::<Vec<String>>() {
             Ok(Some(v))
         } else {
-            error!(
+            bail!(
                 "Illegal '{}' value, expected a String or a List of Strings, got: '{}'",
                 name, v
             )
@@ -169,7 +169,7 @@ pub fn get_flow_id(kwargs: Option<&PyDict>) -> Result<FlowID> {
             } else if let Ok(v) = id.extract::<usize>() {
                 return Ok(FlowID::from_int(v));
             } else {
-                return error!(
+                bail!(
                     "Illegal 'id' value, expected a String or an Integer, got: '{}'",
                     id
                 );
@@ -185,7 +185,7 @@ pub fn get_bin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
             if let Ok(v) = bin.extract::<usize>() {
                 return Ok(Some(v));
             } else {
-                return error!("Illegal 'bin' value, expected an Integer, got: '{}'", bin);
+                bail!("Illegal 'bin' value, expected an Integer, got: '{}'", bin);
             }
         }
     }
@@ -198,7 +198,7 @@ pub fn get_softbin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
             if let Ok(v) = bin.extract::<usize>() {
                 return Ok(Some(v));
             } else {
-                return error!(
+                bail!(
                     "Illegal 'softbin' value, expected an Integer, got: '{}'",
                     bin
                 );
@@ -208,7 +208,7 @@ pub fn get_softbin(kwargs: Option<&PyDict>) -> Result<Option<usize>> {
             if let Ok(v) = bin.extract::<usize>() {
                 return Ok(Some(v));
             } else {
-                return error!(
+                bail!(
                     "Illegal 'soft_bin' value, expected an Integer, got: '{}'",
                     bin
                 );
@@ -235,25 +235,25 @@ pub fn on_fail(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
                                 if let Ok(v) = v.extract::<String>() {
                                     flow_api::set_flag(v, true, src_caller_meta())?;
                                 } else {
-                                    return error!(
+                                    bail!(
                                         "Illegal value for set_flag, expected a String, got: '{}'",
                                         v
                                     );
                                 }
                             }
                             _ => {
-                                return error!("Illegal key in 'on_fail' Dict '{}'", k);
+                                bail!("Illegal key in 'on_fail' Dict '{}'", k);
                             }
                         }
                     } else {
-                        return error!(
+                        bail!(
                             "Illegal key in 'on_fail' Dict, expected a String, got: '{}'",
                             k
                         );
                     }
                 }
             } else {
-                return error!(
+                bail!(
                     "Illegal 'on_fail' value, expected a Dict, got: '{}'",
                     on_fail
                 );
@@ -280,25 +280,25 @@ pub fn on_pass(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
                                 if let Ok(v) = v.extract::<String>() {
                                     flow_api::set_flag(v, true, src_caller_meta())?;
                                 } else {
-                                    return error!(
+                                    bail!(
                                         "Illegal value for set_flag, expected a String, got: '{}'",
                                         v
                                     );
                                 }
                             }
                             _ => {
-                                return error!("Illegal key in 'on_pass' Dict '{}'", k);
+                                bail!("Illegal key in 'on_pass' Dict '{}'", k);
                             }
                         }
                     } else {
-                        return error!(
+                        bail!(
                             "Illegal key in 'on_pass' Dict, expected a String, got: '{}'",
                             k
                         );
                     }
                 }
             } else {
-                return error!(
+                bail!(
                     "Illegal 'on_pass' value, expected a Dict, got: '{}'",
                     on_pass
                 );

@@ -4,7 +4,7 @@ use super::pin_actions::PinActions;
 use num_bigint::BigUint;
 use origen::core::model::pins::pin_store::PinStore as OrigenPinCollection;
 use origen::core::model::pins::Endianness;
-use origen::error::Error;
+use origen::Error;
 use origen::{dut, DUT};
 use origen::{Transaction, TransactionAction};
 use pyo3::prelude::*;

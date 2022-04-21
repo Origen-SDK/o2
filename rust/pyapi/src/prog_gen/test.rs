@@ -51,7 +51,7 @@ impl Test {
                         }
                     }
                 } else {
-                    return error!("Illegal attribute name type '{}', should be a String", k);
+                    bail!("Illegal attribute name type '{}', should be a String", k);
                 }
             }
         }

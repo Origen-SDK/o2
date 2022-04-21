@@ -1,7 +1,7 @@
 //! Provides helper functions to get the caller information from Python
 #![allow(dead_code)]
 
-use origen::generator::ast::Meta;
+use origen_metal::ast::Meta;
 use origen::STATUS;
 use pyo3::prelude::*;
 //use origen::Result;

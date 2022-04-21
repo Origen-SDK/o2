@@ -2,7 +2,7 @@ use super::pins::pin_header::PinHeader;
 use super::timesets::timeset::Timeset;
 use crate::pins::vec_to_ppin_ids;
 use origen::core::tester::TesterSource;
-use origen::error::Error;
+use origen::Error;
 use origen::testers::SupportedTester;
 use origen::{Operation, STATUS, TEST};
 use pyo3::prelude::*;

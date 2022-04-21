@@ -2,7 +2,7 @@ use crate::model::Model as ModelProxy;
 use crate::pins::PyInit_pins;
 use crate::registers::{PyInit_registers, RegisterCollection};
 use crate::timesets::PyInit_timesets;
-use origen::error::Error;
+use origen::Error;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
