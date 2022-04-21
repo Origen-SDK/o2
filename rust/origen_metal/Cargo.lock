@@ -2842,3 +2842,8 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[patch.unused]]
+name = "keyring"
+version = "0.10.1"
+source = "git+https://github.com/hwchen/keyring-rs.git?rev=a30e65f#a30e65fadd1c30e99d4c51a6991dbb8612ae3865"

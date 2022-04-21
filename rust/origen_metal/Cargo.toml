@@ -41,5 +41,8 @@ lettre = {version = "=0.10.0-alpha.4", features = ["builder"]}
 aes-gcm = "0.8"
 semver = "1.0.1"
 
+[patch.crates-io]
+keyring = { git = "https://github.com/hwchen/keyring-rs.git", rev = "a30e65f" }
+
 [build-dependencies]
 built = "0.5.1"
