@@ -151,7 +151,8 @@ fn extract_condition(name: &str, kwargs: &PyDict) -> Result<Option<Vec<String>>>
         } else {
             bail!(
                 "Illegal '{}' value, expected a String or a List of Strings, got: '{}'",
-                name, v
+                name,
+                v
             )
         }
     } else {

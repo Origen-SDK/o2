@@ -110,7 +110,8 @@ fn extract_vec_string(arg_name: &str, val: &PyAny) -> Result<Vec<String>> {
     } else {
         bail!(
             "Illegal value for argument '{}', expected a String or a List of Strings, got: {}",
-            arg_name, val
+            arg_name,
+            val
         )
     }
 }

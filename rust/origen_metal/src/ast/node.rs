@@ -97,9 +97,13 @@ impl<T: Attrs> Node<T> {
         self.process_return_code(r, processor)
     }
 
-    fn inline(nodes: Vec<Box<Node<T>>>) -> Node<T> {
+    fn inline(nodes: Vec<Box<Node<T>>>, example_attrs: T) -> Node<T> {
         Node {
-            attrs: nodes[0].attrs.clone(), // This will be ignored downstream whenever inline = true
+            // This example_attrs argument requirement is ugly, but required without significant
+            // upstream changes. The attrs will be ignored downstream whenever inline = true and this
+            // is purely to support this working with any type of Node.
+            // Also this is an internal function and so we can live with it.
+            attrs: example_attrs,
             inline: true,
             meta: None,
             children: nodes,
@@ -230,21 +234,27 @@ impl<T: Attrs> Node<T> {
             // We can't return multiple nodes from this function, so we return them
             // wrapped in a meta-node and the process_children method will identify
             // this and remove the wrapper to inline the contained nodes.
-            Return::Unwrap => Ok(Some(Node::inline(self.children.clone()))),
+            Return::Unwrap => Ok(Some(Node::inline(
+                self.children.clone(),
+                self.attrs.clone(),
+            ))),
             Return::Inline(nodes) => Ok(Some(Node::inline(
                 nodes.into_iter().map(|n| Box::new(n)).collect(),
+                self.attrs.clone(),
             ))),
-            Return::InlineBoxed(nodes) => Ok(Some(Node::inline(nodes))),
+            Return::InlineBoxed(nodes) => Ok(Some(Node::inline(nodes, self.attrs.clone()))),
             Return::UnwrapWithProcessedChildren => {
                 let nodes = self.process_children(processor)?;
                 Ok(Some(Node::inline(
                     nodes.into_iter().map(|n| Box::new(n)).collect(),
+                    self.attrs.clone(),
                 )))
             }
             Return::InlineWithProcessedChildren(mut nodes) => {
                 nodes.append(&mut self.process_children(processor)?);
                 Ok(Some(Node::inline(
                     nodes.into_iter().map(|n| Box::new(n)).collect(),
+                    self.attrs.clone(),
                 )))
             }
             Return::ReplaceChildren(nodes) => {
