@@ -89,29 +89,6 @@ impl<T: Attrs> Node<T> {
         "".to_string()
     }
 
-    //pub fn error(&self, error: Error) -> Result<()> {
-    //    // Messaging may need to be slightly different for patgen
-    //    if STATUS.operation() == Operation::GenerateFlow {
-    //        let help = {
-    //            let s = self.meta_string();
-    //            if s != "" {
-    //                s
-    //            } else {
-    //                if STATUS.is_debug_enabled() {
-    //                    // Don't display children since it's potentially huge
-    //                    let n = self.replace_children(vec![]);
-    //                    format!("Sorry, no flow source information was found, here is the flow node that failed if it helps:\n{}", n)
-    //                } else {
-    //                    "Run again with the --debug switch to try and trace this back to a flow source file location".to_string()
-    //                }
-    //            }
-    //        };
-    //        error!("{}\n{}", error, &help)
-    //    } else {
-    //        Err(error)
-    //    }
-    //}
-
     /// Returns a new node which is the output of the node processed by the given processor.
     /// Returning None means that the processor has decided that the node should be removed
     /// from the next stage AST.

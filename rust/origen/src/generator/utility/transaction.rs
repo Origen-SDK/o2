@@ -1,10 +1,10 @@
 use super::super::nodes::Id;
 use crate::core::model::pins::pin::PinAction;
-use crate::generator::Pattern;
+use crate::generator::PAT;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Capture, Error, Metadata, Overlay, Result};
+use crate::{Capture, Metadata, Overlay, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
@@ -203,22 +203,22 @@ impl Transaction {
         match self.address.as_ref() {
             Some(a) => match a.to_u128() {
                 Some(addr) => Ok(addr),
-                None => error!("Could not convert value {:?} to u128", a),
+                None => bail!("Could not convert value {:?} to u128", a),
             },
-            None => Err(Error::new(&format!(
+            None => bail!(
                 "Tried to retrieve address from transaction {:?}, but an address has not be set",
                 self
-            ))),
+            ),
         }
     }
 
     pub fn addr_width(&self) -> Result<usize> {
         match self.address_width {
             Some(a) => Ok(a),
-            None => Err(Error::new(&format!(
+            None => Err(error!(
                 "Tried to retrieve address width from transaction {:?}, but an address width has not be set",
                 self
-            ))),
+            )),
         }
     }
 
@@ -316,10 +316,10 @@ impl Transaction {
 
     pub fn check_size(data: &BigUint, width: usize) -> Result<()> {
         if data.bits() > width as u64 {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Data {} does not fit in given width {}",
                 data, width
-            )))
+            ))
         } else {
             Ok(())
         }
@@ -355,14 +355,14 @@ impl Transaction {
     pub fn to_addr_trans(&self, default_addr_size: Option<usize>) -> Result<Self> {
         let mut t = Self::default();
         if self.address.is_none() {
-            return Err(Error::new("Cannot create an address transaction from a transaction which does not have an address"));
+            bail!("Cannot create an address transaction from a transaction which does not have an address");
         }
         if let Some(w) = self.address_width {
             t.width = w;
         } else if let Some(w) = default_addr_size {
             t.width = w;
         } else {
-            return Err(Error::new("Could not create transaction from address as this transaction does not supply an address width nor was a default one provided"));
+            bail!("Could not create transaction from address as this transaction does not supply an address width nor was a default one provided");
         }
         t.data = BigUint::from(self.address.as_ref().unwrap().clone());
         t.bit_enable = Self::enable_of_width(t.width)?;
@@ -378,16 +378,16 @@ impl Transaction {
         Ok(())
     }
 
-    pub fn as_write_node(&self) -> Result<Node<Pattern>> {
-        Ok(node!(Pattern::RegWrite, self.clone()))
+    pub fn as_write_node(&self) -> Result<Node<PAT>> {
+        Ok(node!(PAT::RegWrite, self.clone()))
     }
 
-    pub fn as_verify_node(&self) -> Result<Node<Pattern>> {
-        Ok(node!(Pattern::RegVerify, self.clone()))
+    pub fn as_verify_node(&self) -> Result<Node<PAT>> {
+        Ok(node!(PAT::RegVerify, self.clone()))
     }
 
-    pub fn as_capture_node(&self) -> Result<Node<Pattern>> {
-        Ok(node!(Pattern::RegCapture, self.clone()))
+    pub fn as_capture_node(&self) -> Result<Node<PAT>> {
+        Ok(node!(PAT::RegCapture, self.clone()))
     }
 
     pub fn chunk_data(&self, chunk_width: usize) -> Result<Vec<BigUint>> {

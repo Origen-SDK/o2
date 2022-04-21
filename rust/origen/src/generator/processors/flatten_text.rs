@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 
-use super::super::nodes::Pattern;
+use super::super::nodes::PAT;
 use crate::Result;
 use crate::{app, STATUS};
 use origen_metal::ast::{Node, Processor, Return};
@@ -19,7 +19,7 @@ pub struct FlattenText {
 }
 
 impl FlattenText {
-    pub fn run(node: &Node<Pattern>) -> Result<Node<Pattern>> {
+    pub fn run(node: &Node<PAT>) -> Result<Node<PAT>> {
         let mut p = FlattenText {
             current_line: "".to_string(),
             section_depth: 0,
@@ -34,25 +34,25 @@ impl FlattenText {
     // Some helper methods
 
     /// Casts the content as a 'Text Node'
-    fn to_text(&self, content: &str) -> Node<Pattern> {
+    fn to_text(&self, content: &str) -> Node<PAT> {
         let spacing_length = self.indentation_length * self.section_depth;
         node!(
-            Pattern::Text,
+            PAT::Text,
             format!("{}{}", " ".to_string().repeat(spacing_length), content)
         )
     }
 
     /// Casts the current line as a 'Text Node' and resets the current line
-    fn current_line_to_text(&self) -> Node<Pattern> {
+    fn current_line_to_text(&self) -> Node<PAT> {
         self.to_text(&self.current_line)
     }
 
     /// Inserts a section boundary node
-    fn section_boundary(&self) -> Node<Pattern> {
+    fn section_boundary(&self) -> Node<PAT> {
         let spacing_length = self.indentation_length * self.section_depth;
         let boundary_repeat = (self.boundary_length - spacing_length) / self.boundary_string.len();
         node!(
-            Pattern::Text,
+            PAT::Text,
             format!(
                 "{}{}",
                 " ".to_string().repeat(spacing_length),
@@ -62,17 +62,17 @@ impl FlattenText {
     }
 }
 
-impl Processor<Pattern> for FlattenText {
-    fn on_node(&mut self, node: &Node<Pattern>) -> Result<Return<Pattern>> {
+impl Processor<PAT> for FlattenText {
+    fn on_node(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
         match &node.attrs {
-            Pattern::TextSection(header, lvl) => {
+            PAT::TextSection(header, lvl) => {
                 // When adding a new section, if we aren't nested then we'll print a 'boundary', which will be
                 // something like "<comment char>******..."
                 // We'll also print the header immediately below, if one is given
                 // This nodes children will be indented
                 // If we're already in a nested section, then do the same but without the section boundary
                 //   Nested sections are more like 'subsections' than a bonafide section
-                let mut nodes: Vec<Node> = vec![];
+                let mut nodes: Vec<Node<PAT>> = vec![];
                 if lvl.is_some() && lvl.unwrap() == 0 {
                     nodes.push(self.section_boundary());
                 }
@@ -82,7 +82,7 @@ impl Processor<Pattern> for FlattenText {
                 self.section_depth += 1;
                 Ok(Return::InlineWithProcessedChildren(nodes))
             }
-            Pattern::Text(content) => {
+            PAT::Text(content) => {
                 if self.in_text_line {
                     // Processing a single line: append this content to the current content and eat the node
                     self.current_line += content;
@@ -92,7 +92,7 @@ impl Processor<Pattern> for FlattenText {
                     Ok(Return::Replace(self.to_text(content)))
                 }
             }
-            Pattern::TextLine => {
+            PAT::TextLine => {
                 // Indicate that we're in a text line and process its children
                 // NOTE: this assumes that the line has already been cleared, either from the initial state
                 //  or from the on_end_of_block
@@ -100,8 +100,8 @@ impl Processor<Pattern> for FlattenText {
                 self.in_text_line = true;
                 Ok(Return::UnwrapWithProcessedChildren)
             }
-            Pattern::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
-            Pattern::User => {
+            PAT::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
+            PAT::User => {
                 if let Err(e) = crate::with_current_user(|u| {
                     self.current_line += &u.username()?;
                     Ok(())
@@ -114,27 +114,27 @@ impl Processor<Pattern> for FlattenText {
                 };
                 Ok(Return::None)
             }
-            Pattern::Timestamp => {
+            PAT::Timestamp => {
                 self.current_line += &Local::now().to_string();
                 Ok(Return::None)
             }
-            Pattern::OrigenCommand(val) => {
+            PAT::OrigenCommand(val) => {
                 self.current_line += val;
                 Ok(Return::None)
             }
-            Pattern::OS => {
+            PAT::OS => {
                 self.current_line += &whoami::os();
                 Ok(Return::None)
             }
-            Pattern::Mode => {
+            PAT::Mode => {
                 app().unwrap().with_config(|config| {
                     self.current_line += &config.mode;
                     Ok(())
                 })?;
                 Ok(Return::None)
             }
-            Pattern::TargetsStacked => {
-                let mut nodes: Vec<Node> = vec![];
+            PAT::TargetsStacked => {
+                let mut nodes: Vec<Node<PAT>> = vec![];
                 self.section_depth += 1;
                 let _ = app().unwrap().with_config(|config| {
                     if let Some(targets) = &config.target {
@@ -149,15 +149,15 @@ impl Processor<Pattern> for FlattenText {
                 self.section_depth -= 1;
                 Ok(Return::Inline(nodes))
             }
-            Pattern::AppRoot => {
+            PAT::AppRoot => {
                 self.current_line += &app().unwrap().root.display().to_string();
                 Ok(Return::None)
             }
-            Pattern::OrigenVersion => {
+            PAT::OrigenVersion => {
                 self.current_line += &STATUS.origen_version.to_string();
                 Ok(Return::None)
             }
-            Pattern::OrigenRoot => {
+            PAT::OrigenRoot => {
                 self.current_line += &std::env::current_exe().unwrap().display().to_string();
                 Ok(Return::None)
             }
@@ -165,15 +165,15 @@ impl Processor<Pattern> for FlattenText {
         }
     }
 
-    fn on_end_of_block(&mut self, node: &Node<Pattern>) -> Result<Return<Pattern>> {
+    fn on_end_of_block(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
         match node.attrs {
-            Pattern::TextLine => {
+            PAT::TextLine => {
                 let n = self.current_line_to_text();
                 self.in_text_line = false;
                 self.current_line.clear();
                 Ok(Return::Inline(vec![n]))
             }
-            Pattern::TextSection(_, lvl) => {
+            PAT::TextSection(_, lvl) => {
                 self.section_depth -= 1;
                 if lvl.is_some() && lvl.unwrap() == 0 {
                     Ok(Return::Inline(vec![self.section_boundary()]))

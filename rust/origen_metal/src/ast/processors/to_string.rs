@@ -7,7 +7,7 @@ use crate::Result;
 pub struct ToString<T> {
     indent: usize,
     output: String,
-    // Had to use T somewhere in here to get Rust to compile, gave up trying to find
+    // Had to use T somewhere in here to get it to compile, gave up trying to find
     // a more elegant solution
     _not_used: Option<T>,
 }

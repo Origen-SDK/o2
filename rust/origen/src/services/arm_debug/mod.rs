@@ -14,7 +14,8 @@ use std::collections::HashMap;
 use std::sync::MutexGuard;
 use std::sync::RwLock;
 
-use crate::{Error, Result};
+use crate::generator::PAT;
+use crate::Result;
 
 impl ControllerAPI for ArmDebug {
     fn name(&self) -> String {
@@ -55,7 +56,7 @@ impl ArmDebug {
         jtag_id: Option<usize>,
     ) -> Result<usize> {
         if swd_id.is_none() && jtag_id.is_none() {
-            return Err(Error::new("ArmDebug must be instantiated with a SWD and/or JTAG interface. Neither was provided."));
+            bail!("ArmDebug must be instantiated with a SWD and/or JTAG interface. Neither was provided.");
         }
         let id = services.next_id();
         let s = Self {
@@ -82,7 +83,7 @@ impl ArmDebug {
                 let swd = services.get_as_swd(id)?;
                 let swdclk = PinCollection::from_group(dut, &swd.swdclk.0, swd.swdclk.1)?;
                 let swdio = PinCollection::from_group(dut, &swd.swdio.0, swd.swdio.1)?;
-                let n_id = crate::TEST.push_and_open(crate::node!(ArmDebugSwjJTAGToSWD, self.id));
+                let n_id = crate::TEST.push_and_open(node!(PAT::ArmDebugSwjJTAGToSWD, self.id));
                 self.comment("Switching ArmDebug protocol to SWD");
                 swdclk.drive_high();
                 swdio.drive_high().repeat(50);
@@ -97,9 +98,7 @@ impl ArmDebug {
                 *self.jtagnswd.write().unwrap() = false;
                 Ok(())
             }
-            None => Err(Error::new(&format!(
-                "No SWD available - cannot switch to SWD"
-            ))),
+            None => Err(error!("No SWD available - cannot switch to SWD")),
         }
     }
 
@@ -112,10 +111,10 @@ impl ArmDebug {
         if let Some(id) = self.dp_id {
             Ok(id)
         } else {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Arm Debug instance at {} has not had a DP ID set yet.",
                 self.id
-            )))
+            ))
         }
     }
 
@@ -128,10 +127,10 @@ impl ArmDebug {
         if let Some(id) = self.jtag_dp_id {
             Ok(id)
         } else {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Arm Debug instance at {} has not had a JTAG DP ID set yet.",
                 self.id
-            )))
+            ))
         }
     }
 }

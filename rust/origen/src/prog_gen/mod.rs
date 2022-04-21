@@ -2,6 +2,7 @@ pub mod advantest;
 pub mod flow_api;
 mod flow_manager;
 mod model;
+mod nodes;
 mod processors;
 pub mod teradyne;
 mod validators;
@@ -26,6 +27,7 @@ pub use model::Test;
 pub use model::Variable;
 pub use model::VariableOperation;
 pub use model::VariableType;
+pub use nodes::PGM;
 
 #[derive(Debug, PartialEq, EnumString, Clone, Serialize)]
 pub enum ResourcesType {

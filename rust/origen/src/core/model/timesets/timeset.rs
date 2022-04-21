@@ -2,7 +2,7 @@ use super::super::pins::pin::Resolver as PinActionsResolver;
 use super::super::pins::pin::{PinAction, ResolvePinActions};
 use crate::core::dut::Dut;
 use crate::core::tester::TesterSource;
-use crate::error::Error;
+use crate::Result;
 use eval;
 use indexmap::map::IndexMap;
 use std::collections::HashMap;
@@ -96,15 +96,16 @@ impl Timeset {
         p.clone()
     }
 
-    pub fn activate_wavetable(&mut self, wtbl_name: &str) -> Result<(), Error> {
+    pub fn activate_wavetable(&mut self, wtbl_name: &str) -> Result<()> {
         if self.wavetable_ids.contains_key(wtbl_name) {
             self.active_wavetable = Some(wtbl_name.to_string());
             Ok(())
         } else {
-            Err(Error::new(&format!(
+            bail!(
                 "Timeset {} does not have a wavetable named {}!",
-                self.name, wtbl_name
-            )))
+                self.name,
+                wtbl_name
+            )
         }
     }
 
@@ -116,7 +117,7 @@ impl Timeset {
         self.active_wavetable.clone()
     }
 
-    pub fn eval(&self, current_period: Option<f64>) -> Result<f64, Error> {
+    pub fn eval(&self, current_period: Option<f64>) -> Result<f64> {
         let default = String::from("period");
         let p = self.period_as_string.as_ref().unwrap_or(&default);
         let err = &format!(
@@ -124,7 +125,7 @@ impl Timeset {
             self.name, p
         );
         if current_period.is_none() && self.default_period.is_none() {
-            return Err(Error::new(&format!("No current timeset period set! Cannot evaluate timeset '{}' without a current period as it does not have a default period!", self.name)));
+            bail!("No current timeset period set! Cannot evaluate timeset '{}' without a current period as it does not have a default period!", self.name);
         }
         match eval::Expr::new(p)
             .value(
@@ -135,13 +136,13 @@ impl Timeset {
         {
             Ok(val) => match val.as_f64() {
                 Some(v) => Ok(v),
-                None => Err(Error::new(err)),
+                None => bail!(err),
             },
-            Err(_e) => Err(Error::new(err)),
+            Err(_e) => bail!(err),
         }
     }
 
-    pub fn register_wavetable(&mut self, id: usize, name: &str) -> Result<Wavetable, Error> {
+    pub fn register_wavetable(&mut self, id: usize, name: &str) -> Result<Wavetable> {
         let w = Wavetable::new(self.model_id, self.id, id, name)?;
         self.wavetable_ids.insert(String::from(name), id);
         Ok(w)
@@ -199,7 +200,7 @@ pub struct Wavetable {
 }
 
 impl Wavetable {
-    pub fn new(model_id: usize, timeset_id: usize, id: usize, name: &str) -> Result<Self, Error> {
+    pub fn new(model_id: usize, timeset_id: usize, id: usize, name: &str) -> Result<Self> {
         Ok(Self {
             name: String::from(name),
             model_id: model_id,
@@ -230,7 +231,7 @@ impl Wavetable {
         dut: &Dut,
         pins: &Vec<(usize, String)>,
         indicators: &Vec<String>,
-    ) -> Result<HashMap<usize, HashMap<String, usize>>, Error> {
+    ) -> Result<HashMap<usize, HashMap<String, usize>>> {
         let __pins;
         if pins.len() > 1 {
             let t: Vec<usize> = vec![];
@@ -297,10 +298,7 @@ impl Wavetable {
     }
 
     // At some point, add some preliminary checking of the period to weed out some gross failures.
-    pub fn set_period(
-        &mut self,
-        period: Option<Box<dyn std::string::ToString>>,
-    ) -> Result<(), Error> {
+    pub fn set_period(&mut self, period: Option<Box<dyn std::string::ToString>>) -> Result<()> {
         self.period = match period {
             Some(p) => Some(p.to_string()),
             None => None,
@@ -313,13 +311,13 @@ impl Wavetable {
         id: usize,
         name: &str,
         derived_from: Option<Vec<usize>>,
-    ) -> Result<WaveGroup, Error> {
+    ) -> Result<WaveGroup> {
         let wgrp = WaveGroup::new_from_wavetable(self, id, name, derived_from)?;
         self.wave_group_ids.insert(String::from(name), id);
         Ok(wgrp)
     }
 
-    pub fn eval(&self, current_period: Option<f64>) -> Result<Option<f64>, Error> {
+    pub fn eval(&self, current_period: Option<f64>) -> Result<Option<f64>> {
         let default = String::from("period");
         let p = self.period.as_ref().unwrap_or(&default);
         let err = &format!(
@@ -334,14 +332,14 @@ impl Wavetable {
                 .exec()
                 .is_err()
         {
-            return Err(Error::new(&format!("No current period set for wavetable {} and cannot evaluate period '{}' as a numeric!", self.name, self.period.as_ref().unwrap())));
+            bail!("No current period set for wavetable {} and cannot evaluate period '{}' as a numeric!", self.name, self.period.as_ref().unwrap());
         }
         match eval::Expr::new(p).exec() {
             Ok(val) => match val.as_f64() {
                 Some(v) => Ok(Some(v)),
-                None => Err(Error::new(err)),
+                None => bail!(err),
             },
-            Err(_e) => Err(Error::new(err)),
+            Err(_e) => bail!(err),
         }
     }
 }
@@ -364,7 +362,7 @@ impl WaveGroup {
         id: usize,
         name: &str,
         derived_from: Option<Vec<usize>>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         let wgrp = WaveGroup {
             model_id: wavetable.model_id,
             timeset_id: wavetable.timeset_id,
@@ -377,7 +375,7 @@ impl WaveGroup {
         Ok(wgrp)
     }
 
-    pub fn register_wave(&mut self, id: usize, indicator: &str) -> Result<Wave, Error> {
+    pub fn register_wave(&mut self, id: usize, indicator: &str) -> Result<Wave> {
         let w = Wave::new_from_wave_group(self, id, indicator)?;
         self.wave_ids.insert(indicator.to_string(), id);
         Ok(w)
@@ -415,7 +413,7 @@ impl Wave {
         wave_group_id: usize,
         wave_id: usize,
         indicator: &str,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         Ok(Wave {
             model_id: model_id,
             timeset_id: timeset_id,
@@ -428,11 +426,7 @@ impl Wave {
         })
     }
 
-    pub fn new_from_wave_group(
-        wgrp: &WaveGroup,
-        id: usize,
-        indicator: &str,
-    ) -> Result<Self, Error> {
+    pub fn new_from_wave_group(wgrp: &WaveGroup, id: usize, indicator: &str) -> Result<Self> {
         Ok(Wave {
             model_id: wgrp.model_id,
             timeset_id: wgrp.timeset_id,
@@ -445,7 +439,7 @@ impl Wave {
         })
     }
 
-    pub fn set_indicator(&mut self, indicator: &str) -> Result<(), Error> {
+    pub fn set_indicator(&mut self, indicator: &str) -> Result<()> {
         // At some point, add some error checking here, preferably from feedback from the current platform (allowed indicators, etc.)
         self.indicator = String::from(indicator);
         Ok(())
@@ -466,7 +460,7 @@ impl Wave {
         at: Box<dyn std::string::ToString>,
         unit: Option<String>,
         action: &str,
-    ) -> Result<Event, Error> {
+    ) -> Result<Event> {
         let e = Event::new(
             self.wavetable_id,
             self.wave_id,
@@ -493,7 +487,7 @@ pub enum EventActions {
 }
 
 impl EventActions {
-    pub fn from_str(s: &str) -> Result<EventActions, Error> {
+    pub fn from_str(s: &str) -> Result<EventActions> {
         match s {
             "DriveHigh" => Ok(EventActions::DriveHigh),
             "DriveLow" => Ok(EventActions::DriveLow),
@@ -502,7 +496,7 @@ impl EventActions {
             "VerifyZ" => Ok(EventActions::VerifyZ),
             "HighZ" => Ok(EventActions::HighZ),
             "Capture" => Ok(EventActions::Capture),
-            _ => Err(Error::new(&format!("Unsupported Event Action: '{}'", s))),
+            _ => Err(error!("Unsupported Event Action: '{}'", s)),
         }
     }
 
@@ -539,7 +533,7 @@ impl Event {
         at: Box<dyn std::string::ToString>,
         unit: Option<String>,
         action: &str,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         let _temp = EventActions::from_str(action)?;
         let e = Event {
             wavetable_id: wavetable_id,
@@ -553,11 +547,7 @@ impl Event {
         Ok(e)
     }
 
-    pub fn eval(
-        &self,
-        dut: &super::super::super::dut::Dut,
-        period: Option<f64>,
-    ) -> Result<f64, Error> {
+    pub fn eval(&self, dut: &super::super::super::dut::Dut, period: Option<f64>) -> Result<f64> {
         // Try to evaluate the wavetable's period.
         let err = &format!("Could not evaluate event expression '{}'", self.at);
         let _period;
@@ -569,13 +559,13 @@ impl Event {
         match eval::Expr::new(&self.at).value("period", _period).exec() {
             Ok(val) => match val.as_f64() {
                 Some(v) => Ok(v),
-                None => Err(Error::new(err)),
+                None => bail!(err),
             },
-            Err(_e) => Err(Error::new(err)),
+            Err(_e) => bail!(err),
         }
     }
 
-    pub fn set_action(&mut self, action: &str) -> Result<(), Error> {
+    pub fn set_action(&mut self, action: &str) -> Result<()> {
         let _temp = EventActions::from_str(action)?;
         self.action = action.to_string();
         Ok(())
@@ -587,7 +577,7 @@ impl Dut {
         &mut self,
         wave_id: usize,
         pins: &Vec<(usize, String)>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let (wtbl_id, wave_indicator);
         {
             let wave = &self.waves[wave_id];

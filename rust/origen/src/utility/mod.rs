@@ -68,7 +68,7 @@ pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(
             if !allow_duplicates {
                 if let Some(idx) = indices.get(d) {
                     // Duplicate dataset
-                    return error!(
+                    bail!(
                         "{} '{}' can only appear once in the {} (first appearance at index {} - duplicate at index {})",
                         obj_name,
                         d,
@@ -80,9 +80,11 @@ pub fn check_vec<T: std::cmp::Eq + std::hash::Hash + std::fmt::Display, V>(
             }
             indices.insert(d, i);
         } else {
-            return error!(
+            bail!(
                 "'{}' is not a valid {} and cannot be used in the {}",
-                d, obj_name, container_name
+                d,
+                obj_name,
+                container_name
             );
         }
     }
@@ -93,7 +95,7 @@ pub fn str_to_bool(s: &str) -> Result<bool> {
     match s {
         "true" | "True" => Ok(true),
         "false" | "False" => Ok(false),
-        _ => error!("Could not convert string {} to boolean value", s),
+        _ => bail!("Could not convert string {} to boolean value", s),
     }
 }
 
@@ -101,7 +103,7 @@ pub fn status_to_bool(s: &str) -> Result<bool> {
     match s.to_lowercase().as_str() {
         "pass" | "success" | "true" => Ok(true),
         "fail" | "error" | "false" => Ok(false),
-        _ => error!("Could not convert '{}' to boolean value", s),
+        _ => bail!("Could not convert '{}' to boolean value", s),
     }
 }
 

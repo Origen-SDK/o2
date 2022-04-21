@@ -3,8 +3,7 @@ pub mod pin_group;
 pub mod pin_header;
 pub mod pin_store;
 use super::super::dut::Dut;
-use crate::error::Error;
-use crate::generator::Pattern;
+use crate::generator::PAT;
 use crate::standards::actions::*;
 use crate::testers::vector_based::api::{cycle, repeat, repeat2, repeat2_node};
 use crate::{Result, Transaction, TEST};
@@ -68,12 +67,12 @@ impl<'a> PinCollection<'a> {
     //     temp.sort();
     //     temp.dedup();
     //     if p_ids.len() != temp.len() {
-    //         return Err(Error::new(&format!(
+    //         bail!(
     //             "Duplicate physical pins detected when creating PinBus from {:?} - (resolved pin IDs: {:?}, unique pin IDs {:?})",
     //             grps,
     //             p_ids,
     //             temp
-    //         )))
+    //         )
     //     }
     //     Ok(Self {
     //         grp_ids: Some(grp_ids),
@@ -132,7 +131,7 @@ impl<'a> PinCollection<'a> {
     }
 
     /// Applies the drive-high symbol to all the pins on this bus and returns the nodes without pushing them to the AST
-    pub fn drive_high_nodes(&self) -> Vec<Node<Pattern>> {
+    pub fn drive_high_nodes(&self) -> Vec<Node<PAT>> {
         self.drive_nodes(true)
     }
 
@@ -143,7 +142,7 @@ impl<'a> PinCollection<'a> {
     }
 
     /// Identical to "drive_low_nodes" except uses the drive-low symbol instead
-    pub fn drive_low_nodes(&self) -> Vec<Node<Pattern>> {
+    pub fn drive_low_nodes(&self) -> Vec<Node<PAT>> {
         self.drive_nodes(false)
     }
 
@@ -154,7 +153,7 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
-    pub fn drive_nodes(&self, state: bool) -> Vec<Node<Pattern>> {
+    pub fn drive_nodes(&self, state: bool) -> Vec<Node<PAT>> {
         if state {
             self.set_action_nodes(DRIVE_HIGH)
         } else {
@@ -167,7 +166,7 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
-    pub fn verify_high_nodes(&self) -> Vec<Node<Pattern>> {
+    pub fn verify_high_nodes(&self) -> Vec<Node<PAT>> {
         self.verify_nodes(true)
     }
 
@@ -176,7 +175,7 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
-    pub fn verify_low_nodes(&self) -> Vec<Node<Pattern>> {
+    pub fn verify_low_nodes(&self) -> Vec<Node<PAT>> {
         self.verify_nodes(false)
     }
 
@@ -185,7 +184,7 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
-    pub fn verify_nodes(&self, state: bool) -> Vec<Node<Pattern>> {
+    pub fn verify_nodes(&self, state: bool) -> Vec<Node<PAT>> {
         if state {
             self.set_action_nodes(VERIFY_HIGH)
         } else {
@@ -198,7 +197,7 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
-    pub fn capture_nodes(&self) -> Vec<Node<Pattern>> {
+    pub fn capture_nodes(&self) -> Vec<Node<PAT>> {
         self.set_action_nodes(CAPTURE)
     }
 
@@ -207,7 +206,7 @@ impl<'a> PinCollection<'a> {
         &self
     }
 
-    pub fn highz_nodes(&self) -> Vec<Node<Pattern>> {
+    pub fn highz_nodes(&self) -> Vec<Node<PAT>> {
         self.set_action_nodes(HIGHZ)
     }
 
@@ -222,30 +221,30 @@ impl<'a> PinCollection<'a> {
         actions: &Vec<T>,
     ) -> crate::Result<&Self> {
         if actions.len() != self.pins.len() {
-            return Err(Error::new(&format!(
+            bail!(
                 "Error in PinCollection (set_actions): Expected length of actions ({}) to equal length of pin collection ({})",
                 actions.len(),
                 self.pins.len()
-            )));
+            );
         }
         for (i, a) in actions.iter().enumerate() {
             let p = &self.pins[i];
             let mut paction = p.action.write().unwrap();
             *paction = PinAction::new(a);
-            TEST.push(node!(Pattern::PinAction, p.id, a.to_string(), None));
+            TEST.push(node!(PAT::PinAction, p.id, a.to_string(), None));
         }
 
         Ok(&self)
     }
 
     /// Sets all the pins in this bus to an arbitrary action, returning the nodes without pushing to the AST
-    pub fn set_action_nodes(&self, action: &str) -> Vec<Node<Pattern>> {
+    pub fn set_action_nodes(&self, action: &str) -> Vec<Node<PAT>> {
         if let Some(grps) = &self.grp_ids {
             let mut retn = vec![];
             let mut pin_ids_offset = 0;
             for (_i, grp) in grps.iter().enumerate() {
                 let mut grp_node = node!(
-                    Pattern::PinGroupAction,
+                    PAT::PinGroupAction,
                     grp.0,
                     vec![action.to_string(); self.pins.len()],
                     None
@@ -257,7 +256,7 @@ impl<'a> PinCollection<'a> {
                             let mut paction = p.action.write().unwrap();
                             *paction = PinAction::new(action);
 
-                            node!(Pattern::PinAction, p.id, action.to_string(), None)
+                            node!(PAT::PinAction, p.id, action.to_string(), None)
                         })
                         .collect(),
                 );
@@ -271,7 +270,7 @@ impl<'a> PinCollection<'a> {
                 .map(|p| {
                     let mut paction = p.action.write().unwrap();
                     *paction = PinAction::new(action);
-                    node!(Pattern::PinAction, p.id, action.to_string(), None)
+                    node!(PAT::PinAction, p.id, action.to_string(), None)
                 })
                 .collect()
         }
@@ -285,17 +284,14 @@ impl<'a> PinCollection<'a> {
         Ok(&self)
     }
 
-    pub fn set_from_transaction_nodes(
-        &self,
-        trans: &Transaction,
-    ) -> crate::Result<Vec<Node<Pattern>>> {
+    pub fn set_from_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node<PAT>>> {
         self.verify_size(trans)?;
         let bit_actions = trans.to_symbols()?;
-        let mut nodes: Vec<Node<Pattern>> = self.update_from_bit_actions(&bit_actions)?;
+        let mut nodes: Vec<Node<PAT>> = self.update_from_bit_actions(&bit_actions)?;
         if let Some(ovl) = trans.overlay.as_ref() {
             let mut o = ovl.clone();
             o.pin_ids = Some(self.as_ids());
-            nodes.insert(0, node!(Pattern::Overlay, o, None));
+            nodes.insert(0, node!(PAT::Overlay, o, None));
         }
         Ok(nodes)
     }
@@ -330,20 +326,20 @@ impl<'a> PinCollection<'a> {
             }
             let mut paction = p.action.write().unwrap();
             *paction = a.clone();
-            TEST.push(node!(Pattern::PinAction, p.id, a.to_string(), None));
+            TEST.push(node!(PAT::PinAction, p.id, a.to_string(), None));
         });
         &self
     }
 
     fn verify_size(&self, trans: &Transaction) -> crate::Result<()> {
         if trans.width != self.pins.len() {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Error in PinCollection: Transaction of width {} does not match PinCollection size {}. PC: {:?}, Transaction: {:?}",
                 trans.width,
                 self.pins.len(),
                 self,
                 trans
-            )))
+            ))
         } else {
             Ok(())
         }
@@ -353,10 +349,10 @@ impl<'a> PinCollection<'a> {
     fn update_from_bit_actions(
         &self,
         bit_actions: &Vec<(String, bool, bool)>,
-    ) -> crate::Result<Vec<Node<Pattern>>> {
-        let mut action_nodes: Vec<Node<Pattern>> = vec![];
+    ) -> crate::Result<Vec<Node<PAT>>> {
+        let mut action_nodes: Vec<Node<PAT>> = vec![];
 
-        let mut this_grp_nodes: Vec<Node<Pattern>> = vec![];
+        let mut this_grp_nodes: Vec<Node<PAT>> = vec![];
         let mut this_grp_action: Vec<String> = vec![];
         let mut current_cnt = 0;
         let mut grp_idx = 0;
@@ -365,13 +361,13 @@ impl<'a> PinCollection<'a> {
             if self.grp_ids.is_some() {
                 let p = &self.pins[i];
 
-                let n = node!(Pattern::PinAction, p.id, bit_action.0.to_string(), None);
-                let context_node: Option<Node<Pattern>> = None;
+                let n = node!(PAT::PinAction, p.id, bit_action.0.to_string(), None);
+                let context_node: Option<Node<PAT>> = None;
                 // if bit_action.1 {
-                //     // context_node = Some(node!(Pattern::Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                //     // context_node = Some(node!(PAT::Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
                 // }
                 // if bit_action.2 {
-                //     // let capture_node = node!(Pattern::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                //     // let capture_node = node!(PAT::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
                 //     // if let Some(mut cnode) = context_node.as_mut() {
                 //     //     cnode.add_child(capture_node);
                 //     // } else {
@@ -385,14 +381,14 @@ impl<'a> PinCollection<'a> {
                     this_grp_nodes.push(n);
                 }
 
-                //this_grp_nodes.push(node!(Pattern::PinAction, p.id, bit_action.to_string(), None));
+                //this_grp_nodes.push(node!(PAT::PinAction, p.id, bit_action.to_string(), None));
                 this_grp_action.push(bit_action.0.to_string());
                 let mut paction = p.action.write().unwrap();
                 *paction = PinAction::new(bit_action.0.to_string());
                 current_cnt += 1;
                 if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
                     let mut n = node!(
-                        Pattern::PinGroupAction,
+                        PAT::PinGroupAction,
                         self.grp_ids.as_ref().unwrap()[grp_idx].0,
                         this_grp_action,
                         None
@@ -410,13 +406,13 @@ impl<'a> PinCollection<'a> {
                 let mut paction = p.action.write().unwrap();
                 *paction = PinAction::new(bit_action.0.to_string());
 
-                let context_node: Option<Node<Pattern>> = None;
-                let n = node!(Pattern::PinAction, p.id, bit_action.0.to_string(), None);
+                let context_node: Option<Node<PAT>> = None;
+                let n = node!(PAT::PinAction, p.id, bit_action.0.to_string(), None);
                 // if bit_action.1 {
-                //     // context_node = Some(node!(Pattern::Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                //     // context_node = Some(node!(PAT::Overlay, overlay_str.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
                 // }
                 // if bit_action.2 {
-                //     // let capture_node = node!(Pattern::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                //     // let capture_node = node!(PAT::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
                 //     // if let Some(mut cnode) = context_node.as_mut() {
                 //     //     cnode.add_child(capture_node);
                 //     // } else {
@@ -429,7 +425,7 @@ impl<'a> PinCollection<'a> {
                 } else {
                     action_nodes.push(n);
                 }
-                //action_nodes.push(node!(Pattern::PinAction, p.id, bit_action.to_string(), None));
+                //action_nodes.push(node!(PAT::PinAction, p.id, bit_action.to_string(), None));
             }
         }
         Ok(action_nodes)
@@ -443,9 +439,9 @@ impl<'a> PinCollection<'a> {
 
     /// Generate a transaction on the pin bus. The data, data width, operation, and overlay settings should
     /// all be encapsulated in the transaction struct
-    pub fn push_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node<Pattern>>> {
+    pub fn push_transaction_nodes(&self, trans: &Transaction) -> crate::Result<Vec<Node<PAT>>> {
         let bit_actions = trans.to_symbols()?;
-        let mut pin_states: Vec<Node<Pattern>> = vec![];
+        let mut pin_states: Vec<Node<PAT>> = vec![];
         if let Some(c) = &trans.capture {
             let capture_sym;
             // Push the capture node and note if a custom character is given.
@@ -456,7 +452,7 @@ impl<'a> PinCollection<'a> {
                 capture_sym = None;
             }
             pin_states.push(node!(
-                Pattern::Capture,
+                PAT::Capture,
                 crate::Capture {
                     pin_ids: Some(self.as_ids()),
                     cycles: Some(self.cycles_to_push(trans)),
@@ -472,12 +468,12 @@ impl<'a> PinCollection<'a> {
             if ovl.cycles.is_none() {
                 ovl.cycles = Some(self.cycles_to_push(trans));
             }
-            pin_states.push(node!(Pattern::Overlay, ovl, None));
+            pin_states.push(node!(PAT::Overlay, ovl, None));
         }
 
         for (_idx, chunk) in bit_actions.chunks(self.pins.len()).enumerate() {
-            let mut this_cycle: Vec<Node<Pattern>> = vec![];
-            let mut this_grp_nodes: Vec<Node<Pattern>> = vec![];
+            let mut this_cycle: Vec<Node<PAT>> = vec![];
+            let mut this_grp_nodes: Vec<Node<PAT>> = vec![];
             let mut this_grp_action: Vec<String> = vec![];
             let mut current_cnt = 0;
             let mut grp_idx = 0;
@@ -485,13 +481,13 @@ impl<'a> PinCollection<'a> {
             for (pos, bit_action) in chunk.iter().enumerate() {
                 if self.grp_ids.is_some() {
                     let p = &self.pins[pos];
-                    let n = node!(Pattern::PinAction, p.id, bit_action.0.to_string(), None);
-                    let context_node: Option<Node<Pattern>> = None;
+                    let n = node!(PAT::PinAction, p.id, bit_action.0.to_string(), None);
+                    let context_node: Option<Node<PAT>> = None;
                     // if bit_action.1 {
-                    //     // context_node = Some(node!(Pattern::Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                    //     // context_node = Some(node!(PAT::Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
                     // }
                     // if bit_action.2 {
-                    //     // let capture_node = node!(Pattern::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                    //     // let capture_node = node!(PAT::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
                     //     // if let Some(mut cnode) = context_node.as_mut() {
                     //     //     cnode.add_child(capture_node);
                     //     // } else {
@@ -510,7 +506,7 @@ impl<'a> PinCollection<'a> {
                     current_cnt += 1;
                     if current_cnt == self.grp_ids.as_ref().unwrap()[grp_idx].1 {
                         let mut n = node!(
-                            Pattern::PinGroupAction,
+                            PAT::PinGroupAction,
                             self.grp_ids.as_ref().unwrap()[grp_idx].0,
                             this_grp_action,
                             None
@@ -526,13 +522,13 @@ impl<'a> PinCollection<'a> {
                     // no pin groups. Just push the straight pins
                     let p = &self.pins[pos];
 
-                    let mut context_node: Option<Node<Pattern>> = None;
-                    let n = node!(Pattern::PinAction, p.id, bit_action.0.to_string(), None);
+                    let mut context_node: Option<Node<PAT>> = None;
+                    let n = node!(PAT::PinAction, p.id, bit_action.0.to_string(), None);
                     if bit_action.1 {
-                        // context_node = Some(node!(Pattern::Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
+                        // context_node = Some(node!(PAT::Overlay, trans.overlay_string.clone(), Some(p.id), Some(bit_action.0.to_string()), None));
                     }
                     if bit_action.2 {
-                        // let capture_node = node!(Pattern::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
+                        // let capture_node = node!(PAT::Capture, Some(p.id), Some(bit_action.0.to_string()), None);
                         // if let Some(mut cnode) = context_node.as_mut() {
                         //     cnode.add_child(capture_node);
                         // } else {
@@ -678,26 +674,27 @@ impl Dut {
         // Check some of the parameters before we go much further. We can error out quickly if something is awry.
         // Check the width and offset
         if !width.is_some() && offset.is_some() {
-            return Err(Error::new(&format!(
+            bail!(
                 "Can not add pin {} with a given offset but no width option!",
                 name
-            )));
+            );
         } else if self.get_pin_group(model_id, name).is_some() {
-            return Err(Error::new(&format!(
+            bail!(
                 "Pin '{}' already exists on model '{}'!",
-                name, self.models[model_id].name
-            )));
+                name,
+                self.models[model_id].name
+            );
         }
 
         // Check that the given reset pin actions fit within the width of the pins to add and that they
         // are valid pin action characters.
         if let Some(ref r) = reset_action {
             if r.len() != (width.unwrap_or(1) as usize) {
-                return Err(Error::new(&format!(
+                bail!(
                     "PinActions of length {} must match width {}!",
                     r.len(),
                     width.unwrap_or(1)
-                )));
+                );
             }
         }
 
@@ -708,22 +705,19 @@ impl Dut {
         let mut names: Vec<String> = vec![];
         if let Some(w) = width {
             if w < 1 {
-                return Err(Error::new(&format!(
-                    "Width cannot be less than 1! Received {}",
-                    w
-                )));
+                bail!("Width cannot be less than 1! Received {}", w);
             }
             let o = offset.unwrap_or(0);
             for i in o..(o + w) {
                 let n = format!("{}{}", name, i).to_string();
                 if self.get_pin_group(model_id, name).is_some() {
-                    return Err(Error::new(&format!(
+                    bail!(
                         "Can not add pin {}, derived by adding pin {} of width {} with offset {}, because it conflicts with a current pin or alias name!",
                         n,
                         name,
                         w,
                         o,
-                    )));
+                    );
                 }
                 names.push(n);
             }
@@ -774,10 +768,12 @@ impl Dut {
     pub fn add_pin_alias(&mut self, model_id: usize, name: &str, alias: &str) -> Result<()> {
         // First, check that the pin exists.
         if self.models[model_id].pin_groups.contains_key(alias) {
-            return Err(Error::new(&format!(
+            bail!(
                 "Could not alias '{}' to '{}', as '{}' already exists!",
-                name, alias, alias
-            )));
+                name,
+                alias,
+                alias
+            );
         }
 
         let (grp, id, ids);
@@ -793,10 +789,12 @@ impl Dut {
             );
             ids = p.pin_ids.clone();
         } else {
-            return Err(Error::new(&format!(
+            bail!(
                 "Could not alias '{}' to '{}', as '{}' doesn't exists!",
-                name, alias, name
-            )));
+                name,
+                alias,
+                name
+            );
         }
         for pid in ids {
             let p = &mut self.pins[pid];
@@ -861,7 +859,7 @@ impl Dut {
                         for _name_str in n.iter() {
                             // for _name_str in grp.pin_names.iter() {
                             if physical_names.contains(_name_str) {
-                                return Err(Error::new(&format!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", name_str, regex_str, _name_str)));
+                                bail!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", name_str, regex_str, _name_str);
                             }
                         }
                         // _pin_names.extend(grp.pin_names.clone())
@@ -872,7 +870,7 @@ impl Dut {
                 physical_names.extend(_pin_names);
             } else if let Some(p) = self.resolve_to_physical_pin(model_id, pin_name) {
                 if physical_names.contains(&p.name) {
-                    return Err(Error::new(&format!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", pin_name, p.name)));
+                    bail!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", pin_name, p.name);
                 }
                 if let Some(p) = self.get_pin_group(model_id, pin_name) {
                     let n = p
@@ -884,10 +882,10 @@ impl Dut {
                     physical_names.extend_from_slice(&n);
                 }
             } else {
-                return Err(Error::new(&format!(
+                bail!(
                     "Can not collect pin '{}' because it does not exist!",
                     pin_name
-                )));
+                );
             }
         }
         Ok(physical_names.clone())
@@ -911,17 +909,17 @@ impl Dut {
                         let grp = &self.pin_groups[*grp_id];
                         // for _name_str in grp.pin_names.iter() {
                         //     if physical_ids.contains(&self._get_pin(identifier.1, _name_str)?.id) {
-                        //         return Err(Error::new(&format!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", name_str, regex_str, _name_str)));
+                        //         bail!("Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", name_str, regex_str, _name_str);
                         //     }
                         // }
                         for pid in grp.pin_ids.iter() {
                             if physical_ids.contains(&pid) {
-                                return Err(Error::new(&format!(
+                                bail!(
                                     "Can not collect pin '{}' from regex /{}/ because it (or an alias of it) has already been collected (resolves to physical pin '{}')!",
                                     name_str,
                                     regex_str,
                                     &self.pins[*pid].name
-                                )));
+                                );
                             }
                         }
                         // _pin_names.extend(grp.pin_names.iter().map( |n| self._get_pin(identifier.1, n).unwrap().id).collect::<Vec<usize>>());
@@ -932,17 +930,17 @@ impl Dut {
                 physical_ids.extend(_pin_names);
             } else if let Some(p) = self.resolve_to_physical_pin(identifier.1, &identifier.0) {
                 if physical_ids.contains(&p.id) {
-                    return Err(Error::new(&format!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", identifier.0, p.name)));
+                    bail!("Can not collect pin '{}' because it (or an alias of it) has already been collected (resolves to physical pin '{}')!", identifier.0, p.name);
                 }
                 if let Some(p) = self.get_pin_group(identifier.1, &identifier.0) {
                     // physical_ids.extend(&p.pin_names.iter().map( |n| self._get_pin(identifier.1, n).unwrap().id).collect::<Vec<usize>>());
                     physical_ids.extend(&p.pin_ids.clone());
                 }
             } else {
-                return Err(Error::new(&format!(
+                bail!(
                     "Can not collect pin '{}' because it does not exist!",
                     identifier.0
-                )));
+                );
             }
         }
         Ok(physical_ids.clone())
@@ -986,10 +984,10 @@ impl Dut {
             }
         } else {
             // The query name doesn't exists. Raise an error.
-            Err(Error::new(&format!(
+            Err(error!(
                 "The query name {} does not exists! Cannot check this query's groups!",
                 query_name
-            )))
+            ))
         }
     }
 
@@ -997,10 +995,11 @@ impl Dut {
     pub fn index_of(&self, model_id: usize, name: &str, query_name: &str) -> Result<Option<usize>> {
         if !self.models[model_id].pin_groups.contains_key(name) {
             // Pin group doesn't exists. Raise an error.
-            return Err(Error::new(&format!(
+            bail!(
                 "Group {} does not exists! Cannot lookup index for {} in this group!",
-                name, query_name
-            )));
+                name,
+                query_name
+            );
         }
 
         if let Some(p) = self.get_pin(model_id, query_name) {
@@ -1013,10 +1012,10 @@ impl Dut {
             }
         } else {
             // The query name doesn't exists. Raise an error.
-            Err(Error::new(&format!(
+            Err(error!(
                 "The query name {} does not exists! Cannot check this query's groups!",
                 query_name
-            )))
+            ))
         }
     }
 
@@ -1030,11 +1029,11 @@ impl Dut {
     pub fn data_fits_in_pins(&mut self, pins: &Vec<String>, data: u32) -> Result<()> {
         let two: u32 = 2;
         if data > (two.pow(pins.len() as u32) - 1) {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Data {} does not fit in Pin collection of size {} - Cannot set data!",
                 data,
                 pins.len()
-            )))
+            ))
         } else {
             Ok(())
         }
@@ -1043,10 +1042,10 @@ impl Dut {
     pub fn verify_data_fits(&mut self, width: u32, data: u32) -> Result<()> {
         let two: u32 = 2;
         if data > (two.pow(width) - 1) {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Data {} does not fit in pins with width of {}!",
                 data, width
-            )))
+            ))
         } else {
             Ok(())
         }
@@ -1054,11 +1053,11 @@ impl Dut {
 
     pub fn verify_action_string_fits(&self, width: u32, action_string: &Vec<u8>) -> Result<()> {
         if action_string.len() != (width as usize) {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Action string of length {} must match width {}!",
                 action_string.len(),
                 width
-            )))
+            ))
         } else {
             Ok(())
         }
@@ -1204,7 +1203,7 @@ impl StateTracker {
                     continue;
                 }
             }
-            // return Err(Error::new(&format!(
+            // bail!(
             //     "Could not resolve physical pin {} to any pins in header {}",
             //     // physical_pin,
             //     &p.name,
@@ -1213,7 +1212,7 @@ impl StateTracker {
             //         .map(|n| n.to_string())
             //         .collect::<Vec<String>>()
             //         .join(", ")
-            // )));
+            // );
         }
         Ok(())
     }

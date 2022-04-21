@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! trace {
     ( $e:expr , $n:expr ) => {{
-        $e.or_else(|e| return $n.error(e))?
+        $e.or_else(|e| return crate::trace_error($n, e))?
     }};
 }
 
@@ -71,15 +71,6 @@ macro_rules! exit_error {
         display_redln!(r#"|_______|| _| `._____|| _| `._____| \______/  | _| `._____|"#);
         std::process::exit(1);
     };
-}
-
-/// Returns an Err<OrigenError> with the given error message
-#[macro_export]
-macro_rules! error {
-    ($($arg:tt)*) => {{
-        let formatted = std::fmt::format(format_args!($($arg)*));
-        Err($crate::Error::new(&formatted))
-    }}
 }
 
 #[macro_export]

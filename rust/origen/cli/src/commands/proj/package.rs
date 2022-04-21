@@ -42,7 +42,7 @@ impl Package {
         match fs::create_dir_all(&path) {
             Ok(()) => {}
             Err(_e) => {
-                return error!(
+                bail!(
                     "Couldn't create '{}', do you have the required permissions?",
                     path.display()
                 );
@@ -87,7 +87,7 @@ impl Package {
                 fs::create_dir_all(&path)?;
             }
             if !path.exists() {
-                return error!(
+                bail!(
                     "Expected to find package '{}' at '{}', but it doesn't exist",
                     self.id,
                     path.display()
@@ -175,7 +175,7 @@ impl Package {
             if source.exists() {
                 symlink(source, dest)?;
             } else {
-                return error!(
+                bail!(
                     "The target of link '{}' for package '{}' does not exist - '{}'",
                     dest.display(),
                     self.id,
@@ -232,7 +232,7 @@ impl Package {
                         copy_contents(source, dest)?;
                     }
                 } else {
-                    return error!(
+                    bail!(
                         "The copy target for package '{}' does not exist - '{}'",
                         self.id,
                         source.display()

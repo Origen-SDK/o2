@@ -25,7 +25,7 @@ impl Users {
         if let Some(user) = self.users.get(u).as_ref() {
             Ok(&user)
         } else {
-            error!("No user '{}' has been added", u)
+            bail!("No user '{}' has been added", u)
         }
     }
 
@@ -33,7 +33,7 @@ impl Users {
         if let Some(user) = self.users.get_mut(u) {
             Ok(user)
         } else {
-            error!("No user '{}' has been added", u)
+            bail!("No user '{}' has been added", u)
         }
     }
 
@@ -43,7 +43,7 @@ impl Users {
 
     pub fn add(&mut self, id: &str) -> Result<()> {
         if self.users.contains_key(id) {
-            error!("User '{}' has already been added", id)
+            bail!("User '{}' has already been added", id)
         } else {
             self.users.insert(id.to_string(), User::new(id));
             Ok(())

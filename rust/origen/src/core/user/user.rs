@@ -1,6 +1,6 @@
 use crate::utility::ldap::LDAPs;
 use crate::utility::{bytes_from_str_of_bytes, check_vec, str_to_bool, unsorted_dedup};
-use crate::{Error, Metadata, Result, ORIGEN_CONFIG};
+use crate::{Metadata, Result, ORIGEN_CONFIG};
 use aes_gcm::aead::{
     generic_array::typenum::{U12, U32},
     generic_array::GenericArray,
@@ -132,7 +132,7 @@ impl User {
         if let Some(key) = self.data_lookup_hierarchy.first() {
             Ok(key)
         } else {
-            error!("Data lookup hierarchy for user '{}' is empty", self.id)
+            bail!("Data lookup hierarchy for user '{}' is empty", self.id)
         }
     }
 
@@ -143,7 +143,7 @@ impl User {
     /// Returns the data lookup hierarchy or an error, if the hierarchy is empty
     pub fn data_lookup_hierarchy_or_err(&self) -> Result<&Vec<String>> {
         if self.data_lookup_hierarchy.is_empty() {
-            error!("Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query")
+            bail!("Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query")
         } else {
             Ok(&self.data_lookup_hierarchy)
         }
@@ -172,7 +172,7 @@ impl User {
         if let Some(d) = self.data.get(k) {
             Ok(d.write().unwrap())
         } else {
-            error!("Could not find user dataset {}", k)
+            bail!("Could not find user dataset {}", k)
         }
     }
 
@@ -186,7 +186,7 @@ impl User {
         if let Some(d) = self.data.get(k) {
             Ok(d.read().unwrap())
         } else {
-            error!("Could not find user dataset {}", k)
+            bail!("Could not find user dataset {}", k)
         }
     }
 
@@ -378,7 +378,7 @@ impl User {
         if let Some(e) = self.email()? {
             Ok(e)
         } else {
-            error!(
+            bail!(
                 "Tried to retrieve email for user {} but none is has been set across any datasets!",
                 self.id
             )
@@ -493,7 +493,7 @@ impl User {
             "Maximum number of authentication attempts reached ({}), exiting...",
             ORIGEN_CONFIG.user__password_auth_attempts
         );
-        error!(
+        bail!(
             "Maximum number of authentication attempts reached ({})",
             ORIGEN_CONFIG.user__password_auth_attempts
         )
@@ -518,22 +518,22 @@ impl User {
                                 password,
                             );
                         } else {
-                            return error!("A 'data_lookup' key corresponding to the ldap name is required to validate passwords against an LDAP");
+                            bail!("A 'data_lookup' key corresponding to the ldap name is required to validate passwords against an LDAP");
                         }
                     } else {
-                        return error!(
+                        bail!(
                             "Cannot verify user password for user data source {}",
                             data_source
                         );
                     }
                 } else {
-                    return error!(
+                    bail!(
                         "Cannot validate password without data source for dataset {}",
                         dn.unwrap()
                     );
                 }
             } else {
-                return error!("No dataset config given for {}", dn.unwrap());
+                bail!("No dataset config given for {}", dn.unwrap());
             }
         } else {
             Ok(true)
@@ -547,13 +547,13 @@ impl User {
                     match ans.as_str() {
                         "true" | "True" => Ok(true),
                         "false" | "False" => Ok(false),
-                        _ => error!("Could not convert string {} to boolean value", ans),
+                        _ => bail!("Could not convert string {} to boolean value", ans),
                     }
                 } else {
                     Ok(false)
                 }
             } else {
-                error!("No dataset config given for {}", name)
+                bail!("No dataset config given for {}", name)
             }
         } else {
             Ok(false)
@@ -635,7 +635,7 @@ impl User {
                         }
                     } else {
                         // Raise an error
-                        return error!("No password available for reason: '{}'", rod,);
+                        bail!("No password available for reason: '{}'", rod,);
                     }
                 }
             } else {
@@ -682,9 +682,7 @@ impl User {
             }
             return self._password_dialog(dataset, reason);
         } else {
-            Err(Error::new(
-                "Can't get the password for a user which is not the current user",
-            ))
+            bail!("Can't get the password for a user which is not the current user",)
         }
     }
 
@@ -757,7 +755,7 @@ impl User {
                 display_redln!("{}", msg);
                 Ok(())
             } else {
-                error!("{}", msg)
+                bail!("{}", msg)
             }
         }
 

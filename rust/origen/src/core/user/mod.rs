@@ -17,7 +17,7 @@ pub fn lookup_dataset_config<'a>(config: &str) -> Result<&'a HashMap<String, Str
             return Ok(c);
         }
     }
-    error!("Could not lookup dataset config for {}", config)
+    bail!("Could not lookup dataset config for {}", config)
 }
 
 pub fn get_current_email() -> Result<String> {
@@ -40,10 +40,10 @@ pub fn whoami() -> Result<String> {
             if status.success() {
                 id = lines.pop().unwrap();
             } else {
-                return error!("Failed to run 'whoami'");
+                bail!("Failed to run 'whoami'");
             }
         } else {
-            return error!("Failed to run 'whoami'");
+            bail!("Failed to run 'whoami'");
         }
         log_debug!("User ID read from the system: '{}'", &id);
     } else {
@@ -67,7 +67,7 @@ pub fn set_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
             }
         }
         if err_str != "" {
-            error!("{}", err_str)
+            bail!("{}", err_str)
         } else {
             Ok(())
         }
@@ -97,7 +97,7 @@ pub fn clear_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
             }
         }
         if err_str != "" {
-            error!("{}", err_str)
+            bail!("{}", err_str)
         } else {
             Ok(())
         }

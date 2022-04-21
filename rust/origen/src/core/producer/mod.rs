@@ -1,6 +1,6 @@
 pub mod job;
 
-use crate::error::Error;
+use crate::Result;
 use job::Job;
 use std::path::Path;
 
@@ -29,7 +29,7 @@ impl Producer {
     }
 
     /// Creates a new generate job (for either a pattern or a flow)
-    pub fn create_job(&mut self, command: &str, file: Option<&Path>) -> Result<&Job, Error> {
+    pub fn create_job(&mut self, command: &str, file: Option<&Path>) -> Result<&Job> {
         let id = self.jobs.len();
         let mut j = Job {
             command: command.to_string(),

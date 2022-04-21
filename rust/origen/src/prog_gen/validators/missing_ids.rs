@@ -1,15 +1,15 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
-use crate::prog_gen::{FlowCondition, FlowID};
+use crate::prog_gen::{FlowCondition, FlowID, PGM};
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 
 pub struct MissingIDs {
-    ids: HashMap<FlowID, Node>,
-    referenced_ids: HashMap<FlowID, Vec<Node>>,
-    referenced_early: HashMap<FlowID, Vec<Node>>,
+    ids: HashMap<FlowID, Node<PGM>>,
+    referenced_ids: HashMap<FlowID, Vec<Node<PGM>>>,
+    referenced_early: HashMap<FlowID, Vec<Node<PGM>>>,
 }
 
-pub fn run(node: &Node) -> Result<()> {
+pub fn run(node: &Node<PGM>) -> Result<()> {
     let mut p = MissingIDs {
         ids: HashMap::new(),
         referenced_ids: HashMap::new(),
@@ -55,26 +55,26 @@ pub fn run(node: &Node) -> Result<()> {
         failed = true;
     }
     if failed {
-        error!("{}", msg)
+        bail!("{}", msg)
     } else {
         Ok(())
     }
 }
 
-impl Processor for MissingIDs {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for MissingIDs {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            Attrs::PGMTest(_, id) | Attrs::PGMTestStr(_, id) | Attrs::PGMCz(_, _, id) => {
+            PGM::Test(_, id) | PGM::TestStr(_, id) | PGM::Cz(_, _, id) => {
                 self.ids.insert(id.to_owned(), node.without_children());
                 Return::ProcessChildren
             }
-            Attrs::PGMGroup(_, _, _, id) => {
+            PGM::Group(_, _, _, id) => {
                 if let Some(id) = id {
                     self.ids.insert(id.to_owned(), node.without_children());
                 }
                 Return::ProcessChildren
             }
-            Attrs::PGMCondition(cond) => {
+            PGM::Condition(cond) => {
                 match cond {
                     FlowCondition::IfFailed(ids)
                     | FlowCondition::IfAnyFailed(ids)

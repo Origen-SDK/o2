@@ -97,17 +97,17 @@ impl std::convert::From<regex::Error> for Error {
     }
 }
 
-//impl std::convert::From<semver::Error> for Error {
-//    fn from(err: semver::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
-//impl std::convert::From<serde_json::Error> for Error {
-//    fn from(err: serde_json::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<semver::Error> for Error {
+    fn from(err: semver::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 impl std::convert::From<std::string::String> for Error {
     fn from(err: std::string::String) -> Self {
@@ -115,23 +115,23 @@ impl std::convert::From<std::string::String> for Error {
     }
 }
 
-//impl std::convert::From<lettre::address::AddressError> for Error {
-//    fn from(err: lettre::address::AddressError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
-//impl std::convert::From<toml::de::Error> for Error {
-//    fn from(err: toml::de::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
-//impl std::convert::From<toml::ser::Error> for Error {
-//    fn from(err: toml::ser::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<lettre::address::AddressError> for Error {
+    fn from(err: lettre::address::AddressError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<toml::de::Error> for Error {
+    fn from(err: toml::de::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<toml::ser::Error> for Error {
+    fn from(err: toml::ser::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 impl std::convert::From<std::num::ParseIntError> for Error {
     fn from(err: std::num::ParseIntError) -> Self {
@@ -139,23 +139,23 @@ impl std::convert::From<std::num::ParseIntError> for Error {
     }
 }
 
-//impl std::convert::From<num_bigint::ParseBigIntError> for Error {
-//    fn from(err: num_bigint::ParseBigIntError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
-//impl std::convert::From<ldap3::LdapError> for Error {
-//    fn from(err: ldap3::LdapError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
-//impl std::convert::From<aes_gcm::Error> for Error {
-//    fn from(err: aes_gcm::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<num_bigint::ParseBigIntError> for Error {
+    fn from(err: num_bigint::ParseBigIntError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<ldap3::LdapError> for Error {
+    fn from(err: ldap3::LdapError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<aes_gcm::Error> for Error {
+    fn from(err: aes_gcm::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 impl std::convert::From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Self {
@@ -163,11 +163,11 @@ impl std::convert::From<std::string::FromUtf8Error> for Error {
     }
 }
 
-//impl std::convert::From<keyring::KeyringError> for Error {
-//    fn from(err: keyring::KeyringError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<keyring::KeyringError> for Error {
+    fn from(err: keyring::KeyringError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 //impl std::convert::From<anyhow::Error> for Error {
 //    fn from(err: anyhow::Error) -> Self {
@@ -186,17 +186,17 @@ impl std::convert::From<std::ffi::OsString> for Error {
     }
 }
 
-//impl std::convert::From<config::ConfigError> for Error {
-//    fn from(err: config::ConfigError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
-//
-//impl std::convert::From<octocrab::Error> for Error {
-//    fn from(err: octocrab::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<config::ConfigError> for Error {
+    fn from(err: config::ConfigError) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<octocrab::Error> for Error {
+    fn from(err: octocrab::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 impl std::convert::From<std::env::VarError> for Error {
     fn from(err: std::env::VarError) -> Self {
@@ -204,8 +204,8 @@ impl std::convert::From<std::env::VarError> for Error {
     }
 }
 
-//impl std::convert::From<reqwest::Error> for Error {
-//    fn from(err: reqwest::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}

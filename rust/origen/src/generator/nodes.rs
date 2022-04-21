@@ -8,7 +8,7 @@ pub type Id = usize;
 type Metadata = Option<IndexMap<String, crate::Metadata>>;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum Pattern {
+pub enum PAT {
     /// A simple node that is quick to write and use in processor unit tests
     T(usize),
     /// This will be ignored by all processors, so can be used to indicate the absence of a node
@@ -216,10 +216,10 @@ pub enum Pattern {
     OrigenRoot,
 }
 
-impl std::fmt::Display for Pattern {
+impl std::fmt::Display for PAT {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            Pattern::PinGroupAction(grp_id, _actions, _metadata) => {
+            PAT::PinGroupAction(grp_id, _actions, _metadata) => {
                 let dut = crate::dut();
                 write!(
                     f,
@@ -227,7 +227,7 @@ impl std::fmt::Display for Pattern {
                     format!("{:?} -> ({})", self, &dut.pin_groups[*grp_id].name)
                 )
             }
-            Pattern::PinAction(id, _actions, _metadata) => {
+            PAT::PinAction(id, _actions, _metadata) => {
                 let dut = crate::dut();
                 write!(f, "{}", format!("{:?} -> ({})", self, &dut.pins[*id].name))
             }

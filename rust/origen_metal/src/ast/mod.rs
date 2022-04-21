@@ -4,5 +4,5 @@ mod processor;
 mod processors;
 
 pub use ast::AST;
-pub use node::Node;
+pub use node::{Attrs, Meta, Node};
 pub use processor::{Processor, Return};

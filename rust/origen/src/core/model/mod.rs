@@ -1,7 +1,6 @@
 pub mod pins;
 pub mod registers;
 pub mod timesets;
-use crate::error::Error;
 use crate::Dut;
 use crate::Result;
 use indexmap::map::IndexMap;
@@ -62,10 +61,11 @@ impl Model {
 
     pub fn add_service(&mut self, name: &str, id: usize) -> Result<()> {
         if self.services.contains_key(name) {
-            return Err(Error::new(&format!(
+            bail!(
                 "The model '{}' already has a service called '{}'",
-                self.name, name
-            )));
+                self.name,
+                name
+            );
         } else {
             self.services.insert(name.to_string(), id);
         }
@@ -75,10 +75,7 @@ impl Model {
     pub fn lookup(&self, key: &str) -> Result<&IndexMap<String, usize>> {
         match key {
             "timesets" => Ok(&self.timesets),
-            _ => Err(Error::new(&format!(
-                "No ID lookup table available for {}",
-                key
-            ))),
+            _ => Err(error!("No ID lookup table available for {}", key)),
         }
     }
 
@@ -100,10 +97,11 @@ impl Model {
         match self.memory_maps.get(name) {
             Some(x) => Ok(*x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "The block '{}' does not have a memory map named '{}'",
-                    self.name, name
-                )))
+                    self.name,
+                    name
+                )
             }
         }
     }

@@ -1,7 +1,7 @@
 use super::{AccessType, MemoryMap};
 use crate::core::model::Model;
+use crate::Dut;
 use crate::Result as OrigenResult;
-use crate::{Dut, Error};
 use indexmap::map::IndexMap;
 use std::sync::MutexGuard;
 
@@ -80,10 +80,11 @@ impl AddressBlock {
         match self.registers.get(name) {
             Some(x) => Ok(*x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "The address block '{}' does not have a register named '{}'",
-                    self.name, name
-                )))
+                    self.name,
+                    name
+                )
             }
         }
     }

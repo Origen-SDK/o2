@@ -6,7 +6,6 @@ use crate::core::model::registers::{
 };
 use crate::core::model::timesets::timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 use crate::core::model::Model;
-use crate::error::Error;
 use crate::origen_core_support::IdGetters;
 use crate::Result;
 use crate::DUT;
@@ -176,10 +175,7 @@ impl Dut {
         match self.models.get_mut(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
-                    "Something has gone wrong, no model exists with ID '{}'",
-                    id
-                )))
+                bail!("Something has gone wrong, no model exists with ID '{}'", id)
             }
         }
     }
@@ -190,10 +186,7 @@ impl Dut {
         match self.models.get(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
-                    "Something has gone wrong, no model exists with ID '{}'",
-                    id
-                )))
+                bail!("Something has gone wrong, no model exists with ID '{}'", id)
             }
         }
     }
@@ -203,10 +196,10 @@ impl Dut {
         match self.memory_maps.get_mut(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no memory_map exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -217,10 +210,10 @@ impl Dut {
         match self.memory_maps.get(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no memory_map exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -230,10 +223,10 @@ impl Dut {
         match self.address_blocks.get_mut(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no address_block exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -244,10 +237,10 @@ impl Dut {
         match self.address_blocks.get(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no address_block exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -257,10 +250,10 @@ impl Dut {
         match self.register_files.get_mut(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no register_file exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -271,10 +264,10 @@ impl Dut {
         match self.register_files.get(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no register_file exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -287,10 +280,10 @@ impl Dut {
                 Ok(x)
             }
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no register exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -304,10 +297,10 @@ impl Dut {
                 Ok(x)
             }
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no register exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -317,10 +310,7 @@ impl Dut {
         match self.bits.get_mut(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
-                    "Something has gone wrong, no bit exists with ID '{}'",
-                    id
-                )))
+                bail!("Something has gone wrong, no bit exists with ID '{}'", id)
             }
         }
     }
@@ -331,10 +321,7 @@ impl Dut {
         match self.bits.get(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
-                    "Something has gone wrong, no bit exists with ID '{}'",
-                    id
-                )))
+                bail!("Something has gone wrong, no bit exists with ID '{}'", id)
             }
         }
     }
@@ -357,11 +344,11 @@ impl Dut {
             if parent_id.is_some() {
                 let m = self.get_mut_model(parent_id.unwrap())?;
                 if m.sub_blocks.contains_key(name) {
-                    return Err(Error::new(&format!(
+                    bail!(
                         "The block '{}' already contains a sub-block called '{}'",
                         m.display_path(&DUT.lock().unwrap()),
                         name
-                    )));
+                    );
                 } else {
                     m.sub_blocks.insert(name.to_string(), id);
                 }
@@ -386,10 +373,11 @@ impl Dut {
             let model = self.get_mut_model(model_id)?;
 
             if model.memory_maps.contains_key(name) {
-                return Err(Error::new(&format!(
+                bail!(
                     "The block '{}' already contains a memory map called '{}'",
-                    model.name, name
-                )));
+                    model.name,
+                    name
+                );
             } else {
                 model.memory_maps.insert(name.to_string(), id);
             }
@@ -426,10 +414,11 @@ impl Dut {
             let map = self.get_mut_memory_map(memory_map_id)?;
 
             if map.address_blocks.contains_key(name) {
-                return Err(Error::new(&format!(
+                bail!(
                     "The memory map '{}' already contains an address block called '{}'",
-                    map.name, name
-                )));
+                    map.name,
+                    name
+                );
             } else {
                 map.address_blocks.insert(name.to_string(), id);
             }
@@ -481,10 +470,11 @@ impl Dut {
         {
             let a = self.get_mut_address_block(address_block_id)?;
             if a.registers.contains_key(name) {
-                return Err(Error::new(&format!(
+                bail!(
                     "The address block '{}' already contains a register called '{}'",
-                    a.name, name
-                )));
+                    a.name,
+                    name
+                );
             } else {
                 a.registers.insert(name.to_string(), id);
             }
@@ -496,7 +486,7 @@ impl Dut {
         }
         match bit_order.parse() {
             Ok(x) => defaults.bit_order = x,
-            Err(msg) => return Err(Error::new(&msg)),
+            Err(msg) => bail!(&msg),
         }
         let reg = Register {
             id: id,

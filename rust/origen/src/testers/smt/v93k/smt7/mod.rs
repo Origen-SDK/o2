@@ -1,11 +1,11 @@
 use crate::core::tester::{Interceptor, TesterAPI, TesterID};
-use crate::generator::ast::{Attrs, Node};
-use crate::generator::processor::Return;
+use crate::generator::PAT;
 use crate::prog_gen::Model;
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
 use crate::{Result, DUT};
+use origen_metal::ast::{Node, Return};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -67,9 +67,13 @@ impl VectorBased for SMT7 {
         Some(Ok("SQPG STOP;".to_string()))
     }
 
-    fn override_node(&self, renderer: &mut Renderer, node: &Node) -> Option<Result<Return>> {
+    fn override_node(
+        &self,
+        renderer: &mut Renderer,
+        node: &Node<PAT>,
+    ) -> Option<Result<Return<PAT>>> {
         match &node.attrs {
-            Attrs::Capture(capture, _metadata) => {
+            PAT::Capture(capture, _metadata) => {
                 if let Ok(ids) = capture.enabled_capture_pins() {
                     for pin in ids.iter() {
                         if let Some(_) = capture.symbol.as_ref() {

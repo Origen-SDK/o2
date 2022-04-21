@@ -1,5 +1,4 @@
 use crate::core::model::Model;
-use crate::error::Error;
 use crate::Dut;
 use crate::Result as OrigenResult;
 use indexmap::map::IndexMap;
@@ -35,10 +34,11 @@ impl MemoryMap {
         match self.address_blocks.get(name) {
             Some(x) => Ok(*x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "The memory map '{}' does not have an address block named '{}'",
-                    self.name, name
-                )))
+                    self.name,
+                    name
+                )
             }
         }
     }

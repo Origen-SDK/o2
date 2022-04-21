@@ -1,8 +1,8 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
 use crate::prog_gen::{
-    Bin, BinType, FlowCondition, LimitSelector, Model, VariableOperation, VariableType,
+    Bin, BinType, FlowCondition, LimitSelector, Model, VariableOperation, VariableType, PGM,
 };
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 
 /// This extracts all definitions for tests, test invocations, pattern sets, bins, etc.
 /// and converts them into a program model which is returned.
@@ -14,20 +14,20 @@ pub struct ExtractToModel {
     model: Model,
 }
 
-pub fn run(node: &Node, model: Model) -> Result<(Node, Model)> {
+pub fn run(node: &Node<PGM>, model: Model) -> Result<(Node<PGM>, Model)> {
     let mut p = ExtractToModel { model: model };
     let ast = node.process(&mut p)?.unwrap();
     Ok((ast, p.model))
 }
 
-impl Processor for ExtractToModel {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for ExtractToModel {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            Attrs::PGMResourcesFilename(name, kind) => {
+            PGM::ResourcesFilename(name, kind) => {
                 self.model.set_resources_filename(name.to_owned(), kind);
                 Return::Unmodified
             }
-            Attrs::PGMCondition(cond) => {
+            PGM::Condition(cond) => {
                 match cond {
                     FlowCondition::IfJob(_ids) | FlowCondition::UnlessJob(_ids) => {
                         self.model.record_variable_reference(
@@ -58,7 +58,7 @@ impl Processor for ExtractToModel {
                 }
                 Return::ProcessChildren
             }
-            Attrs::PGMSetFlag(name, _, _) => {
+            PGM::SetFlag(name, _, _) => {
                 self.model.record_variable_reference(
                     name.to_owned(),
                     VariableType::Flag,
@@ -66,7 +66,7 @@ impl Processor for ExtractToModel {
                 );
                 Return::ProcessChildren
             }
-            Attrs::PGMSetLimit(test_id, inv_id, selector, value) => {
+            PGM::SetLimit(test_id, inv_id, selector, value) => {
                 let t = {
                     if let Some(id) = test_id {
                         self.model.tests.get_mut(id)
@@ -84,13 +84,13 @@ impl Processor for ExtractToModel {
                 }
                 Return::None
             }
-            //Attrs::PGMPatternGroup(id, name, _, kind) => Ok(Return::None),
-            //Attrs::PGMPushPattern(id, name, start_label) => Ok(Return::None),
+            //PGM::PatternGroup(id, name, _, kind) => Ok(Return::None),
+            //PGM::PushPattern(id, name, start_label) => Ok(Return::None),
             // These will be left in the AST for later consumption by the flow, but they also function
             // as un-official bin definitions.
             // Any official bin defs in the AST for the same bin number will be combined with the model
             // defintion created from here.
-            Attrs::PGMBin(hardbin, softbin, kind) => {
+            PGM::Bin(hardbin, softbin, kind) => {
                 let flow = self.model.get_flow_mut(None);
                 if !flow.hardbins.contains_key(hardbin) {
                     let b = Bin {
@@ -114,7 +114,7 @@ impl Processor for ExtractToModel {
                 }
                 Return::Unmodified
             }
-            Attrs::PGMDefBin(number, is_soft, kind, description, priority) => {
+            PGM::DefBin(number, is_soft, kind, description, priority) => {
                 let flow = self.model.get_flow_mut(None);
                 let collection = match is_soft {
                     false => &mut flow.hardbins,

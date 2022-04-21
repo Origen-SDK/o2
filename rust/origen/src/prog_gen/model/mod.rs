@@ -113,7 +113,7 @@ impl ParamValue {
         if let ParamValue::Bool(v) = self {
             Ok(*v)
         } else {
-            error!("Not a boolean value")
+            bail!("Not a boolean value")
         }
     }
 }
@@ -188,7 +188,7 @@ impl Constraint {
                 if values.iter().any(|v| v == value) {
                     Ok(())
                 } else {
-                    error!(
+                    bail!(
                         "'{}' is not one of the permitted values: {}",
                         value,
                         values

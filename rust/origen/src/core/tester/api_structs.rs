@@ -1,13 +1,13 @@
-use crate::generator::Pattern;
-use crate::{Error, Result};
+use crate::generator::PAT;
+use crate::Result;
 use num_bigint::BigUint;
 use origen_metal::ast::Node;
 
-fn err(obj: &str, field: &str) -> Error {
-    Error::new(&format!(
+fn err_msg(obj: &str, field: &str) -> String {
+    format!(
         "Tried to retrieve {}'s field {} but this field has not been set",
         obj, field
-    ))
+    )
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -55,15 +55,15 @@ impl Capture {
         }
     }
 
-    pub fn to_node(&self) -> Node<Pattern> {
-        node!(Pattern::Capture, self.clone(), None)
+    pub fn to_node(&self) -> Node<PAT> {
+        node!(PAT::Capture, self.clone(), None)
     }
 
     pub fn get_symbol(&self) -> Result<&String> {
         if let Some(s) = self.symbol.as_ref() {
             Ok(s)
         } else {
-            Err(err("capture", "symbol"))
+            bail!(&err_msg("capture", "symbol"))
         }
     }
 
@@ -71,7 +71,7 @@ impl Capture {
         if let Some(c) = self.cycles {
             Ok(c)
         } else {
-            Err(err("capture", "cycles"))
+            bail!(&err_msg("capture", "cycles"))
         }
     }
 
@@ -79,7 +79,7 @@ impl Capture {
         if let Some(e) = self.enables.as_ref() {
             Ok(e)
         } else {
-            Err(err("capture", "enables"))
+            bail!(&err_msg("capture", "enables"))
         }
     }
 
@@ -87,7 +87,7 @@ impl Capture {
         if let Some(p) = self.pin_ids.as_ref() {
             Ok(p)
         } else {
-            Err(err("capture", "pin_ids"))
+            bail!(&err_msg("capture", "pin_ids"))
         }
     }
 
@@ -162,8 +162,8 @@ impl Overlay {
         }
     }
 
-    pub fn to_node(&self) -> Node<Pattern> {
-        node!(Pattern::Overlay, self.clone(), None)
+    pub fn to_node(&self) -> Node<PAT> {
+        node!(PAT::Overlay, self.clone(), None)
     }
 
     pub fn enabled_overlay_pins(&self) -> Result<Vec<usize>> {

@@ -16,9 +16,9 @@ where
     match handle.frontend() {
         Some(fe) => match fe.app()? {
             Some(app) => func(app.as_ref()),
-            None => error!("No application is currently available!"),
+            None => bail!("No application is currently available!"),
         },
-        None => error!("No frontend is currently available!"),
+        None => bail!("No frontend is currently available!"),
     }
 }
 
@@ -79,7 +79,7 @@ impl Handle {
     {
         match self.frontend.as_ref() {
             Some(f) => func(f.as_ref()),
-            None => error!("No frontend is currently available!"),
+            None => bail!("No frontend is currently available!"),
         }
     }
 
@@ -120,49 +120,49 @@ pub trait App {
     fn get_rc(&self) -> Result<&dyn RcAPI> {
         match self.rc()? {
             Some(rc) => Ok(rc),
-            None => error!("No RC is available on the application!"),
+            None => bail!("No RC is available on the application!"),
         }
     }
 
     fn get_unit_tester(&self) -> Result<&dyn UnitTester> {
         match self.unit_tester()? {
             Some(ut) => Ok(ut),
-            None => error!("No unit tester is available on the application!"),
+            None => bail!("No unit tester is available on the application!"),
         }
     }
 
     fn get_publisher(&self) -> Result<&dyn Publisher> {
         match self.publisher()? {
             Some(pb) => Ok(pb),
-            None => error!("No publisher is available on the application!"),
+            None => bail!("No publisher is available on the application!"),
         }
     }
 
     fn get_linter(&self) -> Result<&dyn Linter> {
         match self.linter()? {
             Some(l) => Ok(l),
-            None => error!("No linter is available on the application!"),
+            None => bail!("No linter is available on the application!"),
         }
     }
 
     fn get_website(&self) -> Result<&dyn Website> {
         match self.website()? {
             Some(w) => Ok(w),
-            None => error!("No website is available on the application!"),
+            None => bail!("No website is available on the application!"),
         }
     }
 
     fn get_mailer(&self) -> Result<&dyn Mailer> {
         match self.mailer()? {
             Some(m) => Ok(m),
-            None => error!("No mailer is available on the application!"),
+            None => bail!("No mailer is available on the application!"),
         }
     }
 
     fn get_release_scribe(&self) -> Result<&dyn ReleaseScribe> {
         match self.release_scribe()? {
             Some(rs) => Ok(rs),
-            None => error!("No release scribe is available on the application!"),
+            None => bail!("No release scribe is available on the application!"),
         }
     }
 

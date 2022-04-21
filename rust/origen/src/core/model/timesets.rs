@@ -3,7 +3,7 @@ pub mod timeset;
 use super::super::dut::Dut;
 use super::super::tester::TesterSource;
 use super::Model;
-use crate::error::Error;
+use crate::Result;
 use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 
 /// Returns an Origen Error with pre-formatted message complaining that
@@ -11,10 +11,10 @@ use timeset::{Event, Timeset, Wave, WaveGroup, Wavetable};
 #[macro_export]
 macro_rules! duplicate_error {
     ($container:expr, $model_name:expr, $duplicate_name:expr) => {
-        Err(Error::new(&format!(
+        Err(error!(
             "The block '{}' already contains a(n) {} called '{}'",
             $model_name, $container, $duplicate_name
-        )))
+        ))
     };
 }
 
@@ -24,20 +24,17 @@ macro_rules! duplicate_error {
 #[macro_export]
 macro_rules! backend_lookup_error {
     ($container:expr, $name:expr) => {
-        Err(Error::new(&format!(
+        Err(error!(
             "Something has gone wrong, no {} exists with ID '{}'",
             $container, $name
-        )))
+        ))
     };
 }
 
 #[macro_export]
 macro_rules! lookup_error {
     ($container:expr, $name:expr) => {
-        Err(Error::new(&format!(
-            "Could not find {} named {}!",
-            $container, $name
-        )))
+        Err(error!("Could not find {} named {}!", $container, $name))
     };
 }
 
@@ -50,7 +47,7 @@ impl Model {
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
         targets: Vec<&TesterSource>,
-    ) -> Result<Timeset, Error> {
+    ) -> Result<Timeset> {
         let t = Timeset::new(model_id, instance_id, name, period, default_period, targets);
         self.timesets.insert(String::from(name), instance_id);
         Ok(t)
@@ -76,7 +73,7 @@ impl Dut {
         period: Option<Box<dyn std::string::ToString>>,
         default_period: Option<f64>,
         targets: Vec<&TesterSource>,
-    ) -> Result<&Timeset, Error> {
+    ) -> Result<&Timeset> {
         let id;
         {
             id = self.timesets.len();
@@ -95,7 +92,7 @@ impl Dut {
         Ok(&self.timesets[id])
     }
 
-    pub fn create_wavetable(&mut self, timeset_id: usize, name: &str) -> Result<&Wavetable, Error> {
+    pub fn create_wavetable(&mut self, timeset_id: usize, name: &str) -> Result<&Wavetable> {
         let id;
         {
             id = self.wavetables.len();
@@ -119,7 +116,7 @@ impl Dut {
         wavetable_id: usize,
         name: &str,
         derived_from: Option<Vec<usize>>,
-    ) -> Result<&WaveGroup, Error> {
+    ) -> Result<&WaveGroup> {
         let id;
         {
             id = self.wave_groups.len();
@@ -143,7 +140,7 @@ impl Dut {
         wave_group_id: usize,
         indicator: &str,
         derived_from: Option<Vec<String>>,
-    ) -> Result<&Wave, Error> {
+    ) -> Result<&Wave> {
         let id;
         {
             id = self.waves.len();
@@ -193,7 +190,7 @@ impl Dut {
         at: Box<dyn std::string::ToString>,
         unit: Option<String>,
         action: &str,
-    ) -> Result<&Event, Error> {
+    ) -> Result<&Event> {
         let e_id;
         {
             e_id = self.wave_events.len();

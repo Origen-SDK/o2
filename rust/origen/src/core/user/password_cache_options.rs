@@ -25,7 +25,7 @@ impl PasswordCacheOptions {
             "session" | "session_store" => Ok(Self::Session),
             "keyring" | "true" => Ok(Self::Keyring),
             "none" | "false" => Ok(Self::None),
-            _ => error!(
+            _ => bail!(
                 "'user__password_cache_option' option '{}' is not known!",
                 opt
             ),
@@ -88,11 +88,11 @@ impl PasswordCacheOptions {
                     Ok(password) => Ok(Some(password)),
                     Err(e) => match e {
                         keyring::KeyringError::NoPasswordFound => Ok(None),
-                        _ => error!("{}", e),
+                        _ => bail!("{}", e),
                     },
                 }
             }
-            Self::None => error!("Cannot get password when password caching is unavailable!"),
+            Self::None => bail!("Cannot get password when password caching is unavailable!"),
         }
     }
 
@@ -111,7 +111,7 @@ impl PasswordCacheOptions {
                     Ok(_) => {}
                     Err(e) => match e {
                         keyring::KeyringError::NoPasswordFound => {}
-                        _ => return error!("{}", e),
+                        _ => bail!("{}", e),
                     },
                 }
             }

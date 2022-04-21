@@ -271,15 +271,3 @@ impl<T: Attrs> PartialEq<Node<T>> for AST<T> {
         self.to_node() == *node
     }
 }
-
-//impl<T> PartialEq<TEST> for AST<T> {
-//    fn eq(&self, test: &TEST) -> bool {
-//        self.to_node() == test.to_node()
-//    }
-//}
-//
-//impl<T> PartialEq<TestManager> for AST<T> {
-//    fn eq(&self, test: &TestManager) -> bool {
-//        self.to_node() == test.to_node()
-//    }
-//}
