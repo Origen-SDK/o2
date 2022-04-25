@@ -3,13 +3,17 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde;
 #[macro_use]
+extern crate pest_derive;
+#[macro_use]
 pub mod macros;
 
 pub mod prelude;
 
+pub mod ast;
 mod error;
 pub mod framework;
 pub mod frontend;
+pub mod stil;
 pub mod utils;
 use std::fmt::Display;
 

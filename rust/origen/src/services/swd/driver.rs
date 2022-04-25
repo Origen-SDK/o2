@@ -1,11 +1,12 @@
 use super::service::Service;
 use super::Acknowledgements;
 use crate::core::model::pins::PinCollection;
-use crate::generator::ast::*;
+use crate::generator::PAT;
 use crate::testers::api::ControllerAPI;
 use crate::testers::vector_based::api::*;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Error, Result, Transaction, TEST};
+use crate::{Result, Transaction, TEST};
+use origen_metal::ast::Node;
 
 impl ControllerAPI for Service {
     fn name(&self) -> String {
@@ -97,15 +98,15 @@ impl Service {
         Ok(())
     }
 
-    fn close_swd(&self, _nodes: &mut Vec<Node>) -> Result<()> {
+    fn close_swd(&self, _nodes: &mut Vec<Node<PAT>>) -> Result<()> {
         Ok(())
     }
 
-    pub fn process_transaction(&self, dut: &crate::Dut, node: &mut Node) -> Result<()> {
+    pub fn process_transaction(&self, dut: &crate::Dut, node: &mut Node<PAT>) -> Result<()> {
         let swdclk = PinCollection::from_group(dut, &self.swdclk.0, self.swdclk.1)?;
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         match &node.attrs {
-            Attrs::SWDWriteAP(_swd_id, transaction, ack, _metadata) => {
+            PAT::SWDWriteAP(_swd_id, transaction, ack, _metadata) => {
                 let mut nodes = vec![];
                 self.comment(&format!(
                     "Write AP - AP: {}, Data: 0x{:X}",
@@ -118,7 +119,7 @@ impl Service {
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
             }
-            Attrs::SWDVerifyAP(_swd_id, transaction, ack, parity_compare, _metadata) => {
+            PAT::SWDVerifyAP(_swd_id, transaction, ack, parity_compare, _metadata) => {
                 let mut nodes = vec![];
                 self.comment(&format!(
                     "Verify AP - AP: {}, Data: 0x{:X}",
@@ -131,7 +132,7 @@ impl Service {
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
             }
-            Attrs::SWDWriteDP(_swd_id, transaction, ack, _metadata) => {
+            PAT::SWDWriteDP(_swd_id, transaction, ack, _metadata) => {
                 let mut nodes = vec![];
                 self.comment(&format!(
                     "Write DP - DP: {}, Data: 0x{:X}",
@@ -144,7 +145,7 @@ impl Service {
                 self.close_swd(&mut nodes)?;
                 node.add_children(nodes);
             }
-            Attrs::SWDVerifyDP(_swd_id, transaction, ack, parity_compare, _metadata) => {
+            PAT::SWDVerifyDP(_swd_id, transaction, ack, parity_compare, _metadata) => {
                 let mut nodes = vec![];
                 self.comment(&format!(
                     "Verify DP - DP: {}, Data: 0x{:X}",
@@ -158,17 +159,14 @@ impl Service {
                 node.add_children(nodes);
             }
             _ => {
-                return Err(Error::new(&format!(
-                    "Unexpected node in SWD driver: {:?}",
-                    node
-                )))
+                bail!("Unexpected node in SWD driver: {:?}", node)
             }
         }
         Ok(())
     }
 
     pub fn line_reset(&self, dut: &crate::Dut) -> Result<usize> {
-        let n_id = TEST.push_and_open(node!(SWDLineReset));
+        let n_id = TEST.push_and_open(node!(PAT::SWDLineReset));
         let swdclk = PinCollection::from_group(dut, &self.swdclk.0, self.swdclk.1)?;
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         self.comment("Line Reset");

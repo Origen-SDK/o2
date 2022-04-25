@@ -87,7 +87,7 @@ pub fn virtual_env() -> Result<PathBuf> {
     for line in stderr {
         log_debug!("[STDERR] {}", line);
     }
-    error!("Could not read the path info from Poetry's output, run with full verbosity to see what happened")
+    bail!("Could not read the path info from Poetry's output, run with full verbosity to see what happened")
 }
 
 /// Get the Python version from the given command
@@ -215,7 +215,7 @@ pub fn run_with_callbacks(
     if process.wait()?.success() {
         Ok(())
     } else {
-        error!(
+        bail!(
             "Something went wrong running the operation '{}', the log may have more details",
             code
         )

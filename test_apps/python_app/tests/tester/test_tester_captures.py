@@ -205,13 +205,13 @@ class TestVectorBasedCaptures(Base):
 
         origen.target.setup(["tester/j750.py", "dut/eagle.py"])
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match="Pattern end reached but requested captures still remain"
         ):
             origen.producer.generate(error_on_captures_exceeding_cycles)
         origen.target.setup(["tester/j750.py", "dut/eagle.py"])
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match="Pattern end reached but requested captures still remain"
         ):
             origen.producer.generate(
@@ -220,7 +220,7 @@ class TestVectorBasedCaptures(Base):
         # V93K overrides the capture node as standalone capture cycles are meaningless to it (currently)
         origen.target.setup(["tester/v93k_smt7.py", "dut/eagle.py"])
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match="Pattern end reached but requested captures still remain"
         ):
             origen.producer.generate(
@@ -245,7 +245,7 @@ class TestVectorBasedCaptures(Base):
 
         origen.target.setup(["tester/v93k_smt7.py", "dut/eagle.py"])
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match=
                 "Generic capture is already occurring. Cannot initiate another capture"
         ):
@@ -253,7 +253,7 @@ class TestVectorBasedCaptures(Base):
 
         origen.target.setup(["tester/v93k_smt7.py", "dut/eagle.py"])
         with pytest.raises(
-                OSError,
+                RuntimeError,
                 match=
                 "Capture requested on pin 'clk' but this pin is already capturing"
         ):

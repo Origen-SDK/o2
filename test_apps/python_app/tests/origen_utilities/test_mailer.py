@@ -52,10 +52,10 @@ class TestMailer:
             assert retn["timeout"] == 60
             assert retn["service_user"] == None
             assert retn["dataset"] == None
-            assert isinstance(retn["username"], OSError)
+            assert isinstance(retn["username"], RuntimeError)
             assert "Cannot retrieve username when using auth method 'None'" in str(
                 retn["username"])
-            assert isinstance(retn["password"], OSError)
+            assert isinstance(retn["password"], RuntimeError)
             assert "Cannot retrieve password when using auth method 'None'" in str(
                 retn["password"])
             assert retn["sender"] == "minimum@origen.orgs"
@@ -71,7 +71,7 @@ class TestMailer:
             assert retn["server"] == "smtp.origen.org"
             assert retn["auth_method"] == "TLS"
             assert retn["service_user"] == "mailer_service_user"
-            assert isinstance(retn["dataset"], OSError)
+            assert isinstance(retn["dataset"], RuntimeError)
             assert "Cannot query the user dataset for the mailer when specifying a service user" in str(
                 retn["dataset"])
             assert retn["username"] == "mailer"
@@ -123,13 +123,13 @@ class TestMailer:
             retn = in_new_origen_proc(mod=mailer_configs)
             assert retn["server"] == "smtp.origen.org"
             assert retn["auth_method"] == "TLS"
-            assert isinstance(retn["service_user"], OSError)
+            assert isinstance(retn["service_user"], RuntimeError)
             assert err in str(retn["service_user"])
-            assert isinstance(retn["username"], OSError)
+            assert isinstance(retn["username"], RuntimeError)
             assert err in str(retn["username"])
-            assert isinstance(retn["password"], OSError)
+            assert isinstance(retn["password"], RuntimeError)
             assert err in str(retn["password"])
-            assert isinstance(retn["test"], OSError)
+            assert isinstance(retn["test"], RuntimeError)
             assert err in str(retn["test"])
             assert err in capfd.readouterr().out
 

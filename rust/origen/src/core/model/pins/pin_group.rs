@@ -2,7 +2,6 @@ use super::super::super::dut::Dut;
 use super::super::pins::Endianness;
 use super::pin::PinAction;
 use super::pin_store::PinStore;
-use crate::error::Error;
 use crate::{Capture, Overlay, Result, Transaction};
 
 // We'll maintain both the pin_names which the group was built with, but we'll also maintain the list
@@ -122,11 +121,11 @@ impl PinGroup {
         let mut sliced_names: Vec<usize> = vec![];
         for i in (start_idx..=stop_idx).step_by(step_size) {
             if i >= self.pin_ids.len() {
-                return Err(Error::new(&format!(
+                bail!(
                     "Index {} exceeds available pins in collection! (length: {})",
                     i,
                     self.pin_ids.len()
-                )));
+                );
             }
             let p = self.pin_ids[i].clone();
             sliced_names.push(p);

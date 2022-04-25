@@ -1,6 +1,6 @@
 use super::AddressBlock;
 use crate::Dut;
-use crate::{Error, Result};
+use crate::Result;
 use indexmap::map::IndexMap;
 use std::sync::MutexGuard;
 
@@ -50,10 +50,11 @@ impl RegisterFile {
         match self.registers.get(name) {
             Some(x) => Ok(*x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "The register file '{}' does not have a register named '{}'",
-                    self.name, name
-                )))
+                    self.name,
+                    name
+                )
             }
         }
     }

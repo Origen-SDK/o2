@@ -52,7 +52,7 @@ impl SupportedTester {
     pub fn new(name: &str) -> OrigenResult<Self> {
         match SupportedTester::from_str(name) {
             Ok(n) => Ok(n),
-            Err(msg) => error!("{}", msg),
+            Err(msg) => bail!("{}", msg),
         }
     }
 

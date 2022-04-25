@@ -1,10 +1,10 @@
 use crate::core::dut::Dut;
 use crate::core::file_handler::File;
 use crate::core::model::pins::StateTracker;
-use crate::generator::ast::{Attrs, Node};
-use crate::generator::processor::{Processor, Return};
+use crate::generator::PAT;
 use crate::STATUS;
 use crate::{Overlay, Result, DUT};
+use origen_metal::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -23,7 +23,11 @@ pub trait RendererAPI: std::fmt::Debug + crate::core::tester::TesterAPI {
     ) -> Option<Result<String>>;
     fn print_pinlist(&self, renderer: &mut Renderer) -> Option<Result<String>>;
 
-    fn override_node(&self, _renderer: &mut Renderer, _node: &Node) -> Option<Result<Return>> {
+    fn override_node(
+        &self,
+        _renderer: &mut Renderer,
+        _node: &Node<PAT>,
+    ) -> Option<Result<Return<PAT>>> {
         None
     }
 
@@ -64,7 +68,7 @@ pub struct Renderer<'a> {
 }
 
 impl<'a> Renderer<'a> {
-    pub fn run(tester: &'a dyn RendererAPI, ast: &Node) -> Result<Vec<PathBuf>> {
+    pub fn run(tester: &'a dyn RendererAPI, ast: &Node<PAT>) -> Result<Vec<PathBuf>> {
         // Screen out nodes not relevant to this renderer
         let mut n = TargetTester::run(ast, tester.id())?;
 
@@ -119,7 +123,7 @@ impl<'a> Renderer<'a> {
         grp_id: usize,
         actions: &Vec<String>,
         dut: &Dut,
-    ) -> Result<Return> {
+    ) -> Result<Return<PAT>> {
         let s = self.states(dut);
         s.update(grp_id, actions, dut)?;
         Ok(Return::Unmodified)
@@ -158,15 +162,15 @@ impl<'a> Renderer<'a> {
     }
 }
 
-impl<'a> Processor for Renderer<'a> {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl<'a> Processor<PAT> for Renderer<'a> {
+    fn on_node(&mut self, node: &Node<PAT>) -> Result<Return<PAT>> {
         match self.tester.override_node(self, &node) {
             Some(retn) => return retn,
             None => {}
         }
 
         match &node.attrs {
-            Attrs::Test(name) => {
+            PAT::Test(name) => {
                 let _ = STATUS.with_output_dir(false, |dir| {
                     let mut p = dir.to_path_buf();
                     p.push(self.tester.name().to_lowercase());
@@ -178,7 +182,7 @@ impl<'a> Processor for Renderer<'a> {
                 });
                 Ok(Return::ProcessChildren)
             }
-            Attrs::Comment(_level, msg) => {
+            PAT::Comment(_level, msg) => {
                 self.output_file.as_mut().unwrap().write_ln(&format!(
                     "{} {}",
                     self.tester.comment_str(),
@@ -186,7 +190,7 @@ impl<'a> Processor for Renderer<'a> {
                 ));
                 Ok(Return::Unmodified)
             }
-            Attrs::Text(text) => {
+            PAT::Text(text) => {
                 self.output_file.as_mut().unwrap().write_ln(&format!(
                     "{} {}",
                     self.tester.comment_str(),
@@ -194,18 +198,18 @@ impl<'a> Processor for Renderer<'a> {
                 ));
                 Ok(Return::Unmodified)
             }
-            Attrs::PatternHeader => Ok(Return::ProcessChildren),
+            PAT::PatternHeader => Ok(Return::ProcessChildren),
             // Attrs::PinGroupAction(grp_id, actions, _metadata) => {
             //     let dut = DUT.lock().unwrap();
             //     return self.update_states(*grp_id, actions, &dut);
             // },
-            Attrs::PinAction(pin_id, action, _metadata) => {
+            PAT::PinAction(pin_id, action, _metadata) => {
                 let dut = DUT.lock().unwrap();
                 let pin = &dut.pins[*pin_id];
                 let grp_id = dut.get_pin_group(pin.model_id, &pin.name).unwrap().id;
                 return self.update_states(grp_id, &vec![action.clone()], &dut);
             }
-            Attrs::Capture(capture, _metadata) => {
+            PAT::Capture(capture, _metadata) => {
                 if capture.pin_ids.is_some() {
                     for pin in capture.enabled_capture_pins()? {
                         self.capturing.insert(Some(pin), capture.symbol.clone());
@@ -215,7 +219,7 @@ impl<'a> Processor for Renderer<'a> {
                 }
                 Ok(Return::Unmodified)
             }
-            Attrs::Overlay(overlay, _) => {
+            PAT::Overlay(overlay, _) => {
                 if overlay.pin_ids.is_some() {
                     for pin in overlay.enabled_overlay_pins()? {
                         self.overlaying
@@ -235,7 +239,7 @@ impl<'a> Processor for Renderer<'a> {
                 }
                 Ok(Return::Unmodified)
             }
-            Attrs::Cycle(repeat, compressable) => {
+            PAT::Cycle(repeat, compressable) => {
                 if !self.pin_header_printed {
                     match self.tester.print_pinlist(self) {
                         Some(pinlist) => {
@@ -254,19 +258,19 @@ impl<'a> Processor for Renderer<'a> {
                 }
                 Ok(Return::Unmodified)
             }
-            Attrs::SetTimeset(timeset_id) => {
+            PAT::SetTimeset(timeset_id) => {
                 self.current_timeset_id = Some(*timeset_id);
                 Ok(Return::Unmodified)
             }
-            Attrs::SetPinHeader(pin_header_id) => {
+            PAT::SetPinHeader(pin_header_id) => {
                 self.pin_header_id = Some(*pin_header_id);
                 Ok(Return::Unmodified)
             }
-            Attrs::EndCapture(pin_id) => {
+            PAT::EndCapture(pin_id) => {
                 self.capturing.remove(&pin_id);
                 Ok(Return::Unmodified)
             }
-            Attrs::EndOverlay(label, pin_id) => {
+            PAT::EndOverlay(label, pin_id) => {
                 self.overlaying.remove(&pin_id);
                 if let Some(s) = self.tester.end_overlay(self, label, pin_id) {
                     self.output_file.as_mut().unwrap().write_ln(&format!(
@@ -277,10 +281,10 @@ impl<'a> Processor for Renderer<'a> {
                 }
                 Ok(Return::Unmodified)
             }
-            Attrs::PatternEnd => {
+            PAT::PatternEnd => {
                 // Raise an error is any leftover captures remain
                 if !self.capturing.is_empty() {
-                    return error!("Pattern end reached but requested captures still remain");
+                    bail!("Pattern end reached but requested captures still remain");
                 }
                 match self.tester.print_pattern_end(self) {
                     Some(end) => {

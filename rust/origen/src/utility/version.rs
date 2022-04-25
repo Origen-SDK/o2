@@ -43,7 +43,7 @@ impl Version {
             let (t, num) = Self::split_prerelease(split[3])?;
             pre = Some(semver::Prerelease::new(&format!("{}.{}", t, num))?);
         } else if split.len() > 4 {
-            return error!("Unexpected extra content after pre-release: '{}'", split[4]);
+            bail!("Unexpected extra content after pre-release: '{}'", split[4]);
         }
         let mut semver = semver::Version::parse(&v)?;
         if let Some(p) = pre {
@@ -70,13 +70,16 @@ impl Version {
                 split.0 = split.0.trim_end_matches(".");
                 match split.0 {
                     DEV | ALPHA | BETA => Ok((split.0, split.1.parse::<usize>()?)),
-                    _ => error!(
+                    _ => bail!(
                         "Expected prerelease of {}, {}, or {} but found {}",
-                        DEV, ALPHA, BETA, split.0
+                        DEV,
+                        ALPHA,
+                        BETA,
+                        split.0
                     ),
                 }
             }
-            None => error!(
+            None => bail!(
                 "Found existing prerelease '{}' but was unable to extract integer portion",
                 pre
             ),
@@ -237,7 +240,7 @@ impl Version {
                     }
                 }
                 None => {
-                    return error!(
+                    bail!(
                         "Found existing prerelease '{}' but was unable to extract integer portion",
                         self.semver.pre.as_str()
                     )
@@ -248,7 +251,7 @@ impl Version {
 
     fn increment_existing_prerelease(&mut self, prerelease: &str) -> Result<&Self> {
         if self.semver.pre.is_empty() {
-            return error!("No {} release currently on version {}", prerelease, self);
+            bail!("No {} release currently on version {}", prerelease, self);
         }
         match self.semver.pre.as_str().find(|c: char| c.is_digit(10)) {
             Some(i) => {
@@ -260,11 +263,11 @@ impl Version {
                     self.semver.pre =
                         semver::Prerelease::new(&format!("{}.{}", prerelease, current + 1))?;
                 } else {
-                    return error!("Attempted to increment existing prerelease '{}' but found existing prerelease of '{}'", prerelease, split.0);
+                    bail!("Attempted to increment existing prerelease '{}' but found existing prerelease of '{}'", prerelease, split.0);
                 }
             }
             None => {
-                return error!(
+                bail!(
                     "Found existing prerelease '{}' but was unable to extract integer portion",
                     self.semver.pre.as_str()
                 )
@@ -279,9 +282,10 @@ impl Version {
             ReleaseType::Minor => self.increment_minor(),
             ReleaseType::Patch => self.increment_patch(),
             _ => {
-                return error!(
+                bail!(
                     "Cannot create a {} tag from release type {:?}",
-                    prerelease, release_type
+                    prerelease,
+                    release_type
                 )
             }
         };

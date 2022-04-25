@@ -37,7 +37,7 @@ def test_adding_another_simple_timeset():
     # No default period set, so attempts to resolve the numerical value will fail.
     assert t.default_period == None
     assert t.__eval_str__ == "period"
-    with pytest.raises(OSError):
+    with pytest.raises(RuntimeError):
         t.period
 
     # Check the DUT
@@ -61,7 +61,7 @@ def test_none_on_retrieving_nonexistant_timesets():
 
 
 def test_exception_on_duplicate_timesets():
-    with pytest.raises(OSError):
+    with pytest.raises(RuntimeError):
         origen.dut.add_timeset("t0")
     assert len(origen.dut.timesets) == 2
     assert origen.dut.timesets.keys() == ["t0", "t1"]
@@ -611,9 +611,9 @@ class TestComplexTimingScenerios:
                                                              period=50,
                                                              inherit="shape")
         w.add_wavegroup("pins").add_wave("0")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w.apply_events(("shape", "pins"), 0)
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w.apply_events(("shape", "pins"), 0, 5, 10, 15)
 
     @pytest.mark.skip
@@ -622,9 +622,9 @@ class TestComplexTimingScenerios:
                                                              period=50,
                                                              inherit="shape")
         w.add_wavegroup("pins").add_wave("0")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w.apply_events(("blah", "pins"), 0, 5, 10)
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w.apply_events(("shape", "blah"), 0, 5, 10)
 
     @pytest.mark.skip
@@ -634,20 +634,20 @@ class TestComplexTimingScenerios:
         w = wgrp.add_wave('0')
         w.push_abstract_event(HighZ)
         assert w.action == HighZ
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w.at
 
     @pytest.mark.skip
     def test_exception_on_unknown_wave_inheritance(self):
         w2 = origen.dut.add_timeset("complex").add_wavetable("w2", period=40)
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w2.add_wavegroup("pins").add_wave("0", inherit=("blah", "0"))
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w2.add_wavegroup("pins").add_wave("0", inherit=("w1", "blah"))
 
     @pytest.mark.skip
     def test_exception_on_unknown_wavetable_inheritance(self):
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_timeset("complex").add_wavetable("w2",
                                                             period=40,
                                                             inherit="blah!")
@@ -757,14 +757,14 @@ class TestComplexTimingScenerios:
     def test_exception_on_duplicate_wavetable(self, define_complex_timeset):
         assert 'complex' in origen.dut.timesets
         assert 'w1' in origen.dut.timesets['complex'].wavetables
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.timesets['complex'].add_wavetable('w1')
 
     def test_exception_on_duplicate_wave_group(self, define_complex_timeset):
         assert 'complex' in origen.dut.timesets
         assert 'w1' in origen.dut.timesets['complex'].wavetables
         assert 'Ports' in origen.dut.timesets['complex'].wavetables['w1'].waves
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.timesets['complex'].wavetables['w1'].add_wave('Ports')
 
     def test_exception_on_duplicate_wave(self, define_complex_timeset):
@@ -773,7 +773,7 @@ class TestComplexTimingScenerios:
         assert 'Ports' in origen.dut.timesets['complex'].wavetables['w1'].waves
         assert '1' in origen.dut.timesets['complex'].wavetables['w1'].waves[
             'Ports'].waves
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.timesets['complex'].wavetables['w1'].waves[
                 'Ports'].add_wave('1')
 
@@ -795,13 +795,13 @@ class TestComplexTimingScenerios:
         w.push_event(at="period/2", action=w.DriveHigh)
         assert origen.dut.timesets['t'].wavetables['wtbl'].period is None
         assert w.events[0].__at__ == "period/2"
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w.events[0].at
 
     def test_exception_on_unknown_action(self, define_complex_timeset):
         w = origen.dut.timesets['complex'].wavetables['w1'].waves[
             'Ports'].waves["1"]
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             w.push_event(action="blah!", at="period/2")
 
 

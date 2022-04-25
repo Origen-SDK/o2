@@ -116,9 +116,11 @@ impl Test {
                 let kind = match &param.kind {
                     Some(k) => match ParamType::from_str(k) {
                         Err(msg) => {
-                            return error!(
+                            bail!(
                                 "{} (for parameter '{}' in test template '{}')",
-                                msg, name, &self.name
+                                msg,
+                                name,
+                                &self.name
                             )
                         }
                         Ok(t) => t,
@@ -153,9 +155,11 @@ impl Test {
             for (name, type_str) in params {
                 match ParamType::from_str(&type_str) {
                     Err(msg) => {
-                        return error!(
+                        bail!(
                             "{} (for parameter '{}' in test template '{}')",
-                            msg, name, &self.name
+                            msg,
+                            name,
+                            &self.name
                         )
                     }
                     Ok(t) => {
@@ -173,7 +177,7 @@ impl Test {
                 if self.params.contains_key(old) {
                     self.aliases.insert(clean(new), old.to_owned());
                 } else {
-                    return error!("Invalid alias: test template '{}' has no parameter '{}' (being aliased to '{}')", &self.name, old, new);
+                    bail!("Invalid alias: test template '{}' has no parameter '{}' (being aliased to '{}')", &self.name, old, new);
                 }
             }
         }
@@ -207,65 +211,83 @@ impl Test {
         match kind {
             &ParamType::String => match value.as_str() {
                 Some(x) => Ok(ParamValue::String(x.to_owned())),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not a string: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Int => match value.as_i64() {
                 Some(x) => Ok(ParamValue::Int(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not an integer: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::UInt => match value.as_u64() {
                 Some(x) => Ok(ParamValue::UInt(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not an unsigned integer: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Float => match value.as_f64() {
                 Some(x) => Ok(ParamValue::Float(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not a float: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Current => match value.as_f64() {
                 Some(x) => Ok(ParamValue::Current(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not a number: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Voltage => match value.as_f64() {
                 Some(x) => Ok(ParamValue::Voltage(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not a number: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Time => match value.as_f64() {
                 Some(x) => Ok(ParamValue::Time(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not a number: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Frequency => match value.as_f64() {
                 Some(x) => Ok(ParamValue::Frequency(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not a number: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Bool => match value.as_bool() {
                 Some(x) => Ok(ParamValue::Bool(x)),
-                None => error!(
+                None => bail!(
                     "Value given for '{}' in test '{}' is not a boolean: '{:?}'",
-                    name, &self.name, value
+                    name,
+                    &self.name,
+                    value
                 ),
             },
             &ParamType::Any => Ok(ParamValue::Any(format!("{}", value))),
@@ -293,9 +315,11 @@ impl Test {
                 if let Some(constraints) = self.constraints.get(&param_name) {
                     for constraint in constraints {
                         if let Err(e) = constraint.is_satisfied(&value) {
-                            return error!(
+                            bail!(
                                 "Illegal value applied to attribute '{}' of test '{}': {}",
-                                param_name_or_alias, &self.name, e
+                                param_name_or_alias,
+                                &self.name,
+                                e
                             );
                         }
                     }
@@ -303,7 +327,7 @@ impl Test {
                 self.values.insert(param_name, value);
                 Ok(())
             } else {
-                error!("The type of the given value for '{}' in test '{}' does not match the required type: expected {:?}, given {:?}", param_name, &self.name, kind, value)
+                bail!("The type of the given value for '{}' in test '{}' does not match the required type: expected {:?}, given {:?}", param_name, &self.name, kind, value)
             }
         } else {
             self.values.remove(&param_name);
@@ -354,9 +378,10 @@ impl Test {
             self.aliases.insert(clean(alias), param_name.to_string());
             Ok(())
         } else {
-            error!(
+            bail!(
                 "Test '{}' has no parameter named '{}'",
-                &self.name, param_name
+                &self.name,
+                param_name
             )
         }
     }
@@ -378,9 +403,10 @@ impl Test {
             if self.aliases.contains_key(&n) {
                 Ok(&self.aliases[&n])
             } else {
-                error!(
+                bail!(
                     "Test '{}' does not have a parameter named '{}'",
-                    self.name, name
+                    self.name,
+                    name
                 )
             }
         }

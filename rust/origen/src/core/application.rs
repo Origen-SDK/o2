@@ -43,11 +43,11 @@ impl Application {
         let version_file = self.root.join("pyproject.toml");
         log_trace!("Reading app version");
         if !version_file.exists() {
-            return error!("File does not exist '{}'", version_file.display());
+            bail!("File does not exist '{}'", version_file.display());
         }
         let content = match fs::read_to_string(&version_file) {
             Ok(x) => x,
-            Err(e) => return error!("There was a problem reading the app version file: {}", e),
+            Err(e) => bail!("There was a problem reading the app version file: {}", e),
         };
         lazy_static! {
             static ref VERSION_LINE: Regex =
@@ -57,7 +57,7 @@ impl Application {
             let captures = VERSION_LINE.captures(&content).unwrap();
             Ok(Version::new_pep440(&captures[1])?)
         } else {
-            error!(
+            bail!(
                 "Failed to read a version from file '{}'",
                 version_file.display()
             )
@@ -116,7 +116,7 @@ impl Application {
     pub fn rc(&self) -> Result<RevisionControl> {
         Ok(self.with_config(|cfg| match cfg.revision_control.as_ref() {
             Some(rc) => Ok(RevisionControl::from_config(rc)?),
-            None => error!("No app RC was given. Cannot create RC driver"),
+            None => bail!("No app RC was given. Cannot create RC driver"),
         })?)
     }
 
@@ -222,10 +222,10 @@ impl Application {
                 } else {
                     if let Some(m) = &package_result.message {
                         log_error!("Failed to build package: {}", m);
-                        return error!("Failed to build package: {}", m);
+                        bail!("Failed to build package: {}", m);
                     } else {
                         log_error!("Failed to build package");
-                        return error!("Failed to build package");
+                        bail!("Failed to build package");
                     }
                 }
 
@@ -240,10 +240,10 @@ impl Application {
                 } else {
                     if let Some(m) = publish_result.message {
                         log_error!("{}", m);
-                        return error!("{}", m);
+                        bail!("{}", m);
                     } else {
                         log_error!("Failed to upload package!");
-                        return error!("Failed to upload package!");
+                        bail!("Failed to upload package!");
                     }
                 }
             } else {

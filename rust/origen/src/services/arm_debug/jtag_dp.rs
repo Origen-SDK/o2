@@ -1,8 +1,9 @@
 use super::super::super::services::Service;
+use crate::generator::PAT;
 use crate::precludes::controller::*;
 use crate::{
-    add_reg, add_reg_32bit, field, get_bc_for, get_reg, some_hard_reset_val, Dut, Error, Result,
-    Services, TEST,
+    add_reg, add_reg_32bit, field, get_bc_for, get_reg, some_hard_reset_val, Dut, Result, Services,
+    TEST,
 };
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
@@ -92,9 +93,7 @@ impl JtagDP {
             if let Some(j_id) = arm_debug.jtag_id {
                 jtag_id = j_id;
             } else {
-                return Err(Error::new(
-                    "Arm Debug's JTAG DP requires a JTAG service. No JTAG service was given",
-                ));
+                bail!("Arm Debug's JTAG DP requires a JTAG service. No JTAG service was given",);
             }
         }
         services.push_service(Service::ArmDebugJtagDP(Self {
@@ -135,7 +134,12 @@ impl JtagDP {
         services: &Services,
         transaction: Transaction,
     ) -> Result<()> {
-        let n_id = TEST.push_and_open(node!(JTAGDPWriteDP, self.id, transaction.clone(), None));
+        let n_id = TEST.push_and_open(node!(
+            PAT::JTAGDPWriteDP,
+            self.id,
+            transaction.clone(),
+            None
+        ));
 
         let reg = get_reg!(dut, self.address_block_id, "dpacc");
 
@@ -162,7 +166,12 @@ impl JtagDP {
         transaction: Transaction,
         write_dpacc: bool,
     ) -> Result<()> {
-        let n_id = TEST.push_and_open(node!(JTAGDPVerifyDP, self.id, transaction.clone(), None));
+        let n_id = TEST.push_and_open(node!(
+            PAT::JTAGDPVerifyDP,
+            self.id,
+            transaction.clone(),
+            None
+        ));
         if write_dpacc {
             let reg = get_reg!(dut, self.address_block_id, "dpacc");
 
@@ -198,7 +207,12 @@ impl JtagDP {
         services: &Services,
         transaction: Transaction,
     ) -> Result<()> {
-        let n_id = TEST.push_and_open(node!(JTAGDPWriteAP, self.id, transaction.clone(), None));
+        let n_id = TEST.push_and_open(node!(
+            PAT::JTAGDPWriteAP,
+            self.id,
+            transaction.clone(),
+            None
+        ));
         let reg = get_reg!(dut, self.address_block_id, "apacc");
 
         let bc = get_bc_for!(dut, reg, "a")?;
@@ -224,7 +238,12 @@ impl JtagDP {
         transaction: Transaction,
         write_apacc: bool,
     ) -> Result<()> {
-        let n_id = TEST.push_and_open(node!(JTAGDPVerifyAP, self.id, transaction.clone(), None));
+        let n_id = TEST.push_and_open(node!(
+            PAT::JTAGDPVerifyAP,
+            self.id,
+            transaction.clone(),
+            None
+        ));
         if write_apacc {
             let reg = get_reg!(dut, self.address_block_id, "apacc");
 

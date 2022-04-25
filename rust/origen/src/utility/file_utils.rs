@@ -24,13 +24,13 @@ pub fn to_relative_path(abs_path: &Path, relative_to: Option<&Path>) -> Result<P
         Some(p) => p.to_path_buf(),
     };
     if !abs_path.is_absolute() {
-        return error!(
+        bail!(
             "An absolute path must be given to to_relative_path, this is relative: '{}'",
             abs_path.display()
         );
     }
     if !base.is_absolute() {
-        return error!(
+        bail!(
             "An absolute path must be given to to_relative_path, this is relative: '{}'",
             base.display()
         );
@@ -55,7 +55,7 @@ pub fn to_relative_path(abs_path: &Path, relative_to: Option<&Path>) -> Result<P
             (Some(a), Some(b)) if comps.is_empty() && a == b => (),
             (Some(a), Some(b)) if b == Component::CurDir => comps.push(a),
             (Some(_), Some(b)) if b == Component::ParentDir => {
-                return error!(
+                bail!(
                     "Could not work out relative path from '{}' to '{}'",
                     base.display(),
                     abs_path.display()
@@ -107,12 +107,10 @@ where
 /// Move a file or directory
 pub fn mv(source: &Path, dest: &Path) -> Result<()> {
     if cfg!(windows) {
-        return error!(
-            "origen::utility::file_utils::move function is not supported on Windows yet"
-        );
+        bail!("origen::utility::file_utils::move function is not supported on Windows yet");
     }
     if !source.exists() {
-        return error!("The source file/dir {} does not exist", source.display());
+        bail!("The source file/dir {} does not exist", source.display());
     }
     log_debug!("Moving '{}' to '{}'", source.display(), dest.display());
 
@@ -127,7 +125,7 @@ pub fn mv(source: &Path, dest: &Path) -> Result<()> {
     if process.wait()?.success() {
         Ok(())
     } else {
-        error!(
+        bail!(
             "Something went wrong when moving {}, see log for details",
             source.display()
         )
@@ -153,11 +151,11 @@ pub fn copy_contents(source: &Path, dest: &Path) -> Result<()> {
 
 pub fn _copy(source: &Path, dest: &Path, contents: bool) -> Result<()> {
     if !source.exists() {
-        return error!("The source file/dir {} does not exist", source.display());
+        bail!("The source file/dir {} does not exist", source.display());
     }
 
     if cfg!(windows) {
-        error!("origen::utility::file_utils copy functions are not supported on Windows yet")
+        bail!("origen::utility::file_utils copy functions are not supported on Windows yet")
     } else {
         let mut args = vec!["-r"];
 
@@ -181,7 +179,7 @@ pub fn _copy(source: &Path, dest: &Path, contents: bool) -> Result<()> {
         if process.wait()?.success() {
             Ok(())
         } else {
-            error!(
+            bail!(
                 "Something went wrong when copying {}, see log for details",
                 source.display()
             )
@@ -259,7 +257,7 @@ impl FilePermissions {
             }
             "public" | "Public" | "557" => Ok(Self::Public),
             "world_writable" | "WorldWritable" | "777" => Ok(Self::WorldWritable),
-            _ => error!("Cannot infer permisions from {}", perms),
+            _ => bail!("Cannot infer permisions from {}", perms),
         }
     }
 
@@ -274,9 +272,10 @@ impl FilePermissions {
             _ => {
                 if perms > MAX_PERMISSIONS {
                     // given value exceeds max Unix permissions. Very likely this is a mistake
-                    error!(
+                    bail!(
                         "Given permissions {:#o} exceeds maximum supported Unix permissions {:#o}",
-                        perms, MAX_PERMISSIONS
+                        perms,
+                        MAX_PERMISSIONS
                     )
                 } else {
                     Ok(Self::Custom(perms))
@@ -305,7 +304,7 @@ impl FilePermissions {
                     crate::LOGGER.warning(&message);
                     Ok(())
                 } else {
-                    error!("{}", message)
+                    bail!("{}", message)
                 }
             }
         }

@@ -2,7 +2,7 @@ use super::super::pins::pins_to_backend_lookup_fields;
 use super::timeset_container::{
     EventContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
 };
-use origen::error::Error;
+use origen::Error;
 use origen::DUT;
 use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
@@ -24,10 +24,10 @@ macro_rules! pytimeset {
         } else {
             // Note: Errors here shouldn't happen. Any errors that arise are either
             // bugs or from the user meta-programming their way into the backend DB.
-            Err(PyErr::from(origen::error::Error::new(&format!(
+            Err(PyErr::from(error!(
                 "No timeset {} has been added on block {}",
                 $name, $model.name
-            ))))
+            )))
         }
     };
 }
@@ -70,10 +70,10 @@ macro_rules! pywavetable {
         } else {
             // Note: Errors here shouldn't happen. Any errors that arise are either
             // bugs or from the user meta-programming their way into the backend DB.
-            Err(PyErr::from(origen::error::Error::new(&format!(
+            Err(PyErr::from(error!(
                 "No wavetable {} has been added on block {}",
                 $name, $timeset.name
-            ))))
+            )))
         }
     };
 }
@@ -96,10 +96,10 @@ macro_rules! pywave_group {
         } else {
             // Note: Errors here shouldn't happen. Any errors that arise are either
             // bugs or from the user meta-programming their way into the backend DB.
-            Err(PyErr::from(origen::error::Error::new(&format!(
+            Err(PyErr::from(error!(
                 "No wave group {} has been added on block {}",
                 $name, $wavetable.name
-            ))))
+            )))
         }
     };
 }
@@ -123,10 +123,10 @@ macro_rules! pywave {
         } else {
             // Note: Errors here shouldn't happen. Any errors that arise are either
             // bugs or from the user meta-programming their way into the backend DB.
-            Err(PyErr::from(origen::error::Error::new(&format!(
+            Err(PyErr::from(error!(
                 "No wave {} has been added on block {}",
                 $name, $wave_group.name
-            ))))
+            )))
         }
     };
 }
@@ -152,10 +152,10 @@ macro_rules! pyevent {
         } else {
             // Note: Errors here shouldn't happen. Any errors that arise are either
             // bugs or from the user meta-programming their way into the backend DB.
-            Err(PyErr::from(origen::error::Error::new(&format!(
+            Err(PyErr::from(error!(
                 "No event at {} has been added on wave {}",
                 $event_index, $wave.indicator
-            ))))
+            )))
         }
     };
 }

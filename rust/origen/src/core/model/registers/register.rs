@@ -3,8 +3,8 @@ use super::{AccessType, AddressBlock, BitCollection, BitOrder, Field, RegisterFi
 use crate::core::model::Model;
 use crate::utility::big_uint_helpers::bit_slice;
 use crate::Result as OrigenResult;
+use crate::Result;
 use crate::{Dut, LOGGER};
-use crate::{Error, Result};
 use indexmap::map::IndexMap;
 use num_bigint::BigUint;
 use std::cmp;
@@ -245,10 +245,12 @@ impl Register {
     /// at that bit position.
     pub fn field_for_bit(&self, index: usize) -> Result<Option<&Field>> {
         if index >= self.size {
-            return Err(Error::new(&format!(
+            bail!(
                 "Tried to look up bit field at index {} in reg {}, but it is only {} bits wide",
-                index, self.name, self.size
-            )));
+                index,
+                self.name,
+                self.size
+            );
         }
         Ok(self
             .fields
@@ -646,7 +648,7 @@ impl Register {
     ) -> OrigenResult<&mut Field> {
         let acc: AccessType = match access.parse() {
             Ok(x) => x,
-            Err(msg) => return Err(Error::new(&msg)),
+            Err(msg) => bail!(&msg),
         };
         if self.bit_order == BitOrder::MSB0 {
             offset = self.size - offset - width;

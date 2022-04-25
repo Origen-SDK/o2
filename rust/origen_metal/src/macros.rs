@@ -1,4 +1,38 @@
 #[macro_export]
+macro_rules! node {
+    ( $attr:path, $( $x:expr ),* => $( $c:expr ),* $(,)?) => {
+        {
+            $crate::ast::Node::new_with_children($attr($( $x ),*), vec![$( $c ),*])
+        }
+    };
+    ( $attr:path, $( $x:expr ),* ; $m:expr) => {
+        {
+            $crate::ast::Node::new_with_meta($attr($( $x ),*), $m)
+        }
+    };
+    ( $attr:path, $( $x:expr ),* ) => {
+        {
+            $crate::ast::Node::new($attr($( $x ),*))
+        }
+    };
+    ( $attr:path ; $m:expr) => {
+        {
+            $crate::ast::Node::new_with_meta($attr, $m)
+        }
+    };
+    ( $attr:path => $( $c:expr ),* $(,)?) => {
+        {
+            $crate::ast::Node::new_with_children($attr, vec![$( $c ),*])
+        }
+    };
+    ( $attr:path ) => {
+        {
+            $crate::ast::Node::new($attr)
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! bail {
     ($msg:literal $(,)?) => {
         return Err($crate::error!($msg))

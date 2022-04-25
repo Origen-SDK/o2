@@ -25,7 +25,7 @@ impl PasswordCacheOptions {
             "session" | "session_store" => Ok(Self::Session),
             "keyring" | "true" => Ok(Self::Keyring),
             "none" | "false" => Ok(Self::None),
-            _ => error!(
+            _ => bail!(
                 "'user__password_cache_option' option '{}' is not known!",
                 opt
             ),
@@ -50,7 +50,7 @@ impl PasswordCacheOptions {
             }
             Self::Keyring => {
                 log_trace!("Caching password in keyring...");
-                let k = keyring::Keyring::new(dataset, &user.id());
+                let k = keyring::Entry::new(dataset, &user.id());
                 k.set_password(password)?;
                 Ok(true)
             }
@@ -83,16 +83,16 @@ impl PasswordCacheOptions {
             }
             Self::Keyring => {
                 log_trace!("Checking for password in keyring...");
-                let k = keyring::Keyring::new(dataset, &user.id());
+                let k = keyring::Entry::new(dataset, &user.id());
                 match k.get_password() {
                     Ok(password) => Ok(Some(password)),
                     Err(e) => match e {
-                        keyring::KeyringError::NoPasswordFound => Ok(None),
-                        _ => error!("{}", e),
+                        keyring::Error::NoEntry => Ok(None),
+                        _ => bail!("{}", e),
                     },
                 }
             }
-            Self::None => error!("Cannot get password when password caching is unavailable!"),
+            Self::None => bail!("Cannot get password when password caching is unavailable!"),
         }
     }
 
@@ -106,12 +106,12 @@ impl PasswordCacheOptions {
                 }
             }
             Self::Keyring => {
-                let k = keyring::Keyring::new(&dataset.dataset_name, &parent.id());
+                let k = keyring::Entry::new(&dataset.dataset_name, &parent.id());
                 match k.delete_password() {
                     Ok(_) => {}
                     Err(e) => match e {
-                        keyring::KeyringError::NoPasswordFound => {}
-                        _ => return error!("{}", e),
+                        keyring::Error::NoEntry => {}
+                        _ => bail!("{}", e),
                     },
                 }
             }

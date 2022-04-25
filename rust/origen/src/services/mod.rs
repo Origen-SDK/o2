@@ -5,7 +5,7 @@ pub mod swd;
 
 pub use arm_debug::ArmDebug;
 
-use crate::{Error, Result};
+use crate::Result;
 
 #[derive(Debug)]
 pub enum Service {
@@ -22,100 +22,85 @@ impl Service {
     pub fn as_swd(&self) -> Result<&swd::Service> {
         match self {
             Self::SWD(s) => Ok(s),
-            _ => Err(Error::new(&format!(
-                "Expected service SWD but received {:?}",
-                self
-            ))),
+            _ => Err(error!("Expected service SWD but received {:?}", self)),
         }
     }
 
     pub fn as_jtag(&self) -> Result<&jtag::Service> {
         match self {
             Self::JTAG(s) => Ok(s),
-            _ => Err(Error::new(&format!(
-                "Expected service JTAG but received {:?}",
-                self
-            ))),
+            _ => Err(error!("Expected service JTAG but received {:?}", self)),
         }
     }
 
     pub fn as_simple(&self) -> Result<&simple::Service> {
         match self {
             Self::Simple(s) => Ok(s),
-            _ => Err(Error::new(&format!(
-                "Expected service Simple but received {:?}",
-                self
-            ))),
+            _ => Err(error!("Expected service Simple but received {:?}", self)),
         }
     }
 
     pub fn as_arm_debug(&self) -> Result<&arm_debug::ArmDebug> {
         match self {
             Self::ArmDebug(s) => Ok(s),
-            _ => Err(Error::new(&format!(
-                "Expected service ArmDebug but received {:?}",
-                self
-            ))),
+            _ => Err(error!("Expected service ArmDebug but received {:?}", self)),
         }
     }
 
     pub fn as_mut_arm_debug(&mut self) -> Result<&mut arm_debug::ArmDebug> {
         match self {
             Self::ArmDebug(s) => Ok(s),
-            _ => Err(Error::new(&format!(
-                "Expected service ArmDebug but received {:?}",
-                self
-            ))),
+            _ => Err(error!("Expected service ArmDebug but received {:?}", self)),
         }
     }
 
     pub fn as_dp(&self) -> Result<&arm_debug::DP> {
         match self {
             Self::ArmDebugDP(s) => Ok(s),
-            _ => Err(Error::new(&format!(
+            _ => Err(error!(
                 "Expected service ArmDebugDP but received {:?}",
                 self
-            ))),
+            )),
         }
     }
 
     pub fn as_mut_dp(&mut self) -> Result<&mut arm_debug::DP> {
         match self {
             Self::ArmDebugDP(s) => Ok(s),
-            _ => Err(Error::new(&format!(
+            _ => Err(error!(
                 "Expected service ArmDebugDP but received {:?}",
                 self
-            ))),
+            )),
         }
     }
 
     pub fn as_jtag_dp(&self) -> Result<&arm_debug::JtagDP> {
         match self {
             Self::ArmDebugJtagDP(s) => Ok(s),
-            _ => Err(Error::new(&format!(
+            _ => Err(error!(
                 "Expected service ArmDebugJtagDP but received {:?}",
                 self
-            ))),
+            )),
         }
     }
 
     pub fn as_mut_jtag_dp(&mut self) -> Result<&mut arm_debug::JtagDP> {
         match self {
             Self::ArmDebugJtagDP(s) => Ok(s),
-            _ => Err(Error::new(&format!(
+            _ => Err(error!(
                 "Expected service ArmDebugJtagDP but received {:?}",
                 self
-            ))),
+            )),
         }
     }
 
     pub fn as_mem_ap(&self) -> Result<&arm_debug::MemAP> {
         match self {
             Self::ArmDebugMemAP(s) => Ok(s),
-            _ => Err(Error::new(&format!(
+            _ => Err(error!(
                 "Expected service ArmDebugMemAP but received {:?}",
                 self
-            ))),
+            )),
         }
     }
 }
@@ -163,10 +148,10 @@ impl Services {
         match self.services.get_mut(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no service exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -177,10 +162,10 @@ impl Services {
         match self.services.get(id) {
             Some(x) => Ok(x),
             None => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Something has gone wrong, no service exists with ID '{}'",
                     id
-                )))
+                )
             }
         }
     }
@@ -234,10 +219,7 @@ impl Services {
         let s = self.get_mut_service(id)?;
         match s {
             Service::ArmDebug(a) => Ok(a),
-            _ => Err(Error::new(&format!(
-                "Expected service ArmDebug but received {:?}",
-                s
-            ))),
+            _ => Err(error!("Expected service ArmDebug but received {:?}", s)),
         }
     }
 }

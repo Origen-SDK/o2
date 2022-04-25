@@ -1,8 +1,8 @@
 use crate::core::tester::{Interceptor, TesterAPI, TesterID};
-use crate::error::Error;
-use crate::generator::ast::Node;
-use crate::generator::processor::Processor;
+use crate::generator::PAT;
 use crate::testers::SupportedTester;
+use crate::Result;
+use origen_metal::ast::{Node, Processor};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -14,25 +14,25 @@ impl Default for Renderer {
     }
 }
 
-impl Processor for Renderer {}
+impl Processor<PAT> for Renderer {}
 
 impl Interceptor for Renderer {
-    fn clear_timeset(&mut self, _node: &Node) -> Result<(), Error> {
+    fn clear_timeset(&mut self, _node: &Node<PAT>) -> Result<()> {
         println!("<Issue command to clear the timeset in the simulator...>");
         Ok(())
     }
 
-    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node) -> Result<(), Error> {
+    fn set_timeset(&mut self, _timeset_id: usize, _node: &Node<PAT>) -> Result<()> {
         println!("<Issue command to set the timeset in the simulator...>");
         Ok(())
     }
 
-    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<(), Error> {
+    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node<PAT>) -> Result<()> {
         println!("<Issue command to cycle the simulator...>");
         Ok(())
     }
 
-    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<(), Error> {
+    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node<PAT>) -> Result<()> {
         println!("<Issue command to place a comment in the simulator...>");
         Ok(())
     }
@@ -45,7 +45,7 @@ impl TesterID for Renderer {
 }
 
 impl TesterAPI for Renderer {
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
+    fn render_pattern(&mut self, ast: &Node<PAT>) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
         Ok(vec![])
     }

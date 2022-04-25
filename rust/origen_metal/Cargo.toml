@@ -25,6 +25,21 @@ git2 = "0.13"
 dirs = "2.0"
 wait-timeout = "0.2.0"
 chrono = "0.4.11"
+serde-pickle = "0.6"
+enum-utils = "0.1.2"
+pest = "2.1"
+pest_derive = "2.1"
+shellexpand = "1.1.1"
+keyring = "1"
+num-bigint = {version = "0.4.0", features = ["serde"]}
+serde_json = "1.0"
+octocrab = "0.9.1"
+reqwest = {version = "0.11.3", features = ["blocking", "json"]}
+ldap3 = "0.8.1"
+config = "0.9"
+lettre = {version = "=0.10.0-alpha.4", features = ["builder"]}
+aes-gcm = "0.8"
+semver = "1.0.1"
 
 [build-dependencies]
 built = "0.5.1"

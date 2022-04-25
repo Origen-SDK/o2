@@ -99,7 +99,7 @@ impl Sessions {
         if let Some(root) = self.app_session_root.as_ref() {
             Ok(root.to_string_lossy().to_string())
         } else {
-            error!("Attempted to get app session root but this hasn't been set yet")
+            bail!("Attempted to get app session root but this hasn't been set yet")
         }
     }
 
@@ -237,7 +237,7 @@ impl SessionStore {
             // See: https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_string_lossy
             Ok(p.to_string_lossy().to_string())
         } else {
-            crate::error!(
+            bail!(
                 "Problem occurred resolving session name. Expected a file stem in {:?}",
                 self.path
             )
@@ -294,22 +294,22 @@ impl SessionStore {
                                         Value::Integer(b) => {
                                             retn.push(*b as u8);
                                         },
-                                        _ => return error!("Data at {} was not serialized!", key)
+                                        _ => bail!("Data at {} was not serialized!", key)
                                     }
                                 }
                                 Ok(Some(retn))
                             },
-                            _ => return error!("Data at {} was not serialized!", key)
+                            _ => bail!("Data at {} was not serialized!", key)
                         }
                     } else {
-                        return error!(
+                        bail!(
                             "Expected data entry for {} in {:?}, but none was found",
                             key,
                             self.path
                         )
                     }
                 }
-                _ => return error!(
+                _ => bail!(
                     "Session data for {} in {:?} was not stored correctly. Expected a table, received {:?}",
                     key,
                     self.path,
@@ -344,7 +344,7 @@ impl SessionStore {
                     Ok(Some(toml::from_str(&buffer).unwrap()))
                 }
             } else {
-                return error!("Session located at {:?} does not appear to be a file", path);
+                bail!("Session located at {:?} does not appear to be a file", path);
             }
         } else {
             Ok(None)

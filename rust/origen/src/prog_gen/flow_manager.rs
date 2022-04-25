@@ -4,9 +4,10 @@
 //! application code to always deal with an immutable reference to an instance of this
 //! struct at origen::FLOW.
 
-use crate::generator::ast::*;
-use crate::Result;
+use crate::prog_gen::PGM;
 use indexmap::IndexMap;
+use origen_metal::ast::{Node, AST};
+use origen_metal::Result;
 use std::fmt;
 use std::sync::RwLock;
 
@@ -17,7 +18,7 @@ pub struct FlowManager {
 struct Inner {
     /// Flows are represented as an AST, the last flow is the current one and so an IndexMap
     /// (ordered) instead of a regular HashMap
-    flows: IndexMap<String, AST>,
+    flows: IndexMap<String, AST<PGM>>,
     /// Selects one of the flows such that most FlowManager methods will act on that flow. By
     /// default and if no flow is selected, methods will act on the last flow in flows, which
     /// effectively is "the current flow" during test program generation.
@@ -63,7 +64,7 @@ impl FlowManager {
     pub fn select(&self, name: &str) -> Result<()> {
         let mut inner = self.inner.write().unwrap();
         if !inner.flows.contains_key(name) {
-            return error!("No flow named '{}' exists", name);
+            bail!("No flow named '{}' exists", name);
         }
         inner.selected_flow = Some(name.to_string());
         Ok(())
@@ -81,7 +82,7 @@ impl FlowManager {
     /// The result of the given function is returned.
     pub fn with_all_flows<T, F>(&self, mut func: F) -> Result<T>
     where
-        F: FnMut(&IndexMap<String, AST>) -> Result<T>,
+        F: FnMut(&IndexMap<String, AST<PGM>>) -> Result<T>,
     {
         let inner = self.inner.read().unwrap();
         func(&inner.flows)
@@ -92,27 +93,27 @@ impl FlowManager {
     /// flow exists yet
     pub fn with_selected_flow<T, F>(&self, func: F) -> Result<T>
     where
-        F: FnOnce(&AST) -> Result<T>,
+        F: FnOnce(&AST<PGM>) -> Result<T>,
     {
         let inner = self.inner.read().unwrap();
         if let Some(name) = &inner.selected_flow {
             if let Some(flow) = inner.flows.get(name) {
                 return func(flow);
             } else {
-                return error!("Something has gone wrong, flow '{}' no longer exists", name);
+                bail!("Something has gone wrong, flow '{}' no longer exists", name);
             }
         } else {
             if let Some(flow) = inner.flows.values().last() {
                 return func(flow);
             }
         }
-        return error!("No flow exists yet");
+        bail!("No flow exists yet");
     }
 
     /// Like with_selected_flow() but with a mutable reference to the flow AST
     pub fn with_selected_flow_mut<T, F>(&self, func: F) -> Result<T>
     where
-        F: FnOnce(&mut AST) -> Result<T>,
+        F: FnOnce(&mut AST<PGM>) -> Result<T>,
     {
         let mut inner = self.inner.write().unwrap();
 
@@ -134,17 +135,17 @@ impl FlowManager {
                 return func(flow);
             }
         }
-        return error!("No flow exists yet");
+        bail!("No flow exists yet");
     }
 
     /// Starts a new flow, returns an error if a flow with the same name already exists.
     pub fn start(&self, name: &str) -> Result<()> {
         let mut inner = self.inner.write().unwrap();
         if inner.flows.contains_key(name) {
-            return error!("A flow called '{}' already exists", name);
+            bail!("A flow called '{}' already exists", name);
         }
         let mut ast = AST::new();
-        ast.start(node!(PGMFlow, name.to_string()));
+        ast.start(node!(PGM::Flow, name.to_string()));
         inner.flows.insert(name.to_string(), ast);
         Ok(())
     }
@@ -155,14 +156,14 @@ impl FlowManager {
     }
 
     /// Push a new terminal node into the AST for the current flow
-    pub fn push(&self, node: Node) -> Result<()> {
+    pub fn push(&self, node: Node<PGM>) -> Result<()> {
         self.with_selected_flow_mut(|flow| {
             flow.push(node);
             Ok(())
         })
     }
 
-    pub fn append(&self, nodes: &mut Vec<Node>) -> Result<()> {
+    pub fn append(&self, nodes: &mut Vec<Node<PGM>>) -> Result<()> {
         self.with_selected_flow_mut(|flow| {
             flow.append(nodes);
             Ok(())
@@ -175,7 +176,7 @@ impl FlowManager {
     /// when calling close(). If the reference does not match the expected an error will
     /// be raised. This will catch any cases of application code forgetting to close
     /// a node before closing one of its parents.
-    pub fn push_and_open(&self, node: Node) -> Result<usize> {
+    pub fn push_and_open(&self, node: Node<PGM>) -> Result<usize> {
         self.with_selected_flow_mut(|flow| Ok(flow.push_and_open(node)))
     }
 
@@ -188,14 +189,14 @@ impl FlowManager {
     /// replace the last node that was pushed.
     /// Fails if the AST has no children yet or if the offset is otherwise out
     /// of range.
-    pub fn replace(&self, node: Node, offset: usize) -> Result<()> {
+    pub fn replace(&self, node: Node<PGM>, offset: usize) -> Result<()> {
         self.with_selected_flow_mut(|flow| flow.replace(node, offset))
     }
 
     /// Returns a copy of node n - offset, an offset of 0 means
     /// the last node pushed.
     /// Fails if the offset is out of range.
-    pub fn get(&self, offset: usize) -> Result<Node> {
+    pub fn get(&self, offset: usize) -> Result<Node<PGM>> {
         self.with_selected_flow(|flow| flow.get(offset))
     }
 
@@ -214,13 +215,13 @@ impl FlowManager {
     ///  2      |       n1    |     n2.1
     ///
     /// Fails if the offset is out of range.
-    pub fn get_with_descendants(&self, offset: usize) -> Result<Node> {
+    pub fn get_with_descendants(&self, offset: usize) -> Result<Node<PGM>> {
         self.with_selected_flow(|flow| flow.get_with_descendants(offset))
     }
 
     /// Insert the node at position n - offset, using offset = 0 is equivalent
     /// calling push().
-    pub fn insert(&self, node: Node, offset: usize) -> Result<()> {
+    pub fn insert(&self, node: Node<PGM>, offset: usize) -> Result<()> {
         self.with_selected_flow_mut(|flow| flow.insert(node, offset))
     }
 
@@ -231,14 +232,17 @@ impl FlowManager {
         }
     }
 
-    pub fn process(&self, process_fn: &mut dyn FnMut(&Node) -> Result<Node>) -> Result<Node> {
+    pub fn process(
+        &self,
+        process_fn: &mut dyn FnMut(&Node<PGM>) -> Result<Node<PGM>>,
+    ) -> Result<Node<PGM>> {
         self.with_selected_flow(|flow| flow.process(process_fn))
     }
 
     /// Returns a copy of the current flow as a Node
-    pub fn to_node(&self) -> Node {
+    pub fn to_node(&self) -> Node<PGM> {
         match self.with_selected_flow(|flow| Ok(flow.to_node())) {
-            Err(e) => node!(PGMFlow, format!("{}", e)),
+            Err(e) => node!(PGM::Flow, format!("{}", e)),
             Ok(n) => n,
         }
     }
@@ -246,7 +250,7 @@ impl FlowManager {
     /// Serializes the current flow AST for import into Python
     pub fn to_pickle(&self) -> Vec<u8> {
         match self.with_selected_flow(|flow| Ok(flow.to_pickle())) {
-            Err(e) => node!(PGMFlow, format!("{}", e)).to_pickle(),
+            Err(e) => node!(PGM::Flow, format!("{}", e)).to_pickle(),
             Ok(n) => n,
         }
     }
@@ -270,14 +274,14 @@ impl fmt::Debug for FlowManager {
     }
 }
 
-impl PartialEq<AST> for FlowManager {
-    fn eq(&self, ast: &AST) -> bool {
+impl PartialEq<AST<PGM>> for FlowManager {
+    fn eq(&self, ast: &AST<PGM>) -> bool {
         self.to_node() == ast.to_node()
     }
 }
 
-impl PartialEq<Node> for FlowManager {
-    fn eq(&self, node: &Node) -> bool {
+impl PartialEq<Node<PGM>> for FlowManager {
+    fn eq(&self, node: &Node<PGM>) -> bool {
         self.to_node() == *node
     }
 }

@@ -24,9 +24,7 @@ impl ReleaseScribe {
         match &STATUS.app {
             Some(app) => dir = &app.root,
             None => {
-                return error!(
-                    "ReleaseScribe currently requires an application! No application found."
-                )
+                bail!("ReleaseScribe currently requires an application! No application found.")
             }
         }
 
@@ -48,7 +46,7 @@ impl ReleaseScribe {
         if self.release_file.exists() {
             Ok(self.get_release_note_from_file_inner()?)
         } else {
-            error!("No release note file at {}", self.release_file.display())
+            bail!("No release note file at {}", self.release_file.display())
         }
     }
 

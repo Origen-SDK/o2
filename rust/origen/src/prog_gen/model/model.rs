@@ -119,7 +119,7 @@ impl Model {
     /// if the model doesn't contain a flow with the given name
     pub fn select_flow(&mut self, name: &str) -> Result<()> {
         if !self.flows.contains_key(name) {
-            return error!("The test program doesn't contains a flow called '{}'", name);
+            bail!("The test program doesn't contains a flow called '{}'", name);
         }
         self.current_flow = name.to_string();
         Ok(())
@@ -130,7 +130,7 @@ impl Model {
     pub fn create_flow(&mut self, name: &str) -> Result<()> {
         let flow = Flow::new();
         if self.flows.contains_key(name) {
-            return error!(
+            bail!(
                 "The test program model already contains a flow called '{}'",
                 name
             );
@@ -293,7 +293,7 @@ impl Model {
         test.name = name;
         test.id = id;
         if self.tests.contains_key(&id) {
-            error!("Something has gone wrong, two tests have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
+            bail!("Something has gone wrong, two tests have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
         } else {
             self.tests.insert(id, test);
             self.get_flow_mut(None).tests.push(id);
@@ -337,7 +337,7 @@ impl Model {
             None => Test::new(&name, id, tester.to_owned()),
         };
         if self.test_invocations.contains_key(&id) {
-            error!("Something has gone wrong, two test invocations have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
+            bail!("Something has gone wrong, two test invocations have been generated with the same internal ID in flow '{}': \nFirst:\n\n{:?}\n\nSecond:\n\n{:?}", &self.current_flow, &self.tests[&id], &test)
         } else {
             self.test_invocations.insert(id, test);
             self.get_flow_mut(None).test_invocations.push(id);
@@ -350,13 +350,13 @@ impl Model {
     /// be replaced.
     pub fn assign_test_to_inv(&mut self, inv_id: usize, test_id: usize) -> Result<()> {
         if !self.test_invocations.contains_key(&inv_id) {
-            return error!(
+            bail!(
                 "Something has gone wrong, no test invocation exists with ID '{}'",
                 inv_id
             );
         }
         if !self.tests.contains_key(&test_id) {
-            return error!(
+            bail!(
                 "Something has gone wrong, no test exists with ID '{}'",
                 test_id
             );
@@ -390,7 +390,7 @@ impl Model {
                     if let Some(test) = self.tests.get_mut(&tid) {
                         test.set(name, value, true)?;
                     } else {
-                        return error!("Something has gone wrong, no test exists with ID '{}', it was referened by this test invocation: \n{:?}", id, inv);
+                        bail!("Something has gone wrong, no test exists with ID '{}', it was referened by this test invocation: \n{:?}", id, inv);
                     }
                 }
             }
@@ -401,7 +401,7 @@ impl Model {
             test.set(name, value, true)?;
             return Ok(());
         }
-        error!(
+        bail!(
             "Something has gone wrong, no test or invocation exists with ID '{}'",
             id
         )

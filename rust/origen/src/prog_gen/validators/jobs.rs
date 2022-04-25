@@ -1,14 +1,14 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
-use crate::prog_gen::FlowCondition;
+use crate::prog_gen::{FlowCondition, PGM};
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 
 pub struct Jobs {
-    negative: Vec<Node>,
-    conflicting: Vec<(Node, Node)>,
-    stack: Vec<(Node, bool)>,
+    negative: Vec<Node<PGM>>,
+    conflicting: Vec<(Node<PGM>, Node<PGM>)>,
+    stack: Vec<(Node<PGM>, bool)>,
 }
 
-pub fn run(node: &Node) -> Result<()> {
+pub fn run(node: &Node<PGM>) -> Result<()> {
     let mut p = Jobs {
         negative: vec![],
         conflicting: vec![],
@@ -24,14 +24,14 @@ pub fn run(node: &Node) -> Result<()> {
         msg += "The following conflicts were found:";
         if crate::STATUS.is_debug_enabled() {
             for (a, b) in &p.conflicting {
-                if let Attrs::PGMCondition(n) = &a.attrs {
+                if let PGM::Condition(n) = &a.attrs {
                     let a_condition = match matches!(n, FlowCondition::IfJob(_)) {
                         true => "if_job:    ",
                         false => "unless_job:",
                     };
                     msg += &format!("\n  {} {}", a_condition, a.meta_string());
                 }
-                if let Attrs::PGMCondition(n) = &b.attrs {
+                if let PGM::Condition(n) = &b.attrs {
                     let b_condition = match matches!(n, FlowCondition::IfJob(_)) {
                         true => "if_job:    ",
                         false => "unless_job:",
@@ -50,7 +50,7 @@ pub fn run(node: &Node) -> Result<()> {
         msg += "\nThe following negative job names were found:";
         if crate::STATUS.is_debug_enabled() {
             for node in &p.negative {
-                if let Attrs::PGMCondition(n) = &node.attrs {
+                if let PGM::Condition(n) = &node.attrs {
                     match n {
                         FlowCondition::IfJob(jobs) | FlowCondition::UnlessJob(jobs) => {
                             msg += &format!("\n  {} - {}", jobs.join(", "), node.meta_string());
@@ -66,16 +66,16 @@ pub fn run(node: &Node) -> Result<()> {
     }
 
     if failed {
-        error!("{}", msg)
+        bail!("{}", msg)
     } else {
         Ok(())
     }
 }
 
-impl Processor for Jobs {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for Jobs {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            Attrs::PGMCondition(cond) => match cond {
+            PGM::Condition(cond) => match cond {
                 FlowCondition::IfJob(jobs) | FlowCondition::UnlessJob(jobs) => {
                     let state = matches!(cond, FlowCondition::IfJob(_));
                     if jobs

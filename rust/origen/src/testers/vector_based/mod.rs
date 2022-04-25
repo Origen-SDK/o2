@@ -3,10 +3,10 @@ pub mod pattern_renderer;
 
 use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
-use crate::generator::ast::Node;
-use crate::generator::processor::Return;
+use crate::generator::PAT;
 use crate::prog_gen::Model;
 use crate::{Overlay, Result};
+use origen_metal::ast::{Node, Return};
 use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 use pattern_renderer::Renderer;
 use std::path::{Path, PathBuf};
@@ -35,7 +35,11 @@ pub trait VectorBased:
         None
     }
 
-    fn override_node(&self, _renderer: &mut Renderer, _node: &Node) -> Option<Result<Return>> {
+    fn override_node(
+        &self,
+        _renderer: &mut Renderer,
+        _node: &Node<PAT>,
+    ) -> Option<Result<Return<PAT>>> {
         None
     }
 
@@ -115,7 +119,11 @@ where
         VectorBased::end_overlay(self, renderer, label, pin_id)
     }
 
-    fn override_node(&self, renderer: &mut Renderer, node: &Node) -> Option<Result<Return>> {
+    fn override_node(
+        &self,
+        renderer: &mut Renderer,
+        node: &Node<PAT>,
+    ) -> Option<Result<Return<PAT>>> {
         VectorBased::override_node(self, renderer, node)
     }
 }
@@ -124,7 +132,7 @@ impl<T: 'static> TesterAPI for T
 where
     T: VectorBased,
 {
-    default fn render_pattern(&mut self, node: &Node) -> Result<Vec<PathBuf>> {
+    default fn render_pattern(&mut self, node: &Node<PAT>) -> Result<Vec<PathBuf>> {
         pattern_renderer::Renderer::run(self, node)
     }
 

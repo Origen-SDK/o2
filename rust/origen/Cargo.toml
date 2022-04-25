@@ -38,8 +38,6 @@ cargo-expand = "0.4.17"
 num = "0.3.0"
 num-traits = "0.2.12"
 serde-pickle = "0.6"
-pest = "2.1"
-pest_derive = "2.1"
 enum-utils = "0.1.2"
 shellexpand = "1.1.1"
 # Need to be careful with this version, couldn't build on RHEL6 with versions greater
@@ -69,7 +67,7 @@ ldap3 = "0.8.1"
 cfg-if = "1"
 aes-gcm = "0.8"
 rand = "0.8"
-keyring = "0.10.1"
+keyring = "1"
 enum-display-derive = "0.1.1"
 glob = "0.3.0"
 dialoguer = "0.8.0"
@@ -78,9 +76,6 @@ octocrab = "0.9.1"
 futures = {version = "0.3.15", features = ["executor"]}
 tokio = {version = "1.7", features = ["full"] }
 reqwest = {version = "0.11.3", features = ["blocking", "json"]}
-
-[patch.crates-io]
-keyring = { git = "https://github.com/hwchen/keyring-rs.git", rev = "a30e65f" }
 
 [build-dependencies]
 built = "0.5.1"

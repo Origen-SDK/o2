@@ -1,6 +1,7 @@
 use crate::core::dut::Dut;
+use crate::generator::PAT;
 use crate::precludes::controller::*;
-use crate::{Error, Result, TEST};
+use crate::{Result, TEST};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Acknowledgements {
@@ -17,10 +18,7 @@ impl Acknowledgements {
             "Wait" => Ok(Self::Wait),
             "Fault" => Ok(Self::Fault),
             "None" => Ok(Self::None),
-            _ => Err(Error::new(&format!(
-                "No matching SWD acknowledgment for '{}'",
-                ack
-            ))),
+            _ => Err(error!("No matching SWD acknowledgment for '{}'", ack)),
         }
     }
 
@@ -86,7 +84,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDWriteAP, self.id, t2, ack, None);
+        let mut trans = node!(PAT::SWDWriteAP, self.id, t2, ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -103,7 +101,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDVerifyAP, self.id, t2, ack, parity, None);
+        let mut trans = node!(PAT::SWDVerifyAP, self.id, t2, ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -119,7 +117,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDWriteDP, self.id, t2, ack, None);
+        let mut trans = node!(PAT::SWDWriteDP, self.id, t2, ack, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;
@@ -136,7 +134,7 @@ impl Service {
         let swdio = PinCollection::from_group(dut, &self.swdio.0, self.swdio.1)?;
         let mut t2 = transaction.clone();
         t2.apply_overlay_pin_ids(&swdio.as_ids())?;
-        let mut trans = node!(SWDVerifyDP, self.id, t2, ack, parity, None);
+        let mut trans = node!(PAT::SWDVerifyDP, self.id, t2, ack, parity, None);
         let n_id = TEST.push_and_open(trans.clone());
         self.process_transaction(dut, &mut trans)?;
         TEST.close(n_id)?;

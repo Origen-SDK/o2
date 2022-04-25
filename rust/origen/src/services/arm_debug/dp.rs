@@ -4,7 +4,8 @@ use crate::Transaction;
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
 
-use crate::generator::ast::Node;
+use crate::generator::PAT;
+use origen_metal::ast::Node;
 
 // Register descriptions taken from the Arm Debug RM
 use crate::{
@@ -257,7 +258,7 @@ impl DP {
         dut: &MutexGuard<Dut>,
         services: &crate::Services,
         select: usize,
-    ) -> Result<Option<Vec<Node>>> {
+    ) -> Result<Option<Vec<Node<PAT>>>> {
         let bc = get_bc_for!(dut, self.address_block_id, "select", "SELECT")?;
         let sel = BigUint::from(select);
         if bc.data()? == sel {
@@ -349,7 +350,7 @@ impl DP {
             let bc = get_reg_as_bc!(dut, self.address_block_id, "select");
             bc.set_data(BigUint::from(1 as u8));
             TEST.push(node!(
-                Comment,
+                PAT::Comment,
                 0,
                 format!("ArmDebugDP: select {} (DP Addr: {:X})", reg_name, sel)
             ));

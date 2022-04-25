@@ -113,27 +113,27 @@ pub fn impl_id_getters(ast: &syn::DeriveInput) -> syn::Result<TokenStream> {
                             }
                         }
 
-                        pub fn #_func_name (&self, parent_field_id: usize, identifier: #lookup_type) -> core::result::Result<& #retn, crate::error::Error> {
+                        pub fn #_func_name (&self, parent_field_id: usize, identifier: #lookup_type) -> core::result::Result<& #retn, crate::Error> {
                             if let Some(i) = self.#parent_field[parent_field_id].#get_id_func(identifier) {
                                 Ok(&self.#field_container_name[i])
                             } else {
-                                Err(crate::error::Error::new(#error_message))
+                                Err(crate::Error::new(#error_message))
                             }
                         }
 
-                        pub fn #_mut_func_name(&mut self, parent_field_id: usize, identifier: #lookup_type) -> core::result::Result<&mut #retn, crate::error::Error> {
+                        pub fn #_mut_func_name(&mut self, parent_field_id: usize, identifier: #lookup_type) -> core::result::Result<&mut #retn, crate::Error> {
                             if let Some(i) = self.#parent_field[parent_field_id].#get_id_func(identifier) {
                                 Ok(&mut self.#field_container_name[i])
                             } else {
-                                Err(crate::error::Error::new(#error_message))
+                                Err(crate::Error::new(#error_message))
                             }
                         }
 
-                        pub fn #clone_func_name(&self, parent_field_id: usize, identifier: #lookup_type) -> core::result::Result<#retn, crate::error::Error> {
+                        pub fn #clone_func_name(&self, parent_field_id: usize, identifier: #lookup_type) -> core::result::Result<#retn, crate::Error> {
                             if let Some(i) = self.#parent_field[parent_field_id].#get_id_func(identifier) {
                                 Ok(self.#field_container_name[i].clone())
                             } else {
-                                Err(crate::error::Error::new(#error_message))
+                                Err(crate::Error::new(#error_message))
                             }
                         }
                     }

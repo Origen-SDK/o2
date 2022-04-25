@@ -19,7 +19,7 @@ impl LDAPs {
         if let Some(l) = self.ldaps.get(ldap) {
             Ok(l)
         } else {
-            error!("No LDAP named '{}' available", ldap)
+            bail!("No LDAP named '{}' available", ldap)
         }
     }
 
@@ -31,7 +31,7 @@ impl LDAPs {
         if let Some(l) = self.ldaps.get_mut(ldap) {
             Ok(l)
         } else {
-            error!("No LDAP named {} available", ldap)
+            bail!("No LDAP named {} available", ldap)
         }
     }
 
@@ -100,19 +100,15 @@ impl SupportedAuths {
                 if let Some(u) = username {
                     u.to_string()
                 } else {
-                    return error!(
-                        "LDAP's 'simple bind' requires a username but none was provided"
-                    );
+                    bail!("LDAP's 'simple bind' requires a username but none was provided");
                 },
                 if let Some(p) = password {
                     p.to_string()
                 } else {
-                    return error!(
-                        "LDAP's 'simple_bind' requires a password but none was provided"
-                    );
+                    bail!("LDAP's 'simple_bind' requires a password but none was provided");
                 },
             )),
-            _ => error!("Unrecognized LDAP authentication {}", auth),
+            _ => bail!("Unrecognized LDAP authentication {}", auth),
         }
     }
 
@@ -166,12 +162,12 @@ impl LDAP {
                 if let Some(c) = config.get("server") {
                     c
                 } else {
-                    return error!("LDAP config {} must have a 'server' field", name);
+                    bail!("LDAP config {} must have a 'server' field", name);
                 },
                 if let Some(b) = config.get("base") {
                     b
                 } else {
-                    return error!("LDAP config {} must have a 'base' field", name);
+                    bail!("LDAP config {} must have a 'base' field", name);
                 },
                 {
                     let (username, password);
@@ -181,7 +177,7 @@ impl LDAP {
                             username = _su.get("username");
                             password = _su.get("password");
                         } else {
-                            return error!("Could not find service user {}", u);
+                            bail!("Could not find service user {}", u);
                         }
                     } else {
                         username = config.get("username");
@@ -195,7 +191,7 @@ impl LDAP {
                 },
             )
         } else {
-            error!("No ldap {} found in the configuration", name)
+            bail!("No ldap {} found in the configuration", name)
         }
     }
 
@@ -280,7 +276,7 @@ impl LDAP {
             .search(&self.base, Scope::Subtree, filter, attrs)?
             .success()?;
         if rs.len() > 1 {
-            return error!(
+            bail!(
                 "LDAP: expected a single DN result from filter {} for 'single_filter_search'. \
                 Use 'search' if multiple DN entries were expected.",
                 filter
