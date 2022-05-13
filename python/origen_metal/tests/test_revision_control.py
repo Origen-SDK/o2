@@ -1,3 +1,4 @@
+from operator import truediv
 import pytest, importlib, subprocess
 from origen_metal._origen_metal import __test__
 from origen_metal.utils.revision_control.supported import Git
@@ -38,12 +39,33 @@ class TestGitAsDataStore(DataStoreView):
     def test_populating_users(self):
         n = "test_git_pop"
 
-        git_name = subprocess.run(['git', 'config', 'user.name'],
-                                  capture_output=True,
-                                  check=True).stdout.decode("utf-8").strip()
-        git_email = subprocess.run(['git', 'config', 'user.email'],
-                                   capture_output=True,
-                                   check=True).stdout.decode("utf-8").strip()
+        cmd = ['git', 'config', 'user.name']
+        r = subprocess.run(cmd, capture_output=True)
+        if r.returncode == 0:
+            git_name = r.stdout.decode("utf-8").strip()
+        elif r.returncode == 1:
+            git_name = "origen"
+            subprocess.run(
+                ["git", "config", "user.name", git_name],
+                capture_output=True,
+                check=True
+            )
+        else:
+            raise RuntimeError(f"Failed to run command: {cmd}: {r}")
+
+        cmd = ['git', 'config', 'user.email']
+        r = subprocess.run(cmd, capture_output=True)
+        if r.returncode == 0:
+            git_email = r.stdout.decode("utf-8").strip()
+        elif r.returncode == 1:
+            git_email = "o2@origen.com"
+            subprocess.run(
+                ["git", "config", "user.email", git_email],
+                capture_output=True,
+                check=True
+            )
+        else:
+            raise RuntimeError(f"Failed to run command: {cmd}: {r}")
 
         origen_repo_name = 'origenrepo'
         origen_global_name = 'origenglobal'
