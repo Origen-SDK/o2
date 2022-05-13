@@ -1,6 +1,6 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
-use crate::prog_gen::{FlowCondition, GroupType};
+use crate::prog_gen::{FlowCondition, GroupType, PGM};
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 
 /// This optimizes the condition nodes such that any adjacent flow nodes that
 /// have the same condition, will be grouped together under a single condition
@@ -35,10 +35,10 @@ use crate::prog_gen::{FlowCondition, GroupType};
 ///
 pub struct Condition {
     volatiles: Vec<String>,
-    conditions_to_remove: Vec<Node>,
+    conditions_to_remove: Vec<Node<PGM>>,
 }
 
-pub fn run(node: &Node) -> Result<Node> {
+pub fn run(node: &Node<PGM>) -> Result<Node<PGM>> {
     let mut p = Condition {
         volatiles: vec![],
         conditions_to_remove: vec![],
@@ -48,18 +48,18 @@ pub fn run(node: &Node) -> Result<Node> {
     Ok(ast)
 }
 
-impl Processor for Condition {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for Condition {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            Attrs::PGMVolatile(flag) => {
+            PGM::Volatile(flag) => {
                 self.volatiles.push(flag.to_owned());
                 Return::Unmodified
             }
-            Attrs::PGMFlow(_) | Attrs::PGMSubFlow(_, _) => {
+            PGM::Flow(_) | PGM::SubFlow(_, _) => {
                 let children = node.process_and_box_children(self)?;
                 Return::Replace(node.updated(None, Some(self.optimize(children)?), None))
             }
-            Attrs::PGMGroup(_name, _, kind, _fid) => match kind {
+            PGM::Group(_name, _, kind, _fid) => match kind {
                 GroupType::Flow => {
                     if self
                         .conditions_to_remove
@@ -79,7 +79,7 @@ impl Processor for Condition {
                 }
                 _ => Return::ProcessChildren,
             },
-            Attrs::PGMCondition(cond) => {
+            PGM::Condition(cond) => {
                 let volatile = match cond {
                     FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
                         self.volatiles.contains(&flags[0])
@@ -113,9 +113,9 @@ impl Processor for Condition {
 }
 
 impl Condition {
-    fn optimize(&mut self, nodes: Vec<Box<Node>>) -> Result<Vec<Box<Node>>> {
-        let mut results: Vec<Box<Node>> = vec![];
-        let mut node1: Option<Box<Node>> = None;
+    fn optimize(&mut self, nodes: Vec<Box<Node<PGM>>>) -> Result<Vec<Box<Node<PGM>>>> {
+        let mut results: Vec<Box<Node<PGM>>> = vec![];
+        let mut node1: Option<Box<Node<PGM>>> = None;
         for node2 in nodes {
             let n2 = node2;
             if let Some(n1) = node1 {
@@ -135,7 +135,7 @@ impl Condition {
         Ok(results)
     }
 
-    fn can_be_combined(&mut self, node1: &Box<Node>, node2: &Box<Node>) -> bool {
+    fn can_be_combined(&mut self, node1: &Box<Node<PGM>>, node2: &Box<Node<PGM>>) -> bool {
         if is_condition_node(node1) && is_condition_node(node2) {
             let n2_conditions = self.conditions(node2);
             self.conditions(node1)
@@ -146,7 +146,7 @@ impl Condition {
         }
     }
 
-    fn combine(&mut self, node1: Box<Node>, node2: Box<Node>) -> Result<Box<Node>> {
+    fn combine(&mut self, node1: Box<Node<PGM>>, node2: Box<Node<PGM>>) -> Result<Box<Node<PGM>>> {
         let mut n1_conditions = self.conditions(&node1);
         let n2_conditions = self.conditions(&node2);
         n1_conditions.retain(|n1| n2_conditions.iter().any(|n2| n1.attrs == n2.attrs));
@@ -169,10 +169,10 @@ impl Condition {
         Ok(Box::new(node))
     }
 
-    fn conditions(&self, node: &Box<Node>) -> Vec<Node> {
+    fn conditions(&self, node: &Box<Node<PGM>>) -> Vec<Node<PGM>> {
         let mut results = vec![];
         match &node.attrs {
-            Attrs::PGMCondition(cond) => match cond {
+            PGM::Condition(cond) => match cond {
                 FlowCondition::IfEnable(flags)
                 | FlowCondition::UnlessEnable(flags)
                 | FlowCondition::IfFlag(flags)
@@ -196,7 +196,7 @@ impl Condition {
                     }
                 }
             },
-            Attrs::PGMGroup(_, _, kind, _) => {
+            PGM::Group(_, _, kind, _) => {
                 if matches!(kind, GroupType::Flow) {
                     results.push(node.updated(None, Some(vec![]), None));
                     if node.children.len() == 1 {
@@ -211,37 +211,37 @@ impl Condition {
     }
 }
 
-fn is_condition_node(node: &Box<Node>) -> bool {
-    matches!(node.attrs, Attrs::PGMCondition(_))
-        || matches!(node.attrs, Attrs::PGMGroup(_, _, GroupType::Flow, _))
+fn is_condition_node(node: &Box<Node<PGM>>) -> bool {
+    matches!(node.attrs, PGM::Condition(_))
+        || matches!(node.attrs, PGM::Group(_, _, GroupType::Flow, _))
 }
 
 #[cfg(test)]
 mod tests {
     use super::run;
-    use crate::prog_gen::{FlowCondition, FlowID, GroupType};
+    use crate::prog_gen::{FlowCondition, FlowID, GroupType, PGM};
     use crate::Result;
 
     #[test]
     fn wraps_adjacent_nodes_that_share_the_same_conditions() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                node!(PGMTest, 2, FlowID::from_int(2))
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2))
             ),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
-                node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3))
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
+                node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3))
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                node!(PGMTest, 2, FlowID::from_int(2)),
-                node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
                 ),
             ),
         );
@@ -252,31 +252,31 @@ mod tests {
 
     #[test]
     fn wraps_nested_conditions() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["bitmap".to_string()]) =>
-                node!(PGMTest, 2, FlowID::from_int(2)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["bitmap".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
             ),
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["bitmap".to_string()]) =>
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["bitmap".to_string()]) =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                        node!(PGMTest, 4, FlowID::from_int(4)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                        node!(PGM::Test, 4, FlowID::from_int(4)),
                     ),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["bitmap".to_string()]) =>
-                node!(PGMTest, 2, FlowID::from_int(2)),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
-                        node!(PGMTest, 4, FlowID::from_int(4)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["bitmap".to_string()]) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
+                        node!(PGM::Test, 4, FlowID::from_int(4)),
                     ),
                 ),
 
@@ -289,31 +289,31 @@ mod tests {
 
     #[test]
     fn optimizes_groups_too() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMTest, 2, FlowID::from_int(2)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
             ),
-            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMGroup, "G2".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g2")) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Group, "G2".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g2")) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
                 ),
-                node!(PGMGroup, "G2".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g2")) =>
-                    node!(PGMGroup, "G3".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g3")) =>
-                        node!(PGMTest, 4, FlowID::from_int(4)),
+                node!(PGM::Group, "G2".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g2")) =>
+                    node!(PGM::Group, "G3".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g3")) =>
+                        node!(PGM::Test, 4, FlowID::from_int(4)),
                     ),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMTest, 2, FlowID::from_int(2)),
-                node!(PGMGroup, "G2".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g2")) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
-                    node!(PGMGroup, "G3".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g3")) =>
-                        node!(PGMTest, 4, FlowID::from_int(4)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Test, 2, FlowID::from_int(2)),
+                node!(PGM::Group, "G2".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g2")) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
+                    node!(PGM::Group, "G3".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g3")) =>
+                        node!(PGM::Test, 4, FlowID::from_int(4)),
                     ),
                 ),
             ),
@@ -325,36 +325,36 @@ mod tests {
 
     #[test]
     fn combined_condition_and_group_test() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
-                node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
             ),
-            node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                        node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                        node!(PGM::Test, 3, FlowID::from_int(3)),
                     ),
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
-                        node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                            node!(PGMTest, 4, FlowID::from_int(4)),
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
+                        node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                            node!(PGM::Test, 4, FlowID::from_int(4)),
                         ),
                     ),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMGroup, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
-                node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                        node!(PGMTest, 3, FlowID::from_int(3)),
-                        node!(PGMCondition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
-                            node!(PGMTest, 4, FlowID::from_int(4)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Group, "G1".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                        node!(PGM::Test, 3, FlowID::from_int(3)),
+                        node!(PGM::Condition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
+                            node!(PGM::Test, 4, FlowID::from_int(4)),
                         ),
                     ),
 
@@ -368,36 +368,36 @@ mod tests {
 
     #[test]
     fn optimizes_jobs() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
-                node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
             ),
-            node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string()]) =>
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                        node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string()]) =>
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                        node!(PGM::Test, 3, FlowID::from_int(3)),
                     ),
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
-                        node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                            node!(PGMTest, 4, FlowID::from_int(4)),
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
+                        node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                            node!(PGM::Test, 4, FlowID::from_int(4)),
                         ),
                     ),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
-                node!(PGMCondition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
-                        node!(PGMTest, 3, FlowID::from_int(3)),
-                        node!(PGMCondition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
-                            node!(PGMTest, 4, FlowID::from_int(4)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
+                node!(PGM::Condition, FlowCondition::IfEnable(vec!["bitmap".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["x".to_string()]) =>
+                        node!(PGM::Test, 3, FlowID::from_int(3)),
+                        node!(PGM::Condition, FlowCondition::IfFlag(vec!["y".to_string()]) =>
+                            node!(PGM::Test, 4, FlowID::from_int(4)),
                         ),
                     ),
                 ),
@@ -410,39 +410,39 @@ mod tests {
 
     #[test]
     fn job_optimization_test_2() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
             ),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
             ),
-            node!(PGMTest, 4, FlowID::from_int(4)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 5, FlowID::from_int(5)),
+            node!(PGM::Test, 4, FlowID::from_int(4)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 5, FlowID::from_int(5)),
             ),
-            node!(PGMTest, 6, FlowID::from_int(6)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 7, FlowID::from_int(7)),
+            node!(PGM::Test, 6, FlowID::from_int(6)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 7, FlowID::from_int(7)),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
             ),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
             ),
-            node!(PGMTest, 4, FlowID::from_int(4)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 5, FlowID::from_int(5)),
+            node!(PGM::Test, 4, FlowID::from_int(4)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 5, FlowID::from_int(5)),
             ),
-            node!(PGMTest, 6, FlowID::from_int(6)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 7, FlowID::from_int(7)),
+            node!(PGM::Test, 6, FlowID::from_int(6)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 7, FlowID::from_int(7)),
             ),
         );
 
@@ -452,35 +452,35 @@ mod tests {
 
     #[test]
     fn job_optimization_test_3() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
             ),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 3, FlowID::from_int(3)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
             ),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 4, FlowID::from_int(4)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 4, FlowID::from_int(4)),
             ),
-            node!(PGMTest, 5, FlowID::from_int(5)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 6, FlowID::from_int(6)),
+            node!(PGM::Test, 5, FlowID::from_int(5)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
             ),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 3, FlowID::from_int(3)),
-                node!(PGMTest, 4, FlowID::from_int(4)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
+                node!(PGM::Test, 4, FlowID::from_int(4)),
             ),
-            node!(PGMTest, 5, FlowID::from_int(5)),
-            node!(PGMCondition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
-                node!(PGMTest, 6, FlowID::from_int(6)),
+            node!(PGM::Test, 5, FlowID::from_int(5)),
+            node!(PGM::Condition, FlowCondition::IfJob(vec!["p1".to_string(), "p2".to_string()]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
             ),
         );
 
@@ -490,50 +490,50 @@ mod tests {
 
     #[test]
     fn test_result_optimization_test() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
-                node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
                 ),
             ),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
-                node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
-                    node!(PGMTest, 4, FlowID::from_int(4)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
+                    node!(PGM::Test, 4, FlowID::from_int(4)),
                 ),
             ),
-            node!(PGMLog, "Embedded conditional tests 1".to_string()),
-            node!(PGMTest, 5, FlowID::from_int(5)),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
-                node!(PGMTest, 6, FlowID::from_int(6)),
+            node!(PGM::Log, "Embedded conditional tests 1".to_string()),
+            node!(PGM::Test, 5, FlowID::from_int(5)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
             ),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
-                node!(PGMTest, 7, FlowID::from_int(7)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
+                node!(PGM::Test, 7, FlowID::from_int(7)),
             ),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(7)]) =>
-                node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
-                    node!(PGMTest, 8, FlowID::from_int(8)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(7)]) =>
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
+                    node!(PGM::Test, 8, FlowID::from_int(8)),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
-                node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
-                    node!(PGMTest, 4, FlowID::from_int(4)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(1)]) =>
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(2)]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
+                    node!(PGM::Test, 4, FlowID::from_int(4)),
                 ),
             ),
-            node!(PGMLog, "Embedded conditional tests 1".to_string()),
-            node!(PGMTest, 5, FlowID::from_int(5)),
-            node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
-                node!(PGMTest, 6, FlowID::from_int(6)),
-                node!(PGMTest, 7, FlowID::from_int(7)),
-                node!(PGMCondition, FlowCondition::IfFailed(vec![FlowID::from_int(7)]) =>
-                    node!(PGMTest, 8, FlowID::from_int(8)),
+            node!(PGM::Log, "Embedded conditional tests 1".to_string()),
+            node!(PGM::Test, 5, FlowID::from_int(5)),
+            node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(5)]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
+                node!(PGM::Test, 7, FlowID::from_int(7)),
+                node!(PGM::Condition, FlowCondition::IfFailed(vec![FlowID::from_int(7)]) =>
+                    node!(PGM::Test, 8, FlowID::from_int(8)),
                 ),
             ),
         );
@@ -544,37 +544,37 @@ mod tests {
 
     #[test]
     fn test_result_optimization_test_2() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMLog, "Test that if_any_failed works".to_string()),
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(1), FlowID::from_int(2)]) =>
-                node!(PGMTest, 3, FlowID::from_int(3)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Log, "Test that if_any_failed works".to_string()),
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(1), FlowID::from_int(2)]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
             ),
-            node!(PGMLog, "Test the block form of if_any_failed".to_string()),
-            node!(PGMTest, 4, FlowID::from_int(4)),
-            node!(PGMTest, 5, FlowID::from_int(5)),
-            node!(PGMCondition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(4), FlowID::from_int(5)]) =>
-                node!(PGMTest, 6, FlowID::from_int(6)),
+            node!(PGM::Log, "Test the block form of if_any_failed".to_string()),
+            node!(PGM::Test, 4, FlowID::from_int(4)),
+            node!(PGM::Test, 5, FlowID::from_int(5)),
+            node!(PGM::Condition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(4), FlowID::from_int(5)]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
             ),
-            node!(PGMCondition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(4), FlowID::from_int(5)]) =>
-                node!(PGMTest, 7, FlowID::from_int(7)),
+            node!(PGM::Condition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(4), FlowID::from_int(5)]) =>
+                node!(PGM::Test, 7, FlowID::from_int(7)),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMLog, "Test that if_any_failed works".to_string()),
-            node!(PGMTest, 1, FlowID::from_int(1)),
-            node!(PGMTest, 2, FlowID::from_int(2)),
-            node!(PGMCondition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(1), FlowID::from_int(2)]) =>
-                node!(PGMTest, 3, FlowID::from_int(3)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Log, "Test that if_any_failed works".to_string()),
+            node!(PGM::Test, 1, FlowID::from_int(1)),
+            node!(PGM::Test, 2, FlowID::from_int(2)),
+            node!(PGM::Condition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(1), FlowID::from_int(2)]) =>
+                node!(PGM::Test, 3, FlowID::from_int(3)),
             ),
-            node!(PGMLog, "Test the block form of if_any_failed".to_string()),
-            node!(PGMTest, 4, FlowID::from_int(4)),
-            node!(PGMTest, 5, FlowID::from_int(5)),
-            node!(PGMCondition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(4), FlowID::from_int(5)]) =>
-                node!(PGMTest, 6, FlowID::from_int(6)),
-                node!(PGMTest, 7, FlowID::from_int(7)),
+            node!(PGM::Log, "Test the block form of if_any_failed".to_string()),
+            node!(PGM::Test, 4, FlowID::from_int(4)),
+            node!(PGM::Test, 5, FlowID::from_int(5)),
+            node!(PGM::Condition, FlowCondition::IfAnyFailed(vec![FlowID::from_int(4), FlowID::from_int(5)]) =>
+                node!(PGM::Test, 6, FlowID::from_int(6)),
+                node!(PGM::Test, 7, FlowID::from_int(7)),
             ),
         );
 
@@ -584,28 +584,28 @@ mod tests {
 
     #[test]
     fn adjacent_group_optimization_test() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMGroup, "additional_erase".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["additional_erase".to_string()]) =>
-                    node!(PGMCondition, FlowCondition::IfJob(vec!["fr".to_string()]) =>
-                        node!(PGMTest, 1, FlowID::from_int(1)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Group, "additional_erase".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["additional_erase".to_string()]) =>
+                    node!(PGM::Condition, FlowCondition::IfJob(vec!["fr".to_string()]) =>
+                        node!(PGM::Test, 1, FlowID::from_int(1)),
                     ),
                 ),
             ),
-            node!(PGMGroup, "additional_erase".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMCondition, FlowCondition::IfJob(vec!["fr".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+            node!(PGM::Group, "additional_erase".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Condition, FlowCondition::IfJob(vec!["fr".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMGroup, "additional_erase".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
-                node!(PGMCondition, FlowCondition::IfJob(vec!["fr".to_string()]) =>
-                    node!(PGMCondition, FlowCondition::IfFlag(vec!["additional_erase".to_string()]) =>
-                            node!(PGMTest, 1, FlowID::from_int(1)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Group, "additional_erase".to_string(), None, GroupType::Flow, Some(FlowID::from_str("g1")) =>
+                node!(PGM::Condition, FlowCondition::IfJob(vec!["fr".to_string()]) =>
+                    node!(PGM::Condition, FlowCondition::IfFlag(vec!["additional_erase".to_string()]) =>
+                            node!(PGM::Test, 1, FlowID::from_int(1)),
                     ),
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
             ),
         );
@@ -616,17 +616,17 @@ mod tests {
 
     #[test]
     fn removes_duplicate_conditions() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["data_collection".to_string()]) =>
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["data_collection".to_string()]) =>
-                    node!(PGMTest, 1, FlowID::from_int(1)),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["data_collection".to_string()]) =>
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["data_collection".to_string()]) =>
+                    node!(PGM::Test, 1, FlowID::from_int(1)),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["data_collection".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1)),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["data_collection".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1)),
             ),
         );
 
@@ -636,82 +636,82 @@ mod tests {
 
     #[test]
     fn flag_conditions_are_not_optimized_when_marked_as_volatile() -> Result<()> {
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1) =>
-                    node!(PGMOnFailed, FlowID::from_int(1) =>
-                        node!(PGMSetFlag, "$My_Mixed_Flag".to_string(), true, false),
-                        node!(PGMContinue),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::SetFlag, "$My_Mixed_Flag".to_string(), true, false),
+                        node!(PGM::Continue),
                     ),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                    node!(PGMTest, 4, FlowID::from_int(4)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                    node!(PGM::Test, 4, FlowID::from_int(4)),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1) =>
-                    node!(PGMOnFailed, FlowID::from_int(1) =>
-                        node!(PGMSetFlag, "$My_Mixed_Flag".to_string(), true, false),
-                        node!(PGMContinue),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::SetFlag, "$My_Mixed_Flag".to_string(), true, false),
+                        node!(PGM::Continue),
                     ),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
-                node!(PGMTest, 3, FlowID::from_int(3)),
-                node!(PGMTest, 4, FlowID::from_int(4)),
+                node!(PGM::Test, 3, FlowID::from_int(3)),
+                node!(PGM::Test, 4, FlowID::from_int(4)),
             ),
         );
 
         assert_eq!(output, run(&input)?);
 
-        let input = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMVolatile, "my_flag".to_string()),
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1) =>
-                    node!(PGMOnFailed, FlowID::from_int(1) =>
-                        node!(PGMSetFlag, "$My_Mixed_Flag".to_string(), true, false),
-                        node!(PGMContinue),
+        let input = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Volatile, "my_flag".to_string()),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::SetFlag, "$My_Mixed_Flag".to_string(), true, false),
+                        node!(PGM::Continue),
                     ),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                    node!(PGMTest, 4, FlowID::from_int(4)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                    node!(PGM::Test, 4, FlowID::from_int(4)),
                 ),
             ),
         );
 
-        let output = node!(PGMFlow, "f1".to_string() =>
-            node!(PGMVolatile, "my_flag".to_string()),
-            node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                node!(PGMTest, 1, FlowID::from_int(1) =>
-                    node!(PGMOnFailed, FlowID::from_int(1) =>
-                        node!(PGMSetFlag, "$My_Mixed_Flag".to_string(), true, false),
-                        node!(PGMContinue),
+        let output = node!(PGM::Flow, "f1".to_string() =>
+            node!(PGM::Volatile, "my_flag".to_string()),
+            node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                node!(PGM::Test, 1, FlowID::from_int(1) =>
+                    node!(PGM::OnFailed, FlowID::from_int(1) =>
+                        node!(PGM::SetFlag, "$My_Mixed_Flag".to_string(), true, false),
+                        node!(PGM::Continue),
                     ),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
-                    node!(PGMTest, 2, FlowID::from_int(2)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["$My_Mixed_Flag".to_string()]) =>
+                    node!(PGM::Test, 2, FlowID::from_int(2)),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                    node!(PGMTest, 3, FlowID::from_int(3)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                    node!(PGM::Test, 3, FlowID::from_int(3)),
                 ),
-                node!(PGMCondition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
-                    node!(PGMTest, 4, FlowID::from_int(4)),
+                node!(PGM::Condition, FlowCondition::IfFlag(vec!["my_flag".to_string()]) =>
+                    node!(PGM::Test, 4, FlowID::from_int(4)),
                 ),
             ),
         );

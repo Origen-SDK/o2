@@ -9,3 +9,4 @@ pub mod flag_optimizer;
 pub mod initial_model_extract;
 pub mod nest_on_result_nodes;
 pub mod relationship;
+pub mod target_tester;

@@ -26,7 +26,6 @@ pathdiff = "0.1"
 regex = "1"
 semver = "1.0.1"
 termcolor = "1"
-config = "0.13"
 serde = {version = "1.0", features = ["derive"]}
 path-clean = "0.1.0"
 time = "0.1.42"
@@ -38,8 +37,6 @@ cargo-expand = "0.4.17"
 num = "0.3.0"
 num-traits = "0.2.12"
 serde-pickle = "0.6"
-pest = "2.1"
-pest_derive = "2.1"
 enum-utils = "0.1.2"
 shellexpand = "1.1.1"
 # Need to be careful with this version, couldn't build on RHEL6 with versions greater
@@ -74,9 +71,6 @@ octocrab = "0.9.1"
 futures = {version = "0.3.15", features = ["executor"]}
 tokio = {version = "1.7", features = ["full"] }
 reqwest = {version = "0.11.3", features = ["blocking", "json"]}
-
-[patch.crates-io]
-keyring = { git = "https://github.com/hwchen/keyring-rs.git", rev = "a30e65f" }
 
 [build-dependencies]
 built = "0.5.1"

@@ -1,13 +1,14 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
 use crate::prog_gen::FlowID;
+use crate::prog_gen::PGM;
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 use std::collections::HashMap;
 
 pub struct DuplicateIDs {
-    ids: HashMap<FlowID, Node>,
+    ids: HashMap<FlowID, Node<PGM>>,
 }
 
-pub fn run(node: &Node) -> Result<()> {
+pub fn run(node: &Node<PGM>) -> Result<()> {
     let mut p = DuplicateIDs {
         ids: HashMap::new(),
     };
@@ -16,17 +17,17 @@ pub fn run(node: &Node) -> Result<()> {
 }
 
 impl DuplicateIDs {
-    fn validate_id(&mut self, id: &FlowID, node: &Node) -> Result<()> {
+    fn validate_id(&mut self, id: &FlowID, node: &Node<PGM>) -> Result<()> {
         if self.ids.contains_key(id) {
             if crate::STATUS.is_debug_enabled() {
-                return error!(
+                bail!(
                     "The ID '{}' was assigned more than once, by the following flow lines:\n{}\n{}",
                     id,
                     self.ids[id].meta_string(),
                     node.meta_string()
                 );
             } else {
-                return error!(
+                bail!(
                     "The ID '{}' was assigned more than once, run again with the --debug \
                  switch enabled to trace back to a flow line",
                     id
@@ -40,14 +41,14 @@ impl DuplicateIDs {
     }
 }
 
-impl Processor for DuplicateIDs {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for DuplicateIDs {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            Attrs::PGMTest(_, id) | Attrs::PGMTestStr(_, id) | Attrs::PGMCz(_, _, id) => {
+            PGM::Test(_, id) | PGM::TestStr(_, id) | PGM::Cz(_, _, id) => {
                 self.validate_id(id, node)?;
                 Return::ProcessChildren
             }
-            Attrs::PGMGroup(_, _, _, id) => {
+            PGM::Group(_, _, _, id) => {
                 if let Some(id) = id {
                     self.validate_id(id, node)?;
                 }

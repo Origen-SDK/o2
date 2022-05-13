@@ -133,7 +133,7 @@ pub fn pins_to_backend_lookup_fields(
             let name = obj.getattr(py, "name")?.extract::<String>(py)?;
             retn.push((model_id, name.to_string()));
         } else {
-            return Err(PyErr::from(origen::error::Error::new(&format!(
+            return Err(PyErr::from(origen::Error::new(&format!(
                 "Could not resolve object at index {} as String, Pin, or Pin Group. Got: {}",
                 i,
                 p.get_type().name()?

@@ -50,14 +50,14 @@ class TestPinAliasing:
         assert "a1" not in origen.dut.pins
         origen.dut.add_pin_alias("p1", "a1")
         assert "a1" in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin_alias("p1", "a1")
 
     def test_exception_on_aliasing_missing_pin(self, clean_falcon, pins, grp,
                                                ports):
         assert "blah" not in origen.dut.pins
         assert "alias_blah" not in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.add_pin_alias("blah", "alias_blah")
         assert "blah" not in origen.dut.pins
         assert "alias_blah" not in origen.dut.pins

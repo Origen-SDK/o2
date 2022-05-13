@@ -40,11 +40,14 @@ def test_origen_v():
     assert process.wait() == 0
     # Process is done
     # Read std out
-    first_stdout_line = process.stdout.readline()
-    assert "App:" in first_stdout_line
-    second_stdout_line = process.stdout.readline()
-    assert "Origen" in second_stdout_line
-    assert " 2." in second_stdout_line
+    output = ""
+    # Grab a chunk of output, hopefully accounts for any warnings that may be spewed out
+    # first in some CI envs
+    for x in range(100):
+        output += process.stdout.readline()
+    assert "App:" in output
+    assert "Origen: " in output
+    assert " 2." in output
 
 
 def test_bad_command():

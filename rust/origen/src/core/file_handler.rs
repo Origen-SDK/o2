@@ -3,7 +3,7 @@
 //! It provides methods for consumers to retreive one file at a time or all files
 //! at once and seamlessly opens up lists to get to the inidividual files inside.
 
-use crate::{Error, Result};
+use crate::Result;
 use std::fs;
 use std::fs::create_dir_all;
 use std::fs::File as StdFile;
@@ -125,7 +125,7 @@ impl Files {
                         self.files.push(x);
                     }
                 }
-                Err(err) => return Err(Error::new(&format!("{} - {}", err.to_string(), item))),
+                Err(err) => bail!("{} - {}", err.to_string(), item),
             }
         }
         Ok(())

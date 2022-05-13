@@ -67,7 +67,7 @@ impl Job {
                 }
             }
         }
-        error!("Could not find '{}'", file.display())
+        bail!("Could not find '{}'", file.display())
     }
 
     fn _resolve_file_reference(&self, file: &Path) -> Option<PathBuf> {

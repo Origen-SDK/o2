@@ -1,8 +1,9 @@
 //! Resolves all include statements in the given AST
 
+use super::super::nodes::STIL;
 use super::super::parser;
-use crate::generator::ast::*;
-use crate::generator::processor::*;
+use crate::ast::Node;
+use crate::ast::{Processor, Return};
 use crate::Result;
 use shellexpand;
 use std::env;
@@ -14,7 +15,7 @@ pub struct Includer {
 
 impl Includer {
     #[allow(dead_code)]
-    pub fn run(node: &Node, dir: Option<&Path>) -> Result<Node> {
+    pub fn run(node: &Node<STIL>, dir: Option<&Path>) -> Result<Node<STIL>> {
         let mut p = Includer {
             dir: match dir {
                 Some(p) => p.to_path_buf(),
@@ -25,10 +26,10 @@ impl Includer {
     }
 }
 
-impl Processor for Includer {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<STIL> for Includer {
+    fn on_node(&mut self, node: &Node<STIL>) -> Result<Return<STIL>> {
         let result = match &node.attrs {
-            Attrs::STILInclude(file, _) => {
+            STIL::Include(file, _) => {
                 let expanded = format!("{}", shellexpand::full(file)?);
                 let mut path = self.dir.clone();
                 // Note that if expanded is absolute then the push method will replace the current
@@ -37,7 +38,7 @@ impl Processor for Includer {
                 let ast = parser::parse_file(&path)?;
                 Return::Replace(Includer::run(&ast, path.parent())?)
             }
-            Attrs::STIL => Return::ProcessChildren,
+            STIL::Root => Return::ProcessChildren,
             // No need to recurse into other nodes, all includes should be at the top-level
             _ => Return::Unmodified,
         };

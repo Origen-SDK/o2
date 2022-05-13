@@ -13,6 +13,7 @@ use lettre::Message;
 use lettre::Transport;
 use std::collections::HashMap;
 use std::fmt::Display;
+use origen_metal::config;
 
 #[derive(Deserialize)]
 pub struct MaillistConfig {
@@ -32,7 +33,7 @@ impl MaillistConfig {
             .add_source(config::File::with_name(&format!("{}", path.display())));
         match cb.build() {
             Ok(c) => Ok(c.try_deserialize()?),
-            Err(e) => error!(
+            Err(e) => bail!(
                 "Unable to build maillist from '{}'. Encountered errors:{}",
                 path.display(),
                 e
@@ -74,7 +75,7 @@ impl Maillists {
         if let Some(ml) = self.maillists.get(m) {
             Ok(ml)
         } else {
-            error!("No maillist named '{}' found!", m)
+            bail!("No maillist named '{}' found!", m)
         }
     }
 
@@ -147,7 +148,7 @@ impl Maillist {
         let ext = resolve_os_str(match f.extension() {
             Some(ext) => ext,
             None => {
-                return error!(
+                bail!(
                     "Could not discern extension for maillist at '{}'",
                     f.display()
                 )
@@ -156,7 +157,7 @@ impl Maillist {
         let mut name = resolve_os_str(match f.file_name() {
             Some(n) => n,
             None => {
-                return error!(
+                bail!(
                     "Could not discern file name for maillist at '{}'",
                     f.display()
                 )
@@ -167,7 +168,7 @@ impl Maillist {
             "maillist" => {
                 name = match name.strip_suffix(".maillist") {
                     Some(n) => n.to_string(),
-                    None => return error!("Expected {} to end with '.maillist'", name),
+                    None => bail!("Expected {} to end with '.maillist'", name),
                 };
                 // Support O1-style maillist format - just a list of emails separated by newline
                 let file = std::fs::File::open(f)?;
@@ -188,7 +189,7 @@ impl Maillist {
                 // expecting extension .maillist.toml
                 name = match name.strip_suffix(".maillist.toml") {
                     Some(n) => n.to_string(),
-                    None => return error!("Expected {} to end with '.maillist.toml'", name),
+                    None => bail!("Expected {} to end with '.maillist.toml'", name),
                 };
                 match MaillistConfig::load(f) {
                     Ok(c) => {
@@ -204,7 +205,7 @@ impl Maillist {
                                     if let Some(mapped_a) = Self::map_audience(&name) {
                                         // These must match, or raise an error
                                         if &mapped_a != a {
-                                            return error!(
+                                            bail!(
                                                 "Maillist at '{}' was given audience '{}' (maps to '{}') but conflicts with the named audience '{}'. Maillist not added.",
                                                 f.display(),
                                                 aud,
@@ -228,7 +229,7 @@ impl Maillist {
                             name: name,
                         })
                     }
-                    Err(e) => error!(
+                    Err(e) => bail!(
                         "Errors encountered building maillist '{}' from {}: {}",
                         name,
                         f.display(),
@@ -236,7 +237,7 @@ impl Maillist {
                     ),
                 }
             }
-            _ => error!("Unsupported file extension for maillist '{}'", f.display()),
+            _ => bail!("Unsupported file extension for maillist '{}'", f.display()),
         }
     }
 
@@ -311,7 +312,7 @@ impl SupportedAuths {
         match auth {
             "TLS" | "tls" | "Tls" => Ok(Self::TLS),
             "NONE" | "none" | "None" => Ok(Self::None),
-            _ => error!(
+            _ => bail!(
                 "Invalid auth method '{}' found in the mailer configuration",
                 auth
             ),
@@ -351,7 +352,7 @@ impl Mailer {
                 if let Some(s) = config.get(SERVER_STR) {
                     s.to_string()
                 } else {
-                    return error!(
+                    bail!(
                         "Mailer's 'server' parameter has not been set. \
                         Please provide a 'server' to enable use of the mailer"
                     );
@@ -489,7 +490,7 @@ impl Mailer {
             if let Some(su) = ORIGEN_CONFIG.service_users.get(u) {
                 Ok(Some((&u, su)))
             } else {
-                error!(
+                bail!(
                     "Invalid service user '{}' provided in mailer configuration",
                     u
                 )
@@ -501,7 +502,7 @@ impl Mailer {
 
     pub fn username(&self) -> Result<String> {
         if self.auth_method.is_none() {
-            error!(
+            bail!(
                 "Cannot retrieve username when using auth method '{}'",
                 SupportedAuths::None
             )
@@ -526,7 +527,7 @@ impl Mailer {
 
     pub fn password(&self) -> Result<String> {
         if self.auth_method.is_none() {
-            error!(
+            bail!(
                 "Cannot retrieve password when using auth method '{}'",
                 SupportedAuths::None
             )
@@ -535,7 +536,7 @@ impl Mailer {
                 if let Some(p) = u.1.get("password") {
                     Ok(p.into())
                 } else {
-                    error!("No password given for service user '{}'", u.0)
+                    bail!("No password given for service user '{}'", u.0)
                 }
             } else {
                 Ok(with_current_user(|u| {
@@ -572,7 +573,7 @@ impl Mailer {
 
     pub fn dataset(&self) -> Result<Option<String>> {
         if let Some(_u) = self.service_user()? {
-            error!("Cannot query the user dataset for the mailer when specifying a service user")
+            bail!("Cannot query the user dataset for the mailer when specifying a service user")
         } else {
             self.get_dataset()
         }
@@ -582,7 +583,7 @@ impl Mailer {
         if let Some(p) = self.port {
             Ok(p)
         } else {
-            error!("Tried to retrieve the mailer's 'port' but no port has been set")
+            bail!("Tried to retrieve the mailer's 'port' but no port has been set")
         }
     }
 

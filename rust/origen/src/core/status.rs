@@ -226,7 +226,7 @@ impl Status {
     /// selection is not a subset of any existing selection
     pub fn push_testers_eq(&self, testers: Vec<SupportedTester>) -> OrigenResult<()> {
         if testers.is_empty() {
-            return error!("No tester type(s) given");
+            bail!("No tester type(s) given");
         }
         let mut testers_eq = self.testers_eq.write().unwrap();
         // This may not be correct, makes it harder to call re-useable functions that make their own tester selections
@@ -237,7 +237,7 @@ impl Status {
         //        for t_neq in t_neqs {
         //            for t_eq in &testers {
         //                if t_neq.is_compatible_with(t_eq) {
-        //                    return error!(
+        //                    bail!(
         //                        "Can't select tester '{}' within a block that already excludes it",
         //                        t_eq,
         //                    );
@@ -255,7 +255,7 @@ impl Status {
         //            .iter()
         //            .any(|current_tester| t.is_compatible_with(current_tester))
         //        {
-        //            return error!(
+        //            bail!(
         //                "Can't select tester '{}' within a block that selects '{}'",
         //                t,
         //                last.iter()
@@ -274,7 +274,7 @@ impl Status {
     /// selection is not valid within any existing eq or neq blocks
     pub fn push_testers_neq(&self, testers: Vec<SupportedTester>) -> OrigenResult<()> {
         if testers.is_empty() {
-            return error!("No tester type(s) given");
+            bail!("No tester type(s) given");
         }
         let mut testers_neq = self.testers_neq.write().unwrap();
         testers_neq.push(testers.clone());
@@ -286,7 +286,7 @@ impl Status {
     pub fn pop_testers_eq(&self) -> OrigenResult<()> {
         let mut current_testers = self.testers_eq.write().unwrap();
         if current_testers.is_empty() {
-            return error!("There has been an attempt to close a tester-specific block, but none is currently open");
+            bail!("There has been an attempt to close a tester-specific block, but none is currently open");
         }
         let _ = current_testers.pop();
         Ok(())
@@ -297,7 +297,7 @@ impl Status {
     pub fn pop_testers_neq(&self) -> OrigenResult<()> {
         let mut current_testers = self.testers_neq.write().unwrap();
         if current_testers.is_empty() {
-            return error!("There has been an attempt to close a tester-exclusion block, but none is currently open");
+            bail!("There has been an attempt to close a tester-exclusion block, but none is currently open");
         }
         let _ = current_testers.pop();
         Ok(())

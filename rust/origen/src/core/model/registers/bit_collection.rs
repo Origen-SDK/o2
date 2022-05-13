@@ -1,9 +1,9 @@
 use super::bit::Overlay as BitOverlay;
 use super::{Bit, Field, Register};
 use crate::core::model::registers::AccessType;
-use crate::node;
+use crate::generator::PAT;
 use crate::Transaction;
-use crate::{Dut, Error, Result, TEST};
+use crate::{Dut, Result, TEST};
 use num_bigint::BigUint;
 use regex::Regex;
 use std::sync::MutexGuard;
@@ -152,9 +152,7 @@ impl<'a> BitCollection<'a> {
     pub fn access(&self) -> Result<AccessType> {
         let val = self.bits[0].access;
         if !self.bits.iter().all(|&bit| bit.access == val) {
-            Err(Error::new(
-                "The bits in the collection have different access values",
-            ))
+            bail!("The bits in the collection have different access values",)
         } else {
             Ok(val)
         }
@@ -210,7 +208,7 @@ impl<'a> BitCollection<'a> {
                     }
                     Some(ref previous_overlay) => {
                         if this_overlay != previous_overlay {
-                            return error!(
+                            bail!(
                                 "The bits in the collection have different overlay values, found: '{}' at index {} and '{}' at index {}",
                                 previous_overlay,
                                 first_overlay,
@@ -386,9 +384,9 @@ impl<'a> BitCollection<'a> {
             }
             Ok(self)
         } else {
-            Err(Error::new(
+            bail!(
                 "Reset cannot be called on an ad-hoc BitCollection, only on a Register or a named Bit Field"
-            ))
+            )
         }
     }
 
@@ -478,7 +476,7 @@ impl<'a> BitCollection<'a> {
     ) -> Result<Option<usize>> {
         let trans = self.to_verify_transaction(enable, preset, dut);
         if let Ok(t) = trans {
-            Ok(Some(TEST.push_and_open(node!(RegVerify, t))))
+            Ok(Some(TEST.push_and_open(node!(PAT::RegVerify, t))))
         } else {
             Ok(None)
         }
@@ -489,10 +487,10 @@ impl<'a> BitCollection<'a> {
         enable: Option<BigUint>,
         preset: bool,
         dut: &'a MutexGuard<Dut>,
-    ) -> Result<Option<crate::generator::ast::Node>> {
+    ) -> Result<Option<origen_metal::ast::Node<PAT>>> {
         let trans = self.to_verify_transaction(enable, preset, dut);
         if let Ok(t) = trans {
-            Ok(Some(node!(RegVerify, t)))
+            Ok(Some(node!(PAT::RegVerify, t)))
         } else {
             Ok(None)
         }
@@ -523,9 +521,9 @@ impl<'a> BitCollection<'a> {
             bits.apply_overlay(&mut t)?;
             Ok(t)
         } else {
-            Err(Error::new(&format!(
+            Err(error!(
                 "bit collection 'to_verify_transaction' is only supported for register-based bit collections"
-            )))
+            ))
         }
     }
 
@@ -561,7 +559,7 @@ impl<'a> BitCollection<'a> {
     pub fn write(&self, dut: &'a MutexGuard<Dut>) -> Result<Option<usize>> {
         let trans = self.to_write_transaction(dut);
         if let Ok(t) = trans {
-            Ok(Some(TEST.push_and_open(node!(RegWrite, t))))
+            Ok(Some(TEST.push_and_open(node!(PAT::RegWrite, t))))
         } else {
             Ok(None)
         }
@@ -570,10 +568,10 @@ impl<'a> BitCollection<'a> {
     pub fn to_write_node(
         &self,
         dut: &'a MutexGuard<Dut>,
-    ) -> Result<Option<crate::generator::ast::Node>> {
+    ) -> Result<Option<origen_metal::ast::Node<PAT>>> {
         let trans = self.to_write_transaction(dut);
         if let Ok(t) = trans {
-            Ok(Some(node!(RegWrite, t)))
+            Ok(Some(node!(PAT::RegWrite, t)))
         } else {
             Ok(None)
         }
@@ -592,9 +590,9 @@ impl<'a> BitCollection<'a> {
             bits.apply_overlay(&mut t)?;
             Ok(t)
         } else {
-            Err(Error::new(&format!(
+            Err(error!(
                 "bit collection 'to_write_transaction' is only supported for register-based bit collections"
-            )))
+            ))
         }
     }
 
@@ -609,9 +607,9 @@ impl<'a> BitCollection<'a> {
             bits.apply_overlay(&mut t)?;
             Ok(t)
         } else {
-            Err(Error::new(&format!(
+            Err(error!(
                 "bit collection 'to_capture_transaction' is only supported for register-based bit collections"
-            )))
+            ))
         }
     }
 
@@ -620,9 +618,9 @@ impl<'a> BitCollection<'a> {
     pub fn reg(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Register> {
         match self.reg_id {
             Some(x) => dut.get_register(x),
-            None => Err(Error::new(
-                "Tried to reference the Register object from a BitCollection with no reg_id",
-            )),
+            None => {
+                bail!("Tried to reference the Register object from a BitCollection with no reg_id",)
+            }
         }
     }
 
@@ -631,9 +629,9 @@ impl<'a> BitCollection<'a> {
     pub fn field(&self, dut: &'a MutexGuard<Dut>) -> Result<&'a Field> {
         match &self.field {
             Some(x) => Ok(&self.reg(dut)?.fields[x]),
-            None => Err(Error::new(
-                "Tried to reference the Field object from a BitCollection with no field data",
-            )),
+            None => {
+                bail!("Tried to reference the Field object from a BitCollection with no field data",)
+            }
         }
     }
 
@@ -788,10 +786,10 @@ impl<'a> BitCollection<'a> {
                 }
             }
         } else {
-            return Err(Error::new(&format!(
+            bail!(
                 "Unknown operation argument '{}', must be \"verify\" or \"write\"",
                 operation
-            )));
+            );
         }
         Ok(BitCollection::make_hex_like(
             &ss,

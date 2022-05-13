@@ -12,7 +12,8 @@
 
 // use super::term;
 use crate::STATUS;
-use config::{Environment, File};
+use origen_metal::config;
+use origen_metal::config::{Environment, File};
 use std::collections::HashMap;
 use std::path::PathBuf;
 

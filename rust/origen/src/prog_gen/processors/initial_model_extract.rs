@@ -1,7 +1,7 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
-use crate::prog_gen::Model;
+use crate::prog_gen::{Model, PGM};
 use crate::testers::SupportedTester;
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 
 /// This extracts all definitions for tests, test invocations, pattern sets, bins, etc.
 /// and converts them into a program model which is returned.
@@ -15,7 +15,7 @@ pub struct ExtractToModel {
     pass: usize,
 }
 
-pub fn run(node: &Node, tester: SupportedTester, model: Model) -> Result<(Node, Model)> {
+pub fn run(node: &Node<PGM>, tester: SupportedTester, model: Model) -> Result<(Node<PGM>, Model)> {
     let mut p = ExtractToModel {
         model: model,
         tester: tester,
@@ -27,21 +27,21 @@ pub fn run(node: &Node, tester: SupportedTester, model: Model) -> Result<(Node, 
     Ok((ast, p.model))
 }
 
-impl Processor for ExtractToModel {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for ExtractToModel {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         // On first pass extract all tests and invocations and link them together. This is to ensure that any attribute
         // assignments can be checked against both the invocation and its assigned test
         if self.pass == 0 {
             Ok(match &node.attrs {
-                Attrs::PGMResourcesFilename(name, kind) => {
+                PGM::ResourcesFilename(name, kind) => {
                     self.model.set_resources_filename(name.to_owned(), kind);
                     Return::Unmodified
                 }
-                Attrs::PGMFlow(name) => {
+                PGM::Flow(name) => {
                     self.model.create_flow(name)?;
                     Return::ProcessChildren
                 }
-                Attrs::PGMDefTest(id, name, _, library_name, template_name) => {
+                PGM::DefTest(id, name, _, library_name, template_name) => {
                     trace!(
                         self.model.add_test_from_template(
                             *id,
@@ -54,7 +54,7 @@ impl Processor for ExtractToModel {
                     );
                     Return::None
                 }
-                Attrs::PGMDefTestInv(id, name, _) => {
+                PGM::DefTestInv(id, name, _) => {
                     trace!(
                         self.model
                             .add_test_invocation(*id, name.to_owned(), &self.tester),
@@ -62,7 +62,7 @@ impl Processor for ExtractToModel {
                     );
                     Return::None
                 }
-                Attrs::PGMAssignTestToInv(inv_id, test_id) => {
+                PGM::AssignTestToInv(inv_id, test_id) => {
                     trace!(self.model.assign_test_to_inv(*inv_id, *test_id), node);
                     Return::None
                 }
@@ -70,11 +70,11 @@ impl Processor for ExtractToModel {
             })
         } else {
             Ok(match &node.attrs {
-                Attrs::PGMResourcesFilename(name, kind) => {
+                PGM::ResourcesFilename(name, kind) => {
                     self.model.set_resources_filename(name.to_owned(), kind);
                     Return::Unmodified
                 }
-                Attrs::PGMSetAttr(id, name, value) => {
+                PGM::SetAttr(id, name, value) => {
                     trace!(self.model.set_test_attr(*id, name, value.to_owned()), node);
                     Return::None
                 }

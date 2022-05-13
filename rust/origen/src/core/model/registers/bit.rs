@@ -1,6 +1,6 @@
 use super::AccessType;
 use super::AccessType::Unimplemented;
-use crate::{Error, Result};
+use crate::Result;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::RwLock;
@@ -88,10 +88,7 @@ impl Bit {
         let state = *self.state.read().unwrap();
         match self.state_snapshots.read().unwrap().get(name) {
             None => {
-                return Err(Error::new(&format!(
-                    "No snapshot named '{}' has been taken",
-                    name
-                )))
+                bail!("No snapshot named '{}' has been taken", name)
             }
             Some(x) => {
                 if *x != state {
@@ -101,10 +98,7 @@ impl Bit {
         };
         match self.overlay_snapshots.read().unwrap().get(name) {
             None => {
-                return Err(Error::new(&format!(
-                    "No snapshot named '{}' has been taken",
-                    name
-                )))
+                bail!("No snapshot named '{}' has been taken", name)
             }
             Some(x) => {
                 if *x != *self.overlay.read().unwrap() {
@@ -118,10 +112,7 @@ impl Bit {
     pub fn rollback(&self, name: &str) -> Result<()> {
         match self.state_snapshots.read().unwrap().get(name) {
             None => {
-                return Err(Error::new(&format!(
-                    "No snapshot named '{}' has been taken",
-                    name
-                )))
+                bail!("No snapshot named '{}' has been taken", name)
             }
             Some(x) => {
                 let mut state = self.state.write().unwrap();
@@ -130,10 +121,7 @@ impl Bit {
         };
         match self.overlay_snapshots.read().unwrap().get(name) {
             None => {
-                return Err(Error::new(&format!(
-                    "No snapshot named '{}' has been taken",
-                    name
-                )))
+                bail!("No snapshot named '{}' has been taken", name)
             }
             Some(x) => {
                 let mut ovl = self.overlay.write().unwrap();
@@ -286,10 +274,10 @@ impl Bit {
             *state = *state | 0b1000;
             Ok(())
         } else {
-            return Err(Error::new(&format!(
+            bail!(
                 "Attempt to verify a bit which has an undefined data value, bit state is: {}",
                 self.state_char()
-            )));
+            );
         }
     }
 
@@ -310,10 +298,10 @@ impl Bit {
         if self.has_known_value() {
             Ok(*self.state.read().unwrap() & 0b1)
         } else {
-            return Err(Error::new(&format!(
+            bail!(
                 "Bit data value is unknown, bit state is: {}",
                 self.state_char()
-            )));
+            );
         }
     }
 

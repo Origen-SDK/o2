@@ -66,12 +66,14 @@ pub fn load_test_from_lib(
         Err(e) => {
             if e.to_string().contains("No test template found at path") {
                 log_debug!("{}", e);
-                return error!(
+                bail!(
                     "No test method named '{}' found in library '{}' (for {})",
-                    test_name, lib_name, tester
+                    test_name,
+                    lib_name,
+                    tester
                 );
             } else {
-                return error!("{}", e);
+                bail!("{}", e);
             }
         }
     }
@@ -79,7 +81,7 @@ pub fn load_test_from_lib(
 
 fn import_test_template(path: &str) -> Result<TestTemplate> {
     match TEST_TEMPLATES.get(path) {
-        None => return error!("No test template found at path '{}'", path),
+        None => bail!("No test template found at path '{}'", path),
         Some(s) => Ok(serde_json::from_str(s)?),
     }
 }

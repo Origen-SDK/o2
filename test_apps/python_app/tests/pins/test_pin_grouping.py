@@ -103,19 +103,19 @@ class TestGrouping:
 
     def test_exception_on_missing_pins(self, clean_falcon, pins):
         assert "fail" not in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.group_pins("fail", "p0", "p1", "blah")
         assert "fail" not in origen.dut.pins
 
     def test_exception_on_grouping_duplicates(self, clean_falcon, pins, grp):
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.group_pins("invalid", "p1", "p1", "p1")
         assert "invalid" not in origen.dut.pins
 
     def test_exception_on_grouping_aliases_of_the_same_pin(
             self, clean_falcon, pins, grp):
         origen.dut.add_pin_alias("p1", "a1")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.group_pins("invalid", "p1", "p2", "a1", "p3")
         assert "invalid" not in origen.dut.pins
 
@@ -125,7 +125,7 @@ class TestGrouping:
         assert "porta0" in origen.dut.pins
         assert "porta1" in origen.dut.pins
         assert "invalid" not in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.group_pins("grouping_porta", "porta", "porta0",
                                   "porta1")
         assert "invalid" not in origen.dut.pins

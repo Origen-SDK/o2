@@ -33,7 +33,7 @@ impl TempBOM {
         if let Some(packages) = &self.package {
             for p in packages.iter() {
                 if bom.packages.contains_key(&p.id) {
-                    return error!("Duplicate package definition found: '{}'", p.id);
+                    bail!("Duplicate package definition found: '{}'", p.id);
                 }
                 bom.packages.insert(p.id.clone(), p.clone());
             }
@@ -48,7 +48,7 @@ impl TempBOM {
         if let Some(groups) = &self.group {
             for g in groups.iter() {
                 if bom.groups.contains_key(&g.id) {
-                    return error!("Duplicate group definition found: '{}'", g.id);
+                    bail!("Duplicate group definition found: '{}'", g.id);
                 }
                 bom.groups.insert(g.id.clone(), g.to_group());
             }
@@ -56,7 +56,7 @@ impl TempBOM {
         if let Some(links) = &self.links {
             for (k, v) in links.iter() {
                 if bom.links.contains_key(k) {
-                    return error!("Duplicate link definition found: '{}'", k);
+                    bail!("Duplicate link definition found: '{}'", k);
                 }
                 bom.links.insert(k.clone(), v.clone());
             }
@@ -195,7 +195,7 @@ impl BOM {
                     }
                 }
             } else {
-                return error!("No package or group was found matching ID '{}'", id);
+                bail!("No package or group was found matching ID '{}'", id);
             }
         }
         Ok(packages)
@@ -327,7 +327,7 @@ impl BOM {
                     if source.exists() {
                         symlink(source, dest)?;
                     } else {
-                        origen_metal::bail!(
+                        bail!(
                             "The target of link '{}' does not exist - '{}'",
                             dest.display(),
                             source.display()

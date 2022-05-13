@@ -1,6 +1,6 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
-use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamType, Test};
+use crate::prog_gen::{BinType, FlowCondition, GroupType, Model, ParamType, Test, PGM};
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -25,12 +25,12 @@ pub struct FlowGenerator {
     flow_control_vars: Vec<String>,
     group_count: HashMap<String, usize>,
     inline_limits: bool,
-    on_fails: Vec<Node>,
-    on_passes: Vec<Node>,
+    on_fails: Vec<Node<PGM>>,
+    on_passes: Vec<Node<PGM>>,
     resources_block: bool,
 }
 
-pub fn run(ast: &Node, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
+pub fn run(ast: &Node<PGM>, output_dir: &Path, model: Model) -> Result<(Model, Vec<PathBuf>)> {
     let mut p = FlowGenerator {
         name: "".to_string(),
         description: None,
@@ -126,7 +126,7 @@ impl FlowGenerator {
 /// for None or Some(false)
 fn is_true(test_suite: &Test, param: &str) -> Result<bool> {
     match test_suite.get(param) {
-        Err(e) => error!("An error occurred with parameter '{}': {}", param, e),
+        Err(e) => bail!("An error occurred with parameter '{}': {}", param, e),
         Ok(v) => {
             if let Some(v) = v {
                 v.to_bool()
@@ -196,14 +196,14 @@ fn flags(test_suite: &Test) -> Result<Vec<&'static str>> {
     Ok(flags)
 }
 
-impl Processor for FlowGenerator {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for FlowGenerator {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         let result = match &node.attrs {
-            Attrs::PGMResourcesFilename(name, kind) => {
+            PGM::ResourcesFilename(name, kind) => {
                 self.model.set_resources_filename(name.to_owned(), kind);
                 Return::Unmodified
             }
-            Attrs::PGMFlow(name) => {
+            PGM::Flow(name) => {
                 {
                     self.name = name.to_owned();
                     self.model.select_flow(name)?;
@@ -356,7 +356,7 @@ impl Processor for FlowGenerator {
                                     )?;
                                 }
                             } else {
-                                return error!("Inline multi-limits is not implemented for V93K SMT7 yet, multiple limits encountered for test '{}'", name);
+                                bail!("Inline multi-limits is not implemented for V93K SMT7 yet, multiple limits encountered for test '{}'", name);
                             }
                         }
                     }
@@ -500,20 +500,20 @@ impl Processor for FlowGenerator {
                 }
                 Return::None
             }
-            Attrs::PGMBypassSubFlows => {
+            PGM::BypassSubFlows => {
                 let orig = self.bypass_sub_flows;
                 self.bypass_sub_flows = true;
                 let _ = node.process_children(self);
                 self.bypass_sub_flows = orig;
                 Return::None
             }
-            Attrs::PGMFlowDescription(desc) => {
+            PGM::FlowDescription(desc) => {
                 if !self.sub_flow_open {
                     self.description = Some(desc.to_owned());
                 }
                 Return::None
             }
-            Attrs::PGMSubFlow(name, _fid) => {
+            PGM::SubFlow(name, _fid) => {
                 let orig = self.sub_flow_open;
                 self.sub_flow_open = true;
                 self.push_body("{");
@@ -529,16 +529,16 @@ impl Processor for FlowGenerator {
                 self.sub_flow_open = orig;
                 Return::None
             }
-            Attrs::PGMGroup(name, _, kind, _) => {
+            PGM::Group(name, _, kind, _) => {
                 if kind == &GroupType::Flow {
                     let mut pop_on_passed = false;
                     let mut pop_on_failed = false;
                     for n in &node.children {
-                        if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
+                        if matches!(n.attrs, PGM::OnPassed(_)) {
                             self.on_passes.push(*n.clone());
                             pop_on_passed = true;
                         }
-                        if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
+                        if matches!(n.attrs, PGM::OnFailed(_)) {
                             self.on_fails.push(*n.clone());
                             pop_on_failed = true;
                         }
@@ -560,11 +560,11 @@ impl Processor for FlowGenerator {
                 }
                 Return::None
             }
-            Attrs::PGMLog(msg) => {
+            PGM::Log(msg) => {
                 self.push_body(&format!("print_dl(\"{}\");", msg));
                 Return::None
             }
-            Attrs::PGMTest(id, _flow_id) => {
+            PGM::Test(id, _flow_id) => {
                 let (test_name, pattern) = {
                     let test = &self.model.test_invocations[id];
                     (
@@ -579,7 +579,7 @@ impl Processor for FlowGenerator {
                 if node
                     .children
                     .iter()
-                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_) | Attrs::PGMOnPassed(_)))
+                    .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
                     || !self.on_fails.is_empty()
                     || !self.on_passes.is_empty()
                 {
@@ -588,7 +588,7 @@ impl Processor for FlowGenerator {
                     self.push_body("{");
                     self.indent += 1;
                     for n in &node.children {
-                        if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
+                        if matches!(n.attrs, PGM::OnPassed(_)) {
                             n.process_children(self)?;
                         }
                     }
@@ -601,7 +601,7 @@ impl Processor for FlowGenerator {
                     self.push_body("{");
                     self.indent += 1;
                     for n in &node.children {
-                        if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
+                        if matches!(n.attrs, PGM::OnFailed(_)) {
                             n.process_children(self)?;
                         }
                     }
@@ -615,11 +615,11 @@ impl Processor for FlowGenerator {
                 }
                 Return::ProcessChildren
             }
-            Attrs::PGMTestStr(name, _flow_id) => {
+            PGM::TestStr(name, _flow_id) => {
                 if node
                     .children
                     .iter()
-                    .any(|n| matches!(n.attrs, Attrs::PGMOnFailed(_) | Attrs::PGMOnPassed(_)))
+                    .any(|n| matches!(n.attrs, PGM::OnFailed(_) | PGM::OnPassed(_)))
                     || !self.on_fails.is_empty()
                     || !self.on_passes.is_empty()
                 {
@@ -628,7 +628,7 @@ impl Processor for FlowGenerator {
                     self.push_body("{");
                     self.indent += 1;
                     for n in &node.children {
-                        if matches!(n.attrs, Attrs::PGMOnPassed(_)) {
+                        if matches!(n.attrs, PGM::OnPassed(_)) {
                             n.process_children(self)?;
                         }
                     }
@@ -641,7 +641,7 @@ impl Processor for FlowGenerator {
                     self.push_body("{");
                     self.indent += 1;
                     for n in &node.children {
-                        if matches!(n.attrs, Attrs::PGMOnFailed(_)) {
+                        if matches!(n.attrs, PGM::OnFailed(_)) {
                             n.process_children(self)?;
                         }
                     }
@@ -655,16 +655,13 @@ impl Processor for FlowGenerator {
                 }
                 Return::ProcessChildren
             }
-            Attrs::PGMOnFailed(_) => Return::None, // Done manually within the PGMTest handler
-            Attrs::PGMOnPassed(_) => Return::None, // Done manually within the PGMTest handler
-            Attrs::PGMElse => Return::None,        // Handled by its parent
-            Attrs::PGMCondition(cond) => match cond {
+            PGM::OnFailed(_) => Return::None, // Done manually within the PGMTest handler
+            PGM::OnPassed(_) => Return::None, // Done manually within the PGMTest handler
+            PGM::Else => Return::None,        // Handled by its parent
+            PGM::Condition(cond) => match cond {
                 FlowCondition::IfJob(jobs) | FlowCondition::UnlessJob(jobs) => {
                     let mut jobstr = "if".to_string();
-                    let else_node = node
-                        .children
-                        .iter()
-                        .find(|n| matches!(n.attrs, Attrs::PGMElse));
+                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
                     for (i, job) in jobs.iter().enumerate() {
                         if i > 0 {
                             jobstr += " or";
@@ -700,10 +697,7 @@ impl Processor for FlowGenerator {
                 }
                 FlowCondition::IfEnable(flags) | FlowCondition::UnlessEnable(flags) => {
                     let mut flagstr = "if".to_string();
-                    let else_node = node
-                        .children
-                        .iter()
-                        .find(|n| matches!(n.attrs, Attrs::PGMElse));
+                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
                     for (i, flag) in flags.iter().enumerate() {
                         if i > 0 {
                             flagstr += " or";
@@ -739,10 +733,7 @@ impl Processor for FlowGenerator {
                 }
                 FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
                     let mut flagstr = "if".to_string();
-                    let else_node = node
-                        .children
-                        .iter()
-                        .find(|n| matches!(n.attrs, Attrs::PGMElse));
+                    let else_node = node.children.iter().find(|n| matches!(n.attrs, PGM::Else));
                     for (i, flag) in flags.iter().enumerate() {
                         if i > 0 {
                             flagstr += " or";
@@ -778,7 +769,7 @@ impl Processor for FlowGenerator {
                 }
                 _ => Return::ProcessChildren,
             },
-            Attrs::PGMSetFlag(flag, state, _is_auto_generated) => {
+            PGM::SetFlag(flag, state, _is_auto_generated) => {
                 let flag = format!("@{}", &flag);
                 if *state {
                     self.push_body(&format!("{} = 1;", &flag));
@@ -788,7 +779,7 @@ impl Processor for FlowGenerator {
                 self.flow_control_vars.push(flag.to_string());
                 Return::None
             }
-            Attrs::PGMBin(bin, softbin, kind) => {
+            PGM::Bin(bin, softbin, kind) => {
                 let softbin = match softbin {
                     None => "".to_string(),
                     Some(s) => format!("{}", s),
@@ -803,7 +794,7 @@ impl Processor for FlowGenerator {
                 ));
                 Return::None
             }
-            Attrs::PGMResources => {
+            PGM::Resources => {
                 let orig = self.resources_block;
                 self.resources_block = true;
                 node.process_children(self)?;

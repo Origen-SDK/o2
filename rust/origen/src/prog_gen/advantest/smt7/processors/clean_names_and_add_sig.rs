@@ -1,7 +1,7 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
-use crate::prog_gen::{FlowCondition, Model, ParamValue, UniquenessOption};
+use crate::prog_gen::{FlowCondition, Model, ParamValue, UniquenessOption, PGM};
+use crate::Result;
 use md5::{Digest, Md5};
+use origen_metal::ast::{Node, Processor, Return};
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -13,7 +13,7 @@ pub struct AddSig {
     test_suite_names: HashMap<String, usize>,
 }
 
-pub fn run(node: &Node, model: Model) -> Result<(Node, Model)> {
+pub fn run(node: &Node<PGM>, model: Model) -> Result<(Node<PGM>, Model)> {
     let mut p = AddSig {
         uniq_option: UniquenessOption::Signature,
         sig: None,
@@ -26,10 +26,10 @@ pub fn run(node: &Node, model: Model) -> Result<(Node, Model)> {
     Ok((ast, p.model))
 }
 
-impl Processor for AddSig {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for AddSig {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            Attrs::PGMFlow(name) => {
+            PGM::Flow(name) => {
                 self.flow_name = Some(name.to_owned());
                 let mut hasher = Md5::new();
                 hasher.update(name);
@@ -58,7 +58,7 @@ impl Processor for AddSig {
                 }
                 Return::Replace(n)
             }
-            Attrs::PGMTest(id, _) => {
+            PGM::Test(id, _) => {
                 let t = self.model.test_invocations.get_mut(id).unwrap();
                 let name = t.get("name")?.unwrap().to_string();
                 if self.test_suite_names.contains_key(&name) {
@@ -74,7 +74,7 @@ impl Processor for AddSig {
                 }
                 Return::ProcessChildren
             }
-            Attrs::PGMCondition(cond) => match cond {
+            PGM::Condition(cond) => match cond {
                 FlowCondition::IfFlag(flags) | FlowCondition::UnlessFlag(flags) => {
                     let flags: Vec<String> = flags
                         .iter()
@@ -85,11 +85,9 @@ impl Processor for AddSig {
                         .collect();
                     let children = node.process_and_box_children(self)?;
                     let attrs = match cond {
-                        FlowCondition::IfFlag(_) => {
-                            Attrs::PGMCondition(FlowCondition::IfFlag(flags))
-                        }
+                        FlowCondition::IfFlag(_) => PGM::Condition(FlowCondition::IfFlag(flags)),
                         FlowCondition::UnlessFlag(_) => {
-                            Attrs::PGMCondition(FlowCondition::UnlessFlag(flags))
+                            PGM::Condition(FlowCondition::UnlessFlag(flags))
                         }
                         _ => unreachable!(),
                     };
@@ -100,10 +98,10 @@ impl Processor for AddSig {
                     let children = node.process_and_box_children(self)?;
                     let attrs = match cond {
                         FlowCondition::IfEnable(_) => {
-                            Attrs::PGMCondition(FlowCondition::IfEnable(flags))
+                            PGM::Condition(FlowCondition::IfEnable(flags))
                         }
                         FlowCondition::UnlessEnable(_) => {
-                            Attrs::PGMCondition(FlowCondition::UnlessEnable(flags))
+                            PGM::Condition(FlowCondition::UnlessEnable(flags))
                         }
                         _ => unreachable!(),
                     };
@@ -111,7 +109,7 @@ impl Processor for AddSig {
                 }
                 _ => Return::ProcessChildren,
             },
-            Attrs::PGMSetFlag(flag, state, is_auto_generated) => {
+            PGM::SetFlag(flag, state, is_auto_generated) => {
                 let flag = {
                     let f = clean_flag(flag);
                     if *is_auto_generated {
@@ -122,7 +120,7 @@ impl Processor for AddSig {
                 };
                 let children = node.process_and_box_children(self)?;
                 Return::Replace(node.updated(
-                    Some(Attrs::PGMSetFlag(flag, *state, *is_auto_generated)),
+                    Some(PGM::SetFlag(flag, *state, *is_auto_generated)),
                     Some(children),
                     None,
                 ))

@@ -174,23 +174,23 @@ class TestCollecting:
         assert grp.actions == "111HHH"
 
     def test_exception_on_collecting_missing_pins(self, clean_falcon, pins):
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.pins.collect("p1", "p2", "blah")
 
     def test_exception_on_collecting_duplicate_pins(self, clean_falcon, pins):
         origen.dut.add_pin_alias("p1", "a1")
         origen.dut.add_pin_alias("a1", "a1_a", "a1_b", "a1_c")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.pins.collect("p1", "p1", "p1")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.pins.collect("p1", "a1")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.pins.collect("a1_a", "a1_b", "a1_c")
 
     def test_exception_on_overflow_data(self, clean_falcon, pins):
         c = origen.dut.pins.collect("p1", "p2", "p3")
         assert c.actions == "ZZZ"
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             c.drive(0xF)
         with pytest.raises(OverflowError):
             c.drive(-1)
@@ -202,7 +202,7 @@ class TestCollecting:
         assert "porta0" in origen.dut.pins
         assert "porta1" in origen.dut.pins
         assert "invalid" not in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.pins.collect("invalid", "porta", "porta0", "porta1")
         assert "invalid" not in origen.dut.pins
 
@@ -211,13 +211,13 @@ class TestCollecting:
         origen.dut.group_pins("index_0s", "porta0", "portb0")
         origen.dut.group_pins("index_0s_rev", "portb0", "porta0")
         assert "invalid" not in origen.dut.pins
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.pins.collect("invalid", "index_0s", "index_0s_rev")
         assert "invalid" not in origen.dut.pins
 
     def test_exception_on_invalid_actions(self, clean_falcon, ports):
         c = origen.dut.pins.collect("porta", "portb")
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             c.actions = "Z"
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             c.set_actions(PinActions("ZZZZZZZZZZ"))

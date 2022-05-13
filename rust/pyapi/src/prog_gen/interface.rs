@@ -96,10 +96,10 @@ impl PyInterface {
                     SupportedTester::V93K
                     | SupportedTester::V93KSMT7
                     | SupportedTester::V93KSMT8 => {
-                        return error!("expected a Test Suite but was given a Test Method");
+                        bail!("expected a Test Suite but was given a Test Method");
                     }
                     _ => {
-                        return error!(
+                        bail!(
                             "add_test doesn't yet know how to handle a test object for '{}'",
                             t.tester
                         );
@@ -108,7 +108,7 @@ impl PyInterface {
             } else if let Ok(t) = test_obj.extract::<String>() {
                 flow_api::execute_test_str(t, id.clone(), src_caller_meta())?;
             } else {
-                return error!(
+                bail!(
                     "add_test must be given a valid test object, or a String, this is neither: {:?}",
                     test_obj
                 );
@@ -379,7 +379,7 @@ fn extract_to_string_vec(args: &PyTuple) -> Result<Vec<String>> {
                 clean.push(item);
             }
         } else {
-            return error!("Expected a string or a list of strings, got '{}'", arg);
+            bail!("Expected a string or a list of strings, got '{}'", arg);
         }
     }
     Ok(clean)

@@ -1,6 +1,6 @@
 use super::super::super::dut::Dut;
 use super::super::super::model::Model;
-use crate::error::Error;
+use crate::Result;
 
 #[derive(Debug, Clone)]
 pub struct PinHeader {
@@ -27,7 +27,7 @@ impl Dut {
         model_id: usize,
         name: &str,
         pins: Vec<String>,
-    ) -> Result<&PinHeader, Error> {
+    ) -> Result<&PinHeader> {
         let id;
         {
             id = self.pin_headers.len();
@@ -46,7 +46,7 @@ impl Model {
         pid: usize,
         name: &str,
         pin_names: Vec<String>,
-    ) -> Result<PinHeader, Error> {
+    ) -> Result<PinHeader> {
         let header = PinHeader::new(self.id, pid, name, pin_names);
         self.pin_headers.insert(name.to_string(), pid);
         Ok(header)

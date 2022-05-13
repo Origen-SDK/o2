@@ -227,7 +227,7 @@ pub fn dispatch_workflow(
 }
 
 // TODO relocate these
-use origen::config;
+use origen_metal::config;
 use pyo3::types::PyList;
 
 pub fn config_value_into_pyobject(py: Python, v: &config::Value) -> PyResult<PyObject> {

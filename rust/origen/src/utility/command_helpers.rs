@@ -117,7 +117,7 @@ pub fn exec<S: Into<String> + Clone>(
     }
     if clear_env {
         if remove_env.is_some() {
-            return error!("Options 'clear_env' and 'remove_env' cannot be used simultaneously");
+            bail!("Options 'clear_env' and 'remove_env' cannot be used simultaneously");
         } else {
             command.env_clear();
         }

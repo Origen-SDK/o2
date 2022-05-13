@@ -37,7 +37,7 @@ impl Field {
     ) -> Result<&EnumeratedValue> {
         //let acc: AccessType = match access.parse() {
         //    Ok(x) => x,
-        //    Err(msg) => return Err(Error::new(&msg)),
+        //    Err(msg) => bail!(&msg),
         //};
         let e = EnumeratedValue {
             name: name.to_string(),

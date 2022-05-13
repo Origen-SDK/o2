@@ -83,7 +83,7 @@ class TestPinMetadata:
         assert origen.dut.physical_pin("porta0").get_metadata("blah") is None
 
     def test_exception_on_adding_duplicate_metadata(self):
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             origen.dut.physical_pin("porta0").add_metadata("meta1", False)
 
     def test_additional_metadata(self):

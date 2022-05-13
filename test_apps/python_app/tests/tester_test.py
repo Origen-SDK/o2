@@ -104,7 +104,7 @@ def test_resetting_the_timeset():
 
 
 def test_exception_on_unknown_timeset(clean_eagle, clean_dummy):
-    with pytest.raises(OSError):
+    with pytest.raises(RuntimeError):
         origen.tester.set_timeset("blah")
 
 
@@ -128,12 +128,12 @@ def test_resetting_targets():
 
 def test_exception_on_duplicate_targets(clean_eagle, clean_tester):
     origen.tester.target("DummyRenderer")
-    with pytest.raises(OSError):
+    with pytest.raises(RuntimeError):
         origen.tester.target("DummyRenderer")
 
 
 def test_exception_on_unknown_target(clean_eagle, clean_tester):
-    with pytest.raises(OSError):
+    with pytest.raises(RuntimeError):
         origen.tester.target("blah")
 
 
@@ -207,7 +207,7 @@ def tester_target_backend_dummy():
 def tester_target_frontend_dummy():
     try:
         origen.tester.register_tester(PyTestRenderer)
-    except OSError:
+    except RuntimeError:
         # If we get an error back that shows it's already been added, that's fine. Ignore it.
         pass
     origen.tester.target("CUSTOM::tests.tester_test.PyTestRenderer")

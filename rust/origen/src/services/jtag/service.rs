@@ -1,7 +1,7 @@
 //! The service implements the public API exposed to Python and provides
 //! all state storage for a JTAG driver instance
 
-use crate::node;
+use crate::generator::PAT;
 use crate::precludes::controller::*;
 use crate::testers::api::ControllerAPI;
 use crate::{Dut, Result, Transaction, TEST};
@@ -148,7 +148,7 @@ impl Service {
     }
 
     fn _reset(&self, tms: &PinCollection) -> Result<()> {
-        let n_id = TEST.push_and_open(node!(JTAGReset, self.id, None));
+        let n_id = TEST.push_and_open(node!(PAT::JTAGReset, self.id, None));
         self.comment("Resetting JTAG Interface");
         tms.drive_high().repeat(6);
         TEST.close(n_id)?;
@@ -170,7 +170,7 @@ impl Service {
     pub fn write_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdi = PinCollection::from_group(&dut, &self.tdi.0, self.tdi.1)?;
-        let trans = node!(JTAGWriteIR, self.id, transaction.clone(), None);
+        let trans = node!(PAT::JTAGWriteIR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
 
         self.comment("Move to Shift-IR");
@@ -198,7 +198,7 @@ impl Service {
     pub fn verify_ir(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdo = PinCollection::from_group(&dut, &self.tdo.0, self.tdo.1)?;
-        let trans = node!(JTAGVerifyIR, self.id, transaction.clone(), None);
+        let trans = node!(PAT::JTAGVerifyIR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
         self.comment("Move to Shift-IR");
         tms.drive_low().cycle();
@@ -224,7 +224,7 @@ impl Service {
     pub fn write_dr(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdi = PinCollection::from_group(&dut, &self.tdi.0, self.tdi.1)?;
-        let trans = node!(JTAGWriteDR, self.id, transaction.clone(), None);
+        let trans = node!(PAT::JTAGWriteDR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
 
         self.comment("Move to Shift-DR");
@@ -252,7 +252,7 @@ impl Service {
     pub fn verify_dr(&self, dut: &Dut, transaction: &Transaction) -> Result<()> {
         let tms = PinCollection::from_group(&dut, &self.tms.0, self.tms.1)?;
         let tdo = PinCollection::from_group(&dut, &self.tdo.0, self.tdo.1)?;
-        let trans = node!(JTAGVerifyDR, self.id, transaction.clone(), None);
+        let trans = node!(PAT::JTAGVerifyDR, self.id, transaction.clone(), None);
         let n_id = TEST.push_and_open(trans.clone());
 
         self.comment("Move to Shift-DR");

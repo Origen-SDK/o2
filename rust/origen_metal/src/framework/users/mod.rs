@@ -51,7 +51,7 @@ pub fn set_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
             }
         }
         if err_str != "" {
-            error!("{}", err_str)
+            bail!("{}", err_str)
         } else {
             Ok(())
         }
@@ -81,7 +81,7 @@ pub fn clear_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
             }
         }
         if err_str != "" {
-            error!("{}", err_str)
+            bail!("{}", err_str)
         } else {
             Ok(())
         }

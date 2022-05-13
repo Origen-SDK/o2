@@ -1,4 +1,3 @@
-use crate::error::Error;
 use crate::standards::actions::*;
 use crate::Result;
 use indexmap::map::IndexMap;
@@ -17,10 +16,10 @@ pub trait ResolvePinActions {
     fn _resolve_pin_action(&self, target: String, action: &PinAction) -> Result<String> {
         match self.resolve_pin_action(target, action) {
             Some(a) => Ok(a),
-            None => Err(Error::new(&format!(
+            None => Err(error!(
                 "No resolution provided for pin action {:?}",
                 &action
-            ))),
+            )),
         }
     }
 
@@ -90,10 +89,10 @@ impl PinAction {
     pub fn checked_new<T: AsRef<str> + std::fmt::Display>(action: T) -> Result<Self> {
         let a = Self::from_action_str(&action.to_string())?;
         if a.len() > 1 {
-            Err(Error::new(&format!(
+            bail!(
                 "Expected Single PinAction but input {} would resolve to multiple actions",
                 action
-            )))
+            )
         } else {
             Ok(Self::new(a.first().unwrap().to_string()))
         }
@@ -143,10 +142,10 @@ impl PinAction {
         }
         if in_sym {
             // Current sym wasn't closed. Badly formatted input
-            return Err(Error::new(&format!(
+            bail!(
                 "Badly formatted PinAction string: Open user-defined symbol without closing delimiter. Current symbol: {}",
                 &sym
-            )));
+            );
         }
         Ok(retn)
     }
@@ -174,10 +173,7 @@ impl PinAction {
         } else if self.action == DRIVE_LOW || self.action == VERIFY_LOW {
             Ok(false)
         } else {
-            Err(Error::new(&format!(
-                "Cannot interpret action {} as a logic 1 or 0",
-                self.action
-            )))
+            bail!("Cannot interpret action {} as a logic 1 or 0", self.action)
         }
     }
 
@@ -215,11 +211,11 @@ impl PinAction {
                         retn = retn + (1 as u8);
                     }
                 },
-                Err(_e) => return Err(Error::new(&format!(
+                Err(_e) => bail!(
                     "Cannot convert actions to data as action {} at index {} cannot be interpreted as a logic 1 or 0",
                     &a.to_string(),
                     (actions.len() - i - 1) // Re-reverse the indices to they make sense to the user
-                )))
+                )
             }
         }
         Ok(retn)
@@ -314,10 +310,10 @@ impl Pin {
 
     pub fn add_metadata_id(&mut self, id_str: &str, id: usize) -> Result<()> {
         if self.metadata.contains_key(id_str) {
-            Err(Error::new(&format!(
+            Err(error!(
                 "Pin {} already has metadata {}! Use set_metadata to override its current value!",
                 self.name, id_str,
-            )))
+            ))
         } else {
             self.metadata.insert(String::from(id_str), id);
             Ok(())

@@ -6,9 +6,9 @@ mod supported_testers;
 pub mod vector_based;
 
 use crate::core::tester::{Interceptor, TesterAPI, TesterID};
-use crate::generator::ast::{Attrs, Node};
-use crate::generator::processor::{Processor, Return};
+use crate::generator::PAT;
 use crate::{dut, Result};
+use origen_metal::ast::{Node, Processor, Return};
 use std::path::PathBuf;
 pub use supported_testers::SupportedTester;
 
@@ -23,9 +23,9 @@ pub fn instantiate_tester(g: &SupportedTester) -> Result<Box<dyn TesterAPI + std
         SupportedTester::ULTRAFLEX => Ok(Box::new(igxl::UltraFlex::default())),
         SupportedTester::J750 => Ok(Box::new(igxl::j750::J750::default())),
         SupportedTester::CUSTOM(_) => {
-            error!("Custom testers are not instantiated by this function")
+            bail!("Custom testers are not instantiated by this function")
         }
-        _ => error!("The tester driver for {}, is not implemented yet", g),
+        _ => bail!("The tester driver for {}, is not implemented yet", g),
     }
 }
 
@@ -54,21 +54,21 @@ impl TesterID for DummyRenderer {
 }
 
 impl TesterAPI for DummyRenderer {
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
+    fn render_pattern(&mut self, ast: &Node<PAT>) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
         Ok(vec![])
     }
 }
 
-impl Processor for DummyRenderer {
-    fn on_node(&mut self, node: &Node) -> crate::Result<Return> {
+impl Processor<PAT> for DummyRenderer {
+    fn on_node(&mut self, node: &Node<PAT>) -> crate::Result<Return<PAT>> {
         match &node.attrs {
-            Attrs::Test(_name) => {
+            PAT::Test(_name) => {
                 // Not counting the top node as a node. Only comments and cycles.
                 println!("Printing StubAST to console...");
                 Ok(Return::ProcessChildren)
             }
-            Attrs::Comment(_level, msg) => {
+            PAT::Comment(_level, msg) => {
                 println!(
                     "  ::DummyRenderer Node {}: Comment - Content: {}",
                     self.count, msg
@@ -76,7 +76,7 @@ impl Processor for DummyRenderer {
                 self.count += 1;
                 Ok(Return::Unmodified)
             }
-            Attrs::Cycle(repeat, _compressable) => {
+            PAT::Cycle(repeat, _compressable) => {
                 let dut = dut();
                 let t = &dut.timesets[self.current_timeset_id.unwrap()];
                 println!(
@@ -86,7 +86,7 @@ impl Processor for DummyRenderer {
                 self.count += 1;
                 Ok(Return::Unmodified)
             }
-            Attrs::SetTimeset(timeset_id) => {
+            PAT::SetTimeset(timeset_id) => {
                 self.current_timeset_id = Some(*timeset_id);
                 Ok(Return::Unmodified)
             }
@@ -110,7 +110,7 @@ impl TesterID for DummyRendererWithInterceptors {
 }
 
 impl TesterAPI for DummyRendererWithInterceptors {
-    fn render_pattern(&mut self, ast: &Node) -> crate::Result<Vec<PathBuf>> {
+    fn render_pattern(&mut self, ast: &Node<PAT>) -> crate::Result<Vec<PathBuf>> {
         ast.process(self)?;
         Ok(vec![])
     }
@@ -126,26 +126,26 @@ impl Default for DummyRendererWithInterceptors {
 }
 
 impl Interceptor for DummyRendererWithInterceptors {
-    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node) -> Result<()> {
+    fn cycle(&mut self, _repeat: u32, _compressable: bool, _node: &Node<PAT>) -> Result<()> {
         println!("Vector intercepted by DummyRendererWithInterceptors!");
         Ok(())
     }
 
-    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node) -> Result<()> {
+    fn cc(&mut self, _level: u8, _msg: &str, _node: &Node<PAT>) -> Result<()> {
         println!("Comment intercepted by DummyRendererWithInterceptors!");
         Ok(())
     }
 }
 
-impl Processor for DummyRendererWithInterceptors {
-    fn on_node(&mut self, node: &Node) -> crate::Result<Return> {
+impl Processor<PAT> for DummyRendererWithInterceptors {
+    fn on_node(&mut self, node: &Node<PAT>) -> crate::Result<Return<PAT>> {
         match &node.attrs {
-            Attrs::Test(_name) => {
+            PAT::Test(_name) => {
                 // Not counting the top node as a node. Only comments and cycles.
                 println!("Printing StubAST to console...");
                 Ok(Return::ProcessChildren)
             }
-            Attrs::Comment(_level, msg) => {
+            PAT::Comment(_level, msg) => {
                 println!(
                     "  ::DummyRendererWithInterceptors Node {}: Comment - Content: {}",
                     self.count, msg
@@ -153,7 +153,7 @@ impl Processor for DummyRendererWithInterceptors {
                 self.count += 1;
                 Ok(Return::Unmodified)
             }
-            Attrs::Cycle(repeat, _compressable) => {
+            PAT::Cycle(repeat, _compressable) => {
                 let dut = dut();
                 let t = &dut.timesets[self.current_timeset_id.unwrap()];
                 println!(
@@ -163,7 +163,7 @@ impl Processor for DummyRendererWithInterceptors {
                 self.count += 1;
                 Ok(Return::Unmodified)
             }
-            Attrs::SetTimeset(timeset_id) => {
+            PAT::SetTimeset(timeset_id) => {
                 self.current_timeset_id = Some(*timeset_id);
                 Ok(Return::Unmodified)
             }

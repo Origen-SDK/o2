@@ -3,7 +3,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate serde;
 #[macro_use]
-extern crate origen;
+extern crate origen_metal;
 
 mod app_commands;
 mod commands;

@@ -6,7 +6,7 @@ extern crate lazy_static;
 extern crate serde;
 extern crate origen_core_support;
 #[macro_use]
-extern crate pest_derive;
+pub extern crate origen_metal;
 #[macro_use]
 pub mod macros;
 #[allow(unused_imports)]
@@ -18,7 +18,6 @@ extern crate strum_macros;
 extern crate enum_display_derive;
 
 pub mod core;
-pub mod error;
 pub mod generator;
 pub mod precludes;
 pub mod prog_gen;
@@ -27,13 +26,11 @@ pub mod standards;
 pub mod testers;
 pub mod utility;
 
-pub extern crate config;
-
 pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
-pub use error::Error;
+pub use origen_metal::Error;
 
 use self::core::application::Application;
 use self::core::config::Config as OrigenConfig;
@@ -43,7 +40,6 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::{Capture, Overlay, Tester};
-use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
 pub use self::utility::sessions::{setup_sessions, with_app_session, with_app_session_group};
@@ -56,12 +52,15 @@ use std::sync::{Mutex, MutexGuard};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::mailer::Maillists;
 
+use generator::PAT;
+use origen_metal::ast::{Attrs, Node, AST};
+
 pub use self::core::frontend::callbacks as CALLBACKS;
 pub use self::core::frontend::{
     emit_callback, with_frontend, with_frontend_app, with_optional_frontend, GenericResult,
 };
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub use origen_metal::Result;
 
 /// The available Origen runtime modes
 pub const MODES: &'static [&'static str] = &["production", "development"];
@@ -102,14 +101,20 @@ lazy_static! {
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
-impl PartialEq<AST> for TEST {
-    fn eq(&self, ast: &AST) -> bool {
+impl PartialEq<AST<PAT>> for TEST {
+    fn eq(&self, ast: &AST<PAT>) -> bool {
         self.to_node() == ast.to_node()
     }
 }
 
-impl PartialEq<Node> for TEST {
-    fn eq(&self, node: &Node) -> bool {
+impl PartialEq<TEST> for AST<PAT> {
+    fn eq(&self, test: &TEST) -> bool {
+        self.to_node() == test.to_node()
+    }
+}
+
+impl PartialEq<Node<PAT>> for TEST {
+    fn eq(&self, node: &Node<PAT>) -> bool {
         self.to_node() == *node
     }
 }
@@ -201,7 +206,7 @@ where
     F: FnMut(&core::producer::job::Job) -> Result<T>,
 {
     match producer().current_job() {
-        None => error!("Something has gone wrong, a reference has been made to the current job when there is none"),
+        None => bail!("Something has gone wrong, a reference has been made to the current job when there is none"),
         Some(j) => func(j),
     }
 }
@@ -213,7 +218,7 @@ where
     F: FnMut(&mut core::producer::job::Job) -> Result<T>,
 {
     match producer().current_job_mut() {
-        None => error!("Something has gone wrong, a reference has been made to the current job when there is none"),
+        None => bail!("Something has gone wrong, a reference has been made to the current job when there is none"),
         Some(j) => func(j),
     }
 }
@@ -267,6 +272,29 @@ pub fn start_new_test(name: Option<String>) {
         TEST.start(&name);
     } else {
         TEST.start("ad-hoc");
+    }
+}
+
+pub fn trace_error<T: Attrs>(node: &Node<T>, error: Error) -> Result<()> {
+    // Messaging may need to be slightly different for patgen
+    if STATUS.operation() == Operation::GenerateFlow {
+        let help = {
+            let s = node.meta_string();
+            if s != "" {
+                s
+            } else {
+                if STATUS.is_debug_enabled() {
+                    // Don't display children since it's potentially huge
+                    let n = node.replace_children(vec![]);
+                    format!("Sorry, no flow source information was found, here is the flow node that failed if it helps:\n{}", n)
+                } else {
+                    "Run again with the --debug switch to try and trace this back to a flow source file location".to_string()
+                }
+            }
+        };
+        bail!("{}\n{}", error, &help)
+    } else {
+        bail!("{}", error)
     }
 }
 

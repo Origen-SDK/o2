@@ -1,15 +1,15 @@
-use crate::generator::ast::*;
-use crate::generator::processor::*;
-use crate::prog_gen::FlowCondition;
+use crate::prog_gen::{FlowCondition, PGM};
+use crate::Result;
+use origen_metal::ast::{Node, Processor, Return};
 
 pub struct Flags {
-    open_if: Vec<Node>,
-    open_unless: Vec<Node>,
-    conflicting: Vec<(Node, Node)>,
+    open_if: Vec<Node<PGM>>,
+    open_unless: Vec<Node<PGM>>,
+    conflicting: Vec<(Node<PGM>, Node<PGM>)>,
     volatile_flags: Vec<String>,
 }
 
-pub fn run(node: &Node) -> Result<()> {
+pub fn run(node: &Node<PGM>) -> Result<()> {
     let mut p = Flags {
         open_if: vec![],
         open_unless: vec![],
@@ -31,27 +31,27 @@ pub fn run(node: &Node) -> Result<()> {
         } else {
             msg += "\n  run again with the --debug switch to see them";
         }
-        error!("{}", msg)
+        bail!("{}", msg)
     } else {
         Ok(())
     }
 }
 
-impl Processor for Flags {
-    fn on_node(&mut self, node: &Node) -> Result<Return> {
+impl Processor<PGM> for Flags {
+    fn on_node(&mut self, node: &Node<PGM>) -> origen_metal::Result<Return<PGM>> {
         Ok(match &node.attrs {
-            Attrs::PGMVolatile(flag) => {
+            PGM::Volatile(flag) => {
                 self.volatile_flags.push(flag.to_owned());
                 Return::None
             }
-            Attrs::PGMCondition(cond) => match cond {
+            PGM::Condition(cond) => match cond {
                 FlowCondition::IfFlag(flags) => {
                     let flag = flags.first().unwrap();
                     if self.volatile_flags.iter().any(|f| f == flag) {
                         Return::ProcessChildren
                     } else {
                         for n in &self.open_unless {
-                            if let Attrs::PGMCondition(attrs) = &n.attrs {
+                            if let PGM::Condition(attrs) = &n.attrs {
                                 if let FlowCondition::UnlessFlag(f) = attrs {
                                     if f.first().unwrap() == flag {
                                         self.conflicting.push((n.clone(), node.without_children()));
@@ -71,7 +71,7 @@ impl Processor for Flags {
                         Return::ProcessChildren
                     } else {
                         for n in &self.open_if {
-                            if let Attrs::PGMCondition(attrs) = &n.attrs {
+                            if let PGM::Condition(attrs) = &n.attrs {
                                 if let FlowCondition::IfFlag(f) = attrs {
                                     if f.first().unwrap() == flag {
                                         self.conflicting.push((n.clone(), node.without_children()));

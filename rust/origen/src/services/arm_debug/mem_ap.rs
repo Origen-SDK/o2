@@ -1,11 +1,10 @@
 use super::super::super::services::Service;
 use crate::core::model::pins::PinCollection;
+use crate::generator::PAT;
 use crate::Transaction;
-use crate::{add_reg_32bit, field, get_reg, some_hard_reset_val, Dut, Error, Result, TEST};
+use crate::{add_reg_32bit, field, get_reg, some_hard_reset_val, Dut, Result, TEST};
 use num_bigint::BigUint;
 use std::sync::MutexGuard;
-
-use crate::generator::ast::*;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct MemAP {
@@ -136,7 +135,7 @@ impl MemAP {
         }
 
         match &reg_write_node.attrs {
-            Attrs::RegWrite(reg_trans) => {
+            PAT::RegWrite(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
                 let reg = dut.get_register(reg_id)?;
                 let trans = t.clone();
@@ -144,7 +143,7 @@ impl MemAP {
 
                 if reg.address_block_id == self.address_block_id {
                     let trans_node = node!(
-                        ArmDebugMemAPWriteInternalReg,
+                        PAT::ArmDebugMemAPWriteInternalReg,
                         self.id,
                         self.addr,
                         trans.clone(),
@@ -165,7 +164,7 @@ impl MemAP {
                     TEST.close(trans_node_id)?;
                 } else {
                     let trans_node = node!(
-                        ArmDebugMemAPWriteReg,
+                        PAT::ArmDebugMemAPWriteReg,
                         self.id,
                         self.addr,
                         trans.clone(),
@@ -179,10 +178,10 @@ impl MemAP {
                 }
             }
             _ => {
-                return Err(Error::new(&format!(
+                bail!(
                     "Unexpected node in ArmDebug MemAP driver: {:?}",
                     reg_write_node
-                )))
+                )
             }
         }
         TEST.close(n_id)?;
@@ -224,7 +223,7 @@ impl MemAP {
         }
 
         match &reg_node.attrs {
-            Attrs::RegVerify(reg_trans) | Attrs::RegCapture(reg_trans) => {
+            PAT::RegVerify(reg_trans) | PAT::RegCapture(reg_trans) => {
                 let reg_id = reg_trans.reg_id.unwrap();
                 let reg = dut.get_register(reg_id)?;
                 let mut trans = t.clone();
@@ -232,7 +231,7 @@ impl MemAP {
                     // Internal (to the MemAP) register
                     let addr = trans.addr()?;
                     trans_node = node!(
-                        ArmDebugMemAPVerifyInternalReg,
+                        PAT::ArmDebugMemAPVerifyInternalReg,
                         self.id,
                         self.addr,
                         trans.clone(),
@@ -259,7 +258,13 @@ impl MemAP {
                     TEST.close(trans_node_id)?;
                 } else {
                     // External (to the MemAP) register - that is, part of the register map
-                    trans_node = node!(ArmDebugMemAPVerifyReg, self.id, self.addr, t.clone(), None);
+                    trans_node = node!(
+                        PAT::ArmDebugMemAPVerifyReg,
+                        self.id,
+                        self.addr,
+                        t.clone(),
+                        None
+                    );
                     let trans_node_id = TEST.push_and_open(trans_node);
                     self.prep_for_transfer(&trans, dut, services)?;
 
@@ -290,10 +295,7 @@ impl MemAP {
                 }
             }
             _ => {
-                return Err(Error::new(&format!(
-                    "Unexpected node in ArmDebug MemAP driver: {:?}",
-                    reg_node
-                )))
+                bail!("Unexpected node in ArmDebug MemAP driver: {:?}", reg_node)
             }
         }
         TEST.close(n_id)?;
