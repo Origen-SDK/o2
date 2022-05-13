@@ -205,9 +205,9 @@ impl std::convert::From<std::env::VarError> for Error {
 }
 
 impl std::convert::From<reqwest::Error> for Error {
-   fn from(err: reqwest::Error) -> Self {
-       Error::new(&err.to_string())
-   }
+    fn from(err: reqwest::Error) -> Self {
+        Error::new(&err.to_string())
+    }
 }
 
 impl<T> std::convert::From<std::sync::PoisonError<T>> for Error {

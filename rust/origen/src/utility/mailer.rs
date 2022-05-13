@@ -11,9 +11,9 @@ use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::Message;
 use lettre::Transport;
+use origen_metal::config;
 use std::collections::HashMap;
 use std::fmt::Display;
-use origen_metal::config;
 
 #[derive(Deserialize)]
 pub struct MaillistConfig {
