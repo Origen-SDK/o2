@@ -1,9 +1,9 @@
-use crate::{Result, Outcome, TypedValue, TypedValueMap};
-use crate::framework::users::{User, Data};
+use crate::framework::users::{Data, User};
+use crate::{Outcome, Result, TypedValue, TypedValueMap};
+use core::time::Duration;
 use ldap3::{LdapConn, LdapConnSettings, Scope, SearchEntry};
 use std::collections::HashMap;
 use std::sync::{RwLock, RwLockWriteGuard};
-use core::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct SimpleBind {
@@ -12,7 +12,7 @@ pub struct SimpleBind {
     pub priority_motives: Vec<String>,
     pub backup_motives: Vec<String>,
     pub allow_default_password: bool,
-    pub use_default_motives: bool
+    pub use_default_motives: bool,
 }
 
 impl SimpleBind {
@@ -25,11 +25,20 @@ impl SimpleBind {
     }
 
     pub fn motives<'a>(&'a self, ldap_name: &'a str) -> Vec<&'a str> {
-        let mut retn = self.priority_motives.iter().map( |s| s.as_str()).collect::<Vec<&str>>();
+        let mut retn = self
+            .priority_motives
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<&str>>();
         if self.use_default_motives {
             retn.append(&mut vec![ldap_name, "ldap"]);
         }
-        retn.extend(self.backup_motives.iter().map( |s| s.as_str()).collect::<Vec<&str>>());
+        retn.extend(
+            self.backup_motives
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<&str>>(),
+        );
         retn
     }
 
@@ -40,55 +49,63 @@ impl SimpleBind {
             crate::with_user(&self.username()?, |u| {
                 for m in &self.motives(ldap_name) {
                     if let Some(d) = u.dataset_for(m)? {
-                        return u.password(Some(d), false, None)
+                        return u.password(Some(d), false, None);
                     }
                 }
                 if self.allow_default_password {
                     u.password(None, false, None)
                 } else {
-                    bail!("No password found for user '{}' matching motives {}", u.id(), self.motives(ldap_name).iter().map( |m| format!("'{}'", m)).collect::<Vec<String>>().join(", "))
+                    bail!(
+                        "No password found for user '{}' matching motives {}",
+                        u.id(),
+                        self.motives(ldap_name)
+                            .iter()
+                            .map(|m| format!("'{}'", m))
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
                 }
             })
         }
     }
 
     // TODO
-//     pub fn update(
-//         &mut self,
-//         username: Option<Option<String>>,
-//         password: Option<Option<String>>,
-//         priority_motives: Option<Vec<String>>,
-//         backup_motives: Option<Vec<String>>,
-//         allow_default_password: Option<bool>,
-//         use_default_motives: Option<bool>,
-//     ) -> Result<()> {
-//         if (password.is_none() && self.password.is_none()) || (password.unwrap().is_none())
-//             && (priority_motives.is_empty() && priority_motives.is_empty())
+    //     pub fn update(
+    //         &mut self,
+    //         username: Option<Option<String>>,
+    //         password: Option<Option<String>>,
+    //         priority_motives: Option<Vec<String>>,
+    //         backup_motives: Option<Vec<String>>,
+    //         allow_default_password: Option<bool>,
+    //         use_default_motives: Option<bool>,
+    //     ) -> Result<()> {
+    //         if (password.is_none() && self.password.is_none()) || (password.unwrap().is_none())
+    //             && (priority_motives.is_empty() && priority_motives.is_empty())
 
-//         if password.is_none() && priority_motives.is_empty() && backup_motives.is_empty() && !allow_default_password && !use_default_motives {
-//             bail!("Password is unresolvable! Current config does not provide a password, any motives, nor are any default motives or passwords allowed!");
-//         }
+    //         if password.is_none() && priority_motives.is_empty() && backup_motives.is_empty() && !allow_default_password && !use_default_motives {
+    //             bail!("Password is unresolvable! Current config does not provide a password, any motives, nor are any default motives or passwords allowed!");
+    //         }
 
-//         if let Some(u) = username {
-//             self.username = u;
-//         }
-//         if let Some(p) = password {
-//             self.password = p;
-//         }
-//         if let Some(pm) = priority_motives {
-//             self.priority_motives = u;
-//         }
-//         if let Some(bm) = backup_motives {
-//             self.backup_motives = u;
-//         }
-//         if let Some(a) = allow_default_password {
-//             self.allow_default_password = a;
-//         }
-//         if let Some(u) = use_default_motives {
-//             self.use_default_motives = u;
-//         }
-//         Ok(())
-//     }
+    //         if let Some(u) = username {
+    //             self.username = u;
+    //         }
+    //         if let Some(p) = password {
+    //             self.password = p;
+    //         }
+    //         if let Some(pm) = priority_motives {
+    //             self.priority_motives = u;
+    //         }
+    //         if let Some(bm) = backup_motives {
+    //             self.backup_motives = u;
+    //         }
+    //         if let Some(a) = allow_default_password {
+    //             self.allow_default_password = a;
+    //         }
+    //         if let Some(u) = use_default_motives {
+    //             self.use_default_motives = u;
+    //         }
+    //         Ok(())
+    //     }
 }
 
 impl std::default::Default for SimpleBind {
@@ -99,7 +116,7 @@ impl std::default::Default for SimpleBind {
             priority_motives: vec![],
             backup_motives: vec![],
             allow_default_password: true,
-            use_default_motives: true
+            use_default_motives: true,
         }
     }
 }
@@ -158,9 +175,10 @@ impl SupportedAuths {
         ldap.with_timeout(core::time::Duration::new(5, 0));
         match self {
             Self::SimpleBind(sb) => {
-                ldap.simple_bind(&sb.username()?, &sb.password(l.name.as_str())?)?.success()?;
+                ldap.simple_bind(&sb.username()?, &sb.password(l.name.as_str())?)?
+                    .success()?;
                 Ok(())
-            },
+            }
         }
     }
 }
@@ -178,8 +196,8 @@ pub struct LdapPopUserConfig {
 impl LdapPopUserConfig {
     pub fn get_attributes(&self) -> Vec<&str> {
         match &self.attributes {
-            Some(attrs) => attrs.iter().map( |a| a.as_str()).collect(),
-            None => vec!["*"]
+            Some(attrs) => attrs.iter().map(|a| a.as_str()).collect(),
+            None => vec!["*"],
         }
     }
 
@@ -203,7 +221,7 @@ impl Default for LdapPopUserConfig {
             mapping: HashMap::new(),
             required: vec![],
             include_all: false,
-            attributes: None
+            attributes: None,
         }
     }
 }
@@ -221,13 +239,21 @@ pub struct LDAP {
 }
 
 impl LDAP {
-    pub fn new<S: Into<u64>>(name: &str, server: &str, base: &str, continuous_bind: bool, auth: SupportedAuths, timeout: Option<Option<S>>, populate_user_config: Option<LdapPopUserConfig>) -> Result<Self> {
+    pub fn new<S: Into<u64>>(
+        name: &str,
+        server: &str,
+        base: &str,
+        continuous_bind: bool,
+        auth: SupportedAuths,
+        timeout: Option<Option<S>>,
+        populate_user_config: Option<LdapPopUserConfig>,
+    ) -> Result<Self> {
         let t = match timeout {
             Some(t) => match t {
                 Some(t2) => Some(Duration::new(t2.into(), 0)),
-                None => None
+                None => None,
             },
-            None => Some(Duration::new(60 as u64, 0))
+            None => Some(Duration::new(60 as u64, 0)),
         };
 
         let s = Self {
@@ -256,7 +282,15 @@ impl LDAP {
 
     pub fn standalone(&self) -> Result<Self> {
         // TODO timeout
-        Self::new(&self.name, &self.server, &self.base, self.continuous_bind, self.auth.clone(), Some(self.timeout()), self.populate_user_config.clone())
+        Self::new(
+            &self.name,
+            &self.server,
+            &self.base,
+            self.continuous_bind,
+            self.auth.clone(),
+            Some(self.timeout()),
+            self.populate_user_config.clone(),
+        )
     }
 
     // pub fn timeout(&self) -> Option<u64> {
@@ -352,7 +386,7 @@ impl LDAP {
     }
 
     pub fn bind(&self) -> Result<()> {
-        self.execute( |_| { Ok(()) })
+        self.execute(|_| Ok(()))
     }
 
     fn bind_comm(&self, comm: &mut LdapConn) -> Result<()> {
@@ -411,7 +445,9 @@ impl LDAP {
     ) -> Result<HashMap<String, (HashMap<String, Vec<String>>, HashMap<String, Vec<Vec<u8>>>)>>
     {
         self.execute(|comm| {
-            let (rs, _result) = comm.search(&self.base, Scope::Subtree, filter, attrs)?.success()?;
+            let (rs, _result) = comm
+                .search(&self.base, Scope::Subtree, filter, attrs)?
+                .success()?;
             let mut retn = HashMap::new();
             for entry in rs {
                 let construct = SearchEntry::construct(entry);
@@ -427,7 +463,9 @@ impl LDAP {
         attrs: Vec<S>,
     ) -> Result<(HashMap<String, Vec<String>>, HashMap<String, Vec<Vec<u8>>>)> {
         self.execute(|comm| {
-            let (mut rs, _result) = comm.search(&self.base, Scope::Subtree, filter, attrs)?.success()?;
+            let (mut rs, _result) = comm
+                .search(&self.base, Scope::Subtree, filter, attrs)?
+                .success()?;
             if rs.len() > 1 {
                 bail!(
                     "LDAP: expected a single DN result from filter {} for 'single_filter_search'. \
@@ -460,11 +498,13 @@ impl LDAP {
 
     pub fn populate_user(&self, user: &User, data: &mut Data) -> Result<Outcome> {
         if let Some(config) = self.populate_user_config.as_ref() {
-            let fields = self.single_filter_search(
-                // TODO needs to be customizable
-                &format!("{}={}", config.data_id, user.id()),
-                config.get_attributes(),
-            )?.0;
+            let fields = self
+                .single_filter_search(
+                    // TODO needs to be customizable
+                    &format!("{}={}", config.data_id, user.id()),
+                    config.get_attributes(),
+                )?
+                .0;
 
             for (key, val) in config.mapping.iter() {
                 if let Some(v) = fields.get(val) {
@@ -481,10 +521,8 @@ impl LDAP {
                     } else if key == "display_name" {
                         data.display_name = Some(v.first().unwrap().to_string());
                     } else {
-                        data.other.insert(
-                            key,
-                            TypedValue::String(v.first().unwrap().to_string()),
-                        );
+                        data.other
+                            .insert(key, TypedValue::String(v.first().unwrap().to_string()));
                     }
                 } else {
                     // TODO support this?
@@ -509,7 +547,10 @@ impl LDAP {
             //     allow_failures,
             //     &mut popped,
             // )?
-            bail!(&format!("LDAP '{}' does not provide any configuration for populating users", self.name));
+            bail!(&format!(
+                "LDAP '{}' does not provide any configuration for populating users",
+                self.name
+            ));
         }
         Ok(Outcome::new_success())
     }

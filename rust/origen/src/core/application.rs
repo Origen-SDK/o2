@@ -160,7 +160,7 @@ impl Application {
         self.with_config(|config| {
             if let Some(pc) = &config.publisher {
                 if let Some(s) = pc.get("package_app") {
-                    return Ok(s.parse::<bool>()?)
+                    return Ok(s.parse::<bool>()?);
                 }
             }
             Ok(true)

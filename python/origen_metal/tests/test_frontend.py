@@ -30,7 +30,9 @@ def test_frontend_is_accessible():
 def test_multiple_frontend_initializes_are_benign(frontend_init):
     assert frontend.initialize() is False
 
+
 # TODO clean up a bunch of the hardcoding
+
 
 class Common:
     class MinimumDataStore(DataStoreAPI):
@@ -42,7 +44,7 @@ class Common:
 
         def update_test_param(self, new_param):
             self.test_param = new_param
-        
+
         def get(self, key):
             return self.not_supported()
 
@@ -51,7 +53,7 @@ class Common:
 
         def remove(self, key, default=...):
             return self.not_supported()
-        
+
         def items(self):
             return self.not_supported()
 
@@ -62,7 +64,7 @@ class Common:
         @property
         def arg2(self):
             return self.args[1] if len(self.args) > 1 else None
-        
+
         @property
         def kwarg1(self):
             return self.kwargs.get("kwarg1", None)
@@ -75,7 +77,7 @@ class Common:
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.data = {}
-        
+
         def get(self, key):
             return self.data.get(key, None)
 
@@ -89,7 +91,9 @@ class Common:
                 if key in self.data:
                     return self.data.pop(key)
                 else:
-                    raise RuntimeError(f"Cannot remove non-existent item '{key}' from data store '{self.name}' (category '{self._category_name}')")
+                    raise RuntimeError(
+                        f"Cannot remove non-existent item '{key}' from data store '{self.name}' (category '{self._category_name}')"
+                    )
             else:
                 return self.data.pop(key, default)
 
@@ -103,7 +107,9 @@ class Common:
             return "hi!"
 
         def say_hello(self):
-            return Outcome(positional_results=["hello!"], succeeded=True, metadata={"working?": True})
+            return Outcome(positional_results=["hello!"],
+                           succeeded=True,
+                           metadata={"working?": True})
 
         def echo(self, *to_echo, **kwargs):
             kwargs["__update__"] = True
@@ -164,6 +170,7 @@ class Common:
     def cat_class(self):
         return frontend.PyDataStoreCategory
 
+
 class TestFrontendDataStore(Common):
     def test_data_stores_start_empty(self):
         assert isinstance(fe().data_stores, self.data_stores_class)
@@ -189,7 +196,9 @@ class TestFrontendDataStore(Common):
 
     def test_error_on_adding_duplicate_categories(self):
         n = self.test_cat_name
-        with pytest.raises(RuntimeError, match=f"Data store category '{n}' is already present"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Data store category '{n}' is already present"):
             self.ds.add_category(n)
 
     def test_removing_categories(self):
@@ -200,20 +209,24 @@ class TestFrontendDataStore(Common):
         assert cat.name == t
         assert self.ds.remove_category(t) is None
         assert t not in self.ds.categories
-        with pytest.raises(RuntimeError, match=f"Stale category '{t}' encountered"):
+        with pytest.raises(RuntimeError,
+                           match=f"Stale category '{t}' encountered"):
             cat.name
-        
+
         # Adding another with the same name should still show the previous as stale
         cat2 = self.ds.add_category(t)
         assert t in self.ds.categories
         assert cat2 != cat
-        with pytest.raises(RuntimeError, match=f"Stale category '{t}' encountered"):
+        with pytest.raises(RuntimeError,
+                           match=f"Stale category '{t}' encountered"):
             cat.name
         assert self.ds.remove_category(t) is None
 
     def test_error_removing_nonexistant_categories(self):
         t = "test_cat_removal"
-        with pytest.raises(RuntimeError, match=f"Cannot remove non-existent data store category '{t}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Cannot remove non-existent data store category '{t}'"):
             self.ds.remove_category(t)
 
     def test_data_stores_can_be_retrieved(self):
@@ -243,14 +256,16 @@ class TestFrontendDataStore(Common):
         assert ds.kwarg1 == None
         assert ds.kwarg2 == None
 
-        ds = test_cat.add(kwarg_ds_name, self.MinimumDataStore, None, test_kwargs)
+        ds = test_cat.add(kwarg_ds_name, self.MinimumDataStore, None,
+                          test_kwargs)
         assert ds.name == kwarg_ds_name
         assert ds.arg1 == None
         assert ds.arg2 == None
         assert ds.kwarg1 == test_kwargs["kwarg1"]
         assert ds.kwarg2 == test_kwargs["kwarg2"]
 
-        ds = test_cat.add(both_ds_name, self.MinimumDataStore, test_args, test_kwargs)
+        ds = test_cat.add(both_ds_name, self.MinimumDataStore, test_args,
+                          test_kwargs)
         assert ds.name == both_ds_name
         assert ds.arg1 == test_args[0]
         assert ds.arg2 == test_args[1]
@@ -260,74 +275,122 @@ class TestFrontendDataStore(Common):
     def test_adding_data_stores_passing_name_and_category(self):
         n = "test_nc1"
         assert n not in self.test_cat
-        added = self.test_cat.add(n, self.MinimumDataStore, provide_name=True, provide_category=True)
+        added = self.test_cat.add(n,
+                                  self.MinimumDataStore,
+                                  provide_name=True,
+                                  provide_category=True)
         assert added.args == ()
         assert added.kwargs == {"name": n, "category": self.test_cat_name}
 
         n = "test_nc2"
         args = ["abc", 123]
         kwargs = {"kwarg1": "kw1", "kwarg2": 2}
-        added = self.test_cat.add(n, self.MinimumDataStore, args, provide_name=0, provide_category=3)
+        added = self.test_cat.add(n,
+                                  self.MinimumDataStore,
+                                  args,
+                                  provide_name=0,
+                                  provide_category=3)
         assert args == ["abc", 123]
         assert added.args == (n, "abc", 123, self.test_cat_name)
         assert kwargs == {"kwarg1": "kw1", "kwarg2": 2}
         assert added.kwargs == {}
 
         n = "test_nc3"
-        added = self.test_cat.add(n, self.MinimumDataStore, args, kwargs, provide_name=0, provide_category=True)
+        added = self.test_cat.add(n,
+                                  self.MinimumDataStore,
+                                  args,
+                                  kwargs,
+                                  provide_name=0,
+                                  provide_category=True)
         assert args == ["abc", 123]
         assert added.args == (n, "abc", 123)
         assert kwargs == {"kwarg1": "kw1", "kwarg2": 2}
-        assert added.kwargs == {"kwarg1": "kw1", "kwarg2": 2, "category": self.test_cat_name}
+        assert added.kwargs == {
+            "kwarg1": "kw1",
+            "kwarg2": 2,
+            "category": self.test_cat_name
+        }
 
         n = "fail_conditions"
         assert n not in self.test_cat
-        with pytest.raises(RuntimeError, match="'provide_name' insert index 1 exceeds argument list size 0"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                "'provide_name' insert index 1 exceeds argument list size 0"):
             self.test_cat.add(n, self.MinimumDataStore, provide_name=1)
         assert n not in self.test_cat
 
-        with pytest.raises(RuntimeError, match="'provide_category' insert index 4 exceeds argument list size 2"):
-            self.test_cat.add(n, self.MinimumDataStore, args, provide_category=4)
+        with pytest.raises(
+                RuntimeError,
+                match=
+                "'provide_category' insert index 4 exceeds argument list size 2"
+        ):
+            self.test_cat.add(n,
+                              self.MinimumDataStore,
+                              args,
+                              provide_category=4)
         assert args == ["abc", 123]
         assert n not in self.test_cat
 
         kwargs = {"kwarg1": "kw1", "kwarg2": 2, "name": "hi"}
-        with pytest.raises(RuntimeError, match="'name' key is already present in keyword arguments"):
-            self.test_cat.add(n, self.MinimumDataStore, None, kwargs, provide_name=True)
+        with pytest.raises(
+                RuntimeError,
+                match="'name' key is already present in keyword arguments"):
+            self.test_cat.add(n,
+                              self.MinimumDataStore,
+                              None,
+                              kwargs,
+                              provide_name=True)
         assert kwargs == {"kwarg1": "kw1", "kwarg2": 2, "name": "hi"}
         assert n not in self.test_cat
 
         kwargs = {"kwarg1": "kw1", "kwarg2": 2, "category": "hi"}
-        with pytest.raises(RuntimeError, match="'category' key is already present in keyword arguments"):
-            self.test_cat.add(n, self.MinimumDataStore, None, kwargs, provide_category=True)
+        with pytest.raises(
+                RuntimeError,
+                match="'category' key is already present in keyword arguments"
+        ):
+            self.test_cat.add(n,
+                              self.MinimumDataStore,
+                              None,
+                              kwargs,
+                              provide_category=True)
         assert kwargs == {"kwarg1": "kw1", "kwarg2": 2, "category": "hi"}
         assert n not in self.test_cat
 
     def test_data_store_get_and_store_operations(self):
         assert self.test_ds_name not in self.test_cat
-        added = self.test_cat.add(self.test_ds_name, self.DummyGetStoreDataStore)
+        added = self.test_cat.add(self.test_ds_name,
+                                  self.DummyGetStoreDataStore)
         assert isinstance(added, self.DummyGetStoreDataStore)
         assert self.test_ds_name in self.test_cat
 
         ds = self.test_ds
         assert "t1" not in ds
         assert ds.get("t1") == None
-        assert __test__.backend_store_contains(self.test_cat_name, self.test_ds_name, "t1") == False
-        assert __test__.backend_get_stored(self.test_cat_name, self.test_ds_name, "t1") == None
+        assert __test__.backend_store_contains(self.test_cat_name,
+                                               self.test_ds_name,
+                                               "t1") == False
+        assert __test__.backend_get_stored(self.test_cat_name,
+                                           self.test_ds_name, "t1") == None
 
         s = "hi data store!"
         ds["t1"] = s
         assert "t1" in ds
         assert ds.get("t1") == s
-        assert __test__.backend_store_contains(self.test_cat_name, self.test_ds_name, "t1") == True
-        assert __test__.backend_get_stored(self.test_cat_name, self.test_ds_name, "t1") == s
+        assert __test__.backend_store_contains(self.test_cat_name,
+                                               self.test_ds_name, "t1") == True
+        assert __test__.backend_get_stored(self.test_cat_name,
+                                           self.test_ds_name, "t1") == s
 
         n = 321
-        assert __test__.backend_store_item(self.test_cat_name, self.test_ds_name, "t1", n) == True
+        assert __test__.backend_store_item(self.test_cat_name,
+                                           self.test_ds_name, "t1", n) == True
         assert "t1" in ds
         assert ds.get("t1") == n
-        assert __test__.backend_store_contains(self.test_cat_name, self.test_ds_name, "t1") == True
-        assert __test__.backend_get_stored(self.test_cat_name, self.test_ds_name, "t1") == n
+        assert __test__.backend_store_contains(self.test_cat_name,
+                                               self.test_ds_name, "t1") == True
+        assert __test__.backend_get_stored(self.test_cat_name,
+                                           self.test_ds_name, "t1") == n
 
         assert ds.store("t2", "'returns self' test") == False
         assert ds.store("t2", "'returns self' override test") == True
@@ -346,7 +409,11 @@ class TestFrontendDataStore(Common):
         n = "test_removal"
         ds = self.test_ds
         assert n not in ds
-        with pytest.raises(RuntimeError, match=f"Cannot remove non-existent item '{n}' from data store '{self.test_ds_name}' \\(category '{self.test_cat_name}'\\)"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Cannot remove non-existent item '{n}' from data store '{self.test_ds_name}' \\(category '{self.test_cat_name}'\\)"
+        ):
             ds.remove(n)
 
     def test_removing_non_existent_item_with_default(self):
@@ -358,13 +425,19 @@ class TestFrontendDataStore(Common):
     def test_error_on_adding_duplicate_data_store_categories(self):
         n = self.test_cat_name
         assert n in self.ds
-        with pytest.raises(RuntimeError, match=f"Data store category '{n}' is already present"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Data store category '{n}' is already present"):
             self.ds.add_category(n)
 
     def test_error_on_adding_duplicate_data_stores(self):
         n = self.test_ds_name
         assert n in self.test_cat
-        with pytest.raises(RuntimeError, match=f"Data store '{n}' is already present in category '{self.test_cat_name}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Data store '{n}' is already present in category '{self.test_cat_name}'"
+        ):
             self.test_cat.add(n, self.MinimumDataStore)
 
     def test_removing_data_stores(self):
@@ -377,17 +450,25 @@ class TestFrontendDataStore(Common):
 
         self.test_cat.remove(n)
         assert n not in self.test_cat
-        with pytest.raises(RuntimeError, match=f"Stale data store '{n}' in category '{self.test_cat_name}' encountered"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Stale data store '{n}' in category '{self.test_cat_name}' encountered"
+        ):
             ds.name
 
     def test_error_removing_nonexistant_data_stores(self):
         n = "test_ds_removal"
         assert n not in self.test_cat
-        with pytest.raises(RuntimeError, match=f"Cannot remove data store '{n} as category '{self.test_cat_name}' does not contain this data store"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Cannot remove data store '{n} as category '{self.test_cat_name}' does not contain this data store"
+        ):
             self.test_cat.remove(n)
 
     def test_stale_ds_after_category_removal(self):
-        n_cat = "test_cat_removal" 
+        n_cat = "test_cat_removal"
         n_ds = "test_ds_removal"
         assert n_cat not in self.ds.categories
 
@@ -399,10 +480,15 @@ class TestFrontendDataStore(Common):
         self.ds.remove_category(n_cat)
         assert n_cat not in self.ds.categories
 
-        with pytest.raises(RuntimeError, match=f"Stale category '{n_cat}' encountered"):
+        with pytest.raises(RuntimeError,
+                           match=f"Stale category '{n_cat}' encountered"):
             cat.name
 
-        with pytest.raises(RuntimeError, match=f"Data store '{n_ds}' appears orphaned from stale category '{n_cat}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Data store '{n_ds}' appears orphaned from stale category '{n_cat}'"
+        ):
             ds.name
 
     def test_adding_categories_from_backend(self):
@@ -426,22 +512,29 @@ class TestFrontendDataStore(Common):
     def test_error_removing_nonexistant_data_stores_from_backend(self):
         n = "test_cat_removal"
         assert n not in self.ds
-        with pytest.raises(RuntimeError, match=f"Cannot remove non-existent data store category '{n}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Cannot remove non-existent data store category '{n}'"):
             __test__.backend_remove_cat(n)
 
     def test_error_on_adding_existing_categories_from_backend(self):
         t = __test__.backend_test_cat_name
         assert t in self.ds
         assert __test__.backend_contains_cat(t) is True
-        with pytest.raises(RuntimeError, match=f"Data store category '{t}' is already present"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Data store category '{t}' is already present"):
             __test__.backend_add_cat(t)
-    
+
     def test_adding_data_stores_from_backend(self):
         t_cat = __test__.backend_test_cat_name
         t_ds = __test__.backend_test_store_name
         assert t_ds not in self.ds[t_cat]
         assert not __test__.backend_cat_contains_store(t_cat, t_ds)
-        assert __test__.backend_add_store(t_cat, t_ds, {"class": f"tests.test_frontend.TestFrontendDataStore.MinimumDataStore"}) is None
+        assert __test__.backend_add_store(t_cat, t_ds, {
+            "class":
+            f"tests.test_frontend.TestFrontendDataStore.MinimumDataStore"
+        }) is None
 
         assert t_ds in self.ds[t_cat]
         ds = self.ds[t_cat][t_ds]
@@ -458,7 +551,8 @@ class TestFrontendDataStore(Common):
 
         assert t_ds not in self.ds[t_cat]
         config = {
-            "class": f"tests.test_frontend.TestFrontendDataStore.MinimumDataStore",
+            "class":
+            f"tests.test_frontend.TestFrontendDataStore.MinimumDataStore",
             "list_args": test_args,
             **test_kwargs
         }
@@ -477,7 +571,11 @@ class TestFrontendDataStore(Common):
     def test_error_adding_duplicate_data_stores_from_backend(self):
         n = self.test_ds_name
         assert n in self.test_cat
-        with pytest.raises(RuntimeError, match=f"Data store '{n}' is already present in category '{self.test_cat_name}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Data store '{n}' is already present in category '{self.test_cat_name}'"
+        ):
             self.test_cat.add(n, self.MinimumDataStore)
 
     def test_removing_data_stores_from_backend(self):
@@ -495,14 +593,24 @@ class TestFrontendDataStore(Common):
         n = "BE_test_ds_removal"
         cat = self.test_cat
         assert n not in cat
-        with pytest.raises(RuntimeError, match=f"Cannot remove data store '{n} as category '{self.test_cat_name}' does not contain this data store"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Cannot remove data store '{n} as category '{self.test_cat_name}' does not contain this data store"
+        ):
             __test__.backend_remove_store(self.test_cat_name, n)
 
     def test_basic_data_store_operations_from_backend(self):
-        assert __test__.backend_get_name(self.test_cat_name, self.test_ds_name) == self.test_ds_name
-        assert __test__.backend_get_category(self.test_cat_name, self.test_ds_name) == self.test_cat_name
-        assert __test__.backend_get_class(self.test_cat_name, self.test_ds_name) == "tests.test_frontend.Common.DummyGetStoreDataStore"
-        assert __test__.backend_get_class(self.test_cat_name, self.test_ds_name, arg=1) == "CustomValue"
+        assert __test__.backend_get_name(
+            self.test_cat_name, self.test_ds_name) == self.test_ds_name
+        assert __test__.backend_get_category(
+            self.test_cat_name, self.test_ds_name) == self.test_cat_name
+        assert __test__.backend_get_class(
+            self.test_cat_name, self.test_ds_name
+        ) == "tests.test_frontend.Common.DummyGetStoreDataStore"
+        assert __test__.backend_get_class(self.test_cat_name,
+                                          self.test_ds_name,
+                                          arg=1) == "CustomValue"
 
     def test_data_store_remove_operations_from_backend(self):
         ds = self.test_ds
@@ -513,16 +621,19 @@ class TestFrontendDataStore(Common):
         ds.store(n, t)
         assert n in ds
 
-        __test__.backend_remove_item(self.test_cat_name, self.test_ds_name, n) == [True, t]
+        __test__.backend_remove_item(self.test_cat_name, self.test_ds_name,
+                                     n) == [True, t]
         assert n not in ds
 
-        __test__.backend_remove_item(self.test_cat_name, self.test_ds_name, n) == [False, None]
+        __test__.backend_remove_item(self.test_cat_name, self.test_ds_name,
+                                     n) == [False, None]
 
     def test_data_store_call_from_backend_no_args(self):
-        outcome = __test__.backend_call(self.test_cat_name, self.test_ds_name, "say_hi")
+        outcome = __test__.backend_call(self.test_cat_name, self.test_ds_name,
+                                        "say_hi")
         assert outcome.succeeded == True
         assert outcome.inferred == True
-        assert outcome.positional_results == ("hi!",)
+        assert outcome.positional_results == ("hi!", )
         assert outcome.keyword_results == None
         assert outcome.metadata == None
 
@@ -531,22 +642,25 @@ class TestFrontendDataStore(Common):
         kwargs = {"first": 1, "second": 2, "third": 3}
         _args = copy.deepcopy(args)
         _kwargs = copy.deepcopy(kwargs)
-        outcome = __test__.backend_call(self.test_cat_name, self.test_ds_name, "echo", args, kwargs)
+        outcome = __test__.backend_call(self.test_cat_name, self.test_ds_name,
+                                        "echo", args, kwargs)
         assert outcome.succeeded == True
         assert outcome.inferred == True
-        assert outcome.positional_results == (_args,)
+        assert outcome.positional_results == (_args, )
         assert args == _args
         assert outcome.keyword_results == None
         assert kwargs == _kwargs
         assert outcome.metadata == None
 
     def test_data_store_call_from_backend_non_inferred_outcome(self):
-        outcome = __test__.backend_call(self.test_cat_name, self.test_ds_name, "say_hello")
+        outcome = __test__.backend_call(self.test_cat_name, self.test_ds_name,
+                                        "say_hello")
         assert outcome.succeeded == True
         assert outcome.inferred == False
-        assert outcome.positional_results == ("hello!",)
+        assert outcome.positional_results == ("hello!", )
         assert outcome.keyword_results == None
         assert outcome.metadata == {"working?": True}
+
 
 class TestDataStoresDictLike(Fixture_DictLikeAPI, Common):
     def parameterize(self):
@@ -559,33 +673,28 @@ class TestDataStoresDictLike(Fixture_DictLikeAPI, Common):
     def boot_dict_under_test(self):
         return self.ds
 
+
 class TestDataStoreCategoryDictLike(Fixture_DictLikeAPI, Common):
     def parameterize(self):
         return {
             "keys": [
-                "min_ds",
-                "test_ds_args",
-                "test_ds_kwargs",
-                "test_ds_args_and_kwargs",
-                "test_nc1",
-                "test_nc2",
-                "test_nc3",
+                "min_ds", "test_ds_args", "test_ds_kwargs",
+                "test_ds_args_and_kwargs", "test_nc1", "test_nc2", "test_nc3",
                 "test_ds"
             ],
             "klass": [
-                self.MinimumDataStore,
-                self.MinimumDataStore,
-                self.MinimumDataStore,
-                self.MinimumDataStore,
-                self.MinimumDataStore,
-                self.MinimumDataStore,
-                self.MinimumDataStore,
-                self.DummyGetStoreDataStore],
-            "not_in_dut": "Blah"
+                self.MinimumDataStore, self.MinimumDataStore,
+                self.MinimumDataStore, self.MinimumDataStore,
+                self.MinimumDataStore, self.MinimumDataStore,
+                self.MinimumDataStore, self.DummyGetStoreDataStore
+            ],
+            "not_in_dut":
+            "Blah"
         }
 
     def boot_dict_under_test(self):
         return self.test_cat
+
 
 class TestDataStoreAPIDictLike(Fixture_DictLikeAPI, Common):
     ''' The data store API should contain all methods for dict-lie behavior'''
@@ -597,7 +706,8 @@ class TestDataStoreAPIDictLike(Fixture_DictLikeAPI, Common):
         }
 
     def init_dict_under_test(self):
-        ds = self.test_cat.add("dict_like_api_test", self.DummyGetStoreDataStore)
+        ds = self.test_cat.add("dict_like_api_test",
+                               self.DummyGetStoreDataStore)
         ds.store("i1", 1)
         ds.store("i2", 2)
         ds.store("i3", 3)
@@ -605,6 +715,7 @@ class TestDataStoreAPIDictLike(Fixture_DictLikeAPI, Common):
 
     def boot_dict_under_test(self):
         return self.test_cat['dict_like_api_test']
+
 
 class TestRevisionControlFrontend:
     class DummyRC(revision_control.RevisionControlAPI):

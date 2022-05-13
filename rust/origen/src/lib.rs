@@ -46,18 +46,15 @@ pub use self::core::tester::{Capture, Overlay, Tester};
 use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
+pub use self::utility::sessions::{setup_sessions, with_app_session, with_app_session_group};
 use num_bigint::BigUint;
+pub use om::prelude::frontend::*;
+pub use om::TypedValue;
+pub use origen_metal as om;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use utility::mailer::Maillists;
-pub use origen_metal as om;
-pub use om::TypedValue;
-pub use om::prelude::frontend::*;
-pub use self::utility::sessions::{
-    with_app_session, with_app_session_group,
-    setup_sessions
-};
 
 pub use self::core::frontend::callbacks as CALLBACKS;
 pub use self::core::frontend::{

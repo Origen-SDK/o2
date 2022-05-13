@@ -6,12 +6,11 @@ use std::path::{Path, PathBuf};
 use super::SessionStore;
 use super::DEFAULT_FILE_PERMISSIONS;
 
-
 #[derive(PartialEq, Debug)]
 pub struct SessionGroup {
     path: PathBuf,
     sessions: IndexMap<String, SessionStore>,
-    file_permissions: FilePermissions
+    file_permissions: FilePermissions,
 }
 
 impl SessionGroup {
@@ -23,7 +22,7 @@ impl SessionGroup {
                 r
             },
             sessions: IndexMap::new(),
-            file_permissions: file_permissions.unwrap_or_else(|| DEFAULT_FILE_PERMISSIONS.clone())
+            file_permissions: file_permissions.unwrap_or_else(|| DEFAULT_FILE_PERMISSIONS.clone()),
         };
         sg.populate()?;
         Ok(sg)
@@ -34,7 +33,12 @@ impl SessionGroup {
     }
 
     pub fn name(&self) -> Result<String> {
-        Ok(self.path.file_stem().unwrap().to_os_string().into_string()?)
+        Ok(self
+            .path
+            .file_stem()
+            .unwrap()
+            .to_os_string()
+            .into_string()?)
     }
 
     pub fn get(&self, name: &str) -> Option<&SessionStore> {
@@ -68,7 +72,11 @@ impl SessionGroup {
     pub fn require(&self, name: &str) -> Result<&SessionStore> {
         match self.sessions.get(name) {
             Some(s) => Ok(s),
-            None => bail!("Session {} has not been added to group {} yet!", name, self.name()?)
+            None => bail!(
+                "Session {} has not been added to group {} yet!",
+                name,
+                self.name()?
+            ),
         }
     }
 
@@ -76,12 +84,20 @@ impl SessionGroup {
         let n = self.name()?;
         match self.sessions.get_mut(name) {
             Some(s) => Ok(s),
-            None => bail!("Session {} has not been added to group {} yet!", name, n)
+            None => bail!("Session {} has not been added to group {} yet!", name, n),
         }
     }
 
     pub fn add_session(&mut self, name: &str) -> Result<&SessionStore> {
-        self.sessions.insert(name.to_string(), SessionStore::new(name, &self.path, Some(self.name()?), Some(self.file_permissions.clone()))?);
+        self.sessions.insert(
+            name.to_string(),
+            SessionStore::new(
+                name,
+                &self.path,
+                Some(self.name()?),
+                Some(self.file_permissions.clone()),
+            )?,
+        );
         Ok(self.sessions.get(name).unwrap())
     }
 
@@ -94,8 +110,8 @@ impl SessionGroup {
             Some(s) => {
                 s.remove_file()?;
                 Ok(true)
-            },
-            None => Ok(false)
+            }
+            None => Ok(false),
         }
     }
 
@@ -124,7 +140,7 @@ impl SessionGroup {
                     for f in iter {
                         self.add_session(&f?.file_name().into_string()?)?;
                     }
-                },
+                }
                 Err(e) => {
                     bail!(&format!(
                         "Unable to populate session group '{}' from existing path: '{}'. Encountered Error: {}",

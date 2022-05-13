@@ -2,12 +2,12 @@ pub mod data_store;
 pub mod data_store_category;
 
 use crate::Result;
-use std::any::Any;
 use indexmap::IndexMap;
+use std::any::Any;
 use std::sync::RwLockReadGuard;
 
 pub use crate::utils::revision_control::frontend::RevisionControlFrontendAPI;
-pub use data_store::{DataStoreFrontendAPI, DataStoreFeature, FeatureReturn};
+pub use data_store::{DataStoreFeature, DataStoreFrontendAPI, FeatureReturn};
 pub use data_store_category::DataStoreCategoryFrontendAPI;
 
 pub fn set_frontend(
@@ -108,7 +108,7 @@ impl Frontend {
     where
         F: FnMut(Box<dyn DataStoreCategoryFrontendAPI>) -> Result<T>,
     {
-        self.with_frontend( |f| {
+        self.with_frontend(|f| {
             let cat = f.require_data_store_category(category)?;
             func(cat)
         })
@@ -118,7 +118,7 @@ impl Frontend {
     where
         F: FnMut(Box<dyn DataStoreFrontendAPI>) -> Result<T>,
     {
-        self.with_frontend( |f| {
+        self.with_frontend(|f| {
             let cat = f.require_data_store_category(category)?;
             let ds = cat.require_data_store(data_store)?;
             func(ds)
@@ -152,37 +152,53 @@ pub trait FrontendAPI {
         )
     }
 
-    fn data_store_categories(&self) -> Result<IndexMap<String, Box<dyn DataStoreCategoryFrontendAPI>>>;
-    fn get_data_store_category(&self, category: &str) -> Result<Option<Box<dyn DataStoreCategoryFrontendAPI>>>;
-    fn add_data_store_category(&self, category: &str) -> Result<Box<dyn DataStoreCategoryFrontendAPI>>;
+    fn data_store_categories(
+        &self,
+    ) -> Result<IndexMap<String, Box<dyn DataStoreCategoryFrontendAPI>>>;
+    fn get_data_store_category(
+        &self,
+        category: &str,
+    ) -> Result<Option<Box<dyn DataStoreCategoryFrontendAPI>>>;
+    fn add_data_store_category(
+        &self,
+        category: &str,
+    ) -> Result<Box<dyn DataStoreCategoryFrontendAPI>>;
     fn remove_data_store_category(&self, category: &str) -> Result<()>;
 
-    fn require_data_store_category(&self, category: &str) -> Result<Box<dyn DataStoreCategoryFrontendAPI>> {
+    fn require_data_store_category(
+        &self,
+        category: &str,
+    ) -> Result<Box<dyn DataStoreCategoryFrontendAPI>> {
         match self.get_data_store_category(category)? {
             Some(cat) => Ok(cat),
-            None => bail!("Required data store category '{}' was not found!", category)
+            None => bail!("Required data store category '{}' was not found!", category),
         }
     }
 
     fn contains_data_store_category(&self, category: &str) -> Result<bool> {
         Ok(match self.get_data_store_category(category)? {
             Some(_) => true,
-            None => false
+            None => false,
         })
     }
 
     // TEST_NEEDED
-    fn ensure_data_store_category(&self, category: &str) -> Result<(bool, Box<dyn DataStoreCategoryFrontendAPI>)> {
+    fn ensure_data_store_category(
+        &self,
+        category: &str,
+    ) -> Result<(bool, Box<dyn DataStoreCategoryFrontendAPI>)> {
         Ok(match self.get_data_store_category(category)? {
             Some(cat) => (false, cat),
-            None => {
-                (true, self.add_data_store_category(category)?)
-            }
+            None => (true, self.add_data_store_category(category)?),
         })
     }
 
     fn available_data_store_categories(&self) -> Result<Vec<String>> {
-        Ok(self.data_store_categories()?.keys().map( |k| k.to_string()).collect())
+        Ok(self
+            .data_store_categories()?
+            .keys()
+            .map(|k| k.to_string())
+            .collect())
     }
 
     fn lookup_current_user(&self) -> Option<Result<Option<String>>> {

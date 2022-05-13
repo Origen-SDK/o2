@@ -84,14 +84,22 @@ impl Config {
     pub fn build(root: &Path, default_only: bool) -> Config {
         log_trace!("Building app config");
         let mut s = config::Config::builder()
-            .set_default("target", None::<Vec<String>>).unwrap()
-            .set_default("mode", "development".to_string()).unwrap()
-            .set_default("revision_control", None::<HashMap<String, String>>).unwrap()
-            .set_default("unit_tester", None::<HashMap<String, String>>).unwrap()
-            .set_default("publisher", None::<HashMap<String, String>>).unwrap()
-            .set_default("linter", None::<HashMap<String, String>>).unwrap()
-            .set_default("release_scribe", None::<HashMap<String, String>>).unwrap()
-            .set_default("app_session_root", None::<String>).unwrap();
+            .set_default("target", None::<Vec<String>>)
+            .unwrap()
+            .set_default("mode", "development".to_string())
+            .unwrap()
+            .set_default("revision_control", None::<HashMap<String, String>>)
+            .unwrap()
+            .set_default("unit_tester", None::<HashMap<String, String>>)
+            .unwrap()
+            .set_default("publisher", None::<HashMap<String, String>>)
+            .unwrap()
+            .set_default("linter", None::<HashMap<String, String>>)
+            .unwrap()
+            .set_default("release_scribe", None::<HashMap<String, String>>)
+            .unwrap()
+            .set_default("app_session_root", None::<String>)
+            .unwrap();
 
         // Start off by specifying the default values for all attributes, seems fine
         // not to handle these errors
@@ -137,7 +145,6 @@ impl Config {
         //     Err(_) => loc = None,
         // }
         // s.set("website_release_location", None::<String>).unwrap();
-
 
         let cb = s.build().unwrap();
         // let mut c: Self = s.try_into().unwrap();

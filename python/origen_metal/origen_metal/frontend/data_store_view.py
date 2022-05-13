@@ -3,6 +3,7 @@ import abc, pytest
 from abc import abstractproperty
 import origen_metal
 
+
 class DataStoreView(abc.ABC):
     @property
     def frontend(self):
@@ -34,13 +35,10 @@ class DataStoreView(abc.ABC):
         return self.frontend.data_stores[self.cat_test_name]
 
     def add_ds(self):
-        self.cat.add(
-            self.ds_test_name,
-            self.data_store_class,
-            self.params.get("init_args", None),
-            self.params.get("init_kwargs", None),
-            **self.params.get("add_ds_opts", {})
-        )
+        self.cat.add(self.ds_test_name, self.data_store_class,
+                     self.params.get("init_args", None),
+                     self.params.get("init_kwargs", None),
+                     **self.params.get("add_ds_opts", {}))
 
     def add_cat(self):
         self.frontend.data_stores.add_category(self.cat_test_name)
@@ -95,10 +93,9 @@ class DataStoreView(abc.ABC):
 
     # def test_get_operation(self):
 
-
     # def test_store_operation(self):
     #     fail
-    
+
     # def test_remove_operation(self):
     #     fail
 

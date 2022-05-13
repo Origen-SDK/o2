@@ -1,13 +1,14 @@
 use crate::{app, Result, ORIGEN_CONFIG};
-use std::sync::MutexGuard;
-use origen_metal as om;
-use om::framework::sessions::{Sessions, SessionGroup, SessionStore};
 use om::file::FilePermissions;
+use om::framework::sessions::{SessionGroup, SessionStore, Sessions};
+use origen_metal as om;
 use std::path::PathBuf;
+use std::sync::MutexGuard;
 
 pub static DEFAULT_APP_PATH_OFFSET: &str = "./.session";
 pub static APP_GROUP_NAME: &str = "__app__";
-pub static APP_SESSIONS_FILE_PERMISSIONS: Option<FilePermissions> = Some(FilePermissions::GroupWritable);
+pub static APP_SESSIONS_FILE_PERMISSIONS: Option<FilePermissions> =
+    Some(FilePermissions::GroupWritable);
 
 // TEST_NEEDED
 pub fn setup_sessions() -> om::Result<()> {
@@ -28,7 +29,11 @@ pub fn setup_sessions() -> om::Result<()> {
             app_root = app.root.clone();
         }
         app_root.push(DEFAULT_APP_PATH_OFFSET);
-        let app_grp = sessions.add_group(APP_GROUP_NAME, &app_root, APP_SESSIONS_FILE_PERMISSIONS.clone())?;
+        let app_grp = sessions.add_group(
+            APP_GROUP_NAME,
+            &app_root,
+            APP_SESSIONS_FILE_PERMISSIONS.clone(),
+        )?;
         app_grp.add_session(&app.name())?;
     }
     Ok(())
@@ -66,15 +71,16 @@ where
     }
 }
 
-pub fn with_app_session_group<F, T>(sessions: Option<MutexGuard<Sessions>>, mut f: F) -> om::Result<T>
+pub fn with_app_session_group<F, T>(
+    sessions: Option<MutexGuard<Sessions>>,
+    mut f: F,
+) -> om::Result<T>
 where
     F: FnMut(&SessionGroup, &MutexGuard<Sessions>) -> om::Result<T>,
 {
     if app().is_some() {
         match sessions {
-            Some(s) => {
-                Ok(f(s.require_group(APP_GROUP_NAME)?, &s)?)
-            },
+            Some(s) => Ok(f(s.require_group(APP_GROUP_NAME)?, &s)?),
             None => {
                 let s = om::sessions();
                 Ok(f(s.require_group(APP_GROUP_NAME)?, &s)?)
@@ -85,15 +91,16 @@ where
     }
 }
 
-pub fn with_mut_app_session_group<F, T>(sessions: Option<MutexGuard<Sessions>>, mut f: F) -> om::Result<T>
+pub fn with_mut_app_session_group<F, T>(
+    sessions: Option<MutexGuard<Sessions>>,
+    mut f: F,
+) -> om::Result<T>
 where
     F: FnMut(&mut SessionGroup) -> om::Result<T>,
 {
     if app().is_some() {
         match sessions {
-            Some(mut s) => {
-                Ok(f(s.require_mut_group(APP_GROUP_NAME)?)?)
-            },
+            Some(mut s) => Ok(f(s.require_mut_group(APP_GROUP_NAME)?)?),
             None => {
                 let mut s = om::sessions();
                 Ok(f(s.require_mut_group(APP_GROUP_NAME)?)?)

@@ -2,10 +2,12 @@ import inspect
 from origen_metal._origen_metal import frontend
 from abc import ABC, ABCMeta, abstractclassmethod
 
+
 class DataStoreAPIMeta(ABCMeta):
     def __new__(cls, name, *args, **kwargs):
         # TODO likely don't need metaclass anymore
         return ABCMeta(name, *args, **kwargs)
+
 
 class DataStoreAPI(ABC, metaclass=DataStoreAPIMeta):
     __origen_supported_features__ = {}
@@ -31,7 +33,9 @@ class DataStoreAPI(ABC, metaclass=DataStoreAPIMeta):
         def __init__(self, ds, op):
             self.ds_class = ds.__class__
             self.op = op
-            super().__init__(f"Data store '{ds.name}' (of class '{ds.__class__}' does not support '{op}' operations")
+            super().__init__(
+                f"Data store '{ds.name}' (of class '{ds.__class__}' does not support '{op}' operations"
+            )
 
     def __init__(self, *args, **kwargs):
         self._stale = False
@@ -48,11 +52,13 @@ class DataStoreAPI(ABC, metaclass=DataStoreAPIMeta):
         if super().__getattribute__("_stale"):
             n = super().__getattribute__("_name")
             c = super().__getattribute__("_category_name")
-            raise RuntimeError(f"Stale data store '{n}' in category '{c}' encountered")
+            raise RuntimeError(
+                f"Stale data store '{n}' in category '{c}' encountered")
         elif super().__getattribute__("_orphaned"):
             n = super().__getattribute__("_name")
             c = super().__getattribute__("_category_name")
-            raise RuntimeError(f"Data store '{n}' appears orphaned from stale category '{c}'")
+            raise RuntimeError(
+                f"Data store '{n}' appears orphaned from stale category '{c}'")
         else:
             return super().__getattribute__(__name)
 
@@ -101,7 +107,7 @@ class DataStoreAPI(ABC, metaclass=DataStoreAPIMeta):
 
     def __contains__(self, item):
         return item in self.keys()
-    
+
     def __setitem__(self, key, value):
         return self.store(key, value)
 
@@ -122,13 +128,14 @@ class DataStoreAPI(ABC, metaclass=DataStoreAPIMeta):
         raise self.OperationNotSupported(self, caller)
 
     def __lookup_origen_feature__(self, f):
-        features = DataStoreAPI.__origen_supported_features__.get((self.__module__, self.__class__.__qualname__), None)
+        features = DataStoreAPI.__origen_supported_features__.get(
+            (self.__module__, self.__class__.__qualname__), None)
         if features is not None and f in features:
             return features[f]
         else:
             for b in self.__class__.__bases__:
-                features = DataStoreAPI.__origen_supported_features__.get((b.__module__, b.__qualname__), None)
+                features = DataStoreAPI.__origen_supported_features__.get(
+                    (b.__module__, b.__qualname__), None)
                 if features is not None and f in features:
                     return features[f]
         return None
-

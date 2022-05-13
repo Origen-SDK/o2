@@ -140,21 +140,21 @@ impl std::convert::From<std::num::ParseIntError> for Error {
 }
 
 impl std::convert::From<num_bigint::ParseBigIntError> for Error {
-   fn from(err: num_bigint::ParseBigIntError) -> Self {
-       Error::new(&err.to_string())
-   }
+    fn from(err: num_bigint::ParseBigIntError) -> Self {
+        Error::new(&err.to_string())
+    }
 }
 
 impl std::convert::From<ldap3::LdapError> for Error {
-   fn from(err: ldap3::LdapError) -> Self {
-       Error::new(&err.to_string())
-   }
+    fn from(err: ldap3::LdapError) -> Self {
+        Error::new(&err.to_string())
+    }
 }
 
 impl std::convert::From<aes_gcm::Error> for Error {
-   fn from(err: aes_gcm::Error) -> Self {
-       Error::new(&err.to_string())
-   }
+    fn from(err: aes_gcm::Error) -> Self {
+        Error::new(&err.to_string())
+    }
 }
 
 impl std::convert::From<std::string::FromUtf8Error> for Error {
@@ -164,9 +164,9 @@ impl std::convert::From<std::string::FromUtf8Error> for Error {
 }
 
 impl std::convert::From<keyring::KeyringError> for Error {
-   fn from(err: keyring::KeyringError) -> Self {
-       Error::new(&err.to_string())
-   }
+    fn from(err: keyring::KeyringError) -> Self {
+        Error::new(&err.to_string())
+    }
 }
 
 //impl std::convert::From<anyhow::Error> for Error {

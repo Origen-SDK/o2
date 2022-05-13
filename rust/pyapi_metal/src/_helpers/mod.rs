@@ -1,15 +1,15 @@
-pub mod typed_value;
 pub mod pickle;
+pub mod typed_value;
 
 #[macro_use]
 pub mod errors;
 
 use crate::{pypath, runtime_error};
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyType, PyTuple};
-use std::path::PathBuf;
 use indexmap::IndexMap;
 use pyo3::conversion::ToPyObject;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyTuple, PyType};
+use std::path::PathBuf;
 
 // Converts a PyAny (as string or a type) into a PyType
 pub fn pytype_from_pyany<'p>(py: Python<'p>, t: &'p PyAny) -> PyResult<&'p PyType> {
@@ -21,7 +21,7 @@ pub fn pytype_from_pyany<'p>(py: Python<'p>, t: &'p PyAny) -> PyResult<&'p PyTyp
         return runtime_error!(format!(
             "Cannot extract python class from input of class '{}'",
             t.get_type()
-        ))
+        ));
     }
 }
 
@@ -37,15 +37,16 @@ pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyR
         cls_path = split[0].to_string();
     }
 
-    let t = py.eval(
-        &cls_path,
-        Some(locals),
-        None,
-    )?;
+    let t = py.eval(&cls_path, Some(locals), None)?;
     t.extract::<&PyType>()
 }
 
-pub fn new_py_obj<'p>(py: Python<'p>, class: &'p PyType, args: Option<impl IntoPy<Py<PyTuple>>>, kwargs: Option<&PyDict>) -> PyResult<&'p PyAny> {
+pub fn new_py_obj<'p>(
+    py: Python<'p>,
+    class: &'p PyType,
+    args: Option<impl IntoPy<Py<PyTuple>>>,
+    kwargs: Option<&PyDict>,
+) -> PyResult<&'p PyAny> {
     let t;
     class.call(
         if let Some(a) = args {
@@ -54,7 +55,7 @@ pub fn new_py_obj<'p>(py: Python<'p>, class: &'p PyType, args: Option<impl IntoP
         } else {
             PyTuple::empty(py)
         },
-        kwargs
+        kwargs,
     )
 }
 
@@ -103,7 +104,10 @@ pub fn indexmap_to_pydict<'p>(
     Ok(py_config.into())
 }
 
-pub fn map_to_pydict<'p, K, V>(py: Python<'p>, map: &'p mut dyn Iterator<Item=(K, V)>) -> PyResult<Py<PyDict>>
+pub fn map_to_pydict<'p, K, V>(
+    py: Python<'p>,
+    map: &'p mut dyn Iterator<Item = (K, V)>,
+) -> PyResult<Py<PyDict>>
 where
     K: 'p + ToPyObject,
     V: 'p + ToPyObject,
@@ -115,7 +119,7 @@ where
     Ok(pydict.into())
 }
 
-pub fn with_new_pydict<F, T>(py: Python, mut f: F) -> PyResult<Py<PyDict>> 
+pub fn with_new_pydict<F, T>(py: Python, mut f: F) -> PyResult<Py<PyDict>>
 where
     F: FnMut(&PyDict) -> PyResult<T>,
 {

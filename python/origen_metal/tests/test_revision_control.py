@@ -20,14 +20,15 @@ def test_pyapi_internal_git_path_is_valid():
     git_mod = importlib.import_module(__test__.python_git_mod_path())
     assert git_mod.Git == Git
 
+
 class TestGitAsDataStore(DataStoreView):
     ''' Git's only data store feature is populating users'''
-
     def parameterize(self):
         return {
-            "init_args": [
-                {"local": "../../", "remote": "test.git"}
-            ],
+            "init_args": [{
+                "local": "../../",
+                "remote": "test.git"
+            }],
         }
 
     @property
@@ -37,8 +38,12 @@ class TestGitAsDataStore(DataStoreView):
     def test_populating_users(self):
         n = "test_git_pop"
 
-        git_name = subprocess.run(['git', 'config', 'user.name'], capture_output=True, check=True).stdout.decode("utf-8").strip()
-        git_email = subprocess.run(['git', 'config', 'user.email'], capture_output=True, check=True).stdout.decode("utf-8").strip()
+        git_name = subprocess.run(['git', 'config', 'user.name'],
+                                  capture_output=True,
+                                  check=True).stdout.decode("utf-8").strip()
+        git_email = subprocess.run(['git', 'config', 'user.email'],
+                                   capture_output=True,
+                                   check=True).stdout.decode("utf-8").strip()
 
         origen_repo_name = 'origenrepo'
         origen_global_name = 'origenglobal'
@@ -47,17 +52,29 @@ class TestGitAsDataStore(DataStoreView):
         origen_repo_val = 'test_repo'
         origen_global_val = 'test_global'
         try:
-            subprocess.run(['git', 'config', origen_repo, origen_repo_val], capture_output=True, check=True, shell=True)
-            subprocess.run(['git', 'config', '--global', origen_global, origen_global_val], capture_output=True, check=True, shell=True)
+            subprocess.run(['git', 'config', origen_repo, origen_repo_val],
+                           capture_output=True,
+                           check=True,
+                           shell=True)
+            subprocess.run([
+                'git', 'config', '--global', origen_global, origen_global_val
+            ],
+                           capture_output=True,
+                           check=True,
+                           shell=True)
 
             # This one should be overwritten by the repo's setting
-            subprocess.run(['git', 'config', '--global', origen_repo, origen_global_val], capture_output=True, check=True, shell=True)
+            subprocess.run(
+                ['git', 'config', '--global', origen_repo, origen_global_val],
+                capture_output=True,
+                check=True,
+                shell=True)
 
             clean_users()
             get_users().add_dataset("git", {
                 "data_store": self.ds_test_name,
-                "category": self.cat_test_name}
-            )
+                "category": self.cat_test_name
+            })
             u = get_users().add(n)
             ds = u.datasets["git"]
             ds.populate()
@@ -67,6 +84,12 @@ class TestGitAsDataStore(DataStoreView):
             assert ds.other[origen_repo_name] == origen_repo_val
             assert ds.other[origen_global_name] == origen_global_val
         finally:
-            subprocess.run(['git', 'config', '--unset', origen_repo], capture_output=True, check=True, shell=True)
-            subprocess.run(['git', 'config', '--global', '--unset', origen_global], capture_output=True, check=True, shell=True)
-
+            subprocess.run(['git', 'config', '--unset', origen_repo],
+                           capture_output=True,
+                           check=True,
+                           shell=True)
+            subprocess.run(
+                ['git', 'config', '--global', '--unset', origen_global],
+                capture_output=True,
+                check=True,
+                shell=True)

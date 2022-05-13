@@ -1,13 +1,13 @@
-use super::user::{User, PopulateUserReturn, SessionConfig};
 use super::data::DatasetConfig;
-use crate::{Result, USERS, Outcome};
+use super::user::{PopulateUserReturn, SessionConfig, User};
+use crate::{Outcome, Result, USERS};
 use indexmap::IndexMap;
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 // TODO rename to _helpers?
 use crate::_utility::validate_input_list;
-use std::path::PathBuf;
-use crate::utils::encryption;
 use crate::prelude::session_store::*;
+use crate::utils::encryption;
+use std::path::PathBuf;
 
 lazy_static! {
     pub static ref DEFAULT_DATASET_KEY: &'static str = "__origen__default__";
@@ -18,13 +18,13 @@ macro_rules! new_default_datasets {
         let mut i = IndexMap::new();
         i.insert(DEFAULT_DATASET_KEY.to_string(), DatasetConfig::default());
         i
-    }}
+    }};
 }
 
 macro_rules! new_default_lookup_hierarchy {
     () => {{
-        vec!(DEFAULT_DATASET_KEY.to_string())
-    }}
+        vec![DEFAULT_DATASET_KEY.to_string()]
+    }};
 }
 
 pub fn users<'a>() -> RwLockReadGuard<'a, Users> {
@@ -37,7 +37,7 @@ pub fn users_mut<'a>() -> RwLockWriteGuard<'a, Users> {
 
 pub fn with_users<T, F>(mut func: F) -> Result<T>
 where
-    F: FnMut(&Users) -> Result<T>
+    F: FnMut(&Users) -> Result<T>,
 {
     let users = USERS.read().unwrap();
     func(&users)
@@ -45,7 +45,7 @@ where
 
 pub fn with_users_mut<T, F>(mut func: F) -> Result<T>
 where
-    F: FnMut(&mut Users) -> Result<T>
+    F: FnMut(&mut Users) -> Result<T>,
 {
     let mut users = USERS.write().unwrap();
     func(&mut users)
@@ -53,7 +53,7 @@ where
 
 pub fn with_user<T, F>(id: &str, mut func: F) -> Result<T>
 where
-    F: FnMut(&User) -> Result<T>
+    F: FnMut(&User) -> Result<T>,
 {
     let users = USERS.read().unwrap();
     let user = users.user(id)?;
@@ -62,7 +62,7 @@ where
 
 pub fn with_user_mut<T, F>(id: &str, mut func: F) -> Result<T>
 where
-    F: FnMut(&mut User) -> Result<T>
+    F: FnMut(&mut User) -> Result<T>,
 {
     let mut users = USERS.write().unwrap();
     let user = users.user_mut(id)?;
@@ -73,7 +73,7 @@ pub fn get_current_user_id() -> Result<Option<String>> {
     let u = users();
     Ok(match u.get_current_id()? {
         Some(id) => Some(id.to_string()),
-        None => None
+        None => None,
     })
 }
 
@@ -84,55 +84,45 @@ pub fn require_current_user_id() -> Result<String> {
 
 pub fn with_current_user<T, F>(mut func: F) -> Result<T>
 where
-    F: FnMut(&User) -> Result<T>
+    F: FnMut(&User) -> Result<T>,
 {
     let users = USERS.read().unwrap();
     let current = users.current_user()?;
     func(current)
 }
 
-
 pub fn get_current_user_home_dir() -> Result<Option<PathBuf>> {
-    with_current_user(|u| {
-        u.home_dir()
-    })
+    with_current_user(|u| u.home_dir())
 }
 
 pub fn require_current_user_home_dir() -> Result<PathBuf> {
-    with_current_user(|u| {
-        u.require_home_dir()
-    })
+    with_current_user(|u| u.require_home_dir())
 }
 
 pub fn get_current_user_email() -> Result<Option<String>> {
-    with_current_user(|u| {
-        u.get_email()
-    })
+    with_current_user(|u| u.get_email())
 }
 
 pub fn require_current_user_email() -> Result<String> {
-    with_current_user(|u| {
-        u.require_email()
-    })
+    with_current_user(|u| u.require_email())
 }
 
 // TODO move tests from origen to test these
 // TEST_NEEDED
 pub fn with_current_user_session<T, F>(namespace: Option<String>, func: F) -> Result<T>
 where
-    F: FnMut(&Sessions, &SessionGroup, &SessionStore) -> Result<T>
+    F: FnMut(&Sessions, &SessionGroup, &SessionStore) -> Result<T>,
 {
     let users = USERS.read().unwrap();
     let current = users.current_user()?;
     current.with_session(namespace, func)
 }
 
-
 pub fn get_initial_user_id() -> Result<Option<String>> {
     let u = users();
     Ok(match u.get_initial_id()? {
         Some(id) => Some(id.to_string()),
-        None => None
+        None => None,
     })
 }
 
@@ -166,7 +156,7 @@ pub fn unload(continue_on_user_unload_fail: bool) -> Result<()> {
 #[derive(Debug, Clone, Default)]
 pub struct PopulateUsersReturn {
     outcomes: IndexMap<String, PopulateUserReturn>,
-    
+
     // Cache the failed and errored outcomes
     failed_datasets: IndexMap<String, Vec<String>>,
     errored_datasets: IndexMap<String, Vec<String>>,
@@ -199,7 +189,21 @@ impl PopulateUsersReturn {
     }
 
     pub fn failed_outcomes(&self) -> ErrorFailedOutcomeReturn {
-        self.failed_datasets.iter().map( |(uid, _)| (uid, self.outcomes.get(uid).expect(&format!("Expected PopulateUsersReturn to have outcome for {}", uid)).failed_outcomes())).collect::<ErrorFailedOutcomeReturn>()
+        self.failed_datasets
+            .iter()
+            .map(|(uid, _)| {
+                (
+                    uid,
+                    self.outcomes
+                        .get(uid)
+                        .expect(&format!(
+                            "Expected PopulateUsersReturn to have outcome for {}",
+                            uid
+                        ))
+                        .failed_outcomes(),
+                )
+            })
+            .collect::<ErrorFailedOutcomeReturn>()
     }
 
     pub fn errored_datasets(&self) -> &IndexMap<String, Vec<String>> {
@@ -207,15 +211,35 @@ impl PopulateUsersReturn {
     }
 
     pub fn errored_outcomes(&self) -> ErrorFailedOutcomeReturn {
-        self.errored_datasets.iter().map( |(uid, _)| (uid, self.outcomes.get(uid).expect(&format!("Expected PopulateUsersReturn to have outcome for {}", uid)).errored_outcomes())).collect::<ErrorFailedOutcomeReturn>()
+        self.errored_datasets
+            .iter()
+            .map(|(uid, _)| {
+                (
+                    uid,
+                    self.outcomes
+                        .get(uid)
+                        .expect(&format!(
+                            "Expected PopulateUsersReturn to have outcome for {}",
+                            uid
+                        ))
+                        .errored_outcomes(),
+                )
+            })
+            .collect::<ErrorFailedOutcomeReturn>()
     }
 
-    pub fn insert(&mut self, id: &str, pop_user_rtn: PopulateUserReturn) -> Option<PopulateUserReturn> {
+    pub fn insert(
+        &mut self,
+        id: &str,
+        pop_user_rtn: PopulateUserReturn,
+    ) -> Option<PopulateUserReturn> {
         if pop_user_rtn.failed() {
-            self.failed_datasets.insert(id.to_owned(), pop_user_rtn.failed_datasets().to_owned());
+            self.failed_datasets
+                .insert(id.to_owned(), pop_user_rtn.failed_datasets().to_owned());
         }
         if pop_user_rtn.errored() {
-            self.errored_datasets.insert(id.to_owned(), pop_user_rtn.errored_datasets().to_owned());
+            self.errored_datasets
+                .insert(id.to_owned(), pop_user_rtn.errored_datasets().to_owned());
         }
         self.outcomes.insert(id.to_owned(), pop_user_rtn)
     }
@@ -244,16 +268,16 @@ impl Users {
         Ok(match self.current_id.as_ref() {
             Some(id) => Some(
                 // Unwrapping first here to ensure the user is available. If not, something has gone wrong.
-                self.users.get(id).unwrap()
+                self.users.get(id).unwrap(),
             ),
-            None => None
+            None => None,
         })
     }
 
     pub fn get_current_user_mut(&mut self) -> Result<Option<&mut User>> {
         Ok(match self.current_id.as_ref() {
             Some(id) => Some(self.users.get_mut(id).unwrap()),
-            None => None
+            None => None,
         })
     }
 
@@ -277,8 +301,8 @@ impl Users {
                 } else {
                     bail!("Initial user '{}' not found in existing users")
                 }
-            },
-            None => Ok(None)
+            }
+            None => Ok(None),
         }
     }
 
@@ -288,7 +312,7 @@ impl Users {
     pub fn current_id(&self) -> Result<&str> {
         match self.current_id.as_ref() {
             Some(id) => Ok(id),
-            None => bail!("No current user has been set!")
+            None => bail!("No current user has been set!"),
         }
     }
 
@@ -325,12 +349,15 @@ impl Users {
 
     pub fn set_current_user(&mut self, id: &str) -> Result<bool> {
         if !self.users.contains_key(id) {
-            bail!("Cannot set current user with id '{}'. User has not been added yet!", id);
+            bail!(
+                "Cannot set current user with id '{}'. User has not been added yet!",
+                id
+            );
         }
 
         let rtn = match self.current_id.as_ref() {
             Some(cid) => id != cid,
-            None => true
+            None => true,
         };
         self.current_id = Some(id.to_string());
         if self.initial_id.is_none() {
@@ -347,7 +374,7 @@ impl Users {
 
     pub fn try_lookup_current_user() -> Result<String> {
         // TODO see about wrapping function calls like this (optional frontend functions)
-        let fe_res = crate::with_optional_frontend( |f| {
+        let fe_res = crate::with_optional_frontend(|f| {
             if let Some(fe) = f {
                 if let Some(result) = fe.lookup_current_user() {
                     if let Some(u_id) = result? {
@@ -366,39 +393,31 @@ impl Users {
 
     pub fn try_lookup_and_set_current_user() -> Result<String> {
         let id = Self::try_lookup_current_user()?;
-        let need_to_add = with_users(|users| {
-            Ok(!users.users.contains_key(&id))
-        })?;
+        let need_to_add = with_users(|users| Ok(!users.users.contains_key(&id)))?;
 
         if need_to_add {
             Self::add_user(&id)?;
         }
 
-        with_users_mut(|users| {
-            users.set_current_user(&id)
-        })?;
+        with_users_mut(|users| users.set_current_user(&id))?;
         Ok(id)
     }
-
 
     fn add(&mut self, id: &str) -> Result<()> {
         if self.users.contains_key(id) {
             bail!("User '{}' has already been added", id)
         } else {
-            self.users.insert(id.to_string(), User::new(id, &self, None, self.uid_cnt)?);
+            self.users
+                .insert(id.to_string(), User::new(id, &self, None, self.uid_cnt)?);
             self.uid_cnt += 1;
             Ok(())
         }
     }
 
     pub fn add_user(id: &str) -> Result<()> {
-        with_users_mut( |users| {
-            users.add(id)
-        })?;
+        with_users_mut(|users| users.add(id))?;
 
-        with_user(id, |u| {
-            u.autopopulate()
-        })?;
+        with_user(id, |u| u.autopopulate())?;
         Ok(())
     }
 
@@ -415,8 +434,8 @@ impl Users {
                 }
                 user.unload()?;
                 Ok(retn)
-            },
-            None => bail!("Cannot remove nonexistent user '{}'", id)
+            }
+            None => bail!("Cannot remove nonexistent user '{}'", id),
         }
     }
 
@@ -449,8 +468,10 @@ impl Users {
         self.default_data_lookup_hierarchy = new_default_lookup_hierarchy!();
         self.default_motive_mapping = IndexMap::new();
         self.default_session_config = SessionConfig::new();
-        self.password_encryption_key__byte_str = encryption::default_encryption_key__byte_str().to_string();
-        self.password_encryption_nonce__byte_str = encryption::default_encryption_nonce__byte_str().to_string();
+        self.password_encryption_key__byte_str =
+            encryption::default_encryption_key__byte_str().to_string();
+        self.password_encryption_nonce__byte_str =
+            encryption::default_encryption_nonce__byte_str().to_string();
         Ok(())
     }
 
@@ -461,24 +482,35 @@ impl Users {
     pub fn require_default_dataset(&self, dataset: &str) -> Result<&DatasetConfig> {
         match &self.default_datasets.get(dataset) {
             Some(ds) => Ok(ds),
-            None => bail!("Users has not had a default dataset '{dataset}' added yet!")
+            None => bail!("Users has not had a default dataset '{dataset}' added yet!"),
         }
     }
 
     pub fn default_datakeys(&self) -> Vec<&String> {
-        self.default_datasets.keys().into_iter().collect::<Vec<&String>>()
+        self.default_datasets
+            .keys()
+            .into_iter()
+            .collect::<Vec<&String>>()
     }
 
     /// Overrides the default datakey/dataset, removing the origen default and replacing it with this one.
     /// This can only be done prior to adding any users or auxillary datasets, otherwise an error is thrown
-    pub fn override_default_dataset(&mut self, new_ds: &str, new_ds_config: DatasetConfig) -> Result<()> {
+    pub fn override_default_dataset(
+        &mut self,
+        new_ds: &str,
+        new_ds_config: DatasetConfig,
+    ) -> Result<()> {
         if self.users.len() > 0 {
             bail!(
                 "The default dataset can only be overridden prior to adding any users. Found users: {}",
                 self.users.keys().map(|k| format!("'{}'", k)).collect::<Vec<String>>().join(", ")
             );
         } else if self.default_datasets.len() != 1 {
-            let def_ds = self.default_datasets.first().expect("Something has gone wrong and Users.default_datasets is empty").0;
+            let def_ds = self
+                .default_datasets
+                .first()
+                .expect("Something has gone wrong and Users.default_datasets is empty")
+                .0;
             bail!(
                 "The default dataset can only be overridden prior to adding any additional datasets. Found additional datasets: {}",
                 // TODO need to remove default from existing
@@ -487,7 +519,8 @@ impl Users {
         }
 
         self.default_datasets = IndexMap::new();
-        self.default_datasets.insert(new_ds.to_string(), new_ds_config);
+        self.default_datasets
+            .insert(new_ds.to_string(), new_ds_config);
         self.default_data_lookup_hierarchy = vec![new_ds.to_string()];
         Ok(())
     }
@@ -503,7 +536,7 @@ impl Users {
             self.default_datakeys(),
             false,
             Some(&super::duplicate_dataset_hierarchy_closure),
-            Some(&super::invalid_dataset_hierarchy_closure)
+            Some(&super::invalid_dataset_hierarchy_closure),
         )?;
         self.default_data_lookup_hierarchy = hierarchy;
         Ok(())
@@ -514,7 +547,7 @@ impl Users {
         if self.default_datasets.contains_key(name) {
             bail!("A dataset '{}' is already present", name);
         }
-        
+
         self.default_datasets.insert(name.to_string(), config);
         Ok(())
     }
@@ -522,10 +555,16 @@ impl Users {
     /// Registers a new default dataset and adds it to the hierarchy.
     /// 'as_topmost' = true -> inserts at the beginning (highest) hierarchy
     /// 'as_topmost' = false -> inserts at the lowest point in the hierarchy
-    pub fn add_default_dataset(&mut self, name: &str, config: DatasetConfig, as_topmost: bool) -> Result<()> {
+    pub fn add_default_dataset(
+        &mut self,
+        name: &str,
+        config: DatasetConfig,
+        as_topmost: bool,
+    ) -> Result<()> {
         self.register_default_dataset(name, config)?;
         if as_topmost {
-            self.default_data_lookup_hierarchy.insert(0, name.to_string());
+            self.default_data_lookup_hierarchy
+                .insert(0, name.to_string());
         } else {
             self.default_data_lookup_hierarchy.push(name.to_string());
         }
@@ -536,9 +575,17 @@ impl Users {
         &self.default_motive_mapping
     }
 
-    pub fn add_motive(&mut self, motive: String, dataset: String, replace_existing: bool) -> Result<Option<String>> {
+    pub fn add_motive(
+        &mut self,
+        motive: String,
+        dataset: String,
+        replace_existing: bool,
+    ) -> Result<Option<String>> {
         if !self.default_datasets.contains_key(&dataset) {
-            bail!("Cannot add motive corresponding to nonexistent dataset '{}'", &dataset);
+            bail!(
+                "Cannot add motive corresponding to nonexistent dataset '{}'",
+                &dataset
+            );
         }
         if !replace_existing {
             if let Some(ds) = self.default_motive_mapping.get(&motive) {
@@ -556,10 +603,18 @@ impl Users {
         Ok(self.default_motive_mapping.get(motive))
     }
 
-    pub fn populate(&self, repopulate: bool, continue_on_error: bool, stop_on_failure: bool) -> Result<PopulateUsersReturn> {
+    pub fn populate(
+        &self,
+        repopulate: bool,
+        continue_on_error: bool,
+        stop_on_failure: bool,
+    ) -> Result<PopulateUsersReturn> {
         let mut rtn = PopulateUsersReturn::default();
         for (id, u) in self.users.iter() {
-            rtn.insert(&id, u.populate(repopulate, continue_on_error, stop_on_failure)?);
+            rtn.insert(
+                &id,
+                u.populate(repopulate, continue_on_error, stop_on_failure)?,
+            );
         }
         Ok(rtn)
     }
@@ -592,8 +647,10 @@ impl Default for Users {
             default_motive_mapping: IndexMap::new(),
             default_session_config: SessionConfig::new(),
             uid_cnt: 0,
-            password_encryption_key__byte_str: encryption::default_encryption_key__byte_str().to_string(),
-            password_encryption_nonce__byte_str: encryption::default_encryption_nonce__byte_str().to_string(),
+            password_encryption_key__byte_str: encryption::default_encryption_key__byte_str()
+                .to_string(),
+            password_encryption_nonce__byte_str: encryption::default_encryption_nonce__byte_str()
+                .to_string(),
         }
     }
 }

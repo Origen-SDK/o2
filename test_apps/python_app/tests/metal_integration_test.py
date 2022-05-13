@@ -10,6 +10,7 @@ from tests import om_shared
 with om_shared():
     from om_tests import test_frontend
 
+
 def test_frontend_is_set():
     assert (origen_metal.frontend.frontend() is not None)
 

@@ -1,12 +1,10 @@
 use crate::application;
-use pyo3::prelude::*;
-use pyapi_metal::framework::sessions::{Sessions, SessionStore, SessionGroup};
-use origen::{
-    with_app_session_group,
-    with_app_session,
-    om
+use origen::utility::sessions::{
+    clean_sessions, setup_sessions, unload, with_mut_app_session_group,
 };
-use origen::utility::sessions::{clean_sessions, unload, setup_sessions, with_mut_app_session_group};
+use origen::{om, with_app_session, with_app_session_group};
+use pyapi_metal::framework::sessions::{SessionGroup, SessionStore, Sessions};
+use pyo3::prelude::*;
 
 #[pymodule]
 fn sessions(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -37,9 +35,7 @@ impl OrigenSessions {
             } else if application::is_base_app(s)? {
                 let n = application::get_name(s)?;
                 let mut sessions = om::sessions();
-                om::with_current_user(|u| {
-                    u.ensure_session(&mut sessions, Some(&n))
-                })?;
+                om::with_current_user(|u| u.ensure_session(&mut sessions, Some(&n)))?;
                 t = Some(n);
             } else {
                 return crate::runtime_error!(format!(
@@ -65,9 +61,7 @@ impl OrigenSessions {
             } else if application::is_base_app(s)? {
                 let n = application::get_name(s)?;
                 let sessions = om::sessions();
-                with_mut_app_session_group(Some(sessions), |sg| {
-                    sg.ensure(&n)
-                })?;
+                with_mut_app_session_group(Some(sessions), |sg| sg.ensure(&n))?;
                 t = Some(n);
             } else {
                 return crate::runtime_error!(format!(
@@ -79,9 +73,7 @@ impl OrigenSessions {
             t = None;
         }
 
-        Ok(with_app_session(t, |s| {
-            Ok(SessionStore::from_metal(s)?)
-        })?)
+        Ok(with_app_session(t, |s| Ok(SessionStore::from_metal(s)?))?)
     }
 
     #[getter]

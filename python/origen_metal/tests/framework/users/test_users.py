@@ -13,11 +13,14 @@ from .tests__user_motives import T_UserMotives
 from .tests__populating import T_PopulatingUsers
 from .tests__datasets import Base as DSBase
 
+
 class TestUsers(T_Users):
     pass
 
+
 class TestInitialAndCurrentUser(T_InitialAndCurrentUser):
     pass
+
 
 class TestUnloadingUsers(Base):
     def test_unloading_users(self, users, u_id):
@@ -33,19 +36,24 @@ class TestUnloadingUsers(Base):
         assert users.initial_user == None
         assert om.current_user == None
 
+
 class TestDatasets(T_Datasets):
     pass
+
 
 class TestUserMotives(T_UserMotives):
     pass
 
+
 class TestPopulatingUsers(T_PopulatingUsers):
     pass
+
 
 # TODO move this to another file
 from .shared import Base
 from tests.utils.test_sessions import Common as SessionsBase
 from tests.test_file_permissions import new_fp
+
 
 class TestUserSession(Base, SessionsBase):
     @property
@@ -75,7 +83,7 @@ class TestUserSession(Base, SessionsBase):
     @pytest.fixture
     def u_sg_name(self):
         return f"__user__{self.user_id_root}__"
-    
+
     @pytest.fixture
     def u_sg_def_path(self, u_sg_name):
         return self.default_offset.joinpath(u_sg_name)
@@ -88,8 +96,15 @@ class TestUserSession(Base, SessionsBase):
     def u_ss_def_path(self, u_sg_def_path, def_ss_name):
         return u_sg_def_path.joinpath(def_ss_name)
 
-    def assert_sc(self, sc, root=None, offset=None, fp=None, offset_is_none=False):
-        assert sc.root == (root or self.default_root) # for completeness even though both may resolve to None
+    def assert_sc(self,
+                  sc,
+                  root=None,
+                  offset=None,
+                  fp=None,
+                  offset_is_none=False):
+        assert sc.root == (
+            root or self.default_root
+        )  # for completeness even though both may resolve to None
         if offset_is_none:
             assert sc.offset == None
         else:
@@ -97,8 +112,15 @@ class TestUserSession(Base, SessionsBase):
         assert sc.file_permissions == (fp or self.default_fp)
         assert sc.fp == (fp or self.default_fp)
 
-    def assert_updated_sc(self, sc, root=None, offset=None, fp=None, offset_is_none=False):
-        return self.assert_sc(sc, root or self.updated_root, offset or self.updated_offset, fp or self.updated_fp, offset_is_none)
+    def assert_updated_sc(self,
+                          sc,
+                          root=None,
+                          offset=None,
+                          fp=None,
+                          offset_is_none=False):
+        return self.assert_sc(sc, root or self.updated_root, offset
+                              or self.updated_offset, fp or self.updated_fp,
+                              offset_is_none)
 
     def test_session_defaults_from_users(self, unload_users, users):
         sc = users.session_config
@@ -129,7 +151,8 @@ class TestUserSession(Base, SessionsBase):
         sc.file_permissions = new_fp('world_writable')
         self.assert_updated_sc(sc, fp=new_fp('world_writable'))
 
-    def test_session_group_is_accessible_and_lazily_created(self, unload_users, u, u_sg_name, u_sg_def_path):
+    def test_session_group_is_accessible_and_lazily_created(
+            self, unload_users, u, u_sg_name, u_sg_def_path):
         assert u_sg_name not in self.sessions.groups
         grp = u.sessions
         assert u_sg_name in self.sessions.groups
@@ -139,7 +162,11 @@ class TestUserSession(Base, SessionsBase):
         assert grp.path == u_sg_def_path
         assert grp.path.exists() is False
 
-    def test_session_is_accessible_and_lazily_created(self, unload_sessions, unload_users, u, u_sg_name, def_ss_name, u_ss_def_path, u_sg_def_path):
+    def test_session_is_accessible_and_lazily_created(self, unload_sessions,
+                                                      unload_users, u,
+                                                      u_sg_name, def_ss_name,
+                                                      u_ss_def_path,
+                                                      u_sg_def_path):
         assert u_sg_name not in self.sessions.groups
 
         # Create and get the default session
@@ -177,17 +204,19 @@ class TestUserSession(Base, SessionsBase):
         # User created prior to updates should be unchanged
         self.assert_sc(u.session_config)
 
-    def test_user_session_config_is_updated_only_pre_session_creation(self, unload_users, unload_sessions, u, u_sg_name):
+    def test_user_session_config_is_updated_only_pre_session_creation(
+            self, unload_users, unload_sessions, u, u_sg_name):
         assert u_sg_name not in self.sessions.groups
         sc = u.session_config
         self.assert_sc(sc)
 
         sc.root = self.updated_root
-        sc.offset = self.updated_offset 
+        sc.offset = self.updated_offset
         self.assert_updated_sc(sc, fp=new_fp('private'))
 
         s = u.sessions
-        assert s.path == self.updated_root.joinpath(self.updated_offset).joinpath(u_sg_name)
+        assert s.path == self.updated_root.joinpath(
+            self.updated_offset).joinpath(u_sg_name)
 
         # Can still query the session config
         self.assert_updated_sc(sc, fp=new_fp('private'))
@@ -205,27 +234,37 @@ class TestUserSession(Base, SessionsBase):
 
         self.assert_updated_sc(sc, fp=new_fp('private'))
 
-    def test_when_user_session_already_exists(self, unload_users, unload_sessions, u_sg_name):
+    def test_when_user_session_already_exists(self, unload_users,
+                                              unload_sessions, u_sg_name):
         self.sessions.add_group(u_sg_name, root="/random/place")
         u = self.user()
-        with pytest.raises(RuntimeError, match=f"Session group '{u_sg_name}' does not match the session config for user '{u.id}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Session group '{u_sg_name}' does not match the session config for user '{u.id}'"
+        ):
             u.session
 
-    def test_no_root_results_in_users_home_dir_for_top_dataset(self, unload_users, unload_sessions, u, u_sg_name, def_ss_name):
+    def test_no_root_results_in_users_home_dir_for_top_dataset(
+            self, unload_users, unload_sessions, u, u_sg_name, def_ss_name):
         u.home_dir = "home/dir"
         assert u.session_config.root is None
         s = u.session
-        assert s.path == pathlib.Path("home/dir").joinpath(self.default_offset).joinpath(u_sg_name).joinpath(def_ss_name)
+        assert s.path == pathlib.Path("home/dir").joinpath(
+            self.default_offset).joinpath(u_sg_name).joinpath(def_ss_name)
 
-    def test_no_offset(self, unload_users, unload_sessions, u, u_sg_name, def_ss_name):
+    def test_no_offset(self, unload_users, unload_sessions, u, u_sg_name,
+                       def_ss_name):
         sc = u.session_config
         sc.root = "home/dir"
         sc.offset = None
         s = u.session
         assert s.path == pathlib.Path(f"home/dir/{u_sg_name}/{def_ss_name}")
 
-    @pytest.mark.parametrize("target", ("users", "user"), ids=["users", "user"])
-    def test_error_on_absolute_offsets(self, unload_users, unload_sessions, users, target):
+    @pytest.mark.parametrize("target", ("users", "user"),
+                             ids=["users", "user"])
+    def test_error_on_absolute_offsets(self, unload_users, unload_sessions,
+                                       users, target):
         if target == "users":
             sc = users.session_config
         elif target == "user":
@@ -234,15 +273,17 @@ class TestUserSession(Base, SessionsBase):
         d = "/home/dir"
         if om.running_on_windows:
             d = f"C:{d}"
-        
+
         msg = fr"Absolute offsets are not allowed in a user's session config \(given: {d}\)"
         assert sc.offset == self.default_offset
         with pytest.raises(RuntimeError, match=msg):
             sc.offset = d
         assert sc.offset == self.default_offset
 
-    @pytest.mark.parametrize("target", ("users", "user"), ids=["users", "user"])
-    def test_root_type_acceptance(self, unload_users, unload_sessions, users, target):
+    @pytest.mark.parametrize("target", ("users", "user"),
+                             ids=["users", "user"])
+    def test_root_type_acceptance(self, unload_users, unload_sessions, users,
+                                  target):
         if target == "users":
             sc = users.session_config
         elif target == "user":
@@ -265,8 +306,10 @@ class TestUserSession(Base, SessionsBase):
         sc.root = None
         assert sc.root is None
 
-    @pytest.mark.parametrize("target", ("users", "user"), ids=["users", "user"])
-    def test_offset_type_acceptance(self, unload_users, unload_sessions, users, target):
+    @pytest.mark.parametrize("target", ("users", "user"),
+                             ids=["users", "user"])
+    def test_offset_type_acceptance(self, unload_users, unload_sessions, users,
+                                    target):
         if target == "users":
             sc = users.session_config
         elif target == "user":
@@ -289,8 +332,10 @@ class TestUserSession(Base, SessionsBase):
         sc.offset = None
         assert sc.offset is None
 
-    @pytest.mark.parametrize("target", ("users", "user"), ids=["users", "user"])
-    def test_fp_and_file_permissions_methods_are_equivalent(self, unload_users, unload_sessions, users, target):
+    @pytest.mark.parametrize("target", ("users", "user"),
+                             ids=["users", "user"])
+    def test_fp_and_file_permissions_methods_are_equivalent(
+            self, unload_users, unload_sessions, users, target):
         if target == "users":
             sc = users.session_config
         elif target == "user":
@@ -303,7 +348,7 @@ class TestUserSession(Base, SessionsBase):
         sc = users.session_config
         assert sc.fp != public_fp
         assert sc.file_permissions != public_fp
-        
+
         # Try with file permissions object
         sc.fp = public_fp
         assert sc.file_permissions == public_fp
@@ -331,6 +376,7 @@ class TestUserSession(Base, SessionsBase):
         assert sc.file_permissions == private_fp
         assert sc.fp == private_fp
 
+
 class TestUserHomeDirectory(DSBase):
     @pytest.fixture
     def hd(self):
@@ -339,7 +385,7 @@ class TestUserHomeDirectory(DSBase):
     @pytest.fixture
     def hd1(self, hd):
         return hd.joinpath("1")
-    
+
     @pytest.fixture
     def hd2(self, hd):
         return hd.joinpath("2")
@@ -351,7 +397,7 @@ class TestUserHomeDirectory(DSBase):
     def test_home_dir_starts_as_none(self, unload_users, u, ddk):
         assert u.home_dir is None
         assert u.datasets[ddk].home_dir is None
-    
+
     def test_home_dir_can_be_set(self, u, d, hd):
         u.home_dir = hd
         assert u.home_dir == hd
@@ -362,7 +408,8 @@ class TestUserHomeDirectory(DSBase):
         assert u.home_dir == Path(hd_str)
         assert d.home_dir == Path(hd_str)
 
-    def test_home_dir_can_be_set_and_retrieved_per_dataset(self, unload_users, u, d, d2, hd, hd2, hd3):
+    def test_home_dir_can_be_set_and_retrieved_per_dataset(
+            self, unload_users, u, d, d2, hd, hd2, hd3):
         assert u.home_dir is None
         assert d.home_dir is None
         assert d2.home_dir is None
@@ -388,7 +435,8 @@ class TestUserHomeDirectory(DSBase):
         assert d.home_dir == Path(hd_str)
         assert d2.home_dir == hd2
 
-    def test_home_dir_obeys_hierarchy(self, unload_users, u, d, d2, ddk, d2_name, hd1, hd2):
+    def test_home_dir_obeys_hierarchy(self, unload_users, u, d, d2, ddk,
+                                      d2_name, hd1, hd2):
         assert u.data_lookup_hierarchy == [ddk, d2_name]
         assert u.home_dir is None
 
@@ -401,10 +449,15 @@ class TestUserHomeDirectory(DSBase):
         assert u.home_dir == hd2
 
         u.data_lookup_hierarchy = []
-        with pytest.raises(RuntimeError, match="Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                "Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"
+        ):
             u.home_dir
 
-    def test_home_dir_iterates_through_hierarchy(self, unload_users, u, d, d2, ddk, d2_name, hd1, hd2):
+    def test_home_dir_iterates_through_hierarchy(self, unload_users, u, d, d2,
+                                                 ddk, d2_name, hd1, hd2):
         assert u.data_lookup_hierarchy == [ddk, d2_name]
         assert u.home_dir is None
 
@@ -417,20 +470,29 @@ class TestUserHomeDirectory(DSBase):
 
     def test_requiring_a_home_dir_is_set(self, unload_users, u, hd1):
         assert u.home_dir is None
-        with pytest.raises(RuntimeError, match=f"Required a home directory for user '{u.id}' but none has been set"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Required a home directory for user '{u.id}' but none has been set"
+        ):
             u.require_home_dir
 
         u.home_dir = hd1
         assert u.require_home_dir == hd1
 
-    def test_requiring_a_home_dir_is_set_per_dataset(self, unload_users, u, d, d2, ddk, hd1, hd2):
+    def test_requiring_a_home_dir_is_set_per_dataset(self, unload_users, u, d,
+                                                     d2, ddk, hd1, hd2):
         assert u.home_dir is None
         d2.home_dir = hd2
         assert u.home_dir == hd2
 
-        with pytest.raises(RuntimeError, match=f"Required a home directory for user '{u.id}' and dataset '{ddk}', but none has been set"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Required a home directory for user '{u.id}' and dataset '{ddk}', but none has been set"
+        ):
             d.require_home_dir
-        
+
         d.home_dir = hd1
         assert d.require_home_dir == hd1
 
@@ -443,4 +505,3 @@ class TestUserHomeDirectory(DSBase):
     @pytest.mark.skip
     def test_setting_home_dir_from_frontend(self):
         raise NotImplementedError()
-

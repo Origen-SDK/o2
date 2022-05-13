@@ -1,6 +1,6 @@
-use pyo3::prelude::*;
-use pyo3::class::basic::CompareOp;
 use origen_metal::utils::file::FilePermissions as OmFilePermissions;
+use pyo3::class::basic::CompareOp;
+use pyo3::prelude::*;
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "file_permissions")?;
@@ -28,12 +28,16 @@ pub fn group() -> PyResult<FilePermissions> {
 
 #[pyfunction]
 pub fn group_writable() -> PyResult<FilePermissions> {
-    Ok(FilePermissions::from_metal(&OmFilePermissions::GroupWritable))
+    Ok(FilePermissions::from_metal(
+        &OmFilePermissions::GroupWritable,
+    ))
 }
 
 #[pyfunction]
 pub fn public_with_group_writable() -> PyResult<FilePermissions> {
-    Ok(FilePermissions::from_metal(&OmFilePermissions::PublicWithGroupWritable))
+    Ok(FilePermissions::from_metal(
+        &OmFilePermissions::PublicWithGroupWritable,
+    ))
 }
 
 #[pyfunction]
@@ -43,7 +47,9 @@ pub fn public() -> PyResult<FilePermissions> {
 
 #[pyfunction]
 pub fn world_writable() -> PyResult<FilePermissions> {
-    Ok(FilePermissions::from_metal(&OmFilePermissions::WorldWritable))
+    Ok(FilePermissions::from_metal(
+        &OmFilePermissions::WorldWritable,
+    ))
 }
 
 #[pyfunction]
@@ -58,9 +64,7 @@ pub struct FilePermissions {
 
 impl FilePermissions {
     pub fn from_metal(fp: &OmFilePermissions) -> Self {
-        Self {
-            om_fps: fp.clone()
-        }
+        Self { om_fps: fp.clone() }
     }
 
     pub fn to_metal(fp: &PyAny) -> PyResult<OmFilePermissions> {
@@ -78,7 +82,9 @@ impl FilePermissions {
         }
     }
 
-    pub fn to_metal_optional(file_permissions: Option<&PyAny>) -> PyResult<Option<OmFilePermissions>> {
+    pub fn to_metal_optional(
+        file_permissions: Option<&PyAny>,
+    ) -> PyResult<Option<OmFilePermissions>> {
         if let Some(fp) = file_permissions {
             Ok(Some(Self::to_metal(fp)?))
         } else {
@@ -131,10 +137,12 @@ impl pyo3::class::basic::PyObjectProtocol for FilePermissions {
                 match op {
                     CompareOp::Eq => Ok(result),
                     CompareOp::Ne => Ok(!result),
-                    _ => crate::not_implemented_error!("FilePermissions only support equals and not-equals comparisons"),
+                    _ => crate::not_implemented_error!(
+                        "FilePermissions only support equals and not-equals comparisons"
+                    ),
                 }
-            },
-            Err(_) => Ok(false)
+            }
+            Err(_) => Ok(false),
         }
     }
 }

@@ -4,7 +4,7 @@ use super::User;
 use crate::Result;
 use crate::_utility::str_from_byte_array;
 // use crate::utils::encryption::{decrypt_with, encrypt_with};
-use crate::utils::encryption::{encrypt_with};
+use crate::utils::encryption::encrypt_with;
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
 
@@ -22,20 +22,20 @@ pub enum PasswordCacheOptions {
 }
 
 impl PasswordCacheOptions {
-/*
-    pub fn from_config() -> Result<Self> {
-        let opt = &crate::ORIGEN_CONFIG.user__password_cache_option;
-        match opt.as_str() {
-            "session" | "session_store" => Ok(Self::Session),
-            "keyring" | "true" => Ok(Self::Keyring),
-            "none" | "false" => Ok(Self::None),
-            _ => error!(
-                "'user__password_cache_option' option '{}' is not known!",
-                opt
-            ),
+    /*
+        pub fn from_config() -> Result<Self> {
+            let opt = &crate::ORIGEN_CONFIG.user__password_cache_option;
+            match opt.as_str() {
+                "session" | "session_store" => Ok(Self::Session),
+                "keyring" | "true" => Ok(Self::Keyring),
+                "none" | "false" => Ok(Self::None),
+                _ => error!(
+                    "'user__password_cache_option' option '{}' is not known!",
+                    opt
+                ),
+            }
         }
-    }
-*/
+    */
     pub fn cache_password(&self, user: &User, password: &str, dataset: &str) -> Result<bool> {
         match self {
             Self::Session => {
@@ -47,9 +47,14 @@ impl PasswordCacheOptions {
                         to_session_password(dataset),
                         str_from_byte_array(&encrypt_with(
                             password,
-                            crate::into_aes_gcm_generic_array!(crate::users().password_encryption_key()),
-                            crate::into_aes_gcm_generic_array!(crate::users().password_encryption_nonce()),
-                        )?)?.into()
+                            crate::into_aes_gcm_generic_array!(
+                                crate::users().password_encryption_key()
+                            ),
+                            crate::into_aes_gcm_generic_array!(
+                                crate::users().password_encryption_nonce()
+                            ),
+                        )?)?
+                        .into(),
                     )
                 })?;
                 // let mut s = crate::sessions();

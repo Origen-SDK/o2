@@ -1,17 +1,17 @@
-use pyo3::prelude::*;
-use pyo3::class::mapping::PyMappingProtocol;
-use pyo3::class::basic::CompareOp;
-use origen_metal::framework::sessions as om_ss;
-use om_ss::SessionStore as OmSS;
-use om_ss::SessionGroup as OmSG;
-use om_ss::Sessions as OmS;
-use origen_metal::Result as OMResult;
+use super::FilePermissions;
 use crate::_helpers::pypath_as_pathbuf;
 use crate::_helpers::typed_value::{extract_as_typed_value, typed_value_to_pyobj};
-use std::collections::HashMap;
+use om_ss::SessionGroup as OmSG;
+use om_ss::SessionStore as OmSS;
+use om_ss::Sessions as OmS;
+use origen_metal::framework::sessions as om_ss;
 use origen_metal::sessions as om_sessions;
+use origen_metal::Result as OMResult;
+use pyo3::class::basic::CompareOp;
+use pyo3::class::mapping::PyMappingProtocol;
+use pyo3::prelude::*;
+use std::collections::HashMap;
 use std::sync::MutexGuard;
-use super::FilePermissions;
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "sessions")?;
@@ -42,18 +42,27 @@ impl Sessions {
         }
         Ok(retn)
     }
-    
+
     pub fn group(&self, name: &str) -> PyResult<Option<SessionGroup>> {
         let om = om_sessions();
         Ok(match om.get_group(name) {
             Some(g) => Some(SessionGroup::from_metal(g)?),
-            None => None
+            None => None,
         })
     }
-    
-    pub fn add_group(&self, name: &str, root: &PyAny, file_permissions: Option<&PyAny>) -> PyResult<SessionGroup> {
+
+    pub fn add_group(
+        &self,
+        name: &str,
+        root: &PyAny,
+        file_permissions: Option<&PyAny>,
+    ) -> PyResult<SessionGroup> {
         let mut om = om_sessions();
-        om.add_group(name, pypath_as_pathbuf(root)?.as_path(), FilePermissions::to_metal_optional(file_permissions)?)?;
+        om.add_group(
+            name,
+            pypath_as_pathbuf(root)?.as_path(),
+            FilePermissions::to_metal_optional(file_permissions)?,
+        )?;
         Ok(SessionGroup::new(name))
     }
 
@@ -71,18 +80,27 @@ impl Sessions {
         }
         Ok(retn)
     }
-    
+
     pub fn standalone(&self, name: &str) -> PyResult<Option<SessionStore>> {
         let om = om_sessions();
         Ok(match om.get_standalone(name) {
             Some(_) => Some(SessionStore::new(name.to_string(), None)),
-            None => None
+            None => None,
         })
     }
 
-    pub fn add_standalone(&self, name: &str, root: &PyAny, file_permissions: Option<&PyAny>) -> PyResult<SessionStore> {
+    pub fn add_standalone(
+        &self,
+        name: &str,
+        root: &PyAny,
+        file_permissions: Option<&PyAny>,
+    ) -> PyResult<SessionStore> {
         let mut om = om_sessions();
-        om.add_standalone(name, pypath_as_pathbuf(root)?.as_path(), FilePermissions::to_metal_optional(file_permissions)?)?;
+        om.add_standalone(
+            name,
+            pypath_as_pathbuf(root)?.as_path(),
+            FilePermissions::to_metal_optional(file_permissions)?,
+        )?;
         Ok(SessionStore::new(name.to_string(), None))
     }
 
@@ -113,7 +131,7 @@ pub struct SessionGroup {
 impl SessionGroup {
     pub fn new(name: &str) -> Self {
         Self {
-            name: name.to_string()
+            name: name.to_string(),
         }
     }
 
@@ -126,9 +144,7 @@ impl SessionGroup {
         F: FnMut(&OmSG) -> OMResult<T>,
     {
         match sessions {
-            Some(s) => {
-                Ok(f(s.require_group(&self.name)?)?)
-            },
+            Some(s) => Ok(f(s.require_group(&self.name)?)?),
             None => {
                 let s = om_sessions();
                 Ok(f(s.require_group(&self.name)?)?)
@@ -141,9 +157,7 @@ impl SessionGroup {
         F: FnMut(&mut OmSG) -> OMResult<T>,
     {
         match sessions {
-            Some(mut s) => {
-                Ok(f(s.require_mut_group(&self.name)?)?)
-            },
+            Some(mut s) => Ok(f(s.require_mut_group(&self.name)?)?),
             None => {
                 let mut s = om_sessions();
                 Ok(f(s.require_mut_group(&self.name)?)?)
@@ -157,13 +171,13 @@ impl SessionGroup {
     #[getter]
     fn get_name(&self) -> PyResult<String> {
         // Attempt to grab the OmSG to ensure it exists (ensure not stale)
-        self.with_om_sg(None, |_| { Ok(()) })?;
+        self.with_om_sg(None, |_| Ok(()))?;
         Ok(self.name.clone())
     }
 
     #[getter]
     fn get_path(&self) -> PyResult<PyObject> {
-        Ok(Python::with_gil( |py| {
+        Ok(Python::with_gil(|py| {
             self.with_om_sg(None, |g| {
                 Ok(crate::pypath!(py, format!("{}", g.path().display())))
             })
@@ -178,8 +192,11 @@ impl SessionGroup {
     fn get(&self, session_name: &str) -> PyResult<Option<SessionStore>> {
         Ok(self.with_om_sg(None, |sg| {
             Ok(match sg.get(session_name) {
-                Some(_) => Some(SessionStore::new(session_name.to_string(), Some(self.name.to_string()))),
-                None => None
+                Some(_) => Some(SessionStore::new(
+                    session_name.to_string(),
+                    Some(self.name.to_string()),
+                )),
+                None => None,
             })
         })?)
     }
@@ -189,13 +206,14 @@ impl SessionGroup {
             sg.add_session(name)?;
             Ok(())
         })?;
-        Ok(SessionStore::new(name.to_string(), Some(self.name.to_string())))
+        Ok(SessionStore::new(
+            name.to_string(),
+            Some(self.name.to_string()),
+        ))
     }
 
     fn delete_session(&self, name: &str) -> PyResult<bool> {
-        Ok(self.with_mut_om_sg(None, |sg| {
-            sg.delete_session(name)
-        })?)
+        Ok(self.with_mut_om_sg(None, |sg| sg.delete_session(name))?)
     }
 
     fn refresh(&self) -> PyResult<()> {
@@ -215,7 +233,10 @@ impl SessionGroup {
         let mut retn: Vec<SessionStore> = vec![];
         self.with_om_sg(None, |g| {
             for (n, _) in g.sessions().iter() {
-                retn.push(SessionStore::new(n.to_string(), Some(self.name.to_string())));
+                retn.push(SessionStore::new(
+                    n.to_string(),
+                    Some(self.name.to_string()),
+                ));
             }
             Ok(())
         })?;
@@ -228,7 +249,7 @@ impl SessionGroup {
             for (n, _) in sg.sessions() {
                 retn.push((
                     n.to_string(),
-                    SessionStore::new(n.to_string(), Some(self.name.to_string()))
+                    SessionStore::new(n.to_string(), Some(self.name.to_string())),
                 ));
             }
             Ok(())
@@ -249,7 +270,7 @@ impl pyo3::class::basic::PyObjectProtocol for SessionGroup {
     fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
         let other_grp = match other.extract::<PyRef<Self>>() {
             Ok(grp) => grp,
-            Err(_) => return Python::with_gil( |py| Ok(false.to_object(py)))
+            Err(_) => return Python::with_gil(|py| Ok(false.to_object(py))),
         };
 
         let s = om_sessions();
@@ -257,12 +278,10 @@ impl pyo3::class::basic::PyObjectProtocol for SessionGroup {
         let om_other = s.require_group(&other_grp.name)?;
         let result = om_grp == om_other;
 
-        Python::with_gil( |py| {
-            match op {
-                CompareOp::Eq => Ok(result.to_object(py)),
-                CompareOp::Ne => Ok((!result).to_object(py)),
-                _ => Ok(py.NotImplemented()),
-            }
+        Python::with_gil(|py| match op {
+            CompareOp::Eq => Ok(result.to_object(py)),
+            CompareOp::Ne => Ok((!result).to_object(py)),
+            _ => Ok(py.NotImplemented()),
         })
     }
 }
@@ -275,16 +294,19 @@ impl PyMappingProtocol for SessionGroup {
         } else {
             Err(pyo3::exceptions::PyKeyError::new_err({
                 self.with_om_sg(None, |sg| {
-                    Ok(format!("Session '{}' has not been added to session group '{}' (path: '{}')", key, self.name, sg.path().display()))
+                    Ok(format!(
+                        "Session '{}' has not been added to session group '{}' (path: '{}')",
+                        key,
+                        self.name,
+                        sg.path().display()
+                    ))
                 })?
             }))
         }
     }
 
     fn __len__(&self) -> PyResult<usize> {
-        Ok(self.with_om_sg(None, |g| {
-            Ok(g.sessions().len())
-        })?)
+        Ok(self.with_om_sg(None, |g| Ok(g.sessions().len()))?)
     }
 }
 
@@ -329,27 +351,21 @@ pub struct SessionStore {
 #[pymethods]
 impl SessionStore {
     fn refresh(slf: PyRef<Self>) -> PyResult<Py<Self>> {
-        slf.with_om_ss(|ss| {
-            ss.refresh()
-        })?;
+        slf.with_om_ss(|ss| ss.refresh())?;
         Ok(slf.into())
     }
 
     #[getter]
     fn path(&self) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            let p = self.with_om_ss(|ss| {
-                Ok(format!("{}", ss.path().display()))
-            })?;
+            let p = self.with_om_ss(|ss| Ok(format!("{}", ss.path().display())))?;
             Ok(crate::pypath!(py, p))
         })
     }
 
     #[getter]
     fn name(&self) -> PyResult<String> {
-        Ok(self.with_om_ss(|ss| {
-            Ok(ss.name()?)
-        })?)
+        Ok(self.with_om_ss(|ss| Ok(ss.name()?))?)
     }
 
     // TODO
@@ -358,15 +374,11 @@ impl SessionStore {
     // }
 
     fn get(&self, key: &str) -> PyResult<Option<PyObject>> {
-        Ok(self.with_om_ss(|ss| {
-            Ok(typed_value_to_pyobj(ss.retrieve(key)?, Some(key))?)
-        })?)
+        Ok(self.with_om_ss(|ss| Ok(typed_value_to_pyobj(ss.retrieve(key)?, Some(key))?))?)
     }
 
     fn delete(&self, key: &str) -> PyResult<Option<PyObject>> {
-        Ok(self.with_om_ss(|ss| {
-            Ok(typed_value_to_pyobj(ss.delete(key)?, Some(key))?)
-        })?)
+        Ok(self.with_om_ss(|ss| Ok(typed_value_to_pyobj(ss.delete(key)?, Some(key))?))?)
     }
 
     fn store(slf: PyRef<Self>, key: &str, value: &PyAny) -> PyResult<Py<Self>> {
@@ -387,16 +399,12 @@ impl SessionStore {
     }
 
     fn remove_file(slf: PyRef<Self>) -> PyResult<Py<Self>> {
-        slf.with_om_ss(|ss| {
-            ss.remove_file()
-        })?;
+        slf.with_om_ss(|ss| ss.remove_file())?;
         Ok(slf.into())
     }
 
     fn keys(&self) -> PyResult<Vec<String>> {
-        Ok(self.with_om_ss(|ss| {
-            Ok(ss.keys()?.iter().map(|k| k.to_string()).collect())
-        })?)
+        Ok(self.with_om_ss(|ss| Ok(ss.keys()?.iter().map(|k| k.to_string()).collect()))?)
     }
 
     fn values(&self) -> PyResult<Vec<Option<PyObject>>> {
@@ -414,7 +422,10 @@ impl SessionStore {
         let mut retn: Vec<(String, Option<PyObject>)> = vec![];
         self.with_om_ss(|ss| {
             for (k, v) in ss.data()?.iter() {
-                retn.push((k.to_string(), typed_value_to_pyobj(Some(v.clone()), Some(k))?));
+                retn.push((
+                    k.to_string(),
+                    typed_value_to_pyobj(Some(v.clone()), Some(k))?,
+                ));
             }
             Ok(())
         })?;
@@ -422,13 +433,12 @@ impl SessionStore {
     }
 }
 
-
 #[pyproto]
 impl pyo3::class::basic::PyObjectProtocol for SessionStore {
     fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
         let other_s = match other.extract::<PyRef<Self>>() {
             Ok(ss) => ss,
-            Err(_) => return Python::with_gil( |py| Ok(false.to_object(py)))
+            Err(_) => return Python::with_gil(|py| Ok(false.to_object(py))),
         };
 
         let s = om_sessions();
@@ -440,12 +450,10 @@ impl pyo3::class::basic::PyObjectProtocol for SessionStore {
             })
         })?;
 
-        Python::with_gil( |py| {
-            match op {
-                CompareOp::Eq => Ok(result.to_object(py)),
-                CompareOp::Ne => Ok((!result).to_object(py)),
-                _ => Ok(py.NotImplemented()),
-            }
+        Python::with_gil(|py| match op {
+            CompareOp::Eq => Ok(result.to_object(py)),
+            CompareOp::Ne => Ok((!result).to_object(py)),
+            _ => Ok(py.NotImplemented()),
         })
     }
 }
@@ -457,8 +465,12 @@ impl PyMappingProtocol for SessionStore {
             Ok(l)
         } else {
             Err(pyo3::exceptions::PyKeyError::new_err({
-                self.with_om_ss( |ss| {
-                    Ok(format!("Key {} not in session {}", key, ss.path().display()))
+                self.with_om_ss(|ss| {
+                    Ok(format!(
+                        "Key {} not in session {}",
+                        key,
+                        ss.path().display()
+                    ))
                 })?
             }))
         }
@@ -469,9 +481,7 @@ impl PyMappingProtocol for SessionStore {
     }
 
     fn __len__(&self) -> PyResult<usize> {
-        Ok(self.with_om_ss(|ss| {
-            Ok(ss.len()?)
-        })?)
+        Ok(self.with_om_ss(|ss| Ok(ss.len()?))?)
     }
 }
 
@@ -511,14 +521,14 @@ impl SessionStore {
     pub fn new(name: String, group: Option<String>) -> Self {
         Self {
             name: name,
-            group: group
+            group: group,
         }
     }
 
     pub fn from_metal(ss: &OmSS) -> PyResult<Self> {
         Ok(Self {
             name: ss.name()?,
-            group: ss.group().clone()
+            group: ss.group().clone(),
         })
     }
 
@@ -537,7 +547,7 @@ impl SessionStore {
 
     pub fn with_om<F, T>(&self, s: &MutexGuard<OmS>, mut f: F) -> OMResult<T>
     where
-        F: FnMut(& OmSS) -> OMResult<T>,
+        F: FnMut(&OmSS) -> OMResult<T>,
     {
         if let Some(grp) = self.group.as_ref() {
             let g = s.require_group(grp)?;
@@ -557,9 +567,8 @@ impl SessionStore {
                 Ok(g) => Ok(f(g.require_mut(&self.name)?)?),
                 Err(_) => origen_metal::bail!(&format!(
                     "Error encountered retrieving session '{}': Error retrieving group: '{}'",
-                    self.name,
-                    grp
-                ))
+                    self.name, grp
+                )),
             }
         } else {
             Ok(f(s.require_mut_standalone(&self.name)?)?)

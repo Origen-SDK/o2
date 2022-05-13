@@ -11,8 +11,7 @@ def test_error_on_invalid_datasets_in_hierarchy(q, options):
     import origen
     q.put(("users__data_lookup_hierarchy", origen.users.data_lookup_hierarchy))
     q.put(("users__datasets", list(origen.users.datasets.keys())))
-    q.put(
-        ("data_lookup_hierarchy", origen.current_user.data_lookup_hierarchy))
+    q.put(("data_lookup_hierarchy", origen.current_user.data_lookup_hierarchy))
     q.put(("datasets", list(origen.current_user.datasets.keys())))
 
 
@@ -22,9 +21,9 @@ def test_error_on_duplicate_datasets_in_hierarchy(q, options):
     import origen
     q.put(("users__data_lookup_hierarchy", origen.users.data_lookup_hierarchy))
     q.put(("users__datasets", list(origen.users.datasets.keys())))
-    q.put(
-        ("data_lookup_hierarchy", origen.current_user.data_lookup_hierarchy))
+    q.put(("data_lookup_hierarchy", origen.current_user.data_lookup_hierarchy))
     q.put(("datasets", list(origen.current_user.datasets.keys())))
+
 
 def test_error_on_default_data_and_invalid_hierarchy(q, options):
     setenv(err_root, bypass_config_lookup=True)
@@ -33,6 +32,7 @@ def test_error_on_default_data_and_invalid_hierarchy(q, options):
     q.put(("users__datasets", list(origen.users.datasets.keys())))
     q.put(("hierarchy", origen.current_user.data_lookup_hierarchy))
     q.put(("datasets", list(origen.current_user.datasets.keys())))
+
 
 def test_single_dataset_and_default_hierarchy(q, options):
     setenv(config_root, bypass_config_lookup=True)

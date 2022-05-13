@@ -11,15 +11,20 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.joinpath("tests")))
 # test_frontend.TestRevisionControlFrontend.DummyRC()
 #
 import tests as om_tests
-_om_tests_root = pathlib.Path(__file__).parent.joinpath("../../../python/origen_metal/tests/__init__.py").resolve()
-_om_tests_spec = importlib.util.spec_from_file_location("om_tests", str(_om_tests_root))
+_om_tests_root = pathlib.Path(__file__).parent.joinpath(
+    "../../../python/origen_metal/tests/__init__.py").resolve()
+_om_tests_spec = importlib.util.spec_from_file_location(
+    "om_tests", str(_om_tests_root))
 _om_tests = importlib.util.module_from_spec(_om_tests_spec)
 sys.modules["om_tests"] = _om_tests
 _om_tests_spec.loader.exec_module(_om_tests)
 
+
 @contextlib.contextmanager
 def om_shared():
-    _tests_modules_ = dict(filter(lambda mod: mod[0].split('.')[0] == "tests", sys.modules.items()))
+    _tests_modules_ = dict(
+        filter(lambda mod: mod[0].split('.')[0] == "tests",
+               sys.modules.items()))
     for name, mod in _tests_modules_.items():
         if f"om_{name}" in sys.modules:
             sys.modules[name] = sys.modules[f"om_{name}"]

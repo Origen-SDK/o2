@@ -4,7 +4,8 @@ from configs import users as user_configs
 from tests import om_shared
 
 with om_shared():
-    from om_tests.framework.users.shared import Base as UsersBase # type:ignore
+    from om_tests.framework.users.shared import Base as UsersBase  # type:ignore
+
 
 class TestUsers(UsersBase):
     def test_users_are_accessible(self):
@@ -18,7 +19,7 @@ class TestUsers(UsersBase):
         assert origen.current_user.id == self.logged_in_id
         assert isinstance(origen.initial_user, self.user_class)
         assert origen.initial_user.id == self.logged_in_id
-    
+
     def test_datasets_are_set_upon_boot(self, def_dsc_dict):
         dsets = {"test", "test2", "backup", "forumsys", "git"}
         assert set(origen.users.datasets.keys()) == dsets
@@ -26,18 +27,19 @@ class TestUsers(UsersBase):
         assert dict(origen.users.datasets["test"]) == def_dsc_dict
         assert dict(origen.users.datasets["test2"]) == def_dsc_dict
         assert dict(origen.users.datasets["backup"]) == def_dsc_dict
-        assert dict(origen.users.datasets["forumsys"]) == self.def_dsc_dict_with(
-            category="ldaps",
-            data_store="forumsys",
-            auto_populate=False,
-            should_validate_password=True
-        )
-        assert dict(origen.users.datasets["git"]) == self.def_dsc_dict_with(data_store="git", auto_populate=False)
+        assert dict(
+            origen.users.datasets["forumsys"]) == self.def_dsc_dict_with(
+                category="ldaps",
+                data_store="forumsys",
+                auto_populate=False,
+                should_validate_password=True)
+        assert dict(origen.users.datasets["git"]) == self.def_dsc_dict_with(
+            data_store="git", auto_populate=False)
 
     def test_dataset_hierarchy_is_set_upon_boot(self):
         assert origen.users.data_lookup_hierarchy == ["test", "backup"]
         assert origen.current_user.data_lookup_hierarchy == ["test", "backup"]
-    
+
     def test_dataset_motives_are_set_from_config(self):
         assert origen.users.motives == {"rc": "git", "just because": "test2"}
 
@@ -54,6 +56,7 @@ class TestUsers(UsersBase):
     @pytest.mark.skip
     def test_users_are_autopopulated(self):
         raise NotADirectoryError
+
 
 class TestUserConfigSetups(UsersBase):
     @pytest.fixture

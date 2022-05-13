@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::_utility::{bytes_from_str_of_bytes};
+use crate::_utility::bytes_from_str_of_bytes;
 use aes_gcm::aead::{
     generic_array::typenum::{U12, U32},
     generic_array::GenericArray,
@@ -19,8 +19,10 @@ lazy_static! {
 #[macro_export]
 macro_rules! into_aes_gcm_generic_array {
     ($byte_str: expr) => {
-        *aes_gcm::aead::generic_array::GenericArray::from_slice(&crate::_utility::bytes_from_str_of_bytes($byte_str)?)
-    }
+        *aes_gcm::aead::generic_array::GenericArray::from_slice(
+            &crate::_utility::bytes_from_str_of_bytes($byte_str)?,
+        )
+    };
 }
 
 #[allow(non_snake_case)]
@@ -86,11 +88,10 @@ pub fn decrypt_with(
     Ok(String::from_utf8(plaintext)?)
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::_utility::{bytes_from_str_of_bytes, str_from_byte_array};
     use super::*;
+    use crate::_utility::{bytes_from_str_of_bytes, str_from_byte_array};
 
     #[test]
     fn test_encrypted_roundtrip() {

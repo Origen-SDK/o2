@@ -12,16 +12,16 @@ macro_rules! frontend_mod {
 }
 
 mod _frontend;
-mod py_frontend;
 mod py_data_stores;
+mod py_frontend;
 
 use origen_metal::log_trace;
 use pyo3::prelude::*;
 
 pub use _frontend::Frontend;
+pub use py_data_stores::{PyDataStoreCategory, PyDataStores};
 pub use py_frontend::PyFrontend;
-pub use py_data_stores::{PyDataStores, PyDataStoreCategory};
-pub use py_frontend::{with_py_frontend, with_mut_py_frontend, with_required_rc};
+pub use py_frontend::{with_mut_py_frontend, with_py_frontend, with_required_rc};
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let fm = PyModule::new(py, "frontend")?;
@@ -75,9 +75,9 @@ pub(crate) fn reset(_py: Python) -> PyResult<()> {
     with_frontend_mod(|py, m| m.setattr(PY_FRONTEND, py.None()))
 }
 
+use super::framework::outcomes::Outcome as PyOutcome;
 #[cfg(debug_assertions)]
 use pyo3::types::{PyDict, PyList};
-use super::framework::outcomes::Outcome as PyOutcome;
 
 /// The following are all test functions that are only available when debugging metal itself.
 /// Many of these, especially, "getters" make redundant round-trips.
@@ -117,13 +117,12 @@ pub(crate) fn define_tests(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-
 // Global data stores functions //
 
 #[cfg(debug_assertions)]
 #[pyfunction]
 pub(crate) fn backend_contains_cat(_py: Python, category: &str) -> PyResult<bool> {
-    Ok(origen_metal::frontend::with_frontend( |f| {
+    Ok(origen_metal::frontend::with_frontend(|f| {
         Ok(f.contains_data_store_category(category)?)
     })?)
 }
@@ -131,25 +130,21 @@ pub(crate) fn backend_contains_cat(_py: Python, category: &str) -> PyResult<bool
 #[cfg(debug_assertions)]
 #[pyfunction]
 pub(crate) fn backend_add_cat(_py: Python, category: &str) -> PyResult<()> {
-    origen_metal::frontend::with_frontend( |f| {
-        f.add_data_store_category(category)
-    })?;
+    origen_metal::frontend::with_frontend(|f| f.add_data_store_category(category))?;
     Ok(())
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
 pub(crate) fn backend_remove_cat(_py: Python, category: &str) -> PyResult<()> {
-    origen_metal::frontend::with_frontend( |f| {
-        f.remove_data_store_category(category)
-    })?;
+    origen_metal::frontend::with_frontend(|f| f.remove_data_store_category(category))?;
     Ok(())
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
 pub(crate) fn backend_available_cats(_py: Python) -> PyResult<Vec<String>> {
-    Ok(origen_metal::frontend::with_frontend( |f| {
+    Ok(origen_metal::frontend::with_frontend(|f| {
         Ok(f.available_data_store_categories()?)
     })?)
 }
@@ -158,31 +153,40 @@ pub(crate) fn backend_available_cats(_py: Python) -> PyResult<Vec<String>> {
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_cat_contains_store(_py: Python, category: &str, store: &str) -> PyResult<bool> {
+pub(crate) fn backend_cat_contains_store(
+    _py: Python,
+    category: &str,
+    store: &str,
+) -> PyResult<bool> {
     let f = origen_metal::frontend::require()?;
-    Ok(f.with_data_store_category(category, |cat| {
-        cat.contains_data_store(store)
-    })?)
+    Ok(f.with_data_store_category(category, |cat| cat.contains_data_store(store))?)
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_available_stores_for_cat(_py: Python, category: &str) -> PyResult<Vec<String>> {
+pub(crate) fn backend_available_stores_for_cat(
+    _py: Python,
+    category: &str,
+) -> PyResult<Vec<String>> {
     let f = origen_metal::frontend::require()?;
-    Ok(f.with_data_store_category(category, |cat| {
-        cat.available_data_stores()
-    })?)
+    Ok(f.with_data_store_category(category, |cat| cat.available_data_stores())?)
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_add_store(_py: Python, category: &str, name: &str, parameters: &pyo3::types::PyDict, backend: Option<&pyo3::types::PyDict>) -> PyResult<()> {
+pub(crate) fn backend_add_store(
+    _py: Python,
+    category: &str,
+    name: &str,
+    parameters: &pyo3::types::PyDict,
+    backend: Option<&pyo3::types::PyDict>,
+) -> PyResult<()> {
     let f = origen_metal::frontend::require()?;
     f.with_data_store_category(category, |cat| {
         cat.add_data_store(
             name,
             crate::_helpers::typed_value::from_pydict(parameters)?,
-            crate::_helpers::typed_value::from_optional_pydict(backend)?
+            crate::_helpers::typed_value::from_optional_pydict(backend)?,
         )
     })?;
     Ok(())
@@ -192,12 +196,9 @@ pub(crate) fn backend_add_store(_py: Python, category: &str, name: &str, paramet
 #[pyfunction]
 pub(crate) fn backend_remove_store(_py: Python, category: &str, name: &str) -> PyResult<()> {
     let f = origen_metal::frontend::require()?;
-    f.with_data_store_category(category, |cat| {
-        cat.remove_data_store(name)
-    })?;
+    f.with_data_store_category(category, |cat| cat.remove_data_store(name))?;
     Ok(())
 }
-
 
 // Single data store functions
 
@@ -205,14 +206,16 @@ pub(crate) fn backend_remove_store(_py: Python, category: &str, name: &str) -> P
 #[pyfunction]
 pub(crate) fn backend_get_name(_py: Python, category: &str, data_store: &str) -> PyResult<String> {
     let f = origen_metal::frontend::require()?;
-    Ok(f.with_data_store(category, data_store, |ds| {
-        Ok(ds.name()?.to_string())
-    })?)
+    Ok(f.with_data_store(category, data_store, |ds| Ok(ds.name()?.to_string()))?)
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_get_category(_py: Python, category: &str, data_store: &str) -> PyResult<String> {
+pub(crate) fn backend_get_category(
+    _py: Python,
+    category: &str,
+    data_store: &str,
+) -> PyResult<String> {
     let f = origen_metal::frontend::require()?;
     Ok(f.with_data_store(category, data_store, |ds| {
         Ok(ds.category()?.name().to_string())
@@ -220,35 +223,52 @@ pub(crate) fn backend_get_category(_py: Python, category: &str, data_store: &str
 }
 
 #[cfg(debug_assertions)]
-#[pyfunction(opts="**")]
-pub(crate) fn backend_get_class(_py: Python, category: &str, data_store: &str, opts: Option<&pyo3::types::PyDict>) -> PyResult<String> {
+#[pyfunction(opts = "**")]
+pub(crate) fn backend_get_class(
+    _py: Python,
+    category: &str,
+    data_store: &str,
+    opts: Option<&pyo3::types::PyDict>,
+) -> PyResult<String> {
     let f = origen_metal::frontend::require()?;
     Ok(f.with_data_store(category, data_store, |ds| {
-        Ok(ds.class(crate::_helpers::typed_value::from_optional_pydict(opts)?)?.to_string())
+        Ok(ds
+            .class(crate::_helpers::typed_value::from_optional_pydict(opts)?)?
+            .to_string())
     })?)
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_all_items_in_store(_py: Python, category: &str, data_store: &str) -> PyResult<Vec<String>> {
+pub(crate) fn backend_all_items_in_store(
+    _py: Python,
+    category: &str,
+    data_store: &str,
+) -> PyResult<Vec<String>> {
     let f = origen_metal::frontend::require()?;
-    Ok(f.with_data_store(category, data_store, |ds| {
-        ds.keys()
-    })?)
+    Ok(f.with_data_store(category, data_store, |ds| ds.keys())?)
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_store_contains(_py: Python, category: &str, data_store: &str, key: &str) -> PyResult<bool> {
+pub(crate) fn backend_store_contains(
+    _py: Python,
+    category: &str,
+    data_store: &str,
+    key: &str,
+) -> PyResult<bool> {
     let f = origen_metal::frontend::require()?;
-    Ok(f.with_data_store(category, data_store, |ds| {
-        ds.contains(key)
-    })?)
+    Ok(f.with_data_store(category, data_store, |ds| ds.contains(key))?)
 }
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_get_stored(_py: Python, category: &str, data_store: &str, key: &str) -> PyResult<Option<PyObject>> {
+pub(crate) fn backend_get_stored(
+    _py: Python,
+    category: &str,
+    data_store: &str,
+    key: &str,
+) -> PyResult<Option<PyObject>> {
     let f = origen_metal::frontend::require()?;
     Ok(f.with_data_store(category, data_store, |ds| {
         let tv = ds.get(key)?;
@@ -258,7 +278,13 @@ pub(crate) fn backend_get_stored(_py: Python, category: &str, data_store: &str, 
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_store_item(_py: Python, category: &str, data_store: &str, key: &str, val: &PyAny) -> PyResult<bool> {
+pub(crate) fn backend_store_item(
+    _py: Python,
+    category: &str,
+    data_store: &str,
+    key: &str,
+    val: &PyAny,
+) -> PyResult<bool> {
     let f = origen_metal::frontend::require()?;
     Ok(f.with_data_store(category, data_store, |ds| {
         ds.store(key, crate::_helpers::typed_value::from_pyany(val)?)
@@ -267,7 +293,12 @@ pub(crate) fn backend_store_item(_py: Python, category: &str, data_store: &str, 
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_remove_item(_py: Python, category: &str, data_store: &str, key: &str) -> PyResult<(bool, Option<PyObject>)> {
+pub(crate) fn backend_remove_item(
+    _py: Python,
+    category: &str,
+    data_store: &str,
+    key: &str,
+) -> PyResult<(bool, Option<PyObject>)> {
     let f = origen_metal::frontend::require()?;
     Ok(f.with_data_store(category, data_store, |ds| {
         let item = crate::_helpers::typed_value::to_pyobject(ds.remove(key)?, None)?;
@@ -277,9 +308,24 @@ pub(crate) fn backend_remove_item(_py: Python, category: &str, data_store: &str,
 
 #[cfg(debug_assertions)]
 #[pyfunction]
-pub(crate) fn backend_call(py: Python, category: &str, data_store: &str, func: &str, args: Option<&PyList>, kwargs: Option<&PyDict>) -> PyResult<Py<crate::framework::outcomes::Outcome>> {
+pub(crate) fn backend_call(
+    py: Python,
+    category: &str,
+    data_store: &str,
+    func: &str,
+    args: Option<&PyList>,
+    kwargs: Option<&PyDict>,
+) -> PyResult<Py<crate::framework::outcomes::Outcome>> {
     let f = origen_metal::frontend::require()?;
-    PyOutcome::to_py(py, &f.with_data_store(category, data_store, |ds| {
-        ds.call(func, crate::_helpers::typed_value::from_optional_pylist(args)?, crate::_helpers::typed_value::from_optional_pydict(kwargs)?, None)
-    })?)
+    PyOutcome::to_py(
+        py,
+        &f.with_data_store(category, data_store, |ds| {
+            ds.call(
+                func,
+                crate::_helpers::typed_value::from_optional_pylist(args)?,
+                crate::_helpers::typed_value::from_optional_pydict(kwargs)?,
+                None,
+            )
+        })?,
+    )
 }

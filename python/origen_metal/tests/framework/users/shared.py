@@ -2,8 +2,10 @@ import pytest, getpass
 import origen_metal as om
 from origen_metal.framework.users import UserDatasetConfig
 
+
 def get_users():
     return om.users
+
 
 def clean_users():
     users = get_users()
@@ -11,6 +13,7 @@ def clean_users():
     assert users.current is None
     assert users.initial is None
     assert len(users) == 0
+
 
 @pytest.fixture
 def unload_users():
@@ -20,11 +23,14 @@ def unload_users():
     assert users.initial is None
     assert len(users) == 0
 
+
 @pytest.fixture
 def users():
     return get_users()
 
+
 default_datakey = "__origen__default__"
+
 
 class Base:
     DATA_FIELDS = ["email", "first_name", "last_name"]

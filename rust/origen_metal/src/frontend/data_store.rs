@@ -1,8 +1,8 @@
-use crate::Result;
-use std::fmt::Display;
-use crate::{TypedValue, TypedValueMap, TypedValueVec, Outcome};
 use super::DataStoreCategoryFrontendAPI;
 use crate::framework::users::Data;
+use crate::Result;
+use crate::{Outcome, TypedValue, TypedValueMap, TypedValueVec};
+use std::fmt::Display;
 
 // TODO needed?
 #[derive(Debug, Clone, Display, PartialEq)]
@@ -29,14 +29,14 @@ impl FeatureReturn {
     pub fn new_unimplemented(msg: String) -> Self {
         Self {
             implemented: false,
-            outcome: Err(error!(&msg))
+            outcome: Err(error!(&msg)),
         }
     }
 
     pub fn outcome(&self) -> Result<&Outcome> {
         match &self.outcome {
             Ok(o) => Ok(o),
-            Err(e) => Err((*e).clone())
+            Err(e) => Err((*e).clone()),
         }
     }
 
@@ -53,7 +53,13 @@ pub trait DataStoreFrontendAPI {
     fn class(&self, backend: Option<TypedValueMap>) -> Result<String>;
     // fn init(&self, parameters: TypedValueMap) -> Result<Option<Outcome>>;
 
-    fn call(&self, func: &str, pos_args: Option<TypedValueVec>, kw_args: Option<TypedValueMap>, backend: Option<TypedValueMap>) -> Result<Outcome>;
+    fn call(
+        &self,
+        func: &str,
+        pos_args: Option<TypedValueVec>,
+        kw_args: Option<TypedValueMap>,
+        backend: Option<TypedValueMap>,
+    ) -> Result<Outcome>;
 
     /// Gets an object from the datastore, returning 'None' if it doesn't exists
     fn get(&self, key: &str) -> Result<Option<TypedValue>>;
@@ -67,7 +73,12 @@ pub trait DataStoreFrontendAPI {
     fn items(&self) -> Result<TypedValueMap>;
 
     fn keys(&self) -> Result<Vec<String>> {
-        Ok(self.items()?.typed_values().keys().map(|k| k.to_string()).collect())
+        Ok(self
+            .items()?
+            .typed_values()
+            .keys()
+            .map(|k| k.to_string())
+            .collect())
     }
 
     //--- User Features ---//
@@ -79,12 +90,19 @@ pub trait DataStoreFrontendAPI {
     }
 
     /// Custom function to validate a user's password
-    fn validate_password(&self, _user_id: &str, _ds_name: &Data, _password: &str) -> Result<FeatureReturn> {
+    fn validate_password(
+        &self,
+        _user_id: &str,
+        _ds_name: &Data,
+        _password: &str,
+    ) -> Result<FeatureReturn> {
         self.unimplemented(current_func!())
     }
 
     fn unimplemented(&self, feature: &str) -> Result<FeatureReturn> {
-        Ok(FeatureReturn::new_unimplemented(self._feature_not_implemented(feature)?))
+        Ok(FeatureReturn::new_unimplemented(
+            self._feature_not_implemented(feature)?,
+        ))
     }
 
     fn _feature_not_implemented(&self, feature: &str) -> Result<String> {

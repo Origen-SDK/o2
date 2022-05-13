@@ -1,15 +1,15 @@
-use pyo3::prelude::*;
-use indexmap::IndexMap;
-use crate::_helpers::{indexmap_to_pydict, new_py_obj, pytype_from_pyany};
-use crate::{runtime_error, key_error, type_error};
-use pyo3::types::{PyDict, PyTuple, PyList, PyString, PyBool};
-use pyo3::class::mapping::PyMappingProtocol;
-use origen_metal::Result as OMResult;
 use super::_frontend::DataStoreCategoryFrontend;
+use crate::_helpers::{indexmap_to_pydict, new_py_obj, pytype_from_pyany};
+use crate::{key_error, runtime_error, type_error};
+use indexmap::IndexMap;
+use origen_metal::Result as OMResult;
+use pyo3::class::mapping::PyMappingProtocol;
+use pyo3::prelude::*;
+use pyo3::types::{PyBool, PyDict, PyList, PyString, PyTuple};
 
 #[pyclass]
 pub struct PyDataStores {
-    categories: IndexMap<String, Py<PyDataStoreCategory>>
+    categories: IndexMap<String, Py<PyDataStoreCategory>>,
 }
 
 #[pymethods]
@@ -19,14 +19,21 @@ impl PyDataStores {
         indexmap_to_pydict(py, &self.categories)
     }
 
-    pub fn add_category(&mut self, py: Python, category: &str) -> PyResult<&Py<PyDataStoreCategory>> {
+    pub fn add_category(
+        &mut self,
+        py: Python,
+        category: &str,
+    ) -> PyResult<&Py<PyDataStoreCategory>> {
         if self.categories.contains_key(category) {
             runtime_error!(format!(
                 "Data store category '{}' is already present",
                 category
             ))
         } else {
-            self.categories.insert(category.to_string(), PyDataStoreCategory::new_py(py, category)?);
+            self.categories.insert(
+                category.to_string(),
+                PyDataStoreCategory::new_py(py, category)?,
+            );
             Ok(self.categories.get(category).unwrap())
         }
     }
@@ -37,11 +44,11 @@ impl PyDataStores {
                 let cat = &mut *py_cat.borrow_mut(py);
                 cat.mark_stale(py)?;
                 Ok(())
-            },
+            }
             None => runtime_error!(format!(
                 "Cannot remove non-existent data store category '{}'",
                 category
-            ))
+            )),
         }
     }
 
@@ -62,7 +69,11 @@ impl PyDataStores {
     }
 
     fn items(&self) -> PyResult<Vec<(String, &Py<PyDataStoreCategory>)>> {
-        Ok(self.categories.iter().map(|(n, cat)| (n.to_string(), cat)).collect())
+        Ok(self
+            .categories
+            .iter()
+            .map(|(n, cat)| (n.to_string(), cat))
+            .collect())
     }
 }
 
@@ -116,7 +127,7 @@ impl pyo3::class::iter::PyIterProtocol for PyDataStores {
 impl PyDataStores {
     pub fn new() -> Self {
         Self {
-            categories: IndexMap::new()
+            categories: IndexMap::new(),
         }
     }
 
@@ -128,7 +139,10 @@ impl PyDataStores {
     pub fn ensured_cat(&self, cat: &str) -> PyResult<Py<PyDataStoreCategory>> {
         match self.categories.get(cat) {
             Some(c) => Ok(c.clone()),
-            None => runtime_error!(format!("Expected category {} to be present, but none was found!", cat))
+            None => runtime_error!(format!(
+                "Expected category {} to be present, but none was found!",
+                cat
+            )),
         }
     }
 }
@@ -137,12 +151,11 @@ impl PyDataStores {
 pub struct PyDataStoreCategory {
     name: String,
     objects: IndexMap<String, PyObject>,
-    stale: bool
+    stale: bool,
 }
 
 #[pymethods]
 impl PyDataStoreCategory {
-
     #[getter]
     fn name(&self) -> PyResult<&str> {
         self.check_stale()?;
@@ -150,14 +163,21 @@ impl PyDataStoreCategory {
     }
 
     // Note: This will shallow-copy ``init_args`` and ``init_kwargs``, if given.
-    #[args(func_kwargs="**")]
-    pub fn add(&mut self, py: Python, name: &str, cls: &PyAny, init_args: Option<&PyList>, init_kwargs: Option<&PyDict>, func_kwargs: Option<&PyDict>) -> PyResult<&PyObject> {
+    #[args(func_kwargs = "**")]
+    pub fn add(
+        &mut self,
+        py: Python,
+        name: &str,
+        cls: &PyAny,
+        init_args: Option<&PyList>,
+        init_kwargs: Option<&PyDict>,
+        func_kwargs: Option<&PyDict>,
+    ) -> PyResult<&PyObject> {
         self.check_stale()?;
         if self.objects.contains_key(name) {
             runtime_error!(format!(
                 "Data store '{}' is already present in category '{}'",
-                name,
-                self.name
+                name, self.name
             ))
         } else {
             let mut provide_name = false;
@@ -173,7 +193,9 @@ impl PyDataStoreCategory {
                             provide_name = true;
                             name_idx = Some(i);
                         } else {
-                            return type_error!("Cannot interpret 'provide_name' as a bool or integer");
+                            return type_error!(
+                                "Cannot interpret 'provide_name' as a bool or integer"
+                            );
                         }
                     }
                 }
@@ -182,16 +204,18 @@ impl PyDataStoreCategory {
                         provide_category = pc.extract::<bool>()?;
                     } else {
                         if let Ok(i) = pc.extract::<usize>() {
-                            provide_category= true;
+                            provide_category = true;
                             category_idx = Some(i);
                         } else {
-                            return type_error!("Cannot interpret 'provide_category' as a bool or integer");
+                            return type_error!(
+                                "Cannot interpret 'provide_category' as a bool or integer"
+                            );
                         }
                     }
                 }
             }
-            
-            let mut add_args: Vec<&PyAny> = vec!();
+
+            let mut add_args: Vec<&PyAny> = vec![];
             let add_kwargs;
             if let Some(kw) = init_kwargs {
                 add_kwargs = kw.copy()?;
@@ -205,12 +229,18 @@ impl PyDataStoreCategory {
                 let add_name = PyString::new(py, name).as_ref();
                 if let Some(i) = name_idx {
                     if i > add_args.len() {
-                        return runtime_error!(format!("'provide_name' insert index {} exceeds argument list size {}", i, add_args.len()));
+                        return runtime_error!(format!(
+                            "'provide_name' insert index {} exceeds argument list size {}",
+                            i,
+                            add_args.len()
+                        ));
                     }
                     add_args.insert(i, add_name);
                 } else {
                     if init_kwargs.is_some() && add_kwargs.contains("name")? {
-                        return runtime_error!("'name' key is already present in keyword arguments");
+                        return runtime_error!(
+                            "'name' key is already present in keyword arguments"
+                        );
                     }
                     add_kwargs.set_item("name", add_name)?;
                 }
@@ -219,24 +249,33 @@ impl PyDataStoreCategory {
                 let add_cat = PyString::new(py, &self.name).as_ref();
                 if let Some(i) = category_idx {
                     if i > add_args.len() {
-                        return runtime_error!(format!("'provide_category' insert index {} exceeds argument list size {}", i, add_args.len()));
+                        return runtime_error!(format!(
+                            "'provide_category' insert index {} exceeds argument list size {}",
+                            i,
+                            add_args.len()
+                        ));
                     }
                     add_args.insert(i, add_cat);
                 } else {
                     if init_kwargs.is_some() && add_kwargs.contains("category")? {
-                        return runtime_error!("'category' key is already present in keyword arguments");
+                        return runtime_error!(
+                            "'category' key is already present in keyword arguments"
+                        );
                     }
                     add_kwargs.set_item("category", add_cat)?;
                 }
             }
 
-            let new_ds = new_py_obj(py, pytype_from_pyany(py, cls)?, Some(PyTuple::new(py, add_args)), Some(add_kwargs))?.to_object(py);
+            let new_ds = new_py_obj(
+                py,
+                pytype_from_pyany(py, cls)?,
+                Some(PyTuple::new(py, add_args)),
+                Some(add_kwargs),
+            )?
+            .to_object(py);
             new_ds.call_method1(py, "_set_name_", (name,))?;
             new_ds.call_method1(py, "_set_category_", (&self.name,))?;
-            self.objects.insert(
-                name.to_string(),
-                new_ds
-            );
+            self.objects.insert(name.to_string(), new_ds);
             Ok(self.objects.get(name).unwrap())
         }
     }
@@ -246,7 +285,11 @@ impl PyDataStoreCategory {
     }
 
     fn keys(&self) -> PyResult<Vec<String>> {
-        Ok(self.objects()?.keys().map(|k| k.to_string()).collect::<Vec<String>>())
+        Ok(self
+            .objects()?
+            .keys()
+            .map(|k| k.to_string())
+            .collect::<Vec<String>>())
     }
 
     /// Note: slightly changing vs. the rust trait to match how Python's dictionaries behave.
@@ -257,21 +300,28 @@ impl PyDataStoreCategory {
             Some(py_ds) => {
                 py_ds.call_method0(py, "_mark_stale_")?;
                 Ok(())
-            },
+            }
             None => runtime_error!(format!(
                 "Cannot remove data store '{} as category '{}' does not contain this data store",
-                name,
-                &self.name
-            ))
+                name, &self.name
+            )),
         }
     }
 
     fn values(&self, py: Python) -> PyResult<Vec<PyObject>> {
-        Ok(self.objects()?.iter().map(|(_, obj)| obj.to_object(py)).collect::<Vec<PyObject>>())
+        Ok(self
+            .objects()?
+            .iter()
+            .map(|(_, obj)| obj.to_object(py))
+            .collect::<Vec<PyObject>>())
     }
 
     fn items(&self, py: Python) -> PyResult<Vec<(String, PyObject)>> {
-        Ok(self.objects()?.iter().map(|(n, obj)| (n.to_string(), obj.to_object(py))).collect::<Vec<(String, PyObject)>>())
+        Ok(self
+            .objects()?
+            .iter()
+            .map(|(n, obj)| (n.to_string(), obj.to_object(py)))
+            .collect::<Vec<(String, PyObject)>>())
     }
 }
 
@@ -280,7 +330,7 @@ impl PyDataStoreCategory {
         Self {
             name: name.to_string(),
             objects: IndexMap::new(),
-            stale: false
+            stale: false,
         }
     }
 
@@ -295,10 +345,7 @@ impl PyDataStoreCategory {
 
     pub fn check_stale(&self) -> PyResult<()> {
         if self.stale {
-            runtime_error!(format!(
-                "Stale category '{}' encountered",
-                self.name
-            ))
+            runtime_error!(format!("Stale category '{}' encountered", self.name))
         } else {
             Ok(())
         }

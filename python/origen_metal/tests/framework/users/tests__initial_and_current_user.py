@@ -2,6 +2,7 @@ import pytest
 import origen_metal as om
 from .shared import Base
 
+
 class T_InitialAndCurrentUser(Base):
     def test_setting_existing_user_as_current(self, users, u_id):
         # This will also update the initial user
@@ -18,12 +19,18 @@ class T_InitialAndCurrentUser(Base):
         assert users.initial_user.id == u_id
         assert om.current_user.id == u_id
 
-    def test_error_setting_non_existant_user_as_current(self, users, u_id, missing_id):
-        with pytest.raises(RuntimeError, match=f"Cannot set current user with id '{missing_id}'. User has not been added yet!"):
+    def test_error_setting_non_existant_user_as_current(
+            self, users, u_id, missing_id):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Cannot set current user with id '{missing_id}'. User has not been added yet!"
+        ):
             users.set_current_user(missing_id)
         assert users.current_user.id == u_id
-    
-    def test_updating_current_user_preserves_initial_user(self, users, u_id, u2_id):
+
+    def test_updating_current_user_preserves_initial_user(
+            self, users, u_id, u2_id):
         assert users.current_user.id == u_id
         assert users.initial_user.id == u_id
         assert om.current_user.id == u_id
@@ -33,13 +40,15 @@ class T_InitialAndCurrentUser(Base):
         assert users.initial_user.id == u_id
         assert om.current_user.id == u2_id
 
-    def test_setting_current_user_with_user_class(self, users, u2_id, u3, u3_id):
+    def test_setting_current_user_with_user_class(self, users, u2_id, u3,
+                                                  u3_id):
         assert users.current_user.id == u2_id
         assert users.set_current_user(u3)
         assert users.current_user.id == u3_id
         assert om.current_user.id == u3_id
 
-    def test_setting_current_user_with_setter(self, users, u_id, u2, u2_id, u3_id):
+    def test_setting_current_user_with_setter(self, users, u_id, u2, u2_id,
+                                              u3_id):
         assert users.current_user.id == u3_id
         assert users.initial_user.id == u_id
         assert om.current_user.id == u3_id
@@ -54,7 +63,8 @@ class T_InitialAndCurrentUser(Base):
         assert users.initial_user.id == u_id
         assert om.current_user.id == u2_id
 
-        with pytest.raises(TypeError, match="Cannot resolve user from type 'list'"):
+        with pytest.raises(TypeError,
+                           match="Cannot resolve user from type 'list'"):
             users.current_user = []
 
     def test_setting_same_current_user_returns_false(self, users, u2_id):
@@ -86,7 +96,8 @@ class T_InitialAndCurrentUser(Base):
         users.remove(u.id)
         assert u_id not in users
 
-        with pytest.raises(RuntimeError, match=f"No user '{u_id}' has been added"):
+        with pytest.raises(RuntimeError,
+                           match=f"No user '{u_id}' has been added"):
             u.id
 
         self.user()
@@ -102,7 +113,9 @@ class T_InitialAndCurrentUser(Base):
 
         # The initial ID will stick around, even though its (now) invalid
         # Will return an error but the user ID could be extracted from that
-        with pytest.raises(RuntimeError, match=f"Initial user '{u_id}' is no longer an active user!"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Initial user '{u_id}' is no longer an active user!"):
             assert users.initial_user == u_id
 
         self.user()
@@ -119,7 +132,7 @@ class T_InitialAndCurrentUser(Base):
         assert len(users.ids) == 0
         assert users.current == None
         assert users.initial == None
-    
+
     def test_resolving_current_user_via_frontend(self, fresh_frontend, users):
         # This should resolve the current user, but not actually set it,
         # nor add it to the 'users' list.
@@ -153,7 +166,8 @@ class T_InitialAndCurrentUser(Base):
         assert users.current.id == id
         assert users.initial.id == id
 
-    def test_resolving_and_setting_current_user_preserves_initial(self, unload_users, users):
+    def test_resolving_and_setting_current_user_preserves_initial(
+            self, unload_users, users):
         assert len(users.ids) == 0
         assert users.current == None
         assert users.initial == None

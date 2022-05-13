@@ -4,6 +4,7 @@ from origen_metal.framework.users import UserDatasetConfig
 from .shared import Base as SharedBase
 from tests.shared.python_like_apis import Fixture_DictLikeAPI
 
+
 class Base(SharedBase):
     @pytest.fixture
     def tdk2(self, tdk):
@@ -23,15 +24,14 @@ class Base(SharedBase):
             u.add_dataset(d2_name, as_topmost=False)
         return u.datasets[d2_name]
 
+
 class T_Datasets(Base):
-    def test_default_dataset_and_hierarchy(self, unload_users, users, u, ddk, def_dsc, def_dsc_dict):
+    def test_default_dataset_and_hierarchy(self, unload_users, users, u, ddk,
+                                           def_dsc, def_dsc_dict):
         ''' No datasets given, nor any hierarchy. Absolute base case '''
         assert users.datakeys == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
-        assert isinstance(
-            users.datasets[ddk],
-            self.user_dataset_config_class
-        )
+        assert isinstance(users.datasets[ddk], self.user_dataset_config_class)
         assert dict(users.datasets[ddk]) == def_dsc_dict
         assert users.datasets[ddk] == def_dsc
 
@@ -61,7 +61,8 @@ class T_Datasets(Base):
         assert getattr(u, field) == data2
         assert getattr(d, field) == data2
 
-    def test_adding_datasets_before_user_creation(self, unload_users, users, ddk, tdk, def_dsc_dict):
+    def test_adding_datasets_before_user_creation(self, unload_users, users,
+                                                  ddk, tdk, def_dsc_dict):
         assert tdk not in users.datasets
         assert users.add_dataset(tdk) is None
 
@@ -76,7 +77,8 @@ class T_Datasets(Base):
         assert u.data_lookup_hierarchy == exp
         assert dict(u.datasets[tdk].config) == def_dsc_dict
 
-    def test_adding_datasets_after_user_creation(self, unload_users, users, ddk, tdk):
+    def test_adding_datasets_after_user_creation(self, unload_users, users,
+                                                 ddk, tdk):
         assert list(users.datakeys) == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
 
@@ -111,7 +113,8 @@ class T_Datasets(Base):
         assert list(u.datasets.keys()) == [ddk, tdk]
         assert u.data_lookup_hierarchy == [ddk]
 
-    def test_adding_datasets_at_end_of_hierarchy(self, unload_users, users, ddk, tdk):
+    def test_adding_datasets_at_end_of_hierarchy(self, unload_users, users,
+                                                 ddk, tdk):
         ''' Adds a new dataset as the lowest priority'''
         assert list(users.datakeys) == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
@@ -126,7 +129,8 @@ class T_Datasets(Base):
         assert u.data_lookup_hierarchy == exp
         assert u.top_datakey == ddk
 
-    def test_adding_default_datasets_with_config(self, unload_users, users, tdk, cat_name, dstore_name):
+    def test_adding_default_datasets_with_config(self, unload_users, users,
+                                                 tdk, cat_name, dstore_name):
         assert tdk not in users.datasets
         assert users.add_dataset(tdk, self.dummy_dsc) is None
 
@@ -136,18 +140,22 @@ class T_Datasets(Base):
         u = self.user()
         assert dict(u.datasets[tdk].config) == exp
 
-    def test_error_on_adding_duplicate_datasets(self, users, tdk, dstore_name, cat_name):
+    def test_error_on_adding_duplicate_datasets(self, users, tdk, dstore_name,
+                                                cat_name):
         exp = self.dummy_dsc_dict
 
-        with pytest.raises(RuntimeError, match=f"A dataset '{tdk}' is already present"):
+        with pytest.raises(RuntimeError,
+                           match=f"A dataset '{tdk}' is already present"):
             users.add_dataset(tdk)
         assert dict(users.datasets[tdk]) == exp
 
-        with pytest.raises(RuntimeError, match=f"A dataset '{tdk}' is already present"):
+        with pytest.raises(RuntimeError,
+                           match=f"A dataset '{tdk}' is already present"):
             users.register_dataset(tdk)
         assert dict(users.datasets[tdk]) == exp
 
-    def test_adding_dataset_individually(self, unload_users, users, ddk, tdk, tdk2, def_dsc):
+    def test_adding_dataset_individually(self, unload_users, users, ddk, tdk,
+                                         tdk2, def_dsc):
         assert list(users.datasets.keys()) == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
 
@@ -179,7 +187,9 @@ class T_Datasets(Base):
         assert dict(u2.datasets[tdk].config) == self.dummy_dsc_dict
 
         # Add a second dataset to u as 'least-most'
-        ds = u.add_dataset(tdk2, self.dummy_dsc_with(data_store="s1"), as_topmost=False)
+        ds = u.add_dataset(tdk2,
+                           self.dummy_dsc_with(data_store="s1"),
+                           as_topmost=False)
         assert list(u.datasets.keys()) == [ddk, tdk, tdk2]
         assert u.data_lookup_hierarchy == [tdk, ddk, tdk2]
         assert dict(ds.config) == self.dummy_dsc_dict_with(data_store="s1")
@@ -188,7 +198,8 @@ class T_Datasets(Base):
         users.add_dataset(tdk, UserDatasetConfig(data_store="s2"))
         assert list(users.datasets.keys()) == [ddk, tdk]
         assert users.data_lookup_hierarchy == [tdk, ddk]
-        assert dict(users.datasets[tdk]) == self.def_dsc_dict_with(data_store="s2")
+        assert dict(
+            users.datasets[tdk]) == self.def_dsc_dict_with(data_store="s2")
 
     def test_registering_datasets_individually(self, u, ddk, tdk, tdk2):
         assert list(u.datasets.keys()) == [ddk, tdk, tdk2]
@@ -197,41 +208,60 @@ class T_Datasets(Base):
         ds = u.register_dataset("r1", UserDatasetConfig("Registered", "r1"))
         assert list(u.datasets.keys()) == [ddk, tdk, tdk2, "r1"]
         assert u.data_lookup_hierarchy == [tdk, ddk, tdk2]
-        assert dict(ds.config) == self.def_dsc_dict_with(category="Registered", data_store="r1")
+        assert dict(ds.config) == self.def_dsc_dict_with(category="Registered",
+                                                         data_store="r1")
 
     def test_adding_duplicate_datasets_to_user(self, u, ddk, tdk2, tdk):
         assert list(u.datasets.keys()) == [ddk, tdk, tdk2, "r1"]
         assert u.data_lookup_hierarchy == [tdk, ddk, tdk2]
-        assert u.datasets[tdk2].config.data_store != "add_with_replace_existing_test"
-        assert u.datasets["r1"].config.data_store != "register_with_replace_existing_test"
-        assert u.datasets[tdk].config.data_store != "test_dk_replace_existing_test"
+        assert u.datasets[
+            tdk2].config.data_store != "add_with_replace_existing_test"
+        assert u.datasets[
+            "r1"].config.data_store != "register_with_replace_existing_test"
+        assert u.datasets[
+            tdk].config.data_store != "test_dk_replace_existing_test"
 
         # Adding a duplicate dataset should fail
-        with pytest.raises(RuntimeError, match=f"User '{u.id}' already has dataset '{tdk2}"):
+        with pytest.raises(RuntimeError,
+                           match=f"User '{u.id}' already has dataset '{tdk2}"):
             u.add_dataset(tdk2)
 
         # Unless "replace_existing" is used
-        u.add_dataset(tdk2, UserDatasetConfig(data_store="add_with_replace_existing_test"), replace_existing=True)
-        assert u.datasets[tdk2].config.data_store == "add_with_replace_existing_test"
+        u.add_dataset(
+            tdk2,
+            UserDatasetConfig(data_store="add_with_replace_existing_test"),
+            replace_existing=True)
+        assert u.datasets[
+            tdk2].config.data_store == "add_with_replace_existing_test"
 
         # Hierarchy and dataset order are updated appropriately
         assert list(u.datasets.keys()) == [ddk, tdk, "r1", tdk2]
         assert u.data_lookup_hierarchy == [tdk2, tdk, ddk]
 
         # Same is true with registering datasets
-        with pytest.raises(RuntimeError, match=f"User '{u.id}' already has dataset 'r1"):
+        with pytest.raises(RuntimeError,
+                           match=f"User '{u.id}' already has dataset 'r1"):
             u.register_dataset("r1")
 
-        u.register_dataset("r1", UserDatasetConfig(data_store="register_with_replace_existing_test"), replace_existing=True)
+        u.register_dataset(
+            "r1",
+            UserDatasetConfig(
+                data_store="register_with_replace_existing_test"),
+            replace_existing=True)
         assert list(u.datasets.keys()) == [ddk, tdk, tdk2, "r1"]
         assert u.data_lookup_hierarchy == [tdk2, tdk, ddk]
-        assert u.datasets["r1"].config.data_store == "register_with_replace_existing_test"
+        assert u.datasets[
+            "r1"].config.data_store == "register_with_replace_existing_test"
 
         # Corner case: Registering with replacement will update the dataset, but not impact the hierarchy
-        u.register_dataset(tdk, UserDatasetConfig(data_store="test_dk_replace_existing_test"), replace_existing=True)
+        u.register_dataset(
+            tdk,
+            UserDatasetConfig(data_store="test_dk_replace_existing_test"),
+            replace_existing=True)
         assert list(u.datasets.keys()) == [ddk, tdk2, "r1", tdk]
         assert u.data_lookup_hierarchy == [tdk2, tdk, ddk]
-        assert u.datasets[tdk].config.data_store == "test_dk_replace_existing_test"
+        assert u.datasets[
+            tdk].config.data_store == "test_dk_replace_existing_test"
 
     def test_datasets_are_independent(self, u, u2, ddk, tdk):
         ds1 = u.datasets[ddk]
@@ -246,7 +276,8 @@ class T_Datasets(Base):
         assert ds2.email is None
         assert ds3.email is None
 
-    def test_updating_default_dataset(self, unload_users, users, ddk, tdk, def_dsc_dict):
+    def test_updating_default_dataset(self, unload_users, users, ddk, tdk,
+                                      def_dsc_dict):
         assert users.datakeys == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
 
@@ -259,57 +290,74 @@ class T_Datasets(Base):
         assert u.datakeys == [tdk]
         assert u.data_lookup_hierarchy == [tdk]
 
-    def test_updating_default_dataset_with_config(self, unload_users, users, ddk, tdk):
+    def test_updating_default_dataset_with_config(self, unload_users, users,
+                                                  ddk, tdk):
         assert list(users.datasets.keys()) == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
 
         users.override_default_dataset(tdk, UserDatasetConfig(None, "ds0"))
         assert users.datakeys == [tdk]
         assert users.data_lookup_hierarchy == [tdk]
-        assert dict(users.datasets[tdk]) == self.def_dsc_dict_with(data_store="ds0")
+        assert dict(
+            users.datasets[tdk]) == self.def_dsc_dict_with(data_store="ds0")
 
         u = self.user()
         assert u.datakeys == [tdk]
         assert u.data_lookup_hierarchy == [tdk]
-        assert dict(u.datasets[tdk].config) == self.def_dsc_dict_with(data_store="ds0")
+        assert dict(
+            u.datasets[tdk].config) == self.def_dsc_dict_with(data_store="ds0")
 
-    def test_updating_default_dataset_multiple_times(self, unload_users, users, ddk, tdk):
+    def test_updating_default_dataset_multiple_times(self, unload_users, users,
+                                                     ddk, tdk):
         assert list(users.datasets.keys()) == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
 
         users.override_default_dataset(tdk, UserDatasetConfig(None, "ds0"))
         assert users.datakeys == [tdk]
         assert users.data_lookup_hierarchy == [tdk]
-        assert dict(users.datasets[tdk]) == self.def_dsc_dict_with(data_store="ds0")
+        assert dict(
+            users.datasets[tdk]) == self.def_dsc_dict_with(data_store="ds0")
 
-        users.override_default_dataset("override", UserDatasetConfig("c0", "ds1"))
+        users.override_default_dataset("override",
+                                       UserDatasetConfig("c0", "ds1"))
         assert users.datakeys == ["override"]
         assert users.data_lookup_hierarchy == ["override"]
-        assert dict(users.datasets["override"]) == self.def_dsc_dict_with(category="c0", data_store="ds1")
+        assert dict(users.datasets["override"]) == self.def_dsc_dict_with(
+            category="c0", data_store="ds1")
 
         u = self.user()
         assert u.datakeys == ["override"]
         assert u.data_lookup_hierarchy == ["override"]
-        assert dict(u.datasets["override"].config) == self.def_dsc_dict_with(category="c0", data_store="ds1")
+        assert dict(u.datasets["override"].config) == self.def_dsc_dict_with(
+            category="c0", data_store="ds1")
 
-
-    def test_error_on_updating_defaults_after_user_creation(self, unload_users, users, u, u2, ddk):
+    def test_error_on_updating_defaults_after_user_creation(
+            self, unload_users, users, u, u2, ddk):
         assert list(users.datasets.keys()) == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
 
-        with pytest.raises(RuntimeError, match=f"The default dataset can only be overridden prior to adding any users. Found users: '{u.id}', '{u2.id}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"The default dataset can only be overridden prior to adding any users. Found users: '{u.id}', '{u2.id}'"
+        ):
             users.override_default_dataset("ds_override")
 
         assert list(users.datasets.keys()) == [ddk]
         assert users.data_lookup_hierarchy == [ddk]
 
-    def test_error_on_updating_defaults_after_additional_datasets(self, unload_users, users, ddk):
+    def test_error_on_updating_defaults_after_additional_datasets(
+            self, unload_users, users, ddk):
         users.add_dataset("ds1")
         users.add_dataset("ds2")
         assert list(users.datasets.keys()) == [ddk, 'ds1', 'ds2']
         assert users.data_lookup_hierarchy == ['ds2', 'ds1', ddk]
 
-        with pytest.raises(RuntimeError, match="The default dataset can only be overridden prior to adding any additional datasets. Found additional datasets: 'ds1', 'ds2'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                "The default dataset can only be overridden prior to adding any additional datasets. Found additional datasets: 'ds1', 'ds2'"
+        ):
             users.override_default_dataset("ds_override")
 
         assert list(users.datasets.keys()) == [ddk, 'ds1', 'ds2']
@@ -432,25 +480,27 @@ class T_Datasets(Base):
         # Messing about with the datakey hierarchy is a per-user ordeal
         assert u2.data_lookup_hierarchy == ["test", "backup", ddk]
 
-    def test_data_lookup_hierarchy_is_returned_by_value(self, unload_users, u, d, d2, d2_name, ddk):
+    def test_data_lookup_hierarchy_is_returned_by_value(
+            self, unload_users, u, d, d2, d2_name, ddk):
         assert u.data_lookup_hierarchy == [ddk, d2_name]
 
         # should be no error here as the update attempt never makes it to the backend
-        u.data_lookup_hierarchy.append(
-            "hi"
-        )
+        u.data_lookup_hierarchy.append("hi")
         assert u.data_lookup_hierarchy == [ddk, d2_name]
 
-    def test_error_on_unknown_dataset_when_setting_hierarchies(self, unload_users, u, d2, d2_name, ddk):
+    def test_error_on_unknown_dataset_when_setting_hierarchies(
+            self, unload_users, u, d2, d2_name, ddk):
         assert u.data_lookup_hierarchy == [ddk, d2_name]
         with pytest.raises(
                 RuntimeError,
-                match= "The following datasets do not exists and cannot be used in the data lookup hierarchy: '(test|hi)', '(test|hi)'"
+                match=
+                "The following datasets do not exists and cannot be used in the data lookup hierarchy: '(test|hi)', '(test|hi)'"
         ):
             u.data_lookup_hierarchy = [d2_name, "test", "hi"]
         assert u.data_lookup_hierarchy == [ddk, d2_name]
 
-    def test_error_on_duplicate_datasets_when_setting_hierarchies(self, unload_users, u, d2, d2_name, ddk):
+    def test_error_on_duplicate_datasets_when_setting_hierarchies(
+            self, unload_users, u, d2, d2_name, ddk):
         assert u.data_lookup_hierarchy == [ddk, d2_name]
         with pytest.raises(
                 RuntimeError,
@@ -503,7 +553,7 @@ class T_Datasets(Base):
 
         def boot_dict_under_test(self):
             return self.user().datasets[self.get_ddk].data_store
-        
+
         def init_dict_under_test(self):
             users = self.get_users
             users.unload()

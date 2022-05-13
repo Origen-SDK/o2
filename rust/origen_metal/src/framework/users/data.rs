@@ -1,10 +1,10 @@
-use crate::{TypedValueMap, Result};
-use indexmap::IndexMap;
-use std::path::PathBuf;
 use super::password_cache_options::PASSWORD_KEY;
 use super::User;
-use crate::{frontend, Outcome};
 use crate::frontend::FeatureReturn;
+use crate::{frontend, Outcome};
+use crate::{Result, TypedValueMap};
+use indexmap::IndexMap;
+use std::path::PathBuf;
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct DatasetConfig {
@@ -61,7 +61,10 @@ impl From<&DatasetConfig> for TypedValueMap {
         tvm.insert("category", ds.category.as_ref());
         tvm.insert("data_store", ds.data_store.as_ref());
         tvm.insert("auto_populate", ds.auto_populate.as_ref());
-        tvm.insert("should_validate_password", ds.should_validate_password.as_ref());
+        tvm.insert(
+            "should_validate_password",
+            ds.should_validate_password.as_ref(),
+        );
         tvm
     }
 }
@@ -127,12 +130,14 @@ impl Data {
 
     pub fn require_home_dir(&self, parent: &User) -> Result<PathBuf> {
         self.home_dir.as_ref().map_or_else(
-            || bail!(
+            || {
+                bail!(
                 "Required a home directory for user '{}' and dataset '{}', but none has been set",
                 parent.id(),
                 self.dataset_name
-            ),
-            |d| Ok(d.to_owned())
+            )
+            },
+            |d| Ok(d.to_owned()),
         )
     }
 
@@ -194,7 +199,7 @@ impl Data {
     pub fn populate_failed(&self) -> Option<bool> {
         match self.populate_succeeded() {
             Some(res) => Some(!res),
-            None => None
+            None => None,
         }
     }
 
@@ -207,7 +212,13 @@ impl Data {
         self.config.should_auto_populate()
     }
 
-    pub fn populate(user: &User, ds_name: &str, repopulate: bool, continue_on_error: bool, stop_on_failure: bool) -> Result<Option<Outcome>> {
+    pub fn populate(
+        user: &User,
+        ds_name: &str,
+        repopulate: bool,
+        continue_on_error: bool,
+        stop_on_failure: bool,
+    ) -> Result<Option<Outcome>> {
         // Grab the DS for writing, releasing it at the end
         let lookup: (String, String);
         {
@@ -224,7 +235,7 @@ impl Data {
             })?;
             match t {
                 Some(l) => lookup = l,
-                None => return Ok(None)
+                None => return Ok(None),
             }
         }
 

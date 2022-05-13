@@ -16,6 +16,7 @@ users = _origen_metal.framework.users.users()
 running_on_windows = _origen_metal.running_on_windows
 running_on_linux = _origen_metal.running_on_linux
 
+
 # https://www.python.org/dev/peps/pep-0562/
 def __getattr__(name):
     if name == "current_user":

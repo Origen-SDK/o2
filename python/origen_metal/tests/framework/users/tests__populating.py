@@ -5,11 +5,12 @@ from .shared import Base
 from origen_metal.frontend.data_store_api import DataStoreAPI
 from tests.test_frontend import Common as FECommon
 
+
 class T_PopulatingUsers(Base, FECommon):
     # special_names = {
     #     'exception_raised': { 'msg': "Error case 'exception_raised' reached!" },
-    #     'raise_exception_for_u_error': { 
-    #         'msg': f"Error case 'raise_exception_for_u_error' for user \'{Base.to_user_id(None, 'error')}\' reached!", 
+    #     'raise_exception_for_u_error': {
+    #         'msg': f"Error case 'raise_exception_for_u_error' for user \'{Base.to_user_id(None, 'error')}\' reached!",
     #         "user": Base.to_user_id(None, 'error')
     #     },
     #     'error_outcome_returned': { 'msg': "Error case 'error_outcome_returned' reached!" },
@@ -35,16 +36,25 @@ class T_PopulatingUsers(Base, FECommon):
 
         @DataStoreAPI.populate_user
         def populate_user(self, user, ds):
-            if ds.dataset_name == 'exception_raised': #self.problem_cases['exception']['name']:
+            if ds.dataset_name == 'exception_raised':  #self.problem_cases['exception']['name']:
                 raise NameError(f"Error case {ds.dataset_name} reached!")
-            elif ds.dataset_name == 'raise_exception_for_u_error' and user.id == self.to_user_id('error'):
-                raise NameError(f"Error case {ds.dataset_name} for user {user.id} reached!")
+            elif ds.dataset_name == 'raise_exception_for_u_error' and user.id == self.to_user_id(
+                    'error'):
+                raise NameError(
+                    f"Error case {ds.dataset_name} for user {user.id} reached!"
+                )
             elif ds.dataset_name == 'error_outcome_returned':
-                return om.framework.Outcome(NameError(f"Error case {ds.dataset_name} reached!"))
+                return om.framework.Outcome(
+                    NameError(f"Error case {ds.dataset_name} reached!"))
             elif ds.dataset_name == 'failed_outcome':
-                return om.framework.Outcome(False, f"Failure case {ds.dataset_name} reached!")
-            elif ds.dataset_name == 'fail_outcome_for_u_fail' and user.id == self.to_user_id('fail'):
-                return om.framework.Outcome(False, f"Failure case {ds.dataset_name} for user {user.id} reached!")
+                return om.framework.Outcome(
+                    False, f"Failure case {ds.dataset_name} reached!")
+            elif ds.dataset_name == 'fail_outcome_for_u_fail' and user.id == self.to_user_id(
+                    'fail'):
+                return om.framework.Outcome(
+                    False,
+                    f"Failure case {ds.dataset_name} for user {user.id} reached!"
+                )
             elif ds.dataset_name == 'error_first_pass_second':
                 if self.error_first:
                     self.error_first = False
@@ -64,7 +74,7 @@ class T_PopulatingUsers(Base, FECommon):
 
     class DSPopUserChild(DSPopUser):
         ...
-    
+
     class DSPopUserChildOverrideMethod(DSPopUser):
         @DataStoreAPI.populate_user
         def populate_user(self, user, ds):
@@ -74,7 +84,6 @@ class T_PopulatingUsers(Base, FECommon):
     class DSPopUserChildOverrideMethodNoDecorator(DSPopUser):
         def populate_user(self, user, ds):
             raise RuntimeError("This should not be run!")
-
 
     class DSPopUserChildNewMethod(DSPopUser):
         @DataStoreAPI.populate_user
@@ -100,7 +109,7 @@ class T_PopulatingUsers(Base, FECommon):
     @pytest.fixture
     def cat(self, cat_name):
         return self.ds[cat_name]
-    
+
     @pytest.fixture
     def dstore_n(self):
         return "pop_test_ds"
@@ -109,15 +118,18 @@ class T_PopulatingUsers(Base, FECommon):
     def dstore_clsn(self):
         return self.DSPopUser.__qualname__
 
-    def test_populating_dummy_datasets(self, fresh_frontend, unload_users, users, cat_name):
+    def test_populating_dummy_datasets(self, fresh_frontend, unload_users,
+                                       users, cat_name):
         cat = fresh_frontend.data_stores.add_category(cat_name)
         n = "pop_test_ds"
         cat.add(n, self.DSPopUser)
         n2 = "popped_test_ds"
-        users.add_dataset(n2, self.user_dataset_config_class(
-            data_store=n,
-            category=cat_name,
-        ))
+        users.add_dataset(
+            n2,
+            self.user_dataset_config_class(
+                data_store=n,
+                category=cat_name,
+            ))
 
         u = self.user()
         d = u.datasets[n2]
@@ -169,15 +181,16 @@ class T_PopulatingUsers(Base, FECommon):
         # Results of previous populates persist
         assert d.other["first_pop_only"] == True
 
-    def test_autopopulating_dummy_datasets(self, u, cat_name, dstore_n, dstore_clsn):
+    def test_autopopulating_dummy_datasets(self, u, cat_name, dstore_n,
+                                           dstore_clsn):
         dset_n = "auto_popped_test_ds"
         assert dset_n not in u.datasets
 
-        u.add_dataset(dset_n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-            auto_populate=True
-        ))
+        u.add_dataset(
+            dset_n,
+            self.user_dataset_config_class(data_store=dstore_n,
+                                           category=cat_name,
+                                           auto_populate=True))
         d = u.datasets[dset_n]
 
         assert d.populated == True
@@ -188,16 +201,20 @@ class T_PopulatingUsers(Base, FECommon):
         assert d.other["populated_from"] == dstore_clsn
         assert d.other["pop-ed?"] == True
 
-    def test_errors_populating_bad_datastore_configs(self, u, dstore_n, cat, cat_name):
+    def test_errors_populating_bad_datastore_configs(self, u, dstore_n, cat,
+                                                     cat_name):
         n = "missing_datastore"
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            category=cat_name,
-        ))
+        d = u.add_dataset(n,
+                          self.user_dataset_config_class(category=cat_name, ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
         assert d.populate_failed == None
-        with pytest.raises(RuntimeError, match=f"Requested operation 'populate' for user id '{u.id}' requires that dataset '{n}' contains a data source, but no 'data source' was provided."):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Requested operation 'populate' for user id '{u.id}' requires that dataset '{n}' contains a data source, but no 'data source' was provided."
+        ):
             d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -205,15 +222,20 @@ class T_PopulatingUsers(Base, FECommon):
         assert d.populate_failed == True
 
         n = "invalid_datastore"
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=n,
-            category=cat_name,
-        ))
+        d = u.add_dataset(
+            n, self.user_dataset_config_class(
+                data_store=n,
+                category=cat_name,
+            ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
         assert d.populate_failed == None
-        with pytest.raises(RuntimeError, match=f"Required data store '{n}' not found in category '{cat_name}"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Required data store '{n}' not found in category '{cat_name}"
+        ):
             d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -221,14 +243,17 @@ class T_PopulatingUsers(Base, FECommon):
         assert d.populate_failed == True
 
         n = "missing_category"
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-        ))
+        d = u.add_dataset(
+            n, self.user_dataset_config_class(data_store=dstore_n, ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
         assert d.populate_failed == None
-        with pytest.raises(RuntimeError, match=f"Requested operation 'populate' for user id '{u.id}' requires that dataset '{n}' contains a data source, but no 'category' was provided."):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Requested operation 'populate' for user id '{u.id}' requires that dataset '{n}' contains a data source, but no 'category' was provided."
+        ):
             d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -236,15 +261,18 @@ class T_PopulatingUsers(Base, FECommon):
         assert d.populate_failed == True
 
         n = "invalid_category"
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=n,
-        ))
+        d = u.add_dataset(
+            n, self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=n,
+            ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
         assert d.populate_failed == None
-        with pytest.raises(RuntimeError, match=f"Required data store category '{n}' was not found!"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Required data store category '{n}' was not found!"):
             d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -254,15 +282,21 @@ class T_PopulatingUsers(Base, FECommon):
         n = "datastore_does_not_support_populating"
         ds_n = "min_ds"
         cat.add(ds_n, FECommon.MinimumDataStore)
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=ds_n,
-            category=cat_name,
-        ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=ds_n,
+                category=cat_name,
+            ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
         assert d.populate_failed == None
-        with pytest.raises(RuntimeError, match=rf"'{ds_n}' does not implement feature 'populate_user' \(data store category: '{cat_name}'\)"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                rf"'{ds_n}' does not implement feature 'populate_user' \(data store category: '{cat_name}'\)"
+        ):
             d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -272,16 +306,22 @@ class T_PopulatingUsers(Base, FECommon):
     def test_error_occurs_when_populating(self, u, dstore_n, cat_name):
         # Error case results from an exception from the populate method
         n = 'exception_raised'
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
         assert d.populate_failed == None
         # TODO try throwing actual error classes
-        with pytest.raises(RuntimeError, match=f"Encountered Exception 'NameError' with message: Error case exception_raised reached!"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Encountered Exception 'NameError' with message: Error case exception_raised reached!"
+        ):
             d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -290,15 +330,21 @@ class T_PopulatingUsers(Base, FECommon):
 
         # Error case results from an outcome marked as 'error'
         n = 'error_outcome_returned'
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
         assert d.populate_failed == None
-        with pytest.raises(RuntimeError, match=f"Errors encountered populating dataset '{n}' for user '{u.id}': Error case error_outcome_returned reached!"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Errors encountered populating dataset '{n}' for user '{u.id}': Error case error_outcome_returned reached!"
+        ):
             d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -308,10 +354,12 @@ class T_PopulatingUsers(Base, FECommon):
         # Can use an option to suppress exceptions if an error occurs
         # Implied error (Exception raised directly)
         n = 'exception_raised'
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ), replace_existing=True)
+        d = u.add_dataset(n,
+                          self.user_dataset_config_class(
+                              data_store=dstore_n,
+                              category=cat_name,
+                          ),
+                          replace_existing=True)
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
@@ -333,10 +381,12 @@ class T_PopulatingUsers(Base, FECommon):
 
         # Explicit error (Error outcome returned)
         n = 'error_outcome_returned'
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ), replace_existing=True)
+        d = u.add_dataset(n,
+                          self.user_dataset_config_class(
+                              data_store=dstore_n,
+                              category=cat_name,
+                          ),
+                          replace_existing=True)
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
@@ -357,10 +407,12 @@ class T_PopulatingUsers(Base, FECommon):
 
     def test_repopulating_after_error(self, u, dstore_n, cat_name):
         n = 'error_first_pass_second'
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         with pytest.raises(RuntimeError, match="Error first..."):
             d.populate()
         assert d.populated == False
@@ -381,10 +433,12 @@ class T_PopulatingUsers(Base, FECommon):
         # Does not raise an exception, but dataset is not marked
         # as populated and may remain partially populated
         n = 'failed_outcome'
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         assert d.populated == False
         assert d.populate_attempted == False
         assert d.populate_succeeded == None
@@ -401,7 +455,8 @@ class T_PopulatingUsers(Base, FECommon):
         assert outcome.message == 'Failure case failed_outcome reached!'
 
         # Can use an options to raise exceptions on failures
-        with pytest.raises(RuntimeError, match="Failure case failed_outcome reached!"):
+        with pytest.raises(RuntimeError,
+                           match="Failure case failed_outcome reached!"):
             d.populate(stop_on_failure=True)
         assert d.populated == False
         assert d.populate_attempted == True
@@ -410,10 +465,12 @@ class T_PopulatingUsers(Base, FECommon):
 
     def test_repopulating_after_failure(self, u, dstore_n, cat_name):
         n = 'fail_first_pass_second'
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         outcome = d.populate()
         assert d.populated == False
         assert d.populate_attempted == True
@@ -444,14 +501,18 @@ class T_PopulatingUsers(Base, FECommon):
         # Populate with all successes
         n1 = "ds1"
         n2 = "ds2"
-        d1 = u.add_dataset(n1, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
-        d2 = u.add_dataset(n2, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d1 = u.add_dataset(
+            n1,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
+        d2 = u.add_dataset(
+            n2,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         res = u.populate()
         assert res.succeeded == True
         assert isinstance(res.outcomes, dict)
@@ -476,10 +537,12 @@ class T_PopulatingUsers(Base, FECommon):
 
         # Add another dataset and populate again
         n3 = "ds3"
-        d3 = u.add_dataset(n3, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d3 = u.add_dataset(
+            n3,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         res = u.populate()
         assert res.succeeded == True
         assert list(res.outcomes.keys()) == [n1, n2, n3]
@@ -510,21 +573,26 @@ class T_PopulatingUsers(Base, FECommon):
         # FEATURE support checking populate at a user level
         # assert u.populated == True
 
-    def test_populating_a_user_with_failures(self, unload_users, u, dstore_n, cat_name):
+    def test_populating_a_user_with_failures(self, unload_users, u, dstore_n,
+                                             cat_name):
         # Populate with failed datasets
         # Note: all datasets should be populated, even if the failure comes first
         nf = "failed_outcome"
         n = "ds0"
         m = "Failure case failed_outcome reached!"
         exc_m = f"Failed to populate dataset '{nf}' for user '{u.id}': {m}"
-        df = u.add_dataset(nf, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
-        d0 = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        df = u.add_dataset(
+            nf,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
+        d0 = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         res = u.populate()
         assert bool(res) == False
         assert res.succeeded == False
@@ -544,30 +612,37 @@ class T_PopulatingUsers(Base, FECommon):
         assert d0.populated == True
 
         # Treat failures as an error
-        d1 = u.add_dataset("ds1", self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        d1 = u.add_dataset(
+            "ds1",
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         with pytest.raises(RuntimeError, match=exc_m):
             u.populate(stop_on_failure=True)
         # Should have bailed before ds1 was ever tried
         assert d1.populated == False
         assert d1.populate_attempted == False
 
-    def test_populating_a_user_with_errors(self, unload_users, u, dstore_n, cat_name):
+    def test_populating_a_user_with_errors(self, unload_users, u, dstore_n,
+                                           cat_name):
         # Populate with an error
         ne = "exception_raised"
         n = "ds0"
         m = "Error case exception_raised reached!"
         exc_m = f"Encountered Exception 'NameError' with message: {m}\nWith traceback"
-        de = u.add_dataset(ne, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        de = u.add_dataset(
+            ne,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         assert de.populated == False
         assert de.populate_attempted == False
         assert d.populated == False
@@ -601,23 +676,30 @@ class T_PopulatingUsers(Base, FECommon):
         assert de.populated == False
         assert d.populated == True
 
-    def test_populating_with_errors_and_failures(self, unload_users, u, dstore_n, cat_name):
+    def test_populating_with_errors_and_failures(self, unload_users, u,
+                                                 dstore_n, cat_name):
         ne = "exception_raised"
         nf = "failed_outcome"
         n = "ds0"
 
-        de = u.add_dataset(ne, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
-        df = u.add_dataset(nf, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
-        d = u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        de = u.add_dataset(
+            ne,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
+        df = u.add_dataset(
+            nf,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
+        d = u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
 
         # Populate with an error but continue on regardless
         res = u.populate(continue_on_error=True)
@@ -642,7 +724,6 @@ class T_PopulatingUsers(Base, FECommon):
         assert de.populated == False
         assert df.populated == False
         assert d.populated == True
-
 
     def test_populating_empty_users(self, unload_users, users):
         assert len(users) == 0
@@ -677,10 +758,12 @@ class T_PopulatingUsers(Base, FECommon):
     # @pytest.mark.skip
     def test_populating_users(self, unload_users, users, dstore_n, cat_name):
         n1 = "ds_1"
-        users.add_dataset(n1, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        users.add_dataset(
+            n1,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
 
         u1 = self.user(1)
         u2 = self.user(2)
@@ -695,7 +778,7 @@ class T_PopulatingUsers(Base, FECommon):
         assert pop_rtn.errored == False
         assert list(pop_rtn.outcomes.keys()) == [u1.id, u2.id]
         assert isinstance(pop_rtn.outcomes[u1.id], self.pop_user_return_class)
-        assert list(pop_rtn.outcomes[u1.id].outcomes.keys()) ==[n1]
+        assert list(pop_rtn.outcomes[u1.id].outcomes.keys()) == [n1]
         assert pop_rtn.outcomes[u1.id].outcomes[n1].succeeded == True
         assert pop_rtn.failed_datasets == {}
         assert pop_rtn.errored_datasets == {}
@@ -708,10 +791,12 @@ class T_PopulatingUsers(Base, FECommon):
         # Add a user and populate again
         # Also add a dataset just for fun
         n2 = "ds_2"
-        users.add_dataset(n2, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        users.add_dataset(
+            n2,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         u3 = self.user(3)
         pop_rtn = users.populate()
         assert bool(pop_rtn) == True
@@ -721,7 +806,7 @@ class T_PopulatingUsers(Base, FECommon):
         assert list(pop_rtn.outcomes.keys()) == [u1.id, u2.id, u3.id]
         assert pop_rtn.outcomes[u1.id].outcomes == {n1: None}
         assert pop_rtn.outcomes[u2.id].outcomes == {n1: None}
-        assert list(pop_rtn.outcomes[u3.id].outcomes.keys()) ==[n1, n2]
+        assert list(pop_rtn.outcomes[u3.id].outcomes.keys()) == [n1, n2]
         assert pop_rtn.outcomes[u3.id].outcomes[n1].succeeded == True
         assert pop_rtn.outcomes[u3.id].outcomes[n2].succeeded == True
 
@@ -729,18 +814,21 @@ class T_PopulatingUsers(Base, FECommon):
         pop_rtn = users.populate(repopulate=True)
         assert bool(pop_rtn) == True
         assert pop_rtn.succeeded == True
-        assert list(pop_rtn.outcomes[u1.id].outcomes.keys()) ==[n1]
-        assert list(pop_rtn.outcomes[u2.id].outcomes.keys()) ==[n1]
-        assert list(pop_rtn.outcomes[u3.id].outcomes.keys()) ==[n1, n2]
+        assert list(pop_rtn.outcomes[u1.id].outcomes.keys()) == [n1]
+        assert list(pop_rtn.outcomes[u2.id].outcomes.keys()) == [n1]
+        assert list(pop_rtn.outcomes[u3.id].outcomes.keys()) == [n1, n2]
 
-    def test_populating_users_with_failures(self, unload_users, users, dstore_n, cat_name):
+    def test_populating_users_with_failures(self, unload_users, users,
+                                            dstore_n, cat_name):
         nf = "fail_outcome_for_u_fail"
         m = f"Failure case fail_outcome_for_u_fail for user {self.to_user_id('fail')} reached!"
         exc_m = f"Failed to populate dataset 'fail_outcome_for_u_fail' for user \'{self.to_user_id('fail')}\': {m}"
-        users.add_dataset(nf, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        users.add_dataset(
+            nf,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
 
         u1 = self.user(1)
         uf = self.user("fail")
@@ -778,15 +866,18 @@ class T_PopulatingUsers(Base, FECommon):
         with pytest.raises(RuntimeError, match=exc_m):
             users.populate(stop_on_failure=True)
 
-    def test_populating_users_with_errors(self, unload_users, users, dstore_n, cat_name):
+    def test_populating_users_with_errors(self, unload_users, users, dstore_n,
+                                          cat_name):
         ne = "raise_exception_for_u_error"
         m = f"Error case raise_exception_for_u_error for user {self.to_user_id('error')} reached!"
         exc_m = f"Encountered Exception 'NameError' with message: {m}\nWith traceback"
 
-        users.add_dataset(ne, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-        ))
+        users.add_dataset(
+            ne,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+            ))
         u1 = self.user(1)
         ue = self.user('error')
         u2 = self.user(2)
@@ -831,13 +922,16 @@ class T_PopulatingUsers(Base, FECommon):
         assert u2.datasets[ne].populated == True
         assert u2.datasets[ne].populate_attempted == True
 
-    def test_autopopulating_users(self, unload_users, users, dstore_n, cat_name):
+    def test_autopopulating_users(self, unload_users, users, dstore_n,
+                                  cat_name):
         n = "ds0"
-        users.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-            auto_populate=True,
-        ))
+        users.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+                auto_populate=True,
+            ))
         u = self.user()
         d = u.datasets[n]
         assert d.populated == True
@@ -846,25 +940,34 @@ class T_PopulatingUsers(Base, FECommon):
         assert d.other["pop-ed?"] == True
 
         n = "ds1"
-        u.add_dataset(n, self.user_dataset_config_class(
-            data_store=dstore_n,
-            category=cat_name,
-            auto_populate=True,
-        ))
+        u.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+                auto_populate=True,
+            ))
         d = u.datasets[n]
         assert d.populated == True
         assert d.populate_attempted == True
         assert d.other["populated_from"] == self.DSPopUser.__qualname__
         assert d.other["pop-ed?"] == True
 
-    def test_errors_and_failures_during_autopopulate_raises_an_exception(self, unload_users, u, dstore_n, cat_name):
+    def test_errors_and_failures_during_autopopulate_raises_an_exception(
+            self, unload_users, u, dstore_n, cat_name):
         ne = "exception_raised"
-        with pytest.raises(RuntimeError, match="Encountered Exception 'NameError' with message: Error case exception_raised reached!"):
-            u.add_dataset(ne, self.user_dataset_config_class(
-                data_store=dstore_n,
-                category=cat_name,
-                auto_populate=True,
-            ))
+        with pytest.raises(
+                RuntimeError,
+                match=
+                "Encountered Exception 'NameError' with message: Error case exception_raised reached!"
+        ):
+            u.add_dataset(
+                ne,
+                self.user_dataset_config_class(
+                    data_store=dstore_n,
+                    category=cat_name,
+                    auto_populate=True,
+                ))
 
         # Dataset should exists but not be populated
         d = u.datasets[ne]
@@ -872,22 +975,27 @@ class T_PopulatingUsers(Base, FECommon):
         assert d.populate_attempted == True
 
         nf = "failed_outcome"
-        with pytest.raises(RuntimeError, match="Failure case failed_outcome reached!"):
-            u.add_dataset(nf, self.user_dataset_config_class(
-                data_store=dstore_n,
-                category=cat_name,
-                auto_populate=True,
-            ))
+        with pytest.raises(RuntimeError,
+                           match="Failure case failed_outcome reached!"):
+            u.add_dataset(
+                nf,
+                self.user_dataset_config_class(
+                    data_store=dstore_n,
+                    category=cat_name,
+                    auto_populate=True,
+                ))
         d = u.datasets[nf]
         assert d.populated == False
         assert d.populate_attempted == True
 
     # TEST_NEEDED
     @pytest.mark.skip
-    def test_recovery_options_when_errors_occur_autopopulating(self, unload_users, users):
+    def test_recovery_options_when_errors_occur_autopopulating(
+            self, unload_users, users):
         raise NotImplementedError()
 
-    def test_adding_dataset_from_dict(self, unload_users, users, dstore_n, cat_name, ddk):
+    def test_adding_dataset_from_dict(self, unload_users, users, dstore_n,
+                                      cat_name, ddk):
         dset = {
             "data_store": dstore_n,
             "category": cat_name,
@@ -902,20 +1010,30 @@ class T_PopulatingUsers(Base, FECommon):
         u.add_dataset("r1", dset)
         assert list(u.datasets.keys()) == [ddk, "n0", "r0", "n1", "r1"]
 
-    def test_populating_an_ldap_dataset(self, unload_users, users, cat, cat_name):
+    def test_populating_an_ldap_dataset(self, unload_users, users, cat,
+                                        cat_name):
         from tests.utils.test_ldap import INIT_PARAMS
         params = copy.deepcopy(INIT_PARAMS)
-        params[-2] = { "data_id": "uid", "mapping": {"email": "mail", "last_name": "sn", "full_name": "cn"} }
+        params[-2] = {
+            "data_id": "uid",
+            "mapping": {
+                "email": "mail",
+                "last_name": "sn",
+                "full_name": "cn"
+            }
+        }
         cat.add(
             "test_ldap",
             om.utils.ldap.LDAP,
             ["test_ldap", *params],
         )
 
-        users.add_dataset("forumsys", self.user_dataset_config_class(
-            data_store="test_ldap",
-            category=cat_name,
-        ))
+        users.add_dataset(
+            "forumsys",
+            self.user_dataset_config_class(
+                data_store="test_ldap",
+                category=cat_name,
+            ))
         # By the config, dataset is not populated automoatically
         u = users.add("euler")
         d = u.datasets["forumsys"]
@@ -941,70 +1059,90 @@ class T_PopulatingUsers(Base, FECommon):
     @pytest.mark.skip
     def test_populating_all(self):
         raise NotImplementedError()
-    
+
     # TEST_NEEDED
     @pytest.mark.skip
     def test_populating_with_required(self):
         raise NotImplementedError()
-    
+
     # TEST_NEEDED
     @pytest.mark.skip
     def test_populating_with_custom_filters(self):
         raise NotImplementedError()
-    
+
     # TEST_NEEDED
     @pytest.mark.skip
     def test_populating_from_empty_mapping(self):
         raise NotImplementedError()
-    
+
     # TEST_NEEDED
     @pytest.mark.skip
     def test_populating_with_custom_attribute_fields(self):
         raise NotImplementedError()
 
     # TODO needs to be part of larger frontend tests
-    def test_populating_dummy_datasets_workout(self, fresh_frontend, unload_users, users, cat_name):
+    def test_populating_dummy_datasets_workout(self, fresh_frontend,
+                                               unload_users, users, cat_name):
         cat = fresh_frontend.data_stores.add_category(cat_name)
         n = "pop_test_ds"
         cat.add(n, self.DSPopUser)
         cat.add("pop_test_ds_child", self.DSPopUserChild)
         cat.add("pop_test_ds_ovr", self.DSPopUserChildOverrideMethod)
-        cat.add("pop_test_ds_ovr_no_dec", self.DSPopUserChildOverrideMethodNoDecorator)
+        cat.add("pop_test_ds_ovr_no_dec",
+                self.DSPopUserChildOverrideMethodNoDecorator)
         cat.add("pop_test_ds_new_method", self.DSPopUserChildNewMethod)
 
-        users.add_dataset("popped_test_ds", self.user_dataset_config_class(
-            data_store=n,
-            category=cat_name,
-            auto_populate=True,
-        ))
-        users.add_dataset("popped_test_ds_child", self.user_dataset_config_class(
-            data_store="pop_test_ds_child",
-            category=cat_name,
-            auto_populate=True,
-        ))
-        users.add_dataset("popped_test_ds_ovr", self.user_dataset_config_class(
-            data_store="pop_test_ds_ovr",
-            category=cat_name,
-            auto_populate=True,
-        ))
-        users.add_dataset("popped_test_ds_ovr_no_dec", self.user_dataset_config_class(
-            data_store="pop_test_ds_ovr_no_dec",
-            category=cat_name,
-            auto_populate=True,
-        ))
-        users.add_dataset("popped_test_ds_new_method", self.user_dataset_config_class(
-            data_store="pop_test_ds_new_method",
-            category=cat_name,
-            auto_populate=True,
-        ))
+        users.add_dataset(
+            "popped_test_ds",
+            self.user_dataset_config_class(
+                data_store=n,
+                category=cat_name,
+                auto_populate=True,
+            ))
+        users.add_dataset(
+            "popped_test_ds_child",
+            self.user_dataset_config_class(
+                data_store="pop_test_ds_child",
+                category=cat_name,
+                auto_populate=True,
+            ))
+        users.add_dataset(
+            "popped_test_ds_ovr",
+            self.user_dataset_config_class(
+                data_store="pop_test_ds_ovr",
+                category=cat_name,
+                auto_populate=True,
+            ))
+        users.add_dataset(
+            "popped_test_ds_ovr_no_dec",
+            self.user_dataset_config_class(
+                data_store="pop_test_ds_ovr_no_dec",
+                category=cat_name,
+                auto_populate=True,
+            ))
+        users.add_dataset(
+            "popped_test_ds_new_method",
+            self.user_dataset_config_class(
+                data_store="pop_test_ds_new_method",
+                category=cat_name,
+                auto_populate=True,
+            ))
         u = self.user()
 
-        assert u.datasets["popped_test_ds"].other["populated_from"] == self.DSPopUser.__qualname__
-        assert u.datasets["popped_test_ds_child"].other["populated_from"] == self.DSPopUserChild.__qualname__
+        assert u.datasets["popped_test_ds"].other[
+            "populated_from"] == self.DSPopUser.__qualname__
+        assert u.datasets["popped_test_ds_child"].other[
+            "populated_from"] == self.DSPopUserChild.__qualname__
 
-        assert u.datasets["popped_test_ds_ovr"].other["populated_from"] == self.DSPopUserChildOverrideMethod.__qualname__
-        assert u.datasets["popped_test_ds_ovr"].other["populated_from_2"] == "override"
-        assert u.datasets["popped_test_ds_ovr_no_dec"].other["populated_from"] == self.DSPopUserChildOverrideMethodNoDecorator.__qualname__
-        assert "populated_from_2" not in u.datasets["popped_test_ds_ovr_no_dec"].other
-        assert "populated_from" not in u.datasets["popped_test_ds_new_method"].other
-        assert u.datasets["popped_test_ds_new_method"].other["populated_from_2"] == "new_method"
+        assert u.datasets["popped_test_ds_ovr"].other[
+            "populated_from"] == self.DSPopUserChildOverrideMethod.__qualname__
+        assert u.datasets["popped_test_ds_ovr"].other[
+            "populated_from_2"] == "override"
+        assert u.datasets["popped_test_ds_ovr_no_dec"].other[
+            "populated_from"] == self.DSPopUserChildOverrideMethodNoDecorator.__qualname__
+        assert "populated_from_2" not in u.datasets[
+            "popped_test_ds_ovr_no_dec"].other
+        assert "populated_from" not in u.datasets[
+            "popped_test_ds_new_method"].other
+        assert u.datasets["popped_test_ds_new_method"].other[
+            "populated_from_2"] == "new_method"

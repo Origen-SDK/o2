@@ -1,13 +1,13 @@
-pub mod outcomes;
-pub mod sessions;
-mod reference_files;
 mod file_permissions;
+pub mod outcomes;
+mod reference_files;
+pub mod sessions;
 pub mod users;
 
-use pyo3::prelude::*;
+pub use file_permissions::FilePermissions;
 pub use outcomes::Outcome;
 pub use outcomes::Outcome as PyOutcome;
-pub use file_permissions::FilePermissions;
+use pyo3::prelude::*;
 
 pub(crate) fn define(py: Python, parent: &PyModule) -> PyResult<()> {
     let m = PyModule::new(py, "framework")?;

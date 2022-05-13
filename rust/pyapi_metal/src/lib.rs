@@ -7,8 +7,8 @@ pub mod utils;
 use pyo3::prelude::*;
 use pyo3::py_run;
 
-pub(crate) use origen_metal::Result as OMResult;
 pub use crate::framework::Outcome as PyOutcome;
+pub(crate) use origen_metal::Result as OMResult;
 
 pub mod built_info {
     // The file has been placed there by the build script.

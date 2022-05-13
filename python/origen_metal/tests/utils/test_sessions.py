@@ -3,9 +3,11 @@ import origen_metal as om
 from tests.shared import tmp_dir
 from tests.shared.python_like_apis import Fixture_DictLikeAPI
 
+
 class Dummy:
     def __init__(self, data):
         self.data = data
+
 
 class Common:
     @property
@@ -49,7 +51,7 @@ class Common:
                 r.joinpath(n).unlink()
         s = om.sessions.add_standalone(n, r)
         return s
-    
+
     def blank_sg_for(self, name=None, remove=True):
         n = name or inspect.stack()[1][3]
         p = self.root.joinpath(n)
@@ -58,7 +60,7 @@ class Common:
 
         sg = om.sessions.add_group(n, self.root)
         return sg
-    
+
     @pytest.fixture
     def s(self):
         return self.sessions
@@ -70,13 +72,14 @@ class Common:
         assert s.standalones == {}
         return retn
 
+
 class TestSessions(Common):
     def test_sessions_is_accessible(self):
         s = self.sessions
         assert isinstance(s, self.sessions_class)
         assert s.groups == {}
         assert s.standalones == {}
-    
+
     def test_session_groups_can_be_added(self):
         n = "my_group"
         s = self.sessions
@@ -108,7 +111,9 @@ class TestSessions(Common):
         sg.add_session("s2")
         assert set(sg.keys()) == {"s1", "s2"}
 
-        with pytest.raises(RuntimeError, match=f"Session group '{sg.name}' has already been added"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Session group '{sg.name}' has already been added"):
             self.sessions.add_group(sg.name, sg.path.parent)
 
         # Ensure the group wasn't changed
@@ -124,9 +129,11 @@ class TestSessions(Common):
         s["test"] = 123
         assert "test" in s
 
-        with pytest.raises(RuntimeError, match=f"Standalone session '{s.name}' has already been added"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Standalone session '{s.name}' has already been added"):
             self.sessions.add_standalone(s.name, s.path.parent)
- 
+
         assert s.name in self.sessions.standalones
         assert "test" in s
         assert num_standalones == len(self.sessions.standalones)
@@ -144,9 +151,13 @@ class TestSessions(Common):
         assert len(self.sessions.groups) == num_standalones - 1
         assert p.exists() == False
 
-        with pytest.raises(RuntimeError, match=f"Session group {n} has not been created yet!"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Session group {n} has not been created yet!"):
             sg.name
-        with pytest.raises(RuntimeError, match=f"Session group {n} has not been created yet!"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Session group {n} has not been created yet!"):
             sg.path
 
     def test_groups_can_be_removed_and_are_cleaned(self):
@@ -177,11 +188,21 @@ class TestSessions(Common):
         assert s1_path.exists() == False
         assert s2_path.exists() == False
 
-        with pytest.raises(RuntimeError, match=f"Error encountered retrieving session 's1': Error retrieving group: '{n}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Error encountered retrieving session 's1': Error retrieving group: '{n}'"
+        ):
             s1.name
-        with pytest.raises(RuntimeError, match=f"Error encountered retrieving session 's2': Error retrieving group: '{n}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Error encountered retrieving session 's2': Error retrieving group: '{n}'"
+        ):
             s2.name
-        with pytest.raises(RuntimeError, match=f"Session group {n} has not been created yet!"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Session group {n} has not been created yet!"):
             sg.name
 
     def test_removing_nonexistant_groups_returns_false(self):
@@ -201,9 +222,13 @@ class TestSessions(Common):
         assert len(self.sessions.standalones) == num_standalones - 1
         assert p.exists() == False
 
-        with pytest.raises(RuntimeError, match=f"Standalone session {n} has not been created yet"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Standalone session {n} has not been created yet"):
             s.name
-        with pytest.raises(RuntimeError, match=f"Standalone session {n} has not been created yet"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Standalone session {n} has not been created yet"):
             s.path
 
     def test_standalones_can_be_removed_and_are_cleaned(self):
@@ -224,14 +249,19 @@ class TestSessions(Common):
         assert len(self.sessions.standalones) == num_standalones - 1
         assert p.exists() == False
 
-        with pytest.raises(RuntimeError, match=f"Standalone session {n} has not been created yet"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Standalone session {n} has not been created yet"):
             s.name
-        with pytest.raises(RuntimeError, match=f"Standalone session {n} has not been created yet"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Standalone session {n} has not been created yet"):
             s.path
 
     def test_error_removing_nonexistant_standalones(self):
         assert "blah" not in self.sessions.standalones
         assert self.sessions.delete_standalone("blah") == False
+
 
 class TestIndividualSessions(Common):
     def test_blank_session(self):
@@ -239,7 +269,7 @@ class TestIndividualSessions(Common):
         assert session.path == self.root.joinpath("test_blank_session")
         assert session.name == "test_blank_session"
         assert session.items() == []
-    
+
     def test_simple_data_roundtrip(self):
         s = self.blank_session_for()
         assert s.get("test") == None
@@ -397,6 +427,7 @@ class TestIndividualSessions(Common):
         def boot_dict_under_test(self):
             return self.sessions.standalone("dict_like_test")
 
+
 class TestSessionGroup(Common):
     def test_new_session_group(self):
         sg = self.blank_sg_for()
@@ -422,7 +453,7 @@ class TestSessionGroup(Common):
         assert s2.path == r.joinpath("s2")
         assert s1.name == "s1"
         assert s2.name == "s2"
-    
+
     def test_adding_session_content(self):
         sg = self.blank_sg_for()
         s1 = sg.add_session("s1")
@@ -460,9 +491,13 @@ class TestSessionGroup(Common):
         assert s2.path.exists()
         assert s2["test"] == True
 
-        with pytest.raises(RuntimeError, match=f"Session s1 has not been added to group {sg.name} yet"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Session s1 has not been added to group {sg.name} yet"):
             s1.name
-        with pytest.raises(RuntimeError, match=f"Session s1 has not been added to group {sg.name} yet"):
+        with pytest.raises(
+                RuntimeError,
+                match=f"Session s1 has not been added to group {sg.name} yet"):
             s1.path
 
     def test_removing_nonexistant_sessions_returns_false(self):

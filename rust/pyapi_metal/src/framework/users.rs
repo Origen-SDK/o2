@@ -1,12 +1,12 @@
-use pyo3::class::mapping::PyMappingProtocol;
-use pyo3::prelude::*;
-use pyo3::types::{PyDict};
-use pyo3::wrap_pyfunction;
-use crate::{type_error, key_error, runtime_error, pypath};
+use crate::_helpers::{map_to_pydict, typed_value, with_new_pydict};
 use crate::framework::PyOutcome;
-use crate::_helpers::{typed_value, map_to_pydict, with_new_pydict};
+use crate::{key_error, pypath, runtime_error, type_error};
 use origen_metal as om;
 use pyo3::class::basic::CompareOp;
+use pyo3::class::mapping::PyMappingProtocol;
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use pyo3::wrap_pyfunction;
 
 use super::file_permissions::FilePermissions;
 use std::path::PathBuf;
@@ -15,11 +15,11 @@ use crate::prelude::sessions::*;
 
 // TODO add a users prelude?
 use om::framework::users::DatasetConfig as OMDatasetConfig;
+use om::framework::users::PopulateUserReturn as OmPopulateUserReturn;
+use om::framework::users::PopulateUsersReturn as OmPopulateUsersReturn;
 use om::framework::users::SessionConfig as OMUserSessionConfig;
 use om::framework::users::User as OMUser;
 use om::Result as OMResult;
-use om::framework::users::PopulateUserReturn as OmPopulateUserReturn;
-use om::framework::users::PopulateUsersReturn as OmPopulateUsersReturn;
 
 const DATA_FIELDS: [&str; 5] = [
     "email",
@@ -60,7 +60,7 @@ impl Users {
     pub fn current_user(&self) -> PyResult<Option<User>> {
         Ok(match om::get_current_user_id()? {
             Some(id) => Some(User::new(&id)?),
-            None => None
+            None => None,
         })
     }
 
@@ -103,10 +103,13 @@ impl Users {
                 if om::users().users().contains_key(&id) {
                     Some(User::new(&id)?)
                 } else {
-                    return runtime_error!(format!("Initial user '{}' is no longer an active user!", id))
+                    return runtime_error!(format!(
+                        "Initial user '{}' is no longer an active user!",
+                        id
+                    ));
                 }
             }
-            None => None
+            None => None,
         })
     }
 
@@ -168,7 +171,7 @@ impl Users {
         Ok(DATA_FIELDS)
     }
 
-    #[args(update_current="false")]
+    #[args(update_current = "false")]
     pub fn lookup_current_id(&self, update_current: bool) -> PyResult<String> {
         if update_current {
             Ok(om::try_lookup_and_set_current_user()?)
@@ -183,20 +186,22 @@ impl Users {
 
     #[getter]
     fn get_lookup_current_id_function(&self) -> PyResult<Option<PyObject>> {
-        crate::frontend::with_py_frontend( |py, py_fe| {
+        crate::frontend::with_py_frontend(|py, py_fe| {
             Ok(match py_fe._users_.get("lookup_current_id_function") {
                 Some(f) => Some(f.to_object(py)),
-                None => None
+                None => None,
             })
         })
     }
 
     #[setter]
     fn set_lookup_current_id_function(&self, func: Option<&PyAny>) -> PyResult<()> {
-        crate::frontend::with_mut_py_frontend( |py, mut py_fe| {
+        crate::frontend::with_mut_py_frontend(|py, mut py_fe| {
             match func {
-                Some(f) => py_fe._users_.insert("lookup_current_id_function".to_string(), f.to_object(py)),
-                None => py_fe._users_.remove("lookup_current_id_function")
+                Some(f) => py_fe
+                    ._users_
+                    .insert("lookup_current_id_function".to_string(), f.to_object(py)),
+                None => py_fe._users_.remove("lookup_current_id_function"),
             };
             Ok(())
         })
@@ -205,7 +210,11 @@ impl Users {
     #[getter]
     fn get_datakeys(&self) -> PyResult<Vec<String>> {
         let users = om::users();
-        Ok(users.default_datakeys().iter().map(|dk| dk.to_string()).collect())
+        Ok(users
+            .default_datakeys()
+            .iter()
+            .map(|dk| dk.to_string())
+            .collect())
     }
 
     #[getter]
@@ -215,7 +224,7 @@ impl Users {
         for (n, config) in users.default_datasets().iter() {
             retn.set_item(
                 n.to_string(),
-                UserDatasetConfig::new_py(py, config.to_owned())?
+                UserDatasetConfig::new_py(py, config.to_owned())?,
             )?;
         }
         Ok(retn)
@@ -230,21 +239,26 @@ impl Users {
         }
     }
 
-    #[args(config="None")]
+    #[args(config = "None")]
     fn register_dataset(&self, name: &str, config: Option<&PyAny>) -> PyResult<()> {
         let mut users = om::users_mut();
         users.register_default_dataset(name, UserDatasetConfig::into_om(config)?)?;
         Ok(())
     }
 
-    #[args(config="None", as_topmost="true")]
-    pub fn add_dataset(&self, name: &str, config: Option<&PyAny>, as_topmost: bool) -> PyResult<()> {
+    #[args(config = "None", as_topmost = "true")]
+    pub fn add_dataset(
+        &self,
+        name: &str,
+        config: Option<&PyAny>,
+        as_topmost: bool,
+    ) -> PyResult<()> {
         let mut users = om::users_mut();
         users.add_default_dataset(name, UserDatasetConfig::into_om(config)?, as_topmost)?;
         Ok(())
     }
 
-    #[args(config="None")]
+    #[args(config = "None")]
     pub fn override_default_dataset(&self, name: &str, config: Option<&PyAny>) -> PyResult<()> {
         let mut users = om::users_mut();
         users.override_default_dataset(name, UserDatasetConfig::into_om(config)?)?;
@@ -254,7 +268,11 @@ impl Users {
     #[getter]
     fn get_data_lookup_hierarchy(&self) -> PyResult<Vec<String>> {
         let users = om::users();
-        Ok(users.default_data_lookup_hierarchy().iter().map(|dk| dk.to_string()).collect())
+        Ok(users
+            .default_data_lookup_hierarchy()
+            .iter()
+            .map(|dk| dk.to_string())
+            .collect())
     }
 
     #[setter]
@@ -273,8 +291,13 @@ impl Users {
         Ok(map_to_pydict(py, &mut users.motive_mapping().iter())?)
     }
 
-    #[args(replace_existing="false")]
-    pub fn add_motive(&self, motive: &str, dataset: &str, replace_existing: bool) -> PyResult<Option<String>> {
+    #[args(replace_existing = "false")]
+    pub fn add_motive(
+        &self,
+        motive: &str,
+        dataset: &str,
+        replace_existing: bool,
+    ) -> PyResult<Option<String>> {
         let mut users = om::users_mut();
         Ok(users.add_motive(motive.to_string(), dataset.to_string(), replace_existing)?)
     }
@@ -284,10 +307,23 @@ impl Users {
         Ok(users.dataset_for(motive)?.cloned())
     }
 
-    #[args(repopulate="false", continue_on_error="false", stop_on_failure="false")]
-    fn populate(&self, repopulate: bool, continue_on_error: bool, stop_on_failure: bool) -> PyResult<PopulateUsersReturn> {
+    #[args(
+        repopulate = "false",
+        continue_on_error = "false",
+        stop_on_failure = "false"
+    )]
+    fn populate(
+        &self,
+        repopulate: bool,
+        continue_on_error: bool,
+        stop_on_failure: bool,
+    ) -> PyResult<PopulateUsersReturn> {
         let users = om::users();
-        Ok(PopulateUsersReturn::from_om(users.populate(repopulate, continue_on_error, stop_on_failure)?))
+        Ok(PopulateUsersReturn::from_om(users.populate(
+            repopulate,
+            continue_on_error,
+            stop_on_failure,
+        )?))
     }
 
     #[getter]
@@ -302,7 +338,7 @@ impl PyMappingProtocol for Users {
         let users = om::users();
         match users.user(id) {
             Ok(u) => Ok(User::new(u.id())?),
-            Err(e) => key_error!(e.to_string())
+            Err(e) => key_error!(e.to_string()),
         }
     }
 
@@ -344,8 +380,7 @@ impl pyo3::class::iter::PyIterProtocol for Users {
     }
 }
 
-impl Users {
-}
+impl Users {}
 
 #[pyclass]
 pub struct UsersSessionConfig {}
@@ -357,7 +392,7 @@ impl UsersSessionConfig {
         let users = om::users();
         match users.default_session_config().root.as_ref() {
             Some(r) => Ok(Some(pypath!(py, r.display()))),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
 
@@ -373,7 +408,7 @@ impl UsersSessionConfig {
         let users = om::users();
         match users.default_session_config().offset.as_ref() {
             Some(o) => Ok(Some(pypath!(py, o.display()))),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
 
@@ -403,7 +438,7 @@ impl UsersSessionConfig {
     }
 
     #[setter]
-    pub fn set_fp(&self,fp: &PyAny) -> PyResult<()> {
+    pub fn set_fp(&self, fp: &PyAny) -> PyResult<()> {
         self.set_file_permissions(fp)
     }
 
@@ -552,12 +587,14 @@ impl UserDataset {
 
     #[getter]
     pub fn get_home_dir(&self, py: Python) -> PyResult<Option<PyObject>> {
-        Ok(om::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
-            match d.home_dir.as_ref() {
+        Ok(om::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| match d.home_dir.as_ref() {
                 Some(d) => Ok(Some(pypath!(py, d.display()))),
-                None => Ok(None)
-            }
-        })?)
+                None => Ok(None),
+            },
+        )?)
     }
 
     #[getter]
@@ -617,13 +654,29 @@ impl UserDataset {
         self.data_store()
     }
 
-    #[args(repopulate="false", continue_on_error="false", stop_on_failure="false")]
-    fn populate(&self, repopulate: bool, continue_on_error: bool, stop_on_failure: bool) -> PyResult<Option<PyOutcome>> {
+    #[args(
+        repopulate = "false",
+        continue_on_error = "false",
+        stop_on_failure = "false"
+    )]
+    fn populate(
+        &self,
+        repopulate: bool,
+        continue_on_error: bool,
+        stop_on_failure: bool,
+    ) -> PyResult<Option<PyOutcome>> {
         Ok(om::with_user(&self.user_id, |u| {
-            Ok(match u.populate_dataset(&self.dataset, repopulate, continue_on_error, stop_on_failure)? {
-                Some(feat_rtn) => Some(PyOutcome::from_origen(feat_rtn)),
-                None => None
-            })
+            Ok(
+                match u.populate_dataset(
+                    &self.dataset,
+                    repopulate,
+                    continue_on_error,
+                    stop_on_failure,
+                )? {
+                    Some(feat_rtn) => Some(PyOutcome::from_origen(feat_rtn)),
+                    None => None,
+                },
+            )
         })?)
     }
 
@@ -665,9 +718,11 @@ impl UserDataset {
 
     #[getter]
     fn config(&self) -> PyResult<UserDatasetConfig> {
-        Ok(om::with_user_dataset(Some(&self.user_id), &self.dataset, |ds| {
-            Ok(ds.config().into())
-        })?)
+        Ok(om::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |ds| Ok(ds.config().into()),
+        )?)
     }
 }
 
@@ -700,20 +755,20 @@ impl UserDatasetConfig {
                 OMDatasetConfig::new(
                     match c_dict.get_item("category") {
                         Some(v) => Some(v.extract::<String>()?),
-                        None => None
+                        None => None,
                     },
                     match c_dict.get_item("data_store") {
                         Some(v) => Some(v.extract::<String>()?),
-                        None => None
+                        None => None,
                     },
                     match c_dict.get_item("auto_populate") {
                         Some(v) => Some(v.extract::<bool>()?),
-                        None => None
+                        None => None,
                     },
                     match c_dict.get_item("should_validate_password") {
                         Some(v) => Some(v.extract::<bool>()?),
-                        None => None
-                    }
+                        None => None,
+                    },
                 )?
             } else if let Ok(c_obj) = c.extract::<PyRef<Self>>() {
                 c_obj.om_config.clone()
@@ -721,7 +776,7 @@ impl UserDatasetConfig {
                 return type_error!(format!(
                     "'config' must be either a dict or UserDatasetConfig. Received: '{}'",
                     c.get_type().name()?
-                ))
+                ));
             }
         } else {
             OMDatasetConfig::default()
@@ -729,7 +784,12 @@ impl UserDatasetConfig {
     }
 
     pub fn new_py(py: Python, om_config: OMDatasetConfig) -> PyResult<Py<Self>> {
-        Py::new(py, Self { om_config: om_config })
+        Py::new(
+            py,
+            Self {
+                om_config: om_config,
+            },
+        )
     }
 }
 
@@ -738,14 +798,16 @@ impl pyo3::class::basic::PyObjectProtocol for UserDatasetConfig {
     fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<bool> {
         let c = match other.extract::<PyRef<Self>>() {
             Ok(config) => config,
-            Err(_) => return Ok(false)
+            Err(_) => return Ok(false),
         };
         let result = self.om_config == c.om_config;
 
         match op {
             CompareOp::Eq => Ok(result),
             CompareOp::Ne => Ok(!result),
-            _ => crate::not_implemented_error!("UserDatasetConfig only supports equals and not-equals comparisons"),
+            _ => crate::not_implemented_error!(
+                "UserDatasetConfig only supports equals and not-equals comparisons"
+            ),
         }
     }
 }
@@ -753,16 +815,14 @@ impl pyo3::class::basic::PyObjectProtocol for UserDatasetConfig {
 impl From<&OMDatasetConfig> for UserDatasetConfig {
     fn from(config: &OMDatasetConfig) -> Self {
         Self {
-            om_config: config.clone()
+            om_config: config.clone(),
         }
     }
 }
 
 impl From<OMDatasetConfig> for UserDatasetConfig {
     fn from(config: OMDatasetConfig) -> Self {
-        Self {
-            om_config: config
-        }
+        Self { om_config: config }
     }
 }
 
@@ -785,15 +845,20 @@ impl UserDatasetConfig {
 
     // TODO rename to new?
     #[new]
-    #[args(category="None", data_store="None", auto_populate="None")]
-    fn py_new(category: Option<String>, data_store: Option<String>, auto_populate: Option<bool>, should_validate_password: Option<bool>) -> PyResult<Self> {
+    #[args(category = "None", data_store = "None", auto_populate = "None")]
+    fn py_new(
+        category: Option<String>,
+        data_store: Option<String>,
+        auto_populate: Option<bool>,
+        should_validate_password: Option<bool>,
+    ) -> PyResult<Self> {
         Ok(Self {
             om_config: OMDatasetConfig::new(
                 category,
                 data_store,
                 auto_populate,
                 should_validate_password,
-            )?
+            )?,
         })
     }
 
@@ -856,8 +921,8 @@ impl pyo3::class::iter::PyIterProtocol for UserDatasetConfigIter {
                 slf.values[slf.i].0.to_string(),
                 typed_value::to_pyobject(
                     Some(slf.values[slf.i].1.clone()),
-                    Some(&slf.values[slf.i].0)
-                )?
+                    Some(&slf.values[slf.i].0),
+                )?,
             );
             slf.i += 1;
             Ok(Some(retn))
@@ -870,14 +935,14 @@ impl pyo3::class::iter::PyIterProtocol for UserDatasetConfig {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<UserDatasetConfigIter> {
         Ok(UserDatasetConfigIter {
             values: om::TypedValueMap::from(&slf.om_config).into_pairs(),
-            i: 0
+            i: 0,
         })
     }
 }
 
 #[pyclass]
 pub struct PopulateUserReturn {
-    om: OmPopulateUserReturn
+    om: OmPopulateUserReturn,
 }
 
 #[pymethods]
@@ -893,7 +958,7 @@ impl PopulateUserReturn {
             for (ds_name, outcome) in self.om.outcomes().iter() {
                 match outcome {
                     Some(o) => d.set_item(ds_name, PyOutcome::to_py(py, o)?)?,
-                    None => d.set_item(ds_name, py.None())?
+                    None => d.set_item(ds_name, py.None())?,
                 }
             }
             Ok(())
@@ -943,15 +1008,11 @@ impl PopulateUserReturn {
 
 impl PopulateUserReturn {
     pub fn from_om(om_rtn: OmPopulateUserReturn) -> Self {
-        Self {
-            om: om_rtn
-        }
+        Self { om: om_rtn }
     }
 
     pub fn py_from_om(py: Python, om_rtn: OmPopulateUserReturn) -> PyResult<Py<Self>> {
-        Py::new(py, Self {
-            om: om_rtn
-        })
+        Py::new(py, Self { om: om_rtn })
     }
 }
 
@@ -964,7 +1025,7 @@ impl pyo3::class::basic::PyObjectProtocol for PopulateUserReturn {
 
 #[pyclass]
 pub struct PopulateUsersReturn {
-    om: OmPopulateUsersReturn
+    om: OmPopulateUsersReturn,
 }
 
 #[pymethods]
@@ -978,7 +1039,10 @@ impl PopulateUsersReturn {
     fn outcomes(&self, py: Python) -> PyResult<Py<PyDict>> {
         with_new_pydict(py, |d| {
             for (ds_name, pop_rtn) in self.om.outcomes().iter() {
-                d.set_item(ds_name, PopulateUserReturn::py_from_om(py, pop_rtn.to_owned())?)?;
+                d.set_item(
+                    ds_name,
+                    PopulateUserReturn::py_from_om(py, pop_rtn.to_owned())?,
+                )?;
             }
             Ok(())
         })
@@ -1039,12 +1103,9 @@ impl PopulateUsersReturn {
 
 impl PopulateUsersReturn {
     pub fn from_om(om_rtn: OmPopulateUsersReturn) -> Self {
-        Self {
-            om: om_rtn
-        }
+        Self { om: om_rtn }
     }
 }
-
 
 #[pyproto]
 impl pyo3::class::basic::PyObjectProtocol for PopulateUsersReturn {
@@ -1074,9 +1135,7 @@ impl User {
 impl User {
     #[getter]
     fn get_id(&self) -> PyResult<String> {
-        Ok(om::with_user(&self.user_id, |u| {
-            Ok(u.id().to_string())
-        })?)
+        Ok(om::with_user(&self.user_id, |u| Ok(u.id().to_string()))?)
     }
 
     #[getter]
@@ -1186,8 +1245,13 @@ impl User {
         })?)
     }
 
-    #[args(replace_existing="false")]
-    fn add_motive(&self, motive: &str, dataset: &str, replace_existing: bool) -> PyResult<Option<String>> {
+    #[args(replace_existing = "false")]
+    fn add_motive(
+        &self,
+        motive: &str,
+        dataset: &str,
+        replace_existing: bool,
+    ) -> PyResult<Option<String>> {
         Ok(om::with_user_mut(&self.user_id, |u| {
             Ok(u.add_motive(motive.to_string(), dataset.to_string(), replace_existing)?)
         })?)
@@ -1218,15 +1282,15 @@ impl User {
     }
 
     // TODO?
-//     #[getter]
-//     fn authenticated(&self) -> PyResult<bool> {
-//         Ok(origen::with_user(&self.user_id, |u| Ok(u.authenticated()))?)
-//     }
+    //     #[getter]
+    //     fn authenticated(&self) -> PyResult<bool> {
+    //         Ok(origen::with_user(&self.user_id, |u| Ok(u.authenticated()))?)
+    //     }
 
     // TODO?
-//     // fn switch_to() -> PyResult<()> {
-//     //     // ...
-//     // }
+    //     // fn switch_to() -> PyResult<()> {
+    //     //     // ...
+    //     // }
 
     #[getter]
     fn data_lookup_hierarchy(&self) -> PyResult<Vec<String>> {
@@ -1249,15 +1313,37 @@ impl User {
         })?)
     }
 
-    #[args(config="None", replace_existing="None", as_topmost="true")]
-    pub fn add_dataset(&self, name: &str, config: Option<&PyAny>, replace_existing: Option<bool>, as_topmost: bool) -> PyResult<UserDataset> {
-        om::add_dataset_to_user(&self.user_id, name, UserDatasetConfig::into_om(config)?, replace_existing.unwrap_or(false), as_topmost)?;
+    #[args(config = "None", replace_existing = "None", as_topmost = "true")]
+    pub fn add_dataset(
+        &self,
+        name: &str,
+        config: Option<&PyAny>,
+        replace_existing: Option<bool>,
+        as_topmost: bool,
+    ) -> PyResult<UserDataset> {
+        om::add_dataset_to_user(
+            &self.user_id,
+            name,
+            UserDatasetConfig::into_om(config)?,
+            replace_existing.unwrap_or(false),
+            as_topmost,
+        )?;
         Ok(UserDataset::new(&self.user_id, name))
     }
 
-    #[args(config="None", replace_existing="None")]
-    pub fn register_dataset(&self, name: &str, config: Option<&PyAny>, replace_existing: Option<bool>) -> PyResult<UserDataset> {
-        om::register_dataset_with_user(&self.user_id, name, UserDatasetConfig::into_om(config)?, replace_existing.unwrap_or(false))?;
+    #[args(config = "None", replace_existing = "None")]
+    pub fn register_dataset(
+        &self,
+        name: &str,
+        config: Option<&PyAny>,
+        replace_existing: Option<bool>,
+    ) -> PyResult<UserDataset> {
+        om::register_dataset_with_user(
+            &self.user_id,
+            name,
+            UserDatasetConfig::into_om(config)?,
+            replace_existing.unwrap_or(false),
+        )?;
         Ok(UserDataset::new(&self.user_id, name))
     }
 
@@ -1268,7 +1354,7 @@ impl User {
             for n in u.datasets().keys() {
                 retn.set_item(
                     n.to_string(),
-                    Py::new(py, UserDataset::new(&self.user_id, n))?
+                    Py::new(py, UserDataset::new(&self.user_id, n))?,
                 )?;
             }
             Ok(())
@@ -1279,7 +1365,10 @@ impl User {
     #[getter]
     fn get_datakeys<'a>(&self) -> PyResult<Vec<String>> {
         Ok(om::with_user(&self.user_id, |u| {
-            Ok(u.datakeys().iter().map( |k| k.to_string()).collect::<Vec<String>>())
+            Ok(u.datakeys()
+                .iter()
+                .map(|k| k.to_string())
+                .collect::<Vec<String>>())
         })?)
     }
 
@@ -1300,10 +1389,23 @@ impl User {
         self.data_store()
     }
 
-    #[args(repopulate="false", continue_on_error="false", stop_on_failure="false")]
-    fn populate(&self, repopulate: bool, continue_on_error: bool, stop_on_failure: bool) -> PyResult<PopulateUserReturn> {
+    #[args(
+        repopulate = "false",
+        continue_on_error = "false",
+        stop_on_failure = "false"
+    )]
+    fn populate(
+        &self,
+        repopulate: bool,
+        continue_on_error: bool,
+        stop_on_failure: bool,
+    ) -> PyResult<PopulateUserReturn> {
         Ok(om::with_user(&self.user_id, |u| {
-            Ok(PopulateUserReturn::from_om(u.populate(repopulate, continue_on_error, stop_on_failure)?))
+            Ok(PopulateUserReturn::from_om(u.populate(
+                repopulate,
+                continue_on_error,
+                stop_on_failure,
+            )?))
         })?)
     }
 
@@ -1316,7 +1418,7 @@ impl User {
         Ok(om::with_user(&self.user_id, |u| {
             match u.home_dir()?.as_ref() {
                 Some(d) => Ok(Some(pypath!(py, d.display()))),
-                None => Ok(None)
+                None => Ok(None),
             }
         })?)
     }
@@ -1345,7 +1447,9 @@ impl User {
     pub fn sessions(&self) -> PyResult<PySessionGroup> {
         Ok(om::with_user(&self.user_id, |u| {
             let mut sessions = om::sessions();
-            Ok(PySessionGroup::new(&u.ensure_session(&mut sessions, None)?.2))
+            Ok(PySessionGroup::new(
+                &u.ensure_session(&mut sessions, None)?.2,
+            ))
         })?)
     }
 
@@ -1361,24 +1465,22 @@ impl User {
 
 #[pyclass]
 pub struct UserSessionConfig {
-    user_id: String
+    user_id: String,
 }
 
 #[pymethods]
 impl UserSessionConfig {
     #[getter]
     pub fn get_root(&self, py: Python) -> PyResult<Option<PyObject>> {
-        self.with_om_sc( |_u, sc| {
-            match sc.root.as_ref() {
-                Some(r) => Ok(Some(pypath!(py, r.display()))),
-                None => Ok(None)
-            }
+        self.with_om_sc(|_u, sc| match sc.root.as_ref() {
+            Some(r) => Ok(Some(pypath!(py, r.display()))),
+            None => Ok(None),
         })
     }
 
     #[setter]
     pub fn set_root(&self, root: Option<PathBuf>) -> PyResult<()> {
-        self.with_om_sc_mut( |_u, sc| {
+        self.with_om_sc_mut(|_u, sc| {
             sc.root = root;
             Ok(())
         })
@@ -1386,17 +1488,15 @@ impl UserSessionConfig {
 
     #[getter]
     pub fn get_offset(&self, py: Python) -> PyResult<Option<PyObject>> {
-        self.with_om_sc( |_u, sc| {
-            match sc.offset.as_ref() {
-                Some(o) => Ok(Some(pypath!(py, o.display()))),
-                None => Ok(None)
-            }
+        self.with_om_sc(|_u, sc| match sc.offset.as_ref() {
+            Some(o) => Ok(Some(pypath!(py, o.display()))),
+            None => Ok(None),
         })
     }
 
     #[setter]
     pub fn set_offset(&self, offset: Option<PathBuf>) -> PyResult<()> {
-        self.with_om_sc_mut( |_u, sc| {
+        self.with_om_sc_mut(|_u, sc| {
             sc.set_offset(offset)?;
             Ok(())
         })
@@ -1404,14 +1504,12 @@ impl UserSessionConfig {
 
     #[getter]
     pub fn get_file_permissions(&self) -> PyResult<FilePermissions> {
-        self.with_om_sc( |_u, sc| {
-            Ok((&sc.file_permissions).into())
-        })
+        self.with_om_sc(|_u, sc| Ok((&sc.file_permissions).into()))
     }
 
     #[setter]
     pub fn set_file_permissions(&self, fp: &PyAny) -> PyResult<()> {
-        self.with_om_sc_mut( |_u, sc| {
+        self.with_om_sc_mut(|_u, sc| {
             sc.file_permissions = FilePermissions::to_metal(fp)?;
             Ok(())
         })
@@ -1431,13 +1529,13 @@ impl UserSessionConfig {
 impl UserSessionConfig {
     pub fn new(user_id: &str) -> Self {
         Self {
-            user_id: user_id.to_string()
+            user_id: user_id.to_string(),
         }
     }
 
     pub fn with_om_sc<T, F>(&self, mut f: F) -> PyResult<T>
     where
-        F: FnMut(&OMUser, &OMUserSessionConfig) -> OMResult<T>
+        F: FnMut(&OMUser, &OMUserSessionConfig) -> OMResult<T>,
     {
         Ok(om::with_user(&self.user_id, |u| {
             let sc = u.session_config();
@@ -1447,7 +1545,7 @@ impl UserSessionConfig {
 
     pub fn with_om_sc_mut<T, F>(&self, f: F) -> PyResult<T>
     where
-        F: FnOnce(&OMUser, &mut OMUserSessionConfig) -> OMResult<T>
+        F: FnOnce(&OMUser, &mut OMUserSessionConfig) -> OMResult<T>,
     {
         let users = om::users();
         let u = users.user(&self.user_id)?;
@@ -1554,7 +1652,8 @@ impl PyMappingProtocol for DataStore {
 
     fn __setitem__(&mut self, key: &str, value: &PyAny) -> PyResult<()> {
         om::with_user_dataset_mut(Some(&self.user_id), &self.dataset, |d| {
-            Ok(d.other.insert(&key.to_string(), typed_value::from_pyany(value)?))
+            Ok(d.other
+                .insert(&key.to_string(), typed_value::from_pyany(value)?))
         })?;
         Ok(())
     }

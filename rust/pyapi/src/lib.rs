@@ -28,9 +28,9 @@ mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
-use origen_metal as om;
 use om::lazy_static::lazy_static;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use origen_metal as om;
 use pyapi_metal::pypath;
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
@@ -388,11 +388,11 @@ fn initialize(
 
     boot_users(py)?;
     match origen::setup_sessions() {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => log_error!(
             "Failed to setup user and application sessions. Received error: \n{}",
             e
-        )
+        ),
     }
     Ok(())
 }
@@ -685,34 +685,60 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                     match pyapi_metal::framework::users::UserDatasetConfig::new_py(py, om_config) {
                         Ok(py_config) => {
                             if replace_default {
-                                match users.override_default_dataset(dn, Some(py_config.into_py(py).as_ref(py))) {
+                                match users.override_default_dataset(
+                                    dn,
+                                    Some(py_config.into_py(py).as_ref(py)),
+                                ) {
                                     Ok(_) => {
                                         replace_default = false;
-                                    },
+                                    }
                                     Err(e) => {
                                         om::log_error!("{}: Error encountered updating default dataset with config '{}'", *BASE_MSG, dn);
                                         om::log_error!("{}", e);
                                     }
                                 }
                             } else {
-                                match users.add_dataset(dn, Some(pyapi_metal::framework::users::UserDatasetConfig::new_py(py, config.try_into()?)?.into_py(py).as_ref(py)), false) {
-                                    Ok(_) => {},
+                                match users.add_dataset(
+                                    dn,
+                                    Some(
+                                        pyapi_metal::framework::users::UserDatasetConfig::new_py(
+                                            py,
+                                            config.try_into()?,
+                                        )?
+                                        .into_py(py)
+                                        .as_ref(py),
+                                    ),
+                                    false,
+                                ) {
+                                    Ok(_) => {}
                                     Err(e) => {
-                                        om::log_error!("{}: Error encountered adding dataset '{}'", *BASE_MSG, dn);
+                                        om::log_error!(
+                                            "{}: Error encountered adding dataset '{}'",
+                                            *BASE_MSG,
+                                            dn
+                                        );
                                         om::log_error!("{}", e);
                                     }
                                 }
                             }
-                        },
+                        }
                         Err(e) => {
                             // Still in the "processing stage - just on the python side
-                            om::log_error!("{}: Error encountered processing dataset config for '{}'", *BASE_MSG, dn);
+                            om::log_error!(
+                                "{}: Error encountered processing dataset config for '{}'",
+                                *BASE_MSG,
+                                dn
+                            );
                             om::log_error!("{}", e);
                         }
                     }
-                },
+                }
                 Err(e) => {
-                    om::log_error!("{}: Error encountered processing dataset config for '{}'", *BASE_MSG, dn);
+                    om::log_error!(
+                        "{}: Error encountered processing dataset config for '{}'",
+                        *BASE_MSG,
+                        dn
+                    );
                     om::log_error!("{}", e);
                 }
             }
@@ -722,16 +748,21 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     // Set the data lookup hierarchy
     if let Some(hierarchy) = &crate::ORIGEN_CONFIG.user__data_lookup_hierarchy {
         match users.set_data_lookup_hierarchy(hierarchy.to_owned()) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                om::log_error!("{}: Error encountered setting the default lookup hierarchy", *BASE_MSG);
+                om::log_error!(
+                    "{}: Error encountered setting the default lookup hierarchy",
+                    *BASE_MSG
+                );
                 om::log_error!("{}", e);
                 om::log_error!("Forcing empty dataset lookup hierarchy...");
                 users.set_data_lookup_hierarchy(vec![])?;
             }
         }
     } else {
-        if crate::ORIGEN_CONFIG.user__datasets.is_some() && crate::ORIGEN_CONFIG.user__datasets.as_ref().unwrap().len() > 1 {
+        if crate::ORIGEN_CONFIG.user__datasets.is_some()
+            && crate::ORIGEN_CONFIG.user__datasets.as_ref().unwrap().len() > 1
+        {
             // The config can only be read as an unordered hashmap. If multiple datasets are given,
             // clear the hierarchy if not explicitly given, otherwise will get non-deterministic behavior
             users.set_data_lookup_hierarchy(vec![])?;
@@ -741,9 +772,13 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     // Add dataset motives
     for (m, ds) in &crate::ORIGEN_CONFIG.user__dataset_motives {
         match users.add_motive(m, ds, false) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                om::log_error!("{}: Error encountered adding dataset motive '{}'", *BASE_MSG, m);
+                om::log_error!(
+                    "{}: Error encountered adding dataset motive '{}'",
+                    *BASE_MSG,
+                    m
+                );
                 om::log_error!("{}", e);
             }
         }
@@ -751,7 +786,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
 
     // Initialize the current user
     match users.lookup_current_id(true) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => {
             om::log_error!("{}: Failed to lookup current user", *BASE_MSG);
             om::log_error!("{}", e);

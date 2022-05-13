@@ -1,9 +1,9 @@
 use crate::Result;
+use indexmap::IndexMap as IM;
 use num_bigint::{BigInt, BigUint};
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use toml::Value;
-use indexmap::IndexMap as IM;
 // use std::collections::HashMap;
 use std::iter::FromIterator;
 
@@ -40,10 +40,12 @@ macro_rules! class {
 }
 
 impl TypedValue {
-    pub fn into_optional<'a, T: TryFrom<&'a TypedValue, Error = crate::Error>>(tv: Option<&'a TypedValue>) -> Result<Option<T>> {
+    pub fn into_optional<'a, T: TryFrom<&'a TypedValue, Error = crate::Error>>(
+        tv: Option<&'a TypedValue>,
+    ) -> Result<Option<T>> {
         Ok(match tv {
             Some(val) => Some(val.try_into()?),
-            None => None
+            None => None,
         })
     }
 
@@ -123,42 +125,42 @@ impl TypedValue {
     pub fn as_string(&self) -> Result<String> {
         match self {
             Self::String(s) => Ok(s.clone()),
-            _ => bail!(&self.conversion_error_msg("string"))
+            _ => bail!(&self.conversion_error_msg("string")),
         }
     }
 
     pub fn as_bigint(&self) -> Result<BigInt> {
         match self {
             Self::BigInt(b) => Ok(b.clone()),
-            _ => bail!(&self.conversion_error_msg("bigint"))
+            _ => bail!(&self.conversion_error_msg("bigint")),
         }
     }
 
     pub fn as_biguint(&self) -> Result<BigUint> {
         match self {
             Self::BigUint(b) => Ok(b.clone()),
-            _ => bail!(&self.conversion_error_msg("biguint"))
+            _ => bail!(&self.conversion_error_msg("biguint")),
         }
     }
 
     pub fn as_bool(&self) -> Result<bool> {
         match self {
             Self::Bool(b) => Ok(*b),
-            _ => bail!(&self.conversion_error_msg("bool"))
+            _ => bail!(&self.conversion_error_msg("bool")),
         }
     }
 
     pub fn as_float(&self) -> Result<f64> {
         match self {
             Self::Float(f) => Ok(*f),
-            _ => bail!(&self.conversion_error_msg("float"))
+            _ => bail!(&self.conversion_error_msg("float")),
         }
     }
 
     pub fn as_vec(&self) -> Result<Vec<Self>> {
         match self {
             Self::Vec(v) => Ok(v.clone()),
-            _ => bail!(&self.conversion_error_msg("vector"))
+            _ => bail!(&self.conversion_error_msg("vector")),
         }
     }
 
@@ -170,28 +172,41 @@ impl TypedValue {
     // }
 
     fn conversion_error_msg(&self, expected: &str) -> String {
-        format!("Requested TypedValue as '{}', but it is of type '{}'", expected, self.to_class_str())
+        format!(
+            "Requested TypedValue as '{}', but it is of type '{}'",
+            expected,
+            self.to_class_str()
+        )
     }
 }
 
-impl <T>From<Option<T>> for TypedValue where TypedValue: From<T> {
+impl<T> From<Option<T>> for TypedValue
+where
+    TypedValue: From<T>,
+{
     fn from(value: Option<T>) -> Self {
         match value {
             Some(v) => v.into(),
-            None => Self::None
+            None => Self::None,
         }
     }
 }
 
-impl <T>From<Vec<T>> for TypedValue where TypedValue: From<T> {
+impl<T> From<Vec<T>> for TypedValue
+where
+    TypedValue: From<T>,
+{
     fn from(values: Vec<T>) -> Self {
-        Self::Vec(values.into_iter().map( |v| v.into()).collect::<Vec<Self>>())
+        Self::Vec(values.into_iter().map(|v| v.into()).collect::<Vec<Self>>())
     }
 }
 
-impl <'a, T>From<std::slice::Iter<'a, T>> for TypedValue where TypedValue: From<&'a T> {
+impl<'a, T> From<std::slice::Iter<'a, T>> for TypedValue
+where
+    TypedValue: From<&'a T>,
+{
     fn from(values: std::slice::Iter<'a, T>) -> Self {
-        Self::Vec(values.into_iter().map( |v| v.into()).collect::<Vec<Self>>())
+        Self::Vec(values.into_iter().map(|v| v.into()).collect::<Vec<Self>>())
     }
 }
 
@@ -289,16 +304,16 @@ impl TryFrom<&Value> for TypedValue {
                                 }
                             }
                             // TODO
-                        // } else if encoded_class == "map" {
-                        //     if let Some(data_val) = a.get("map") {
-                        //         if let Some(data) = data_val.as_table() {
-                        //             let mut elements: HashMap<Self, Self> = HashMap::new();
-                        //             for (k, el) in data.iter() {
-                        //                 elements.insert(k, Self::try_from(el))?;
-                        //             }
-                        //             return Ok(Self::Map(elements));
-                        //         }
-                        //     }
+                            // } else if encoded_class == "map" {
+                            //     if let Some(data_val) = a.get("map") {
+                            //         if let Some(data) = data_val.as_table() {
+                            //             let mut elements: HashMap<Self, Self> = HashMap::new();
+                            //             for (k, el) in data.iter() {
+                            //                 elements.insert(k, Self::try_from(el))?;
+                            //             }
+                            //             return Ok(Self::Map(elements));
+                            //         }
+                            //     }
                         }
 
                         if let Some(data_val) = a.get("data") {
@@ -325,7 +340,7 @@ impl TryFrom<&Value> for TypedValue {
                             } else if encoded_class == "none" {
                                 // TODO need a check here?
                                 // if let Some(data) = data_val.is_none() {
-                                    return Ok(Self::None)
+                                return Ok(Self::None);
                                 // }
                             } else if encoded_class == "serialized" {
                                 if let Some(bytes) = data_val.as_array() {
@@ -343,7 +358,6 @@ impl TryFrom<&Value> for TypedValue {
                                         if let Some(serializer) = a.get("serializer") {
                                             if let Some(s) = serializer.as_str() {
                                                 Some(s.to_string())
-                                                
                                             } else {
                                                 bail!("serializer was not of type String");
                                             }
@@ -372,7 +386,10 @@ impl TryFrom<&Value> for TypedValue {
                 // Probably add support for this add some point
                 bail!("TypedValue conversion from generic Value::Table is not implemented yet")
             }
-            _ => bail!("Cannot convert toml::Value {} to origen_metal::TypedValue", value),
+            _ => bail!(
+                "Cannot convert toml::Value {} to origen_metal::TypedValue",
+                value
+            ),
         }
     }
 }
@@ -380,7 +397,7 @@ impl TryFrom<&Value> for TypedValue {
 /// Wrapper around a vector of typed values
 #[derive(Debug, Clone)]
 pub struct TypedValueVec {
-    pub typed_values: Vec<TypedValue>
+    pub typed_values: Vec<TypedValue>,
 }
 
 impl Default for TypedValueVec {
@@ -392,7 +409,7 @@ impl Default for TypedValueVec {
 impl TypedValueVec {
     pub fn new() -> Self {
         Self {
-            typed_values: vec![]
+            typed_values: vec![],
         }
     }
 
@@ -402,7 +419,7 @@ impl TypedValueVec {
 }
 
 impl FromIterator<TypedValue> for TypedValueVec {
-    fn from_iter<I: IntoIterator<Item=TypedValue>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = TypedValue>>(iter: I) -> Self {
         Self {
             typed_values: {
                 let mut v = vec![];
@@ -410,7 +427,7 @@ impl FromIterator<TypedValue> for TypedValueVec {
                     v.push(i);
                 }
                 v
-            }
+            },
         }
     }
 }
@@ -438,7 +455,7 @@ impl Default for Map {
 impl Map {
     pub fn new() -> Self {
         Self {
-            typed_values: IM::new()
+            typed_values: IM::new(),
         }
     }
 
@@ -451,7 +468,10 @@ impl Map {
     }
 
     pub fn into_pairs(&self) -> Vec<(String, TypedValue)> {
-        self.typed_values.iter().map( |(n, tv)| (n.to_string(), tv.clone())).collect()
+        self.typed_values
+            .iter()
+            .map(|(n, tv)| (n.to_string(), tv.clone()))
+            .collect()
     }
 
     pub fn get(&self, key: &str) -> Option<&TypedValue> {
@@ -474,23 +494,21 @@ impl Map {
 impl From<&Self> for Map {
     fn from(map: &Self) -> Self {
         Self {
-            typed_values: map.typed_values.to_owned()
+            typed_values: map.typed_values.to_owned(),
         }
     }
 }
 
 impl From<IM<String, TypedValue>> for Map {
     fn from(map: IM<String, TypedValue>) -> Self {
-        Self {
-            typed_values: map
-        }
+        Self { typed_values: map }
     }
 }
 
 impl From<&IM<String, TypedValue>> for Map {
     fn from(map: &IM<String, TypedValue>) -> Self {
         Self {
-            typed_values: map.to_owned()
+            typed_values: map.to_owned(),
         }
     }
 }

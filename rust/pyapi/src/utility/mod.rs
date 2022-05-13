@@ -15,6 +15,7 @@ pub mod unit_testers;
 pub mod version;
 pub mod website;
 
+use ldaps::__pyo3_get_function_ldaps;
 use linter::PyInit_linter;
 use location::Location;
 use mailer::PyInit_mailer;
@@ -29,7 +30,6 @@ use transaction::Transaction;
 use unit_testers::PyInit_unit_testers;
 use version::Version;
 use website::PyInit_website;
-use ldaps::__pyo3_get_function_ldaps;
 
 use crate::_helpers::hashmap_to_pydict;
 use crate::runtime_error;
@@ -245,25 +245,41 @@ pub fn config_value_into_pyobject(py: Python, v: &config::Value) -> PyResult<PyO
                 pydict.set_item(k, config_value_into_pyobject(py, inner_v)?)?;
             }
             pydict.to_object(py)
-        },
+        }
         config::ValueKind::Array(vec) => {
             let pylist = PyList::empty(py);
             for inner_v in vec.iter() {
                 pylist.append(config_value_into_pyobject(py, inner_v)?)?;
             }
             pylist.to_object(py)
-        },
-        config::ValueKind::Nil => return runtime_error!(format!("Cannot convert config value '{}' to a Python object", v))
+        }
+        config::ValueKind::Nil => {
+            return runtime_error!(format!(
+                "Cannot convert config value '{}' to a Python object",
+                v
+            ))
+        }
     })
 }
 
-pub fn config_value_map_into_pydict<'p>(py: Python<'p>, map: &'p mut dyn Iterator<Item=(&String, &config::Value)>) -> PyResult<Py<PyDict>> {
+pub fn config_value_map_into_pydict<'p>(
+    py: Python<'p>,
+    map: &'p mut dyn Iterator<Item = (&String, &config::Value)>,
+) -> PyResult<Py<PyDict>> {
     let pydict = PyDict::new(py);
     for (k, v) in map.into_iter() {
-        pydict.set_item(k, match config_value_into_pyobject(py, v) {
-            Ok(o) => o,
-            Err(_e) => return runtime_error!(format!("Cannot convert config value '{}' with value '{}' to a Python object", k, v))
-        })?;
+        pydict.set_item(
+            k,
+            match config_value_into_pyobject(py, v) {
+                Ok(o) => o,
+                Err(_e) => {
+                    return runtime_error!(format!(
+                        "Cannot convert config value '{}' with value '{}' to a Python object",
+                        k, v
+                    ))
+                }
+            },
+        )?;
     }
     Ok(pydict.into())
 }

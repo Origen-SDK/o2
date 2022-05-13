@@ -1,8 +1,10 @@
+use crate::_helpers::typed_value::{
+    from_optional_pydict, from_optional_pylist, into_optional_pydict, into_pytuple,
+};
 use origen_metal::Outcome as OrigenOutcome;
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyType, PyTuple, PyList};
 use origen_metal::TypedValueVec;
-use crate::_helpers::typed_value::{into_optional_pydict, from_optional_pydict, from_optional_pylist, into_pytuple};
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList, PyTuple, PyType};
 
 #[macro_export]
 macro_rules! partially_initialized_outcome_error {
@@ -31,7 +33,10 @@ pub fn pyobj_into_om_outcome(py: Python, obj: PyObject) -> PyResult<OrigenOutcom
         o.message = Some(s);
         Ok(o)
     } else {
-        crate::type_error!(&format!("Unable build Outcome out of Python type '{}'", obj.extract::<&PyAny>(py)?.get_type()))
+        crate::type_error!(&format!(
+            "Unable build Outcome out of Python type '{}'",
+            obj.extract::<&PyAny>(py)?.get_type()
+        ))
     }
 }
 
@@ -56,7 +61,14 @@ impl Outcome {
         use_pass_fail: bool,
         metadata: Option<&PyDict>,
     ) -> PyResult<()> {
-        instance.init(succeeded, message, positional_results, keyword_results, use_pass_fail, metadata)?;
+        instance.init(
+            succeeded,
+            message,
+            positional_results,
+            keyword_results,
+            use_pass_fail,
+            metadata,
+        )?;
         Ok(())
     }
 
@@ -73,7 +85,14 @@ impl Outcome {
         let mut obj = Self {
             origen_outcome: None,
         };
-        obj.init(succeeded, message, positional_results, keyword_results, use_pass_fail, metadata)?;
+        obj.init(
+            succeeded,
+            message,
+            positional_results,
+            keyword_results,
+            use_pass_fail,
+            metadata,
+        )?;
         Ok(obj)
     }
 
@@ -160,7 +179,10 @@ impl Outcome {
                 message = Some(err.to_string())
             }
         } else {
-            return crate::type_error!(&format!("Outcomes can only be build from a boolean value or an exception. Received {}", succeeded.get_type()))
+            return crate::type_error!(&format!(
+                "Outcomes can only be build from a boolean value or an exception. Received {}",
+                succeeded.get_type()
+            ));
         }
         outcome.inferred = Some(false);
         outcome.message = message;
@@ -187,7 +209,8 @@ impl Outcome {
         omo.inferred = Some(true);
         if let Some(rv) = return_value {
             let mut tvv = TypedValueVec::new();
-            tvv.typed_values.push(crate::_helpers::typed_value::from_pyany(rv)?);
+            tvv.typed_values
+                .push(crate::_helpers::typed_value::from_pyany(rv)?);
             omo.positional_results = Some(tvv);
         }
         Ok(omo)

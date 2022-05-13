@@ -2,9 +2,9 @@ use super::group::{Group, TempGroup};
 use super::package::Package;
 use super::{error_and_exit, BOM_FILE};
 use indexmap::IndexMap;
-use origen_metal::utils::file::with_dir;
 use origen::Result;
 use origen_metal::utils::file::symlink;
+use origen_metal::utils::file::with_dir;
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 

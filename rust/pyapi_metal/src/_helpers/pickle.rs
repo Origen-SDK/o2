@@ -1,7 +1,6 @@
-use pyo3::prelude::*;
 use pyo3::conversion::AsPyPointer;
+use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-
 
 pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
     let pickle = PyModule::import(py, "pickle")?;

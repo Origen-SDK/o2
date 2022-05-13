@@ -315,7 +315,6 @@ def plugin(name):
         )
 
 
-
 def __interactive_context__():
     ''' Returns the local context passed to an interactive section ``origen i`` is run.
     '''
@@ -340,6 +339,7 @@ __all__ = [
     'frontend_root', 'app', 'dut', 'tester', 'producer', 'has_plugin',
     'plugin', 'current_user', 'users', 'mailer'
 ]
+
 
 def __getattr__(name: str):
     if name == "ldaps":

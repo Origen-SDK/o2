@@ -1,13 +1,13 @@
-use crate::_utility::{validate_input_list, unsorted_dedup};
-use crate::{Result, Outcome, OutcomeState};
-use std::collections::HashMap;
-use std::path::{PathBuf};
-use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use super::data::{Data, DatasetConfig};
 use super::password_cache_options::PasswordCacheOptions;
-use indexmap::IndexMap;
-use crate::utils::file::FilePermissions;
+use crate::_utility::{unsorted_dedup, validate_input_list};
 use crate::prelude::session_store::*;
+use crate::utils::file::FilePermissions;
+use crate::{Outcome, OutcomeState, Result};
+use indexmap::IndexMap;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
 pub const DEFAULT_USER_SESSION_PATH_OFFSET: &str = "./.o2/.session";
@@ -25,7 +25,6 @@ lazy_static! {
         });
         h
     };
-
     static ref SORRY_PW: &'static str = "Sorry, that password is not correct";
 }
 
@@ -57,11 +56,22 @@ where
     u.with_dataset_mut(dataset, func)
 }
 
-pub fn add_dataset_to_user(id: &str, dataset: &str, config: DatasetConfig, replace_existing: bool, as_topmost: bool) -> Result<Option<Outcome>> {
+pub fn add_dataset_to_user(
+    id: &str,
+    dataset: &str,
+    config: DatasetConfig,
+    replace_existing: bool,
+    as_topmost: bool,
+) -> Result<Option<Outcome>> {
     User::add_dataset(id, dataset, config, replace_existing, as_topmost)
 }
 
-pub fn register_dataset_with_user(id: &str, dataset: &str, config: DatasetConfig, replace_existing: bool) -> Result<Option<Outcome>> {
+pub fn register_dataset_with_user(
+    id: &str,
+    dataset: &str,
+    config: DatasetConfig,
+    replace_existing: bool,
+) -> Result<Option<Outcome>> {
     User::register_dataset(id, dataset, config, replace_existing)
 }
 
@@ -94,7 +104,7 @@ pub struct PopulateUserReturn {
 
     // Cache the failed and errored dataset names
     failed_datasets: Vec<String>,
-    errored_datasets: Vec<String>
+    errored_datasets: Vec<String>,
 }
 
 impl PopulateUserReturn {
@@ -123,7 +133,25 @@ impl PopulateUserReturn {
     }
 
     pub fn failed_outcomes(&self) -> IndexMap<&String, &Outcome> {
-        self.failed_datasets.iter().map( |d| (d, self.outcomes.get(d).expect(&format!("Expected PopulateUserReturn to have outcome for {}", d)).as_ref().expect(&format!("Expected outcome for dataset {} to not be None", d)))).collect::<IndexMap<&String, &Outcome>>()
+        self.failed_datasets
+            .iter()
+            .map(|d| {
+                (
+                    d,
+                    self.outcomes
+                        .get(d)
+                        .expect(&format!(
+                            "Expected PopulateUserReturn to have outcome for {}",
+                            d
+                        ))
+                        .as_ref()
+                        .expect(&format!(
+                            "Expected outcome for dataset {} to not be None",
+                            d
+                        )),
+                )
+            })
+            .collect::<IndexMap<&String, &Outcome>>()
     }
 
     pub fn errored_datasets(&self) -> &Vec<String> {
@@ -131,20 +159,39 @@ impl PopulateUserReturn {
     }
 
     pub fn errored_outcomes(&self) -> IndexMap<&String, &Outcome> {
-        self.errored_datasets.iter().map( |d| (d, self.outcomes.get(d).expect(&format!("Expected PopulateUserReturn to have outcome for {}", d)).as_ref().expect(&format!("Expected outcome for dataset {} to not be None", d)))).collect::<IndexMap<&String, &Outcome>>()
+        self.errored_datasets
+            .iter()
+            .map(|d| {
+                (
+                    d,
+                    self.outcomes
+                        .get(d)
+                        .expect(&format!(
+                            "Expected PopulateUserReturn to have outcome for {}",
+                            d
+                        ))
+                        .as_ref()
+                        .expect(&format!(
+                            "Expected outcome for dataset {} to not be None",
+                            d
+                        )),
+                )
+            })
+            .collect::<IndexMap<&String, &Outcome>>()
     }
 
     pub fn insert(&mut self, dataset: &str, outcome: Option<Outcome>) -> Option<Option<Outcome>> {
         match outcome {
             Some(oc) => {
                 match oc.state {
-                    OutcomeState::Success(_, _) => {},
+                    OutcomeState::Success(_, _) => {}
                     OutcomeState::Fail(_, _) => self.failed_datasets.push(dataset.to_owned()),
-                    OutcomeState::Error(_, _) => self.errored_datasets.push(dataset.to_owned())
+                    OutcomeState::Error(_, _) => self.errored_datasets.push(dataset.to_owned()),
                 }
-                self.outcomes.insert(dataset.to_owned(), Some(oc.to_owned()))
-            },
-            None => self.outcomes.insert(dataset.to_owned(), None)
+                self.outcomes
+                    .insert(dataset.to_owned(), Some(oc.to_owned()))
+            }
+            None => self.outcomes.insert(dataset.to_owned(), None),
         }
     }
 }
@@ -199,11 +246,14 @@ impl SessionConfig {
         match new_offset {
             Some(o) => {
                 if o.is_absolute() {
-                    bail!("Absolute offsets are not allowed in a user's session config (given: {})", o.display());
+                    bail!(
+                        "Absolute offsets are not allowed in a user's session config (given: {})",
+                        o.display()
+                    );
                 }
                 self.offset = Some(o)
-            },
-            None => self.offset = None
+            }
+            None => self.offset = None,
         }
         Ok(())
     }
@@ -212,8 +262,10 @@ impl SessionConfig {
         let mut rr: PathBuf = PathBuf::new();
         match self.root.as_ref() {
             Some(r) => rr.push(r),
-            None => if let Some(d) = user.home_dir()? {
-                rr.push(d);
+            None => {
+                if let Some(d) = user.home_dir()? {
+                    rr.push(d);
+                }
             }
         }
         if let Some(o) = self.offset.as_ref() {
@@ -224,7 +276,11 @@ impl SessionConfig {
 
     pub fn resolved_path(&self, user: &User) -> Result<PathBuf> {
         let mut rr = self.resolved_root(user)?;
-        rr.push(format!("{}{}__", DEFAULT_USER_SESSION_GROUP_NAME, user.id()));
+        rr.push(format!(
+            "{}{}__",
+            DEFAULT_USER_SESSION_GROUP_NAME,
+            user.id()
+        ));
         Ok(rr)
     }
 }
@@ -272,7 +328,7 @@ impl User {
             self.data.keys(),
             false,
             Some(&super::duplicate_dataset_hierarchy_closure),
-            Some(&super::invalid_dataset_hierarchy_closure)
+            Some(&super::invalid_dataset_hierarchy_closure),
         )?;
         self.data_lookup_hierarchy = hierarchy;
         Ok(())
@@ -320,12 +376,18 @@ impl User {
         Ok(())
     }
 
-    pub fn add_dataset(id: &str, dataset: &str, config: DatasetConfig, replace_existing: bool, as_topmost: bool) -> Result<Option<Outcome>> {
+    pub fn add_dataset(
+        id: &str,
+        dataset: &str,
+        config: DatasetConfig,
+        replace_existing: bool,
+        as_topmost: bool,
+    ) -> Result<Option<Outcome>> {
         let rtn = Self::register_dataset(id, dataset, config, replace_existing)?;
 
         // Mutably borrow the user again to update the hierarchy
         super::users::with_user_mut(id, |u| {
-            if let Some(i) = u.data_lookup_hierarchy.iter().position( |i| i == dataset) {
+            if let Some(i) = u.data_lookup_hierarchy.iter().position(|i| i == dataset) {
                 u.data_lookup_hierarchy.remove(i);
             }
 
@@ -339,7 +401,12 @@ impl User {
         Ok(rtn)
     }
 
-    pub fn register_dataset(id: &str, dataset: &str, config: DatasetConfig, replace_existing: bool) -> Result<Option<Outcome>> {
+    pub fn register_dataset(
+        id: &str,
+        dataset: &str,
+        config: DatasetConfig,
+        replace_existing: bool,
+    ) -> Result<Option<Outcome>> {
         // Grab a mutable reference and update the users
         super::users::with_user_mut(id, |u| {
             if u.data.contains_key(dataset) {
@@ -349,7 +416,10 @@ impl User {
                     bail!("User '{}' already has dataset '{}'", &u.id, dataset);
                 }
             }
-            u.data.insert(dataset.to_string(), RwLock::new(Data::new(dataset, &config)));
+            u.data.insert(
+                dataset.to_string(),
+                RwLock::new(Data::new(dataset, &config)),
+            );
             Ok(())
         })?;
 
@@ -367,7 +437,7 @@ impl User {
         }
     }
 
-    pub fn new (
+    pub fn new(
         id: &str,
         users: &super::users::Users,
         password_cache_option: Option<PasswordCacheOptions>,
@@ -381,7 +451,7 @@ impl User {
             data_lookup_hierarchy: users.default_data_lookup_hierarchy().clone(),
             password_cache_option: match password_cache_option {
                 Some(pco) => pco,
-                None => PasswordCacheOptions::None
+                None => PasswordCacheOptions::None,
             },
             motive_mapping: users.motive_mapping().to_owned(),
             populate_status: PopulateStatus::default(),
@@ -403,7 +473,7 @@ impl User {
     pub fn is_current(&self) -> Result<bool> {
         Ok(match super::users::get_current_user_id()? {
             Some(id) => id == self.id,
-            None => false
+            None => false,
         })
     }
 
@@ -419,7 +489,12 @@ impl User {
         &self.password_cache_option
     }
 
-    pub fn add_motive(&mut self, motive: String, dataset: String, replace_existing: bool) -> Result<Option<String>> {
+    pub fn add_motive(
+        &mut self,
+        motive: String,
+        dataset: String,
+        replace_existing: bool,
+    ) -> Result<Option<String>> {
         if !self.datasets().contains_key(&dataset) {
             bail!(
                 "Cannot add motive for user '{}' corresponding to nonexistent dataset '{}'",
@@ -558,7 +633,10 @@ impl User {
         if let Some(hd) = self.home_dir()? {
             Ok(hd.to_owned())
         } else {
-            bail!("Required a home directory for user '{}' but none has been set", &self.id)
+            bail!(
+                "Required a home directory for user '{}' but none has been set",
+                &self.id
+            )
         }
     }
 
@@ -568,7 +646,6 @@ impl User {
         Ok(())
     }
 
-
     pub fn _cache_password(&self, password: &str, dataset: &str) -> Result<bool> {
         self.password_cache_option
             .cache_password(self, password, dataset)
@@ -577,28 +654,28 @@ impl User {
     pub fn _password_dialog(&self, dataset: &str, reason: Option<&str>) -> Result<String> {
         // TODO add attempts back in
         // for _attempt in 0..ORIGEN_CONFIG.user__password_auth_attempts {
-            let msg;
-            if dataset == "" {
-                msg = match reason {
-                    Some(x) => format!("\nPlease enter your password {}: ", x),
-                    None => "\nPlease enter your password: ".to_string(),
-                };
-            } else {
-                msg = match reason {
-                    Some(x) => format!("\nPlease enter your password ({}) {}: ", dataset, x),
-                    None => format!("\nPlease enter your password ({}): ", dataset),
-                };
-            }
-            let pass = rpassword::read_password_from_tty(Some(&msg)).unwrap();
-            let attempt = self._try_password(&pass, Some(dataset))?;
-            if attempt.0 {
-                self._cache_password(&pass, dataset)?;
-                let mut data = self.write_data(Some(dataset)).unwrap();
-                data.password = Some(pass.clone());
-                return Ok(pass);
-            } else {
-                display_redln!("Sorry, that password is incorrect");
-            }
+        let msg;
+        if dataset == "" {
+            msg = match reason {
+                Some(x) => format!("\nPlease enter your password {}: ", x),
+                None => "\nPlease enter your password: ".to_string(),
+            };
+        } else {
+            msg = match reason {
+                Some(x) => format!("\nPlease enter your password ({}) {}: ", dataset, x),
+                None => format!("\nPlease enter your password ({}): ", dataset),
+            };
+        }
+        let pass = rpassword::read_password_from_tty(Some(&msg)).unwrap();
+        let attempt = self._try_password(&pass, Some(dataset))?;
+        if attempt.0 {
+            self._cache_password(&pass, dataset)?;
+            let mut data = self.write_data(Some(dataset)).unwrap();
+            data.password = Some(pass.clone());
+            return Ok(pass);
+        } else {
+            display_redln!("Sorry, that password is incorrect");
+        }
         // }
         // display_redln!(
         //     "Maximum number of authentication attempts reached ({}), exiting...",
@@ -617,29 +694,36 @@ impl User {
     //  return.0 -> If the password validation was successful or the password was not to be validated
     //  return.1 -> If the password was actually validated
     //  return.2 -> The outcome returned from the frontend, in the event of return.1 == true
-    fn _try_password(&self, password: &str, dataset_name: Option<&str>) -> Result<(bool, bool, Option<Outcome>)> {
+    fn _try_password(
+        &self,
+        password: &str,
+        dataset_name: Option<&str>,
+    ) -> Result<(bool, bool, Option<Outcome>)> {
         // TODO support this?
         // Check if we are even supposed to try the password or if its already been tried
         // let dn_opt = Some(dataset_name.unwrap_or(&self.top_datakey()?));
         // if self.should_validate_password {
-            // if let Some(dn) = dn_opt {
-                let ds = self.read_data(dataset_name)?;
-                if ds.password_needs_validation() {
-                    let lookup = ds.require_data_source_for("password validation", &self.id)?;
-                    let f = crate::frontend::require()?;
-                    return f.with_data_store(lookup.0, lookup.1, |dstore| {
-                        let r = dstore.validate_password(&self.id, &ds, password)?;
-                        let o = r.outcome()?;
-                        if o.errored() {
-                            bail!("Errors encountered validating password: {}", o.msg_or_default())
-                        } else if o.failed() {
-                            Ok((false, true, Some(o.to_owned())))
-                        } else {
-                            Ok((true, true, Some(o.to_owned())))
-                        }
-                    });
+        // if let Some(dn) = dn_opt {
+        let ds = self.read_data(dataset_name)?;
+        if ds.password_needs_validation() {
+            let lookup = ds.require_data_source_for("password validation", &self.id)?;
+            let f = crate::frontend::require()?;
+            return f.with_data_store(lookup.0, lookup.1, |dstore| {
+                let r = dstore.validate_password(&self.id, &ds, password)?;
+                let o = r.outcome()?;
+                if o.errored() {
+                    bail!(
+                        "Errors encountered validating password: {}",
+                        o.msg_or_default()
+                    )
+                } else if o.failed() {
+                    Ok((false, true, Some(o.to_owned())))
+                } else {
+                    Ok((true, true, Some(o.to_owned())))
                 }
-            // }
+            });
+        }
+        // }
         // }
         Ok((true, false, None))
     }
@@ -698,14 +782,13 @@ impl User {
         }
     }
 
-
     pub fn password(
         &self,
         reason_or_dataset: Option<&str>,
         reason_not_dataset: bool,
         default: Option<Option<&str>>,
     ) -> Result<String> {
-        // REQUIRED change name from reason to 
+        // REQUIRED change name from reason to
         // In a multi-threaded scenario, this prevents concurrent threads from prompting the user for
         // the password at the same time.
         // Instead the first thread to arrive will do it, then by the time the lock is released awaiting
@@ -789,12 +872,12 @@ impl User {
         }
     }
 
-/*
-    // TODO support this again?
-    pub fn authenticated(&self) -> bool {
-        self.read_data(None).unwrap().authenticated
-    }
-*/
+    /*
+        // TODO support this again?
+        pub fn authenticated(&self) -> bool {
+            self.read_data(None).unwrap().authenticated
+        }
+    */
     /// Clear the cached password for all datasets
     pub fn clear_cached_passwords(&self) -> Result<()> {
         // TODO is this needed?
@@ -881,13 +964,21 @@ impl User {
         })
     }
 
-    pub fn populate(&self, repopulate: bool, continue_on_error: bool, stop_on_failure: bool) -> Result<PopulateUserReturn> {
+    pub fn populate(
+        &self,
+        repopulate: bool,
+        continue_on_error: bool,
+        stop_on_failure: bool,
+    ) -> Result<PopulateUserReturn> {
         // This also functions as means to lock out multiple, simultaneous populate attempts
         self.populate_status.while_populating(|| {
             let mut rtn = PopulateUserReturn::default();
             for (n, d) in self.data.iter() {
                 if !d.read().unwrap().has_empty_populate_config() {
-                    rtn.insert(n, self.populate_dataset(n, repopulate, continue_on_error, stop_on_failure)?);
+                    rtn.insert(
+                        n,
+                        self.populate_dataset(n, repopulate, continue_on_error, stop_on_failure)?,
+                    );
                 }
             }
             Ok(rtn)
@@ -912,33 +1003,53 @@ impl User {
 
     pub fn session_config_mut(&self) -> Result<RwLockWriteGuard<SessionConfig>> {
         let sessions = crate::sessions();
-        if sessions.groups().contains_key(&SessionConfig::to_sg_name(&self.id)) {
+        if sessions
+            .groups()
+            .contains_key(&SessionConfig::to_sg_name(&self.id))
+        {
             bail!("The session config cannot be updated for user '{}' after the session has been created", &self.id);
         }
         Ok(self.session_config.write().unwrap())
     }
 
-    pub fn ensure_session(&self, sessions: &mut Sessions, namespace: Option<&str>) -> Result<(bool, bool, String, String)> {
+    pub fn ensure_session(
+        &self,
+        sessions: &mut Sessions,
+        namespace: Option<&str>,
+    ) -> Result<(bool, bool, String, String)> {
         let sc = self.session_config();
         let sg_name = SessionConfig::to_sg_name(&self.id);
         let was_group_added;
         if let Some(grp) = sessions.groups().get(&sg_name) {
             if grp.path() != &sc.resolved_path(&self)? {
-                bail!("Session group '{}' does not match the session config for user '{}'", &sg_name, &self.id);
+                bail!(
+                    "Session group '{}' does not match the session config for user '{}'",
+                    &sg_name,
+                    &self.id
+                );
             }
             was_group_added = false;
         } else {
-            sessions.add_group(&sg_name, &sc.resolved_root(&self)?, Some(sc.file_permissions.to_owned()))?;
+            sessions.add_group(
+                &sg_name,
+                &sc.resolved_root(&self)?,
+                Some(sc.file_permissions.to_owned()),
+            )?;
             was_group_added = true;
         }
         let sname = namespace.unwrap_or(DEFAULT_USER_SESSION_STORE_NAME);
         let was_session_added = sessions.require_mut_group(&sg_name)?.ensure(sname)?;
-        Ok((was_group_added, was_session_added, sg_name, sname.to_string()))
+        Ok((
+            was_group_added,
+            was_session_added,
+            sg_name,
+            sname.to_string(),
+        ))
     }
 
     pub fn with_session_group<T, F>(&self, mut func: F) -> Result<T>
     where
-        F: FnMut(&Sessions, &SessionGroup) -> Result<T>
+        F: FnMut(&Sessions, &SessionGroup) -> Result<T>,
     {
         let mut sessions = crate::sessions();
         let s = self.ensure_session(&mut sessions, None)?;
@@ -949,10 +1060,14 @@ impl User {
     // TEST_NEEDED namespace tests
     pub fn with_session<T, F>(&self, namespace: Option<String>, mut func: F) -> Result<T>
     where
-        F: FnMut(&Sessions, &SessionGroup, &SessionStore) -> Result<T>
+        F: FnMut(&Sessions, &SessionGroup, &SessionStore) -> Result<T>,
     {
         self.with_session_group(|sessions, sg| {
-            let s = sg.require(namespace.as_ref().map_or(DEFAULT_USER_SESSION_STORE_NAME, |v| v.as_str()))?;
+            let s = sg.require(
+                namespace
+                    .as_ref()
+                    .map_or(DEFAULT_USER_SESSION_STORE_NAME, |v| v.as_str()),
+            )?;
             func(&sessions, &sg, &s)
         })
     }

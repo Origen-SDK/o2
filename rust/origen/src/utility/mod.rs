@@ -51,4 +51,3 @@ pub fn status_to_bool(s: &str) -> Result<bool> {
         _ => error!("Could not convert '{}' to boolean value", s),
     }
 }
-

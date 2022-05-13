@@ -5,9 +5,9 @@ pub mod users;
 
 use crate::Result;
 
-pub use users::PopulateUsersReturn;
-pub use user::{User, PopulateUserReturn, SessionConfig};
 pub use data::{Data, DatasetConfig};
+pub use user::{PopulateUserReturn, SessionConfig, User};
+pub use users::PopulateUsersReturn;
 
 pub fn whoami() -> Result<String> {
     let id = whoami::username();
@@ -18,7 +18,11 @@ pub fn whoami() -> Result<String> {
 fn invalid_dataset_hierarchy_closure(items: &Vec<&&String>) -> String {
     format!(
         "The following datasets do not exists and cannot be used in the data lookup hierarchy: {}",
-        items.iter().map( |i| format!("'{}'", i)).collect::<Vec<String>>().join(", ")
+        items
+            .iter()
+            .map(|i| format!("'{}'", i))
+            .collect::<Vec<String>>()
+            .join(", ")
     )
 }
 

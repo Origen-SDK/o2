@@ -1,10 +1,11 @@
-
 import pytest
 import origen_metal as om
 from .tests__datasets import Base
 
+
 class T_UserMotives(Base):
-    def test_adding_and_retrieving_default_motives(self, unload_users, users, ddk):
+    def test_adding_and_retrieving_default_motives(self, unload_users, users,
+                                                   ddk):
         assert users.motives == {}
         assert users.add_motive("test", ddk) is None
         assert users.motives["test"] == ddk
@@ -13,7 +14,8 @@ class T_UserMotives(Base):
     def test_missing_motives(self, unload_users, users):
         assert users.dataset_for("missing") == None
 
-    def test_default_datasets_propagate_to_a_user(self, unload_users, users, u, ddk):
+    def test_default_datasets_propagate_to_a_user(self, unload_users, users, u,
+                                                  ddk):
         assert u.motives == {}
         assert users.motives == {}
 
@@ -26,13 +28,19 @@ class T_UserMotives(Base):
         # Original user should be unchanged
         assert u.motives == {}
 
-    def test_error_adding_motives_with_undefined_dataset(self, unload_users, users):
+    def test_error_adding_motives_with_undefined_dataset(
+            self, unload_users, users):
         assert users.motives == {}
-        with pytest.raises(RuntimeError, match="Cannot add motive corresponding to nonexistent dataset 'nonexistent'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                "Cannot add motive corresponding to nonexistent dataset 'nonexistent'"
+        ):
             users.add_motive("test_ne", "nonexistent")
         assert users.motives == {}
 
-    def test_replacing_default_motives(self, unload_users, users, ddk, ensure_users_tdk, tdk):
+    def test_replacing_default_motives(self, unload_users, users, ddk,
+                                       ensure_users_tdk, tdk):
         tr = "test_replacement"
         users.add_motive(tr, ddk)
         msg = f"Motive '{tr}' already corresponds to dataset '{ddk}'. Use the 'replace_existing' option to update the motive"
@@ -47,7 +55,8 @@ class T_UserMotives(Base):
         assert users.add_motive(tr, tdk, replace_existing=True) == ddk
         assert users.dataset_for(tr) == tdk
 
-    def test_adding_and_retreiving_motives_for_a_user(self, unload_users, users, u, ddk):
+    def test_adding_and_retreiving_motives_for_a_user(self, unload_users,
+                                                      users, u, ddk):
         assert u.motives == {}
         assert users.motives == {}
         assert u.add_motive("test", ddk) is None
@@ -59,11 +68,17 @@ class T_UserMotives(Base):
     def test_missing_motives_for_a_user(self, unload_users, u):
         assert u.dataset_for("Unknown") == None
 
-    def test_error_adding_motives_with_undefined_dataset_for_a_user(self, unload_users, u):
-        with pytest.raises(RuntimeError, match=f"Cannot add motive for user '{u.id}' corresponding to nonexistent dataset 'non_existent'"):
+    def test_error_adding_motives_with_undefined_dataset_for_a_user(
+            self, unload_users, u):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"Cannot add motive for user '{u.id}' corresponding to nonexistent dataset 'non_existent'"
+        ):
             u.add_motive("test_ne", "non_existent")
 
-    def test_replacing_motives_for_a_user(self, unload_users, ensure_users_tdk, u, ddk, tdk):
+    def test_replacing_motives_for_a_user(self, unload_users, ensure_users_tdk,
+                                          u, ddk, tdk):
         n = "test_replacement"
         u.add_motive(n, ddk)
         msg = f"Motive '{n}' for user '{u.id}' already corresponds to dataset '{ddk}'. Use the 'replace_existing' option to update the motive"
@@ -80,12 +95,14 @@ class T_UserMotives(Base):
 
     # TEST_NEEDED
     @pytest.mark.skip
-    def test_retrieving_datasets_from_motives_with_default(self, unload_users, u):
+    def test_retrieving_datasets_from_motives_with_default(
+            self, unload_users, u):
         raise NotImplementedError
-    
+
     # TEST_NEEDED
     @pytest.mark.skip
-    def test_retrieving_datasets_from_motives_with_lookup_chain(self, unload_users, u):
+    def test_retrieving_datasets_from_motives_with_lookup_chain(
+            self, unload_users, u):
         raise NotImplementedError
 
     # TEST_NEEDED
@@ -100,7 +117,8 @@ class T_UserMotives(Base):
 
     # TEST_NEEDED
     @pytest.mark.skip
-    def test_retreiving_data__from_motives_with_lookup_chain(self, unload_users):
+    def test_retreiving_data__from_motives_with_lookup_chain(
+            self, unload_users):
         raise NotImplementedError
 
     def test_password_motives(self, unload_users, u, d, d2):
@@ -121,9 +139,14 @@ class T_UserMotives(Base):
         assert u.dataset_for("nothing") == None
         assert u.password_for("Nothing!", default=None) == "PASSWORD"
         # TODO support default from direct dataset
-        assert u.password_for("Nothing!", default=d2.dataset_name) == "!PASSWORD!"
+        assert u.password_for("Nothing!",
+                              default=d2.dataset_name) == "!PASSWORD!"
 
         # Corner case where a default dataset that doesn't exist is given
         missing = "MIA dataset"
-        with pytest.raises(RuntimeError, match=f"A default dataset '{missing}' was provided, but this dataset does not exists for user '{u.id}'"):
+        with pytest.raises(
+                RuntimeError,
+                match=
+                f"A default dataset '{missing}' was provided, but this dataset does not exists for user '{u.id}'"
+        ):
             u.password_for("Nothing!", default=missing)

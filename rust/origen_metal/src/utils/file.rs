@@ -183,7 +183,8 @@ impl FilePermissions {
                     // given value exceeds max Unix permissions. Very likely this is a mistake
                     bail!(
                         "Given permissions {:#o} exceeds maximum supported Unix permissions {:#o}",
-                        perms, MAX_PERMISSIONS
+                        perms,
+                        MAX_PERMISSIONS
                     )
                 } else {
                     Ok(Self::Custom(perms))

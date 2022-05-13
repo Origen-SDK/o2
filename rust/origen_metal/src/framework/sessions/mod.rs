@@ -8,7 +8,7 @@ use crate::file::FilePermissions;
 use crate::Result;
 use indexmap::IndexMap;
 use std::path::Path;
-use std::sync::{MutexGuard};
+use std::sync::MutexGuard;
 
 // TODO make this lazy static?
 lazy_static! {
@@ -19,14 +19,16 @@ pub fn sessions() -> MutexGuard<'static, Sessions> {
     crate::SESSIONS.lock().unwrap()
 }
 
-pub fn with_session_group<F, T>(name: &str, sessions: Option<MutexGuard<Sessions>>, mut f: F) -> Result<T>
+pub fn with_session_group<F, T>(
+    name: &str,
+    sessions: Option<MutexGuard<Sessions>>,
+    mut f: F,
+) -> Result<T>
 where
     F: FnMut(&SessionGroup, &MutexGuard<Sessions>) -> Result<T>,
 {
     match sessions {
-        Some(s) => {
-            Ok(f(s.require_group(name)?, &s)?)
-        },
+        Some(s) => Ok(f(s.require_group(name)?, &s)?),
         None => {
             let s = super::sessions::sessions();
             Ok(f(s.require_group(name)?, &s)?)
@@ -36,7 +38,7 @@ where
 
 pub struct Sessions {
     groups: IndexMap<String, SessionGroup>,
-    standalones: IndexMap<String, SessionStore>
+    standalones: IndexMap<String, SessionStore>,
 }
 
 impl Sessions {
@@ -47,7 +49,12 @@ impl Sessions {
         }
     }
 
-    pub fn add_group(&mut self, group_name: &str, root: &Path, file_permissions: Option<FilePermissions>) -> Result<&mut SessionGroup> {
+    pub fn add_group(
+        &mut self,
+        group_name: &str,
+        root: &Path,
+        file_permissions: Option<FilePermissions>,
+    ) -> Result<&mut SessionGroup> {
         if let Some(sg) = self.groups.get(group_name) {
             bail!(&format!(
                 "Session group '{}' has already been added (path: '{}')",
@@ -55,11 +62,19 @@ impl Sessions {
                 sg.path().display()
             ));
         }
-        self.groups.insert(group_name.to_string(), SessionGroup::new(group_name, root, file_permissions)?);
+        self.groups.insert(
+            group_name.to_string(),
+            SessionGroup::new(group_name, root, file_permissions)?,
+        );
         Ok(self.groups.get_mut(group_name).unwrap())
     }
 
-    pub fn add_standalone(&mut self, name: &str, root: &Path, file_permissions: Option<FilePermissions>) -> Result<&SessionStore> {
+    pub fn add_standalone(
+        &mut self,
+        name: &str,
+        root: &Path,
+        file_permissions: Option<FilePermissions>,
+    ) -> Result<&SessionStore> {
         if let Some(s) = self.standalones.get(name) {
             bail!(&format!(
                 "Standalone session '{}' has already been added (path: '{}')",
@@ -67,7 +82,10 @@ impl Sessions {
                 s.path().display()
             ));
         }
-        self.standalones.insert(name.to_string(), SessionStore::new(name, root, None, file_permissions)?);
+        self.standalones.insert(
+            name.to_string(),
+            SessionStore::new(name, root, None, file_permissions)?,
+        );
         Ok(self.standalones.get(name).unwrap())
     }
 
@@ -80,7 +98,12 @@ impl Sessions {
     }
 
     // TESTS_NEEDED
-    pub fn ensure_group(&mut self, name: &str, root: &Path, file_permissions: Option<FilePermissions>) -> Result<bool> {
+    pub fn ensure_group(
+        &mut self,
+        name: &str,
+        root: &Path,
+        file_permissions: Option<FilePermissions>,
+    ) -> Result<bool> {
         if self.groups.contains_key(name) {
             Ok(false)
         } else {
@@ -92,14 +115,14 @@ impl Sessions {
     pub fn require_group(&self, group: &str) -> Result<&SessionGroup> {
         match self.groups.get(group) {
             Some(s) => Ok(s),
-            None => bail!("Session group {} has not been created yet!", group)
+            None => bail!("Session group {} has not been created yet!", group),
         }
     }
 
     pub fn require_mut_group(&mut self, group: &str) -> Result<&mut SessionGroup> {
         match self.groups.get_mut(group) {
             Some(s) => Ok(s),
-            None => bail!("Session group {} has not been created yet!", group)
+            None => bail!("Session group {} has not been created yet!", group),
         }
     }
 
@@ -114,14 +137,14 @@ impl Sessions {
     pub fn require_standalone(&self, name: &str) -> Result<&SessionStore> {
         match self.standalones.get(name) {
             Some(s) => Ok(s),
-            None => bail!("Standalone session {} has not been created yet!", name)
+            None => bail!("Standalone session {} has not been created yet!", name),
         }
     }
 
     pub fn require_mut_standalone(&mut self, name: &str) -> Result<&mut SessionStore> {
         match self.standalones.get_mut(name) {
             Some(s) => Ok(s),
-            None => bail!("Standalone session {} has not been created yet!", name)
+            None => bail!("Standalone session {} has not been created yet!", name),
         }
     }
 
@@ -138,8 +161,8 @@ impl Sessions {
             Some(mut g) => {
                 g.clean()?;
                 true
-            },
-            None => false
+            }
+            None => false,
         })
     }
 
@@ -148,8 +171,8 @@ impl Sessions {
             Some(s) => {
                 s.remove_file()?;
                 true
-            },
-            None => false
+            }
+            None => false,
         })
     }
 
@@ -185,8 +208,8 @@ impl Sessions {
 
 #[cfg(all(test, not(origen_skip_frontend_tests)))]
 mod tests {
-    use crate::framework::sessions::{SessionStore, Sessions};
     use crate::current_func;
+    use crate::framework::sessions::{SessionStore, Sessions};
     use num_bigint::BigInt;
     use std::path::PathBuf;
 
@@ -201,7 +224,9 @@ mod tests {
     }
 
     fn posture_session<'a>(sessions: &'a mut Sessions, name: &str) -> &'a SessionStore {
-        let s = sessions.add_standalone(name, &TEST_SESSION_DIR, None).unwrap();
+        let s = sessions
+            .add_standalone(name, &TEST_SESSION_DIR, None)
+            .unwrap();
         s.remove_file().unwrap();
         s
     }
@@ -229,7 +254,9 @@ mod tests {
     #[test]
     fn test_shared_session_string() {
         let mut s = crate::sessions();
-        let session = s.add_standalone("rust_test_session", &TEST_SESSION_DIR, None).unwrap();
+        let session = s
+            .add_standalone("rust_test_session", &TEST_SESSION_DIR, None)
+            .unwrap();
         session.remove_file().unwrap();
         assert_eq!(session.retrieve("rust_test").unwrap(), None);
 
@@ -238,9 +265,7 @@ mod tests {
             &TEST_SESSION_DIR.display()
         );
         cmd.push_str("print(s.path); ");
-        cmd.push_str(
-            "s.store('rust_test', 'test_str')",
-        );
+        cmd.push_str("s.store('rust_test', 'test_str')");
 
         crate::tests::run_python(&cmd).unwrap();
         session.refresh().unwrap();

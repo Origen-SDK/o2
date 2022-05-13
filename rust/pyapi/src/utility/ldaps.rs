@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use pyapi_metal::prelude::frontend::*;
 use super::config_value_map_into_pydict;
 use crate::optional_config_value_map_into_pydict;
+use pyapi_metal::prelude::frontend::*;
+use pyo3::prelude::*;
 
 #[pyfunction]
 pub fn ldaps() -> PyResult<Py<PyDataStoreCategory>> {
@@ -9,9 +9,12 @@ pub fn ldaps() -> PyResult<Py<PyDataStoreCategory>> {
         Ok(f.ensure_data_store_category(origen::FE_CAT_NAME__LDAPS)?.0)
     })?;
 
-    with_py_frontend( |py, f| {
+    with_py_frontend(|py, f| {
         // TODO wrap data_store access somewhere
-        let py_cat = f.data_stores.extract::<PyRef<pyapi_metal::frontend::PyDataStores>>(py)?.ensured_cat(origen::FE_CAT_NAME__LDAPS)?;
+        let py_cat = f
+            .data_stores
+            .extract::<PyRef<pyapi_metal::frontend::PyDataStores>>(py)?
+            .ensured_cat(origen::FE_CAT_NAME__LDAPS)?;
         let mut cat = py_cat.extract::<PyRefMut<pyapi_metal::frontend::PyDataStoreCategory>>(py)?;
 
         if needs_pop {
@@ -27,7 +30,10 @@ pub fn ldaps() -> PyResult<Py<PyDataStoreCategory>> {
                     pylist.append(py.None())?;
                 }
                 pylist.append(config.continuous_bind)?;
-                pylist.append(optional_config_value_map_into_pydict!(py, config.populate_user_config.as_ref()))?;
+                pylist.append(optional_config_value_map_into_pydict!(
+                    py,
+                    config.populate_user_config.as_ref()
+                ))?;
                 pylist.append(config.timeout)?;
                 cat.add(py, name, ldap_cls, Some(pylist), None, None)?;
             }

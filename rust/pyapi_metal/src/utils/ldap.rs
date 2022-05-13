@@ -1,15 +1,15 @@
 // TODO Need to clean up
 
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyBool};
-use std::collections::HashMap;
-use origen_metal::utils::ldap::LDAP as OmLdap;
-use origen_metal::utils::ldap::LdapPopUserConfig as OmLdapPopUserConfig;
-use origen_metal::utils::ldap::SupportedAuths;
-use origen_metal::Result as OMResult;
-use crate::framework::users::{UserDataset, User};
+use crate::framework::users::{User, UserDataset};
 use crate::prelude::*;
 use om::with_user;
+use origen_metal::utils::ldap::LdapPopUserConfig as OmLdapPopUserConfig;
+use origen_metal::utils::ldap::SupportedAuths;
+use origen_metal::utils::ldap::LDAP as OmLdap;
+use origen_metal::Result as OMResult;
+use pyo3::prelude::*;
+use pyo3::types::{PyBool, PyDict};
+use std::collections::HashMap;
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "ldap")?;
@@ -40,15 +40,13 @@ impl LDAP {
     // TODO remove inner ldap stuff. not needed
     pub fn with_inner_ldap<F, T>(&self, func: F) -> OMResult<T>
     where
-        F: FnOnce(&OmLdap) -> OMResult<T>
+        F: FnOnce(&OmLdap) -> OMResult<T>,
     {
         match &self.inner {
             // InnerLDAP::Func(f) => {
             //     func(f.0(&self)?)
             // },
-            InnerLDAP::Om(l) => {
-                func(&l)
-            }
+            InnerLDAP::Om(l) => func(&l),
         }
     }
 
@@ -71,8 +69,21 @@ impl LDAP {
 #[pymethods]
 impl LDAP {
     #[new]
-    #[args(username="None", password="None", populate_user_config="None", timeout="None")]
-    fn new(name: &str, server: &str, base: &str, auth: Option<&PyDict>, continuous_bind: Option<bool>, populate_user_config: Option<&PyDict>, timeout: Option<&PyAny>) -> PyResult<Self> {
+    #[args(
+        username = "None",
+        password = "None",
+        populate_user_config = "None",
+        timeout = "None"
+    )]
+    fn new(
+        name: &str,
+        server: &str,
+        base: &str,
+        auth: Option<&PyDict>,
+        continuous_bind: Option<bool>,
+        populate_user_config: Option<&PyDict>,
+        timeout: Option<&PyAny>,
+    ) -> PyResult<Self> {
         Ok(Self {
             inner: {
                 InnerLDAP::Om({
@@ -98,17 +109,27 @@ impl LDAP {
                                         if let Some(password) = a.get_item("password") {
                                             sb.password = Some(password.extract::<String>()?);
                                         }
-                                        if let Some(priority_motives) = a.get_item("priority_motives") {
-                                            sb.priority_motives = priority_motives.extract::<Vec<String>>()?;
+                                        if let Some(priority_motives) =
+                                            a.get_item("priority_motives")
+                                        {
+                                            sb.priority_motives =
+                                                priority_motives.extract::<Vec<String>>()?;
                                         }
                                         if let Some(backup_motives) = a.get_item("backup_motives") {
-                                            sb.backup_motives = backup_motives.extract::<Vec<String>>()?;
+                                            sb.backup_motives =
+                                                backup_motives.extract::<Vec<String>>()?;
                                         }
-                                        if let Some(allow_default_password) = a.get_item("allow_default_password") {
-                                            sb.allow_default_password = allow_default_password.extract::<bool>()?;
+                                        if let Some(allow_default_password) =
+                                            a.get_item("allow_default_password")
+                                        {
+                                            sb.allow_default_password =
+                                                allow_default_password.extract::<bool>()?;
                                         }
-                                        if let Some(use_default_motives) = a.get_item("use_default_motives") {
-                                            sb.use_default_motives = use_default_motives.extract::<bool>()?;
+                                        if let Some(use_default_motives) =
+                                            a.get_item("use_default_motives")
+                                        {
+                                            sb.use_default_motives =
+                                                use_default_motives.extract::<bool>()?;
                                         }
                                         SupportedAuths::SimpleBind(sb)
                                     }
@@ -139,7 +160,8 @@ impl LDAP {
                                     config.data_id = data_id.extract::<String>()?;
                                 }
                                 if let Some(mapping) = pop_config.get_item("mapping") {
-                                    config.mapping = mapping.extract::<HashMap<String, String>>()?;
+                                    config.mapping =
+                                        mapping.extract::<HashMap<String, String>>()?;
                                 }
                                 if let Some(required) = pop_config.get_item("required") {
                                     config.required = required.extract::<Vec<String>>()?;
@@ -170,9 +192,7 @@ impl LDAP {
         // self.with_inner_ldap( |om_ldap| {
         //     Ok(om_ldap.server().to_string())
         // })?;
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(om_ldap.server().to_string())
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| Ok(om_ldap.server().to_string()))?)
     }
 
     /// Retrieves the base DNs
@@ -181,9 +201,7 @@ impl LDAP {
         // let ldaps = origen::ldaps();
         // let ldap = ldaps._get(&self.name)?;
         // Ok(ldap.base().to_string())
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(om_ldap.base().to_string())
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| Ok(om_ldap.base().to_string()))?)
     }
 
     /// Retrieves this LDAP's name. Does not actually influence anything in the connection itself
@@ -192,9 +210,7 @@ impl LDAP {
         // let mut ldaps = origen::ldaps();
         // let ldap = ldaps._get_mut(&self.name)?;
         // Ok(ldap.name().to_string())
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(om_ldap.name().to_string())
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| Ok(om_ldap.name().to_string()))?)
     }
 
     /// Retrieves this LDAP's authentication configuration
@@ -203,8 +219,11 @@ impl LDAP {
         // let mut ldaps = origen::ldaps();
         // let ldap = ldaps._get_mut(&self.name)?;
         // Ok(ldap.auth().to_hashmap())
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(crate::_helpers::typed_value::into_pydict(py, om_ldap.auth().config_into_map())?)
+        Ok(self.with_inner_ldap(|om_ldap| {
+            Ok(crate::_helpers::typed_value::into_pydict(
+                py,
+                om_ldap.auth().config_into_map(),
+            )?)
         })?)
     }
 
@@ -214,8 +233,11 @@ impl LDAP {
         // let mut ldaps = origen::ldaps();
         // let ldap = ldaps._get_mut(&self.name)?;
         // Ok(ldap.auth().to_hashmap())
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(crate::_helpers::typed_value::into_pydict(py, om_ldap.auth().resolve_and_into_map(om_ldap)?)?)
+        Ok(self.with_inner_ldap(|om_ldap| {
+            Ok(crate::_helpers::typed_value::into_pydict(
+                py,
+                om_ldap.auth().resolve_and_into_map(om_ldap)?,
+            )?)
         })?)
     }
 
@@ -226,23 +248,17 @@ impl LDAP {
         // let mut ldaps = origen::ldaps();
         // let ldap = ldaps._get_mut(&self.name)?;
         // Ok(ldap.bound())
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(om_ldap.bound())
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| Ok(om_ldap.bound()))?)
     }
 
     #[getter]
     fn get_timeout(&self) -> PyResult<Option<u64>> {
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(om_ldap.timeout())
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| Ok(om_ldap.timeout()))?)
     }
 
     #[getter]
     fn get_continuous_bind(&self) -> PyResult<bool> {
-        Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(om_ldap.continuous_bind())
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| Ok(om_ldap.continuous_bind()))?)
     }
 
     /// search(filter: str, attrs: list) -> dict
@@ -276,9 +292,7 @@ impl LDAP {
         // let mut ldaps = origen::ldaps();
         // let ldap = ldaps._get_mut(&self.name)?;
         // Ok(ldap.search(filter, attrs)?)
-        Ok(self.with_inner_ldap( |om_ldap| {
-            om_ldap.search(filter, attrs)
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| om_ldap.search(filter, attrs))?)
     }
 
     /// single_filter_search(filter: str, attrs: list) -> tuple
@@ -301,11 +315,8 @@ impl LDAP {
         // let mut ldaps = origen::ldaps();
         // let ldap = ldaps._get_mut(&self.name)?;
         // Ok(ldap.single_filter_search(filter, attrs)?)
-        Ok(self.with_inner_ldap( |om_ldap| {
-            om_ldap.single_filter_search(filter, attrs)
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| om_ldap.single_filter_search(filter, attrs))?)
     }
-
 
     /// bind(self) -> bool
     ///
@@ -319,9 +330,7 @@ impl LDAP {
         // let ldap = ldaps._get_mut(&self.name)?;
         // ldap.bind()?;
         // Ok(true)
-        self.with_inner_ldap( |om_ldap| {
-            om_ldap.bind()
-        })?;
+        self.with_inner_ldap(|om_ldap| om_ldap.bind())?;
         Ok(true)
     }
 
@@ -330,15 +339,11 @@ impl LDAP {
         // let ldap = ldaps._get_mut(&self.name)?;
         // ldap.unbind()?;
         // Ok(true)
-        Ok(self.with_inner_ldap( |om_ldap| {
-            om_ldap.unbind()
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| om_ldap.unbind())?)
     }
 
     fn validate_credentials(&self, username: &str, password: &str) -> PyResult<bool> {
-        Ok(self.with_inner_ldap( |om_ldap| {
-            om_ldap.try_password(username, password)
-        })?)
+        Ok(self.with_inner_ldap(|om_ldap| om_ldap.try_password(username, password))?)
     }
 
     // TEST_NEEDED
@@ -352,12 +357,12 @@ impl LDAP {
     }
 
     fn populate_user(&self, user: PyRef<User>, dataset: PyRef<UserDataset>) -> PyResult<PyOutcome> {
-        Ok(self.with_inner_ldap( |om_ldap| {
-            with_user(&user.user_id(), |u| {
-                u.with_dataset_mut(dataset.dataset(), |d| {
-                    om_ldap.populate_user(u, d)
+        Ok(self
+            .with_inner_ldap(|om_ldap| {
+                with_user(&user.user_id(), |u| {
+                    u.with_dataset_mut(dataset.dataset(), |d| om_ldap.populate_user(u, d))
                 })
-            })
-        })?.into())
+            })?
+            .into())
     }
 }

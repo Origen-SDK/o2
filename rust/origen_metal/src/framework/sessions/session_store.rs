@@ -1,6 +1,6 @@
 use crate::file::FilePermissions;
-use crate::TypedValue;
 use crate::Result;
+use crate::TypedValue;
 use indexmap::IndexMap;
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
@@ -37,7 +37,15 @@ impl PartialEq for SessionStore {
     // the same permissions.
     // Note: one may be "out-of-sync" and need refreshing and the compare will still return true
     fn eq(&self, other: &Self) -> bool {
-        self.path == other.path && self.permissions.as_ref().unwrap_or(&DEFAULT_FILE_PERMISSIONS) == other.permissions.as_ref().unwrap_or(&DEFAULT_FILE_PERMISSIONS)
+        self.path == other.path
+            && self
+                .permissions
+                .as_ref()
+                .unwrap_or(&DEFAULT_FILE_PERMISSIONS)
+                == other
+                    .permissions
+                    .as_ref()
+                    .unwrap_or(&DEFAULT_FILE_PERMISSIONS)
     }
 }
 
@@ -56,7 +64,7 @@ impl SessionStore {
                 r.push(name);
                 r
             },
-            group: group
+            group: group,
         };
         s.refresh()?;
         Ok(s)
@@ -99,7 +107,12 @@ impl SessionStore {
     }
 
     pub fn name(&self) -> Result<String> {
-        Ok(self.path.file_stem().unwrap().to_os_string().into_string()?)
+        Ok(self
+            .path
+            .file_stem()
+            .unwrap()
+            .to_os_string()
+            .into_string()?)
     }
 
     pub fn store(&self, key: String, data: TypedValue) -> Result<()> {
@@ -123,9 +136,7 @@ impl SessionStore {
     }
 
     pub fn delete(&self, key: &str) -> Result<Option<TypedValue>> {
-        let value = self.with_mut_data( |data| {
-            Ok(data.data.remove(key))
-        })?;
+        let value = self.with_mut_data(|data| Ok(data.data.remove(key)))?;
         self.write().unwrap();
         if let Some(v) = value {
             Ok(Some(TypedValue::try_from(&v)?))
@@ -135,7 +146,7 @@ impl SessionStore {
     }
 
     pub fn retrieve(&self, key: &str) -> Result<Option<TypedValue>> {
-        self.with_data( |data| {
+        self.with_data(|data| {
             let value = data.data.get(key);
             if let Some(v) = value {
                 Ok(Some(TypedValue::try_from(v)?))
@@ -188,7 +199,7 @@ impl SessionStore {
     }
 
     pub fn refresh(&self) -> Result<()> {
-        self.with_mut_data( |data| {
+        self.with_mut_data(|data| {
             if let Some(d) = Self::read_toml(&self.path)? {
                 *data = d;
             } else {
@@ -226,12 +237,15 @@ impl SessionStore {
         }
         let mut file = File::create(&self.path).unwrap();
         write!(file, "{}", toml::to_string(&*self.data.read()?).unwrap()).unwrap();
-        self.permissions.as_ref().unwrap_or(&DEFAULT_FILE_PERMISSIONS).apply_to(&self.path, true)?;
+        self.permissions
+            .as_ref()
+            .unwrap_or(&DEFAULT_FILE_PERMISSIONS)
+            .apply_to(&self.path, true)?;
         Ok(())
     }
 
     pub fn data(&self) -> Result<IndexMap<String, TypedValue>> {
-        self.with_data( |data| {
+        self.with_data(|data| {
             let mut retn: IndexMap<String, TypedValue> = IndexMap::new();
             for (k, v) in data.data.iter() {
                 retn.insert(k.to_string(), TypedValue::try_from(v)?);
@@ -241,14 +255,10 @@ impl SessionStore {
     }
 
     pub fn len(&self) -> Result<usize> {
-        self.with_data( |data| {
-            Ok(data.data.len())
-        })
+        self.with_data(|data| Ok(data.data.len()))
     }
 
     pub fn keys(&self) -> Result<Vec<String>> {
-        self.with_data( |data| {
-            Ok(data.data.keys().map(|k| k.to_string()).collect())
-        })
+        self.with_data(|data| Ok(data.data.keys().map(|k| k.to_string()).collect()))
     }
 }

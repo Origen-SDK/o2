@@ -31,7 +31,7 @@ pub struct LDAPConfig {
     pub auth: Option<HashMap<String, config::Value>>,
     pub continuous_bind: Option<bool>,
     pub populate_user_config: Option<HashMap<String, config::Value>>,
-    pub timeout: Option<i32>
+    pub timeout: Option<i32>,
 }
 
 impl std::convert::From<LDAPConfig> for config::ValueKind {
@@ -52,7 +52,12 @@ impl std::convert::TryFrom<&DatasetConfig> for OMDatasetConfig {
     type Error = om::Error;
 
     fn try_from(value: &DatasetConfig) -> Result<Self, Self::Error> {
-        OMDatasetConfig::new(value.category.clone(), value.data_store.clone(), value.auto_populate, value.should_validate_password)
+        OMDatasetConfig::new(
+            value.category.clone(),
+            value.data_store.clone(),
+            value.auto_populate,
+            value.should_validate_password,
+        )
     }
 }
 
@@ -135,39 +140,65 @@ impl Default for Config {
         s = s.set_default("pkg_server_push", "").unwrap();
         s = s.set_default("pkg_server_pull", "").unwrap();
         s = s.set_default("some_val", 3).unwrap();
-        s = s.set_default("mailer__maillists_dirs", Vec::<String>::new()).unwrap();
-        s = s.set_default("mailer", None::<HashMap<String, String>>).unwrap();
-        s = s.set_default("ldaps", {
-            // let h: HashMap<String, HashMap<String, String>> = HashMap::new();
-            let h: HashMap<String, LDAPConfig> = HashMap::new();
-            h
-        }).unwrap();
-        s = s.set_default("user__data_lookup_hierarchy", None::<Vec<String>>).unwrap();
+        s = s
+            .set_default("mailer__maillists_dirs", Vec::<String>::new())
+            .unwrap();
+        s = s
+            .set_default("mailer", None::<HashMap<String, String>>)
+            .unwrap();
+        s = s
+            .set_default("ldaps", {
+                // let h: HashMap<String, HashMap<String, String>> = HashMap::new();
+                let h: HashMap<String, LDAPConfig> = HashMap::new();
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("user__data_lookup_hierarchy", None::<Vec<String>>)
+            .unwrap();
         s = s.set_default("user__password_auth_attempts", 3).unwrap();
-        s = s.set_default("user__password_cache_option", "keyring").unwrap();
-        s = s.set_default("user__datasets", {
-            let h: Option<HashMap<String, DatasetConfig>> = None;
-            h
-        }).unwrap();
-        s = s.set_default("user__dataset_mappings", {
-            let h: HashMap<String, HashMap<String, String>> = HashMap::new();
-            h
-        }).unwrap();
-        s = s.set_default("user__dataset_motives", {
-            let h: HashMap<String, String> = HashMap::new();
-            h
-        }).unwrap();
-        s = s.set_default("service_users", {
-            let h: HashMap<String, HashMap<String, String>> = HashMap::new();
-            h
-        }).unwrap();
+        s = s
+            .set_default("user__password_cache_option", "keyring")
+            .unwrap();
+        s = s
+            .set_default("user__datasets", {
+                let h: Option<HashMap<String, DatasetConfig>> = None;
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("user__dataset_mappings", {
+                let h: HashMap<String, HashMap<String, String>> = HashMap::new();
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("user__dataset_motives", {
+                let h: HashMap<String, String> = HashMap::new();
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("service_users", {
+                let h: HashMap<String, HashMap<String, String>> = HashMap::new();
+                h
+            })
+            .unwrap();
 
-        s = s.set_default("default_encryption_key", None::<String>).unwrap();
-        s = s.set_default("default_encryption_nonce", None::<String>).unwrap();
+        s = s
+            .set_default("default_encryption_key", None::<String>)
+            .unwrap();
+        s = s
+            .set_default("default_encryption_nonce", None::<String>)
+            .unwrap();
 
         // Encryption keys specifically for passwords
-        s = s.set_default("password_encryption_key", None::<String>).unwrap();
-        s = s.set_default("password_encryption_nonce", None::<String>).unwrap();
+        s = s
+            .set_default("password_encryption_key", None::<String>)
+            .unwrap();
+        s = s
+            .set_default("password_encryption_nonce", None::<String>)
+            .unwrap();
 
         // Session setup
         s = s.set_default("session__user_root", None::<String>).unwrap();
@@ -296,7 +327,6 @@ impl Default for Config {
         // }
     }
 }
-
 
 // TODO need to add some support for this again in some way../
 /*

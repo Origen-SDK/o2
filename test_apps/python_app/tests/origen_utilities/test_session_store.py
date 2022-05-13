@@ -4,7 +4,8 @@ from tests import om_shared
 from tests.shared import tmp_dir
 
 with om_shared():
-    from om_tests.utils.test_sessions import Common # type:ignore
+    from om_tests.utils.test_sessions import Common  # type:ignore
+
 
 class Base(Common):
     @property
@@ -13,7 +14,8 @@ class Base(Common):
 
     @property
     def user_test_session_root(self):
-        return pathlib.Path(tmp_dir().joinpath(f".o2/.session/{self.user_sg_name}"))
+        return pathlib.Path(
+            tmp_dir().joinpath(f".o2/.session/{self.user_sg_name}"))
 
     @property
     def user_sg_name(self):
@@ -70,14 +72,17 @@ class Base(Common):
         assert self.app_test_session_root.exists() is False
         assert self.user_test_session_root.exists() is False
 
+
 class TestOrigenSessions(Base):
     def test_blank_sessions(self, clear_test_sessions):
         ''' Should return a Session class but not actually create any files yet'''
-        assert isinstance(self.sessions, _origen.utility.sessions.OrigenSessions)
+        assert isinstance(self.sessions,
+                          _origen.utility.sessions.OrigenSessions)
         assert isinstance(self.user_sg, self.sg_class)
         assert isinstance(self.app_sg, self.sg_class)
 
-        assert set(self.sessions.groups.keys()) == {self.user_sg_name, "__app__"}
+        assert set(
+            self.sessions.groups.keys()) == {self.user_sg_name, "__app__"}
         assert len(self.sessions.standalones) == 0
 
         # Only the default session should be in the group initially
@@ -98,16 +103,20 @@ class TestOrigenSessions(Base):
         assert str(self.app_sg.permissions) == "group_writable"
 
     def test_app_session_paths(self):
-        assert self.app_session().path == self.app_test_session_root.joinpath(self.app_name)
+        assert self.app_session().path == self.app_test_session_root.joinpath(
+            self.app_name)
 
         self.app_sessions.add_session("blah")
-        assert self.app_session("blah").path == self.app_test_session_root.joinpath("blah")
+        assert self.app_session(
+            "blah").path == self.app_test_session_root.joinpath("blah")
 
     def test_user_session_paths(self):
-        assert self.user_session().path == self.user_test_session_root.joinpath("__user__")
+        assert self.user_session(
+        ).path == self.user_test_session_root.joinpath("__user__")
 
         self.user_sessions.add_session("blah")
-        assert self.user_session("blah").path == self.user_test_session_root.joinpath("blah")
+        assert self.user_session(
+            "blah").path == self.user_test_session_root.joinpath("blah")
 
     def test_app_session_aliases(self):
         assert self.app_session() == self.app_session(self.app_name)
@@ -129,7 +138,8 @@ class TestOrigenSessions(Base):
         assert self.pl_name in self.user_sessions
 
     def test_user_session_for_app(self):
-        assert self.user_session(self.app_name) == self.user_session(origen.app)
+        assert self.user_session(self.app_name) == self.user_session(
+            origen.app)
         assert self.user_session(self.app_name) == origen.app.user_session
 
     def test_plugin_session_names_are_auto_added_to_app_session(self):
@@ -138,14 +148,21 @@ class TestOrigenSessions(Base):
         assert self.pl_name in self.app_sessions
 
     def test_plugin_app_session_aliases(self):
-        assert self.app_session(self.pl_name).path == self.app_test_session_root.joinpath(self.pl_name)
+        assert self.app_session(
+            self.pl_name).path == self.app_test_session_root.joinpath(
+                self.pl_name)
         assert self.app_session(self.pl_name) == self.app_session(self.pl)
-        assert self.app_session(self.pl_name) == origen.plugin(self.pl_name).session
+        assert self.app_session(self.pl_name) == origen.plugin(
+            self.pl_name).session
 
     def test_plugin_user_session_aliases(self):
-        assert self.user_session(self.pl_name).path == self.user_test_session_root.joinpath(self.pl_name)
+        assert self.user_session(
+            self.pl_name).path == self.user_test_session_root.joinpath(
+                self.pl_name)
         assert self.user_session(self.pl_name) == self.user_session(self.pl)
-        assert self.user_session(self.pl_name) == origen.plugin(self.pl_name).user_session
+        assert self.user_session(self.pl_name) == origen.plugin(
+            self.pl_name).user_session
+
 
 # TODO move user stuff to origen metal tests
 @pytest.mark.skip
@@ -187,7 +204,8 @@ class TestSessionStore(Base):
     def test_getting_all_user_sessions(self):
         ''' This will include all added sessions under 'user', even if no data (and no actual file) is present'''
         assert set(self.user_sessions.keys()) == {
-            self.user_id, self.app_name, 'my_session', 'python_plugin', 'blah', 'test_roundtrip_user_session'
+            self.user_id, self.app_name, 'my_session', 'python_plugin', 'blah',
+            'test_roundtrip_user_session'
         }
 
     def test_default_app_session(self):
@@ -212,5 +230,6 @@ class TestSessionStore(Base):
 
     def test_getting_all_app_sessions(self):
         assert set(self.app_sessions.keys()) == {
-            self.app_name, 'app_session', 'python_plugin', 'blah', 'test_roundtrip_app_session'
+            self.app_name, 'app_session', 'python_plugin', 'blah',
+            'test_roundtrip_app_session'
         }

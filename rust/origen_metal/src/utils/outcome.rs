@@ -1,4 +1,4 @@
-use crate::{TypedValueVec, TypedValueMap};
+use crate::{TypedValueMap, TypedValueVec};
 
 type AsNoun = String;
 type AsVerb = String;
@@ -51,7 +51,7 @@ pub struct Outcome {
     pub positional_results: Option<TypedValueVec>,
     pub keyword_results: Option<TypedValueMap>,
     pub metadata: Option<TypedValueMap>,
-    pub inferred: Option<bool>
+    pub inferred: Option<bool>,
 }
 
 impl std::fmt::Display for Outcome {
@@ -68,7 +68,7 @@ impl Outcome {
             positional_results: None,
             keyword_results: None,
             metadata: None,
-            inferred: None
+            inferred: None,
         }
     }
 
@@ -177,10 +177,9 @@ impl Outcome {
     pub fn msg_or_default(&self) -> &str {
         match &self.message {
             Some(m) => m,
-            None => "No message was provided!"
+            None => "No message was provided!",
         }
     }
-
 
     // pub fn add_metadata(&mut self, key: &str, m: Metadata) -> Result<&mut Self> {
     //     if self.metadata.is_none() {

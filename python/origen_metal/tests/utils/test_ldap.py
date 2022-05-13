@@ -28,6 +28,7 @@ INIT_PARAMS = [
     TIMEOUT,
 ]
 
+
 class Common:
     def forumsys_ldap(self, timeout=TIMEOUT, continuous_bind=CONTINUOUS_BIND):
         return om._origen_metal.utils.ldap.LDAP(
@@ -44,10 +45,11 @@ class Common:
     @property
     def ldap_class(self):
         return LDAP
-    
+
     @property
     def init_params(self):
         return INIT_PARAMS
+
 
 class TestStandaloneLDAP:
     def forumsys_ldap(self, timeout=5, continuous_bind=False):
@@ -55,7 +57,7 @@ class TestStandaloneLDAP:
             name=NAME,
             server=SERVER,
             base=BASE,
-            auth = AUTH_SETUP,
+            auth=AUTH_SETUP,
             timeout=timeout,
             continuous_bind=continuous_bind,
         )
@@ -102,7 +104,7 @@ class TestStandaloneLDAP:
         # assert ldap.populate_user_config == None
 
     def test_ldap_can_bind(self):
-        ldap = self.forumsys_ldap(continuous_bind = True)
+        ldap = self.forumsys_ldap(continuous_bind=True)
         assert ldap.continuous_bind == True
         assert ldap.bind()
         assert ldap.bound == True
@@ -184,8 +186,7 @@ class TestStandaloneLDAP:
         ldap = self.forumsys_ldap()
         with pytest.raises(RuntimeError,
                            match="expected a single DN result from filter"):
-            ldap.single_filter_search("(|(uid=tesla)(uid=Curie))",
-                                           ["mail"])
+            ldap.single_filter_search("(|(uid=tesla)(uid=Curie))", ["mail"])
 
     def test_unbind_and_rebind(self):
         ldap = self.forumsys_ldap(continuous_bind=True)
@@ -210,9 +211,9 @@ class TestStandaloneLDAP:
         # Should not effect the current LDAP
         assert ldap.bound == True
 
+
 class TestLdapAsDataStore(DataStoreView):
     ''' The LDAP's only data store feature is populating users'''
-
     def parameterize(self):
         return {
             "init_args": [
@@ -234,6 +235,7 @@ class TestLdapAsDataStore(DataStoreView):
             'cn': ['Nikola Tesla']
         }, {})
 
+
 class TestAuthSetups:
     class TestSimpleBind:
         @pytest.fixture
@@ -252,7 +254,7 @@ class TestAuthSetups:
                 u = users.add("ldap_user")
                 users.set_current_user(u)
                 return u
-        
+
         @pytest.fixture
         def cu(self, users, u):
             return users.current_user
@@ -280,7 +282,8 @@ class TestAuthSetups:
                 'backup_motives': [],
             }
 
-        def test_username_and_password_from_current_user(self, min_auth, u, cu):
+        def test_username_and_password_from_current_user(
+                self, min_auth, u, cu):
             # Should return the default password
             assert cu.password == "top_pwd"
             assert min_auth.auth["password"] == "top_pwd"
@@ -311,12 +314,11 @@ class TestAuthSetups:
                 name="custom_motives",
                 base=BASE,
                 server=SERVER,
-                auth= {
+                auth={
                     "priority_motives": ["ldap_pw"],
                     "backup_motives": ["ldap_pw_backup"],
                     "allow_default_password": False,
-                }
-            )
+                })
             assert ldap.auth_config == {
                 'scheme': AUTH_TYPE,
                 'username': None,
@@ -329,14 +331,18 @@ class TestAuthSetups:
             motives = ["ldap_pw", "custom_motives", "ldap", "ldap_pw_backup"]
 
             motives_str = (', ').join([f"'{m}'" for m in motives])
-            with pytest.raises(RuntimeError, match=f"No password found for user '{cu.id}' matching motives {motives_str}"):
+            with pytest.raises(
+                    RuntimeError,
+                    match=
+                    f"No password found for user '{cu.id}' matching motives {motives_str}"
+            ):
                 ldap.auth
-            
+
             u.register_dataset("backup")
             u.add_motive("ldap_pw_backup", "backup")
             u.datasets["backup"].password = "backup_pw"
             assert ldap.auth["password"] == "backup_pw"
-            
+
             u.register_dataset("generic")
             u.add_motive("ldap", "generic")
             u.datasets["generic"].password = "generic_pw"
@@ -361,11 +367,10 @@ class TestAuthSetups:
                     name="custom_motives",
                     base=BASE,
                     server=SERVER,
-                    auth= {
+                    auth={
                         "allow_default_password": False,
                         "use_default_motives": False,
-                    }
-                )
+                    })
 
         def test_custom_motives_only(self, unload_users, users, u, cu):
             # Auth and username given, but no password, looks up user with same password motives as before
@@ -384,8 +389,7 @@ class TestAuthSetups:
                     "priority_motives": ["ldap_name_only"],
                     "allow_default_password": False,
                     "use_default_motives": False,
-                }
-            )
+                })
             assert ldap.auth == {
                 "scheme": "simple_bind",
                 "motives": ["ldap_name_only"],
@@ -397,14 +401,13 @@ class TestAuthSetups:
         def test_given_password_without_username(self, cu):
             # Auth and password given but no username assumes current user
             # Can be used a hard-code/shared/common password without needing to explicitly add a dataset
-            ldap = om._origen_metal.utils.ldap.LDAP(
-                name="ldap_static_pw",
-                base=BASE,
-                server=SERVER,
-                auth={
-                    "password": "static_pw",
-                }
-            )
+            ldap = om._origen_metal.utils.ldap.LDAP(name="ldap_static_pw",
+                                                    base=BASE,
+                                                    server=SERVER,
+                                                    auth={
+                                                        "password":
+                                                        "static_pw",
+                                                    })
             assert ldap.auth == {
                 "scheme": "simple_bind",
                 "motives": ["ldap_static_pw", "ldap"],
@@ -427,8 +430,7 @@ class TestAuthSetups:
                 auth={
                     "username": "static_user",
                     "password": "static_pw",
-                }
-            )
+                })
             assert ldap.auth == {
                 "scheme": "simple_bind",
                 "motives": ["ldap_static_user_and_pw", "ldap"],
@@ -444,7 +446,7 @@ class TestAuthSetups:
                 server=SERVER,
                 auth={
                     "username": static_n,
-                }
-            )
-            with pytest.raises(RuntimeError, match=f"No user '{static_n}' has been added"):
+                })
+            with pytest.raises(RuntimeError,
+                               match=f"No user '{static_n}' has been added"):
                 ldap.auth

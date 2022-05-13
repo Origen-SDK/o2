@@ -1,7 +1,7 @@
 // use crate::core::user::with_top_hierarchy;
 use crate::{GenericResult, Metadata, Result, ORIGEN_CONFIG, STATUS};
-use origen_metal::with_current_user;
 use lettre;
+use origen_metal::with_current_user;
 use std::path::PathBuf;
 
 use crate::utility::resolve_os_str;
@@ -514,7 +514,9 @@ impl Mailer {
                 }
             } else {
                 if let Some(d) = self.get_dataset()? {
-                    Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| u.username())?)
+                    Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| {
+                        u.username()
+                    })?)
                 } else {
                     Ok(with_current_user(|u| u.username())?)
                 }
@@ -536,7 +538,9 @@ impl Mailer {
                     error!("No password given for service user '{}'", u.0)
                 }
             } else {
-                Ok(with_current_user(|u| u.password(Some(PASSWORD_REASON), true, Some(None)))?)
+                Ok(with_current_user(|u| {
+                    u.password(Some(PASSWORD_REASON), true, Some(None))
+                })?)
             }
         }
     }
@@ -548,7 +552,9 @@ impl Mailer {
             }
         }
         if let Some(d) = self.get_dataset()? {
-            Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| u.require_email())?)
+            Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| {
+                u.require_email()
+            })?)
         } else {
             Ok(with_current_user(|u| u.require_email())?)
         }

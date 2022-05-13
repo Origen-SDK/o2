@@ -11,18 +11,20 @@ from configs import ldap as ldap_configs
 
 # Grab the dummy RC from origen_metal's tests
 with om_shared():
-    from om_tests import test_frontend # type:ignore
-    from om_tests.utils.test_ldap import Common as LdapCommon # type:ignore
-    from om_tests.utils.test_ldap import SERVER, BASE, AUTH_SETUP # type:ignore
+    from om_tests import test_frontend  # type:ignore
+    from om_tests.utils.test_ldap import Common as LdapCommon  # type:ignore
+    from om_tests.utils.test_ldap import SERVER, BASE, AUTH_SETUP  # type:ignore
+
 
 class TestLDAPs(LdapCommon, test_frontend.Common):
-
     def test_ldaps_are_accessible(self):
         n = "test_ldap"
         assert isinstance(origen.ldaps, self.cat_class)
         num_ldaps = len(origen.ldaps)
 
-        assert isinstance(origen.ldaps.add(n, self.ldap_class, ["t", SERVER, BASE, AUTH_SETUP]), self.ldap_class)
+        assert isinstance(
+            origen.ldaps.add(n, self.ldap_class,
+                             ["t", SERVER, BASE, AUTH_SETUP]), self.ldap_class)
         assert len(origen.ldaps) == num_ldaps + 1
         assert n in origen.ldaps
         assert isinstance(origen.ldaps[n], self.ldap_class)

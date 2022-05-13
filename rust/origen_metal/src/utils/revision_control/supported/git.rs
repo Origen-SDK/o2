@@ -1,10 +1,10 @@
 use super::super::{Credentials, RevisionControlAPI, Status};
+use crate::framework::users::{Data, User};
 use crate::utils::command::log_stdout_and_stderr;
 use crate::{Outcome, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use crate::framework::users::{User, Data};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::Repository;
@@ -896,7 +896,10 @@ impl Git {
             if let Some(n) = entry.name() {
                 let v = match entry.value() {
                     Some(val) => val.to_string(),
-                    None => bail!("Git encountered non UTF-8 config value while populate user '{}'", user.id())
+                    None => bail!(
+                        "Git encountered non UTF-8 config value while populate user '{}'",
+                        user.id()
+                    ),
                 };
 
                 if n == "user.name" {
@@ -907,13 +910,18 @@ impl Git {
                     data.other.insert(
                         match n.splitn(2, "user.").last() {
                             Some(s) => s,
-                            None => bail!("Expected git config setting '{}' to start with 'user.'", n)
+                            None => {
+                                bail!("Expected git config setting '{}' to start with 'user.'", n)
+                            }
                         },
-                        v
+                        v,
                     );
                 }
             } else {
-                bail!("Git encountered non UTF-8 config name while populate user '{}'", user.id());
+                bail!(
+                    "Git encountered non UTF-8 config name while populate user '{}'",
+                    user.id()
+                );
             }
         }
         Ok(Outcome::new_success())

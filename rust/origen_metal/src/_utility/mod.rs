@@ -1,24 +1,32 @@
 /// Internal utility functions, not meant for user consumption and definitely not meant to be
 /// (directly) wrapped by any frontend utility.
-
 use crate::Result;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
 /// Checks the given values of a vector against an enumerated set of accepted values.
 /// Optionally, check for duplicate items as well.
-pub fn validate_input_list<'a, S, T, U>(input: T, allowed: U, allow_duplicates: bool, duplicate_error_customizer: Option<&dyn Fn(&S, usize, usize) -> String>, value_error_customizer: Option<&dyn Fn(&Vec<&&S>) -> String>) -> Result<()>
-    where
-        S: 'a + std::cmp::Eq + std::hash::Hash + std::fmt::Display,
-        T: IntoIterator<Item=&'a S>,
-        U: IntoIterator<Item=&'a S>,
+pub fn validate_input_list<'a, S, T, U>(
+    input: T,
+    allowed: U,
+    allow_duplicates: bool,
+    duplicate_error_customizer: Option<&dyn Fn(&S, usize, usize) -> String>,
+    value_error_customizer: Option<&dyn Fn(&Vec<&&S>) -> String>,
+) -> Result<()>
+where
+    S: 'a + std::cmp::Eq + std::hash::Hash + std::fmt::Display,
+    T: IntoIterator<Item = &'a S>,
+    U: IntoIterator<Item = &'a S>,
 {
     let input_vector: Vec<&S> = input.into_iter().collect();
     let mut input_hash: HashSet<&S> = HashSet::new();
     for (idx, i) in input_vector.iter().enumerate() {
         let added = input_hash.insert(i);
         if !allow_duplicates & !added {
-            let f_idx = input_vector.iter().position(|x| x == i).expect(&format!("Expected element {} in input", i.to_string()));
+            let f_idx = input_vector
+                .iter()
+                .position(|x| x == i)
+                .expect(&format!("Expected element {} in input", i.to_string()));
             if let Some(f) = duplicate_error_customizer {
                 bail!(&f(i, f_idx, idx));
             } else {
@@ -40,7 +48,10 @@ pub fn validate_input_list<'a, S, T, U>(input: T, allowed: U, allow_duplicates: 
         } else {
             bail!(
                 "Input contains values which are not allowed in this context: {}",
-                diff.iter().map(|d| format!("'{}'", d)).collect::<Vec<String>>().join(", ")
+                diff.iter()
+                    .map(|d| format!("'{}'", d))
+                    .collect::<Vec<String>>()
+                    .join(", ")
             );
         }
     }

@@ -1,7 +1,7 @@
 use super::{with_frontend_mod, PY_FRONTEND};
 use crate::{bail_with_runtime_error, frontend_mod};
-use pyo3::prelude::*;
 use indexmap::IndexMap;
+use pyo3::prelude::*;
 
 use super::py_data_stores::PyDataStores;
 
@@ -49,11 +49,9 @@ impl PyFrontend {
 
 impl PyFrontend {
     pub fn new() -> Self {
-        Self { 
+        Self {
             rc: None,
-            data_stores: Python::with_gil(|py| {
-                Py::new(py, PyDataStores::new())
-            }).unwrap(),
+            data_stores: Python::with_gil(|py| Py::new(py, PyDataStores::new())).unwrap(),
             _users_: IndexMap::new(),
             _spare_: IndexMap::new(),
         }
