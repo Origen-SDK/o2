@@ -23,7 +23,7 @@ impl SessionGroup {
                 r
             },
             sessions: IndexMap::new(),
-            file_permissions: file_permissions.unwrap_or(DEFAULT_FILE_PERMISSIONS.clone())
+            file_permissions: file_permissions.unwrap_or_else(|| DEFAULT_FILE_PERMISSIONS.clone())
         };
         sg.populate()?;
         Ok(sg)
@@ -53,6 +53,15 @@ impl SessionGroup {
                 let s = self.add_session(name)?;
                 s
             }
+        })
+    }
+
+    pub fn ensure(&mut self, name: &str) -> Result<bool> {
+        Ok(if self.sessions.contains_key(name) {
+            false
+        } else {
+            self.add_session(name)?;
+            true
         })
     }
 

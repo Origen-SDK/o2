@@ -108,6 +108,10 @@ impl Outcome {
         Self::new(OutcomeState::fail())
     }
 
+    pub fn new_err() -> Self {
+        Self::new(OutcomeState::error())
+    }
+
     pub fn new_error() -> Self {
         Self::new(OutcomeState::error())
     }
@@ -139,6 +143,10 @@ impl Outcome {
         }
     }
 
+    pub fn passed(&self) -> bool {
+        self.succeeded()
+    }
+
     pub fn failed(&self) -> bool {
         match self.state {
             OutcomeState::Fail(_, _) => true,
@@ -157,6 +165,22 @@ impl Outcome {
         self.message = Some(message.to_string());
         self
     }
+
+    pub fn message(&self) -> &Option<String> {
+        &self.message
+    }
+
+    pub fn msg(&self) -> &Option<String> {
+        self.message()
+    }
+
+    pub fn msg_or_default(&self) -> &str {
+        match &self.message {
+            Some(m) => m,
+            None => "No message was provided!"
+        }
+    }
+
 
     // pub fn add_metadata(&mut self, key: &str, m: Metadata) -> Result<&mut Self> {
     //     if self.metadata.is_none() {

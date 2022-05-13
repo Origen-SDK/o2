@@ -101,7 +101,7 @@ impl Processor for FlattenText {
             }
             Attrs::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
             Attrs::User => {
-                if let Err(e) = crate::with_current_user(|u| {
+                if let Err(e) = origen_metal::with_current_user(|u| {
                     self.current_line += &u.username()?;
                     Ok(())
                 }) {

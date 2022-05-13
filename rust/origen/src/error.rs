@@ -40,12 +40,6 @@ pub fn raises_error(yes: bool) -> Result<()> {
 use pyo3::prelude::*;
 use pyo3::{exceptions, PyErr};
 
-//impl std::convert::Into<PyErr> for Error {
-//    fn into(self) -> PyErr {
-//        exceptions::OSError::new_err(self.msg)
-//    }
-//}
-
 impl std::convert::From<Error> for PyErr {
     fn from(err: Error) -> Self {
         exceptions::PyOSError::new_err(err.msg)
@@ -163,26 +157,14 @@ impl std::convert::From<num_bigint::ParseBigIntError> for Error {
     }
 }
 
-impl std::convert::From<ldap3::LdapError> for Error {
-    fn from(err: ldap3::LdapError) -> Self {
-        Error::new(&err.to_string())
-    }
-}
-
-impl std::convert::From<aes_gcm::Error> for Error {
-    fn from(err: aes_gcm::Error) -> Self {
-        Error::new(&err.to_string())
-    }
-}
-
 impl std::convert::From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Self {
         Error::new(&err.to_string())
     }
 }
 
-impl std::convert::From<keyring::KeyringError> for Error {
-    fn from(err: keyring::KeyringError) -> Self {
+impl std::convert::From<std::str::ParseBoolError> for Error {
+    fn from(err: std::str::ParseBoolError) -> Self {
         Error::new(&err.to_string())
     }
 }

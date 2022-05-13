@@ -4,6 +4,7 @@ use crate::{Outcome, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use crate::framework::users::{User, Data};
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::Repository;
@@ -879,6 +880,43 @@ impl Git {
         self.password_was_good();
 
         Ok(())
+    }
+
+    /// Populate user callback when used as a dataset
+    /// Will attempt to set: username, first name, last name, email
+    /// TODO support populating user from global only
+    pub fn populate_user(&self, user: &User, data: &mut Data) -> Result<Outcome> {
+        // use git2::Config;
+
+        // let cfg = Config::open_default()?;
+        let repo = Repository::open(&self.local)?;
+        let cfg = repo.config()?;
+        for entry in &cfg.entries(Some("user*"))? {
+            let entry = entry?;
+            if let Some(n) = entry.name() {
+                let v = match entry.value() {
+                    Some(val) => val.to_string(),
+                    None => bail!("Git encountered non UTF-8 config value while populate user '{}'", user.id())
+                };
+
+                if n == "user.name" {
+                    data.username = Some(v);
+                } else if n == "user.email" {
+                    data.email = Some(v);
+                } else {
+                    data.other.insert(
+                        match n.splitn(2, "user.").last() {
+                            Some(s) => s,
+                            None => bail!("Expected git config setting '{}' to start with 'user.'", n)
+                        },
+                        v
+                    );
+                }
+            } else {
+                bail!("Git encountered non UTF-8 config name while populate user '{}'", user.id());
+            }
+        }
+        Ok(Outcome::new_success())
     }
 }
 

@@ -27,10 +27,10 @@ pub mod standards;
 pub mod testers;
 pub mod utility;
 
+pub extern crate config;
+
 pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
-pub use self::core::user;
-pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
 pub use error::Error;
@@ -43,7 +43,6 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::{Capture, Overlay, Tester};
-use self::core::user::Users;
 use self::generator::ast::*;
 pub use self::services::Services;
 use self::utility::logger::Logger;
@@ -51,14 +50,13 @@ use num_bigint::BigUint;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use utility::ldap::LDAPs;
 use utility::mailer::Maillists;
 pub use origen_metal as om;
 pub use om::TypedValue;
-use self::utility::sessions::setup_sessions;
+pub use om::prelude::frontend::*;
 pub use self::utility::sessions::{
-    with_user_session, with_user_session_group,
-    with_app_session, with_app_session_group
+    with_app_session, with_app_session_group,
+    setup_sessions
 };
 
 pub use self::core::frontend::callbacks as CALLBACKS;
@@ -74,6 +72,9 @@ pub const MODES: &'static [&'static str] = &["production", "development"];
 // No idea why, but lazy_static was having none of this
 // pub static BIGU1: num_bigint::BigUint = num_bigint::BigUint::from(1 as u8);
 // pub static BIGU0: num_bigint::BigUint = num_bigint::BigUint::from(0 as u8);
+
+// TODO move this to somewhere else?
+pub static FE_CAT_NAME__LDAPS: &'static str = "ldaps";
 
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present
@@ -100,8 +101,6 @@ lazy_static! {
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
-    pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
-    pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
     pub static ref MAILLISTS: RwLock<Maillists> = RwLock::new(Maillists::new());
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
@@ -172,13 +171,6 @@ pub fn initialize(
     STATUS.set_cli_version(cli_version);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
     LOGGER.set_status_ready();
-    match setup_sessions() {
-        Ok(_) => {},
-        Err(e) => log_error!(
-            "Failed to setup user and application sessions. Received error: \n{}",
-            e
-        )
-    }
 }
 
 pub fn app() -> Option<&'static Application> {
@@ -195,45 +187,6 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
-}
-
-pub fn ldaps() -> MutexGuard<'static, LDAPs> {
-    LDAPS.lock().unwrap()
-}
-
-pub fn users<'a>() -> RwLockReadGuard<'a, Users> {
-    USERS.read().unwrap()
-}
-
-pub fn users_mut<'a>() -> RwLockWriteGuard<'a, Users> {
-    USERS.write().unwrap()
-}
-
-pub fn with_current_user<T, F>(mut func: F) -> Result<T>
-where
-    F: FnMut(&User) -> Result<T>,
-{
-    let _users = users();
-    let u = _users.current_user()?;
-    func(u)
-}
-
-pub fn with_user<T, F>(user: &str, mut func: F) -> Result<T>
-where
-    F: FnMut(&User) -> Result<T>,
-{
-    let _users = users();
-    let u = _users.user(user).unwrap();
-    func(u)
-}
-
-pub fn with_user_mut<T, F>(user: &str, mut func: F) -> Result<T>
-where
-    F: FnMut(&mut User) -> Result<T>,
-{
-    let mut _users = users_mut();
-    let u = _users.user_mut(user).unwrap();
-    func(u)
 }
 
 pub fn maillists<'a>() -> RwLockReadGuard<'a, Maillists> {

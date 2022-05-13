@@ -8,3 +8,4 @@ pub mod logger;
 pub mod reference_files;
 pub mod typed_value;
 pub mod sessions;
+pub mod users;

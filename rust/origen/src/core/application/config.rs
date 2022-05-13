@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 
 const PUBLISHER_OPTIONS: &[&str] = &["system", "package_app", "upload_app"];
 
+// TODO needs cleaning
+
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
 // * pyapi/src/lib.rs to convert it to Python
@@ -81,62 +83,70 @@ impl Config {
     /// Builds a new config from all application.toml files found at the given app root
     pub fn build(root: &Path, default_only: bool) -> Config {
         log_trace!("Building app config");
-        let mut s = config::Config::new();
+        let mut s = config::Config::builder()
+            .set_default("target", None::<Vec<String>>).unwrap()
+            .set_default("mode", "development".to_string()).unwrap()
+            .set_default("revision_control", None::<HashMap<String, String>>).unwrap()
+            .set_default("unit_tester", None::<HashMap<String, String>>).unwrap()
+            .set_default("publisher", None::<HashMap<String, String>>).unwrap()
+            .set_default("linter", None::<HashMap<String, String>>).unwrap()
+            .set_default("release_scribe", None::<HashMap<String, String>>).unwrap()
+            .set_default("app_session_root", None::<String>).unwrap();
 
         // Start off by specifying the default values for all attributes, seems fine
         // not to handle these errors
-        let _ = s.set_default("target", None::<Vec<String>>);
-        let _ = s.set_default("mode", "development".to_string());
-        let _ = s.set_default("revision_control", None::<HashMap<String, String>>);
-        let _ = s.set_default("unit_tester", None::<HashMap<String, String>>);
-        let _ = s.set_default("publisher", None::<HashMap<String, String>>);
-        let _ = s.set_default("linter", None::<HashMap<String, String>>);
-        let _ = s.set_default("release_scribe", None::<HashMap<String, String>>);
-        let _ = s.set_default("app_session_root", None::<String>);
 
         // Find all the application.toml files
-        let mut files: Vec<PathBuf> = Vec::new();
+        // let mut files: Vec<PathBuf> = Vec::new();
 
         let file = root.join("config").join("application.toml");
         if file.exists() {
-            files.push(file);
+            // files.push(file);
+            s = s.add_source(File::with_name(&format!("{}", file.display())));
         }
 
         if !default_only {
             let file = root.join(".origen").join("application.toml");
             if file.exists() {
-                files.push(file);
+                // files.push(file);
+                s = s.add_source(File::with_name(&format!("{}", file.display())));
             }
         }
 
         // Now add in the files, with the last one found taking highest priority
-        for file in files.iter() {
-            match s.merge(File::with_name(&format!("{}", file.display()))) {
-                Ok(_) => {}
-                Err(error) => {
-                    term::redln(&format!("Malformed config file: {}", file.display()));
-                    term::redln(&format!("{}", error));
-                    std::process::exit(1);
-                }
-            }
-        }
-        let _ = s.merge(Environment::with_prefix("origen_app"));
+        // for file in files.iter() {
+        //     match s.merge(File::with_name(&format!("{}", file.display()))) {
+        //         Ok(_) => {}
+        //         Err(error) => {
+        //             term::redln(&format!("Malformed config file: {}", file.display()));
+        //             term::redln(&format!("{}", error));
+        //             std::process::exit(1);
+        //         }
+        //     }
+        // }
+        // let _ = s.merge(Environment::with_prefix("origen_app"));
+        s = s.add_source(Environment::with_prefix("origen_app"));
 
-        // Couldn't figure out how to get the config::Config to recognize the Location struct since the
-        // underlying converter to config::value::ValueKind is private.
-        // Instead, just pluck it out as string and set it to none before casting to our Config (Self)
-        // Then, after the cast, put it back in as the type we want (Location)
-        let loc;
-        match s.get_str("website_release_location") {
-            Ok(l) => loc = Some(l),
-            Err(_) => loc = None,
-        }
-        s.set("website_release_location", None::<String>).unwrap();
-        let mut c: Self = s.try_into().unwrap();
+        // // Couldn't figure out how to get the config::Config to recognize the Location struct since the
+        // // underlying converter to config::value::ValueKind is private.
+        // // Instead, just pluck it out as string and set it to none before casting to our Config (Self)
+        // // Then, after the cast, put it back in as the type we want (Location)
+        // let loc;
+        // match s.get_str("website_release_location") {
+        //     Ok(l) => loc = Some(l),
+        //     Err(_) => loc = None,
+        // }
+        // s.set("website_release_location", None::<String>).unwrap();
+
+
+        let cb = s.build().unwrap();
+        // let mut c: Self = s.try_into().unwrap();
+        let mut c: Self = cb.try_deserialize().unwrap();
         c.root = Some(root.to_path_buf());
-        if let Some(l) = loc {
-            c.website_release_location = Some(Location::new(&l));
-        }
+        // TODO
+        // if let Some(l) = loc {
+        //     c.website_release_location = Some(Location::new(&l));
+        // }
         log_trace!("Completed building app config");
         c.validate_options();
 

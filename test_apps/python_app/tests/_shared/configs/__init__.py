@@ -14,4 +14,4 @@ def func__test_with_config(q, options):
            bypass_config_lookup=True)
 
     import origen
-    q.put(("datasets", list(origen.current_user().datasets.keys())))
+    q.put(("datasets", list(origen.current_user.datasets.keys())))

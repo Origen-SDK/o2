@@ -11,7 +11,9 @@ use std::path::Path;
 use std::sync::{MutexGuard};
 
 // TODO make this lazy static?
-const DEFAULT_FILE_PERMISSIONS: FilePermissions = FilePermissions::GroupWritable;
+lazy_static! {
+    static ref DEFAULT_FILE_PERMISSIONS: FilePermissions = FilePermissions::GroupWritable;
+}
 
 pub fn sessions() -> MutexGuard<'static, Sessions> {
     crate::SESSIONS.lock().unwrap()
@@ -75,6 +77,16 @@ impl Sessions {
 
     pub fn get_mut_group(&mut self, group_name: &str) -> Option<&mut SessionGroup> {
         self.groups.get_mut(group_name)
+    }
+
+    // TESTS_NEEDED
+    pub fn ensure_group(&mut self, name: &str, root: &Path, file_permissions: Option<FilePermissions>) -> Result<bool> {
+        if self.groups.contains_key(name) {
+            Ok(false)
+        } else {
+            self.add_group(name, root, file_permissions)?;
+            Ok(true)
+        }
     }
 
     pub fn require_group(&self, group: &str) -> Result<&SessionGroup> {

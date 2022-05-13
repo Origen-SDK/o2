@@ -7,6 +7,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple, PyType};
 use std::collections::HashMap;
 use std::path::Path;
+use crate::framework::users::{UserDataset, User};
+use origen_metal::with_user;
 
 pub static PY_GIT_MOD_PATH: &str = "origen_metal.utils.revision_control.supported.git";
 
@@ -156,6 +158,14 @@ impl Git {
 
     fn system(&self) -> PyResult<String> {
         Ok(self.rc()?.system().to_string())
+    }
+
+    fn populate_user(&self, user: PyRef<User>, dataset: PyRef<UserDataset>) -> PyResult<PyOutcome> {
+        Ok(with_user(&user.user_id(), |u| {
+            u.with_dataset_mut(dataset.dataset(), |d| {
+                self.rc()?.populate_user(u, d)
+            })
+        })?.into())
     }
 }
 

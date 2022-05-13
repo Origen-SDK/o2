@@ -1,8 +1,32 @@
 import inspect
 from origen_metal._origen_metal import frontend
-from abc import ABC, abstractclassmethod
+from abc import ABC, ABCMeta, abstractclassmethod
 
-class DataStoreAPI(ABC):
+class DataStoreAPIMeta(ABCMeta):
+    def __new__(cls, name, *args, **kwargs):
+        # TODO likely don't need metaclass anymore
+        return ABCMeta(name, *args, **kwargs)
+
+class DataStoreAPI(ABC, metaclass=DataStoreAPIMeta):
+    __origen_supported_features__ = {}
+
+    @classmethod
+    def __register_origen_supported_feature__(cls, feature, func):
+        kls = (func.__module__, func.__qualname__.rsplit(".", 1)[0])
+        if kls not in cls.__origen_supported_features__:
+            cls.__origen_supported_features__[kls] = {}
+        cls.__origen_supported_features__[kls][feature] = func
+
+    @classmethod
+    def populate_user(cls, func):
+        # TODO need to make these enums/common
+        cls.__register_origen_supported_feature__("populate_user", func)
+        return func
+
+    @staticmethod
+    def __new__(cls, *args, **kwargs):
+        return ABC.__new__(cls)
+
     class OperationNotSupported(RuntimeError):
         def __init__(self, ds, op):
             self.ds_class = ds.__class__
@@ -12,6 +36,7 @@ class DataStoreAPI(ABC):
     def __init__(self, *args, **kwargs):
         self._stale = False
         self._orphaned = False
+        self._supported_features_ = {}
 
     def _set_name_(self, name):
         self._name = name
@@ -95,3 +120,15 @@ class DataStoreAPI(ABC):
     def not_supported(self, caller=None):
         caller = caller or inspect.stack()[1][3]
         raise self.OperationNotSupported(self, caller)
+
+    def __lookup_origen_feature__(self, f):
+        features = DataStoreAPI.__origen_supported_features__.get((self.__module__, self.__class__.__qualname__), None)
+        if features is not None and f in features:
+            return features[f]
+        else:
+            for b in self.__class__.__bases__:
+                features = DataStoreAPI.__origen_supported_features__.get((b.__module__, b.__qualname__), None)
+                if features is not None and f in features:
+                    return features[f]
+        return None
+

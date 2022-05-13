@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 use std::sync::RwLockReadGuard;
 
 pub use crate::utils::revision_control::frontend::RevisionControlFrontendAPI;
-pub use data_store::{DataStoreFrontendAPI, DataStoreFeature};
+pub use data_store::{DataStoreFrontendAPI, DataStoreFeature, FeatureReturn};
 pub use data_store_category::DataStoreCategoryFrontendAPI;
 
 pub fn set_frontend(
@@ -45,6 +45,18 @@ where
     match f.frontend.as_ref() {
         Some(f) => func(f.as_ref()),
         None => bail!("No frontend is currently available!"),
+    }
+}
+
+pub fn with_optional_frontend<T, F>(mut func: F) -> Result<T>
+where
+    F: FnMut(Option<&dyn FrontendAPI>) -> Result<T>,
+{
+    let f = crate::FRONTEND.read().unwrap();
+    // func(f.frontend.as_ref())
+    match f.frontend.as_ref() {
+        Some(f) => func(Some(f.as_ref())),
+        None => func(None),
     }
 }
 
@@ -159,8 +171,22 @@ pub trait FrontendAPI {
         })
     }
 
+    // TEST_NEEDED
+    fn ensure_data_store_category(&self, category: &str) -> Result<(bool, Box<dyn DataStoreCategoryFrontendAPI>)> {
+        Ok(match self.get_data_store_category(category)? {
+            Some(cat) => (false, cat),
+            None => {
+                (true, self.add_data_store_category(category)?)
+            }
+        })
+    }
+
     fn available_data_store_categories(&self) -> Result<Vec<String>> {
         Ok(self.data_store_categories()?.keys().map( |k| k.to_string()).collect())
+    }
+
+    fn lookup_current_user(&self) -> Option<Result<Option<String>>> {
+        None
     }
 
     fn as_any(&self) -> &dyn Any;

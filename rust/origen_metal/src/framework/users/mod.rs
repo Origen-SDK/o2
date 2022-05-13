@@ -3,56 +3,36 @@ mod password_cache_options;
 pub mod user;
 pub mod users;
 
-pub use user::{with_top_hierarchy, with_user_dataset, with_user_dataset_mut, User};
-pub use users::Users;
+use crate::Result;
 
-use crate::utility::command_helpers::exec_and_capture;
-use crate::{Result, ORIGEN_CONFIG};
-use std::collections::HashMap;
-use std::path::PathBuf;
-
-pub fn lookup_dataset_config<'a>(config: &str) -> Result<&'a HashMap<String, String>> {
-    if let Some(configs) = ORIGEN_CONFIG.user__datasets.as_ref() {
-        if let Some(c) = configs.get(config) {
-            return Ok(c);
-        }
-    }
-    error!("Could not lookup dataset config for {}", config)
-}
-
-pub fn get_current_email() -> Result<String> {
-    crate::with_current_user(|u| u.get_email())
-}
-
-pub fn current_home_dir() -> Result<PathBuf> {
-    crate::with_current_user(|u| u.home_dir())
-}
-
-pub fn get_current_id() -> Result<String> {
-    crate::with_current_user(|u| Ok(u.id().to_string()))
-}
+pub use users::PopulateUsersReturn;
+pub use user::{User, PopulateUserReturn, SessionConfig};
+pub use data::{Data, DatasetConfig};
 
 pub fn whoami() -> Result<String> {
-    let id;
-    if cfg!(unix) {
-        let output = exec_and_capture("whoami", None);
-        if let Ok((status, mut lines, _stderr)) = output {
-            if status.success() {
-                id = lines.pop().unwrap();
-            } else {
-                return error!("Failed to run 'whoami'");
-            }
-        } else {
-            return error!("Failed to run 'whoami'");
-        }
-        log_debug!("User ID read from the system: '{}'", &id);
-    } else {
-        id = whoami::username();
-        log_debug!("User ID read from whoami: '{}'", &id);
-    }
+    let id = whoami::username();
+    log_debug!("User ID read from whoami: '{}'", &id);
     Ok(id)
 }
 
+fn invalid_dataset_hierarchy_closure(items: &Vec<&&String>) -> String {
+    format!(
+        "The following datasets do not exists and cannot be used in the data lookup hierarchy: {}",
+        items.iter().map( |i| format!("'{}'", i)).collect::<Vec<String>>().join(", ")
+    )
+}
+
+fn duplicate_dataset_hierarchy_closure(item: &String, first: usize, second: usize) -> String {
+    format!(
+        "Dataset '{}' can only appear once in the dataset hierarchy (first appearance at index {} - duplicate at index {})",
+        item,
+        first,
+        second
+    )
+}
+
+/*
+// TODO need to support this stuff again
 /// Initiates the password dialog for the current user for all the given datasets.
 /// If None, the current dataset is used.
 pub fn set_passwords(datasets: Option<Vec<&str>>) -> Result<()> {
@@ -112,3 +92,4 @@ pub fn clear_all_passwords() -> Result<()> {
     log_trace!("Clearing all cached passwords for current user");
     crate::with_current_user(|u| u.clear_cached_passwords())
 }
+*/

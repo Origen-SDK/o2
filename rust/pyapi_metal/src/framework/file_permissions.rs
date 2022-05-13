@@ -145,3 +145,9 @@ impl pyo3::class::number::PyNumberProtocol for FilePermissions {
         self.to_i()
     }
 }
+
+impl From<&OmFilePermissions> for FilePermissions {
+    fn from(om_fps: &OmFilePermissions) -> Self {
+        Self::from_metal(om_fps)
+    }
+}

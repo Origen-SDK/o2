@@ -150,7 +150,7 @@ impl Mailer {
         body: Option<&str>,
         subject: Option<&str>,
     ) -> PyResult<PyGenericResult> {
-        let e = origen::core::user::get_current_email()?;
+        let e = origen_metal::require_current_user_email()?;
         let m = self.mailer.compose(&e, to, subject, body, true)?;
         Ok(PyGenericResult::from_origen(self.mailer.send(m)?))
     }

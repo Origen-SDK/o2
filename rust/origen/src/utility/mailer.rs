@@ -1,5 +1,6 @@
-use crate::core::user::with_top_hierarchy;
-use crate::{with_current_user, GenericResult, Metadata, Result, ORIGEN_CONFIG, STATUS};
+// use crate::core::user::with_top_hierarchy;
+use crate::{GenericResult, Metadata, Result, ORIGEN_CONFIG, STATUS};
+use origen_metal::with_current_user;
 use lettre;
 use std::path::PathBuf;
 
@@ -23,14 +24,14 @@ pub struct MaillistConfig {
 
 impl MaillistConfig {
     fn load(path: &PathBuf) -> Result<Self> {
-        let mut c = config::Config::new();
-        c.set_default("recipients", Vec::<String>::new())?;
-        c.set_default("signature", None::<String>)?;
-        c.set_default("audience", None::<String>)?;
-        c.set_default("domain", None::<String>)?;
-        c.merge(config::File::with_name(&format!("{}", path.display())))?;
-        match c.try_into() {
-            Ok(con) => Ok(con),
+        let cb = config::Config::builder()
+            .set_default("recipients", Vec::<String>::new())?
+            .set_default("signature", None::<String>)?
+            .set_default("audience", None::<String>)?
+            .set_default("domain", None::<String>)?
+            .add_source(config::File::with_name(&format!("{}", path.display())));
+        match cb.build() {
+            Ok(c) => Ok(c.try_deserialize()?),
             Err(e) => error!(
                 "Unable to build maillist from '{}'. Encountered errors:{}",
                 path.display(),
@@ -513,9 +514,9 @@ impl Mailer {
                 }
             } else {
                 if let Some(d) = self.get_dataset()? {
-                    with_top_hierarchy(None, &vec![d], |u| u.username())
+                    Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| u.username())?)
                 } else {
-                    with_current_user(|u| u.username())
+                    Ok(with_current_user(|u| u.username())?)
                 }
             }
         }
@@ -535,7 +536,7 @@ impl Mailer {
                     error!("No password given for service user '{}'", u.0)
                 }
             } else {
-                with_current_user(|u| u.password(Some(PASSWORD_REASON), true, Some(None)))
+                Ok(with_current_user(|u| u.password(Some(PASSWORD_REASON), true, Some(None)))?)
             }
         }
     }
@@ -547,20 +548,20 @@ impl Mailer {
             }
         }
         if let Some(d) = self.get_dataset()? {
-            with_top_hierarchy(None, &vec![d], |u| u.get_email())
+            Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| u.require_email())?)
         } else {
-            with_current_user(|u| u.get_email())
+            Ok(with_current_user(|u| u.require_email())?)
         }
     }
 
     fn get_dataset(&self) -> Result<Option<String>> {
-        with_current_user(|u| {
-            if let Some(d) = u.dataset_for(PASSWORD_REASON) {
+        Ok(with_current_user(|u| {
+            if let Some(d) = u.dataset_for(PASSWORD_REASON)? {
                 Ok(Some(d.to_string()))
             } else {
                 Ok(None)
             }
-        })
+        })?)
     }
 
     pub fn dataset(&self) -> Result<Option<String>> {
@@ -644,7 +645,7 @@ impl Mailer {
     }
 
     pub fn test(&self, to: Option<Vec<&str>>) -> Result<GenericResult> {
-        let e = crate::core::user::get_current_email()?;
+        let e: String = origen_metal::require_current_user_email()?;
         let m = self.compose(
             &e,
             if let Some(t) = to { t } else { vec![&e] },

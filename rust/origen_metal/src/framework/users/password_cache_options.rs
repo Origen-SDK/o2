@@ -1,7 +1,10 @@
+// TODO clean up
 use super::data::Data;
 use super::User;
-use crate::utility::{bytes_from_str_of_bytes, decrypt_with, encrypt_with, str_from_byte_array};
 use crate::Result;
+use crate::_utility::str_from_byte_array;
+// use crate::utils::encryption::{decrypt_with, encrypt_with};
+use crate::utils::encryption::{encrypt_with};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
 
@@ -19,6 +22,7 @@ pub enum PasswordCacheOptions {
 }
 
 impl PasswordCacheOptions {
+/*
     pub fn from_config() -> Result<Self> {
         let opt = &crate::ORIGEN_CONFIG.user__password_cache_option;
         match opt.as_str() {
@@ -31,22 +35,33 @@ impl PasswordCacheOptions {
             ),
         }
     }
-
+*/
     pub fn cache_password(&self, user: &User, password: &str, dataset: &str) -> Result<bool> {
         match self {
             Self::Session => {
+                // TODO
+                // todo!("Session password store not supported yet!")
                 log_trace!("Caching password in session store...");
-                crate::with_user_session(None, |s| {
+                user.with_session(None, |_, _, s| {
                     s.store(
                         to_session_password(dataset),
-                        crate::TypedValue::String(str_from_byte_array(&encrypt_with(
+                        str_from_byte_array(&encrypt_with(
                             password,
-                            user.get_password_encryption_key()?,
-                            user.get_password_encryption_nonce()?,
-                        )?)?)
-                    )?;
-                    Ok(())
+                            crate::into_aes_gcm_generic_array!(crate::users().password_encryption_key()),
+                            crate::into_aes_gcm_generic_array!(crate::users().password_encryption_nonce()),
+                        )?)?.into()
+                    )
                 })?;
+                // let mut s = crate::sessions();
+                // let sess = s.user_session(None)?;
+                // sess.store(
+                //     to_session_password(dataset),
+                //     Typedvalue::String(str_from_byte_array(&encrypt_with(
+                //         password,
+                //         user.get_password_encryption_key()?,
+                //         user.get_password_encryption_nonce()?,
+                //     )?)?),
+                // )?;
                 Ok(true)
             }
             Self::Keyring => {
@@ -65,22 +80,24 @@ impl PasswordCacheOptions {
     pub fn get_password(&self, user: &User, dataset: &str) -> Result<Option<String>> {
         match self {
             Self::Session => {
-                log_trace!("Checking for password in session store...");
+                // TODO
+                todo!("Support getting password from session")
+                // log_trace!("Checking for password in session store...");
                 // Check if the password is cached in the user's session
-                Ok(crate::with_user_session(None, |s| {
-                    if let Some(p) = s.retrieve(&to_session_password(dataset))? {
-                        // Password should be encrypted (to avoid storing as plaintext)
-                        // Decrypt the password
-                        let pw = decrypt_with(
-                            &bytes_from_str_of_bytes(&p.as_string()?)?,
-                            user.get_password_encryption_key()?,
-                            user.get_password_encryption_nonce()?,
-                        )?;
-                        Ok(Some(pw.to_string()))
-                    } else {
-                        Ok(None)
-                    }
-                })?)
+                // let mut s = crate::sessions();
+                // let sess = s.user_session(None)?;
+                // if let Some(p) = sess.retrieve(&to_session_password(dataset))? {
+                //     // Password should be encrypted (to avoid storing as plaintext)
+                //     // Decrypt the password
+                //     let pw = decrypt_with(
+                //         &bytes_from_str_of_bytes(&p.as_string()?)?,
+                //         user.get_password_encryption_key()?,
+                //         user.get_password_encryption_nonce()?,
+                //     )?;
+                //     Ok(Some(pw.to_string()))
+                // } else {
+                //     Ok(None)
+                // }
             }
             Self::Keyring => {
                 log_trace!("Checking for password in keyring...");
@@ -89,22 +106,24 @@ impl PasswordCacheOptions {
                     Ok(password) => Ok(Some(password)),
                     Err(e) => match e {
                         keyring::KeyringError::NoPasswordFound => Ok(None),
-                        _ => error!("{}", e),
+                        _ => bail!("{}", e),
                     },
                 }
             }
-            Self::None => error!("Cannot get password when password caching is unavailable!"),
+            Self::None => bail!("Cannot get password when password caching is unavailable!"),
         }
     }
 
     pub fn clear_cached_password(&self, parent: &User, dataset: &Data) -> Result<()> {
         match self {
             Self::Session => {
-                let k = dataset.password_key();
-                if parent.is_current() {
-                    log_trace!("Clearing password {} from user session", k);
-                    crate::with_user_session(None, |session| Ok(session.delete(&k)?))?;
-                }
+                // TODO
+                todo!("Session passwords not suppported yet!")
+                // let k = dataset.password_key();
+                // if parent.is_current() {
+                //     log_trace!("Clearing password {} from user session", k);
+                //     crate::with_user_session(None, |session| session.delete(&k))?;
+                // }
             }
             Self::Keyring => {
                 let k = keyring::Keyring::new(&dataset.dataset_name, &parent.id());
@@ -112,7 +131,7 @@ impl PasswordCacheOptions {
                     Ok(_) => {}
                     Err(e) => match e {
                         keyring::KeyringError::NoPasswordFound => {}
-                        _ => return error!("{}", e),
+                        _ => bail!("{}", e),
                     },
                 }
             }

@@ -12,6 +12,7 @@ pub fn typed_value_to_pyobj(data: Option<TypedValue>, key: Option<&str>) -> PyRe
         let gil = Python::acquire_gil();
         let py = gil.python();
         match d {
+            TypedValue::None => Ok(None),
             TypedValue::String(s) => Ok(Some(s.to_object(py))),
             TypedValue::Usize(u) => Ok(Some(u.to_object(py))),
             TypedValue::BigInt(big) => Ok(Some(big.to_object(py))),
@@ -77,7 +78,9 @@ pub fn typed_value_to_pyobj(data: Option<TypedValue>, key: Option<&str>) -> PyRe
 
 pub fn extract_as_typed_value(value: &PyAny) -> PyResult<TypedValue> {
     let data;
-    if let Ok(s) = value.extract::<String>() {
+    if value.is_none() {
+        data = TypedValue::None;
+    } else if let Ok(s) = value.extract::<String>() {
         data = TypedValue::String(s);
     } else if let Ok(v) = value.extract::<Vec<&PyAny>>() {
         let mut tv_vec: Vec<TypedValue> = vec![];

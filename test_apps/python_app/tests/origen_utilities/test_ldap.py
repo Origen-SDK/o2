@@ -1,128 +1,57 @@
-# TODO Remove when moved fully to metal
+# '''
+# Testing that the LDAP driver can do 'ldap things' are handled by Origen Metal
 
-import pytest, origen, _origen
-from om_tests.shared.python_like_apis import Fixture_DictLikeAPI
+# The tests here are just checking the interface between Origen and Origen Metal
+# '''
 
-SERVER = "ldap://ldap.forumsys.com:389"
-BASE = "dc=example,dc=com"
-AUTH_TYPE = "simple_bind"
-AUTH_USERNAME = "cn=read-only-admin,dc=example,dc=com"
-USER_USERNAME = "uid=euler,dc=example,dc=com"
-PASSWORD = "password"
-NAME = "forumsys"
+import pytest, origen
+from tests.shared import in_new_origen_proc
+from tests import om_shared
+from configs import ldap as ldap_configs
 
+# Grab the dummy RC from origen_metal's tests
+with om_shared():
+    from om_tests import test_frontend # type:ignore
+    from om_tests.utils.test_ldap import Common as LdapCommon # type:ignore
+    from om_tests.utils.test_ldap import SERVER, BASE, AUTH_SETUP # type:ignore
 
-class TestLDAPs:
-    @property
-    def ldap(self):
-        return origen.ldaps[NAME]
+class TestLDAPs(LdapCommon, test_frontend.Common):
 
-    class TestLDAPsDictLike(Fixture_DictLikeAPI):
-        def parameterize(self):
-            return {
-                "keys": [NAME],
-                "klass": _origen.utility.ldap.LDAP,
-                "not_in_dut": "Blah"
-            }
+    def test_ldaps_are_accessible(self):
+        n = "test_ldap"
+        assert isinstance(origen.ldaps, self.cat_class)
+        num_ldaps = len(origen.ldaps)
 
-        def boot_dict_under_test(self):
-            return origen.ldaps
+        assert isinstance(origen.ldaps.add(n, self.ldap_class, ["t", SERVER, BASE, AUTH_SETUP]), self.ldap_class)
+        assert len(origen.ldaps) == num_ldaps + 1
+        assert n in origen.ldaps
+        assert isinstance(origen.ldaps[n], self.ldap_class)
 
-    def test_ldap_parameters(self):
-        assert self.ldap.base == BASE
-        assert self.ldap.server == SERVER
-        assert self.ldap.name == NAME
-        assert self.ldap.bound == False
-        assert self.ldap.auth == {
-            'type': AUTH_TYPE,
-            'username': AUTH_USERNAME,
-            'password': PASSWORD
-        }
+    def test_simple_ldap(self):
+        retn = in_new_origen_proc(mod=ldap_configs)
 
-    def test_ldap_can_bind(self):
-        assert self.ldap.bind()
-        assert self.ldap.bound == True
+    def test_fully_configured_ldap(self):
+        retn = in_new_origen_proc(mod=ldap_configs)
 
-    def test_ldap_searching(self):
-        results = self.ldap.search("(uid=euler)", [])
-        assert results == {
-            'uid=euler,dc=example,dc=com': ({
-                'cn': ['Leonhard Euler'],
-                'sn': ['Euler'],
-                'uid': ['euler'],
-                'objectClass':
-                ['inetOrgPerson', 'organizationalPerson', 'person', 'top'],
-                'mail': ['euler@ldap.forumsys.com']
-            }, {})
-        }
-        results = self.ldap.search("(|(uid=tesla)(uid=curie))", ["cn", "mail"])
-        assert results == {
-            'uid=tesla,dc=example,dc=com': ({
-                'cn': ['Nikola Tesla'],
-                'mail': ['tesla@ldap.forumsys.com']
-            }, {}),
-            'uid=curie,dc=example,dc=com': ({
-                'mail': ['curie@ldap.forumsys.com'],
-                'cn': ['Marie Curie']
-            }, {})
-        }
-        results = self.ldap.search("(|(uid=tesla)(uid=curie))", ["BLAH"])
-        assert results == {
-            'uid=curie,dc=example,dc=com': ({}, {}),
-            'uid=tesla,dc=example,dc=com': ({}, {})
-        }
-        results = self.ldap.search("(|(uid=blah)(uid=none))", ["BLAH"])
-        assert results == {}
+    def test_multiple_ldaps(self):
+        retn = in_new_origen_proc(mod=ldap_configs)
 
-    def test_single_filter_search(self):
-        results = self.ldap.single_filter_search("(uid=tesla)", ["cn", "mail"])
-        assert results == ({
-            'mail': ['tesla@ldap.forumsys.com'],
-            'cn': ['Nikola Tesla']
-        }, {})
-        results = self.ldap.single_filter_search("(uid=blah)", ["cn", "mail"])
-        assert results == ({}, {})
+    # TODO
+    @pytest.mark.xfail
+    def test_bad_ldap_config(self):
+        retn = in_new_origen_proc(mod=ldap_configs)
 
-    def test_error_if_single_filter_search_returns_multiple_dns(self):
-        with pytest.raises(OSError,
-                           match="expected a single DN result from filter"):
-            self.ldap.single_filter_search("(|(uid=tesla)(uid=Curie))",
-                                           ["mail"])
+    def test_empty_config(self):
+        retn = in_new_origen_proc(mod=ldap_configs)
 
-    def test_unbind_and_rebind(self):
-        assert self.ldap.bound
-        assert self.ldap.unbind()
-        assert not self.ldap.bound
-        assert self.ldap.bind()
-        assert self.ldap.bound
+    def test_empty_ldaps(self):
+        retn = in_new_origen_proc(mod=ldap_configs)
 
-    def test_validating_passwords(self):
-        assert self.ldap.bound == True
-        assert self.ldap.validate_credentials(USER_USERNAME, PASSWORD)
-        assert not self.ldap.validate_credentials(USER_USERNAME, "?")
-        # Should not effect the current LDAP
-        assert self.ldap.bound == True
+    # TODO
+    @pytest.mark.xfail
+    def test_empty_ldap(self):
+        retn = in_new_origen_proc(mod=ldap_configs)
 
-    def test_binding_with_a_different_user(self):
-        assert self.ldap.auth == {
-            'type': AUTH_TYPE,
-            'username': AUTH_USERNAME,
-            'password': PASSWORD
-        }
-        assert self.ldap.bound == True
-
-        assert self.ldap.bind_as(USER_USERNAME, PASSWORD)
-        assert self.ldap.bound == True
-        assert self.ldap.auth == {
-            'type': AUTH_TYPE,
-            'username': USER_USERNAME,
-            'password': PASSWORD
-        }
-
-        with pytest.raises(OSError, match="invalidCredentials"):
-            self.ldap.bind_as(USER_USERNAME, "?")
-        assert self.ldap.bound == False
-
-        # Restore LDAP to previous settings
-        self.ldap.bind_as(AUTH_USERNAME, PASSWORD)
-        assert self.ldap.bound == True
+    @pytest.mark.skip
+    def test_adding_ldaps_with_non_ldap_types(self):
+        raise NotImplementedError

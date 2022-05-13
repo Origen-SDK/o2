@@ -8,23 +8,77 @@
 //!
 //! println!("Server: {}", &ORIGEN_CONFIG.pkg_server);  // => "Server: https://pkgs.company.net:9292"
 //! ```
+// TODO needs cleaning up
 
-use super::term;
+// use super::term;
 use crate::STATUS;
 use config::{Environment, File};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+// TODO Get from a prelude?
+use crate::om;
+use om::framework::users::DatasetConfig as OMDatasetConfig;
+
 lazy_static! {
     pub static ref CONFIG: Config = Config::default();
 }
 
-/// Default keys generated from crate::utility::mod::tests::check_default_key_values
-/// default_encryption_key: !<<<---Origen StandardKey--->>>!
-pub static DEFAULT_ENCRYPTION_KEY: &str =
-    "213c3c3c2d2d2d4f726967656e205374616e646172644b65792d2d2d3e3e3e21";
-/// default_encryption_nonce: ORIGEN NONCE
-pub static DEFAULT_ENCRYPTION_NONCE: &str = "4f524947454e204e4f4e4345";
+#[derive(Debug, Deserialize)]
+pub struct LDAPConfig {
+    pub server: String,
+    pub base: String,
+    pub auth: Option<HashMap<String, config::Value>>,
+    pub continuous_bind: Option<bool>,
+    pub populate_user_config: Option<HashMap<String, config::Value>>,
+    pub timeout: Option<i32>
+}
+
+impl std::convert::From<LDAPConfig> for config::ValueKind {
+    fn from(_value: LDAPConfig) -> Self {
+        Self::Nil
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DatasetConfig {
+    category: Option<String>,
+    data_store: Option<String>,
+    auto_populate: Option<bool>,
+    should_validate_password: Option<bool>,
+}
+
+impl std::convert::TryFrom<&DatasetConfig> for OMDatasetConfig {
+    type Error = om::Error;
+
+    fn try_from(value: &DatasetConfig) -> Result<Self, Self::Error> {
+        OMDatasetConfig::new(value.category.clone(), value.data_store.clone(), value.auto_populate, value.should_validate_password)
+    }
+}
+
+impl std::convert::From<DatasetConfig> for config::ValueKind {
+    fn from(_value: DatasetConfig) -> Self {
+        Self::Nil
+    }
+}
+
+// TODO likely need a user config
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// pub struct UserConfig {
+//     pub user__data_lookup_hierarchy: Option<Vec<String>>,
+//     pub user__datasets: Option<HashMap<String, HashMap<String, String>>>,
+//     pub user__password_auth_attempts: u8,
+//     pub user__password_cache_option: String,
+//     pub user__password_reasons: HashMap<String, String>,
+//     pub password_encryption_key: Option<String>,
+//     pub password_encryption_nonce: Option<String>,
+//     // pre-populated users, generally for explicit purposes such as an LDAP service user
+//     // or regression test launcher
+//     pub user__dataset_mappings: HashMap<String, HashMap<String, String>>,
+//     pub service_users: HashMap<String, HashMap<String, String>>,
+//     // User session root path
+//     pub session__user_root: Option<String>,
+// }
 
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
@@ -44,18 +98,20 @@ pub struct Config {
     pub mailer: Option<HashMap<String, String>>,
 
     // LDAPs
-    pub ldaps: HashMap<String, HashMap<String, String>>,
+    pub ldaps: HashMap<String, LDAPConfig>,
 
     // Very Basic Encryption
-    pub default_encryption_key: String,
-    pub default_encryption_nonce: String,
+    // TEST_NEEDED ensure these get set in OM
+    pub default_encryption_key: Option<String>,
+    pub default_encryption_nonce: Option<String>,
 
     // Various user config
     pub user__data_lookup_hierarchy: Option<Vec<String>>,
-    pub user__datasets: Option<HashMap<String, HashMap<String, String>>>,
+    pub user__datasets: Option<HashMap<String, DatasetConfig>>,
     pub user__password_auth_attempts: u8,
     pub user__password_cache_option: String,
-    pub user__password_reasons: HashMap<String, String>,
+    // pub user__password_reasons: HashMap<String, String>,
+    pub user__dataset_motives: HashMap<String, String>,
     pub password_encryption_key: Option<String>,
     pub password_encryption_nonce: Option<String>,
     // pre-populated users, generally for explicit purposes such as an LDAP service user
@@ -69,50 +125,52 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Config {
         log_trace!("Instantiating Origen config");
-        let mut s = config::Config::new();
+        // let mut s = config::Config::new();
+        let mut s = config::Config::builder();
 
         // Start off by specifying the default values for all attributes, seems fine
         // not to handle these errors
-        let _ = s.set_default("python_cmd", "");
-        let _ = s.set_default("pkg_server", "");
-        let _ = s.set_default("pkg_server_push", "");
-        let _ = s.set_default("pkg_server_pull", "");
-        let _ = s.set_default("some_val", 3);
-        let _ = s.set_default("mailer__maillists_dirs", Vec::<String>::new());
-        let _ = s.set_default("mailer", None::<HashMap<String, String>>);
-        let _ = s.set_default("ldaps", {
+        s = s.set_default("python_cmd", "").unwrap();
+        s = s.set_default("pkg_server", "").unwrap();
+        s = s.set_default("pkg_server_push", "").unwrap();
+        s = s.set_default("pkg_server_pull", "").unwrap();
+        s = s.set_default("some_val", 3).unwrap();
+        s = s.set_default("mailer__maillists_dirs", Vec::<String>::new()).unwrap();
+        s = s.set_default("mailer", None::<HashMap<String, String>>).unwrap();
+        s = s.set_default("ldaps", {
+            // let h: HashMap<String, HashMap<String, String>> = HashMap::new();
+            let h: HashMap<String, LDAPConfig> = HashMap::new();
+            h
+        }).unwrap();
+        s = s.set_default("user__data_lookup_hierarchy", None::<Vec<String>>).unwrap();
+        s = s.set_default("user__password_auth_attempts", 3).unwrap();
+        s = s.set_default("user__password_cache_option", "keyring").unwrap();
+        s = s.set_default("user__datasets", {
+            let h: Option<HashMap<String, DatasetConfig>> = None;
+            h
+        }).unwrap();
+        s = s.set_default("user__dataset_mappings", {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h
-        });
-        let _ = s.set_default("user__data_lookup_hierarchy", None::<Vec<String>>);
-        let _ = s.set_default("user__password_auth_attempts", 3);
-        let _ = s.set_default("user__password_cache_option", "keyring");
-        let _ = s.set_default("user__datasets", {
-            let h: Option<HashMap<String, HashMap<String, String>>> = None;
-            h
-        });
-        let _ = s.set_default("user__dataset_mappings", {
-            let h: HashMap<String, HashMap<String, String>> = HashMap::new();
-            h
-        });
-        let _ = s.set_default("user__password_reasons", {
+        }).unwrap();
+        s = s.set_default("user__dataset_motives", {
             let h: HashMap<String, String> = HashMap::new();
             h
-        });
-        let _ = s.set_default("service_users", {
+        }).unwrap();
+        s = s.set_default("service_users", {
             let h: HashMap<String, HashMap<String, String>> = HashMap::new();
             h
-        });
+        }).unwrap();
 
-        let _ = s.set_default("default_encryption_key", DEFAULT_ENCRYPTION_KEY);
-        let _ = s.set_default("default_encryption_nonce", DEFAULT_ENCRYPTION_NONCE);
+        s = s.set_default("default_encryption_key", None::<String>).unwrap();
+        s = s.set_default("default_encryption_nonce", None::<String>).unwrap();
 
         // Encryption keys specifically for passwords
-        let _ = s.set_default("password_encryption_key", None::<String>);
-        let _ = s.set_default("password_encryption_nonce", None::<String>);
+        s = s.set_default("password_encryption_key", None::<String>).unwrap();
+        s = s.set_default("password_encryption_nonce", None::<String>).unwrap();
 
         // Session setup
-        let _ = s.set_default("session__user_root", None::<String>);
+        s = s.set_default("session__user_root", None::<String>).unwrap();
 
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();
@@ -197,34 +255,51 @@ impl Default for Config {
         // Now add in the files, with the last one found taking lowest priority
         for f in files.iter().rev() {
             log_trace!("Loading Origen config file from '{}'", f.display());
-            let mut c = config::Config::new();
-            match c.merge(File::with_name(&format!("{}", f.display()))) {
-                Ok(_) => {}
-                Err(error) => {
-                    term::redln(&format!("Malformed config file: {}", f.display()));
-                    term::redln(&format!("{}", error));
-                    std::process::exit(1);
-                }
-            }
-            process_config_pre_merge(&mut c, f);
-            match s.merge(c) {
-                Ok(_) => {}
-                Err(error) => {
-                    term::redln(&format!("Malformed config file: {}", f.display()));
-                    term::redln(&format!("{}", error));
-                    std::process::exit(1);
-                }
-            }
+            s = s.add_source(File::with_name(&format!("{}", f.display())));
+            // TODO
+            // let defaults = s.build().unwrap();
+
+            // let mut c = config::Config::new();
+            // match c.merge(File::with_name(&format!("{}", f.display()))) {
+            //     Ok(_) => {}
+            //     Err(error) => {
+            //         term::redln(&format!("Malformed config file: {}", f.display()));
+            //         term::redln(&format!("{}", error));
+            //         std::process::exit(1);
+            //     }
+            // }
+            // process_config_pre_merge(&mut c, f);
+            // match s.merge(c) {
+            //     Ok(_) => {}
+            //     Err(error) => {
+            //         term::redln(&format!("Malformed config file: {}", f.display()));
+            //         term::redln(&format!("{}", error));
+            //         std::process::exit(1);
+            //     }
+            // }
         }
 
         // Add in settings from the environment (with a prefix of ORIGEN), not sure how this
         // can really fail, so not handled
-        let _ = s.merge(Environment::with_prefix("origen"));
+        // let _ = s.merge(Environment::with_prefix("origen"));
+        s = s.add_source(Environment::with_prefix("origen"));
 
-        s.try_into().unwrap()
+        // s.try_into().unwrap()
+        s.build().unwrap().try_deserialize().unwrap()
+        // match s.build().unwrap().try_deserialize() {
+        //     Ok(c) => c,
+        //     Err(e) => {
+        //         term::redln(&format!("Malformed config file"));
+        //         term::redln(&format!("{}", e));
+        //         std::process::exit(1);
+        //     }
+        // }
     }
 }
 
+
+// TODO need to add some support for this again in some way../
+/*
 /// Do any processing to the config that needs to happen before attempting to merge
 fn process_config_pre_merge(c: &mut config::Config, src: &PathBuf) {
     match c.get("mailer__maillists_dirs") {
@@ -311,7 +386,7 @@ impl Config {
         }
     }
 }
-
+*/
 #[cfg(test)]
 mod tests {
     use crate::ORIGEN_CONFIG;

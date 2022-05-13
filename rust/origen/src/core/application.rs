@@ -3,7 +3,6 @@ pub mod target;
 
 use super::application::config::Config;
 use crate::core::frontend::{BuildResult, GenericResult};
-use crate::utility::str_to_bool;
 use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
@@ -161,7 +160,7 @@ impl Application {
         self.with_config(|config| {
             if let Some(pc) = &config.publisher {
                 if let Some(s) = pc.get("package_app") {
-                    return str_to_bool(s);
+                    return Ok(s.parse::<bool>()?)
                 }
             }
             Ok(true)

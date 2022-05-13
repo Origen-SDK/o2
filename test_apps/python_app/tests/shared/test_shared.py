@@ -10,6 +10,6 @@ def test_in_new_origen_proc():
     out = in_new_origen_proc(func__test_users_are_reset)
     assert out["users"] == [getpass.getuser(), "test_in_new_origen_proc"]
 
-    assert "test_in_new_origen_proc" not in origen.current_user().datasets
+    assert "test_in_new_origen_proc" not in origen.current_user.datasets
     out = in_new_origen_proc(func__test_with_config)
     assert out["datasets"] == ["test_in_new_origen_proc"]

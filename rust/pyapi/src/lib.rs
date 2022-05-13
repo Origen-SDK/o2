@@ -23,11 +23,13 @@ mod prog_gen;
 mod standard_sub_blocks;
 mod tester;
 mod tester_apis;
-mod user;
+#[macro_use]
 mod utility;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
+use origen_metal as om;
+use om::lazy_static::lazy_static;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
 use pyapi_metal::pypath;
 use pyo3::conversion::AsPyPointer;
@@ -50,7 +52,6 @@ use services::PyInit_services;
 use standard_sub_blocks::PyInit_standard_sub_blocks;
 use tester::PyInit_tester;
 use tester_apis::PyInit_tester_apis;
-use user::PyInit_users;
 use utility::location::Location;
 use utility::PyInit_utility;
 
@@ -77,8 +78,6 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(output_directory))?;
     m.add_wrapped(wrap_pyfunction!(website_output_directory))?;
     m.add_wrapped(wrap_pyfunction!(website_source_directory))?;
-    m.add_wrapped(wrap_pyfunction!(on_windows))?;
-    m.add_wrapped(wrap_pyfunction!(on_linux))?;
     m.add_wrapped(wrap_pyfunction!(prepare_for_target_load))?;
     m.add_wrapped(wrap_pyfunction!(start_new_test))?;
     m.add_wrapped(wrap_pyfunction!(unhandled_error_count))?;
@@ -88,6 +87,7 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(exit_fail))?;
     m.add_wrapped(wrap_pyfunction!(enable_debug))?;
     m.add_wrapped(wrap_pyfunction!(set_operation))?;
+    m.add_wrapped(wrap_pyfunction!(boot_users))?;
 
     m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
@@ -100,7 +100,6 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(tester_apis))?;
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
-    m.add_wrapped(wrap_pymodule!(users))?;
 
     // Compile the _origen_metal library along with this one
     // to allow re-use from that library
@@ -360,7 +359,7 @@ fn origen_mod_path() -> PyResult<PathBuf> {
 /// Called automatically when Origen is first loaded
 #[pyfunction]
 fn initialize(
-    _py: Python,
+    py: Python,
     log_verbosity: Option<u8>,
     verbosity_keywords: Vec<String>,
     cli_location: Option<String>,
@@ -385,6 +384,15 @@ fn initialize(
         origen::STATUS.set_in_origen_core_app(origen_mod_path()? == app.root);
     } else {
         origen::STATUS.set_in_origen_core_app(false);
+    }
+
+    boot_users(py)?;
+    match origen::setup_sessions() {
+        Ok(_) => {},
+        Err(e) => log_error!(
+            "Failed to setup user and application sessions. Received error: \n{}",
+            e
+        )
     }
     Ok(())
 }
@@ -476,7 +484,7 @@ fn status(py: Python) -> PyResult<PyObject> {
     }
     let _ = ret.set_item("origen_version", &STATUS.origen_version.to_string());
     let _ = ret.set_item("home", format!("{}", STATUS.home.display()));
-    let _ = ret.set_item("on_windows", cfg!(windows));
+    let _ = ret.set_item("on_windows", om::running_on_windows());
     ret.set_item(
         "origen_core_support_version",
         STATUS.origen_core_support_version.to_string(),
@@ -599,16 +607,6 @@ fn website_source_directory(py: Python) -> PyResult<PyObject> {
 }
 
 #[pyfunction]
-fn on_windows() -> PyResult<bool> {
-    Ok(origen::core::os::on_windows())
-}
-
-#[pyfunction]
-fn on_linux() -> PyResult<bool> {
-    Ok(origen::core::os::on_linux())
-}
-
-#[pyfunction]
 /// This will be called by Origen immediately before loading a fresh set of targets
 fn prepare_for_target_load() -> PyResult<()> {
     origen::prepare_for_target_load()?;
@@ -655,7 +653,6 @@ where
 }
 
 pub fn get_full_class_name(obj: &PyAny) -> PyResult<String> {
-    // let obj = g.to_object(py);
     let cls = obj.getattr("__class__")?;
     let mut n = cls.getattr("__module__")?.extract::<String>()?;
     n.push_str(&format!(
@@ -663,4 +660,102 @@ pub fn get_full_class_name(obj: &PyAny) -> PyResult<String> {
         cls.getattr("__qualname__")?.extract::<String>()?
     ));
     Ok(n)
+}
+
+// TODO probably move this to somewhere else
+#[pyfunction]
+pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> {
+    lazy_static! {
+        static ref BASE_MSG: &'static str = "Encountered an error when initializing users";
+    }
+    log_trace!("Setting up user session...");
+    if let Some(r) = &ORIGEN_CONFIG.session__user_root {
+        let mut users = om::users_mut();
+        let mut sc = users.default_session_config_mut();
+        sc.root = Some(PathBuf::from(r));
+    }
+
+    let users = pyapi_metal::framework::users::users()?;
+
+    if let Some(dsets) = &crate::ORIGEN_CONFIG.user__datasets {
+        let mut replace_default = true;
+        for (dn, config) in dsets {
+            match config.try_into() {
+                Ok(om_config) => {
+                    match pyapi_metal::framework::users::UserDatasetConfig::new_py(py, om_config) {
+                        Ok(py_config) => {
+                            if replace_default {
+                                match users.override_default_dataset(dn, Some(py_config.into_py(py).as_ref(py))) {
+                                    Ok(_) => {
+                                        replace_default = false;
+                                    },
+                                    Err(e) => {
+                                        om::log_error!("{}: Error encountered updating default dataset with config '{}'", *BASE_MSG, dn);
+                                        om::log_error!("{}", e);
+                                    }
+                                }
+                            } else {
+                                match users.add_dataset(dn, Some(pyapi_metal::framework::users::UserDatasetConfig::new_py(py, config.try_into()?)?.into_py(py).as_ref(py)), false) {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        om::log_error!("{}: Error encountered adding dataset '{}'", *BASE_MSG, dn);
+                                        om::log_error!("{}", e);
+                                    }
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            // Still in the "processing stage - just on the python side
+                            om::log_error!("{}: Error encountered processing dataset config for '{}'", *BASE_MSG, dn);
+                            om::log_error!("{}", e);
+                        }
+                    }
+                },
+                Err(e) => {
+                    om::log_error!("{}: Error encountered processing dataset config for '{}'", *BASE_MSG, dn);
+                    om::log_error!("{}", e);
+                }
+            }
+        }
+    }
+
+    // Set the data lookup hierarchy
+    if let Some(hierarchy) = &crate::ORIGEN_CONFIG.user__data_lookup_hierarchy {
+        match users.set_data_lookup_hierarchy(hierarchy.to_owned()) {
+            Ok(_) => {},
+            Err(e) => {
+                om::log_error!("{}: Error encountered setting the default lookup hierarchy", *BASE_MSG);
+                om::log_error!("{}", e);
+                om::log_error!("Forcing empty dataset lookup hierarchy...");
+                users.set_data_lookup_hierarchy(vec![])?;
+            }
+        }
+    } else {
+        if crate::ORIGEN_CONFIG.user__datasets.is_some() && crate::ORIGEN_CONFIG.user__datasets.as_ref().unwrap().len() > 1 {
+            // The config can only be read as an unordered hashmap. If multiple datasets are given,
+            // clear the hierarchy if not explicitly given, otherwise will get non-deterministic behavior
+            users.set_data_lookup_hierarchy(vec![])?;
+        }
+    }
+
+    // Add dataset motives
+    for (m, ds) in &crate::ORIGEN_CONFIG.user__dataset_motives {
+        match users.add_motive(m, ds, false) {
+            Ok(_) => {},
+            Err(e) => {
+                om::log_error!("{}: Error encountered adding dataset motive '{}'", *BASE_MSG, m);
+                om::log_error!("{}", e);
+            }
+        }
+    }
+
+    // Initialize the current user
+    match users.lookup_current_id(true) {
+        Ok(_) => {},
+        Err(e) => {
+            om::log_error!("{}: Failed to lookup current user", *BASE_MSG);
+            om::log_error!("{}", e);
+        }
+    }
+    Ok(users)
 }

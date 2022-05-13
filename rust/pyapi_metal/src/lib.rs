@@ -1,4 +1,4 @@
-mod _helpers;
+pub mod _helpers;
 pub mod framework;
 pub mod frontend;
 pub mod prelude;
@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 
 pub(crate) use origen_metal::Result as OMResult;
+pub use crate::framework::Outcome as PyOutcome;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -24,6 +25,8 @@ pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
         "__origen_metal_backend_version__",
         origen_metal::VERSION.to_string(),
     )?;
+    m.setattr("running_on_windows", origen_metal::running_on_windows())?;
+    m.setattr("running_on_linux", origen_metal::running_on_linux())?;
 
     #[cfg(debug_assertions)]
     {

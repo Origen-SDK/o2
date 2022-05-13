@@ -1,5 +1,5 @@
 pub mod caller;
-pub mod ldap;
+pub mod ldaps;
 pub mod linter;
 pub mod location;
 #[allow(non_snake_case)]
@@ -15,7 +15,6 @@ pub mod unit_testers;
 pub mod version;
 pub mod website;
 
-use ldap::PyInit_ldap;
 use linter::PyInit_linter;
 use location::Location;
 use mailer::PyInit_mailer;
@@ -30,6 +29,7 @@ use transaction::Transaction;
 use unit_testers::PyInit_unit_testers;
 use version::Version;
 use website::PyInit_website;
+use ldaps::__pyo3_get_function_ldaps;
 
 use crate::_helpers::hashmap_to_pydict;
 use crate::runtime_error;
@@ -39,6 +39,18 @@ use pyo3::types::PyDict;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+// TODO move this to somewhere better
+#[macro_export]
+macro_rules! optional_config_value_map_into_pydict {
+    ($py:expr, $map:expr) => {
+        if let Some(m) = $map {
+            crate::utility::config_value_map_into_pydict($py, &mut m.iter())?.to_object($py)
+        } else {
+            $py.None()
+        }
+    };
+}
+
 #[pymodule]
 pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Location>()?;
@@ -47,7 +59,7 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(reverse_bits))?;
     m.add_wrapped(wrap_pymodule!(mailer))?;
     m.add_wrapped(wrap_pymodule!(sessions))?;
-    m.add_wrapped(wrap_pymodule!(ldap))?;
+    m.add_wrapped(wrap_pyfunction!(ldaps))?;
     m.add_wrapped(wrap_pymodule!(revision_control))?;
     m.add_wrapped(wrap_pymodule!(unit_testers))?;
     m.add_wrapped(wrap_pymodule!(publisher))?;
@@ -59,6 +71,18 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;
     Ok(())
 }
+
+// TODO needed? or move to OM?
+// pub fn to_pylist<'p, I>(py: Python<'p>, list: &'p mut dyn Iterator<Item=I>) -> PyResult<Py<pyo3::types::PyList>>
+// where
+//     I: 'p + ToPyObject
+// {
+//     let pylist = pyo3::types::PyList::empty(py);
+//     for i in list {
+//         pylist.append(i)?;
+//     }
+//     Ok(pylist.into())
+// }
 
 #[pyfunction]
 pub fn reverse_bits(_py: Python, num: BigUint, width: Option<u64>) -> PyResult<BigUint> {
@@ -109,6 +133,7 @@ pub fn exec(
     })
 }
 
+// TODO use metal's
 fn new_obj(py: Python, class: &str, kwargs: &PyDict) -> PyResult<PyObject> {
     let split = class.rsplitn(2, ".").collect::<Vec<&str>>();
     let locals = PyDict::new(py);
@@ -199,4 +224,46 @@ pub fn dispatch_workflow(
 ) -> PyResult<results::GenericResult> {
     let res = origen::utility::github::dispatch_workflow(owner, repo, workflow, git_ref, inputs)?;
     Ok(results::GenericResult::from_origen(res))
+}
+
+// TODO relocate these
+use origen::config;
+use pyo3::types::PyList;
+
+pub fn config_value_into_pyobject(py: Python, v: &config::Value) -> PyResult<PyObject> {
+    Ok(match &v.kind {
+        config::ValueKind::Boolean(b) => b.to_object(py),
+        config::ValueKind::I64(i) => i.to_object(py),
+        config::ValueKind::I128(i) => i.to_object(py),
+        config::ValueKind::U64(u) => u.to_object(py),
+        config::ValueKind::U128(u) => u.to_object(py),
+        config::ValueKind::Float(f) => f.to_object(py),
+        config::ValueKind::String(s) => s.to_object(py),
+        config::ValueKind::Table(map) => {
+            let pydict = PyDict::new(py);
+            for (k, inner_v) in map.iter() {
+                pydict.set_item(k, config_value_into_pyobject(py, inner_v)?)?;
+            }
+            pydict.to_object(py)
+        },
+        config::ValueKind::Array(vec) => {
+            let pylist = PyList::empty(py);
+            for inner_v in vec.iter() {
+                pylist.append(config_value_into_pyobject(py, inner_v)?)?;
+            }
+            pylist.to_object(py)
+        },
+        config::ValueKind::Nil => return runtime_error!(format!("Cannot convert config value '{}' to a Python object", v))
+    })
+}
+
+pub fn config_value_map_into_pydict<'p>(py: Python<'p>, map: &'p mut dyn Iterator<Item=(&String, &config::Value)>) -> PyResult<Py<PyDict>> {
+    let pydict = PyDict::new(py);
+    for (k, v) in map.into_iter() {
+        pydict.set_item(k, match config_value_into_pyobject(py, v) {
+            Ok(o) => o,
+            Err(_e) => return runtime_error!(format!("Cannot convert config value '{}' with value '{}' to a Python object", k, v))
+        })?;
+    }
+    Ok(pydict.into())
 }

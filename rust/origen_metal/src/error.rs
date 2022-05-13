@@ -1,7 +1,7 @@
 use std::error::Error as BaseError;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
     pub msg: String,
 }
@@ -150,12 +150,12 @@ impl std::convert::From<ldap3::LdapError> for Error {
        Error::new(&err.to_string())
    }
 }
-//
-//impl std::convert::From<aes_gcm::Error> for Error {
-//    fn from(err: aes_gcm::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+
+impl std::convert::From<aes_gcm::Error> for Error {
+   fn from(err: aes_gcm::Error) -> Self {
+       Error::new(&err.to_string())
+   }
+}
 
 impl std::convert::From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Self {
@@ -163,11 +163,11 @@ impl std::convert::From<std::string::FromUtf8Error> for Error {
     }
 }
 
-//impl std::convert::From<keyring::KeyringError> for Error {
-//    fn from(err: keyring::KeyringError) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<keyring::KeyringError> for Error {
+   fn from(err: keyring::KeyringError) -> Self {
+       Error::new(&err.to_string())
+   }
+}
 
 //impl std::convert::From<anyhow::Error> for Error {
 //    fn from(err: anyhow::Error) -> Self {

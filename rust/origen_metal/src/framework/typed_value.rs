@@ -1,16 +1,20 @@
 use crate::Result;
 use num_bigint::{BigInt, BigUint};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use toml::Value;
 use indexmap::IndexMap as IM;
+// use std::collections::HashMap;
 use std::iter::FromIterator;
+
+// TODO need to support mapping/tables
 
 const DATA: &str = "data";
 const CLASS: &str = "__origen_encoded_class__";
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TypedValue {
+    None,
     String(String),
     Usize(usize),
     BigInt(BigInt),
@@ -18,6 +22,7 @@ pub enum TypedValue {
     Bool(bool),
     Float(f64),
     Vec(Vec<Self>),
+    // Map(HashMap<Self, Self>),
     Serialized(Vec<u8>, Option<String>, Option<String>), // Data, Serializer, Optional Data Type/Class
                                                          // ... as needed
 }
@@ -35,8 +40,17 @@ macro_rules! class {
 }
 
 impl TypedValue {
+    pub fn into_optional<'a, T: TryFrom<&'a TypedValue, Error = crate::Error>>(tv: Option<&'a TypedValue>) -> Result<Option<T>> {
+        Ok(match tv {
+            Some(val) => Some(val.try_into()?),
+            None => None
+        })
+    }
+
     pub fn to_class_str(&self) -> &str {
         match self {
+            // TEST_NEEDED for none
+            Self::None => "none",
             Self::String(_) => "string",
             Self::BigInt(_) => "bigint",
             Self::BigUint(_) => "biguint",
@@ -45,12 +59,16 @@ impl TypedValue {
             Self::Serialized(_, _, _) => "serialized",
             Self::Usize(_) => "usize",
             Self::Vec(_) => "vec",
+            // Self::Map(_) => "map",
         }
     }
 
     pub fn to_toml_value(&self) -> Result<Value> {
         let mut toml_map = toml::value::Table::new();
         match self {
+            Self::None => {
+                toml_map.insert(data!(), Value::String("none".to_string()));
+            }
             Self::String(s) => {
                 toml_map.insert(data!(), Value::String(s.to_string()));
             }
@@ -95,6 +113,13 @@ impl TypedValue {
         Ok(Value::Table(toml_map))
     }
 
+    pub fn is_none(&self) -> bool {
+        match self {
+            Self::None => true,
+            _ => false,
+        }
+    }
+
     pub fn as_string(&self) -> Result<String> {
         match self {
             Self::String(s) => Ok(s.clone()),
@@ -137,14 +162,108 @@ impl TypedValue {
         }
     }
 
+    // pub fn as_map(&self) -> Result<HashMap<Self, Self>> {
+    //     match self {
+    //         Self::Map(m) => Ok(m.clone()),
+    //         _ => bail!(&self.conversion_error_msg("map"))
+    //     }
+    // }
+
     fn conversion_error_msg(&self, expected: &str) -> String {
         format!("Requested TypedValue as '{}', but it is of type '{}'", expected, self.to_class_str())
+    }
+}
+
+impl <T>From<Option<T>> for TypedValue where TypedValue: From<T> {
+    fn from(value: Option<T>) -> Self {
+        match value {
+            Some(v) => v.into(),
+            None => Self::None
+        }
+    }
+}
+
+impl <T>From<Vec<T>> for TypedValue where TypedValue: From<T> {
+    fn from(values: Vec<T>) -> Self {
+        Self::Vec(values.into_iter().map( |v| v.into()).collect::<Vec<Self>>())
+    }
+}
+
+impl <'a, T>From<std::slice::Iter<'a, T>> for TypedValue where TypedValue: From<&'a T> {
+    fn from(values: std::slice::Iter<'a, T>) -> Self {
+        Self::Vec(values.into_iter().map( |v| v.into()).collect::<Vec<Self>>())
     }
 }
 
 impl From<&str> for TypedValue {
     fn from(value: &str) -> Self {
         Self::String(value.to_string())
+    }
+}
+
+impl From<String> for TypedValue {
+    fn from(value: String) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<&String> for TypedValue {
+    fn from(value: &String) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<bool> for TypedValue {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<&bool> for TypedValue {
+    fn from(value: &bool) -> Self {
+        Self::Bool(*value)
+    }
+}
+
+// TODO
+// impl <K, V>From<&HashMap<K, V>> for TypedValue where
+//     TypedValue: From<K>,
+//     TypedValue: From<V>,
+// {
+//     fn from(map: &HashMap<K, V>) -> Self {
+//         todo!()
+//     }
+// }
+
+impl TryFrom<TypedValue> for String {
+    type Error = crate::Error;
+
+    fn try_from(value: TypedValue) -> std::result::Result<String, Self::Error> {
+        value.as_string()
+    }
+}
+
+impl TryFrom<&TypedValue> for String {
+    type Error = crate::Error;
+
+    fn try_from(value: &TypedValue) -> std::result::Result<String, Self::Error> {
+        value.as_string()
+    }
+}
+
+impl TryFrom<TypedValue> for bool {
+    type Error = crate::Error;
+
+    fn try_from(value: TypedValue) -> std::result::Result<bool, Self::Error> {
+        value.as_bool()
+    }
+}
+
+impl TryFrom<&TypedValue> for bool {
+    type Error = crate::Error;
+
+    fn try_from(value: &TypedValue) -> std::result::Result<bool, Self::Error> {
+        value.as_bool()
     }
 }
 
@@ -169,6 +288,17 @@ impl TryFrom<&Value> for TypedValue {
                                     return Ok(Self::Vec(elements));
                                 }
                             }
+                            // TODO
+                        // } else if encoded_class == "map" {
+                        //     if let Some(data_val) = a.get("map") {
+                        //         if let Some(data) = data_val.as_table() {
+                        //             let mut elements: HashMap<Self, Self> = HashMap::new();
+                        //             for (k, el) in data.iter() {
+                        //                 elements.insert(k, Self::try_from(el))?;
+                        //             }
+                        //             return Ok(Self::Map(elements));
+                        //         }
+                        //     }
                         }
 
                         if let Some(data_val) = a.get("data") {
@@ -192,6 +322,11 @@ impl TryFrom<&Value> for TypedValue {
                                 if let Some(data) = data_val.as_str() {
                                     return Ok(Self::String(data.to_string()));
                                 }
+                            } else if encoded_class == "none" {
+                                // TODO need a check here?
+                                // if let Some(data) = data_val.is_none() {
+                                    return Ok(Self::None)
+                                // }
                             } else if encoded_class == "serialized" {
                                 if let Some(bytes) = data_val.as_array() {
                                     let mut retn: Vec<u8> = vec![];
@@ -232,6 +367,7 @@ impl TryFrom<&Value> for TypedValue {
                         }
                     }
                 }
+                // TODO
                 // Generic Hashmap
                 // Probably add support for this add some point
                 bail!("TypedValue conversion from generic Value::Table is not implemented yet")
@@ -282,9 +418,15 @@ impl FromIterator<TypedValue> for TypedValueVec {
 type Tvm = IM<String, TypedValue>;
 
 /// Wrapper around an indexmap of typed values.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Map {
     pub typed_values: IM<String, TypedValue>,
+}
+
+impl std::convert::AsRef<Map> for Map {
+    fn as_ref(&self) -> &Map {
+        &self
+    }
 }
 
 impl Default for Map {
@@ -306,6 +448,26 @@ impl Map {
 
     pub fn insert(&mut self, key: &str, obj: impl Into<TypedValue>) -> Option<TypedValue> {
         self.typed_values.insert(key.to_string(), obj.into())
+    }
+
+    pub fn into_pairs(&self) -> Vec<(String, TypedValue)> {
+        self.typed_values.iter().map( |(n, tv)| (n.to_string(), tv.clone())).collect()
+    }
+
+    pub fn get(&self, key: &str) -> Option<&TypedValue> {
+        self.typed_values.get(key)
+    }
+
+    pub fn keys(&self) -> indexmap::map::Keys<String, TypedValue> {
+        self.typed_values.keys()
+    }
+
+    pub fn len(&self) -> usize {
+        self.typed_values.len()
+    }
+
+    pub fn iter(&self) -> indexmap::map::Iter<String, TypedValue> {
+        self.typed_values.iter()
     }
 }
 

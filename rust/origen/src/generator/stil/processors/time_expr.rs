@@ -51,21 +51,21 @@ impl Processor for TimeExpr {
                         Attrs::Integer(rhs) => node!(Integer, lhs + rhs),
                         Attrs::Float(rhs) => node!(Float, *lhs as f64 + rhs),
                         Attrs::String(rhs) => node!(String, format!("{}+{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::Float(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(Float, lhs + *rhs as f64),
                         Attrs::Float(rhs) => node!(Float, lhs + rhs),
                         Attrs::String(rhs) => node!(String, format!("{}+{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::String(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(String, format!("{}+{}", lhs, rhs)),
                         Attrs::Float(rhs) => node!(String, format!("{}+{}", lhs, rhs)),
                         Attrs::String(rhs) => node!(String, format!("{}+{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
-                    _ => unreachable!(format!("{:?}", nodes[0])),
+                    _ => unreachable!("{}", format!("{:?}", nodes[0])),
                 })
             }
             Attrs::STILSubtract => {
@@ -75,21 +75,21 @@ impl Processor for TimeExpr {
                         Attrs::Integer(rhs) => node!(Integer, lhs - rhs),
                         Attrs::Float(rhs) => node!(Float, *lhs as f64 - rhs),
                         Attrs::String(rhs) => node!(String, format!("{}-{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::Float(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(Float, lhs - *rhs as f64),
                         Attrs::Float(rhs) => node!(Float, lhs - rhs),
                         Attrs::String(rhs) => node!(String, format!("{}-{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::String(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(String, format!("{}-{}", lhs, rhs)),
                         Attrs::Float(rhs) => node!(String, format!("{}-{}", lhs, rhs)),
                         Attrs::String(rhs) => node!(String, format!("{}-{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
-                    _ => unreachable!(format!("{:?}", nodes[0])),
+                    _ => unreachable!("{}", format!("{:?}", nodes[0])),
                 })
             }
             Attrs::STILMultiply => {
@@ -99,21 +99,21 @@ impl Processor for TimeExpr {
                         Attrs::Integer(rhs) => node!(Integer, lhs * rhs),
                         Attrs::Float(rhs) => node!(Float, *lhs as f64 * rhs),
                         Attrs::String(rhs) => node!(String, format!("{}*{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::Float(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(Float, lhs * *rhs as f64),
                         Attrs::Float(rhs) => node!(Float, lhs * rhs),
                         Attrs::String(rhs) => node!(String, format!("{}*{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::String(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(String, format!("{}*{}", lhs, rhs)),
                         Attrs::Float(rhs) => node!(String, format!("{}*{}", lhs, rhs)),
                         Attrs::String(rhs) => node!(String, format!("{}*{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
-                    _ => unreachable!(format!("{:?}", nodes[0])),
+                    _ => unreachable!("{}", format!("{:?}", nodes[0])),
                 })
             }
             Attrs::STILDivide => {
@@ -123,21 +123,21 @@ impl Processor for TimeExpr {
                         Attrs::Integer(rhs) => node!(Integer, lhs / rhs),
                         Attrs::Float(rhs) => node!(Float, *lhs as f64 / rhs),
                         Attrs::String(rhs) => node!(String, format!("{}/{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::Float(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(Float, lhs / *rhs as f64),
                         Attrs::Float(rhs) => node!(Float, lhs / rhs),
                         Attrs::String(rhs) => node!(String, format!("{}/{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::String(lhs) => match &nodes[1].attrs {
                         Attrs::Integer(rhs) => node!(String, format!("{}/{}", lhs, rhs)),
                         Attrs::Float(rhs) => node!(String, format!("{}/{}", lhs, rhs)),
                         Attrs::String(rhs) => node!(String, format!("{}/{}", lhs, rhs)),
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
-                    _ => unreachable!(format!("{:?}", nodes[0])),
+                    _ => unreachable!("{}", format!("{:?}", nodes[0])),
                 })
             }
             Attrs::STILNumberWithUnit => {
@@ -157,9 +157,9 @@ impl Processor for TimeExpr {
                             "p" => node!(Float, val as f64 / 1_000_000_000_000_f64),
                             "f" => node!(Float, val as f64 / 1_000_000_000_000_000_f64),
                             "a" => node!(Float, val as f64 / 1_000_000_000_000_000_000_f64),
-                            _ => unreachable!(format!("Unknown eng prefix '{}'", p)),
+                            _ => unreachable!("{}", format!("Unknown eng prefix '{}'", p)),
                         },
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
                     Attrs::Float(val) => match &nodes[1].attrs {
                         Attrs::STILEngPrefix(p) => match p.as_str() {
@@ -175,11 +175,11 @@ impl Processor for TimeExpr {
                             "p" => node!(Float, val / 1_000_000_000_000_f64),
                             "f" => node!(Float, val / 1_000_000_000_000_000_f64),
                             "a" => node!(Float, val / 1_000_000_000_000_000_000_f64),
-                            _ => unreachable!(format!("Unknown eng prefix '{}'", p)),
+                            _ => unreachable!("{}", format!("Unknown eng prefix '{}'", p)),
                         },
-                        _ => unreachable!(format!("{:?}", nodes[1])),
+                        _ => unreachable!("{}", format!("{:?}", nodes[1])),
                     },
-                    _ => unreachable!(format!("{:?}", nodes[0])),
+                    _ => unreachable!("{}", format!("{:?}", nodes[0])),
                 })
             }
             // Only recurse inside time expression nodes

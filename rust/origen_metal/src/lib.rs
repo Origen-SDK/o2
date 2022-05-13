@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate lazy_static;
+pub extern crate lazy_static;
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -10,6 +10,7 @@ extern crate cfg_if;
 extern crate enum_display_derive;
 
 pub mod prelude;
+pub mod _utility;
 mod error;
 pub mod framework;
 pub mod frontend;
@@ -19,14 +20,39 @@ use std::sync::Mutex;
 
 pub use error::Error;
 pub use utils::file;
-pub use utils::outcome::Outcome;
+pub use utils::outcome::{Outcome, OutcomeState};
 pub use framework::typed_value::TypedValue;
 pub use framework::typed_value::Map as TypedValueMap;
 pub use framework::typed_value::TypedValueVec;
 pub use framework::sessions::{sessions, Sessions};
+pub use frontend::{with_frontend, with_optional_frontend};
+// TODO make a prelude out of this?
+pub use framework::users::users::{
+    users, users_mut, with_users, with_users_mut,
+    get_initial_user_id, get_current_user_id, require_current_user_id,
+    get_current_user_home_dir, require_current_user_home_dir,
+    get_current_user_email, require_current_user_email,
+    add_user, set_current_user, clear_current_user, with_current_user,
+    try_lookup_current_user, try_lookup_and_set_current_user,
+    with_user, with_user_mut,
+    with_current_user_session,
+};
+// TODO and this?
+pub use framework::users::user::{
+    with_user_dataset, with_user_dataset_mut,
+    add_dataset_to_user, register_dataset_with_user,
+    with_user_hierarchy,
+};
+pub use framework::users::users::unload as unload_users;
+pub use utils::os::on_windows as running_on_windows;
+pub use utils::os::on_linux as running_on_linux;
+
 
 use self::frontend::Frontend;
+use self::framework::users::users::Users;
 use std::sync::RwLock;
+
+pub type RefStrAble = dyn AsRef<str> + Send + Sync;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -38,10 +64,13 @@ lazy_static! {
     pub static ref VERSION: &'static str = built_info::PKG_VERSION;
     pub static ref FRONTEND: RwLock<Frontend> = RwLock::new(Frontend::new());
     pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
+    pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
 }
 
 pub fn unload() -> Result<()> {
     sessions().unload()?;
+    // TODO add users unload, and probably frontend too
+    users_mut().unload(true)?;
     Ok(())
 }
 

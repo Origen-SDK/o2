@@ -11,6 +11,23 @@ macro_rules! bail {
     };
 }
 
+// "An error condition thought unreachable has occurred:\n {}\n
+
+// Please open an issue at {} to have this addressed
+// "
+// #[macro_export]
+// macro_rules! bail_as_unreachable {
+//     ($msg:literal $(,)?) => {
+//         return Err($crate::error!($msg))
+//     };
+//     ($err:expr $(,)?) => {
+//         return Err($crate::error!($err))
+//     };
+//     ($fmt:expr, $($arg:tt)*) => {
+//         return Err($crate::error!($fmt, $($arg)*))
+//     };
+// }
+
 #[macro_export]
 macro_rules! error {
     ($msg:literal $(,)?) => {

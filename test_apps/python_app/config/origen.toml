@@ -21,6 +21,8 @@ mailer__domain = "origen.org"
 mailer__auth__service_user = "forumsys_read_only"
 mailer__timeout_seconds = 120
 
+session__user_root = "./tmp/pytest"
+
 ### Users Setup ###
 # Various items to customize user data
 #
@@ -35,18 +37,19 @@ user__password_cache_option = "none"
 [user__datasets.test2]
 [user__datasets.backup]
 [user__datasets.forumsys]
-data_source = "ldap"
-data_lookup = "forumsys" # Corresponds to LDAP name
+category = "ldaps"
+data_store = "forumsys" # Corresponds to LDAP name
 data_id = "uid"
 data_service_user = "forumsys_read_only"
-try_password = true
+should_validate_password = true
 auto_populate = false
 [user__datasets.git]
-data_source = "git"
+data_store = "git"
 auto_populate = false
 
 # When a password is requested for the given reason, will select the appropriate dataset
-[user__password_reasons]
+[user__dataset_motives]
+"rc" = "git"
 "just because" = "test2"
 
 [user__dataset_mappings]
@@ -65,8 +68,10 @@ full_name = "cn"
 [ldaps.forumsys]
 server = "ldap://ldap.forumsys.com:389"
 base = "dc=example,dc=com"
-auth = "simple_bind"
-service_user = "forumsys_read_only"
+[ldaps.forumsys.auth]
+scheme = "simple_bind"
+username = "cn=read-only-admin,dc=example,dc=com"
+password = "password"
 
 # Service/functional accounts
 [service_users]

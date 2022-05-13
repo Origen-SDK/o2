@@ -1,0 +1,10 @@
+[ldaps]
+[ldaps.l1]
+server = "ldap://ldap.forumsys.com:389"
+base = "dc=example,dc=com"
+[ldaps.l2]
+server = "ldap://db.debian.org:389"
+base = "dc=debian,dc=org"
+[ldaps.l3]
+server = "ldap://zflexldap.com:389"
+base = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"

@@ -5,10 +5,8 @@ use pyo3::exceptions;
 use pyo3::prelude::*;
 
 #[pyclass(subclass)]
-#[derive(Debug)]
 /// Python interface for the tester backend.
 pub struct V93K {
-    smt_major_version: Option<u32>,
     tester: SupportedTester,
 }
 
@@ -17,7 +15,6 @@ impl V93K {
     #[new]
     fn new(smt_major_version: Option<u32>) -> PyResult<Self> {
         Ok(V93K {
-            smt_major_version: smt_major_version,
             tester: match smt_major_version {
                 None => SupportedTester::V93K,
                 Some(7) => SupportedTester::V93KSMT7,

@@ -30,7 +30,7 @@ origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
 
 # TODO This started failing due to some wwarning from poetry. Needs to be fixed
-@pytest.mark.xfail
+# @pytest.mark.xfail
 def test_origen_v():
     #import pdb; pdb.set_trace()
     process = subprocess.Popen([f'{origen_cli}', '-v'],

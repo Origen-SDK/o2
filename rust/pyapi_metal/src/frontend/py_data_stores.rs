@@ -123,6 +123,14 @@ impl PyDataStores {
     pub fn rusty_categories(&self) -> &IndexMap<String, Py<PyDataStoreCategory>> {
         &self.categories
     }
+
+    // TEST_NEEDED
+    pub fn ensured_cat(&self, cat: &str) -> PyResult<Py<PyDataStoreCategory>> {
+        match self.categories.get(cat) {
+            Some(c) => Ok(c.clone()),
+            None => runtime_error!(format!("Expected category {} to be present, but none was found!", cat))
+        }
+    }
 }
 
 #[pyclass]

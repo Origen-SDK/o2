@@ -1,6 +1,7 @@
 use super::{with_frontend_mod, PY_FRONTEND};
 use crate::{bail_with_runtime_error, frontend_mod};
 use pyo3::prelude::*;
+use indexmap::IndexMap;
 
 use super::py_data_stores::PyDataStores;
 
@@ -8,6 +9,8 @@ use super::py_data_stores::PyDataStores;
 pub struct PyFrontend {
     pub rc: Option<PyObject>,
     pub data_stores: Py<PyDataStores>,
+    pub _users_: IndexMap<String, PyObject>,
+    pub _spare_: IndexMap<String, PyObject>,
 }
 
 #[pymethods]
@@ -50,7 +53,9 @@ impl PyFrontend {
             rc: None,
             data_stores: Python::with_gil(|py| {
                 Py::new(py, PyDataStores::new())
-            }).unwrap()
+            }).unwrap(),
+            _users_: IndexMap::new(),
+            _spare_: IndexMap::new(),
         }
     }
 
@@ -64,7 +69,7 @@ impl PyFrontend {
     }
 }
 
-pub(crate) fn with_py_frontend<F, T>(mut func: F) -> PyResult<T>
+pub fn with_py_frontend<F, T>(mut func: F) -> PyResult<T>
 where
     F: FnMut(Python, PyRef<PyFrontend>) -> PyResult<T>,
 {
@@ -78,7 +83,21 @@ where
     }
 }
 
-pub(crate) fn with_required_rc<F, T>(mut func: F) -> PyResult<T>
+pub fn with_mut_py_frontend<F, T>(mut func: F) -> PyResult<T>
+where
+    F: FnMut(Python, PyRefMut<PyFrontend>) -> PyResult<T>,
+{
+    if origen_metal::frontend::frontend_set()? {
+        with_frontend_mod(|py, fm| {
+            let py_fe = fm.getattr(PY_FRONTEND)?.extract::<PyRefMut<PyFrontend>>()?;
+            func(py, py_fe)
+        })
+    } else {
+        bail_with_runtime_error!("A frontend was requested but one has not been initialized!")
+    }
+}
+
+pub fn with_required_rc<F, T>(mut func: F) -> PyResult<T>
 where
     F: FnMut(Python, &PyObject) -> PyResult<T>,
 {

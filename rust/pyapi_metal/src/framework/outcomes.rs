@@ -21,6 +21,20 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+pub fn pyobj_into_om_outcome(py: Python, obj: PyObject) -> PyResult<OrigenOutcome> {
+    if obj.is_none(py) {
+        Outcome::new_om_inferred(None)
+    } else if let Ok(o) = obj.extract::<PyRef<Outcome>>(py) {
+        o.into_origen()
+    } else if let Ok(s) = obj.extract::<String>(py) {
+        let mut o = OrigenOutcome::new_succeeded();
+        o.message = Some(s);
+        Ok(o)
+    } else {
+        crate::type_error!(&format!("Unable build Outcome out of Python type '{}'", obj.extract::<&PyAny>(py)?.get_type()))
+    }
+}
+
 #[pyclass(subclass)]
 pub struct Outcome {
     pub origen_outcome: Option<OrigenOutcome>,
@@ -35,7 +49,7 @@ impl Outcome {
     fn __init__(
         _cls: &PyType,
         mut instance: PyRefMut<Self>,
-        succeeded: bool,
+        succeeded: &PyAny,
         message: Option<String>,
         positional_results: Option<&PyList>,
         keyword_results: Option<&PyDict>,
@@ -49,7 +63,7 @@ impl Outcome {
     #[new]
     #[args(message = "None", metadata = "None", use_pass_fail = "false")]
     fn new(
-        succeeded: bool,
+        succeeded: &PyAny,
         message: Option<String>,
         positional_results: Option<&PyList>,
         keyword_results: Option<&PyDict>,
@@ -70,12 +84,22 @@ impl Outcome {
 
     #[getter]
     fn failed(&self) -> PyResult<bool> {
-        Ok(!self.succeeded()?)
+        Ok(self.origen_outcome()?.failed())
+    }
+
+    #[getter]
+    fn errored(&self) -> PyResult<bool> {
+        Ok(self.origen_outcome()?.errored())
     }
 
     #[getter]
     fn message(&self) -> PyResult<Option<String>> {
         Ok(self.origen_outcome()?.message.clone())
+    }
+
+    #[getter]
+    fn msg(&self) -> PyResult<Option<String>> {
+        Ok(self.origen_outcome()?.msg().clone())
     }
 
     #[getter]
@@ -116,18 +140,27 @@ impl Outcome {
 impl Outcome {
     pub fn init(
         &mut self,
-        succeeded: bool,
-        message: Option<String>,
+        succeeded: &PyAny,
+        mut message: Option<String>,
         positional_results: Option<&PyList>,
         keyword_results: Option<&PyDict>,
         use_pass_fail: bool,
         metadata: Option<&PyDict>,
     ) -> PyResult<()> {
         let mut outcome;
-        if use_pass_fail {
-            outcome = OrigenOutcome::new_pass_or_fail(succeeded);
+        if let Ok(res) = succeeded.extract::<bool>() {
+            if use_pass_fail {
+                outcome = OrigenOutcome::new_pass_or_fail(res);
+            } else {
+                outcome = OrigenOutcome::new_success_or_fail(res);
+            }
+        } else if let Ok(err) = succeeded.downcast::<pyo3::exceptions::PyBaseException>() {
+            outcome = OrigenOutcome::new_error();
+            if message.is_none() {
+                message = Some(err.to_string())
+            }
         } else {
-            outcome = OrigenOutcome::new_success_or_fail(succeeded);
+            return crate::type_error!(&format!("Outcomes can only be build from a boolean value or an exception. Received {}", succeeded.get_type()))
         }
         outcome.inferred = Some(false);
         outcome.message = message;
@@ -174,4 +207,22 @@ impl Outcome {
             origen_outcome: Some(origen_outcome),
         }
     }
+
+    pub fn from_om(origen_outcome: OrigenOutcome) -> Self {
+        Self::from_origen(origen_outcome)
+    }
 }
+
+impl std::convert::From<OrigenOutcome> for Outcome {
+    fn from(om: OrigenOutcome) -> Self {
+        Self::from_origen(om)
+    }
+}
+
+// TODO try to support this?
+// impl std::convert::TryFrom<PyObject> for Outcome {
+//     type Error = PyErr;
+
+//     fn try_from(pyval: PyObject) -> PyResult<Self> {
+//     }
+// }

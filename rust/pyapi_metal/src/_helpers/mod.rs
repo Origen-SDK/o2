@@ -91,6 +91,7 @@ pub fn pypath_as_pathbuf(path: &PyAny) -> PyResult<PathBuf> {
     Ok(PathBuf::from(pypath_as_string(path)?))
 }
 
+// TODO replace with generic?
 pub fn indexmap_to_pydict<'p>(
     py: Python<'p>,
     hmap: &IndexMap<impl ToPyObject, impl ToPyObject>,
@@ -100,4 +101,25 @@ pub fn indexmap_to_pydict<'p>(
         py_config.set_item(k, v)?;
     }
     Ok(py_config.into())
+}
+
+pub fn map_to_pydict<'p, K, V>(py: Python<'p>, map: &'p mut dyn Iterator<Item=(K, V)>) -> PyResult<Py<PyDict>>
+where
+    K: 'p + ToPyObject,
+    V: 'p + ToPyObject,
+{
+    let pydict = PyDict::new(py);
+    for (k, v) in map.into_iter() {
+        pydict.set_item(k, v)?;
+    }
+    Ok(pydict.into())
+}
+
+pub fn with_new_pydict<F, T>(py: Python, mut f: F) -> PyResult<Py<PyDict>> 
+where
+    F: FnMut(&PyDict) -> PyResult<T>,
+{
+    let pydict = PyDict::new(py);
+    f(pydict)?;
+    Ok(pydict.into())
 }

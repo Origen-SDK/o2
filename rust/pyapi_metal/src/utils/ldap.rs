@@ -1,10 +1,15 @@
 // TODO Need to clean up
 
 use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyBool};
 use std::collections::HashMap;
 use origen_metal::utils::ldap::LDAP as OmLdap;
+use origen_metal::utils::ldap::LdapPopUserConfig as OmLdapPopUserConfig;
 use origen_metal::utils::ldap::SupportedAuths;
 use origen_metal::Result as OMResult;
+use crate::framework::users::{UserDataset, User};
+use crate::prelude::*;
+use om::with_user;
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "ldap")?;
@@ -22,6 +27,8 @@ enum InnerLDAP {
     Om(OmLdap),
 }
 
+// pub struct SimpleBindBuilder {}
+
 /// A single LDAP instance
 #[pyclass(subclass)]
 pub struct LDAP {
@@ -30,6 +37,7 @@ pub struct LDAP {
 }
 
 impl LDAP {
+    // TODO remove inner ldap stuff. not needed
     pub fn with_inner_ldap<F, T>(&self, func: F) -> OMResult<T>
     where
         F: FnOnce(&OmLdap) -> OMResult<T>
@@ -63,12 +71,91 @@ impl LDAP {
 #[pymethods]
 impl LDAP {
     #[new]
-    #[args(auth="\"simple_bind\"", username="None", password="None")]
-    fn new(name: &str, server: &str, base: &str, auth: &str, username: Option<String>, password: Option<String>) -> PyResult<Self> {
+    #[args(username="None", password="None", populate_user_config="None", timeout="None")]
+    fn new(name: &str, server: &str, base: &str, auth: Option<&PyDict>, continuous_bind: Option<bool>, populate_user_config: Option<&PyDict>, timeout: Option<&PyAny>) -> PyResult<Self> {
         Ok(Self {
             inner: {
                 InnerLDAP::Om({
-                    OmLdap::new(name, server, base, SupportedAuths::from_str(auth, username.as_ref(), password.as_ref())?)?
+                    OmLdap::new(
+                        name,
+                        server,
+                        base,
+                        continuous_bind.unwrap_or(false),
+                        {
+                            if let Some(a) = auth {
+                                let scheme;
+                                if let Some(s) = a.get_item("scheme") {
+                                    scheme = s.extract::<String>()?;
+                                } else {
+                                    scheme = "simple_bind".to_string();
+                                }
+
+                                match SupportedAuths::from_str(scheme.as_str())? {
+                                    SupportedAuths::SimpleBind(mut sb) => {
+                                        if let Some(username) = a.get_item("username") {
+                                            sb.username = Some(username.extract::<String>()?);
+                                        }
+                                        if let Some(password) = a.get_item("password") {
+                                            sb.password = Some(password.extract::<String>()?);
+                                        }
+                                        if let Some(priority_motives) = a.get_item("priority_motives") {
+                                            sb.priority_motives = priority_motives.extract::<Vec<String>>()?;
+                                        }
+                                        if let Some(backup_motives) = a.get_item("backup_motives") {
+                                            sb.backup_motives = backup_motives.extract::<Vec<String>>()?;
+                                        }
+                                        if let Some(allow_default_password) = a.get_item("allow_default_password") {
+                                            sb.allow_default_password = allow_default_password.extract::<bool>()?;
+                                        }
+                                        if let Some(use_default_motives) = a.get_item("use_default_motives") {
+                                            sb.use_default_motives = use_default_motives.extract::<bool>()?;
+                                        }
+                                        SupportedAuths::SimpleBind(sb)
+                                    }
+                                }
+                            } else {
+                                SupportedAuths::from_str("simple_bind")?
+                            }
+                        },
+                        {
+                            if let Some(py_t) = timeout {
+                                if let Ok(b) = py_t.downcast::<PyBool>() {
+                                    if b.is_true() {
+                                        None
+                                    } else {
+                                        Some(None)
+                                    }
+                                } else {
+                                    Some(Some(py_t.extract::<u64>()?))
+                                }
+                            } else {
+                                None
+                            }
+                        },
+                        {
+                            if let Some(pop_config) = populate_user_config {
+                                let mut config = OmLdapPopUserConfig::default();
+                                if let Some(data_id) = pop_config.get_item("data_id") {
+                                    config.data_id = data_id.extract::<String>()?;
+                                }
+                                if let Some(mapping) = pop_config.get_item("mapping") {
+                                    config.mapping = mapping.extract::<HashMap<String, String>>()?;
+                                }
+                                if let Some(required) = pop_config.get_item("required") {
+                                    config.required = required.extract::<Vec<String>>()?;
+                                }
+                                if let Some(include_all) = pop_config.get_item("include_all") {
+                                    config.include_all = include_all.extract::<bool>()?;
+                                }
+                                if let Some(attrs) = pop_config.get_item("attributes") {
+                                    config.attributes = Some(attrs.extract::<Vec<String>>()?);
+                                }
+                                Some(config)
+                            } else {
+                                None
+                            }
+                        },
+                    )?
                 })
             },
         })
@@ -112,12 +199,23 @@ impl LDAP {
 
     /// Retrieves this LDAP's authentication configuration
     #[getter]
-    fn get_auth(&self) -> PyResult<HashMap<String, String>> {
+    fn get_auth_config<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
         // let mut ldaps = origen::ldaps();
         // let ldap = ldaps._get_mut(&self.name)?;
         // Ok(ldap.auth().to_hashmap())
         Ok(self.with_inner_ldap( |om_ldap| {
-            Ok(om_ldap.auth().to_hashmap())
+            Ok(crate::_helpers::typed_value::into_pydict(py, om_ldap.auth().config_into_map())?)
+        })?)
+    }
+
+    /// Retrieves this LDAP's authentication configuration after resolution
+    #[getter]
+    fn get_auth<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        // let mut ldaps = origen::ldaps();
+        // let ldap = ldaps._get_mut(&self.name)?;
+        // Ok(ldap.auth().to_hashmap())
+        Ok(self.with_inner_ldap( |om_ldap| {
+            Ok(crate::_helpers::typed_value::into_pydict(py, om_ldap.auth().resolve_and_into_map(om_ldap)?)?)
         })?)
     }
 
@@ -130,6 +228,20 @@ impl LDAP {
         // Ok(ldap.bound())
         Ok(self.with_inner_ldap( |om_ldap| {
             Ok(om_ldap.bound())
+        })?)
+    }
+
+    #[getter]
+    fn get_timeout(&self) -> PyResult<Option<u64>> {
+        Ok(self.with_inner_ldap( |om_ldap| {
+            Ok(om_ldap.timeout())
+        })?)
+    }
+
+    #[getter]
+    fn get_continuous_bind(&self) -> PyResult<bool> {
+        Ok(self.with_inner_ldap( |om_ldap| {
+            Ok(om_ldap.continuous_bind())
         })?)
     }
 
@@ -218,30 +330,34 @@ impl LDAP {
         // let ldap = ldaps._get_mut(&self.name)?;
         // ldap.unbind()?;
         // Ok(true)
-        self.with_inner_ldap( |om_ldap| {
+        Ok(self.with_inner_ldap( |om_ldap| {
             om_ldap.unbind()
-        })?;
-        Ok(true)
+        })?)
     }
 
-    // fn bind_as(&mut self, username: &str, password: &str) -> PyResult<()> {
-    //     // let mut ldaps = origen::ldaps();
-    //     // let ldap = ldaps._get_mut(&self.name)?;
-    //     // ldap.bind_as(username, password)?;
-    //     // Ok(true)
-    //     Ok(self.with_mut_inner_ldap( |om_ldap| {
-    //         // let mut new_ldap = om_ldap.standalone()?;
-    //         // new_ldap.bind_as(username, password)?;
-    //         om_ldap.bind_as(username, password)
-    //     })?)
-    // }
-
     fn validate_credentials(&self, username: &str, password: &str) -> PyResult<bool> {
-        // Ok(origen::utility::ldap::LDAPs::try_password(
-        //     &self.name, username, password,
-        // )?)
         Ok(self.with_inner_ldap( |om_ldap| {
             om_ldap.try_password(username, password)
         })?)
+    }
+
+    // TEST_NEEDED
+    // TODO
+    #[getter]
+    fn get_populate_user_config<'py>(&self, _py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
+        todo!();
+        // Ok(self.with_inner_ldap( |om_ldap| {
+        //     Ok(crate::_helpers::typed_value::into_optional_pydict(py, om_ldap.populate_user_config().config_into_map())?)
+        // })?)
+    }
+
+    fn populate_user(&self, user: PyRef<User>, dataset: PyRef<UserDataset>) -> PyResult<PyOutcome> {
+        Ok(self.with_inner_ldap( |om_ldap| {
+            with_user(&user.user_id(), |u| {
+                u.with_dataset_mut(dataset.dataset(), |d| {
+                    om_ldap.populate_user(u, d)
+                })
+            })
+        })?.into())
     }
 }

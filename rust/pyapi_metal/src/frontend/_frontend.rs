@@ -1,5 +1,6 @@
 use super::{with_py_frontend, PyFrontend};
 use crate::framework::outcomes::Outcome as PyOutcome;
+use crate::framework::outcomes::pyobj_into_om_outcome;
 use super::py_data_stores::PyDataStoreCategory;
 use origen_metal::prelude::frontend::*;
 use origen_metal::{TypedValueMap, TypedValueVec, TypedValue, Outcome};
@@ -79,6 +80,30 @@ impl origen_metal::frontend::FrontendAPI for Frontend {
             py_frontend.data_stores.borrow_mut(py).remove_category(py, cat)
         })?;
         Ok(())
+    }
+
+    fn lookup_current_user(&self) -> Option<OMResult<Option<String>>> {
+        let fe_result = with_py_frontend(|py, fe| {
+            // TODO have a lazy static for keys like this?
+            Ok(match fe._users_.get("lookup_current_id_function") {
+                Some(f) => {
+                    let result = f.call0(py)?;
+                    if result.is_none(py) {
+                        Some(None)
+                    } else {
+                        Some(Some(result.extract::<String>(py)?))
+                    }
+                },
+                None => None
+            })
+        });
+        match fe_result {
+            Ok(r) => match r {
+                Some(res) => return Some(Ok(res)),
+                None => None
+            },
+            Err(e) => Some(Err(e.into()))
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -340,6 +365,21 @@ impl DataStoreFrontendAPI for DataStoreFrontend {
                 rtn = PyOutcome::new_om_inferred(Some(result.as_ref(py)))?;
             }
             Ok(rtn)
+        })?)
+    }
+
+    fn populate_user(&self, user_id: &str, ds: &str) -> OMResult<FeatureReturn> {
+        Ok(self.as_py( |py, py_self| {
+            let func = py_self.call_method1(py, "__lookup_origen_feature__", ("populate_user",))?;
+            if func.is_none(py) {
+                // Not implemented
+                Ok(self.unimplemented("populate_user")?)
+            } else {
+                let py_u = crate::framework::users::User::new(user_id)?;
+                let py_ds = crate::framework::users::UserDataset::new(user_id, ds);
+                let result = func.call(py, (py_self, py_u, py_ds), None)?;
+                Ok(FeatureReturn::new(Ok(pyobj_into_om_outcome(py, result)?)))
+            }
         })?)
     }
 }

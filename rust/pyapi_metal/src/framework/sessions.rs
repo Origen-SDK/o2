@@ -97,6 +97,12 @@ impl Sessions {
         om.refresh()?;
         Ok(())
     }
+
+    pub fn unload(&self) -> PyResult<()> {
+        let mut om = om_sessions();
+        om.unload()?;
+        Ok(())
+    }
 }
 
 #[pyclass(subclass)]

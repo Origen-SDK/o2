@@ -2,6 +2,7 @@ use crate::Result;
 use std::fmt::Display;
 use crate::{TypedValue, TypedValueMap, TypedValueVec, Outcome};
 use super::DataStoreCategoryFrontendAPI;
+use crate::framework::users::Data;
 
 // TODO needed?
 #[derive(Debug, Clone, Display, PartialEq)]
@@ -10,6 +11,38 @@ pub enum DataStoreFeature {
     Store,
     PopulateUser,
     Other(String),
+}
+
+pub struct FeatureReturn {
+    implemented: bool,
+    outcome: Result<Outcome>,
+}
+
+impl FeatureReturn {
+    pub fn new(result: Result<Outcome>) -> Self {
+        Self {
+            implemented: true,
+            outcome: result,
+        }
+    }
+
+    pub fn new_unimplemented(msg: String) -> Self {
+        Self {
+            implemented: false,
+            outcome: Err(error!(&msg))
+        }
+    }
+
+    pub fn outcome(&self) -> Result<&Outcome> {
+        match &self.outcome {
+            Ok(o) => Ok(o),
+            Err(e) => Err((*e).clone())
+        }
+    }
+
+    pub fn implemented(&self) -> bool {
+        self.implemented
+    }
 }
 
 // TODO clean up
@@ -37,36 +70,29 @@ pub trait DataStoreFrontendAPI {
         Ok(self.items()?.typed_values().keys().map(|k| k.to_string()).collect())
     }
 
-    // /// Custom function to populate a user
-    // // fn populate_user(user: &User) -> (bool, Result<Outcome>) {
-    // //     (false, _feature_not_implemented("populate_user"))
-    // // }
+    //--- User Features ---//
 
-    // /// Generic handler for checking if a feature is support and/or implemented.
-    // /// Aside: unimplemented features are runtime issues, not compile time issues.
-    // fn _feature_error(&self, func_name: &str, feature: &DataStoreFeature) -> String {
-    //     if self.features().contains(feature) {
-    //         self._feature_not_implemented(feature)
-    //     } else {
-    //         self._feature_not_supported(feature)
-    //     }
-    // }
+    /// Custom function to populate a user
+    fn populate_user(&self, _user_id: &str, _ds_name: &str) -> Result<FeatureReturn> {
+        // (false, _feature_not_implemented("populate_user"))
+        self.unimplemented(current_func!())
+    }
 
-    // fn _feature_not_supported(&self, feature: &DataStoreFeature) -> String {
-    //     format!(
-    //         "'{}' does not support feature '{}' (data store category: '{}')",
-    //         self.name(),
-    //         feature.to_string(),
-    //         self.category().to_string()
-    //     )
-    // }
+    /// Custom function to validate a user's password
+    fn validate_password(&self, _user_id: &str, _ds_name: &Data, _password: &str) -> Result<FeatureReturn> {
+        self.unimplemented(current_func!())
+    }
 
-    // fn _feature_not_implemented(&self, feature: &DataStoreFeature) -> String {
-    //     format!(
-    //         "'{}' does not implemented feature '{}' (data store category: '{}')",
-    //         self.name(),
-    //         feature.to_string(),
-    //         self.category().to_string()
-    //     )
-    // }
+    fn unimplemented(&self, feature: &str) -> Result<FeatureReturn> {
+        Ok(FeatureReturn::new_unimplemented(self._feature_not_implemented(feature)?))
+    }
+
+    fn _feature_not_implemented(&self, feature: &str) -> Result<String> {
+        Ok(format!(
+            "'{}' does not implement feature '{}' (data store category: '{}')",
+            self.name()?,
+            feature.to_string(),
+            self.category()?.name()
+        ))
+    }
 }

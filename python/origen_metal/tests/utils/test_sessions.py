@@ -58,6 +58,17 @@ class Common:
 
         sg = om.sessions.add_group(n, self.root)
         return sg
+    
+    @pytest.fixture
+    def s(self):
+        return self.sessions
+
+    @pytest.fixture
+    def unload_sessions(self, s):
+        retn = s.unload()
+        assert s.groups == {}
+        assert s.standalones == {}
+        return retn
 
 class TestSessions(Common):
     def test_sessions_is_accessible(self):
