@@ -58,7 +58,7 @@ macro_rules! pypath {
         use pyo3::types::IntoPyDict;
         let locals = [("pathlib", $py.import("pathlib")?)].into_py_dict($py);
         let obj = $py.eval(
-            &format!("pathlib.Path(r\"{}\").resolve()", $path),
+            &format!("pathlib.Path(r\"{}\")", $path),
             None,
             Some(&locals),
         )?;

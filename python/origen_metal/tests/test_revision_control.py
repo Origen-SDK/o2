@@ -77,20 +77,20 @@ class TestGitAsDataStore(DataStoreView):
             subprocess.run(['git', 'config', origen_repo, origen_repo_val],
                            capture_output=True,
                            check=True,
-                           shell=True)
+                           )
             subprocess.run([
                 'git', 'config', '--global', origen_global, origen_global_val
             ],
                            capture_output=True,
                            check=True,
-                           shell=True)
+                           )
 
             # This one should be overwritten by the repo's setting
             subprocess.run(
                 ['git', 'config', '--global', origen_repo, origen_global_val],
                 capture_output=True,
                 check=True,
-                shell=True)
+                )
 
             clean_users()
             get_users().add_dataset("git", {
@@ -109,9 +109,9 @@ class TestGitAsDataStore(DataStoreView):
             subprocess.run(['git', 'config', '--unset', origen_repo],
                            capture_output=True,
                            check=True,
-                           shell=True)
+                           )
             subprocess.run(
                 ['git', 'config', '--global', '--unset', origen_global],
                 capture_output=True,
                 check=True,
-                shell=True)
+                )
