@@ -1,33 +1,20 @@
 use crate::application::{get_pyapp, PyApplication};
-use crate::utility::metadata::extract_as_metadata;
 use crate::utility::results::GenericResult as PyGenericResult;
 use origen::core::frontend as ofrontend;
 use origen::core::frontend::GenericResult as OGenericResult;
-use origen::Metadata;
 use origen::Result as OResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
-use std::collections::HashMap;
+use pyapi_metal::prelude::typed_value;
 
 pub struct Mailer {}
 
 impl ofrontend::Mailer for Mailer {
-    fn get_config(&self) -> OResult<HashMap<String, Option<Metadata>>> {
+    fn get_config(&self) -> OResult<typed_value::TypedValueMap> {
         Ok(self.with_py_mailer(|py, mailer| {
             let r = mailer.call_method0(py, "get_config")?;
             let py_config = r.extract::<&PyDict>(py)?;
-            let mut retn = HashMap::new();
-            for (k, m) in py_config {
-                retn.insert(
-                    k.extract::<String>()?,
-                    if m.is_none() {
-                        None
-                    } else {
-                        Some(extract_as_metadata(m)?)
-                    },
-                );
-            }
-            Ok(retn)
+            Ok(typed_value::from_pydict(py_config)?)
         })?)
     }
 

@@ -4,7 +4,6 @@ pub mod linter;
 pub mod location;
 #[allow(non_snake_case)]
 pub mod mailer;
-pub mod metadata;
 pub mod publisher;
 pub mod release_scribe;
 pub mod results;

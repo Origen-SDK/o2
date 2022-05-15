@@ -23,7 +23,6 @@ class T_PopulatingUsers(Base, FECommon):
     #     'fail_first_pass_second': { 'msg': "Fail first..." },
     # }
 
-    # TODO need to add an inheritance based test
     class DSPopUser(FECommon.DummyGetStoreDataStore, Base):
         never_popped = True
         counter = 0

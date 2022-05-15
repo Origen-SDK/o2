@@ -4,7 +4,6 @@ pub mod dut;
 pub mod file_handler;
 pub mod frontend;
 pub mod lsf;
-pub mod metadata;
 pub mod model;
 pub mod producer;
 pub mod status;

@@ -1,10 +1,9 @@
-use crate::utility::metadata::{extract_as_metadata, metadata_to_pyobj};
 use crate::with_pycallbacks;
-use indexmap::IndexMap;
 use origen::Result;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyDict, PyList, PyTuple};
-use std::collections::HashMap;
+use pyo3::types::{PyDict, PyList, PyTuple};
+use pyapi_metal::prelude::typed_value;
+use typed_value::{TypedValueVec, TypedValueMap};
 
 pub struct Frontend {}
 
@@ -23,47 +22,33 @@ impl origen::core::frontend::Frontend for Frontend {
     fn emit_callback(
         &self,
         callback: &str,
-        args: Option<&Vec<origen::Metadata>>,
-        kwargs: Option<&IndexMap<String, origen::Metadata>>,
+        args: Option<&TypedValueVec>,
+        kwargs: Option<&TypedValueMap>,
         // source: Option<String>,
-        _opts: Option<&HashMap<String, origen::Metadata>>,
-    ) -> origen::Result<Vec<origen::Metadata>> {
+        _opts: Option<&TypedValueMap>,
+    ) -> origen::Result<TypedValueVec> {
         Ok(with_pycallbacks(|py, cbs| {
             let pyargs = PyTuple::new(
                 py,
                 vec![
                     callback.to_object(py),
                     {
-                        let v: Vec<PyObject> = vec![];
-                        let py_args = PyList::new(py, v);
-                        if let Some(_args) = args {
-                            for arg in _args {
-                                py_args.append(metadata_to_pyobj(Some(arg.clone()), None)?)?;
-                            }
+                        if let Some(l) = args {
+                            typed_value::into_pylist(py, &mut l.typed_values().iter())?.to_object(py)
+                        } else {
+                            PyList::empty(py).to_object(py)
                         }
-                        py_args.to_object(py)
                     },
                     {
-                        let py_kwargs = PyDict::new(py);
-                        if let Some(_kwargs) = kwargs {
-                            for (kw, arg) in _kwargs {
-                                py_kwargs
-                                    .set_item(kw, metadata_to_pyobj(Some(arg.clone()), None)?)?;
-                            }
-                        }
-                        py_kwargs.to_object(py)
+                        typed_value::option_into_pydict(py, kwargs)?.to_object(py)
                     },
                 ],
             );
             let pykwargs = PyDict::new(py);
             let r = cbs.call_method("emit", pyargs, Some(pykwargs))?;
 
-            let pyretn = r.extract::<Vec<&PyAny>>()?;
-            let mut retn = vec![];
-            for i in pyretn {
-                retn.push(extract_as_metadata(i)?);
-            }
-            Ok(retn)
+            let pyretn = r.extract::<&PyList>()?;
+            Ok(typed_value::from_pylist(pyretn)?)
         })?)
     }
 

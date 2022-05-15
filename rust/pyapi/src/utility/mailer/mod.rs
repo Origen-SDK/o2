@@ -1,6 +1,5 @@
 pub mod _frontend;
 pub mod maillist;
-use crate::utility::metadata::metadata_to_pyobj;
 
 use super::app_utility;
 use crate::utility::results::GenericResult as PyGenericResult;
@@ -10,6 +9,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
+use pyapi_metal::prelude::typed_value;
 
 #[pymodule]
 fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -70,15 +70,8 @@ impl Mailer {
     }
 
     #[getter]
-    fn config(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let retn = PyDict::new(py);
-        for (key, m) in self.mailer.config()? {
-            retn.set_item(key.clone(), metadata_to_pyobj(m, Some(&key))?)?;
-        }
-        Ok(retn.to_object(py))
+    fn config<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        typed_value::into_pydict(py, self.mailer.config()?)
     }
 
     #[getter]

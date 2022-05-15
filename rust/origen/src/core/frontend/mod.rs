@@ -1,10 +1,9 @@
-use crate::{Metadata, Result};
+use crate::Result;
 
 pub mod callbacks;
 use crate::utility::version::Version;
-use indexmap::IndexMap;
-use std::collections::HashMap;
 use std::path::PathBuf;
+use origen_metal::{TypedValueVec, TypedValueMap};
 
 use origen_metal::prelude::frontend::*;
 
@@ -24,10 +23,10 @@ where
 
 pub fn emit_callback(
     callback: &str,
-    args: Option<Vec<Metadata>>,
-    kwargs: Option<IndexMap<String, Metadata>>,
-    opts: Option<HashMap<String, Metadata>>,
-) -> Result<Vec<Metadata>> {
+    args: Option<TypedValueVec>,
+    kwargs: Option<TypedValueMap>,
+    opts: Option<TypedValueMap>,
+) -> Result<TypedValueVec> {
     with_frontend(|f| f.emit_callback(callback, args.as_ref(), kwargs.as_ref(), opts.as_ref()))
 }
 
@@ -99,10 +98,10 @@ pub trait Frontend {
     fn emit_callback(
         &self,
         callback: &str,
-        args: Option<&Vec<Metadata>>,
-        kwargs: Option<&IndexMap<String, Metadata>>,
-        opts: Option<&HashMap<String, Metadata>>,
-    ) -> Result<Vec<Metadata>>;
+        args: Option<&TypedValueVec>,
+        kwargs: Option<&TypedValueMap>,
+        opts: Option<&TypedValueMap>,
+    ) -> Result<TypedValueVec>;
     fn register_callback(&self, callback: &str, description: &str) -> Result<()>;
     fn list_local_dependencies(&self) -> Result<Vec<String>>;
     fn on_dut_change(&self) -> Result<()>;
@@ -197,7 +196,7 @@ pub trait Website {
 
 pub trait Mailer {
     /// Returns the mailer's configuration
-    fn get_config(&self) -> Result<HashMap<String, Option<Metadata>>>;
+    fn get_config(&self) -> Result<TypedValueMap>;
 
     /// Sends an email
     fn send(
@@ -337,7 +336,7 @@ pub struct BuildResult {
     pub succeeded: bool,
     pub build_contents: Option<Vec<String>>,
     pub message: Option<String>,
-    pub metadata: Option<IndexMap<String, Metadata>>,
+    pub metadata: Option<TypedValueMap>,
 }
 
 impl BuildResult {}
@@ -346,7 +345,7 @@ impl BuildResult {}
 pub struct UploadResult {
     pub succeeded: bool,
     pub message: Option<String>,
-    pub metadata: Option<IndexMap<String, Metadata>>,
+    pub metadata: Option<TypedValueMap>,
 }
 
 type AsNoun = String;
@@ -393,11 +392,12 @@ impl GenericResultState {
     }
 }
 
+// TODO remove and use OM's outcome
 #[derive(Debug, Clone)]
 pub struct GenericResult {
     pub state: GenericResultState,
     pub message: Option<String>,
-    pub metadata: Option<IndexMap<String, Metadata>>,
+    pub metadata: Option<TypedValueMap>,
 }
 
 impl std::fmt::Display for GenericResult {
@@ -501,12 +501,12 @@ impl GenericResult {
         self
     }
 
-    pub fn add_metadata(&mut self, key: &str, m: Metadata) -> Result<&mut Self> {
+    pub fn add_metadata(&mut self, key: &str, m: impl Into<TypedValue>) -> Result<&mut Self> {
         if self.metadata.is_none() {
-            self.metadata = Some(IndexMap::new());
+            self.metadata = Some(TypedValueMap::new());
         }
 
-        self.metadata.as_mut().unwrap().insert(key.to_string(), m);
+        self.metadata.as_mut().unwrap().insert(key, m);
         Ok(self)
     }
 

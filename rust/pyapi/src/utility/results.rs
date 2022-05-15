@@ -1,10 +1,10 @@
-use crate::utility::metadata::{from_optional_pydict, into_optional_pyobj};
 use origen::core::frontend::BuildResult as OrigenBuildResult;
 use origen::core::frontend::GenericResult as OrigenGenericResult;
 use origen::core::frontend::UploadResult as OrigenUploadResult;
 use origen::utility::command_helpers::ExecResult as OrigenExecResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyType};
+use pyapi_metal::prelude::typed_value;
 
 #[macro_export]
 macro_rules! incomplete_result_error {
@@ -52,7 +52,7 @@ impl GenericResult {
             gr = OrigenGenericResult::new_success_or_fail(succeeded);
         }
         gr.message = message;
-        gr.metadata = from_optional_pydict(metadata)?;
+        gr.metadata = typed_value::from_optional_pydict(metadata)?;
         i.generic_result = Some(gr);
         Ok(())
     }
@@ -80,10 +80,8 @@ impl GenericResult {
     }
 
     #[getter]
-    fn metadata(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        into_optional_pyobj(py, self.generic_result()?.metadata.as_ref())
+    fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
+        typed_value::into_optional_pydict(py, self.generic_result()?.metadata.as_ref())
     }
 
     pub fn gist(&self) -> PyResult<()> {
@@ -147,7 +145,7 @@ impl BuildResult {
             succeeded: succeeded,
             build_contents: build_contents,
             message: message,
-            metadata: from_optional_pydict(metadata)?,
+            metadata: typed_value::from_optional_pydict(metadata)?,
         });
         Ok(())
     }
@@ -178,10 +176,8 @@ impl BuildResult {
     }
 
     #[getter]
-    fn metadata(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        into_optional_pyobj(py, self.build_result()?.metadata.as_ref())
+    fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
+        typed_value::into_optional_pydict(py, self.build_result()?.metadata.as_ref())
     }
 }
 
@@ -225,7 +221,7 @@ impl UploadResult {
         i.upload_result = Some(OrigenUploadResult {
             succeeded: succeeded,
             message: message,
-            metadata: from_optional_pydict(metadata)?,
+            metadata: typed_value::from_optional_pydict(metadata)?,
         });
         Ok(())
     }

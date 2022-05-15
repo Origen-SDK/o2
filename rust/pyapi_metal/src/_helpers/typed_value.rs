@@ -152,16 +152,37 @@ pub fn into_optional_pytuple<'a>(
     })
 }
 
+// TODO needed?
+// #[allow(dead_code)]
+// pub fn into_pylist<'a>(py: Python<'a>, typed_values: &Vec<TypedValue>) -> PyResult<&'a PyList> {
+//     Ok(PyList::new(
+//         py,
+//         typed_values
+//             .iter()
+//             .map(|tv| typed_value_to_pyobj(Some(tv.clone()), None))
+//             .collect::<PyResult<Vec<Option<PyObject>>>>(),
+//     ))
+// }
+
+// TODO needed?
 #[allow(dead_code)]
-pub fn into_pylist<'a>(py: Python<'a>, typed_values: &Vec<TypedValue>) -> PyResult<&'a PyList> {
+pub fn into_pylist<'a>(py: Python<'a>, typed_values: &mut dyn Iterator<Item = &TypedValue>) -> PyResult<&'a PyList> {
     Ok(PyList::new(
         py,
         typed_values
-            .iter()
             .map(|tv| typed_value_to_pyobj(Some(tv.clone()), None))
             .collect::<PyResult<Vec<Option<PyObject>>>>(),
     ))
 }
+
+pub fn option_into_pylist<'a>(py: Python<'a>, typed_values: Option<&mut dyn Iterator<Item = &TypedValue>>) -> PyResult<&'a PyList> {
+    if let Some(l) = typed_values {
+        into_pylist(py, l)
+    } else {
+        Ok(PyList::empty(py))
+    }
+}
+
 
 pub fn from_optional_pydict(pydict: Option<&PyDict>) -> PyResult<Option<TypedValueMap>> {
     if let Some(pyd) = pydict {
@@ -205,6 +226,18 @@ pub fn into_optional_pydict<'a>(
     }
 }
 
+pub fn option_into_pydict<'a>(
+    py: Python<'a>,
+    typed_values: Option<impl Into<TypedValueMap>>,
+) -> PyResult<&'a PyDict> {
+    if let Some(m) = typed_values {
+        into_pydict(py, m)
+    } else {
+        Ok(PyDict::new(py))
+    }
+}
+
+// TODO needed?
 #[allow(dead_code)]
 pub fn into_optional_pyobj<'a>(
     py: Python<'a>,

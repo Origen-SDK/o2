@@ -240,6 +240,18 @@ impl From<&bool> for TypedValue {
     }
 }
 
+impl From<usize> for TypedValue {
+    fn from(value: usize) -> Self {
+        Self::Usize(value)
+    }
+}
+
+impl From<u64> for TypedValue {
+    fn from(value: u64) -> Self {
+        Self::BigUint(BigUint::from(value))
+    }
+}
+
 // TODO
 // impl <K, V>From<&HashMap<K, V>> for TypedValue where
 //     TypedValue: From<K>,
@@ -435,7 +447,7 @@ impl FromIterator<TypedValue> for TypedValueVec {
 type Tvm = IM<String, TypedValue>;
 
 /// Wrapper around an indexmap of typed values.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Map {
     pub typed_values: IM<String, TypedValue>,
 }

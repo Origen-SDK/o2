@@ -4,12 +4,13 @@ use crate::generator::PAT;
 use crate::standards::actions::*;
 use crate::utility::big_uint_helpers::BigUintHelpers;
 use crate::utility::num_helpers::NumHelpers;
-use crate::{Capture, Metadata, Overlay, Result};
+use crate::{Capture, Overlay, Result};
 use num_bigint::BigUint;
 use num_traits;
 use num_traits::pow::Pow;
 use num_traits::ToPrimitive;
 use origen_metal::ast::Node;
+use origen_metal::TypedValueMap;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Action {
@@ -32,7 +33,7 @@ pub struct Transaction {
     pub capture: Option<Capture>,
     pub overlay: Option<Overlay>,
     pub set_actions: Option<Vec<PinAction>>,
-    pub metadata: Option<Metadata>,
+    pub metadata: Option<TypedValueMap>,
 }
 
 impl Default for Transaction {

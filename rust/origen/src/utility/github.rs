@@ -1,5 +1,4 @@
 use crate::core::frontend::GenericResult;
-use crate::Metadata;
 use crate::Result;
 use octocrab;
 use std::collections::HashMap;
@@ -61,7 +60,7 @@ pub fn dispatch_workflow(
 
     let mut res = GenericResult::new_success_or_fail(body.is_empty());
     res.set_msg(body);
-    res.add_metadata("header", Metadata::String(format!("{:?}", headers)))?;
-    res.add_metadata("status", Metadata::Usize(status))?;
+    res.add_metadata("header", format!("{:?}", headers))?;
+    res.add_metadata("status", status)?;
     Ok(res)
 }

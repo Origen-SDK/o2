@@ -26,7 +26,6 @@ pub mod standards;
 pub mod testers;
 pub mod utility;
 
-pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;

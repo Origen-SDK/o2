@@ -1,11 +1,10 @@
 // use crate::core::user::with_top_hierarchy;
-use crate::{GenericResult, Metadata, Result, ORIGEN_CONFIG, STATUS};
+use crate::{GenericResult, Result, ORIGEN_CONFIG, STATUS};
 use lettre;
 use origen_metal::with_current_user;
 use std::path::PathBuf;
 
 use crate::utility::resolve_os_str;
-use indexmap::IndexMap;
 use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
@@ -14,6 +13,7 @@ use lettre::Transport;
 use origen_metal::config;
 use std::collections::HashMap;
 use std::fmt::Display;
+use origen_metal::TypedValueMap;
 
 #[derive(Deserialize)]
 pub struct MaillistConfig {
@@ -417,71 +417,18 @@ impl Mailer {
         })
     }
 
-    pub fn config(&self) -> Result<IndexMap<String, Option<Metadata>>> {
-        let mut retn = IndexMap::new();
-        retn.insert(
-            "server".to_string(),
-            Some(Metadata::String(self.server.to_string())),
-        );
-        retn.insert(
-            "port".to_string(),
-            match self.port {
-                Some(p) => Some(Metadata::Usize(p)),
-                None => None,
-            },
-        );
-        retn.insert(
-            "domain".to_string(),
-            match self.domain.as_ref() {
-                Some(d) => Some(Metadata::String(d.to_string())),
-                None => None,
-            },
-        );
-        retn.insert(
-            "auth_method".to_string(),
-            Some(Metadata::String(self.auth_method.to_string())),
-        );
-        retn.insert(
-            "service_user".to_string(),
-            match self.service_user.as_ref() {
-                Some(s) => Some(Metadata::String(s.to_string())),
-                None => None,
-            },
-        );
-        retn.insert(
-            "timeout_seconds".to_string(),
-            Some(Metadata::BigUint(num_bigint::BigUint::from(
-                self.timeout_seconds,
-            ))),
-        );
-        retn.insert(
-            "auth_email".to_string(),
-            match self.auth_email.as_ref() {
-                Some(a) => Some(Metadata::String(a.to_string())),
-                None => None,
-            },
-        );
-        retn.insert(
-            "auth_password".to_string(),
-            match self.auth_password.as_ref() {
-                Some(a) => Some(Metadata::String(a.to_string())),
-                None => None,
-            },
-        );
-        retn.insert(
-            "from".to_string(),
-            match self.from.as_ref() {
-                Some(f) => Some(Metadata::String(f.to_string())),
-                None => None,
-            },
-        );
-        retn.insert(
-            "from_alias".to_string(),
-            match self.from_alias.as_ref() {
-                Some(f) => Some(Metadata::String(f.to_string())),
-                None => None,
-            },
-        );
+    pub fn config(&self) -> Result<TypedValueMap> {
+        let mut retn = TypedValueMap::new();
+        retn.insert("server", &self.server);
+        retn.insert("port", self.port);
+        retn.insert("domain", self.domain.as_ref());
+        retn.insert("auth_method", self.auth_method.to_string());
+        retn.insert("service_user", self.service_user.as_ref());
+        retn.insert("timeout_seconds", self.timeout_seconds);
+        retn.insert("auth_email", self.auth_email.as_ref());
+        retn.insert("auth_password", self.auth_password.as_ref());
+        retn.insert("from", self.from.as_ref());
+        retn.insert("from_alias", self.from_alias.as_ref());
         Ok(retn)
     }
 
