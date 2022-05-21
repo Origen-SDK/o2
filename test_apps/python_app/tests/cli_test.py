@@ -29,8 +29,6 @@ import origen
 origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
 
-# TODO This started failing due to some wwarning from poetry. Needs to be fixed
-# @pytest.mark.xfail
 def test_origen_v():
     #import pdb; pdb.set_trace()
     process = subprocess.Popen([f'{origen_cli}', '-v'],
@@ -40,15 +38,11 @@ def test_origen_v():
     assert process.wait() == 0
     # Process is done
     # Read std out
-    output = ""
-    # Grab a chunk of output, hopefully accounts for any warnings that may be spewed out
-    # first in some CI envs
-    for x in range(100):
-        output += process.stdout.readline()
-    assert "App:" in output
-    assert "Origen: " in output
-    assert " 2." in output
-
+    first_stdout_line = process.stdout.readline()
+    assert "App:" in first_stdout_line
+    second_stdout_line = process.stdout.readline()
+    assert "Origen" in second_stdout_line
+    assert " 2." in second_stdout_line
 
 def test_bad_command():
     process = subprocess.Popen([f'{origen_cli}', 'thisisnotacommand'],
@@ -87,8 +81,9 @@ class TestBadConfigs:
         assert r.returncode == 1
         out = r.stdout.decode("utf-8").strip()
         err = r.stderr.decode("utf-8").strip()
+        p = pathlib.Path("tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml")
         assert "Couldn't boot app to determine the in-application Origen version" in out
-        assert "invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml" in out
+        assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
         assert err == ""
 
     def test_origen_cmd(self):
@@ -100,7 +95,8 @@ class TestBadConfigs:
         assert r.returncode == 1
         out = r.stdout.decode("utf-8").strip()
         err = r.stderr.decode("utf-8").strip()
-        assert "invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml" in out
+        p = pathlib.Path("tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml")
+        assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
         assert err == ""
 
     def test_bad_config_path(self):

@@ -4,7 +4,7 @@
 # The tests here are just checking the interface between Origen and Origen Metal
 # '''
 
-import pytest, origen
+import pytest, origen, pathlib
 from tests.shared import in_new_origen_proc
 from tests import om_shared
 from configs import ldap as ldap_configs
@@ -42,7 +42,8 @@ class TestLDAPs(LdapCommon, test_frontend.Common):
         retn = in_new_origen_proc(mod=ldap_configs, expect_fail=True)
         out = capfd.readouterr().out
         assert "Malformed config file" in out
-        assert "invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml" in out
+        p = pathlib.Path("tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml")
+        assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
 
     def test_empty_config(self):
         retn = in_new_origen_proc(mod=ldap_configs)
