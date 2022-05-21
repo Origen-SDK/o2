@@ -2,6 +2,8 @@ import pytest, pathlib, origen, _origen
 import origen_metal as om
 from tests import om_shared
 from tests.shared import tmp_dir
+from tests.shared import in_new_origen_proc
+from configs import session as session_configs
 
 with om_shared():
     from om_tests.utils.test_sessions import Common  # type:ignore
@@ -163,73 +165,15 @@ class TestOrigenSessions(Base):
         assert self.user_session(self.pl_name) == origen.plugin(
             self.pl_name).user_session
 
+class TestSessionConfig(Base):
+    @property
+    def config_dir(self):
+        return pathlib.Path(__file__).parent.joinpath("configs/session")
 
-# TODO move user stuff to origen metal tests
-@pytest.mark.skip
-class TestSessionStore(Base):
-    def test_adding_app_sessions(self):
-        n = "app_session"
-        s = self.app_session(n)
-        s = self.app_session(n)
-        assert isinstance(s, self.ss_class)
-        assert s.path == self.app_test_session_root.joinpath(n)
+    def test_user_session_root_can_be_updated_from_config(self):
+        retn = in_new_origen_proc(mod=session_configs)
+        assert retn["root"] == self.config_dir.joinpath(f"user_session_test_root/.o2/.session/{self.user_sg_name}")
 
-    def test_adding_user_sessions(self):
-        n = "my_session"
-        assert n not in self.user_sessions
-        s = self.user_session(n)
-        assert isinstance(s, self.ss_class)
-        assert s.path == self.user_test_session_root.joinpath(n)
-
-    def test_default_user_session(self):
-        assert self.user_session().get("test") == None
-        self.user_session().store("test", 123)
-        assert self.user_session().get("test") == 123
-
-    def test_roundtrip_user_session(self):
-        s = self.user_session("test_roundtrip_user_session")
-        assert s.get("test") == None
-        assert s.path.exists() is False
-
-        s.store("test", "abc")
-        s.store("test2", "def")
-        assert s.path.exists() is True
-
-        assert s.get("test") == "abc"
-        assert s.get("test2") == "def"
-
-        # Should not be added to default user session
-        assert self.user_session().get("test") == 123
-
-    def test_getting_all_user_sessions(self):
-        ''' This will include all added sessions under 'user', even if no data (and no actual file) is present'''
-        assert set(self.user_sessions.keys()) == {
-            self.user_id, self.app_name, 'my_session', 'python_plugin', 'blah',
-            'test_roundtrip_user_session'
-        }
-
-    def test_default_app_session(self):
-        assert self.app_session().get("test") == None
-        self.app_session().store("test", 123)
-        assert self.app_session().get("test") == 123
-
-    def test_roundtrip_app_session(self):
-        s = self.app_session("test_roundtrip_app_session")
-        assert s.get("test") == None
-        assert s.path.exists() is False
-
-        s.store("test", "abc")
-        s.store("test2", "def")
-        assert s.path.exists() is True
-
-        assert s.get("test") == "abc"
-        assert s.get("test2") == "def"
-
-        # Should not be added to default user session
-        assert self.app_session().get("test") == 123
-
-    def test_getting_all_app_sessions(self):
-        assert set(self.app_sessions.keys()) == {
-            self.app_name, 'app_session', 'python_plugin', 'blah',
-            'test_roundtrip_app_session'
-        }
+    def test_app_session_root_can_be_updated_from_app_config(self):
+        retn = in_new_origen_proc(mod=session_configs)
+        assert retn["root"] == self.config_dir.joinpath("app_session_test_root/.session/__app__")

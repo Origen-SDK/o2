@@ -73,6 +73,7 @@ pub fn typed_value_to_pyobj(
                 }
                 Ok(Some(pylist.to_object(py)))
             }
+            TypedValue::Map(map) => Ok(Some(into_pydict(py, map)?.to_object(py))),
         }
     } else {
         Ok(None)

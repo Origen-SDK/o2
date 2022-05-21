@@ -122,7 +122,7 @@ def test_default_dataset_and_hierarchy(q, options):
 
 
 def test_empty_hierarchy_and_default_dataset(q, options):
-    setenv(err_root, bypass_config_lookup=True)
+    setenv(config_root, bypass_config_lookup=True)
     import origen
     q.put(("users__hierarchy", origen.users.data_lookup_hierarchy))
     q.put(("users__datasets", list(origen.users.datasets.keys())))

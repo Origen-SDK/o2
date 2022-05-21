@@ -21,7 +21,7 @@
 #  process.stdin.close()
 #  read output, etc
 
-import pytest
+import pytest, pathlib
 import subprocess
 import os
 import origen
@@ -66,3 +66,57 @@ def test_origen_g():
     ],
                                universal_newlines=True)
     assert process.wait() == 0
+
+class TestBadConfigs:
+    @property
+    def bad_config_env(self):
+        return {
+            **os.environ,
+            "origen_bypass_config_lookup": "1",
+            "origen_config_paths": str(
+                pathlib.Path(__file__).parent.joinpath("origen_utilities/configs/ldap/test_bad_ldap_config.toml").absolute()
+            )
+        }
+
+    def test_origen_v(self):
+        r = subprocess.run(
+            [origen_cli, '-v'],
+            capture_output=True,
+            env=self.bad_config_env
+        )
+        assert r.returncode == 1
+        out = r.stdout.decode("utf-8").strip()
+        err = r.stderr.decode("utf-8").strip()
+        assert "Couldn't boot app to determine the in-application Origen version" in out
+        assert "invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml" in out
+        assert err == ""
+
+    def test_origen_cmd(self):
+        r = subprocess.run(
+            [origen_cli, 'g', r'./example/patterns/toggle.py', '-t', r'./targets/eagle_with_smt7.py'],
+            capture_output=True,
+            env=self.bad_config_env
+        )
+        assert r.returncode == 1
+        out = r.stdout.decode("utf-8").strip()
+        err = r.stderr.decode("utf-8").strip()
+        assert "invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml" in out
+        assert err == ""
+
+    def test_bad_config_path(self):
+        r = subprocess.run(
+            [origen_cli, '-v'],
+            capture_output=True,
+            env={
+                **self.bad_config_env,
+                **{
+                    "origen_config_paths": str(pathlib.Path(__file__).parent.joinpath("missing.toml").absolute())
+                }
+            }
+        )
+        assert r.returncode == 1
+        out = r.stdout.decode("utf-8").strip()
+        err = r.stderr.decode("utf-8").strip()
+        assert "Couldn't boot app to determine the in-application Origen version" in out
+        assert "missing.toml either does not exists or is not accessible" in out
+        assert err == ""

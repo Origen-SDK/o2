@@ -4,7 +4,6 @@ use num_bigint::{BigInt, BigUint};
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use toml::Value;
-// use std::collections::HashMap;
 use std::iter::FromIterator;
 
 // TODO need to support mapping/tables
@@ -22,7 +21,7 @@ pub enum TypedValue {
     Bool(bool),
     Float(f64),
     Vec(Vec<Self>),
-    // Map(HashMap<Self, Self>),
+    Map(Map),
     Serialized(Vec<u8>, Option<String>, Option<String>), // Data, Serializer, Optional Data Type/Class
                                                          // ... as needed
 }
@@ -61,7 +60,7 @@ impl TypedValue {
             Self::Serialized(_, _, _) => "serialized",
             Self::Usize(_) => "usize",
             Self::Vec(_) => "vec",
-            // Self::Map(_) => "map",
+            Self::Map(_) => "map",
         }
     }
 
@@ -102,6 +101,10 @@ impl TypedValue {
                     toml_map.insert("class".to_string(), Value::String(c.to_string()));
                 }
             }
+            // TEST_NEEDED add tests for usize
+            Self::Usize(u) => {
+                toml_map.insert(data!(), Value::String(BigUint::from(*u).to_str_radix(10)));
+            }
             Self::Vec(data) => {
                 let mut values_vec: Vec<Value> = vec![];
                 for d in data.iter() {
@@ -109,7 +112,10 @@ impl TypedValue {
                 }
                 toml_map.insert("vec".to_string(), Value::Array(values_vec));
             }
-            _ => bail!("Cannot convert TypedValue {:?} to a toml map value", self),
+            // TEST_NEEDED for map
+            Self::Map(map) => {
+                toml_map.insert("map".to_string(), Value::try_from(map)?);
+            }
         }
         toml_map.insert(class!(), Value::String(self.to_class_str().to_string()));
         Ok(Value::Table(toml_map))
@@ -164,12 +170,13 @@ impl TypedValue {
         }
     }
 
-    // pub fn as_map(&self) -> Result<HashMap<Self, Self>> {
-    //     match self {
-    //         Self::Map(m) => Ok(m.clone()),
-    //         _ => bail!(&self.conversion_error_msg("map"))
-    //     }
-    // }
+    // TEST_NEEDED
+    pub fn as_map(&self) -> Result<&Map> {
+        match self {
+            Self::Map(m) => Ok(&m),
+            _ => bail!(&self.conversion_error_msg("map"))
+        }
+    }
 
     fn conversion_error_msg(&self, expected: &str) -> String {
         format!(
@@ -252,15 +259,18 @@ impl From<u64> for TypedValue {
     }
 }
 
-// TODO
-// impl <K, V>From<&HashMap<K, V>> for TypedValue where
-//     TypedValue: From<K>,
-//     TypedValue: From<V>,
-// {
-//     fn from(map: &HashMap<K, V>) -> Self {
-//         todo!()
-//     }
-// }
+use std::collections::HashMap;
+impl <'a, V>From<&'a HashMap<String, V>> for TypedValue where
+    TypedValue: From<&'a V>,
+{
+    fn from(map: &'a HashMap<String, V>) -> Self {
+        let mut tvm = Map::new();
+        for (k, v) in map {
+            tvm.insert(k, v);
+        }
+        Self::Map(tvm)
+    }
+}
 
 impl TryFrom<TypedValue> for String {
     type Error = crate::Error;
@@ -522,5 +532,17 @@ impl From<&IM<String, TypedValue>> for Map {
         Self {
             typed_values: map.to_owned(),
         }
+    }
+}
+
+impl TryFrom<Map> for toml::map::Map<String, Value> {
+    type Error = crate::Error;
+
+    fn try_from(map: Map) -> std::result::Result<Self, Self::Error> {
+        let mut tmap = Self::new();
+        for (k, v) in map.iter() {
+            tmap.insert(k.to_owned(), v.to_toml_value()?);
+        }
+        Ok(tmap)
     }
 }

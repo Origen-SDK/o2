@@ -21,8 +21,6 @@ mailer__domain = "origen.org"
 mailer__auth__service_user = "forumsys_read_only"
 mailer__timeout_seconds = 120
 
-session__user_root = "./tmp/pytest"
-
 ### Users Setup ###
 # Various items to customize user data
 #

@@ -15,6 +15,6 @@ backup_motives = [
     "backup1",
     "backup2"
 ]
-[ldaps.full.populate_config]
-data_id = "uid"
-mapping = {"email" = "mail", "last_name" = "sn", "full_name" = "cn"}
+[ldaps.full.populate_user_config]
+data_id = "invalid"
+mapping = {"email" = "contact", "last_name" = "last", "full_name" = "full"}

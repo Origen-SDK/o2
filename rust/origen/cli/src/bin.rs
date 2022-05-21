@@ -16,6 +16,7 @@ use origen::{Result, LOGGER, STATUS};
 use origen_metal as om;
 use std::iter::FromIterator;
 use std::path::Path;
+use std::process::exit;
 
 static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
 static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
@@ -1511,10 +1512,19 @@ CORE COMMANDS:
                         }
                     }
                     Err(e) => {
-                        log_error!("{}", e);
                         log_error!(
                             "Couldn't boot app to determine the in-application Origen version"
                         );
+                        log_error!("Received Error:");
+                        log_error!("");
+                        log_error!("{}", e);
+                        if output_lines != "" {
+                            log_error!("");
+                            log_error!("The following was also captured:");
+                            log_error!("");
+                            log_error!("{}", output_lines);
+                        }
+                        exit(1);
                     }
                 }
             } else {

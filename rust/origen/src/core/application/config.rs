@@ -1,14 +1,12 @@
 use crate::core::application::target::matches;
-use crate::core::term;
 use crate::utility::location::Location;
+use crate::exit_on_bad_config;
 use origen_metal::config;
 use origen_metal::config::{Environment, File};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 const PUBLISHER_OPTIONS: &[&str] = &["system", "package_app", "upload_app"];
-
-// TODO needs cleaning
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -72,10 +70,7 @@ impl Config {
             for t in targets.iter() {
                 let m = matches(t, "targets");
                 if m.len() != 1 {
-                    term::redln(&format!(
-                        "Error present in default target '{}' (in config/application.toml)",
-                        t
-                    ));
+                    log_error!("Error present in default target '{}' (in config/application.toml)", t);
                 }
             }
         }
@@ -102,54 +97,21 @@ impl Config {
             .set_default("app_session_root", None::<String>)
             .unwrap();
 
-        // Start off by specifying the default values for all attributes, seems fine
-        // not to handle these errors
-
-        // Find all the application.toml files
-        // let mut files: Vec<PathBuf> = Vec::new();
-
         let file = root.join("config").join("application.toml");
         if file.exists() {
-            // files.push(file);
             s = s.add_source(File::with_name(&format!("{}", file.display())));
         }
 
         if !default_only {
             let file = root.join(".origen").join("application.toml");
             if file.exists() {
-                // files.push(file);
                 s = s.add_source(File::with_name(&format!("{}", file.display())));
             }
         }
-
-        // Now add in the files, with the last one found taking highest priority
-        // for file in files.iter() {
-        //     match s.merge(File::with_name(&format!("{}", file.display()))) {
-        //         Ok(_) => {}
-        //         Err(error) => {
-        //             term::redln(&format!("Malformed config file: {}", file.display()));
-        //             term::redln(&format!("{}", error));
-        //             std::process::exit(1);
-        //         }
-        //     }
-        // }
-        // let _ = s.merge(Environment::with_prefix("origen_app"));
         s = s.add_source(Environment::with_prefix("origen_app"));
 
-        // // Couldn't figure out how to get the config::Config to recognize the Location struct since the
-        // // underlying converter to config::value::ValueKind is private.
-        // // Instead, just pluck it out as string and set it to none before casting to our Config (Self)
-        // // Then, after the cast, put it back in as the type we want (Location)
-        // let loc;
-        // match s.get_str("website_release_location") {
-        //     Ok(l) => loc = Some(l),
-        //     Err(_) => loc = None,
-        // }
-        // s.set("website_release_location", None::<String>).unwrap();
-
-        let cb = s.build().unwrap();
-        // let mut c: Self = s.try_into().unwrap();
-        let mut c: Self = cb.try_deserialize().unwrap();
+        let cb = exit_on_bad_config!(s.build());
+        let mut c: Self = exit_on_bad_config!(cb.try_deserialize());
         c.root = Some(root.to_path_buf());
         // TODO
         // if let Some(l) = loc {

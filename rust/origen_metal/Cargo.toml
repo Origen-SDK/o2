@@ -27,7 +27,7 @@ dirs = "2.0"
 wait-timeout = "0.2.0"
 chrono = "0.4.11"
 indexmap = { version = "1.6.0", features = ["serde-1"] }
-config = "0.13"
+config = "0.13.1"
 ldap3 = "0.9.3"
 cfg-if = "1"
 enum-display-derive = "0.1.1"

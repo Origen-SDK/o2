@@ -55,7 +55,7 @@ class TestUsers(UsersBase):
 
     @pytest.mark.skip
     def test_users_are_autopopulated(self):
-        raise NotADirectoryError
+        raise NotImplementedError
 
 
 class TestUserConfigSetups(UsersBase):
@@ -65,7 +65,7 @@ class TestUserConfigSetups(UsersBase):
 
     @pytest.mark.skip
     def test_autoloading_current_user_can_be_disabled(self):
-        raise NotADirectoryError
+        raise NotImplementedError
 
     def test_error_on_invalid_datasets_in_hierarchy(self, capfd, dsets):
         retn = in_new_origen_proc(mod=user_configs)
@@ -166,8 +166,8 @@ class TestUserConfigSetups(UsersBase):
         retn = in_new_origen_proc(mod=user_configs)
         assert retn["users__datasets"] == [ddk]
         assert retn["datasets"] == [ddk]
-        assert retn["users__hierarchy"] == [ddk]
-        assert retn["hierarchy"] == [ddk]
+        assert retn["users__hierarchy"] == []
+        assert retn["hierarchy"] == []
 
     def test_empty_datasets(self, ddk):
         retn = in_new_origen_proc(mod=user_configs)

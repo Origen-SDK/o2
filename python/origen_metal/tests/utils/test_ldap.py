@@ -18,6 +18,14 @@ AUTH_SETUP = {
     "username": AUTH_USERNAME,
     "password": PASSWORD
 }
+POPULATE_USER_CONFIG = {
+    "data_id": "uid",
+    "mapping": {
+        "email": "mail",
+        "last_name": "sn",
+        "full_name": "cn"
+    }
+}
 
 INIT_PARAMS = [
     SERVER,
@@ -30,16 +38,21 @@ INIT_PARAMS = [
 
 
 class Common:
-    def forumsys_ldap(self, timeout=TIMEOUT, continuous_bind=CONTINUOUS_BIND):
+    def forumsys_ldap(self, timeout=5, continuous_bind=False, populate_user_config=False):
+        if populate_user_config is True:
+            pop_config = POPULATE_USER_CONFIG
+        elif populate_user_config is False:
+            pop_config = None
+        else:
+            pop_config = populate_user_config
         return om._origen_metal.utils.ldap.LDAP(
             name=NAME,
             server=SERVER,
             base=BASE,
-            auth=AUTH_TYPE,
-            username=AUTH_USERNAME,
-            password=PASSWORD,
+            auth=AUTH_SETUP,
             timeout=timeout,
             continuous_bind=continuous_bind,
+            populate_user_config=pop_config,
         )
 
     @property
@@ -51,17 +64,7 @@ class Common:
         return INIT_PARAMS
 
 
-class TestStandaloneLDAP:
-    def forumsys_ldap(self, timeout=5, continuous_bind=False):
-        return om._origen_metal.utils.ldap.LDAP(
-            name=NAME,
-            server=SERVER,
-            base=BASE,
-            auth=AUTH_SETUP,
-            timeout=timeout,
-            continuous_bind=continuous_bind,
-        )
-
+class TestStandaloneLDAP(Common):
     def test_ldap_parameters(self):
         ldap = self.forumsys_ldap()
         assert ldap.base == BASE
@@ -100,8 +103,7 @@ class TestStandaloneLDAP:
         }
         assert ldap.continuous_bind == False
         assert ldap.timeout == 60
-        # TODO
-        # assert ldap.populate_user_config == None
+        assert ldap.populate_user_config == None
 
     def test_ldap_can_bind(self):
         ldap = self.forumsys_ldap(continuous_bind=True)
@@ -211,6 +213,26 @@ class TestStandaloneLDAP:
         # Should not effect the current LDAP
         assert ldap.bound == True
 
+    def test_populate_user_config(self):
+        ldap = self.forumsys_ldap(populate_user_config=True)
+        assert ldap.populate_user_config == {
+            "data_id": "uid",
+            "mapping": {
+                "email": "mail",
+                "last_name": "sn",
+                "full_name": "cn"
+            }
+        }
+    
+    def test_timeout_can_be_set(self):
+        ldap = self.forumsys_ldap(populate_user_config=True)
+        assert ldap.timeout == 5
+        ldap.timeout = 10
+        assert ldap.timeout == 10
+        ldap.timeout = 0
+        assert ldap.timeout == 0
+        ldap.timeout = None
+        assert ldap.timeout is None
 
 class TestLdapAsDataStore(DataStoreView):
     ''' The LDAP's only data store feature is populating users'''

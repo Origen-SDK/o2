@@ -171,8 +171,9 @@ impl SupportedAuths {
     }
 
     pub fn bind(&self, l: &LDAP, ldap: &mut LdapConn) -> Result<()> {
-        // TODO customize this
-        ldap.with_timeout(core::time::Duration::new(5, 0));
+        if let Some(t) = l.timeout {
+            ldap.with_timeout(t);
+        }
         match self {
             Self::SimpleBind(sb) => {
                 ldap.simple_bind(&sb.username()?, &sb.password(l.name.as_str())?)?
@@ -203,14 +204,13 @@ impl LdapPopUserConfig {
 
     // TODO
     pub fn config_into_map(&self) -> TypedValueMap {
-        todo!();
-        // let mut tvm = TypedValueMap::new();
-        // tvm.insert("data_id", &self.data_id);
-        // tvm.insert("mapping", self.mapping.iter());
-        // // tvm.insert("required", self.required.iter());
-        // // tvm.insert("include_all", self.include_all);
-        // // tvm.insert("attributes", self.attributes.iter());
-        // tvm
+        let mut tvm = TypedValueMap::new();
+        tvm.insert("data_id", &self.data_id);
+        tvm.insert("mapping", &self.mapping);
+        // tvm.insert("required", self.required.iter());
+        // tvm.insert("include_all", self.include_all);
+        // tvm.insert("attributes", self.attributes.iter());
+        tvm
     }
 }
 
@@ -293,20 +293,6 @@ impl LDAP {
         )
     }
 
-    // pub fn timeout(&self) -> Option<u64> {
-    //     match self.timeout {
-    //         Some(t) => Some(t.as_secs()),
-    //         None => None
-    //     }
-    // }
-
-    // pub fn set_timeout<S: Into<u64>>(&self, secs: S) -> Result<()> {
-    //     let mut ldap = self.ldap.write()?;
-    //     // TODO
-    //     // ldap.timeout = Duration::new(secs.into(), 0);
-    //     Ok(())
-    // }
-
     // // TODO
     // pub fn from_config(name: &str, config: LdapConfigType) -> Result<Self> {
     //     Self::new::<u64>(
@@ -381,8 +367,17 @@ impl LDAP {
         self.timeout.map_or(None, |t| Some(t.as_secs()))
     }
 
+    pub fn set_timeout<S: Into<u64>>(&mut self, secs: Option<S>) -> Result<()> {
+        self.timeout = secs.map(|s| Duration::new(s.into(), 0));
+        Ok(())
+    }
+
     pub fn continuous_bind(&self) -> bool {
         self.continuous_bind
+    }
+
+    pub fn populate_user_config(&self) -> Option<&LdapPopUserConfig> {
+        self.populate_user_config.as_ref()
     }
 
     pub fn bind(&self) -> Result<()> {

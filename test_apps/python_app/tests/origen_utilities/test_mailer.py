@@ -1,11 +1,9 @@
-# REQUIRED need to re-add this
 import pytest, origen, _origen, pathlib, re
 from om_tests.shared.python_like_apis import Fixture_DictLikeAPI
 from tests.shared import in_new_origen_proc
 from configs import mailer as mailer_configs
 
 
-@pytest.mark.skip
 class TestMailer:
     def test_mailer_is_accessible(self):
         assert origen.mailer
@@ -157,7 +155,6 @@ class TestMailer:
         #     assert 1 == 0
 
 
-@pytest.mark.skip
 class TestMaillist:
     @property
     def mls(self):

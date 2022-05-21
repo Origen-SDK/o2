@@ -38,10 +38,11 @@ class TestLDAPs(LdapCommon, test_frontend.Common):
     def test_multiple_ldaps(self):
         retn = in_new_origen_proc(mod=ldap_configs)
 
-    # TODO
-    @pytest.mark.xfail
-    def test_bad_ldap_config(self):
-        retn = in_new_origen_proc(mod=ldap_configs)
+    def test_bad_ldap_config(self, capfd):
+        retn = in_new_origen_proc(mod=ldap_configs, expect_fail=True)
+        out = capfd.readouterr().out
+        assert "Malformed config file" in out
+        assert "invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml" in out
 
     def test_empty_config(self):
         retn = in_new_origen_proc(mod=ldap_configs)
@@ -49,10 +50,11 @@ class TestLDAPs(LdapCommon, test_frontend.Common):
     def test_empty_ldaps(self):
         retn = in_new_origen_proc(mod=ldap_configs)
 
-    # TODO
-    @pytest.mark.xfail
-    def test_empty_ldap(self):
-        retn = in_new_origen_proc(mod=ldap_configs)
+    def test_empty_ldap(self, capfd):
+        retn = in_new_origen_proc(mod=ldap_configs, expect_fail=True)
+        out = capfd.readouterr().out
+        assert "Malformed config file" in out
+        assert "missing field `server`" in out
 
     @pytest.mark.skip
     def test_adding_ldaps_with_non_ldap_types(self):

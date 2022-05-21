@@ -32,9 +32,14 @@ def test_fully_configured_ldap(p, options):
         'backup_motives': ["backup1", "backup2"],
     }
 
-    # TODO Add populate user checks
-    # assert l.populate_user_config == {
-    # }
+    assert l.populate_user_config == {
+        "data_id": "invalid",
+        "mapping": {
+            "email": "contact",
+            "last_name": "last",
+            "full_name": "full"
+        }
+    }
 
 
 def test_multiple_ldaps(q, options):
@@ -51,7 +56,6 @@ def test_bad_ldap_config(q, options):
     setenv(config_root, bypass_config_lookup=True)
 
     import origen
-    assert len(origen.ldaps) == 0
 
 
 def test_empty_ldaps(q, options):

@@ -9,10 +9,10 @@ def test_mailer_minimum(q, options):
     setenv(config_root, bypass_config_lookup=True)
 
     import origen
-    origen.current_user().password = "dummy"
-    origen.current_user().username = "minimum"
-    origen.current_user().password = "Mini"
-    origen.current_user().email = "minimum@origen.orgs"
+    origen.current_user.password = "dummy"
+    origen.current_user.username = "minimum"
+    origen.current_user.password = "Mini"
+    origen.current_user.email = "minimum@origen.orgs"
     q.put(("server", origen.mailer.server))
     q.put(("port", origen.mailer.port))
     q.put(("auth_method", origen.mailer.auth_method))
@@ -59,11 +59,10 @@ def test_tls_dataset(q, options):
     setenv(config_root, bypass_config_lookup=True)
 
     import origen
-    origen.current_user().datasets["for_mailer"].username = "mailer_name"
-    origen.current_user().datasets["for_mailer"].password = "mailer_pw"
-    origen.current_user().datasets["for_mailer"].email = "mailer@origen.org"
-    origen.current_user(
-    ).datasets["not_mailer"].email = "not_mailer@origen.org"
+    origen.current_user.datasets["for_mailer"].username = "mailer_name"
+    origen.current_user.datasets["for_mailer"].password = "mailer_pw"
+    origen.current_user.datasets["for_mailer"].email = "mailer@origen.org"
+    origen.current_user.datasets["not_mailer"].email = "not_mailer@origen.org"
 
     q.put(("server", origen.mailer.server))
     q.put(("auth_method", origen.mailer.auth_method))
@@ -73,10 +72,10 @@ def test_tls_dataset(q, options):
     q.put(("sender", origen.mailer.sender))
     q.put(("dataset", origen.mailer.dataset))
     q.put(("for_mailer_dataset_email",
-           origen.current_user().datasets["for_mailer"].email))
+           origen.current_user.datasets["for_mailer"].email))
     q.put(("not_mailer_dataset_email",
-           origen.current_user().datasets["not_mailer"].email))
-    q.put(("hierarchy", origen.current_user().data_lookup_hierarchy))
+           origen.current_user.datasets["not_mailer"].email))
+    q.put(("hierarchy", origen.current_user.data_lookup_hierarchy))
 
 
 def test_tls_dataset_with_backup(q, options):
@@ -85,10 +84,9 @@ def test_tls_dataset_with_backup(q, options):
            bypass_config_lookup=True)
 
     import origen
-    origen.current_user().datasets["for_mailer"].username = "mailer_name"
-    origen.current_user().datasets["for_mailer"].password = "mailer_pw"
-    origen.current_user(
-    ).datasets["not_mailer"].email = "not_mailer@origen.org"
+    origen.current_user.datasets["for_mailer"].username = "mailer_name"
+    origen.current_user.datasets["for_mailer"].password = "mailer_pw"
+    origen.current_user.datasets["not_mailer"].email = "not_mailer@origen.org"
 
     q.put(("server", origen.mailer.server))
     q.put(("auth_method", origen.mailer.auth_method))
@@ -98,16 +96,16 @@ def test_tls_dataset_with_backup(q, options):
     q.put(("sender", origen.mailer.sender))
     q.put(("dataset", origen.mailer.dataset))
     q.put(("for_mailer_dataset_email",
-           origen.current_user().datasets["for_mailer"].email))
+           origen.current_user.datasets["for_mailer"].email))
     q.put(("not_mailer_dataset_email",
-           origen.current_user().datasets["not_mailer"].email))
-    q.put(("hierarchy", origen.current_user().data_lookup_hierarchy))
+           origen.current_user.datasets["not_mailer"].email))
+    q.put(("hierarchy", origen.current_user.data_lookup_hierarchy))
 
 
 def test_error_on_missing_server(q, options):
     setenv(err_root, bypass_config_lookup=True)
     import origen
-    origen.current_user().email = "mailer@origen.org"
+    origen.current_user.email = "mailer@origen.org"
     q.put(("mailer", origen.mailer))
     q.put(("app_mailer", origen.app.mailer))
 
@@ -122,7 +120,7 @@ def test_error_on_bad_system(q, options):
 def test_error_on_tls_with_invalid_service_user(q, options):
     setenv(err_root, bypass_config_lookup=True)
     import origen
-    origen.current_user().email = "mailer@origen.org"
+    origen.current_user.email = "mailer@origen.org"
 
     q.put(("server", origen.mailer.server))
     q.put(("auth_method", origen.mailer.auth_method))

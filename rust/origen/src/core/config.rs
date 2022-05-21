@@ -8,14 +8,13 @@
 //!
 //! println!("Server: {}", &ORIGEN_CONFIG.pkg_server);  // => "Server: https://pkgs.company.net:9292"
 //! ```
-// TODO needs cleaning up
 
-// use super::term;
 use crate::STATUS;
 use origen_metal::config;
 use origen_metal::config::{Environment, File};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::exit;
 
 // TODO Get from a prelude?
 use crate::om;
@@ -86,6 +85,20 @@ impl std::convert::From<DatasetConfig> for config::ValueKind {
 //     pub session__user_root: Option<String>,
 // }
 
+#[macro_export]
+macro_rules! exit_on_bad_config {
+    ($result: expr) => {
+        match $result {
+            Ok(r) => r,
+            Err(e) => {
+                log_error!("Malformed config file");
+                log_error!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -131,7 +144,6 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Config {
         log_trace!("Instantiating Origen config");
-        // let mut s = config::Config::new();
         let mut s = config::Config::builder();
 
         // Start off by specifying the default values for all attributes, seems fine
@@ -149,7 +161,6 @@ impl Default for Config {
             .unwrap();
         s = s
             .set_default("ldaps", {
-                // let h: HashMap<String, HashMap<String, String>> = HashMap::new();
                 let h: HashMap<String, LDAPConfig> = HashMap::new();
                 h
             })
@@ -236,10 +247,11 @@ impl Default for Config {
                         files.push(f);
                     }
                 } else {
-                    display_redln!(
+                    log_error!(
                         "Config path {} either does not exists or is not accessible",
                         path.display()
                     );
+                    exit(1);
                 }
             }
         }
@@ -288,107 +300,85 @@ impl Default for Config {
         for f in files.iter().rev() {
             log_trace!("Loading Origen config file from '{}'", f.display());
             s = s.add_source(File::with_name(&format!("{}", f.display())));
-            // TODO
-            // let defaults = s.build().unwrap();
+            let built = exit_on_bad_config!(s.build_cloned());
 
-            // let mut c = config::Config::new();
-            // match c.merge(File::with_name(&format!("{}", f.display()))) {
-            //     Ok(_) => {}
-            //     Err(error) => {
-            //         term::redln(&format!("Malformed config file: {}", f.display()));
-            //         term::redln(&format!("{}", error));
-            //         std::process::exit(1);
-            //     }
-            // }
-            // process_config_pre_merge(&mut c, f);
-            // match s.merge(c) {
-            //     Ok(_) => {}
-            //     Err(error) => {
-            //         term::redln(&format!("Malformed config file: {}", f.display()));
-            //         term::redln(&format!("{}", error));
-            //         std::process::exit(1);
-            //     }
-            // }
-        }
-
-        // Add in settings from the environment (with a prefix of ORIGEN), not sure how this
-        // can really fail, so not handled
-        // let _ = s.merge(Environment::with_prefix("origen"));
-        s = s.add_source(Environment::with_prefix("origen"));
-
-        // s.try_into().unwrap()
-        s.build().unwrap().try_deserialize().unwrap()
-        // match s.build().unwrap().try_deserialize() {
-        //     Ok(c) => c,
-        //     Err(e) => {
-        //         term::redln(&format!("Malformed config file"));
-        //         term::redln(&format!("{}", e));
-        //         std::process::exit(1);
-        //     }
-        // }
-    }
-}
-
-// TODO need to add some support for this again in some way../
-/*
-/// Do any processing to the config that needs to happen before attempting to merge
-fn process_config_pre_merge(c: &mut config::Config, src: &PathBuf) {
-    match c.get("mailer__maillists_dirs") {
-        // Update any relative paths in this parameter to be relative to the config in which it was found
-        Ok(mut paths) => {
-            match c.set(
-                "mailer__maillists_dirs",
-                _update_relative_paths(&mut paths, &src.parent().unwrap().to_path_buf()),
-            ) {
-                Ok(_) => {}
-                Err(e) => display_redln!(
-                    "Error setting maillist dir: '{}': {}",
-                    src.display(),
-                    e.to_string()
-                ),
-            }
-        }
-        Err(e) => match e {
-            config::ConfigError::NotFound(_) => {}
-            _ => {
-                term::redln(&format!("Malformed config file: {}", src.display()));
-                term::redln(&format!("{}", e));
-                std::process::exit(1);
-            }
-        },
-    }
-    match c.get("session__user_root") {
-        Ok(root) => {
-            match c.set(
-                "session__user_root",
-                match crate::utility::file_utils::to_abs_path(&root, &src.parent().unwrap().to_path_buf()) {
-                    Ok(resolved) => Some(resolved.display().to_string()),
-                    Err(e) => {
-                        display_redln!(
-                            "Unable to process config value for 'session__user_root' (in '{}'): {}",
-                            src.display(),
-                            e
-                        );
-                        None
+            match built.get_array("mailer__maillists_dirs") {
+                // Update any relative paths in this parameter to be relative to the config in which it was found
+                Ok(paths) => {
+                    if !paths.is_empty() {
+                        match s.set_override(
+                            "mailer__maillists_dirs",
+                            _update_relative_paths(
+                                &mut paths.iter().map( |m| exit_on_bad_config!(m.clone().into_string())).collect::<Vec<String>>(),
+                                &f.parent().unwrap().to_path_buf()
+                            )
+                        ) {
+                            Ok(new) => s = new,
+                            Err(e) => {
+                                display_redln!(
+                                    "Error setting maillist dir: '{}': {}",
+                                    f.display(),
+                                    e.to_string()
+                                );
+                                exit(1);
+                            }
+                        }
                     }
                 }
-            ) {
-                Ok(_) => {}
-                Err(e) => display_redln!(
-                    "Error setting user session root: '{}': {}",
-                    src.display(),
-                    e.to_string()
-                ),
+                Err(e) => match e {
+                    config::ConfigError::NotFound(_) => {}
+                    _ => {
+                        log_error!("Malformed config file: {}", f.display());
+                        log_error!("{}", e);
+                        exit(1);
+                    }
+                },
+            }
+
+            match built.get::<Option<PathBuf>>("session__user_root") {
+                Ok(root) => {
+                    if let Some(r) = root.as_ref() {
+                        match s.set_override(
+                            "session__user_root",
+                            match crate::utility::file_utils::to_abs_path(r, &f.parent().unwrap().to_path_buf()) {
+                                Ok(resolved) => Some(resolved.display().to_string()),
+                                Err(e) => {
+                                    log_error!(
+                                        "Unable to process config value for 'session__user_root' (in '{}'): {}",
+                                        f.display(),
+                                        e
+                                    );
+                                    exit(1);
+                                }
+                            }
+                        ) {
+                            Ok(new) => s = new,
+                            Err(e) => {
+                                log_error!(
+                                    "Error setting user session root: '{}': {}",
+                                    f.display(),
+                                    e.to_string()
+                                );
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => match e {
+                    config::ConfigError::NotFound(_) => {}
+                    _ => {
+                        log_error!("Malformed config file: {}", f.display());
+                        log_error!("{}", e);
+                        exit(1);
+                    }
+                },
             }
         }
-        Err(e) => match e {
-            config::ConfigError::NotFound(_) => {}
-            _ => {
-                term::redln(&format!("Malformed config file: {}", src.display()));
-                term::redln(&format!("{}", e));
-                std::process::exit(1);
-            }
-        },
+
+        // Add in settings from the environment (with a prefix of ORIGEN)
+        s = s.add_source(Environment::with_prefix("origen"));
+
+        exit_on_bad_config!(exit_on_bad_config!(s.build()).try_deserialize())
     }
 }
 
@@ -417,7 +407,7 @@ impl Config {
         }
     }
 }
-*/
+
 #[cfg(test)]
 mod tests {
     use crate::ORIGEN_CONFIG;

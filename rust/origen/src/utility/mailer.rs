@@ -34,7 +34,7 @@ impl MaillistConfig {
         match cb.build() {
             Ok(c) => Ok(c.try_deserialize()?),
             Err(e) => bail!(
-                "Unable to build maillist from '{}'. Encountered errors:{}",
+                "Unable to build maillist from '{}'. Encountered errors: {}",
                 path.display(),
                 e
             ),
@@ -93,7 +93,7 @@ impl Maillists {
     }
 
     fn pop_maillists_from_dir(&mut self, path: &str) {
-        // The order of this loop matters as a ".maillists.tom" will overwrite a ".maillists"
+        // The order of this loop matters as a ".maillists.toml" will overwrite a ".maillists"
         for ext in ["maillist", "maillist.toml"].iter() {
             match glob::glob(&format!("{}/*.{}", path, ext)) {
                 Ok(entries) => {
