@@ -81,7 +81,7 @@ class TestBadConfigs:
         assert r.returncode == 1
         out = r.stdout.decode("utf-8").strip()
         err = r.stderr.decode("utf-8").strip()
-        p = pathlib.Path("tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml")
+        p = pathlib.Path("tests/origen_utilities/configs/ldap/test_bad_ldap_config.toml")
         assert "Couldn't boot app to determine the in-application Origen version" in out
         assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
         assert err == ""
@@ -95,7 +95,7 @@ class TestBadConfigs:
         assert r.returncode == 1
         out = r.stdout.decode("utf-8").strip()
         err = r.stderr.decode("utf-8").strip()
-        p = pathlib.Path("tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml")
+        p = pathlib.Path("tests/origen_utilities/configs/ldap/test_bad_ldap_config.toml")
         assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
         assert err == ""
 

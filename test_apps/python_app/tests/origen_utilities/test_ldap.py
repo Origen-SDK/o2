@@ -42,7 +42,7 @@ class TestLDAPs(LdapCommon, test_frontend.Common):
         retn = in_new_origen_proc(mod=ldap_configs, expect_fail=True)
         out = capfd.readouterr().out
         assert "Malformed config file" in out
-        p = pathlib.Path("tests\\origen_utilities\\configs\\ldap\\test_bad_ldap_config.toml")
+        p = pathlib.Path("tests/origen_utilities/configs/ldap/test_bad_ldap_config.toml")
         assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
 
     def test_empty_config(self):
