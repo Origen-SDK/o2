@@ -21,7 +21,7 @@ generate-setup-file = false
 o2 = 'origen.__bin__:run_origen'
 
 [tool.poetry.dependencies]
-python =  ">=3.7,<3.10"
+python =  ">=3.7,<3.11"
 origen_metal = "= 0.4.0"
 termcolor = ">= 1.1.0"
 colorama = "^0.4"
@@ -34,8 +34,8 @@ origen_autoapi = "2.0.1"
 recommonmark = ">= 0"
 sphinxbootstrap4theme = ">= 0"
 yapf = "0.30"
-poetry = "1.1.6"
-Jinja2 = "^2"
+poetry = "1.1.13"
+Jinja2 = "^3"
 importlib-metadata = ">= 1.7.0" # For use with Python pre-3.8
 
 [tool.poetry.dev-dependencies]
