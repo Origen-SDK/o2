@@ -629,7 +629,7 @@ python-versions = ">=3.7,<3.11"
 develop = true
 
 [package.dependencies]
-origen = "2.0.0.dev5"
+origen = {path = "../../python/origen", develop = true}
 
 [package.source]
 type = "directory"
