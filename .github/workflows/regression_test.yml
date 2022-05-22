@@ -11,6 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       RUST_BACKTRACE: full
+      ORIGEN__BUILD_TARGET: debug
     steps:
       - uses: actions/checkout@v2
 

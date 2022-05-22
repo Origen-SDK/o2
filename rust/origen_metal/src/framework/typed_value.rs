@@ -6,8 +6,6 @@ use std::str::FromStr;
 use toml::Value;
 use std::iter::FromIterator;
 
-// TODO need to support mapping/tables
-
 const DATA: &str = "data";
 const CLASS: &str = "__origen_encoded_class__";
 

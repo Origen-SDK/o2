@@ -651,17 +651,17 @@ impl User {
             .cache_password(self, password, dataset)
     }
 
-    pub fn _password_dialog(&self, dataset: &str, reason: Option<&str>) -> Result<String> {
+    pub fn _password_dialog(&self, dataset: &str, motive: Option<&str>) -> Result<String> {
         // TODO add attempts back in
         // for _attempt in 0..ORIGEN_CONFIG.user__password_auth_attempts {
         let msg;
         if dataset == "" {
-            msg = match reason {
+            msg = match motive {
                 Some(x) => format!("\nPlease enter your password {}: ", x),
                 None => "\nPlease enter your password: ".to_string(),
             };
         } else {
-            msg = match reason {
+            msg = match motive {
                 Some(x) => format!("\nPlease enter your password ({}) {}: ", dataset, x),
                 None => format!("\nPlease enter your password ({}): ", dataset),
             };
@@ -784,11 +784,10 @@ impl User {
 
     pub fn password(
         &self,
-        reason_or_dataset: Option<&str>,
-        reason_not_dataset: bool,
+        motive_or_dataset: Option<&str>,
+        motive_not_dataset: bool,
         default: Option<Option<&str>>,
     ) -> Result<String> {
-        // REQUIRED change name from reason to
         // In a multi-threaded scenario, this prevents concurrent threads from prompting the user for
         // the password at the same time.
         // Instead the first thread to arrive will do it, then by the time the lock is released awaiting
@@ -796,13 +795,13 @@ impl User {
         let _lock = self.password_semaphore.lock().unwrap();
         let dataset: &str;
 
-        if let Some(rod) = reason_or_dataset.as_ref() {
-            if reason_not_dataset {
+        if let Some(rod) = motive_or_dataset.as_ref() {
+            if motive_not_dataset {
                 if let Some(mapped_dataset) = self.dataset_for(rod)? {
                     // Use this dataset
                     dataset = mapped_dataset
                 } else {
-                    // Reason wasn't mapped to a dataset. See if a default should be used
+                    // motive wasn't mapped to a dataset. See if a default should be used
                     if let Some(d1) = default {
                         // Default was given
                         if let Some(d2) = d1 {
@@ -821,7 +820,7 @@ impl User {
                         }
                     } else {
                         // Raise an error
-                        bail!("No password available for reason: '{}'", rod,);
+                        bail!("No password available for motive: '{}'", rod,);
                     }
                 }
             } else {
@@ -831,11 +830,11 @@ impl User {
             dataset = &self.top_datakey()?;
         }
 
-        let reason: Option<&str>;
-        if reason_or_dataset.is_some() && reason_not_dataset {
-            reason = reason_or_dataset;
+        let motive: Option<&str>;
+        if motive_or_dataset.is_some() && motive_not_dataset {
+            motive = motive_or_dataset;
         } else {
-            reason = None;
+            motive = None;
         }
 
         // If the password has already been set, can return it.
@@ -866,7 +865,7 @@ impl User {
                     display_redln!("Cached password is not valid!");
                 }
             }
-            return self._password_dialog(dataset, reason);
+            return self._password_dialog(dataset, motive);
         } else {
             bail!("Can't get the password for a user which is not the current user")
         }
@@ -895,59 +894,12 @@ impl User {
         // Important: need to ensure sessions was instantiated prior to grabbing a write-lock to avoid deadlock
         {
             if self.password_cache_option.is_session_store() {
-                // REQUIRED still needed?
+                // TODO still needed?
                 let _ = crate::sessions();
             }
         }
         self.write_data(dataset)?.clear_cached_password(self)
     }
-
-    // REQUIRED see if this is still needed
-    /// Gets the user's password encryption key.
-    /// Encryption here is more to just avoid storing the password as plaintext rather
-    /// than for actual security, but can be made more secure allowing the config to
-    /// encryption the key differently.
-    /// A 'password_encryption_key' can be given in a config to change the key
-    /// from Origen's default. Furthermore, users can set the ENV variable to
-    /// not even store the key in text.
-    /// If no particular password encryption key is given, the standard
-    /// encryption key will be used.
-    // pub fn get_password_encryption_key(&self) -> Result<GenericArray<u8, U32>> {
-    //     if let Some(k) = &crate::ORIGEN_CONFIG.password_encryption_key {
-    //         Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&k)?))
-    //     } else {
-    //         Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(
-    //             &crate::ORIGEN_CONFIG.default_encryption_key,
-    //         )?))
-    //     }
-    // }
-    // pub fn get_password_encryption_key(&self) -> Result<&GenericArray<u8, U32>> {
-    //     &self.password_encryption_key
-    // }
-
-    /// Similar to get_password_encryption_key, but for nonce instead.
-    // pub fn get_password_encryption_nonce(&self) -> Result<GenericArray<u8, U12>> {
-    //     if let Some(k) = &crate::ORIGEN_CONFIG.password_encryption_nonce {
-    //         Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(&k)?))
-    //     } else {
-    //         Ok(*GenericArray::from_slice(&bytes_from_str_of_bytes(
-    //             &crate::ORIGEN_CONFIG.default_encryption_nonce,
-    //         )?))
-    //     }
-    // }
-    // pub fn get_password_encryption_nonce(&self) -> Result<&GenericArray<u8, U32>> {
-    //     &self.password_encryption_nonce
-    // }
-
-    // fn error_or_failure(msg: &str, allow_failures: bool, popped: &mut bool) -> Result<()> {
-    //     *popped = false;
-    //     if allow_failures {
-    //         display_redln!("{}", msg);
-    //         Ok(())
-    //     } else {
-    //         bail!("{}", msg)
-    //     }
-    // }
 
     pub fn autopopulate(&self) -> Result<PopulateUserReturn> {
         self.populate_status.while_populating(|| {
