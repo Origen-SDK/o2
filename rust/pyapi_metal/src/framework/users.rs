@@ -741,6 +741,19 @@ impl UserDataset {
     pub fn dataset(&self) -> &String {
         &self.dataset
     }
+
+    pub fn name_from_pyany(any: &PyAny) -> PyResult<String> {
+        if let Ok(ds) = any.extract::<PyRef<Self>>() {
+            Ok(ds.dataset.to_owned())
+        } else if let Ok(n) = any.extract::<String>() {
+            Ok(n)
+        } else {
+            type_error!(&format!(
+                "Cannot extract a dataset name from type {}",
+                any.get_type().name()?
+            ))
+        }
+    }
 }
 
 #[pyclass(subclass)]
@@ -1213,8 +1226,8 @@ impl User {
     // Passing in None on the Python side makes this look like the argument given, so can't
     // get a nested None.
     #[args(kwargs = "**")]
-    fn password_for(&self, reason: &str, kwargs: Option<&PyDict>) -> PyResult<String> {
-        let default: Option<Option<&str>>;
+    fn password_for(&self, motive: &str, kwargs: Option<&PyDict>) -> PyResult<String> {
+        let default: Option<Option<String>>;
         if let Some(opts) = kwargs {
             // Important, supporting None to mean default data key here
             // So, need to check if the key exists, instead of a "if let Some(...)" as
@@ -1225,7 +1238,7 @@ impl User {
                 if d.is_none() {
                     default = Some(None);
                 } else {
-                    default = Some(Some(d.extract::<&str>()?));
+                    default = Some(Some(UserDataset::name_from_pyany(d)?));
                 }
             } else {
                 default = None;
@@ -1234,7 +1247,7 @@ impl User {
             default = None;
         }
         Ok(om::with_user(&self.user_id, |u| {
-            u.password(Some(reason), true, default)
+            u.password(Some(motive), true, default.as_ref().map( |d| d.as_ref().map( |d2| d2.as_str())))
         })?)
     }
 
@@ -1249,11 +1262,11 @@ impl User {
     fn add_motive(
         &self,
         motive: &str,
-        dataset: &str,
+        dataset: &PyAny,
         replace_existing: bool,
     ) -> PyResult<Option<String>> {
         Ok(om::with_user_mut(&self.user_id, |u| {
-            Ok(u.add_motive(motive.to_string(), dataset.to_string(), replace_existing)?)
+            Ok(u.add_motive(motive.to_string(), UserDataset::name_from_pyany(dataset)?, replace_existing)?)
         })?)
     }
 

@@ -55,7 +55,7 @@ class T_UserMotives(Base):
         assert users.add_motive(tr, tdk, replace_existing=True) == ddk
         assert users.dataset_for(tr) == tdk
 
-    def test_adding_and_retreiving_motives_for_a_user(self, unload_users,
+    def test_adding_and_retrieving_motives_for_a_user(self, unload_users,
                                                       users, u, ddk):
         assert u.motives == {}
         assert users.motives == {}
@@ -64,6 +64,10 @@ class T_UserMotives(Base):
         d = u.dataset_for("test")
         assert isinstance(d, self.user_dataset_class)
         assert d.dataset_name == ddk
+
+        assert u.add_motive("test_ds", d) is None
+        d2 = u.dataset_for("test_ds")
+        assert d2.dataset_name == ddk
 
     def test_missing_motives_for_a_user(self, unload_users, u):
         assert u.dataset_for("Unknown") == None
@@ -125,22 +129,20 @@ class T_UserMotives(Base):
         d.password = "PASSWORD"
         d2.password = "!PASSWORD!"
 
-        # TODO support adding motives from dataset
-        # u.add_motive("just because", d2)
-
         u.add_motive("just because", d2.dataset_name)
 
         assert u.password_for("just because") == "!PASSWORD!"
         with pytest.raises(
                 RuntimeError,
-                match=f"No password available for reason: 'Nothing!'"):
+                match=f"No password available for motive: 'Nothing!'"):
             u.password_for("Nothing!")
         assert u.dataset_for("just because").dataset_name == d2.dataset_name
         assert u.dataset_for("nothing") == None
         assert u.password_for("Nothing!", default=None) == "PASSWORD"
-        # TODO support default from direct dataset
         assert u.password_for("Nothing!",
                               default=d2.dataset_name) == "!PASSWORD!"
+        assert u.password_for("Nothing!",
+                              default=d2) == "!PASSWORD!"
 
         # Corner case where a default dataset that doesn't exist is given
         missing = "MIA dataset"
