@@ -2,8 +2,6 @@ pub mod big_uint_helpers;
 pub mod file_actions;
 pub mod file_utils;
 pub mod location;
-#[macro_use]
-pub mod logger;
 pub mod command_helpers;
 pub mod github;
 pub mod mailer;
