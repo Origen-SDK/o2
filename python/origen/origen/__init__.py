@@ -34,12 +34,12 @@ from _origen import _origen_metal
 # Replace origen_metal's native _origen_metal built library
 # with the one built from origen.
 sys.modules["origen_metal._origen_metal"] = _origen_metal
-_origen.initialize(init_verbosity, vks, cli_path, cli_ver)
-
 # Initialize origen_metal's frontend
 import origen_metal
 om = origen_metal
 origen_metal.frontend.initialize()
+
+_origen.initialize(init_verbosity, vks, cli_path, cli_ver)
 
 from pathlib import Path
 import importlib

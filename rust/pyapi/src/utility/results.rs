@@ -1,10 +1,8 @@
-use origen::core::frontend::BuildResult as OrigenBuildResult;
-use origen::core::frontend::GenericResult as OrigenGenericResult;
-use origen::core::frontend::UploadResult as OrigenUploadResult;
-use origen::utility::command_helpers::ExecResult as OrigenExecResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyType};
 use pyapi_metal::prelude::typed_value;
+use pyapi_metal::runtime_error;
+use origen_metal::{Outcome, OutcomeSubtypes, TypedValue, Result};
 
 #[macro_export]
 macro_rules! incomplete_result_error {
@@ -21,111 +19,14 @@ pub fn results(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BuildResult>()?;
     m.add_class::<UploadResult>()?;
     m.add_class::<ExecResult>()?;
-    m.add_class::<GenericResult>()?;
     Ok(())
-}
-
-/// Generic result
-#[pyclass(subclass)]
-pub struct GenericResult {
-    // Origen Generic Result
-    pub generic_result: Option<OrigenGenericResult>,
-}
-
-#[pymethods]
-impl GenericResult {
-    #[classmethod]
-    #[args(message = "None", metadata = "None", use_pass_fail = "false")]
-    fn __init__(
-        _cls: &PyType,
-        instance: &PyAny,
-        succeeded: bool,
-        message: Option<String>,
-        use_pass_fail: bool,
-        metadata: Option<&PyDict>,
-    ) -> PyResult<()> {
-        let mut i = instance.extract::<PyRefMut<Self>>()?;
-        let mut gr;
-        if use_pass_fail {
-            gr = OrigenGenericResult::new_pass_or_fail(succeeded);
-        } else {
-            gr = OrigenGenericResult::new_success_or_fail(succeeded);
-        }
-        gr.message = message;
-        gr.metadata = typed_value::from_optional_pydict(metadata)?;
-        i.generic_result = Some(gr);
-        Ok(())
-    }
-
-    #[new]
-    fn new() -> Self {
-        Self {
-            generic_result: None,
-        }
-    }
-
-    #[getter]
-    fn succeeded(&self) -> PyResult<bool> {
-        Ok(self.generic_result()?.succeeded())
-    }
-
-    #[getter]
-    fn failed(&self) -> PyResult<bool> {
-        Ok(!self.succeeded()?)
-    }
-
-    #[getter]
-    fn message(&self) -> PyResult<Option<String>> {
-        Ok(self.generic_result()?.message.clone())
-    }
-
-    #[getter]
-    fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Option<&'py PyDict>> {
-        typed_value::into_optional_pydict(py, self.generic_result()?.metadata.as_ref())
-    }
-
-    pub fn gist(&self) -> PyResult<()> {
-        Ok(self.generic_result()?.gist())
-    }
-
-    pub fn summarize_and_exit(&self) -> PyResult<()> {
-        Ok(self.generic_result()?.summarize_and_exit())
-    }
-}
-
-impl GenericResult {
-    pub fn generic_result(&self) -> PyResult<&OrigenGenericResult> {
-        match self.generic_result.as_ref() {
-            Some(r) => Ok(r),
-            None => return crate::incomplete_result_error!("Generic Result"),
-        }
-    }
-
-    pub fn into_origen(&self) -> PyResult<OrigenGenericResult> {
-        Ok(self.generic_result()?.clone())
-    }
-
-    pub fn to_py(py: Python, generic_result: &OrigenGenericResult) -> PyResult<Py<Self>> {
-        Py::new(
-            py,
-            Self {
-                generic_result: Some(generic_result.clone()),
-            },
-        )
-    }
-
-    pub fn from_origen(origen_generic_result: OrigenGenericResult) -> Self {
-        Self {
-            generic_result: Some(origen_generic_result),
-        }
-    }
 }
 
 /// Generic build result
 #[pyclass(subclass)]
 pub struct BuildResult {
     // Origen Build Result
-    pub build_result: Option<OrigenBuildResult>,
+    pub build_result: Option<Outcome>,
 }
 
 #[pymethods]
@@ -141,12 +42,12 @@ impl BuildResult {
         metadata: Option<&PyDict>,
     ) -> PyResult<()> {
         let mut i = instance.extract::<PyRefMut<Self>>()?;
-        i.build_result = Some(OrigenBuildResult {
-            succeeded: succeeded,
-            build_contents: build_contents,
-            message: message,
-            metadata: typed_value::from_optional_pydict(metadata)?,
-        });
+        let mut o = Outcome::new_success_or_fail(succeeded);
+        o.subtype = Some(OutcomeSubtypes::BuildResult);
+        o.message = message;
+        o.metadata = typed_value::from_optional_pydict(metadata)?;
+        o.insert_keyword_result("build_contents", build_contents);
+        i.build_result = Some(o);
         Ok(())
     }
 
@@ -157,7 +58,7 @@ impl BuildResult {
 
     #[getter]
     fn succeeded(&self) -> PyResult<bool> {
-        Ok(self.build_result()?.succeeded)
+        Ok(self.build_result()?.succeeded())
     }
 
     #[getter]
@@ -167,7 +68,11 @@ impl BuildResult {
 
     #[getter]
     fn build_contents(&self) -> PyResult<Option<Vec<String>>> {
-        Ok(self.build_result()?.build_contents.clone())
+        match self.build_result()?.require_keyword_result("build_contents")? {
+            TypedValue::None => Ok(None),
+            TypedValue::Vec(v) => Ok(Some(v.iter().map( |i| i.as_string()).collect::<Result<Vec<String>>>()?)),
+            _ => runtime_error!("Cannot extract build contents as either 'None' or as a 'list of strs'")
+        }
     }
 
     #[getter]
@@ -182,14 +87,14 @@ impl BuildResult {
 }
 
 impl BuildResult {
-    pub fn build_result(&self) -> PyResult<&OrigenBuildResult> {
+    pub fn build_result(&self) -> PyResult<&Outcome> {
         match self.build_result.as_ref() {
             Some(r) => Ok(r),
             None => return crate::incomplete_result_error!("Build Result"),
         }
     }
 
-    pub fn to_py(py: Python, build_result: &OrigenBuildResult) -> PyResult<Py<Self>> {
+    pub fn to_py(py: Python, build_result: &Outcome) -> PyResult<Py<Self>> {
         Py::new(
             py,
             Self {
@@ -203,7 +108,7 @@ impl BuildResult {
 #[pyclass(subclass)]
 pub struct UploadResult {
     // Origen Upload Result
-    pub upload_result: Option<origen::core::frontend::UploadResult>,
+    pub upload_result: Option<Outcome>,
 }
 
 #[pymethods]
@@ -218,11 +123,11 @@ impl UploadResult {
         metadata: Option<&PyDict>,
     ) -> PyResult<()> {
         let mut i = instance.extract::<PyRefMut<Self>>()?;
-        i.upload_result = Some(OrigenUploadResult {
-            succeeded: succeeded,
-            message: message,
-            metadata: typed_value::from_optional_pydict(metadata)?,
-        });
+        let mut o = Outcome::new_success_or_fail(succeeded);
+        o.subtype = Some(OutcomeSubtypes::UploadResult);
+        o.message = message;
+        o.metadata = typed_value::from_optional_pydict(metadata)?;
+        i.upload_result = Some(o);
         Ok(())
     }
 
@@ -235,7 +140,7 @@ impl UploadResult {
 }
 
 impl UploadResult {
-    pub fn upload_result(&self) -> PyResult<&OrigenUploadResult> {
+    pub fn upload_result(&self) -> PyResult<&Outcome> {
         match self.upload_result.as_ref() {
             Some(r) => Ok(r),
             None => crate::incomplete_result_error!("Upload Result"),
@@ -245,7 +150,7 @@ impl UploadResult {
 
 #[pyclass]
 pub struct ExecResult {
-    pub exec_result: Option<OrigenExecResult>,
+    pub exec_result: Option<Outcome>,
 }
 
 #[pymethods]
@@ -260,11 +165,12 @@ impl ExecResult {
         stderr: Option<Vec<String>>,
     ) -> PyResult<()> {
         let mut i = instance.extract::<PyRefMut<Self>>()?;
-        i.exec_result = Some(OrigenExecResult {
-            exit_code: exit_code,
-            stdout: stdout,
-            stderr: stderr,
-        });
+        let mut o = Outcome::new_success_or_fail(exit_code == 0);
+        o.subtype = Some(OutcomeSubtypes::ExecResult);
+        o.insert_keyword_result("exit_code", exit_code);
+        o.insert_keyword_result("stdout", stdout);
+        o.insert_keyword_result("stderr", stderr);
+        i.exec_result = Some(o);
         Ok(())
     }
 
@@ -275,17 +181,23 @@ impl ExecResult {
 
     #[getter]
     pub fn exit_code(&self) -> PyResult<i32> {
-        Ok(self.exec_result()?.exit_code)
+        Ok(self.exec_result()?.require_keyword_result("exit_code")?.try_into()?)
     }
 
     #[getter]
     pub fn stdout(&self) -> PyResult<Option<Vec<String>>> {
-        Ok(self.exec_result()?.stdout.clone())
+        Ok(match self.exec_result()?.require_keyword_result("stdout")?.as_option() {
+            Some(out_lines) => Some(out_lines.try_into()?),
+            None => None
+        })
     }
 
     #[getter]
     pub fn stderr(&self) -> PyResult<Option<Vec<String>>> {
-        Ok(self.exec_result()?.stderr.clone())
+        Ok(match self.exec_result()?.require_keyword_result("stderr")?.as_option() {
+            Some(err_lines) => Some(err_lines.try_into()?),
+            None => None
+        })
     }
 
     pub fn succeeded(&self) -> PyResult<bool> {
@@ -298,7 +210,7 @@ impl ExecResult {
 }
 
 impl ExecResult {
-    fn exec_result(&self) -> PyResult<&OrigenExecResult> {
+    fn exec_result(&self) -> PyResult<&Outcome> {
         match self.exec_result.as_ref() {
             Some(r) => Ok(r),
             None => crate::incomplete_result_error!("Exec Result"),

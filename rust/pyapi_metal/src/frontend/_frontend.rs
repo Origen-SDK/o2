@@ -58,7 +58,7 @@ impl origen_metal::frontend::FrontendAPI for Frontend {
         category: &str,
     ) -> OMResult<Option<Box<dyn DataStoreCategoryFrontendAPI>>> {
         let om_cat = with_py_frontend(|py, py_frontend| {
-            if let Some(cat) = py_frontend.data_stores.borrow(py).get(category)? {
+            if let Some(cat) = py_frontend.data_stores.borrow(py).get(py, category)? {
                 let c = &*cat.borrow(py);
                 Ok(Some(c.into_frontend()?))
             } else {
@@ -74,12 +74,22 @@ impl origen_metal::frontend::FrontendAPI for Frontend {
     fn add_data_store_category(
         &self,
         cat: &str,
+        load_function: Option<TypedValue>,
+        autoload: Option<bool>,
     ) -> OMResult<Box<dyn DataStoreCategoryFrontendAPI>> {
         with_py_frontend(|py, py_frontend| {
             py_frontend
                 .data_stores
                 .borrow_mut(py)
-                .add_category(py, cat)?;
+                .add_category(
+                    py,
+                    cat,
+                    match &load_function {
+                        Some(f) => Some(pyo3::types::PyString::new(py, &f.as_string()?).to_object(py)),
+                        None => None
+                    },
+                    autoload,
+                )?;
             Ok(())
         })?;
         Ok(Box::new(DataStoreCategoryFrontend::new(cat)))
@@ -140,7 +150,7 @@ impl DataStoreCategoryFrontend {
         F: FnMut(Python, &Py<PyDataStoreCategory>) -> PyResult<T>,
     {
         with_py_frontend(|py, py_frontend| {
-            match py_frontend.data_stores.borrow(py).get(&self.name)? {
+            match py_frontend.data_stores.borrow(py).get(py, &self.name)? {
                 Some(cat) => func(py, cat),
                 None => crate::runtime_error!(format!(
                     "Stale data store category '{}' encountered",
@@ -247,7 +257,7 @@ impl DataStoreFrontend {
         F: FnMut(Python, &PyObject) -> PyResult<T>,
     {
         with_py_frontend(|py, py_frontend| {
-            match py_frontend.data_stores.borrow(py).get(&self.category)? {
+            match py_frontend.data_stores.borrow(py).get(py, &self.category)? {
                 Some(cat) => {
                     let c = &*cat.borrow(py);
                     match c.objects()?.get(&self.name) {
@@ -273,7 +283,7 @@ impl DataStoreFrontend {
         F: FnMut(Python, &Py<PyDataStoreCategory>, &PyObject) -> PyResult<T>,
     {
         with_py_frontend(|py, py_frontend| {
-            match py_frontend.data_stores.borrow(py).get(&self.category)? {
+            match py_frontend.data_stores.borrow(py).get(py, &self.category)? {
                 Some(cat) => {
                     let c = &*cat.borrow(py);
                     match c.objects()?.get(&self.name) {
@@ -410,6 +420,24 @@ impl DataStoreFrontendAPI for DataStoreFrontend {
                 let py_u = crate::framework::users::User::new(user_id)?;
                 let py_ds = crate::framework::users::UserDataset::new(user_id, ds);
                 let result = func.call(py, (py_self, py_u, py_ds), None)?;
+                Ok(FeatureReturn::new(Ok(pyobj_into_om_outcome(py, result)?)))
+            }
+        })?)
+    }
+
+    fn validate_password(&self, username: &str, password: &str, user_id: &str, ds_name: &str) -> OMResult<FeatureReturn> {
+        Ok(self.as_py(|py, py_self| {
+            let func = py_self.call_method1(py, "__lookup_origen_feature__", ("validate_password",))?;
+            if func.is_none(py) {
+                // Not implemented
+                Ok(self.unimplemented("validate_password")?)
+            } else {
+                let py_u = Py::new(py, crate::framework::users::User::new(user_id)?)?;
+                let py_ds = Py::new(py, crate::framework::users::UserDataset::new(user_id, ds_name))?;
+                let kwargs = PyDict::new(py);
+                kwargs.set_item("user", py_u)?;
+                kwargs.set_item("dataset", py_ds)?;
+                let result = func.call(py, (py_self, username, password), Some(kwargs))?;
                 Ok(FeatureReturn::new(Ok(pyobj_into_om_outcome(py, result)?)))
             }
         })?)

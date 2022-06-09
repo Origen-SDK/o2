@@ -1,7 +1,7 @@
 pub mod _frontend;
 
 use crate::runtime_error;
-use crate::utility::results::{BuildResult, GenericResult};
+use crate::utility::results::{BuildResult};
 use origen::utility::version::Version as OVersion;
 use pyapi_metal::prelude::*;
 use pyapi_metal::utils::revision_control::status::Status;
@@ -41,7 +41,7 @@ impl PyApplication {
     }
 
     #[args(kwargs = "**")]
-    fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<GenericResult> {
+    fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<PyOutcome> {
         let mut dry_run = false;
         let mut rn: Option<&str> = None;
         let mut rt: Option<Option<&str>> = None;
@@ -69,7 +69,7 @@ impl PyApplication {
                 ver = Some(OVersion::new_pep440(&v.extract::<String>()?)?);
             }
         }
-        Ok(GenericResult::from_origen(
+        Ok(PyOutcome::from_origen(
             origen::app().unwrap().publish(ver, rt, rn, dry_run)?,
         ))
     }
@@ -122,13 +122,13 @@ impl PyApplication {
 
 impl PyApplication {
     pub fn _get_rc<'py>(slf: Py<Self>, py: Python<'py>) -> PyResult<PyObject> {
-        origen::log_trace!("Retrieving application's RC...");
+        log_trace!("Retrieving application's RC...");
         let r = slf.as_ref(py).getattr("rc")?;
         if r.is_none() {
             return crate::runtime_error!("No RC is available on the application");
         }
 
-        origen::log_trace!("Retrieved application RC");
+        log_trace!("Retrieved application RC");
         Ok(r.to_object(py))
     }
 
@@ -188,7 +188,7 @@ impl PyApplication {
 }
 
 pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
-    origen::log_trace!("Retrieving PyApplication object from Python heap...");
+    log_trace!("Retrieving PyApplication object from Python heap...");
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
     let result = py.eval("origen.app", Some(locals), None)?;
@@ -199,7 +199,7 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
 
     match result.extract::<Py<PyApplication>>() {
         Ok(app) => {
-            origen::log_trace!("Retrieved PyApplication object");
+            log_trace!("Retrieved PyApplication object");
             Ok(app)
         }
         Err(_e) => runtime_error!(

@@ -2,14 +2,13 @@ pub mod _frontend;
 pub mod maillist;
 
 use super::app_utility;
-use crate::utility::results::GenericResult as PyGenericResult;
 use maillist::{Maillist, Maillists};
 use origen::utility::mailer::Mailer as OMailer;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
-use pyapi_metal::prelude::typed_value;
+use pyapi_metal::prelude::{PyOutcome, typed_value};
 
 #[pymodule]
 fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -33,7 +32,7 @@ pub fn _mailer() -> PyResult<Option<PyObject>> {
     match m {
         Ok(_) => m,
         Err(e) => {
-            origen::display_redln!("Error creating mailer. No mailer will be available.",);
+            log_error!("Error creating mailer. No mailer will be available.",);
             let gil = Python::acquire_gil();
             let py = gil.python();
             e.print(py);
@@ -133,8 +132,8 @@ impl Mailer {
         Ok(self.mailer.dataset()?)
     }
 
-    fn test(&self, to: Option<Vec<&str>>) -> PyResult<PyGenericResult> {
-        Ok(PyGenericResult::from_origen(self.mailer.test(to)?))
+    fn test(&self, to: Option<Vec<&str>>) -> PyResult<PyOutcome> {
+        Ok(PyOutcome::from_origen(self.mailer.test(to)?))
     }
 
     fn send(
@@ -142,10 +141,10 @@ impl Mailer {
         to: Vec<&str>,
         body: Option<&str>,
         subject: Option<&str>,
-    ) -> PyResult<PyGenericResult> {
+    ) -> PyResult<PyOutcome> {
         let e = origen_metal::require_current_user_email()?;
         let m = self.mailer.compose(&e, to, subject, body, true)?;
-        Ok(PyGenericResult::from_origen(self.mailer.send(m)?))
+        Ok(PyOutcome::from_origen(self.mailer.send(m)?))
     }
 
     // #[getter]

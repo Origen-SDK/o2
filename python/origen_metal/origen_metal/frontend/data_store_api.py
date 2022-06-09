@@ -25,6 +25,12 @@ class DataStoreAPI(ABC, metaclass=DataStoreAPIMeta):
         cls.__register_origen_supported_feature__("populate_user", func)
         return func
 
+    # TEST_NEEDED
+    @classmethod
+    def validate_password(cls, func):
+        cls.__register_origen_supported_feature__("validate_password", func)
+        return func
+
     @staticmethod
     def __new__(cls, *args, **kwargs):
         return ABC.__new__(cls)

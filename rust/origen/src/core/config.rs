@@ -129,6 +129,7 @@ pub struct Config {
     pub user__datasets: Option<HashMap<String, DatasetConfig>>,
     pub user__password_auth_attempts: u8,
     pub user__password_cache_option: String,
+    pub user__current_user_lookup_function: Option<String>,
     // pub user__password_reasons: HashMap<String, String>,
     pub user__dataset_motives: HashMap<String, String>,
     pub password_encryption_key: Option<String>,
@@ -203,6 +204,7 @@ impl Default for Config {
         s = s
             .set_default("default_encryption_nonce", None::<String>)
             .unwrap();
+        s = s.set_default("user__current_user_lookup_function", None::<String>).unwrap();
 
         // Encryption keys specifically for passwords
         s = s
@@ -231,7 +233,7 @@ impl Default for Config {
                         if ext == "toml" {
                             files.push(path);
                         } else {
-                            display_redln!(
+                            log_error!(
                                 "Expected file {} to have extension '.toml'. Found '{}'",
                                 path.display(),
                                 ext.to_string_lossy()
@@ -315,7 +317,7 @@ impl Default for Config {
                         ) {
                             Ok(new) => s = new,
                             Err(e) => {
-                                display_redln!(
+                                log_error!(
                                     "Error setting maillist dir: '{}': {}",
                                     f.display(),
                                     e.to_string()
@@ -389,7 +391,7 @@ fn _update_relative_paths(paths: &mut Vec<String>, relative_to: &PathBuf) -> Vec
             Ok(resolved) => {
                 paths[i] = resolved.display().to_string();
             }
-            Err(e) => display_redln!("Unable to process maillist '{}': {}", pb.display(), e),
+            Err(e) => log_error!("Unable to process maillist '{}': {}", pb.display(), e),
         }
     }
     paths.to_vec()

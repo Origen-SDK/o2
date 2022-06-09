@@ -5,6 +5,8 @@ use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use toml::Value;
 use std::iter::FromIterator;
+use num_traits::cast::ToPrimitive;
+use std::collections::HashMap;
 
 const DATA: &str = "data";
 const CLASS: &str = "__origen_encoded_class__";
@@ -183,6 +185,21 @@ impl TypedValue {
             self.to_class_str()
         )
     }
+
+    fn as_i32(&self) -> Result<i32> {
+        let big_val = self.as_bigint()?;
+        match big_val.to_i32() {
+            Some(i) => Ok(i),
+            None => bail!("Cannot represent value {} as i32", big_val)
+        }
+    }
+
+    pub fn as_option(&self) -> Option<&Self> {
+        match self {
+            Self::None => None,
+            _ => Some(&self)
+        }
+    }
 }
 
 impl<T> From<Option<T>> for TypedValue
@@ -257,7 +274,12 @@ impl From<u64> for TypedValue {
     }
 }
 
-use std::collections::HashMap;
+impl From<i32> for TypedValue {
+    fn from(value: i32) -> Self {
+        Self::BigInt(BigInt::from(value))
+    }
+}
+
 impl <'a, V>From<&'a HashMap<String, V>> for TypedValue where
     TypedValue: From<&'a V>,
 {
@@ -299,6 +321,39 @@ impl TryFrom<&TypedValue> for bool {
 
     fn try_from(value: &TypedValue) -> std::result::Result<bool, Self::Error> {
         value.as_bool()
+    }
+}
+
+impl TryFrom<TypedValue> for i32 {
+    type Error = crate::Error;
+
+    fn try_from(value: TypedValue) -> std::result::Result<i32, Self::Error> {
+        Self::try_from(&value)
+    }
+}
+
+impl TryFrom<&TypedValue> for i32 {
+    type Error = crate::Error;
+
+    fn try_from(value: &TypedValue) -> std::result::Result<i32, Self::Error> {
+        value.as_i32()
+    }
+}
+
+impl TryFrom<TypedValue> for Vec<String> {
+    type Error = crate::Error;
+
+    fn try_from(value: TypedValue) -> std::result::Result<Vec<String>, Self::Error> {
+        Self::try_from(&value)
+    }
+}
+
+impl TryFrom<&TypedValue> for Vec<String> {
+    type Error = crate::Error;
+
+    fn try_from(value: &TypedValue) -> std::result::Result<Vec<String>, Self::Error> {
+        let strs = value.as_vec()?;
+        Ok(strs.iter().map(|s| s.as_string()).collect::<Result<Vec<String>>>()?)
     }
 }
 

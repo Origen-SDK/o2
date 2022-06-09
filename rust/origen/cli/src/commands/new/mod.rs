@@ -66,7 +66,7 @@ pub fn run(matches: &ArgMatches) {
                     }
                 }
                 Err(e) => {
-                    origen::display_redln!("{}", e.msg);
+                    display_redln!("{}", e.msg);
                 }
             }
         }

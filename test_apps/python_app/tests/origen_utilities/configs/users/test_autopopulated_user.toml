@@ -1,0 +1,20 @@
+user__current_user_lookup_function = "config.boot.getuser"
+user__data_lookup_hierarchy = ["autopop_ldap"]
+[user__datasets]
+[user__datasets.autopop_ldap]
+auto_populate = true
+category = "ldaps"
+data_store = "forumsys_autopop"
+
+[ldaps]
+[ldaps.forumsys_autopop]
+server = "ldap://ldap.forumsys.com:389"
+base = "dc=example,dc=com"
+[ldaps.forumsys_autopop.auth]
+username = "cn=read-only-admin,dc=example,dc=com"
+password = "password"
+[ldaps.forumsys_autopop.populate_user_config]
+[ldaps.forumsys_autopop.populate_user_config.mapping]
+email = "mail"
+last_name = "sn"
+full_name = "cn"

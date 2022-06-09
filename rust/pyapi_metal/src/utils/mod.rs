@@ -1,5 +1,5 @@
 mod differ;
-mod ldap;
+pub mod ldap;
 pub mod revision_control;
 
 use pyo3::prelude::*;

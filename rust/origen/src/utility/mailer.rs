@@ -1,7 +1,7 @@
 // use crate::core::user::with_top_hierarchy;
-use crate::{GenericResult, Result, ORIGEN_CONFIG, STATUS};
+use crate::{Result, ORIGEN_CONFIG, STATUS};
 use lettre;
-use origen_metal::with_current_user;
+use origen_metal::{Outcome, with_current_user};
 use std::path::PathBuf;
 
 use crate::utility::resolve_os_str;
@@ -573,7 +573,7 @@ impl Mailer {
         )
     }
 
-    pub fn send(&self, m: Message) -> Result<GenericResult> {
+    pub fn send(&self, m: Message) -> Result<Outcome> {
         let mut builder;
         match self.auth_method {
             SupportedAuths::TLS => {
@@ -595,10 +595,10 @@ impl Mailer {
 
         client.send(&m).unwrap();
 
-        Ok(GenericResult::new_succeeded())
+        Ok(Outcome::new_succeeded())
     }
 
-    pub fn test(&self, to: Option<Vec<&str>>) -> Result<GenericResult> {
+    pub fn test(&self, to: Option<Vec<&str>>) -> Result<Outcome> {
         let e: String = origen_metal::require_current_user_email()?;
         let m = self.compose(
             &e,
@@ -608,7 +608,7 @@ impl Mailer {
             true,
         )?;
         self.send(m)?;
-        Ok(GenericResult::new_succeeded())
+        Ok(Outcome::new_succeeded())
     }
 
     pub fn origen_sig(&self) -> Result<MultiPart> {

@@ -21,7 +21,7 @@ use pyo3::prelude::*;
 pub use _frontend::Frontend;
 pub use py_data_stores::{PyDataStoreCategory, PyDataStores};
 pub use py_frontend::PyFrontend;
-pub use py_frontend::{with_mut_py_frontend, with_py_frontend, with_required_rc};
+pub use py_frontend::{with_mut_py_frontend, with_py_frontend, with_required_rc, with_py_data_stores, with_mut_py_data_stores, with_required_mut_py_category, with_required_py_category};
 
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let fm = PyModule::new(py, "frontend")?;
@@ -130,7 +130,7 @@ pub(crate) fn backend_contains_cat(_py: Python, category: &str) -> PyResult<bool
 #[cfg(debug_assertions)]
 #[pyfunction]
 pub(crate) fn backend_add_cat(_py: Python, category: &str) -> PyResult<()> {
-    origen_metal::frontend::with_frontend(|f| f.add_data_store_category(category))?;
+    origen_metal::frontend::with_frontend(|f| f.add_data_store_category(category, None, None))?;
     Ok(())
 }
 

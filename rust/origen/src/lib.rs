@@ -7,8 +7,6 @@ extern crate serde;
 extern crate origen_core_support;
 #[macro_use]
 pub extern crate origen_metal;
-#[macro_use]
-pub mod macros;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
@@ -40,11 +38,10 @@ pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::{Capture, Overlay, Tester};
 pub use self::services::Services;
-use self::utility::logger::Logger;
 pub use self::utility::sessions::{setup_sessions, with_app_session, with_app_session_group};
 use num_bigint::BigUint;
 pub use om::prelude::frontend::*;
-pub use om::TypedValue;
+pub use om::{TypedValue, LOGGER};
 pub use origen_metal as om;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
@@ -56,7 +53,7 @@ use origen_metal::ast::{Attrs, Node, AST};
 
 pub use self::core::frontend::callbacks as CALLBACKS;
 pub use self::core::frontend::{
-    emit_callback, with_frontend, with_frontend_app, with_optional_frontend, GenericResult,
+    emit_callback, with_frontend, with_frontend_app, with_optional_frontend,
 };
 
 pub use origen_metal::Result;
@@ -79,7 +76,6 @@ lazy_static! {
     /// Provides configuration information derived from origen.toml files found in the Origen
     /// installation and application file system paths
     pub static ref ORIGEN_CONFIG: OrigenConfig = OrigenConfig::default();
-    pub static ref LOGGER: Logger = Logger::default();
     /// The current device model, containing all metadata about hierarchy, regs, pins, specs,
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
     /// etc.)
@@ -171,7 +167,6 @@ pub fn initialize(
     STATUS.set_cli_location(cli_location);
     STATUS.set_cli_version(cli_version);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
-    LOGGER.set_status_ready();
 }
 
 pub fn app() -> Option<&'static Application> {

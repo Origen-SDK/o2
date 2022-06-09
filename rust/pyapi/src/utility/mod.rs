@@ -15,6 +15,7 @@ pub mod version;
 pub mod website;
 
 use ldaps::__pyo3_get_function_ldaps;
+use ldaps::__pyo3_get_function_boot_ldaps;
 use linter::PyInit_linter;
 use location::Location;
 use mailer::PyInit_mailer;
@@ -37,18 +38,7 @@ use origen::utility::big_uint_helpers::BigUintHelpers;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
 use std::path::PathBuf;
-
-// TODO move this to somewhere better
-#[macro_export]
-macro_rules! optional_config_value_map_into_pydict {
-    ($py:expr, $map:expr) => {
-        if let Some(m) = $map {
-            crate::utility::config_value_map_into_pydict($py, &mut m.iter())?.to_object($py)
-        } else {
-            $py.None()
-        }
-    };
-}
+use pyapi_metal::PyOutcome;
 
 #[pymodule]
 pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -59,6 +49,7 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(mailer))?;
     m.add_wrapped(wrap_pymodule!(sessions))?;
     m.add_wrapped(wrap_pyfunction!(ldaps))?;
+    m.add_wrapped(wrap_pyfunction!(boot_ldaps))?;
     m.add_wrapped(wrap_pymodule!(revision_control))?;
     m.add_wrapped(wrap_pymodule!(unit_testers))?;
     m.add_wrapped(wrap_pymodule!(publisher))?;
@@ -70,18 +61,6 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;
     Ok(())
 }
-
-// TODO needed? or move to OM?
-// pub fn to_pylist<'p, I>(py: Python<'p>, list: &'p mut dyn Iterator<Item=I>) -> PyResult<Py<pyo3::types::PyList>>
-// where
-//     I: 'p + ToPyObject
-// {
-//     let pylist = pyo3::types::PyList::empty(py);
-//     for i in list {
-//         pylist.append(i)?;
-//     }
-//     Ok(pylist.into())
-// }
 
 #[pyfunction]
 pub fn reverse_bits(_py: Python, num: BigUint, width: Option<u64>) -> PyResult<BigUint> {
@@ -220,65 +199,7 @@ pub fn dispatch_workflow(
     workflow: &str,
     git_ref: &str,
     inputs: Option<HashMap<String, String>>,
-) -> PyResult<results::GenericResult> {
+) -> PyResult<PyOutcome> {
     let res = origen::utility::github::dispatch_workflow(owner, repo, workflow, git_ref, inputs)?;
-    Ok(results::GenericResult::from_origen(res))
-}
-
-// TODO relocate these
-use origen_metal::config;
-use pyo3::types::PyList;
-
-pub fn config_value_into_pyobject(py: Python, v: &config::Value) -> PyResult<PyObject> {
-    Ok(match &v.kind {
-        config::ValueKind::Boolean(b) => b.to_object(py),
-        config::ValueKind::I64(i) => i.to_object(py),
-        config::ValueKind::I128(i) => i.to_object(py),
-        config::ValueKind::U64(u) => u.to_object(py),
-        config::ValueKind::U128(u) => u.to_object(py),
-        config::ValueKind::Float(f) => f.to_object(py),
-        config::ValueKind::String(s) => s.to_object(py),
-        config::ValueKind::Table(map) => {
-            let pydict = PyDict::new(py);
-            for (k, inner_v) in map.iter() {
-                pydict.set_item(k, config_value_into_pyobject(py, inner_v)?)?;
-            }
-            pydict.to_object(py)
-        }
-        config::ValueKind::Array(vec) => {
-            let pylist = PyList::empty(py);
-            for inner_v in vec.iter() {
-                pylist.append(config_value_into_pyobject(py, inner_v)?)?;
-            }
-            pylist.to_object(py)
-        }
-        config::ValueKind::Nil => {
-            return runtime_error!(format!(
-                "Cannot convert config value '{}' to a Python object",
-                v
-            ))
-        }
-    })
-}
-
-pub fn config_value_map_into_pydict<'p>(
-    py: Python<'p>,
-    map: &'p mut dyn Iterator<Item = (&String, &config::Value)>,
-) -> PyResult<Py<PyDict>> {
-    let pydict = PyDict::new(py);
-    for (k, v) in map.into_iter() {
-        pydict.set_item(
-            k,
-            match config_value_into_pyobject(py, v) {
-                Ok(o) => o,
-                Err(_e) => {
-                    return runtime_error!(format!(
-                        "Cannot convert config value '{}' with value '{}' to a Python object",
-                        k, v
-                    ))
-                }
-            },
-        )?;
-    }
-    Ok(pydict.into())
+    Ok(PyOutcome::from_origen(res))
 }

@@ -3,7 +3,7 @@ use crate::{bail_with_runtime_error, frontend_mod};
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 
-use super::py_data_stores::PyDataStores;
+use super::py_data_stores::{PyDataStores, PyDataStoreCategory};
 
 #[pyclass]
 pub struct PyFrontend {
@@ -93,6 +93,48 @@ where
     } else {
         bail_with_runtime_error!("A frontend was requested but one has not been initialized!")
     }
+}
+
+pub fn with_py_data_stores<F, T>(mut func: F) -> PyResult<T>
+where
+    F: FnMut(Python, PyRef<PyDataStores>) -> PyResult<T>,
+{
+    with_py_frontend(|py, f| {
+        let ds = f.data_stores.extract::<PyRef<PyDataStores>>(py)?;
+        func(py, ds)
+    })
+}
+
+pub fn with_mut_py_data_stores<F, T>(mut func: F) -> PyResult<T>
+where
+    F: FnMut(Python, PyRefMut<PyDataStores>) -> PyResult<T>,
+{
+    with_py_frontend(|py, f| {
+        let ds = f.data_stores.extract::<PyRefMut<PyDataStores>>(py)?;
+        func(py, ds)
+    })
+}
+
+pub fn with_required_py_category<F, T>(cat: &str, mut func: F) -> PyResult<T>
+where
+    F: FnMut(Python, PyRef<PyDataStoreCategory>) -> PyResult<T>,
+{
+    with_py_data_stores(|py, ds| {
+        let c = ds.require_cat(cat)?;
+        let py_cat = c.extract::<PyRef<PyDataStoreCategory>>(py)?;
+        func(py, py_cat)
+    })
+}
+
+pub fn with_required_mut_py_category<F, T>(cat: &str, mut func: F) -> PyResult<T>
+where
+    F: FnMut(Python, PyRefMut<PyDataStoreCategory>) -> PyResult<T>,
+{
+    with_py_data_stores(|py, ds| {
+        let c = ds.require_cat(cat)?;
+        let py_cat = c.extract::<PyRefMut<PyDataStoreCategory>>(py)?;
+        func(py, py_cat)
+    })
 }
 
 pub fn with_required_rc<F, T>(mut func: F) -> PyResult<T>

@@ -63,6 +63,13 @@ macro_rules! bail {
 // }
 
 #[macro_export]
+macro_rules! trace {
+    ( $e:expr , $n:expr ) => {{
+        $e.or_else(|e| return crate::trace_error($n, e))?
+    }};
+}
+
+#[macro_export]
 macro_rules! error {
     ($msg:literal $(,)?) => {
         // Handle $:literal as a special case to make cargo-expanded code more
@@ -297,5 +304,14 @@ macro_rules! current_func {
             Some(pos) => &name[pos + 1..name.len() - 3],
             None => &name[..name.len() - 3],
         }
+    }};
+}
+
+#[macro_export]
+macro_rules! hashmap {
+    ( $( $name:expr => $value:expr ),+ ) => {{
+        let mut h = std::collections::HashMap::new();
+        $( h.insert($name, $value); )+
+        h
     }};
 }

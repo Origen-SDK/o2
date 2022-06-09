@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use crate::{log_error};
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
 pub const DEFAULT_USER_SESSION_PATH_OFFSET: &str = "./.o2/.session";
@@ -192,6 +193,27 @@ impl PopulateUserReturn {
                     .insert(dataset.to_owned(), Some(oc.to_owned()))
             }
             None => self.outcomes.insert(dataset.to_owned(), None),
+        }
+    }
+
+    pub fn log(&self, uid: &str) -> Result<Option<String>> {
+        if self.succeeded() {
+            log_info!("Successfully populated datasets {} for user '{}'", self.outcomes.keys().map( |k| k.as_str()).collect::<Vec<&str>>().join(","), uid);
+            Ok(None)
+        } else {
+            let mut retn = format!("Could not fully populate user '{}'.", uid);
+            log_error!("Could not fully populate user '{}'", uid);
+            if !&self.failed_datasets.is_empty() {
+                retn += &format!(" Failures occurred populating these datasets: {}", &self.failed_datasets.join(","));
+                log_error!("");
+                log_error!("Failures occurred populating these datasets:");
+                for (n, outcome) in &self.failed_outcomes() {
+                    log_error!("{}: {}", n, outcome.msg_or_default());
+                }
+            }
+            log_error!("");
+            log_error!("Errors occurred populating these datasets:");
+            Ok(Some(retn))
         }
     }
 }
@@ -709,7 +731,7 @@ impl User {
             let lookup = ds.require_data_source_for("password validation", &self.id)?;
             let f = crate::frontend::require()?;
             return f.with_data_store(lookup.0, lookup.1, |dstore| {
-                let r = dstore.validate_password(&self.id, &ds, password)?;
+                let r = dstore.validate_password(&ds.username.as_ref().map_or_else(|| self.id.as_str(), |u| &u.as_str()), password, &self.id, &ds.dataset_name)?;
                 let o = r.outcome()?;
                 if o.errored() {
                     bail!(
@@ -906,6 +928,7 @@ impl User {
             let mut rtn = PopulateUserReturn::default();
             for (n, d) in self.data.iter() {
                 if d.read().unwrap().should_auto_populate() {
+                    log_trace!("Auto-populating dataset '{}' for user '{}'", n, &self.id);
                     match self.populate_dataset(n, false, false, true)? {
                         Some(r) => rtn.insert(n, Some(r)),
                         None => bail!("Something has gone wrong and a newly added dataset is already marked as populated")

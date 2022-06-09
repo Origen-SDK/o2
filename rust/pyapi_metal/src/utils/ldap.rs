@@ -8,6 +8,17 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict};
 use std::collections::HashMap;
 
+crate::lazy_static! {
+    static ref FRONTEND_LDAP_MOD: &'static str = "origen_metal.utils.ldap";
+    static ref FRONTEND_LDAP_CLASS: &'static str = "LDAP";
+}
+
+pub fn import_frontend_ldap<'py>(py: Python<'py>) -> PyResult<(&'py PyModule, &'py PyAny)> {
+    let ldap_mod = pyo3::types::PyModule::import(py, *FRONTEND_LDAP_MOD)?;
+    let ldap_cls = ldap_mod.getattr(*FRONTEND_LDAP_CLASS)?;
+    Ok((ldap_mod, ldap_cls))
+}
+
 pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "ldap")?;
     subm.add_class::<LDAP>()?;
@@ -257,6 +268,7 @@ impl LDAP {
         Ok(self.om.unbind()?)
     }
 
+    // TODO change names? use either validate password/credentials, but don't want to switch around
     fn validate_credentials(&self, username: &str, password: &str) -> PyResult<bool> {
         Ok(self.om.try_password(username, password)?)
     }

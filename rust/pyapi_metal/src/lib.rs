@@ -4,6 +4,11 @@ pub mod frontend;
 pub mod prelude;
 pub mod utils;
 
+#[macro_use]
+pub extern crate origen_metal;
+
+use origen_metal::lazy_static::lazy_static;
+
 use pyo3::prelude::*;
 use pyo3::py_run;
 

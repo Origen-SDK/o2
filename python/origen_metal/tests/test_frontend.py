@@ -5,7 +5,7 @@ from origen_metal.framework import Outcome
 from origen_metal._origen_metal import frontend
 from origen_metal.frontend import DataStoreAPI
 from tests.shared.python_like_apis import Fixture_DictLikeAPI
-
+from tests.shared import fresh_frontend
 
 def init_frontend():
     frontend.reset()
@@ -661,7 +661,6 @@ class TestFrontendDataStore(Common):
         assert outcome.keyword_results == None
         assert outcome.metadata == {"working?": True}
 
-
 class TestDataStoresDictLike(Fixture_DictLikeAPI, Common):
     def parameterize(self):
         return {
@@ -760,3 +759,209 @@ class TestRevisionControlFrontend:
         outcome = __test__.rc_init_from_metal()
         assert outcome.succeeded is True
         assert outcome.message == "From Dummy RC"
+
+class TestDataStoreCategories(Common):
+    def load_method(self, cat):
+        cat.add("ds_method1", self.MinimumDataStore)
+        cat.add("ds_method2", self.MinimumDataStore)
+        cat.add("ds_method3", self.MinimumDataStore)
+
+    @staticmethod
+    def load_func_from_str(cat):
+        cat.add("ds_func_str1", TestDataStoreCategories.MinimumDataStore)
+
+    @staticmethod
+    def load_func_from_str_updated(cat):
+        cat.add("ds_func_str_updated", TestDataStoreCategories.MinimumDataStore)
+
+    def load_method_from_str(self, cat):
+        cat.add("ds_method_str1", self.MinimumDataStore)
+
+    @property
+    def load_func_str(self):
+        return f"{TestDataStoreCategories.load_func_from_str.__module__}.{TestDataStoreCategories.load_func_from_str.__qualname__}"
+
+    @property
+    def load_method_str(self):
+        return f"{TestDataStoreCategories.load_func_from_str.__module__}.{TestDataStoreCategories.load_method_from_str.__qualname__}"
+
+    def test_category_without_load_method(self, fresh_frontend):
+        assert len(self.ds.categories) == 0
+        assert self.ds.unloaded_categories == []
+
+        added = self.ds.add_category(self.test_cat_name)
+        assert len(self.ds.categories) == 1
+        assert self.ds.unloaded_categories == [self.test_cat_name]
+
+        # TODO these should be autoloaded?
+        # Or an autoload vs. a lazy-load?
+        assert added is not None
+        assert added.loaded == False
+        assert added.unloaded == True
+        assert added.autoload == True
+        assert added.load_function is None
+
+        cat = self.ds.get(self.test_cat_name)
+        assert cat.loaded == True
+        assert cat.unloaded == False
+        assert list(cat.keys()) == []
+        assert list(added.keys()) == []
+        assert added.loaded == True
+        assert added.unloaded == False
+        assert added.autoload == True
+        assert added.load_function is None
+        assert self.ds.unloaded_categories == []
+
+    def test_loading_with_function(self, fresh_frontend):
+        def load_function(cat):
+            cat.add("ds_func1", self.MinimumDataStore)
+            cat.add("ds_func2", self.MinimumDataStore)
+
+        added = self.ds.add_category(self.test_cat_name, load_function=load_function)
+        cat = self.ds.get(self.test_cat_name)
+        assert cat.loaded == True
+        assert cat.unloaded == False
+        assert added.loaded == True
+        assert added.unloaded == False
+        assert added.autoload == True
+        assert added.load_function == load_function
+        assert list(cat.keys()) == ["ds_func1", "ds_func2"]
+
+    def test_loading_with_method(self, fresh_frontend):
+        added = self.ds.add_category(self.test_cat_name, load_function=self.load_method)
+        cat = self.ds.get(self.test_cat_name)
+        assert cat.loaded == True
+        assert cat.autoload == True
+        assert cat.load_function == self.load_method
+        assert list(cat.keys()) == ["ds_method1", "ds_method2", "ds_method3"]
+
+    def test_loading_with_function_from_string(self, fresh_frontend):
+        added = self.ds.add_category(self.test_cat_name, load_function=self.load_func_str)
+        cat = self.ds.get(self.test_cat_name)
+        assert cat.loaded == True
+        assert cat.autoload == True
+        assert cat.load_function == self.load_func_str
+        assert added.loaded == True
+        assert added.unloaded == False
+        assert added.autoload == True
+        assert added.load_function == self.load_func_str
+        assert list(cat.keys()) == ["ds_func_str1"]
+
+    def test_error_loading_with_method_from_string(self, fresh_frontend):
+        ''' This is a known shortcoming - looking up an attribute by name will not have an associated instance,
+            and therefore method calls are not appropriate.
+
+            Since the instance will need to be known/given, this can be worked around by giving the method directly or otherwise
+            caching/storing the instance in some global location, and giving the function which will access this and re-call as
+            a method.
+
+            Since the purpose of giving function names is to facilitate booting, this limitation should be acceptable.
+
+            FEATURE possibly see if some generic solution of "cache an object then call this method on it" can be supported
+        '''
+        added = self.ds.add_category(self.test_cat_name, load_function=self.load_method_str)
+        with pytest.raises(TypeError, match=fr"load_method_from_str\(\) missing 1 required positional argument: 'cat'"):
+            self.ds.get(self.test_cat_name)
+        assert added.loaded == False
+        assert added.unloaded == True
+        assert added.autoload == True
+        assert added.load_function == self.load_method_str
+        assert list(added.keys()) == []
+
+    def test_loading_with_string_is_lazily_evaluated(self, fresh_frontend):
+        self.ds.add_category(self.test_cat_name, load_function=self.load_func_str)
+        self.ds.add_category("second", load_function=self.load_func_str)
+        old_name = self.load_func_str
+        old_m = self.load_func_from_str
+        setattr(self.__class__, "load_func_from_str", self.load_func_from_str_updated)
+
+        cat = self.ds.get(self.test_cat_name)
+        assert cat.load_function == old_name
+        assert list(cat.keys()) == ["ds_func_str_updated"]
+        setattr(self.__class__, "load_func_from_str", old_m)
+
+        cat = self.ds.get("second")
+        assert cat.load_function == self.load_func_str
+        assert list(cat.keys()) == ["ds_func_str1"]
+
+    def test_loading_with_none(self, fresh_frontend):
+        added = self.ds.add_category(self.test_cat_name, load_function=None)
+        cat = self.ds.get(self.test_cat_name)
+        assert cat.loaded == True
+        assert cat.autoload == True
+        assert cat.load_function is None
+        assert added.loaded == True
+        assert added.unloaded == False
+        assert added.autoload == True
+        assert added.load_function is None
+        assert list(cat.keys()) == []
+
+    def test_invalid_load_type(self, fresh_frontend):
+        with pytest.raises(RuntimeError, match=f"Load function for category '{self.test_cat_name}' should either be a fully-qualified function name or a callable object"):
+            self.ds.add_category(self.test_cat_name, load_function=0)
+
+    def test_invalid_load_func_str(self, fresh_frontend):
+        self.ds.add_category("invalid1", load_function="unknown_function")
+        with pytest.raises(AttributeError, match="module 'builtins' has no attribute 'unknown_function'"):
+            self.ds.get("invalid1")
+
+        self.ds.add_category("invalid2", load_function="unknown.function")
+        with pytest.raises(ModuleNotFoundError, match="No module named 'unknown'"):
+            self.ds.get("invalid2")
+
+    def test_manual_loading(self, fresh_frontend):
+        def manual_load_func(cat):
+            cat.add("ds_manual1", self.MinimumDataStore)
+            cat.add("ds_manual2", self.MinimumDataStore)
+            return None
+
+        added = self.ds.add_category(self.test_cat_name, load_function=manual_load_func, autoload=False)
+        cat = self.ds.get(self.test_cat_name)
+        assert cat.loaded == False
+        assert cat.autoload == False
+        assert added.loaded == False
+        assert added.autoload == False
+        assert list(added.keys()) == []
+        assert self.ds.unloaded_categories == [self.test_cat_name]
+
+        r = cat.load()
+        assert cat.loaded == True
+        assert cat.autoload == False
+        assert added.loaded == True
+        assert added.autoload == False
+        assert list(added.keys()) == ["ds_manual1", "ds_manual2"]
+        assert self.ds.unloaded_categories == []
+
+        assert isinstance(r, Outcome)
+        assert r.succeeded == True
+
+    @pytest.mark.xfail
+    def test_loading_function_returns_bool(self):
+        raise NotImplementedError
+
+    @pytest.mark.xfail
+    def test_loading_function_returns_error(self):
+        raise NotImplementedError
+
+    @pytest.mark.xfail
+    def test_loading_function_returns_string(self):
+        raise NotImplementedError
+
+    @pytest.mark.xfail
+    def test_loading_function_bad_return_type(self):
+        raise NotImplementedError
+
+    @pytest.mark.xfail
+    def test_loading_categories_accessing_categories(self):
+        raise NotImplementedError
+
+    @pytest.mark.xfail
+    def test_loading_categories_adding_categories(self):
+        raise NotImplementedError
+
+    @pytest.mark.xfail
+    def test_error_loading_categories(self):
+        raise NotImplementedError
+        # Failed outcome
+        # Error outcome
+        # Exception during execution

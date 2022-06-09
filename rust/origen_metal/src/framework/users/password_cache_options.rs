@@ -90,7 +90,7 @@ impl PasswordCacheOptions {
                     },
                 }
             }
-            Self::None => bail!("Cannot get password when password caching is unavailable!"),
+            Self::None => Ok(None)
         }
     }
 

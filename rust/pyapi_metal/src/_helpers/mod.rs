@@ -2,6 +2,9 @@ pub mod pickle;
 pub mod typed_value;
 
 #[macro_use]
+pub mod config;
+
+#[macro_use]
 pub mod errors;
 
 use crate::{pypath, runtime_error};
@@ -126,4 +129,48 @@ where
     let pydict = PyDict::new(py);
     f(pydict)?;
     Ok(pydict.into())
+}
+
+// TEST_NEEDED
+pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
+    Python::with_gil( |py| {
+        let mut split = s.split(".");
+        let mut current: PyObject;
+
+        let starting = split.next().unwrap();
+        let remaining = split.collect::<Vec<&str>>();
+        let mut current_str = starting.to_string();
+
+        if remaining.len() == 0 {
+            // Assume "builtins if no module is given"
+            let builtins = PyModule::import(py, "builtins")?.to_object(py);
+            return builtins.getattr(py, starting);
+        } else {
+            current = PyModule::import(py, starting)?.to_object(py);
+        }
+
+        for component in remaining {
+            current_str.push_str(".");
+            current_str.push_str(component);
+            match PyModule::import(py, &current_str) {
+                Ok(py_mod) => {
+                    current = py_mod.to_object(py);
+                },
+                Err(e) => {
+                    match current.getattr(py, component) {
+                        Ok(attr) => current = attr.to_object(py),
+                        Err(e2) => {
+                            return runtime_error!(format!(
+                                "Failed to get qualified attribute '{}': \n\n{} \n\n{}",
+                                s,
+                                e.to_string(),
+                                e2.to_string(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(current)
+    })
 }

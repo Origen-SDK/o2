@@ -1,11 +1,10 @@
 use crate::application::{get_pyapp, PyApplication};
-use crate::utility::results::GenericResult as PyGenericResult;
 use origen::core::frontend as ofrontend;
-use origen::core::frontend::GenericResult as OGenericResult;
 use origen::Result as OResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use pyapi_metal::prelude::typed_value;
+use pyapi_metal::prelude::{om, PyOutcome};
 
 pub struct Mailer {}
 
@@ -25,7 +24,7 @@ impl ofrontend::Mailer for Mailer {
         subject: Option<&str>,
         body: Option<&str>,
         _include_origen_signature: bool,
-    ) -> OResult<OGenericResult> {
+    ) -> OResult<om::Outcome> {
         Ok(self.with_py_mailer(|py, mailer| {
             let r = mailer.call_method(
                 py,
@@ -36,12 +35,12 @@ impl ofrontend::Mailer for Mailer {
                 ),
                 None,
             )?;
-            let pyr = r.extract::<PyRef<PyGenericResult>>(py)?;
+            let pyr = r.extract::<PyRef<PyOutcome>>(py)?;
             Ok(pyr.into_origen()?)
         })?)
     }
 
-    fn test(&self, to: Option<Vec<&str>>) -> OResult<OGenericResult> {
+    fn test(&self, to: Option<Vec<&str>>) -> OResult<om::Outcome> {
         Ok(self.with_py_mailer(|py, mailer| {
             let r;
             if let Some(t) = to.as_ref() {
@@ -49,7 +48,7 @@ impl ofrontend::Mailer for Mailer {
             } else {
                 r = mailer.call_method0(py, "test")?;
             }
-            let pyr = r.extract::<PyRef<PyGenericResult>>(py)?;
+            let pyr = r.extract::<PyRef<PyOutcome>>(py)?;
             Ok(pyr.into_origen()?)
         })?)
     }

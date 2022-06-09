@@ -1,7 +1,7 @@
 pub mod data_store;
 pub mod data_store_category;
 
-use crate::Result;
+use crate::{Result, TypedValue};
 use indexmap::IndexMap;
 use std::any::Any;
 use std::sync::RwLockReadGuard;
@@ -155,14 +155,19 @@ pub trait FrontendAPI {
     fn data_store_categories(
         &self,
     ) -> Result<IndexMap<String, Box<dyn DataStoreCategoryFrontendAPI>>>;
+
     fn get_data_store_category(
         &self,
         category: &str,
     ) -> Result<Option<Box<dyn DataStoreCategoryFrontendAPI>>>;
+
     fn add_data_store_category(
         &self,
         category: &str,
+        load_function: Option<TypedValue>,
+        autoload: Option<bool>,
     ) -> Result<Box<dyn DataStoreCategoryFrontendAPI>>;
+
     fn remove_data_store_category(&self, category: &str) -> Result<()>;
 
     fn require_data_store_category(
@@ -179,17 +184,6 @@ pub trait FrontendAPI {
         Ok(match self.get_data_store_category(category)? {
             Some(_) => true,
             None => false,
-        })
-    }
-
-    // TEST_NEEDED
-    fn ensure_data_store_category(
-        &self,
-        category: &str,
-    ) -> Result<(bool, Box<dyn DataStoreCategoryFrontendAPI>)> {
-        Ok(match self.get_data_store_category(category)? {
-            Some(cat) => (false, cat),
-            None => (true, self.add_data_store_category(category)?),
         })
     }
 

@@ -53,9 +53,8 @@ class TestUsers(UsersBase):
         origen.users.set_current_user(self.logged_in_id)
         assert origen.current_user.id == self.logged_in_id
 
-    @pytest.mark.skip
-    def test_users_are_autopopulated(self):
-        raise NotImplementedError
+    def test_autopopulated_user(self):
+        in_new_origen_proc(mod=user_configs)
 
 
 class TestUserConfigSetups(UsersBase):

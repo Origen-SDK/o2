@@ -126,7 +126,7 @@ pub fn get_initial_user_id() -> Result<Option<String>> {
     })
 }
 
-pub fn add_user(id: &str) -> Result<()> {
+pub fn add_user(id: &str) -> Result<PopulateUserReturn> {
     Users::add_user(id)
 }
 
@@ -144,7 +144,7 @@ pub fn try_lookup_current_user() -> Result<String> {
     Users::try_lookup_current_user()
 }
 
-pub fn try_lookup_and_set_current_user() -> Result<String> {
+pub fn try_lookup_and_set_current_user() -> Result<(String, Option<PopulateUserReturn>)> {
     Users::try_lookup_and_set_current_user()
 }
 
@@ -391,16 +391,19 @@ impl Users {
         }
     }
 
-    pub fn try_lookup_and_set_current_user() -> Result<String> {
+    pub fn try_lookup_and_set_current_user() -> Result<(String, Option<PopulateUserReturn>)> {
         let id = Self::try_lookup_current_user()?;
         let need_to_add = with_users(|users| Ok(!users.users.contains_key(&id)))?;
 
+        let pop_return: Option<PopulateUserReturn>;
         if need_to_add {
-            Self::add_user(&id)?;
+            pop_return = Some(Self::add_user(&id)?);
+        } else {
+            pop_return = None;
         }
 
         with_users_mut(|users| users.set_current_user(&id))?;
-        Ok(id)
+        Ok((id, pop_return))
     }
 
     fn add(&mut self, id: &str) -> Result<()> {
@@ -414,11 +417,11 @@ impl Users {
         }
     }
 
-    pub fn add_user(id: &str) -> Result<()> {
+    pub fn add_user(id: &str) -> Result<PopulateUserReturn> {
+        log_trace!("Adding user '{}'", id);
         with_users_mut(|users| users.add(id))?;
 
-        with_user(id, |u| u.autopopulate())?;
-        Ok(())
+        with_user(id, |u| u.autopopulate())
     }
 
     pub fn remove(&mut self, id: &str) -> Result<bool> {

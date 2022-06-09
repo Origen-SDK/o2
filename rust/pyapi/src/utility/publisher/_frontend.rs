@@ -1,16 +1,14 @@
 use crate::application::{get_pyapp, PyApplication};
 use crate::utility::results::{BuildResult, UploadResult};
-use ofrontend::BuildResult as OrigenBuildResult;
-use ofrontend::UploadResult as OrigenUploadResult;
 use origen::core::frontend as ofrontend;
-use origen::Result as OResult;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
+use origen_metal::{Result, Outcome};
 
 pub struct Publisher {}
 
 impl ofrontend::Publisher for Publisher {
-    fn build_package(&self) -> OResult<OrigenBuildResult> {
+    fn build_package(&self) -> Result<Outcome> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pyapp = get_pyapp(py)?;
@@ -22,9 +20,9 @@ impl ofrontend::Publisher for Publisher {
 
     fn upload(
         &self,
-        build_result: &OrigenBuildResult,
+        build_result: &Outcome,
         dry_run: bool,
-    ) -> OResult<OrigenUploadResult> {
+    ) -> Result<Outcome> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pyapp = get_pyapp(py)?;

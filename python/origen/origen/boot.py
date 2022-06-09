@@ -128,6 +128,7 @@ def run_cmd(command,
             r = origen.app.__rc_checkin__(pathspecs=None, **args)
         r.gist()
 
+    # TODO need to remove generic result
     elif command == "mailer:test":
         if origen.mailer is None:
             r = origen.utility.results.GenericResult(
@@ -136,6 +137,7 @@ def run_cmd(command,
             r = origen.app.mailer.test(args.get("to", None))
         r.summarize_and_exit()
 
+    # TODO need to remove generic result
     elif command == "mailer:send":
         if origen.mailer is None:
             r = origen.utility.results.GenericResult(

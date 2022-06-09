@@ -8,7 +8,7 @@ pub static HIGHZ: &str = "Z";
 pub static CAPTURE: &str = "C";
 
 pub fn standard_actions() -> HashMap<String, String> {
-    crate::hashmap!(
+    hashmap!(
         "1".to_string() => "DRIVE_HIGH".to_string(),
         "0".to_string() => "DRIVE_LOW".to_string(),
         "H".to_string() => "VERIFY_HIGH".to_string(),

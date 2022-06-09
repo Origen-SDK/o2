@@ -8,7 +8,7 @@ macro_rules! bail_with_runtime_error {
 #[macro_export]
 macro_rules! runtime_error {
     ($message:expr) => {{
-        crate::bail_with_runtime_error!($message)
+        Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>($message))
     }};
 }
 

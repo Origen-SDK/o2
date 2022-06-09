@@ -137,3 +137,20 @@ def test_empty_datasets(q, options):
     q.put(("users__datasets", list(origen.users.datasets.keys())))
     q.put(("hierarchy", origen.current_user.data_lookup_hierarchy))
     q.put(("datasets", list(origen.current_user.datasets.keys())))
+
+def test_autopopulated_user(q, options):
+    setenv(config_root, bypass_config_lookup=True)
+    import os
+    os.environ["USERNAME"] = "tesla"
+
+    import origen
+    assert origen.current_user.id == "tesla"
+    assert list(origen.ldaps.keys()) == ["forumsys_autopop"]
+    assert list(origen.users.datasets.keys()) == ["autopop_ldap"]
+    assert origen.users.data_lookup_hierarchy == ["autopop_ldap"]
+    assert origen.current_user.datasets["autopop_ldap"].populated == True
+    assert origen.current_user.email == "tesla@ldap.forumsys.com"
+    assert origen.current_user.last_name == "Tesla"
+    assert origen.current_user.display_name == "tesla"
+    assert origen.current_user.username == "tesla"
+    assert origen.current_user.other["full_name"] == "Nikola Tesla"

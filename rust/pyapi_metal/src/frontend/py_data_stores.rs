@@ -6,6 +6,9 @@ use origen_metal::Result as OMResult;
 use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyList, PyString, PyTuple};
+use std::sync::{RwLock};
+use crate::framework::outcomes::pyobj_into_om_outcome;
+use crate::PyOutcome;
 
 #[pyclass]
 pub struct PyDataStores {
@@ -23,6 +26,8 @@ impl PyDataStores {
         &mut self,
         py: Python,
         category: &str,
+        load_function: Option<Py<PyAny>>,
+        autoload: Option<bool>,
     ) -> PyResult<&Py<PyDataStoreCategory>> {
         if self.categories.contains_key(category) {
             runtime_error!(format!(
@@ -32,7 +37,7 @@ impl PyDataStores {
         } else {
             self.categories.insert(
                 category.to_string(),
-                PyDataStoreCategory::new_py(py, category)?,
+                PyDataStoreCategory::new_py(py, category, load_function, autoload)?,
             );
             Ok(self.categories.get(category).unwrap())
         }
@@ -52,8 +57,9 @@ impl PyDataStores {
         }
     }
 
-    pub fn get(&self, key: &str) -> PyResult<Option<&Py<PyDataStoreCategory>>> {
+    pub fn get(&self, py: Python, key: &str) -> PyResult<Option<&Py<PyDataStoreCategory>>> {
         Ok(if let Some(cat) = self.categories.get(key) {
+            PyDataStoreCategory::autoload_category(cat.borrow(py).into(), py)?;
             Some(cat)
         } else {
             None
@@ -75,16 +81,30 @@ impl PyDataStores {
             .map(|(n, cat)| (n.to_string(), cat))
             .collect())
     }
+
+    #[getter]
+    fn unloaded_categories(&self, py: Python) -> PyResult<Vec<String>> {
+        Ok(self.categories.iter().filter_map( |(n, cat)| {
+            let c = cat.borrow(py);
+            if c.is_unloaded() {
+                Some(n.to_owned())
+            } else {
+                None
+            }
+        }).collect())
+    }
 }
 
 #[pyproto]
 impl PyMappingProtocol for PyDataStores {
     fn __getitem__(&self, key: &str) -> PyResult<&Py<PyDataStoreCategory>> {
-        if let Some(l) = self.get(key)? {
-            Ok(l)
-        } else {
-            key_error!(format!("Unknown data store category '{}'", key))
-        }
+        Python::with_gil( |py| {
+            if let Some(l) = self.get(py, key)? {
+                Ok(l)
+            } else {
+                key_error!(format!("Unknown data store category '{}'", key))
+            }
+        })
     }
 
     fn __len__(&self) -> PyResult<usize> {
@@ -136,14 +156,16 @@ impl PyDataStores {
     }
 
     // TEST_NEEDED
-    pub fn ensured_cat(&self, cat: &str) -> PyResult<Py<PyDataStoreCategory>> {
-        match self.categories.get(cat) {
-            Some(c) => Ok(c.clone()),
-            None => runtime_error!(format!(
-                "Expected category {} to be present, but none was found!",
-                cat
-            )),
-        }
+    pub fn require_cat(&self, cat: &str) -> PyResult<&Py<PyDataStoreCategory>> {
+        Python::with_gil( |py| {
+            match self.get(py, cat)? {
+                Some(c) => Ok(c),
+                None => runtime_error!(format!(
+                    "Expected category {} to be present, but none was found!",
+                    cat
+                )),
+            }
+        })
     }
 }
 
@@ -152,6 +174,10 @@ pub struct PyDataStoreCategory {
     name: String,
     objects: IndexMap<String, PyObject>,
     stale: bool,
+    loaded: RwLock::<bool>,
+    load_function: Option<Py<PyAny>>,
+    autoload: bool,
+    // TODO add lazy loading?
 }
 
 #[pymethods]
@@ -323,6 +349,72 @@ impl PyDataStoreCategory {
             .map(|(n, obj)| (n.to_string(), obj.to_object(py)))
             .collect::<Vec<(String, PyObject)>>())
     }
+
+    pub fn load(slf: PyRef<Self>, py: Python) -> PyResult<Option<PyOutcome>> {
+        {
+            if *slf.loaded.read().unwrap() {
+                return Ok(None);
+            }
+        }
+        let load_func;
+        let name;
+        {
+            load_func = slf.load_function.clone();
+            name = slf.name.clone();
+        }
+        if let Some(mut f) = load_func {
+            if let Ok(fname) = f.extract::<&str>(py) {
+                let t = crate::_helpers::get_qualified_attr(fname)?;
+                if !t.as_ref(py).is_callable() {
+                    return runtime_error!(format!(
+                        "Load function '{}' for category '{}' is not a callable object",
+                        fname,
+                        name
+                    ));
+                } else {
+                    f = t;
+                }
+            }
+
+            log_trace!("Loading {} from function {}", slf.name, f);
+            let py_result = f.call1(py, PyTuple::new(py, [slf.into_py(py)]))?;
+            super::with_py_data_stores(|py, ds| {
+                match ds.categories.get(&name) {
+                    Some(py_cat) => {
+                        let cat = py_cat.borrow(py);
+                        *cat.loaded.write().unwrap() = true;
+                        Ok(())
+                    },
+                    None => runtime_error!(format!("Failed to recall data set category '{}' after loading", name))
+                }
+            })?;
+            Ok(Some(pyobj_into_om_outcome(py, py_result)?.into()))
+        } else {
+            log_trace!("No loading function provided for {}", slf.name);
+            *slf.loaded.write().unwrap() = true;
+            Ok(None)
+        }
+    }
+
+    #[getter]
+    fn loaded(&self) -> PyResult<bool> {
+        Ok(self.is_loaded())
+    }
+
+    #[getter]
+    fn unloaded(&self) -> PyResult<bool> {
+        Ok(self.is_unloaded())
+    }
+
+    #[getter]
+    pub fn autoload(&self) -> bool {
+        self.autoload
+    }
+
+    #[getter]
+    pub fn load_function(&self) -> Option<&Py<PyAny>> {
+        self.load_function.as_ref()
+    }
 }
 
 impl PyDataStoreCategory {
@@ -331,11 +423,30 @@ impl PyDataStoreCategory {
             name: name.to_string(),
             objects: IndexMap::new(),
             stale: false,
+            loaded: RwLock::new(false),
+            load_function: None,
+            autoload: true,
         }
     }
 
-    pub fn new_py(py: Python, name: &str) -> PyResult<Py<Self>> {
-        Py::new(py, Self::new(name))
+    pub fn new_py(py: Python, name: &str, load_function: Option<Py<PyAny>>, autoload: Option<bool>) -> PyResult<Py<Self>> {
+        Py::new(py, {
+            let mut s = Self::new(name);
+            if let Some(f) = load_function {
+                if f.extract::<&str>(py).is_ok() || f.as_ref(py).is_callable() {
+                    s.load_function = Some(f);
+                } else {
+                    return runtime_error!(format!(
+                        "Load function for category '{}' should either be a fully-qualified function name or a callable object",
+                        name
+                    ));
+                }
+            }
+            if let Some(al) = autoload {
+                s.autoload = al;
+            }
+            s
+        })
     }
 
     pub fn into_frontend(&self) -> OMResult<DataStoreCategoryFrontend> {
@@ -363,6 +474,22 @@ impl PyDataStoreCategory {
         }
         self.stale = true;
         Ok(())
+    }
+
+    pub fn is_loaded(&self) -> bool {
+        *self.loaded.read().unwrap()
+    }
+
+    pub fn is_unloaded(&self) -> bool {
+        !self.is_loaded()
+    }
+
+    pub fn autoload_category(slf: PyRef<Self>, py: Python) -> PyResult<Option<PyOutcome>> {
+        if slf.autoload {
+            Self::load(slf, py)
+        } else {
+            Ok(None)
+        }
     }
 }
 

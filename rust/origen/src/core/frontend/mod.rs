@@ -3,7 +3,7 @@ use crate::Result;
 pub mod callbacks;
 use crate::utility::version::Version;
 use std::path::PathBuf;
-use origen_metal::{TypedValueVec, TypedValueMap};
+use origen_metal::{Outcome, TypedValueVec, TypedValueMap};
 
 use origen_metal::prelude::frontend::*;
 
@@ -177,21 +177,21 @@ pub trait App {
 pub trait Linter {}
 
 pub trait UnitTester {
-    fn run(&self) -> Result<UnitTestStatus>;
+    fn run(&self) -> Result<Outcome>;
 }
 
 pub trait Publisher {
-    fn build_package(&self) -> Result<BuildResult>;
-    fn upload(&self, build: &BuildResult, dry_run: bool) -> Result<UploadResult>;
+    fn build_package(&self) -> Result<Outcome>;
+    fn upload(&self, build: &Outcome, dry_run: bool) -> Result<Outcome>;
 
-    fn build_and_upload(&self, dry_run: bool) -> Result<(BuildResult, UploadResult)> {
+    fn build_and_upload(&self, dry_run: bool) -> Result<(Outcome, Outcome)> {
         let br = self.build_package()?;
         Ok((br.clone(), self.upload(&br, dry_run)?))
     }
 }
 
 pub trait Website {
-    fn build(&self) -> Result<BuildResult>;
+    fn build(&self) -> Result<Outcome>;
 }
 
 pub trait Mailer {
@@ -206,10 +206,10 @@ pub trait Mailer {
         subject: Option<&str>,
         body: Option<&str>,
         include_origen_signature: bool,
-    ) -> Result<GenericResult>;
+    ) -> Result<Outcome>;
 
     /// Sends a test email. By default, sends only to the current user
-    fn test(&self, to: Option<Vec<&str>>) -> Result<GenericResult>;
+    fn test(&self, to: Option<Vec<&str>>) -> Result<Outcome>;
 }
 
 pub trait ReleaseScribe {
@@ -288,268 +288,3 @@ pub trait ReleaseScribe {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct UnitTestStatus {
-    // tests: Vec<TestResult>,
-    pub passed: Option<bool>,
-    pub text: Option<String>,
-}
-
-impl UnitTestStatus {
-    pub fn passed(&self) -> bool {
-        match self.passed {
-            Some(p) => p,
-            None => {
-                // for t in self.tests {
-                //     if t.failed {
-                //         self.passed = Some(false);
-                //         return false
-                //     }
-                // }
-                // self.passed = Some(true);
-                true
-            }
-        }
-    }
-
-    //     fn non_empty_and_passed(&self) -> bool {
-    //         match self.passed {
-    //             Some(p) => p,
-    //             None => {
-    //                 if tests.is_empty() {
-    //                     self.passed = false;
-    //                     false
-    //                 } else {
-    //                     self.passed()
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     fn tests(&self) -> &Vec<TestResult> {
-    //         &self.tests
-    //     }
-}
-
-#[derive(Debug, Clone)]
-pub struct BuildResult {
-    pub succeeded: bool,
-    pub build_contents: Option<Vec<String>>,
-    pub message: Option<String>,
-    pub metadata: Option<TypedValueMap>,
-}
-
-impl BuildResult {}
-
-#[derive(Debug, Clone)]
-pub struct UploadResult {
-    pub succeeded: bool,
-    pub message: Option<String>,
-    pub metadata: Option<TypedValueMap>,
-}
-
-type AsNoun = String;
-type AsVerb = String;
-
-#[derive(Debug, Clone)]
-pub enum GenericResultState {
-    Success(AsNoun, AsVerb),
-    Fail(AsNoun, AsVerb),
-    Error(AsNoun, AsVerb),
-}
-
-impl GenericResultState {
-    pub fn success() -> Self {
-        Self::Success("Success".to_string(), "Succeeded".to_string())
-    }
-
-    pub fn pass() -> Self {
-        Self::Success("Pass".to_string(), "Passed".to_string())
-    }
-
-    pub fn fail() -> Self {
-        Self::Fail("Fail".to_string(), "Failed".to_string())
-    }
-
-    pub fn error() -> Self {
-        Self::Error("Error".to_string(), "Errored".to_string())
-    }
-
-    pub fn as_verb(&self) -> String {
-        match self {
-            Self::Success(_, verb) => verb.to_string(),
-            Self::Fail(_, verb) => verb.to_string(),
-            Self::Error(_, verb) => verb.to_string(),
-        }
-    }
-
-    pub fn as_noun(&self) -> String {
-        match self {
-            Self::Success(noun, _) => noun.to_string(),
-            Self::Fail(noun, _) => noun.to_string(),
-            Self::Error(noun, _) => noun.to_string(),
-        }
-    }
-}
-
-// TODO remove and use OM's outcome
-#[derive(Debug, Clone)]
-pub struct GenericResult {
-    pub state: GenericResultState,
-    pub message: Option<String>,
-    pub metadata: Option<TypedValueMap>,
-}
-
-impl std::fmt::Display for GenericResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_verb())
-    }
-}
-
-impl GenericResult {
-    pub fn new(state: GenericResultState) -> Self {
-        Self {
-            state,
-            message: None,
-            metadata: None,
-        }
-    }
-
-    pub fn new_success() -> Self {
-        Self::new(GenericResultState::success())
-    }
-
-    pub fn new_success_with_msg(message: impl std::fmt::Display) -> Self {
-        let mut s = Self::new_success();
-        s.set_msg(message);
-        s
-    }
-
-    pub fn new_succeeded() -> Self {
-        Self::new(GenericResultState::success())
-    }
-
-    pub fn new_succeeded_with_msg(message: impl std::fmt::Display) -> Self {
-        let mut s = Self::new_succeeded();
-        s.set_msg(message);
-        s
-    }
-
-    pub fn new_pass() -> Self {
-        Self::new(GenericResultState::pass())
-    }
-
-    pub fn new_passed() -> Self {
-        Self::new(GenericResultState::pass())
-    }
-
-    pub fn new_fail() -> Self {
-        Self::new(GenericResultState::fail())
-    }
-
-    pub fn new_failed() -> Self {
-        Self::new(GenericResultState::fail())
-    }
-
-    pub fn new_error() -> Self {
-        Self::new(GenericResultState::error())
-    }
-
-    pub fn new_errored() -> Self {
-        Self::new(GenericResultState::error())
-    }
-
-    pub fn new_success_or_fail(success: bool) -> Self {
-        if success {
-            Self::new_success()
-        } else {
-            Self::new_fail()
-        }
-    }
-
-    pub fn new_pass_or_fail(pass: bool) -> Self {
-        if pass {
-            Self::new_pass()
-        } else {
-            Self::new_fail()
-        }
-    }
-
-    pub fn succeeded(&self) -> bool {
-        match self.state {
-            GenericResultState::Success(_, _) => true,
-            _ => false,
-        }
-    }
-
-    pub fn failed(&self) -> bool {
-        match self.state {
-            GenericResultState::Fail(_, _) => true,
-            _ => false,
-        }
-    }
-
-    pub fn errored(&self) -> bool {
-        match self.state {
-            GenericResultState::Error(_, _) => true,
-            _ => false,
-        }
-    }
-
-    pub fn set_msg(&mut self, message: impl std::fmt::Display) -> &mut Self {
-        self.message = Some(message.to_string());
-        self
-    }
-
-    pub fn add_metadata(&mut self, key: &str, m: impl Into<TypedValue>) -> Result<&mut Self> {
-        if self.metadata.is_none() {
-            self.metadata = Some(TypedValueMap::new());
-        }
-
-        self.metadata.as_mut().unwrap().insert(key, m);
-        Ok(self)
-    }
-
-    pub fn gist(&self) {
-        match &self.state {
-            GenericResultState::Success(_, _) => {
-                display_greenln!("{}", self.as_verb());
-            }
-            GenericResultState::Fail(_, _) => {
-                display_redln!("{}", self.as_verb());
-            }
-            GenericResultState::Error(_, _) => {
-                display_redln!("{}", self.as_verb());
-            }
-        }
-    }
-
-    pub fn summarize_and_exit(&self) {
-        match &self.state {
-            GenericResultState::Success(n, _) => {
-                display_greenln!("{}", self.as_verb());
-                if n == "Pass" {
-                    exit_pass!();
-                } else {
-                    exit_success!();
-                }
-            }
-            GenericResultState::Fail(_, _) => {
-                display_redln!("{}", self.as_verb());
-                exit_fail!();
-            }
-            GenericResultState::Error(_, _) => {
-                display_redln!("{}", self.as_verb());
-                exit_error!();
-            }
-        }
-    }
-
-    pub fn as_verb(&self) -> String {
-        if let Some(m) = self.message.as_ref() {
-            format!("{} with message: {}", self.state.as_verb(), m)
-        } else {
-            format!("{}", self.state.as_verb())
-        }
-    }
-}

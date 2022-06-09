@@ -31,7 +31,7 @@ pub use framework::typed_value::TypedValue;
 pub use framework::typed_value::TypedValueVec;
 pub use frontend::{with_frontend, with_optional_frontend};
 pub use utils::file;
-pub use utils::outcome::{Outcome, OutcomeState};
+pub use utils::outcome::{Outcome, OutcomeState, OutcomeSubTypes, OutcomeSubtypes};
 // TODO make a prelude out of this?
 pub use framework::users::users::{
     add_user, clear_current_user, get_current_user_email, get_current_user_home_dir,

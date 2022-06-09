@@ -367,6 +367,7 @@ fn initialize(
     cli_location: Option<String>,
     cli_version: Option<String>,
 ) -> PyResult<()> {
+    // TODO shouldn't be needed anymore
     unsafe {
         // Required to initialize trims in Python 3.6-
         // PyO3 used to do this pre 0.14, but now need to do it manually
@@ -388,6 +389,18 @@ fn initialize(
         origen::STATUS.set_in_origen_core_app(false);
     }
 
+    use crate::pyapi_metal::prelude::frontend::*;
+    with_mut_py_data_stores(|py, mut py_ds| {
+        // TODO remove some of this hardcoding
+        let pymod = PyModule::import(py, "_origen")?;
+        py_ds.add_category(
+            py,
+            "ldaps",
+            Some(pymod.getattr("utility")?.getattr("boot_ldaps")?.into()),
+            Some(true),
+        )?;
+        Ok(())
+    })?;
     boot_users(py)?;
     match origen::setup_sessions() {
         Ok(_) => {}
@@ -670,8 +683,10 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     lazy_static! {
         static ref BASE_MSG: &'static str = "Encountered an error when initializing users";
     }
-    log_trace!("Setting up user session...");
+
+    log_trace!("Initializing Users...");
     if let Some(r) = &ORIGEN_CONFIG.session__user_root {
+        log_trace!("Setting user session root to {}", r);
         let mut users = om::users_mut();
         let mut sc = users.default_session_config_mut();
         sc.root = Some(PathBuf::from(r));
@@ -682,6 +697,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     if let Some(dsets) = &crate::ORIGEN_CONFIG.user__datasets {
         let mut replace_default = true;
         for (dn, config) in dsets {
+            log_trace!("Adding user dataset {}", dn);
             match config.try_into() {
                 Ok(om_config) => {
                     match pyapi_metal::framework::users::UserDatasetConfig::new_py(py, om_config) {
@@ -786,12 +802,16 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         }
     }
 
+    if let Some(func) = &crate::ORIGEN_CONFIG.user__current_user_lookup_function {
+        users.set_lookup_current_id_function(Some(pyapi_metal::_helpers::get_qualified_attr(&func)?.as_ref(py)))?;
+    }
+
     // Initialize the current user
     match users.lookup_current_id(true) {
         Ok(_) => {}
         Err(e) => {
             om::log_error!("{}: Failed to lookup current user", *BASE_MSG);
-            om::log_error!("{}", e);
+            log_error!("{}", e);
         }
     }
     Ok(users)

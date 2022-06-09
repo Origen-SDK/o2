@@ -41,6 +41,7 @@ fn app_rc() -> PyResult<Option<PyObject>> {
             let split = c.rsplitn(1, ".");
             if split.count() == 2 {
                 // Have a class (hopefully) of the form 'a.b.Class'
+                // TODO
                 todo!();
             }
 

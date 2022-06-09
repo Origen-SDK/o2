@@ -174,7 +174,16 @@ impl Users {
     #[args(update_current = "false")]
     pub fn lookup_current_id(&self, update_current: bool) -> PyResult<String> {
         if update_current {
-            Ok(om::try_lookup_and_set_current_user()?)
+            let r = om::try_lookup_and_set_current_user()?;
+            if let Some(pop_retn) = r.1 {
+                if let Some(error_msg) = pop_retn.log(&r.0)? {
+                    runtime_error!(error_msg)
+                } else {
+                    Ok(r.0)
+                }
+            } else {
+                Ok(r.0)
+            }
         } else {
             Ok(om::try_lookup_current_user()?)
         }
@@ -185,7 +194,7 @@ impl Users {
     }
 
     #[getter]
-    fn get_lookup_current_id_function(&self) -> PyResult<Option<PyObject>> {
+    pub fn get_lookup_current_id_function(&self) -> PyResult<Option<PyObject>> {
         crate::frontend::with_py_frontend(|py, py_fe| {
             Ok(match py_fe._users_.get("lookup_current_id_function") {
                 Some(f) => Some(f.to_object(py)),
@@ -195,7 +204,7 @@ impl Users {
     }
 
     #[setter]
-    fn set_lookup_current_id_function(&self, func: Option<&PyAny>) -> PyResult<()> {
+    pub fn set_lookup_current_id_function(&self, func: Option<&PyAny>) -> PyResult<()> {
         crate::frontend::with_mut_py_frontend(|py, mut py_fe| {
             match func {
                 Some(f) => py_fe

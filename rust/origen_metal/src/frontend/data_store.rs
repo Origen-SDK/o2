@@ -1,5 +1,4 @@
 use super::DataStoreCategoryFrontendAPI;
-use crate::framework::users::Data;
 use crate::Result;
 use crate::{Outcome, TypedValue, TypedValueMap, TypedValueVec};
 use std::fmt::Display;
@@ -52,6 +51,7 @@ pub trait DataStoreFrontendAPI {
     // fn features(&self) -> &Vec<DataStoreFeature>;
     fn class(&self, backend: Option<TypedValueMap>) -> Result<String>;
     // fn init(&self, parameters: TypedValueMap) -> Result<Option<Outcome>>;
+    // fn load(&self)
 
     fn call(
         &self,
@@ -92,9 +92,10 @@ pub trait DataStoreFrontendAPI {
     /// Custom function to validate a user's password
     fn validate_password(
         &self,
-        _user_id: &str,
-        _ds_name: &Data,
+        _username: &str,
         _password: &str,
+        _user_id: &str,
+        _ds_name: &str,
     ) -> Result<FeatureReturn> {
         self.unimplemented(current_func!())
     }

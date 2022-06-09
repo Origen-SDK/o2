@@ -1,5 +1,4 @@
-use crate::core::frontend::GenericResult;
-use crate::Result;
+use origen_metal::{Result, Outcome};
 use octocrab;
 use std::collections::HashMap;
 
@@ -36,7 +35,7 @@ pub fn dispatch_workflow(
     workflow: &str,
     git_ref: &str,
     inputs: Option<HashMap<String, String>>,
-) -> Result<GenericResult> {
+) -> Result<Outcome> {
     let o = octocrab::OctocrabBuilder::new()
         .personal_token(lookup_pat()?)
         .add_header(
@@ -58,9 +57,9 @@ pub fn dispatch_workflow(
     let status = response.status().as_u16() as usize;
     let body = futures::executor::block_on(response.text())?;
 
-    let mut res = GenericResult::new_success_or_fail(body.is_empty());
+    let mut res = Outcome::new_success_or_fail(body.is_empty());
     res.set_msg(body);
-    res.add_metadata("header", format!("{:?}", headers))?;
-    res.add_metadata("status", status)?;
+    res.add_metadata("header", format!("{:?}", headers));
+    res.add_metadata("status", status);
     Ok(res)
 }
