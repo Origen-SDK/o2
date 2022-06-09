@@ -288,6 +288,30 @@ macro_rules! exit_error {
     };
 }
 
+#[macro_export]
+macro_rules! backend_fail {
+    ($message:expr) => {
+        $crate::LOGGER.error(&format!(
+            "A problem occurred in the Origen backend: '{}'",
+            $message
+        ));
+        std::process::exit(1);
+    };
+}
+
+#[macro_export]
+macro_rules! backend_expect {
+    ($obj:expr, $message:expr) => {{
+        match $obj {
+            Some(o) => o,
+            None => {
+                $crate::LOGGER.error(&format!("A problem occurred in the Origen backend as an Error or None value was unwrapped: '{}'", $message));
+                std::process::exit(1);
+            }
+        }
+    }};
+}
+
 /// Get the caller name. Taken from this SO answer:
 /// https://stackoverflow.com/a/63904992/8533619
 #[macro_export]
