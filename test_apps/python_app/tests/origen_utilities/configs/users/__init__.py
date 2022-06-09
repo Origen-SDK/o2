@@ -141,7 +141,7 @@ def test_empty_datasets(q, options):
 def test_autopopulated_user(q, options):
     setenv(config_root, bypass_config_lookup=True)
     import os
-    os.environ["USERNAME"] = "tesla"
+    os.environ["LOGNAME"] = "tesla"
 
     import origen
     assert origen.current_user.id == "tesla"
