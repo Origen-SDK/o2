@@ -8,7 +8,6 @@ use pyapi_metal;
 
 mod dut;
 mod file_handler;
-mod logger;
 mod meta;
 mod model;
 #[macro_use]
@@ -43,7 +42,6 @@ use std::str::FromStr;
 use std::sync::MutexGuard;
 use utility::location::Location;
 
-use crate::logger::__PYO3_PYMODULE_DEF_LOGGER;
 use crate::dut::__PYO3_PYMODULE_DEF_DUT;
 use crate::tester::__PYO3_PYMODULE_DEF_TESTER;
 use crate::tester_apis::__PYO3_PYMODULE_DEF_TESTER_APIS;
@@ -90,7 +88,6 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(set_operation))?;
     m.add_wrapped(wrap_pyfunction!(boot_users))?;
 
-    m.add_wrapped(wrap_pymodule!(logger))?;
     m.add_wrapped(wrap_pymodule!(dut))?;
     m.add_wrapped(wrap_pymodule!(tester))?;
     m.add_wrapped(wrap_pymodule!(application))?;

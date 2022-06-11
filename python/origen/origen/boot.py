@@ -41,8 +41,8 @@ def run_cmd(command,
         _origen.file_handler().init(files)
 
     if verbosity is not None:
-        _origen.logger.set_verbosity(verbosity)
-        _origen.logger.set_verbosity_keywords(verbosity_keywords.split(","))
+        origen_metal.framework.logger.set_verbosity(verbosity)
+        origen_metal.framework.logger.set_verbosity_keywords(verbosity_keywords.split(","))
 
     if output_dir is not None:
         _origen.set_output_dir(output_dir)

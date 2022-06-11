@@ -108,20 +108,20 @@ version = _origen.version()
     '{{ origen_version }}'
 '''
 
-logger = _origen.logger
+logger = om.framework.logger
 ''' Direct access to the build-in logger module for logging and displaying user-friendly output. Also available as :data:`log`
 
     Returns:
-        _origen.logger: Pointer to _origen.logger
+        _origen_metal.framework.logger: Pointer to _origen_metal.framework.logger
 
     See Also
     --------
     
-    * :mod:`_origen.logger`
+    * :mod:`_origen_metal.framework.logger`
     * :link-to:`Logging Output <logger>`
 '''
 
-log = _origen.logger
+log = logger
 ''' Alias of :data:`logger`
 '''
 

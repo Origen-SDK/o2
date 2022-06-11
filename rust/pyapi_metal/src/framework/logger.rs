@@ -1,22 +1,23 @@
-use origen::LOGGER;
+use origen_metal::LOGGER;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use pyo3::wrap_pyfunction;
 
-#[pymodule]
-fn logger(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(debug))?;
-    m.add_wrapped(wrap_pyfunction!(deprecated))?;
-    m.add_wrapped(wrap_pyfunction!(error))?;
-    m.add_wrapped(wrap_pyfunction!(info))?;
-    m.add_wrapped(wrap_pyfunction!(success))?;
-    m.add_wrapped(wrap_pyfunction!(warning))?;
-    m.add_wrapped(wrap_pyfunction!(display))?;
-    m.add_wrapped(wrap_pyfunction!(log))?;
-    m.add_wrapped(wrap_pyfunction!(trace))?;
-    m.add_wrapped(wrap_pyfunction!(output_file))?;
-    m.add_wrapped(wrap_pyfunction!(set_verbosity))?;
-    m.add_wrapped(wrap_pyfunction!(set_verbosity_keywords))?;
+pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "logger")?;
+    subm.add_wrapped(wrap_pyfunction!(debug))?;
+    subm.add_wrapped(wrap_pyfunction!(deprecated))?;
+    subm.add_wrapped(wrap_pyfunction!(error))?;
+    subm.add_wrapped(wrap_pyfunction!(info))?;
+    subm.add_wrapped(wrap_pyfunction!(success))?;
+    subm.add_wrapped(wrap_pyfunction!(warning))?;
+    subm.add_wrapped(wrap_pyfunction!(display))?;
+    subm.add_wrapped(wrap_pyfunction!(log))?;
+    subm.add_wrapped(wrap_pyfunction!(trace))?;
+    subm.add_wrapped(wrap_pyfunction!(output_file))?;
+    subm.add_wrapped(wrap_pyfunction!(set_verbosity))?;
+    subm.add_wrapped(wrap_pyfunction!(set_verbosity_keywords))?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
