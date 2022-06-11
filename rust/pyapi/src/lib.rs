@@ -492,7 +492,7 @@ fn status(py: Python) -> PyResult<PyObject> {
     )?;
     ret.set_item(
         "other_build_info",
-        _helpers::hashmap_to_pydict(py, &STATUS.other_build_info())?,
+        pyapi_metal::_helpers::map_to_pydict(py, &mut STATUS.other_build_info().iter())?,
     )?;
     ret.set_item(
         "cli_version",

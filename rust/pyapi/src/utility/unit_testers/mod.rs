@@ -1,7 +1,6 @@
 pub mod _frontend;
 
-// TODO take this out - use from OM
-use crate::_helpers::hashmap_to_pydict;
+use pyapi_metal::_helpers::map_to_pydict;
 use crate::runtime_error;
 use origen::STATUS;
 use pyo3::prelude::*;
@@ -114,8 +113,8 @@ fn app_unit_tester() -> PyResult<Option<PyObject>> {
             } else {
                 // fall back to some enumerated systems
                 if &c.to_lowercase() == "pytest" {
-                    let py_config = hashmap_to_pydict(py, ut_config)?;
-                    Ok(Some(new_pytest_driver(py_config)?))
+                    let py_config = map_to_pydict(py, &mut ut_config.iter())?;
+                    Ok(Some(new_pytest_driver(py_config.as_ref(py))?))
                 } else if &c.to_lowercase() == "none" {
                     Ok(None)
                 } else {
@@ -128,7 +127,7 @@ fn app_unit_tester() -> PyResult<Option<PyObject>> {
         }
     } else {
         let temp = HashMap::<String, String>::new();
-        let py_config = hashmap_to_pydict(py, &temp)?;
-        Ok(Some(new_pytest_driver(py_config)?))
+        let py_config = map_to_pydict(py, &mut temp.iter())?;
+        Ok(Some(new_pytest_driver(py_config.as_ref(py))?))
     }
 }

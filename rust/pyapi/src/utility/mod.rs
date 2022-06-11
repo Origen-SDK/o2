@@ -20,7 +20,6 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 use transaction::Transaction;
 use version::Version;
 
-use crate::_helpers::hashmap_to_pydict;
 use crate::runtime_error;
 use num_bigint::BigUint;
 use origen::utility::big_uint_helpers::BigUintHelpers;
@@ -177,8 +176,8 @@ fn app_utility(
     let split = system.rsplitn(2, ".");
     if split.count() == 2 {
         // Have a class (hopefully) of the form 'a.b.Class'
-        let py_conf = hashmap_to_pydict(py, conf_)?;
-        Ok(Some(new_obj(py, system, py_conf)?))
+        let py_conf = pyapi_metal::_helpers::map_to_pydict(py, &mut conf_.iter())?;
+        Ok(Some(new_obj(py, system, py_conf.as_ref(py))?))
     } else {
         // fall back to some enumerated systems
         if &system.to_lowercase() == "none" {
