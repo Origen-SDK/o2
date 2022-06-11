@@ -8,8 +8,7 @@ use origen::Error;
 use origen::{dut, DUT};
 use origen::{Transaction, TransactionAction};
 use pyo3::prelude::*;
-#[allow(unused_imports)]
-use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
+use pyo3::types::{PyAny, PyDict, PySlice};
 
 #[pyclass]
 #[derive(Clone)]
@@ -205,10 +204,18 @@ impl PinCollection {
     fn get___origen_pin_ids__(&self) -> PyResult<Vec<usize>> {
         Ok(self.pin_collection.pin_ids.clone())
     }
-}
 
-#[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for PinCollection {
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
+        ListLikeAPI::__getitem__(self, idx)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        ListLikeAPI::__len__(self)
+    }
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ListLikeIter> {
+        ListLikeAPI::__iter__(&*slf)
+    }
+
     // Need to overwrite contains to account for aliasing
     fn __contains__(&self, item: &PyAny) -> PyResult<bool> {
         if let Ok(s) = item.extract::<String>() {
@@ -273,24 +280,6 @@ impl ListLikeAPI for PinCollection {
             },
         )?
         .to_object(py))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::mapping::PyMappingProtocol for PinCollection {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        ListLikeAPI::__getitem__(self, idx)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        ListLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinCollection {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ListLikeIter> {
-        ListLikeAPI::__iter__(&*slf)
     }
 }
 

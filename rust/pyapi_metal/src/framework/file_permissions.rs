@@ -122,10 +122,7 @@ impl FilePermissions {
     fn to_s(&self) -> PyResult<String> {
         Ok(self.om_fps.to_str().to_string())
     }
-}
 
-#[pyproto]
-impl pyo3::class::basic::PyObjectProtocol for FilePermissions {
     fn __str__(&self) -> PyResult<String> {
         self.to_s()
     }
@@ -145,10 +142,7 @@ impl pyo3::class::basic::PyObjectProtocol for FilePermissions {
             Err(_) => Ok(false),
         }
     }
-}
 
-#[pyproto]
-impl pyo3::class::number::PyNumberProtocol for FilePermissions {
     fn __int__(&self) -> PyResult<u16> {
         self.to_i()
     }

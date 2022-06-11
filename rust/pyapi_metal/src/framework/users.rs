@@ -3,7 +3,6 @@ use crate::framework::PyOutcome;
 use crate::{key_error, pypath, runtime_error, type_error};
 use origen_metal as om;
 use pyo3::class::basic::CompareOp;
-use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
@@ -339,10 +338,7 @@ impl Users {
     pub fn session_config(&self) -> PyResult<UsersSessionConfig> {
         Ok(UsersSessionConfig {})
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for Users {
     fn __getitem__(&self, id: &str) -> PyResult<User> {
         let users = om::users();
         match users.user(id) {
@@ -355,6 +351,13 @@ impl PyMappingProtocol for Users {
         let users = om::users();
         Ok(users.users().len())
     }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<UsersIter> {
+        Ok(UsersIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
+    }
 }
 
 #[pyclass]
@@ -363,8 +366,8 @@ pub struct UsersIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for UsersIter {
+#[pymethods]
+impl UsersIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -378,18 +381,6 @@ impl pyo3::class::iter::PyIterProtocol for UsersIter {
         Ok(Some(name))
     }
 }
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for Users {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<UsersIter> {
-        Ok(UsersIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
-    }
-}
-
-impl Users {}
 
 #[pyclass]
 pub struct UsersSessionConfig {}
@@ -815,25 +806,6 @@ impl UserDatasetConfig {
     }
 }
 
-#[pyproto]
-impl pyo3::class::basic::PyObjectProtocol for UserDatasetConfig {
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<bool> {
-        let c = match other.extract::<PyRef<Self>>() {
-            Ok(config) => config,
-            Err(_) => return Ok(false),
-        };
-        let result = self.om_config == c.om_config;
-
-        match op {
-            CompareOp::Eq => Ok(result),
-            CompareOp::Ne => Ok(!result),
-            _ => crate::not_implemented_error!(
-                "UserDatasetConfig only supports equals and not-equals comparisons"
-            ),
-        }
-    }
-}
-
 impl From<&OMDatasetConfig> for UserDatasetConfig {
     fn from(config: &OMDatasetConfig) -> Self {
         Self {
@@ -903,6 +875,29 @@ impl UserDatasetConfig {
     pub fn should_validate_password(&self) -> PyResult<Option<bool>> {
         Ok(self.om_config.should_validate_password.clone())
     }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<bool> {
+        let c = match other.extract::<PyRef<Self>>() {
+            Ok(config) => config,
+            Err(_) => return Ok(false),
+        };
+        let result = self.om_config == c.om_config;
+
+        match op {
+            CompareOp::Eq => Ok(result),
+            CompareOp::Ne => Ok(!result),
+            _ => crate::not_implemented_error!(
+                "UserDatasetConfig only supports equals and not-equals comparisons"
+            ),
+        }
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<UserDatasetConfigIter> {
+        Ok(UserDatasetConfigIter {
+            values: om::TypedValueMap::from(&slf.om_config).into_pairs(),
+            i: 0,
+        })
+    }
 }
 
 // TODO add this again?
@@ -929,8 +924,8 @@ pub struct UserDatasetConfigIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for UserDatasetConfigIter {
+#[pymethods]
+impl UserDatasetConfigIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -949,16 +944,6 @@ impl pyo3::class::iter::PyIterProtocol for UserDatasetConfigIter {
             slf.i += 1;
             Ok(Some(retn))
         }
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for UserDatasetConfig {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<UserDatasetConfigIter> {
-        Ok(UserDatasetConfigIter {
-            values: om::TypedValueMap::from(&slf.om_config).into_pairs(),
-            i: 0,
-        })
     }
 }
 
@@ -1026,6 +1011,10 @@ impl PopulateUserReturn {
     fn errored(&self) -> PyResult<bool> {
         Ok(self.om.errored())
     }
+
+    fn __bool__(&self) -> PyResult<bool> {
+        Ok(self.om.succeeded())
+    }
 }
 
 impl PopulateUserReturn {
@@ -1035,13 +1024,6 @@ impl PopulateUserReturn {
 
     pub fn py_from_om(py: Python, om_rtn: OmPopulateUserReturn) -> PyResult<Py<Self>> {
         Py::new(py, Self { om: om_rtn })
-    }
-}
-
-#[pyproto]
-impl pyo3::class::basic::PyObjectProtocol for PopulateUserReturn {
-    fn __bool__(&self) -> PyResult<bool> {
-        Ok(self.om.succeeded())
     }
 }
 
@@ -1121,18 +1103,15 @@ impl PopulateUsersReturn {
     fn errored(&self) -> PyResult<bool> {
         Ok(self.om.errored())
     }
+
+    fn __bool__(&self) -> PyResult<bool> {
+        Ok(self.om.succeeded())
+    }
 }
 
 impl PopulateUsersReturn {
     pub fn from_om(om_rtn: OmPopulateUsersReturn) -> Self {
         Self { om: om_rtn }
-    }
-}
-
-#[pyproto]
-impl pyo3::class::basic::PyObjectProtocol for PopulateUsersReturn {
-    fn __bool__(&self) -> PyResult<bool> {
-        Ok(self.om.succeeded())
     }
 }
 
@@ -1650,10 +1629,7 @@ impl DataStore {
             },
         )?)
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for DataStore {
     fn __getitem__(&self, key: &str) -> PyResult<Option<PyObject>> {
         let obj = om::with_user_dataset(Some(&self.user_id), &self.dataset, |d| {
             if let Some(o) = d.other.get(key) {
@@ -1687,6 +1663,13 @@ impl PyMappingProtocol for DataStore {
             |d| Ok(d.other.len()),
         )?)
     }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<UsersIter> {
+        Ok(UsersIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
+    }
 }
 
 #[pyclass]
@@ -1695,8 +1678,8 @@ pub struct DataStoreIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for DataStoreIter {
+#[pymethods]
+impl DataStoreIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -1708,15 +1691,5 @@ impl pyo3::class::iter::PyIterProtocol for DataStoreIter {
         let name = slf.keys[slf.i].clone();
         slf.i += 1;
         Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for DataStore {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<UsersIter> {
-        Ok(UsersIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
     }
 }

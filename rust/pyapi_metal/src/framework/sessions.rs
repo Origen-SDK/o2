@@ -8,7 +8,6 @@ use origen_metal::framework::sessions as om_ss;
 use origen_metal::sessions as om_sessions;
 use origen_metal::Result as OMResult;
 use pyo3::class::basic::CompareOp;
-use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::MutexGuard;
@@ -263,10 +262,7 @@ impl SessionGroup {
             Ok(FilePermissions::from_metal(sg.file_permissions()))
         })?)
     }
-}
 
-#[pyproto]
-impl pyo3::class::basic::PyObjectProtocol for SessionGroup {
     fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
         let other_grp = match other.extract::<PyRef<Self>>() {
             Ok(grp) => grp,
@@ -284,10 +280,7 @@ impl pyo3::class::basic::PyObjectProtocol for SessionGroup {
             _ => Ok(py.NotImplemented()),
         })
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for SessionGroup {
     fn __getitem__(&self, key: &str) -> PyResult<SessionStore> {
         if let Some(s) = self.get(key)? {
             Ok(s)
@@ -308,6 +301,13 @@ impl PyMappingProtocol for SessionGroup {
     fn __len__(&self) -> PyResult<usize> {
         Ok(self.with_om_sg(None, |g| Ok(g.sessions().len()))?)
     }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<SessionGroupIter> {
+        Ok(SessionGroupIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
+    }
 }
 
 #[pyclass]
@@ -316,8 +316,8 @@ pub struct SessionGroupIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for SessionGroupIter {
+#[pymethods]
+impl SessionGroupIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -329,16 +329,6 @@ impl pyo3::class::iter::PyIterProtocol for SessionGroupIter {
         let name = slf.keys[slf.i].clone();
         slf.i += 1;
         Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for SessionGroup {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<SessionGroupIter> {
-        Ok(SessionGroupIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
     }
 }
 
@@ -431,10 +421,7 @@ impl SessionStore {
         })?;
         Ok(retn)
     }
-}
 
-#[pyproto]
-impl pyo3::class::basic::PyObjectProtocol for SessionStore {
     fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<PyObject> {
         let other_s = match other.extract::<PyRef<Self>>() {
             Ok(ss) => ss,
@@ -456,10 +443,7 @@ impl pyo3::class::basic::PyObjectProtocol for SessionStore {
             _ => Ok(py.NotImplemented()),
         })
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for SessionStore {
     fn __getitem__(&self, key: &str) -> PyResult<PyObject> {
         if let Some(l) = self.get(key)? {
             Ok(l)
@@ -483,6 +467,13 @@ impl PyMappingProtocol for SessionStore {
     fn __len__(&self) -> PyResult<usize> {
         Ok(self.with_om_ss(|ss| Ok(ss.len()?))?)
     }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<SessionStoreIter> {
+        Ok(SessionStoreIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
+    }
 }
 
 #[pyclass]
@@ -491,8 +482,8 @@ pub struct SessionStoreIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for SessionStoreIter {
+#[pymethods]
+impl SessionStoreIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -504,16 +495,6 @@ impl pyo3::class::iter::PyIterProtocol for SessionStoreIter {
         let name = slf.keys[slf.i].clone();
         slf.i += 1;
         Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for SessionStore {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<SessionStoreIter> {
-        Ok(SessionStoreIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
     }
 }
 

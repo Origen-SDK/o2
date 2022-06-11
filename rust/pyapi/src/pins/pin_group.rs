@@ -6,8 +6,7 @@ use num_bigint::BigUint;
 use origen::DUT;
 use origen::{Transaction, TransactionAction};
 use pyo3::prelude::*;
-#[allow(unused_imports)]
-use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
+use pyo3::types::{PyAny, PyDict, PySlice};
 
 #[pyclass]
 #[derive(Clone)]
@@ -210,21 +209,19 @@ impl PinGroup {
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         Ok(grp.pin_ids.clone())
     }
-}
 
-// impl PinAPI for PinGroup {
-//     type T = Self;
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
+        ListLikeAPI::__getitem__(self, idx)
+    }
 
-//     fn update(slf: &PyRef<Self::T>, dut: &origen::Dut, trans: Transaction) -> PyResult<()> {
-//         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
-//         grp.update(&dut, &trans)?;
-//         Ok(())
-//     }
-// }
+    fn __len__(&self) -> PyResult<usize> {
+        ListLikeAPI::__len__(self)
+    }
 
-#[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for PinGroup {
-    // Need to overwrite contains to account for aliasing
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ListLikeIter> {
+        ListLikeAPI::__iter__(&*slf)
+    }
+
     fn __contains__(&self, item: &PyAny) -> PyResult<bool> {
         if let Ok(s) = item.extract::<String>() {
             let dut = DUT.lock().unwrap();
@@ -282,23 +279,5 @@ impl ListLikeAPI for PinGroup {
         let gil = Python::acquire_gil();
         let py = gil.python();
         Ok(Py::new(py, PinCollection::from_ids_unchecked(ids, None))?.to_object(py))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::mapping::PyMappingProtocol for PinGroup {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        ListLikeAPI::__getitem__(self, idx)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        ListLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinGroup {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ListLikeIter> {
-        ListLikeAPI::__iter__(&*slf)
     }
 }

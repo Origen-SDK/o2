@@ -14,22 +14,11 @@ pub mod unit_testers;
 pub mod version;
 pub mod website;
 
-use ldaps::__pyo3_get_function_ldaps;
-use ldaps::__pyo3_get_function_boot_ldaps;
-use linter::PyInit_linter;
 use location::Location;
-use mailer::PyInit_mailer;
-use publisher::PyInit_publisher;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use release_scribe::PyInit_release_scribe;
-use results::PyInit_results;
-use revision_control::PyInit_revision_control;
-use sessions::PyInit_sessions;
 use transaction::Transaction;
-use unit_testers::PyInit_unit_testers;
 use version::Version;
-use website::PyInit_website;
 
 use crate::_helpers::hashmap_to_pydict;
 use crate::runtime_error;
@@ -40,6 +29,16 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use pyapi_metal::PyOutcome;
 
+use crate::utility::revision_control::__PYO3_PYMODULE_DEF_REVISION_CONTROL;
+use crate::utility::unit_testers::__PYO3_PYMODULE_DEF_UNIT_TESTERS;
+use crate::utility::publisher::__PYO3_PYMODULE_DEF_PUBLISHER;
+use crate::utility::linter::__PYO3_PYMODULE_DEF_LINTER;
+use crate::utility::release_scribe::__PYO3_PYMODULE_DEF_RELEASE_SCRIBE;
+use crate::utility::results::__PYO3_PYMODULE_DEF_RESULTS;
+use crate::utility::website::__PYO3_PYMODULE_DEF_WEBSITE;
+use crate::utility::sessions::__PYO3_PYMODULE_DEF_SESSIONS;
+use crate::utility::mailer::__PYO3_PYMODULE_DEF_MAILER;
+
 #[pymodule]
 pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Location>()?;
@@ -48,8 +47,6 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(reverse_bits))?;
     m.add_wrapped(wrap_pymodule!(mailer))?;
     m.add_wrapped(wrap_pymodule!(sessions))?;
-    m.add_wrapped(wrap_pyfunction!(ldaps))?;
-    m.add_wrapped(wrap_pyfunction!(boot_ldaps))?;
     m.add_wrapped(wrap_pymodule!(revision_control))?;
     m.add_wrapped(wrap_pymodule!(unit_testers))?;
     m.add_wrapped(wrap_pymodule!(publisher))?;
@@ -59,6 +56,7 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(website))?;
     m.add_wrapped(wrap_pyfunction!(exec))?;
     m.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;
+    ldaps::define(m)?;
     Ok(())
 }
 

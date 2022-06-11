@@ -40,13 +40,13 @@ impl std::convert::From<pyo3::PyErr> for Error {
         let py = gil.python();
         Error::new(&format!(
             "Encountered Exception '{}' with message: {}{}",
-            err.ptype(py).name().unwrap(),
+            err.get_type(py).name().unwrap(),
             {
-                let r = err.pvalue(py).call_method0("__str__").unwrap();
+                let r = err.value(py).call_method0("__str__").unwrap();
                 r.extract::<String>().unwrap()
             },
             {
-                let tb = err.ptraceback(py);
+                let tb = err.traceback(py);
                 let m = py.import("traceback").unwrap();
                 let temp = pyo3::types::PyTuple::new(py, &[tb]);
                 let et = m.call_method1("extract_tb", temp).unwrap();

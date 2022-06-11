@@ -2,8 +2,7 @@ use super::address_block::{AddressBlock, AddressBlocks};
 use super::register_collection::RegisterCollection;
 use crate::dut::PyDUT;
 use origen::DUT;
-use pyo3::class::basic::{CompareOp, PyObjectProtocol};
-use pyo3::class::PyMappingProtocol;
+use pyo3::class::basic::CompareOp;
 use pyo3::exceptions::{PyAttributeError, PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 
@@ -115,13 +114,7 @@ impl MemoryMaps {
             .collect();
         Ok(items)
     }
-}
 
-/// Internal, Rust-only methods
-impl MemoryMaps {}
-
-#[pyproto]
-impl PyMappingProtocol for MemoryMaps {
     fn __len__(&self) -> PyResult<usize> {
         self.len()
     }
@@ -143,10 +136,7 @@ impl PyMappingProtocol for MemoryMaps {
             )))
         }
     }
-}
 
-#[pyproto]
-impl PyObjectProtocol for MemoryMaps {
     /// Implements memory_map.my_map
     fn __getattr__(&self, query: &str) -> PyResult<MemoryMap> {
         let dut = DUT.lock().unwrap();
@@ -187,10 +177,7 @@ impl PyObjectProtocol for MemoryMaps {
         }
         Ok(output)
     }
-}
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for MemoryMaps {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<MemoryMaps> {
         let mut m = slf.clone();
         m.i = 0;
@@ -210,10 +197,7 @@ impl pyo3::class::iter::PyIterProtocol for MemoryMaps {
         slf.i += 1;
         Ok(Some(id.to_string()))
     }
-}
 
-#[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for MemoryMaps {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let dut = DUT.lock().unwrap();
         let model = dut.get_model(self.model_id)?;
@@ -234,13 +218,8 @@ pub struct MemoryMap {
 
 /// User API methods, available to both Rust and Python
 #[pymethods]
-impl MemoryMap {}
+impl MemoryMap {
 
-/// Internal, Rust-only methods
-impl MemoryMap {}
-
-#[pyproto]
-impl PyObjectProtocol for MemoryMap {
     fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -299,7 +278,7 @@ impl PyObjectProtocol for MemoryMap {
         }
     }
 
-    fn __richcmp__(&self, other: PyRef<'p, MemoryMap>, op: CompareOp) -> PyResult<bool> {
+    fn __richcmp__(&self, other: PyRef<MemoryMap>, op: CompareOp) -> PyResult<bool> {
         match op {
             CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
             CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),

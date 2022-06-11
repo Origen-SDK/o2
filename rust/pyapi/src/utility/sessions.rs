@@ -7,7 +7,7 @@ use pyapi_metal::framework::sessions::{SessionGroup, SessionStore, Sessions};
 use pyo3::prelude::*;
 
 #[pymodule]
-fn sessions(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn sessions(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<OrigenSessions>()?;
     Ok(())
 }

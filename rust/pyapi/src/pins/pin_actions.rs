@@ -188,10 +188,7 @@ impl PinActions {
     fn all_standard(&self) -> PyResult<bool> {
         Ok(self.actions.iter().all(|a| a.is_standard()))
     }
-}
 
-#[pyproto]
-impl pyo3::class::basic::PyObjectProtocol for PinActions {
     fn __repr__(&self) -> PyResult<String> {
         Ok(OrigenPinAction::to_action_string(&self.actions)?)
     }
@@ -234,10 +231,14 @@ impl pyo3::class::basic::PyObjectProtocol for PinActions {
             _ => Ok(py.NotImplemented()),
         }
     }
-}
 
-#[pyproto]
-impl pyo3::class::mapping::PyMappingProtocol for PinActions {
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinActionsIter> {
+        Ok(PinActionsIter {
+            parent: Box::new((slf).clone()),
+            i: 0,
+        })
+    }
+
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
         GeneralizedListLikeAPI::__getitem__(self, idx)
     }
@@ -316,8 +317,8 @@ pub struct PinActionsIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl<'p> pyo3::class::iter::PyIterProtocol<'p> for PinActionsIter {
+#[pymethods]
+impl PinActionsIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -328,15 +329,5 @@ impl<'p> pyo3::class::iter::PyIterProtocol<'p> for PinActionsIter {
         }
         slf.i += 1;
         Ok(Some(slf.parent.___getitem__((slf.i - 1) as isize).unwrap()))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinActions {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PinActionsIter> {
-        Ok(PinActionsIter {
-            parent: Box::new((slf).clone()),
-            i: 0,
-        })
     }
 }

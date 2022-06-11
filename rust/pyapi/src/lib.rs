@@ -41,21 +41,21 @@ use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
-
-// Imported pyapi modules
-use application::PyInit_application;
-use dut::PyInit_dut;
-use logger::PyInit_logger;
-use producer::PyInit_producer;
-use prog_gen::interface::PyInit_interface;
-use prog_gen::PyInit_prog_gen;
-use pyapi_metal::PyInit__origen_metal;
-use services::PyInit_services;
-use standard_sub_blocks::PyInit_standard_sub_blocks;
-use tester::PyInit_tester;
-use tester_apis::PyInit_tester_apis;
 use utility::location::Location;
-use utility::PyInit_utility;
+
+use crate::logger::__PYO3_PYMODULE_DEF_LOGGER;
+use crate::dut::__PYO3_PYMODULE_DEF_DUT;
+use crate::tester::__PYO3_PYMODULE_DEF_TESTER;
+use crate::tester_apis::__PYO3_PYMODULE_DEF_TESTER_APIS;
+use crate::application::__PYO3_PYMODULE_DEF_APPLICATION;
+use crate::prog_gen::interface::__PYO3_PYMODULE_DEF_INTERFACE;
+use crate::producer::__PYO3_PYMODULE_DEF_PRODUCER;
+use crate::services::__PYO3_PYMODULE_DEF_SERVICES;
+use crate::utility::__PYO3_PYMODULE_DEF_UTILITY;
+use crate::standard_sub_blocks::__PYO3_PYMODULE_DEF_STANDARD_SUB_BLOCKS;
+use crate::prog_gen::__PYO3_PYMODULE_DEF_PROG_GEN;
+
+use pyapi_metal::__PYO3_PYMODULE_DEF__ORIGEN_METAL;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -72,7 +72,6 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(app_config))?;
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
     m.add_wrapped(wrap_pyfunction!(target_file))?;
-    m.add_wrapped(wrap_pyfunction!(file_handler))?;
     m.add_wrapped(wrap_pyfunction!(test))?;
     m.add_wrapped(wrap_pyfunction!(test_ast))?;
     m.add_wrapped(wrap_pyfunction!(flow))?;
@@ -102,6 +101,8 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(tester_apis))?;
     m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
+
+    file_handler::define(m)?;
 
     // Compile the _origen_metal library along with this one
     // to allow re-use from that library
@@ -469,13 +470,6 @@ fn flow() -> PyResult<()> {
 #[pyfunction]
 fn flow_ast() -> PyResult<Vec<u8>> {
     Ok(FLOW.to_pickle())
-}
-
-/// Returns a file handler object (iterable) for consuming the file arguments
-/// given to the CLI
-#[pyfunction]
-fn file_handler() -> PyResult<file_handler::FileHandler> {
-    Ok(file_handler::FileHandler::new())
 }
 
 /// Returns the Origen status which informs whether an app is present, the Origen version,

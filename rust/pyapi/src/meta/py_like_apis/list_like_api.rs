@@ -86,8 +86,8 @@ pub struct ListLikeIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl<'p> pyo3::class::iter::PyIterProtocol<'p> for ListLikeIter {
+#[pymethods]
+impl ListLikeIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }

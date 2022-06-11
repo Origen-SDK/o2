@@ -3,7 +3,6 @@ use crate::_helpers::{indexmap_to_pydict, new_py_obj, pytype_from_pyany};
 use crate::{key_error, runtime_error, type_error};
 use indexmap::IndexMap;
 use origen_metal::Result as OMResult;
-use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyList, PyString, PyTuple};
 use std::sync::{RwLock};
@@ -93,10 +92,7 @@ impl PyDataStores {
             }
         }).collect())
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for PyDataStores {
     fn __getitem__(&self, key: &str) -> PyResult<&Py<PyDataStoreCategory>> {
         Python::with_gil( |py| {
             if let Some(l) = self.get(py, key)? {
@@ -110,6 +106,13 @@ impl PyMappingProtocol for PyDataStores {
     fn __len__(&self) -> PyResult<usize> {
         Ok(self.categories.len())
     }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyDataStoresIter> {
+        Ok(PyDataStoresIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
+    }
 }
 
 #[pyclass]
@@ -118,8 +121,8 @@ pub struct PyDataStoresIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PyDataStoresIter {
+#[pymethods]
+impl PyDataStoresIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -131,16 +134,6 @@ impl pyo3::class::iter::PyIterProtocol for PyDataStoresIter {
         let name = slf.keys[slf.i].clone();
         slf.i += 1;
         Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PyDataStores {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyDataStoresIter> {
-        Ok(PyDataStoresIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
     }
 }
 
@@ -212,7 +205,7 @@ impl PyDataStoreCategory {
             let mut category_idx: Option<usize> = None;
             if let Some(fa) = func_kwargs {
                 if let Some(pn) = fa.get_item("provide_name") {
-                    if pn.is_instance::<PyBool>()? {
+                    if pn.is_instance_of::<PyBool>()? {
                         provide_name = pn.extract::<bool>()?;
                     } else {
                         if let Ok(i) = pn.extract::<usize>() {
@@ -226,7 +219,7 @@ impl PyDataStoreCategory {
                     }
                 }
                 if let Some(pc) = fa.get_item("provide_category") {
-                    if pc.is_instance::<PyBool>()? {
+                    if pc.is_instance_of::<PyBool>()? {
                         provide_category = pc.extract::<bool>()?;
                     } else {
                         if let Ok(i) = pc.extract::<usize>() {
@@ -415,6 +408,25 @@ impl PyDataStoreCategory {
     pub fn load_function(&self) -> Option<&Py<PyAny>> {
         self.load_function.as_ref()
     }
+
+    fn __getitem__(&self, key: &str) -> PyResult<&PyObject> {
+        if let Some(l) = self.get(key)? {
+            Ok(l)
+        } else {
+            key_error!(format!("'{}' is not in data store '{}'", key, &self.name))
+        }
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self.objects()?.len())
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyDataStoreCategoryIter> {
+        Ok(PyDataStoreCategoryIter {
+            keys: slf.keys()?,
+            i: 0,
+        })
+    }
 }
 
 impl PyDataStoreCategory {
@@ -493,29 +505,14 @@ impl PyDataStoreCategory {
     }
 }
 
-#[pyproto]
-impl PyMappingProtocol for PyDataStoreCategory {
-    fn __getitem__(&self, key: &str) -> PyResult<&PyObject> {
-        if let Some(l) = self.get(key)? {
-            Ok(l)
-        } else {
-            key_error!(format!("'{}' is not in data store '{}'", key, &self.name))
-        }
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.objects()?.len())
-    }
-}
-
 #[pyclass]
 pub struct PyDataStoreCategoryIter {
     pub keys: Vec<String>,
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PyDataStoreCategoryIter {
+#[pymethods]
+impl PyDataStoreCategoryIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -527,15 +524,5 @@ impl pyo3::class::iter::PyIterProtocol for PyDataStoreCategoryIter {
         let name = slf.keys[slf.i].clone();
         slf.i += 1;
         Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PyDataStoreCategory {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<PyDataStoreCategoryIter> {
-        Ok(PyDataStoreCategoryIter {
-            keys: slf.keys()?,
-            i: 0,
-        })
     }
 }

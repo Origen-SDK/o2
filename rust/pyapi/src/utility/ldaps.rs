@@ -2,6 +2,13 @@ use pyapi_metal::prelude::frontend::*;
 use pyapi_metal::prelude::config::*;
 use pyapi_metal::utils::ldap::import_frontend_ldap;
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+
+pub fn define(m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(ldaps))?;
+    m.add_wrapped(wrap_pyfunction!(boot_ldaps))?;
+    Ok(())
+}
 
 #[pyfunction]
 pub fn ldaps() -> PyResult<Py<PyDataStoreCategory>> {

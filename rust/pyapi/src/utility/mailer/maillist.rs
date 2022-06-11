@@ -1,5 +1,4 @@
 use origen::utility::mailer::Maillist as OrigenML;
-use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
@@ -86,10 +85,7 @@ impl Maillists {
     fn production_maillists(&self) -> PyResult<HashMap<String, Maillist>> {
         self.maillists_for("production")
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for Maillists {
     fn __getitem__(&self, key: &str) -> PyResult<Maillist> {
         if let Some(l) = self.get(key)? {
             Ok(l)
@@ -104,6 +100,13 @@ impl PyMappingProtocol for Maillists {
         let ml = origen::maillists();
         Ok(ml.maillists.len())
     }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<MaillistsIter> {
+        Ok(MaillistsIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
+    }
 }
 
 #[pyclass]
@@ -112,8 +115,8 @@ pub struct MaillistsIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for MaillistsIter {
+#[pymethods]
+impl MaillistsIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -125,16 +128,6 @@ impl pyo3::class::iter::PyIterProtocol for MaillistsIter {
         let name = slf.keys[slf.i].clone();
         slf.i += 1;
         Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for Maillists {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<MaillistsIter> {
-        Ok(MaillistsIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
     }
 }
 

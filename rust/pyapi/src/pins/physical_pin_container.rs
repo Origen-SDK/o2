@@ -1,9 +1,6 @@
 use crate::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter};
 use indexmap::map::IndexMap;
-use pyo3::class::mapping::*;
 use pyo3::prelude::*;
-#[allow(unused_imports)]
-use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
 #[pyclass]
 pub struct PhysicalPinContainer {
@@ -31,6 +28,17 @@ impl PhysicalPinContainer {
     #[getter]
     fn get_pin_names(&self) -> PyResult<Vec<String>> {
         self.keys()
+    }
+
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        DictLikeAPI::__len__(self)
+    }
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
     }
 }
 
@@ -60,23 +68,5 @@ impl DictLikeAPI for PhysicalPinContainer {
         )
         .unwrap()
         .to_object(py))
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for PhysicalPinContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        DictLikeAPI::__getitem__(self, name)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        DictLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PhysicalPinContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
-        DictLikeAPI::__iter__(&*slf)
     }
 }

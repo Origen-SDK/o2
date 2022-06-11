@@ -4,7 +4,6 @@ use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, Limit, LimitSelector, ParamValue};
 use origen::testers::SupportedTester;
 use origen::Result;
-use pyo3::class::basic::PyObjectProtocol;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -106,17 +105,6 @@ impl Test {
         )?;
         Ok(())
     }
-}
-
-#[pyproto]
-impl PyObjectProtocol for Test {
-    //fn __repr__(&self) -> PyResult<String> {
-    //    Ok("Hello".to_string())
-    //}
-
-    //fn __getattr__(&self, _query: &str) -> PyResult<()> {
-    //    Ok(())
-    //}
 
     fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
         self.set_attr(name, to_param_value(value)?)?;

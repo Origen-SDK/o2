@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use pyapi_metal::prelude::{PyOutcome, typed_value};
 
 #[pymodule]
-fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Mailer>()?;
     m.add_class::<Maillist>()?;
     m.add_class::<Maillists>()?;

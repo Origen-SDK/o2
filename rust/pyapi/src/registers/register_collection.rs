@@ -1,6 +1,4 @@
 use super::bit_collection::BitCollection;
-use pyo3::class::basic::PyObjectProtocol;
-use pyo3::class::{PyMappingProtocol, PySequenceProtocol};
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 
@@ -24,6 +22,7 @@ pub struct RegisterCollection {
     /// Iterator index
     pub i: usize,
 }
+
 impl RegisterCollection {
     pub fn new() -> RegisterCollection {
         RegisterCollection {
@@ -32,60 +31,6 @@ impl RegisterCollection {
             ids: None,
             i: 0,
         }
-    }
-}
-
-#[pyproto]
-impl PyObjectProtocol for RegisterCollection {
-    fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("<RegisterCollection: {:?}>", self.keys().unwrap()))
-    }
-}
-
-#[pyproto]
-impl PySequenceProtocol for RegisterCollection {
-    fn __contains__(&self, name: &str) -> PyResult<bool> {
-        match pyo3::PyMappingProtocol::__getitem__(self, name) {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
-        }
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for RegisterCollection {
-    fn __getitem__(&self, name: &str) -> PyResult<BitCollection> {
-        let dut = origen::dut();
-        if let Some(ids) = &self.ids {
-            for id in ids {
-                let reg = dut.get_register(*id)?;
-                if reg.name == name {
-                    return Ok(BitCollection::from_reg_id(*id, &dut));
-                }
-            }
-            return Err(PyKeyError::new_err(format!(
-                "The register collection does not contain a register named '{}'",
-                name
-            )));
-        }
-        if let Some(x) = self.register_file_id {
-            let rf = dut.get_register_file(x)?;
-            let id = rf.get_register_id(name)?;
-            return Ok(BitCollection::from_reg_id(id, &dut));
-        }
-        if let Some(x) = self.address_block_id {
-            let ab = dut.get_address_block(x)?;
-            let id = ab.get_register_id(name)?;
-            return Ok(BitCollection::from_reg_id(id, &dut));
-        }
-        Err(PyKeyError::new_err(format!(
-            "Register collection does not contain a register named '{}'",
-            name
-        )))
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.len()?)
     }
 }
 
@@ -196,5 +141,50 @@ impl RegisterCollection {
             return Ok(items);
         }
         Ok(Vec::new())
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("<RegisterCollection: {:?}>", self.keys().unwrap()))
+    }
+
+    fn __contains__(&self, name: &str) -> PyResult<bool> {
+        match self.__getitem__(name) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
+    }
+
+    fn __getitem__(&self, name: &str) -> PyResult<BitCollection> {
+        let dut = origen::dut();
+        if let Some(ids) = &self.ids {
+            for id in ids {
+                let reg = dut.get_register(*id)?;
+                if reg.name == name {
+                    return Ok(BitCollection::from_reg_id(*id, &dut));
+                }
+            }
+            return Err(PyKeyError::new_err(format!(
+                "The register collection does not contain a register named '{}'",
+                name
+            )));
+        }
+        if let Some(x) = self.register_file_id {
+            let rf = dut.get_register_file(x)?;
+            let id = rf.get_register_id(name)?;
+            return Ok(BitCollection::from_reg_id(id, &dut));
+        }
+        if let Some(x) = self.address_block_id {
+            let ab = dut.get_address_block(x)?;
+            let id = ab.get_register_id(name)?;
+            return Ok(BitCollection::from_reg_id(id, &dut));
+        }
+        Err(PyKeyError::new_err(format!(
+            "Register collection does not contain a register named '{}'",
+            name
+        )))
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self.len()?)
     }
 }

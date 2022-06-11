@@ -5,7 +5,6 @@ use crate::utility::caller::src_caller_meta;
 use origen::prog_gen::{flow_api, Limit, LimitSelector, ParamValue};
 use origen::testers::SupportedTester;
 use origen::Result;
-use pyo3::class::basic::PyObjectProtocol;
 use pyo3::exceptions::PyAttributeError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -73,6 +72,20 @@ impl TestInvocation {
         )?;
         Ok(())
     }
+
+    fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
+        // Specials for platform specific attributes
+        if name == "test_method"
+            && (self.tester == SupportedTester::V93KSMT7
+                || self.tester == SupportedTester::V93KSMT8
+                || self.tester == SupportedTester::V93K)
+        {
+            let test = value.extract::<Test>()?;
+            return self.set_test_obj(test);
+        }
+        self.set_attr(name, to_param_value(value)?)?;
+        Ok(())
+    }
 }
 
 impl TestInvocation {
@@ -111,23 +124,6 @@ impl TestInvocation {
 
     pub fn set_attr(&self, name: &str, value: Option<ParamValue>) -> Result<()> {
         flow_api::set_test_attr(self.id, name, value, src_caller_meta())?;
-        Ok(())
-    }
-}
-
-#[pyproto]
-impl PyObjectProtocol for TestInvocation {
-    fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
-        // Specials for platform specific attributes
-        if name == "test_method"
-            && (self.tester == SupportedTester::V93KSMT7
-                || self.tester == SupportedTester::V93KSMT8
-                || self.tester == SupportedTester::V93K)
-        {
-            let test = value.extract::<Test>()?;
-            return self.set_test_obj(test);
-        }
-        self.set_attr(name, to_param_value(value)?)?;
         Ok(())
     }
 }
