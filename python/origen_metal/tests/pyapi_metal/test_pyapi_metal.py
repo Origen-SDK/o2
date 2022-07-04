@@ -88,13 +88,13 @@ class TestContextManagerWrapper:
     def test_context_manager_recovers_from_errors(self, tm):
         l = ["error_test"]
         assert tm.testing_context_wrapped_function == False
-        with pytest.raises(AssertionError, match="0 == 1"):
+        with pytest.raises(RuntimeError, match="Error Case Reached!"):
             with tm.context_wrapped_function(l) as t:
                 assert tm.testing_context_wrapped_function == True
                 assert t == "test_wrapped_function"
                 assert l == ["error_test", "added_perm", "added_temp"]
-                assert 0 == 1
-        assert l == ["error_test", "added_perm", "Found exception for error test: assert 0 == 1"]
+                raise RuntimeError("Error Case Reached!")
+        assert l == ["error_test", "added_perm", "Found exception for error test: Error Case Reached!"]
         assert tm.testing_context_wrapped_function == False
 
     # TODO add some additional robustness tests

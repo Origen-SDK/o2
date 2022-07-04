@@ -212,7 +212,7 @@ __exit__context_wrapped_function_no_scope = origen_metal._origen_metal.__test__.
                 let e = yield_return.downcast::<pyo3::exceptions::PyException>()?;
                 context.append(format!(
                     "Found exception for error test: {}",
-                    e.to_string().trim(),
+                    e.to_string(),
                 ))?;
             }
             test_mod.setattr(py, "testing_context_wrapped_function", false)?;
