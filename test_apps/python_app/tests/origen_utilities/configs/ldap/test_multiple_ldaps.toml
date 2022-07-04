@@ -1,8 +1,9 @@
 [ldaps]
 [ldaps.l1]
-server = "ldap://ldap.forumsys.com:389"
-base = "dc=example,dc=com"
+server = "ldap://ldap.duke.edu:389"
+base = "dc=duke,dc=edu"
 [ldaps.l2]
+# https://db.debian.org/
 server = "ldap://db.debian.org:389"
 base = "dc=debian,dc=org"
 [ldaps.l3]

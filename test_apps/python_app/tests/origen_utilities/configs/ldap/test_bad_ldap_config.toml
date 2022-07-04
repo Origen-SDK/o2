@@ -1,5 +1,5 @@
 [ldaps]
 [ldaps.bad]
-server = "ldap://ldap.forumsys.com:389"
-base = "dc=example,dc=com"
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"
 timeout = "hi"

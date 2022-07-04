@@ -140,17 +140,71 @@ def test_empty_datasets(q, options):
 
 def test_autopopulated_user(q, options):
     setenv(config_root, bypass_config_lookup=True)
+    u = options["user"]
+    id = u["uid"][0]
     import os
-    os.environ["LOGNAME"] = "tesla"
+    os.environ["LOGNAME"] = id
 
     import origen
-    assert origen.current_user.id == "tesla"
-    assert list(origen.ldaps.keys()) == ["forumsys_autopop"]
+    assert origen.current_user.id == id
+    assert list(origen.ldaps.keys()) == ["dummy_autopop_ldap"]
     assert list(origen.users.datasets.keys()) == ["autopop_ldap"]
     assert origen.users.data_lookup_hierarchy == ["autopop_ldap"]
     assert origen.current_user.datasets["autopop_ldap"].populated == True
-    assert origen.current_user.email == "tesla@ldap.forumsys.com"
-    assert origen.current_user.last_name == "Tesla"
-    assert origen.current_user.display_name == "tesla"
-    assert origen.current_user.username == "tesla"
-    assert origen.current_user.other["full_name"] == "Nikola Tesla"
+    assert origen.current_user.email == u["mail"][0]
+    assert origen.current_user.last_name == u["sn"][0]
+    assert origen.current_user.display_name == id
+    assert origen.current_user.username == id
+    assert origen.current_user.other["full_name"] == u["cn"][0]
+
+def test_suppress_initializing_current_user(q, options):
+    setenv(config_root, bypass_config_lookup=True)
+    import origen
+
+    q.put(("user_ids", set(origen.users.keys())))
+    q.put(("current_user", origen.current_user))
+    q.put(("initial_user", origen.initial_user))
+
+def test_loading_default_users(q, options):
+    setenv(config_root, bypass_config_lookup=True)
+    import origen
+
+    q.put(("user_ids", set(origen.users.keys())))
+    for n, u in origen.users.items():
+        if u.is_current:
+            pw = False
+        else:
+            try:
+                pw = u.password
+            except RuntimeError as e:
+                if str(e) == "Can't get the password for a user which is not the current user":
+                    pw = False
+                else:
+                    raise(e)
+        q.put((n, {
+            "dataset_names": set(u.datasets.keys()),
+            "username": u.username,
+            "password": pw,
+            "email": u.email,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            # TODO add full name?
+            # "full_name": u.full_name,
+            "__auto_populate__": u.__auto_populate__,
+            "__should_validate_passwords__": u.__should_validate_passwords__
+        }))
+
+def test_error_adding_default_users(q, options):
+    setenv(err_root, bypass_config_lookup=True)
+    import origen
+
+    q.put(("user_ids", set(origen.users.keys())))
+    q.put(("u1", {"username": origen.users["u1"].username}))
+    q.put(("u2", {"username": origen.users["u2"].username}))
+    q.put(("u3", {"username": origen.users["u3"].username}))
+
+def test_error_setting_default_user_fields(q, options):
+    setenv(err_root, bypass_config_lookup=True)
+    import origen
+
+    q.put(("user_ids", set(origen.users.keys())))

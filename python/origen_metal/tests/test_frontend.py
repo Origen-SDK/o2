@@ -222,7 +222,7 @@ class TestFrontendDataStore(Common):
             cat.name
         assert self.ds.remove_category(t) is None
 
-    def test_error_removing_nonexistant_categories(self):
+    def test_error_removing_nonexistent_categories(self):
         t = "test_cat_removal"
         with pytest.raises(
                 RuntimeError,

@@ -91,18 +91,6 @@ class T_InitialAndCurrentUser(Base):
         assert users.clear_current_user() is False
         assert users.current_user == None
 
-    def test_users_can_be_removed(self, unload_users, users, u, u_id):
-        assert u.id in users
-        users.remove(u.id)
-        assert u_id not in users
-
-        with pytest.raises(RuntimeError,
-                           match=f"No user '{u_id}' has been added"):
-            u.id
-
-        self.user()
-        assert u.id == u_id
-
     def test_removing_the_current_user(self, unload_users, users, u, u_id):
         users.set_current_user(u)
         assert users.current_user.id == u_id
@@ -181,3 +169,75 @@ class T_InitialAndCurrentUser(Base):
         users.lookup_current_id(update_current=True)
         assert users.current.id == self.logged_in_id
         assert users.initial.id == u_id
+
+    def test_knows_if_it_is_current_user(self, unload_users, users, u, u2):
+        users.set_current_user(u)
+        assert u.is_current is True
+        assert u.is_current_user is True
+        assert u2.is_current is False
+        assert u2.is_current_user is False
+
+        users.set_current_user(u2)
+        assert u.is_current is False
+        assert u.is_current_user is False
+        assert u2.is_current is True
+        assert u2.is_current_user is True
+
+    # TODO
+    # def test_auto_populating_with_username(self):
+    #     fail
+
+    def test_temporarily_switching_current_user(self, unload_users, users, u, u2):
+        users.set_current_user(u)
+        assert users.current == u
+
+        # Switch with user instance
+        with users.current_user_as(u2) as current:
+            assert current == u2
+            assert users.current.id == u2.id
+        assert users.current == u
+
+        # Switch with user ID
+        with users.current_user_as(u2.id) as current:
+            assert current == u2
+            assert users.current.id == u2.id
+        assert users.current == u
+
+        # Unsupported type
+        with pytest.raises(TypeError, match="Cannot resolve user from type 'int'"):
+            with users.current_user_as(0) as current:
+                pass
+
+
+    def test_temporarily_switching_current_user_from_none(self, unload_users, users, u, u_id):
+        assert users.current is None
+        with users.current_user_as(u_id) as current:
+            assert current.id == u_id
+            assert users.current.id == u_id
+        assert users.current is None
+
+    def test_temporarily_switching_current_user_to_none(self, unload_users, users, u, u_id):
+        users.set_current_user(u)
+        assert users.current == u
+
+        with users.current_user_as(None) as current:
+            assert current is None
+            assert users.current is None
+        assert users.current == u
+
+    def test_user_is_switched_back_even_if_errors_occur(self, unload_users, users, u, u_id):
+        assert users.current == None
+        with pytest.raises(RuntimeError, match="Error!"):
+            with users.current_user_as(u_id):
+                assert users.current.id == u_id
+                raise RuntimeError("Error!")
+        assert users.current == None
+
+    def test_error_switching_to_non_existent_user(self, unload_users, users, u, u_id):
+        users.set_current_user(u)
+        mia = "missing_user"
+        with pytest.raises(RuntimeError, match=f"Cannot set current user with id '{mia}'. User has not been added yet!"):
+            with users.current_user_as(mia):
+                raise RuntimeError("Should never get here")
+        assert users.current == u
+        assert users.current == u

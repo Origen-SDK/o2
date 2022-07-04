@@ -13,3 +13,12 @@ colorama = ">= 0.4.4" # Note: colorama is usually installed on the system alread
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
 pdoc = "^7"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+
+# Use '-m "not <mark>"' on the command line to bypass these tests
+markers = [
+    "online: marks tests as requiring an internet connection",
+    "ldap: marks tests requiring/using the external ldap",
+]

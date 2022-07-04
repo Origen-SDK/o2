@@ -1,7 +1,8 @@
 // use crate::core::user::with_top_hierarchy;
 use crate::{Result, ORIGEN_CONFIG, STATUS};
 use lettre;
-use origen_metal::{Outcome, with_current_user};
+use origen_metal::{Outcome, with_user_motive_or_default, users, with_user_or_current};
+use origen_metal::framework::users::User;
 use std::path::PathBuf;
 
 use crate::utility::resolve_os_str;
@@ -391,7 +392,7 @@ impl Mailer {
             },
             service_user: {
                 if let Some(su) = config.get(SERVICE_USER_STR).as_ref() {
-                    if !ORIGEN_CONFIG.service_users.contains_key(*su) {
+                    if !users().users().contains_key(su.as_str()) {
                         display_redln!(
                             "Invalid service user '{}' provided in mailer configuration",
                             su
@@ -432,19 +433,26 @@ impl Mailer {
         Ok(retn)
     }
 
-    pub fn service_user(&self) -> Result<Option<(&str, &HashMap<String, String>)>> {
-        if let Some(u) = self.service_user.as_ref() {
-            if let Some(su) = ORIGEN_CONFIG.service_users.get(u) {
-                Ok(Some((&u, su)))
-            } else {
-                bail!(
-                    "Invalid service user '{}' provided in mailer configuration",
-                    u
-                )
-            }
+
+
+    pub fn with_user<T, F>(&self, apply_motive: bool, func: F) -> Result<T>
+    where
+        F: Fn(&User) -> Result<T>,
+    {
+        if apply_motive {
+            with_user_motive_or_default(self.service_user.as_ref(), PASSWORD_REASON, |u| {
+                func(u)
+            })
         } else {
-            Ok(None)
+            with_user_or_current(self.service_user.as_ref(), |u| {
+                func(u)
+            })
         }
+    }
+
+
+    pub fn service_user(&self) -> Result<Option<&String>> {
+        Ok(self.service_user.as_ref())
     }
 
     pub fn username(&self) -> Result<String> {
@@ -454,21 +462,9 @@ impl Mailer {
                 SupportedAuths::None
             )
         } else {
-            if let Some(u) = self.service_user()? {
-                if let Some(n) = u.1.get("username") {
-                    Ok(n.into())
-                } else {
-                    Ok(u.0.into())
-                }
-            } else {
-                if let Some(d) = self.get_dataset()? {
-                    Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| {
-                        u.username()
-                    })?)
-                } else {
-                    Ok(with_current_user(|u| u.username())?)
-                }
-            }
+            self.with_user(true, |u| {
+                u.username()
+            })
         }
     }
 
@@ -479,51 +475,23 @@ impl Mailer {
                 SupportedAuths::None
             )
         } else {
-            if let Some(u) = self.service_user()? {
-                if let Some(p) = u.1.get("password") {
-                    Ok(p.into())
-                } else {
-                    bail!("No password given for service user '{}'", u.0)
-                }
-            } else {
-                Ok(with_current_user(|u| {
-                    u.password(Some(PASSWORD_REASON), true, Some(None))
-                })?)
-            }
+            self.with_user(true, |u| {
+                u.password(Some(PASSWORD_REASON), true, Some(None))
+            })
         }
     }
 
     pub fn sender(&self) -> Result<String> {
-        if let Some(u) = self.service_user()? {
-            if let Some(e) = u.1.get("email") {
-                return Ok(e.into());
-            }
-        }
-        if let Some(d) = self.get_dataset()? {
-            Ok(origen_metal::with_user_hierarchy(None, &vec![d], |u| {
-                u.require_email()
-            })?)
-        } else {
-            Ok(with_current_user(|u| u.require_email())?)
-        }
+        self.with_user(true, |u| {
+            u.require_email()
+        })
     }
 
-    fn get_dataset(&self) -> Result<Option<String>> {
-        Ok(with_current_user(|u| {
-            if let Some(d) = u.dataset_for(PASSWORD_REASON)? {
-                Ok(Some(d.to_string()))
-            } else {
-                Ok(None)
-            }
-        })?)
-    }
 
     pub fn dataset(&self) -> Result<Option<String>> {
-        if let Some(_u) = self.service_user()? {
-            bail!("Cannot query the user dataset for the mailer when specifying a service user")
-        } else {
-            self.get_dataset()
-        }
+        self.with_user(false, |u| {
+            Ok(u.dataset_for(PASSWORD_REASON)?.map(|ds| ds.to_string()))
+        })
     }
 
     pub fn get_port(&self) -> Result<usize> {

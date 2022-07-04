@@ -8,7 +8,8 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
-use pyapi_metal::prelude::{PyOutcome, typed_value};
+use pyapi_metal::prelude::{PyOutcome, typed_value, runtime_error};
+use pyapi_metal::prelude::users::*;
 
 #[pymodule]
 pub fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -104,12 +105,21 @@ impl Mailer {
     }
 
     #[getter]
-    fn get_service_user(&self) -> PyResult<Option<String>> {
-        if let Some(su) = self.mailer.service_user()? {
-            Ok(Some(su.0.to_string()))
+    fn get_service_user(&self) -> PyResult<Option<PyUser>> {
+        if let Some(s) = self.mailer.service_user()? {
+            let users = users()?;
+            match users.get(s)? {
+                Some(u) => Ok(Some(u)),
+                None => runtime_error!(format!("Invalid service user '{}' provided in mailer configuration", s))
+            }
         } else {
             Ok(None)
         }
+    }
+
+    #[getter]
+    fn __get_service_user__(&self) -> PyResult<Option<&String>> {
+        Ok(self.mailer.service_user()?)
     }
 
     #[getter]

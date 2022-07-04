@@ -8,7 +8,7 @@ extern crate pest_derive;
 #[macro_use]
 pub mod macros;
 #[macro_use]
-extern crate cfg_if;
+pub extern crate cfg_if;
 #[macro_use]
 extern crate enum_display_derive;
 pub mod _utility;
@@ -38,12 +38,12 @@ pub use framework::users::users::{
     get_current_user_id, get_initial_user_id, require_current_user_email,
     require_current_user_home_dir, require_current_user_id, set_current_user,
     try_lookup_and_set_current_user, try_lookup_current_user, users, users_mut, with_current_user,
-    with_current_user_session, with_user, with_user_mut, with_users, with_users_mut,
+    with_current_user_session, with_user, with_user_mut, with_users, with_users_mut, with_user_or_current,
 };
 // TODO and this?
 pub use framework::users::user::{
     add_dataset_to_user, register_dataset_with_user, with_user_dataset, with_user_dataset_mut,
-    with_user_hierarchy,
+    with_user_hierarchy, with_user_motive_or_default
 };
 pub use framework::users::users::unload as unload_users;
 pub use utils::os::on_linux as running_on_linux;

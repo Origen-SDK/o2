@@ -21,7 +21,7 @@ class TestMailer:
             "port": 25,
             "domain": "origen.org",
             "auth_method": "None",
-            "service_user": "forumsys_read_only",
+            "service_user": "dummy_ldap_read_only",
             "timeout_seconds": 120,
             "auth_email": None,
             "auth_password": None,
@@ -71,9 +71,7 @@ class TestMailer:
             assert retn["server"] == "smtp.origen.org"
             assert retn["auth_method"] == "TLS"
             assert retn["service_user"] == "mailer_service_user"
-            assert isinstance(retn["dataset"], RuntimeError)
-            assert "Cannot query the user dataset for the mailer when specifying a service user" in str(
-                retn["dataset"])
+            assert retn["dataset"] is None
             assert retn["username"] == "mailer"
             assert retn["password"] == "test"
             assert retn["sender"] == "service@origen.org"
@@ -119,19 +117,23 @@ class TestMailer:
             assert err in capfd.readouterr().err
 
         def test_error_on_tls_with_invalid_service_user(self, capfd):
-            err = "Invalid service user 'blah' provided in mailer configuration"
+            # General user stuff will throw this error
+            err_u = "No user 'blah' has been added"
+
+            # Service user specifics will throw this error
+            err_su = "Invalid service user 'blah' provided in mailer configuration"
             retn = in_new_origen_proc(mod=mailer_configs)
             assert retn["server"] == "smtp.origen.org"
             assert retn["auth_method"] == "TLS"
             assert isinstance(retn["service_user"], RuntimeError)
-            assert err in str(retn["service_user"])
+            assert err_su in str(retn["service_user"])
             assert isinstance(retn["username"], RuntimeError)
-            assert err in str(retn["username"])
+            assert err_u in str(retn["username"])
             assert isinstance(retn["password"], RuntimeError)
-            assert err in str(retn["password"])
+            assert err_u in str(retn["password"])
             assert isinstance(retn["test"], RuntimeError)
-            assert err in str(retn["test"])
-            assert err in capfd.readouterr().out
+            assert err_u in str(retn["test"])
+            assert err_su in capfd.readouterr().out
 
         def test_error_on_invalid_auth_method(self, capfd):
             retn = in_new_origen_proc(mod=mailer_configs)

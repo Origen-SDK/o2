@@ -207,3 +207,9 @@ class Base:
     def lookup_current_id_function(self):
         ''' Function that will be called by the backend to get the current user ID from a frontend-defined function '''
         return "__frontend_user__"
+
+    @pytest.fixture
+    def ensure_frontend_dummy_category(self, needs_frontend, cat_name):
+        if cat_name not in needs_frontend.data_stores:
+            needs_frontend.data_stores.add_category(cat_name)
+        return needs_frontend.data_stores[cat_name]

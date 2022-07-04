@@ -1,7 +1,7 @@
 [ldaps]
 [ldaps.full]
-server = "ldap://ldap.forumsys.com:389"
-base = "dc=example,dc=com"
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"
 timeout = 45
 continuous_bind = true
 [ldaps.full.auth]

@@ -131,8 +131,8 @@ def run_cmd(command,
     # TODO need to remove generic result
     elif command == "mailer:test":
         if origen.mailer is None:
-            r = origen.utility.results.GenericResult(
-                succeeded=False, message="No mailer available!")
+            from origen_metal.framework import Outcome
+            r = Outcome(succeeded=False, message="No mailer available!")
         else:
             r = origen.app.mailer.test(args.get("to", None))
         r.summarize_and_exit()
@@ -140,8 +140,8 @@ def run_cmd(command,
     # TODO need to remove generic result
     elif command == "mailer:send":
         if origen.mailer is None:
-            r = origen.utility.results.GenericResult(
-                succeeded=False, message="No mailer available!")
+            from origen_metal.framework import Outcome
+            r = Outcome(succeeded=False, message="No mailer available!")
         else:
             r = origen.app.mailer.send(subject=args.get("subject", None),
                                        to=args.get("to", None),

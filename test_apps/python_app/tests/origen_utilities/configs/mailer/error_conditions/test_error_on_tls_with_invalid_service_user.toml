@@ -3,8 +3,8 @@ server = "smtp.origen.org"
 auth_method = "TLS"
 service_user = "blah"
 
-[service_users]
-[service_users.mailer_service_user]
+[default_users]
+[default_users.mailer_service_user]
 username = "mailer"
 password = "test"
 email = "service@origen.org"

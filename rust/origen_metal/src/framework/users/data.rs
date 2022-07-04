@@ -156,6 +156,10 @@ impl Data {
         Ok(())
     }
 
+    pub fn set_should_validate_password(&mut self, new_val: Option<bool>) -> () {
+        self.config.should_validate_password = new_val;
+    }
+
     pub fn config(&self) -> &DatasetConfig {
         &self.config
     }

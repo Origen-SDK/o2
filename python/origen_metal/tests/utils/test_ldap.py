@@ -1,55 +1,123 @@
-import pytest
+# TODO need to clean this up
+
+import pytest, copy
 import origen_metal as om
 from origen_metal.utils.ldap import LDAP
 from origen_metal.frontend import DataStoreView
 from tests.framework.users.shared import unload_users, users
 
-SERVER = "ldap://ldap.forumsys.com:389"
-BASE = "dc=example,dc=com"
-AUTH_TYPE = "simple_bind"
-AUTH_USERNAME = "cn=read-only-admin,dc=example,dc=com"
-USER_USERNAME = "uid=euler,dc=example,dc=com"
-PASSWORD = "password"
-NAME = "forumsys"
-TIMEOUT = 5
-CONTINUOUS_BIND = False
-AUTH_SETUP = {
-    "scheme": AUTH_TYPE,
-    "username": AUTH_USERNAME,
-    "password": PASSWORD
-}
-POPULATE_USER_CONFIG = {
-    "data_id": "uid",
-    "mapping": {
-        "email": "mail",
-        "last_name": "sn",
-        "full_name": "cn"
+# FORUMSYS LDAP
+# https://www.forumsys.com/2022/05/10/online-ldap-test-server/
+# Started with this one, but after using it for a bit, server started to have various timeout
+# issues, eventually leading to just an inability to connect, despite other LDAPs working.
+# Switched to the ZFLEX LLDAP but leaving the parameterized setup here in case its needed.
+# Note: this setup was refactored due to the switch to ZFLEX, so the parameters have not been/cannot be tested.
+FORUMSYS = {
+    "name": "forumsys",
+    "server": "ldap://ldap.forumsys.com:389",
+    "base": "dc=example,dc=com",
+    "auth_config": {
+        "scheme": "simple_bind",
+        "username": "cn=read-only-admin,dc=example,dc=com",
+        "password": "zflexpass",
+    },
+    "dn_prefix": None,
+    "populate_user_config": {
+        "data_id": "uid",
+        "mapping": {
+            "email": "mail",
+            "last_name": "sn",
+            "full_name": "cn"
+        }
+    },
+    "users": {
+        "euler": {
+            "fields": {
+                'cn': ['Leonhard Euler'],
+                'sn': ['Euler'],
+                'uid': ['euler'],
+                'objectClass': ['inetOrgPerson', 'organizationalPerson', 'person', 'top'],
+                'mail': ['euler@ldap.forumsys.com']
+            },
+            "password": "password",
+        },
+        "curie": {
+            "fields": {
+                'mail': ['curie@ldap.forumsys.com'],
+                'cn': ['Marie Curie']
+            }
+        }
     }
 }
 
-INIT_PARAMS = [
-    SERVER,
-    BASE,
-    AUTH_SETUP,
-    CONTINUOUS_BIND,
-    None,
-    TIMEOUT,
-]
-
+# ZFLEX test ldap
+# https://www.zflexldapadministrator.com/index.php/component/content/article?id=82:free-online-ldap
+ZFLEX = {
+    "name": "zflex",
+    "server": "ldap://zflexldap.com:389",
+    "base": "dc=zflexsoftware,dc=com",
+    "auth_config": {
+        "scheme": "simple_bind",
+        "username": "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com",
+        "password": "zflexpass",
+    },
+    "dn_prefix": "ou=users,ou=guests",
+    "populate_user_config": {
+        "data_id": "uid",
+        "mapping": {
+            "email": "mail",
+            "last_name": "sn",
+            "full_name": "cn"
+        }
+    },
+    "users": {
+        "guest1": {
+            "fields": {
+                'title': ['Contractor1'],
+                'mail': ['guest1@zflexsoftware.com'],
+                'facsimileTelephoneNumber': ['330-333-3342'],
+                'employeetype': ['temp'],
+                'employeeNumber': ['11003'],
+                'cn': ['Guest Number One'],
+                'l': ['Boston'],
+                'mobile': ['909-983-4552'],
+                'objectClass': ['top', 'person', 'organizationalPerson', 'inetOrgPerson'],
+                'givenName': ['Guest'],
+                'pager': ['303-223-9876'],
+                'displayname': ['Guest1 NumberOne'],
+                'uid': ['guest1'],
+                'street': ['403 Anywhere Lane'],
+                'postalCode': ['30994'],
+                'postalAddress': ['3088 NewMain Street'],
+                'departmentNumber': ['0001'],
+                'sn': ['Number One']
+            },
+            "password": "guest1password",
+        },
+        "guest2": {
+            "fields": {
+                'mail': ['guest2@zflexsoftware.com'],
+                'sn': ['NumberTwo'],
+                'cn': ['guest2 NumberTwo'],
+            }
+        }
+    }
+}
 
 class Common:
-    def forumsys_ldap(self, timeout=5, continuous_bind=False, populate_user_config=False):
+    def dummy_ldap(self, name=None, timeout=5, continuous_bind=False, populate_user_config=False):
         if populate_user_config is True:
-            pop_config = POPULATE_USER_CONFIG
+            pop_config = self.config["populate_user_config"]
         elif populate_user_config is False:
             pop_config = None
         else:
             pop_config = populate_user_config
+
         return om._origen_metal.utils.ldap.LDAP(
-            name=NAME,
-            server=SERVER,
-            base=BASE,
-            auth=AUTH_SETUP,
+            name=(name or self.config["name"]),
+            server=self.config["server"],
+            base=self.config["base"],
+            auth=self.config["auth_config"],
             timeout=timeout,
             continuous_bind=continuous_bind,
             populate_user_config=pop_config,
@@ -59,22 +127,132 @@ class Common:
     def ldap_class(self):
         return LDAP
 
+    class DummyLDAPConfig:
+        class User:
+            def __init__(self, id, parent):
+                self.id = id
+                self.parent = parent
+
+            @property
+            def fields(self):
+                return self.parent["users"][self.id]["fields"]
+
+            def __getattr__(self, name):
+                if name in self.fields:
+                    f = self.fields[name]
+                    return f[0] if len(f) == 1 else f
+                else:
+                    return object.__getattribute__(self, name)
+
+            @property
+            def qualified_id(self):
+                return f"uid={self.id}{(',' + self.parent.dn_prefix) if self.parent.dn_prefix else ''},{self.parent.base}"
+
+            @property
+            def password(self):
+                return self.parent["users"][self.id]["password"]
+
+        def __init__(self, config):
+            self.config = config
+            self._users = []
+            for n, c in config["users"].items():
+                self._users.append(self.User(n, self))
+
+        def as_params_list(self):
+            return [
+                self.server,
+                self.base,
+                self.auth_config,
+                False,
+                self.populate_user_config,
+                5,
+            ]
+
+        @property
+        def server(self):
+            return self.config["server"]
+
+        @property
+        def base(self):
+            return self.config["base"]
+
+        @property
+        def dn_prefix(self):
+            return self.config["dn_prefix"]
+
+        @property
+        def name(self):
+            return self.config["name"]
+
+        @property
+        def auth_config(self):
+            return self.config["auth_config"]
+
+        @property
+        def auth_scheme(self):
+            return self.config["auth_config"]["scheme"]
+
+        @property
+        def auth_username(self):
+            return self.config["auth_config"]["username"]
+
+        @property
+        def auth_password(self):
+            return self.config["auth_config"]["password"]
+
+        @property
+        def populate_user_config(self):
+            return self.config["populate_user_config"]
+
+        @property
+        def users(self):
+            return self._users
+
+        @property
+        def u1(self):
+            return self._users[0]
+
+        @property
+        def u2(self):
+            return self._users[1]
+
+        def __getitem__(self, key):
+            return self.config[key]
+
+    @classmethod
+    def get_dummy_config(cls):
+        return cls.DummyLDAPConfig(ZFLEX)
+
     @property
-    def init_params(self):
-        return INIT_PARAMS
+    def config(self):
+        if not hasattr(self, "_config"):
+            self._config = self.get_dummy_config()
+        return self._config
 
+    @pytest.fixture
+    def dummy_config(self):
+        return self.config
 
+    @pytest.fixture
+    def u1(self, dummy_config):
+        return dummy_config.u1
+
+    @pytest.fixture
+    def u2(self, dummy_config):
+        return dummy_config.u2
+
+@pytest.mark.ldap
 class TestStandaloneLDAP(Common):
-    def test_ldap_parameters(self):
-        ldap = self.forumsys_ldap()
-        assert ldap.base == BASE
-        assert ldap.server == SERVER
-        assert ldap.name == NAME
+    def test_ldap_parameters(self, dummy_config):
+        ldap = self.dummy_ldap()
+        assert ldap.base == dummy_config.base
+        assert ldap.server == dummy_config.server
+        assert ldap.name == dummy_config.name
         assert ldap.bound == False
         assert ldap.auth_config == {
-            'scheme': AUTH_TYPE,
-            'username': AUTH_USERNAME,
-            'password': PASSWORD,
+            'scheme': dummy_config.auth_scheme,
+            'username': dummy_config.auth_username,
+            'password': dummy_config.auth_password,
             'allow_default_password': True,
             'use_default_motives': True,
             'priority_motives': [],
@@ -82,18 +260,19 @@ class TestStandaloneLDAP(Common):
         }
         assert ldap.continuous_bind == False
         assert ldap.timeout == 5
+        assert ldap.populate_user_config == None
 
-    def test_ldap_minimum_parameters(self):
+    def test_ldap_minimum_parameters(self, dummy_config):
         ldap = om._origen_metal.utils.ldap.LDAP(
             name="min",
-            base=BASE,
-            server=SERVER,
+            base=dummy_config.base,
+            server=dummy_config.server,
         )
         assert ldap.name == "min"
-        assert ldap.base == BASE
-        assert ldap.server == SERVER
+        assert ldap.base == dummy_config.base
+        assert ldap.server == dummy_config.server
         assert ldap.auth_config == {
-            'scheme': AUTH_TYPE,
+            'scheme': dummy_config.auth_scheme,
             'username': None,
             'password': None,
             'allow_default_password': True,
@@ -106,92 +285,86 @@ class TestStandaloneLDAP(Common):
         assert ldap.populate_user_config == None
 
     def test_ldap_can_bind(self):
-        ldap = self.forumsys_ldap(continuous_bind=True)
+        ldap = self.dummy_ldap(continuous_bind=True)
         assert ldap.continuous_bind == True
         assert ldap.bind()
         assert ldap.bound == True
 
         # If continuous bind is disabled, ldap.bound should reflect this
         # 'ldap.bind' in this context is more like a 'try to bind' than an actual bind
-        ldap = self.forumsys_ldap()
+        ldap = self.dummy_ldap()
         assert ldap.continuous_bind == False
         assert ldap.bind()
         assert ldap.bound == False
 
-    def test_ldap_timeout_settings(self):
+    def test_ldap_timeout_settings(self, dummy_config):
         # Default timeout should be 60
         ldap = om._origen_metal.utils.ldap.LDAP(
-            name=NAME,
-            server=SERVER,
-            base=BASE,
-            auth=AUTH_SETUP,
+            name=dummy_config.name,
+            base=dummy_config.base,
+            server=dummy_config.server,
             continuous_bind=False,
         )
         assert ldap.timeout == 60
 
         # Using 'False' should result in no timeout (will wait indefinitely)
         # This is returned as a "None"
-        ldap = self.forumsys_ldap(timeout=False)
+        ldap = self.dummy_ldap(timeout=False)
         assert ldap.timeout == None
 
         # Likewise, "True" will just apply the default
-        ldap = self.forumsys_ldap(timeout=True)
+        ldap = self.dummy_ldap(timeout=True)
         assert ldap.timeout == 60
 
         # Otherwise, timeout option should be used
-        ldap = self.forumsys_ldap()
+        ldap = self.dummy_ldap()
         assert ldap.timeout == 5
 
-    def test_ldap_searching(self):
-        ldap = self.forumsys_ldap()
-        results = ldap.search("(uid=euler)", [])
+    def test_ldap_searching(self, u1, u2):
+        ldap = self.dummy_ldap()
+        results = ldap.search(f"(uid={u1.id})", [])
         assert results == {
-            'uid=euler,dc=example,dc=com': ({
-                'cn': ['Leonhard Euler'],
-                'sn': ['Euler'],
-                'uid': ['euler'],
-                'objectClass':
-                ['inetOrgPerson', 'organizationalPerson', 'person', 'top'],
-                'mail': ['euler@ldap.forumsys.com']
-            }, {})
+            u1.qualified_id: (u1.fields, {})
         }
-        results = ldap.search("(|(uid=tesla)(uid=curie))", ["cn", "mail"])
+        results = ldap.search(f"(|(uid={u1.id})(uid={u2.id}))", ["cn", "mail"])
         assert results == {
-            'uid=tesla,dc=example,dc=com': ({
-                'cn': ['Nikola Tesla'],
-                'mail': ['tesla@ldap.forumsys.com']
+            u1.qualified_id: ({
+                'cn': [u1.cn],
+                'mail': [u1.mail]
             }, {}),
-            'uid=curie,dc=example,dc=com': ({
-                'mail': ['curie@ldap.forumsys.com'],
-                'cn': ['Marie Curie']
+            u2.qualified_id: ({
+                'mail': [u2.mail],
+                'cn': [u2.cn]
             }, {})
         }
-        results = ldap.search("(|(uid=tesla)(uid=curie))", ["BLAH"])
+
+        results = ldap.search(f"(|(uid={u1.id})(uid={u2.id}))", ["BLAH"])
         assert results == {
-            'uid=curie,dc=example,dc=com': ({}, {}),
-            'uid=tesla,dc=example,dc=com': ({}, {})
+            u1.qualified_id: ({}, {}),
+            u2.qualified_id: ({}, {})
         }
         results = ldap.search("(|(uid=blah)(uid=none))", ["BLAH"])
         assert results == {}
 
-    def test_single_filter_search(self):
-        ldap = self.forumsys_ldap()
-        results = ldap.single_filter_search("(uid=tesla)", ["cn", "mail"])
+
+    def test_single_filter_search(self, u1):
+        ldap = self.dummy_ldap()
+        results = ldap.single_filter_search(f"(uid={u1.id})", ["cn", "mail"])
         assert results == ({
-            'mail': ['tesla@ldap.forumsys.com'],
-            'cn': ['Nikola Tesla']
+            'mail': [u1.mail],
+            'cn': [u1.cn]
         }, {})
         results = ldap.single_filter_search("(uid=blah)", ["cn", "mail"])
         assert results == ({}, {})
 
-    def test_error_if_single_filter_search_returns_multiple_dns(self):
-        ldap = self.forumsys_ldap()
+    def test_error_if_single_filter_search_returns_multiple_dns(self, u1, u2):
+        ldap = self.dummy_ldap()
         with pytest.raises(RuntimeError,
                            match="expected a single DN result from filter"):
-            ldap.single_filter_search("(|(uid=tesla)(uid=Curie))", ["mail"])
+            ldap.single_filter_search(f"(|(uid={u1.id})(uid={u2.id}))", ["mail"])
 
     def test_unbind_and_rebind(self):
-        ldap = self.forumsys_ldap(continuous_bind=True)
+        ldap = self.dummy_ldap(continuous_bind=True)
         assert ldap.bind()
         assert ldap.bound
         assert ldap.unbind()
@@ -199,22 +372,22 @@ class TestStandaloneLDAP(Common):
         assert ldap.bind()
         assert ldap.bound
 
-        ldap = self.forumsys_ldap()
+        ldap = self.dummy_ldap()
         assert ldap.bind()
         assert ldap.bound == False
         assert ldap.unbind() == False
 
-    def test_validating_passwords(self):
-        ldap = self.forumsys_ldap(continuous_bind=True)
+    def test_validating_passwords(self, dummy_config):
+        ldap = self.dummy_ldap(continuous_bind=True)
         assert ldap.bind()
         assert ldap.bound == True
-        assert ldap.validate_credentials(USER_USERNAME, PASSWORD)
-        assert not ldap.validate_credentials(USER_USERNAME, "?")
+        assert ldap.validate_credentials(dummy_config.users[0].qualified_id, dummy_config.users[0].password)
+        assert not ldap.validate_credentials(dummy_config.users[0].qualified_id, "?")
         # Should not effect the current LDAP
         assert ldap.bound == True
 
     def test_populate_user_config(self):
-        ldap = self.forumsys_ldap(populate_user_config=True)
+        ldap = self.dummy_ldap(populate_user_config=True)
         assert ldap.populate_user_config == {
             "data_id": "uid",
             "mapping": {
@@ -225,7 +398,7 @@ class TestStandaloneLDAP(Common):
         }
     
     def test_timeout_can_be_set(self):
-        ldap = self.forumsys_ldap(populate_user_config=True)
+        ldap = self.dummy_ldap(populate_user_config=True)
         assert ldap.timeout == 5
         ldap.timeout = 10
         assert ldap.timeout == 10
@@ -234,15 +407,17 @@ class TestStandaloneLDAP(Common):
         ldap.timeout = None
         assert ldap.timeout is None
 
+@pytest.mark.ldap
 class TestLdapAsDataStore(DataStoreView):
     ''' The LDAP's only data store feature is populating users'''
     def parameterize(self):
+        config = Common.get_dummy_config()
         return {
             "init_args": [
                 self.ds_test_name,
-                SERVER,
-                BASE,
-                AUTH_SETUP,
+                config.server,
+                config.base,
+                config.auth_config,
             ],
         }
 
@@ -251,21 +426,24 @@ class TestLdapAsDataStore(DataStoreView):
         return LDAP
 
     def test_underlying_ldap_search_works(self):
-        results = self.ds.single_filter_search("(uid=tesla)", ["cn", "mail"])
+        u = Common.get_dummy_config().u1
+        results = self.ds.single_filter_search(f"(uid={u.id})", ["cn", "mail"])
         assert results == ({
-            'mail': ['tesla@ldap.forumsys.com'],
-            'cn': ['Nikola Tesla']
+            'mail': [u.mail],
+            'cn': [u.cn]
         }, {})
 
 
+@pytest.mark.ldap
 class TestAuthSetups:
     class TestSimpleBind:
         @pytest.fixture
         def min_auth(self):
+            config = Common.get_dummy_config()
             return om._origen_metal.utils.ldap.LDAP(
                 name="min",
-                base=BASE,
-                server=SERVER,
+                base=config.base,
+                server=config.server,
             )
 
         @pytest.fixture
@@ -282,12 +460,13 @@ class TestAuthSetups:
             return users.current_user
 
         def test_default_simple_bind_setup(self, unload_users, u, cu):
+            config = Common.get_dummy_config()
             u.password = "top_pwd"
             # No auth given but username and password provided assumes 'simple bind'
             ldap = om._origen_metal.utils.ldap.LDAP(
                 name="min",
-                base=BASE,
-                server=SERVER,
+                base=config.base,
+                server=config.server,
             )
             auth = ldap.auth
             assert auth["scheme"] == "simple_bind"
@@ -295,7 +474,7 @@ class TestAuthSetups:
             assert auth["motives"] == ["min", "ldap"]
 
             assert ldap.auth_config == {
-                'scheme': AUTH_TYPE,
+                'scheme': config.auth_scheme,
                 'username': None,
                 'password': None,
                 'allow_default_password': True,
@@ -332,17 +511,18 @@ class TestAuthSetups:
             assert min_auth.auth["password"] == "ldap_min_pw"
 
         def test_using_custom_motives(self, unload_users, u, cu):
+            config = Common.get_dummy_config()
             ldap = om._origen_metal.utils.ldap.LDAP(
                 name="custom_motives",
-                base=BASE,
-                server=SERVER,
+                base=config.base,
+                server=config.server,
                 auth={
                     "priority_motives": ["ldap_pw"],
                     "backup_motives": ["ldap_pw_backup"],
                     "allow_default_password": False,
                 })
             assert ldap.auth_config == {
-                'scheme': AUTH_TYPE,
+                'scheme': config.auth_scheme,
                 'username': None,
                 'password': None,
                 'allow_default_password': False,
@@ -384,11 +564,12 @@ class TestAuthSetups:
 
         @pytest.mark.skip
         def test_error_when_no_password_given_and_no_motive_allowed(self):
+            config = Common.get_dummy_config()
             with pytest.raises(RuntimeError, match="???"):
                 ldap = om._origen_metal.utils.ldap.LDAP(
                     name="custom_motives",
-                    base=BASE,
-                    server=SERVER,
+                    base=config.base,
+                    server=config.server,
                     auth={
                         "allow_default_password": False,
                         "use_default_motives": False,
@@ -397,14 +578,15 @@ class TestAuthSetups:
         def test_custom_motives_only(self, unload_users, users, u, cu):
             # Auth and username given, but no password, looks up user with same password motives as before
             # Mimics how a service user may be used
+            config = Common.get_dummy_config()
             su = users.add("mimic_service_user")
             su.register_dataset("for_ldap")
             su.add_motive("ldap_name_only", "for_ldap")
             su.datasets["for_ldap"].password = "service_user_pw"
             ldap = om._origen_metal.utils.ldap.LDAP(
                 name="su_ldap",
-                base=BASE,
-                server=SERVER,
+                base=config.base,
+                server=config.server,
                 auth={
                     "username": su.id,
                     # TODO accept a string here? "priority_motives": "ldap_name_only"
@@ -423,9 +605,10 @@ class TestAuthSetups:
         def test_given_password_without_username(self, cu):
             # Auth and password given but no username assumes current user
             # Can be used a hard-code/shared/common password without needing to explicitly add a dataset
+            config = Common.get_dummy_config()
             ldap = om._origen_metal.utils.ldap.LDAP(name="ldap_static_pw",
-                                                    base=BASE,
-                                                    server=SERVER,
+                                                    base=config.base,
+                                                    server=config.server,
                                                     auth={
                                                         "password":
                                                         "static_pw",
@@ -445,10 +628,11 @@ class TestAuthSetups:
 
         def test_given_username_and_password(self):
             ''' A user does not need to exists if both username and password are given'''
+            config = Common.get_dummy_config()
             ldap = om._origen_metal.utils.ldap.LDAP(
                 name="ldap_static_user_and_pw",
-                base=BASE,
-                server=SERVER,
+                base=config.base,
+                server=config.server,
                 auth={
                     "username": "static_user",
                     "password": "static_pw",
@@ -462,10 +646,11 @@ class TestAuthSetups:
 
         def test_given_user_does_not_exists(self):
             static_n = "static_user"
+            config = Common.get_dummy_config()
             ldap = om._origen_metal.utils.ldap.LDAP(
                 name="ldap_static_user_and_pw",
-                base=BASE,
-                server=SERVER,
+                base=config.base,
+                server=config.server,
                 auth={
                     "username": static_n,
                 })

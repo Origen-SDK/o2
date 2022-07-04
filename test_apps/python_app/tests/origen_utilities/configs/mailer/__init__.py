@@ -45,7 +45,7 @@ def test_tls_service_user(q, options):
     import origen
     q.put(("server", origen.mailer.server))
     q.put(("auth_method", origen.mailer.auth_method))
-    q.put(("service_user", origen.mailer.service_user))
+    q.put(("service_user", origen.mailer.service_user.id))
     q.put(("username", origen.mailer.username))
     q.put(("password", origen.mailer.password))
     q.put(("sender", origen.mailer.sender))

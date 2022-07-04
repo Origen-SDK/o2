@@ -41,6 +41,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
 use utility::location::Location;
+use paste::paste;
 
 use crate::dut::__PYO3_PYMODULE_DEF_DUT;
 use crate::tester::__PYO3_PYMODULE_DEF_TESTER;
@@ -784,17 +785,70 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         }
     }
 
+    macro_rules! log_error__set_field_for_default_user {
+        ($u:expr, $field:tt, $val:expr, $name:expr ) => {
+            paste! {
+                match $u.[<set_ $field>]($val) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        log_error!("{}: Failed to initialize default user '{}'", *BASE_MSG, $name);
+                        log_error!("    Failed to set field '{}'", stringify!($field));
+                        log_error!("{}", e);
+                        log_error!("Bailing on initializing default user '{}'", $name);
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    // Add any default users
+    for (name, config) in &crate::ORIGEN_CONFIG.default_users {
+        match users.add(name, config.auto_populate) {
+            Ok(u) => {
+                if let Some(s) = config.should_validate_passwords {
+                    log_error__set_field_for_default_user!(u, should_validate_passwords, Some(s), name)
+                }
+                if let Some(uname) = &config.username {
+                    log_error__set_field_for_default_user!(u, username, Some(uname.to_owned()), name);
+                }
+                if let Some(pw) = &config.password {
+                    log_error__set_field_for_default_user!(u, password, Some(pw.to_owned()), name);
+                }
+
+                if let Some(e) = &config.email {
+                    log_error__set_field_for_default_user!(u, email, Some(e.to_owned()), name);
+                }
+                if let Some(f) = &config.first_name {
+                    log_error__set_field_for_default_user!(u, first_name, Some(f.to_owned()), name);
+                }
+                if let Some(l) = &config.last_name {
+                    log_error__set_field_for_default_user!(u, last_name, Some(l.to_owned()), name);
+                }
+            },
+            Err(e) => {
+                om::log_error!("{}: Failed to initialize default user '{}'", *BASE_MSG, name);
+                log_error!("{}", e);
+            }
+        }
+    }
+
+    // See if the frontend provides a specific means to lookup the current user
     if let Some(func) = &crate::ORIGEN_CONFIG.user__current_user_lookup_function {
         users.set_lookup_current_id_function(Some(pyapi_metal::_helpers::get_qualified_attr(&func)?.as_ref(py)))?;
     }
 
     // Initialize the current user
-    match users.lookup_current_id(true) {
-        Ok(_) => {}
-        Err(e) => {
-            om::log_error!("{}: Failed to lookup current user", *BASE_MSG);
-            log_error!("{}", e);
+    if ORIGEN_CONFIG.initial_user.as_ref().map_or(true, |u| u.initialize.unwrap_or(true)) {
+        match users.lookup_current_id(true) {
+            Ok(_) => {}
+            Err(e) => {
+                om::log_error!("{}: Failed to lookup current user", *BASE_MSG);
+                log_error!("{}", e);
+            }
         }
+    } else {
+        log_trace!("Bypassing current user initialization.");
     }
     Ok(users)
 }

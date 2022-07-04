@@ -530,7 +530,7 @@ impl LDAP {
                     //     &mut popped,
                     // )?
                     bail!(&format!(
-                        "Cannot find mapped value '{}' in LDAP {}",
+                        "Cannot find mapped value '{}' in LDAP '{}'",
                         val, self.name
                     ));
                 }

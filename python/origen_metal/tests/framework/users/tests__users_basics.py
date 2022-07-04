@@ -10,6 +10,7 @@ class T_Users(Base):
 
     def test_default_state(self, unload_users, users):
         assert len(users.ids) == 0
+        assert users.users == {}
         assert users.current == None
         assert users.current_user == None
         assert users.initial == None
@@ -21,6 +22,7 @@ class T_Users(Base):
         assert u_id not in users
         assert isinstance(users.add(u_id), self.user_class)
         assert u_id in users
+        assert users.users == {u_id: users[u_id]}
 
     def test_error_on_adding_existing_users(self, users, u_id):
         assert len(users.ids) == 1
@@ -34,6 +36,37 @@ class T_Users(Base):
     def test_retrieving_users(self, u, u_id):
         assert isinstance(u, self.user_class)
         assert u.id == u_id
+
+    def test_comparing_users(self, users, u_id, u, u2):
+        assert u != u2
+        assert u == users[u_id]
+
+        assert not (u != users[u_id])
+
+        with pytest.raises(NotImplementedError, match="Comparison operator 'Ge' is not applicable"):
+            u >= u2
+
+    def test_users_can_be_removed(self, unload_users, users, u, u_id):
+        assert u.id in users
+        users.remove(u.id)
+        assert u_id not in users
+
+        with pytest.raises(RuntimeError,
+                           match=f"No user '{u_id}' has been added"):
+            u.id
+
+        self.user()
+        assert u.id == u_id
+
+    def test_users_method_return_dict(self, unload_users, users):
+        u1 = users.add(self.to_user_id(1))
+        u2 = users.add(self.to_user_id(2))
+        u3 = users.add(self.to_user_id(3))
+        assert users.users == {
+            self.to_user_id(1): u1,
+            self.to_user_id(2): u2,
+            self.to_user_id(3): u3,
+        }
 
     class TestUsersDictLike(Fixture_DictLikeAPI, Base):
         def parameterize(self):

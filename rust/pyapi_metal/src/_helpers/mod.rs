@@ -1,5 +1,7 @@
 pub mod pickle;
 pub mod typed_value;
+pub mod contextlib;
+use crate::cfg_if;
 
 #[macro_use]
 pub mod config;
@@ -173,4 +175,17 @@ pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
         }
         Ok(current)
     })
+}
+
+cfg_if! {
+    if #[cfg(debug_assertions)] {
+        #[cfg(debug_assertions)]
+        use pyo3::types::PyModule;
+        pub(crate) fn define_tests(py: Python, test_mod: &PyModule) -> PyResult<()> {
+            let subm = PyModule::new(py, "_helpers")?;
+            contextlib::define_tests(py, subm)?;
+            test_mod.add_submodule(subm)?;
+            Ok(())
+        }
+    }
 }

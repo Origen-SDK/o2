@@ -67,6 +67,37 @@ impl std::convert::From<DatasetConfig> for config::ValueKind {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DefaultUserConfig {
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub email: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    // TODO support custom parameters (placed in "other")
+    // pub full_name: Option<String>,
+    pub roles: Option<Vec<String>>,
+    pub auto_populate: Option<bool>,
+    pub should_validate_passwords: Option<bool>,
+}
+
+impl std::convert::From<DefaultUserConfig> for config::ValueKind {
+    fn from(_value: DefaultUserConfig) -> Self {
+        Self::Nil
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct InitialUserConfig {
+    pub initialize: Option<bool>,
+}
+
+impl std::convert::From<InitialUserConfig> for config::ValueKind {
+    fn from(_value: InitialUserConfig) -> Self {
+        Self::Nil
+    }
+}
+
 // TODO likely need a user config
 // #[derive(Serialize, Deserialize, Debug, Clone)]
 // pub struct UserConfig {
@@ -137,7 +168,8 @@ pub struct Config {
     // pre-populated users, generally for explicit purposes such as an LDAP service user
     // or regression test launcher
     pub user__dataset_mappings: HashMap<String, HashMap<String, String>>,
-    pub service_users: HashMap<String, HashMap<String, String>>,
+    pub default_users: HashMap<String, DefaultUserConfig>,
+    pub initial_user: Option<InitialUserConfig>,
     // User session root path
     pub session__user_root: Option<String>,
 }
@@ -192,11 +224,13 @@ impl Default for Config {
             })
             .unwrap();
         s = s
-            .set_default("service_users", {
-                let h: HashMap<String, HashMap<String, String>> = HashMap::new();
+            .set_default("default_users", {
+                let h: HashMap<String, DefaultUserConfig> = HashMap::new();
                 h
             })
             .unwrap();
+        
+        s = s.set_default("initial_user", None::<InitialUserConfig>).unwrap();
 
         s = s
             .set_default("default_encryption_key", None::<String>)
@@ -395,19 +429,6 @@ fn _update_relative_paths(paths: &mut Vec<String>, relative_to: &PathBuf) -> Vec
         }
     }
     paths.to_vec()
-}
-
-impl Config {
-    pub fn get_service_user(
-        &self,
-        username: &str,
-    ) -> crate::Result<Option<&HashMap<String, String>>> {
-        if let Some(u) = self.service_users.get(username) {
-            Ok(Some(u))
-        } else {
-            Ok(None)
-        }
-    }
 }
 
 #[cfg(test)]

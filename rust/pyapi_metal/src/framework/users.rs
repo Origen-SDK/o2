@@ -11,6 +11,7 @@ use super::file_permissions::FilePermissions;
 use std::path::PathBuf;
 
 use crate::prelude::sessions::*;
+use crate::_helpers::contextlib::wrap_instance_method;
 
 // TODO add a users prelude?
 use om::framework::users::DatasetConfig as OMDatasetConfig;
@@ -40,6 +41,9 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_class::<UserSessionConfig>()?;
     subm.add_wrapped(wrap_pyfunction!(users))?;
     m.add_submodule(subm)?;
+
+    let users_class = subm.getattr("Users")?;
+    users_class.setattr("current_user_as", wrap_instance_method(py, "current_user_as", Some(vec!("new_current")), None)?)?;
     Ok(())
 }
 
@@ -117,8 +121,8 @@ impl Users {
         self.initial_user()
     }
 
-    pub fn add(&self, id: &str) -> PyResult<User> {
-        om::add_user(id)?;
+    pub fn add(&self, id: &str, auto_populate: Option<bool>) -> PyResult<User> {
+        om::add_user(id, auto_populate)?;
         User::new(id)
     }
 
@@ -127,7 +131,7 @@ impl Users {
         Ok(users.remove(id)?)
     }
 
-    fn get(&self, id: &str) -> PyResult<Option<User>> {
+    pub fn get(&self, id: &str) -> PyResult<Option<User>> {
         let users = om::users();
         if let Ok(u) = users.user(id) {
             Ok(Some(User::new(u.id())?))
@@ -164,6 +168,41 @@ impl Users {
         Ok(retn)
     }
 
+    #[getter]
+    fn users<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        let users = om::users();
+        let retn = PyDict::new(py);
+        for id in users.users().keys() {
+            retn.set_item(id, Py::new(py, User::new(id)?)?)?;
+        }
+        Ok(retn)
+    }
+
+    // TODO
+    // TEST_NEEDED
+    // pub fn users_for(&self, roles: Option<&PyAny>, motives: Option<&PyAny>) -> PyResult<Vec<String>> {
+    //     let users = om::users();
+    //     py_into_vec!(roles)
+    //     users.users_for(py_into_vec!(roles), py_into_vec!(roles))
+    // }
+
+    #[allow(non_snake_case)]
+    pub fn __enter__current_user_as<'p>(&self, py: Python<'p>, u: &PyAny) -> PyResult<(Option<PyObject>, Option<String>)> {
+        let current_id = om::get_current_user_id()?;
+        self.set_current_user(u)?;
+        let new_current = match om::get_current_user_id()? {
+            Some(id) => Some(Py::new(py, User::new(&id)?)?),
+            None => None
+        };
+        Ok((Some(new_current.to_object(py)), current_id))
+    }
+
+    #[allow(non_snake_case)]
+    pub fn __exit__current_user_as(&self, _py: Python, _yield_retn: Option<&PyAny>, _yield_context: Option<PyRef<User>>, old_user: &PyAny) -> PyResult<()> {
+        self.set_current_user(old_user)?;
+        Ok(())
+    }
+
     #[allow(non_snake_case)]
     #[getter]
     fn DATA_FIELDS(&self) -> PyResult<[&str; 5]> {
@@ -174,15 +213,14 @@ impl Users {
     pub fn lookup_current_id(&self, update_current: bool) -> PyResult<String> {
         if update_current {
             let r = om::try_lookup_and_set_current_user()?;
-            if let Some(pop_retn) = r.1 {
-                if let Some(error_msg) = pop_retn.log(&r.0)? {
-                    runtime_error!(error_msg)
-                } else {
-                    Ok(r.0)
+            if let Some(user_added) = r.1 {
+                if let Some(pop_retn) = user_added{
+                    if let Some(error_msg) = pop_retn.log(&r.0)? {
+                        return runtime_error!(error_msg);
+                    }
                 }
-            } else {
-                Ok(r.0)
             }
+            Ok(r.0)
         } else {
             Ok(om::try_lookup_current_user()?)
         }
@@ -320,7 +358,7 @@ impl Users {
         continue_on_error = "false",
         stop_on_failure = "false"
     )]
-    fn populate(
+    pub fn populate(
         &self,
         repopulate: bool,
         continue_on_error: bool,
@@ -332,6 +370,30 @@ impl Users {
             continue_on_error,
             stop_on_failure,
         )?))
+    }
+
+    #[getter]
+    pub fn default_auto_populate(&self) -> PyResult<Option<bool>> {
+        let users = om::users();
+        Ok(*users.default_auto_populate())
+    }
+
+    #[setter]
+    pub fn set_default_auto_populate(&self, set_to: Option<bool>) -> PyResult<()> {
+        let mut users = om::users_mut();
+        Ok(users.set_default_auto_populate(set_to))
+    }
+
+    #[getter]
+    pub fn default_should_validate_passwords(&self) -> PyResult<Option<bool>> {
+        let users = om::users();
+        Ok(*users.default_should_validate_passwords())
+    }
+
+    #[setter]
+    pub fn set_default_should_validate_passwords(&self, should_validate_passwords: Option<bool>) -> PyResult<()> {
+        let mut users = om::users_mut();
+        Ok(users.set_default_should_validate_passwords(should_validate_passwords))
     }
 
     #[getter]
@@ -627,7 +689,7 @@ impl UserDataset {
     }
 
     #[setter]
-    fn set_password(&self, password: Option<String>) -> PyResult<()> {
+    pub fn set_password(&self, password: Option<String>) -> PyResult<()> {
         Ok(om::with_user(&self.user_id, |u| {
             u.set_password(password.clone(), Some(&self.dataset), None)
         })?)
@@ -637,6 +699,30 @@ impl UserDataset {
         Ok(om::with_user(&self.user_id, |u| {
             u.clear_cached_password(Some(&self.dataset))
         })?)
+    }
+
+    #[getter]
+    pub fn should_validate_password(&self) -> PyResult<bool> {
+        Ok(om::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.config().should_validate_password()),
+        )?)
+    }
+
+    #[setter]
+    fn set_should_validate_password(&self, should_validate_password: Option<bool>) -> PyResult<()> {
+        Ok(om::with_user_dataset_mut(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.set_should_validate_password(should_validate_password)),
+        )?)
+    }
+
+    fn validate_password(&self) -> PyResult<PyOutcome> {
+        Ok(PyOutcome::from_origen(om::with_user(&self.user_id, |u| {
+            u.validate_password(&u.password(Some(&self.dataset), false, None)?, Some(&self.dataset))
+        })?.outcome()?.clone()))
     }
 
     #[getter]
@@ -659,7 +745,7 @@ impl UserDataset {
         continue_on_error = "false",
         stop_on_failure = "false"
     )]
-    fn populate(
+    pub fn populate(
         &self,
         repopulate: bool,
         continue_on_error: bool,
@@ -723,6 +809,22 @@ impl UserDataset {
             &self.dataset,
             |ds| Ok(ds.config().into()),
         )?)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<bool> {
+        let ds = match other.extract::<PyRef<Self>>() {
+            Ok(d) => d,
+            Err(_) => return Ok(false),
+        };
+        let result = self.user_id == ds.user_id && self.dataset == ds.dataset;
+
+        match op {
+            CompareOp::Eq => Ok(result),
+            CompareOp::Ne => Ok(!result),
+            _ => crate::not_implemented_error!(
+                "UserDataset only supports equals and not-equals comparisons"
+            ),
+        }
     }
 }
 
@@ -1135,78 +1237,94 @@ impl User {
 #[pymethods]
 impl User {
     #[getter]
-    fn get_id(&self) -> PyResult<String> {
+    pub fn is_current(&self) -> PyResult<bool> {
+        Ok(om::with_user(&self.user_id, |u| u.is_current())?)
+    }
+
+    #[getter]
+    pub fn is_current_user(&self) -> PyResult<bool> {
+        self.is_current()
+    }
+
+    #[getter]
+    pub fn get_id(&self) -> PyResult<String> {
         Ok(om::with_user(&self.user_id, |u| Ok(u.id().to_string()))?)
     }
 
     #[getter]
-    fn get_username(&self) -> PyResult<String> {
+    pub fn get_username(&self) -> PyResult<String> {
         Ok(om::with_user(&self.user_id, |u| u.username())?)
     }
 
     #[setter]
-    fn set_username(&self, username: Option<String>) -> PyResult<()> {
+    pub fn set_username(&self, username: Option<String>) -> PyResult<()> {
         om::with_user(&self.user_id, |u| u.set_username(username.clone()))?;
         Ok(())
     }
 
     #[getter]
-    fn get_email(&self) -> PyResult<Option<String>> {
+    pub fn get_email(&self) -> PyResult<Option<String>> {
         Ok(om::with_user(&self.user_id, |u| u.get_email())?)
     }
 
     #[setter]
-    fn set_email(&self, email: Option<String>) -> PyResult<()> {
+    pub fn set_email(&self, email: Option<String>) -> PyResult<()> {
         om::with_user(&self.user_id, |u| u.set_email(email.clone()))?;
         Ok(())
     }
 
     #[getter]
-    fn get_first_name(&self) -> PyResult<Option<String>> {
+    pub fn get_first_name(&self) -> PyResult<Option<String>> {
         Ok(om::with_user(&self.user_id, |u| u.first_name())?)
     }
 
     #[setter]
-    fn set_first_name(&self, first_name: Option<String>) -> PyResult<()> {
+    pub fn set_first_name(&self, first_name: Option<String>) -> PyResult<()> {
         om::with_user(&self.user_id, |u| u.set_first_name(first_name.clone()))?;
         Ok(())
     }
 
     #[getter]
-    fn get_last_name(&self) -> PyResult<Option<String>> {
+    pub fn get_last_name(&self) -> PyResult<Option<String>> {
         Ok(om::with_user(&self.user_id, |u| u.last_name())?)
     }
 
     #[setter]
-    fn last_name(&self, last_name: Option<String>) -> PyResult<()> {
+    pub fn set_last_name(&self, last_name: Option<String>) -> PyResult<()> {
         om::with_user(&self.user_id, |u| u.set_last_name(last_name.clone()))?;
         Ok(())
     }
 
     #[getter]
-    fn get_display_name(&self) -> PyResult<String> {
+    pub fn get_display_name(&self) -> PyResult<String> {
         Ok(om::with_user(&self.user_id, |u| u.display_name())?)
     }
 
     #[setter]
-    fn display_name(&self, display_name: Option<String>) -> PyResult<()> {
+    pub fn set_display_name(&self, display_name: Option<String>) -> PyResult<()> {
         om::with_user(&self.user_id, |u| u.set_display_name(display_name.clone()))?;
         Ok(())
     }
 
     /// Gets the password for the default dataset
     #[getter]
-    fn password(&self) -> PyResult<String> {
+    pub fn password(&self) -> PyResult<String> {
         Ok(om::with_user(&self.user_id, |u| {
             u.password(None, true, None)
         })?)
     }
 
     #[setter]
-    fn set_password(&self, password: Option<String>) -> PyResult<()> {
+    pub fn set_password(&self, password: Option<String>) -> PyResult<()> {
         Ok(om::with_user(&self.user_id, |u| {
             u.set_password(password.clone(), None, None)
         })?)
+    }
+
+    pub fn validate_password(&self) -> PyResult<PyOutcome> {
+        Ok(PyOutcome::from_origen(om::with_user(&self.user_id, |u| {
+            u.validate_password(&u.password(None, true, None)?, None)
+        })?.outcome()?.clone()))
     }
 
     // Note: with regards to kwargs['default']:
@@ -1279,6 +1397,27 @@ impl User {
     fn clear_cache_password(&self) -> PyResult<()> {
         Ok(om::with_user(&self.user_id, |u| {
             u.clear_cached_password(None)
+        })?)
+    }
+
+    #[getter]
+    pub fn should_validate_passwords(&self) -> PyResult<bool> {
+        Ok(om::with_user(&self.user_id, |u| {
+            Ok(u.should_validate_passwords())
+        })?)
+    }
+
+    #[setter]
+    pub fn set_should_validate_passwords(&self, should_validate_passwords: Option<bool>) -> PyResult<()> {
+        Ok(om::with_user_mut(&self.user_id, |u| {
+            Ok(u.set_should_validate_passwords(should_validate_passwords))
+        })?)
+    }
+
+    #[getter]
+    pub fn __should_validate_passwords__(&self) -> PyResult<Option<bool>> {
+        Ok(om::with_user(&self.user_id, |u| {
+            Ok(*u.should_validate_passwords_value())
         })?)
     }
 
@@ -1395,7 +1534,7 @@ impl User {
         continue_on_error = "false",
         stop_on_failure = "false"
     )]
-    fn populate(
+    pub fn populate(
         &self,
         repopulate: bool,
         continue_on_error: bool,
@@ -1413,6 +1552,27 @@ impl User {
     // TODO add?
     // populated
     // populate_attempted
+
+    #[getter]
+    pub fn auto_populate(&self) -> PyResult<bool> {
+        Ok(om::with_user(&self.user_id, |u| {
+            Ok(u.should_auto_populate())
+        })?)
+    }
+
+    #[setter]
+    pub fn set_auto_populate(&self, set_to: Option<bool>) -> PyResult<()> {
+        Ok(om::with_user_mut(&self.user_id, |u| {
+            Ok(u.set_auto_populate(set_to))
+        })?)
+    }
+
+    #[getter]
+    pub fn __auto_populate__(&self) -> PyResult<Option<bool>> {
+        Ok(om::with_user(&self.user_id, |u| {
+            Ok(*u.auto_populate_value())
+        })?)
+    }
 
     #[getter]
     pub fn get_home_dir(&self, py: Python) -> PyResult<Option<PyObject>> {
@@ -1461,6 +1621,20 @@ impl User {
             let ss = u.ensure_session(&mut sessions, None)?;
             Ok(PySessionStore::new(ss.3, Some(ss.2)))
         })?)
+    }
+
+    // The Python user only stores an ID - can just compare the IDs directly.
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp) -> PyResult<bool> {
+        let o = other.extract::<PyRef<Self>>()?;
+        Ok(match op {
+            CompareOp::Eq => {
+                self.user_id == o.user_id
+            }
+            CompareOp::Ne => {
+                self.user_id != o.user_id
+            }
+            _ => return Err(pyo3::exceptions::PyNotImplementedError::new_err(format!("Comparison operator '{:?}' is not applicable", op))),
+        })
     }
 }
 

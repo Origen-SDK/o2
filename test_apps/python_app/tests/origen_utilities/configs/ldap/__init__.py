@@ -47,7 +47,7 @@ def test_multiple_ldaps(q, options):
 
     import origen
     assert len(origen.ldaps) == 3
-    assert origen.ldaps["l1"].server == "ldap://ldap.forumsys.com:389"
+    assert origen.ldaps["l1"].server == "ldap://ldap.duke.edu:389"
     assert origen.ldaps["l2"].server == "ldap://db.debian.org:389"
     assert origen.ldaps["l3"].server == "ldap://zflexldap.com:389"
 

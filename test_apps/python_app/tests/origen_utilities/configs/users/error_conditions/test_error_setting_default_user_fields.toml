@@ -1,0 +1,6 @@
+# Default users will fail to set fields with an invalid hierarchy
+user__data_lookup_hierarchy = ["blah"]
+
+[default_users]
+[default_users.test]
+username = "should_error"

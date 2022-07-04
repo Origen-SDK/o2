@@ -11,6 +11,7 @@ from .tests__user_motives import T_UserMotives
 from .tests__populating import T_PopulatingUsers
 from .tests__datasets import Base as DSBase
 from .tests__user_sessions import T_UserSessions
+from .tests__validating_passwords import T_ValidatingPasswords
 
 class TestUsers(T_Users):
     pass
@@ -47,6 +48,9 @@ class TestPopulatingUsers(T_PopulatingUsers):
     pass
 
 class TestUserSessions(T_UserSessions):
+    pass
+
+class TestValidatingPasswords(T_ValidatingPasswords):
     pass
 
 class TestUserHomeDirectory(DSBase):

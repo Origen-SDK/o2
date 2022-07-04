@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{log_error};
+use crate::frontend::FeatureReturn;
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
 pub const DEFAULT_USER_SESSION_PATH_OFFSET: &str = "./.o2/.session";
@@ -77,14 +78,15 @@ pub fn register_dataset_with_user(
 }
 
 /// Temporarily run some function with 'new_top' being the highest priority datasets
-pub fn with_user_hierarchy<T, F>(user: Option<&str>, new_top: &Vec<String>, func: F) -> Result<T>
+pub fn with_user_hierarchy<T, F, S>(user: Option<S>, new_top: &Vec<String>, func: F) -> Result<T>
 where
     F: Fn(&User) -> Result<T>,
+    S: AsRef<str>,
 {
     let mut urs = crate::users_mut();
     let u;
     if let Some(uname) = user {
-        u = urs.user_mut(uname)?;
+        u = urs.user_mut(uname.as_ref())?;
     } else {
         u = urs.current_user_mut()?;
     }
@@ -97,6 +99,31 @@ where
     let res = func(u);
     u.data_lookup_hierarchy = old_hierarchy;
     res
+}
+
+pub fn with_user_motive_or_default<T, F, S1, S2>(user: Option<S1>, motive: S2, func: F) -> Result<T>
+where
+    F: Fn(&User) -> Result<T>,
+    S1: AsRef<str>,
+    S2: AsRef<str>,
+{
+    let ds: String;
+    {
+        let mut urs = crate::users_mut();
+        let u;
+        if let Some(uname) = user.as_ref() {
+            u = urs.user_mut(uname.as_ref())?;
+        } else {
+            u = urs.current_user_mut()?;
+        }
+        if let Some(d) = u.motive_for(motive.as_ref()) {
+            ds = d.to_string()
+        } else {
+            return func(u)
+        }
+    }
+
+    with_user_hierarchy(user, &vec!(ds), func)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -319,6 +346,11 @@ pub struct User {
     populate_status: PopulateStatus,
     session_config: RwLock<SessionConfig>,
     uid_num: usize,
+    roles: Vec<String>,
+
+    // User-level overrides for dataset configuration
+    auto_populate: Option<bool>,
+    should_validate_passwords: Option<bool>,
 }
 
 impl User {
@@ -464,6 +496,7 @@ impl User {
         users: &super::users::Users,
         password_cache_option: Option<PasswordCacheOptions>,
         uid_cnt: usize,
+        auto_populate: Option<bool>,
     ) -> Result<Self> {
         let mut u = Self {
             id: id.to_string(),
@@ -479,6 +512,9 @@ impl User {
             populate_status: PopulateStatus::default(),
             session_config: RwLock::new(users.default_session_config().clone()),
             uid_num: uid_cnt,
+            roles: vec!(),
+            auto_populate: auto_populate,
+            should_validate_passwords: users.default_should_validate_passwords().to_owned(),
         };
 
         for (ds, config) in users.default_datasets().iter() {
@@ -539,6 +575,10 @@ impl User {
 
     pub fn motive_mapping(&self) -> &IndexMap<String, String> {
         &self.motive_mapping
+    }
+
+    pub fn motive_for<S: AsRef<str>>(&self, motive: S) -> Option<&String> {
+        self.motive_mapping.get(motive.as_ref())
     }
 
     pub fn username(&self) -> Result<String> {
@@ -724,30 +764,39 @@ impl User {
         // TODO support this?
         // Check if we are even supposed to try the password or if its already been tried
         // let dn_opt = Some(dataset_name.unwrap_or(&self.top_datakey()?));
-        // if self.should_validate_password {
-        // if let Some(dn) = dn_opt {
-        let ds = self.read_data(dataset_name)?;
-        if ds.password_needs_validation() {
-            let lookup = ds.require_data_source_for("password validation", &self.id)?;
-            let f = crate::frontend::require()?;
-            return f.with_data_store(lookup.0, lookup.1, |dstore| {
-                let r = dstore.validate_password(&ds.username.as_ref().map_or_else(|| self.id.as_str(), |u| &u.as_str()), password, &self.id, &ds.dataset_name)?;
+        if self.should_validate_passwords() {
+            let ds = self.read_data(dataset_name)?;
+            if ds.password_needs_validation() {
+                let r = self._validate_password(password, &ds)?;
                 let o = r.outcome()?;
-                if o.errored() {
-                    bail!(
-                        "Errors encountered validating password: {}",
-                        o.msg_or_default()
-                    )
-                } else if o.failed() {
-                    Ok((false, true, Some(o.to_owned())))
-                } else {
-                    Ok((true, true, Some(o.to_owned())))
+                return {
+                    if o.errored() {
+                        bail!(
+                            "Errors encountered validating password: {}",
+                            o.msg_or_default()
+                        )
+                    } else if o.failed() {
+                        Ok((false, true, Some(o.to_owned())))
+                    } else {
+                        Ok((true, true, Some(o.to_owned())))
+                    }
                 }
-            });
+            }
         }
-        // }
-        // }
         Ok((true, false, None))
+    }
+
+    pub fn validate_password(&self, password: &str, dataset_name: Option<&str>) -> Result<FeatureReturn> {
+        let ds = self.read_data(dataset_name)?;
+        self._validate_password(password, &ds)
+    }
+
+    fn _validate_password(&self, password: &str, ds: &Data) -> Result<FeatureReturn> {
+        let lookup = ds.require_data_source_for("password validation", &self.id)?;
+        let f = crate::frontend::require()?;
+        f.with_data_store(lookup.0, lookup.1, |dstore| {
+            dstore.validate_password(&ds.username.as_ref().map_or_else(|| self.id.as_str(), |u| &u.as_str()), password, &self.id, &ds.dataset_name)
+        })
     }
 
     pub fn dataset_for(&self, motive: &str) -> Result<Option<&String>> {
@@ -802,6 +851,18 @@ impl User {
         } else {
             self.clear_cached_password(dataset)
         }
+    }
+
+    pub fn should_validate_passwords(&self) -> bool {
+        self.should_validate_passwords.unwrap_or(true)
+    }
+
+    pub fn should_validate_passwords_value(&self) -> &Option<bool> {
+        &self.should_validate_passwords
+    }
+
+    pub fn set_should_validate_passwords(&mut self, new: Option<bool>) -> () {
+        self.should_validate_passwords = new;
     }
 
     pub fn password(
@@ -923,20 +984,37 @@ impl User {
         self.write_data(dataset)?.clear_cached_password(self)
     }
 
-    pub fn autopopulate(&self) -> Result<PopulateUserReturn> {
-        self.populate_status.while_populating(|| {
-            let mut rtn = PopulateUserReturn::default();
-            for (n, d) in self.data.iter() {
-                if d.read().unwrap().should_auto_populate() {
-                    log_trace!("Auto-populating dataset '{}' for user '{}'", n, &self.id);
-                    match self.populate_dataset(n, false, false, true)? {
-                        Some(r) => rtn.insert(n, Some(r)),
-                        None => bail!("Something has gone wrong and a newly added dataset is already marked as populated")
-                    };
+    pub fn should_auto_populate(&self) -> bool {
+        self.auto_populate.unwrap_or(true)
+    }
+
+    pub fn auto_populate_value(&self) -> &Option<bool> {
+        &self.auto_populate
+    }
+
+    pub fn set_auto_populate(&mut self, pop: Option<bool>) -> () {
+        self.auto_populate = pop;
+    }
+
+    pub fn autopopulate(&self) -> Result<Option<PopulateUserReturn>> {
+        if self.should_auto_populate() {
+            self.populate_status.while_populating(|| {
+                let mut rtn = PopulateUserReturn::default();
+                for (n, d) in self.data.iter() {
+                    if d.read().unwrap().should_auto_populate() {
+                        log_trace!("Auto-populating dataset '{}' for user '{}'", n, &self.id);
+                        match self.populate_dataset(n, false, false, true)? {
+                            Some(r) => rtn.insert(n, Some(r)),
+                            None => bail!("Something has gone wrong and a newly added dataset is already marked as populated")
+                        };
+                    }
                 }
-            }
-            Ok(rtn)
-        })
+                Ok(Some(rtn))
+            })
+        } else {
+            log_trace!("Auto-populating disabled for user '{}'", &self.id);
+            Ok(None)
+        }
     }
 
     pub fn populate(
@@ -1022,6 +1100,10 @@ impl User {
         ))
     }
 
+    pub fn roles(&self) -> &Vec<String> {
+        &self.roles
+    }
+
     pub fn with_session_group<T, F>(&self, mut func: F) -> Result<T>
     where
         F: FnMut(&Sessions, &SessionGroup) -> Result<T>,
@@ -1083,5 +1165,11 @@ impl User {
             func(&mut d.write().unwrap())?;
         }
         Ok(())
+    }
+}
+
+impl PartialEq for User {
+    fn eq(&self, other: &Self) -> bool {
+        self.uid_num == other.uid_num
     }
 }

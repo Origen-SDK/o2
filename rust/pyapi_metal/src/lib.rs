@@ -8,6 +8,7 @@ pub mod utils;
 pub extern crate origen_metal;
 
 use origen_metal::lazy_static::lazy_static;
+use origen_metal::cfg_if::cfg_if;
 
 use pyo3::prelude::*;
 use pyo3::py_run;
@@ -39,6 +40,7 @@ pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
         let test_sm = PyModule::new(py, "__test__")?;
         utils::revision_control::define_tests(py, test_sm)?;
         frontend::define_tests(py, test_sm)?;
+        _helpers::define_tests(py, test_sm)?;
         m.add_submodule(test_sm)?;
     }
 

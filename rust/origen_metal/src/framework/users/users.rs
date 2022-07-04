@@ -8,6 +8,7 @@ use crate::_utility::validate_input_list;
 use crate::prelude::session_store::*;
 use crate::utils::encryption;
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 lazy_static! {
     pub static ref DEFAULT_DATASET_KEY: &'static str = "__origen__default__";
@@ -69,6 +70,20 @@ where
     func(user)
 }
 
+pub fn with_user_or_current<T, F, S>(id: Option<S>, mut func: F) -> Result<T>
+where
+    F: FnMut(&User) -> Result<T>,
+    S: AsRef<str>,
+{
+    if let Some(u_id) = id {
+        let users = USERS.read().unwrap();
+        let user = users.user(u_id.as_ref())?;
+        func(user)
+    } else {
+        with_current_user(func)
+    }
+}
+
 pub fn get_current_user_id() -> Result<Option<String>> {
     let u = users();
     Ok(match u.get_current_id()? {
@@ -126,8 +141,8 @@ pub fn get_initial_user_id() -> Result<Option<String>> {
     })
 }
 
-pub fn add_user(id: &str) -> Result<PopulateUserReturn> {
-    Users::add_user(id)
+pub fn add_user(id: &str, auto_populate: Option<bool>) -> Result<Option<PopulateUserReturn>> {
+    Users::add_user(id, auto_populate)
 }
 
 pub fn set_current_user(id: &str) -> Result<bool> {
@@ -144,7 +159,7 @@ pub fn try_lookup_current_user() -> Result<String> {
     Users::try_lookup_current_user()
 }
 
-pub fn try_lookup_and_set_current_user() -> Result<(String, Option<PopulateUserReturn>)> {
+pub fn try_lookup_and_set_current_user() -> Result<(String, Option<Option<PopulateUserReturn>>)> {
     Users::try_lookup_and_set_current_user()
 }
 
@@ -254,6 +269,8 @@ pub struct Users {
     default_data_lookup_hierarchy: Vec<String>,
     default_motive_mapping: IndexMap<String, String>,
     default_session_config: SessionConfig,
+    default_auto_populate: Option<bool>,
+    default_should_validate_passwords: Option<bool>,
     uid_cnt: usize,
     password_encryption_key__byte_str: String,
     password_encryption_nonce__byte_str: String,
@@ -391,13 +408,13 @@ impl Users {
         }
     }
 
-    pub fn try_lookup_and_set_current_user() -> Result<(String, Option<PopulateUserReturn>)> {
+    pub fn try_lookup_and_set_current_user() -> Result<(String, Option<Option<PopulateUserReturn>>)> {
         let id = Self::try_lookup_current_user()?;
         let need_to_add = with_users(|users| Ok(!users.users.contains_key(&id)))?;
 
-        let pop_return: Option<PopulateUserReturn>;
+        let pop_return: Option<Option<PopulateUserReturn>>;
         if need_to_add {
-            pop_return = Some(Self::add_user(&id)?);
+            pop_return = Some(Self::add_user_option_less(&id)?);
         } else {
             pop_return = None;
         }
@@ -406,22 +423,34 @@ impl Users {
         Ok((id, pop_return))
     }
 
-    fn add(&mut self, id: &str) -> Result<()> {
+    fn add(&mut self, id: &str, auto_populate: Option<bool>) -> Result<()> {
         if self.users.contains_key(id) {
             bail!("User '{}' has already been added", id)
         } else {
             self.users
-                .insert(id.to_string(), User::new(id, &self, None, self.uid_cnt)?);
+                .insert(id.to_string(), User::new(
+                    id,
+                    &self,
+                    // TODO support password cache option
+                    None,
+                    self.uid_cnt,
+                    auto_populate.map_or_else(|| self.default_auto_populate.to_owned(), |ap| Some(ap))
+                )?);
             self.uid_cnt += 1;
             Ok(())
         }
     }
 
-    pub fn add_user(id: &str) -> Result<PopulateUserReturn> {
+    pub fn add_user(id: &str, auto_populate: Option<bool>) -> Result<Option<PopulateUserReturn>> {
         log_trace!("Adding user '{}'", id);
-        with_users_mut(|users| users.add(id))?;
+        with_users_mut(|users| users.add(id, auto_populate))?;
 
         with_user(id, |u| u.autopopulate())
+    }
+
+    // Adds an user, inheriting all options from the global `users`
+    pub fn add_user_option_less(id: &str) -> Result<Option<PopulateUserReturn>> {
+        Self::add_user(id, None)
     }
 
     pub fn remove(&mut self, id: &str) -> Result<bool> {
@@ -471,6 +500,8 @@ impl Users {
         self.default_data_lookup_hierarchy = new_default_lookup_hierarchy!();
         self.default_motive_mapping = IndexMap::new();
         self.default_session_config = SessionConfig::new();
+        self.default_auto_populate = None;
+        self.default_should_validate_passwords = None;
         self.password_encryption_key__byte_str =
             encryption::default_encryption_key__byte_str().to_string();
         self.password_encryption_nonce__byte_str =
@@ -622,6 +653,14 @@ impl Users {
         Ok(rtn)
     }
 
+    pub fn default_auto_populate(&self) -> &Option<bool> {
+        &self.default_auto_populate
+    }
+
+    pub fn set_default_auto_populate(&mut self, set_to: Option<bool>) -> () {
+        self.default_auto_populate = set_to;
+    }
+
     pub fn default_session_config(&self) -> &SessionConfig {
         &self.default_session_config
     }
@@ -637,6 +676,51 @@ impl Users {
     pub fn password_encryption_nonce(&self) -> &str {
         &self.password_encryption_nonce__byte_str
     }
+
+    pub fn default_should_validate_passwords(&self) -> &Option<bool> {
+        &self.default_should_validate_passwords
+    }
+
+    pub fn set_default_should_validate_passwords(&mut self, set_to: Option<bool>) -> () {
+        self.default_should_validate_passwords = set_to;
+    }
+
+    // TODO
+    /// Return all roles
+    pub fn roles(&self) -> Vec<String>{
+        self.users_by_role(None).keys().map( |r| r.to_owned()).collect::<Vec<String>>()
+    }
+
+    pub fn users_by_role(&self, filter: Option<&dyn Fn(&User, &String) -> bool>,) -> HashMap<String, Vec<String>>
+    {
+        let mut roles: HashMap<String, Vec<String>> = HashMap::new();
+        for (n, u) in &self.users {
+            for user_role in u.roles() {
+                if filter.map_or(false, |f| f(&u, user_role)) {
+                    if let Some(r) = roles.get_mut(user_role) {
+                        r.push(n.to_owned());
+                    } else {
+                        roles.insert(user_role.to_owned(), vec!(n.to_owned()));
+                    }
+                }
+            }
+        }
+        roles
+    }
+
+    // TODO
+    // /// Return a list of users with at least one of the roles
+    // pub fn users_with_any_role(&self, roles: Vec<String>) {
+    //     self.users_by_role(|u, r| {
+    //         roles.contains(r)
+    //     })
+    // }
+
+    // TODO
+    // /// Return a list of users that are of all of the roles
+    // pub fn users_with_all_roles(&self, roles: Vec<String>) {
+    //     // ?
+    // }
 }
 
 impl Default for Users {
@@ -649,6 +733,8 @@ impl Default for Users {
             default_data_lookup_hierarchy: new_default_lookup_hierarchy!(),
             default_motive_mapping: IndexMap::new(),
             default_session_config: SessionConfig::new(),
+            default_auto_populate: None,
+            default_should_validate_passwords: None,
             uid_cnt: 0,
             password_encryption_key__byte_str: encryption::default_encryption_key__byte_str()
                 .to_string(),

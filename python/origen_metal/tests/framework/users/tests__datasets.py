@@ -543,6 +543,12 @@ class T_Datasets(Base):
         assert d.password == "PASSWORD"
         assert d2.password == "!PASSWORD!"
 
+    def test_comparing_datasets(self, unload_users, u, u2, d, d2):
+        assert u.datasets[d.dataset_name] == d
+        assert u.datasets[d.dataset_name] == u.datasets[d.dataset_name]
+        assert u.datasets[d.dataset_name] != u.datasets[d2.dataset_name]
+        assert u.datasets[d.dataset_name] != u2.datasets[d.dataset_name]
+
     class TestDataStoreDictLike(Fixture_DictLikeAPI, Base):
         def parameterize(self):
             return {

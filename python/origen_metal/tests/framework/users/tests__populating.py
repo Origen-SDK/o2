@@ -1009,37 +1009,30 @@ class T_PopulatingUsers(Base, FECommon):
         u.add_dataset("r1", dset)
         assert list(u.datasets.keys()) == [ddk, "n0", "r0", "n1", "r1"]
 
+    @pytest.mark.ldap
     def test_populating_an_ldap_dataset(self, unload_users, users, cat,
                                         cat_name):
-        from tests.utils.test_ldap import INIT_PARAMS
-        params = copy.deepcopy(INIT_PARAMS)
-        params[-2] = {
-            "data_id": "uid",
-            "mapping": {
-                "email": "mail",
-                "last_name": "sn",
-                "full_name": "cn"
-            }
-        }
+        from tests.utils.test_ldap import Common
+        c = Common.get_dummy_config()
         cat.add(
             "test_ldap",
             om.utils.ldap.LDAP,
-            ["test_ldap", *params],
+            ["test_ldap", *c.as_params_list()],
         )
 
         users.add_dataset(
-            "forumsys",
+            c.name,
             self.user_dataset_config_class(
                 data_store="test_ldap",
                 category=cat_name,
             ))
         # By the config, dataset is not populated automoatically
-        u = users.add("euler")
-        d = u.datasets["forumsys"]
+        u = users.add(c.users[0].uid)
+        d = u.datasets[c.name]
         assert d.populated == False
 
         # Set the username before populating
-        d.username = "euler"
+        d.username = c.users[0].uid
 
         # Populate
         outcome = d.populate()
@@ -1047,12 +1040,82 @@ class T_PopulatingUsers(Base, FECommon):
         assert d.populated == True
 
         # Check some items
-        assert d.email == "euler@ldap.forumsys.com"
-        assert d.last_name == "Euler"
-        assert d.username == "euler"
+        assert d.email == c.users[0].mail
+        assert d.last_name == c.users[0].sn
+        assert d.username == c.users[0].uid
 
         # Check that other data fields were populated
-        assert d.data_store["full_name"] == "Leonhard Euler"
+        assert d.data_store["full_name"] == c.users[0].cn
+
+    def test_configuring_auto_populate(self, unload_users, users, dstore_n,
+                                  cat_name):
+
+        assert users.default_auto_populate is None
+        n = "ds0"
+        users.add_dataset(
+            n,
+            self.user_dataset_config_class(
+                data_store=dstore_n,
+                category=cat_name,
+                auto_populate=True,
+            ))
+
+        # user overrides with False - no auto-population
+        u = users.add(self.to_user_id(0), auto_populate=False)
+        assert u.auto_populate is False
+        assert u.__auto_populate__ is False
+        d = u.datasets[n]
+        assert d.populated == False
+        assert d.populate_attempted == False
+
+        # user's default is False with a new user inheriting - no auto-population
+        users.default_auto_populate = False
+        assert users.default_auto_populate is False
+        u = users.add(self.to_user_id(1), auto_populate=None)
+        assert u.auto_populate is False
+        assert u.__auto_populate__ is False
+        d = u.datasets[n]
+        assert d.populated == False
+        assert d.populate_attempted == False
+
+        # user's default is False but new user overrides with True - auto-populates
+        u = users.add(self.to_user_id(2), auto_populate=True)
+        assert u.auto_populate is True
+        assert u.__auto_populate__ is True
+        d = u.datasets[n]
+        assert d.populated == True
+        assert d.populate_attempted == True
+        assert d.other["populated_from"] == self.DSPopUser.__qualname__
+        assert d.other["pop-ed?"] == True
+
+        # user's default is True but new user overrides with False - no auto-population
+        users.default_auto_populate = True
+        assert users.default_auto_populate is True
+        u = users.add(self.to_user_id(3), auto_populate=False)
+        assert u.auto_populate is False
+        assert u.__auto_populate__ is False
+        d = u.datasets[n]
+        assert d.populated == False
+        assert d.populate_attempted == False
+
+    def test_default_auto_populate(self, unload_users, users, u):
+        assert users.default_auto_populate is None
+        assert u.auto_populate is True
+        assert u.__auto_populate__ is None
+
+    def test_previous_default_auto_populate_value_persists(self, unload_users, users):
+        # Previous default values stick
+        users.default_auto_populate = True
+        u = users.add(self.to_user_id(0))
+        assert u.auto_populate is True
+        assert u.__auto_populate__ is True
+
+        users.default_auto_populate = False
+        u2 = users.add(self.to_user_id(1), auto_populate=None)
+        assert u2.auto_populate is False
+        assert u2.__auto_populate__ is False
+        assert u.auto_populate is True
+        assert u.__auto_populate__ is True
 
     # TEST_NEEDED
     @pytest.mark.skip
