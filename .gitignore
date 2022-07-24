@@ -18,6 +18,9 @@ log/
 /python/origen_metal/dist
 rls/
 
+# pyenv
+.python-version
+
 # Output directories
 /python/origen/output
 /python/origen/.origen
