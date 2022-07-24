@@ -36,15 +36,13 @@ use crate::utility::release_scribe::__PYO3_PYMODULE_DEF_RELEASE_SCRIBE;
 use crate::utility::results::__PYO3_PYMODULE_DEF_RESULTS;
 use crate::utility::website::__PYO3_PYMODULE_DEF_WEBSITE;
 use crate::utility::sessions::__PYO3_PYMODULE_DEF_SESSIONS;
-use crate::utility::mailer::__PYO3_PYMODULE_DEF_MAILER;
 
 #[pymodule]
-pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn utility(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Location>()?;
     m.add_class::<Transaction>()?;
     m.add_class::<Version>()?;
     m.add_wrapped(wrap_pyfunction!(reverse_bits))?;
-    m.add_wrapped(wrap_pymodule!(mailer))?;
     m.add_wrapped(wrap_pymodule!(sessions))?;
     m.add_wrapped(wrap_pymodule!(revision_control))?;
     m.add_wrapped(wrap_pymodule!(unit_testers))?;
@@ -56,6 +54,7 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(exec))?;
     m.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;
     ldaps::define(m)?;
+    mailer::define(py, m)?;
     Ok(())
 }
 

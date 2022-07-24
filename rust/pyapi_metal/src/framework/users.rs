@@ -6,6 +6,7 @@ use pyo3::class::basic::CompareOp;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
+use std::collections::HashMap;
 
 use super::file_permissions::FilePermissions;
 use std::path::PathBuf;
@@ -401,6 +402,75 @@ impl Users {
         Ok(UsersSessionConfig {})
     }
 
+    #[getter]
+    pub fn get_default_roles(&self) -> PyResult<Vec<String>> {
+        let users = om::users();
+        Ok(users.default_roles()?.to_owned())
+    }
+
+    #[setter]
+    pub fn set_default_roles(&self, new: &PyAny) -> PyResult<()> {
+        let mut users = om::users_mut();
+        if new.is_none() {
+            users.clear_default_roles()?;
+        } else if let Ok(role) = new.extract::<String>() {
+            users.set_default_roles(&vec!(role))?;
+        } else if let Ok(roles) = new.extract::<Vec<String>>() {
+            users.set_default_roles(&roles)?;
+        } else {
+            return type_error!("Cannot interpret roles as either 'str', 'list of strs', or 'None'.");
+        }
+        Ok(())
+    }
+
+    #[getter]
+    pub fn roles(&self) -> PyResult<Vec<String>> {
+        let users = om::users();
+        Ok(users.roles()?)
+    }
+
+    #[getter]
+    pub fn by_role(&self) -> PyResult<HashMap<String, Vec<User>>> {
+        let users = om::users();
+        let mut retn = HashMap::new();
+        for (r, ids) in users.users_by_role(None)? {
+            retn.insert(r.to_owned(), ids.iter().map(|id| User::new(id)).collect::<PyResult<Vec<User>>>()?);
+        }
+        Ok(retn)
+    }
+
+    #[args(exclusive="false", required="false")]
+    pub fn for_role(&self, role: &str, exclusive: bool, required: bool) -> PyResult<Vec<User>> {
+        let users = om::users();
+        let r = users.users_by_role(Some( &|_u, rn| rn == role ))?;
+        if let Some(ids) = r.get(role) {
+            if exclusive {
+                if ids.len() > 1 {
+                    return runtime_error!(format!(
+                        "Found multiple users matching exclusive role '{}': {}",
+                        role,
+                        ids.iter().map(|id| format!("'{}'", id)).collect::<Vec<String>>().join(", ")
+                    ));
+                }
+            }
+            Ok(ids.iter().map(|id| User::new(id)).collect::<PyResult<Vec<User>>>()?)
+        } else {
+            if required {
+                runtime_error!(format!(
+                    "No users with role '{}' could be found",
+                    role
+                ))
+            } else {
+                Ok(vec!())
+            }
+        }
+    }
+
+    #[args(required="false")]
+    pub fn for_exclusive_role(&self, role: &str, required: bool) -> PyResult<Option<User>> {
+        Ok(self.for_role(role, true, required)?.pop())
+    }
+
     fn __getitem__(&self, id: &str) -> PyResult<User> {
         let users = om::users();
         match users.user(id) {
@@ -419,6 +489,14 @@ impl Users {
             keys: slf.keys().unwrap(),
             i: 0,
         })
+    }
+}
+
+impl Users {
+    pub fn require_user(&self, id: &str) -> PyResult<User> {
+        let users = om::users();
+        users.user(id)?;
+        Ok(User::new(id)?)
     }
 }
 
@@ -1620,6 +1698,45 @@ impl User {
             let mut sessions = om::sessions();
             let ss = u.ensure_session(&mut sessions, None)?;
             Ok(PySessionStore::new(ss.3, Some(ss.2)))
+        })?)
+    }
+
+    #[getter]
+    pub fn get_roles(&self) -> PyResult<Vec<String>> {
+        Ok(om::with_user(&self.user_id, |u| {
+            Ok(u.roles()?.iter().map( |r| r.to_owned()).collect::<Vec<String>>())
+        })?)
+    }
+
+    #[args(roles="*")]
+    pub fn add_roles(&self, roles: &PyAny) -> PyResult<Vec<bool>> {
+        let v: Vec<String>;
+        if let Ok(r) = roles.extract::<String>() {
+            v = vec!(r);
+        } else if let Ok(r) = roles.extract::<Vec<String>>() {
+            v = r;
+        } else {
+            return type_error!("Cannot interpret roles as either a 'str' or a 'list of strs'");
+        }
+
+        Ok(om::with_user(&self.user_id, |u| {
+            u.add_roles(&v)
+        })?)
+    }
+
+    #[args(roles="*")]
+    pub fn remove_roles(&self, roles: &PyAny) -> PyResult<Vec<bool>> {
+        let v: Vec<String>;
+        if let Ok(r) = roles.extract::<String>() {
+            v = vec!(r);
+        } else if let Ok(r) = roles.extract::<Vec<String>>() {
+            v = r;
+        } else {
+            return type_error!("Cannot interpret roles as either a 'str' or a 'list of strs'");
+        }
+
+        Ok(om::with_user(&self.user_id, |u| {
+            u.remove_roles(&v)
         })?)
     }
 

@@ -17,6 +17,10 @@ use crate::_helpers::typed_value;
 
 pub struct Frontend {
     rc: crate::utils::revision_control::_frontend::RevisionControlFrontend,
+    // TODO
+    // mailers: HashMap<String, crate::utils::mailer::_frontend::MailerFrontend>,
+    // mailer: Option<String>,
+    // maillists:
 }
 
 impl Frontend {

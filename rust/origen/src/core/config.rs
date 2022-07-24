@@ -12,6 +12,7 @@
 use crate::STATUS;
 use origen_metal::config;
 use origen_metal::config::{Environment, File};
+use origen_metal::prelude::config::{MailerTOMLConfig, MaillistsTOMLConfig};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::exit;
@@ -144,8 +145,8 @@ pub struct Config {
     pub some_val: u32,
 
     // Mailer
-    pub mailer__maillists_dirs: Vec<String>,
-    pub mailer: Option<HashMap<String, String>>,
+    pub maillists: Option<MaillistsTOMLConfig>,
+    pub mailer: Option<MailerTOMLConfig>,
 
     // LDAPs
     pub ldaps: HashMap<String, LDAPConfig>,
@@ -186,12 +187,8 @@ impl Default for Config {
         s = s.set_default("pkg_server_push", "").unwrap();
         s = s.set_default("pkg_server_pull", "").unwrap();
         s = s.set_default("some_val", 3).unwrap();
-        s = s
-            .set_default("mailer__maillists_dirs", Vec::<String>::new())
-            .unwrap();
-        s = s
-            .set_default("mailer", None::<HashMap<String, String>>)
-            .unwrap();
+        s = s.set_default("maillists", None::<MaillistsTOMLConfig>).unwrap();
+        s = s.set_default("mailer", None::<MailerTOMLConfig>).unwrap();
         s = s
             .set_default("ldaps", {
                 let h: HashMap<String, LDAPConfig> = HashMap::new();
@@ -338,21 +335,15 @@ impl Default for Config {
             s = s.add_source(File::with_name(&format!("{}", f.display())));
             let built = exit_on_bad_config!(s.build_cloned());
 
-            match built.get_array("mailer__maillists_dirs") {
+            match built.get::<Option<MaillistsTOMLConfig>>("maillists") {
                 // Update any relative paths in this parameter to be relative to the config in which it was found
-                Ok(paths) => {
-                    if !paths.is_empty() {
-                        match s.set_override(
-                            "mailer__maillists_dirs",
-                            _update_relative_paths(
-                                &mut paths.iter().map( |m| exit_on_bad_config!(m.clone().into_string())).collect::<Vec<String>>(),
-                                &f.parent().unwrap().to_path_buf()
-                            )
-                        ) {
+                Ok(r) => {
+                    if let Some(_mls_config) = r {
+                        match s.set_override("maillists.src_dir", f.parent().unwrap().display().to_string()) {
                             Ok(new) => s = new,
                             Err(e) => {
                                 log_error!(
-                                    "Error setting maillist dir: '{}': {}",
+                                    "Error processing maillists config from '{}': {}",
                                     f.display(),
                                     e.to_string()
                                 );
@@ -376,17 +367,7 @@ impl Default for Config {
                     if let Some(r) = root.as_ref() {
                         match s.set_override(
                             "session__user_root",
-                            match crate::utility::file_utils::to_abs_path(r, &f.parent().unwrap().to_path_buf()) {
-                                Ok(resolved) => Some(resolved.display().to_string()),
-                                Err(e) => {
-                                    log_error!(
-                                        "Unable to process config value for 'session__user_root' (in '{}'): {}",
-                                        f.display(),
-                                        e
-                                    );
-                                    exit(1);
-                                }
-                            }
+                            om::_utility::file_utils::to_abs_path(r.display(), &f.parent().unwrap().to_path_buf()).display().to_string()
                         ) {
                             Ok(new) => s = new,
                             Err(e) => {
@@ -416,19 +397,6 @@ impl Default for Config {
 
         exit_on_bad_config!(exit_on_bad_config!(s.build()).try_deserialize())
     }
-}
-
-fn _update_relative_paths(paths: &mut Vec<String>, relative_to: &PathBuf) -> Vec<String> {
-    for i in 0..paths.len() {
-        let pb = PathBuf::from(&paths[i]);
-        match crate::utility::file_utils::to_abs_path(&pb, relative_to) {
-            Ok(resolved) => {
-                paths[i] = resolved.display().to_string();
-            }
-            Err(e) => log_error!("Unable to process maillist '{}': {}", pb.display(), e),
-        }
-    }
-    paths.to_vec()
 }
 
 #[cfg(test)]

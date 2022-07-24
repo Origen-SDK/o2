@@ -10,7 +10,7 @@ class Fixture_DictLikeAPI(abc.ABC):
                 self.klass = [parameters["klass"]] * self.len
             else:
                 self.klass = parameters["klass"]
-            self.not_in_dut = parameters["not_in_dut"]
+            self.not_in_dut = parameters.get("not_in_dut", "not_in_dut")
 
         @property
         def len(self):

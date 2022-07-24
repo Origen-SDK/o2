@@ -1,6 +1,5 @@
 use super::get_pyapp;
 use crate::utility::linter::_frontend::Linter;
-use crate::utility::mailer::_frontend::Mailer;
 use crate::utility::publisher::_frontend::Publisher;
 use crate::utility::release_scribe::_frontend::ReleaseScribe;
 use crate::utility::unit_testers::_frontend::UnitTester;
@@ -14,7 +13,6 @@ pub struct App {
     publisher: Publisher,
     linter: Linter,
     website: Website,
-    mailer: Mailer,
     release_scribe: ReleaseScribe,
 }
 
@@ -26,7 +24,6 @@ impl App {
             publisher: Publisher {},
             linter: Linter {},
             website: Website {},
-            mailer: Mailer {},
             release_scribe: ReleaseScribe {},
         })
     }
@@ -65,9 +62,10 @@ impl origen::core::frontend::App for App {
         Ok(Some(&self.website))
     }
 
-    fn mailer(&self) -> origen::Result<Option<&dyn origen::core::frontend::Mailer>> {
-        Ok(Some(&self.mailer))
-    }
+    // TODO
+    // fn mailer(&self) -> origen::Result<Option<&dyn origen::core::frontend::Mailer>> {
+    //     todo!()
+    // }
 
     fn release_scribe(&self) -> origen::Result<Option<&dyn origen::core::frontend::ReleaseScribe>> {
         Ok(Some(&self.release_scribe))

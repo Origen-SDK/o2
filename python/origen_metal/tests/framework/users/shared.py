@@ -31,6 +31,7 @@ def users():
 
 default_datakey = "__origen__default__"
 
+no_current_user_error_msg = "No current user has been set!"
 
 class Base:
     DATA_FIELDS = ["email", "first_name", "last_name"]
@@ -213,3 +214,8 @@ class Base:
         if cat_name not in needs_frontend.data_stores:
             needs_frontend.data_stores.add_category(cat_name)
         return needs_frontend.data_stores[cat_name]
+
+    def missing_email_error_msg(self, u):
+        if isinstance(u, self.user_class):
+            u = u.id
+        return f"Tried to retrieve email for user '{u}' but no email has been set!"

@@ -12,8 +12,6 @@ pub extern crate origen_metal;
 extern crate indexmap;
 #[macro_use]
 extern crate strum_macros;
-#[macro_use]
-extern crate enum_display_derive;
 
 pub mod core;
 pub mod generator;
@@ -45,8 +43,7 @@ pub use om::{TypedValue, LOGGER};
 pub use origen_metal as om;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use utility::mailer::Maillists;
+use std::sync::RwLock;
 
 use generator::PAT;
 use origen_metal::ast::{Attrs, Node, AST};
@@ -92,7 +89,6 @@ lazy_static! {
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
-    pub static ref MAILLISTS: RwLock<Maillists> = RwLock::new(Maillists::new());
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
@@ -183,14 +179,6 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
-}
-
-pub fn maillists<'a>() -> RwLockReadGuard<'a, Maillists> {
-    MAILLISTS.read().unwrap()
-}
-
-pub fn maillists_mut<'a>() -> RwLockWriteGuard<'a, Maillists> {
-    MAILLISTS.write().unwrap()
 }
 
 /// Execute the given function with a reference to the current job.

@@ -30,20 +30,9 @@ pub fn pytype_from_pyany<'p>(py: Python<'p>, t: &'p PyAny) -> PyResult<&'p PyTyp
     }
 }
 
-pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&'p PyType> {
-    let cls = class.to_string();
-    let split = cls.splitn(2, ".").collect::<Vec<&str>>();
-    let locals = PyDict::new(py);
-    let cls_path: String;
-    if split.len() > 1 {
-        locals.set_item("mod", py.import(split[0])?.to_object(py))?;
-        cls_path = format!("mod.{}", split[1]);
-    } else {
-        cls_path = split[0].to_string();
-    }
-
-    let t = py.eval(&cls_path, Some(locals), None)?;
-    t.extract::<&PyType>()
+pub fn pytype_from_str<'p>(py: Python<'p>, class: impl std::fmt::Display) -> PyResult<&PyType> {
+    let t = get_qualified_attr(&class.to_string())?;
+    t.into_ref(py).extract::<&PyType>()
 }
 
 pub fn new_py_obj<'p>(
@@ -133,7 +122,6 @@ where
     Ok(pydict.into())
 }
 
-// TEST_NEEDED
 pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
     Python::with_gil( |py| {
         let mut split = s.split(".");

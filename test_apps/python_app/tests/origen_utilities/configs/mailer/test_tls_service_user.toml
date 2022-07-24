@@ -7,4 +7,4 @@ email = "service@origen.org"
 [mailer]
 server = "smtp.origen.org"
 auth_method = "TLS"
-service_user = "mailer_service_user"
+user = "mailer_service_user"

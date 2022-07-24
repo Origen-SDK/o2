@@ -7,6 +7,7 @@ use toml::Value;
 use std::iter::FromIterator;
 use num_traits::cast::ToPrimitive;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 const DATA: &str = "data";
 const CLASS: &str = "__origen_encoded_class__";
@@ -250,6 +251,12 @@ impl From<&String> for TypedValue {
     }
 }
 
+impl From<&PathBuf> for TypedValue {
+    fn from(value: &PathBuf) -> Self {
+        Self::String(value.display().to_string())
+    }
+}
+
 impl From<bool> for TypedValue {
     fn from(value: bool) -> Self {
         Self::Bool(value)
@@ -270,6 +277,12 @@ impl From<usize> for TypedValue {
 
 impl From<u64> for TypedValue {
     fn from(value: u64) -> Self {
+        Self::BigUint(BigUint::from(value))
+    }
+}
+
+impl From<u16> for TypedValue {
+    fn from(value: u16) -> Self {
         Self::BigUint(BigUint::from(value))
     }
 }

@@ -5,7 +5,7 @@ use crate::prelude::session_store::*;
 use crate::utils::file::FilePermissions;
 use crate::{Outcome, OutcomeState, Result};
 use indexmap::IndexMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{log_error};
@@ -346,7 +346,7 @@ pub struct User {
     populate_status: PopulateStatus,
     session_config: RwLock<SessionConfig>,
     uid_num: usize,
-    roles: Vec<String>,
+    roles: RwLock<HashSet<String>>,
 
     // User-level overrides for dataset configuration
     auto_populate: Option<bool>,
@@ -379,7 +379,7 @@ impl User {
         // Check that each item in hierarchy is valid and that there are no duplicates
         validate_input_list(
             hierarchy.iter().collect::<Vec<&String>>(),
-            self.data.keys(),
+            Some(self.data.keys()),
             false,
             Some(&super::duplicate_dataset_hierarchy_closure),
             Some(&super::invalid_dataset_hierarchy_closure),
@@ -512,7 +512,7 @@ impl User {
             populate_status: PopulateStatus::default(),
             session_config: RwLock::new(users.default_session_config().clone()),
             uid_num: uid_cnt,
-            roles: vec!(),
+            roles: RwLock::new(HashSet::new()),
             auto_populate: auto_populate,
             should_validate_passwords: users.default_should_validate_passwords().to_owned(),
         };
@@ -615,7 +615,7 @@ impl User {
             Ok(e)
         } else {
             bail!(
-                "Tried to retrieve email for user {} but no email has been set!",
+                "Tried to retrieve email for user '{}' but no email has been set!",
                 self.id
             )
         }
@@ -1100,8 +1100,22 @@ impl User {
         ))
     }
 
-    pub fn roles(&self) -> &Vec<String> {
-        &self.roles
+    fn roles_mut(&self) -> Result<RwLockWriteGuard<HashSet<String>>> {
+        Ok(self.roles.write()?)
+    }
+
+    pub fn roles(&self) -> Result<RwLockReadGuard<HashSet<String>>> {
+        Ok(self.roles.read()?)
+    }
+
+    pub fn add_roles<S: AsRef<str>>(&self, roles: &Vec<S>) -> Result<Vec<bool>> {
+        let mut rls = self.roles_mut()?;
+        Ok(roles.iter().map( |r| rls.insert(r.as_ref().to_string())).collect::<Vec<bool>>())
+    }
+
+    pub fn remove_roles<S: AsRef<str>>(&self, roles: &Vec<S>) -> Result<Vec<bool>> {
+        let mut rls = self.roles_mut()?;
+        Ok(roles.iter().map( |r| rls.remove(r.as_ref())).collect::<Vec<bool>>())
     }
 
     pub fn with_session_group<T, F>(&self, mut func: F) -> Result<T>

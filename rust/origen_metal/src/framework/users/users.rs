@@ -271,6 +271,7 @@ pub struct Users {
     default_session_config: SessionConfig,
     default_auto_populate: Option<bool>,
     default_should_validate_passwords: Option<bool>,
+    default_roles: Vec<String>,
     uid_cnt: usize,
     password_encryption_key__byte_str: String,
     password_encryption_nonce__byte_str: String,
@@ -443,9 +444,19 @@ impl Users {
 
     pub fn add_user(id: &str, auto_populate: Option<bool>) -> Result<Option<PopulateUserReturn>> {
         log_trace!("Adding user '{}'", id);
-        with_users_mut(|users| users.add(id, auto_populate))?;
 
-        with_user(id, |u| u.autopopulate())
+        let mut roles: Vec<String> = vec!();
+        with_users_mut(|users| {
+            roles = users.default_roles.to_owned();
+            users.add(id, auto_populate)
+        })?;
+
+        with_user(id, |u| {
+            if !roles.is_empty() {
+                u.add_roles(&roles)?;
+            }
+            u.autopopulate()
+        })
     }
 
     // Adds an user, inheriting all options from the global `users`
@@ -502,6 +513,7 @@ impl Users {
         self.default_session_config = SessionConfig::new();
         self.default_auto_populate = None;
         self.default_should_validate_passwords = None;
+        self.default_roles = vec!();
         self.password_encryption_key__byte_str =
             encryption::default_encryption_key__byte_str().to_string();
         self.password_encryption_nonce__byte_str =
@@ -567,7 +579,7 @@ impl Users {
         // Check that each item in hierarchy is valid and that there are no duplicates ::<String, String, Vec<String>, Vec<String>>
         validate_input_list(
             hierarchy.iter().collect::<Vec<&String>>(),
-            self.default_datakeys(),
+            Some(self.default_datakeys()),
             false,
             Some(&super::duplicate_dataset_hierarchy_closure),
             Some(&super::invalid_dataset_hierarchy_closure),
@@ -685,18 +697,33 @@ impl Users {
         self.default_should_validate_passwords = set_to;
     }
 
-    // TODO
-    /// Return all roles
-    pub fn roles(&self) -> Vec<String>{
-        self.users_by_role(None).keys().map( |r| r.to_owned()).collect::<Vec<String>>()
+    pub fn default_roles(&self) -> Result<&Vec<String>> {
+        Ok(&self.default_roles)
     }
 
-    pub fn users_by_role(&self, filter: Option<&dyn Fn(&User, &String) -> bool>,) -> HashMap<String, Vec<String>>
+    pub fn set_default_roles<S: AsRef<str>>(&mut self, roles: &Vec<S>) -> Result<()> {
+        let rls = roles.iter().map( |r| r.as_ref().to_string()).collect::<Vec<String>>();
+        validate_input_list(&rls, None::<&Vec<String>>, false, None, None)?;
+        self.default_roles = rls;
+        Ok(())
+    }
+
+    pub fn clear_default_roles(&mut self) -> Result<()> {
+        self.default_roles = vec!();
+        Ok(())
+    }
+
+    /// Return all roles
+    pub fn roles(&self) -> Result<Vec<String>> {
+        Ok(self.users_by_role(None)?.keys().map( |r| r.to_owned()).collect::<Vec<String>>())
+    }
+
+    pub fn users_by_role(&self, filter: Option<&dyn Fn(&User, &String) -> bool>,) -> Result<HashMap<String, Vec<String>>>
     {
         let mut roles: HashMap<String, Vec<String>> = HashMap::new();
         for (n, u) in &self.users {
-            for user_role in u.roles() {
-                if filter.map_or(false, |f| f(&u, user_role)) {
+            for user_role in u.roles()?.iter() {
+                if filter.map_or(true, |f| f(&u, user_role)) {
                     if let Some(r) = roles.get_mut(user_role) {
                         r.push(n.to_owned());
                     } else {
@@ -705,22 +732,8 @@ impl Users {
                 }
             }
         }
-        roles
+        Ok(roles)
     }
-
-    // TODO
-    // /// Return a list of users with at least one of the roles
-    // pub fn users_with_any_role(&self, roles: Vec<String>) {
-    //     self.users_by_role(|u, r| {
-    //         roles.contains(r)
-    //     })
-    // }
-
-    // TODO
-    // /// Return a list of users that are of all of the roles
-    // pub fn users_with_all_roles(&self, roles: Vec<String>) {
-    //     // ?
-    // }
 }
 
 impl Default for Users {
@@ -735,6 +748,7 @@ impl Default for Users {
             default_session_config: SessionConfig::new(),
             default_auto_populate: None,
             default_should_validate_passwords: None,
+            default_roles: vec!(),
             uid_cnt: 0,
             password_encryption_key__byte_str: encryption::default_encryption_key__byte_str()
                 .to_string(),

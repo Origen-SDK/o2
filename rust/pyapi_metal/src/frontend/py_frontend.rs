@@ -9,6 +9,10 @@ use super::py_data_stores::{PyDataStores, PyDataStoreCategory};
 pub struct PyFrontend {
     pub rc: Option<PyObject>,
     pub data_stores: Py<PyDataStores>,
+    // TODO
+    // pub mailers: IndexMap<String, PyObject>,
+    // pub maillists: IndexMap<String, PyObject>,
+    // pub current_mailer: Optiont<String>,
     pub _users_: IndexMap<String, PyObject>,
     pub _spare_: IndexMap<String, PyObject>,
 }
@@ -40,6 +44,18 @@ impl PyFrontend {
     fn set_revision_control(&mut self, rc: Option<&PyAny>) -> PyResult<()> {
         self.set_rc(rc)
     }
+
+    // TODO
+    // #[getter]
+    // fn get_mailers() -> PyResult<&PyDict> {
+    //     ?
+    // }
+
+    // TODO
+    // #[getter]
+    // fn get_mailer() -> PyResult<PyObject> {
+    //     ?
+    // }
 
     #[getter]
     fn data_stores(&self) -> PyResult<&Py<PyDataStores>> {

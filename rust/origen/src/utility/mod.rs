@@ -4,19 +4,13 @@ pub mod file_utils;
 pub mod location;
 pub mod command_helpers;
 pub mod github;
-pub mod mailer;
 pub mod num_helpers;
 pub mod release_scribe;
 pub mod sessions;
 pub mod version;
 
 use crate::{Result, STATUS};
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-
-pub fn resolve_os_str(s: &OsStr) -> Result<String> {
-    Ok(s.to_os_string().into_string()?)
-}
 
 /// Resolves a directory path from the current application root.
 /// Accepts an optional 'user_val' and a default. The resulting directory will be resolved from:

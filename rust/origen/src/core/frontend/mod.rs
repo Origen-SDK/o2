@@ -113,7 +113,8 @@ pub trait App {
     fn publisher(&self) -> Result<Option<&dyn Publisher>>;
     fn linter(&self) -> Result<Option<&dyn Linter>>;
     fn website(&self) -> Result<Option<&dyn Website>>;
-    fn mailer(&self) -> Result<Option<&dyn Mailer>>;
+    // TODO
+    // fn mailer(&self) -> Result<Option<&dyn Mailer>>;
     fn release_scribe(&self) -> Result<Option<&dyn ReleaseScribe>>;
 
     fn get_rc(&self) -> Result<&dyn RcAPI> {
@@ -151,12 +152,13 @@ pub trait App {
         }
     }
 
-    fn get_mailer(&self) -> Result<&dyn Mailer> {
-        match self.mailer()? {
-            Some(m) => Ok(m),
-            None => bail!("No mailer is available on the application!"),
-        }
-    }
+    // TODO
+    // fn get_mailer(&self) -> Result<&dyn Mailer> {
+    //     match self.mailer()? {
+    //         Some(m) => Ok(m),
+    //         None => bail!("No mailer is available on the application!"),
+    //     }
+    // }
 
     fn get_release_scribe(&self) -> Result<&dyn ReleaseScribe> {
         match self.release_scribe()? {
@@ -194,23 +196,24 @@ pub trait Website {
     fn build(&self) -> Result<Outcome>;
 }
 
-pub trait Mailer {
-    /// Returns the mailer's configuration
-    fn get_config(&self) -> Result<TypedValueMap>;
+// TODO
+// pub trait Mailer {
+//     /// Returns the mailer's configuration
+//     fn get_config(&self) -> Result<TypedValueMap>;
 
-    /// Sends an email
-    fn send(
-        &self,
-        from: &str,
-        to: Vec<&str>,
-        subject: Option<&str>,
-        body: Option<&str>,
-        include_origen_signature: bool,
-    ) -> Result<Outcome>;
+//     /// Sends an email
+//     fn send(
+//         &self,
+//         from: &str,
+//         to: Vec<&str>,
+//         subject: Option<&str>,
+//         body: Option<&str>,
+//         include_origen_signature: bool,
+//     ) -> Result<Outcome>;
 
-    /// Sends a test email. By default, sends only to the current user
-    fn test(&self, to: Option<Vec<&str>>) -> Result<Outcome>;
-}
+//     /// Sends a test email. By default, sends only to the current user
+//     fn test(&self, to: Option<Vec<&str>>) -> Result<Outcome>;
+// }
 
 pub trait ReleaseScribe {
     /// Returns the path to where a release note *could* be.

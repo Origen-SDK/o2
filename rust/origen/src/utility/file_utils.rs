@@ -148,28 +148,3 @@ pub fn _copy(source: &Path, dest: &Path, contents: bool) -> Result<()> {
         }
     }
 }
-
-/// Given a relative path and a path its relative to, resolve the absolute path
-///
-/// In Windows, 'canonicalize' prepends "\\?\".
-/// However, upon some google searching, it apparently is
-/// dangerous to just remove as, in certain circumstances,
-/// it does resolve to a different pattern.
-/// But, other libraries, like glob, cannot handle it,
-/// even when the ? is escaped.
-/// So, instead just mashing the relative piece atop the
-/// relative_to directory and users of these paths
-/// can decide how to resolve.
-/// For example, glob has no problem correctly resolving
-/// this, without canonicalize
-///
-/// TL;DR - this needs some work in the future
-pub fn to_abs_path(path: &PathBuf, relative_to: &PathBuf) -> Result<PathBuf> {
-    if path.is_relative() {
-        let mut resolved = PathBuf::from(relative_to);
-        resolved.push(path);
-        Ok(resolved)
-    } else {
-        Ok(path.to_path_buf())
-    }
-}

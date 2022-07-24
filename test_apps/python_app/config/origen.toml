@@ -70,5 +70,5 @@ server = "smtp.origen.org"
 port = 25
 auth_method = "None"
 domain = "origen.org"
-service_user = "dummy_ldap_read_only"
-timeout_seconds = 120
+user = "dummy_ldap_read_only"
+timeout = 120

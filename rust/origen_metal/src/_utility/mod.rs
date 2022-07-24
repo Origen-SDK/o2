@@ -1,14 +1,17 @@
+pub mod file_utils;
+
 /// Internal utility functions, not meant for user consumption and definitely not meant to be
 /// (directly) wrapped by any frontend utility.
 use crate::Result;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+use std::ffi::OsStr;
 
 /// Checks the given values of a vector against an enumerated set of accepted values.
 /// Optionally, check for duplicate items as well.
 pub fn validate_input_list<'a, S, T, U>(
     input: T,
-    allowed: U,
+    allowed_values: Option<U>,
     allow_duplicates: bool,
     duplicate_error_customizer: Option<&dyn Fn(&S, usize, usize) -> String>,
     value_error_customizer: Option<&dyn Fn(&Vec<&&S>) -> String>,
@@ -40,19 +43,21 @@ where
         }
     }
 
-    let hash_allowed = HashSet::from_iter(allowed.into_iter());
-    let diff: Vec<&&S> = input_hash.difference(&hash_allowed).into_iter().collect();
-    if diff.len() > 0 {
-        if let Some(f) = value_error_customizer {
-            bail!(&f(&diff));
-        } else {
-            bail!(
-                "Input contains values which are not allowed in this context: {}",
-                diff.iter()
-                    .map(|d| format!("'{}'", d))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            );
+    if let Some(allowed) = allowed_values {
+        let hash_allowed = HashSet::from_iter(allowed.into_iter());
+        let diff: Vec<&&S> = input_hash.difference(&hash_allowed).into_iter().collect();
+        if diff.len() > 0 {
+            if let Some(f) = value_error_customizer {
+                bail!(&f(&diff));
+            } else {
+                bail!(
+                    "Input contains values which are not allowed in this context: {}",
+                    diff.iter()
+                        .map(|d| format!("'{}'", d))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                );
+            }
         }
     }
     Ok(())
@@ -72,6 +77,10 @@ pub fn str_from_byte_array(bytes: &[u8]) -> Result<String> {
         s.push_str(&format!("{:02x}", b));
     }
     Ok(s)
+}
+
+pub fn resolve_os_str(s: &OsStr) -> Result<String> {
+    Ok(s.to_os_string().into_string()?)
 }
 
 /// For convenience in converting to/from configs, allow bytes to be converted

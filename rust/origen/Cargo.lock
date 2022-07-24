@@ -2466,15 +2466,12 @@ dependencies = [
  "chrono",
  "dialoguer",
  "dirs 2.0.2",
- "enum-display-derive",
  "enum-utils",
  "eval",
  "futures 0.3.16",
  "git2",
- "glob",
  "indexmap",
  "lazy_static",
- "lettre",
  "md-5",
  "normpath",
  "num",
@@ -2491,7 +2488,6 @@ dependencies = [
  "pyo3",
  "regex",
  "reqwest 0.11.4",
- "rpassword 4.0.5",
  "semver 1.0.4",
  "serde",
  "serde-pickle",
@@ -2531,6 +2527,7 @@ dependencies = [
  "enum-display-derive",
  "enum-utils",
  "git2",
+ "glob",
  "indexmap",
  "keyring",
  "lazy_static",
@@ -2545,7 +2542,7 @@ dependencies = [
  "rand 0.8.4",
  "regex",
  "reqwest 0.11.4",
- "rpassword 5.0.1",
+ "rpassword",
  "semver 1.0.4",
  "serde",
  "serde-pickle",
@@ -3386,16 +3383,6 @@ dependencies = [
  "base64 0.13.0",
  "bitflags",
  "serde",
-]
-
-[[package]]
-name = "rpassword"
-version = "4.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99371657d3c8e4d816fb6221db98fa408242b0b53bac08f8676a41f8554fe99f"
-dependencies = [
- "libc",
- "winapi 0.3.9",
 ]
 
 [[package]]

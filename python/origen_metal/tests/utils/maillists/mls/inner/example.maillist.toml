@@ -1,0 +1,10 @@
+recipients = [
+    "e1",
+    "e2@somewhere.org",
+    "e3",
+    "e4@somewhere_else.org",
+]
+
+signature = "You are received this as a recipient of the 'example' maillist!"
+domain = "example.origen.org"
+audience = "example"

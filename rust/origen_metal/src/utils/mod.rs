@@ -9,3 +9,4 @@ pub mod os;
 pub mod outcome;
 pub mod revision_control;
 pub mod terminal;
+pub mod mailer;

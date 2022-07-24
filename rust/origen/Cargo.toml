@@ -42,14 +42,13 @@ shellexpand = "1.1.1"
 # Need to be careful with this version, couldn't build on RHEL6 with versions greater
 # than this. Can probably drop this constraint once NXP transitions to RHEL7.
 git2 = "0.13"
-rpassword = "4.0"
 num-bigint = {version = "0.4.0", features = ["serde"]}
 # Enabling this feature stops the CLI from depending on libpython. PYO3 is only included
 # in origen to enable conversion of an Origen error to a PyErr.
 pyo3 = {version = "0.16.5", features = ["extension-module", "auto-initialize"]}
 chrono = "0.4.11"
 origen-core-support = { version = "0.1.0-dev.1", path = "./origen-core-support" }
-whoami = "0.8"
+whoami = "0.8" # TODO
 dirs = "2.0"
 tempfile = "3"
 toml = "0.5"
@@ -61,10 +60,7 @@ strum_macros = "0.20"
 strum = { version = "0.20", features = ["derive"] }
 md-5 = "0.9"
 normpath = "0.2.0"
-lettre = {version = "=0.10.0-alpha.4", features = ["builder"]}
 cfg-if = "1"
-enum-display-derive = "0.1.1"
-glob = "0.3.0"
 dialoguer = "0.8.0"
 wait-timeout = "0.2.0"
 octocrab = "0.9.1"

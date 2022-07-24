@@ -1,51 +1,13 @@
-pub mod _frontend;
-pub mod maillist;
-
-use super::app_utility;
-use maillist::{Maillist, Maillists};
-use origen::utility::mailer::Mailer as OMailer;
+use origen_metal::utils::mailer::Mailer as OMailer;
+use origen_metal::utils::mailer::PASSWORD_MOTIVE as OM_PASSWORD_MOTIVE;
+use origen_metal::utils::mailer::MailerTOMLConfig;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
-use pyo3::wrap_pyfunction;
-use std::collections::HashMap;
-use pyapi_metal::prelude::{PyOutcome, typed_value, runtime_error};
-use pyapi_metal::prelude::users::*;
+use pyo3::types::{PyDict, PyTuple};
+use crate::prelude::{PyOutcome, typed_value};
+use crate::prelude::users::*;
 
-#[pymodule]
-pub fn mailer(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<Mailer>()?;
-    m.add_class::<Maillist>()?;
-    m.add_class::<Maillists>()?;
-    m.add_wrapped(wrap_pyfunction!(_mailer))?;
-    m.add_wrapped(wrap_pyfunction!(maillists))?;
-    Ok(())
-}
-
-#[pyfunction]
-pub fn _mailer() -> PyResult<Option<PyObject>> {
-    let c = &origen::ORIGEN_CONFIG;
-    let m = app_utility(
-        "mailer",
-        c.mailer.as_ref(),
-        Some("origen.utility.mailer.Mailer"),
-        false,
-    );
-    match m {
-        Ok(_) => m,
-        Err(e) => {
-            log_error!("Error creating mailer. No mailer will be available.",);
-            let gil = Python::acquire_gil();
-            let py = gil.python();
-            e.print(py);
-            Ok(None)
-        }
-    }
-}
-
-#[pyfunction]
-pub fn maillists() -> PyResult<Maillists> {
-    Ok(Maillists {})
-}
+// TEST_NEEDED
+pub const OM_MAILER_CLASS_QP: &str = "origen_metal.utils.mailer.Mailer";
 
 /// Simple Python class that wraps the Origen's mailer
 #[pyclass(subclass)]
@@ -56,16 +18,10 @@ pub struct Mailer {
 #[pymethods]
 impl Mailer {
     #[new]
-    #[args(config = "**")]
-    fn new(config: Option<&PyDict>) -> PyResult<Self> {
-        let mut c: HashMap<String, String> = HashMap::new();
-        if let Some(cfg) = config {
-            for (k, v) in cfg {
-                c.insert(k.extract::<String>()?, v.extract::<String>()?);
-            }
-        }
+    #[args(timeout="60")]
+    pub fn new(server: String, port: Option<u16>, domain: Option<String>, auth_method: Option<&str>, timeout: Option<u64>, user: Option<String>) -> PyResult<Self> {
         Ok(Self {
-            mailer: OMailer::new(&c)?,
+            mailer: OMailer::new(server, port, domain, auth_method, timeout, user)?
         })
     }
 
@@ -80,7 +36,7 @@ impl Mailer {
     }
 
     #[getter]
-    fn get_port(&self) -> PyResult<Option<usize>> {
+    fn get_port(&self) -> PyResult<Option<u16>> {
         Ok(self.mailer.port)
     }
 
@@ -90,8 +46,12 @@ impl Mailer {
     }
 
     #[getter]
-    fn get_auth_method(&self) -> PyResult<String> {
-        Ok(self.mailer.auth_method.to_string())
+    fn get_auth_method(&self) -> PyResult<Option<String>> {
+        if self.mailer.auth_method.is_none() {
+            Ok(None)
+        } else {
+            Ok(Some(self.mailer.auth_method.to_string()))
+        }
     }
 
     #[getter]
@@ -105,21 +65,18 @@ impl Mailer {
     }
 
     #[getter]
-    fn get_service_user(&self) -> PyResult<Option<PyUser>> {
-        if let Some(s) = self.mailer.service_user()? {
+    fn get_user(&self) -> PyResult<Option<PyUser>> {
+        if let Some(s) = self.mailer.user()? {
             let users = users()?;
-            match users.get(s)? {
-                Some(u) => Ok(Some(u)),
-                None => runtime_error!(format!("Invalid service user '{}' provided in mailer configuration", s))
-            }
+            Ok(Some(users.require_user(s)?))
         } else {
-            Ok(None)
+            users()?.current_user()
         }
     }
 
     #[getter]
-    fn __get_service_user__(&self) -> PyResult<Option<&String>> {
-        Ok(self.mailer.service_user()?)
+    fn __user__(&self) -> PyResult<Option<&String>> {
+        Ok(self.mailer.user()?)
     }
 
     #[getter]
@@ -157,6 +114,7 @@ impl Mailer {
         Ok(PyOutcome::from_origen(self.mailer.send(m)?))
     }
 
+    // TODO?
     // #[getter]
     // fn signature(&self) -> PyResult<Option<String>> {
     //     //
@@ -176,4 +134,20 @@ impl Mailer {
     // fn release_signature(&self) -> PyResult<Option<String>> {
     //     //
     // }
+
+    #[classattr]
+    const PASSWORD_MOTIVE: &'static str = OM_PASSWORD_MOTIVE;
+}
+
+impl Mailer {
+    pub fn toml_config_into_args<'py>(py: Python<'py>, config: &MailerTOMLConfig) -> PyResult<&'py PyTuple> {
+        Ok(PyTuple::new(py, [
+            config.server.to_object(py),
+            config.port.to_object(py),
+            config.domain.to_object(py),
+            config.auth_method.to_object(py),
+            config.timeout.to_object(py),
+            config.user.to_object(py)
+        ]))
+    }
 }

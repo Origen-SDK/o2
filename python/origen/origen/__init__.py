@@ -192,14 +192,14 @@ _plugins = {}
     mean that it hasn't been loaded yet (via an official API) rather than it not existing.
 '''
 
-mailer = _origen.utility.mailer._mailer()
+mailer = _origen.utility.mailer.boot_mailer()
 ''' Accessor to the global :class:`Mailer <_origen.utility.mailer.Mailer>`
 
 See also:
     * :link-to:`Mailers in the guides <origen_utilities:mailer>`
 '''
 
-maillists = _origen.utility.mailer.maillists()
+maillists = _origen.utility.mailer.boot_maillists()
 
 sessions = _origen.utility.sessions.OrigenSessions()
 ''' Accessor to the global :class:`SessionStore <_origen.utility.session_store.SessionStore`

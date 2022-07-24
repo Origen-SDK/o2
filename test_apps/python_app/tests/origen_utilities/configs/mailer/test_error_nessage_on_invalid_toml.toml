@@ -1,3 +1,0 @@
-mailer__maillists_dirs = [
-    "./maillists/errors/invalid_toml",
-]

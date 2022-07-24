@@ -1,4 +1,0 @@
-mailer__maillists_dirs = [
-    "./maillists/custom",
-    "./maillists/override",
-]

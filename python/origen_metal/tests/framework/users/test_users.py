@@ -12,6 +12,7 @@ from .tests__populating import T_PopulatingUsers
 from .tests__datasets import Base as DSBase
 from .tests__user_sessions import T_UserSessions
 from .tests__validating_passwords import T_ValidatingPasswords
+from .tests__user_roles import T_UserRoles
 
 class TestUsers(T_Users):
     pass
@@ -51,6 +52,9 @@ class TestUserSessions(T_UserSessions):
     pass
 
 class TestValidatingPasswords(T_ValidatingPasswords):
+    pass
+
+class TestUserRoles(T_UserRoles):
     pass
 
 class TestUserHomeDirectory(DSBase):
