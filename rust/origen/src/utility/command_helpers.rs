@@ -1,4 +1,4 @@
-use crate::Result;
+use origen_metal::{Result, Outcome, TypedValue};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -98,7 +98,7 @@ pub fn exec<S: Into<String> + Clone>(
     add_env: Option<HashMap<String, String>>,
     remove_env: Option<Vec<String>>,
     clear_env: bool,
-) -> Result<ExecResult> {
+) -> Result<Outcome> {
     let mut command;
     if cfg!(windows) {
         command = Command::new("cmd");
@@ -171,29 +171,14 @@ pub fn exec<S: Into<String> + Clone>(
     } else {
         exit_code = process.wait()?;
     }
-    Ok(ExecResult {
-        exit_code: if let Some(code) = exit_code.code() {
-            code
-        } else {
-            -1
-        },
-        stdout: if capture { Some(stdout_lines) } else { None },
-        stderr: if capture { Some(stderr_lines) } else { None },
-    })
-}
-
-pub struct ExecResult {
-    pub exit_code: i32,
-    pub stdout: Option<Vec<String>>,
-    pub stderr: Option<Vec<String>>,
-}
-
-impl ExecResult {
-    pub fn succeeded(&self) -> bool {
-        self.exit_code == 0
+    let mut o = Outcome::new_success_or_fail(exit_code.code() == Some(0));
+    o.insert_keyword_result("exit_code", exit_code.code().unwrap_or(-1));
+    if capture {
+        o.insert_keyword_result("stdout", Some(stdout_lines));
+        o.insert_keyword_result("stderr", Some(stderr_lines));
+    } else {
+        o.insert_keyword_result("stdout", TypedValue::None);
+        o.insert_keyword_result("stderr", TypedValue::None);
     }
-
-    pub fn failed(&self) -> bool {
-        !self.succeeded()
-    }
+    Ok(o)
 }

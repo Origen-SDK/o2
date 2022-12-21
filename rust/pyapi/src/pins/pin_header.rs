@@ -43,10 +43,7 @@ impl PinHeader {
     fn get___origen__model_id__(&self) -> PyResult<usize> {
         Ok(self.model_id)
     }
-}
 
-#[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for PinHeader {
     // Need to overwrite contains to account for aliasing
     fn __len__(&self) -> PyResult<usize> {
         self.width()
@@ -74,6 +71,18 @@ impl PinHeaderContainer {
 
     fn get(&self, name: &str) -> PyResult<PyObject> {
         DictLikeAPI::get(self, name)
+    }
+
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        DictLikeAPI::__len__(self)
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
     }
 }
 
@@ -103,23 +112,5 @@ impl DictLikeAPI for PinHeaderContainer {
         )
         .unwrap()
         .to_object(py))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::mapping::PyMappingProtocol for PinHeaderContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        DictLikeAPI::__getitem__(self, name)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        DictLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinHeaderContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
-        DictLikeAPI::__iter__(&*slf)
     }
 }

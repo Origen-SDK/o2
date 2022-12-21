@@ -10,7 +10,7 @@ use origen_metal::utils::revision_control::SupportedSystems;
 use crate::runtime_error;
 
 #[pymodule]
-fn revision_control(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn revision_control(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(app_rc))?;
     Ok(())
 }
@@ -41,6 +41,7 @@ fn app_rc() -> PyResult<Option<PyObject>> {
             let split = c.rsplitn(1, ".");
             if split.count() == 2 {
                 // Have a class (hopefully) of the form 'a.b.Class'
+                // TODO
                 todo!();
             }
 

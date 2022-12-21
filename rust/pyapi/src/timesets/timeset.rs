@@ -4,7 +4,6 @@ use super::timeset_container::{
 };
 use origen::Error;
 use origen::DUT;
-use pyo3::class::mapping::PyMappingProtocol;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 
@@ -1063,10 +1062,7 @@ impl SymbolMap {
         .unwrap()
         .to_object(py))
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for SymbolMap {
     fn __getitem__(&self, action: &PyAny) -> PyResult<String> {
         let dut = DUT.lock().unwrap();
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
@@ -1097,15 +1093,19 @@ impl PyMappingProtocol for SymbolMap {
         let resolver = &dut.timesets[self.timeset_id].pin_action_resolvers[&self.target_name];
         Ok(resolver.mapping().len())
     }
-}
 
-#[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for SymbolMap {
     fn __contains__(&self, item: &PyAny) -> PyResult<bool> {
-        match pyo3::PyMappingProtocol::__getitem__(self, &item) {
+        match self.__getitem__(&item) {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
         }
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<SymbolMapIter> {
+        Ok(SymbolMapIter {
+            keys: slf.keys().unwrap(),
+            i: 0,
+        })
     }
 }
 
@@ -1115,8 +1115,8 @@ pub struct SymbolMapIter {
     pub i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for SymbolMapIter {
+#[pymethods]
+impl SymbolMapIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }
@@ -1128,15 +1128,5 @@ impl pyo3::class::iter::PyIterProtocol for SymbolMapIter {
         let name = slf.keys[slf.i].clone();
         slf.i += 1;
         Ok(Some(name))
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for SymbolMap {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<SymbolMapIter> {
-        Ok(SymbolMapIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
     }
 }

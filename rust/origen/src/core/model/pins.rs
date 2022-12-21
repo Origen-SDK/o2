@@ -1136,8 +1136,7 @@ impl Dut {
 #[derive(Debug, Clone)]
 pub struct StateTracker {
     pins: IndexMap<String, Vec<String>>,
-    #[allow(dead_code)]
-    model_id: usize,
+    _model_id: usize,
 }
 
 impl StateTracker {
@@ -1173,7 +1172,7 @@ impl StateTracker {
         }
         Self {
             pins: pins,
-            model_id: model_id,
+            _model_id: model_id,
         }
     }
 

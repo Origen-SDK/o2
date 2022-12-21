@@ -3,7 +3,8 @@ name = "origen_metal"
 version = "0.4.0"
 authors = ["Origen-SDK"]
 license = "MIT"
-edition = "2018"
+# edition = "2018"
+edition = "2021"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/metal"
 repository = "https://github.com/Origen-SDK/origen_metal"
@@ -18,13 +19,21 @@ time = "0.1"
 termcolor = "1"
 regex = "1"
 tempfile = "3"
-pyo3 = {version = "0.14.4", features = ["extension-module"]}
+pyo3 = {version = "0.16.5", features = ["extension-module"]}
 serde = {version = "1.0", features = ["derive"]}
 toml = "0.5"
 git2 = "0.13"
 dirs = "2.0"
 wait-timeout = "0.2.0"
 chrono = "0.4.11"
+indexmap = { version = "1.6.0", features = ["serde-1"] }
+config = "0.13.1"
+ldap3 = "0.9.3"
+cfg-if = "1"
+enum-display-derive = "0.1.1"
+whoami = "1.2.1"
+rpassword = "5.0.1"
+rand = "0.8"
 serde-pickle = "0.6"
 enum-utils = "0.1.2"
 pest = "2.1"
@@ -32,14 +41,14 @@ pest_derive = "2.1"
 shellexpand = "1.1.1"
 keyring = "1"
 num-bigint = {version = "0.4.0", features = ["serde"]}
+num-traits = "0.2.15"
 serde_json = "1.0"
 octocrab = "0.9.1"
 reqwest = {version = "0.11.3", features = ["blocking", "json"]}
-ldap3 = "0.8.1"
-config = "0.9"
 lettre = {version = "=0.10.0-alpha.4", features = ["builder"]}
 aes-gcm = "0.8"
 semver = "1.0.1"
+glob = "0.3.0"
 
 [build-dependencies]
 built = "0.5.1"

@@ -2,10 +2,10 @@ use super::utility::transaction::Transaction;
 use crate::services::swd::Acknowledgements;
 use crate::testers::SupportedTester;
 use indexmap::IndexMap;
-use std::collections::HashMap;
+use crate::om::TypedValueMap;
 
 pub type Id = usize;
-type Metadata = Option<IndexMap<String, crate::Metadata>>;
+type Metadata = Option<TypedValueMap>;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum PAT {
@@ -43,8 +43,8 @@ pub enum PAT {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //// Pattern generation nodes
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-    PinGroupAction(usize, Vec<String>, Option<HashMap<String, crate::Metadata>>),
-    PinAction(usize, String, Option<HashMap<String, crate::Metadata>>),
+    PinGroupAction(usize, Vec<String>, Metadata),
+    PinAction(usize, String, Metadata),
     Capture(crate::Capture, Metadata),
     EndCapture(Option<usize>),
     Overlay(crate::Overlay, Metadata),

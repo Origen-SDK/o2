@@ -6,13 +6,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, 3.10.5]
 
     runs-on: ${{ matrix.os }}
     env:
       RUST_BACKTRACE: full
     steps:
       - uses: actions/checkout@v2
+
+      - name: Show Git Version
+        run : |
+          git --version
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -87,7 +91,7 @@ jobs:
       - name: Install Poetry
         uses: abatilo/actions-poetry@v2.0.0
         with:
-          poetry-version: 1.1.9
+          poetry-version: 1.1.14
 
       - name: Setup Python Env - Metal
         working-directory: python/origen_metal

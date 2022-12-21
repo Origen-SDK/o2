@@ -1,12 +1,14 @@
 use crate::model::Model as ModelProxy;
-use crate::pins::PyInit_pins;
-use crate::registers::{PyInit_registers, RegisterCollection};
-use crate::timesets::PyInit_timesets;
+use crate::registers::RegisterCollection;
 use origen::Error;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 use pyo3::wrap_pymodule;
+
+use crate::pins::__PYO3_PYMODULE_DEF_PINS;
+use crate::registers::__PYO3_PYMODULE_DEF_REGISTERS;
+use crate::timesets::__PYO3_PYMODULE_DEF_TIMESETS;
 
 #[allow(dead_code)]
 pub fn get_pydut(py: Python) -> PyResult<&PyAny> {

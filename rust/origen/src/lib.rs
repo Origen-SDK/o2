@@ -6,18 +6,12 @@ extern crate lazy_static;
 extern crate serde;
 extern crate origen_core_support;
 #[macro_use]
-extern crate origen_metal;
-#[macro_use]
-pub mod macros;
+pub extern crate origen_metal;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate indexmap;
 #[macro_use]
 extern crate strum_macros;
-#[macro_use]
-extern crate cfg_if;
-#[macro_use]
-extern crate enum_display_derive;
 
 pub mod core;
 pub mod generator;
@@ -28,10 +22,7 @@ pub mod standards;
 pub mod testers;
 pub mod utility;
 
-pub use self::core::metadata::Metadata;
 pub use self::core::status::Operation;
-pub use self::core::user;
-pub use self::core::user::User;
 pub use self::generator::utility::transaction::Action as TransactionAction;
 pub use self::generator::utility::transaction::Transaction;
 pub use origen_metal::Error;
@@ -44,23 +35,22 @@ use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
 pub use self::core::tester::{Capture, Overlay, Tester};
-use self::core::user::Users;
 pub use self::services::Services;
-use self::utility::logger::Logger;
+pub use self::utility::sessions::{setup_sessions, with_app_session, with_app_session_group};
 use num_bigint::BigUint;
+pub use om::prelude::frontend::*;
+pub use om::{TypedValue, LOGGER};
+pub use origen_metal as om;
 use std::fmt;
 use std::sync::{Mutex, MutexGuard};
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use utility::ldap::LDAPs;
-use utility::mailer::Maillists;
-use utility::session_store::{SessionStore, Sessions};
+use std::sync::RwLock;
 
 use generator::PAT;
 use origen_metal::ast::{Attrs, Node, AST};
 
 pub use self::core::frontend::callbacks as CALLBACKS;
 pub use self::core::frontend::{
-    emit_callback, with_frontend, with_frontend_app, with_optional_frontend, GenericResult,
+    emit_callback, with_frontend, with_frontend_app, with_optional_frontend,
 };
 
 pub use origen_metal::Result;
@@ -72,6 +62,9 @@ pub const MODES: &'static [&'static str] = &["production", "development"];
 // pub static BIGU1: num_bigint::BigUint = num_bigint::BigUint::from(1 as u8);
 // pub static BIGU0: num_bigint::BigUint = num_bigint::BigUint::from(0 as u8);
 
+// TODO move this to somewhere else?
+pub static FE_CAT_NAME__LDAPS: &'static str = "ldaps";
+
 lazy_static! {
     /// Provides status information derived from the runtime environment, e.g. if an app is present
     /// If an app is present then its Application struct is stored in here.
@@ -80,7 +73,6 @@ lazy_static! {
     /// Provides configuration information derived from origen.toml files found in the Origen
     /// installation and application file system paths
     pub static ref ORIGEN_CONFIG: OrigenConfig = OrigenConfig::default();
-    pub static ref LOGGER: Logger = Logger::default();
     /// The current device model, containing all metadata about hierarchy, regs, pins, specs,
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
     /// etc.)
@@ -97,10 +89,6 @@ lazy_static! {
     /// This is analogous to the TEST for test program duration, it provides a similar API for
     /// pushing nodes to the current flow, FLOW.push(my_node), etc.
     pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
-    pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
-    pub static ref LDAPS: Mutex<LDAPs> = Mutex::new(LDAPs::new());
-    pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
-    pub static ref MAILLISTS: RwLock<Maillists> = RwLock::new(Maillists::new());
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 
@@ -175,7 +163,6 @@ pub fn initialize(
     STATUS.set_cli_location(cli_location);
     STATUS.set_cli_version(cli_version);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
-    LOGGER.set_status_ready();
 }
 
 pub fn app() -> Option<&'static Application> {
@@ -192,66 +179,6 @@ pub fn tester() -> MutexGuard<'static, Tester> {
 
 pub fn producer() -> MutexGuard<'static, Producer> {
     PRODUCER.lock().unwrap()
-}
-
-pub fn sessions() -> MutexGuard<'static, Sessions> {
-    SESSIONS.lock().unwrap()
-}
-
-pub fn with_user_session<T, F>(session: Option<String>, mut func: F) -> Result<T>
-where
-    F: FnMut(&mut SessionStore) -> Result<T>,
-{
-    let mut sessions = crate::sessions();
-    let s = sessions.user_session(session)?;
-    func(s)
-}
-
-pub fn ldaps() -> MutexGuard<'static, LDAPs> {
-    LDAPS.lock().unwrap()
-}
-
-pub fn users<'a>() -> RwLockReadGuard<'a, Users> {
-    USERS.read().unwrap()
-}
-
-pub fn users_mut<'a>() -> RwLockWriteGuard<'a, Users> {
-    USERS.write().unwrap()
-}
-
-pub fn with_current_user<T, F>(mut func: F) -> Result<T>
-where
-    F: FnMut(&User) -> Result<T>,
-{
-    let _users = users();
-    let u = _users.current_user()?;
-    func(u)
-}
-
-pub fn with_user<T, F>(user: &str, mut func: F) -> Result<T>
-where
-    F: FnMut(&User) -> Result<T>,
-{
-    let _users = users();
-    let u = _users.user(user).unwrap();
-    func(u)
-}
-
-pub fn with_user_mut<T, F>(user: &str, mut func: F) -> Result<T>
-where
-    F: FnMut(&mut User) -> Result<T>,
-{
-    let mut _users = users_mut();
-    let u = _users.user_mut(user).unwrap();
-    func(u)
-}
-
-pub fn maillists<'a>() -> RwLockReadGuard<'a, Maillists> {
-    MAILLISTS.read().unwrap()
-}
-
-pub fn maillists_mut<'a>() -> RwLockWriteGuard<'a, Maillists> {
-    MAILLISTS.write().unwrap()
 }
 
 /// Execute the given function with a reference to the current job.
@@ -353,6 +280,7 @@ pub fn trace_error<T: Attrs>(node: &Node<T>, error: Error) -> Result<()> {
     }
 }
 
+// TODO change name?
 #[cfg(all(test, not(origen_skip_frontend_tests)))]
 mod tests {
     pub fn run_python(code: &str) -> crate::Result<()> {

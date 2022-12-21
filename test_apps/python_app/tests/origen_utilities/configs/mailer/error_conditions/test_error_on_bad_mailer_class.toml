@@ -1,0 +1,5 @@
+user__password_cache_option = "none"
+
+[mailer]
+server = "smtp_minimum.origen.org"
+class = "blah"

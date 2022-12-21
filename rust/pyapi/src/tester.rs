@@ -16,13 +16,12 @@ pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyclass(subclass)]
-#[derive(Debug)]
 /// Python interface for the tester backend.
 pub struct PyTester {
     python_testers: HashMap<SupportedTester, PyObject>,
     instantiated_testers: HashMap<SupportedTester, PyObject>,
-    #[allow(dead_code)]
-    metadata: Vec<PyObject>,
+    // TODO support metadata on testers
+    _metadata: Vec<PyObject>,
 }
 
 #[pymethods]
@@ -33,7 +32,7 @@ impl PyTester {
         Ok(PyTester {
             python_testers: HashMap::new(),
             instantiated_testers: HashMap::new(),
-            metadata: vec![],
+            _metadata: vec![],
         })
     }
 

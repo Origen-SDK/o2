@@ -1,7 +1,7 @@
 import pytest
 import origen, _origen  # pylint: disable=import-error
 from tests.shared import clean_eagle, clean_falcon, clean_tester  # pylint: disable=import-error
-from tests.shared.python_like_apis import Fixture_ListLikeAPI  # pylint: disable=import-error
+from om_tests.shared.python_like_apis import Fixture_ListLikeAPI  # pylint: disable=import-error
 
 klass = origen.pins.PinActions
 backend_klass = _origen.dut.pins.PinActions

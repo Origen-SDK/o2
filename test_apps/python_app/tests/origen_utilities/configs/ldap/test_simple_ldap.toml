@@ -1,0 +1,4 @@
+[ldaps]
+[ldaps.simple]
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"

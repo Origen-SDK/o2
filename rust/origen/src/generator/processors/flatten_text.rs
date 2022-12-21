@@ -102,14 +102,14 @@ impl Processor<PAT> for FlattenText {
             }
             PAT::TextBoundaryLine => Ok(Return::Inline(vec![self.section_boundary()])),
             PAT::User => {
-                if let Err(e) = crate::with_current_user(|u| {
+                if let Err(e) = origen_metal::with_current_user(|u| {
                     self.current_line += &u.username()?;
                     Ok(())
                 }) {
                     // Don't kill the pattern/program generation because the user ID isn't retrievable.
                     // Just be annoying about it.
-                    crate::display_redln!("Unable to retrieve current user ID");
-                    crate::display_redln!("Failed with error: \"{}\"", e.msg);
+                    log_error!("Unable to retrieve current user ID");
+                    log_error!("Failed with error: \"{}\"", e.msg);
                     self.current_line += "Error - Could not retrieve current user ID";
                 };
                 Ok(Return::None)

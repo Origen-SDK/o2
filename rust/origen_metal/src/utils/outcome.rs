@@ -1,3 +1,7 @@
+use crate::{Result, TypedValue, TypedValueMap, TypedValueVec};
+pub use Subtypes as OutcomeSubtypes;
+pub use Subtypes as OutcomeSubTypes;
+
 type AsNoun = String;
 type AsVerb = String;
 
@@ -43,10 +47,23 @@ impl OutcomeState {
 }
 
 #[derive(Debug, Clone)]
+pub enum Subtypes {
+    UnitTestStatus,
+    BuildResult,
+    UploadResult,
+    ExecResult,
+    Custom(String),
+}
+
+#[derive(Debug, Clone)]
 pub struct Outcome {
     pub state: OutcomeState,
     pub message: Option<String>,
-    // pub metadata: Option<IndexMap<String, Metadata>>,
+    pub positional_results: Option<TypedValueVec>,
+    pub keyword_results: Option<TypedValueMap>,
+    pub metadata: Option<TypedValueMap>,
+    pub inferred: Option<bool>,
+    pub subtype: Option<Subtypes>,
 }
 
 impl std::fmt::Display for Outcome {
@@ -60,7 +77,11 @@ impl Outcome {
         Self {
             state,
             message: None,
-            // metadata: None,
+            positional_results: None,
+            keyword_results: None,
+            metadata: None,
+            inferred: None,
+            subtype: None,
         }
     }
 
@@ -100,6 +121,10 @@ impl Outcome {
         Self::new(OutcomeState::fail())
     }
 
+    pub fn new_err() -> Self {
+        Self::new(OutcomeState::error())
+    }
+
     pub fn new_error() -> Self {
         Self::new(OutcomeState::error())
     }
@@ -131,6 +156,10 @@ impl Outcome {
         }
     }
 
+    pub fn passed(&self) -> bool {
+        self.succeeded()
+    }
+
     pub fn failed(&self) -> bool {
         match self.state {
             OutcomeState::Fail(_, _) => true,
@@ -150,14 +179,47 @@ impl Outcome {
         self
     }
 
-    // pub fn add_metadata(&mut self, key: &str, m: Metadata) -> Result<&mut Self> {
-    //     if self.metadata.is_none() {
-    //         self.metadata = Some(IndexMap::new());
-    //     }
+    pub fn message(&self) -> &Option<String> {
+        &self.message
+    }
 
-    //     self.metadata.as_mut().unwrap().insert(key.to_string(), m);
-    //     Ok(self)
-    // }
+    pub fn msg(&self) -> &Option<String> {
+        self.message()
+    }
+
+    pub fn msg_or_default(&self) -> &str {
+        match &self.message {
+            Some(m) => m,
+            None => "No message was provided!",
+        }
+    }
+
+    pub fn add_metadata(&mut self, key: &str, m: impl Into<TypedValue>) -> &mut Self {
+        if self.metadata.is_none() {
+            self.metadata = Some(TypedValueMap::new());
+        }
+
+        self.metadata.as_mut().unwrap().insert(key, m);
+        self
+    }
+
+    pub fn insert_keyword_result(&mut self, kw: impl AsRef<str>, r: impl Into<TypedValue>) -> &mut Self{
+        if self.keyword_results.is_none() {
+            self.keyword_results = Some(TypedValueMap::new());
+        }
+
+        self.keyword_results.as_mut().unwrap().insert(kw.as_ref(), r);
+        self
+    }
+
+    pub fn require_keyword_result(&self, kw: impl AsRef<str>) -> Result<&TypedValue>{
+        if let Some(kw_results) = self.keyword_results.as_ref() {
+            if let Some(r) = kw_results.get(kw.as_ref()) {
+                return Ok(r)
+            }
+        }
+        bail!("Required that outcome has keyword result '{}' but no such result was provided", kw.as_ref())
+    }
 
     pub fn gist(&self) {
         match &self.state {

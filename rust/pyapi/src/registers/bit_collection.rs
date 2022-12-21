@@ -4,8 +4,6 @@ use origen::core::model::registers::bit::Overlay as OrigenBitOverlay;
 use origen::core::model::registers::BitCollection as RichBC;
 use origen::core::model::registers::{BitOrder, Field, Register};
 use origen::{Dut, Result, TEST};
-use pyo3::class::basic::PyObjectProtocol;
-use pyo3::class::PyMappingProtocol;
 use pyo3::exceptions;
 use pyo3::exceptions::PyAttributeError;
 use pyo3::import_exception;
@@ -74,267 +72,6 @@ pub struct BitCollection {
     pub shift_left: bool,
     pub shift_logical: bool,
     pub transaction: u8,
-}
-
-/// Rust-private methods, i.e. not accessible from Python
-impl BitCollection {
-    pub fn from_reg_id(id: usize, dut: &MutexGuard<Dut>) -> BitCollection {
-        let reg = dut.get_register(id).unwrap();
-        BitCollection {
-            reg_id: Some(id),
-            field: None,
-            whole_reg: true,
-            whole_field: false,
-            bit_ids: reg.bit_ids.clone(),
-            i: 0,
-            shift_left: false,
-            shift_logical: false,
-            spacer: false,
-            // Important, all displays are LSB0 by default regardless of how the reg
-            // was defined
-            bit_order: BitOrder::LSB0,
-            transaction: 0,
-        }
-    }
-
-    pub fn from_rich_bc(bc: &RichBC) -> BitCollection {
-        BitCollection {
-            reg_id: bc.reg_id,
-            field: match &bc.field {
-                None => None,
-                Some(x) => Some(x.clone()),
-            },
-            whole_reg: bc.whole_reg,
-            whole_field: bc.whole_field,
-            bit_ids: bc.bits.iter().map(|bit| bit.id).collect(),
-            i: 0,
-            shift_left: false,
-            shift_logical: false,
-            spacer: false,
-            bit_order: BitOrder::LSB0,
-            transaction: 0,
-        }
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for BitCollection {
-    /// Just returns self un-modified. The configuration of the iteration
-    /// index and any other iterator vars should be done by calling one of the methods
-    /// like shift_out_left() and then iterating on the BitCollection object returned
-    /// by that.
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<BitCollection> {
-        Ok(slf.clone())
-    }
-
-    /// The BitCollection iterators always yield more BitCollections, usually a BC
-    /// containing only one bit.
-    // It's easier to implement a single API that way rather than adding another one
-    // for Bit objects that is almost the same as the BC API.
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<BitCollection>> {
-        if slf.i >= slf.bit_ids.len() {
-            return Ok(None);
-        }
-
-        let mut bit_ids: Vec<usize> = Vec::new();
-        if slf.shift_left {
-            bit_ids.push(slf.bit_ids[slf.bit_ids.len() - slf.i - 1]);
-        } else {
-            bit_ids.push(slf.bit_ids[slf.i]);
-        }
-
-        let bc = BitCollection {
-            reg_id: slf.reg_id,
-            field: match &slf.field {
-                Some(x) => Some(x.to_string()),
-                None => None,
-            },
-            whole_reg: slf.whole_reg && slf.bit_ids.len() == bit_ids.len(),
-            whole_field: slf.whole_field && slf.bit_ids.len() == bit_ids.len(),
-            bit_ids: bit_ids,
-            i: 0,
-            shift_left: false,
-            shift_logical: false,
-            spacer: false,
-            bit_order: slf.bit_order,
-            transaction: slf.transaction,
-        };
-
-        slf.i += 1;
-        Ok(Some(bc))
-    }
-}
-
-#[pyproto]
-impl PyObjectProtocol for BitCollection {
-    fn __repr__(&self) -> PyResult<String> {
-        let plural;
-        if self.bit_ids.len() > 1 {
-            plural = "s";
-        } else {
-            plural = "";
-        }
-        if self.reg_id.is_some() {
-            let dut = origen::dut();
-            let reg = dut.get_register(self.reg_id.unwrap())?;
-            if self.field.is_none() {
-                if self.whole_reg {
-                    Ok(reg.console_display(&dut, Some(self.bit_order), true)?)
-                } else {
-                    Ok(format!(
-                        "<BitCollection: {} bit{} from '{}'>",
-                        self.bit_ids.len(),
-                        plural,
-                        reg.name,
-                    ))
-                }
-            } else {
-                if self.whole_field {
-                    Ok(format!(
-                        "<BitCollection: '{}.{}'>",
-                        reg.name,
-                        self.field.as_ref().unwrap()
-                    ))
-                } else {
-                    Ok(format!(
-                        "<BitCollection: {} bit{} from '{}.{}'>",
-                        self.bit_ids.len(),
-                        plural,
-                        reg.name,
-                        self.field.as_ref().unwrap(),
-                    ))
-                }
-            }
-        } else {
-            Ok(format!(
-                "<BitCollection: {} bit{}>",
-                self.bit_ids.len(),
-                plural
-            ))
-        }
-    }
-
-    fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let dut = origen::dut();
-        // .bits returns a Python list containing individual bit objects wrapped in BCs
-        if query == "bits" {
-            let mut bits: Vec<PyObject> = Vec::new();
-            for id in &self.bit_ids {
-                let bc = self.smart_clone(vec![*id]);
-                bits.push(Py::new(py, bc)?.to_object(py));
-            }
-            Ok(PyList::new(py, bits).into())
-        // .fields returns a Python dict containing field objects as BCs and spacer BCs
-        } else if self.whole_reg {
-            if query == "fields" {
-                let fields = PyDict::new(py);
-                let reg = dut.get_register(self.reg_id.unwrap())?;
-                for field in reg.fields(true) {
-                    let mut bc = self.smart_clone(Vec::from_iter(
-                        self.bit_ids[field.offset..field.offset + field.width]
-                            .iter()
-                            .cloned(),
-                    ));
-                    bc.field = Some(field.name.clone());
-                    bc.whole_field = true;
-                    fields.set_item(field.name, Py::new(py, bc)?.to_object(py))?;
-                }
-                Ok(fields.into())
-            // .my_field
-            } else {
-                let reg = dut.get_register(self.reg_id.unwrap())?;
-                if reg.fields.contains_key(query) {
-                    let mut bc = self.smart_clone(reg.fields.get(query).unwrap().bit_ids(&dut));
-                    bc.field = Some(query.to_string());
-                    bc.whole_field = true;
-                    Ok(Py::new(py, bc)?.to_object(py))
-                } else {
-                    Err(PyAttributeError::new_err(format!(
-                        "'BitCollection' object has no attribute '{}'",
-                        query
-                    )))
-                }
-            }
-        } else {
-            Err(PyAttributeError::new_err(format!(
-                "'BitCollection' object has no attribute '{}'",
-                query
-            )))
-        }
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for BitCollection {
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.bit_ids.len())
-    }
-
-    /// Implements my_reg[5]
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<BitCollection> {
-        let field = match &self.field {
-            Some(x) => Some(x.to_string()),
-            None => None,
-        };
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
-            // Indices requires (what I think is) a max size. Should be plenty.
-            let indices = slice.indices(8192)?;
-            // TODO: Should this support step size?
-            let mut upper;
-            let mut lower;
-            if indices.start > indices.stop {
-                upper = indices.start as usize;
-                lower = indices.stop as usize;
-            } else {
-                upper = indices.stop as usize;
-                lower = indices.start as usize;
-            }
-            let bit_ids;
-            if self.bit_order == BitOrder::MSB0 {
-                upper = self.bit_ids.len() - upper - 1;
-                lower = self.bit_ids.len() - lower - 1;
-                let tmp = upper;
-                upper = lower;
-                lower = tmp;
-            }
-            bit_ids = Vec::from_iter(self.bit_ids[lower..upper + 1].iter().cloned());
-            let mut bc = self.smart_clone(bit_ids);
-            bc.field = field;
-            Ok(bc)
-        } else if let Ok(_int) = idx.cast_as::<PyInt>() {
-            let i = idx.extract::<usize>().unwrap();
-            if i < self.bit_ids.len() {
-                let mut bit_ids: Vec<usize> = Vec::new();
-                if self.bit_order == BitOrder::LSB0 {
-                    bit_ids.push(self.bit_ids[i]);
-                } else {
-                    bit_ids.push(self.bit_ids[self.bit_ids.len() - i - 1]);
-                }
-                let mut bc = self.smart_clone(bit_ids);
-                bc.field = field;
-                Ok(bc)
-            } else {
-                Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                    "The given bit index is out of range",
-                ))
-            }
-        } else if let Ok(_name) = idx.cast_as::<PyString>() {
-            if self.whole_reg {
-                let name = idx.extract::<&str>().unwrap();
-                self.field(name)
-            } else {
-                Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                    "Illegal bit index given",
-                ))
-            }
-        } else {
-            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                "Illegal bit index given",
-            ))
-        }
-    }
 }
 
 /// User API methods
@@ -1109,10 +846,259 @@ impl BitCollection {
         // Ok(self.clone())
         Ok(slf.into())
     }
+
+    /// Just returns self un-modified. The configuration of the iteration
+    /// index and any other iterator vars should be done by calling one of the methods
+    /// like shift_out_left() and then iterating on the BitCollection object returned
+    /// by that.
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<BitCollection> {
+        Ok(slf.clone())
+    }
+
+    /// The BitCollection iterators always yield more BitCollections, usually a BC
+    /// containing only one bit.
+    // It's easier to implement a single API that way rather than adding another one
+    // for Bit objects that is almost the same as the BC API.
+    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<BitCollection>> {
+        if slf.i >= slf.bit_ids.len() {
+            return Ok(None);
+        }
+
+        let mut bit_ids: Vec<usize> = Vec::new();
+        if slf.shift_left {
+            bit_ids.push(slf.bit_ids[slf.bit_ids.len() - slf.i - 1]);
+        } else {
+            bit_ids.push(slf.bit_ids[slf.i]);
+        }
+
+        let bc = BitCollection {
+            reg_id: slf.reg_id,
+            field: match &slf.field {
+                Some(x) => Some(x.to_string()),
+                None => None,
+            },
+            whole_reg: slf.whole_reg && slf.bit_ids.len() == bit_ids.len(),
+            whole_field: slf.whole_field && slf.bit_ids.len() == bit_ids.len(),
+            bit_ids: bit_ids,
+            i: 0,
+            shift_left: false,
+            shift_logical: false,
+            spacer: false,
+            bit_order: slf.bit_order,
+            transaction: slf.transaction,
+        };
+
+        slf.i += 1;
+        Ok(Some(bc))
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        let plural;
+        if self.bit_ids.len() > 1 {
+            plural = "s";
+        } else {
+            plural = "";
+        }
+        if self.reg_id.is_some() {
+            let dut = origen::dut();
+            let reg = dut.get_register(self.reg_id.unwrap())?;
+            if self.field.is_none() {
+                if self.whole_reg {
+                    Ok(reg.console_display(&dut, Some(self.bit_order), true)?)
+                } else {
+                    Ok(format!(
+                        "<BitCollection: {} bit{} from '{}'>",
+                        self.bit_ids.len(),
+                        plural,
+                        reg.name,
+                    ))
+                }
+            } else {
+                if self.whole_field {
+                    Ok(format!(
+                        "<BitCollection: '{}.{}'>",
+                        reg.name,
+                        self.field.as_ref().unwrap()
+                    ))
+                } else {
+                    Ok(format!(
+                        "<BitCollection: {} bit{} from '{}.{}'>",
+                        self.bit_ids.len(),
+                        plural,
+                        reg.name,
+                        self.field.as_ref().unwrap(),
+                    ))
+                }
+            }
+        } else {
+            Ok(format!(
+                "<BitCollection: {} bit{}>",
+                self.bit_ids.len(),
+                plural
+            ))
+        }
+    }
+
+    fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        let dut = origen::dut();
+        // .bits returns a Python list containing individual bit objects wrapped in BCs
+        if query == "bits" {
+            let mut bits: Vec<PyObject> = Vec::new();
+            for id in &self.bit_ids {
+                let bc = self.smart_clone(vec![*id]);
+                bits.push(Py::new(py, bc)?.to_object(py));
+            }
+            Ok(PyList::new(py, bits).into())
+        // .fields returns a Python dict containing field objects as BCs and spacer BCs
+        } else if self.whole_reg {
+            if query == "fields" {
+                let fields = PyDict::new(py);
+                let reg = dut.get_register(self.reg_id.unwrap())?;
+                for field in reg.fields(true) {
+                    let mut bc = self.smart_clone(Vec::from_iter(
+                        self.bit_ids[field.offset..field.offset + field.width]
+                            .iter()
+                            .cloned(),
+                    ));
+                    bc.field = Some(field.name.clone());
+                    bc.whole_field = true;
+                    fields.set_item(field.name, Py::new(py, bc)?.to_object(py))?;
+                }
+                Ok(fields.into())
+            // .my_field
+            } else {
+                let reg = dut.get_register(self.reg_id.unwrap())?;
+                if reg.fields.contains_key(query) {
+                    let mut bc = self.smart_clone(reg.fields.get(query).unwrap().bit_ids(&dut));
+                    bc.field = Some(query.to_string());
+                    bc.whole_field = true;
+                    Ok(Py::new(py, bc)?.to_object(py))
+                } else {
+                    Err(PyAttributeError::new_err(format!(
+                        "'BitCollection' object has no attribute '{}'",
+                        query
+                    )))
+                }
+            }
+        } else {
+            Err(PyAttributeError::new_err(format!(
+                "'BitCollection' object has no attribute '{}'",
+                query
+            )))
+        }
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self.bit_ids.len())
+    }
+
+    /// Implements my_reg[5]
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<BitCollection> {
+        let field = match &self.field {
+            Some(x) => Some(x.to_string()),
+            None => None,
+        };
+        if let Ok(slice) = idx.cast_as::<PySlice>() {
+            // Indices requires (what I think is) a max size. Should be plenty.
+            let indices = slice.indices(8192)?;
+            // TODO: Should this support step size?
+            let mut upper;
+            let mut lower;
+            if indices.start > indices.stop {
+                upper = indices.start as usize;
+                lower = indices.stop as usize;
+            } else {
+                upper = indices.stop as usize;
+                lower = indices.start as usize;
+            }
+            let bit_ids;
+            if self.bit_order == BitOrder::MSB0 {
+                upper = self.bit_ids.len() - upper - 1;
+                lower = self.bit_ids.len() - lower - 1;
+                let tmp = upper;
+                upper = lower;
+                lower = tmp;
+            }
+            bit_ids = Vec::from_iter(self.bit_ids[lower..upper + 1].iter().cloned());
+            let mut bc = self.smart_clone(bit_ids);
+            bc.field = field;
+            Ok(bc)
+        } else if let Ok(_int) = idx.cast_as::<PyInt>() {
+            let i = idx.extract::<usize>().unwrap();
+            if i < self.bit_ids.len() {
+                let mut bit_ids: Vec<usize> = Vec::new();
+                if self.bit_order == BitOrder::LSB0 {
+                    bit_ids.push(self.bit_ids[i]);
+                } else {
+                    bit_ids.push(self.bit_ids[self.bit_ids.len() - i - 1]);
+                }
+                let mut bc = self.smart_clone(bit_ids);
+                bc.field = field;
+                Ok(bc)
+            } else {
+                Err(PyErr::new::<exceptions::PyRuntimeError, _>(
+                    "The given bit index is out of range",
+                ))
+            }
+        } else if let Ok(_name) = idx.cast_as::<PyString>() {
+            if self.whole_reg {
+                let name = idx.extract::<&str>().unwrap();
+                self.field(name)
+            } else {
+                Err(PyErr::new::<exceptions::PyRuntimeError, _>(
+                    "Illegal bit index given",
+                ))
+            }
+        } else {
+            Err(PyErr::new::<exceptions::PyRuntimeError, _>(
+                "Illegal bit index given",
+            ))
+        }
+    }
 }
 
 /// Internal helper methods
 impl BitCollection {
+    pub fn from_reg_id(id: usize, dut: &MutexGuard<Dut>) -> BitCollection {
+        let reg = dut.get_register(id).unwrap();
+        BitCollection {
+            reg_id: Some(id),
+            field: None,
+            whole_reg: true,
+            whole_field: false,
+            bit_ids: reg.bit_ids.clone(),
+            i: 0,
+            shift_left: false,
+            shift_logical: false,
+            spacer: false,
+            // Important, all displays are LSB0 by default regardless of how the reg
+            // was defined
+            bit_order: BitOrder::LSB0,
+            transaction: 0,
+        }
+    }
+
+    pub fn from_rich_bc(bc: &RichBC) -> BitCollection {
+        BitCollection {
+            reg_id: bc.reg_id,
+            field: match &bc.field {
+                None => None,
+                Some(x) => Some(x.clone()),
+            },
+            whole_reg: bc.whole_reg,
+            whole_field: bc.whole_field,
+            bit_ids: bc.bits.iter().map(|bit| bit.id).collect(),
+            i: 0,
+            shift_left: false,
+            shift_logical: false,
+            spacer: false,
+            bit_order: BitOrder::LSB0,
+            transaction: 0,
+        }
+    }
+
     /// Turn into a full BitCollection containing bit object references
     pub fn materialize<'a>(&self, dut: &'a MutexGuard<Dut>) -> Result<RichBC<'a>> {
         if self.whole_reg {

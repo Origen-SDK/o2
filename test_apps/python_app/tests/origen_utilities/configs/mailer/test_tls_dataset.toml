@@ -5,7 +5,7 @@ user__password_cache_option = "none"
 [user__datasets.for_mailer]
 [user__datasets.not_mailer]
 
-[user__password_reasons]
+[user__dataset_motives]
 "mailer" = "for_mailer"
 
 [mailer]

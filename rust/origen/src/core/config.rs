@@ -9,22 +9,127 @@
 //! println!("Server: {}", &ORIGEN_CONFIG.pkg_server);  // => "Server: https://pkgs.company.net:9292"
 //! ```
 
-use super::term;
 use crate::STATUS;
-use config::{Environment, File};
+use origen_metal::config;
+use origen_metal::config::{Environment, File};
+use origen_metal::prelude::config::{MailerTOMLConfig, MaillistsTOMLConfig};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::exit;
+
+// TODO Get from a prelude?
+use crate::om;
+use om::framework::users::DatasetConfig as OMDatasetConfig;
 
 lazy_static! {
     pub static ref CONFIG: Config = Config::default();
 }
 
-/// Default keys generated from crate::utility::mod::tests::check_default_key_values
-/// default_encryption_key: !<<<---Origen StandardKey--->>>!
-pub static DEFAULT_ENCRYPTION_KEY: &str =
-    "213c3c3c2d2d2d4f726967656e205374616e646172644b65792d2d2d3e3e3e21";
-/// default_encryption_nonce: ORIGEN NONCE
-pub static DEFAULT_ENCRYPTION_NONCE: &str = "4f524947454e204e4f4e4345";
+#[derive(Debug, Deserialize)]
+pub struct LDAPConfig {
+    pub server: String,
+    pub base: String,
+    pub auth: Option<HashMap<String, config::Value>>,
+    pub continuous_bind: Option<bool>,
+    pub populate_user_config: Option<HashMap<String, config::Value>>,
+    pub timeout: Option<i32>,
+}
+
+impl std::convert::From<LDAPConfig> for config::ValueKind {
+    fn from(_value: LDAPConfig) -> Self {
+        Self::Nil
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DatasetConfig {
+    category: Option<String>,
+    data_store: Option<String>,
+    auto_populate: Option<bool>,
+    should_validate_password: Option<bool>,
+}
+
+impl std::convert::TryFrom<&DatasetConfig> for OMDatasetConfig {
+    type Error = om::Error;
+
+    fn try_from(value: &DatasetConfig) -> Result<Self, Self::Error> {
+        OMDatasetConfig::new(
+            value.category.clone(),
+            value.data_store.clone(),
+            value.auto_populate,
+            value.should_validate_password,
+        )
+    }
+}
+
+impl std::convert::From<DatasetConfig> for config::ValueKind {
+    fn from(_value: DatasetConfig) -> Self {
+        Self::Nil
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DefaultUserConfig {
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub email: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    // TODO support custom parameters (placed in "other")
+    // pub full_name: Option<String>,
+    pub roles: Option<Vec<String>>,
+    pub auto_populate: Option<bool>,
+    pub should_validate_passwords: Option<bool>,
+}
+
+impl std::convert::From<DefaultUserConfig> for config::ValueKind {
+    fn from(_value: DefaultUserConfig) -> Self {
+        Self::Nil
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct InitialUserConfig {
+    pub initialize: Option<bool>,
+}
+
+impl std::convert::From<InitialUserConfig> for config::ValueKind {
+    fn from(_value: InitialUserConfig) -> Self {
+        Self::Nil
+    }
+}
+
+// TODO likely need a user config
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// pub struct UserConfig {
+//     pub user__data_lookup_hierarchy: Option<Vec<String>>,
+//     pub user__datasets: Option<HashMap<String, HashMap<String, String>>>,
+//     pub user__password_auth_attempts: u8,
+//     pub user__password_cache_option: String,
+//     pub user__password_reasons: HashMap<String, String>,
+//     pub password_encryption_key: Option<String>,
+//     pub password_encryption_nonce: Option<String>,
+//     // pre-populated users, generally for explicit purposes such as an LDAP service user
+//     // or regression test launcher
+//     pub user__dataset_mappings: HashMap<String, HashMap<String, String>>,
+//     pub service_users: HashMap<String, HashMap<String, String>>,
+//     // User session root path
+//     pub session__user_root: Option<String>,
+// }
+
+#[macro_export]
+macro_rules! exit_on_bad_config {
+    ($result: expr) => {
+        match $result {
+            Ok(r) => r,
+            Err(e) => {
+                log_error!("Malformed config file");
+                log_error!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+}
 
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
@@ -40,74 +145,108 @@ pub struct Config {
     pub some_val: u32,
 
     // Mailer
-    pub mailer__maillists_dirs: Vec<String>,
-    pub mailer: Option<HashMap<String, String>>,
+    pub maillists: Option<MaillistsTOMLConfig>,
+    pub mailer: Option<MailerTOMLConfig>,
 
     // LDAPs
-    pub ldaps: HashMap<String, HashMap<String, String>>,
+    pub ldaps: HashMap<String, LDAPConfig>,
 
     // Very Basic Encryption
-    pub default_encryption_key: String,
-    pub default_encryption_nonce: String,
+    // TEST_NEEDED ensure these get set in OM
+    pub default_encryption_key: Option<String>,
+    pub default_encryption_nonce: Option<String>,
 
     // Various user config
     pub user__data_lookup_hierarchy: Option<Vec<String>>,
-    pub user__datasets: Option<HashMap<String, HashMap<String, String>>>,
+    pub user__datasets: Option<HashMap<String, DatasetConfig>>,
     pub user__password_auth_attempts: u8,
     pub user__password_cache_option: String,
-    pub user__password_reasons: HashMap<String, String>,
+    pub user__current_user_lookup_function: Option<String>,
+    // pub user__password_reasons: HashMap<String, String>,
+    pub user__dataset_motives: HashMap<String, String>,
     pub password_encryption_key: Option<String>,
     pub password_encryption_nonce: Option<String>,
     // pre-populated users, generally for explicit purposes such as an LDAP service user
     // or regression test launcher
     pub user__dataset_mappings: HashMap<String, HashMap<String, String>>,
-    pub service_users: HashMap<String, HashMap<String, String>>,
+    pub default_users: HashMap<String, DefaultUserConfig>,
+    pub initial_user: Option<InitialUserConfig>,
+    // User session root path
+    pub session__user_root: Option<String>,
 }
 
 impl Default for Config {
     fn default() -> Config {
         log_trace!("Instantiating Origen config");
-        let mut s = config::Config::new();
+        let mut s = config::Config::builder();
 
         // Start off by specifying the default values for all attributes, seems fine
         // not to handle these errors
-        let _ = s.set_default("python_cmd", "");
-        let _ = s.set_default("pkg_server", "");
-        let _ = s.set_default("pkg_server_push", "");
-        let _ = s.set_default("pkg_server_pull", "");
-        let _ = s.set_default("some_val", 3);
-        let _ = s.set_default("mailer__maillists_dirs", Vec::<String>::new());
-        let _ = s.set_default("mailer", None::<HashMap<String, String>>);
-        let _ = s.set_default("ldaps", {
-            let h: HashMap<String, HashMap<String, String>> = HashMap::new();
-            h
-        });
-        let _ = s.set_default("user__data_lookup_hierarchy", None::<Vec<String>>);
-        let _ = s.set_default("user__password_auth_attempts", 3);
-        let _ = s.set_default("user__password_cache_option", "keyring");
-        let _ = s.set_default("user__datasets", {
-            let h: Option<HashMap<String, HashMap<String, String>>> = None;
-            h
-        });
-        let _ = s.set_default("user__dataset_mappings", {
-            let h: HashMap<String, HashMap<String, String>> = HashMap::new();
-            h
-        });
-        let _ = s.set_default("user__password_reasons", {
-            let h: HashMap<String, String> = HashMap::new();
-            h
-        });
-        let _ = s.set_default("service_users", {
-            let h: HashMap<String, HashMap<String, String>> = HashMap::new();
-            h
-        });
+        s = s.set_default("python_cmd", "").unwrap();
+        s = s.set_default("pkg_server", "").unwrap();
+        s = s.set_default("pkg_server_push", "").unwrap();
+        s = s.set_default("pkg_server_pull", "").unwrap();
+        s = s.set_default("some_val", 3).unwrap();
+        s = s.set_default("maillists", None::<MaillistsTOMLConfig>).unwrap();
+        s = s.set_default("mailer", None::<MailerTOMLConfig>).unwrap();
+        s = s
+            .set_default("ldaps", {
+                let h: HashMap<String, LDAPConfig> = HashMap::new();
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("user__data_lookup_hierarchy", None::<Vec<String>>)
+            .unwrap();
+        s = s.set_default("user__password_auth_attempts", 3).unwrap();
+        s = s
+            .set_default("user__password_cache_option", "keyring")
+            .unwrap();
+        s = s
+            .set_default("user__datasets", {
+                let h: Option<HashMap<String, DatasetConfig>> = None;
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("user__dataset_mappings", {
+                let h: HashMap<String, HashMap<String, String>> = HashMap::new();
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("user__dataset_motives", {
+                let h: HashMap<String, String> = HashMap::new();
+                h
+            })
+            .unwrap();
+        s = s
+            .set_default("default_users", {
+                let h: HashMap<String, DefaultUserConfig> = HashMap::new();
+                h
+            })
+            .unwrap();
+        
+        s = s.set_default("initial_user", None::<InitialUserConfig>).unwrap();
 
-        let _ = s.set_default("default_encryption_key", DEFAULT_ENCRYPTION_KEY);
-        let _ = s.set_default("default_encryption_nonce", DEFAULT_ENCRYPTION_NONCE);
+        s = s
+            .set_default("default_encryption_key", None::<String>)
+            .unwrap();
+        s = s
+            .set_default("default_encryption_nonce", None::<String>)
+            .unwrap();
+        s = s.set_default("user__current_user_lookup_function", None::<String>).unwrap();
 
         // Encryption keys specifically for passwords
-        let _ = s.set_default("password_encryption_key", None::<String>);
-        let _ = s.set_default("password_encryption_nonce", None::<String>);
+        s = s
+            .set_default("password_encryption_key", None::<String>)
+            .unwrap();
+        s = s
+            .set_default("password_encryption_nonce", None::<String>)
+            .unwrap();
+
+        // Session setup
+        s = s.set_default("session__user_root", None::<String>).unwrap();
 
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();
@@ -125,7 +264,7 @@ impl Default for Config {
                         if ext == "toml" {
                             files.push(path);
                         } else {
-                            display_redln!(
+                            log_error!(
                                 "Expected file {} to have extension '.toml'. Found '{}'",
                                 path.display(),
                                 ext.to_string_lossy()
@@ -141,10 +280,11 @@ impl Default for Config {
                         files.push(f);
                     }
                 } else {
-                    display_redln!(
+                    log_error!(
                         "Config path {} either does not exists or is not accessible",
                         path.display()
                     );
+                    exit(1);
                 }
             }
         }
@@ -192,85 +332,70 @@ impl Default for Config {
         // Now add in the files, with the last one found taking lowest priority
         for f in files.iter().rev() {
             log_trace!("Loading Origen config file from '{}'", f.display());
-            let mut c = config::Config::new();
-            match c.merge(File::with_name(&format!("{}", f.display()))) {
-                Ok(_) => {}
-                Err(error) => {
-                    term::redln(&format!("Malformed config file: {}", f.display()));
-                    term::redln(&format!("{}", error));
-                    std::process::exit(1);
+            s = s.add_source(File::with_name(&format!("{}", f.display())));
+            let built = exit_on_bad_config!(s.build_cloned());
+
+            match built.get::<Option<MaillistsTOMLConfig>>("maillists") {
+                // Update any relative paths in this parameter to be relative to the config in which it was found
+                Ok(r) => {
+                    if let Some(_mls_config) = r {
+                        match s.set_override("maillists.src_dir", f.parent().unwrap().display().to_string()) {
+                            Ok(new) => s = new,
+                            Err(e) => {
+                                log_error!(
+                                    "Error processing maillists config from '{}': {}",
+                                    f.display(),
+                                    e.to_string()
+                                );
+                                exit(1);
+                            }
+                        }
+                    }
                 }
+                Err(e) => match e {
+                    config::ConfigError::NotFound(_) => {}
+                    _ => {
+                        log_error!("Malformed config file: {}", f.display());
+                        log_error!("{}", e);
+                        exit(1);
+                    }
+                },
             }
-            process_config_pre_merge(&mut c, f);
-            match s.merge(c) {
-                Ok(_) => {}
-                Err(error) => {
-                    term::redln(&format!("Malformed config file: {}", f.display()));
-                    term::redln(&format!("{}", error));
-                    std::process::exit(1);
+
+            match built.get::<Option<PathBuf>>("session__user_root") {
+                Ok(root) => {
+                    if let Some(r) = root.as_ref() {
+                        match s.set_override(
+                            "session__user_root",
+                            om::_utility::file_utils::to_abs_path(r.display(), &f.parent().unwrap().to_path_buf()).display().to_string()
+                        ) {
+                            Ok(new) => s = new,
+                            Err(e) => {
+                                log_error!(
+                                    "Error setting user session root: '{}': {}",
+                                    f.display(),
+                                    e.to_string()
+                                );
+                                exit(1);
+                            }
+                        }
+                    }
                 }
+                Err(e) => match e {
+                    config::ConfigError::NotFound(_) => {}
+                    _ => {
+                        log_error!("Malformed config file: {}", f.display());
+                        log_error!("{}", e);
+                        exit(1);
+                    }
+                },
             }
         }
 
-        // Add in settings from the environment (with a prefix of ORIGEN), not sure how this
-        // can really fail, so not handled
-        let _ = s.merge(Environment::with_prefix("origen"));
+        // Add in settings from the environment (with a prefix of ORIGEN)
+        s = s.add_source(Environment::with_prefix("origen"));
 
-        s.try_into().unwrap()
-    }
-}
-
-/// Do any processing to the config that needs to happen before attempting to merge
-fn process_config_pre_merge(c: &mut config::Config, src: &PathBuf) {
-    match c.get("mailer__maillists_dirs") {
-        // Update any relative paths in this parameter to be relative to the config in which it was found
-        Ok(mut paths) => {
-            match c.set(
-                "mailer__maillists_dirs",
-                _update_relative_paths(&mut paths, &src.parent().unwrap().to_path_buf()),
-            ) {
-                Ok(_) => {}
-                Err(e) => display_redln!(
-                    "Error setting maillist dir: '{}': {}",
-                    src.display(),
-                    e.to_string()
-                ),
-            }
-        }
-        Err(e) => match e {
-            config::ConfigError::NotFound(_) => {}
-            _ => {
-                term::redln(&format!("Malformed config file: {}", src.display()));
-                term::redln(&format!("{}", e));
-                std::process::exit(1);
-            }
-        },
-    }
-}
-
-fn _update_relative_paths(paths: &mut Vec<String>, relative_to: &PathBuf) -> Vec<String> {
-    for i in 0..paths.len() {
-        let pb = PathBuf::from(&paths[i]);
-        match crate::utility::file_utils::to_abs_path(&pb, relative_to) {
-            Ok(resolved) => {
-                paths[i] = resolved.display().to_string();
-            }
-            Err(e) => display_redln!("Unable to process maillist '{}': {}", pb.display(), e),
-        }
-    }
-    paths.to_vec()
-}
-
-impl Config {
-    pub fn get_service_user(
-        &self,
-        username: &str,
-    ) -> crate::Result<Option<&HashMap<String, String>>> {
-        if let Some(u) = self.service_users.get(username) {
-            Ok(Some(u))
-        } else {
-            Ok(None)
-        }
+        exit_on_bad_config!(exit_on_bad_config!(s.build()).try_deserialize())
     }
 }
 

@@ -145,8 +145,8 @@ pub struct DictLikeIter {
     i: usize,
 }
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for DictLikeIter {
+#[pymethods]
+impl DictLikeIter {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
         Ok(slf.into())
     }

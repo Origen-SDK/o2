@@ -8,6 +8,7 @@ target = ["falcon"]
 
 # Revision control parameters for the app itself
 app_rc = { system = "git", remote = "https://dummy.origen.git" }
+app_session_root = "./tmp/pytest"
 
 # Unit tester parameters for the app itself
 # By default, Origen apps use Pytest: https://docs.pytest.org/

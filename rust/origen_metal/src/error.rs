@@ -1,7 +1,7 @@
 use std::error::Error as BaseError;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
     pub msg: String,
 }
@@ -40,13 +40,13 @@ impl std::convert::From<pyo3::PyErr> for Error {
         let py = gil.python();
         Error::new(&format!(
             "Encountered Exception '{}' with message: {}{}",
-            err.ptype(py).name().unwrap(),
+            err.get_type(py).name().unwrap(),
             {
-                let r = err.pvalue(py).call_method0("__str__").unwrap();
+                let r = err.value(py).call_method0("__str__").unwrap();
                 r.extract::<String>().unwrap()
             },
             {
-                let tb = err.ptraceback(py);
+                let tb = err.traceback(py);
                 let m = py.import("traceback").unwrap();
                 let temp = pyo3::types::PyTuple::new(py, &[tb]);
                 let et = m.call_method1("extract_tb", temp).unwrap();
@@ -206,6 +206,18 @@ impl std::convert::From<std::env::VarError> for Error {
 
 impl std::convert::From<reqwest::Error> for Error {
     fn from(err: reqwest::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl<T> std::convert::From<std::sync::PoisonError<T>> for Error {
+    fn from(err: std::sync::PoisonError<T>) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
+impl std::convert::From<std::str::ParseBoolError> for Error {
+    fn from(err: std::str::ParseBoolError) -> Self {
         Error::new(&err.to_string())
     }
 }

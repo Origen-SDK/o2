@@ -2,7 +2,7 @@ import pytest, abc
 import origen, _origen  # pylint: disable=import-error
 from origen.pins import PinActions
 from shared import instantiate_dut, clean_dummy, clean_eagle, clean_tester, clean_falcon
-from shared.python_like_apis import Fixture_DictLikeAPI, Fixture_ListLikeAPI
+from om_tests.shared.python_like_apis import Fixture_DictLikeAPI, Fixture_ListLikeAPI
 from tests.pins import ports, clk_pins
 
 

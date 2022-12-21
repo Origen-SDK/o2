@@ -34,11 +34,12 @@ from _origen import _origen_metal
 # Replace origen_metal's native _origen_metal built library
 # with the one built from origen.
 sys.modules["origen_metal._origen_metal"] = _origen_metal
-_origen.initialize(init_verbosity, vks, cli_path, cli_ver)
-
 # Initialize origen_metal's frontend
 import origen_metal
+om = origen_metal
 origen_metal.frontend.initialize()
+
+_origen.initialize(init_verbosity, vks, cli_path, cli_ver)
 
 from pathlib import Path
 import importlib
@@ -107,24 +108,24 @@ version = _origen.version()
     '{{ origen_version }}'
 '''
 
-logger = _origen.logger
+logger = om.framework.logger
 ''' Direct access to the build-in logger module for logging and displaying user-friendly output. Also available as :data:`log`
 
     Returns:
-        _origen.logger: Pointer to _origen.logger
+        _origen_metal.framework.logger: Pointer to _origen_metal.framework.logger
 
     See Also
     --------
     
-    * :mod:`_origen.logger`
+    * :mod:`_origen_metal.framework.logger`
     * :link-to:`Logging Output <logger>`
 '''
 
-log = _origen.logger
+log = logger
 ''' Alias of :data:`logger`
 '''
 
-running_on_windows = _origen.on_windows()
+running_on_windows = om.running_on_windows
 ''' Indicates if Origen is currently running on Windows.
 
     Returns:
@@ -134,7 +135,7 @@ running_on_windows = _origen.on_windows()
     False
 '''
 
-running_on_linux = _origen.on_linux()
+running_on_linux = om.running_on_linux
 ''' Indicates if Origen is currently running on Linux.
 
     Returns:
@@ -191,23 +192,23 @@ _plugins = {}
     mean that it hasn't been loaded yet (via an official API) rather than it not existing.
 '''
 
-mailer = _origen.utility.mailer._mailer()
+mailer = _origen.utility.mailer.boot_mailer()
 ''' Accessor to the global :class:`Mailer <_origen.utility.mailer.Mailer>`
 
 See also:
     * :link-to:`Mailers in the guides <origen_utilities:mailer>`
 '''
 
-maillists = _origen.utility.mailer.maillists()
+maillists = _origen.utility.mailer.boot_maillists()
 
-session_store = _origen.utility.session_store
+sessions = _origen.utility.sessions.OrigenSessions()
 ''' Accessor to the global :class:`SessionStore <_origen.utility.session_store.SessionStore`
 
 See also:
     * :link-to:`Sessions in the guides <origen_utilities:session_store>`
 '''
 
-users = _origen.users.users()
+users = om.users
 ''' |dict-like| container for current and added :class:`Users <_origen.users.Users>`
 
 Put another way, accessor for global :class:`Users <_origen.users.Users>` object
@@ -216,14 +217,15 @@ See also:
     * :link-to:`Users in the guides <origen_utilities:users>`
 '''
 
-ldaps = _origen.utility.ldap.ldaps()
-''' |dict-like| container for current and added :class:`Users <_origen.utility.ldap.LDAP>`
+# TODO document this somehow
+# ldaps = _origen.utility.ldap.ldaps()
+# ''' |dict-like| container for current and added :class:`Users <_origen.utility.ldap.LDAP>`
 
-Put another way, accessor for global :class:`LDAPs <_origen.utility.ldap.LDAPs>` object
+# Put another way, accessor for global :class:`LDAPs <_origen.utility.ldap.LDAPs>` object
 
-See also:
-    * :link-to:`LDAPs in the guides <origen_utilities:ldap>`
-'''
+# See also:
+#     * :link-to:`LDAPs in the guides <origen_utilities:ldap>`
+# '''
 
 __instantiate_dut_called = False
 
@@ -313,10 +315,6 @@ def plugin(name):
         )
 
 
-def current_user():
-    return _origen.users.current_user()
-
-
 def __interactive_context__():
     ''' Returns the local context passed to an interactive section ``origen i`` is run.
     '''
@@ -339,5 +337,15 @@ __all__ = [
     *internal_members(sys.modules[__name__]), 'config', 'status', 'root',
     'version', 'logger', 'log', 'running_on_windows', 'running_on_linux',
     'frontend_root', 'app', 'dut', 'tester', 'producer', 'has_plugin',
-    'plugin', 'current_user', 'users', 'mailer', 'ldaps'
+    'plugin', 'current_user', 'users', 'mailer'
 ]
+
+
+def __getattr__(name: str):
+    if name == "ldaps":
+        return _origen.utility.ldaps()
+    elif name == "current_user":
+        return users.current_user
+    elif name == "initial_user":
+        return users.initial_user
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

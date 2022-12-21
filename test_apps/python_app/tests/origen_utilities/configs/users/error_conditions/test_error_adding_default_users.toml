@@ -1,0 +1,28 @@
+[default_users]
+[default_users.u1]
+auto_populate = false
+[default_users.u2]
+username = "user 2"
+[default_users.u3]
+username = "user 3"
+auto_populate = false
+
+[user__datasets]
+[user__datasets.autopop_ldap]
+auto_populate = true
+category = "ldaps"
+data_store = "dummy_autopop"
+
+[initial_user]
+initialize = false
+
+[ldaps]
+[ldaps.dummy_autopop]
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"
+[ldaps.dummy_autopop.auth]
+username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
+password = "zflexpass"
+[ldaps.dummy_autopop.populate_user_config]
+[ldaps.dummy_autopop.populate_user_config.mapping]
+full_name = "cn"

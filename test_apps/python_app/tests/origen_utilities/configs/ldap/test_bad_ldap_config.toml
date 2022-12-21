@@ -1,0 +1,5 @@
+[ldaps]
+[ldaps.bad]
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"
+timeout = "hi"

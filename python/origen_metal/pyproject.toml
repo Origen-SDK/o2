@@ -5,7 +5,7 @@ description = "Bare metal APIs for the Origen SDK"
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.10"
+python = ">=3.7,<3.11"
 pyreadline3 = { version="^3.3", platform="win32" }
 termcolor = ">= 1.1.0"
 colorama = ">= 0.4.4" # Note: colorama is usually installed on the system already, but it isn't actually required (e.g. WSL won't have this by default)
@@ -13,3 +13,12 @@ colorama = ">= 0.4.4" # Note: colorama is usually installed on the system alread
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
 pdoc = "^7"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+
+# Use '-m "not <mark>"' on the command line to bypass these tests
+markers = [
+    "online: marks tests as requiring an internet connection",
+    "ldap: marks tests requiring/using the external ldap",
+]

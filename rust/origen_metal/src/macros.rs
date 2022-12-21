@@ -45,6 +45,30 @@ macro_rules! bail {
     };
 }
 
+// "An error condition thought unreachable has occurred:\n {}\n
+
+// Please open an issue at {} to have this addressed
+// "
+// #[macro_export]
+// macro_rules! bail_as_unreachable {
+//     ($msg:literal $(,)?) => {
+//         return Err($crate::error!($msg))
+//     };
+//     ($err:expr $(,)?) => {
+//         return Err($crate::error!($err))
+//     };
+//     ($fmt:expr, $($arg:tt)*) => {
+//         return Err($crate::error!($fmt, $($arg)*))
+//     };
+// }
+
+#[macro_export]
+macro_rules! trace {
+    ( $e:expr , $n:expr ) => {{
+        $e.or_else(|e| return crate::trace_error($n, e))?
+    }};
+}
+
 #[macro_export]
 macro_rules! error {
     ($msg:literal $(,)?) => {
@@ -262,4 +286,56 @@ macro_rules! exit_error {
         display_redln!(r#"|_______|| _| `._____|| _| `._____| \______/  | _| `._____|"#);
         std::process::exit(1);
     };
+}
+
+#[macro_export]
+macro_rules! backend_fail {
+    ($message:expr) => {
+        $crate::LOGGER.error(&format!(
+            "A problem occurred in the Origen backend: '{}'",
+            $message
+        ));
+        std::process::exit(1);
+    };
+}
+
+#[macro_export]
+macro_rules! backend_expect {
+    ($obj:expr, $message:expr) => {{
+        match $obj {
+            Some(o) => o,
+            None => {
+                $crate::LOGGER.error(&format!("A problem occurred in the Origen backend as an Error or None value was unwrapped: '{}'", $message));
+                std::process::exit(1);
+            }
+        }
+    }};
+}
+
+/// Get the caller name. Taken from this SO answer:
+/// https://stackoverflow.com/a/63904992/8533619
+#[macro_export]
+macro_rules! current_func {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+
+        // Find and cut the rest of the path
+        match &name[..name.len() - 3].rfind(':') {
+            Some(pos) => &name[pos + 1..name.len() - 3],
+            None => &name[..name.len() - 3],
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! hashmap {
+    ( $( $name:expr => $value:expr ),+ ) => {{
+        let mut h = std::collections::HashMap::new();
+        $( h.insert($name, $value); )+
+        h
+    }};
 }

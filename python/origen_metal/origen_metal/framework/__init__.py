@@ -8,4 +8,7 @@ application framework, but they are not quite as generic as the APIs found in th
 
 from origen_metal import _origen_metal
 
+file_permissions = _origen_metal.framework.file_permissions
+
 Outcome = _origen_metal.framework.outcomes.Outcome
+FilePermissions = _origen_metal.framework.file_permissions.FilePermissions

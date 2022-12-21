@@ -2,11 +2,12 @@ use super::RunResult;
 use crate::application::{get_pyapp, PyApplication};
 use crate::runtime_error;
 use pyo3::prelude::*;
+use origen_metal::{Result, Outcome};
 
 pub struct UnitTester {}
 
 impl origen::core::frontend::UnitTester for UnitTester {
-    fn run(&self) -> origen::Result<origen::core::frontend::UnitTestStatus> {
+    fn run(&self) -> Result<Outcome> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pyapp = get_pyapp(py)?;

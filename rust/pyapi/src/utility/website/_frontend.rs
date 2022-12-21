@@ -1,14 +1,13 @@
 use crate::application::{get_pyapp, PyApplication};
 use crate::utility::results::BuildResult;
-use ofrontend::BuildResult as OrigenBuildResult;
 use origen::core::frontend as ofrontend;
-use origen::Result as OResult;
 use pyo3::prelude::*;
+use origen_metal::{Result, Outcome};
 
 pub struct Website {}
 
 impl ofrontend::Website for Website {
-    fn build(&self) -> OResult<OrigenBuildResult> {
+    fn build(&self) -> Result<Outcome> {
         let gil = Python::acquire_gil();
         let py = gil.python();
         let pyapp = get_pyapp(py)?;

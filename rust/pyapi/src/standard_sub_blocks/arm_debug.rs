@@ -69,7 +69,6 @@ fn check_for_jtag() -> PyResult<Option<usize>> {
 }
 
 #[pyclass(subclass)]
-#[derive(Clone)]
 /// Controller connecting the :class:`origen.blocks.arm_debug.controller.Controller` view
 /// with the :link-to:`backend model <backend_arm_debug_model>`.
 /// The controller here is responsible for instantiating and initializing the
@@ -231,6 +230,7 @@ impl ArmDebug {
 
 #[pyclass(subclass)]
 #[pyo3(text_signature = "()")]
+#[allow(dead_code)] // Suppress the false dead-code warning for the "clone" derive
 #[derive(Clone)]
 struct DP {
     pub dp_id: Option<usize>,
@@ -334,6 +334,7 @@ impl DP {
 
 #[pyclass(subclass)]
 #[pyo3(text_signature = "()")]
+#[allow(dead_code)] // Suppress the false dead-code warning for the "clone" derive
 #[derive(Clone)]
 struct JtagDP {
     pub id: Option<usize>,

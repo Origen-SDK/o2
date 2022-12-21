@@ -8,7 +8,7 @@ pub use v93k::V93K;
 use pyo3::prelude::*;
 
 #[pymodule]
-fn tester_apis(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn tester_apis(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<v93k::V93K>()?;
     m.add_class::<igxl::IGXL>()?;
     Ok(())

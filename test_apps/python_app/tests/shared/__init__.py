@@ -1,6 +1,8 @@
 import pytest, pathlib, inspect, os, sys
 import multiprocessing as mp
 import origen, _origen  # pylint: disable=import-error
+import tests._shared
+tmp_dir = tests._shared.tmp_dir
 
 backend_testers = [
     "ALL", "V93K", "V93KSMT7", "V93KSMT8", "IGXL", "J750", "ULTRAFLEX",
@@ -102,13 +104,6 @@ def setenv(q, bypass_config_lookup=None):
     os.environ['origen_config_paths'] = str(
         pathlib.Path(__file__).parent.joinpath(
             f"{inspect.stack()[1].function}.toml").absolute())
-
-
-def tmp_dir():
-    t = pathlib.Path(__file__).parent.parent.parent.joinpath('tmp/pytest')
-    if not t.exists():
-        t.mkdir(parents=True, exist_ok=True)
-    return t
 
 
 def instantiate_dut(name):

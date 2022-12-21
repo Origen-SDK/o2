@@ -2,8 +2,6 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
-use crate::core::frontend::{BuildResult, GenericResult};
-use crate::utility::str_to_bool;
 use crate::utility::version::{set_version_in_toml, Version};
 use crate::Result;
 use indexmap::IndexMap;
@@ -146,7 +144,7 @@ impl Application {
         })
     }
 
-    pub fn build_package(&self) -> Result<BuildResult> {
+    pub fn build_package(&self) -> Result<Outcome> {
         crate::with_frontend_app(|app| {
             let publisher = app.get_publisher()?;
             log_info!("Building Package...");
@@ -161,7 +159,7 @@ impl Application {
         self.with_config(|config| {
             if let Some(pc) = &config.publisher {
                 if let Some(s) = pc.get("package_app") {
-                    return str_to_bool(s);
+                    return Ok(s.parse::<bool>()?);
                 }
             }
             Ok(true)
@@ -174,8 +172,9 @@ impl Application {
         release_title: Option<Option<&str>>,
         release_note: Option<&str>,
         dry_run: bool,
-    ) -> Result<GenericResult> {
+    ) -> Result<Outcome> {
         Ok(crate::with_frontend_app(|app| {
+            // TODO
             // log_info!("Performing pre-publish checks...");
             // app.check_production_status()?;
 
@@ -215,7 +214,7 @@ impl Application {
                 let publisher = app.get_publisher()?;
                 log_info!("Building Package...");
                 let package_result = publisher.build_package()?;
-                if package_result.succeeded {
+                if package_result.succeeded() {
                     if let Some(m) = &package_result.message {
                         log_info!("{}", m);
                     }
@@ -231,7 +230,7 @@ impl Application {
 
                 log_info!("Uploading Package...");
                 let publish_result = publisher.upload(&package_result, dry_run)?;
-                if publish_result.succeeded {
+                if publish_result.succeeded() {
                     if let Some(m) = publish_result.message {
                         log_info!("{}", m);
                     } else {
@@ -265,7 +264,7 @@ impl Application {
 
             //     Ok(())
             // })?)
-            let mut r = GenericResult::new_success();
+            let mut r = Outcome::new_success();
             r.set_msg("Successfully released application!");
             Ok(r)
         })?)
@@ -294,7 +293,7 @@ impl Application {
 
             log_info!("Running unit tests...");
             let s = app.get_unit_tester()?.run()?;
-            stat.push_unit_test_check(s.passed(), s.text);
+            stat.push_unit_test_check(s.passed(), s.msg().to_owned());
 
             // log_info!("Checking for local dependencies...");
             // let s = app.list_local_dependencies()?;

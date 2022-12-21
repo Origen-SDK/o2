@@ -1,5 +1,4 @@
 use origen::core::application::target;
-use origen::{backend_expect, backend_fail};
 
 pub fn run(subcmd: Option<&str>, tnames: Option<Vec<&str>>, full_paths: bool) {
     if let Some(cmd) = subcmd {

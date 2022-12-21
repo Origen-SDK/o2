@@ -2,7 +2,6 @@ use super::super::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter}
 use super::super::meta::py_like_apis::list_like_api::{ListLikeAPI, ListLikeIter};
 use super::super::timesets::*;
 use indexmap::map::IndexMap;
-use pyo3::class::mapping::*;
 use pyo3::types::PyAny;
 
 #[macro_export]
@@ -40,6 +39,18 @@ impl TimesetContainer {
     fn get(&self, name: &str) -> PyResult<PyObject> {
         DictLikeAPI::get(self, name)
     }
+
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        DictLikeAPI::__len__(self)
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
+    }
 }
 
 impl DictLikeAPI for TimesetContainer {
@@ -62,24 +73,6 @@ impl DictLikeAPI for TimesetContainer {
         Ok(Py::new(py, super::timeset::Timeset::new(name, model_id))
             .unwrap()
             .to_object(py))
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for TimesetContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        DictLikeAPI::__getitem__(self, name)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        DictLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for TimesetContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
-        DictLikeAPI::__iter__(&*slf)
     }
 }
 
@@ -123,6 +116,18 @@ impl WavetableContainer {
     fn get(&self, name: &str) -> PyResult<PyObject> {
         DictLikeAPI::get(self, name)
     }
+
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        DictLikeAPI::__len__(self)
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
+    }
 }
 
 impl DictLikeAPI for WavetableContainer {
@@ -148,24 +153,6 @@ impl DictLikeAPI for WavetableContainer {
         )
         .unwrap()
         .to_object(py))
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for WavetableContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        DictLikeAPI::__getitem__(self, name)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        DictLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for WavetableContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
-        DictLikeAPI::__iter__(&*slf)
     }
 }
 
@@ -211,6 +198,18 @@ impl WaveGroupContainer {
     fn get(&self, name: &str) -> PyResult<PyObject> {
         DictLikeAPI::get(self, name)
     }
+
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        DictLikeAPI::__len__(self)
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
+    }
 }
 
 impl DictLikeAPI for WaveGroupContainer {
@@ -236,24 +235,6 @@ impl DictLikeAPI for WaveGroupContainer {
         )
         .unwrap()
         .to_object(py))
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for WaveGroupContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        DictLikeAPI::__getitem__(self, name)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        DictLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for WaveGroupContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
-        DictLikeAPI::__iter__(&*slf)
     }
 }
 
@@ -301,6 +282,18 @@ impl WaveContainer {
     fn get(&self, name: &str) -> PyResult<PyObject> {
         DictLikeAPI::get(self, name)
     }
+
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        DictLikeAPI::__len__(self)
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
+    }
 }
 
 impl DictLikeAPI for WaveContainer {
@@ -335,24 +328,6 @@ impl DictLikeAPI for WaveContainer {
     }
 }
 
-#[pyproto]
-impl PyMappingProtocol for WaveContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        DictLikeAPI::__getitem__(self, name)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        DictLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for WaveContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
-        DictLikeAPI::__iter__(&*slf)
-    }
-}
-
 #[macro_export]
 macro_rules! pyevent_container {
     ($py:expr, $model_id:expr, $timeset_id:expr, $wavetable_id:expr, $wave_group_id:expr, $wave_id:expr, $wave_name:expr) => {
@@ -384,7 +359,19 @@ pub struct EventContainer {
 }
 
 #[pymethods]
-impl EventContainer {}
+impl EventContainer {
+    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
+        ListLikeAPI::__getitem__(self, idx)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        ListLikeAPI::__len__(self)
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ListLikeIter> {
+        ListLikeAPI::__iter__(&*slf)
+    }
+}
 
 impl ListLikeAPI for EventContainer {
     fn item_ids(&self, dut: &std::sync::MutexGuard<origen::core::dut::Dut>) -> Vec<usize> {
@@ -413,23 +400,5 @@ impl ListLikeAPI for EventContainer {
             parent: Box::new((*self).clone()),
             i: 0,
         })
-    }
-}
-
-#[pyproto]
-impl pyo3::class::mapping::PyMappingProtocol for EventContainer {
-    fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        ListLikeAPI::__getitem__(self, idx)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        ListLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for EventContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ListLikeIter> {
-        ListLikeAPI::__iter__(&*slf)
     }
 }

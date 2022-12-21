@@ -1,53 +1,49 @@
 pub mod caller;
-pub mod ldap;
+pub mod ldaps;
 pub mod linter;
 pub mod location;
 #[allow(non_snake_case)]
 pub mod mailer;
-pub mod metadata;
 pub mod publisher;
 pub mod release_scribe;
 pub mod results;
 pub mod revision_control;
-pub mod session_store;
+pub mod sessions;
 pub mod transaction;
 pub mod unit_testers;
 pub mod version;
 pub mod website;
 
-use ldap::PyInit_ldap;
-use linter::PyInit_linter;
 use location::Location;
-use mailer::PyInit_mailer;
-use publisher::PyInit_publisher;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use release_scribe::PyInit_release_scribe;
-use results::PyInit_results;
-use revision_control::PyInit_revision_control;
-use session_store::PyInit_session_store;
 use transaction::Transaction;
-use unit_testers::PyInit_unit_testers;
 use version::Version;
-use website::PyInit_website;
 
-use crate::_helpers::hashmap_to_pydict;
 use crate::runtime_error;
 use num_bigint::BigUint;
 use origen::utility::big_uint_helpers::BigUintHelpers;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use pyapi_metal::PyOutcome;
+
+use crate::utility::revision_control::__PYO3_PYMODULE_DEF_REVISION_CONTROL;
+use crate::utility::unit_testers::__PYO3_PYMODULE_DEF_UNIT_TESTERS;
+use crate::utility::publisher::__PYO3_PYMODULE_DEF_PUBLISHER;
+use crate::utility::linter::__PYO3_PYMODULE_DEF_LINTER;
+use crate::utility::release_scribe::__PYO3_PYMODULE_DEF_RELEASE_SCRIBE;
+use crate::utility::results::__PYO3_PYMODULE_DEF_RESULTS;
+use crate::utility::website::__PYO3_PYMODULE_DEF_WEBSITE;
+use crate::utility::sessions::__PYO3_PYMODULE_DEF_SESSIONS;
 
 #[pymodule]
-pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn utility(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Location>()?;
     m.add_class::<Transaction>()?;
     m.add_class::<Version>()?;
     m.add_wrapped(wrap_pyfunction!(reverse_bits))?;
-    m.add_wrapped(wrap_pymodule!(mailer))?;
-    m.add_wrapped(wrap_pymodule!(session_store))?;
-    m.add_wrapped(wrap_pymodule!(ldap))?;
+    m.add_wrapped(wrap_pymodule!(sessions))?;
     m.add_wrapped(wrap_pymodule!(revision_control))?;
     m.add_wrapped(wrap_pymodule!(unit_testers))?;
     m.add_wrapped(wrap_pymodule!(publisher))?;
@@ -57,6 +53,8 @@ pub fn utility(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(website))?;
     m.add_wrapped(wrap_pyfunction!(exec))?;
     m.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;
+    ldaps::define(m)?;
+    mailer::define(py, m)?;
     Ok(())
 }
 
@@ -109,6 +107,7 @@ pub fn exec(
     })
 }
 
+// TODO use metal's
 fn new_obj(py: Python, class: &str, kwargs: &PyDict) -> PyResult<PyObject> {
     let split = class.rsplitn(2, ".").collect::<Vec<&str>>();
     let locals = PyDict::new(py);
@@ -176,8 +175,8 @@ fn app_utility(
     let split = system.rsplitn(2, ".");
     if split.count() == 2 {
         // Have a class (hopefully) of the form 'a.b.Class'
-        let py_conf = hashmap_to_pydict(py, conf_)?;
-        Ok(Some(new_obj(py, system, py_conf)?))
+        let py_conf = pyapi_metal::_helpers::map_to_pydict(py, &mut conf_.iter())?;
+        Ok(Some(new_obj(py, system, py_conf.as_ref(py))?))
     } else {
         // fall back to some enumerated systems
         if &system.to_lowercase() == "none" {
@@ -196,7 +195,7 @@ pub fn dispatch_workflow(
     workflow: &str,
     git_ref: &str,
     inputs: Option<HashMap<String, String>>,
-) -> PyResult<results::GenericResult> {
+) -> PyResult<PyOutcome> {
     let res = origen::utility::github::dispatch_workflow(owner, repo, workflow, git_ref, inputs)?;
-    Ok(results::GenericResult::from_origen(res))
+    Ok(PyOutcome::from_origen(res))
 }

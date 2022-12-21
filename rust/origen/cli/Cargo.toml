@@ -2,7 +2,7 @@
 name = "cli"
 version = "2.0.0-dev.5"
 authors = ["Origen-SDK"]
-edition = "2018"
+edition = "2021"
 workspace = ".."
 
 [[bin]]

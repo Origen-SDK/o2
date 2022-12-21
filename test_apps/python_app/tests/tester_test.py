@@ -1,7 +1,7 @@
 import pytest
 import origen, _origen  # pylint: disable=import-error
 from tests.shared import *
-from tests.shared.python_like_apis import Fixture_ListLikeAPI  # pylint: disable=import-error
+from om_tests.shared.python_like_apis import Fixture_ListLikeAPI  # pylint: disable=import-error
 from origen.generator.tester_api import TesterAPI  # pylint: disable=import-error
 from origen.generator.processor import Return  # pylint: disable=import-error
 

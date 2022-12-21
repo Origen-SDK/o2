@@ -3,8 +3,7 @@ use super::memory_map::MemoryMap;
 use super::register_collection::RegisterCollection;
 use crate::dut::PyDUT;
 use origen::DUT;
-use pyo3::class::basic::{CompareOp, PyObjectProtocol};
-use pyo3::class::PyMappingProtocol;
+use pyo3::class::basic::CompareOp;
 use pyo3::exceptions::{PyAttributeError, PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 
@@ -130,13 +129,7 @@ impl AddressBlocks {
             .collect();
         Ok(items)
     }
-}
 
-/// Internal, Rust-only methods
-impl AddressBlocks {}
-
-#[pyproto]
-impl PyMappingProtocol for AddressBlocks {
     fn __len__(&self) -> PyResult<usize> {
         self.len()
     }
@@ -157,10 +150,7 @@ impl PyMappingProtocol for AddressBlocks {
             )))
         }
     }
-}
 
-#[pyproto]
-impl PyObjectProtocol for AddressBlocks {
     /// Implements address_blocks.my_block
     fn __getattr__(&self, query: &str) -> PyResult<AddressBlock> {
         let dut = origen::dut();
@@ -204,10 +194,7 @@ impl PyObjectProtocol for AddressBlocks {
         }
         Ok(output)
     }
-}
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for AddressBlocks {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<AddressBlocks> {
         let mut m = slf.clone();
         m.i = 0;
@@ -228,10 +215,7 @@ impl pyo3::class::iter::PyIterProtocol for AddressBlocks {
         slf.i += 1;
         Ok(Some(id.to_string()))
     }
-}
 
-#[pyproto]
-impl pyo3::class::sequence::PySequenceProtocol for AddressBlocks {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         let dut = origen::dut();
         let map = dut.get_memory_map(self.memory_map_id)?;
@@ -260,13 +244,7 @@ impl AddressBlock {
             Err(_) => Ok(None),
         }
     }
-}
 
-/// Internal, Rust-only methods
-impl AddressBlock {}
-
-#[pyproto]
-impl PyObjectProtocol for AddressBlock {
     fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -301,7 +279,7 @@ impl PyObjectProtocol for AddressBlock {
         }
     }
 
-    fn __richcmp__(&self, other: PyRef<'p, AddressBlock>, op: CompareOp) -> PyResult<bool> {
+    fn __richcmp__(&self, other: PyRef<AddressBlock>, op: CompareOp) -> PyResult<bool> {
         match op {
             CompareOp::Eq => Ok(self.id == other.id && self.name == other.name),
             CompareOp::Ne => Ok(self.id != other.id || self.name != other.name),

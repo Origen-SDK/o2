@@ -1,0 +1,45 @@
+user__data_lookup_hierarchy = ["autopop_ldap"]
+[user__datasets]
+[user__datasets.autopop_ldap]
+auto_populate = true
+category = "ldaps"
+data_store = "dummy_autopop"
+[user__datasets.other]
+
+[initial_user]
+initialize = false
+
+[ldaps]
+[ldaps.dummy_autopop]
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"
+[ldaps.dummy_autopop.auth]
+username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
+password = "zflexpass"
+[ldaps.dummy_autopop.populate_user_config]
+[ldaps.dummy_autopop.populate_user_config.mapping]
+email = "mail"
+last_name = "sn"
+full_name = "cn"
+
+# These users should also inherit the dataset and hierarchy settings
+[default_users]
+[default_users.basic]
+auto_populate = false
+[default_users."full user"]
+username = "test full user"
+password = "password!"
+email = "full.user@origen.org"
+first_name = "TEST"
+last_name = "USER"
+# full_name = "TEST FULL USER"
+auto_populate = false
+should_validate_passwords = false
+[default_users.guest1]
+auto_populate = true
+should_validate_passwords = false
+[default_users.guest2]
+auto_populate = true
+should_validate_passwords = false
+email = "guest2@origen.org"
+password = "pw_guest2"

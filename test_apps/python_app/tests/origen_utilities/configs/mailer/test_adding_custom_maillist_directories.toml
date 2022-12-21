@@ -1,0 +1,5 @@
+[maillists]
+directories = [
+    "../../../../../../python/origen_metal/tests/utils/maillists/custom",
+    "./maillists/others",
+]

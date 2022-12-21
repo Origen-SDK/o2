@@ -1,8 +1,10 @@
 use super::super::{Base, Status};
+use crate::framework::users::{User, UserDataset};
 use crate::framework::Outcome as PyOutcome;
 use crate::{bail_with_runtime_error, OMResult};
 use origen_metal::utils::revision_control::supported::Git as OrigenGit;
 use origen_metal::utils::revision_control::{RevisionControl, RevisionControlAPI};
+use origen_metal::with_user;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple, PyType};
 use std::collections::HashMap;
@@ -156,6 +158,13 @@ impl Git {
 
     fn system(&self) -> PyResult<String> {
         Ok(self.rc()?.system().to_string())
+    }
+
+    fn populate_user(&self, user: PyRef<User>, dataset: PyRef<UserDataset>) -> PyResult<PyOutcome> {
+        Ok(with_user(&user.user_id(), |u| {
+            u.with_dataset_mut(dataset.dataset(), |d| self.rc()?.populate_user(u, d))
+        })?
+        .into())
     }
 }
 

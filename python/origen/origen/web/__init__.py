@@ -274,11 +274,11 @@ def clean(args=None):
 
     # Remove any existing output
     if origen.app.website_output_dir.exists:
-        _origen.logger.info(
+        origen.logger.info(
             f"Removing built website at {str(origen.app.website_output_dir)}")
         shutil.rmtree(origen.app.website_output_dir, ignore_errors=True)
     else:
-        _origen.logger.info("No built website to clean!")
+        origen.logger.info("No built website to clean!")
 
     if interbuild_dir.exists:
         shutil.rmtree(interbuild_dir, ignore_errors=True)
@@ -286,7 +286,7 @@ def clean(args=None):
     # Run any extension which has a 'clean' method
     for ext in sphinx_extension_mods():
         if origen.helpers.has_method(ext, "clean"):
-            _origen.logger.info(f"Cleaning extension {ext.__name__}")
+            origen.logger.info(f"Cleaning extension {ext.__name__}")
             ext.clean(config)
 
 

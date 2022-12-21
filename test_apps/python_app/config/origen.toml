@@ -13,14 +13,6 @@
 #pkg_server_push = "https://pkgs.company.net:9292"
 #pkg_server_pull = "https://pkgs.company.net:9292"
 
-### Dummy Mailer Setup ###
-mailer__server = "smtp.origen.org"
-mailer__port = 25
-mailer__auth_method = "None"
-mailer__domain = "origen.org"
-mailer__auth__service_user = "forumsys_read_only"
-mailer__timeout_seconds = 120
-
 ### Users Setup ###
 # Various items to customize user data
 #
@@ -34,50 +26,49 @@ user__password_cache_option = "none"
 [user__datasets.test]
 [user__datasets.test2]
 [user__datasets.backup]
-[user__datasets.forumsys]
-data_source = "ldap"
-data_lookup = "forumsys" # Corresponds to LDAP name
+[user__datasets.dummy_ldap_ds]
+category = "ldaps"
+data_store = "dummy_ldap" # Corresponds to LDAP name
 data_id = "uid"
-data_service_user = "forumsys_read_only"
-try_password = true
+data_service_user = "dummy_ldap_read_only"
+should_validate_password = true
 auto_populate = false
 [user__datasets.git]
-data_source = "git"
+data_store = "git"
 auto_populate = false
 
 # When a password is requested for the given reason, will select the appropriate dataset
-[user__password_reasons]
+[user__dataset_motives]
+"rc" = "git"
 "just because" = "test2"
 
 [user__dataset_mappings]
-[user__dataset_mappings.forumsys]
+[user__dataset_mappings.dummy_ldap_ds]
 email = "mail"
-# username = "userPrincipalName"
 last_name = "sn"
-# display_name = "cn"
 uid = "uid"
 full_name = "cn"
 
 # LDAP configuration
-# Test server:
-# https://www.forumsys.com/tutorials/integration-how-to/ldap/online-ldap-test-server/
 [ldaps]
-[ldaps.forumsys]
-server = "ldap://ldap.forumsys.com:389"
-base = "dc=example,dc=com"
-auth = "simple_bind"
-service_user = "forumsys_read_only"
+[ldaps.dummy_ldap]
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"
+[ldaps.dummy_ldap.auth]
+scheme = "simple_bind"
+username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
+password = "zflexpass"
 
 # Service/functional accounts
-[service_users]
-[service_users.forumsys_read_only]
-username = "cn=read-only-admin,dc=example,dc=com"
-password = "password"
+[default_users]
+[default_users.dummy_ldap_read_only]
+username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
+password = "zflexpass"
 
 [mailer]
 server = "smtp.origen.org"
 port = 25
 auth_method = "None"
 domain = "origen.org"
-service_user = "forumsys_read_only"
-timeout_seconds = 120
+user = "dummy_ldap_read_only"
+timeout = 120

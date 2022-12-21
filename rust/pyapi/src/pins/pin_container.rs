@@ -1,10 +1,8 @@
 use crate::get_full_class_name;
 use crate::meta::py_like_apis::dict_like_api::{DictLikeAPI, DictLikeIter};
 use indexmap::map::IndexMap;
-use pyo3::class::mapping::*;
 use pyo3::prelude::*;
-#[allow(unused_imports)]
-use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
+use pyo3::types::{PyDict, PyTuple};
 
 use super::pin_collection::PinCollection;
 use origen::core::model::pins::Endianness;
@@ -70,6 +68,18 @@ impl PinContainer {
         let c = Py::new(py, collection).unwrap();
         Ok(c)
     }
+
+    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
+        DictLikeAPI::__getitem__(self, name)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        DictLikeAPI::__len__(self)
+    }
+
+    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
+        DictLikeAPI::__iter__(&*slf)
+    }
 }
 
 impl DictLikeAPI for PinContainer {
@@ -98,23 +108,5 @@ impl DictLikeAPI for PinContainer {
         )
         .unwrap()
         .to_object(py))
-    }
-}
-
-#[pyproto]
-impl PyMappingProtocol for PinContainer {
-    fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        DictLikeAPI::__getitem__(self, name)
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        DictLikeAPI::__len__(self)
-    }
-}
-
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for PinContainer {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<DictLikeIter> {
-        DictLikeAPI::__iter__(&*slf)
     }
 }

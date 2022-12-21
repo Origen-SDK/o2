@@ -1,6 +1,18 @@
 use origen::core::file_handler::FileHandler as CoreFileHandler;
-use pyo3::class::PyMappingProtocol;
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+
+pub fn define(m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(file_handler))?;
+    Ok(())
+}
+
+/// Returns a file handler object (iterable) for consuming the file arguments
+/// given to the CLI
+#[pyfunction]
+fn file_handler() -> PyResult<FileHandler> {
+    Ok(FileHandler::new())
+}
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -29,17 +41,11 @@ impl FileHandler {
     fn len(&self) -> PyResult<usize> {
         Ok(self.inner.len())
     }
-}
 
-#[pyproto]
-impl PyMappingProtocol for FileHandler {
     fn __len__(&self) -> PyResult<usize> {
         Ok(self.inner.len())
     }
-}
 
-#[pyproto]
-impl pyo3::class::iter::PyIterProtocol for FileHandler {
     fn __iter__(slf: PyRefMut<Self>) -> PyResult<FileHandler> {
         Ok(slf.clone())
     }

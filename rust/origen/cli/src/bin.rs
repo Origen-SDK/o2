@@ -13,8 +13,10 @@ use app_commands::AppCommands;
 use clap::{App, AppSettings, Arg, SubCommand};
 use indexmap::map::IndexMap;
 use origen::{Result, LOGGER, STATUS};
+use origen_metal as om;
 use std::iter::FromIterator;
 use std::path::Path;
+use std::process::exit;
 
 static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
 static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
@@ -1334,73 +1336,75 @@ CORE COMMANDS:
             }
         }
         Some("credentials") => {
-            let cmd = matches.subcommand_matches("credentials").unwrap();
-            let subcmd = cmd.subcommand();
-            let sub = subcmd.1.unwrap();
-            match subcmd.0 {
-                "set" => {
-                    if sub.is_present("all") {
-                        match origen::core::user::set_all_passwords() {
-                            Ok(_) => {}
-                            Err(e) => {
-                                origen::display_redln!(
-                                    "Could not set all passwords. Errors were encountered:\n{}",
-                                    e.msg
-                                );
-                            }
-                        }
-                    } else {
-                        if let Some(datasets) = sub.values_of("dataset") {
-                            match origen::core::user::set_passwords(Some(datasets.collect())) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    origen::display_redln!("Could not set all requested passwords. Errors were encountered:\n{}", e.msg);
-                                }
-                            }
-                        } else {
-                            match origen::core::user::set_passwords(None) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    origen::display_redln!("Could not clear all passwords. Errors were encountered:\n{}", e.msg);
-                                }
-                            }
-                        }
-                    }
-                }
-                "clear" => {
-                    if sub.is_present("all") {
-                        match origen::core::user::clear_all_passwords() {
-                            Ok(_) => {}
-                            Err(e) => {
-                                origen::display_redln!(
-                                    "Could not clear all passwords. Errors were encountered:\n{}",
-                                    e.msg
-                                );
-                            }
-                        }
-                    } else {
-                        if let Some(datasets) = sub.values_of("dataset") {
-                            match origen::core::user::clear_passwords(Some(datasets.collect())) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    origen::display_redln!("Could not clear all given passwords. Errors were encountered:\n{}", e.msg);
-                                }
-                            }
-                        } else {
-                            match origen::core::user::clear_passwords(None) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    origen::display_redln!(
-                                        "Could not clear password. Errors were encountered:\n{}",
-                                        e.msg
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
+            // TODO re-add support for this command
+            todo!();
+            // let cmd = matches.subcommand_matches("credentials").unwrap();
+            // let subcmd = cmd.subcommand();
+            // let sub = subcmd.1.unwrap();
+            // match subcmd.0 {
+            //     "set" => {
+            //         if sub.is_present("all") {
+            //             match origen::core::user::set_all_passwords() {
+            //                 Ok(_) => {}
+            //                 Err(e) => {
+            //                     origen::display_redln!(
+            //                         "Could not set all passwords. Errors were encountered:\n{}",
+            //                         e.msg
+            //                     );
+            //                 }
+            //             }
+            //         } else {
+            //             if let Some(datasets) = sub.values_of("dataset") {
+            //                 match origen::core::user::set_passwords(Some(datasets.collect())) {
+            //                     Ok(_) => {}
+            //                     Err(e) => {
+            //                         origen::display_redln!("Could not set all requested passwords. Errors were encountered:\n{}", e.msg);
+            //                     }
+            //                 }
+            //             } else {
+            //                 match origen::core::user::set_passwords(None) {
+            //                     Ok(_) => {}
+            //                     Err(e) => {
+            //                         origen::display_redln!("Could not clear all passwords. Errors were encountered:\n{}", e.msg);
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     }
+            //     "clear" => {
+            //         if sub.is_present("all") {
+            //             match origen::core::user::clear_all_passwords() {
+            //                 Ok(_) => {}
+            //                 Err(e) => {
+            //                     origen::display_redln!(
+            //                         "Could not clear all passwords. Errors were encountered:\n{}",
+            //                         e.msg
+            //                     );
+            //                 }
+            //             }
+            //         } else {
+            //             if let Some(datasets) = sub.values_of("dataset") {
+            //                 match origen::core::user::clear_passwords(Some(datasets.collect())) {
+            //                     Ok(_) => {}
+            //                     Err(e) => {
+            //                         origen::display_redln!("Could not clear all given passwords. Errors were encountered:\n{}", e.msg);
+            //                     }
+            //                 }
+            //             } else {
+            //                 match origen::core::user::clear_passwords(None) {
+            //                     Ok(_) => {}
+            //                     Err(e) => {
+            //                         origen::display_redln!(
+            //                             "Could not clear password. Errors were encountered:\n{}",
+            //                             e.msg
+            //                         );
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     }
+            //     _ => {}
+            // }
         }
         Some("mode") => {
             let matches = matches.subcommand_matches("mode").unwrap();
@@ -1508,10 +1512,19 @@ CORE COMMANDS:
                         }
                     }
                     Err(e) => {
-                        log_error!("{}", e);
                         log_error!(
                             "Couldn't boot app to determine the in-application Origen version"
                         );
+                        log_error!("Received Error:");
+                        log_error!("");
+                        log_error!("{}", e);
+                        if output_lines != "" {
+                            log_error!("");
+                            log_error!("The following was also captured:");
+                            log_error!("");
+                            log_error!("{}", output_lines);
+                        }
+                        exit(1);
                     }
                 }
             } else {

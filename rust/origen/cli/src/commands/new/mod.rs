@@ -55,18 +55,18 @@ pub fn run(matches: &ArgMatches) {
     context.insert("app_name", name);
     context.insert("origen_version", &origen::STATUS.origen_version.to_string());
     let mut user_info = "".to_string();
-    let users = origen::users();
+    let users = crate::om::users();
     if let Ok(u) = users.current_user() {
         if let Ok(username) = u.username() {
             user_info += &username;
-            match u.email() {
+            match u.get_email() {
                 Ok(e) => {
                     if let Some(email) = e {
                         user_info += &format!(" <{}>", &email);
                     }
                 }
                 Err(e) => {
-                    origen::display_redln!("{}", e.msg);
+                    display_redln!("{}", e.msg);
                 }
             }
         }

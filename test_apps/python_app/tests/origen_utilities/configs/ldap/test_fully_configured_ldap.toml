@@ -1,0 +1,20 @@
+[ldaps]
+[ldaps.full]
+server = "ldap://zflexldap.com:389"
+base = "dc=zflexsoftware,dc=com"
+timeout = 45
+continuous_bind = true
+[ldaps.full.auth]
+scheme = "simple_bind"
+username = "uname"
+password = "pw"
+allow_default_password = false
+use_default_motives = false
+priority_motives = ["p1", "p2"]
+backup_motives = [
+    "backup1",
+    "backup2"
+]
+[ldaps.full.populate_user_config]
+data_id = "invalid"
+mapping = {"email" = "contact", "last_name" = "last", "full_name" = "full"}

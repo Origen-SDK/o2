@@ -5,7 +5,7 @@ description = ""
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.6,<3.11"
+python = ">=3.7,<3.11"
 origen = "= 2.0.0.dev5"
 python_plugin = { path = "../python_plugin", develop = true }
 
@@ -14,9 +14,15 @@ pytest = "^6.0"
 origen = { path = "../../python/origen", develop = true }
 origen_metal = { path = "../../python/origen_metal", develop = true }
 
-# Only needed for Python 3.10 currently
-crashtest = { version = "^ 0.3.1", python = "3.10.*" }
-
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+
+# Use '-m "not <mark>"' on the command line to bypass these tests
+markers = [
+    "online: marks tests as requiring an internet connection",
+    "ldap: marks tests requiring/using the external ldap",
+]

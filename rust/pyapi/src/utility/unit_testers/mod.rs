@@ -1,12 +1,13 @@
 pub mod _frontend;
 
-use crate::_helpers::hashmap_to_pydict;
+use pyapi_metal::_helpers::map_to_pydict;
 use crate::runtime_error;
 use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyType};
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
+use origen_metal::{Outcome, OutcomeSubtypes};
 
 #[pymodule]
 pub fn unit_testers(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -15,10 +16,11 @@ pub fn unit_testers(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+// TODO see if this is needed and move to OM, or try to use Outcome
 #[pyclass(subclass)]
 pub struct RunResult {
     // Origen Run Result
-    pub orr: Option<origen::core::frontend::UnitTestStatus>,
+    pub orr: Option<Outcome>,
 }
 
 #[pymethods]
@@ -27,13 +29,17 @@ impl RunResult {
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
-        passed: Option<bool>,
+        passed: bool,
         output: Option<String>,
     ) -> PyResult<()> {
         let mut i = instance.extract::<PyRefMut<Self>>()?;
-        i.orr = Some(origen::core::frontend::UnitTestStatus {
-            passed: passed,
-            text: output,
+        i.orr = Some({
+            let mut o = Outcome::new_pass_or_fail(passed);
+            if let Some(out) = output {
+                o.set_msg(out);
+            }
+            o.subtype = Some(OutcomeSubtypes::UnitTestStatus);
+            o
         });
         Ok(())
     }
@@ -55,7 +61,7 @@ impl RunResult {
 }
 
 impl RunResult {
-    fn get_orr(&self) -> PyResult<&origen::core::frontend::UnitTestStatus> {
+    fn get_orr(&self) -> PyResult<&Outcome> {
         match self.orr.as_ref() {
             Some(r) => Ok(r),
             None => runtime_error!("UnitTest Result has not been fully initialized yet!"),
@@ -107,8 +113,8 @@ fn app_unit_tester() -> PyResult<Option<PyObject>> {
             } else {
                 // fall back to some enumerated systems
                 if &c.to_lowercase() == "pytest" {
-                    let py_config = hashmap_to_pydict(py, ut_config)?;
-                    Ok(Some(new_pytest_driver(py_config)?))
+                    let py_config = map_to_pydict(py, &mut ut_config.iter())?;
+                    Ok(Some(new_pytest_driver(py_config.as_ref(py))?))
                 } else if &c.to_lowercase() == "none" {
                     Ok(None)
                 } else {
@@ -121,7 +127,7 @@ fn app_unit_tester() -> PyResult<Option<PyObject>> {
         }
     } else {
         let temp = HashMap::<String, String>::new();
-        let py_config = hashmap_to_pydict(py, &temp)?;
-        Ok(Some(new_pytest_driver(py_config)?))
+        let py_config = map_to_pydict(py, &mut temp.iter())?;
+        Ok(Some(new_pytest_driver(py_config.as_ref(py))?))
     }
 }

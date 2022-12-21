@@ -1,0 +1,3 @@
+[data.test_s2]
+__origen_encoded_class__ = "string"
+data = "s2 test"
