@@ -7,6 +7,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
+use crate::frontend::{LOOKUP_HOME_DIR_FUNC_KEY};
 
 use super::file_permissions::FilePermissions;
 use std::path::PathBuf;
@@ -255,6 +256,27 @@ impl Users {
     }
 
     #[getter]
+    pub fn get_lookup_home_dir_function(&self) -> PyResult<Option<PyObject>> {
+        crate::frontend::with_py_frontend(|py, py_fe| {
+            Ok(match py_fe._users_.get(*LOOKUP_HOME_DIR_FUNC_KEY) {
+                Some(f) => Some(f.to_object(py)),
+                None => None,
+            })
+        })
+    }
+
+    #[setter]
+    pub fn set_lookup_home_dir_function(&self, func: Option<&PyAny>) -> PyResult<()> {
+        crate::frontend::with_mut_py_frontend(|py, mut py_fe| {
+            match func {
+                Some(f) => py_fe._users_.insert(LOOKUP_HOME_DIR_FUNC_KEY.to_string(), f.to_object(py)),
+                None => py_fe._users_.remove(*LOOKUP_HOME_DIR_FUNC_KEY),
+            };
+            Ok(())
+        })
+    }
+
+    #[getter]
     fn get_datakeys(&self) -> PyResult<Vec<String>> {
         let users = om::users();
         Ok(users
@@ -469,6 +491,18 @@ impl Users {
     #[args(required="false")]
     pub fn for_exclusive_role(&self, role: &str, required: bool) -> PyResult<Option<User>> {
         Ok(self.for_role(role, true, required)?.pop())
+    }
+
+    #[setter]
+    pub fn set_default_password_cache_option(&self, password_cache_option: Option<&str>) -> PyResult<()> {
+        let mut users = om::users_mut();
+        Ok(users.set_default_password_cache_option(password_cache_option)?)
+    }
+
+    #[getter]
+    pub fn get_default_password_cache_option(&self) -> PyResult<Option<String>> {
+        let mut users = om::users_mut();
+        Ok(users.default_password_cache_option().as_ref().map_or( None, |p| p.into()))
     }
 
     fn __getitem__(&self, id: &str) -> PyResult<User> {
@@ -746,8 +780,8 @@ impl UserDataset {
         })?)
     }
 
-    #[setter]
-    pub fn set_home_dir(&self, hd: Option<PathBuf>) -> PyResult<()> {
+    #[setter(home_dir)]
+    pub fn home_dir_setter(&self, hd: Option<PathBuf>) -> PyResult<()> {
         Ok(om::with_user_dataset_mut(
             Some(&self.user_id),
             &self.dataset,
@@ -758,12 +792,35 @@ impl UserDataset {
         )?)
     }
 
+    pub fn set_home_dir(&self, d: Option<PathBuf>) -> PyResult<()> {
+        self.home_dir_setter(
+            if d.is_some() {
+                d
+            } else {
+                origen_metal::framework::users::user::try_default_home_dir(Some(&self.user_id), Some(&self.dataset))?
+            }
+        )
+    }
+
+    pub fn clear_home_dir(&self) -> PyResult<()> {
+        self.home_dir_setter(None)
+    }
+
     /// Gets the password for this dataset
     #[getter]
-    fn get_password(&self) -> PyResult<String> {
+    fn password(&self) -> PyResult<String> {
         Ok(om::with_user(&self.user_id, |u| {
             u.password(Some(&self.dataset), false, None)
         })?)
+    }
+
+    #[getter]
+    fn __password__(&self) -> PyResult<Option<String>> {
+        Ok(om::with_user_dataset(
+            Some(&self.user_id),
+            &self.dataset,
+            |d| Ok(d.password.as_ref().map( |s| s.to_string())),
+        )?)
     }
 
     #[setter]
@@ -1472,7 +1529,7 @@ impl User {
     }
 
     /// Clears the cached password only for the default dataset
-    fn clear_cache_password(&self) -> PyResult<()> {
+    fn clear_cached_password(&self) -> PyResult<()> {
         Ok(om::with_user(&self.user_id, |u| {
             u.clear_cached_password(None)
         })?)
@@ -1669,12 +1726,34 @@ impl User {
         })?)
     }
 
-    #[setter]
-    pub fn set_home_dir(&self, d: Option<PathBuf>) -> PyResult<()> {
+    #[setter(home_dir)]
+    pub fn home_dir_setter(&self, d: Option<PathBuf>) -> PyResult<()> {
         Ok(om::with_user(&self.user_id, |u| {
             u.set_home_dir(d.clone())?;
             Ok(())
         })?)
+    }
+
+    pub fn set_home_dir(&self, d: Option<PathBuf>) -> PyResult<()> {
+        self.home_dir_setter(
+            if d.is_some() {
+                d
+            } else {
+                origen_metal::framework::users::user::try_default_home_dir(Some(&self.user_id), None)?
+            }
+        )
+    }
+
+    pub fn clear_home_dir(&self) -> PyResult<()> {
+        self.home_dir_setter(None)
+    }
+
+    #[allow(non_snake_case)]
+    #[getter]
+    pub fn __dot_origen_dir__(&self, py: Python) -> PyResult<PyObject> {
+        Ok(pypath!(py, om::with_user(&self.user_id, |u| {
+            u.dot_origen_dir()
+        })?.display()))
     }
 
     #[getter]

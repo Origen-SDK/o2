@@ -1,0 +1,6 @@
+[plugins]
+collect = false
+load = [
+    { name = "python_plugin" },
+    { name = "python_plugin_the_second" },
+]

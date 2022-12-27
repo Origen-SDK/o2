@@ -1,0 +1,242 @@
+help = "Commands to assisted in testing aux commands when no app is present"
+
+[[command]]
+name = "python_no_app_tests"
+help = "Test commands for python-no-app workspace"
+
+[[command]]
+name = "test_current_command"
+help = "Tests origen.current_command"
+
+[[command]]
+name = "test_nested_level_1"
+help = "Tests origen.current_command L1"
+
+    [[command.subcommand]]
+    name = "test_nested_level_2"
+    help = "Tests origen.current_command L2"
+
+        [[command.subcommand.subcommand]]
+        name = "test_nested_level_3_a"
+        help = "Tests origen.current_command L3a"
+
+        [[command.subcommand.subcommand]]
+        name = "test_nested_level_3_b"
+        help = "Tests origen.current_command L3b"
+
+[[command]]
+name = "test_arguments"
+help = "Test various argument schemes from commands"
+
+    # Very simple subcommands that only support a small piece of the options at a time
+    [[command.subcommand]]
+    name = "single_value_optional_arg"
+    help = "Command taking optional, single arguments"
+
+        # Default setting for an arg is not required
+        [[command.subcommand.arg]]
+        name = "implicit_single_val"
+        takes_value = true
+        help = "Implicit non-required single value"
+
+        [[command.subcommand.arg]]
+        name = "explicit_single_val"
+        takes_value = true
+        required = false
+        help = "Explicit non-required single value"
+
+    [[command.subcommand]]
+    name = "single_value_required_arg"
+    help = "Command with single-value optional and required arguments"
+
+        # Default setting is arg is not required
+        [[command.subcommand.arg]]
+        name = "non_req_val"
+        takes_value = true
+        help = "Non-required single value"
+
+        [[command.subcommand.arg]]
+        name = "req_val"
+        takes_value = true
+        required = true
+        help = "Required single value"
+
+    [[command.subcommand]]
+    name = "multi_val_args"
+    help = "Command with multi-value optional and required arguments"
+
+        [[command.subcommand.arg]]
+        name = "m_arg"
+        takes_value = true
+        multiple = true
+        help = "Arg with multiple values"
+
+        # Takes value should be implied with multiple
+        [[command.subcommand.arg]]
+        name = "im_m_arg"
+        multiple = true
+        help = "Arg accepting multiple values were 'takes value' is implied"
+
+        [[command.subcommand.arg]]
+        name = "req_m_arg"
+        multiple = true
+        required = true
+        help = "Required arg accepting multiple values"
+
+        [[command.subcommand.arg]]
+        name = "d_m_arg"
+        multiple = true
+        use_delimiter = true
+        help = "Delimited multi arg"
+
+        [[command.subcommand.arg]]
+        name = "d_im_m_arg"
+        use_delimiter = true
+        help = "Delimited arg where 'multi' and 'takes value' is implied"
+
+    [[command.subcommand]]
+    name = "flag_args"
+    help = "Command with flag-style arguments only"
+
+        [[command.subcommand.arg]]
+        name = "im_f_arg"
+        help = "Stackable flag arg with 'takes value=false' implied"
+
+        [[command.subcommand.arg]]
+        name = "ex_f_arg"
+        takes_value = false
+        help = "Stackable flag arg with 'takes value=false' set"
+
+    [[command.subcommand]]
+    name = "args_with_explicit_value_name"
+    help = "Command with single/multi-args with custom value names"
+
+        [[command.subcommand.arg]]
+        name = "s_arg_nv_im_tv"
+        value_name = "s_val_impl"
+        help = "Single arg with value name, implying 'takes_value'=true"
+
+        [[command.subcommand.arg]]
+        name = "s_arg_nv_ex_tv"
+        value_name = "s_val_expl"
+        takes_value = true
+        help = "Single arg with value name and explicit 'takes_value'=true"
+
+        [[command.subcommand.arg]]
+        name = "m_arg_named_val"
+        value_name = "m_val"
+        multiple = true
+        help = "Multi-arg with value name"
+
+        [[command.subcommand.arg]]
+        name = "s_arg_ln_nv"
+        value_name = "ln_nv"
+        help = "Single arg with long name and value name"
+
+    [[command.subcommand]]
+    name = "arg_with_aliases"
+    help = "Command with argument aliasing, custom long, and short names"
+
+        [[command.subcommand.arg]]
+        name = "single_arg"
+        takes_value = true
+        long = "s_arg"
+        short = "s"
+        help = "Single arg with long/short name"
+
+        [[command.subcommand.arg]]
+        name = "multi_arg"
+        takes_value = true
+        multiple = true
+        long = "m_arg"
+        short = "m"
+        help = "Multi-arg with long/short name"
+
+        [[command.subcommand.arg]]
+        name = "occurrence_counter"
+        long = "cnt"
+        short = "o"
+        help = "Flag arg with long/short name"
+
+        [[command.subcommand.arg]]
+        name = "flag_arg_short_name"
+        short = "f"
+        help = "Flag arg with short name only"
+
+        [[command.subcommand.arg]]
+        name = "flag_arg_long_name"
+        long = "ln_f_arg"
+        help = "Flag arg with long name only"
+
+        [[command.subcommand.arg]]
+        name = "flag_arg_dupl_ln_sn"
+        long = "f"
+        help = "Flag arg with ln matching another's sn"
+
+        [[command.subcommand.arg]]
+        name = "fa_sn_aliases"
+        short_aliases = ['a', 'b']
+        help = "Flag arg with short aliases"
+
+        [[command.subcommand.arg]]
+        name = "fa_sn_and_aliases"
+        short = "c"
+        short_aliases = ['d', 'e']
+        help = "Flag arg with short name and short aliases"
+
+        [[command.subcommand.arg]]
+        name = "fa_ln_aliases"
+        long_aliases = ['fa', 'fb']
+        help = "Flag arg with long aliases"
+
+        [[command.subcommand.arg]]
+        name = "fa_ln_and_aliases"
+        long = "fc"
+        long_aliases = ['fd', 'fe']
+        help = "Flag arg with long name and long aliases"
+
+        [[command.subcommand.arg]]
+        name = "fa_sn_ln_aliases"
+        long_aliases = ['sn_ln_1', 'sn_ln_2']
+        short_aliases = ['z']
+        help = "Flag arg with long and short aliases"
+
+    [[command.subcommand]]
+    name = "hidden_arg"
+    help = "Command with a hidden arg"
+
+        [[command.subcommand.arg]]
+        name = "non_hidden_arg"
+        hidden = false
+        takes_value = true
+        help = "Non-hidden arg"
+
+        [[command.subcommand.arg]]
+        name = "hidden_arg"
+        hidden = true
+        takes_value = true
+        help = "Hidden arg"
+
+[[command]]
+name = "error_cases"
+help = "Commands to test error messages and improper command configuration"
+
+    [[command.subcommand]]
+    name = "missing_impl_dir"
+    help = "Parent to test missing implementation directory"
+
+        [[command.subcommand.subcommand]]
+        name = "missing_impl_dir_subc"
+        help = "Generate error for missing implementation directory"
+
+    [[command.subcommand]]
+    name = "missing_impl_file"
+    help = "Generate error for implementation module file"
+
+    [[command.subcommand]]
+    name = "test_missing_run_function"
+    help = "Generate error for a missing run function"
+
+    [[command.subcommand]]
+    name = "test_exception_in_run"
+    help = "Generate error for an exception during execution"

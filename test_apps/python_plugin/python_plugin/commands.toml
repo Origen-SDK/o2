@@ -1,0 +1,185 @@
+[[command]]
+    name = "plugin_says_hi"
+    help = "Say 'hi' from the python plugin"
+
+    [[command.opt]]
+        name = "times"
+        takes_value = true
+        short = "t"
+        long = "times"
+        help = "Number of times for the python plugin to say"
+        value_name = "TIMES"
+        multiple = false
+
+    [[command.opt]]
+        name = "loudly"
+        takes_value = false
+        short = "l"
+        long = "loudly"
+        help = "LOUDLY say hi"
+
+    [[command.opt]]
+        name = "to"
+        help = "Specify who should be greeted"
+        takes_value = true
+        multiple = true
+        use_delimiter = true
+
+[[command]]
+name = "plugin_test_args"
+help = "Test command for a plugin"
+
+    [[command.arg]]
+    name = "single_arg"
+    help = "Single Arg"
+
+    [[command.arg]]
+    name = "multi_arg"
+    multiple = true
+    help = "Multi Arg"
+
+    [[command.opt]]
+    name = "opt_taking_value"
+    takes_value = true
+    help = "Opt taking a single value"
+    long = "opt"
+
+    [[command.opt]]
+    name = "flag_opt"
+    help = "Flag Opt"
+    long = "flag"
+
+    [[command.subcommand]]
+    name = "subc"
+    help = "Test Subcommand for plugin_test_args"
+
+        [[command.subcommand.arg]]
+        name = "single_arg"
+        help = "Single Arg For Subcommand"
+
+        [[command.subcommand.opt]]
+        name = "flag_opt"
+        help = "Flag Opt For Subcommand"
+
+[[command]]
+name = "plugin_test_ext_stacking"
+help = "Test ext stacking for plugin command"
+
+    [[command.arg]]
+    name = "single_arg"
+    help = "Single Arg"
+
+    [[command.opt]]
+    name = "flag_opt"
+    help = "Flag Opt"
+
+    [[command.subcommand]]
+    name = "subc"
+    help = "Test Subcommand for ext stacking"
+
+        [[command.subcommand.arg]]
+        name = "single_arg"
+        help = "Single Arg"
+
+        [[command.subcommand.opt]]
+        name = "flag_opt"
+        help = "Flag Opt"
+
+[[command]]
+name = "echo"
+help = "Echos the input"
+
+    [[command.arg]]
+    name = "input"
+    use_delimiter = true
+    help = "Input to echo"
+    required = true
+
+    [[command.opt]]
+    name = "repeat"
+    help = "Echo again (repeat)"
+    long = "repeat"
+    short = "r"
+
+# TODO add this and test
+# FOR_PR
+# [[extension]]
+#     # Extend generate command
+#     # (only available in application context)
+#     extend = "origen.generate"
+#     in_global_context = false
+
+#     [[extension.opt]]
+#         name = "say_hi_in_pattern"
+#         short = "s"
+#         help = "Have the plugin say hi in the pattern"
+#         takes_value = false
+
+[[extension]]
+    # Extend eval command only in global context
+    extend = "origen.eval"
+    in_global_context = true
+    in_app_context = false
+
+    [[extension.opt]]
+        name = "say_hi_before_eval"
+        short = "b"
+        help = "Have the plugin say hi before evaluating"
+
+    [[extension.opt]]
+        name = "say_hi_after_eval"
+        short = "a"
+        help = "Have the plugin say hi after evaluating"
+
+# FOR_PR
+#[[extension]]
+#    # Extend eval command only in an application context
+#    extend = "origen.eval"
+#    in_global_context = false
+#    in_app_context = true
+
+[[extension]]
+    # Extend an application's 'playground' commmand
+    extend = "app.playground"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "python_plugin_action"
+        multiple = true
+        help = "Action from python_plugin"
+
+    [[extension.opt]]
+        name = "python_plugin_flag"
+        help = "Flag from python_plugin"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd.subc"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "python_plugin_action_subc"
+        multiple = true
+        help = "Action from python_plugin subc"
+
+    [[extension.opt]]
+        name = "python_plugin_flag_subc"
+        help = "Flag from python_plugin subc"
+
+# FOR_PR
+# [[extension]]
+#     # Extend eval command only in global context
+#     extend = "origen.eval"
+#     in_global_context = true
+#     in_app_context = false
+
+#     [[extension.opt]]
+#         name = "python_plugin_ext_action"
+#         help = "Simple extension action from python plugin"
+#         multiple=true
+
+#     [[extension.opt]]
+#         name = "python_plugin_ext_flag"
+#         help = "Simple extension flag from python plugin"

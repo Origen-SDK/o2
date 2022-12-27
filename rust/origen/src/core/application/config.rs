@@ -5,6 +5,8 @@ use origen_metal::config;
 use origen_metal::config::{Environment, File};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use crate::om::glob::glob;
+use crate::Result;
 
 const PUBLISHER_OPTIONS: &[&str] = &["system", "package_app", "upload_app"];
 
@@ -34,6 +36,7 @@ pub struct Config {
     pub linter: Option<HashMap<String, String>>,
     pub release_scribe: Option<HashMap<String, String>>,
     pub app_session_root: Option<String>,
+    pub commands: Option<Vec<String>>,
 }
 
 impl Config {
@@ -53,6 +56,7 @@ impl Config {
         self.linter = latest.linter;
         self.release_scribe = latest.release_scribe;
         self.app_session_root = latest.app_session_root;
+        self.commands = latest.commands;
     }
 
     pub fn check_defaults(root: &Path) {
@@ -95,6 +99,8 @@ impl Config {
             .set_default("release_scribe", None::<HashMap<String, String>>)
             .unwrap()
             .set_default("app_session_root", None::<String>)
+            .unwrap()
+            .set_default("commands", None::<Vec<String>>)
             .unwrap();
 
         let file = root.join("config").join("application.toml");
@@ -108,7 +114,7 @@ impl Config {
                 s = s.add_source(File::with_name(&format!("{}", file.display())));
             }
         }
-        s = s.add_source(Environment::with_prefix("origen_app"));
+        s = s.add_source(Environment::with_prefix("origen_app").list_separator(",").with_list_parse_key("commands").try_parsing(true));
 
         let cb = exit_on_bad_config!(s.build());
         let mut c: Self = exit_on_bad_config!(cb.try_deserialize());
@@ -143,5 +149,40 @@ impl Config {
             }
         }
         unknowns
+    }
+
+    pub fn cmd_paths(&self) -> Vec<PathBuf> {
+        let mut retn = vec!();
+        if let Some(cmds) = self.commands.as_ref() {
+            // Load in only the commands explicitly given
+            for cmds_toml in cmds {
+                let ct = self.root.as_ref().unwrap().join("config").join(cmds_toml);
+                if ct.exists() {
+                    retn.push(ct.to_owned());
+                } else {
+                    log_error!("Can not locate app commands file '{}'", ct.display())
+                }
+            }
+        } else {
+            // Load in any commands from:
+            // 1) app_root/commands.toml
+            // 2) app_root/commands/*/**.toml
+            let commands_toml = self.root.as_ref().unwrap().join("config").join("commands.toml");
+            // println!("commands toml: {}", commands_toml.display());
+            if commands_toml.exists() {
+                retn.push(commands_toml);
+            }
+            let mut commands_dir = self.root.as_ref().unwrap().join("config/commands");
+            if commands_dir.exists() {
+                commands_dir = commands_dir.join("**/*.toml");
+                for entry in glob(commands_dir.to_str().unwrap()).unwrap() {
+                    match entry {
+                        Ok(e) => retn.push(e),
+                        Err(e) => log_error!("Error processing commands toml: {}", e)
+                    }
+                }
+            }
+        }
+        retn
     }
 }

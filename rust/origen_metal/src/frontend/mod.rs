@@ -5,6 +5,7 @@ use crate::{Result, TypedValue};
 use indexmap::IndexMap;
 use std::any::Any;
 use std::sync::RwLockReadGuard;
+use std::path::PathBuf;
 
 pub use crate::utils::revision_control::frontend::RevisionControlFrontendAPI;
 pub use data_store::{DataStoreFeature, DataStoreFrontendAPI, FeatureReturn};
@@ -196,6 +197,10 @@ pub trait FrontendAPI {
     }
 
     fn lookup_current_user(&self) -> Option<Result<Option<String>>> {
+        None
+    }
+
+    fn lookup_home_dir(&self, user_id: &str, dataset: Option<&str>, current_user: bool) -> Option<Result<Option<PathBuf>>> {
         None
     }
 

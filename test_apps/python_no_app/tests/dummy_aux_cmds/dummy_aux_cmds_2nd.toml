@@ -1,0 +1,23 @@
+[[command]]
+    name = "python_no_app_tests"
+    help = "Test commands for python-no-app workspace"
+
+[[command]]
+    name = "test_current_command"
+    help = "Tests origen.current_command"
+
+    [[command.subcommand]]
+    name = "test_nested_level_1"
+    help = "Tests origen.current_command L1"
+
+        [[command.subcommand.subcommand]]
+        name = "test_nested_level_2"
+        help = "Tests origen.current_command L2"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "test_nested_level_3_a"
+            help = "Tests origen.current_command L3a"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "test_nested_level_3_b"
+            help = "Tests origen.current_command L3b"

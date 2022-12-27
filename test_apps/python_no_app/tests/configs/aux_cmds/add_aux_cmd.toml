@@ -1,0 +1,3 @@
+[[command]]
+name = "add_aux_cmd"
+help = "Test aux command"

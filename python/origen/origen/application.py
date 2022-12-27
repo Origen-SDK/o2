@@ -9,6 +9,7 @@ from origen.compiler import Compiler
 from origen.errors import *
 from origen.callbacks import _callbacks
 from types import ModuleType
+from pathlib import Path
 import origen_metal
 
 
@@ -112,10 +113,14 @@ class Base(_origen.application.PyApplication):
     def mailer(self):
         return origen.mailer
 
+    @property
+    def is_plugin(self):
+        return self._plugin
+
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()
-        if origen.app is None:
+        if (origen.app is None) & _origen.is_app_present():
             self._plugin = False
             self._root = origen.root
             self._name = _origen.app_config()["name"]
@@ -252,26 +257,44 @@ class Base(_origen.application.PyApplication):
             if r[0]:
                 block_dir = r[1]
 
+        app_dir = None
         if block_dir is None:
             r = self.block_path_to_dir(path)
             if not r[0]:
                 paths = path.split(".")
-                if len(paths) > 1 and origen.has_plugin(paths[0]):
-                    return origen.plugin(paths[0]).instantiate_block(
-                        ".".join(paths[1:]),
-                        None,
-                        class_name=class_name,
-                        sb_options=sb_options)
+                # FOR_PR clean up and invert case
+                if paths[0] != "origen" and path[0] != "origen_metal":
+                    if len(paths) > 1 and origen.has_plugin(paths[0]):
+                        return origen.plugin(paths[0]).instantiate_block(
+                            ".".join(paths[1:]),
+                            None,
+                            class_name=class_name,
+                            sb_options=sb_options)
+                    else:
+                        raise RuntimeError(
+                            f"No block was found at path '{orig_path}'")
                 else:
-                    raise RuntimeError(
-                        f"No block was found at path '{orig_path}'")
+                    a = importlib.import_module(f'{"origen"}.application')
+                    app = a.Application(root=Path(os.path.abspath(
+                        a.__file__)).parent.parent,
+                                        name="origen")
+                    b = app.instantiate_block(
+                            ".".join(paths[1:]),
+                            None,
+                            class_name=class_name,
+                            sb_options=sb_options)
+                    return b
+                    # name="origen", root=Path(origen.__file__).parent
+                    # return origen.blocks.Controller()
+                    # app_dir = origen.__file__
+                    # print(f"app path: {app_dir}")
             else:
                 block_dir = r[1]
 
         # If no controller class is defined then look up the nearest available parent
         controller_dir = block_dir
         controller_file = None
-        blocks_dir = self.app_dir.joinpath("blocks")
+        blocks_dir = app_dir or self.app_dir.joinpath("blocks")
         p = f"{path.split('.')[-1]}.py"
         if controller_dir.joinpath(p).exists():
             controller_file = controller_dir.joinpath(p)

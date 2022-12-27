@@ -1,5 +1,6 @@
 use crate::CommandHelp;
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{App, Arg, ArgMatches};
+use clap::Command as ClapCommand;
 use origen::core::file_handler::File;
 use origen::utility::version::Version;
 use origen::{Result, STATUS};
@@ -9,18 +10,19 @@ use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
+use super::_prelude::clap_arg_actions::*;
 
-pub fn define<'a>(app: App<'a, 'a>) -> (App<'a, 'a>, CommandHelp) {
+pub fn define<'a>(app: App<'a>) -> (App<'a>, CommandHelp) {
     let help = match STATUS.is_origen_present {
         true => "Build and publish Origen, builds the pyapi Rust package by default",
         false => "Build Origen",
     };
 
-    let mut cmd = SubCommand::with_name("build").about(help).arg(
-        Arg::with_name("cli")
+    let mut cmd = ClapCommand::new("build").about(help).arg(
+        Arg::new("cli")
             .long("cli")
             .required(false)
-            .takes_value(false)
+            .action(SetArgTrue)
             .display_order(1)
             .help("Build the CLI (instead of the Python API)"),
     );
@@ -28,50 +30,50 @@ pub fn define<'a>(app: App<'a, 'a>) -> (App<'a, 'a>, CommandHelp) {
     if STATUS.is_origen_present {
         cmd = cmd
             .arg(
-                Arg::with_name("release")
+                Arg::new("release")
                     .long("release")
                     .required(false)
-                    .takes_value(false)
+                    .action(SetArgTrue)
                     .display_order(1)
                     .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
             )
             .arg(
-                Arg::with_name("target")
+                Arg::new("target")
                     .long("target")
                     .required(false)
-                    .takes_value(true)
+                    .action(SetArg)
                     .display_order(1)
                     .help("The Rust h/ware target (passed directly to Cargo build)"),
             )
             .arg(
-                Arg::with_name("publish")
+                Arg::new("publish")
                     .long("publish")
                     .required(false)
-                    .takes_value(false)
+                    .action(SetArgTrue)
                     .display_order(1)
                     .help("Publish packages (e.g. to PyPI) after building"),
             )
             .arg(
-                Arg::with_name("dry_run")
+                Arg::new("dry_run")
                     .long("dry-run")
                     .required(false)
-                    .takes_value(false)
+                    .action(SetArgTrue)
                     .display_order(1)
                     .help("Use with --publish to perform a full dry run of the publishable build without actually publishing it"),
             )
             .arg(
-                Arg::with_name("version")
+                Arg::new("version")
                     .long("version")
                     .required(false)
-                    .takes_value(true)
+                    .action(SetArg)
                     .value_name("VERSION")
                     .display_order(1)
                     .help("Set the version (of all components) to the given value"),
             )
             .arg(
-                Arg::with_name("metal")
+                Arg::new("metal")
                     .long("metal")
-                    .takes_value(false)
+                    .action(SetArgTrue)
                     .display_order(1)
                     .help("Build the metal_pyapi"),
             );
@@ -87,7 +89,7 @@ pub fn define<'a>(app: App<'a, 'a>) -> (App<'a, 'a>, CommandHelp) {
 }
 
 pub fn run(matches: &ArgMatches) -> Result<()> {
-    if let Some(v) = matches.value_of("version") {
+    if let Some(v) = matches.get_one::<&str>("version") {
         let mut version_bad = false;
         let version;
         match Version::new_semver(v) {
@@ -148,7 +150,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
 
     // Build the latest CLI, this can be requested from an Origen workspace or an app workspace that is
     // locally referencing an Origen workspace
-    if matches.is_present("cli") {
+    if matches.contains_id("cli") {
         cd(&STATUS
             .origen_wksp_root
             .join("rust")
@@ -156,7 +158,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             .join("cli"))?;
         display!("");
         let mut args = vec!["build"];
-        if matches.is_present("release") || matches.is_present("publish") {
+        if matches.contains_id("release") || matches.contains_id("publish") {
             args.push("--release");
         }
         Command::new("cargo")
@@ -166,13 +168,13 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
         display!("");
 
     // Build the metal_pyapi
-    } else if matches.is_present("metal") {
+    } else if matches.contains_id("metal") {
         build_metal(matches)?;
     // Build the PyAPI by default
     } else {
         // A publish build will also build the origen_pyapi Python package and
         // publish it to PyPI, only available within an Origen workspace
-        if matches.is_present("publish") {
+        if matches.contains_id("publish") {
             let wheel_dir = &STATUS
                 .origen_wksp_root
                 .join("rust")
@@ -212,7 +214,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
                 change_pyapi_wheel_version(&wheel_dir, &old, &new);
             }
 
-            if matches.is_present("publish") && !matches.is_present("dry_run") {
+            if matches.contains_id("publish") && !matches.contains_id("dry_run") {
                 let pypi_token =
                     std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
 
@@ -246,11 +248,11 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             let mut target = "debug";
             let mut arch_target = None;
 
-            if matches.is_present("release") {
+            if matches.contains_id("release") {
                 args.push("--release");
                 target = "release";
             }
-            if let Some(t) = matches.value_of("target") {
+            if let Some(t) = matches.get_one::<&str>("target") {
                 args.push("--target");
                 args.push(t);
                 arch_target = Some(t);
@@ -319,11 +321,11 @@ fn build_metal(matches: &ArgMatches) -> Result<()> {
     let mut target = "debug";
     let mut arch_target = None;
 
-    if matches.is_present("release") {
+    if matches.contains_id("release") {
         args.push("--release");
         target = "release";
     }
-    if let Some(t) = matches.value_of("target") {
+    if let Some(t) = matches.get_one::<&str>("target") {
         args.push("--target");
         args.push(t);
         arch_target = Some(t);

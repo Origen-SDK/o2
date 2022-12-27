@@ -10,7 +10,7 @@ pub fn run(matches: &ArgMatches) {
         Some("dut") => {
             let name;
 
-            if let Some(n) = matches.subcommand_matches("dut").unwrap().value_of("name") {
+            if let Some(n) = matches.subcommand_matches("dut").unwrap().get_one::<&str>("name") {
                 // Add the leading 'dut' to the fully qualified new DUT name if missing
                 if !n.starts_with("dut/") {
                     name = format!("dut/{}", n);
@@ -63,9 +63,9 @@ pub fn run(matches: &ArgMatches) {
         }
         Some("block") => {
             let matches = matches.subcommand_matches("block").unwrap();
-            let name = matches.value_of("name").unwrap().to_string();
+            let name = matches.get_one::<String>("name").unwrap();
             let mut nested = false;
-            let parent = matches.value_of("parent");
+            let parent = matches.get_one::<&str>("parent");
             let mut block_name = clean_and_validate_resource_name(&name, "NAME");
 
             if let Some(p) = parent {

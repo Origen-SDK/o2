@@ -17,6 +17,16 @@ const PYTHONS: &[&str] = &[
 ];
 pub const MIN_PYTHON_VERSION: &str = "3.6.0";
 
+#[macro_export]
+macro_rules! vks_to_cmd {
+    () => {
+        format!(
+            "verbosity_keywords=[{}]",
+            origen::LOGGER.data().keywords.iter().map(|k| format!("r'{}'", k)).collect::<Vec<String>>().join(", ")
+        )
+    }
+}
+
 lazy_static! {
     pub static ref PYTHON_CONFIG: Config = Config::default();
 }
@@ -160,10 +170,7 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     cmd.arg(&code);
     cmd.arg("-");
     cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
-    cmd.arg(&format!(
-        "verbosity_keywords={}",
-        origen::LOGGER.keywords_to_cmd()
-    ));
+    cmd.arg(&vks_to_cmd!());
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {

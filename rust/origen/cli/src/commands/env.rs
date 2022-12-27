@@ -33,7 +33,7 @@ pub fn run(matches: &ArgMatches) {
             let origen_root = match matches
                 .subcommand_matches("setup")
                 .unwrap()
-                .value_of("origen")
+                .get_one::<&str>("origen")
             {
                 None => None,
                 Some(x) => {

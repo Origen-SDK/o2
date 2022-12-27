@@ -1,0 +1,18 @@
+import origen, origen_metal, getpass, pytest
+
+def test_import():
+    assert "2." in origen.version
+
+def test_app_is_none():
+    assert origen.app is None
+
+class TestGlobalFEIntegration:
+    def test_frontend_is_accessible(self):
+        assert (origen_metal.frontend.frontend() is not None)
+
+    def test_current_user_is_available(self):
+        assert origen.current_user.id == getpass.getuser()
+    
+    @pytest.mark.skip
+    def test_datastores_are_available(self):
+        assert origen.datastores.keys() == ['ldaps']

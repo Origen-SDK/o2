@@ -1,0 +1,7 @@
+# Even if one path is invalid, other should be added
+
+[[auxillary_commands]]
+path = "./invalid_aux_cmd_path"
+
+[[auxillary_commands]]
+path = "./add_aux_cmd"

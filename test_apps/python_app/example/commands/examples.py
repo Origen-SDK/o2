@@ -6,6 +6,8 @@ import os
 
 def run(**kwargs):
     os.chdir(origen.root)
+    origen.boot.exit = False
+
     run_cmd("generate",
             files=["example/patterns"],
             reference_dir="approved",

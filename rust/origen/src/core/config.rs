@@ -21,10 +21,6 @@ use std::process::exit;
 use crate::om;
 use om::framework::users::DatasetConfig as OMDatasetConfig;
 
-lazy_static! {
-    pub static ref CONFIG: Config = Config::default();
-}
-
 #[derive(Debug, Deserialize)]
 pub struct LDAPConfig {
     pub server: String,
@@ -91,6 +87,7 @@ impl std::convert::From<DefaultUserConfig> for config::ValueKind {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct InitialUserConfig {
     pub initialize: Option<bool>,
+    pub init_home_dir: Option<bool>,
 }
 
 impl std::convert::From<InitialUserConfig> for config::ValueKind {
@@ -117,6 +114,65 @@ impl std::convert::From<InitialUserConfig> for config::ValueKind {
 //     pub session__user_root: Option<String>,
 // }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PluginConfig {
+    pub name: String,
+}
+
+impl std::convert::From<PluginConfig> for config::ValueKind {
+    fn from(_value: PluginConfig) -> Self {
+        Self::Nil
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct PluginsConfig {
+    pub collect: Option<bool>,
+    pub load: Option<Vec<PluginConfig>>,
+}
+
+impl PluginsConfig {
+    pub fn collect(&self) -> bool {
+        self.collect.unwrap_or(true)
+    }
+
+    pub fn should_collect_any(&self) -> bool {
+        self.collect() || self.load.is_some()
+    }
+}
+
+impl std::convert::From<PluginsConfig> for config::ValueKind {
+    fn from(_value: PluginsConfig) -> Self {
+        Self::Nil
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AuxillaryCommandsTOML {
+    pub name: Option<String>,
+    pub path: String,
+}
+
+impl AuxillaryCommandsTOML {
+    pub fn set_override<St: config::builder::BuilderState>(&self, mut config: config::ConfigBuilder<St>, i: usize) -> config::ConfigBuilder<St> {
+        config = config.set_override(format!("auxillary_commands[{}].path", i), self.path.to_string()).unwrap();
+        config = config.set_override(format!("auxillary_commands[{}].name", i), self.name.to_owned()).unwrap();
+        config
+    }
+
+    pub fn path(&self) -> PathBuf {
+        let mut path = PathBuf::from(&self.path);
+        path.set_extension("toml");
+        path
+    }
+}
+
+impl std::convert::From<AuxillaryCommandsTOML> for config::ValueKind {
+    fn from(_value: AuxillaryCommandsTOML) -> Self {
+        Self::Nil
+    }
+}
+
 #[macro_export]
 macro_rules! exit_on_bad_config {
     ($result: expr) => {
@@ -131,6 +187,12 @@ macro_rules! exit_on_bad_config {
     }
 }
 
+#[derive(Default)]
+pub struct ConfigMetadata {
+    pub files: Vec<PathBuf>,
+    pub aux_cmd_sources: Vec<PathBuf>,
+}
+
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -143,6 +205,9 @@ pub struct Config {
     pub pkg_server_push: String,
     pub pkg_server_pull: String,
     pub some_val: u32,
+
+    // Plugins
+    pub plugins: Option<PluginsConfig>,
 
     // Mailer
     pub maillists: Option<MaillistsTOMLConfig>,
@@ -160,7 +225,7 @@ pub struct Config {
     pub user__data_lookup_hierarchy: Option<Vec<String>>,
     pub user__datasets: Option<HashMap<String, DatasetConfig>>,
     pub user__password_auth_attempts: u8,
-    pub user__password_cache_option: String,
+    pub user__password_cache_option: Option<String>,
     pub user__current_user_lookup_function: Option<String>,
     // pub user__password_reasons: HashMap<String, String>,
     pub user__dataset_motives: HashMap<String, String>,
@@ -173,6 +238,32 @@ pub struct Config {
     pub initial_user: Option<InitialUserConfig>,
     // User session root path
     pub session__user_root: Option<String>,
+
+    pub additional_config_dirs: Option<Vec<String>>,
+    pub additional_configs: Option<Vec<String>>,
+    pub auxillary_commands: Option<Vec<AuxillaryCommandsTOML>>,
+}
+
+impl Config {
+    fn append_configs(mut starting_path: PathBuf, file_list: &mut Vec<PathBuf>) {
+        let f = starting_path.join("origen.toml");
+        log_trace!("Looking for Origen config file at '{}'", f.display());
+        if f.exists() {
+            file_list.push(f);
+        }
+
+        while starting_path.pop() {
+            let f = starting_path.join("origen.toml");
+            log_trace!("Looking for Origen config file at '{}'", f.display());
+            if f.exists() {
+                file_list.push(f);
+            }
+        }
+    }
+
+    pub fn should_collect_plugins(&self) -> bool {
+        self.plugins.as_ref().map_or(true, |pl_config| pl_config.should_collect_any())
+    }
 }
 
 impl Default for Config {
@@ -187,6 +278,7 @@ impl Default for Config {
         s = s.set_default("pkg_server_push", "").unwrap();
         s = s.set_default("pkg_server_pull", "").unwrap();
         s = s.set_default("some_val", 3).unwrap();
+        s = s.set_default("plugins", None::<PluginsConfig>).unwrap();
         s = s.set_default("maillists", None::<MaillistsTOMLConfig>).unwrap();
         s = s.set_default("mailer", None::<MailerTOMLConfig>).unwrap();
         s = s
@@ -200,7 +292,7 @@ impl Default for Config {
             .unwrap();
         s = s.set_default("user__password_auth_attempts", 3).unwrap();
         s = s
-            .set_default("user__password_cache_option", "keyring")
+            .set_default("user__password_cache_option", None::<String>)
             .unwrap();
         s = s
             .set_default("user__datasets", {
@@ -247,6 +339,7 @@ impl Default for Config {
 
         // Session setup
         s = s.set_default("session__user_root", None::<String>).unwrap();
+        s = s.set_default("auxillary_commands", None::<Vec<AuxillaryCommandsTOML>>).unwrap();
 
         // Find all the origen.toml files
         let mut files: Vec<PathBuf> = Vec::new();
@@ -309,26 +402,44 @@ impl Default for Config {
                         files.push(f);
                     }
                 }
-            }
-
-            // TODO: Should this be the Python installation dir?
-            if let Some(mut path) = STATUS.cli_location() {
-                let f = path.join("origen.toml");
-                log_trace!("Looking for Origen config file at '{}'", f.display());
-                if f.exists() {
-                    files.push(f);
-                }
-
-                while path.pop() {
-                    let f = path.join("origen.toml");
-                    log_trace!("Looking for Origen config file at '{}'", f.display());
-                    if f.exists() {
-                        files.push(f);
+            } else {
+                match std::env::current_dir() {
+                    Ok(path) => {
+                        let f = path.join("origen.toml");
+                        log_trace!("Looking for Origen config file in current working directory at '{}'", f.display());
+                        if f.exists() {
+                            files.push(f);
+                        }
+                    }
+                    Err(e) => {
+                        log_error!("Failed to lookup current working directory: {}", e.to_string())
                     }
                 }
             }
+
+
+            // Check for configs in the Python install directory and its parents
+            if let Some(path) = STATUS.fe_exe_loc().as_ref() {
+                log_trace!("Looking for Origen config files from frontend install directory: '{}'", path.display());
+                Self::append_configs(path.to_owned(), &mut files);
+            }
+
+            // Check for configs in the Origen package directory and its parents
+            // Depending on the virtual env setups, this could be different
+            if let Some(path) = STATUS.fe_pkg_loc().as_ref() {
+                log_trace!("Looking for Origen config files from frontend package directory: '{}'", path.display());
+                Self::append_configs(path.to_owned(), &mut files);
+            }
+
+            // Check for configs in the CLI directory and its parents
+            if let Some(mut path) = STATUS.cli_location() {
+                log_trace!("Looking for Origen config files from the CLI directory: '{}'", path.display());
+                Self::append_configs(path, &mut files);
+            }
         }
 
+        let mut all_cmds: Vec<AuxillaryCommandsTOML> = vec!();
+        let mut aux_cmd_sources: Vec<PathBuf> = vec!();
         // Now add in the files, with the last one found taking lowest priority
         for f in files.iter().rev() {
             log_trace!("Loading Origen config file from '{}'", f.display());
@@ -390,11 +501,40 @@ impl Default for Config {
                     }
                 },
             }
+
+            match built.get::<Option<Vec<AuxillaryCommandsTOML>>>("auxillary_commands") {
+                Ok(r) => {
+                    if let Some(cmds) = r {
+                        for (i, cmd) in cmds.iter().enumerate() {
+                            let mut cmd_clone = cmd.clone();
+                            cmd_clone.path = om::_utility::file_utils::to_abs_path(&cmd.path, &f.parent().unwrap().to_path_buf()).display().to_string();
+                            aux_cmd_sources.push(f.to_path_buf());
+                            all_cmds.push(cmd_clone);
+                        }
+                    }
+                }
+                Err(e) => match e {
+                    config::ConfigError::NotFound(_) => {}
+                    _ => {
+                        log_error!("Malformed config file: {}", f.display());
+                        log_error!("{}", e);
+                        exit(1);
+                    }
+                },
+            }
         }
 
         // Add in settings from the environment (with a prefix of ORIGEN)
         s = s.add_source(Environment::with_prefix("origen"));
-
+        crate::set_origen_config_metadata(ConfigMetadata {
+            files: files,
+            aux_cmd_sources: aux_cmd_sources,
+        });
+        if !all_cmds.is_empty() {
+            for (i, cmd) in all_cmds.iter().enumerate() {
+                s = cmd.set_override(s, i);
+            }
+        }
         exit_on_bad_config!(exit_on_bad_config!(s.build()).try_deserialize())
     }
 }

@@ -1,0 +1,25 @@
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking"
+
+    [[extension.opt]]
+        name = "test_apps_shared_ext_action"
+        multiple = true
+        help = "Action from test_apps_shared_test_helpers plugin"
+
+    [[extension.opt]]
+        name = "test_apps_shared_ext_flag"
+        multiple = true
+        help = "Flag from test_apps_shared_test_helpers plugin"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
+
+    [[extension.opt]]
+        name = "test_apps_shared_ext_action"
+        multiple = true
+        help = "Action from test_apps_shared_test_helpers plugin"
+
+    [[extension.opt]]
+        name = "test_apps_shared_ext_flag"
+        multiple = true
+        help = "Flag from test_apps_shared_test_helpers plugin"

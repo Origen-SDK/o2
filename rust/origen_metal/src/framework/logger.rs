@@ -60,7 +60,7 @@ use std::cell::RefCell;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard};
 
 // Thread specific files, a log request will write to the last log in this vector, if
 // none are present then it will fall back to the global/shared files in Logger.inner.files
@@ -75,7 +75,7 @@ pub struct Logger {
 #[derive(Default)]
 pub struct Inner {
     level: u8,
-    keywords: Vec<String>,
+    pub keywords: Vec<String>,
     // The currently open log files, the last one is the one that will be written to
     // (unless there is an open thread-specific log file)
     files: Vec<(PathBuf, fs::File)>,
@@ -88,6 +88,10 @@ pub struct Inner {
 }
 
 impl Logger {
+    pub fn data(&self) -> RwLockReadGuard<Inner> {
+        self.inner.read().unwrap()
+    }
+
     pub fn verbosity(&self) -> u8 {
         self.inner.read().unwrap().level
     }
@@ -497,14 +501,8 @@ impl Logger {
         Ok(())
     }
 
-    pub fn keywords_to_cmd(&self) -> String {
-        let keywords;
-        {
-            let inner = self.inner.read().unwrap();
-            keywords = inner.keywords.join(",");
-        }
-        log_debug!("Converted Verbosity Keywords to: {}", keywords);
-        keywords
+    pub fn keywords(&self) -> Vec<String> {
+        self.inner.read().unwrap().keywords.to_owned()
     }
 
     pub fn has_keyword(&self, keyword: &str) -> bool {

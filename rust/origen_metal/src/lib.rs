@@ -1,6 +1,8 @@
 #[macro_use]
 pub extern crate lazy_static;
 pub extern crate config;
+pub extern crate indexmap;
+pub extern crate glob;
 #[macro_use]
 extern crate serde;
 #[macro_use]

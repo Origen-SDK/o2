@@ -1,6 +1,6 @@
 import sys
 import re
-import os
+import os, pathlib
 init_verbosity = 0
 cli_path = None
 cli_ver = None
@@ -31,6 +31,24 @@ for arg in sys.argv:
 import _origen
 from _origen import _origen_metal
 
+def __getattr__(name: str):
+    if name == "ldaps":
+        return _origen.utility.ldaps()
+    elif name == "current_user":
+        return users.current_user
+    elif name == "initial_user":
+        return users.initial_user
+    elif name in ["command", "current_command", "cmd", "current_cmd"]:
+        return _origen._current_command_
+    elif name == "plugins":
+        if origen._plugins is None:
+            from origen.core.plugins import collect_plugins
+            origen._plugins = collect_plugins()
+            return origen._plugins
+        else:
+            return _plugins
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 # Replace origen_metal's native _origen_metal built library
 # with the one built from origen.
 sys.modules["origen_metal._origen_metal"] = _origen_metal
@@ -39,7 +57,7 @@ import origen_metal
 om = origen_metal
 origen_metal.frontend.initialize()
 
-_origen.initialize(init_verbosity, vks, cli_path, cli_ver)
+_origen.initialize(init_verbosity, vks, cli_path, cli_ver, pathlib.Path(__file__).parent, sys.executable)
 
 from pathlib import Path
 import importlib
@@ -66,6 +84,8 @@ config = _origen.config()
     :ref:`Configuring Origen <guides/getting_started/configuring_your_workspace:Configuring Your Workspace>`
 '''
 
+__config_metadata__ = _origen.config_metadata()
+
 status = _origen.status()
 ''' Dictionary of various application and workspace attributes
     Keys include: ``{{ list(origen.status.keys())|pprint }}``
@@ -90,6 +110,8 @@ if status["is_app_present"]:
     root = Path(status["root"])
     __console_history_file__ = root.joinpath(".origen").joinpath(
         "console_history")
+else:
+    __console_history_file__ = om.users.current_user.__dot_origen_dir__.joinpath("console_history")
 
 __in_origen_core_app = status["in_origen_core_app"]
 ''' Indicates if the current application is the Origen core package
@@ -108,7 +130,7 @@ version = _origen.version()
     '{{ origen_version }}'
 '''
 
-logger = om.framework.logger
+logger = om.framework.logger.Logger()
 ''' Direct access to the build-in logger module for logging and displaying user-friendly output. Also available as :data:`log`
 
     Returns:
@@ -185,9 +207,8 @@ producer = Producer()
 
 mode = "development"
 
-_plugins = {}
-''' Dictionary of Origen plugins (instances of :py:class:`origen.application.Application`)
-    that have been referenced and loaded.
+_plugins = None
+''' Dictionary of Origen plugins that have been referenced and loaded.
     It should never be access directly since a plugin not being present in this dict may only
     mean that it hasn't been loaded yet (via an official API) rather than it not existing.
 '''
@@ -287,7 +308,7 @@ def has_plugin(name):
     '''
         Returns true if an Origen plugin matching the given name is found in the current environment
     '''
-    if name in _plugins:
+    if name in origen.plugins:
         return True
     else:
         try:
@@ -295,7 +316,7 @@ def has_plugin(name):
             app = a.Application(root=Path(os.path.abspath(
                 a.__file__)).parent.parent,
                                 name=name)
-            _plugins[name] = app
+            origen.plugins[name] = app
             return True
         except ModuleNotFoundError:
             return False
@@ -308,7 +329,7 @@ def plugin(name):
         current environment.
     '''
     if has_plugin(name):
-        return _plugins[name]
+        return origen.plugins[name]
     else:
         raise RuntimeError(
             f"The current Python environment does not contain a plugin named '{name}'"
@@ -339,13 +360,3 @@ __all__ = [
     'frontend_root', 'app', 'dut', 'tester', 'producer', 'has_plugin',
     'plugin', 'current_user', 'users', 'mailer'
 ]
-
-
-def __getattr__(name: str):
-    if name == "ldaps":
-        return _origen.utility.ldaps()
-    elif name == "current_user":
-        return users.current_user
-    elif name == "initial_user":
-        return users.initial_user
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

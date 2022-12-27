@@ -1,0 +1,109 @@
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+help = "Extend plugin command from aux command"
+
+    [[extension.opt]]
+        name = "flag_extension"
+        help = "Single flag extension"
+        short = "f"
+        long = "flag_ext"
+
+    [[extension.opt]]
+        name = "single_val_opt"
+        short = "s"
+        takes_value = true
+        help = "Extended opt taking a single value"
+        # short = "a"
+        # help = "Have the plugin say hi after evaluating"
+
+    [[extension.opt]]
+        name = "multi_val_opt"
+        long = "multi"
+        short_aliases = ["m"]
+        long_aliases = ["multi_non_delim"]
+        multiple = true
+        help = "Extended opt taking a multiple, non-delimited values"
+
+    [[extension.opt]]
+        name = "multi_val_delim_opt"
+        long_aliases = ["multi_delim"]
+        use_delimiter = true
+        help = "Extended opt taking a multiple, delimited values"
+
+    # [[extension.opt]]
+    #     name = "required_opt"
+    #     takes_value = true
+    #     required = true
+    #     help = "Required opt taking a single value"
+
+    [[extension.opt]]
+        name = "exts_workout_action"
+        takes_value = true
+        multiple = true
+        required = true
+        help = "Additional actions for testing purposes"
+
+    [[extension.opt]]
+        name = "hidden_opt"
+        help = "Hidden extended opt"
+        hidden = true
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args.subc"
+help = "Extend plugin command's subcommand from aux command"
+
+    [[extension.opt]]
+        name = "exts_workout_action"
+        long = "action"
+        multiple = true
+        help = "Action for the extended opt"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking"
+
+    [[extension.opt]]
+        name = "ext_action"
+        long = "action"
+        multiple = true
+        help = "Action for the extended opt"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
+
+    [[extension.opt]]
+        name = "ext_action_subc"
+        long = "action"
+        multiple = true
+        help = "Action for the extended opt subc"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+
+    [[extension.opt]]
+        name = "exts_workout_action"
+        long = "action"
+        multiple = true
+        help = "Action for the extended opt"
+
+    [[extension.opt]]
+        name = "exts_workout_flag"
+        help = "Flag for the extended opt"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd.subc"
+
+    [[extension.opt]]
+        name = "exts_workout_action"
+        long = "action"
+        multiple = true
+        help = "Action for the extended opt subc"
+
+    [[extension.opt]]
+        name = "exts_workout_flag_subc"
+        help = "Flag for the extended opt subc"
+
+# [[extension]]
+# extend = "aux.cmd_testers"
+
+# [[extension]]
+# extend = "aux.cmd_testers.args"

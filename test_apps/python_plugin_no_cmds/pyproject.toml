@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "python_plugin_no_cmds"
+version = "0.1.0"
+description = "Example Origen Plugin Without Any Commands"
+authors = ["Origen-SDK"]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<3.11"
+origen = { path = "../../python/origen", develop = true }
+origen_metal = { path = "../../python/origen_metal", develop = true }
+
+[tool.poetry.dev-dependencies]
+pytest = "^3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

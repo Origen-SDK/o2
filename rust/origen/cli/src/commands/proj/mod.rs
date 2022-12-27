@@ -49,7 +49,7 @@ pub fn run(matches: &ArgMatches) {
             let path = matches
                 .subcommand_matches("create")
                 .unwrap()
-                .value_of("path")
+                .get_one::<&str>("path")
                 .unwrap();
             let mut path = PathBuf::from(path);
             if !path.is_absolute() {
@@ -162,10 +162,10 @@ pub fn run(matches: &ArgMatches) {
         }
         Some("update") => {
             let matches = matches.subcommand_matches("update").unwrap();
-            let force = matches.is_present("force");
-            let mut links = matches.is_present("links");
-            if let Some(packages) = matches.values_of("packages") {
-                if packages.map(|p| p).collect::<Vec<&str>>().contains(&"all") {
+            let force = matches.contains_id("force");
+            let mut links = matches.contains_id("links");
+            if let Some(packages) = matches.get_many::<&str>("packages") {
+                if packages.map(|p| *p).collect::<Vec<&str>>().contains(&"all") {
                     links = true;
                 }
             }
@@ -370,9 +370,9 @@ pub fn run(matches: &ArgMatches) {
         }
         Some("tag") => {
             let matches = matches.subcommand_matches("tag").unwrap();
-            let force = matches.is_present("force");
-            let tagname = matches.value_of("name").unwrap();
-            let message = matches.value_of("message");
+            let force = matches.contains_id("force");
+            let tagname = matches.get_one::<&str>("name").unwrap();
+            let message = matches.get_one::<&str>("message");
             let package_ids = get_package_ids_from_args(matches, true);
             let mut packages_with_existing_tag: Vec<&str> = vec![];
             let bom = BOM::for_dir(&pwd());
@@ -384,7 +384,7 @@ pub fn run(matches: &ArgMatches) {
                     if package.has_repo() {
                         display!("{} ... ", package.id);
                         let rc = package.rc(bom.root()).unwrap();
-                        match rc.tag(tagname, force, message) {
+                        match rc.tag(tagname, force, message.map(|s| *s)) {
                             Err(e) => {
                                 if e.to_string().contains("tag already exists") {
                                     packages_with_existing_tag.push(&package.id);
@@ -430,8 +430,8 @@ pub fn run(matches: &ArgMatches) {
 /// If a given ID does not match a known package or group the process will be exited with an error.
 /// Optionally return all packages if no packages arg given.
 fn get_package_ids_from_args(matches: &ArgMatches, return_all_if_none: bool) -> Vec<String> {
-    let mut package_args: Vec<&str> = match matches.values_of("packages") {
-        Some(pkgs) => pkgs.map(|p| p).collect(),
+    let mut package_args: Vec<&str> = match matches.get_many::<String>("packages") {
+        Some(pkgs) => pkgs.map(|p| p.as_str()).collect(),
         None => vec![],
     };
     if package_args.is_empty() && return_all_if_none {
@@ -459,7 +459,7 @@ fn pwd() -> PathBuf {
 /// If validate is not true then the path returned may not be absolute and the caller
 /// is responsible for handling that (if required) after then have created it
 fn get_dir_or_pwd(matches: &ArgMatches, validate: bool) -> PathBuf {
-    let dir = match matches.value_of("dir") {
+    let dir = match matches.get_one::<&str>("dir") {
         Some(x) => PathBuf::from(x),
         None => pwd(),
     };

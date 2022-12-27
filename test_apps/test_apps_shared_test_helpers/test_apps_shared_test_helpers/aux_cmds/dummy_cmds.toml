@@ -1,0 +1,21 @@
+[[command]]
+name = "dummy_cmd"
+help = "Dummy Aux Command"
+
+    [[command.arg]]
+    name = "action_arg"
+    help = "Dummy Aux Action"
+    multiple = true
+
+    [[command.subcommand]]
+    name = "subc"
+    help = "Dummy Aux Subcommand"
+
+        [[command.subcommand.arg]]
+        name = "action_arg"
+        help = "Dummy Aux Subc Action"
+        multiple = true
+
+        [[command.subcommand.opt]]
+        name = "flag_opt"
+        help = "Dummy Aux Subc Flag"

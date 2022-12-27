@@ -1,0 +1,7 @@
+[[command]]
+    name = "echo"
+    help = "Echo from the application"
+
+    [[command.arg]]
+    name = "input"
+    help = "Input to echo"

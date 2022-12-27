@@ -1,4 +1,4 @@
-import pytest, pathlib, inspect, os, sys
+import pytest, pathlib, inspect
 import multiprocessing as mp
 import origen, _origen  # pylint: disable=import-error
 import tests._shared
@@ -95,15 +95,6 @@ def in_new_origen_proc(func=None, mod=None, options=None, expect_fail=False):
     else:
         assert proc.exitcode == 0
     return results
-
-
-def setenv(q, bypass_config_lookup=None):
-    import os, inspect, pathlib, sys
-    if bypass_config_lookup:
-        os.environ['origen_bypass_config_lookup'] = "1"
-    os.environ['origen_config_paths'] = str(
-        pathlib.Path(__file__).parent.joinpath(
-            f"{inspect.stack()[1].function}.toml").absolute())
 
 
 def instantiate_dut(name):
