@@ -10,7 +10,7 @@ pub mod new;
 pub mod proj;
 pub mod save_ref;
 pub mod target;
-pub mod mailer;
+// pub mod mailer;
 pub mod credentials;
 pub mod eval;
 pub mod aux_cmds;
