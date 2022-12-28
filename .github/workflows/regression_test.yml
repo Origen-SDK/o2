@@ -80,6 +80,18 @@ jobs:
         working-directory: test_apps/python_app
         run: origen examples
 
+      - name: Setup No-App Env
+        working-directory: test_apps/python_no_app
+        run: poetry install
+
+      - name: Display Poetry Version (No-App)
+        working-directory: test_apps/python_no_app
+        run: poetry --version
+
+      - name: Display Origen No-App Version
+        working-directory: test_apps/python_no_app
+        run: origen -v
+
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
         run: poetry run pytest -vv
