@@ -72,14 +72,18 @@ jobs:
         working-directory: test_apps/python_app
         run: poetry --version
       
-      - name: Run Python Unit Tests
+      - name: Run Python-App Unit Tests
         working-directory: test_apps/python_app
         run: origen exec pytest -vv
       
-      - name: Run Diff Tests
+      - name: Run Python-App Diff Tests
         working-directory: test_apps/python_app
         run: origen examples
-      
+
+      - name: Run Python-No-App Unit Tests
+        working-directory: test_apps/python_no_app
+        run: origen exec pytest -vv
+
       - name: Run Rust Tests
         if: matrix.python-version == 3.8
         working-directory: rust/origen
