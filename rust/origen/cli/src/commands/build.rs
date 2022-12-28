@@ -150,7 +150,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
 
     // Build the latest CLI, this can be requested from an Origen workspace or an app workspace that is
     // locally referencing an Origen workspace
-    if matches.contains_id("cli") {
+    if *matches.get_one("cli").unwrap() {
         cd(&STATUS
             .origen_wksp_root
             .join("rust")
@@ -158,7 +158,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             .join("cli"))?;
         display!("");
         let mut args = vec!["build"];
-        if matches.contains_id("release") || matches.contains_id("publish") {
+        if *matches.get_one("release").unwrap() || *matches.get_one("publish").unwrap() {
             args.push("--release");
         }
         Command::new("cargo")
@@ -168,13 +168,13 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
         display!("");
 
     // Build the metal_pyapi
-    } else if matches.contains_id("metal") {
+    } else if *matches.get_one("metal").unwrap() {
         build_metal(matches)?;
     // Build the PyAPI by default
     } else {
         // A publish build will also build the origen_pyapi Python package and
         // publish it to PyPI, only available within an Origen workspace
-        if matches.contains_id("publish") {
+        if *matches.get_one("publish").unwrap() {
             let wheel_dir = &STATUS
                 .origen_wksp_root
                 .join("rust")
@@ -214,7 +214,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
                 change_pyapi_wheel_version(&wheel_dir, &old, &new);
             }
 
-            if matches.contains_id("publish") && !matches.contains_id("dry_run") {
+            if *matches.get_one("publish").unwrap() && !matches.get_one::<bool>("dry_run").unwrap() {
                 let pypi_token =
                     std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
 
@@ -248,7 +248,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             let mut target = "debug";
             let mut arch_target = None;
 
-            if matches.contains_id("release") {
+            if *matches.get_one("release").unwrap() {
                 args.push("--release");
                 target = "release";
             }
@@ -321,7 +321,7 @@ fn build_metal(matches: &ArgMatches) -> Result<()> {
     let mut target = "debug";
     let mut arch_target = None;
 
-    if matches.contains_id("release") {
+    if *matches.get_one("release").unwrap() {
         args.push("--release");
         target = "release";
     }
