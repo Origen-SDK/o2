@@ -82,7 +82,7 @@ jobs:
 
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
-        run: origen exec pytest -vv
+        run: poetry run pytest -vv
 
       - name: Run Rust Tests
         if: matrix.python-version == 3.8
