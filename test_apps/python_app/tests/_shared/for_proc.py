@@ -4,7 +4,7 @@ def setenv(config_root, config_name=None, bypass_config_lookup=None, cd=None):
         os.environ['origen_bypass_config_lookup'] = "1"
     if config_root is not None:
         if isinstance(config_root, list):
-            os.environ['origen_config_paths'] = ";".join([str(c) for c in config_root])
+            os.environ['origen_config_paths'] = os.pathsep.join([str(c) for c in config_root])
         else:
             if config_name is None:
                 config_name = inspect.stack()[1].function

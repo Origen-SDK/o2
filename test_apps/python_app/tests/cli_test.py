@@ -97,9 +97,8 @@ class TestBadConfigs:
         assert err == ""
 
 class TestAppWorkspaceCoreCommands(CLIShared):
-    @classmethod
     @property
-    def cmd_shortcuts__app(cls):
+    def cmd_shortcuts__app(self):
         return {
             'arg_opt_warmup': 'arg_opt_warmup',
             "examples": "examples",

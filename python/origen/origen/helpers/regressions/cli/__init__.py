@@ -6,7 +6,13 @@ from .origen import _CommonNames, GlobalCommands, InAppCommands, CoreOpts, CoreE
 
 cmd = command
 
-class CLI:
+class CLIProperties(type):
+    @property
+    def app_sub_cmd_path(cls):
+        cmd = cls.in_app_cmds.app
+        return [cmd.name, cmd.commands.name]
+
+class CLI(metaclass=CLIProperties):
     HelpMsg = HelpMsg
     Cmd = Cmd
     CmdOpt = CmdOpt
@@ -42,12 +48,6 @@ class CLI:
     @classmethod
     def aux_sub_cmd(cls, namespace, name, *args, cmd_path=None, from_config=None, **kwargs):
         return cls.Cmd(name, cmd_path=[cls.common_names.aux_cmds, namespace, *(cmd_path or [])], use_configs=from_config, *args, **kwargs)
-
-    @classmethod
-    @property
-    def app_sub_cmd_path(cls):
-        cmd = cls.in_app_cmds.app
-        return [cmd.name, cmd.commands.name]
 
     @classmethod
     def app_sub_cmd(cls, *args, cmd_path=None, **kwargs):

@@ -15,16 +15,31 @@ class _CommonNames:
     fmt = "fmt"
     i = "interactive"
 
-class CoreCommands:
-    @classmethod
+# Use this to mimic:
+#  @classmethod
+#  @property
+# Available in Python 3.9+
+class CoreCommandsProperties(type):
     @property
     def all_names(cls):
         return [cmd.name for cmd in cls.cmds]
 
-    @classmethod
     @property
     def all_names_add_help(cls):
         return cls.all_names + ["help"]
+
+class CoreCommands(metaclass=CoreCommandsProperties):
+    # Use this to mimic:
+    #  @classmethod
+    #  @property
+    # Available in Python 3.9+
+    def __getattr__(self, name=None):
+        if name == "all_names_add_help":
+            return self.__class__.all_names + ["help"]
+        elif name == "all_names":
+            return [cmd.name for cmd in self.__class__.cmds]
+        else:
+            self.__getattribute__(name)
 
 class GlobalCommands(CoreCommands):
     class Names:

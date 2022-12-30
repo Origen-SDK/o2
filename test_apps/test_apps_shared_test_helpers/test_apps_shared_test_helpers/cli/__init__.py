@@ -728,7 +728,6 @@ class TestAppsSharedTestHelpers(cli.CLI):
         return self.test_apps_shared_test_helpers
 
 class Plugins:
-    # python_plugin = PythonPlugin()
     def __init__(self):
         self.plugins = {
             "pl_ext_cmds": PlExtCmds(),
@@ -768,11 +767,7 @@ class AuxCmdsFromCliDir(cli.CLI):
                 Cmd("cli_dir_says_hi")
             ],
         )
-        # self.cli_dir_says_hi = self.aux_sub_cmd(
-        #     self.name,
-        #     "cli_dir_says_hi",
-        # )
-    
+
     @property
     def base_cmd(self):
         return self.aux_cmds_from_cli_dir
@@ -1183,8 +1178,6 @@ class PythonNoAppAuxCmds(cli.CLI):
         return self.python_no_app_aux_cmds
 
 class AuxNamespaces:
-    # dummy_cmds = DummyCmds()
-
     def __init__(self) -> None:
         self.dummy_cmds = DummyCmds()
         self.cmd_testers = CmdTesters()
@@ -1194,11 +1187,7 @@ class AuxNamespaces:
 
 class Aux:
     namespaces = AuxNamespaces()
-
-    @classmethod
-    @property
-    def ns(cls):
-        return cls.namespaces
+    ns = namespaces
 
 class CLIShared(cli.CLI):
     Cmd = Cmd
@@ -1214,17 +1203,6 @@ class CLIShared(cli.CLI):
     plugins = Plugins()
     aux = Aux()
 
-    @classmethod
-    @property
-    def python_plugin(cls):
-        return cls.plugins.python_plugin
-
-    @classmethod
-    @property
-    def cmd_testers(cls):
-        return cls.aux.namespaces.cmd_testers
-
-    @classmethod
-    @property
-    def cmd_testers_cmd(cls):
-        return cls.cmd_testers.cmd_testers
+    python_plugin = plugins.python_plugin
+    cmd_testers = aux.namespaces.cmd_testers
+    cmd_testers_cmd = cmd_testers.cmd_testers
