@@ -88,9 +88,14 @@ jobs:
         working-directory: test_apps/python_no_app
         run: poetry --version
 
+      # Debug
       - name: Display Origen No-App Version
         working-directory: test_apps/python_no_app
-        run: origen -v
+        run: ls ../../python/origen
+
+      - name: Display Origen No-App Version
+        working-directory: test_apps/python_no_app
+        run: poetry run origen -vvv
 
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
