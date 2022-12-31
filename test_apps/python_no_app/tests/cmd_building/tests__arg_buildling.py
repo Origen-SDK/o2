@@ -1,6 +1,5 @@
 import pytest
 from .shared import CLICommon
-from test_apps_shared_test_helpers.cli import CmdArg
 
 class Common(CLICommon):
     cmdn__no_args_or_opts = "no_args_or_opts"
@@ -10,56 +9,6 @@ class Common(CLICommon):
     cmdn__delim_multi_arg = "delim_multi_arg"
     cmdn__single_and_multi_arg = "single_and_multi_arg"
     cmdn__args_with_value_names = "args_with_value_names"
-
-    # cmds = {
-    #     cmdn__no_args_or_opts: CLICommon.test_args_sub_cmd(
-    #         cmdn__no_args_or_opts,
-    #         help="Command taking no arguments or options"
-    #     ),
-    #     cmdn__optional_arg: CLICommon.test_args_sub_cmd(
-    #         cmdn__optional_arg,
-    #         help="Command taking a single, optional argument",
-    #         args=[CmdArg("single_val", "Single value")],
-    #     ),
-    #     cmdn__required_arg: CLICommon.test_args_sub_cmd(
-    #         cmdn__required_arg,
-    #         help="Command taking a required and optional arg",
-    #         args=[
-    #             CmdArg("required_val", "Single required value", required=True),
-    #             CmdArg("optional_val", "Single optional value")
-    #         ],
-    #     ),
-    #     cmdn__multi_arg: CLICommon.test_args_sub_cmd(
-    #         cmdn__multi_arg,
-    #         help="Command taking a multi-arg",
-    #         args=[
-    #             CmdArg("multi_arg", "Multi-arg value", True)
-    #         ],
-    #     ),
-    #     cmdn__delim_multi_arg: CLICommon.test_args_sub_cmd(
-    #         cmdn__delim_multi_arg,
-    #         help="Command taking a delimited multi-arg",
-    #         args=[
-    #             CmdArg("delim_m_arg", "Delimited Multi-arg value ('multiple' implied)", True)
-    #         ],
-    #     ),
-    #     cmdn__single_and_multi_arg: CLICommon.test_args_sub_cmd(
-    #         cmdn__single_and_multi_arg,
-    #         help="Command taking a single and multi-arg",
-    #         args=[
-    #             CmdArg("single_val", "Single value"),
-    #             CmdArg("multi_arg", "Multi-arg value", True)
-    #         ],
-    #     ),
-    #     cmdn__args_with_value_names: CLICommon.test_args_sub_cmd(
-    #         cmdn__args_with_value_names,
-    #         help="Single and multi arg with value custom value names",
-    #         args=[
-    #             CmdArg("s_arg", "Single value arg with custom value name", value_name="Single Arg Val"),
-    #             CmdArg("m_arg", "Multi value arg with custom value name", True, value_name="Multi Arg Val")
-    #         ],
-    #     ),
-    # }
 
     @pytest.fixture
     def cmd(self):

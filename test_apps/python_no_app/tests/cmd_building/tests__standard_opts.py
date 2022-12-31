@@ -1,12 +1,6 @@
 from .shared import CLICommon
 
 class T_StandardOpts(CLICommon):
-    # cmdn__display_verbosity = "display_verbosity_opts"
-    # cmd__display_verbosity = CLICommon.test_args_sub_cmd(
-    #     cmdn__display_verbosity,
-    #     help="Displays the verbosity and keywords from the current command"
-    # )
-
     def test_empty_verbosity_is_accessible(self):
         out = self.cmd_testers.display_v.run()
         assert r'Args: {}' in out

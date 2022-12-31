@@ -1,5 +1,5 @@
 import pytest
-from .shared import CLICommon, CmdArg, CmdOpt
+from .shared import CLICommon
 Cmd = CLICommon.Cmd
 
 class Common(CLICommon):
@@ -9,60 +9,6 @@ class Common(CLICommon):
 
     pln__cmdn__hi = "plugin_says_hi"
     pln__cmdn__echo = "echo"
-
-    # plugin_subcmds = {
-    #     pln: {
-    #         pln__cmdn__hi: Cmd(
-    #             pln__cmdn__hi,
-    #             ["plugin", pln],
-    #             help="Say 'hi' from the python plugin",
-    #             opts=[
-    #                 CmdOpt(
-    #                     name="times",
-    #                     help="Number of times for the python plugin to say",
-    #                     value_name="TIMES",
-    #                     ln="times",
-    #                     sn="t"
-    #                 ),
-    #                 CmdOpt(
-    #                     name="loudly",
-    #                     help="LOUDLY say hi",
-    #                     ln="loudly",
-    #                     sn="l"
-    #                 ),
-    #                 CmdOpt(
-    #                     name="to",
-    #                     help="Specify who should be greeted",
-    #                     multi=True,
-    #                 )
-    #             ]
-    #         ),
-    #         pln__cmdn__echo: Cmd(
-    #             pln__cmdn__echo,
-    #             ["plugin", pln],
-    #             help="Echos the input",
-    #             args=[
-    #                 CmdArg(
-    #                     name="input",
-    #                     help="Input to echo",
-    #                     multi=True,
-    #                 )
-    #             ],
-    #             opts=[
-    #                 CmdOpt(
-    #                     name="repeat",
-    #                     help="Echo again (repeat)",
-    #                     ln="repeat",
-    #                     sn="r"
-    #                 )
-    #             ]
-    #         ),
-    #     },
-    #     pln_no_cmds: {},
-    #     pln_2nd: {},
-    # }
-
-    # pl_cmd = Cmd("plugin")
 
 class T_LoadingPluginCmds(Common):
     def test_plugin_cmds_are_added(self):

@@ -1,7 +1,6 @@
 import pytest, os
 from .shared import CLICommon
 from tests.test_configs import Common as ConfigCommmon
-from origen.helpers.env import run_cli_cmd
 
 class T_LoadingAuxCommands(CLICommon, ConfigCommmon):
     # cmdn_nested_l1 = "test_nested_level_1"
