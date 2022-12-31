@@ -88,9 +88,26 @@ jobs:
         working-directory: test_apps/python_no_app
         run: poetry --version
 
+      # Copy _origen
+      - name: Copy Origen Metal (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: .\rust\pyapi\
+        run: cp .\target\debug\_origen.dll ..\..\python\origen\_origen.pyd
+
+      # Copy _origen
+      - name: Copy Origen Metal (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: rust/pyapi
+        run: cp target/debug/lib_origen.so ../../python/origen/_origen.so
+
+      # Debug
+      - name: Display python/origen directory
+        working-directory: test_apps/python_no_app
+        run: ls ../../python/origen
+
       - name: Display Origen No-App Version
         working-directory: test_apps/python_no_app
-        run: origen -v
+        run: poetry run origen -vvv
 
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
