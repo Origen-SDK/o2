@@ -447,6 +447,7 @@ pub struct User {
     // User-level overrides for dataset configuration
     auto_populate: Option<bool>,
     should_validate_passwords: Option<bool>,
+    prompt_for_passwords: Option<bool>,
 }
 
 impl User {
@@ -611,6 +612,9 @@ impl User {
             roles: RwLock::new(HashSet::new()),
             auto_populate: auto_populate,
             should_validate_passwords: users.default_should_validate_passwords().to_owned(),
+
+            // TODO add a users option to inherit from?
+            prompt_for_passwords: None,
         };
 
         for (ds, config) in users.default_datasets().iter() {
@@ -820,6 +824,9 @@ impl User {
     }
 
     pub fn _password_dialog(&self, dataset: &str, motive: Option<&str>) -> Result<String> {
+        if !self.prompt_for_passwords() {
+            bail!("Cannot prompt for passwords for user '{}'. Passwords must be loaded by the config or set directly.", &self.id);
+        }
         // TODO add attempts back in
         // for _attempt in 0..ORIGEN_CONFIG.user__password_auth_attempts {
         let msg;
@@ -973,6 +980,18 @@ impl User {
 
     pub fn set_should_validate_passwords(&mut self, new: Option<bool>) -> () {
         self.should_validate_passwords = new;
+    }
+
+    pub fn prompt_for_passwords(&self) -> bool {
+        self.prompt_for_passwords.unwrap_or(true)
+    }
+
+    pub fn prompt_for_passwords_value(&self) -> &Option<bool> {
+        &self.prompt_for_passwords
+    }
+
+    pub fn set_prompt_for_passwords(&mut self, new: Option<bool>) -> () {
+        self.prompt_for_passwords = new;
     }
 
     pub fn password(

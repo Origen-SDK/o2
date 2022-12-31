@@ -1,3 +1,4 @@
+# FOR_PR clean up all no-app tests
 [tool.poetry]
 name = "python_no_app"
 version = "0.1.0"

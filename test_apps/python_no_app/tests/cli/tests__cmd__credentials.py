@@ -46,8 +46,6 @@ class T_Credentials(CLICommon):
     def test_verify_password(self):
         fail
 
-    # FOR_PR fix on linux and add back in
-    @pytest.mark.skip
     def test_clearing_passwords(self):
         u = origen.current_user
         assert set(u.datasets.keys()) == {
@@ -87,6 +85,7 @@ class T_Credentials(CLICommon):
         origen._origen.boot_users()
         u.datasets["dummy_ldap_ds"].should_validate_password = False
         u = origen.current_user
+        u.prompt_for_passwords = False
         # origen.boot_users()
         # origen.users.remove(u.id)
         # origen.users.lookup_current_id(update_current=True)
@@ -94,7 +93,7 @@ class T_Credentials(CLICommon):
         # print(u.password)
 
         # TODO update this with "prompt=False" option or something better than expecting an error
-        prompt_err = "Error encountered prompting for password: The handle is invalid"
+        prompt_err = f"Cannot prompt for passwords for user '{u.id}'. Passwords must be loaded by the config or set directly."
         with pytest.raises(RuntimeError, match=prompt_err):
             assert u.password is None
         with pytest.raises(RuntimeError, match=prompt_err):
@@ -111,6 +110,7 @@ class T_Credentials(CLICommon):
         origen._origen.boot_users()
         u.datasets["dummy_ldap_ds"].should_validate_password = False
         u = origen.current_user
+        u.prompt_for_passwords = False
 
         assert "Clearing cached password for dataset 'git'" in out
         assert "Clearing cached password for dataset 'test2'" in out
@@ -137,6 +137,7 @@ class T_Credentials(CLICommon):
         origen._origen.boot_users()
         u.datasets["dummy_ldap_ds"].should_validate_password = False
         u = origen.current_user
+        u.prompt_for_passwords = False
 
         assert "Clearing all cached passwords..." in out
         with pytest.raises(RuntimeError, match=prompt_err):

@@ -1556,6 +1556,27 @@ impl User {
         })?)
     }
 
+    #[getter]
+    pub fn prompt_for_passwords(&self) -> PyResult<bool> {
+        Ok(om::with_user(&self.user_id, |u| {
+            Ok(u.prompt_for_passwords())
+        })?)
+    }
+
+    #[setter]
+    pub fn set_prompt_for_passwords(&self, prompt_for_passwords: Option<bool>) -> PyResult<()> {
+        Ok(om::with_user_mut(&self.user_id, |u| {
+            Ok(u.set_prompt_for_passwords(prompt_for_passwords))
+        })?)
+    }
+
+    #[getter]
+    pub fn __prompt_for_passwords__(&self) -> PyResult<Option<bool>> {
+        Ok(om::with_user(&self.user_id, |u| {
+            Ok(*u.prompt_for_passwords_value())
+        })?)
+    }
+
     // TODO?
     //     #[getter]
     //     fn authenticated(&self) -> PyResult<bool> {
