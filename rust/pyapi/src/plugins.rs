@@ -2,7 +2,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
-use pyapi_metal::{pypath, runtime_error, key_error};
+use pyapi_metal::{pypath, key_error, key_exception};
+use origen::ORIGEN_CONFIG;
 use origen_metal::indexmap::IndexMap;
 use std::path::PathBuf;
 use pyo3::exceptions::PyKeyError;
@@ -11,6 +12,10 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "plugins")?;
     subm.add_wrapped(wrap_pyfunction!(from_origen_cli))?;
     subm.add_wrapped(wrap_pyfunction!(default))?;
+    subm.add_wrapped(wrap_pyfunction!(get_plugin_roots))?;
+    subm.add_wrapped(wrap_pyfunction!(display_plugin_roots))?;
+    subm.add_wrapped(wrap_pyfunction!(find_plugin_roots))?;
+    subm.add_wrapped(wrap_pyfunction!(collect_plugin_roots))?;
     subm.add_class::<Plugins>()?;
     subm.add_class::<Plugin>()?;
     m.add_submodule(subm)?;
@@ -18,9 +23,97 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyfunction]
+fn get_plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
+    let pl_roots;
+    if let Some(plugins) = ORIGEN_CONFIG.plugins.as_ref() {
+        if plugins.collect() {
+            pl_roots = collect_plugin_roots(py)?;
+        } else {
+            pl_roots = PyDict::new(py);
+        }
+
+        if let Some(plugins_to_load) = plugins.load.as_ref() {
+            for (n, r) in find_plugin_roots(py, plugins_to_load.iter().map( |pl| pl.name.as_str()).collect::<Vec<&str>>())?.iter() {
+                pl_roots.set_item(n, r)?;
+            }
+        }
+    } else {
+        pl_roots = collect_plugin_roots(py)?;
+    }
+    Ok(pl_roots)
+}
+
+#[pyfunction]
+fn display_plugin_roots(py: Python) -> PyResult<()> {
+    for (pl, path) in get_plugin_roots(py)?.iter() {
+        println!("success|{}|{}", pl.extract::<String>()?, path.extract::<PathBuf>()?.display());
+    }
+    Ok(())
+}
+
+#[pyfunction]
+fn find_plugin_roots<'py>(py: Python<'py>, plugins: Vec<&str>) -> PyResult<&'py PyDict> {
+    let l = PyDict::new(py);
+    l.set_item("plugin_paths", PyDict::new(py))?;
+    py.run(&format!(
+r#"
+from pathlib import Path
+import importlib, importlib_metadata
+
+for to_load in [{}]:
+    s = importlib.util.find_spec(to_load)
+    if s.origin:
+        root = Path(s.origin).parent
+        if root.joinpath("origen.plugin.toml").exists():
+            plugin_paths[to_load] = root
+    elif s.submodule_search_locations:
+        for root in s.submodule_search_locations:
+            root = Path(root)
+            if root.joinpath("origen.plugin.toml").exists():
+                plugin_paths[to_load] = root
+"#,
+        plugins.iter().map( |n| format!("'{}'", n)).collect::<Vec<String>>().join(",")),
+        None,
+        Some(l)
+    )?;
+    Ok(l.get_item("plugin_paths").ok_or_else( || key_exception!("Error finding plugin roots: expected 'plugin_paths' key."))?.extract()?)
+}
+
+#[pyfunction]
+fn collect_plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
+    let l = PyDict::new(py);
+    l.set_item("plugin_paths", PyDict::new(py))?;
+    py.run(
+r#"
+from pathlib import Path
+import importlib, importlib_metadata
+
+for dist in importlib_metadata.distributions():
+    n = str(Path(dist._path).name).split('-')[0].lower()
+    s = importlib.util.find_spec(n)
+    if s:
+        if s.origin:
+            root = Path(s.origin).parent
+            if root.joinpath("origen.plugin.toml").exists():
+                plugin_paths[n] = root
+        elif s.submodule_search_locations:
+            for root in s.submodule_search_locations:
+                root = Path(root)
+                if root.joinpath("origen.plugin.toml").exists():
+                    plugin_paths[n] = root
+"#,
+        None,
+        Some(l)
+    )?;
+    Ok(l.get_item("plugin_paths").ok_or_else( || key_exception!("Error collecting plugin roots: expected 'plugin_paths' key."))?.extract()?)
+}
+
+#[pyfunction]
 pub fn from_origen_cli(py: Python, plugin_configs: &PyDict) -> PyResult<Plugins> {
     Plugins::from_pl_config_dict(py, plugin_configs)
 }
+
+// FOR_PR not sure what's needed from below
 
 #[pyfunction]
 pub fn default(py: Python) -> PyResult<Plugins> {
@@ -56,7 +149,7 @@ impl Plugins {
         self.keys()
     }
 
-    pub fn get(&self, py: Python, key: &str) -> PyResult<Option<&Py<Plugin>>> {
+    pub fn get(&self, key: &str) -> PyResult<Option<&Py<Plugin>>> {
         Ok(if let Some(pl) = self.plugins.get(key) {
             // PyDataStoreCategory::autoload_category(cat.borrow(py).into(), py)?;
             Some(pl)
@@ -84,13 +177,11 @@ impl Plugins {
     // }
 
     fn __getitem__(&self, key: &str) -> PyResult<&Py<Plugin>> {
-        Python::with_gil( |py| {
-            if let Some(pl) = self.get(py, key)? {
-                Ok(pl)
-            } else {
-                key_error!(format!("Unknown plugin '{}'", key))
-            }
-        })
+        if let Some(pl) = self.get(key)? {
+            Ok(pl)
+        } else {
+            key_error!(format!("Unknown plugin '{}'", key))
+        }
     }
 
     fn __len__(&self) -> PyResult<usize> {
@@ -127,7 +218,7 @@ impl Plugins {
     }
 
     pub fn from_roots(py: Python) -> PyResult<Self> {
-        let roots = super::_plugin_roots(py)?;
+        let roots = get_plugin_roots(py)?;
         Ok(Self {
             plugins: {
                 let mut plugins = IndexMap::new();

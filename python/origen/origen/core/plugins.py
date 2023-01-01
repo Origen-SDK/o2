@@ -12,7 +12,7 @@ import _origen
 
 def collect_plugins():
     pls = Plugins()
-    for n, r in _origen._plugin_roots().items():
+    for n, r in _origen.plugins.get_plugin_roots().items():
         pls.register(n)
         # parts = l.split("|")
         # if len(parts) != 3:

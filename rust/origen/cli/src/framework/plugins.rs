@@ -180,14 +180,12 @@ impl Plugins {
             };
 
             python::run_with_callbacks(
-                "import _origen; _origen._display_plugin_roots()",
+                "import _origen; _origen.plugins.display_plugin_roots()",
                 Some(&mut |line| {
                     if let Some((status, result)) = line.split_once('|') {
                         match status {
                             "success" => {
                                 if let Some((name, path)) = result.split_once('|') {
-                                    //let pl_config = PluginConfig::from_path(path)
-                                    // pl_cmds.insert(name, PathBuf::from(path));
                                     match Plugin::new(name, PathBuf::from(path), exts) {
                                         Ok(pl) => {
                                             slf.plugins.insert(name.to_string(), pl);
@@ -206,8 +204,6 @@ impl Plugins {
                     } else {
                         log_error!("Malformed output encountered when collecting plugin roots: {}", line);
                     }
-                    // output_lines += &format!("{}\n", line);
-                    // println!("{}", line);
                 }),
                 None,
             )?;
@@ -225,9 +221,6 @@ impl Plugins {
         }
         None
     }
-
-    // pub fn dispatch(&self, mut matches: &ArgMatches) {
-    // }
 }
 
 pub struct Plugin {

@@ -6,7 +6,6 @@ use origen_metal::config::{Environment, File};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use crate::om::glob::glob;
-use crate::Result;
 
 const PUBLISHER_OPTIONS: &[&str] = &["system", "package_app", "upload_app"];
 

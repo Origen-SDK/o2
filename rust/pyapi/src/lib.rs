@@ -6,7 +6,12 @@ extern crate origen_metal;
 
 use pyapi_metal;
 
+#[macro_use]
+mod macros;
+
+mod current_command;
 mod dut;
+mod extensions;
 mod file_handler;
 mod meta;
 mod model;
@@ -33,19 +38,16 @@ use num_bigint::BigUint;
 use om::lazy_static::lazy_static;
 use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
 use origen_metal as om;
-use pyapi_metal as py_om;
-use pyapi_metal::pypath;
-use pyapi_metal::_helpers::typed_value;
+use pyapi_metal::{runtime_error, pypath};
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBytes, PyDict, PyList};
+use pyo3::types::{PyAny, PyBytes, PyDict};
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
 use utility::location::Location;
 use paste::paste;
-use std::collections::HashMap;
 
 use crate::dut::__PYO3_PYMODULE_DEF_DUT;
 use crate::tester::__PYO3_PYMODULE_DEF_TESTER;
@@ -64,8 +66,6 @@ pub mod built_info {
     // The file has been placed there by the build script.
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
-
-pub const current_command_str: &str = "_current_command_";
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
@@ -96,12 +96,6 @@ fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(enable_debug))?;
     m.add_wrapped(wrap_pyfunction!(set_operation))?;
     m.add_wrapped(wrap_pyfunction!(boot_users))?;
-    m.add_wrapped(wrap_pyfunction!(_plugin_roots))?;
-    m.add_wrapped(wrap_pyfunction!(_display_plugin_roots))?;
-    m.add_wrapped(wrap_pyfunction!(_find_plugin_roots))?;
-    m.add_wrapped(wrap_pyfunction!(_collect_plugin_roots))?;
-    m.add_wrapped(wrap_pyfunction!(set_command))?;
-    m.add_wrapped(wrap_pyfunction!(clear_command))?;
 
     m.add_wrapped(wrap_pymodule!(dut))?;
     m.add_wrapped(wrap_pymodule!(tester))?;
@@ -116,11 +110,13 @@ fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
 
     file_handler::define(m)?;
     plugins::define(py, m)?;
+    extensions::define(py, m)?;
+    current_command::define(py, m)?;
 
     // Compile the _origen_metal library along with this one
     // to allow re-use from that library
     m.add_wrapped(wrap_pymodule!(_origen_metal))?;
-    m.setattr(current_command_str, py.None());
+    m.setattr(current_command::ATTR_NAME, py.None())?;
     Ok(())
 }
 
@@ -441,198 +437,6 @@ fn enable_debug() -> PyResult<()> {
     Ok(())
 }
 
-macro_rules! _origen {
-    ($py: expr) => {
-        pyo3::types::PyModule::import($py, "_origen")?
-    };
-}
-
-// FOR_PR see about moving current command and extensions to standalone file
-fn get_current_command(py: Python) -> PyResult<PyRef<CurrentCommand>> {
-    _origen!(py).getattr("_current_command_")?.extract::<PyRef<CurrentCommand>>()
-}
-
-#[pyfunction]
-fn set_command(py: Python, base_cmd: String, subcmds: Vec<String>, args: Py<PyDict>, ext_args: Py<PyDict>, exts: &PyList) -> PyResult<()> {
-    let cmd = CurrentCommand {
-        base: base_cmd,
-        subcmds: subcmds,
-        args: args,
-        exts: Py::new(py, Extensions::new(py, exts, ext_args)?)?,
-    };
-    _origen!(py).setattr("_current_command_", Py::new(py, cmd)?)
-}
-
-#[pyfunction]
-fn clear_command() -> PyResult<()> {
-    // Ok(STATUS.clear_command())
-    // FOR_PR
-    // TEST_NEEDED also
-    todo!()
-}
-
-#[pyclass]
-pub struct Extension {
-    name: String,
-    args: Py<PyDict>,
-    source: String,
-    // m: , // FOR_PR store mod here?
-}
-
-#[pymethods]
-impl Extension {
-    #[getter]
-    pub fn args<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyDict> {
-        Ok(self.args.as_ref(py))
-    }
-}
-
-#[pyclass]
-pub struct Extensions {
-    exts: IndexMap<String, Py<Extension>>
-}
-
-#[pymethods]
-impl Extensions {
-    fn get(&self, ext_name: &str) -> PyResult<Option<&Py<Extension>>> {
-        Ok(match self.exts.get(ext_name) {
-            Some(ext) => Some(ext),
-            None => None,
-        })
-    }
-
-    fn keys(&self) -> PyResult<Vec<String>> {
-        Ok(self.exts.keys().map(|k| k.to_string()).collect())
-    }
-
-    fn values(&self) -> PyResult<Vec<&Py<Extension>>> {
-        let mut retn: Vec<&Py<Extension>> = vec![];
-        for (_, ext) in self.exts.iter() {
-            retn.push(ext);
-        }
-        Ok(retn)
-    }
-
-    fn items(&self) -> PyResult<Vec<(String, &Py<Extension>)>> {
-        let mut retn: Vec<(String, &Py<Extension>)> = vec![];
-        for (n, ext) in self.exts.iter() {
-            retn.push((n.to_string(), ext));
-        }
-        Ok(retn)
-    }
-
-    fn __getitem__(&self, py: Python, key: &str) -> PyResult<&Py<Extension>> {
-        if let Some(s) = self.get(key)? {
-            Ok(s)
-        } else {
-            Err(pyo3::exceptions::PyKeyError::new_err(format!(
-                "No extension '{}' available for command '{}'",
-                key,
-                get_current_command(py)?.cmd()?
-            )))
-        }
-    }
-
-    fn __len__(&self) -> PyResult<usize> {
-        Ok(self.exts.len())
-    }
-
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<ExtensionsIter> {
-        Ok(ExtensionsIter {
-            keys: slf.keys().unwrap(),
-            i: 0,
-        })
-    }
-}
-
-#[pyclass]
-pub struct ExtensionsIter {
-    pub keys: Vec<String>,
-    pub i: usize,
-}
-
-#[pymethods]
-impl ExtensionsIter {
-    fn __iter__(slf: PyRefMut<Self>) -> PyResult<Py<Self>> {
-        Ok(slf.into())
-    }
-
-    fn __next__(mut slf: PyRefMut<Self>) -> PyResult<Option<String>> {
-        if slf.i >= slf.keys.len() {
-            return Ok(None);
-        }
-        let name = slf.keys[slf.i].clone();
-        slf.i += 1;
-        Ok(Some(name))
-    }
-}
-
-impl Extensions {
-    pub fn new<'py>(py: Python<'py>, exts: &PyList, ext_args: Py<PyDict>) -> PyResult<Self> {
-        let mut slf = Self {
-            exts: IndexMap::new(),
-        };
-
-        for ext in exts.iter() {
-            let ext_cfg = ext.extract::<&PyDict>()?;
-            let source = PyAny::get_item(ext_cfg, "source")?.extract::<String>()?;
-            let ext_name = PyAny::get_item(ext_cfg, "name")?.extract::<String>()?;
-            let ext_path = format!("{}.{}", source, ext_name);
-
-            let src_ext_args = PyAny::get_item(ext_args.as_ref(py), &source)?.extract::<&PyDict>()?;
-
-            let py_ext = Extension {
-                args: PyAny::get_item(src_ext_args, &ext_name)?.extract::<Py<PyDict>>()?,
-                name: ext_name,
-                source: ext_path.clone(),
-            };
-            slf.exts.insert(ext_path, Py::new(py, py_ext)?);
-        }
-
-        Ok(slf)
-    }
-}
-
-#[pyclass]
-pub struct CurrentCommand {
-    base: String,
-    subcmds: Vec<String>,
-    args: Py<PyDict>,
-    exts: Py<Extensions>,
-}
-
-#[pymethods]
-impl CurrentCommand {
-    #[getter]
-    pub fn cmd(&self) -> PyResult<String> {
-        Ok(if self.subcmds.is_empty() {
-            self.base.to_string()
-        } else {
-            format!("{}.{}", self.base, self.subcmds.join("."))
-        })
-    }
-
-    #[getter]
-    pub fn base_cmd(&self) -> PyResult<&str> {
-        Ok(&self.base)
-    }
-
-    #[getter]
-    pub fn subcmds(&self) -> PyResult<Vec<String>> {
-        Ok(self.subcmds.clone())
-    }
-
-    #[getter]
-    pub fn exts<'py>(&'py self, py: Python<'py>) -> PyResult<&Py<Extensions>> {
-        Ok(&self.exts)
-    }
-
-    #[getter]
-    pub fn args<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyDict> {
-        Ok(self.args.as_ref(py))
-    }
-}
-
 #[pyfunction]
 /// Set the current Origen operation (generate, compile, etc.)
 fn set_operation(name: String) -> PyResult<()> {
@@ -746,154 +550,8 @@ fn config(py: Python) -> PyResult<PyObject> {
 fn config_metadata<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
     let m = origen::origen_config_metadata();
     let retn = PyDict::new(py);
-    retn.set_item("files", m.files.iter().map( |p| Ok(pypath!(py, p.display()))).collect::<PyResult<Vec<PyObject>>>()?);
+    retn.set_item("files", m.files.iter().map( |p| Ok(pypath!(py, p.display()))).collect::<PyResult<Vec<PyObject>>>()?)?;
     Ok(retn)
-}
-
-// FOR_PR see about moving plugin stuff to another file
-// Also clean up
-
-use origen_metal::indexmap::IndexMap;
-
-#[pyfunction]
-// fn _plugin_roots(py: Python) -> PyResult<IndexMap<String, PathBuf>> {
-fn _plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
-    // let mut pl_roots: IndexMap<String, PathBuf>;
-    let pl_roots;
-    if let Some(plugins) = ORIGEN_CONFIG.plugins.as_ref() {
-        // let l = PyDict::new(py);
-        if plugins.collect() {
-            pl_roots = _collect_plugin_roots(py)?;
-        } else {
-            pl_roots = PyDict::new(py); // IndexMap::new();
-        }
-
-        if let Some(plugins_to_load) = plugins.load.as_ref() {
-            // pl_roots.extend(_find_plugin_roots(py, plugins_to_load.iter().map( |pl| pl.name.as_str()).collect::<Vec<&str>>())?);
-            for (n, r) in _find_plugin_roots(py, plugins_to_load.iter().map( |pl| pl.name.as_str()).collect::<Vec<&str>>())?.iter() {
-                pl_roots.set_item(n, r);
-            }
-
-            // println!("loading...");
-            // for pl in plugins_to_load {
-            //     println!("{}: {}", &pl.name, pkgs.get_item(&pl.name)?);
-            // }
-        }
-    } else {
-        pl_roots = _collect_plugin_roots(py)?;
-    }
-    Ok(pl_roots)
-    // // println!("Start Plugin Roots:");
-    // for (pl, path) in pl_roots {
-    //     println!("success|{}|{}", pl, path.display());
-    // }
-    // // println!("End Plugin Roots");
-    // Ok(())
-}
-
-// #[pyfunction]
-// fn _get_plugin_roots<'py>(py: Python<'py>) -> PyResult<&PyDict> {
-//     py_om::_helpers::map_to_pydict(py, _plugin_roots(py)?)?
-// }
-
-
-#[pyfunction]
-fn _display_plugin_roots(py: Python) -> PyResult<()> {
-    for (pl, path) in _plugin_roots(py)?.iter() {
-        println!("success|{}|{}", pl.extract::<String>()?, path.extract::<PathBuf>()?.display());
-    }
-    Ok(())
-}
-
-#[pyfunction]
-// fn _find_plugin_roots(py: Python, plugins: Vec<&str>) -> PyResult<IndexMap<String, PathBuf>> {
-fn _find_plugin_roots<'py>(py: Python<'py>, plugins: Vec<&str>) -> PyResult<&'py PyDict> {
-    let l = PyDict::new(py);
-    l.set_item("plugin_paths", PyDict::new(py));
-    py.run(&format!(
-r#"
-from pathlib import Path
-import importlib, importlib_metadata
-
-for to_load in [{}]:
-    s = importlib.util.find_spec(to_load)
-    if s.origin:
-        root = Path(s.origin).parent
-        if root.joinpath("origen.plugin.toml").exists():
-            plugin_paths[to_load] = root
-    elif s.submodule_search_locations:
-        for root in s.submodule_search_locations:
-            root = Path(root)
-            if root.joinpath("origen.plugin.toml").exists():
-                plugin_paths[to_load] = root
-"#,
-        plugins.iter().map( |n| format!("'{}'", n)).collect::<Vec<String>>().join(",")),
-        None,
-        Some(l)
-    )?;
-    // l.get_item("plugin_paths").unwrap().extract()
-    Ok(l.get_item("plugin_paths").unwrap().extract()?)
-}
-
-#[pyfunction]
-// fn _collect_plugin_roots(py: Python) -> PyResult<IndexMap<String, PathBuf>> {
-fn _collect_plugin_roots<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
-    let l = PyDict::new(py);
-    l.set_item("plugin_paths", PyDict::new(py));
-    py.run(
-r#"
-from pathlib import Path
-import importlib, importlib_metadata
-
-for dist in importlib_metadata.distributions():
-    n = str(Path(dist._path).name).split('-')[0].lower()
-    s = importlib.util.find_spec(n)
-    if s:
-        if s.origin:
-            root = Path(s.origin).parent
-            if root.joinpath("origen.plugin.toml").exists():
-                plugin_paths[n] = root
-        elif s.submodule_search_locations:
-            for root in s.submodule_search_locations:
-                root = Path(root)
-                if root.joinpath("origen.plugin.toml").exists():
-                    plugin_paths[n] = root
-"#,
-        None,
-        Some(l)
-    )?;
-    // println!("Start Plugin Roots:");
-    // for pl in l.get_item("plugin_paths").unwrap().extract::<Vec<PathBuf>>()? {
-    //     println!("{}", pl.display());
-    // }
-    // println!("End Plugin Roots");
-    // l.get_item("plugin_paths").unwrap().extract()
-    Ok(l.get_item("plugin_paths").unwrap().extract()?)
-
-    // println!("collecting plugin roots...");
-    // if let Some(plugins) = ORIGEN_CONFIG.plugins.as_ref() {
-    //     println!("collecting plugin roots...");
-    //     // let pl_roots = vec![];
-    //     // let l = PyTuple::new()
-    //     let l = PyDict::new(py);
-    //     l.set_item("pkg_resources", PyModule::import(py, "pkg_resources")?)?;
-    //     println!("imported...");
-    //     let pkgs = py.eval("{d.project_name: d.location for d in pkg_resources.working_set}", None, Some(l))?;
-    //     println!("evaled...");
-    //     println!("{:?}", pkgs);
-    //     // if plugins.collect() {
-    //     //     // TODO
-    //     //     // todo!();
-    //     // }
-
-    //     if let Some(plugins_to_load) = plugins.load.as_ref() {
-    //         println!("loading...");
-    //         for pl in plugins_to_load {
-    //             println!("{}: {}", &pl.name, pkgs.get_item(&pl.name)?);
-    //         }
-    //     }
-    // }
-    // Ok(())
 }
 
 #[pyfunction]
@@ -989,13 +647,6 @@ fn prepare_for_target_load() -> PyResult<()> {
 fn start_new_test(name: Option<String>) -> PyResult<()> {
     origen::start_new_test(name);
     Ok(())
-}
-
-#[macro_export]
-macro_rules! runtime_error {
-    ($message:expr) => {{
-        Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>($message))
-    }};
 }
 
 pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {

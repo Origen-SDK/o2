@@ -501,7 +501,7 @@ impl Users {
 
     #[getter]
     pub fn get_default_password_cache_option(&self) -> PyResult<Option<String>> {
-        let mut users = om::users_mut();
+        let users = om::users_mut();
         Ok(users.default_password_cache_option().as_ref().map_or( None, |p| p.into()))
     }
 

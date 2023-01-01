@@ -200,7 +200,7 @@ pub trait FrontendAPI {
         None
     }
 
-    fn lookup_home_dir(&self, user_id: &str, dataset: Option<&str>, current_user: bool) -> Option<Result<Option<PathBuf>>> {
+    fn lookup_home_dir(&self, _user_id: &str, _dataset: Option<&str>, _current_user: bool) -> Option<Result<Option<PathBuf>>> {
         None
     }
 

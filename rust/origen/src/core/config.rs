@@ -432,7 +432,7 @@ impl Default for Config {
             }
 
             // Check for configs in the CLI directory and its parents
-            if let Some(mut path) = STATUS.cli_location() {
+            if let Some(path) = STATUS.cli_location() {
                 log_trace!("Looking for Origen config files from the CLI directory: '{}'", path.display());
                 Self::append_configs(path, &mut files);
             }
@@ -505,7 +505,7 @@ impl Default for Config {
             match built.get::<Option<Vec<AuxillaryCommandsTOML>>>("auxillary_commands") {
                 Ok(r) => {
                     if let Some(cmds) = r {
-                        for (i, cmd) in cmds.iter().enumerate() {
+                        for cmd in cmds.iter() {
                             let mut cmd_clone = cmd.clone();
                             cmd_clone.path = om::_utility::file_utils::to_abs_path(&cmd.path, &f.parent().unwrap().to_path_buf()).display().to_string();
                             aux_cmd_sources.push(f.to_path_buf());

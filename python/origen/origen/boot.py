@@ -1,15 +1,13 @@
-# These must come before all other imports.
-# from __future__ import print_function, unicode_literals, absolute_import
-
 import pathlib
 from builtins import exit as exit_proc
 
+# TEST_NEEDED
+# Or needed at all?
 def unsupported_command(base_cmd, sub_command=None):
     if sub_command is None:
-        print(f"Unsupported command '{base_cmd}'")
+        raise RuntimeError(f"Unsupported command '{base_cmd}'")
     else:
-        print(f"Unsupported sub-command '{sub_command}' for '{base_cmd}'")
-    exit(1)
+        raise RuntimeError(f"Unsupported sub-command '{sub_command}' for '{base_cmd}'")
 
 dispatch_plugin_cmd = "_plugin_dispatch_"
 dispatch_aux_cmd = "_dispatch_aux_cmd_"
@@ -51,6 +49,7 @@ def run_cmd(command,
     import origen.application
     import origen.target
 
+    # FOR_PR make these constants
     if command == dispatch_plugin_cmd:
         cmd_src = "plugin"
     elif command == dispatch_aux_cmd:
@@ -195,20 +194,17 @@ def run_cmd(command,
                 for msg in m:
                     origen.log.error(f"  {msg}")
             ext['mod'] = None
-            # FOR_PR remove obj
-            ext['obj'] = None
         else:
             ext['mod'] = m
-            ext['obj'] = m
         
             if "on_load" in ext:
                 getattr((ext["mod"]), ext["on_load"])(ext["mod"])
-    _origen.set_command(command, subcmds, args, ext_args, extensions)
+    _origen.current_command.set_command(command, subcmds, args, ext_args, extensions)
 
     try:
         for ext in extensions:
             if "before_cmd" in ext:
-                getattr(ext["obj"], ext["before_cmd"])(**ext_args[ext['source']][ext['name']])
+                getattr(ext["mod"], ext["before_cmd"])(**ext_args[ext['source']][ext['name']])
 
         # The generate command handles patterns and flows.
         # Future: Add options to generate patterns concurrently, or send them off to LSF.
@@ -446,18 +442,17 @@ def run_cmd(command,
             call_user_cmd("aux")
 
         else:
-            print(f"Unknown command: {command}")
-            exit(1)
+            unsupported_command(command)
 
         if extensions:
             for ext in extensions:
                 if "after_cmd" in ext:
-                    getattr(ext["obj"], ext["after_cmd"])(**ext_args[ext['source']][ext['name']])
+                    getattr(ext["mod"], ext["after_cmd"])(**ext_args[ext['source']][ext['name']])
     finally:
         for ext in extensions:
             try:
                 if "clean_up" in ext:
-                    getattr(ext["obj"], ext["clean_up"])(**ext_args[ext['source']][ext['name']])
+                    getattr(ext["mod"], ext["clean_up"])(**ext_args[ext['source']][ext['name']])
             except Exception as clean_up_e:
                 print(clean_up_e)
 
