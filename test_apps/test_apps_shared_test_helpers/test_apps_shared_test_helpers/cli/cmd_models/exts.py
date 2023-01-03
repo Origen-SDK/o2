@@ -1,6 +1,6 @@
 from origen.helpers.regressions import cli
 from . import CmdExtOpt
-from .aux import aux_cmds_dir
+from .auxs import aux_cmds_dir
 
 class ExtensionDrivers:
     exts_workout_cfg = aux_cmds_dir.joinpath("exts_workout_cfg.toml")

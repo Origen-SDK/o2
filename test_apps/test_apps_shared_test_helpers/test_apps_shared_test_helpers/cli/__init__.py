@@ -4,7 +4,7 @@ from pathlib import Path, PurePosixPath
 import re
 
 from .cmd_models import Cmd, CmdArg, CmdOpt, CmdExtOpt
-from .cmd_models.aux import Aux
+from .cmd_models.auxs import Aux
 from .cmd_models.exts import ExtensionDrivers
 from .cmd_models.plugins import Plugins
 
