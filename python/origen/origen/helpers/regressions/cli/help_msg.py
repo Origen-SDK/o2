@@ -301,6 +301,9 @@ class HelpMsg:
         assert o["ext_type"] is None
         return True
 
+    def assert_bare_opts(self):
+        return self.assert_opts("help", "vk", "v")
+
     def assert_ext_at(self, expected_index, ext):
         o = self.opts[expected_index]
         self._assert_opt_params_(o, ext)
@@ -365,3 +368,7 @@ class HelpMsg:
     def assert_vk_opt_at(self, expected_index):
         from .origen import CoreOpts
         return self.assert_opt_at(expected_index, CoreOpts.vk)
+
+    def assert_summary(self, msg):
+        assert self.help == msg
+        return True

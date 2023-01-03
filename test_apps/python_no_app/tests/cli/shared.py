@@ -1,10 +1,7 @@
-# FOR_PR see if needed
-from origen.helpers.regressions.cli import CLI
+import pytest
+from tests.test_configs import Common as ConfigCommon
 
-class CLICommon(CLI):
-    ...
-    # global_core_commands = [
-    #     "proj", "new", "credentials", "eval", "interactive", 
-    #     "plugins", "plugin", "auxillary_commands", "fmt",
-    #     "build"
-    # ]
+class CLICommon(ConfigCommon):
+    @pytest.fixture
+    def cmd(self):
+        return self._cmd

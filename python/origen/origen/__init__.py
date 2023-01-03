@@ -40,6 +40,11 @@ def __getattr__(name: str):
         return users.initial_user
     elif name in ["command", "current_command", "cmd", "current_cmd"]:
         return _origen._current_command_
+    elif name == "core_app":
+        if not origen._core_app:
+            from origen import application
+            origen._core_app = application.Application(root=Path(os.path.abspath(application.__file__)).parent.parent, name="origen")
+        return origen._core_app
     elif name == "plugins":
         if origen._plugins is None:
             from origen.core.plugins import collect_plugins
@@ -183,6 +188,8 @@ app = None
     --------
     :ref:`The Application Workspace <guides/getting_started/workspaces:The Application Workspace>`
 '''
+
+_core_app = None
 
 dut = None
 ''' Pointer to the current DUT, or ``None``, if no DUT has been set.

@@ -2,24 +2,12 @@ import pytest
 from .shared import CLICommon
 
 class Common(CLICommon):
-    # Hard-coded here to ensure it matches the TOML
-    cmdn__sv_opt_opt = "single_value_optional_opt"
-    cmdn__sv_req_opt = "single_value_required_opt"
-    cmdn__multi_opt = "multi_opts"
-    cmdn__flag_opts = "flag_opts"
-    cmdn__opt_vns = "opts_with_value_names"
-    cmdn__opt_aliases = "opts_with_aliases"
-    cmdn__hidden_opt = "hidden_opt"
-
-    # TODO consolidate this with arg building. or remove
-    @pytest.fixture
-    def cmd(self):
-        return getattr(self.cmd_testers.test_args, self.cmdn)
+    pass
 
 class T_OptBuilding(Common):
 
     class TestOptionSingleValueOpts(Common):
-        cmdn = Common.cmdn__sv_opt_opt
+        _cmd = Common.cmd_testers.test_args.single_value_optional_opt
 
         @pytest.fixture
         def e_opt(self, cmd):
@@ -39,30 +27,23 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, e_opt, i_opt):
             help = cmd.get_help_msg()
-            help.assert_opt_at(0, e_opt)
-            help.assert_opt_at(2, i_opt)
+            help.assert_opts(e_opt, "help", i_opt, "vk", "v")
         
         def test_expl_sv_opt(self, cmd, e_opt, ev):
             out = cmd.run(e_opt.ln_to_cli(), ev)
-            assert e_opt.to_assert_str(ev) in out
-            assert cmd.parse_arg_keys(out) == [e_opt.name]
+            cmd.assert_args(out, (e_opt, ev))
         
         def test_impl_sv_opt(self, cmd, i_opt, iv):
             out = cmd.run(i_opt.ln_to_cli(), iv)
-            assert i_opt.to_assert_str(iv) in out
-            assert cmd.parse_arg_keys(out) == [i_opt.name]
+            cmd.assert_args(out, (i_opt, iv))
         
         def test_both_opts(self, cmd, e_opt, i_opt, ev, iv):
             out = cmd.run(i_opt.ln_to_cli(), iv, e_opt.ln_to_cli(), ev)
-            assert e_opt.to_assert_str(ev) in out
-            assert i_opt.to_assert_str(iv) in out
-            assert cmd.parse_arg_keys(out) == [i_opt.name, e_opt.name]
+            cmd.assert_args(out, (i_opt, iv), (e_opt, ev))
         
         def test_both_opts_in_reverse_order(self, cmd, e_opt, i_opt, ev, iv):
             out = cmd.run(e_opt.ln_to_cli(), ev, i_opt.ln_to_cli(), iv)
-            assert e_opt.to_assert_str(ev) in out
-            assert i_opt.to_assert_str(iv) in out
-            assert cmd.parse_arg_keys(out) == [i_opt.name, e_opt.name]
+            cmd.assert_args(out, (i_opt, iv), (e_opt, ev))
 
         def test_error_on_multi_opt(self, cmd, e_opt, ev):
             another_ev = f"another_{ev}"
@@ -70,7 +51,7 @@ class T_OptBuilding(Common):
             assert self.err_msgs.too_many_args(another_ev) in out
     
     class TestRequiredOpt(Common):
-        cmdn = Common.cmdn__sv_req_opt
+        _cmd = Common.cmd_testers.test_args.single_value_required_opt
 
         @pytest.fixture
         def o_opt(self, cmd):
@@ -90,19 +71,15 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, o_opt, r_opt):
             help = cmd.get_help_msg()
-            help.assert_opt_at(2, o_opt)
-            help.assert_opt_at(3, r_opt)
+            help.assert_opts("help", "vk", o_opt, r_opt, "v")
 
         def test_req_opt_given(self, cmd, r_opt, rv):
             out = cmd.run(r_opt.ln_to_cli(), rv)
-            assert r_opt.to_assert_str(rv) in out
-            assert cmd.parse_arg_keys(out) == [r_opt.name]
+            cmd.assert_args(out, (r_opt, rv))
 
         def test_req_and_optional_opt_given(self, cmd, o_opt, r_opt, ov, rv):
             out = cmd.run(r_opt.ln_to_cli(), rv, o_opt.ln_to_cli(), ov)
-            assert r_opt.to_assert_str(rv) in out
-            assert o_opt.to_assert_str(ov) in out
-            assert cmd.parse_arg_keys(out) == [o_opt.name, r_opt.name]
+            cmd.assert_args(out, (r_opt, rv), (o_opt, ov))
 
         def test_error_on_no_opts_given(self, cmd, r_opt):
             out = cmd.gen_error()
@@ -113,7 +90,7 @@ class T_OptBuilding(Common):
             assert self.err_msgs.missing_required_arg(r_opt) in out
 
     class TestMultiValueOpts(Common):
-        cmdn = Common.cmdn__multi_opt
+        _cmd = Common.cmd_testers.test_args.multi_opts
 
         @pytest.fixture
         def m_opt(self, cmd):
@@ -177,11 +154,7 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, m_opt, im_m_opt, req_m_opt, d_m_opt, d_im_m_opt):
             help = cmd.get_help_msg()
-            help.assert_opt_at(5, m_opt)
-            help.assert_opt_at(3, im_m_opt)
-            help.assert_opt_at(6, req_m_opt)
-            help.assert_opt_at(1, d_m_opt)
-            help.assert_opt_at(0, d_im_m_opt)
+            help.assert_opts(d_im_m_opt, d_m_opt, "help", im_m_opt, "vk", m_opt, req_m_opt, "v")
 
         def test_all_multi_val_opts_given(self, cmd,
             m_opt, im_m_opt, req_m_opt, d_m_opt, d_im_m_opt,
@@ -194,18 +167,14 @@ class T_OptBuilding(Common):
                 d_m_opt.ln_to_cli(), *d_m_opt_v,
                 d_im_m_opt.ln_to_cli(), *d_im_m_opt_v
             )
-            assert m_opt.to_assert_str(m_opt_v) in out
-            assert im_m_opt.to_assert_str(im_m_opt_v) in out
-            assert req_m_opt.to_assert_str(req_m_opt_v) in out
-            assert d_m_opt.to_assert_str(d_m_opt_v) in out
-            assert d_im_m_opt.to_assert_str(d_im_m_opt_v) in out
-            assert cmd.parse_arg_keys(out) == [
-                m_opt.name,
-                im_m_opt.name,
-                req_m_opt.name,
-                d_m_opt.name,
-                d_im_m_opt.name
-            ]
+            cmd.assert_args(
+                out,
+                (m_opt, m_opt_v),
+                (im_m_opt, im_m_opt_v),
+                (req_m_opt, req_m_opt_v),
+                (d_m_opt, d_m_opt_v),
+                (d_im_m_opt, d_im_m_opt_v),
+            )
 
         def test_delimited_is_not_the_default(self, cmd,
             m_opt, im_m_opt, req_m_opt, d_m_opt, d_im_m_opt,
@@ -219,18 +188,14 @@ class T_OptBuilding(Common):
                 d_m_opt.ln_to_cli(), d_m_opt_v_dlim,
                 d_im_m_opt.ln_to_cli(), d_im_m_opt_v_dlim
             )
-            assert m_opt.to_assert_str([m_opt_v_dlim]) in out
-            assert im_m_opt.to_assert_str([im_m_opt_v_dlim]) in out
-            assert req_m_opt.to_assert_str([req_m_opt_v_dlim]) in out
-            assert d_m_opt.to_assert_str(d_m_opt_v) in out
-            assert d_im_m_opt.to_assert_str(d_im_m_opt_v) in out
-            assert cmd.parse_arg_keys(out) == [
-                m_opt.name,
-                im_m_opt.name,
-                req_m_opt.name,
-                d_m_opt.name,
-                d_im_m_opt.name
-            ]
+            cmd.assert_args(
+                out,
+                (m_opt, [m_opt_v_dlim]),
+                (im_m_opt, [im_m_opt_v_dlim]),
+                (req_m_opt, [req_m_opt_v_dlim]),
+                (d_m_opt, d_m_opt_v),
+                (d_im_m_opt, d_im_m_opt_v),
+            )
 
         def test_multiple_occurrences_stack(self, cmd, m_opt, req_m_opt, m_opt_v, im_m_opt_v, req_m_opt_v):
             out = cmd.run(
@@ -239,16 +204,18 @@ class T_OptBuilding(Common):
                 req_m_opt.ln_to_cli(), *req_m_opt_v,
                 req_m_opt.ln_to_cli(), *req_m_opt_v,
             )
-            assert m_opt.to_assert_str([*m_opt_v, *im_m_opt_v])
-            assert req_m_opt.to_assert_str([*req_m_opt_v, *req_m_opt_v])
-            assert cmd.parse_arg_keys(out) == [m_opt.name, req_m_opt.name]
+            cmd.assert_args(
+                out,
+                (m_opt, [*m_opt_v, *im_m_opt_v]),
+                (req_m_opt, [*req_m_opt_v, *req_m_opt_v]),
+            )
 
         def test_error_on_missing_required_opt(self, cmd, req_m_opt):
             out = cmd.gen_error()
             assert self.err_msgs.missing_required_arg(req_m_opt) in out
 
     class TestFlagOpts(Common):
-        cmdn = Common.cmdn__flag_opts
+        _cmd = Common.cmd_testers.test_args.flag_opts
 
         @pytest.fixture
         def e_opt(self, cmd):
@@ -260,21 +227,19 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, e_opt, i_opt):
             help = cmd.get_help_msg()
-            help.assert_opt_at(0, e_opt)
-            help.assert_opt_at(2, i_opt)
+            help.assert_opts(e_opt, "help", i_opt, "vk", "v")
 
         def test_no_flag_opts_given(self, cmd):
             out = cmd.run()
-            assert self.no_args_or_opts_msg in out
+            cmd.assert_args(out, None)
 
         def test_one_flag_opt_given(self, cmd, e_opt):
             out = cmd.run(e_opt.ln_to_cli())
-            assert e_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (e_opt, 1))
 
         def test_two_flag_opts_given(self, cmd, e_opt, i_opt):
             out = cmd.run(e_opt.ln_to_cli(), i_opt.ln_to_cli())
-            assert e_opt.to_assert_str(1) in out
-            assert i_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (e_opt, 1), (i_opt, 1))
 
         def test_multiple_occurrences_stack(self, cmd, e_opt, i_opt):
             out = cmd.run(
@@ -284,8 +249,7 @@ class T_OptBuilding(Common):
                 e_opt.ln_to_cli(),
                 i_opt.ln_to_cli()
             )
-            assert e_opt.to_assert_str(3) in out
-            assert i_opt.to_assert_str(2) in out
+            cmd.assert_args(out, (e_opt, 3), (i_opt, 2))
 
         def test_error_on_flag_opt_with_value(self, cmd, i_opt):
             sv = "single_val"
@@ -293,7 +257,7 @@ class T_OptBuilding(Common):
             assert self.err_msgs.too_many_args(sv) in out
 
     class TestOptsWithValueNames(Common):
-        cmdn = Common.cmdn__opt_vns
+        _cmd = Common.cmd_testers.test_args.opts_with_value_names
 
         @pytest.fixture
         def e_s_opt(self, cmd):
@@ -325,29 +289,22 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, e_s_opt, i_s_opt, m_opt, ln_s_opt):
             help = cmd.get_help_msg()
-            help.assert_opt_at(5, i_s_opt)
-            help.assert_opt_at(4, e_s_opt)
-            help.assert_opt_at(2, m_opt)
-            help.assert_opt_at(3, ln_s_opt)
+            help.assert_opts("help", "vk", m_opt, ln_s_opt, e_s_opt, i_s_opt, "v")
         
         def test_single_value_opt_with_value_name(self, cmd, e_s_opt, i_s_opt, sv_e, sv_i):
             out = cmd.run(i_s_opt.ln_to_cli(), sv_i, e_s_opt.ln_to_cli(), sv_e)
-            assert i_s_opt.to_assert_str(sv_i) in out
-            assert e_s_opt.to_assert_str(sv_e) in out
-            assert cmd.parse_arg_keys(out) == [i_s_opt.name, e_s_opt.name]
+            cmd.assert_args(out, (i_s_opt, sv_i), (e_s_opt, sv_e))
 
         def test_multi_value_opt_with_value_name(self, cmd, m_opt, mv):
             out = cmd.run(m_opt.ln_to_cli(), *mv)
-            assert m_opt.to_assert_str(mv) in out
-            assert cmd.parse_arg_keys(out) == [m_opt.name]
+            cmd.assert_args(out, (m_opt, mv))
 
         def test_single_value_opt_with_value_and_long_names(self, cmd, ln_s_opt, sv_i):
             out = cmd.run(ln_s_opt.ln_to_cli(), sv_i)
-            assert ln_s_opt.to_assert_str(sv_i) in out
-            assert cmd.parse_arg_keys(out) == [ln_s_opt.name]
+            cmd.assert_args(out, (ln_s_opt, sv_i))
 
     class TestOptsWithAliases(Common):
-        cmdn = Common.cmdn__opt_aliases
+        _cmd = Common.cmd_testers.test_args.opts_with_aliases
 
         @pytest.fixture
         def s_opt(self, cmd):
@@ -403,31 +360,33 @@ class T_OptBuilding(Common):
              f_sn_and_al_opt, f_ln_and_al_opt, f_ln_sn_al_opt
         ):
             help = cmd.get_help_msg()
-            help.assert_num_args(0)
-            help.assert_num_opts(14)
-            help.assert_opt_at(12, s_opt)
-            help.assert_opt_at(10, m_opt)
-            help.assert_opt_at(11, oc_opt)
-            help.assert_opt_at(2, f_sn_opt)
-            help.assert_opt_at(9, f_ln_opt)
-            help.assert_opt_at(1, f_dupl_ln_sn_opt)
-            help.assert_opt_at(4, f_ln_al_opt)
-            help.assert_opt_at(0, f_sn_and_al_opt)
-            help.assert_opt_at(3, f_ln_and_al_opt)
-            help.assert_opt_at(5, f_sn_al_opt)
-            help.assert_opt_at(6, f_ln_sn_al_opt)
+            help.assert_args(None)
+            help.assert_opts(
+                f_sn_and_al_opt,
+                f_dupl_ln_sn_opt,
+                f_sn_opt,
+                f_ln_and_al_opt,
+                f_ln_al_opt,
+                f_sn_al_opt,
+                f_ln_sn_al_opt,
+                "help",
+                "vk",
+                f_ln_opt,
+                m_opt,
+                oc_opt,
+                s_opt,
+                "v"
+            )
 
         def test_single_val_opt_as_long_name(self, cmd, s_opt, tv):
             # Try single opt long name
             out = cmd.run(s_opt.ln_to_cli(), tv)
-            assert s_opt.to_assert_str(tv) in out
-            assert cmd.parse_arg_keys(out) == [s_opt.name]
+            cmd.assert_args(out, (s_opt, tv))
 
         def test_single_val_opt_as_short_name(self, cmd, s_opt, tv):
             # Try single opt short name
             out = cmd.run(s_opt.sn_to_cli(), tv)
-            assert s_opt.to_assert_str(tv) in out
-            assert cmd.parse_arg_keys(out) == [s_opt.name]
+            cmd.assert_args(out, (s_opt, tv))
 
         def test_error_on_single_val_opt_name(self, cmd, s_opt, tv):
             # Try single opt opt name
@@ -438,14 +397,12 @@ class T_OptBuilding(Common):
         def test_multi_val_opt_as_long_name(self, cmd, m_opt, tv):
             # Try multi opt long name
             out = cmd.run(m_opt.ln_to_cli(), tv, tv)
-            assert m_opt.to_assert_str([tv, tv]) in out
-            assert cmd.parse_arg_keys(out) == [m_opt.name]
+            cmd.assert_args(out, (m_opt, [tv, tv]))
 
         def test_multi_val_opt_as_short_name(self, cmd, m_opt, tv):
             # Try multi opt short name
             out = cmd.run(m_opt.sn_to_cli(), tv, tv, tv)
-            assert m_opt.to_assert_str([tv, tv, tv]) in out
-            assert cmd.parse_arg_keys(out) == [m_opt.name]
+            cmd.assert_args(out, (m_opt, [tv, tv, tv]))
 
         def test_error_on_multi_val_opt_name(self, cmd, m_opt, tv):
             # Try multi opt opt name
@@ -460,24 +417,22 @@ class T_OptBuilding(Common):
                 m_opt.ln_to_cli(), tv, tv,
                 m_opt.sn_to_cli(), tv
             )
-            assert m_opt.to_assert_str([tv, tv, tv, tv, tv]) in out
-            assert cmd.parse_arg_keys(out) == [m_opt.name]
+            cmd.assert_args(out, (m_opt, [tv, tv, tv, tv, tv]))
 
         def test_flag_opt_long_name(self, cmd, oc_opt):
             # Try occurrence counter long name
             out = cmd.run(oc_opt.ln_to_cli())
-            assert oc_opt.to_assert_str(1) in out
-            assert cmd.parse_arg_keys(out) == [oc_opt.name]
+            cmd.assert_args(out, (oc_opt, 1))
 
         def test_flag_opt_short_name(self, cmd, oc_opt):
             # Try occurrence counter short name
             out = cmd.run(oc_opt.sn_to_cli())
-            assert oc_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (oc_opt, 1))
 
         def test_flag_opt_ln_sn_stacking(self, cmd, oc_opt):
             # Try occurrence counter with both short and long name
             out = cmd.run(oc_opt.sn_to_cli(), oc_opt.ln_to_cli(), oc_opt.sn_to_cli(), oc_opt.ln_to_cli())
-            assert oc_opt.to_assert_str(4) in out
+            cmd.assert_args(out, (oc_opt, 4))
 
         def test_error_on_flag_opt_name(self, cmd, oc_opt):
             # Try occurrence counter opt name
@@ -487,7 +442,7 @@ class T_OptBuilding(Common):
         def test_flag_opt_with_short_name_only(self, cmd, f_sn_opt):
             # Try flag opt short only
             out = cmd.run(f_sn_opt.sn_to_cli())
-            assert f_sn_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (f_sn_opt, 1))
 
         def test_error_on_short_name_only_opt_name(self, cmd, f_sn_opt):
             # Try flag opt short only opt name
@@ -498,7 +453,7 @@ class T_OptBuilding(Common):
         def test_flag_opt_with_long_name_only(self, cmd, f_ln_opt):
             # Try flag opt long only
             out = cmd.run(f_ln_opt.ln_to_cli())
-            assert f_ln_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (f_ln_opt, 1))
 
         def test_error_on_long_name_only_opt_name(self, cmd, f_ln_opt):
             # Try flag opt long only opt name
@@ -509,21 +464,20 @@ class T_OptBuilding(Common):
         def test_no_conflict_between_ln_and_sn(self, cmd, f_sn_opt, f_dupl_ln_sn_opt):
             # Try flag opt long name same as another's short name
             out = cmd.run("--f")
-            assert f_dupl_ln_sn_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (f_dupl_ln_sn_opt, 1))
 
             out = cmd.run("--f", "-f")
-            assert f_dupl_ln_sn_opt.to_assert_str(1) in out
-            assert f_sn_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (f_dupl_ln_sn_opt, 1), (f_sn_opt, 1))
 
         def test_short_name_aliasing(self, cmd, f_sn_al_opt):
             # Try short name aliases
             out = cmd.run(f'--{f_sn_al_opt.name}', '-a', '-b')
-            assert f_sn_al_opt.to_assert_str(3) in out
+            cmd.assert_args(out, (f_sn_al_opt, 3))
 
         def test_sn_with_sn_aliases(self, cmd, f_sn_and_al_opt):
             # Try short name with aliases
             out = cmd.run('-c', '-d', '-e')
-            assert f_sn_and_al_opt.to_assert_str(3) in out
+            cmd.assert_args(out, (f_sn_and_al_opt, 3))
 
         def test_error_on_opt_name_with_sn_and_sn_aliases(self, cmd, f_sn_and_al_opt):
             out = cmd.gen_error(f"--{f_sn_and_al_opt.name}", '-d', '-e')
@@ -532,12 +486,12 @@ class T_OptBuilding(Common):
         def test_long_name_aliasing(self, cmd, f_ln_al_opt):
             # Try long name aliases
             out = cmd.run(f"--{f_ln_al_opt.name}", '--fa', '--fb')
-            assert f_ln_al_opt.to_assert_str(3) in out
+            cmd.assert_args(out, (f_ln_al_opt, 3))
 
         def test_ln_with_ln_aliases(self, cmd, f_ln_and_al_opt):
             # Try long name with aliases
             out = cmd.run('--fc', '--fd', '--fe')
-            assert f_ln_and_al_opt.to_assert_str(3) in out
+            cmd.assert_args(out, (f_ln_and_al_opt, 3))
 
         def test_error_on_opt_name_with_ln_and_ln_aliases(self, cmd, f_ln_and_al_opt):
             out = cmd.gen_error(f"--{f_ln_and_al_opt.name}", '--fd', '--fe')
@@ -546,10 +500,10 @@ class T_OptBuilding(Common):
         def test_sn_and_ln_aliases_only(self, cmd, f_ln_sn_al_opt):
             # Try long/short name aliases
             out = cmd.run(f'--{f_ln_sn_al_opt.name}', '-z', '--sn_ln_1', '--sn_ln_2')
-            assert f_ln_sn_al_opt.to_assert_str(4) in out
+            cmd.assert_args(out, (f_ln_sn_al_opt, 4))
 
     class TestHiddenOpts(Common):
-        cmdn = Common.cmdn__hidden_opt
+        _cmd = Common.cmd_testers.test_args.hidden_opt
 
         @pytest.fixture
         def h_opt(self, cmd):
@@ -561,25 +515,20 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, v_opt):
             help = cmd.get_help_msg()
-            help.assert_num_args(0)
-            help.assert_num_opts(4)
-            help.assert_help_opt_at(0)
-            help.assert_vk_opt_at(1)
-            help.assert_opt_at(3, v_opt)
-            help.assert_v_opt_at(2)
+            help.assert_args(None)
+            help.assert_opts("help", "vk", "v", v_opt)
 
         def test_hidden_opt_is_available(self, cmd, h_opt):
             out = cmd.run(h_opt.ln_to_cli())
-            assert h_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (h_opt, 1))
 
         def test_visible_opt_only(self, cmd, v_opt):
             out = cmd.run(v_opt.ln_to_cli())
-            assert v_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (v_opt, 1))
 
         def test_hidden_and_visible_opt_only(self, cmd, h_opt, v_opt):
             out = cmd.run(h_opt.ln_to_cli(), h_opt.ln_to_cli(), v_opt.ln_to_cli())
-            assert h_opt.to_assert_str(2) in out
-            assert v_opt.to_assert_str(1) in out
+            cmd.assert_args(out, (h_opt, 2), (v_opt, 1))
 
         def test_error_on_random_opt(self, cmd):
             r_opt = "random"

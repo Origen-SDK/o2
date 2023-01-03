@@ -29,7 +29,6 @@ class T_StandardOpts(CLICommon):
     def test_verbosity_keywords_are_accessible(self):
         out = self.cmd_testers.display_v.run("-k", "t1", "t2", "-v")
         assert r'Args: {}' in out
-        print(out)
         assert "keywords: ['t1', 't2']" in out
         assert "verbosity: 1" in out
 

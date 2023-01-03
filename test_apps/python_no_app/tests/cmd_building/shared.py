@@ -2,9 +2,9 @@ import pytest, shutil, os
 from test_apps_shared_test_helpers.cli import CLIShared
 
 class CLICommon(CLIShared):
-    # FOR_PR remove when switched to common method
-    # Custom message from testing args/opts.
-    no_args_or_opts_msg = "No args or opts given!"
+    @pytest.fixture
+    def cmd(self):
+        return self._cmd
 
     @pytest.fixture
     def with_cli_aux_cmds(self):

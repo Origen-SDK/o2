@@ -3,25 +3,12 @@ from .shared import CLICommon
 Cmd = CLICommon.Cmd
 
 class Common(CLICommon):
-    pln = "python_plugin"
-    pln_2nd = "python_plugin_the_second"
-    pln_no_cmds = "python_plugin_no_cmds"
-
-    pln__cmdn__hi = "plugin_says_hi"
-    pln__cmdn__echo = "echo"
+    pass
 
 class T_LoadingPluginCmds(Common):
     def test_plugin_cmds_are_added(self):
         # TODO is ordering off here?
-        # help = self.pl_cmd.get_help_msg()
         help = self.global_cmds.pl.get_help_msg()
-        # help.assert_opt_at(0, e_opt)
-        # assert [pl["name"] for pl in help.subcmds] == [
-        #     "help",
-        #     self.python_plugin.name,
-        #     self.plugins.python_plugin_no_cmds.name,
-        #     self.plugins.python_plugin_the_second.name
-        # ]
         help.assert_subcmds(
             "help",
             self.python_plugin.base_cmd,
@@ -29,30 +16,26 @@ class T_LoadingPluginCmds(Common):
             self.plugins.python_plugin_the_second.base_cmd
         )
 
-    # def test_plugin_help_msg(self):
-    #     fail
-
-    # def test_no_cmds_present_only_has_help_subcmd(self):
-    #     help = self.cmds["python_plugin_no_cmds"].get_help_msg()
-    #     assert len(help.args) == 0
-    #     assert len(help.opts) == 0
-    #     assert list(help.subcmds.keys()) == ["help"]
+    # FOR_PR
+    @pytest.mark.skip
+    def test_no_cmds_present_only_has_help_subcmd(self):
+        help = self.cmds["python_plugin_no_cmds"].get_help_msg()
+        assert len(help.args) == 0
+        assert len(help.opts) == 0
+        assert list(help.subcmds.keys()) == ["help"]
 
     class Test_PythonPluginCMDs(Common):
         @pytest.fixture
         def root_cmd(self):
             return self.python_plugin.base_cmd
-            # return Cmd(self.pln, ["plugin"])
 
         @pytest.fixture
         def hi_cmd(self):
             return self.python_plugin.plugin_says_hi
-            # return self.plugin_subcmds[self.pln][self.pln__cmdn__hi]
 
         @pytest.fixture
         def echo_cmd(self):
             return self.python_plugin.echo
-            # return self.plugin_subcmds[self.pln][self.pln__cmdn__echo]
 
         @classmethod
         def hi_msg(cls, to=None):
@@ -74,11 +57,8 @@ class T_LoadingPluginCmds(Common):
             help.assert_vk_opt_at(1)
             help.assert_v_opt_at(2)
 
-            # assert len(help.args) == 0
             help.assert_args(None)
             help.assert_subcmds(*self.python_plugin.ordered_subcmds)
-            # assert len(help.subcmds) == 3
-            # assert list(help.subcmds.keys()) == [self.pln__cmdn__echo, "help", self.pln__cmdn__hi]
 
         def test_hi_help_cmd(self, hi_cmd):
             help = hi_cmd.get_help_msg()
@@ -131,17 +111,12 @@ class T_LoadingPluginCmds(Common):
         def test_nested_cmds(self):
             fail
 
-    # class Test_PythonluginThe2ndCMDs(Common):
-    #     pass
-
     class Test_PythonPluginNoCMDs(Common):
         @pytest.fixture
         def root_cmd(self):
-            # return Cmd(self.pln_no_cmds, ["plugin"])
             return self.plugins.python_plugin_no_cmds.base_cmd
 
         def test_no_cmds_present_only_has_help_subcmd(self, root_cmd):
-            # help = self.cmds["python_plugin_no_cmds"].get_help_msg()
             help = root_cmd.get_help_msg()
             help.assert_args(None)
             assert len(help.opts) == 3

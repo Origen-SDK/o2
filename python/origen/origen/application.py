@@ -262,8 +262,15 @@ class Base(_origen.application.PyApplication):
             r = self.block_path_to_dir(path)
             if not r[0]:
                 paths = path.split(".")
-                # FOR_PR clean up and invert case
-                if paths[0] != "origen" and path[0] != "origen_metal":
+                if paths[0] == "origen":
+                    return origen.core_app.instantiate_block(
+                            ".".join(paths[1:]),
+                            None,
+                            class_name=class_name,
+                            sb_options=sb_options)
+                elif path[0] == "origen_metal":
+                    raise RuntimeError("origen_metal is not available as controller or application")
+                else:
                     if len(paths) > 1 and origen.has_plugin(paths[0]):
                         return origen.plugin(paths[0]).instantiate_block(
                             ".".join(paths[1:]),
@@ -273,21 +280,6 @@ class Base(_origen.application.PyApplication):
                     else:
                         raise RuntimeError(
                             f"No block was found at path '{orig_path}'")
-                else:
-                    a = importlib.import_module(f'{"origen"}.application')
-                    app = a.Application(root=Path(os.path.abspath(
-                        a.__file__)).parent.parent,
-                                        name="origen")
-                    b = app.instantiate_block(
-                            ".".join(paths[1:]),
-                            None,
-                            class_name=class_name,
-                            sb_options=sb_options)
-                    return b
-                    # name="origen", root=Path(origen.__file__).parent
-                    # return origen.blocks.Controller()
-                    # app_dir = origen.__file__
-                    # print(f"app path: {app_dir}")
             else:
                 block_dir = r[1]
 

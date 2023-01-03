@@ -62,11 +62,33 @@ class GlobalCommands(CoreCommands):
         args=[
             CmdArg("code", "Statements to evaluate", multi=True, required=True)
         ],
-        demos=[CmdDemo(
-            "minimal",
-            args=["h = 'hi!'; print( origen.version ); print( h )", "print( h )"],
-            expected_output=f"{origen.version}\nhi!\nhi!"
-        )]
+        demos=[
+            CmdDemo(
+                "minimal",
+                args=["print( 'hello from eval cmd!' )"],
+                expected_output="hello from eval cmd"
+            ),
+            CmdDemo(
+                "multi_statement_single_arg",
+                args=["h = 'hi!'; print( origen.version ); print( h ); print( h )"],
+                expected_output=f"{origen.version}\nhi!\nhi!"
+            ),
+            CmdDemo(
+                "multi_statement_multi_args",
+                args=[
+                    "h = 'hello!'",
+                    "print( origen.version )",
+                    "print( h )",
+                    "print( h )"
+                ],
+                expected_output=f"{origen.version}\nhello!\nhello!"
+            ),
+            CmdDemo(
+                "gen_name_error",
+                args=["print( missing )"],
+                expected_output=["Traceback (most recent call last):", "NameError: name 'missing' is not defined"]
+            )
+        ]
     )
     aux_cmds = Cmd(names.aux_cmds, help="Interface with auxillary commands")
     pls = Cmd(names.pls)

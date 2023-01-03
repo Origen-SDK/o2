@@ -1,4 +1,3 @@
-# FOR_PR clean up
 import origen
 
 def extract_args_flag(action):
@@ -32,13 +31,6 @@ def do_action(actions, phase):
     if actions:
         for action in actions:
             print(f"Start Action {phase} CMD: {action}")
-            # if action == "update_cmd_args":
-            #     if phase == "Before":
-            #         origen.command.args["single_arg"] = "updated"
-            # if action == "clear_cmd_args":
-            #     origen.command.args["single_val"] = None
-            # if action == "before_cmd_exception":
-            #     raise RuntimeError("'before_cmd_exception' encountered!")
             if action.startswith("inc_flag__"):
                 if phase == "Before":
                     _, is_cmd, f = action.split("__", 2)
@@ -85,8 +77,4 @@ def do_action(actions, phase):
                 pass
             else:
                 raise RuntimeError(f"No action '{action}' is known!")
-            # if action == "update_aux_ext":
-            #     fail
-            # if action == "current_command_BIST":
-            #     fail
             print(f"End Action {phase} CMD: {action}")

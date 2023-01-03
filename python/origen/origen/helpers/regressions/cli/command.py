@@ -91,8 +91,13 @@ class CmdDemo:
     def run(self, add_args=None, **kwargs):
         return self.parent.run(*(self.args + (add_args or [])), **kwargs)
 
+    def gen_error(self, add_args=None, **kwargs):
+        return self.parent.gen_error(*(self.args + (add_args or [])), **kwargs)
+
     def assert_present(self, in_str):
-        assert self.expected_output in in_str
+        expected = [self.expected_output] if isinstance(self.expected_output, str) else self.expected_output
+        for e in expected:
+            assert e in in_str
 
 class Cmd:
     def __init__(self, name, cmd_path=None, help=None, args=None, opts=None, subcmds = None, use_configs = None, with_env=None, demos=None, global_demos=None, app_demos=None, parent=None):
@@ -173,26 +178,29 @@ class Cmd:
                 with_configs = self.use_configs + (with_configs or [])
         return with_configs
 
-    def get_help_msg_str(self, with_configs=None):
-        return self.run("-h", with_configs=with_configs)
+    def get_help_msg_str(self, with_configs=None, run_opts=None):
+        return self.run("-h", with_configs=with_configs, run_opts=run_opts)
 
-    def get_help_msg(self, with_configs=None):
-        return HelpMsg(self.get_help_msg_str(with_configs=with_configs))
+    def get_help_msg(self, with_configs=None, bypass_config_lookup=None, run_opts=None):
+        return HelpMsg(self.get_help_msg_str(with_configs=with_configs, run_opts=run_opts))
 
-    def run(self, *args, with_env=None, with_configs=None, expect_fail=False):
+    def run(self, *args, with_env=None, with_configs=None, expect_fail=False, run_opts=None):
+        run_opts = run_opts or {}
         return run_cli_cmd(
             [*self.cmd_path, *([self.name] if self.name else []), *args],
-            with_env=with_env or self.with_env,
-            with_configs=self._with_configs_(with_configs),
-            expect_fail=expect_fail,
-            return_details=expect_fail,
+            with_env=run_opts.pop("with_env", None) or with_env or self.with_env,
+            with_configs=run_opts.pop("with_configs", None) or self._with_configs_(with_configs),
+            expect_fail=run_opts.pop("expect_fail", None) or expect_fail,
+            return_details=run_opts.pop("return_details", None) or expect_fail,
+            **(run_opts or {}),
         )
 
-    def gen_error(self, *args, with_configs=None, return_stdout=False, return_full=False):
+    def gen_error(self, *args, with_configs=None, return_stdout=False, return_full=False, run_opts=None):
         out = self.run(
             *args,
             with_configs=with_configs,
             expect_fail=True,
+            run_opts=run_opts,
         )
         if return_full:
             return out
@@ -208,7 +216,7 @@ class Cmd:
             return self.opts[name]
         elif hasattr(self, 'subcmds') and (name in self.subcmds):
             return self.subcmds[name]
-        elif hasattr(self, 'exts') and (name in self.exts):
+        elif hasattr(self, 'exts') and (name in (self.exts or [])):
             return self.exts[name]
         return object.__getattribute__(self, name)
 
