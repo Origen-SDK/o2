@@ -2,6 +2,7 @@ import os, pytest
 from ._shared import tmp_dir
 
 pytest.register_assert_rewrite("origen.helpers.regressions")
+pytest.register_assert_rewrite("test_apps_shared_test_helpers")
 
 # Move the session store into a local test directory
 os.environ['origen_session__user_root'] = str(tmp_dir())

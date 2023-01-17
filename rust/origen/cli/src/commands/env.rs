@@ -14,7 +14,7 @@ use semver::VersionReq;
 use std::process::Command;
 
 static MINIMUM_PIP_VERSION: &str = "22.0.4";
-static MINIMUM_POETRY_VERSION: &str = "1.1.14";
+static MINIMUM_POETRY_VERSION: &str = "1.3.2";
 
 pub fn run(matches: &ArgMatches) {
     match matches.subcommand_name() {

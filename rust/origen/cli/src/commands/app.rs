@@ -13,7 +13,7 @@ pub (crate) fn add_helps(helps: &mut CmdHelps, app_cmds: &AppCmds) {
     add_app_cmd_helps(helps, app_cmds);
 }
 
-pub (crate) fn add_commands<'a>(mut app: App<'a>, helps: &'a CmdHelps, app_cmds: &'a AppCmds, exts: &'a Extensions, ) -> Result<App<'a>> {
+pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, app_cmds: &'a AppCmds, exts: &'a Extensions, ) -> Result<App<'a>> {
     let mut app_subc = helps.core_cmd(CMD_NAME)
         .arg_required_else_help(true)
         .subcommand(

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use super::Plugin;
 use crate::commands::_prelude::*;
 use std::fmt;
 use super::extensions::ExtensionSource;
@@ -49,11 +48,11 @@ impl CmdHelps {
         self.helps.entry(CmdSrc::Aux(ns.to_string(), cmd_name.to_string())).or_default()
     }
 
-    pub fn apply_core_cmd_helps<'a>(&'a self, cmd_name: &str, mut app: Command<'a>) -> Command<'a> {
+    pub fn apply_core_cmd_helps<'a>(&'a self, cmd_name: &str, app: Command<'a>) -> Command<'a> {
         self.apply_helps(&CmdSrc::Core(cmd_name.to_string()), app)
     }
 
-    pub fn apply_core_subc_helps<'a>(&'a self, cmd_path: &[&str], mut app: Command<'a>) -> Command<'a> {
+    pub fn apply_core_subc_helps<'a>(&'a self, cmd_path: &[&str], app: Command<'a>) -> Command<'a> {
         self.apply_helps(&CmdSrc::Core(cmd_path.join(".")), app)
     }
 
@@ -139,13 +138,6 @@ impl CmdHelp {
         self.help = help_msg;
         self
     }
-}
-
-
-#[derive(Debug, Hash, Eq, PartialEq)]
-pub enum Invocation {
-    Global,
-    App,
 }
 
 #[derive(Debug, Hash, Eq, PartialEq)]

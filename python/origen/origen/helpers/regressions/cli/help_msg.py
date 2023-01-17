@@ -135,6 +135,7 @@ class HelpMsg:
                 opt = self.opts[-1]
                 if ('help' in opt) and (opt['help'] is not None):
                     import re
+                    app_ext_substring = "[Extended from the app]"
 
                     if re.search(r"\[Extended from aux namespace: .*\]", opt['help']):
                         split = opt['help'].split("[Extended from aux namespace: '", 1)
@@ -154,6 +155,11 @@ class HelpMsg:
                                 opt['help'] = (split[0] + inner_split[1]).strip()
                                 from .command import SrcTypes
                                 opt['ext_type'] = SrcTypes.PLUGIN
+                    elif app_ext_substring in opt["help"]:
+                        opt["help"] = opt["help"].replace(app_ext_substring, '').strip()
+                        from .command import SrcTypes
+                        opt['extended_from'] = SrcTypes.APP
+                        opt['ext_type'] = SrcTypes.APP
 
                     if re.search(r"\[aliases: .*\]", opt['help']):
                         print(f"splitting aliases!!: {opt['help']}")
@@ -185,6 +191,14 @@ class HelpMsg:
                         "name": n,
                         "help": (s[1].strip() if len(s) > 1 else None)
                     })
+            for subc in self.subcmds:
+                if subc["help"]:
+                    if re.search(r"\[aliases: .*\]", subc['help']):
+                        split = subc['help'].split("[aliases: ", 1)
+                        subc['aliases'] = [a.strip() for a in split[1].split(']', 1)[0].split(',')]
+                        subc['help'] = (split[0] + split[1].split(']', 1)[1]).strip()
+                        continue
+                subc["aliases"] = None
 
         if "app_cmd_shortcuts" in sects:
             self.app_cmd_shortcuts = {}
@@ -219,9 +233,10 @@ class HelpMsg:
         self.pl_exts = None
         if "extensions" in sects:
             for l in sects["extensions"]:
-                if l == "- the App":
-                    self.apps_exts = True
-                
+                if l.strip() == "- the App":
+                    self.app_exts = True
+                    next
+
                 split = l.split("- Aux Namespaces: ", 1)
                 if len(split) == 2:
                     self.aux_exts = [s[1:-1] for s in split[1].split(", ")]
@@ -281,12 +296,6 @@ class HelpMsg:
             if opt.takes_value:
                 assert o["value_name"] == opt.to_vn()
             assert o["multiple_values"] == opt.multi
-            # if opt.value_name is None:
-            #     assert o["value_name"] is None
-            #     assert o["multiple_values"] is None
-            # else:
-            #     assert o["value_name"] == opt.value_name
-            #     assert o["multiple_values"] == opt.multi
         if opt.help is not False:
             assert o["help"] ==opt.help
         if opt.sn_aliases is not False:
@@ -304,11 +313,18 @@ class HelpMsg:
     def assert_bare_opts(self):
         return self.assert_opts("help", "vk", "v")
 
+    def assert_bare_app_opts(self):
+        return self.assert_opts("help", "vk", "mode", "no_targets", "targets", "v")
+
     def assert_ext_at(self, expected_index, ext):
         o = self.opts[expected_index]
         self._assert_opt_params_(o, ext)
         if ext.src_name is not False:
-            assert o["extended_from"] == ext.src_name
+            from .command import SrcTypes
+            if ext.src_type == SrcTypes.APP:
+                assert o["extended_from"] == SrcTypes.APP
+            else:
+                assert o["extended_from"] == ext.src_name
         if ext.src_type is not False:
             assert o["ext_type"] == ext.src_type
         return True
@@ -324,6 +340,12 @@ class HelpMsg:
                     self.assert_help_opt_at(i)
                 elif o == "vk":
                     self.assert_vk_opt_at(i)
+                elif o == "mode":
+                    self.assert_mode_opt_at(i)
+                elif o == "no_targets":
+                    self.assert_no_targets_opt_at(i)
+                elif o == "targets":
+                    self.assert_targets_opt_at(i)
                 elif o == "v":
                     self.assert_v_opt_at(i)
                 else:
@@ -337,6 +359,8 @@ class HelpMsg:
         assert s['name'] == subc.name
         if subc.help is not False:
             assert s['help'] == subc.help
+        if subc.aliases is not False:
+            assert s['aliases'] == subc.aliases
         return True
 
     def assert_subcmds(self, *expected_subcmds):
@@ -368,6 +392,18 @@ class HelpMsg:
     def assert_vk_opt_at(self, expected_index):
         from .origen import CoreOpts
         return self.assert_opt_at(expected_index, CoreOpts.vk)
+
+    def assert_mode_opt_at(self, expected_index):
+        from .origen import InAppOpts
+        return self.assert_opt_at(expected_index, InAppOpts.mode)
+
+    def assert_no_targets_opt_at(self, expected_index):
+        from .origen import InAppOpts
+        return self.assert_opt_at(expected_index, InAppOpts.no_targets)
+
+    def assert_targets_opt_at(self, expected_index):
+        from .origen import InAppOpts
+        return self.assert_opt_at(expected_index, InAppOpts.targets)
 
     def assert_summary(self, msg):
         assert self.help == msg

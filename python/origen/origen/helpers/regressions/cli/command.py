@@ -100,13 +100,14 @@ class CmdDemo:
             assert e in in_str
 
 class Cmd:
-    def __init__(self, name, cmd_path=None, help=None, args=None, opts=None, subcmds = None, use_configs = None, with_env=None, demos=None, global_demos=None, app_demos=None, parent=None):
+    def __init__(self, name, cmd_path=None, help=None, args=None, opts=None, subcmds = None, use_configs = None, with_env=None, demos=None, global_demos=None, app_demos=None, parent=None, aliases=None):
         self.name = name
         self.cmd_path = cmd_path or []
         self.help = help
         self.args = dict([[arg.name, arg] for arg in (args or [])])
         self.opts = dict([[opt.name, opt] for opt in (opts or [])])
         self.subcmds = dict([[subcmd.name, subcmd] for subcmd in (subcmds or [])])
+        self.aliases = aliases
         self.exts = None
         self.with_env = with_env
         self.parent = parent
@@ -150,7 +151,8 @@ class Cmd:
             self.global_demos.values(),
             self.app_demos.values(),
         )
-        dup.exts = dict([[ext.name, ext] for ext in (exts or [])])
+        dup.exts = dict(self.exts) if self.exts else {}
+        dup.exts.update(dict([[ext.name, ext] for ext in (exts or [])]))
         if from_configs:
             if isinstance(from_configs, str):
                 from_configs = [from_configs]
@@ -233,8 +235,6 @@ class Cmd:
         return len(self.visible_opts) + 3 # 3 for standard opts (-h, -v, --vk)
     
     def global_demo(self, name):
-        print(self.demos)
-        print(self.global_demos)
         if name in self.global_demos:
             return self.global_demos[name]
         elif name in self.demos:

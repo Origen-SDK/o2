@@ -2,14 +2,9 @@ use origen::{Result, ORIGEN_CONFIG};
 use crate::{python, CommandHelp};
 use std::path::PathBuf;
 use indexmap::IndexMap;
-// use crate::app_commands::{CommandsToml};
-// use crate::app_commands::Command as AppCommand;
 use std::fs;
-use clap::ArgMatches;
-use std::collections::HashMap;
 use crate::commands::_prelude::*;
-use std::process::exit;
-use super::{ClapCommand, Command, CommandsToml, CommandTOML, Extensions, Arg, build_path};
+use super::{ClapCommand, Command, CommandsToml, CommandTOML, Extensions, build_path};
 use crate::commands::launch_as;
 
 pub const PL_MGR_CMD_NAME: &'static str = "plugins";
@@ -19,12 +14,11 @@ pub const PL_MGR_LIST_CMD: [&'static str; 2] = [PL_MGR_CMD_NAME, "list"];
 
 pub fn run_pl_mgr(cmd: RunInput, plugins: Option<&Plugins>) -> Result<()> {
     if let Some(subcmd) = cmd.subcommand() {
-        let sub = subcmd.1;
         match subcmd.0 {
             "list" => {
                 if let Some(pls) = plugins {
                     displayln!("Available plugins:\n");
-                    for (name, pl) in pls.plugins.iter() {
+                    for (name, _) in pls.plugins.iter() {
                         displayln!("{}", name);
                     }
                 } else {
@@ -37,7 +31,7 @@ pub fn run_pl_mgr(cmd: RunInput, plugins: Option<&Plugins>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_pl(cmd: RunInput, mut app: &clap::App, exts: &crate::Extensions, plugins: Option<&Plugins>) -> Result<()> {
+pub fn run_pl(cmd: RunInput, app: &clap::App, exts: &crate::Extensions, plugins: Option<&Plugins>) -> Result<()> {
     if let Some(subcmd) = cmd.subcommand() {
         let sub = subcmd.1;
         plugins.unwrap().plugins.get(subcmd.0).unwrap().dispatch(sub, app, exts, plugins)
@@ -212,15 +206,6 @@ impl Plugins {
             Ok(None)
         }
     }
-
-    pub fn find_command(&self, mut matches: &ArgMatches) -> Option<&Command> {
-        for (n, pl) in self.plugins.iter() {
-            if let Some(cmd) = pl.find_command(matches) {
-                return Some(cmd);
-            }
-        }
-        None
-    }
 }
 
 pub struct Plugin {
@@ -285,7 +270,7 @@ impl Plugin {
                 }
             };
 
-            if let Some(mut commands) = command_config.command {
+            if let Some(commands) = command_config.command {
                 for mut cmd in commands {
                     slf.top_commands.push(cmd.name.to_owned());
                     Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd);
@@ -301,7 +286,7 @@ impl Plugin {
             //     }
             }
 
-            if let Some(mut extensions) = command_config.extension {
+            if let Some(extensions) = command_config.extension {
                 for ext in extensions {
                     match exts.add_from_pl_toml(&slf, ext) {
                         Ok(_) => {},
@@ -327,85 +312,8 @@ impl Plugin {
         helps
     }
 
-    // pub fn with_command(&self) -> Option<Vec<&Command>> {
-        
-    // }
-
-    pub fn get_mut_command(&mut self, path: &str) -> Option<&mut Command> {
-        todo!();
-        // let retn_cmd = None;
-        // let split = path.split('.').collect::<Vec<&str>>();
-        // if let Some(mut cmd) = self.commands.get_mut(split.pop().unwrap()) {
-        //     while true {
-        //         if let Some(s) = split.pop() {
-        //             if let Some(c) = cmd.subcommand.as_ref().unwrap().iter_mut().find(|c| c.name == s) {
-        //                 cmd = c;
-        //                 retn_cmd = Some(c);
-        //             } else {
-        //                 return None;
-        //             }
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        // }
-        // retn_cmd
-    }
-
-    pub fn find_command(&self, mut matches: &ArgMatches) -> Option<&Command> {
-        todo!();
-        // let mut commands: Vec<&Command> = vec![];
-        // let mut given_args: HashMap<String, Vec<String>> = HashMap::new();
-        // let mut name;
-        // let mut command: Option<&Command> = None;
-
-        // while matches.subcommand_name().is_some() {
-        //     // Don't need to worry about not finding here, clap has already pre-screened the given values
-        //     name = matches.subcommand_name().unwrap();
-
-        //     if let Some(cmd) = command {
-        //         command = cmd
-        //             .subcommand
-        //             .as_ref()
-        //             .unwrap()
-        //             .iter()
-        //             .find(|c| c.name == name);
-        //     } else {
-        //         command = self.commands.iter().find(|c| c.name == name);
-        //     }
-
-        //     // matches = matches.subcommand_matches(&name).unwrap();
-
-        //     if let Some(cmd) = command {
-        //         // if let Some(args) = &cmd.arg {
-        //         //     for arg in args {
-        //         //         if arg.multiple.is_some() && arg.multiple.unwrap() {
-        //         //             if let Some(v) = matches.values_of(&arg.name) {
-        //         //                 let vals: Vec<String> = v.map(|v| v.to_string()).collect();
-        //         //                 given_args.insert(arg.name.to_string(), vals);
-        //         //             }
-        //         //         } else {
-        //         //             if let Some(v) = matches.value_of(&arg.name) {
-        //         //                 given_args.insert(arg.name.to_string(), vec![v.to_string()]);
-        //         //             }
-        //         //         }
-        //         //     }
-        //         // }
-        //         commands.push(cmd);
-        //     }
-
-        //     // commands.push(name.to_string());
-        // }
-        // commands.last().map( |c| *c)
-        // // if commands.is_empty() {
-        // //     None
-        // // } else {
-        // //     Some(commands.last())
-        // // }
-    }
-
     pub fn dispatch(&self, cmd: &clap::ArgMatches, mut app: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>) -> Result<()> {
-        if let Some(subc) = cmd.subcommand() {
+        if cmd.subcommand().is_some() {
             let path = build_path(&cmd)?;
 
             let mut matches = cmd;
@@ -416,192 +324,23 @@ impl Plugin {
                 let n = matches.subcommand_name().unwrap();
                 matches = matches.subcommand_matches(&n).unwrap();
                 app = app.find_subcommand(n).unwrap();
-                // path_pieces.push(format!("r'{}'", n));
                 path_pieces.push(n.to_string());
             }
-            // println!("dis: {} {}", subc.0, &path);
 
             launch_as("_plugin_dispatch_", Some(&path_pieces), matches, app, exts.get_pl_ext(&self.name, &path), plugins, Some(
                 {
                     overrides.insert("dispatch_root".to_string(), Some(format!("r'{}/commands'", &self.root.display())));
                     overrides.insert("dispatch_src".to_string(), Some(format!("r'{}'", &self.name)));
-                    // overrides.insert("dispatch_cmds".to_string(), Some(format!("[r'{}', {}]", &self.name, path_pieces.join(", "))));
                     overrides
                 }
             ), None);
 
             Ok(())
         } else {
-            // FOR_PR get message from aux/app
-            todo!()
+            // This case shouldn't happen as any non-valid command should be
+            // caught previously by clap and a non-command invocation should
+            // print the help message.
+            unreachable!("Expected a plugin name but none was found!");
         }
-
-        // let mut commands: Vec<String> = vec![];
-        // let mut given_args: HashMap<String, Vec<String>> = HashMap::new();
-        // let mut name;
-        // let mut path: String = "".to_string();
-        // let mut current_cmd: Option<&Command> = None;
-        // let mut args_str: String = "".to_string();
-
-        // while matches.subcommand_name().is_some() {
-        //     name = matches.subcommand_name().unwrap();
-        //     if path.is_empty() {
-        //         path = name.to_string();
-        //     } else {
-        //         path = format!("{}.{}", path, name);
-        //     }
-
-        //     // if let Some(cmd) = current_cmd {
-        //     //     current_cmd = 
-        //     // }
-
-        //     matches = matches.subcommand_matches(&name).unwrap();
-        //     if let Some(cmd) = self.commands.get(&path) {
-        //         // println!("Found command at {}", path);
-        //         // if let Some(args) = &cmd.arg {
-        //         //     for arg in args {
-        //         //         if arg.multiple.is_some() && arg.multiple.unwrap() {
-        //         //             if let Some(v) = matches.values_of(&arg.name) {
-        //         //                 let vals: Vec<String> = v.map(|v| v.to_string()).collect();
-        //         //                 given_args.insert(arg.name.to_string(), vals);
-        //         //             }
-        //         //         } else {
-        //         //             if let Some(v) = matches.value_of(&arg.name) {
-        //         //                 given_args.insert(arg.name.to_string(), vec![v.to_string()]);
-        //         //             }
-        //         //         }
-        //         //     }
-        //         // }
-        //         if let Some(args) = &cmd.args {
-        //             for arg in args {
-        //                 if arg.multiple.is_some() && arg.multiple.unwrap() {
-        //                     if let Some(v) = matches.values_of(&arg.name) {
-        //                         // let vals: Vec<String> = v.map(|v| v.to_string()).collect();
-        //                         // given_args.insert(arg.name.to_string(), vals);
-        //                         args_str += &format!(", r'{}': [{}]", &arg.name, v.map(|v| format!("r'{}'", v)).collect::<Vec<String>>().join(","));
-        //                     }
-        //                 } else {
-        //                     if let Some(v) = matches.value_of(&arg.name) {
-        //                         // given_args.insert(arg.name.to_string(), vec![v.to_string()]);
-        //                         args_str += &format!(", r'{}': r'{}'", &arg.name, v);
-        //                     } else if matches.contains_id(&arg.name) {
-        //                         args_str += &format!(", r'{}': True", &arg.name);
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     commands.push(name.to_string());
-        // }
-        // // println!("Final command {:?}", commands);
-
-        // // Build the dispatch command
-        // let mut cmd = "from origen.boot import run_cmd; run_cmd('_plugin_dispatch_', ".to_string();
-
-        // cmd += &format!(
-        //     "commands=[r'{}', {}]",
-        //     &self.name,
-        //     &commands
-        //         .iter()
-        //         .map(|s| format!("r'{}'", s))
-        //         .collect::<Vec<String>>()
-        //         .join(",")
-        // );
-
-        // cmd += ", args={";
-        // if !args_str.is_empty() {
-        //     cmd += &args_str[2..args_str.len()];
-        // }
-        // // let mut first = true;
-        // // for (k, v) in given_args {
-        // //     if !first {
-        // //         cmd += ", ";
-        // //     }
-        // //     cmd += &format!(
-        // //         "r'{}': [{}]",
-        // //         &k,
-        // //         v.iter()
-        // //             .map(|s| format!("r'{}'", s))
-        // //             .collect::<Vec<String>>()
-        // //             .join(",")
-        // //     );
-        // //     first = false;
-        // // }
-        // cmd += "});";
-
-        // log_debug!("Launching Python: '{}'", &cmd);
-        // println!("Launching Python: '{}'", &cmd);
-
-        // match python::run(&cmd) {
-        //     Err(e) => {
-        //         log_error!("{}", &e);
-        //         exit(1);
-        //     }
-        //     Ok(exit_status) => {
-        //         if exit_status.success() {
-        //             exit(0);
-        //         } else {
-        //             exit(exit_status.code().unwrap_or(1));
-        //         }
-        //     }
-        // }
-
-        // // Unnecessary with exists
-        // Ok(())
     }
 }
-
-// #[derive(Debug, Deserialize)]
-// pub struct PluginConfigTOML {
-//     pub commands: Option<Vec<AppCommand>>,
-// }
-
-// pub(crate) fn collect_plugin_commands(pl_cmds: &mut IndexMap<String, Vec<CommandHelp>>) -> Result<()> {
-//     if ORIGEN_CONFIG.should_collect_plugins() {
-//         python::run_with_callbacks(
-//             "import _origen; _origen._plugin_roots()",
-//             Some(&mut |line| {
-//                 if let Some((status, result)) = line.split_once('|') {
-//                     match status {
-//                         "success" => {
-//                             if let Some((name, path)) = result.split_once('|') {
-//                                 //let pl_config = PluginConfig::from_path(path)
-//                                 // pl_cmds.insert(name, PathBuf::from(path));
-//                                 match Plugin::new(name, PathBuf::from(path)) {
-//                                     Ok(pl) => self.plugins.insert(name.to_string(), pl),
-//                                     Err(e) => {
-//                                         log_error!("{}", e);
-//                                         log_error!("Unable to collect plugin {}", path)
-//                                     }
-//                                 }
-//                             } else {
-//                                 log_error!("Malformed out when collecting plugin roots (post status): {}", result)
-//                             }
-//                         },
-//                         _ => log_error!("Unknown status when collecting plugin roots: {}", status)
-//                     }
-//                 } else {
-//                     log_error!("Malformed output encountered when collecting plugin roots: {}", line);
-//                 }
-//                 // output_lines += &format!("{}\n", line);
-//                 // println!("{}", line);
-//             }),
-//             None,
-//         )?;
-//     }
-//     Ok(())
-// }
-
-// if let Some(pl_config) = origen::CONFIG.plugins.as_ref() {
-//     python::run_with_callbacks("import _origen; _origen._plugin_roots()",
-//         Some(&mut |line| {
-//             // output_lines += &format!("{}\n", line);
-//             println!("{}", line);
-//         }),
-//         None,
-//     )?;
-//     if pl_config.discover_plugins() {
-//         python::get_plugin_roots()?;
-//     }
-// }

@@ -127,13 +127,25 @@ impl Extensions {
         for ext in exts.iter() {
             let ext_cfg = ext.extract::<&PyDict>()?;
             let source = PyAny::get_item(ext_cfg, "source")?.extract::<String>()?;
-            let ext_name = PyAny::get_item(ext_cfg, "name")?.extract::<String>()?;
-            let ext_path = format!("{}.{}", source, ext_name);
-
+            let ext_name;
+            let ext_path;
+            if source == "app" {
+                ext_name = "app".to_string();
+                ext_path = "app".to_string();
+            } else {
+                ext_name = PyAny::get_item(ext_cfg, "name")?.extract::<String>()?;
+                ext_path = format!("{}.{}", source, ext_name);
+            }
             let src_ext_args = PyAny::get_item(ext_args.as_ref(py), &source)?.extract::<&PyDict>()?;
 
             let py_ext = Extension {
-                args: PyAny::get_item(src_ext_args, &ext_name)?.extract::<Py<PyDict>>()?,
+                args: {
+                    if source == "app" {
+                        src_ext_args.into()
+                    } else {
+                        PyAny::get_item(src_ext_args, &ext_name)?.extract::<Py<PyDict>>()?
+                    }
+                },
                 name: ext_name,
                 source: ext_path.clone(),
             };

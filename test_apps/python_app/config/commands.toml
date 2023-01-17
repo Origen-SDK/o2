@@ -86,3 +86,141 @@
     help = "Hidden flag opt"
     long = "hidden"
     hidden = true
+
+[[command]]
+name = "nested_app_cmds"
+help = "Nested app cmds"
+
+    [[command.subcommand]]
+    name = "nested_l1"
+    help = "Nested app cmds level 1"
+
+        [[command.subcommand.subcommand]]
+        name = "nested_l2_a"
+        help = "Nested app cmds level 2 (A)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_a"
+            help = "Nested app cmds level 3 (A-A)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_b"
+            help = "Nested app cmds level 3 (A-B)"
+
+        [[command.subcommand.subcommand]]
+        name = "nested_l2_b"
+        help = "Nested app cmds level 2 (B)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_a"
+            help = "Nested app cmds level 3 (B-A)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_b"
+            help = "Nested app cmds level 3 (B-B)"
+
+# Command disabling standard app opts
+[[command]]
+name = "disabling_app_opts"
+help = "Command disabling standard app opts"
+
+    [[command.subcommand]]
+    name = "disable_targets_opt"
+    help = "Disable the targets and no-targets opt"
+    disable_target_opt = true
+
+    [[command.subcommand]]
+    name = "disable_mode_opt"
+    help = "Disable the mode opt"
+    disable_mode_opt = true
+
+    [[command.subcommand]]
+    name = "disable_app_opts"
+    help = "Disable all app opts"
+    disable_target_opt = true
+    disable_mode_opt = true
+
+# Extend core command
+[[extension]]
+extend = "origen.eval"
+on_env = ["ORIGEN_APP_EXTEND_CORE_CMDS"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+on_env = ["ORIGEN_APP_PL_CMD_MISSING_EXT_IMPL"]
+
+    [[extension.opt]]
+        name = "app_ext_missing_impl"
+        help = "App extension missing the implementation"
+
+# Extend plugin command
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking"
+on_env = ["ORIGEN_APP_EXT_PL_TEST_EXT_STACKING"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
+on_env = ["ORIGEN_APP_EXT_PL_TEST_EXT_STACKING"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+# Extend aux command
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd.subc"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+# Missing extension
+[[extension]]
+extend = "origen.eval"
+on_env = ["ORIGEN_APP_MISSING_CORE_EXT"]
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+on_env = ["ORIGEN_APP_MISSING_AUX_EXT"]

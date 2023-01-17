@@ -108,15 +108,16 @@ class T_LoadingAuxCommands(CLICommon, ConfigCommmon):
 
         def test_missing_aux_cmd_impl_dir(self):
             out = self.cmd_testers.error_cases.gen_error("missing_impl_dir", "missing_impl_dir_subc", return_stdout=True)
-            f = self.cmd_testers_root.joinpath('error_cases/missing_impl_dir/missing_impl_dir_subc.py')
-            f2 = self.cmd_testers_root.joinpath('error_cases.missing_impl_dir.missing_impl_dir_subc.py')
-            assert f"Could not find implementation for aux command 'error_cases missing_impl_dir missing_impl_dir_subc' at '{f}' or '{f2}'" in out
+            assert "Could not find implementation for aux command 'error_cases.missing_impl_dir.missing_impl_dir_subc'" in out
+            assert f"From root '{self.cmd_testers_root}', searched:" in out
+            assert "error_cases.missing_impl_dir.missing_impl_dir_subc.py" in out
+            assert "error_cases/missing_impl_dir.missing_impl_dir_subc.py" in out
 
         def test_missing_aux_cmd_impl_file(self):
             out = self.cmd_testers.error_cases.gen_error("missing_impl_file", return_stdout=True)
-            f = self.cmd_testers_root.joinpath('error_cases/missing_impl_file.py')
-            f2 = self.cmd_testers_root.joinpath('error_cases.missing_impl_file.py')
-            assert f"Could not find implementation for aux command 'error_cases missing_impl_file' at '{f}' or '{f2}'" in out
+            assert "Could not find implementation for aux command 'error_cases.missing_impl_file'" in out
+            assert "error_cases.missing_impl_file.py" in out
+            assert "error_cases/missing_impl_file.py" in out
 
         def test_missing_run_function(self):
             out = self.cmd_testers.error_cases.gen_error("test_missing_run_function", return_stdout=True)

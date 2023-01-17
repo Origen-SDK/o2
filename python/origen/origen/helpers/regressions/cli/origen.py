@@ -15,6 +15,52 @@ class _CommonNames:
     fmt = "fmt"
     i = "interactive"
 
+    @classmethod
+    def eval_cmd(cls, add_opts=None):
+        return Cmd(
+            cls.eval,
+            help="Evaluates statements in an Origen context",
+            args=[
+                CmdArg("code", "Statements to evaluate", multi=True, required=True)
+            ],
+            opts=add_opts,
+            demos=[
+                CmdDemo(
+                    "minimal",
+                    args=["print( 'hello from eval cmd!' )"],
+                    expected_output="hello from eval cmd"
+                ),
+                CmdDemo(
+                    "multi_statement_single_arg",
+                    args=["h = 'hi!'; print( origen.version ); print( h ); print( h )"],
+                    expected_output=f"{origen.version}\nhi!\nhi!"
+                ),
+                CmdDemo(
+                    "multi_statement_multi_args",
+                    args=[
+                        "h = 'hello!'",
+                        "print( origen.version )",
+                        "print( h )",
+                        "print( h )"
+                    ],
+                    expected_output=f"{origen.version}\nhello!\nhello!"
+                ),
+                CmdDemo(
+                    "gen_name_error",
+                    args=["print( missing )"],
+                    expected_output=["Traceback (most recent call last):", "NameError: name 'missing' is not defined"]
+                )
+            ]
+        )
+
+    @classmethod
+    def interactive_cmd(cls, add_opts=None):
+        return Cmd(
+            cls.i,
+            help="Start an Origen console to interact with the DUT",
+            aliases=['i'],
+        )
+
 # Use this to mimic:
 #  @classmethod
 #  @property
@@ -56,47 +102,14 @@ class GlobalCommands(CoreCommands):
         build = _CommonNames.build
     names = Names()
 
-    eval = Cmd(
-        names.eval,
-        help="Evaluates statements in an Origen context",
-        args=[
-            CmdArg("code", "Statements to evaluate", multi=True, required=True)
-        ],
-        demos=[
-            CmdDemo(
-                "minimal",
-                args=["print( 'hello from eval cmd!' )"],
-                expected_output="hello from eval cmd"
-            ),
-            CmdDemo(
-                "multi_statement_single_arg",
-                args=["h = 'hi!'; print( origen.version ); print( h ); print( h )"],
-                expected_output=f"{origen.version}\nhi!\nhi!"
-            ),
-            CmdDemo(
-                "multi_statement_multi_args",
-                args=[
-                    "h = 'hello!'",
-                    "print( origen.version )",
-                    "print( h )",
-                    "print( h )"
-                ],
-                expected_output=f"{origen.version}\nhello!\nhello!"
-            ),
-            CmdDemo(
-                "gen_name_error",
-                args=["print( missing )"],
-                expected_output=["Traceback (most recent call last):", "NameError: name 'missing' is not defined"]
-            )
-        ]
-    )
+    eval = _CommonNames.eval_cmd()
     aux_cmds = Cmd(names.aux_cmds, help="Interface with auxillary commands")
     pls = Cmd(names.pls)
     pl = Cmd(names.pl)
     proj = Cmd(names.proj)
     new = Cmd(names.new)
     creds = Cmd(names.creds)
-    i = Cmd(names.i)
+    i = _CommonNames.interactive_cmd()
     fmt = Cmd(names.fmt)
     build = Cmd(names.build)
 
@@ -108,7 +121,47 @@ class GlobalCommands(CoreCommands):
 
     origen = Cmd("")
 
+class InAppOpts:
+    targets = CmdOpt(
+        "targets",
+        help="Override the targets currently set by the workspace for this command",
+        takes_value=True,
+        multi=True,
+        use_delimiter=True,
+        ln="targets",
+        ln_aliases=["target"],
+        sn="t",
+    )
+    no_targets = CmdOpt(
+        "no_targets",
+        help="Clear any targets currently set by the workspace for this command",
+        takes_value=False,
+        ln_aliases=["no_target"],
+    )
+    mode = CmdOpt(
+        "mode",
+        help="Override the default mode currently set by the workspace for this command",
+        takes_value=True,
+        multi=False,
+        ln="mode",
+        sn="m",
+    )
+
+    @classmethod
+    def all(cls):
+        return [cls.targets, cls.no_targets, cls.mode]
+
+    @classmethod
+    def standard_opts(self):
+        return [CoreOpts.help, CoreOpts.vk, self.mode, self.no_targets, self.targets, CoreOpts.verbosity]
+
 class InAppCommands(CoreCommands):
+    in_app_opts = InAppOpts()
+
+    @classmethod
+    def standard_opts(self):
+        return self.in_app_opts.standard_opts()
+
     class Names:
         app = "app"
         aux_cmds = _CommonNames.aux_cmds
@@ -137,11 +190,11 @@ class InAppCommands(CoreCommands):
     compile = Cmd(names.compile)
     creds = Cmd(names.creds)
     env = Cmd(names.env)
-    eval = Cmd(names.eval)
+    eval = _CommonNames.eval_cmd(add_opts=in_app_opts.all())
     exec = Cmd(names.exec)
     fmt = Cmd(names.fmt)
     generate = Cmd(names.generate)
-    i = Cmd(names.i)
+    i = _CommonNames.interactive_cmd(add_opts=in_app_opts.all())
     mailer = Cmd(names.mailer)
     mode = Cmd(names.mode)
     new = Cmd(names.new)

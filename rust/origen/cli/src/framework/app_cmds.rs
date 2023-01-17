@@ -1,14 +1,12 @@
-use origen::{Result, STATUS, ORIGEN_CONFIG};
+use origen::{Result, STATUS};
 use indexmap::IndexMap;
 use std::fs;
 use std::path::PathBuf;
 use crate::commands::_prelude::*;
-use super::{build_commands};
+use super::build_commands;
 use origen::core::application::Application;
 
-use clap::Command as ClapCommand;
-
-use super::{Command, CommandsToml, CommandTOML, Extensions, Arg, build_path};
+use super::{Command, CommandsToml, CommandTOML, Extensions};
 
 // pub const CMD_NAME: &'static str = "commands";
 pub const APP_COMMANDS: [&'static str; 2] = [crate::commands::app::CMD_NAME, "commands"];
@@ -64,21 +62,19 @@ impl AppCmds {
             // TODO error on help given?
             // slf.help = command_config.help.to_owned();
 
-            if let Some(mut commands) = command_config.command {
+            if let Some(commands) = command_config.command {
                 for mut cmd in commands {
                     slf.top_commands.push(cmd.name.to_owned());
                     Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd);
                 }
             }
-            // }
 
-            if let Some(mut extensions) = command_config.extension {
+            if let Some(extensions) = command_config.extension {
                 for ext in extensions {
                     match exts.add_from_app_toml(ext) {
                         Ok(_) => {},
                         Err(e) => log_error!("Failed to add extensions from application from '{}': {}", &commands_toml.display(), e)
                     }
-                    // slf.extensions.push(Extension::from_extension_toml(ExtensionSource::Plugin(slf.name.to_string()), ext)?);
                 }
             }
         }

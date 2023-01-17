@@ -4,7 +4,6 @@ pub mod extensions;
 pub mod plugins;
 pub mod aux_cmds;
 pub mod app_cmds;
-#[macro_use]
 pub mod core_cmds;
 
 pub use extensions::{Extensions, ExtensionTOML};
@@ -569,68 +568,56 @@ pub fn build_path<'a>(mut matches: &'a clap::ArgMatches) -> Result<String> {
         let n = matches.subcommand_name().unwrap();
         matches = matches.subcommand_matches(&n).unwrap();
         path_pieces.push(n);
-        // if path.is_empty() {
-        //     path = name.to_string();
-        // } else {
-        //     path = format!("{}.{}", path, name);
-        // }
-
-        // if let Some(cmd) = current_cmd {
-        //     current_cmd = 
-        // }
-
-        // if let Some(cmd) = self.commands.get(&path) {
-        //     // println!("Found command at {}", path);
-        //     // if let Some(args) = &cmd.arg {
-        //     //     for arg in args {
-        //     //         if arg.multiple.is_some() && arg.multiple.unwrap() {
-        //     //             if let Some(v) = matches.values_of(&arg.name) {
-        //     //                 let vals: Vec<String> = v.map(|v| v.to_string()).collect();
-        //     //                 given_args.insert(arg.name.to_string(), vals);
-        //     //             }
-        //     //         } else {
-        //     //             if let Some(v) = matches.value_of(&arg.name) {
-        //     //                 given_args.insert(arg.name.to_string(), vec![v.to_string()]);
-        //     //             }
-        //     //         }
-        //     //     }
-        //     // }
-        //     if let Some(args) = &cmd.arg {
-        //         for arg in args {
-        //             if arg.multiple.is_some() && arg.multiple.unwrap() {
-        //                 if let Some(v) = matches.values_of(&arg.name) {
-        //                     // let vals: Vec<String> = v.map(|v| v.to_string()).collect();
-        //                     // given_args.insert(arg.name.to_string(), vals);
-        //                     args_str += &format!(", r'{}': [{}]", &arg.name, v.map(|v| format!("r'{}'", v)).collect::<Vec<String>>().join(","));
-        //                 }
-        //             } else {
-        //                 if let Some(v) = matches.value_of(&arg.name) {
-        //                     // given_args.insert(arg.name.to_string(), vec![v.to_string()]);
-        //                     args_str += &format!(", r'{}': r'{}'", &arg.name, v);
-        //                 } else if matches.contains_id(&arg.name) {
-        //                     args_str += &format!(", r'{}': True", &arg.name);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        // commands.push(name.to_string());
     }
     Ok(path_pieces.join("."))
 }
 
-// pub fn get_cmd_def<'a>(mut matches: &clap::ArgMatches, mut app: &'a App<'a>) -> &'a App<'a> {
-//     while matches.subcommand_name().is_some() {
-//         let n = matches.subcommand_name().unwrap();
-//         matches = matches.subcommand_matches(&n).unwrap();
-//         app = app.find_subcommand(n).unwrap();
-//     }
-//     app
+pub const target_opt_name: &str = "targets";
+pub const no_target_opt_name: &str = "no_targets";
+// pub const target_opt_name: &str = "output_dir";
+// pub const target_opt_name: &str = "reference_dir";
+pub const mode_opt_name: &str = "mode";
+// pub const target_opt_name: &str = "debug";
 
-//     // for (n, pl) in self.plugins.iter() {
-//     //     if let Some(cmd) = pl.find_command(matches) {
-//     //         return Some(cmd);
-//     //     }
-//     // }
-//     // None
-// }
+macro_rules! add_mode_opt {
+    ($cmd:expr) => {
+        $cmd.arg(clap::Arg::new(crate::framework::mode_opt_name)
+            .short('m')
+            .long("mode")
+            .value_name("MODE")
+            .help("Override the default mode currently set by the workspace for this command")
+            .action(crate::framework::SetArg)
+        )
+    }
+}
+
+macro_rules! add_target_opt {
+    ($cmd:expr) => {
+        $cmd.arg(clap::Arg::new(crate::framework::target_opt_name)
+            .short('t')
+            .long(crate::framework::target_opt_name)
+            .visible_alias("target")
+            .help("Override the targets currently set by the workspace for this command")
+            .action(crate::commands::_prelude::AppendArgs)
+            .use_value_delimiter(true)
+            .multiple_values(true)
+            .value_name("TARGETS")
+            .conflicts_with(crate::framework::no_target_opt_name)
+            // .number_of_values(1)
+        ).arg(clap::Arg::new(crate::framework::no_target_opt_name)
+            .long(crate::framework::no_target_opt_name)
+            .visible_alias("no_target")
+            .help("Clear any targets currently set by the workspace for this command")
+            .action(crate::commands::_prelude::SetArgTrue)
+        )
+    }
+}
+
+
+pub fn add_all_app_opts(cmd: ClapCommand) -> ClapCommand {
+    if origen::in_app_invocation() {
+        add_mode_opt!(add_target_opt!(cmd))
+    } else {
+        cmd
+    }
+}

@@ -9,7 +9,53 @@ class ExtensionDrivers:
     pl_ext_stacking_from_aux_toml = aux_cmds_dir.joinpath("pl_ext_stacking_from_aux.toml")
     core_cmd_exts_cfg = aux_cmds_dir.joinpath("core_cmd_exts_cfg.toml")
     core_cmd_exts_toml = aux_cmds_dir.joinpath("core_cmd_exts.toml")
+    enable_dummy_cmds_exts_env = {"ORIGEN_DUMMY_AUX_CMDS": "1"}
+
+    test_apps_shared_generic_exts = CmdExtOpt.from_src(
+        "test_apps_shared_test_helpers",
+        cli.cmd.SrcTypes.PLUGIN,
+        CmdExtOpt(
+            "test_apps_shared_ext_action",
+            help="Action from test_apps_shared_test_helpers plugin",
+            multi=True,
+        ),
+        CmdExtOpt(
+            "test_apps_shared_ext_flag",
+            help="Flag from test_apps_shared_test_helpers plugin",
+        ),
+    )
+
     exts = {
+        "core.eval": {
+            "exts": [
+                *CmdExtOpt.from_src(
+                    "exts_workout",
+                    cli.cmd.SrcTypes.AUX,
+                    CmdExtOpt(
+                        "ext_action",
+                        multi=True,
+                        help="Action for the extended opt",
+                        ln="action",
+                    ),
+                ),
+                *CmdExtOpt.from_src(
+                    "python_plugin",
+                    cli.cmd.SrcTypes.PLUGIN,
+                    CmdExtOpt(
+                        "say_hi_before_eval",
+                        help="Have the plugin say hi before evaluating (app)",
+                    ),
+                    CmdExtOpt(
+                        "say_hi_after_eval",
+                        help="Have the plugin say hi after evaluating (app)",
+                    ),
+                    CmdExtOpt(
+                        "say_hi_during_cleanup",
+                        help="Have the plugin say hi during cleanup",
+                    ),
+                ),
+            ]
+        },
         "plugin.python_plugin.plugin_test_args": {
             "exts": CmdExtOpt.from_src(
                 "exts_workout",
@@ -86,12 +132,12 @@ class ExtensionDrivers:
                     "pl_ext_stacking_from_aux",
                     cli.cmd.SrcTypes.AUX,
                     CmdExtOpt(
-                        "pl_ext_stacking_action",
+                        "pl_ext_stacking_from_aux_action",
                         multi=True,
                         help="Action from pl_ext_stacking aux cmds",
                     ),
                     CmdExtOpt(
-                        "pl_ext_stacking_flag",
+                        "pl_ext_stacking_from_aux_flag",
                         help="Flag from pl_ext_stacking aux cmds",
                     ),
                 ),
@@ -126,12 +172,12 @@ class ExtensionDrivers:
                     "pl_ext_stacking_from_aux",
                     cli.cmd.SrcTypes.AUX,
                     CmdExtOpt(
-                        "pl_ext_stacking_action_subc",
+                        "pl_ext_stacking_from_aux_action_subc",
                         multi=True,
                         help="Action from pl_ext_stacking aux cmds subc",
                     ),
                     CmdExtOpt(
-                        "pl_ext_stacking_flag_subc",
+                        "pl_ext_stacking_from_aux_flag_subc",
                         help="Flag from pl_ext_stacking aux cmds subc",
                     ),
                 ),
@@ -147,8 +193,9 @@ class ExtensionDrivers:
                         "pl_the_2nd_ext_flag_subc",
                         help="Flag from pl_the_2nd plugin subc",
                     ),
-                )
-            ]
+                ),
+                *test_apps_shared_generic_exts
+            ],
         },
         "aux.dummy_cmds.dummy_cmd": {
             "exts": [
@@ -170,7 +217,7 @@ class ExtensionDrivers:
                     "pl_ext_stacking_from_aux",
                     cli.cmd.SrcTypes.AUX,
                     CmdExtOpt(
-                        "pl_ext_stacking_action",
+                        "pl_ext_stacking_from_aux_action",
                         multi=True,
                         help="Action from pl_ext_stacking aux cmds",
                     ),
@@ -206,6 +253,7 @@ class ExtensionDrivers:
                     ),
                 ),
             ],
+            "env": enable_dummy_cmds_exts_env
         },
         "aux.dummy_cmds.dummy_cmd.subc": {
             "exts": [
@@ -262,7 +310,8 @@ class ExtensionDrivers:
                         help="Flag from pl_the_2nd plugin subc",
                     ),
                 ),
-            ]
+            ],
+            "env": enable_dummy_cmds_exts_env
         },
         "generic_core_ext": {
             "exts": [

@@ -313,8 +313,8 @@ class TestExtensions(CLIShared):
                 cmd.flag_opt,
                 "help",
                 "vk",
-                cmd.pl_ext_stacking_action,
-                cmd.pl_ext_stacking_flag,
+                cmd.pl_ext_stacking_from_aux_action,
+                cmd.pl_ext_stacking_from_aux_flag,
                 cmd.pl_the_2nd_ext_action,
                 cmd.pl_the_2nd_ext_flag,
                 "v",
@@ -327,14 +327,13 @@ class TestExtensions(CLIShared):
 
         def test_ext_stacking(self):
             cmd = self.cmd
-            # actions = ["show_cmd_args"]
-            actions = ["none"]
+            actions = [self.na]
             out = cmd.run(
                 self.sv,
                 cmd.flag_opt.ln_to_cli(),
                 cmd.ext_action.ln_to_cli(), *actions,
-                cmd.pl_ext_stacking_action.ln_to_cli(), *actions,
-                cmd.pl_ext_stacking_flag.ln_to_cli(), cmd.pl_ext_stacking_flag.ln_to_cli(),
+                cmd.pl_ext_stacking_from_aux_action.ln_to_cli(), *actions,
+                cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(), cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(),
                 cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
                 cmd.pl_the_2nd_ext_flag.ln_to_cli(),
             )
@@ -344,23 +343,20 @@ class TestExtensions(CLIShared):
                 (cmd.single_arg, self.sv),
                 (cmd.flag_opt, 1),
                 (cmd.ext_action, actions),
-                (cmd.pl_ext_stacking_action, actions),
-                (cmd.pl_ext_stacking_flag, 2),
+                (cmd.pl_ext_stacking_from_aux_action, actions),
+                (cmd.pl_ext_stacking_from_aux_flag, 2),
                 (cmd.pl_the_2nd_ext_action, actions),
                 (cmd.pl_the_2nd_ext_flag, 1),
             )
 
         def test_manipulating_other_ext_args(self):
             cmd = self.cmd
-            # actions = ["show_cmd_args"]
             actions = ["update_flag_opts"]
             out = cmd.run(
                 self.sv,
                 cmd.flag_opt.ln_to_cli(),
                 cmd.ext_action.ln_to_cli(), *actions,
-                # cmd.pl_ext_stacking_action.ln_to_cli(), *actions,
-                cmd.pl_ext_stacking_flag.ln_to_cli(), cmd.pl_ext_stacking_flag.ln_to_cli(),
-                # cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
+                cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(), cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(),
                 cmd.pl_the_2nd_ext_flag.ln_to_cli(),
             )
             print(out)
@@ -369,24 +365,21 @@ class TestExtensions(CLIShared):
                 (cmd.single_arg, self.sv),
                 (cmd.flag_opt, 2),
                 (cmd.ext_action, actions),
-                # (cmd.pl_ext_stacking_action, actions),
-                (cmd.pl_ext_stacking_flag, 3, {"Before": 2}),
-                # (cmd.pl_the_2nd_ext_action, actions),
+                (cmd.pl_ext_stacking_from_aux_flag, 3, {"Before": 2}),
                 (cmd.pl_the_2nd_ext_flag, 2),
             )
 
         def test_subc_ext_stacking_help_msg(self):
             subc = self.subc
             help = subc.get_help_msg()
-            # help.assert_num_opts(9)
             help.assert_args(subc.single_arg)
             help.assert_opts(
                 subc.ext_action_subc,
                 subc.flag_opt,
                 "help",
                 "vk",
-                subc.pl_ext_stacking_action_subc,
-                subc.pl_ext_stacking_flag_subc,
+                subc.pl_ext_stacking_from_aux_action_subc,
+                subc.pl_ext_stacking_from_aux_flag_subc,
                 subc.pl_the_2nd_ext_action_subc,
                 subc.pl_the_2nd_ext_flag_subc,
                 "v",
@@ -398,26 +391,21 @@ class TestExtensions(CLIShared):
             assert help.app_exts == False
 
         def test_subc_ext_stacking(self):
-            actions = ["none"]
+            actions = [self.na]
             subc = self.subc
             out = subc.run(
                 self.sv,
                 subc.flag_opt.ln_to_cli(),
                 subc.ext_action_subc.ln_to_cli(), *actions,
-                # cmd.pl_ext_stacking_action.ln_to_cli(), *actions,
-                subc.pl_ext_stacking_flag_subc.ln_to_cli(), subc.pl_ext_stacking_flag_subc.ln_to_cli(),
-                # cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
+                subc.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(), subc.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(),
                 subc.pl_the_2nd_ext_flag_subc.ln_to_cli(),
             )
-            print(out)
             subc.assert_args(
                 out,
                 (subc.single_arg, self.sv),
                 (subc.flag_opt, 1),
                 (subc.ext_action_subc, actions),
-                # (subc.pl_ext_stacking_action_subc, actions),
-                (subc.pl_ext_stacking_flag_subc, 2),
-                # (subc.pl_the_2nd_ext_action_subc, actions),
+                (subc.pl_ext_stacking_from_aux_flag_subc, 2),
                 (subc.pl_the_2nd_ext_flag_subc, 1),
             )
         
@@ -428,7 +416,7 @@ class TestExtensions(CLIShared):
                 CLIShared.exts.exts_workout_cfg,
                 CLIShared.exts.pl_ext_stacking_from_aux_cfg
             ],
-            with_env={"ORIGEN_DUMMY_AUX_CMDS": "1"}
+            with_env=CLIShared.exts.exts["aux.dummy_cmds.dummy_cmd"]["env"]
         )
         subc = CLIShared.aux.ns.dummy_cmds.dummy_cmd.subc.extend(
             CLIShared.exts.exts["aux.dummy_cmds.dummy_cmd.subc"]["exts"],
@@ -436,7 +424,7 @@ class TestExtensions(CLIShared):
                 CLIShared.exts.exts_workout_cfg,
                 CLIShared.exts.pl_ext_stacking_from_aux_cfg
             ],
-            with_env={"ORIGEN_DUMMY_AUX_CMDS": "1"}
+            with_env=CLIShared.exts.exts["aux.dummy_cmds.dummy_cmd"]["env"]
         )
 
         @property
@@ -452,7 +440,7 @@ class TestExtensions(CLIShared):
                 cmd.exts_workout_flag,
                 "help",
                 "vk",
-                cmd.pl_ext_stacking_action,
+                cmd.pl_ext_stacking_from_aux_action,
                 cmd.pl_ext_stacking_from_aux_flag,
                 cmd.python_plugin_action,
                 cmd.python_plugin_flag,
@@ -468,33 +456,23 @@ class TestExtensions(CLIShared):
 
         def test_extending_aux_cmd(self):
             cmd = self.cmd
-            # actions = ["show_cmd_args"]
-            # actions = ["update_flag_opts"]
             out = cmd.run(
                 self.na,
-                # cmd.flag_opt.ln_to_cli(),
-                # cmd.ext_action.ln_to_cli(),
-                # cmd.pl_ext_stacking_action.ln_to_cli(), *actions,
                 cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(), cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(),
-                # cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
                 cmd.python_plugin_the_second_flag.ln_to_cli(),
                 cmd.python_plugin_flag.ln_to_cli(),
             )
             cmd.assert_args(
                 out,
                 (cmd.action_arg, [self.na]),
-                # (cmd.flag_opt, 1),
                 (cmd.exts_workout_action, None),
-                # (cmd.pl_ext_stacking_action, actions),
                 (cmd.pl_ext_stacking_from_aux_flag, 2),
-                # (cmd.pl_the_2nd_ext_action, actions),
                 (cmd.python_plugin_the_second_flag, 1),
                 (cmd.python_plugin_flag, 1),
             )
 
         def test_manipulating_args_from_aux_exts(self):
             cmd = self.cmd
-            # actions = ["show_cmd_args"]
             actions = [
                 "inc_flag__aux_ext__pl_ext_stacking_from_aux_flag",
                 "inc_flag__plugin_ext__python_plugin_the_second_flag",
@@ -503,9 +481,7 @@ class TestExtensions(CLIShared):
             out = cmd.run(
                 self.na,
                 cmd.exts_workout_action.ln_to_cli(), *actions,
-                # cmd.pl_ext_stacking_action.ln_to_cli(), *actions,
                 cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(), cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(),
-                # cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
                 cmd.python_plugin_the_second_flag.ln_to_cli(),
             )
             print(out)
@@ -514,9 +490,7 @@ class TestExtensions(CLIShared):
                 (cmd.action_arg, [self.na]),
                 (cmd.exts_workout_action, actions),
                 (cmd.python_plugin_flag, -1),
-                # (cmd.pl_ext_stacking_action, actions),
                 (cmd.pl_ext_stacking_from_aux_flag, 3, {"Before": 2}),
-                # (cmd.pl_the_2nd_ext_action, actions),
                 (cmd.python_plugin_the_second_flag, 2),
             )
 
@@ -546,17 +520,13 @@ class TestExtensions(CLIShared):
 
         def test_extending_aux_subcmd(self):
             cmd = self.subc
-            # actions = ["show_cmd_args"]
-            # actions = ["update_flag_opts"]
             actions = ["no_action"]
             out = cmd.run(
                 self.na,
                 cmd.flag_opt.ln_to_cli(),
                 cmd.exts_workout_action.ln_to_cli(), *actions,
-                # cmd.pl_ext_stacking_action.ln_to_cli(), *actions,
                 cmd.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(),
                 cmd.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(),
-                # cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
                 cmd.python_plugin_the_second_flag_subc.ln_to_cli(),
                 cmd.python_plugin_flag_subc.ln_to_cli(),
             )
@@ -567,9 +537,7 @@ class TestExtensions(CLIShared):
                 (cmd.flag_opt, 1),
                 (cmd.exts_workout_action, actions),
                 (cmd.exts_workout_flag_subc, None),
-                # (cmd.pl_ext_stacking_action, actions),
                 (cmd.pl_ext_stacking_from_aux_flag_subc, 2),
-                # (cmd.pl_the_2nd_ext_action, actions),
                 (cmd.python_plugin_the_second_flag_subc, 1),
                 (cmd.python_plugin_flag_subc, 1),
             )
@@ -587,10 +555,8 @@ class TestExtensions(CLIShared):
                 self.na,
                 cmd.flag_opt.ln_to_cli(),
                 cmd.exts_workout_action.ln_to_cli(), *actions,
-                # cmd.pl_ext_stacking_action.ln_to_cli(), *actions,
                 cmd.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(),
                 cmd.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(),
-                # cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
                 cmd.python_plugin_the_second_flag_subc.ln_to_cli(),
                 cmd.python_plugin_flag_subc.ln_to_cli(),
             )
@@ -601,9 +567,7 @@ class TestExtensions(CLIShared):
                 (cmd.flag_opt, 2),
                 (cmd.exts_workout_action, actions),
                 (cmd.exts_workout_flag_subc, None),
-                # (cmd.pl_ext_stacking_action, actions),
                 (cmd.pl_ext_stacking_from_aux_flag_subc, 3, {"Before": 2}),
-                # (cmd.pl_the_2nd_ext_action, actions),
                 (cmd.python_plugin_the_second_flag_subc, 2),
                 (cmd.python_plugin_flag_subc, 2),
             )
@@ -615,13 +579,12 @@ class TestExtensions(CLIShared):
     # @pytest.mark.parameterize()
     def test_extending_origen_cmd_from_plugin(self):
         ''' Test each global command is extendable'''
-        cmd = self.global_cmds.eval # origen.helpers.regressions.origen
+        cmd = self.global_cmds.eval
         cmd = cmd.extend(
             CLIShared.exts.exts["generic_core_ext"]["exts"],
             from_configs=[CLIShared.exts.core_cmd_exts_cfg]
         )
 
-        # help = cmd.get_help_msg(with_config=[self.exts_from_aux, self.exts_from_pl])
         help = cmd.get_help_msg()
         help.assert_args(cmd.code)
         help.assert_opts(
@@ -636,7 +599,6 @@ class TestExtensions(CLIShared):
         assert help.pl_exts == ['pl_ext_cmds']
         assert help.app_exts == False
 
-        # out = cmd.run(with_config=[self.exts_from_aux, self.exts_from_pl])
         d = cmd.global_demo("minimal")
         out = d.run(add_args=[
             cmd.core_cmd_exts_generic_core_ext.ln_to_cli(),
@@ -680,7 +642,7 @@ class TestExtensions(CLIShared):
             fail
 
         def test_exception_in_cmd(self):
-            actions = ["none"]
+            actions = [self.na]
             out = self.cmd.gen_error(
                 "gen_error",
                 self.ext_action.ln_to_cli(), *actions,

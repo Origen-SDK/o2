@@ -13,10 +13,10 @@ const PYTHONS: &[&str] = &[
     "python3.9",
     "python3.8",
     "python3.7",
-    "python3.6",
 ];
 pub const MIN_PYTHON_VERSION: &str = "3.6.0";
 
+// FOR_PR use more generic macro below
 #[macro_export]
 macro_rules! vks_to_cmd {
     () => {
@@ -25,6 +25,17 @@ macro_rules! vks_to_cmd {
             origen::LOGGER.data().keywords.iter().map(|k| format!("r'{}'", k)).collect::<Vec<String>>().join(", ")
         )
     }
+}
+
+#[macro_export]
+macro_rules! strs_to_cli_arr {
+    ($name:expr, $strs:expr) => {{
+        format!(
+            "{}=[{}]",
+            $name,
+            $strs.map(|t| format!("r'{}'", t)).collect::<Vec<String>>().join(", ")
+        )
+    }}
 }
 
 lazy_static! {
@@ -168,6 +179,7 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     cmd.arg(&PYTHON_CONFIG.command);
     cmd.arg("-c");
     cmd.arg(&code);
+    // FOR_PR are these needed?
     cmd.arg("-");
     cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
     cmd.arg(&vks_to_cmd!());

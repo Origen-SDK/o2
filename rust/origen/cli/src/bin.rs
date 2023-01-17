@@ -14,9 +14,7 @@ use indexmap::map::IndexMap;
 use origen::{Result, LOGGER, STATUS};
 use origen_metal as om;
 use std::iter::FromIterator;
-use std::path::Path;
 use std::process::exit;
-use std::collections::HashMap;
 use framework::{Extensions, Plugins, AuxCmds, AppCmds, CmdHelps};
 use framework::plugins::{PL_MGR_CMD_NAME, PL_CMD_NAME, run_pl_mgr, run_pl};
 use clap::error::ErrorKind as ClapErrorKind;
@@ -30,18 +28,6 @@ pub struct CommandHelp {
     name: String,
     help: String,
     shortcut: Option<String>,
-}
-
-impl CommandHelp {
-    fn render(&self, width: usize) -> String {
-        let mut msg = "".to_string();
-        msg += &format!("{:width$} {}", self.name, self.help, width = width + 3);
-        if let Some(a) = &self.shortcut {
-            msg += &format!(" [aliases: {}]", a);
-        }
-        msg += "\n";
-        msg
-    }
 }
 
 pub mod built_info {
@@ -133,10 +119,9 @@ fn main() -> Result<()> {
     // When a command is added below it must also be added to these vectors.
     let mut origen_commands: Vec<CommandHelp> = vec![];
     let mut helps = CmdHelps::new();
-    let mut app_cmds: Option<AppCmds>;
-    let mut plugin_commands: IndexMap<String, Vec<CommandHelp>> = IndexMap::new();
+    let app_cmds: Option<AppCmds>;
     let mut extensions = Extensions::new();
-    let mut aux_cmds = AuxCmds::new(&mut extensions)?;
+    let aux_cmds = AuxCmds::new(&mut extensions)?;
 
     let plugins = match Plugins::new(&mut extensions) {
         Ok(pl) => pl,
@@ -345,6 +330,7 @@ fn main() -> Result<()> {
     framework::aux_cmds::add_helps(&mut helps, &aux_cmds);
     commands::eval::add_helps(&mut helps);
     commands::credentials::add_helps(&mut helps);
+    commands::interactive::add_helps(&mut helps);
 
     if STATUS.is_app_present {
         commands::app::add_helps(&mut helps, app_cmds.as_ref().unwrap());
@@ -359,7 +345,7 @@ fn main() -> Result<()> {
     // app = mailer::add_commands(app, &mut origen_commands)?;
     app = commands::credentials::add_commands(app, &helps, &extensions)?;
     app = commands::eval::add_commands(app, &helps, &extensions)?;
-    app = commands::interactive::add_commands(app, &mut origen_commands)?;
+    app = commands::interactive::add_commands(app, &helps, &extensions)?;
     app = framework::plugins::add_commands(app, &helps, plugins.as_ref(), &extensions)?;
     app = framework::aux_cmds::add_commands(app, &helps, &aux_cmds, &extensions)?;
 
@@ -943,41 +929,6 @@ Examples:
         );
     }
 
-    // This is used to justify the command names in the help
-    let mut name_width = origen_commands
-        .iter()
-        .map(|c| c.name.chars().count())
-        .max()
-        .unwrap();
-
-
-    // Clap is great, but its generated help doesn't give the flexibility needed to handle things
-    // like app and plugin command additions, so we make our own
-
-    let mut help_message = format!(
-        "Origen, The Semiconductor Developer's Kit
-
-{}
-
-USAGE:
-    origen [FLAGS] [COMMAND]
-FLAGS:
-    -h, --help                Prints help information
-    -v                        {}
-    -vk, --verbosity_keywords {}
-
-CORE COMMANDS:
-",
-        version, VERBOSITY_HELP_STR, VERBOSITY_KEYWORD_HELP_STR
-    );
-
-    for command in &origen_commands {
-        help_message += &command.render(name_width);
-    }
-
-    help_message += "\nSee 'origen <command> -h' for more information on a specific command.";
-
-    let h = &*Box::leak(help_message.into_boxed_str());
     let mut all_cmds_and_aliases = vec![];
     for subc in app.get_subcommands() {
         all_cmds_and_aliases.push(subc.get_name().to_string());
@@ -996,10 +947,10 @@ CORE COMMANDS:
                 },
                 Err(e) => {
                     match e.kind {
-                        (ClapErrorKind::DisplayHelp |
+                        ClapErrorKind::DisplayHelp |
                         ClapErrorKind::DisplayHelpOnMissingArgumentOrSubcommand |
                         ClapErrorKind::DisplayVersion |
-                        ClapErrorKind::UnknownArgument) => {
+                        ClapErrorKind::UnknownArgument => {
                             top_app_cmd_aliases.insert(top_cmd.to_string(), vec!(top_cmd.to_string()));
                             top_app_replacements.push(["app", "commands", top_cmd]);
                         },
@@ -1019,10 +970,10 @@ CORE COMMANDS:
                     },
                     Err(e) => {
                         match e.kind {
-                            (ClapErrorKind::DisplayHelp |
+                            ClapErrorKind::DisplayHelp |
                             ClapErrorKind::DisplayHelpOnMissingArgumentOrSubcommand |
                             ClapErrorKind::DisplayVersion |
-                            ClapErrorKind::UnknownArgument) => {
+                            ClapErrorKind::UnknownArgument => {
                                 if let Some(aliases) = top_app_cmd_aliases.get_mut(top_cmd) {
                                     aliases.push(a.to_string());
                                 } else {
@@ -1101,9 +1052,7 @@ CORE COMMANDS:
             let mut len = 0;
             for (pln, pl_aliases) in top_pl_cmd_aliases.iter() {
                 for (cmdn, cmda) in pl_aliases {
-                    for a in cmda.iter() {
-                        top_pl_replacements.push(["plugin", pln, cmdn]);
-                    }
+                    top_pl_replacements.push(["plugin", pln, cmdn]);
 
                     let s = cmda.join(", ");
                     let l = s.len();
@@ -1163,9 +1112,7 @@ CORE COMMANDS:
         let mut len = 0;
         for (auxn, aux_aliases) in top_aux_cmd_aliases.iter() {
             for (cmdn, cmda) in aux_aliases {
-                for a in cmda.iter() {
-                    top_aux_replacements.push(["auxillary_commands", auxn, cmdn]);
-                }
+                top_aux_replacements.push(["auxillary_commands", auxn, cmdn]);
 
                 let s = cmda.join(", ");
                 let l = s.len();
@@ -1391,9 +1338,15 @@ CORE COMMANDS:
             let matches = matches.subcommand_matches("save_ref").unwrap();
             commands::save_ref::run(matches);
         }
-        // To get here means the user has typed "origen -v", which officially means
-        // verbosity level 1 with no command, but this is what they really mean
+        Some(PL_MGR_CMD_NAME) => run_pl_mgr(matches.subcommand_matches(PL_MGR_CMD_NAME).unwrap(), plugins.as_ref())?,
+        Some(PL_CMD_NAME) => run_pl(matches.subcommand_matches(PL_CMD_NAME).unwrap(), &app, &extensions, plugins.as_ref())?,
+        Some(invalid_cmd) => {
+            // This case shouldn't happen as clap should've previously kicked out on any invalid command
+            unreachable!("Uncaught invalid command encountered: '{}'", invalid_cmd);
+        }
         None => {
+            // To get here means the user has typed "origen -v", which officially means
+            // verbosity level 1 with no command, but this is what they really mean
             let mut max_len = 0;
             let mut versions: IndexMap<String, (bool, bool, String)> = IndexMap::new();
             if STATUS.is_app_present {
@@ -1528,16 +1481,6 @@ CORE COMMANDS:
                     log_error!("{}", v.2);
                 }
             }
-        }
-        Some(PL_MGR_CMD_NAME) => run_pl_mgr(matches.subcommand_matches(PL_MGR_CMD_NAME).unwrap(), plugins.as_ref())?,
-        Some(PL_CMD_NAME) => run_pl(matches.subcommand_matches(PL_CMD_NAME).unwrap(), &app, &extensions, plugins.as_ref())?,
-        Some(invalid_cmd) => {
-            // This case shouldn't happen as clap should've previously kicked out on any invalid command
-            unreachable!("Uncaught invalid command encountered: '{}'", invalid_cmd);
-        }
-        None => {
-            // This case shouldn't happen as clap should've previously kicked out on any invalid command
-            unreachable!("Uncaught invalid command encountered!");
         }
     }
     Ok(())

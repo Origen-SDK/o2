@@ -28,7 +28,9 @@ class Cmd(cli.cmd.Cmd):
                     if not (("CleanUp" in opts and opts["CleanUp"] is None) or v[1] is None):
                         clean_up.append(v[0].name)
             else:
-                args.append(v[0])
+                # TODO support args/opts (not extension) with options
+                if v[1] is not None:
+                    args.append(v[0])
             expected = v[0].to_assert_str(v[1], **opts)
             if isinstance(expected, str):
                 expected = [expected]

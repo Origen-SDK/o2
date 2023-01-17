@@ -1,23 +1,14 @@
 use origen::{Result, ORIGEN_CONFIG, origen_config_metadata};
 use crate::commands::_prelude::*;
-// use crate::app_commands::Command as CommandTOML;
-
-use super::{Command, Arg, build_commands};
-
-// use crate::app_commands::Command as AppCommand;
+use super::{Command, build_commands};
 use std::fs;
 use std::path::PathBuf;
 use origen::core::config::AuxillaryCommandsTOML;
 use super::extensions::ExtensionTOML;
 use super::{CommandTOML};
-
-use clap;
+use clap::Command as ClapCommand;
 
 pub const CMD_NAME: &'static str = "auxillary_commands";
-
-// pub struct AuxCmdsTOML {
-//     Vec<AuxCmd
-// }
 
 #[derive(Debug, Deserialize)]
 pub (crate) struct CommandsToml {
@@ -119,15 +110,14 @@ impl AuxCmdNamespace {
             };
             slf.help = command_config.help.to_owned();
 
-            if let Some(mut commands) = command_config.command {
+            if let Some(commands) = command_config.command {
                 for mut cmd in commands {
                     slf.top_commands.push(cmd.name.to_owned());
                     Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd);
                 }
             }
 
-            // TODO extensions?
-            if let Some(mut extensions) = command_config.extension {
+            if let Some(extensions) = command_config.extension {
                 for ext in extensions {
                     match exts.add_from_aux_toml(&slf, ext) {
                         Ok(_) => {},
@@ -189,7 +179,7 @@ pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, aux_commands:
         // .arg("show_sources")
 
     for (ns, cmds) in aux_commands.namespaces.iter() {
-        let mut aux_sub_sub = clap::Command::new(ns).setting(AppSettings::ArgRequiredElseHelp);
+        let mut aux_sub_sub = ClapCommand::new(ns).setting(AppSettings::ArgRequiredElseHelp);
         if let Some(h) = cmds.help.as_ref() {
             aux_sub_sub = aux_sub_sub.about(h.as_str());
         }

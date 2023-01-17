@@ -13,8 +13,6 @@ help = "Extend plugin command from aux command"
         short = "s"
         takes_value = true
         help = "Extended opt taking a single value"
-        # short = "a"
-        # help = "Have the plugin say hi after evaluating"
 
     [[extension.opt]]
         name = "multi_val_opt"
@@ -29,12 +27,6 @@ help = "Extend plugin command from aux command"
         long_aliases = ["multi_delim"]
         use_delimiter = true
         help = "Extended opt taking a multiple, delimited values"
-
-    # [[extension.opt]]
-    #     name = "required_opt"
-    #     takes_value = true
-    #     required = true
-    #     help = "Required opt taking a single value"
 
     [[extension.opt]]
         name = "exts_workout_action"
@@ -101,9 +93,3 @@ extend = "aux.dummy_cmds.dummy_cmd.subc"
     [[extension.opt]]
         name = "exts_workout_flag_subc"
         help = "Flag for the extended opt subc"
-
-# [[extension]]
-# extend = "aux.cmd_testers"
-
-# [[extension]]
-# extend = "aux.cmd_testers.args"

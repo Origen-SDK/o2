@@ -1,12 +1,5 @@
-use clap::{App, AppSettings, Arg, Command, ArgMatches};
 use super::_prelude::*;
-use origen::Result;
-use super::super::CommandHelp;
-use indexmap::IndexMap;
-use super::launch2;
-use crate::{Extensions, Plugins};
 
-pub const CMD_NAME: &'static str = "eval";
 pub const BASE_CMD: &'static str = "eval";
 
 gen_core_cmd_funcs!(

@@ -1,7 +1,7 @@
 from origen.helpers.regressions import cli
 from origen.helpers import calling_filename
 from pathlib import Path, PurePosixPath
-import re
+import pytest, re
 
 from .cmd_models import Cmd, CmdArg, CmdOpt, CmdExtOpt
 from .cmd_models.auxs import Aux
@@ -69,8 +69,17 @@ def clean_up_ext_args_str(ext_args, ext_name=None):
         ext_name = get_ext_name()
     return output_args(f"(Ext) ({ext_name}) (CleanUp Cmd)", ext_args)
 
+class Configs:
+    configs_dir = Path(__file__).parent.joinpath("configs")
+    suppress_plugin_collecting_config = configs_dir.joinpath("suppress_plugin_collecting.toml")
+
 class CLIShared(cli.CLI):
     Cmd = Cmd
+    na = "no_action"
+
+    @pytest.fixture
+    def cmd(self):
+        return self._cmd
 
     pln__python_plugin = "python_plugin"
 
@@ -86,3 +95,5 @@ class CLIShared(cli.CLI):
     python_plugin = plugins.python_plugin
     cmd_testers = aux.namespaces.cmd_testers
     cmd_testers_cmd = cmd_testers.cmd_testers
+
+    configs = Configs()

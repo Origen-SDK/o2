@@ -16,16 +16,12 @@ pub mod eval;
 pub mod aux_cmds;
 pub mod _prelude;
 
-pub use eval::CMD_NAME as EVAL_CMD_NAME;
-
-#[macro_use]
 use crate::python;
-use crate::vks_to_cmd;
+use crate::{vks_to_cmd, strs_to_cli_arr};
 
 use indexmap::map::IndexMap;
-use origen::{clean_mode, LOGGER};
+use origen::{clean_mode, LOGGER, STATUS};
 use std::process::exit;
-use origen::Result;
 use _prelude::{SetArgTrue, CountArgs};
 
 use clap::{App, ArgMatches};
@@ -37,7 +33,7 @@ use std::collections::HashMap;
 #[macro_export]
 macro_rules! gen_simple_run_func {
     ($base_cmd: expr) => {
-        pub(crate) fn run(mut invocation: &clap::ArgMatches, mut cmd_def: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>) -> Result<()> {
+        pub(crate) fn run(mut invocation: &clap::ArgMatches, mut cmd_def: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>) -> origen::Result<()> {
             // let mut matches = cmd;
             let mut path_pieces: Vec<String> = vec!();
             // let mut overrides = IndexMap::new();
@@ -144,6 +140,8 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
     }
     println!("ext names: {:?}", opt_names);
 
+    let mut targets = None;
+
     for arg in cmd_def.get_arguments() {
         println!("Arg: {}", arg.get_id());
         let arg_n= arg.get_id();
@@ -156,6 +154,14 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
         //     // ext_opts.push(e.)
         // }
         if invocation.contains_id(arg_n) {
+            if arg_n == "targets" {
+                targets = Some(invocation.get_many::<String>(arg_n).unwrap());
+                continue;
+            } else if arg_n == "mode" {
+                // FOR_PR
+                todo!();
+            }
+
             let arg_str: String;
             if arg.is_takes_value_set() {
                 if arg.is_multiple_values_set() {
@@ -228,20 +234,16 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             match ext.0 {
                 ExtensionSource::App => {
                     app_ext_str = ext.1.join(", ");
-                    todo!()
                 },
                 ExtensionSource::Plugin(ref pl_name) => {
                     pl_ext_str += &format!(", '{}': {{{}}}", pl_name, ext.1.join(", "));
                     // pl_ext_args.push(format!(""));
                 },
-                ExtensionSource::Aux(ref ns, ref path) => {
+                ExtensionSource::Aux(ref ns, _) => {
                     aux_ext_str += &format!(", '{}': {{{}}}", ns, ext.1.join(", "));
                 },
             }
         }
-        // if !app_ext_str.is_empty() {
-        //     app_ext_str = app_ext_str[2..].to_string();
-        // }
         if !pl_ext_str.is_empty() {
             pl_ext_str = pl_ext_str[2..].to_string();
         }
@@ -266,7 +268,7 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             let mut ext_setup = "{".to_string();
             match ext.source {
                 ExtensionSource::App => {
-                    ext_setup += "'source': 'app'"
+                    ext_setup += &format!("'source': 'app', 'root': r'{}', 'name': None", origen::app().unwrap().root.join(format!("{}/commands/extensions/", STATUS.app.as_ref().unwrap().name())).display());
                 },
                 ExtensionSource::Plugin(ref pl_name) => {
                     ext_setup += &format!(
@@ -314,13 +316,15 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
         }
     }
 
+    if let Some(targs) = targets {
+        cmd += &format!(", {}", strs_to_cli_arr!("targets", targs));
+    }
     cmd += &format!(", verbosity={}", LOGGER.verbosity());
     cmd += &format!(", {}", vks_to_cmd!());
     cmd += ");";
 
     log_debug!("Launching Python: '{}'", &cmd);
     println!("CMD: {}", cmd);
-    // println!("Launching Python: '{}'", &cmd);
 
     match python::run(&cmd) {
         Err(e) => {

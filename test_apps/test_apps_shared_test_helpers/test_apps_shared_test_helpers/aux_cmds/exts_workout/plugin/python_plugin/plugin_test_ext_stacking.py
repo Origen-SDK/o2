@@ -40,7 +40,7 @@ def do_action(actions, phase):
                 if phase == "Before":
                     origen.current_command.args["flag_opt"] += 1
                     # origen.current_command.exts["aux.exts_workout"].args["flag_extension"] += 1
-                    origen.current_command.exts["aux.pl_ext_stacking_from_aux"].args["pl_ext_stacking_flag"] += 1
+                    origen.current_command.exts["aux.pl_ext_stacking_from_aux"].args["pl_ext_stacking_from_aux_flag"] += 1
                     origen.current_command.exts["plugin.python_plugin_the_second"].args["pl_the_2nd_ext_flag"] += 1
 
             if action == "show_exts":

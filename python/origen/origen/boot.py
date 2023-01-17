@@ -1,3 +1,4 @@
+# FOR_PR need to clean up print statemnents
 import pathlib
 from builtins import exit as exit_proc
 
@@ -49,7 +50,6 @@ def run_cmd(command,
     import origen.application
     import origen.target
 
-    # FOR_PR make these constants
     if command == dispatch_plugin_cmd:
         cmd_src = "plugin"
     elif command == dispatch_aux_cmd:
@@ -73,42 +73,46 @@ def run_cmd(command,
         if not path.exists():
             paths = [path]
             modulized_path = pathlib.Path(root)
-            for i, sub in enumerate(sub_parts[:-1]):
-                modulized_path = modulized_path.joinpath(sub)
-                if modulized_path.exists():
-                    path = pathlib.Path(f"{modulized_path}/{'.'.join(sub_parts[(i+1):])}.py")
-                    if path.exists():
-                        return wrap_mod_from_file(path)
+            if len(sub_parts) > 1:
+                for i, sub in enumerate(sub_parts[:-1]):
+                    modulized_path = modulized_path.joinpath(sub)
+                    if modulized_path.exists():
+                        path = pathlib.Path(f"{modulized_path}/{'.'.join(sub_parts[(i+1):])}.py")
+                        if path.exists():
+                            return wrap_mod_from_file(path)
+                        else:
+                            paths.append(path)
                     else:
-                        paths.append(path)
-                else:
-                    return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
-            path = pathlib.Path(f"{modulized_path}/{sub_parts[-1]}.py")
-            if not path.exists():
-                paths.append(path)
+                        return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
                 return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
+            else:
+                path = pathlib.Path(f"{modulized_path}/{sub_parts[-1]}.py")
+                if not path.exists():
+                    paths.append(path)
+                    return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
         return wrap_mod_from_file(path)
 
     def call_user_cmd(cmd_type):
         print(f"dispatch_root: {dispatch_root}")
-        path = pathlib.Path(f"{pathlib.Path(dispatch_root).joinpath('/'.join(subcmds))}.py")
-        if not path.exists():
-            modulized_path = pathlib.Path(f"{pathlib.Path(dispatch_root).joinpath('.'.join(subcmds))}.py")
-            if modulized_path.exists():
-                path = modulized_path
-            else:
-                cmd = (' ').join(subcmds)
-                origen.logger.error(f"Could not find implementation for {cmd_type} command '{cmd}' at '{path}' or '{modulized_path}'")
-                exit(1)
+        m = mod_from_modulized_path(dispatch_root, subcmds)
 
-        m = origen.helpers.mod_from_file(path)
+        if isinstance(m, list):
+            if isinstance(m[1], Exception):
+                origen.log.error(f"Could not load {cmd_type} command implementation from '{('.').join(subcmds)}' ({m[0]})")
+                origen.log.error(f"Received exception:\n{m[1]}")
+            else:
+                origen.log.error(f"Could not find implementation for {cmd_type} command '{('.').join(subcmds)}'")
+                for msg in m:
+                    origen.log.error(f"  {msg}")
+            exit_proc(1)
+
         if hasattr(m, 'run'):
             print("found run")
-            print(path)
+            print(m.__file__)
             m.run(**(args or {}))
         else:
-            origen.logger.error(f"Could not find 'run' function in module '{path}'")
-            exit(1)
+            origen.logger.error(f"Could not find 'run' function in module '{m.__file__}'")
+            exit_proc(1)
 
     def is_subcmd(*subcs):
         return list(subcs) == subcmds
@@ -118,7 +122,7 @@ def run_cmd(command,
             print(f"Unsupported sub-command '{subcmds.join(' -> ')}' for base command '{command}'")
         else:
             print(f"Unsupported sub-command '{subcmd}' for '{command}'")
-        exit(1)
+        exit_proc(1)
 
     if mode == None:
         if _origen.is_app_present():
@@ -176,9 +180,18 @@ def run_cmd(command,
     setattr(origen.boot, "clean_up", clean_up)
 
     def on_load(func):
-        current_ext["on_load"] = func.__name__
+        if current_ext:
+            current_ext["on_load"] = func.__name__
+        else:
+            dispatch['on_load'] = func
         return func
     setattr(origen.boot, "on_load", on_load)
+
+    dispatch = {}
+    def run(func):
+        dispatch['run_func'] = func
+        return func
+    setattr(origen.boot, "run", run)
 
     # FOR_PR need to test with app subcmds
 
@@ -186,7 +199,7 @@ def run_cmd(command,
         current_ext = ext
         m = mod_from_modulized_path(ext['root'], [cmd_src, command if cmd_src == "core" else dispatch_src, *subcmds])
         if isinstance(m, list):
-            if isinstance(m[1], Exception):
+            if len(m) == 2 and isinstance(m[1], Exception):
                 origen.log.error(f"Could not load {ext['source']} extension implementation from '{ext['name']}' ({m[0]})")
                 origen.log.error(f"Received exception:\n{m[1]}")
             else:
@@ -199,12 +212,28 @@ def run_cmd(command,
         
             if "on_load" in ext:
                 getattr((ext["mod"]), ext["on_load"])(ext["mod"])
+    current_ext = None
     _origen.current_command.set_command(command, subcmds, args, ext_args, extensions)
 
-    try:
+    def run_ext(phase, continue_on_fail=False):
         for ext in extensions:
-            if "before_cmd" in ext:
-                getattr(ext["mod"], ext["before_cmd"])(**ext_args[ext['source']][ext['name']])
+            if phase in ext:
+                if ext['source'] == "app":
+                    this_ext_args = ext_args["app"]
+                else:
+                    this_ext_args = ext_args[ext['source']][ext['name']]
+
+                try:
+                    getattr(ext["mod"], ext[phase])(**this_ext_args)
+                except Exception as e:
+                    if continue_on_fail:
+                        origen.log.error(f"Error running {ext['source']} extension{'' if ext['source'] == 'app' else ' ' + ext['name']}")
+                        origen.log.error(e)
+                    else:
+                        raise(e)
+
+    try:
+        run_ext("before_cmd")
 
         # The generate command handles patterns and flows.
         # Future: Add options to generate patterns concurrently, or send them off to LSF.
@@ -430,32 +459,23 @@ def run_cmd(command,
                 print(tabify(repr(e)))
 
 
-        elif command == "_dispatch_app_cmd_":
-            # TODO fix this upstream
+        elif command == dispatch_app_cmd:
+            # FOR_PR fix this upstream
             subcmds = subcmds[1:]
             call_user_cmd("app")
 
-        elif command == "_plugin_dispatch_":
+        elif command == dispatch_plugin_cmd:
             call_user_cmd("plugin")
 
-        elif command == "_dispatch_aux_cmd_":
+        elif command == dispatch_aux_cmd:
             call_user_cmd("aux")
 
         else:
             unsupported_command(command)
 
-        if extensions:
-            for ext in extensions:
-                if "after_cmd" in ext:
-                    getattr(ext["mod"], ext["after_cmd"])(**ext_args[ext['source']][ext['name']])
+        run_ext("after_cmd")
     finally:
-        for ext in extensions:
-            try:
-                if "clean_up" in ext:
-                    getattr(ext["mod"], ext["clean_up"])(**ext_args[ext['source']][ext['name']])
-            except Exception as clean_up_e:
-                print(clean_up_e)
-
+        run_ext("clean_up", continue_on_fail=True)
 
     if exit is None:
         if origen.boot.exit:

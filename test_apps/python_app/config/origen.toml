@@ -73,5 +73,6 @@ domain = "origen.org"
 user = "dummy_ldap_read_only"
 timeout = 120
 
-[[auxillary_commands]]
-    path = "../tests/cli/cmd_testers"
+# FOR_PR test adding aux commands from app?
+# [[auxillary_commands]]
+#     path = "../tests/cli/cmd_testers"

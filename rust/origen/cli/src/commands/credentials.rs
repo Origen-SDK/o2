@@ -1,8 +1,3 @@
-use clap::{App, AppSettings, Arg, ArgMatches, Command};
-use origen::Result;
-use super::super::CommandHelp;
-use indexmap::IndexMap;
-use super::launch_simple;
 use super::_prelude::*;
 
 pub const BASE_CMD: &'static str = "credentials";

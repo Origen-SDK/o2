@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-use origen::{Result, in_app_invocation, in_global_invocation};
-// use crate::app_commands::{CommandsToml};
-use super::plugins::{Plugins, Plugin};
+use origen::{Result, in_app_invocation};
+use super::plugins::Plugin;
 use super::aux_cmds::{AuxCmdNamespace};
 use clap::Command as ClapCommand;
 use super::{ArgTOML, Arg, OptTOML, Opt, CmdSrc};
@@ -116,19 +115,19 @@ impl Extensions {
     //     todo!()
     // }
 
-    pub fn apply_to_core_cmd<'a>(&'a self, cmd: &str, mut app: ClapCommand<'a>) -> ClapCommand<'a> {
+    pub fn apply_to_core_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
         self.apply_to(&ExtensionTarget::Core(cmd.to_string()), app)
     }
 
-    pub fn apply_to_app_cmd<'a>(&'a self, cmd: &str, mut app: ClapCommand<'a>) -> ClapCommand<'a> {
+    pub fn apply_to_app_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
         self.apply_to(&ExtensionTarget::App(cmd.to_string()), app)
     }
 
-    pub fn apply_to_pl_cmd<'a>(&'a self, pl: &str, cmd: &str, mut app: ClapCommand<'a>) -> ClapCommand<'a> {
+    pub fn apply_to_pl_cmd<'a>(&'a self, pl: &str, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
         self.apply_to(&ExtensionTarget::Plugin(pl.to_string(), cmd.to_string()), app)
     }
 
-    pub fn apply_to_aux_cmd<'a>(&'a self, ns: &str, cmd: &str, mut app: ClapCommand<'a>) -> ClapCommand<'a> {
+    pub fn apply_to_aux_cmd<'a>(&'a self, ns: &str, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
         self.apply_to(&ExtensionTarget::Aux(ns.to_string(), cmd.to_string()), app)
     }
 
@@ -168,87 +167,17 @@ impl Extensions {
     pub fn get_aux_ext(&self, ns: &str, cmd_path: &str) -> Option<&Vec<Extension>> {
         self.extensions.get(&ExtensionTarget::Aux(ns.to_string(), cmd_path.to_string()))
     }
-
-    // pub fn apply<'a>(&self, plugins: &Option<Plugins>, mut app: ClapCommand<'a>) -> ClapCommand<'a> {
-    //     for (target, ext) in self.extensions.iter() {
-    //         match target {
-    //             ExtensionTarget::Core(cmd) => {
-    //                 // todo!()
-    //                 let mut split = cmd.split('.');
-    //                 let mut sub = app.find_subcommand_mut(split.next().unwrap()).unwrap();
-    //                 // let mut sub = app.find_subcommand_mut(split.next().unwrap()).unwrap(); // ok_or(format!("Cannot find core command '{}'", target))?;
-    //                 // while let Some(s) = split.next() {
-    //                 //     sub = sub.find_subcommand_mut(split.next().unwrap()).unwrap(); // ok_or(format!("Cannot find core command '{}'", target))?;
-    //                 // }
-    //                 // sub.mut_subcommand(split.next().unwrap(), |subc| subc.disable_help_flag(true));
-    //                 // sub.subcommand("hi");
-    //             },
-    //             ExtensionTarget::App(cmd) => {
-    //                 // todo!()
-    //             },
-    //             ExtensionTarget::Plugin(pl, cmd) => {
-    //                 // todo!()
-    //             }
-    //         }
-    //     }
-    //     app
-    // }
 }
 
-// #[derive(Debug, Hash, Eq, PartialEq)]
-// pub enum ExtensionTarget {
-//     Core(String), // Extend a core command
-//     App(String), // Extend an app command
-//     Plugin(String, String), // Extend a plugin command
-//     Aux(String, String), // Extend an auxillary command
-// }
-
-// impl PartialEq<ExtensionTarget> for ExtensionTarget {
-//     fn eq(&self, other: &ExtensionTarget) -> bool {
-//         match self {
-//             Self::Core(cmd) => match other {
-//                 Self::Core(other_cmd) => cmd == other_cmd,
-//                 _ => false
-//             },
-//             Self::Plugin(pl, cmd) => match other {
-//                 Self::Plugin(other_pl, other_cmd) => (pl == other_pl) && (cmd == other_cmd),
-//                 _ => false,
-//             },
-//             _=> false
-//         }
-//     }
-// }
-
-// impl Eq for ExtensionTarget {}
-
-// impl ExtensionTarget {
-//     pub fn new(target: &str) -> Result<Self> {
-//         let (scope, t) = target.split_once('.').ok_or_else(|| format!("Could not discern scope from '{}'", target))?;
-//         Ok(match scope {
-//             "origen" => Self::Core(t.to_string()),
-//             "app" => Self::App(t.to_string()),
-//             "plugin" => {
-//                 let (pl_name, pl_t) = t.split_once('.').ok_or_else(|| format!("Could not discern plugin from '{}'", t))?;
-//                 Self::Plugin(pl_name.to_string(), pl_t.to_string())
-//             }
-//             "aux" => {
-//                 let (ns_name, aux_t) = t.split_once('.').ok_or_else(|| format!("Could not discern auxillary command namespace from '{}'", t))?;
-//                 Self::Plugin(ns_name.to_string(), aux_t.to_string())
-//             }
-//             _ => bail!("Unknown target scope '{}'. Expected 'origen', 'app', 'aux', or 'plugin'", scope)
-//         })
-//     }
-// }
-
-#[derive(Debug, Deserialize)] //, Deserialize, Clone)]
+#[derive(Debug, Deserialize)]
 pub struct ExtensionTOML {
     pub extend: String, // Command to extend
-    // pub target: Option<String>,
     pub in_global_context: Option<bool>, // Extend in the global context
     pub in_app_context: Option<bool>, // Extend in application context
     pub on_env: Option<Vec<String>>,
     pub arg: Option<Vec<ArgTOML>>,
     pub opt: Option<Vec<OptTOML>>,
+    // TODO see about supporting some of these in the future?
     // pub name: String,
     // pub help: String,
     // pub alias: Option<String>,
@@ -287,10 +216,6 @@ pub struct Extension {
 }
 
 impl Extension {
-    // pub fn add_extension(extensions: &mut Extensions, ext_source: ExtensionSource, ext: ExtensionTOML) -> Result<Self> {
-    //     self.extensions.insert()
-    // }
-
     pub fn from_extension_toml(ext_source: ExtensionSource, ext: ExtensionTOML) -> Result<Self> {
         let mut slf = Self {
             extends: ext.extend,
@@ -335,7 +260,6 @@ impl Extension {
                 let mut s = e.splitn(1, '=');
                 let e_name= s.next().ok_or_else( || format!("Failed to parse 'on_env' '{}', extending '{}', for {}", e, self.extends, self.source))?.trim();
                 let e_val = s.next();
-                // return Ok(true)
                 match env::var(e_name) {
                     Ok(val) => {
                         if let Some(v) = e_val {
@@ -353,13 +277,6 @@ impl Extension {
                         }
                     }
                 }
-                // let v = e.ok_or_else(|err| match err {
-                //     std::env::VarError::NotPresent {
-                //         return false
-                //     },
-                //     _ => return Err(err)
-                // })
-                // let s = 
             }
             Ok(false)
         } else {
