@@ -22,7 +22,7 @@ tempfile = "3"
 pyo3 = {version = "0.16.5", features = ["extension-module"]}
 serde = {version = "1.0", features = ["derive"]}
 toml = "0.5"
-git2 = "0.13"
+git2 = "0.16"
 dirs = "2.0"
 wait-timeout = "0.2.0"
 chrono = "0.4.11"
