@@ -12,7 +12,7 @@ def in_new_origen_proc(func=None, mod=None, *, func_kwargs=None, with_configs=No
     return in_new_proc(func, mod, func_kwargs=func_kwargs)
 
 # TODO support options
-def run_cli_cmd(cmd, *, with_env=None, with_configs=None, bypass_config_lookup=False, input=None, expect_fail=False, return_details=False, shell=None):
+def run_cli_cmd(cmd, *, with_env=None, with_configs=None, bypass_config_lookup=False, input=None, expect_fail=False, return_details=False, shell=None, targets=None):
     if isinstance(cmd, str):
         cmd = ["origen", cmd]
     else:
@@ -32,6 +32,13 @@ def run_cli_cmd(cmd, *, with_env=None, with_configs=None, bypass_config_lookup=F
 
     if shell is None:
         shell = running_on_windows
+
+    if targets is False:
+        cmd.append("--no_targets")
+    elif targets:
+        if isinstance(targets, str):
+            targets = [targets]
+        cmd += ["-t", *targets]
 
     if expect_fail:
         result = subprocess.run(cmd, shell=shell, capture_output=True, text=True, input=input, env=subp_env)

@@ -3,7 +3,7 @@ use origen::{Result, in_app_invocation};
 use super::plugins::Plugin;
 use super::aux_cmds::{AuxCmdNamespace};
 use clap::Command as ClapCommand;
-use super::{ArgTOML, Arg, OptTOML, Opt, CmdSrc};
+use super::{ArgTOML, Arg, OptTOML, Opt, CmdSrc, Applies};
 use crate::{from_toml_args, from_toml_opts};
 use std::path::PathBuf;
 use std::{fmt, env};
@@ -11,14 +11,6 @@ use std::{fmt, env};
 // TODO refactor this
 use super::helps::CmdSrc as ExtensionTarget;
 
-// macro_rules! core_cmd {
-//     // ($src: expr) => { crate::ExtensionSource::Core($src) }
-//     // ($src: expr) => { crate::ExtensionSource::Plugin($src) }
-//     // ($src: expr, $app: expr) => {
-//         // let mut split = cmd.split('.');
-//         // let mut sub = app.find_subcommand_mut(split.next().unwrap()).unwrap();
-//     // }
-// }
 
 #[derive(Debug)]
 pub struct Extensions {
@@ -37,83 +29,29 @@ impl Extensions {
     }
 
     fn add_ext<F>(&mut self, t: ExtensionTOML, f: F) -> Result<bool>
-        where F: Fn(ExtensionTOML) -> Result<Extension>
+        where F: Fn(ExtensionTOML) -> Result<Option<Extension>>
     {
         let c = CmdSrc::new(&t.extend)?;
-        let e = f(t)?;
-        if !e.should_extend_in_env()? {
-            return Ok(false);
-        }
-        if in_app_invocation() {
-            // App is present
-            if !e.should_extend_app_context() {
-                return Ok(false)
-            }
+        if let Some(e) = f(t)? {
+            self.extensions.entry(c).or_default().push(e);
+            Ok(true)
         } else {
-            if c.is_app_cmd() {
-                // Outside of an app but extending an app command - implicitly skip these
-                return Ok(false)
-            } else {
-                if !e.should_extend_global_context() {
-                    return Ok(false)
-                }
-            }
+            // Extension doesn't apply in this context/env.
+            Ok(false)
         }
-        self.extensions.entry(c).or_default().push(e);
-        Ok(true)
     }
 
     pub fn add_from_app_toml(&mut self, ext_toml: ExtensionTOML) -> Result<bool> {
-        // println!("Extending");
-        // let t = ExtensionTarget::new(&ext_toml.extend)?;
-        // let e = Extension::from_extension_toml(ExtensionSource::App, ext_toml)?;
         self.add_ext(ext_toml, |t| Extension::from_extension_toml(ExtensionSource::App, t))
-
-        // self.extensions.entry(ExtensionTarget::new(&ext_toml.extend)?).or_default().push(
-        //     Extension::from_extension_toml(ExtensionSource::App, ext_toml)?
-        // );
-        // println!("Ext: {:?}", self.extensions.keys().collect::<Vec<&ExtensionTarget>>());
-        // Ok(())
     }
 
     pub fn add_from_pl_toml(&mut self, pl: &Plugin, ext_toml: ExtensionTOML) -> Result<bool> {
-        // println!("Extending");
-        // let t = ExtensionTarget::new(&ext_toml.extend)?;
-        // let e = Extension::from_extension_toml(ExtensionSource::Plugin(pl.name.to_owned()), ext_toml)?;
         self.add_ext(ext_toml, |t| Extension::from_extension_toml(ExtensionSource::Plugin(pl.name.to_owned()), t))
-        // if self.should_add_ext(t, e) {
-        // // if !app_present!() && (t.is_app_cmd() || e.extend_in_app_context_only()) {
-        // //     return Ok(())
-        // // }
-        //     self.extensions.entry(t).or_default().push(e);
-        // }
-        // // println!("Ext: {:?}", self.extensions.keys().collect::<Vec<&ExtensionTarget>>());
-        // Ok(())
     }
 
     pub fn add_from_aux_toml(&mut self, ns: &AuxCmdNamespace, ext_toml: ExtensionTOML) -> Result<bool> {
-        // println!("Extending");
-        // let t = ExtensionTarget::new(&ext_toml.extend)?;
-        // let e = Extension::from_extension_toml(ExtensionSource::Aux(ns.namespace(), ns.root()), ext_toml)?;
         self.add_ext(ext_toml, |t| Extension::from_extension_toml(ExtensionSource::Aux(ns.namespace(), ns.root()), t))
-        // if self.should_add_ext(t, e) {
-        //     self.extensions.entry(t).or_default().push(e);
-        // }
-
-        // self.extensions.entry(ExtensionTarget::new(&ext_toml.extend)?).or_default().push(
-        //     Extension::from_extension_toml(ExtensionSource::Aux(ns.namespace(), ns.root()), ext_toml)?
-        // );
-        // println!("Ext: {:?}", self.extensions.keys().collect::<Vec<&ExtensionTarget>>());
-        // Ok(())
     }
-
-    // pub fn add_from_app_toml(&mut self, ExtensionSource, ExtensionTOML) -> Result<()> {
-    //     ?
-    // }
-
-    // pub fn add_from_toml(&mut self, src: ExtensionSource, ext_toml: ExtensionTOML) -> Result<()> {
-    //     todo!()
-    // }
 
     pub fn apply_to_core_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
         self.apply_to(&ExtensionTarget::Core(cmd.to_string()), app)
@@ -143,7 +81,7 @@ impl Extensions {
             }
         } else {
             // println!("No extension found for {:?}", cmd);
-            // TODO
+            // FOR_PR
         }
         app
     }
@@ -216,16 +154,21 @@ pub struct Extension {
 }
 
 impl Extension {
-    pub fn from_extension_toml(ext_source: ExtensionSource, ext: ExtensionTOML) -> Result<Self> {
+    pub fn from_extension_toml(ext_source: ExtensionSource, ext: ExtensionTOML) -> Result<Option<Self>> {
         let mut slf = Self {
-            extends: ext.extend,
             in_global_context: ext.in_global_context,
             in_app_context: ext.in_app_context,
             on_env: ext.on_env,
-            args: from_toml_args!(ext.arg),
-            opts: from_toml_opts!(ext.opt),
+            args: None,
+            opts: None,
             source: ext_source,
+            extends: ext.extend,
         };
+        if !slf.applies()? {
+            return Ok(None)
+        }
+        slf.args = from_toml_args!(ext.arg);
+        slf.opts = from_toml_opts!(ext.opt, &slf.extends, &slf.source, Some(&slf.extends));
         if let Some(opts) = slf.opts.as_mut() {
             for opt in opts {
                 opt.help += &format!(" [Extended from {}]",
@@ -243,44 +186,24 @@ impl Extension {
                 );
             }
         }
-        Ok(slf)
+        Ok(Some(slf))
+    }
+}
+
+impl Applies for Extension {
+    fn in_global_context(&self) -> Option<bool> {
+        self.in_global_context
     }
 
-    pub fn should_extend_global_context(&self) -> bool {
-        self.in_global_context.unwrap_or(true)
+    fn in_app_context(&self) -> Option<bool> {
+        self.in_app_context
     }
 
-    pub fn should_extend_app_context(&self) -> bool {
-        self.in_app_context.unwrap_or(true)
+    fn on_env(&self) -> Option<&Vec<String>> {
+        self.on_env.as_ref()
     }
 
-    pub fn should_extend_in_env(&self) -> Result<bool> {
-        if let Some(envs) = self.on_env.as_ref() {
-            for e in envs {
-                let mut s = e.splitn(1, '=');
-                let e_name= s.next().ok_or_else( || format!("Failed to parse 'on_env' '{}', extending '{}', for {}", e, self.extends, self.source))?.trim();
-                let e_val = s.next();
-                match env::var(e_name) {
-                    Ok(val) => {
-                        if let Some(v) = e_val {
-                            if v == val {
-                                return Ok(true);
-                            }
-                        } else {
-                            return Ok(true);
-                        }
-                    },
-                    Err(err) => match err {
-                        env::VarError::NotPresent => {},
-                        _ => {
-                            return Err(err.into());
-                        }
-                    }
-                }
-            }
-            Ok(false)
-        } else {
-            Ok(true)
-        }
+    fn on_env_error_msg(&self, e: &String) -> String {
+        format!("Failed to parse 'on_env' '{}', extending '{}', for {}", e, self.extends, self.source)
     }
 }

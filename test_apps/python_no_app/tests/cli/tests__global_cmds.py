@@ -15,11 +15,8 @@ class T_GlobalCmds(CLICommon):
         help = CmdTestersCommon.HelpMsg(out)
         assert help.root_cmd is True
         assert "Origen: 2." in help.version_str
+        help.assert_bare_opts()
 
-        assert len(help.opts) == 3
-        help.assert_help_opt_at(0)
-        help.assert_vk_opt_at(1)
-        help.assert_v_opt_at(2)
 
         # TODO check order?
         assert set(s["name"] for s in help.subcmds) == set(self.global_cmds.all_names_add_help)
@@ -45,3 +42,5 @@ class T_GlobalCmds(CLICommon):
         ''' Just testing that "-h" doesn't crash for all core commands '''
         help = cmd.get_help_msg()
         assert len(help.opts) >= 3
+        # FOR_PR
+        # help.assert_bare_opts_present()

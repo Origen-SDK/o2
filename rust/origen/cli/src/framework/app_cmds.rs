@@ -18,22 +18,18 @@ pub struct AppCmds {
 }
 
 impl AppCmds {
-    fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML) {
-        // let mut sub_commands: Option<Vec<String>>;
-        // {
-        //     build_upcase_names(current_cmd);
-        // }
-        if let Some(ref mut sub_cmds) = current_cmd.subcommand {
-            // sub_commands = Some(vec![]);
-            for mut sub in sub_cmds {
-                // sub_commands.as_mut().push(sub.name.to_string());
-                Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub);
+    fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML) -> Result<bool> {
+        if let Some(c) = Command::from_toml_cmd(current_cmd, &current_path, CmdSrc::App(current_path.to_string()))? {
+            if let Some(ref mut sub_cmds) = current_cmd.subcommand {
+                for mut sub in sub_cmds {
+                    Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub)?;
+                }
             }
+            slf.commands.insert(current_path.clone(), c);
+            Ok(true)
         } else {
-            // sub_commands = None;
+            Ok(false)
         }
-        // println!("PATH: {}", current_path);
-        slf.commands.insert(current_path.clone(), Command::from_toml_cmd(current_cmd, &current_path));
     }
 
     pub fn new(app: &Application, exts: &mut Extensions) -> Result<Self> {
@@ -43,9 +39,7 @@ impl AppCmds {
             commands: IndexMap::new(),
         };
 
-        // let commands_toml = slf.root.join("config").join("commands.toml");
         for commands_toml in app.config().cmd_paths() {
-            // if commands_toml.exists() {
             let content = match fs::read_to_string(&commands_toml) {
                 Ok(x) => x,
                 Err(e) => {
@@ -59,13 +53,14 @@ impl AppCmds {
                     bail!("Malformed commands.toml: {}", e);
                 }
             };
-            // TODO error on help given?
+            // FOR_PR error on help given?
             // slf.help = command_config.help.to_owned();
 
             if let Some(commands) = command_config.command {
                 for mut cmd in commands {
-                    slf.top_commands.push(cmd.name.to_owned());
-                    Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd);
+                    if Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd)? {
+                        slf.top_commands.push(cmd.name.to_owned());
+                    }
                 }
             }
 
@@ -97,32 +92,11 @@ pub (crate) fn add_helps(helps: &mut CmdHelps, app_cmds: &AppCmds) {
 }
 
 pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, app_commands: &'a AppCmds, exts: &'a Extensions) -> Result<App<'a>> {
-    // let help = "Interface with commands added by the application";
-    // origen_commands.push(CommandHelp {
-    //     name: CMD_NAME.to_string(),
-    //     help: help.to_string(),
-    //     shortcut: None,
-    // });
-
     let mut app_cmds_cmd = helps.core_subc(&APP_COMMANDS)
-        // ClapCommand::new(CMD_NAME)
-        //     .about(help)
-            // .setting(AppSettings::ArgRequiredElseHelp)
             .visible_alias("cmds")
-            // .setting(AppSettings::ArgRequiredElseHelp)
             .arg_required_else_help(true);
-            // .subcommand(
-            //     ClapCommand::new("list")
-            //         .about("List the available plugins")
-            //         .visible_alias("ls")
-            // );
 
     for top_cmd_name in app_commands.top_commands.iter() {
-        // app_cmds_cmd = app_cmds_cmd.subcommand(build_commands(cmds).unwrap(), &|cmd| {
-        //     cmds.commands.get(cmd).unwrap()
-        // });
-
-
         app_cmds_cmd = app_cmds_cmd.subcommand(build_commands(
             &app_commands.commands.get(top_cmd_name).unwrap(),
             &|cmd, app| {

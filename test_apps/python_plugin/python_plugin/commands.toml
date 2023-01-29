@@ -5,7 +5,7 @@
     [[command.opt]]
         name = "times"
         takes_value = true
-        short = "t"
+        short = "x"
         long = "times"
         help = "Number of times for the python plugin to say"
         value_name = "TIMES"
@@ -159,9 +159,10 @@ help = "Echos the input"
         name = "say_hi_during_cleanup"
         help = "Have the plugin say hi during cleanup"
 
-[[extension]]
-    # Extend an application's 'playground' commmand
-    extend = "app.playground"
+# FOR_PR
+# [[extension]]
+#     # Extend an application's 'playground' commmand
+#     extend = "app.playground"
 
 [[extension]]
 extend = "aux.dummy_cmds.dummy_cmd"

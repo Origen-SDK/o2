@@ -39,7 +39,7 @@ class PythonPlugin(cli.CLI):
                     help="Number of times for the python plugin to say",
                     value_name="TIMES",
                     ln="times",
-                    sn="t"
+                    sn="x"
                 ),
                 CmdOpt(
                     name="loudly",

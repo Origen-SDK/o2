@@ -69,9 +69,9 @@ class Cmd(cli.cmd.Cmd):
                         print(f"expecting: {e}")
                         assert e in output
 
-        actual = self.parse_arg_keys(output)
+        actual = Cmd.parse_arg_keys(output)
         assert len(actual) == len(args)
-        actual = self.parse_ext_keys(output)
+        actual = Cmd.parse_ext_keys(output)
         print(actual)
         print(ext_args)
         assert actual == ext_args
@@ -106,7 +106,7 @@ class CmdArgOpt(cli.cmd.CmdArgOpt):
         return f"Arg: (CMD): {self.name} ({c}): {vals}"
     
     def assert_present(self, vals, in_str, **opts):
-        for e in self.to_assert_str(vals, **opts):
+        for e in CmdArgOpt.to_assert_str(self, vals, **opts):
             assert e in in_str
 
 class CmdArg(cli.cmd.CmdArg, CmdArgOpt):

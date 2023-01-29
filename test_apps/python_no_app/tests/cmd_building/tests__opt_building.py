@@ -27,7 +27,7 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, e_opt, i_opt):
             help = cmd.get_help_msg()
-            help.assert_opts(e_opt, "help", i_opt, "vk", "v")
+            help.assert_opts(e_opt, "help", i_opt, "v", "vk")
         
         def test_expl_sv_opt(self, cmd, e_opt, ev):
             out = cmd.run(e_opt.ln_to_cli(), ev)
@@ -71,7 +71,7 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, o_opt, r_opt):
             help = cmd.get_help_msg()
-            help.assert_opts("help", "vk", o_opt, r_opt, "v")
+            help.assert_opts("help", o_opt, r_opt, "v", "vk")
 
         def test_req_opt_given(self, cmd, r_opt, rv):
             out = cmd.run(r_opt.ln_to_cli(), rv)
@@ -154,7 +154,7 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, m_opt, im_m_opt, req_m_opt, d_m_opt, d_im_m_opt):
             help = cmd.get_help_msg()
-            help.assert_opts(d_im_m_opt, d_m_opt, "help", im_m_opt, "vk", m_opt, req_m_opt, "v")
+            help.assert_opts(d_im_m_opt, d_m_opt, "help", im_m_opt, m_opt, req_m_opt, "v", "vk")
 
         def test_all_multi_val_opts_given(self, cmd,
             m_opt, im_m_opt, req_m_opt, d_m_opt, d_im_m_opt,
@@ -227,7 +227,7 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, e_opt, i_opt):
             help = cmd.get_help_msg()
-            help.assert_opts(e_opt, "help", i_opt, "vk", "v")
+            help.assert_opts(e_opt, "help", i_opt, "v", "vk")
 
         def test_no_flag_opts_given(self, cmd):
             out = cmd.run()
@@ -289,7 +289,7 @@ class T_OptBuilding(Common):
 
         def test_help_msg(self, cmd, e_s_opt, i_s_opt, m_opt, ln_s_opt):
             help = cmd.get_help_msg()
-            help.assert_opts("help", "vk", m_opt, ln_s_opt, e_s_opt, i_s_opt, "v")
+            help.assert_opts("help", m_opt, ln_s_opt, e_s_opt, i_s_opt, "v", "vk")
         
         def test_single_value_opt_with_value_name(self, cmd, e_s_opt, i_s_opt, sv_e, sv_i):
             out = cmd.run(i_s_opt.ln_to_cli(), sv_i, e_s_opt.ln_to_cli(), sv_e)
@@ -370,12 +370,12 @@ class T_OptBuilding(Common):
                 f_sn_al_opt,
                 f_ln_sn_al_opt,
                 "help",
-                "vk",
                 f_ln_opt,
                 m_opt,
                 oc_opt,
                 s_opt,
-                "v"
+                "v",
+                "vk"
             )
 
         def test_single_val_opt_as_long_name(self, cmd, s_opt, tv):
@@ -516,7 +516,7 @@ class T_OptBuilding(Common):
         def test_help_msg(self, cmd, v_opt):
             help = cmd.get_help_msg()
             help.assert_args(None)
-            help.assert_opts("help", "vk", "v", v_opt)
+            help.assert_opts("help", "v", "vk", v_opt)
 
         def test_hidden_opt_is_available(self, cmd, h_opt):
             out = cmd.run(h_opt.ln_to_cli())

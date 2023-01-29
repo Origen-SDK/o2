@@ -140,6 +140,118 @@ help = "Command disabling standard app opts"
     disable_target_opt = true
     disable_mode_opt = true
 
+[[command]]
+name = "reserved_opt_error_gen"
+help = "Generate error messages when reserved opts are used"
+on_env = ["ORIGEN_APP_TEST_RESERVED_OPT_ERRORS"]
+
+    [[command.opt]]
+    name = "conflicting_help"
+    short = "h"
+    help = "Conflicting Opt"
+
+    [[command.opt]]
+    name = "conflicting_target"
+    short = "t"
+    long = "target"
+    help = "Conflicting Opt"
+
+    [[command.opt]]
+    name = "non_conflicting"
+    long = "non_conflicting"
+    short = "n"
+    help = "Non-Conflicting Opt"
+
+    [[command.subcommand]]
+    name = "single_conflicting_opt"
+    help = "Generate error messages for reserved opts"
+
+        [[command.subcommand.opt]]
+        name = "non_conflicting"
+        long = "non_conflicting"
+        help = "Non-Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_target"
+        long = "target"
+        help = "Conflicting Opt"
+
+    [[command.subcommand]]
+    name = "multiple_conflicting_opts"
+    help = "Generate error messages for reserved opts"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_target"
+        short = "t"
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_mode"
+        long_aliases = ["mode"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "not_conflicting"
+        short = "n"
+        help = "Non-Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_no_targets"
+        long_aliases = ["no_targets", "no_target"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_target_again"
+        long = "target"
+        long_aliases = ["targets"]
+        short = "t"
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_v"
+        short = "v"
+        long = "verbosity"
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_vk"
+        long = "vk"
+        long_aliases = ["verbosity_keywords"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_help"
+        short = "h"
+        long = "help"
+        short_aliases = ["g", "i"]
+        long_aliases = ["help_alias"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.subcommand]]
+        name = "subc"
+        help = "Generate error messages for reserved opts - subc"
+
+            [[command.subcommand.subcommand.opt]]
+            name = "conflicting_help"
+            short = "h"
+            help = "Conflicting Opt"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "subc"
+            help = "Generate error messages for reserved opts - subc - subc"
+
+                [[command.subcommand.subcommand.subcommand.opt]]
+                name = "conflicting_help"
+                long_aliases = ["help", "help2", "help3"]
+                help = "Conflicting Opt"
+
+                [[command.subcommand.subcommand.subcommand.opt]]
+                name = "conflicting_v"
+                short = "c"
+                short_aliases = ["v"]
+                long = "verbosity"
+                help = "Conflicting Opt"
+
 # Extend core command
 [[extension]]
 extend = "origen.eval"
@@ -224,3 +336,45 @@ on_env = ["ORIGEN_APP_MISSING_CORE_EXT"]
 [[extension]]
 extend = "aux.dummy_cmds.dummy_cmd"
 on_env = ["ORIGEN_APP_MISSING_AUX_EXT"]
+
+[[extension]]
+extend = "origen.eval"
+on_env = ["ORIGEN_APP_EXT_TEST_RESERVED_OPT_ERRORS"]
+
+    [[extension.opt]]
+        name = "conflicting_target"
+        help = "Conflicting Core Extension"
+        long = "target"
+        short = "t"
+
+    [[extension.opt]]
+        name = "conflicting_no_target"
+        help = "Conflicting Core Extension"
+        long_aliases=["no_target", "no_targets"]
+        short="n"
+
+    [[extension.opt]]
+        name = "conflicting_mode"
+        help = "Conflicting Core Extension"
+        long="mode_conflict"
+        short_aliases=["m"]
+        long_aliases=["mode"]
+
+    [[extension.opt]]
+        name = "conflicting_help"
+        help = "Conflicting Core Extension"
+        short = "h"
+        long = "help_conflict"
+        long_aliases=["help", "help1"]
+
+    [[extension.opt]]
+        name = "conflicting_v"
+        help = "Conflicting Core Extension"
+        short="v"
+        short_aliases=["w"]
+        long="verbosity"
+
+    [[extension.opt]]
+        name = "conflicting_vk"
+        help = "Conflicting Core Extension"
+        long_aliases=["verbosity_keywords", "vk"]

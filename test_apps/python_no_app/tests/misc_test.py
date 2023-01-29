@@ -94,12 +94,12 @@ class TestExtensions(CLIShared):
                 self.ext_flag,
                 self.f_opt,
                 "help",
-                "vk",
                 self.ext_ma,
                 self.ext_ma_delim,
                 self.sv_opt,
                 self.ext_sa,
                 "v",
+                "vk",
             )
             help.assert_subcmds("help", self.cmd.subc)
 
@@ -273,8 +273,8 @@ class TestExtensions(CLIShared):
                 subc.exts_workout_action,
                 subc.flag_opt,
                 "help",
-                "vk",
                 "v",
+                "vk",
             )
             help.assert_subcmds(None)
 
@@ -312,12 +312,12 @@ class TestExtensions(CLIShared):
                 cmd.ext_action,
                 cmd.flag_opt,
                 "help",
-                "vk",
                 cmd.pl_ext_stacking_from_aux_action,
                 cmd.pl_ext_stacking_from_aux_flag,
                 cmd.pl_the_2nd_ext_action,
                 cmd.pl_the_2nd_ext_flag,
                 "v",
+                "vk",
             )
             help.assert_subcmds("help", self.subc)
 
@@ -377,12 +377,12 @@ class TestExtensions(CLIShared):
                 subc.ext_action_subc,
                 subc.flag_opt,
                 "help",
-                "vk",
                 subc.pl_ext_stacking_from_aux_action_subc,
                 subc.pl_ext_stacking_from_aux_flag_subc,
                 subc.pl_the_2nd_ext_action_subc,
                 subc.pl_the_2nd_ext_flag_subc,
                 "v",
+                "vk",
             )
             help.assert_subcmds(None)
 
@@ -439,7 +439,6 @@ class TestExtensions(CLIShared):
                 cmd.exts_workout_action,
                 cmd.exts_workout_flag,
                 "help",
-                "vk",
                 cmd.pl_ext_stacking_from_aux_action,
                 cmd.pl_ext_stacking_from_aux_flag,
                 cmd.python_plugin_action,
@@ -447,6 +446,7 @@ class TestExtensions(CLIShared):
                 cmd.python_plugin_the_second_action,
                 cmd.python_plugin_the_second_flag,
                 "v",
+                "vk",
             )
             help.assert_subcmds("help", cmd.subc)
 
@@ -503,7 +503,6 @@ class TestExtensions(CLIShared):
                 cmd.exts_workout_flag_subc,
                 cmd.flag_opt,
                 "help",
-                "vk",
                 cmd.pl_ext_stacking_from_aux_action_subc,
                 cmd.pl_ext_stacking_from_aux_flag_subc,
                 cmd.python_plugin_action_subc,
@@ -511,6 +510,7 @@ class TestExtensions(CLIShared):
                 cmd.python_plugin_the_second_action_subc,
                 cmd.python_plugin_the_second_flag_subc,
                 "v",
+                "vk",
             )
             help.assert_subcmds(None)
 
@@ -590,9 +590,9 @@ class TestExtensions(CLIShared):
         help.assert_opts(
             cmd.core_cmd_exts_generic_core_ext,
             "help",
-            "vk",
             cmd.pl_ext_cmds_generic_ext,
             "v",
+            "vk",
         )
         help.assert_subcmds(None)
         assert help.aux_exts == ['core_cmd_exts']

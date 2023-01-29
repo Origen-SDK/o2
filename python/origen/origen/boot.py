@@ -152,7 +152,7 @@ def run_cmd(command,
     from_origen_cli(plugins)
 
     if _origen.is_app_present():
-        origen.target.setup(targets=targets)
+        origen.target.setup(targets=([] if targets is False else targets))
 
     if args is None:
         args = {}

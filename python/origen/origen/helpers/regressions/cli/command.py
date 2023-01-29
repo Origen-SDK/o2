@@ -62,6 +62,9 @@ class CmdOpt(CmdArgOpt):
     def sn_to_cli(self):
         return f"-{self.sn}"
 
+    def sna_to_cli(self, a=0):
+        return f"-{self.sn_aliases[a]}"
+
 class SrcTypes(enum.Enum):
     CORE = enum.auto()
     APP = enum.auto()
@@ -80,13 +83,31 @@ class CmdExtOpt(CmdOpt):
         CmdOpt.__init__(self, *args, **kwargs)
         self.src_name = src_name
         self.src_type = src_type
+    
+    @property
+    def provided_by_app(self):
+        return self.src_type == SrcTypes.APP
+
+    @property
+    def provided_by(self):
+        if self.provided_by_app:
+            return "the App"
+        else:
+            return self.src_name
 
 class CmdDemo:
     def __init__(self, name, args=None, expected_output=None) -> None:
         self.name = name
         self.args = args
-        self.expected_output = expected_output
+        self.expected_output = [expected_output] if isinstance(expected_output, str) else expected_output
         self.parent = None
+
+    def copy(self):
+        return self.__class__(
+            self.name,
+            list(self.args),
+            (self.expected_output) if self.expected_output else None,
+        )
 
     def run(self, add_args=None, **kwargs):
         return self.parent.run(*(self.args + (add_args or [])), **kwargs)
@@ -95,12 +116,11 @@ class CmdDemo:
         return self.parent.gen_error(*(self.args + (add_args or [])), **kwargs)
 
     def assert_present(self, in_str):
-        expected = [self.expected_output] if isinstance(self.expected_output, str) else self.expected_output
-        for e in expected:
+        for e in self.expected_output:
             assert e in in_str
 
 class Cmd:
-    def __init__(self, name, cmd_path=None, help=None, args=None, opts=None, subcmds = None, use_configs = None, with_env=None, demos=None, global_demos=None, app_demos=None, parent=None, aliases=None):
+    def __init__(self, name, cmd_path=None, help=None, args=None, opts=None, subcmds = None, use_configs = None, with_env=None, demos=None, global_demos=None, app_demos=None, parent=None, aliases=None, src_type=None):
         self.name = name
         self.cmd_path = cmd_path or []
         self.help = help
@@ -111,6 +131,7 @@ class Cmd:
         self.exts = None
         self.with_env = with_env
         self.parent = parent
+        self.src_type = src_type
         if use_configs:
             if not isinstance(use_configs, list):
                 use_configs = [use_configs]
@@ -120,10 +141,9 @@ class Cmd:
         for subcmd in self.subcmds.values():
             subcmd.parent = self
             subcmd.cmd_path = self.cmd_path + [self.name]
-            subcmd.use_configs = [*self.use_configs] if self.use_configs else None
 
         if self.parent is None:
-            self.update_cmd_paths()
+            self.update_subc()
 
         self.demos = dict([[d.name, d] for d in (demos or [])])
         for d in self.demos.values(): d.parent = self
@@ -132,10 +152,18 @@ class Cmd:
         self.app_demos = dict([[d.name, d] for d in (app_demos or [])])
         for d in self.app_demos.values(): d.parent = self
 
-    def update_cmd_paths(self):
+    def update_subc(self):
         for subcmd in self.subcmds.values():
             subcmd.cmd_path = self.cmd_path + [self.name]
-            subcmd.update_cmd_paths()
+            subcmd.use_configs = [
+                *(self.use_configs or []),
+                *(subcmd.use_configs or [])
+            ]
+            subcmd.with_env = {
+                **(self.with_env or {}),
+                **(subcmd.with_env or {})
+            }
+            subcmd.update_subc()
 
     def extend(self, exts, with_env=None, from_configs=None):
         dup = self.__class__(
@@ -146,10 +174,12 @@ class Cmd:
             self.opts.values(),
             self.subcmds.values(),
             [*self.use_configs] if self.use_configs else None,
-            self.with_env.copy() if self.with_env else None,
-            self.demos.values(),
-            self.global_demos.values(),
-            self.app_demos.values(),
+            dict(self.with_env) if self.with_env else None,
+            [d.copy() for d in self.demos.values()],
+            [d.copy() for d in self.global_demos.values()],
+            [d.copy() for d in self.app_demos.values()],
+            self.aliases,
+            self.src_type,
         )
         dup.exts = dict(self.exts) if self.exts else {}
         dup.exts.update(dict([[ext.name, ext] for ext in (exts or [])]))
@@ -239,3 +269,45 @@ class Cmd:
             return self.global_demos[name]
         elif name in self.demos:
             return self.demos[name]
+
+    @property
+    def is_app_cmd(self):
+        return (self.cmd_path[0] == "app") if len(self.cmd_path) > 0 else False
+
+    @property
+    def is_pl_cmd(self):
+        return (self.cmd_path[0] == "plugin") if len(self.cmd_path) > 0 else False
+
+    @property
+    def is_aux_cmd(self):
+        return (self.cmd_path[0] == "aux") if len(self.cmd_path) > 0 else False
+
+    @property
+    def is_core_cmd(self):
+        return not (self.is_app_cmd or self.is_pl_cmd or self.is_aux_cmd)
+
+    @property
+    def full_name(self):
+        if self.is_app_cmd:
+            cp = ('.' + '.'.join(self.cmd_path[2:])) if len(self.cmd_path) > 2 else ''
+            return f"app{cp}.{self.name}"
+        elif self.is_core_cmd:
+            return '.'.join(["origen", *self.cmd_path, self.name])
+        else:
+            return f"{'.'.join(self.cmd_path)}.{self.name}"
+
+    def reserved_opt_ln_conflict_msg(self, opt, name):
+        from .origen import CoreErrorMessages
+        return CoreErrorMessages.reserved_opt_ln_conflict_msg(self, opt, name)
+
+    def reserved_opt_lna_conflict_msg(self, opt, name):
+        from .origen import CoreErrorMessages
+        return CoreErrorMessages.reserved_opt_lna_conflict_msg(self, opt, name)
+
+    def reserved_opt_sn_conflict_msg(self, opt, name):
+        from .origen import CoreErrorMessages
+        return CoreErrorMessages.reserved_opt_sn_conflict_msg(self, opt, name)
+
+    def reserved_opt_sna_conflict_msg(self, opt, name):
+        from .origen import CoreErrorMessages
+        return CoreErrorMessages.reserved_opt_sna_conflict_msg(self, opt, name)

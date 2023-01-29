@@ -53,5 +53,14 @@ class CLI(metaclass=CLIProperties):
     def app_sub_cmd(cls, *args, cmd_path=None, **kwargs):
         return cls.Cmd(cmd_path=[*cls.app_sub_cmd_path, *(cmd_path or [])], *args, **kwargs)
 
+    @classmethod
+    def eval(cls, *code, **kwargs):
+        from .... import origen
+        if origen.app:
+            cmd = InAppCommands.eval
+        else:
+            cmd = GlobalCommands.eval
+        return cmd.run(*code, **kwargs)
+
     error_messages = CoreErrorMessages()
     err_msgs = error_messages

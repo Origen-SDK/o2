@@ -117,10 +117,6 @@ pub fn launch2(invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Ext
 // }
 
 pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Extension>>, plugins: Option<&Plugins>, overrides: Option<IndexMap<String, Option<String>>>, arg_overrides: Option<IndexMap<String, Option<String>>>) {
-    // let mut args = "{".to_string();
-    // let mut ext_args = "{".to_string();
-    // let mut arg_str: String;
-    // let mut first_arg = true;
     let mut args: Vec<String> = vec!();
 
     // println!("exts from launch: {:?}", cmd_exts);
@@ -149,17 +145,19 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             continue;
         }
 
-        // let ext_opts = HashSet::new();
-        // for e in cmd_exts.iter() {
-        //     // ext_opts.push(e.)
-        // }
         if invocation.contains_id(arg_n) {
             if arg_n == "targets" {
                 targets = Some(invocation.get_many::<String>(arg_n).unwrap());
                 continue;
+            } else if arg_n == "no_targets" {
+                if *invocation.get_one::<bool>(arg_n).unwrap() {
+                    targets = Some(clap::parser::ValuesRef::default());
+                }
+                continue;
             } else if arg_n == "mode" {
                 // FOR_PR
                 todo!();
+                continue;
             }
 
             let arg_str: String;
@@ -195,13 +193,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
                     }
                 }
             }
-            // if first_arg {
-            //     args += &arg_str;
-            //     first_arg = false;
-            // } else {
-            //     args += ", ";
-            //     args += &arg_str;
-            // }
             if let Some(ext_src) = opt_names.get(arg_n) {
                 ext_args.get_mut(ext_src).unwrap().push(arg_str);
             } else {
@@ -210,9 +201,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
         }
     }
     println!("ext args: {:?}", ext_args);
-    // args += "}";
-    // ext_args += "}";
-    // println!("args: {}", args);
 
     let mut cmd = format!("from origen.boot import run_cmd; run_cmd('{}'", base_cmd.unwrap_or_else(|| cmd_def.get_name()));
     if let Some(subs) = subcmds.as_ref() {
@@ -317,7 +305,11 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
     }
 
     if let Some(targs) = targets {
-        cmd += &format!(", {}", strs_to_cli_arr!("targets", targs));
+        if targs.clone().count() == 0 {
+            cmd += ", targets=False"
+        } else {
+            cmd += &format!(", {}", strs_to_cli_arr!("targets", targs));
+        }
     }
     cmd += &format!(", verbosity={}", LOGGER.verbosity());
     cmd += &format!(", {}", vks_to_cmd!());

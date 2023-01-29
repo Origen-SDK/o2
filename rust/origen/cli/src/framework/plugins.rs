@@ -213,44 +213,30 @@ pub struct Plugin {
     pub root: PathBuf,
     // TODO see about making this indices instead of duplicating string
     pub top_commands: Vec<String>,
-    // pub command_helps: Vec<CommandHelp>,
-    // pub commands: Vec<Command>,
     pub commands: IndexMap::<String, Command>,
-    // pub extensions: Vec<Extension>,
 }
 
 impl Plugin {
-    fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML) {
-        // let mut sub_commands: Option<Vec<String>>;
-        // {
-        //     build_upcase_names(current_cmd);
-        // }
-        if let Some(ref mut sub_cmds) = current_cmd.subcommand {
-            // sub_commands = Some(vec![]);
-            for mut sub in sub_cmds {
-                // sub_commands.as_mut().push(sub.name.to_string());
-                Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub);
+    fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML) -> Result<bool> {
+        if let Some(c) = Command::from_toml_cmd(current_cmd, &current_path, CmdSrc::Plugin(slf.name.to_owned(), current_path.to_string()))? {
+            if let Some(ref mut sub_cmds) = current_cmd.subcommand {
+                for mut sub in sub_cmds {
+                    Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub)?;
+                }
             }
+            slf.commands.insert(current_path.clone(), c);
+            Ok(true)
         } else {
-            // sub_commands = None;
+            Ok(false)
         }
-        // println!("PATH: {}", current_path);
-        slf.commands.insert(current_path.clone(), Command::from_toml_cmd(current_cmd, &current_path));
     }
 
     pub fn new(name: &str, path: PathBuf, exts: &mut Extensions) -> Result<Self> {
-        // fn add_command(current_cmd, current_path, plugins) {
-        //     plugins.insert()
-        // }
-
         let mut slf = Self {
             name: name.to_string(),
             root: path,
             top_commands: vec!(),
             commands: IndexMap::new(),
-            // extensions: vec!(),
-            // command_helps: vec![],
-            // commands: vec![],
         };
 
         let commands_toml = slf.root.join("commands.toml");
@@ -272,18 +258,10 @@ impl Plugin {
 
             if let Some(commands) = command_config.command {
                 for mut cmd in commands {
-                    slf.top_commands.push(cmd.name.to_owned());
-                    Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd);
+                    if Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd)? {
+                        slf.top_commands.push(cmd.name.to_owned());
+                    }
                 }
-            //     for mut command in commands {
-            //         slf.command_helps.push(CommandHelp {
-            //             name: command.name.clone(),
-            //             help: command.help.clone(),
-            //             shortcut: command.alias.clone(),
-            //         });
-            //         build_upcase_names(&mut command);
-            //         slf.commands.push(command);
-            //     }
             }
 
             if let Some(extensions) = command_config.extension {
@@ -292,7 +270,6 @@ impl Plugin {
                         Ok(_) => {},
                         Err(e) => log_error!("Failed to add extensions from plugin '{}': {}", slf.name, e)
                     }
-                    // slf.extensions.push(Extension::from_extension_toml(ExtensionSource::Plugin(slf.name.to_string()), ext)?);
                 }
             }
         }

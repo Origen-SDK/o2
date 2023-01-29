@@ -1,6 +1,6 @@
 class HelpMsg:
     def __init__(self, help_str):
-        print(help_str)
+        self.text = help_str
         sections = help_str.split("\n\n")
         if sections[0] == "Origen, The Semiconductor Developer's Kit":
             self.version_str = sections.pop(1).strip()
@@ -311,10 +311,10 @@ class HelpMsg:
         return True
 
     def assert_bare_opts(self):
-        return self.assert_opts("help", "vk", "v")
+        return self.assert_opts("help", "v", 'vk')
 
     def assert_bare_app_opts(self):
-        return self.assert_opts("help", "vk", "mode", "no_targets", "targets", "v")
+        return self.assert_opts("help", "mode", "no_targets", "targets", "v", 'vk')
 
     def assert_ext_at(self, expected_index, ext):
         o = self.opts[expected_index]
@@ -336,15 +336,15 @@ class HelpMsg:
             if isinstance(o, CmdExtOpt):
                 self.assert_ext_at(i, o)
             elif isinstance(o, str):
-                if o == "help":
+                if o in ["help", 'h']:
                     self.assert_help_opt_at(i)
                 elif o == "vk":
                     self.assert_vk_opt_at(i)
-                elif o == "mode":
+                elif o in ["mode", "m"]:
                     self.assert_mode_opt_at(i)
-                elif o == "no_targets":
+                elif o in ["no_targets", "nt"]:
                     self.assert_no_targets_opt_at(i)
-                elif o == "targets":
+                elif o in ["targets", "t"]:
                     self.assert_targets_opt_at(i)
                 elif o == "v":
                     self.assert_v_opt_at(i)

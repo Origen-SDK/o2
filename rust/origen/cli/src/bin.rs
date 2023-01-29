@@ -17,6 +17,10 @@ use std::iter::FromIterator;
 use std::process::exit;
 use framework::{Extensions, Plugins, AuxCmds, AppCmds, CmdHelps};
 use framework::plugins::{PL_MGR_CMD_NAME, PL_CMD_NAME, run_pl_mgr, run_pl};
+use framework::{
+    VERBOSITY_OPT_NAME, VERBOSITY_OPT_SHORT_NAME,
+    VERBOSITY_KEYWORDS_OPT_NAME, VERBOSITY_KEYWORDS_OPT_LONG_NAME
+};
 use clap::error::ErrorKind as ClapErrorKind;
 use commands::_prelude::clap_arg_actions::*;
 
@@ -156,14 +160,17 @@ fn main() -> Result<()> {
         .version(&*version)
         .arg(
             Arg::new("verbose")
-                .short('v')
+                .long(VERBOSITY_OPT_NAME)
+                .short(VERBOSITY_OPT_SHORT_NAME)
                 .action(clap::builder::ArgAction::Count)
                 .global(true)
                 .help(VERBOSITY_HELP_STR),
         )
         .arg(
             Arg::new("verbosity_keywords")
-                .short('k')
+                .long(VERBOSITY_KEYWORDS_OPT_NAME)
+                .visible_alias(VERBOSITY_KEYWORDS_OPT_LONG_NAME)
+                // .short('k')
                 .multiple(true)
                 .action(AppendArgs)
                 .global(true)

@@ -51,24 +51,19 @@ class T_LoadingPluginCmds(Common):
 
         def test_help_msg(self, root_cmd):
             help = root_cmd.get_help_msg()
-            print(help.opts)
-            assert len(help.opts) == 3
-            help.assert_help_opt_at(0)
-            help.assert_vk_opt_at(1)
-            help.assert_v_opt_at(2)
+            help.assert_bare_opts()
 
             help.assert_args(None)
             help.assert_subcmds(*self.python_plugin.ordered_subcmds)
 
         def test_hi_help_cmd(self, hi_cmd):
             help = hi_cmd.get_help_msg()
-            assert len(help.opts) == 6
-            help.assert_help_opt_at(0)
-            help.assert_vk_opt_at(1)
-            help.assert_opt_at(2, hi_cmd.loudly)
-            help.assert_opt_at(3, hi_cmd.times)
-            help.assert_opt_at(4, hi_cmd.to)
-            help.assert_v_opt_at(5)
+            help.assert_opts(
+                "h",
+                hi_cmd.loudly, hi_cmd.to,
+                "v", "vk",
+                hi_cmd.times,
+            )
 
         def test_py_plugin_says_hi(self, hi_cmd):
             out = hi_cmd.run()
@@ -89,7 +84,6 @@ class T_LoadingPluginCmds(Common):
         def test_py_plugin_echo(self, echo_cmd):
             s = "hello"
             out = echo_cmd.run(s)
-            print(out)
             assert out.count(self.echo_msg(s)) == 1
 
         def test_py_plugin_echo_multi(self, echo_cmd):
@@ -104,7 +98,6 @@ class T_LoadingPluginCmds(Common):
         def test_py_plugin_echo_delimited(self, echo_cmd):
             s = ["hello", "there", "delimited"]
             out = echo_cmd.run(','.join(s), "--repeat")
-            print(out)
             assert out.count(self.echo_msg(*s)) == 2
 
         @pytest.mark.skip
@@ -119,5 +112,5 @@ class T_LoadingPluginCmds(Common):
         def test_no_cmds_present_only_has_help_subcmd(self, root_cmd):
             help = root_cmd.get_help_msg()
             help.assert_args(None)
-            assert len(help.opts) == 3
+            help.assert_bare_opts()
             help.assert_subcmds(None)

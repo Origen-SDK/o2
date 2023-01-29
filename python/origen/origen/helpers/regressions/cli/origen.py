@@ -1,5 +1,5 @@
 import origen
-from .command import CmdOpt, Cmd, CmdArg, CmdDemo
+from .command import CmdOpt, Cmd, CmdArg, CmdDemo, CmdExtOpt
 
 def help_subcmd():
     return Cmd("help", help="Print this message or the help of the given subcommand(s)")
@@ -144,7 +144,6 @@ class InAppOpts:
         takes_value=True,
         multi=False,
         ln="mode",
-        sn="m",
     )
 
     @classmethod
@@ -153,7 +152,7 @@ class InAppOpts:
 
     @classmethod
     def standard_opts(self):
-        return [CoreOpts.help, CoreOpts.vk, self.mode, self.no_targets, self.targets, CoreOpts.verbosity]
+        return [CoreOpts.help, self.mode, self.no_targets, self.targets, CoreOpts.verbosity, CoreOpts.vk ]
 
 class InAppCommands(CoreCommands):
     in_app_opts = InAppOpts()
@@ -213,8 +212,8 @@ class InAppCommands(CoreCommands):
 
 class CoreOpts:
     help = CmdOpt('help', "Print help information", sn="h", ln="help")
-    verbosity = CmdOpt('verbosity', "Terminal verbosity level e.g. -v, -vv, -vvv", sn="v")
-    vk= CmdOpt("verbosity_keywords", "Keywords for verbose listeners", value_name= "verbosity_keywords", takes_value=True, multi=True, sn="k")
+    verbosity = CmdOpt('verbosity', "Terminal verbosity level e.g. -v, -vv, -vvv", ln="verbosity", sn="v")
+    vk= CmdOpt("verbosity_keywords", "Keywords for verbose listeners", value_name= "verbosity_keywords", takes_value=True, multi=True, ln_aliases=["vk"])
 
 class CoreErrorMessages:
     @classmethod
@@ -244,3 +243,31 @@ class CoreErrorMessages:
             else:
                 mapped_vals.append(f"<{v.to_vn()}>")
         return "The following required arguments were not provided:" + "\n    " + "    \n".join(mapped_vals)
+
+    @classmethod
+    def conflict_msg(cls, cmd, opt, conflict, conflict_type):
+        if conflict_type in ['long name', 'long name alias']:
+            hyphens = "--"
+        else:
+            hyphens = "-"
+
+        if isinstance(opt, CmdExtOpt):
+            return f"Option '{opt.name}' extended from '{opt.provided_by}' for command '{cmd.full_name}' tried to use reserved option {conflict_type} '{conflict}' and will not be available as '{hyphens}{conflict}'"
+        else:
+            return f"Option '{opt.name}' from command '{cmd.full_name}' tried to use reserved option {conflict_type} '{conflict}' and will not be available as '{hyphens}{conflict}'"
+
+    @classmethod
+    def reserved_opt_ln_conflict_msg(cls, cmd, opt, conflict):
+        return cls.conflict_msg(cmd, opt, conflict, "long name")
+
+    @classmethod
+    def reserved_opt_sn_conflict_msg(cls, cmd, opt, conflict):
+        return cls.conflict_msg(cmd, opt, conflict, "short name")
+
+    @classmethod
+    def reserved_opt_lna_conflict_msg(cls, cmd, opt, conflict):
+        return cls.conflict_msg(cmd, opt, conflict, "long name alias")
+
+    @classmethod
+    def reserved_opt_sna_conflict_msg(cls, cmd, opt, conflict):
+        return cls.conflict_msg(cmd, opt, conflict, "short name alias")

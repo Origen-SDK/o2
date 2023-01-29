@@ -111,13 +111,13 @@ class T_LoadingAuxCommands(CLICommon, ConfigCommmon):
             assert "Could not find implementation for aux command 'error_cases.missing_impl_dir.missing_impl_dir_subc'" in out
             assert f"From root '{self.cmd_testers_root}', searched:" in out
             assert "error_cases.missing_impl_dir.missing_impl_dir_subc.py" in out
-            assert "error_cases/missing_impl_dir.missing_impl_dir_subc.py" in out
+            assert f"error_cases{os.sep}missing_impl_dir.missing_impl_dir_subc.py" in out
 
         def test_missing_aux_cmd_impl_file(self):
             out = self.cmd_testers.error_cases.gen_error("missing_impl_file", return_stdout=True)
             assert "Could not find implementation for aux command 'error_cases.missing_impl_file'" in out
             assert "error_cases.missing_impl_file.py" in out
-            assert "error_cases/missing_impl_file.py" in out
+            assert f"error_cases{os.sep}missing_impl_file.py" in out
 
         def test_missing_run_function(self):
             out = self.cmd_testers.error_cases.gen_error("test_missing_run_function", return_stdout=True)
