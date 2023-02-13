@@ -141,12 +141,12 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             }
         }
     }
-    println!("ext names: {:?}", opt_names);
+    // println!("ext names: {:?}", opt_names);
 
     let mut targets = None;
 
     for arg in cmd_def.get_arguments() {
-        println!("Arg: {}", arg.get_id());
+        // println!("Arg: {}", arg.get_id());
         let arg_n= arg.get_id();
         if arg_n == "verbose" || arg_n == "verbosity_keywords" {
             continue;
@@ -207,7 +207,7 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             }
         }
     }
-    println!("ext args: {:?}", ext_args);
+    // println!("ext args: {:?}", ext_args);
 
     let mut cmd = format!("from origen.boot import run_cmd; run_cmd('{}'", base_cmd.unwrap_or_else(|| cmd_def.get_name()));
     if let Some(subs) = subcmds.as_ref() {
@@ -323,7 +323,7 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
     cmd += ");";
 
     log_debug!("Launching Python: '{}'", &cmd);
-    println!("CMD: {}", cmd);
+    // println!("CMD: {}", cmd);
 
     match python::run(&cmd) {
         Err(e) => {

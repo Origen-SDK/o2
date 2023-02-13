@@ -104,3 +104,21 @@ class TestTargetOpts(PythonAppCommon):
 
         targets = self.targets.show_per_cmd_targets(targets=False)
         assert len(targets) == 0
+
+    def test_invalid_target_per_command(self):
+        u = TargetCLI.utn
+        t = [self.targets.eagle.name, u]
+        m = "Should_not_see_from_test_invalid_target_per_command"
+        # Invalid targets are not an issue until loading
+        targets = self.targets.show_per_cmd_targets(targets=t)
+        assert targets == t
+
+        r = TargetCLI.in_app_commands.eval.gen_error(
+            f"origen.target.load(); print( f'{m}' )",
+            run_opts={"targets": t},
+            return_full=True
+        )
+        assert r["returncode"] == 1
+        assert r["stderr"] == ''
+        assert TargetCLI.unknown_err_msg in r["stdout"]
+        assert m not in r["stdout"]

@@ -256,7 +256,7 @@ pub fn remove(targets: Vec<&str>) {
 pub fn all(dir: &PathBuf) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
 
-    for file in WalkDir::new(dir) {
+    for file in WalkDir::new(dir).sort_by_file_name() {
         let path = file.unwrap().into_path();
         if path.is_file() && path.extension().unwrap_or("".as_ref()) == "py" {
             files.push(path);

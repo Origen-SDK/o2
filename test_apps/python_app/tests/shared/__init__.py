@@ -105,7 +105,7 @@ class Targets:
         def __init__(self, name, offset, tester_name=None):
             self.name = name
             if offset:
-                self.relative_path = f"{offset}/{name}.py"
+                self.relative_path = str(pathlib.Path(offset).joinpath(f"{name}.py"))
             else:
                 self.relative_path = f"{name}.py"
             self.full_path = str(origen.app.root.joinpath("targets").joinpath(self.rp))
@@ -147,10 +147,9 @@ class Targets:
         return eval(next(t.replace(prefix, '') for t in out if t.startswith(prefix)))
 
     all = [
-        eagle_with_smt7,
-        j750, smt8, smt7, uflex, sim,
-        o1_dut0, falcon, hawk, eagle,
-        eagle_with_simulator,
+        eagle, falcon, hawk, o1_dut0,
+        eagle_with_simulator, eagle_with_smt7,
+        j750, sim, uflex, smt7, smt8,
     ]
 
     all_rp = [t.rp for t in all]
