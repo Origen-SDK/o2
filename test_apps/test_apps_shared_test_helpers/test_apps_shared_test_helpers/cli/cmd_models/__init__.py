@@ -106,7 +106,10 @@ class CmdArgOpt(cli.cmd.CmdArgOpt):
         return f"Arg: (CMD): {self.name} ({c}): {vals}"
     
     def assert_present(self, vals, in_str, **opts):
-        for e in CmdArgOpt.to_assert_str(self, vals, **opts):
+        exp = self.__class__.to_assert_str(self, vals, **opts)
+        if isinstance(exp, str):
+            exp = [exp]
+        for e in exp:
             assert e in in_str
 
 class CmdArg(cli.cmd.CmdArg, CmdArgOpt):
