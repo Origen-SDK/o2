@@ -10,7 +10,7 @@ pub fn add_core_subc_helps(helps: &mut CmdHelps, base_name: &str, cmd: &str, cmd
     }
 }
 
-pub fn add_core_subcs<'a>(helps: &'a CmdHelps, exts: &'a Extensions, cmd: Command<'a>, base: Vec<&str>, subcmd: &SubCmd) -> Result<Command<'a>> {
+pub fn add_core_subcs<'a>(helps: &'a CmdHelps, exts: Option<&'a Extensions>, cmd: Command<'a>, base: Vec<&str>, subcmd: &SubCmd) -> Result<Command<'a>> {
     let mut n = base.clone();
     n.push(subcmd.name);
     let mut subc = helps.core_subc(&n);
@@ -24,7 +24,9 @@ pub fn add_core_subcs<'a>(helps: &'a CmdHelps, exts: &'a Extensions, cmd: Comman
         subc = super::add_all_app_opts(subc);
     }
     // add exts
-    subc = exts.apply_to_core_cmd(&n.join("."), subc);
+    if let Some(e) = exts {
+        subc = e.apply_to_core_cmd(&n.join("."), subc);
+    }
     Ok(cmd.subcommand(subc))
 }
 
@@ -37,9 +39,9 @@ pub struct SubCmd<'a> {
 }
 #[macro_export]
 macro_rules! core_subcmd {
-    ($($args:tt)+) => {
-        $crate::_core_subcmd!(true, $($args)*);
-    }
+    ($($args:tt)+) => {{
+        $crate::_core_subcmd!(true, $($args)*)
+    }}
 }
 
 #[macro_export]
@@ -50,7 +52,7 @@ macro_rules! _core_subcmd {
             help: $help,
             subcmds: &[],
             proc: Some(&$proc),
-            include_app_opts: true,
+            include_app_opts: $include_app_opts,
         }
     }};
 
@@ -60,7 +62,7 @@ macro_rules! _core_subcmd {
             help: $help,
             subcmds: &[$($subcmd),*],
             proc: Some(&$proc),
-            include_app_opts: true,
+            include_app_opts: $include_app_opts,
         }
     }};
 
@@ -70,7 +72,7 @@ macro_rules! _core_subcmd {
             help: $help,
             subcmds: &[],
             proc: None,
-            include_app_opts: true,
+            include_app_opts: $include_app_opts,
         }
     }};
 
@@ -80,15 +82,17 @@ macro_rules! _core_subcmd {
             help: $help,
             subcmds: &[$($subcmd),*],
             proc: None,
-            include_app_opts: true,
+            include_app_opts: $include_app_opts,
         }
     }};
 }
 
-// TODO if needed
-// #[macro_export]
-// macro_rules! core_subcmd_without_app_opts {
-// }
+#[macro_export]
+macro_rules! core_subcmd__no_app_opts {
+    ($($args:tt)+) => {{
+        $crate::_core_subcmd!(false, $($args)*)
+    }}
+}
 
 #[macro_export]
 macro_rules! gen_core_cmd_funcs {
@@ -107,10 +111,31 @@ macro_rules! gen_core_cmd_funcs {
             let mut cmd = helps.core_cmd($base_name);
             cmd = $proc(cmd);
             $(
-                cmd = $crate::framework::core_cmds::add_core_subcs(helps, exts, cmd, vec!($base_name), &$subcmd)?;
+                cmd = $crate::framework::core_cmds::add_core_subcs(helps, Some(exts), cmd, vec!($base_name), &$subcmd)?;
             )*
             cmd = crate::framework::add_all_app_opts(cmd);
             cmd = exts.apply_to_core_cmd($base_name, cmd);
+            Ok(app.subcommand(cmd))
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! gen_core_cmd_funcs__no_exts__no_app_opts {
+    ($base_name:expr, $cmd_help:expr, $proc:tt, $($subcmd:expr ), *) => {
+        pub (crate) fn add_helps(helps: &mut $crate::CmdHelps) {
+            helps.add_core_cmd($base_name).set_help_msg($cmd_help);
+            $(
+                $crate::framework::core_cmds::add_core_subc_helps(helps, $base_name, $subcmd.name, $subcmd.help, $subcmd.subcmds);
+            )*
+        }
+
+        pub (crate) fn add_commands<'a>(app: clap::Command<'a>, helps: &'a $crate::CmdHelps, exts: &'a $crate::Extensions) -> origen::Result<clap::Command<'a>> {
+            let mut cmd = helps.core_cmd($base_name);
+            cmd = $proc(cmd);
+            $(
+                cmd = $crate::framework::core_cmds::add_core_subcs(helps, None, cmd, vec!($base_name), &$subcmd)?;
+            )*
             Ok(app.subcommand(cmd))
         }
     };

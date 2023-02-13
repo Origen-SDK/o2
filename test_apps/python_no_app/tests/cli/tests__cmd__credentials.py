@@ -4,6 +4,10 @@ from .shared import CLICommon
 
 class T_Credentials(CLICommon):
     @pytest.mark.skip
+    def test_help_msg(self):
+        fail
+
+    @pytest.mark.skip
     def test_set_passwords(self, monkeypatch):
         # import io
         # monkeypatch.setattr('sys.stdin', io.StringIO('test_pw_updated'))

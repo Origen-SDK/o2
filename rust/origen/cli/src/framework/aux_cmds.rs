@@ -8,7 +8,7 @@ use super::extensions::ExtensionTOML;
 use super::{CommandTOML};
 use clap::Command as ClapCommand;
 
-pub const CMD_NAME: &'static str = "auxillary_commands";
+pub const BASE_CMD: &'static str = "auxillary_commands";
 
 #[derive(Debug, Deserialize)]
 pub (crate) struct CommandsToml {
@@ -150,7 +150,7 @@ impl AuxCmdNamespace {
 }
 
 pub (crate) fn add_helps(helps: &mut CmdHelps, aux_cmds: &AuxCmds) {
-    helps.add_core_cmd(CMD_NAME).set_help_msg("Interface with auxillary commands");
+    helps.add_core_cmd(BASE_CMD).set_help_msg("Interface with auxillary commands");
     for (ns, cmds) in aux_cmds.namespaces.iter() {
         for (n, c) in cmds.commands.iter() {
             helps.add_aux_cmd(ns, n).set_help_msg(&c.help);
@@ -166,7 +166,7 @@ pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, aux_commands:
     //     shortcut: None,
     // });
 
-    let mut aux_sub = helps.core_cmd(CMD_NAME)
+    let mut aux_sub = helps.core_cmd(BASE_CMD)
         .visible_alias("aux_cmds")
         .arg_required_else_help(true);
 

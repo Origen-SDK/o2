@@ -14,6 +14,7 @@ class _CommonNames:
     eval = "eval"
     fmt = "fmt"
     i = "interactive"
+    v = "-v"
 
     @classmethod
     def eval_cmd(cls, add_opts=None):
@@ -60,6 +61,10 @@ class _CommonNames:
             help="Start an Origen console to interact with the DUT",
             aliases=['i'],
         )
+
+    @classmethod
+    def v_cmd(cls):
+        return Cmd(cls.v)
 
 # Use this to mimic:
 #  @classmethod
@@ -112,6 +117,7 @@ class GlobalCommands(CoreCommands):
     i = _CommonNames.interactive_cmd()
     fmt = Cmd(names.fmt)
     build = Cmd(names.build)
+    v = _CommonNames.v_cmd()
 
     commands = [
         proj, new, creds, eval, i,
@@ -183,6 +189,28 @@ class InAppCommands(CoreCommands):
         web = "web"
     names = Names()
 
+    class _TargetCmd_:
+        @classmethod
+        def full_path_opt(cls):
+            return CmdOpt(
+                "full_paths",
+                "Display targets' full paths",
+                ln="full-paths",
+                sn="f",
+                ln_aliases=["full_paths"]
+            )
+        
+        @classmethod
+        def targets_arg(cls, help):
+            return CmdArg(
+                "targets",
+                help=help,
+                multi=True,
+                required=True,
+                # FOR_PR
+                # use_delimiter=True
+            )
+
     app = Cmd(names.app, subcmds=[Cmd("commands")])
     aux_cmds = Cmd(names.aux_cmds)
     build = Cmd(names.build)
@@ -200,8 +228,54 @@ class InAppCommands(CoreCommands):
     pl = Cmd(names.pl)
     pls = Cmd(names.pls)
     save_ref = Cmd(names.save_ref)
-    target = Cmd(names.target)
+    target = Cmd(
+        names.target,
+        help="Set/view the default target",
+        opts=[_TargetCmd_.full_path_opt()],
+        subcmds=[
+            Cmd(
+                "add",
+                help="Activates the given target(s)",
+                args=[_TargetCmd_.targets_arg("Targets to be activated")],
+                opts=[_TargetCmd_.full_path_opt()],
+                aliases=["a"],
+            ),
+            Cmd(
+                "clear",
+                help="Deactivates any and all current targets",
+                aliases=["c"],
+            ),
+            Cmd(
+                "default",
+                help="Activates the default target(s) while deactivating all others",
+                opts=[_TargetCmd_.full_path_opt()],
+                aliases=["d"],
+            ),
+            Cmd(
+                "remove",
+                help="Deactivates the given target(s)",
+                args=[_TargetCmd_.targets_arg("Targets to be deactivated")],
+                opts=[_TargetCmd_.full_path_opt()],
+                aliases=["r"],
+            ),
+            Cmd(
+                "set",
+                help="Activates the given target(s) while deactivating all others",
+                args=[_TargetCmd_.targets_arg("Targets to be set")],
+                opts=[_TargetCmd_.full_path_opt()],
+                aliases=["s"],
+            ),
+            Cmd(
+                "view",
+                help="Views the currently activated target(s)",
+                opts=[_TargetCmd_.full_path_opt()],
+                aliases=["v"],
+            ),
+        ],
+        aliases=["w"],
+    )
     web = Cmd(names.web)
+    v = _CommonNames.v_cmd()
 
     commands = [
         app, aux_cmds, build, compile, creds, env, eval, exec, fmt, generate, i, mailer, mode, new, pl, pls, save_ref, target, web

@@ -36,7 +36,7 @@ mod plugins;
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use om::lazy_static::lazy_static;
-use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST, clean_target};
 use origen_metal as om;
 use pyapi_metal::{runtime_error, pypath};
 use pyo3::conversion::AsPyPointer;
@@ -613,7 +613,7 @@ fn clean_mode(name: &str) -> PyResult<String> {
 /// Sanitizes the given target/env name and returns the matching file, but will exit the process
 /// if it does not uniquely identify a single target/env file.
 fn target_file(name: &str, dir: &str) -> PyResult<String> {
-    let c = origen::core::application::target::clean_name(name, dir, true);
+    let c = clean_target!(name, dir, true);
     Ok(c)
 }
 

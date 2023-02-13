@@ -1,4 +1,3 @@
-use crate::core::application::target::matches;
 use crate::utility::location::Location;
 use crate::exit_on_bad_config;
 use origen_metal::config;
@@ -6,8 +5,54 @@ use origen_metal::config::{Environment, File};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use crate::om::glob::glob;
+use std::process::exit;
+use super::target;
 
 const PUBLISHER_OPTIONS: &[&str] = &["system", "package_app", "upload_app"];
+const BYPASS_APP_CONFIG_ENV_VAR: &str = "origen_app_bypass_config_lookup";
+const APP_CONFIG_PATHS: &str = "origen_app_config_paths";
+
+macro_rules! use_app_config {
+    () => {{
+        !std::env::var_os($crate::core::application::config::BYPASS_APP_CONFIG_ENV_VAR).is_some()
+    }}
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CurrentState {
+    pub target: Option<Vec<String>>
+}
+
+impl CurrentState {
+    pub fn build(root: &PathBuf) -> Self {
+        let file = root.join(".origen").join("application.toml");
+        let mut s = config::Config::builder().set_default("target", None::<Vec<String>>).unwrap();
+        if file.exists() {
+            s = s.add_source(File::with_name(&format!("{}", file.display())));
+        }
+        let cb = exit_on_bad_config!(s.build());
+        let slf: Self = exit_on_bad_config!(cb.try_deserialize());
+        slf
+    }
+
+    pub fn apply_to(&mut self, config: &mut Config) {
+        if let Some(t) = self.target.as_ref() {
+            config.target = Some(t.to_owned())
+        } else {
+            if let Some(t) = &config.target {
+                let clean_defaults = target::set_at_root(t.iter().map( |s| s.as_str() ).collect(), config.root.as_ref().unwrap());
+                self.target = Some(clean_defaults);
+            }
+        }
+    }
+
+    pub fn build_and_apply(config: &mut Config) {
+        if use_app_config!() {
+            let mut slf = Self::build(config.root.as_ref().unwrap());
+            slf.apply_to(config);
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 // If you add an attribute to this you must also update:
@@ -58,27 +103,6 @@ impl Config {
         self.commands = latest.commands;
     }
 
-    pub fn check_defaults(root: &Path) {
-        let defaults = Self::build(root, true);
-
-        // Do some quick default checks here:
-        //  * Target - tl;dr: have a better error message on invalid default targets.
-        //             If the default target moves or is otherwise invalid, the app won't boot.
-        //             This isn't necessarily bad (having an invalid default target is bad) but it may not be obvious,
-        //             especially to newer users, as to why the app all of a sudden doesn't boot.
-        //             This can be overcome by setting the target (or fixing the default), but add, remove, etc., the commands
-        //             users will probably go to when encountering target problems, won't work.
-        // * Stack up others as needed.
-        if let Some(targets) = defaults.target {
-            for t in targets.iter() {
-                let m = matches(t, "targets");
-                if m.len() != 1 {
-                    log_error!("Error present in default target '{}' (in config/application.toml)", t);
-                }
-            }
-        }
-    }
-
     /// Builds a new config from all application.toml files found at the given app root
     pub fn build(root: &Path, default_only: bool) -> Config {
         log_trace!("Building app config");
@@ -102,18 +126,56 @@ impl Config {
             .set_default("commands", None::<Vec<String>>)
             .unwrap();
 
-        let file = root.join("config").join("application.toml");
-        if file.exists() {
-            s = s.add_source(File::with_name(&format!("{}", file.display())));
+            let mut files: Vec<PathBuf> = Vec::new();
+            if let Some(paths) = std::env::var_os(APP_CONFIG_PATHS) {
+                log_trace!("Found custom config paths: {:?}", paths);
+                for path in std::env::split_paths(&paths) {
+                    log_trace!("Looking for Origen app config file at '{}'", path.display());
+                    if path.is_file() {
+                        if let Some(ext) = path.extension() {
+                            if ext == "toml" {
+                                files.push(path);
+                            } else {
+                                log_error!(
+                                    "Expected file {} to have extension '.toml'. Found '{}'",
+                                    path.display(),
+                                    ext.to_string_lossy()
+                                )
+                            }
+                        } else {
+                            // accept a file without an extension. will be interpreted as a .toml
+                            files.push(path);
+                        }
+                    } else if path.is_dir() {
+                        let f = path.join("application.toml");
+                        if f.exists() {
+                            files.push(f);
+                        }
+                    } else {
+                        log_error!(
+                            "Config path {} either does not exists or is not accessible",
+                            path.display()
+                        );
+                        exit(1);
+                    }
+                }
+            }
+
+        if use_app_config!() {
+            let file = root.join("config").join("application.toml");
+            if file.exists() {
+                files.push(file);
+            }
+        } else {
+            // Bypass Origen's default configuration lookup - use only the enumerated configs
+            log_trace!("Bypassing Origen's App Config Lookup");
         }
 
-        if !default_only {
-            let file = root.join(".origen").join("application.toml");
-            if file.exists() {
-                s = s.add_source(File::with_name(&format!("{}", file.display())));
-            }
+        for f in files.iter().rev() {
+            log_trace!("Loading Origen config file from '{}'", f.display());
+            s = s.add_source(File::with_name(&format!("{}", f.display())));
         }
-        s = s.add_source(Environment::with_prefix("origen_app").list_separator(",").with_list_parse_key("commands").try_parsing(true));
+        s = s.add_source(Environment::with_prefix("origen_app").list_separator(",").with_list_parse_key("target").with_list_parse_key("commands").try_parsing(true));
 
         let cb = exit_on_bad_config!(s.build());
         let mut c: Self = exit_on_bad_config!(cb.try_deserialize());
@@ -124,12 +186,24 @@ impl Config {
         // }
         log_trace!("Completed building app config");
         c.validate_options();
+        if !default_only {
+            CurrentState::build_and_apply(&mut c);
+        }
 
         c
     }
 
     pub fn validate_options(&self) {
         log_trace!("Validating available options...");
+
+        if let Some(targets) = self.target.as_ref() {
+            log_trace!("\tValidating default target...");
+            for t in targets {
+                target::clean_name(t, "targets", true, self.root.as_ref().unwrap());
+            }
+            log_trace!("\tValidating default target!");
+        }
+
         log_trace!("\tValidating publisher options...");
         for unknown in self.validate_publisher_options() {
             log_warning!("Unknown Publisher Option '{}'", unknown);

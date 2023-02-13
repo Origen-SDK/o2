@@ -39,7 +39,7 @@ class T_Eval(CLICommon):
 
     # FOR_PR
     @pytest.mark.skip
-    def test_error_in_statements_stil_runs_cleanup(self, cmd, no_config_run_opts):
+    def test_error_in_statements_still_runs_cleanup(self, cmd, no_config_run_opts):
         d = cmd.demos["gen_name_error"]
         out = d.gen_error(return_full=True)
         d.assert_present(out["stderr"])

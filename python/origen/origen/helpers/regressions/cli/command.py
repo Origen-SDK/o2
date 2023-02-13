@@ -65,6 +65,12 @@ class CmdOpt(CmdArgOpt):
     def sna_to_cli(self, a=0):
         return f"-{self.sn_aliases[a]}"
 
+    def to_cli(self):
+        if self.sn:
+            return self.sn_to_cli()
+        else:
+            return self.ln_to_cli()
+
 class SrcTypes(enum.Enum):
     CORE = enum.auto()
     APP = enum.auto()
@@ -217,9 +223,10 @@ class Cmd:
         return HelpMsg(self.get_help_msg_str(with_configs=with_configs, run_opts=run_opts))
 
     def run(self, *args, with_env=None, with_configs=None, expect_fail=False, run_opts=None):
-        run_opts = run_opts or {}
+        run_opts = dict(run_opts) if run_opts else {}
+        a = list(args)
         return run_cli_cmd(
-            [*self.cmd_path, *([self.name] if self.name else []), *args],
+            [*self.cmd_path, *([self.name] if self.name else []), *[(a.to_cli() if isinstance(a, CmdOpt) else a) for a in args]],
             with_env=run_opts.pop("with_env", None) or with_env or self.with_env,
             with_configs=run_opts.pop("with_configs", None) or self._with_configs_(with_configs),
             expect_fail=run_opts.pop("expect_fail", None) or expect_fail,

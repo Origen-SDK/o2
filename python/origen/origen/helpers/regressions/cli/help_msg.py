@@ -279,6 +279,8 @@ class HelpMsg:
     def assert_args(self, *expected):
         if expected == (None,):
             expected = []
+        elif len(expected) == 1 and isinstance(expected[0], dict):
+            expected = list(expected[0].values())
         self.assert_num_args(len(expected))
         for i, a in enumerate(expected):
             self.assert_arg_at(i, a)
@@ -363,12 +365,21 @@ class HelpMsg:
             assert s['aliases'] == subc.aliases
         return True
 
-    def assert_subcmds(self, *expected_subcmds):
+    def assert_subcmds(self, *expected_subcmds, help=None):
         if expected_subcmds == (None,):
             expected_subcmds = []
+        elif len(expected_subcmds) == 1 and isinstance(expected_subcmds[0], dict):
+            expected_subcmds = expected_subcmds[0].values()
+        expected_subcmds = list(expected_subcmds)
+        if help is not None:
+            expected_subcmds.insert(help, "h")
         assert len(expected_subcmds) == len(self.subcmds)
         for i, o in enumerate(expected_subcmds):
-            if isinstance(o, str):
+            if help is not None and help == i:
+                self.assert_help_subcmd_at(i)
+            elif isinstance(o, tuple):
+                self.assert_subcmd_at(i, o[1])
+            elif isinstance(o, str):
                 if o == "help":
                     self.assert_help_subcmd_at(i)
                 else:

@@ -3,13 +3,13 @@ import inspect, subprocess, pathlib, os
 from origen_metal._helpers import in_new_proc
 from origen import running_on_windows
 
-def in_new_origen_proc(func=None, mod=None, *, func_kwargs=None, with_configs=None, bypass_config_lookup=False):
+def in_new_origen_proc(func=None, mod=None, *, func_kwargs=None, with_configs=None, expect_fail=None, bypass_config_lookup=False):
     if isinstance(with_configs, str) or isinstance(with_configs, pathlib.Path):
         with_configs=[with_configs]
 
     if func is None:
         func = getattr(mod, inspect.stack()[1].function)
-    return in_new_proc(func, mod, func_kwargs=func_kwargs)
+    return in_new_proc(func, mod, func_kwargs=func_kwargs, expect_fail=expect_fail)
 
 # TODO support options
 def run_cli_cmd(cmd, *, with_env=None, with_configs=None, bypass_config_lookup=False, input=None, expect_fail=False, return_details=False, shell=None, targets=None):
@@ -53,9 +53,6 @@ def run_cli_cmd(cmd, *, with_env=None, with_configs=None, bypass_config_lookup=F
         print(result.stderr)
     if return_details:
         return {
-            # FOR_PR take these out
-            # "stderr": result.stderr.decode("utf-8"),
-            # "stdout": result.stdout.decode("utf-8"),
             "stderr": result.stderr,
             "stdout": result.stdout,
             "returncode": result.returncode

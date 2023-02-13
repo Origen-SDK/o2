@@ -12,4 +12,9 @@ pub use crate::framework::{CmdHelps, CmdHelp, CmdSrc};
 pub type RunInput<'a> = &'a clap::ArgMatches;
 
 pub use clap_arg_actions::*;
-pub use crate::{gen_core_cmd_funcs, core_subcmd, gen_simple_run_func};
+pub use crate::{
+    gen_core_cmd_funcs, gen_core_cmd_funcs__no_exts__no_app_opts,
+    core_subcmd, core_subcmd__no_app_opts,
+    gen_simple_run_func,
+    print_subcmds_available_msg,
+};

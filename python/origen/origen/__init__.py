@@ -75,6 +75,7 @@ from origen.tester import Tester, DummyTester
 from origen.producer import Producer
 
 import origen.target
+targets = origen.target
 
 config = _origen.config()
 ''' Dictionary of configurable workspace settings.
@@ -261,7 +262,11 @@ if status["is_app_present"]:
     sys.path.insert(0, status["root"])
     a = importlib.import_module(f'{_origen.app_config()["name"]}.application')
     app = a.Application()
-
+    in_app_context = True
+    in_global_context = False
+else:
+    in_app_context = False
+    in_global_context = True
 
 def set_mode(val: str) -> None:
     """ Sets the current mode """

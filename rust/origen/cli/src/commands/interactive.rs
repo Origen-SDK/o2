@@ -10,4 +10,4 @@ gen_core_cmd_funcs!(
     }}
 );
 
-crate::gen_simple_run_func!();
+gen_simple_run_func!();

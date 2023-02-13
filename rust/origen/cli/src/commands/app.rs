@@ -6,15 +6,15 @@ use crate::framework::app_cmds::add_commands as add_app_user_commands;
 use crate::framework::app_cmds::add_helps as add_app_cmd_helps;
 use crate::framework::build_path;
 
-pub const CMD_NAME: &'static str = "app";
+pub const BASE_CMD: &'static str = "app";
 
 pub (crate) fn add_helps(helps: &mut CmdHelps, app_cmds: &AppCmds) {
-    helps.add_core_cmd(CMD_NAME).set_help_msg("Manage and interface with the application");
+    helps.add_core_cmd(BASE_CMD).set_help_msg("Manage and interface with the application");
     add_app_cmd_helps(helps, app_cmds);
 }
 
 pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, app_cmds: &'a AppCmds, exts: &'a Extensions, ) -> Result<App<'a>> {
-    let mut app_subc = helps.core_cmd(CMD_NAME)
+    let mut app_subc = helps.core_cmd(BASE_CMD)
         .arg_required_else_help(true)
         .subcommand(
             Command::new("init")
@@ -197,7 +197,7 @@ pub(crate) fn run(cmd: &ArgMatches, mut app: &App, exts: &Extensions, plugins: O
         
                 let mut matches = cmd;
                 let mut path_pieces: Vec<String> = vec!();
-                app = app.find_subcommand(CMD_NAME).unwrap();
+                app = app.find_subcommand(BASE_CMD).unwrap();
                 // app = app.find_subcommand(subc.0).unwrap();
                 while matches.subcommand_name().is_some() {
                     let n = matches.subcommand_name().unwrap();

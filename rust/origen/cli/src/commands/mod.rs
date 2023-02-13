@@ -31,6 +31,13 @@ use crate::Plugins;
 use std::collections::HashMap;
 
 #[macro_export]
+macro_rules! print_subcmds_available_msg {
+    () => {{
+        println!("Run with 'help' or '-h' to see available subcommands");
+    }}
+}
+
+#[macro_export]
 macro_rules! gen_simple_run_func {
     ($base_cmd: expr) => {
         pub(crate) fn run(mut invocation: &clap::ArgMatches, mut cmd_def: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>) -> origen::Result<()> {

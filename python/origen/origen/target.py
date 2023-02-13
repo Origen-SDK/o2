@@ -23,6 +23,8 @@ def setup(targets=None):
             return None
     if isinstance(targets, str):
         targets = [targets]
+    elif not isinstance(targets, list):
+        targets = list(targets)
     setup_pending = True
     current_targets = targets
 

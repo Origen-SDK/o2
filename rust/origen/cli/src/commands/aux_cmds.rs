@@ -1,4 +1,4 @@
-pub use crate::framework::aux_cmds::CMD_NAME;
+pub use crate::framework::aux_cmds::BASE_CMD;
 use super::launch_as;
 use crate::framework::build_path;
 use indexmap::IndexMap;
@@ -12,7 +12,7 @@ pub(crate) fn run(cmd: &clap::ArgMatches, mut app: &clap::App, exts: &crate::Ext
 
         let mut matches = subc.1;
         let mut path_pieces: Vec<String> = vec!();
-        app = app.find_subcommand(CMD_NAME).unwrap();
+        app = app.find_subcommand(BASE_CMD).unwrap();
         app = app.find_subcommand(subc.0).unwrap();
         while matches.subcommand_name().is_some() {
             let n = matches.subcommand_name().unwrap();

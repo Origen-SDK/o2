@@ -3,6 +3,7 @@
 from .command import Cmd, CmdArg, CmdOpt
 from .help_msg import HelpMsg
 from .origen import _CommonNames, GlobalCommands, InAppCommands, CoreOpts, CoreErrorMessages
+from .... import origen as o
 
 cmd = command
 
@@ -55,12 +56,17 @@ class CLI(metaclass=CLIProperties):
 
     @classmethod
     def eval(cls, *code, **kwargs):
-        from .... import origen
-        if origen.app:
+        if o.app:
             cmd = InAppCommands.eval
         else:
             cmd = GlobalCommands.eval
         return cmd.run(*code, **kwargs)
+
+    if o.in_app_context:
+        cmds = in_app_cmds
+    else:
+        cmds = global_cmds
+
 
     error_messages = CoreErrorMessages()
     err_msgs = error_messages

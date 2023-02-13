@@ -1,12 +1,12 @@
 use std::collections::HashMap;
-use origen::{Result, in_app_invocation};
+use origen::Result;
 use super::plugins::Plugin;
 use super::aux_cmds::{AuxCmdNamespace};
 use clap::Command as ClapCommand;
 use super::{ArgTOML, Arg, OptTOML, Opt, CmdSrc, Applies};
 use crate::{from_toml_args, from_toml_opts};
 use std::path::PathBuf;
-use std::{fmt, env};
+use std::fmt;
 
 // TODO refactor this
 use super::helps::CmdSrc as ExtensionTarget;

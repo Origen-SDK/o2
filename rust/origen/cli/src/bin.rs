@@ -112,11 +112,6 @@ fn main() -> Result<()> {
         true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
         false => format!("Origen: {}", STATUS.origen_version.to_string()),
     };
-    if STATUS.app.is_some() {
-        origen::core::application::config::Config::check_defaults(
-            &STATUS.app.as_ref().unwrap().root,
-        );
-    }
 
     // The main help message is going to be automatically generated to allow us to handle and clearly
     // separate commands added by the app and plugins.
@@ -341,6 +336,7 @@ fn main() -> Result<()> {
 
     if STATUS.is_app_present {
         commands::app::add_helps(&mut helps, app_cmds.as_ref().unwrap());
+        commands::target::add_helps(&mut helps);
     }
 
     helps.apply_exts(&extensions);
@@ -566,109 +562,7 @@ Examples:
                 ),
         );
 
-        /************************************************************************************/
-        let t_help = "Set/view the default target";
-        origen_commands.push(CommandHelp {
-            name: "target".to_string(),
-            help: t_help.to_string(),
-            shortcut: Some("t".to_string()),
-        });
-        app = app.subcommand(
-            Command::new("target")
-                .about(t_help)
-                .visible_alias("t")
-                .arg(
-                    Arg::new("full-paths")
-                        .long("full-paths")
-                        .short('f')
-                        .help("Display targets' full paths")
-                        .action(SetArgTrue),
-                )
-                .subcommand(
-                    Command::new("add")
-                        .about("Activates the given target(s)")
-                        .visible_alias("a")
-                        .arg(
-                            Arg::new("targets")
-                                .help("Targets to be activated")
-                                .action(AppendArgs)
-                                .value_name("TARGETS")
-                                .multiple(true)
-                                .required(true),
-                        )
-                        .arg(
-                            Arg::new("full-paths")
-                                .long("full-paths")
-                                .short('f')
-                                .help("Display targets' full paths")
-                                .action(SetArgTrue),
-                        ),
-                )
-                .subcommand(
-                    Command::new("remove")
-                        .about("Deactivates the given target(s)")
-                        .visible_alias("r")
-                        .arg(
-                            Arg::new("targets")
-                                .help("Targets to be deactivated")
-                                .action(AppendArgs)
-                                .value_name("TARGETS")
-                                .multiple(true)
-                                .required(true),
-                        )
-                        .arg(
-                            Arg::new("full-paths")
-                                .long("full-paths")
-                                .short('f')
-                                .help("Display targets' full paths")
-                                .action(SetArgTrue),
-                        ),
-                )
-                .subcommand(
-                    Command::new("set")
-                        .about("Activates the given target(s) while deactivating all others")
-                        .visible_alias("s")
-                        .arg(
-                            Arg::new("targets")
-                                .help("Targets to be set")
-                                .action(AppendArgs)
-                                .value_name("TARGETS")
-                                .multiple(true)
-                                .required(true),
-                        )
-                        .arg(
-                            Arg::new("full-paths")
-                                .long("full-paths")
-                                .short('f')
-                                .help("Display targets' full paths")
-                                .action(SetArgTrue),
-                        ),
-                )
-                .subcommand(
-                    Command::new("default")
-                        .about("Activates the default target(s) while deactivating all others")
-                        .visible_alias("d")
-                        .arg(
-                            Arg::new("full-paths")
-                                .long("full-paths")
-                                .short('f')
-                                .help("Display targets' full paths")
-                                .action(SetArgTrue),
-                        ),
-                )
-                .subcommand(
-                    Command::new("view")
-                        .about("Views the currently activated target(s)")
-                        .visible_alias("v")
-                        .arg(
-                            Arg::new("full-paths")
-                                .long("full-paths")
-                                .short('f')
-                                .help("Display targets' full paths")
-                                .action(SetArgTrue),
-                        ),
-                ),
-        );
+        app = commands::target::add_commands(app, &helps, &extensions)?;
 
         /************************************************************************************/
         let t_help = "Create, Build, and View Web Documentation";
@@ -1161,7 +1055,7 @@ Examples:
     }
 
     match matches.subcommand_name() {
-        Some(commands::app::CMD_NAME) => commands::app::run(matches.subcommand_matches(commands::app::CMD_NAME).unwrap(), &app, &extensions, plugins.as_ref(), &app_cmds.as_ref().unwrap())?,
+        Some(commands::app::BASE_CMD) => commands::app::run(matches.subcommand_matches(commands::app::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &app_cmds.as_ref().unwrap())?,
         Some("env") => commands::env::run(matches.subcommand_matches("env").unwrap()),
         Some("fmt") => commands::fmt::run()?,
         Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
@@ -1169,7 +1063,7 @@ Examples:
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some(commands::eval::BASE_CMD) => run_cmd_match_case!(eval),
         Some(commands::interactive::BASE_CMD) => run_cmd_match_case!(interactive),
-        Some(commands::aux_cmds::CMD_NAME) => commands::aux_cmds::run(matches.subcommand_matches(commands::aux_cmds::CMD_NAME).unwrap(), &app, &extensions, plugins.as_ref(), &aux_cmds)?,
+        Some(commands::aux_cmds::BASE_CMD) => commands::aux_cmds::run(matches.subcommand_matches(commands::aux_cmds::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &aux_cmds)?,
         Some("generate") => {
             let m = matches.subcommand_matches("generate").unwrap();
             commands::launch(
@@ -1204,22 +1098,7 @@ Examples:
                 None,
             );
         }
-        Some("target") => {
-            let m = matches.subcommand_matches("target").unwrap();
-            if let Some(subm) = m.subcommand() {
-                let s = subm.1;
-                commands::target::run(
-                    Some(subm.0),
-                    match s.get_many::<String>("targets") {
-                        Some(targets) => Some(targets.map(|t| t.as_str()).collect()),
-                        None => None,
-                    },
-                    s.contains_id("full-paths"),
-                )
-            } else {
-                commands::target::run(None, None, m.contains_id("full-paths"));
-            }
-        }
+        Some(commands::target::BASE_CMD) => commands::target::run(matches.subcommand_matches(commands::target::BASE_CMD).unwrap())?,
         Some("web") => {
             let cmd = matches.subcommand_matches("web").unwrap();
             let subcmd = cmd.subcommand().unwrap();
