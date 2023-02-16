@@ -8,6 +8,7 @@ from cli.tests__app_cmd_building import T_AppCmdBuilding
 from cli.tests__core_cmds import T_AppWorkspaceCoreCommands
 from cli.tests__cmd_exts_from_app import T_ExtendingFromAppCmds
 from cli.tests__reserved_opts import T_ReservedOpts
+from cli.tests__cmd_integration import T_CommandIntegration
 
 class TestAppCmdBuilding(T_AppCmdBuilding):
     pass
@@ -19,6 +20,9 @@ class TestAppWorkspaceCoreCommands(T_AppWorkspaceCoreCommands):
     pass
 
 class TestReservedOpts(T_ReservedOpts):
+    pass
+
+class TestCommandIntegration(T_CommandIntegration):
     pass
 
 origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
@@ -64,6 +68,12 @@ class TestAuxCommandsAreAdded:
 
 @pytest.mark.skip
 class TestAppPluginAndAuxCommandClashing:
+    # core_cmd = origen.helpers.regressions.cli.CLI.in_app_cmds.eval.extend(
+    #     exts,
+    #     with_env=extend_core_cmds_env,
+    #     from_configs=CLICommon.configs.suppress_plugin_collecting_config,
+    # )
+
     def test_app_cmd_overrides_pl_cmd(self):
         fail
 
@@ -77,26 +87,4 @@ class TestAppPluginAndAuxCommandClashing:
 @pytest.mark.skip
 class TestModeOpts():
     def test_():
-        fail
-
-@pytest.mark.skip
-class PluginCmdsInApp():
-    def test_app_opts_are_added_by_default(self):
-        fail
-    
-    def test_disabling_app_opts(self):
-        fail
-    
-    def test_disabling_app_opts_individually(self):
-        fail
-
-@pytest.mark.skip
-class AuxCmdsInApp():
-    def test_app_opts_are_added_by_default(self):
-        fail
-    
-    def test_disabling_app_opts(self):
-        fail
-    
-    def test_disabling_app_opts_individually(self):
         fail
