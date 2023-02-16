@@ -62,11 +62,11 @@ pub struct AuxCmdNamespace {
 }
 
 impl AuxCmdNamespace {
-    fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML) -> Result<bool> {
-        if let Some(c) = Command::from_toml_cmd(current_cmd, &current_path, CmdSrc::Aux(slf.namespace(), current_path.to_string()))? {
+    fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML, parent_cmd: Option<&Command>) -> Result<bool> {
+        if let Some(c) = Command::from_toml_cmd(current_cmd, &current_path, CmdSrc::Aux(slf.namespace(), current_path.to_string()), parent_cmd)? {
             if let Some(ref mut sub_cmds) = current_cmd.subcommand {
                 for mut sub in sub_cmds {
-                    Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub)?;
+                    Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub, Some(&c))?;
                 }
             }
             slf.commands.insert(current_path.clone(), c);
@@ -107,7 +107,7 @@ impl AuxCmdNamespace {
 
             if let Some(commands) = command_config.command {
                 for mut cmd in commands {
-                    if Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd)? {
+                    if Self::_add_cmd(&mut slf, cmd.name.to_owned(), &mut cmd, None)? {
                         slf.top_commands.push(cmd.name.to_owned());
                     }
                 }

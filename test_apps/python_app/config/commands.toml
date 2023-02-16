@@ -122,23 +122,51 @@ help = "Nested app cmds"
 # Command disabling standard app opts
 [[command]]
 name = "disabling_app_opts"
-help = "Command disabling standard app opts"
+help = "Test disabling standard app opts"
 
     [[command.subcommand]]
     name = "disable_targets_opt"
     help = "Disable the targets and no-targets opt"
-    disable_target_opt = true
+    add_target_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
 
     [[command.subcommand]]
     name = "disable_mode_opt"
     help = "Disable the mode opt"
-    disable_mode_opt = true
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_mode_opt = true
 
     [[command.subcommand]]
     name = "disable_app_opts"
     help = "Disable all app opts"
-    disable_target_opt = true
-    disable_mode_opt = true
+    add_target_opt = false
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
+        add_mode_opt = true
 
 [[command]]
 name = "reserved_opt_error_gen"

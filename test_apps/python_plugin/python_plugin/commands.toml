@@ -101,6 +101,56 @@ help = "Echos the input"
     long = "repeat"
     short = "r"
 
+# Command disabling standard app opts
+[[command]]
+name = "disabling_app_opts_from_pl"
+help = "Test disabling standard app opts from plugin commands"
+in_global_context = false
+
+    [[command.subcommand]]
+    name = "disable_targets_opt"
+    help = "Disable the targets and no-targets opt"
+    add_target_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
+
+    [[command.subcommand]]
+    name = "disable_mode_opt"
+    help = "Disable the mode opt"
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_mode_opt = true
+
+    [[command.subcommand]]
+    name = "disable_app_opts"
+    help = "Disable all app opts"
+    add_target_opt = false
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
+        add_mode_opt = true
+
 # TODO add this and test
 # FOR_PR
 # [[extension]]

@@ -2,60 +2,8 @@ import pytest
 from .shared import CLICommon, Cmd, CmdOpt, CmdArg
 
 class T_AppCmdBuilding(CLICommon):
-    warmup_cmd = CLICommon.app_sub_cmd(
-        "arg_opt_warmup",
-        help = "Gross test command demonstrating args/opts from app commands",
-        args=[
-            CmdArg("first", help="First Argument - Required", required=True),
-            CmdArg("second", help="Second Multi-Argument - Not Required", use_delimiter=True, multi=True),
-        ],
-        opts=[
-            CmdOpt("flag_opt", sn="f", help="Flag opt"),
-            CmdOpt("single_opt", sn_aliases=["s"], takes_value=True, help="Single-value non-required opt"),
-            CmdOpt("multi_opt", sn_aliases=["m"], ln_aliases=["m_opt"], multi=True, help="Multi-value non-required opt"),
-            CmdOpt("hidden_flag_opt", hidden=True, ln="hidden", help="Hidden flag opt"),
-        ]
-    )
-    nested_cmds = CLICommon.app_sub_cmd(
-        "nested_app_cmds",
-        help="Nested app cmds",
-        subcmds=[
-            Cmd(
-                "nested_l1",
-                help="Nested app cmds level 1",
-                subcmds=[
-                    Cmd(
-                        "nested_l2_a",
-                        help="Nested app cmds level 2 (A)",
-                        subcmds=[
-                            Cmd(
-                                "nested_l3_a",
-                                help="Nested app cmds level 3 (A-A)"
-                            ),
-                            Cmd(
-                                "nested_l3_b",
-                                help="Nested app cmds level 3 (A-B)"
-                            ),
-                        ]
-                    ),
-                    Cmd(
-                        "nested_l2_b",
-                        help="Nested app cmds level 2 (B)",
-                        subcmds=[
-                            Cmd(
-                                "nested_l3_a",
-                                help="Nested app cmds level 3 (B-A)"
-                            ),
-                            Cmd(
-                                "nested_l3_b",
-                                help="Nested app cmds level 3 (B-B)"
-                            ),
-                        ]
-                    )
-                ]
-            )
-        ]
-    )
+    warmup_cmd = CLICommon.app_cmds.warmup_cmd
+    nested_cmds = CLICommon.app_cmds.nested_cmds
 
     def test_app_command_args_and_opts(self):
         cmd = self.warmup_cmd
@@ -136,34 +84,6 @@ class T_AppCmdBuilding(CLICommon):
 
         out = cmd.run()
         assert f"Hi from 'nested_app_cmds' level {lvl}{ ' (' + sublvl + ')' if sublvl else ''}!" in out
-
-    class DisablingAppOpts():
-        @pytest.mark.skip
-        def test_app_opts_are_added_by_default(self):
-            cmd = self.disabling_app_opts
-            help = cmd.get_help_msg()
-            help.assert_args(None)
-            help.assert_opts(
-                cmd.app_ext_missing_impl,
-                cmd.flag_opt,
-                "help",
-                cmd.opt_taking_value,
-                "v",
-                'vk'
-            )
-
-        @pytest.mark.skip
-        def test_target_is_not_loaded_by_default(self):
-            cmd = self.disabling_app_opts
-            cmd.get_help_msg()
-
-        @pytest.mark.skip
-        def test_disabling_app_opts(self):
-            fail
-
-        @pytest.mark.skip
-        def test_disabling_app_opts_individually(self):
-            fail
 
     class TestErrorCases(CLICommon):
         @pytest.mark.skip

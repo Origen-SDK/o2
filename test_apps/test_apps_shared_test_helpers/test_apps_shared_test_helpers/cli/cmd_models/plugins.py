@@ -135,6 +135,37 @@ class PythonPlugin(cli.CLI):
                 )
             ]
         )
+        self.disabling_app_opts_from_pl = self.pl_sub_cmd(
+            self.name,
+            "disabling_app_opts_from_pl",
+            help="Test disabling standard app opts from plugin commands",
+            subcmds=[
+                Cmd(
+                    "disable_targets_opt",
+                    help="Disable the targets and no-targets opt",
+                    subcmds=[
+                        Cmd("disable_subc", help="Disables inherited from parent"),
+                        Cmd("override_subc", help="Overrides disable inherited from parent"),
+                    ]
+                ),
+                Cmd(
+                    "disable_mode_opt",
+                    help="Disable the mode opt",
+                    subcmds=[
+                        Cmd("disable_subc",help="Disables inherited from parent"),
+                        Cmd("override_subc", help="Overrides disable inherited from parent"),
+                    ]
+                ),
+                Cmd(
+                    "disable_app_opts",
+                    help="Disable all app opts",
+                    subcmds=[
+                        Cmd("disable_subc",help="Disables inherited from parent"),
+                        Cmd("override_subc", help="Overrides disable inherited from parent"),
+                    ]
+                )
+            ]
+        )
 
     @property
     def base_cmd(self):
@@ -147,7 +178,7 @@ class PythonPlugin(cli.CLI):
             "help",
             self.plugin_says_hi,
             self.plugin_test_args,
-            self.plugin_test_ext_stacking
+            self.plugin_test_ext_stacking,
         ]
 
 class PythonPluginNoCmds(cli.CLI):

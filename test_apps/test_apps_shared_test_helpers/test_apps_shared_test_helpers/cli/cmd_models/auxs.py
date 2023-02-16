@@ -413,11 +413,55 @@ class PythonNoAppAuxCmds(cli.CLI):
     def base_cmd(self):
         return self.python_no_app_aux_cmds
 
+class PythonAppAuxCmds(cli.CLI):
+    Cmd = Cmd
+
+    def __init__(self):
+        self.name = "python_app_aux_cmds"
+        self.config_toml = aux_cmds_dir.joinpath(f"{self.name}_cfg.toml")
+        self.disabling_app_opts_from_aux = self.aux_sub_cmd(
+            self.name,
+            "disabling_app_opts_from_aux",
+            help="Test disabling standard app opts from plugin commands",
+            from_config=self.config_toml,
+            subcmds=[
+                Cmd(
+                    "disable_targets_opt",
+                    help="Disable the targets and no-targets opt",
+                    subcmds=[
+                        Cmd("disable_subc", help="Disables inherited from parent"),
+                        Cmd("override_subc", help="Overrides disable inherited from parent"),
+                    ]
+                ),
+                Cmd(
+                    "disable_mode_opt",
+                    help="Disable the mode opt",
+                    subcmds=[
+                        Cmd("disable_subc",help="Disables inherited from parent"),
+                        Cmd("override_subc", help="Overrides disable inherited from parent"),
+                    ]
+                ),
+                Cmd(
+                    "disable_app_opts",
+                    help="Disable all app opts",
+                    subcmds=[
+                        Cmd("disable_subc",help="Disables inherited from parent"),
+                        Cmd("override_subc", help="Overrides disable inherited from parent"),
+                    ]
+                )
+            ]
+        )
+
+    @property
+    def base_cmd(self):
+        return self.python_app_aux_cmds
+
 class AuxNamespaces:
     def __init__(self) -> None:
         self.dummy_cmds = DummyCmds()
         self.cmd_testers = CmdTesters()
         self.python_no_app_aux_cmds = PythonNoAppAuxCmds()
+        self.python_app_aux_cmds = PythonAppAuxCmds()
         self.aux_cmds_from_cli_dir = AuxCmdsFromCliDir()
         self.add_aux_cmd = AddAuxCmds()
 

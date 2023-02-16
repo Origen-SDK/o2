@@ -137,7 +137,7 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn from_toml_cmd(cmd: &CommandTOML, cmd_path: &str, parent: CmdSrc) -> Result<Option<Self>> {
+    pub fn from_toml_cmd(cmd: &CommandTOML, cmd_path: &str, parent: CmdSrc, parent_cmd: Option<&Self>) -> Result<Option<Self>> {
         let mut slf = Self {
             name: cmd.name.to_owned(),
             help: cmd.help.to_owned(),
@@ -146,8 +146,20 @@ impl Command {
             opts: None,
             subcommands: None,
             full_name: cmd_path.to_string(),
-            add_mode_opt: cmd.add_mode_opt,
-            add_target_opt: cmd.add_target_opt,
+            add_mode_opt: cmd.add_mode_opt.or_else(|| {
+                if let Some(p) = parent_cmd {
+                    p.add_mode_opt.to_owned()
+                } else {
+                    None
+                }
+            }),
+            add_target_opt: cmd.add_target_opt.or_else(|| {
+                if let Some(p) = parent_cmd {
+                    p.add_target_opt.to_owned()
+                } else {
+                    None
+                }
+            }),
             parent: parent,
             in_global_context: cmd.in_global_context,
             in_app_context: cmd.in_app_context,
@@ -563,10 +575,10 @@ macro_rules! add_target_opt {
 pub fn add_app_opts(mut cmd: ClapCommand, add_mode_opt: bool, add_target_opt: bool) -> ClapCommand {
     if in_app_invocation() {
         if add_target_opt {
-            cmd = add_mode_opt!(cmd);
+            cmd = add_target_opt!(cmd);
         }
         if add_mode_opt {
-            cmd = add_target_opt!(cmd);
+            cmd = add_mode_opt!(cmd);
         }
     }
     cmd
