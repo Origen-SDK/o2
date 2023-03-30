@@ -55,11 +55,65 @@ class _CommonNames:
         )
 
     @classmethod
+    def creds_cmd(cls, add_opts=None):
+        return Cmd(
+            cls.creds,
+            help="Set or clear user credentials",
+            subcmds=[
+                Cmd(
+                    "set",
+                    help="Set the current user's password",
+                    opts=(add_opts or []) + [
+                        CmdOpt(
+                            "all",
+                            help="Set the password for all datasets",
+                            ln="all",
+                            sn="a",
+                            takes_value=False,
+                            required=False,
+                        ),
+                        CmdOpt(
+                            "datasets",
+                            help="Specify the dataset to set the password for",
+                            ln="datasets",
+                            sn="d",
+                            multi=True,
+                            required=False,
+                        ),
+                    ]
+                ),
+                Cmd(
+                    "clear",
+                    help="Clear the user's password",
+                    opts=(add_opts or []) + [
+                        CmdOpt(
+                            "all",
+                            help="Clear the password for all datasets",
+                            ln="all",
+                            sn="a",
+                            takes_value=False,
+                            required=False,
+                        ),
+                        CmdOpt(
+                            "datasets",
+                            help="Specify the dataset to clear the password for",
+                            ln="datasets",
+                            sn="d",
+                            multi=True,
+                            required=False,
+                        ),
+                    ]
+                )
+            ]
+        )
+
+    @classmethod
     def interactive_cmd(cls, add_opts=None):
         return Cmd(
             cls.i,
             help="Start an Origen console to interact with the DUT",
             aliases=['i'],
+            opts=add_opts,
         )
 
     @classmethod
@@ -113,7 +167,7 @@ class GlobalCommands(CoreCommands):
     pl = Cmd(names.pl)
     proj = Cmd(names.proj)
     new = Cmd(names.new)
-    creds = Cmd(names.creds)
+    creds = _CommonNames.creds_cmd()
     i = _CommonNames.interactive_cmd()
     fmt = Cmd(names.fmt)
     build = Cmd(names.build)
@@ -215,7 +269,7 @@ class InAppCommands(CoreCommands):
     aux_cmds = Cmd(names.aux_cmds)
     build = Cmd(names.build)
     compile = Cmd(names.compile)
-    creds = Cmd(names.creds)
+    creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
     env = Cmd(names.env)
     eval = _CommonNames.eval_cmd(add_opts=in_app_opts.all())
     exec = Cmd(names.exec)
@@ -319,6 +373,10 @@ class CoreErrorMessages:
         return "The following required arguments were not provided:" + "\n    " + "    \n".join(mapped_vals)
 
     @classmethod
+    def cmd_building_err_prefix(cls, cmd):
+        return f"When processing command '{cmd.full_name}':"
+
+    @classmethod
     def conflict_msg(cls, cmd, opt, conflict, conflict_type):
         if conflict_type in ['long name', 'long name alias']:
             hyphens = "--"
@@ -326,9 +384,9 @@ class CoreErrorMessages:
             hyphens = "-"
 
         if isinstance(opt, CmdExtOpt):
-            return f"Option '{opt.name}' extended from '{opt.provided_by}' for command '{cmd.full_name}' tried to use reserved option {conflict_type} '{conflict}' and will not be available as '{hyphens}{conflict}'"
+            return f"{cls.cmd_building_err_prefix(cmd)} Option '{opt.name}' extended from {opt.provided_by} tried to use reserved option {conflict_type} '{conflict}' and will not be available as '{hyphens}{conflict}'"
         else:
-            return f"Option '{opt.name}' from command '{cmd.full_name}' tried to use reserved option {conflict_type} '{conflict}' and will not be available as '{hyphens}{conflict}'"
+            return f"{cls.cmd_building_err_prefix(cmd)} Option '{opt.name}' tried to use reserved option {conflict_type} '{conflict}' and will not be available as '{hyphens}{conflict}'"
 
     @classmethod
     def reserved_opt_ln_conflict_msg(cls, cmd, opt, conflict):

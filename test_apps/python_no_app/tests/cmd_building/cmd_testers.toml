@@ -295,11 +295,11 @@ help = "Test various argument and option schemes from commands"
     help = "Command with a single arg and single opt"
 
         [[command.subcommand.arg]]
-        name = "single_val"
+        name = "single_arg_val"
         help = "Single value arg"
 
         [[command.subcommand.opt]]
-        name = "single_val"
+        name = "single_opt_val"
         takes_value = true
         help = "Single value opt"
 

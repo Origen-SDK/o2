@@ -120,8 +120,6 @@ fn main() -> Result<()> {
     let mut helps = CmdHelps::new();
     let app_cmds: Option<AppCmds>;
     let mut extensions = Extensions::new();
-    let aux_cmds = AuxCmds::new(&mut extensions)?;
-
     let plugins = match Plugins::new(&mut extensions) {
         Ok(pl) => pl,
         Err(e) => {
@@ -129,6 +127,7 @@ fn main() -> Result<()> {
             None
         }
     };
+    let aux_cmds = AuxCmds::new(&mut extensions)?;
 
     if let Some(app) = &STATUS.app.as_ref() {
         app_cmds = Some(AppCmds::new(app, &mut extensions)?);

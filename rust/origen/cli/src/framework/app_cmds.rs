@@ -99,8 +99,8 @@ pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, app_commands:
     for top_cmd_name in app_commands.top_commands.iter() {
         app_cmds_cmd = app_cmds_cmd.subcommand(build_commands(
             &app_commands.commands.get(top_cmd_name).unwrap(),
-            &|cmd, app| {
-                exts.apply_to_app_cmd(cmd, app)
+            &|cmd, app, opt_cache| {
+                exts.apply_to_app_cmd(cmd, app, opt_cache)
             },
             &|cmd| {
                 app_commands.commands.get(cmd).unwrap()

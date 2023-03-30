@@ -113,10 +113,10 @@ pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, plugins: Opti
                             // c, // &cmds.commands.get(top_cmd_name).unwrap(),
                             &pl.commands.get(n).unwrap(),
                             // cmd_helps,
-                            &|cmd, app| {
+                            &|cmd, app, opt_cache| {
                                 // println!("cmd... {}", cmd);
                                 // println!("pl name.. {}", pl_name);
-                                exts.apply_to_pl_cmd(&pl_name, cmd, app)
+                                exts.apply_to_pl_cmd(&pl_name, cmd, app, opt_cache)
                             },
                             &|cmd| {
                                 // let split = cmd.split_once('.').unwrap();

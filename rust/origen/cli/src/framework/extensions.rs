@@ -3,10 +3,19 @@ use origen::Result;
 use super::plugins::Plugin;
 use super::aux_cmds::{AuxCmdNamespace};
 use clap::Command as ClapCommand;
-use super::{ArgTOML, Arg, OptTOML, Opt, CmdSrc, Applies};
+use super::{ArgTOML, Arg, OptTOML, Opt, CmdSrc, Applies, CmdOptCache};
 use crate::{from_toml_args, from_toml_opts};
 use std::path::PathBuf;
 use std::fmt;
+
+macro_rules! ext_opt {
+    () => {
+        "ext_opt"
+    }
+}
+
+pub const EXT_BASE_NAME: &'static str = ext_opt!();
+pub const EXT_BASE_PREFIX: &'static str = concat!(ext_opt!(), ".");
 
 // TODO refactor this
 use super::helps::CmdSrc as ExtensionTarget;
@@ -54,29 +63,28 @@ impl Extensions {
     }
 
     pub fn apply_to_core_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
-        self.apply_to(&ExtensionTarget::Core(cmd.to_string()), app)
+        let e = ExtensionTarget::Core(cmd.to_string());
+        let mut cache = CmdOptCache::unchecked_populated(&app, e.to_string());
+        self.apply_to(&e, app, &mut cache)
     }
 
-    pub fn apply_to_app_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
-        self.apply_to(&ExtensionTarget::App(cmd.to_string()), app)
+    pub fn apply_to_app_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
+        self.apply_to(&ExtensionTarget::App(cmd.to_string()), app, cache)
     }
 
-    pub fn apply_to_pl_cmd<'a>(&'a self, pl: &str, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
-        self.apply_to(&ExtensionTarget::Plugin(pl.to_string(), cmd.to_string()), app)
+    pub fn apply_to_pl_cmd<'a>(&'a self, pl: &str, cmd: &str, app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
+        self.apply_to(&ExtensionTarget::Plugin(pl.to_string(), cmd.to_string()), app, cache)
     }
 
-    pub fn apply_to_aux_cmd<'a>(&'a self, ns: &str, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
-        self.apply_to(&ExtensionTarget::Aux(ns.to_string(), cmd.to_string()), app)
+    pub fn apply_to_aux_cmd<'a>(&'a self, ns: &str, cmd: &str, app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
+        self.apply_to(&ExtensionTarget::Aux(ns.to_string(), cmd.to_string()), app, cache)
     }
 
-    pub fn apply_to<'a>(&'a self, cmd: &ExtensionTarget, mut app: ClapCommand<'a>) -> ClapCommand<'a> {
+    pub fn apply_to<'a>(&'a self, cmd: &ExtensionTarget, mut app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
         if let Some(exts) = self.extensions.get(cmd) {
             for ext in exts {
-                if let Some(args) = ext.args.as_ref() {
-                    app = super::apply_args(args, app);
-                }
                 if let Some(opts) = ext.opts.as_ref() {
-                    app = super::apply_opts(opts, app);
+                    app = super::apply_opts(opts, app, cache, Some(ext));
                 }
             }
         } else {
@@ -113,7 +121,6 @@ pub struct ExtensionTOML {
     pub in_global_context: Option<bool>, // Extend in the global context
     pub in_app_context: Option<bool>, // Extend in application context
     pub on_env: Option<Vec<String>>,
-    pub arg: Option<Vec<ArgTOML>>,
     pub opt: Option<Vec<OptTOML>>,
     // TODO see about supporting some of these in the future?
     // pub name: String,
@@ -124,11 +131,21 @@ pub struct ExtensionTOML {
     // pub full_name: String,
 }
 
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum ExtensionSource {
     App,
     Plugin(String),
     Aux(String, PathBuf),
+}
+
+impl ExtensionSource {
+    pub fn to_path(&self) -> String {
+        match self {
+            Self::App => "app".to_string(),
+            Self::Plugin(pl_name) => format!("plugin.{pl_name}"),
+            Self::Aux(ns, _) => format!("aux.{ns}")
+        }
+    }
 }
 
 impl fmt::Display for ExtensionSource {
@@ -147,7 +164,6 @@ pub struct Extension {
     pub in_global_context: Option<bool>,
     pub in_app_context: Option<bool>,
     pub on_env: Option<Vec<String>>,
-    pub args: Option<Vec<Arg>>,
     pub opts: Option<Vec<Opt>>,
 
     pub source: ExtensionSource,
@@ -159,7 +175,6 @@ impl Extension {
             in_global_context: ext.in_global_context,
             in_app_context: ext.in_app_context,
             on_env: ext.on_env,
-            args: None,
             opts: None,
             source: ext_source,
             extends: ext.extend,
@@ -167,7 +182,6 @@ impl Extension {
         if !slf.applies()? {
             return Ok(None)
         }
-        slf.args = from_toml_args!(ext.arg);
         slf.opts = from_toml_opts!(ext.opt, &slf.extends, &slf.source, Some(&slf.extends));
         if let Some(opts) = slf.opts.as_mut() {
             for opt in opts {
@@ -184,6 +198,7 @@ impl Extension {
                         }
                     }
                 );
+                opt.full_name = Some(format!("{}.{}.{}", EXT_BASE_NAME, slf.source.to_path(), opt.name));
             }
         }
         Ok(Some(slf))

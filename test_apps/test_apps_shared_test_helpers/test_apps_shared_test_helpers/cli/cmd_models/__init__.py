@@ -1,7 +1,7 @@
 from origen.helpers.regressions import cli
 
 class Cmd(cli.cmd.Cmd):
-    def assert_args(self, output, *vals):
+    def assert_args(self, output, *vals, finalize_ext_args=None):
         ext_args = {}
         args = []
         exp_ext_vals = {}
@@ -74,6 +74,8 @@ class Cmd(cli.cmd.Cmd):
         actual = Cmd.parse_ext_keys(output)
         print(actual)
         print(ext_args)
+        if finalize_ext_args:
+            finalize_ext_args(ext_args)
         assert actual == ext_args
 
     @classmethod

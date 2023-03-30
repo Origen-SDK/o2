@@ -6,7 +6,7 @@ pub mod aux_cmds;
 pub mod app_cmds;
 pub mod core_cmds;
 
-pub use extensions::{Extensions, ExtensionTOML};
+pub use extensions::{Extensions, ExtensionTOML, Extension};
 pub use plugins::{Plugins, Plugin};
 pub use aux_cmds::AuxCmds;
 pub use app_cmds::AppCmds;
@@ -19,26 +19,115 @@ use origen::{Result, in_app_invocation};
 use crate::commands::_prelude::clap_arg_actions::*;
 
 #[macro_export]
+macro_rules! uses_reserved_prefix {
+    ($q:expr) => {{
+        $q.starts_with(crate::framework::extensions::EXT_BASE_PREFIX)
+    }}
+}
+
+#[macro_export]
+macro_rules! err_processing_cmd_preface {
+    ($func:ident, $cmd_path:expr, $msg:expr, $($arg:expr),* $(,)?) => {{
+        $func!(concat!("When processing command '{}': ", $msg), $cmd_path, $($arg),*)
+    }}
+}
+
+#[macro_export]
+macro_rules! log_err_processing_cmd {
+    ($cmd_path:expr, $msg:expr, $($arg:expr),* $(,)?) => {{
+        crate::err_processing_cmd_preface!(log_error, $cmd_path, $msg, $($arg),*)
+    }};
+}
+
+#[macro_export]
 macro_rules! from_toml_args {
-    ($toml_args: expr) => {
+    ($toml_args: expr, $cmd_path: expr) => {{
+        let mut current_names: Vec<Option<&str>> = vec!();
         $toml_args.as_ref()
             .map(|args| args.iter()
-                .map( |a| crate::framework::Arg::from_toml(a))
+                .filter_map( |a| {
+                    if let Some(i) = current_names.iter().position( |n| *n == Some(&a.name)) {
+                        crate::log_err_processing_cmd!(
+                            $cmd_path,
+                            "Argument '{}' is already present. Subsequent occurrences will be skipped (first occurrence at index {})",
+                            &a.name,
+                            i
+                        );
+                        current_names.push(None);
+                        None
+                    } else if crate::uses_reserved_prefix!(a.name) { // a.name.starts_with(crate::framework::extensions::EXT_BASE_NAME) {
+                        crate::log_err_processing_cmd!(
+                            $cmd_path,
+                            "Argument '{}' uses reserved prefix '{}'. This option will not be available.",
+                            &a.name,
+                            crate::framework::extensions::EXT_BASE_NAME
+                        );
+                        current_names.push(None);
+                        None
+                    } else {
+                        current_names.push(Some(&a.name));
+                        Some(crate::framework::Arg::from_toml(a))
+                    }
+                })
                 .collect::<Vec<crate::framework::Arg>>())
-    }
+    }}
 }
 
 #[macro_export]
 macro_rules! from_toml_opts {
     ($toml_opts: expr, $cmd_path: expr, $parent: expr) => {
-        crate::from_toml_opts!($toml_opts, $cmd_path, $parent, None)
+        crate::from_toml_opts!($toml_opts, $cmd_path, $parent, None::<&str>)
     };
-    ($toml_opts: expr, $cmd_path: expr, $parent: expr, $ext: expr) => {
+    ($toml_opts: expr, $cmd_path: expr, $parent: expr, $ext: expr) => {{
+        let mut current_names: Vec<Option<&str>> = vec!();
         $toml_opts.as_ref()
             .map(|opts| opts.iter()
-                .map( |o| crate::framework::Opt::from_toml(o, $cmd_path, $parent, $ext))
+                .filter_map( |o| {
+                    if let Some(i) = current_names.iter().position( |n| *n == Some(&o.name)) {
+                        if $ext.is_some() {
+                            crate::log_err_processing_cmd!(
+                                $cmd_path,
+                                "Option '{}' extended from {} is already present. Subsequent occurrences will be skipped (first occurrence at index {})",
+                                &o.name,
+                                $parent,
+                                i
+                            );
+                        } else {
+                            crate::log_err_processing_cmd!(
+                                $cmd_path,
+                                "Option '{}' is already present. Subsequent occurrences will be skipped (first occurrence at index {})",
+                                &o.name,
+                                i
+                            );
+                        }
+                        current_names.push(None);
+                        None
+                    } else if crate::uses_reserved_prefix!(o.name) { // o.name.starts_with(crate::framework::extensions::EXT_BASE_NAME) {
+                        if $ext.is_some() {
+                            crate::log_err_processing_cmd!(
+                                $cmd_path,
+                                "Option '{}' extended from {} uses reserved prefix '{}'. This option will not be available",
+                                &o.name,
+                                $parent,
+                                crate::framework::extensions::EXT_BASE_NAME
+                            );
+                        } else {
+                            crate::log_err_processing_cmd!(
+                                $cmd_path,
+                                "Option '{}' uses reserved prefix '{}'. This option will not be available",
+                                &o.name,
+                                crate::framework::extensions::EXT_BASE_NAME
+                            );
+                        }
+                        current_names.push(None);
+                        None
+                    } else {
+                        current_names.push(Some(&o.name));
+                        Some(crate::framework::Opt::from_toml(o, $cmd_path, $parent, $ext))
+                    }
+                })
                 .collect::<Vec<crate::framework::Opt>>())
-    }
+    }}
 }
 
 pub trait Applies {
@@ -127,9 +216,11 @@ pub struct Command {
     pub args: Option<Vec<Arg>>,
     pub opts: Option<Vec<Opt>>,
     pub subcommands: Option<Vec<String>>,
+    // Name offset from the command type (e.g., cmd.subc, instead of origen.cmd.subc, or plugin.pl.cmd.subc)
     pub full_name: String,
     pub add_mode_opt: Option<bool>,
     pub add_target_opt: Option<bool>,
+    // FOR_PR seems src not parent
     pub parent: CmdSrc,
     pub in_global_context: Option<bool>,
     pub in_app_context: Option<bool>,
@@ -168,8 +259,26 @@ impl Command {
         if !slf.applies()? {
             return Ok(None)
         }
-        slf.args = from_toml_args!(cmd.arg);
-        slf.opts = from_toml_opts!(cmd.opt, cmd_path, &slf.parent);
+        let fp = slf.parent.to_string();
+        slf.args = from_toml_args!(cmd.arg, &fp);
+        slf.opts = from_toml_opts!(cmd.opt, &fp, &slf.parent);
+        if let Some(args) = slf.args.as_ref() {
+            if let Some(opts) = slf.opts.as_mut() {
+                opts.retain(|o| {
+                    if let Some(idx) = args.iter().position(|a| a.name == o.name) {
+                        crate::log_err_processing_cmd!(
+                            &fp,
+                            "Option '{}' conflicts with Arg of the same name (Arg #{})",
+                            o.name,
+                            idx,
+                        );
+                        false
+                    } else {
+                        true
+                    }
+                });
+            }
+        }
         slf.subcommands = cmd.subcommand.as_ref().map(|sub_cmds| 
             sub_cmds.iter().map(|c| format!("{}.{}", cmd_path, &c.name.to_string())).collect::<Vec<String>>()
         );
@@ -200,6 +309,228 @@ impl Applies for Command {
 
     fn on_env_error_msg(&self, e: &String) -> String {
         format!("Failed to parse 'on_env' '{}', for command {}", e, self.full_name)
+    }
+}
+
+use std::collections::{HashSet, HashMap};
+use origen_metal::indexmap::IndexMap;
+#[derive(Debug)]
+pub struct CmdOptCache {
+    opt_names: Vec<String>,
+    lns: HashMap<String, (bool, usize)>,
+    ilns: HashMap<String, (bool, usize)>,
+    ln_aliases: HashMap<String, (bool, usize)>,
+    sns: HashMap<char, (bool, usize)>,
+    sn_aliases: HashMap<char, (bool, usize)>,
+    ext_opt_names: IndexMap<String, usize>,
+    exts: Vec<String>,
+    cmd_path: String,
+    last_needs_visible_full_name: bool,
+    current: String,
+
+}
+
+macro_rules! processing_exts {
+    ($slf:expr) => {{
+        $slf.exts.len() > 0
+    }}
+}
+
+macro_rules! conflict_err_msg {
+    ($self:expr, $conflict:expr, $name:expr, $conflict_type:expr, $with_type:expr) => {{
+        if processing_exts!($self) {
+            if $conflict.0 {
+                // Conflict with the command itself
+                log_err_processing_cmd!(
+                    $self.cmd_path,
+                    concat!($conflict_type, " '{}' for extension option '{}', from {}, conflicts with ", $with_type, " from command option '{}'"),
+                    $name,
+                    $self.current,
+                    $self.exts.last().unwrap(),
+                    $self.opt_names[$conflict.1]
+                );
+            } else {
+                // Conflict with an extension
+                let e = $self.ext_opt_names.get_index($conflict.1).unwrap();
+                log_err_processing_cmd!(
+                    $self.cmd_path,
+                    concat!($conflict_type, " '{}' for extension option '{}', from {}, conflicts with ", $with_type, " for extension '{}' provided by {}"),
+                    $name,
+                    $self.current,
+                    $self.exts.last().unwrap(),
+                    e.0,
+                    $self.exts[*e.1]
+                );
+            }
+        } else {
+            log_err_processing_cmd!(
+                $self.cmd_path,
+                concat!($conflict_type, " '{}' for command option '{}' conflicts with ", $with_type, " from option '{}'"),
+                $name,
+                $self.current,
+                $self.opt_names[$conflict.1]
+            );
+        }
+    }}
+}
+
+macro_rules! cache {
+    ($slf:expr, $cache:ident, $to_cache:expr) => {{
+        $slf.$cache.insert($to_cache, {
+            if processing_exts!($slf) {
+                (false, $slf.ext_opt_names.len() - 1)
+            } else {
+                (true, $slf.opt_names.len() - 1)
+            }
+        });
+    }}
+}
+
+impl CmdOptCache {
+    pub fn new(cmd_path: String) -> Self {
+        let mut slf = Self {
+            opt_names: Vec::new(),
+            lns: HashMap::new(),
+            ilns: HashMap::new(),
+            ln_aliases: HashMap::new(),
+            sns: HashMap::new(),
+            sn_aliases: HashMap::new(),
+            ext_opt_names: IndexMap::new(),
+            exts: Vec::new(),
+            cmd_path: cmd_path,
+            last_needs_visible_full_name: true,
+            current: "".to_string(),
+        };
+        slf
+    }
+
+    pub fn unchecked_populated(cmd: &App, cmd_path: String) -> Self {
+        let mut slf = Self::new(cmd_path);
+        for (i, arg) in cmd.get_arguments().enumerate() {
+            let mut push_arg = false;
+            if let Some(ln) = arg.get_long() {
+                slf.lns.insert(ln.to_string(), (true, i));
+                push_arg = true;
+            }
+            if let Some(lns) = arg.get_all_aliases() {
+                slf.ln_aliases.extend(lns.iter().map( |ln| (ln.to_string(), (true, i))).collect::<Vec<(String, (bool, usize))>>());
+                push_arg = true;
+            }
+            if let Some(sn) = arg.get_short() {
+                slf.sns.insert(sn, (true, i));
+                push_arg = true;
+            }
+            if let Some(sns) = arg.get_all_short_aliases() {
+                slf.sn_aliases.extend(sns.iter().map( |sn| (*sn, (true, i))).collect::<Vec<(char, (bool, usize))>>());
+                push_arg = true;
+            }
+
+            if push_arg {
+                slf.opt_names.push(arg.get_id().to_string());
+            }
+        }
+        slf
+    }
+
+    pub fn register(&mut self, name: &String, ext: Option<&Extension>) -> bool {
+        // TODO name conflict. Probably a better way to deal with this but just skip for now
+        self.current = name.to_string();
+        if let Some(e) = ext {
+            self.exts.push(e.source.to_string());
+            if !self.ext_opt_names.contains_key(name) {
+                self.ext_opt_names.insert(name.to_string(), self.exts.len() - 1);
+            }
+        } else {
+            self.opt_names.push(name.to_string());
+        }
+        true
+    }
+
+    pub fn iln_conflicts(&mut self, iln: &String) -> bool {
+        if let Some(conflict) = self.ln_aliases.get(iln) {
+            conflict_err_msg!(self, conflict, iln, "Inferred long name", "long name alias");
+            true
+        } else if let Some(conflict) = self.lns.get(iln) {
+            conflict_err_msg!(self, conflict, iln, "Inferred long name", "long name");
+            true
+        } else if let Some(conflict) = self.ilns.get(iln) {
+            conflict_err_msg!(self, conflict, iln, "Inferred long name", "inferred long name");
+            true
+        } else {
+            cache!(self, ilns, iln.to_owned());
+            self.last_needs_visible_full_name = false;
+            false
+        }
+    }
+
+    pub fn ln_conflicts(&mut self, ln: &String) -> bool {
+        if let Some(conflict) = self.ln_aliases.get(ln) {
+            conflict_err_msg!(self, conflict, ln, "Long name", "long name alias");
+            true
+        } else if let Some(conflict) = self.lns.get(ln) {
+            conflict_err_msg!(self, conflict, ln, "Long name", "long name");
+            true
+        } else if let Some(conflict) = self.ilns.get(ln) {
+            conflict_err_msg!(self, conflict, ln, "Long name", "inferred long name");
+            true
+        } else {
+            cache!(self, lns, ln.to_owned());
+            self.last_needs_visible_full_name = false;
+            false
+        }
+    }
+
+    pub fn sn_conflicts(&mut self, sn: char) -> bool {
+        if let Some(conflict) = self.sn_aliases.get(&sn) {
+            conflict_err_msg!(self, conflict, sn, "Short name", "short name alias");
+            true
+        } else if let Some(conflict) = self.sns.get(&sn) {
+            conflict_err_msg!(self, conflict, sn, "Short name", "short name");
+            true
+        } else {
+            cache!(self, sns, sn);
+            self.last_needs_visible_full_name = false;
+            false
+        }
+    }
+
+    pub fn non_conflicting_snas(&mut self, snas: &Vec<char>) -> Vec<char> {
+        snas.iter().filter_map( |sna| {
+            if let Some(conflict) = self.sn_aliases.get(sna) {
+                conflict_err_msg!(self, conflict, sna, "Short name alias", "short name alias");
+                None
+            } else if let Some(conflict) = self.sns.get(sna) {
+                conflict_err_msg!(self, conflict, sna, "Short name alias", "short name");
+                None
+            } else {
+                cache!(self, sn_aliases, *sna);
+                Some(*sna)
+            }
+        }).collect::<Vec<char>>()
+    }
+
+    pub fn non_conflicting_lnas<'a>(&mut self, lnas: &'a Vec<String>) -> Vec<&'a str> {
+        lnas.iter().filter_map( |lna| {
+            if let Some(conflict) = self.ln_aliases.get(lna) {
+                conflict_err_msg!(self, conflict, lna, "Long name alias", "long name alias");
+                None
+            } else if let Some(conflict) = self.lns.get(lna) {
+                conflict_err_msg!(self, conflict, lna, "Long name alias", "long name");
+                None
+            } else if let Some(conflict) = self.ilns.get(lna) {
+                conflict_err_msg!(self, conflict, lna, "Long name alias", "inferred long name");
+                None
+            } else {
+                cache!(self, ln_aliases, lna.to_owned());
+                Some(lna.as_str())
+            }
+        }).collect::<Vec<&str>>()
+    }
+
+    pub fn needs_visible_full_name(&mut self) -> bool {
+        let retn = self.last_needs_visible_full_name;
+        self.last_needs_visible_full_name = true;
+        retn
     }
 }
 
@@ -275,86 +606,126 @@ pub struct Opt {
     pub long_aliases: Option<Vec<String>>,
     pub hidden: Option<bool>,
     pub upcased_name: Option<String>,
+    pub full_name: Option<String>,
 }
 
 use core::fmt::Display;
 impl Opt {
+    // FOR_PR is cmd_path/parent the same here?
     fn from_toml(opt: &OptTOML, cmd_path: &str, parent: &dyn Display, ext: Option<&str>) -> Self {
-        let err_prefix;
-        if let Some(e) = ext {
-            err_prefix = format!("Option '{}' extended from '{}' for command '{}' tried to use reserved option", opt.name, parent, e);
-        } else {
-            err_prefix = format!("Option '{}' from command '{}' tried to use reserved option", opt.name, parent);
+        macro_rules! gen_err {
+            ($msg:tt $(,)? $($arg:expr),*) => {{
+                if let Some(e) = ext {
+                    log_err_processing_cmd!(cmd_path, concat!("Option '{}' extended from {} ", $msg), opt.name, parent, $($arg),*);
+                } else {
+                    log_err_processing_cmd!(cmd_path, concat!("Option '{}' ", $msg), opt.name, $($arg),*);
+                }
+            }}
         }
+
+        macro_rules! res_opt_ln_msg {
+            ($conflict:expr, $name:expr) => {
+                gen_err!(
+                    "tried to use reserved option {} '{}' and will not be available as '--{}'",
+                    $conflict,
+                    $name,
+                    $name
+                );
+            }
+        }
+        macro_rules! res_opt_sn_msg {
+            ($conflict:expr, $name:expr) => {
+                gen_err!(
+                    "tried to use reserved option {} '{}' and will not be available as '-{}'",
+                    $conflict,
+                    $name,
+                    $name
+                )
+            }
+        }
+        macro_rules! res_prefix_msg {
+            ($conflict:expr, $name:expr) => {
+                gen_err!(
+                    "uses reserved prefix '{}' in {} '{}' and will not be available as '--{}'",
+                    crate::framework::extensions::EXT_BASE_NAME,
+                    $conflict,
+                    $name,
+                    $name
+                )
+            }
+        }
+
+        let ln = opt.long.as_ref().and_then ( |ln| {
+            if RESERVED_OPT_NAMES.contains(&ln.as_str()) {
+                res_opt_ln_msg!("long name", ln);
+                None
+            } else if uses_reserved_prefix!(ln) {
+                res_prefix_msg!("long name", ln);
+                None
+            } else {
+                Some(ln.to_owned())
+            }
+        });
+
+        let sn = opt.short.as_ref().and_then ( |sn| {
+            if RESERVED_OPT_SHORT_NAMES.contains(sn) {
+                res_opt_sn_msg!("short name", sn);
+                None
+            } else {
+                Some(*sn)
+            }
+        });
 
         Self {
             name: opt.name.to_owned(),
             help: opt.help.to_owned(),
-            short: {
-                opt.short.as_ref().and_then ( |sn| {
-                    if RESERVED_OPT_SHORT_NAMES.contains(sn) {
-                        log_error!(
-                            "{} short name '{}' and will not be available as '-{}'",
-                            err_prefix,
-                            sn,
-                            sn
-                        );
-                        None
-                    } else {
-                        Some(*sn)
-                    }
-                })
-            },
-            long: {
-                opt.long.as_ref().and_then ( |ln| {
-                    if RESERVED_OPT_NAMES.contains(&ln.as_str()) {
-                        log_error!(
-                            "{} long name '{}' and will not be available as '--{}'",
-                            err_prefix,
-                            ln,
-                            ln
-                        );
-                        None
-                    } else {
-                        Some(ln.to_owned())
-                    }
-                })
-            },
             takes_value: opt.takes_value,
             multiple: opt.multiple,
             required: opt.required,
             value_name: opt.value_name.to_owned(),
             use_delimiter: opt.use_delimiter,
             short_aliases: {
-                opt.short_aliases.as_ref().map (|sns| sns.iter().filter_map( |sn| {
-                    if RESERVED_OPT_SHORT_NAMES.contains(sn) {
-                        log_error!(
-                            "{} short name alias '{}' and will not be available as '-{}'",
-                            err_prefix,
-                            sn,
-                            sn
-                        );
-                        None
-                    } else {
-                        Some(*sn)
+                let mut snas: HashMap<&char, usize> = HashMap::new();
+                opt.short_aliases.as_ref().map( |sns| sns.iter().enumerate().filter_map( |(i, sna)| {
+                    if RESERVED_OPT_SHORT_NAMES.contains(sna) {
+                        res_opt_sn_msg!("short name alias", sna);
+                        return None;
+                    } else if sn.is_some() && (sn.as_ref().unwrap() == sna) {
+                        gen_err!("specifies short name alias '{}' but it conflicts with the option's short name", sna);
+                        return None;
+                    } else if let Some(idx) = snas.get(sna) {
+                        gen_err!("repeats short name alias '{}' (first occurrence at index {})", sna, idx);
+                        return None;
                     }
+                    snas.insert(sna, i);
+                    Some(*sna)
                 }).collect())
             },
+            short: sn,
             long_aliases: {
-                opt.long_aliases.as_ref().map( |lns| lns.iter().filter_map( |ln| {
-                    if RESERVED_OPT_NAMES.contains(&ln.as_str()) {
-                        log_error!(
-                            "{} long name alias '{}' and will not be available as '--{}'",
-                            err_prefix,
-                            ln,
-                            ln
-                        );
-                        None
-                    } else {
-                        Some(ln.to_owned())
+                let mut lnas: HashMap<&String, usize> = HashMap::new();
+                opt.long_aliases.as_ref().map( |lns| lns.iter().enumerate().filter_map( |(i, lna)| {
+                    if RESERVED_OPT_NAMES.contains(&lna.as_str()) {
+                        res_opt_ln_msg!("long name alias", lna);
+                        return None
+                    } else if uses_reserved_prefix!(lna) {
+                        res_prefix_msg!("long name alias", lna);
+                        return None
+                    } else if ln.is_some() && (ln.as_ref().unwrap() == lna) {
+                        gen_err!("specifies long name alias '{}' but it conflicts with the option's long name", lna);
+                        return None
+                    } else if (&opt.name == lna) && ln.is_none() {
+                        gen_err!("specifies long name alias '{}' but it conflicts with the option's inferred long name. If this is intentional, please set this as the option's long name", lna);
+                        return None
+                    } else if let Some(idx) = lnas.get(lna) { // lnas.contains(&lna.as_str()) {
+                        gen_err!("repeats long name alias '{}' (first occurrence at index {})", lna, idx);
+                        return None
                     }
+                    lnas.insert(lna, i);
+                    Some(lna.to_owned())
                 }).collect())
             },
+            long: ln,
             hidden: opt.hidden,
             upcased_name: {
                 if opt.value_name.is_some() {
@@ -363,6 +734,15 @@ impl Opt {
                     Some(opt.name.to_uppercase())
                 }
             },
+            full_name: None,
+        }
+    }
+
+    pub fn id(&self) -> &str {
+        if let Some(fname) = self.full_name.as_ref() {
+            fname.as_str()
+        } else {
+            self.name.as_str()
         }
     }
 }
@@ -370,7 +750,7 @@ impl Opt {
 pub (crate) fn build_commands<'a, F, G, H>(cmd_def: &'a Command, exts: &G, cmd_container: &F, apply_helps: &H) -> App<'a>
 where
     F: Fn(&str) -> &'a Command,
-    G: Fn(&str, App<'a>) -> App<'a>,
+    G: Fn(&str, App<'a>, &mut CmdOptCache) -> App<'a>,
     H: Fn(&str, App<'a>) -> App<'a>
 {
     let mut cmd = ClapCommand::new(&cmd_def.name);
@@ -386,8 +766,9 @@ where
         cmd = apply_args(args, cmd);
     }
 
+    let mut cache = CmdOptCache::new(cmd_def.parent.to_string());
     if let Some(opts) = cmd_def.opts.as_ref() {
-        cmd = apply_opts(opts, cmd);
+        cmd = apply_opts(opts, cmd, &mut cache, None);
     }
 
     if let Some(subcommands) = &cmd_def.subcommands {
@@ -401,7 +782,7 @@ where
             cmd = cmd.subcommand(subcmd);
         }
     }
-    cmd = exts(&cmd_def.full_name, cmd);
+    cmd = exts(&cmd_def.full_name, cmd, &mut cache);
     cmd = apply_helps(&cmd_def.full_name, cmd);
 
     cmd
@@ -440,9 +821,10 @@ pub (crate) fn apply_args<'a>(args: &'a Vec<Arg>, mut cmd: App<'a>) -> App<'a> {
     cmd
 }
 
-pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>) -> App<'a> {
+pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>, cache: &mut CmdOptCache, from_ext: Option<&Extension>) -> App<'a> {
     for opt_def in opts {
-        let mut opt = clap::Arg::new(opt_def.name.as_str()).action(CountArgs).help(opt_def.help.as_str());
+        cache.register(&opt_def.name, from_ext);
+        let mut opt = clap::Arg::new(opt_def.id()).action(CountArgs).help(opt_def.help.as_str());
 
         if let Some(val_name) = opt_def.value_name.as_ref() {
             opt = opt.value_name(val_name).action(SetArg);
@@ -468,14 +850,31 @@ pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>) -> App<'a> {
         }
 
         if let Some(ln) = opt_def.long.as_ref() {
-            opt = opt.long(ln);
+            if cache.ln_conflicts(ln) {
+                // long name clashes - try inferred long name
+                if !cache.iln_conflicts(&opt_def.name) {
+                    opt = opt.long(&opt_def.name);
+                }
+            } else {
+                opt = opt.long(ln);
+            }
         } else {
             if !opt_def.short.is_some() {
-                opt = opt.long(&opt_def.name);
+                if !cache.iln_conflicts(&opt_def.name) {
+                    opt = opt.long(&opt_def.name);
+                }
             }
         }
         if let Some(sn) = opt_def.short {
-            opt = opt.short(sn);
+            if !cache.sn_conflicts(sn) {
+                opt = opt.short(sn);
+            } else {
+                if !opt.get_long().is_some() {
+                    if !cache.iln_conflicts(&opt_def.name) {
+                        opt = opt.long(&opt_def.name);
+                    }
+                }
+            }
         }
 
         if let Some(r) = opt_def.required {
@@ -491,12 +890,33 @@ pub (crate) fn apply_opts<'a>(opts: &'a Vec<Opt>, mut cmd: App<'a>) -> App<'a> {
         }
 
         if let Some(lns) = opt_def.long_aliases.as_ref() {
-            let v = lns.iter().map( |s| s.as_str() ).collect::<Vec<&str>>();
+            let v;
+            v = cache.non_conflicting_lnas(lns);
             opt = opt.visible_aliases(&v[..]);
         }
 
         if let Some(sns) = opt_def.short_aliases.as_ref() {
-            opt = opt.visible_short_aliases(&sns[..].iter().map(|a| *a).collect::<Vec<char>>());
+            let to_add;
+            to_add = cache.non_conflicting_snas(sns);
+            opt = opt.visible_short_aliases(&to_add[..]);
+        }
+
+        if from_ext.is_some() {
+            let full_name = opt_def.full_name.as_ref().unwrap();
+            if cache.needs_visible_full_name() {
+                opt = opt.long(full_name);
+            } else {
+                opt = opt.alias(full_name.as_str());
+            }
+        } else {
+            if cache.needs_visible_full_name() {
+                log_err_processing_cmd!(
+                    cache.cmd_path,
+                    "Unable to place unique long name, short name, or inferred long name for command option '{}'. Please resolve any previous conflicts regarding this option or add/update this option's name, long name, or short name",
+                    opt_def.name
+                );
+                continue;
+            }
         }
 
         cmd = cmd.arg(opt);

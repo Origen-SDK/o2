@@ -419,3 +419,7 @@ class HelpMsg:
     def assert_summary(self, msg):
         assert self.help == msg
         return True
+
+    @property
+    def logged_errors(self):
+        return list(filter(lambda l: "[ERROR] (" in l, self.text.split("\n")))

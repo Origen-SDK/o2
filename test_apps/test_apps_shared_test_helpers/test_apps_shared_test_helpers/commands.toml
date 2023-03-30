@@ -21,3 +21,167 @@ extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
     [[extension.opt]]
         name = "test_apps_shared_ext_flag"
         help = "Flag from test_apps_shared_test_helpers plugin"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+on_env=["ORIGEN_EXT_CONFLICTS_PL_TEST_ARGS"]
+    [[extension.opt]]
+        name = "pl_aux_conflict"
+        help = "plugin-aux conflict (PL)"
+    [[extension.opt]]
+        name = "pl_aux_conflict"
+        help = "plugin-aux conflict"
+        long = "duplicate_from_pl"
+    [[extension.opt]]
+        name = "pl_aux_sn_conflict_pl"
+        help = "plugin-aux conflict (sn) (PL)"
+        short = "s"
+    [[extension.opt]]
+        name = "opt_taking_value"
+        help = "Conflict with cmd opt (PL)"
+    [[extension.opt]]
+        name = "pl_conflict_ln_and_aliases"
+        help = "Conflict with cmd opt ln and some aliases (PL)"
+        long = "alias"
+        short = "n"
+        long_aliases = ["opt_alias", "other_alias_pl"]
+        short_aliases = ["a", "b", "c"]
+    [[extension.opt]]
+        name = "flag"
+        help = "Conflict with inferred long name (PL)"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args.subc"
+on_env=["ORIGEN_EXT_CONFLICTS_PL_TEST_ARGS_SUBC"]
+    [[extension.opt]]
+        name = "ext_opt.subc_reserved"
+        help = "Reserved Prefix"
+    [[extension.opt]]
+        name = "subc_pl_aux_conflict"
+        help = "plugin-aux conflict (PL)"
+        long = "subc_pl_aux"
+        short = "c"
+        long_aliases = ["pl0", "pl1", "subc_pl_aux"]
+        short_aliases = ["a", "c"]
+    [[extension.opt]]
+        name = "subc_pl_aux_conflict"
+        help = "plugin-aux conflict"
+        long = "duplicate_from_pl"
+    [[extension.opt]]
+        name = "flag_opt"
+        help = "Conflict with inferred long name (PL)"
+    [[extension.opt]]
+        name = "more_conflicts"
+        help = "More conflicts (PL)"
+        long_aliases = ["subc_pl_aux", "subc_opt", "subc_opt_alias", "ext_opt.subc_lna"]
+        short_aliases = ["d", "n"]
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+on_env = ["ORIGEN_APP_PL_CMD_CONFLICTS"]
+
+    [[extension.opt]]
+        name = "tas_opt"
+        help = "Opt from TAS"
+        long = "tas"
+        short = "z"
+        long_aliases = ["t_opt"]
+        short_aliases = ["b", "c"]
+
+    [[extension.opt]]
+        name = "tas_iln"
+        help = "ILN from TAS"
+
+[[extension]]
+extend = "origen.eval"
+help = "Conflict with core cmd arg"
+on_env=["ORIGEN_EXT_CONFLICTS_CORE_CMD_EVAL"]
+
+    [[extension.opt]]
+    name = "code"
+    help = "Conflict with core cmd arg name from PL"
+
+[[extension]]
+extend = "origen.credentials.clear"
+help = "Conflict with core cmd opt from PL"
+on_env=["ORIGEN_EXT_CONFLICTS_CORE_CMD_CREDS_CLEAR"]
+
+    [[extension.opt]]
+    name = "all"
+    help = "Conflict with core cmd opt name. Uses full name"
+
+    [[extension.opt]]
+    name = "cmd_conflicts_pl"
+    help = "Conflict with core cmd opt from PL"
+    long = "all"
+    short = "a"
+    long_aliases = ["datasets", "pl_datasets"]
+    short_aliases = ["d", "e"]
+
+[[extension]]
+extend = "app.arg_opt_warmup"
+on_env = ["ORIGEN_APP_EXT_ARG_OPT_WARMUP"]
+
+    [[extension.opt]]
+        name = "tas_single_opt"
+        help = "Single opt from TAS"
+        long = "tas_sv"
+        takes_value = true
+
+    [[extension.opt]]
+        name = "tas_multi_opt"
+        help = "Multi opt from TAS"
+        long = "tas_multi_opt"
+        multiple = true
+        long_aliases=["tas_multi", "TAS"]
+        short_aliases=["a"]
+
+    [[extension.opt]]
+        name = "tas_hidden"
+        help = "Hidden opt from TAS"
+        hidden = true
+
+[[extension]]
+extend = "app.arg_opt_warmup"
+on_env = ["ORIGEN_APP_EXT_CONFLICTS_ARG_OPT_WARMUP"]
+
+    [[extension.opt]]
+        name = "flag_opt"
+        help = "Conflict with flag opt from TAS"
+
+    [[extension.opt]]
+        name = "conflicts_from_test_apps_shared"
+        help = "Some conflicts from Test Apps Shared PL"
+        long = "TAS"
+        long_aliases=["hidden", "python_plugin_conflicts", "TAS"]
+        short_aliases=["m", "a", "b"]
+
+[[extension]]
+extend = "app.nested_app_cmds.nested_l1"
+on_env = ["ORIGEN_APP_EXT_NESTED"]
+
+    [[extension.opt]]
+        name = "tas_multi_opt_shallow"
+        help = "Multi opt from TAS"
+        long_aliases = ["tas_m_opt", "tas_shallow"]
+        multiple = true
+
+    [[extension.opt]]
+        name = "tas_flag_opt_shallow"
+        help = "Flag opt from TAS"
+        long= "tas_f"
+        short = "f"
+
+[[extension]]
+extend = "app.nested_app_cmds.nested_l1.nested_l2_b.nested_l3_a"
+on_env = ["ORIGEN_APP_EXT_NESTED"]
+
+    [[extension.opt]]
+        name = "tas_multi_opt_deep"
+        help = "Multi opt from TAS"
+        long = "tas_opt"
+        multiple = true
+
+    [[extension.opt]]
+        name = "tas_flag_opt_deep"
+        help = "Flag opt from TAS"

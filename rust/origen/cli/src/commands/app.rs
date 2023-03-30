@@ -189,30 +189,23 @@ pub(crate) fn run(cmd: &ArgMatches, mut app: &App, exts: &Extensions, plugins: O
         }
         "commands" => {
             if let Some(subc) = cmd.subcommand() {
-                // FOR_PR clean up
-                // let ns_ins = aux_cmds.namespaces.get(subc.0).expect(&format!("Expected auxillary command namespace '{}' to be present, but was not found", subc.0));
-                let path = build_path(&cmd)?;
-        
                 let mut overrides = IndexMap::new();
         
                 let mut matches = cmd;
                 let mut path_pieces: Vec<String> = vec!();
                 app = app.find_subcommand(BASE_CMD).unwrap();
-                // app = app.find_subcommand(subc.0).unwrap();
+                matches = matches.subcommand_matches("commands").unwrap();
+                app = app.find_subcommand("commands").unwrap();
                 while matches.subcommand_name().is_some() {
                     let n = matches.subcommand_name().unwrap();
                     matches = matches.subcommand_matches(&n).unwrap();
                     app = app.find_subcommand(n).unwrap();
-                    // path_pieces.push(format!("r'{}'", n));
                     path_pieces.push(n.to_string());
                 }
-        
-                // let mut cmd_def = get_cmd_def(cmd, app); // app.find_subcommand();
-                // TODO app isn't right here - needs to be subcommand
-                launch_as("_dispatch_app_cmd_", Some(&path_pieces), matches, app, exts.get_aux_ext(subc.0, &path), plugins, Some(
+                let path = path_pieces.join(".");
+                launch_as("_dispatch_app_cmd_", Some(&path_pieces), matches, app, exts.get_app_ext(&path), plugins, Some(
                     {
                         overrides.insert("dispatch_root".to_string(), Some(format!("r'{}'", app_cmds.cmds_root()?.display())));
-                        // overrides.insert("dispatch_cmds".to_string(), Some(format!("[{}]", path_pieces.join(", "))));
                         overrides
                     }
                 ), None);

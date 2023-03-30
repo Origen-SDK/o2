@@ -124,6 +124,16 @@ pub fn launch2(invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Ext
 // }
 
 pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Extension>>, plugins: Option<&Plugins>, overrides: Option<IndexMap<String, Option<String>>>, arg_overrides: Option<IndexMap<String, Option<String>>>) {
+    macro_rules! as_name {
+        ($arg_name:expr) => {{
+            if $arg_name.starts_with(crate::framework::extensions::EXT_BASE_NAME) {
+                $arg_name.splitn(4, ".").last().unwrap()
+            } else {
+                $arg_name
+            }
+        }}
+    }
+
     let mut args: Vec<String> = vec!();
 
     // println!("exts from launch: {:?}", cmd_exts);
@@ -133,7 +143,7 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
         for ext in exts {
             if let Some(opts) = ext.opts.as_ref() {
                 for opt in opts {
-                    opt_names.insert(opt.name.as_str(), &ext.source);
+                    opt_names.insert(opt.full_name.as_ref().unwrap().as_str(), &ext.source);
                     if !ext_args.contains_key(&ext.source) {
                         ext_args.insert(&ext.source, vec!());
                     }
@@ -172,16 +182,16 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
                 if arg.is_multiple_values_set() {
                     // Give to Python as an array of string values
                     let r = invocation.get_many::<String>(arg_n).unwrap().map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
-                    arg_str = format!("r'{}': [{}]", arg_n, r.join(", "));
+                    arg_str = format!("r'{}': [{}]", as_name!(arg_n), r.join(", "));
                 } else {
                     // Give to Python a single string value
-                    arg_str = format!("r'{}': r'{}'", arg_n, invocation.get_one::<String>(arg_n).unwrap());
+                    arg_str = format!("r'{}': r'{}'", as_name!(arg_n), invocation.get_one::<String>(arg_n).unwrap());
                 }
             } else {
                 match arg.get_action() {
                     SetArgTrue => {
                         if *(invocation.get_one::<bool>(arg_n).unwrap()) {
-                            arg_str = format!("r'{}': True", arg_n);
+                            arg_str = format!("r'{}': True", as_name!(arg_n));
                         } else {
                             continue;
                         }
@@ -189,13 +199,13 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
                     CountArgs => {
                         let count = *(invocation.get_one::<u8>(arg_n).unwrap());
                         if count > 0 {
-                            arg_str = format!("r'{}': {}", arg_n, count);
+                            arg_str = format!("r'{}': {}", as_name!(arg_n), count);
                         } else {
                             continue;
                         }
                     },
                     _ => {
-                        log_error!("Unsupported action '{:#?}' for arg '{}'", arg.get_action(), arg_n); //arg_str = format!("r'{}': True", arg_n)
+                        log_error!("Unsupported action '{:#?}' for arg '{}'", arg.get_action(), as_name!(arg_n)); //arg_str = format!("r'{}': True", arg_n)
                         exit(1);
                     }
                 }

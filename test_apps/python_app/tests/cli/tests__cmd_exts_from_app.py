@@ -1,5 +1,5 @@
 import pytest, os, origen
-from origen.helpers.regressions.cli.command import SrcTypes #, CmdExtOpt
+from origen.helpers.regressions.cli.command import SrcTypes
 from .shared import CLICommon, CmdExtOpt
 
 class T_ExtendingFromAppCmds(CLICommon):
@@ -67,7 +67,7 @@ class T_ExtendingFromAppCmds(CLICommon):
     )
     na = "no_action"
 
-    missing_ext_impl_cmd = CLICommon.python_plugin.plugin_test_args.extend(
+    missing_ext_impl_cmd = CLICommon.python_plugin.plugin_says_hi.extend(
         CmdExtOpt.from_src(
             "example",
             SrcTypes.APP,
@@ -291,13 +291,15 @@ class T_ExtendingFromAppCmds(CLICommon):
     def test_error_msg_on_missing_implementation(self):
         cmd = self.missing_ext_impl_cmd
         help = cmd.get_help_msg()
-        help.assert_args(cmd.single_arg, cmd.multi_arg)
+        help.assert_args()
         help.assert_opts(
             cmd.app_ext_missing_impl,
-            cmd.flag_opt,
-            "help", "m", "nt",
-            cmd.opt_taking_value,
-            "t", "v", 'vk'
+            "help",
+            cmd.loudly,
+            "m", "nt", "t",
+            cmd.to,
+            "v", 'vk',
+            cmd.times,
         )
 
         assert help.aux_exts == None
@@ -306,11 +308,11 @@ class T_ExtendingFromAppCmds(CLICommon):
 
         out = cmd.run()
         r = origen.app.root.joinpath('example/commands/extensions')
-        assert "Could not find implementation for app extension 'None'" in out
+        assert "Could not find implementation for app extension" in out
         assert f"From root '{r}', searched:" in out
-        assert f"plugin.python_plugin.plugin_test_args.py" in out
-        assert f"plugin{os.sep}python_plugin.plugin_test_args.py" in out
-        assert f"plugin{os.sep}python_plugin{os.sep}plugin_test_args.py" in out
+        assert f"plugin.python_plugin.plugin_says_hi.py" in out
+        assert f"plugin{os.sep}python_plugin.plugin_says_hi.py" in out
+        assert f"plugin{os.sep}python_plugin{os.sep}plugin_says_hi.py" in out
 
     @pytest.mark.skip
     def error_msg_on_extending_unknown_cmd(self):
@@ -327,3 +329,115 @@ class T_ExtendingFromAppCmds(CLICommon):
     @pytest.mark.skip
     def test_error_in_cleanup(self):
         fail
+
+    class TestAppExtConflicts(CLICommon):
+        ''' Test what happens when app/plugin/aux extensions conflict
+        Only need a subset to ensure app messaging is okay '''
+        config = CLICommon.app_cmds.conflict_exts["python_plugin.plugin_test_args"]
+        cmd = CLICommon.python_plugin.plugin_test_args.extend(
+            config["exts"],
+            from_configs=[config["cfg"]],
+            with_env=config["env"]
+        )
+        _exts = CLICommon.exts.partition_exts(config["exts"])
+
+        @pytest.fixture
+        def exts(self):
+            return self._exts
+
+        @pytest.fixture
+        def cmd_help(self):
+            if not hasattr(self, "_cmd_help"):
+                self._cmd_help = self.cmd.get_help_msg()
+            return self._cmd_help
+
+        def test_help_msg(self, exts, cmd_help):
+            cmd = self.cmd
+            help = cmd_help
+            help.assert_args(cmd.single_arg, cmd.multi_arg)
+            help.assert_opts(
+                exts.app.app_opt,
+                exts.ec.ec_opt,
+                exts.app.tas_iln,
+                exts.ec.tas_iln,
+                cmd.flag_opt,
+                "h", "m",
+                cmd.sn_only,
+                "nt",
+                cmd.opt_taking_value,
+                cmd.opt_with_aliases,
+                "t",
+                exts.tas.tas_iln,
+                "v", "vk",
+                exts.tas.tas_opt,
+            )
+            help.assert_subcmds("help", cmd.subc)
+
+            assert help.aux_exts == ["ext_conflicts"]
+            assert help.pl_exts == ["test_apps_shared_test_helpers"]
+            assert help.app_exts == True
+
+        def test_conflict_msgs(self, exts, cmd_help):
+            cmd = self.cmd
+            cmd_conflicts = cmd_help.logged_errors
+            conflicts = [
+                ["repeated_sna", exts.app.app_opt, "g", 2],
+                ["reserved_prefix_lna", exts.app.app_opt, "ext_opt.res"],
+                ["duplicate", exts.app.app_opt, 0],
+                ["reserved_prefix_opt_name", "ext_opt.res_app_opt", exts.app.app_opt.displayed],
+
+                ["sna", "sna", exts.tas.tas_opt, cmd.opt_with_aliases, "b"],
+
+                ["sna", "sna", exts.ec.ec_opt, cmd.opt_with_aliases, "a"],
+                ["sna", "sna", exts.ec.ec_opt, cmd.opt_with_aliases, "b"],
+                ["sna", "sna", exts.ec.ec_opt, exts.tas.tas_opt, "c"],
+                ["sn", "sn", exts.ec.tas_iln, cmd.sn_only, "n"],
+                ["iln", "iln", exts.ec.tas_iln, exts.tas.tas_iln],
+                ["lna", "lna", exts.ec.tas_iln, exts.tas.tas_opt, "t_opt"],
+
+                ["sn", "sna", exts.app.app_opt, cmd.opt_with_aliases, "a"],
+                ["lna", "ln", exts.app.app_opt, exts.tas.tas_opt, "tas"],
+                ["lna", "ln", exts.app.app_opt, cmd.flag_opt, "flag"],
+                ["sna", "sna", exts.app.app_opt, exts.tas.tas_opt, "c"],
+                ["sna", "sna", exts.app.app_opt, exts.ec.ec_opt, "d"],
+                ["iln", "iln", exts.app.tas_iln, exts.tas.tas_iln],
+            ]
+            for c in reversed(conflicts):
+                m = cmd_conflicts.pop()
+                print(m)
+                assert self.to_conflict_msg(cmd, c) in m
+
+        def test_exts(self, exts):
+            cmd = self.cmd
+            sa = "sa_val"
+            ma = ["a", "b", "c"]
+            opt = "opt_val"
+            out = cmd.run(
+                sa, *ma,
+                "--app", "--app_flag", "-g", "-g", "--app_flag", "-g",
+                "-e", "--ec", "-d",
+                "--ext_opt.app.tas_iln",
+                "--ext_opt.aux.ext_conflicts.tas_iln", "--ext_opt.aux.ext_conflicts.tas_iln",
+                "--flag", "--flag", "--flag",
+                "-n", "-n", "-n", "-n",
+                "--opt", opt,
+                "--opt_alias", "-a", "-b", "-a", "-b",
+                "--tas_iln", "--tas_iln", "--tas_iln",
+                "--tas", "-z", "-c", "--tas", "-z", "-c", "--t_opt",
+            )
+            cmd.assert_args(
+                out,
+                (cmd.single_arg, sa),
+                (cmd.multi_arg, ma),
+                (cmd.flag_opt, 3),
+                (cmd.sn_only, 4),
+                (cmd.opt_taking_value, opt),
+                (cmd.opt_with_aliases, 5),
+
+                (exts.app.app_opt, 6),
+                (exts.app.tas_iln, 1),
+                (exts.ec.ec_opt, 3),
+                (exts.ec.tas_iln, 2),
+                (exts.tas.tas_opt, 7),
+                (exts.tas.tas_iln, 3),
+            )

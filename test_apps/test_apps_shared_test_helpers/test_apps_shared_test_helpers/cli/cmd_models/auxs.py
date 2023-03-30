@@ -419,6 +419,8 @@ class PythonAppAuxCmds(cli.CLI):
     def __init__(self):
         self.name = "python_app_aux_cmds"
         self.config_toml = aux_cmds_dir.joinpath(f"{self.name}_cfg.toml")
+        self.exts_cfg = aux_cmds_dir.joinpath("python_app_exts_cfg.toml")
+        self.ext_conflicts_cfg = aux_cmds_dir.joinpath("python_app_ext_conflicts_cfg.toml")
         self.disabling_app_opts_from_aux = self.aux_sub_cmd(
             self.name,
             "disabling_app_opts_from_aux",
@@ -468,3 +470,4 @@ class AuxNamespaces:
 class Aux:
     namespaces = AuxNamespaces()
     ns = namespaces
+    aux_cmds_dir = aux_cmds_dir

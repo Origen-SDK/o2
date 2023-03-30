@@ -9,8 +9,16 @@ from cli.tests__core_cmds import T_AppWorkspaceCoreCommands
 from cli.tests__cmd_exts_from_app import T_ExtendingFromAppCmds
 from cli.tests__reserved_opts import T_ReservedOpts
 from cli.tests__cmd_integration import T_CommandIntegration
+from cli.tests__intra_cmd_conflicts import T_IntraCmdConflicts
+from cli.tests__extending_app_cmds import T_ExtendingAppCmds
 
 class TestAppCmdBuilding(T_AppCmdBuilding):
+    pass
+
+class TestExtendingAppCmds(T_ExtendingAppCmds):
+    pass
+
+class TestIntraCmdConflicts(T_IntraCmdConflicts):
     pass
 
 class TestExtendingFromAppCommands(T_ExtendingFromAppCmds):
@@ -59,30 +67,8 @@ def test_origen_g():
     assert process.wait() == 0
 
 @pytest.mark.skip
-class TestPluginCommandsAreAdded:
-    ...
-
-@pytest.mark.skip
 class TestAuxCommandsAreAdded:
     ...
-
-@pytest.mark.skip
-class TestAppPluginAndAuxCommandClashing:
-    # core_cmd = origen.helpers.regressions.cli.CLI.in_app_cmds.eval.extend(
-    #     exts,
-    #     with_env=extend_core_cmds_env,
-    #     from_configs=CLICommon.configs.suppress_plugin_collecting_config,
-    # )
-
-    def test_app_cmd_overrides_pl_cmd(self):
-        fail
-
-    def test_app_cmd_overrides_aux_cmd(self):
-        fail
-
-    # def test_extending_app_cmds(self):
-    #     fail
-
 
 @pytest.mark.skip
 class TestModeOpts():

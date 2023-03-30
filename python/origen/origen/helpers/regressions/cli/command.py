@@ -23,6 +23,9 @@ class CmdArg(CmdArgOpt):
         self.required = required
         self.value_name = value_name
         self.use_delimiter = use_delimiter
+        self.is_ext = False
+        self.is_opt = False
+        self.is_arg = True
 
 class CmdOpt(CmdArgOpt):
     def __init__(
@@ -38,7 +41,9 @@ class CmdOpt(CmdArgOpt):
         ln_aliases=None,
         value_name=None,
         hidden = False,
-        use_delimiter=None
+        use_delimiter=None,
+        full_name=None,
+        access_with_full_name=False,
     ):
         self.name = name
         self.help = help
@@ -52,9 +57,17 @@ class CmdOpt(CmdArgOpt):
         self.value_name = value_name
         self.hidden = hidden
         self.use_delimiter = use_delimiter
+        self.full_name = full_name
+        self.access_with_full_name = access_with_full_name
+        self.is_ext = False
+        self.is_opt = True
+        self.is_arg = False
 
     def to_ln(self):
-        return self.ln or self.name
+        if self.access_with_full_name:
+            return self.full_name
+        else:
+            return self.ln or self.name
 
     def ln_to_cli(self):
         return f"--{self.to_ln()}"
@@ -77,16 +90,32 @@ class SrcTypes(enum.Enum):
     PLUGIN = enum.auto()
     AUX = enum.auto()
 
+    def __str__(self) -> str:
+        if self == self.CORE:
+            return "origen"
+        elif self == self.APP:
+            return "app"
+        elif self == self.PLUGIN:
+            return "plugin"
+        elif self == self.AUX:
+            return "aux"
+
 class CmdExtOpt(CmdOpt):
     @classmethod
     def from_src(cls, src_name, src_type, *args):
         for a in args:
             a.src_name = src_name
             a.src_type = src_type
+            if src_type == SrcTypes.APP:
+                src_n = ""
+            else:
+                src_n = f".{src_name}"
+            a.full_name = f"ext_opt.{src_type}{src_n}.{a.name}"
         return args
 
     def __init__(self, *args, src_name=None, src_type=None, **kwargs):
         CmdOpt.__init__(self, *args, **kwargs)
+        self.is_ext = True
         self.src_name = src_name
         self.src_type = src_type
     
@@ -100,6 +129,15 @@ class CmdExtOpt(CmdOpt):
             return "the App"
         else:
             return self.src_name
+
+    @property
+    def displayed(self):
+        if self.provided_by_app:
+            return "the App"
+        elif self.src_type == SrcTypes.PLUGIN:
+            return f"plugin '{self.src_name}'"
+        elif self.src_type == SrcTypes.AUX:
+            return f"aux namespace '{self.src_name}'"
 
 class CmdDemo:
     def __init__(self, name, args=None, expected_output=None) -> None:

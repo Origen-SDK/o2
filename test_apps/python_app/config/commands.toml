@@ -280,6 +280,138 @@ on_env = ["ORIGEN_APP_TEST_RESERVED_OPT_ERRORS"]
                 long = "verbosity"
                 help = "Conflicting Opt"
 
+[[command]]
+name = "intra_cmd_conflicts"
+help = "App cmd with conflicting args and opts within the cmd"
+on_env=["ORIGEN_APP_INTRA_CMD_CONFLICTS"]
+
+    [[command.arg]]
+    name = "arg0"
+    help = "Arg 0"
+
+    [[command.arg]]
+    name = "arg0"
+    help = "Duplicate: Arg 0"
+
+    [[command.arg]]
+    name = "arg1"
+    help = "Arg 1"
+
+    [[command.arg]]
+    name = "arg2"
+    help = "Arg 2"
+
+    [[command.arg]]
+    name = "arg1"
+    help = "Duplicate: Arg 1"
+
+    [[command.arg]]
+    name = "ext_opt.arg"
+    help = "Arg with reserved prefix"
+
+    [[command.opt]]
+    name = "opt"
+    help = "Opt 0"
+    long_aliases=["opt0"]
+
+    [[command.opt]]
+    name = "opt"
+    help = "Duplicate: Opt 0"
+
+    [[command.opt]]
+    name = "ext_opt.opt"
+    help = "Reserved Prefix"
+
+    [[command.opt]]
+    name = "arg0"
+    help = "Arg-Opt clash"
+
+    [[command.opt]]
+    name = "arg_clash"
+    help = "Arg-Opt clash in ln/lna (okay)"
+    long = "arg0"
+    long_aliases = ["arg1"]
+
+    [[command.opt]]
+    name= "reserved_prefix_in_ln_lna"
+    help = "Reserved prefix in ln and lna"
+    long = "ext_opt.ln"
+    long_aliases = ["ext_opt.lna", "ext_opt_lna"]
+
+    [[command.opt]]
+    name= "intra_opt_conflicts"
+    help = "Various intra-opt conflicts"
+    long = "intra_opt_cons"
+    short = "c"
+    long_aliases = ["intra_opt_conflicts", "intra_opt_cons", "intra_opt_cons2", "intra_opt_cons2"]
+    short_aliases = ["a", "b", "c", "b", "c", "e", "e"]
+
+    [[command.opt]]
+    name= "inter_opt_conflicts"
+    help = "Various inter-opt conflicts"
+    long = "intra_opt_conflicts"
+    short = "a"
+    long_aliases = ["intra_opt_cons", "ext_opt_lna", "reserved_prefix_in_ln_lna"]
+    short_aliases = ["b", "c", "d"]
+
+    [[command.opt]]
+    name = "opt0"
+    help = "Inferred long name clash"
+
+    [[command.subcommand]]
+    name = "conflicts_subc"
+    help = "Subcommand with conflicts"
+
+        [[command.subcommand.arg]]
+        name = "arg0"
+        help = "Arg 0"
+
+        [[command.subcommand.arg]]
+        name = "sub_arg_1"
+        help = "Subc Arg 1"
+
+        [[command.subcommand.arg]]
+        name = "sub_arg_1"
+        help = "Duplicate"
+
+        [[command.subcommand.arg]]
+        name = "ext_opt.subc_arg"
+        help = "Arg with reserved prefix"
+
+        [[command.subcommand.opt]]
+        name = "ext_opt.subc_opt"
+        help = "Reserved opt prefix"
+        short = "r"
+
+        [[command.subcommand.opt]]
+        name = "opt"
+        help = "Opt 0"
+        long_aliases=["subc_opt", "ext_opt.subc_opt_lna"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_conflicts"
+        help = "Intra-opt conflicts for subc"
+        long = "intra_subc_conflicts"
+        short = "r"
+        long_aliases=["intra_subc_conflicts"]
+        short_aliases=["r"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_lna_iln_conflict"
+        help = "Intra-opt iln conflict"
+        long_aliases=["intra_subc_lna_iln_conflict"]
+
+        [[command.subcommand.opt]]
+        name = "inter_subc_conflicts"
+        help = "Inter-opt conflicts for subc"
+        long = "opt"
+        long_aliases=["intra_subc_conflicts"]
+        short_aliases=["r"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_conflicts"
+        help = "Duplicate Opt"
+
 # Extend core command
 [[extension]]
 extend = "origen.eval"
@@ -295,12 +427,38 @@ on_env = ["ORIGEN_APP_EXTEND_CORE_CMDS"]
         help = "Flag ext from the app"
 
 [[extension]]
-extend = "plugin.python_plugin.plugin_test_args"
+extend = "plugin.python_plugin.plugin_says_hi"
 on_env = ["ORIGEN_APP_PL_CMD_MISSING_EXT_IMPL"]
 
     [[extension.opt]]
         name = "app_ext_missing_impl"
         help = "App extension missing the implementation"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+on_env = ["ORIGEN_APP_PL_CMD_CONFLICTS"]
+
+    [[extension.opt]]
+        name = "app_opt"
+        help = "Conflict with cmd/aux/plugin opts"
+        long = "app"
+        short = "a"
+        long_aliases=["app_opt", "tas", "flag", "app_flag", "ext_opt.res"]
+        short_aliases=["c", "d", "g", "g"]
+
+    [[extension.opt]]
+        name = "tas_iln"
+        help = "Conflict iln from App"
+
+    [[extension.opt]]
+        name = "app_opt"
+        help = "App opt repeat"
+
+    [[extension.opt]]
+        name = "ext_opt.res_app_opt"
+        long = "res_opt_opt"
+        help = "App opt reserved name"
+
 
 # Extend plugin command
 [[extension]]

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::commands::_prelude::*;
 use std::fmt;
 use super::extensions::ExtensionSource;
+use origen_metal::indexmap::IndexSet;
 
 #[derive(Debug)]
 pub struct CmdHelps {
@@ -77,13 +78,13 @@ impl CmdHelps {
         for (target, exts) in extensions.exts() {
             if let Some(help) = self.helps.get_mut(&target) {
                 let mut extended_from_app = false;
-                let mut pls: Vec<&str> = vec!();
-                let mut nspaces: Vec<&str> = vec!();
+                let mut pls: IndexSet<&str> = IndexSet::new();
+                let mut nspaces: IndexSet<&str> = IndexSet::new();
                 for ext in exts.iter() {
                     match ext.source {
                         ExtensionSource::App => extended_from_app = true,
-                        ExtensionSource::Plugin(ref n) => pls.push(n),
-                        ExtensionSource::Aux(ref n, _) => nspaces.push(n),
+                        ExtensionSource::Plugin(ref n) => { pls.insert(n); },
+                        ExtensionSource::Aux(ref n, _) => { nspaces.insert(n); },
                     }
                 }
                 let mut msg = "This command is extended from:".to_string();

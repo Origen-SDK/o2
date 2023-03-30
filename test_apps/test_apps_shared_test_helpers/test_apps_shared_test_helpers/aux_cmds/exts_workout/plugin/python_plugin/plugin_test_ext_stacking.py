@@ -42,13 +42,6 @@ def do_action(actions, phase):
                     # origen.current_command.exts["aux.exts_workout"].args["flag_extension"] += 1
                     origen.current_command.exts["aux.pl_ext_stacking_from_aux"].args["pl_ext_stacking_from_aux_flag"] += 1
                     origen.current_command.exts["plugin.python_plugin_the_second"].args["pl_the_2nd_ext_flag"] += 1
-
-            if action == "show_exts":
-                fail
-            if action == "update_aux_ext":
-                fail
-            if action == "current_command_BIST":
-                fail
             print(f"End Action {phase} CMD: {action}")
 
 action_opt = "ext_action"

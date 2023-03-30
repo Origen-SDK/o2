@@ -80,6 +80,17 @@ class PythonPlugin(cli.CLI):
                     help="Flag Opt",
                     ln="flag",
                 ),
+                CmdOpt(
+                    name="sn_only",
+                    help="Opt with short name only",
+                    sn="n",
+                ),
+                CmdOpt(
+                    name="opt_with_aliases",
+                    help="Opt with aliases",
+                    ln_aliases=["alias", "opt_alias"],
+                    sn_aliases=["a", "b"],
+                )
             ],
             subcmds=[
                 Cmd(
@@ -95,6 +106,18 @@ class PythonPlugin(cli.CLI):
                         CmdOpt(
                             name="flag_opt",
                             help="Flag Opt For Subcommand",
+                        ),
+                        CmdOpt(
+                            name="subc_sn_only",
+                            help="Opt with short name only for subc",
+                            sn="n",
+                        ),
+                        CmdOpt(
+                            name="subc_opt_with_aliases",
+                            help="Opt with aliases for subc",
+                            ln="subc_opt",
+                            ln_aliases=["subc_alias", "subc_opt_alias"],
+                            sn_aliases=["a", "b"]
                         ),
                     ]
                 )
@@ -166,6 +189,149 @@ class PythonPlugin(cli.CLI):
                 )
             ]
         )
+        self.intra_cmd_conflicts = self.pl_sub_cmd(
+            self.name,
+            "intra_cmd_conflicts",
+            help="PL cmd with conflicting args and opts within the cmd",
+            with_env={"ORIGEN_PL_INTRA_CMD_CONFLICTS": "1"},
+            **self.intra_cmd_conflicts_args_opts_subcs(),
+        )
+    
+    @property
+    def intra_cmd_conflicts_list(self):
+        if not hasattr(self, "_intra_cmd_conflicts_list"):
+            self._intra_cmd_conflicts_list = self.get_intra_cmd_conflicts_list(self.intra_cmd_conflicts)
+        return self._intra_cmd_conflicts_list
+
+    @classmethod
+    def intra_cmd_conflicts_args_opts_subcs(cls):
+        return {
+            "args": [
+                CmdArg(
+                    name="arg0",
+                    help="Arg 0",
+                ),
+                CmdArg(
+                    name="arg1",
+                    help="Arg 1",
+                ),
+                CmdArg(
+                    name="arg2",
+                    help="Arg 2",
+                ),
+            ],
+            "opts": [
+                CmdOpt(
+                    name="opt",
+                    help="Opt 0",
+                    ln_aliases=["opt0"]
+                ),
+                CmdOpt(
+                    name="arg_clash",
+                    help="Arg-Opt clash in ln/lna (okay)",
+                    ln="arg0",
+                    ln_aliases=["arg1"],
+                ),
+                CmdOpt(
+                    name="reserved_prefix_in_ln_lna",
+                    help="Reserved prefix in ln and lna",
+                    ln_aliases=["ext_opt_lna"],
+                ),
+                CmdOpt(
+                    name="intra_opt_conflicts",
+                    help="Various intra-opt conflicts",
+                    ln="intra_opt_cons",
+                    sn="c",
+                    ln_aliases=["intra_opt_conflicts", "intra_opt_cons2"],
+                    sn_aliases=["a", "b", "e"]
+                ),
+                CmdOpt(
+                    name="inter_opt_conflicts",
+                    help="Various inter-opt conflicts",
+                    sn_aliases=["d"],
+                ),
+                CmdOpt(
+                    name="opt0",
+                    help="Inferred long name clash",
+                ),
+            ],
+            "subcmds": [
+                Cmd(
+                    "conflicts_subc",
+                    help="Subcommand with conflicts",
+                    args=[
+                        CmdArg(
+                            name="arg0",
+                            help="Arg 0",
+                        ),
+                        CmdArg(
+                            name="sub_arg_1",
+                            help="Subc Arg 1",
+                        ),
+                    ],
+                    opts=[
+                        CmdOpt(
+                            name="opt",
+                            help="Opt 0",
+                            ln_aliases=["subc_opt"],
+                        ),
+                        CmdOpt(
+                            name="intra_subc_conflicts",
+                            help="Intra-opt conflicts for subc",
+                            sn="r",
+                            ln="intra_subc_conflicts",
+                        ),
+                        CmdOpt(
+                            name="intra_subc_lna_iln_conflict",
+                            help="Intra-opt iln conflict",
+                        ),
+                        CmdOpt(
+                            name="inter_subc_conflicts",
+                            help="Inter-opt conflicts for subc",
+                        ),
+                    ]
+                )
+            ]
+        }
+    
+    @classmethod
+    def get_intra_cmd_conflicts_list(self, base_cmd):
+        return [
+            ["duplicate", base_cmd.arg0, 0],
+            ["duplicate", base_cmd.arg1, 2],
+            ["reserved_prefix_arg_name", "ext_opt.arg"],
+            ["duplicate", base_cmd.opt, 0],
+            ["reserved_prefix_opt_name", "ext_opt.opt", None],
+            ["reserved_prefix_ln", base_cmd.reserved_prefix_in_ln_lna,"ext_opt.ln"],
+            ["reserved_prefix_lna", base_cmd.reserved_prefix_in_ln_lna, "ext_opt.lna"],
+            ["inter_ext_sna_sn", base_cmd.intra_opt_conflicts, "c"],
+            ["repeated_sna", base_cmd.intra_opt_conflicts, "b", 1],
+            ["inter_ext_sna_sn", base_cmd.intra_opt_conflicts, "c"],
+            ["repeated_sna", base_cmd.intra_opt_conflicts, "e", 5],
+            ["inter_ext_lna_ln", base_cmd.intra_opt_conflicts, "intra_opt_cons"],
+            ["repeated_lna", base_cmd.intra_opt_conflicts, "intra_opt_cons2", 2],
+            ["arg_opt_name_conflict", base_cmd.arg0, 0],
+            [base_cmd.conflicts_subc, "duplicate", base_cmd.conflicts_subc.sub_arg_1, 1],
+            [base_cmd.conflicts_subc, "reserved_prefix_arg_name", "ext_opt.subc_arg"],
+            [base_cmd.conflicts_subc, "reserved_prefix_opt_name", "ext_opt.subc_opt", None],
+            [base_cmd.conflicts_subc, "reserved_prefix_lna", base_cmd.conflicts_subc.opt, "ext_opt.subc_opt_lna"],
+            [base_cmd.conflicts_subc, "inter_ext_sna_sn", base_cmd.conflicts_subc.intra_subc_conflicts, "r"],
+            [base_cmd.conflicts_subc, "inter_ext_lna_ln", base_cmd.conflicts_subc.intra_subc_conflicts, "intra_subc_conflicts"],
+            [base_cmd.conflicts_subc, "inter_ext_lna_iln", base_cmd.conflicts_subc.intra_subc_lna_iln_conflict],
+            [base_cmd.conflicts_subc, "duplicate", base_cmd.conflicts_subc.intra_subc_conflicts, 2],
+            ["ln", "lna", base_cmd.inter_opt_conflicts, base_cmd.intra_opt_conflicts, "intra_opt_conflicts"],
+            ["sn", "sna", base_cmd.inter_opt_conflicts, base_cmd.intra_opt_conflicts, "a"],
+            ["lna", "ln", base_cmd.inter_opt_conflicts, base_cmd.intra_opt_conflicts, "intra_opt_cons"],
+            ["lna", "lna", base_cmd.inter_opt_conflicts, base_cmd.reserved_prefix_in_ln_lna, "ext_opt_lna"],
+            ["lna", "iln", base_cmd.inter_opt_conflicts, base_cmd.reserved_prefix_in_ln_lna, "reserved_prefix_in_ln_lna"],
+            ["sna", "sna", base_cmd.inter_opt_conflicts, base_cmd.intra_opt_conflicts, "b"],
+            ["sna", "sn", base_cmd.inter_opt_conflicts, base_cmd.intra_opt_conflicts, "c"],
+            ["iln", "lna", "opt0", base_cmd.opt],
+            ["intra_cmd_not_placed", "opt0"],
+            [base_cmd.conflicts_subc, "ln", "iln", base_cmd.conflicts_subc.inter_subc_conflicts, base_cmd.conflicts_subc.opt, "opt"],
+            [base_cmd.conflicts_subc, "lna", "ln", base_cmd.conflicts_subc.inter_subc_conflicts, base_cmd.conflicts_subc.intra_subc_conflicts, "intra_subc_conflicts"],
+            [base_cmd.conflicts_subc, "sna", "sn", base_cmd.conflicts_subc.inter_subc_conflicts, base_cmd.conflicts_subc.intra_subc_conflicts, "r"],
+        ]
 
     @property
     def base_cmd(self):

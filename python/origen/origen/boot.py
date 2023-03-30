@@ -197,13 +197,23 @@ def run_cmd(command,
 
     for ext in extensions:
         current_ext = ext
-        m = mod_from_modulized_path(ext['root'], [cmd_src, command if cmd_src == "core" else dispatch_src, *subcmds])
+        if cmd_src == "core":
+            _dispatch_src = [command]
+        elif cmd_src == "app":
+            _dispatch_src = []
+        else:
+            _dispatch_src = [dispatch_src]
+        m = mod_from_modulized_path(ext['root'], [cmd_src, *_dispatch_src, *subcmds])
         if isinstance(m, list):
             if len(m) == 2 and isinstance(m[1], Exception):
                 origen.log.error(f"Could not load {ext['source']} extension implementation from '{ext['name']}' ({m[0]})")
                 origen.log.error(f"Received exception:\n{m[1]}")
             else:
-                origen.log.error(f"Could not find implementation for {ext['source']} extension '{ext['name']}'")
+                if ext['source'] == "app":
+                    n = ''
+                else:
+                    n = f"'{ext['name']}'"
+                origen.log.error(f"Could not find implementation for {ext['source']} extension{n}")
                 for msg in m:
                     origen.log.error(f"  {msg}")
             ext['mod'] = None
@@ -460,8 +470,6 @@ def run_cmd(command,
 
 
         elif command == dispatch_app_cmd:
-            # FOR_PR fix this upstream
-            subcmds = subcmds[1:]
             call_user_cmd("app")
 
         elif command == dispatch_plugin_cmd:
