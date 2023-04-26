@@ -564,3 +564,18 @@ on_env = ["ORIGEN_APP_EXT_TEST_RESERVED_OPT_ERRORS"]
         name = "conflicting_vk"
         help = "Conflicting Core Extension"
         long_aliases=["verbosity_keywords", "vk"]
+
+# Try to extend non-extenable commands
+[[extension]]
+extend = "origen.target"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target"
+
+[[extension]]
+extend = "origen.target.view"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target view"

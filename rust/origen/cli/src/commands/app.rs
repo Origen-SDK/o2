@@ -4,7 +4,6 @@ use crate::framework::AppCmds;
 use crate::commands::_prelude::*;
 use crate::framework::app_cmds::add_commands as add_app_user_commands;
 use crate::framework::app_cmds::add_helps as add_app_cmd_helps;
-use crate::framework::build_path;
 
 pub const BASE_CMD: &'static str = "app";
 

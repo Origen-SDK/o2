@@ -1,6 +1,7 @@
 '''Regression test helpers for testing/checking Origen CLI integration'''
 
-from .command import Cmd, CmdArg, CmdOpt
+import re
+from .command import Cmd, CmdArg, CmdOpt, SrcTypes
 from .help_msg import HelpMsg
 from .origen import _CommonNames, GlobalCommands, InAppCommands, CoreOpts, CoreErrorMessages
 from .... import origen as o
@@ -14,6 +15,14 @@ class CLIProperties(type):
         return [cmd.name, cmd.commands.name]
 
 class CLI(metaclass=CLIProperties):
+    @classmethod
+    def run_cli_cmd(cls, *args, **kwargs):
+        return o.helpers.env.run_cli_cmd(*args, **kwargs)
+
+    @classmethod
+    def gen_error(cls, *args, **kwargs):
+        return o.helpers.env.run_cli_cmd(*args, expect_fail=True, **kwargs)
+
     HelpMsg = HelpMsg
     Cmd = Cmd
     CmdOpt = CmdOpt
@@ -70,3 +79,7 @@ class CLI(metaclass=CLIProperties):
 
     error_messages = CoreErrorMessages()
     err_msgs = error_messages
+
+    @classmethod
+    def extract_logged_errors(cls, text):
+        return list(map(lambda l: re.split(r"\[ERROR\] \(..:..:..\....\): ", l, 1)[1], filter(lambda l: "[ERROR] (" in l, text.split("\n"))))

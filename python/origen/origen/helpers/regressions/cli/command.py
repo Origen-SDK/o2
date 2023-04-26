@@ -100,6 +100,14 @@ class SrcTypes(enum.Enum):
         elif self == self.AUX:
             return "aux"
 
+    def displayed(self, src_name=None):
+        if self == SrcTypes.APP:
+            return "the App"
+        elif self == SrcTypes.PLUGIN:
+            return f"plugin '{src_name}'"
+        elif self == SrcTypes.AUX:
+            return f"aux namespace '{src_name}'"
+
 class CmdExtOpt(CmdOpt):
     @classmethod
     def from_src(cls, src_name, src_type, *args):
@@ -132,12 +140,7 @@ class CmdExtOpt(CmdOpt):
 
     @property
     def displayed(self):
-        if self.provided_by_app:
-            return "the App"
-        elif self.src_type == SrcTypes.PLUGIN:
-            return f"plugin '{self.src_name}'"
-        elif self.src_type == SrcTypes.AUX:
-            return f"aux namespace '{self.src_name}'"
+        return self.src_type.displayed(self.src_name)
 
 class CmdDemo:
     def __init__(self, name, args=None, expected_output=None) -> None:
@@ -164,7 +167,24 @@ class CmdDemo:
             assert e in in_str
 
 class Cmd:
-    def __init__(self, name, cmd_path=None, help=None, args=None, opts=None, subcmds = None, use_configs = None, with_env=None, demos=None, global_demos=None, app_demos=None, parent=None, aliases=None, src_type=None):
+    def __init__(
+            self,
+            name,
+            cmd_path=None,
+            help=None,
+            args=None,
+            opts=None,
+            subcmds=None,
+            use_configs=None,
+            with_env=None,
+            demos=None,
+            global_demos=None,
+            app_demos=None,
+            parent=None,
+            aliases=None,
+            src_type=None,
+            prefix_opts=False,
+        ):
         self.name = name
         self.cmd_path = cmd_path or []
         self.help = help
@@ -176,6 +196,7 @@ class Cmd:
         self.with_env = with_env
         self.parent = parent
         self.src_type = src_type
+        self.prefix_opts = prefix_opts
         if use_configs:
             if not isinstance(use_configs, list):
                 use_configs = [use_configs]
@@ -224,6 +245,7 @@ class Cmd:
             [d.copy() for d in self.app_demos.values()],
             self.aliases,
             self.src_type,
+            self.prefix_opts,
         )
         dup.exts = dict(self.exts) if self.exts else {}
         dup.exts.update(dict([[ext.name, ext] for ext in (exts or [])]))
@@ -254,17 +276,23 @@ class Cmd:
                 with_configs = self.use_configs + (with_configs or [])
         return with_configs
 
-    def get_help_msg_str(self, with_configs=None, run_opts=None):
-        return self.run("-h", with_configs=with_configs, run_opts=run_opts)
+    def get_help_msg_str(self, with_configs=None, run_opts=None, opts_pre_cmd=None):
+        return self.run("help" if self.prefix_opts else "-h", with_configs=with_configs, run_opts=run_opts, pre_cmd_opts=(opts_pre_cmd or self.prefix_opts))
 
-    def get_help_msg(self, with_configs=None, bypass_config_lookup=None, run_opts=None):
-        return HelpMsg(self.get_help_msg_str(with_configs=with_configs, run_opts=run_opts))
+    def get_help_msg(self, with_configs=None, bypass_config_lookup=None, run_opts=None, opts_pre_cmd=None):
+        return HelpMsg(self.get_help_msg_str(with_configs=with_configs, run_opts=run_opts, opts_pre_cmd=opts_pre_cmd))
 
-    def run(self, *args, with_env=None, with_configs=None, expect_fail=False, run_opts=None):
+    def run(self, *args, with_env=None, with_configs=None, expect_fail=False, run_opts=None, pre_cmd_opts=None):
         run_opts = dict(run_opts) if run_opts else {}
-        a = list(args)
+        a = [(a.to_cli() if isinstance(a, CmdOpt) else a) for a in args]
+        if pre_cmd_opts is None or pre_cmd_opts is False:
+            pre_cmd_opts = []
+        elif pre_cmd_opts is True:
+            pre_cmd_opts = a
+            a = []
+
         return run_cli_cmd(
-            [*self.cmd_path, *([self.name] if self.name else []), *[(a.to_cli() if isinstance(a, CmdOpt) else a) for a in args]],
+            [*pre_cmd_opts, *self.cmd_path, *([self.name] if self.name else []), *a],
             with_env=run_opts.pop("with_env", None) or with_env or self.with_env,
             with_configs=run_opts.pop("with_configs", None) or self._with_configs_(with_configs),
             expect_fail=run_opts.pop("expect_fail", None) or expect_fail,
@@ -272,12 +300,13 @@ class Cmd:
             **(run_opts or {}),
         )
 
-    def gen_error(self, *args, with_configs=None, return_stdout=False, return_full=False, run_opts=None):
+    def gen_error(self, *args, with_configs=None, return_stdout=False, return_full=False, run_opts=None, pre_cmd_opts=None):
         out = self.run(
             *args,
             with_configs=with_configs,
             expect_fail=True,
             run_opts=run_opts,
+            pre_cmd_opts=pre_cmd_opts,
         )
         if return_full:
             return out

@@ -7,8 +7,21 @@ from pathlib import Path
 from origen.helpers.env import in_new_origen_proc, run_cli_cmd
 from tests import configs as config_funcs
 from test_apps_shared_test_helpers.cli import CmdExtOpt
+from types import SimpleNamespace
 
 from test_apps_shared_test_helpers.cli import CLIShared, CmdOpt, CmdArg
+
+@pytest.mark.skip
+class TestNonExtendableCommands(CLIShared):
+    def test_extensions_do_nothing(self):
+        cmd = self.cmds.target
+
+    def test_help_msg(self):
+        fail
+    
+    def test_error_when_extended(self):
+        fail
+    
 
 class TestExtensions(CLIShared):
     @pytest.mark.skip
@@ -83,14 +96,44 @@ class TestExtensions(CLIShared):
     def test_extending_origen_cmd_from_global_context_only(self):
         fail
 
-class TestCurrentCommand:
+class TestCurrentCommand(CLIShared):
+    @classmethod
+    def parse_current_cmd(cls, out):
+        out = out.split("Start Action For CMD: display_current_command\n")[1].split("End Action For CMD: display_current_command")[0].split("\n")[:-1]
+        print(out)
+        assert out[0] == "Class: CurrentCommand"
+        return SimpleNamespace(**{
+            "base_cmd": out[1].split("Base Cmd: ")[1],
+            "subcmds": eval(out[2].split("Sub Cmds: ")[1]),
+            "args": eval(out[3].split("Args: ")[1]),
+            "exts": eval(out[4].split("Exts: ")[1]),
+        })
+
+    @classmethod
+    def assert_current_cmd(cls, out, base, subcmds, args, exts):
+        cmd = cls.parse_current_cmd(out)
+        assert cmd.base_cmd == base
+        assert cmd.subcmds == subcmds
+        assert cmd.args == args
+        assert cmd.exts == exts
+
+    def test_current_command_is_none(self):
+        assert origen.current_command is None
+
     @pytest.mark.skip
     def test_current_command_from_core_cmd(self):
         eval_cmd
 
-    @pytest.mark.skip
     def test_current_command_from_pl_cmd(self):
-        pl_cmd
+        out = self.python_plugin.do_actions.run("display_current_command")
+        print(out)
+        self.assert_current_cmd(
+            out,
+            "_plugin_dispatch_",
+            ["do_actions"],
+            {"actions": ['display_current_command']},
+            {}
+        )
 
     @pytest.mark.skip
     def test_current_command_from_aux_cmd(self):

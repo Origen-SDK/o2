@@ -30,7 +30,11 @@ def extract(action):
 def do_action(actions, phase):
     if actions:
         for action in actions:
-            print(f"Start Action {phase} CMD: {action}")
+            if phase is None:
+                p_out = 'For'
+            else:
+                p_out = phase
+            print(f"Start Action {p_out} CMD: {action}")
             if action.startswith("inc_flag__"):
                 if phase == "Before":
                     _, is_cmd, f = action.split("__", 2)
@@ -73,8 +77,15 @@ def do_action(actions, phase):
 
                     # Set a new arg
                     args["new_arg"] = "new_arg_for_ext"
+            elif action == "display_current_command":
+                cc = origen.current_command
+                print(f"Class: {cc.__class__.__name__}")
+                print(f"Base Cmd: {cc.base_cmd}")
+                print(f"Sub Cmds: {cc.subcmds}")
+                print(f"Args: {cc.args}")
+                print(f"Exts: {dict(cc.exts)}")
             elif action == "no_action":
                 pass
             else:
                 raise RuntimeError(f"No action '{action}' is known!")
-            print(f"End Action {phase} CMD: {action}")
+            print(f"End Action {p_out} CMD: {action}")

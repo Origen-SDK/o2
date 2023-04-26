@@ -1,10 +1,15 @@
 from pathlib import Path
 from origen.helpers.regressions import cli
-from . import Cmd, CmdArg, CmdOpt
+from . import Cmd, CmdArg, CmdOpt, SrcBase
 
 aux_cmds_dir = Path(__file__).parent.parent.parent.joinpath("aux_cmds")
 
-class AuxCmdsFromCliDir(cli.CLI):
+class AuxNS(SrcBase):
+    @property
+    def src_type(self):
+        return cli.SrcTypes.AUX
+
+class AuxCmdsFromCliDir(AuxNS):
     Cmd = Cmd
     
     def __init__(self):
@@ -21,7 +26,7 @@ class AuxCmdsFromCliDir(cli.CLI):
     def base_cmd(self):
         return self.aux_cmds_from_cli_dir
 
-class AddAuxCmds(cli.CLI):
+class AddAuxCmds(AuxNS):
     Cmd = Cmd
     
     def __init__(self):
@@ -35,7 +40,7 @@ class AddAuxCmds(cli.CLI):
     def base_cmd(self):
         return self.add_aux_cmd
 
-class CmdTesters(cli.CLI):
+class CmdTesters(AuxNS):
     Cmd = Cmd
 
     def __init__(self):
@@ -309,7 +314,6 @@ class CmdTesters(cli.CLI):
                         ),
                     ]
                 ),
-                Cmd("test_current_command", help="Tests origen.current_command"),
                 Cmd(
                     "test_nested_level_1",
                     help="Tests origen.current_command L1",
@@ -360,7 +364,7 @@ class CmdTesters(cli.CLI):
         return self.subc_l2.test_nested_level_3_b
 
 
-class DummyCmds(cli.CLI):
+class DummyCmds(AuxNS):
     Cmd = Cmd
     cfg_toml = aux_cmds_dir.joinpath("dummy_cmds_cfg.toml")
 
@@ -399,7 +403,7 @@ class DummyCmds(cli.CLI):
             from_config=self.cfg_toml
         )
 
-class PythonNoAppAuxCmds(cli.CLI):
+class PythonNoAppAuxCmds(AuxNS):
     Cmd = Cmd
 
     def __init__(self):
@@ -413,7 +417,7 @@ class PythonNoAppAuxCmds(cli.CLI):
     def base_cmd(self):
         return self.python_no_app_aux_cmds
 
-class PythonAppAuxCmds(cli.CLI):
+class PythonAppAuxCmds(AuxNS):
     Cmd = Cmd
 
     def __init__(self):

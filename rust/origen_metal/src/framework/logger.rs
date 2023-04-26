@@ -97,9 +97,12 @@ impl Logger {
     }
 
     pub fn set_verbosity(&self, level: u8) -> Result<()> {
-        log_debug!("Setting logger verbosity to '{}'", level);
-        let mut inner = self.inner.write().unwrap();
-        inner.level = level;
+        log_debug!("Setting Logger Verbosity: {}", level);
+        {
+            let mut inner = self.inner.write().unwrap();
+            inner.level = level;
+        }
+        log_debug!("Logger Verbosity: {}", level);
         Ok(())
     }
 
@@ -495,7 +498,7 @@ impl Logger {
     }
 
     pub fn set_verbosity_keywords(&self, keywords: Vec<String>) -> Result<()> {
-        log_debug!("Setting verbosity keywords: {:?}", keywords);
+        log_debug!("Setting Verbosity Keywords: {:?}", keywords);
         let mut inner = self.inner.write().unwrap();
         inner.keywords = keywords;
         Ok(())

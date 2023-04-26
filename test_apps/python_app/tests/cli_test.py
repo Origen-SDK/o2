@@ -11,6 +11,7 @@ from cli.tests__reserved_opts import T_ReservedOpts
 from cli.tests__cmd_integration import T_CommandIntegration
 from cli.tests__intra_cmd_conflicts import T_IntraCmdConflicts
 from cli.tests__extending_app_cmds import T_ExtendingAppCmds
+from cli.tests__non_extendable_err_msgs import T_NonExtendableErrMsgs
 
 class TestAppCmdBuilding(T_AppCmdBuilding):
     pass
@@ -31,6 +32,9 @@ class TestReservedOpts(T_ReservedOpts):
     pass
 
 class TestCommandIntegration(T_CommandIntegration):
+    pass
+
+class TestNonExtendableErrMsgs(T_NonExtendableErrMsgs):
     pass
 
 origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'

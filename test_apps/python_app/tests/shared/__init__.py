@@ -142,7 +142,6 @@ class Targets:
                 targets = [(t.name if isinstance(t, Targets.Target) else t) for t in targets]
             kwargs.setdefault("run_opts", {})["targets"] = targets
         out = CLICommon.eval(f"print( f'{prefix}{{origen.target.current_targets}}' )", **kwargs)
-        print(out)
         out = out.split("\n")
         return eval(next(t.replace(prefix, '') for t in out if t.startswith(prefix)))
 

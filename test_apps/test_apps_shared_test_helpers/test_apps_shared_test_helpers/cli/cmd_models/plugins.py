@@ -1,11 +1,16 @@
 from origen.helpers.regressions import cli
-from . import Cmd, CmdArg, CmdOpt
+from . import Cmd, CmdArg, CmdOpt, SrcBase
 
-class PlExtCmds(cli.CLI):
+class Plugin(SrcBase):
+    @property
+    def src_type(self):
+        return cli.SrcTypes.PLUGIN
+
+class PlExtCmds(Plugin):
     def __init__(self):
         self.name = "pl_ext_cmds"
 
-class PythonPlugin(cli.CLI):
+class PythonPlugin(Plugin):
     Cmd = Cmd
 
     def __init__(self):
@@ -189,6 +194,16 @@ class PythonPlugin(cli.CLI):
                 )
             ]
         )
+        self.do_actions = self.pl_sub_cmd(
+            self.name,
+            "do_actions",
+            help="Perform the given actions",
+            args=[CmdArg(
+                name="actions",
+                help="Actions to perform",
+                use_delimiter=True,
+            )],
+        )
         self.intra_cmd_conflicts = self.pl_sub_cmd(
             self.name,
             "intra_cmd_conflicts",
@@ -340,6 +355,7 @@ class PythonPlugin(cli.CLI):
     @property
     def ordered_subcmds(self):
         return [
+            self.do_actions,
             self.echo,
             "help",
             self.plugin_says_hi,
@@ -347,7 +363,7 @@ class PythonPlugin(cli.CLI):
             self.plugin_test_ext_stacking,
         ]
 
-class PythonPluginNoCmds(cli.CLI):
+class PythonPluginNoCmds(Plugin):
     def __init__(self):
         self.name = "python_plugin_no_cmds"
         self.python_plugin_no_cmds = self.pl_cmd(
@@ -358,7 +374,7 @@ class PythonPluginNoCmds(cli.CLI):
     def base_cmd(self):
         return self.python_plugin_no_cmds
 
-class PythonPluginTheSecond(cli.CLI):
+class PythonPluginTheSecond(Plugin):
     def __init__(self):
         self.name = "python_plugin_the_second"
         self.python_plugin_the_second = self.pl_cmd(
@@ -369,7 +385,7 @@ class PythonPluginTheSecond(cli.CLI):
     def base_cmd(self):
         return self.python_plugin_the_second
 
-class TestAppsSharedTestHelpers(cli.CLI):
+class TestAppsSharedTestHelpers(Plugin):
     def __init__(self):
         self.name = "test_apps_shared_test_helpers"
         self.test_apps_shared_test_helpers = self.pl_cmd(
@@ -389,6 +405,10 @@ class Plugins:
             "python_plugin_the_second": PythonPluginTheSecond(),
             "test_apps_shared_test_helpers": TestAppsSharedTestHelpers()
         }
+
+    @property
+    def tas(self):
+        return self.test_apps_shared_test_helpers
 
     @property
     def python_no_app_collected_pl_names(self):

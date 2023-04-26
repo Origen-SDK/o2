@@ -6,6 +6,9 @@ pub mod aux_cmds;
 pub mod app_cmds;
 pub mod core_cmds;
 
+use std::collections::HashMap;
+use origen_metal::indexmap::IndexMap;
+
 pub use extensions::{Extensions, ExtensionTOML, Extension};
 pub use plugins::{Plugins, Plugin};
 pub use aux_cmds::AuxCmds;
@@ -15,6 +18,7 @@ use std::{env};
 
 use clap::{App};
 use clap::Command as ClapCommand;
+use clap::Arg as ClapArg;
 use origen::{Result, in_app_invocation};
 use crate::commands::_prelude::clap_arg_actions::*;
 
@@ -312,8 +316,6 @@ impl Applies for Command {
     }
 }
 
-use std::collections::{HashSet, HashMap};
-use origen_metal::indexmap::IndexMap;
 #[derive(Debug)]
 pub struct CmdOptCache {
     opt_names: Vec<String>,
@@ -615,7 +617,7 @@ impl Opt {
     fn from_toml(opt: &OptTOML, cmd_path: &str, parent: &dyn Display, ext: Option<&str>) -> Self {
         macro_rules! gen_err {
             ($msg:tt $(,)? $($arg:expr),*) => {{
-                if let Some(e) = ext {
+                if ext.is_some() {
                     log_err_processing_cmd!(cmd_path, concat!("Option '{}' extended from {} ", $msg), opt.name, parent, $($arg),*);
                 } else {
                     log_err_processing_cmd!(cmd_path, concat!("Option '{}' ", $msg), opt.name, $($arg),*);
@@ -717,7 +719,7 @@ impl Opt {
                     } else if (&opt.name == lna) && ln.is_none() {
                         gen_err!("specifies long name alias '{}' but it conflicts with the option's inferred long name. If this is intentional, please set this as the option's long name", lna);
                         return None
-                    } else if let Some(idx) = lnas.get(lna) { // lnas.contains(&lna.as_str()) {
+                    } else if let Some(idx) = lnas.get(lna) {
                         gen_err!("repeats long name alias '{}' (first occurrence at index {})", lna, idx);
                         return None
                     }
@@ -938,8 +940,10 @@ pub const HELP_OPT_NAME: &str = "help";
 pub const HELP_OPT_SHORT_NAME: char = 'h';
 pub const VERBOSITY_KEYWORDS_OPT_NAME: &str = "verbosity_keywords";
 pub const VERBOSITY_KEYWORDS_OPT_LONG_NAME: &str = "vk";
-pub const VERBOSITY_OPT_NAME: &str = "verbosity";
+pub const VERBOSITY_OPT_NAME: &str = "verbose";
 pub const VERBOSITY_OPT_SHORT_NAME: char = 'v';
+// pub const VERBOSITY_OPT_LONG_NAME: &str = "verbose";
+pub const VERBOSITY_OPT_LNA: &str = "verbosity";
 pub const TARGET_OPT_NAME: &str = "targets";
 pub const TARGET_OPT_ALIAS: &str = "target";
 pub const TARGET_OPT_SN: char = 't';
@@ -953,12 +957,54 @@ pub const RESERVED_OPT_NAMES: &[&str] = &[
     TARGET_OPT_NAME, TARGET_OPT_ALIAS,
     NO_TARGET_OPT_NAME, NO_TARGET_OPT_ALIAS,
     MODE_OPT_NAME,
-    VERBOSITY_OPT_NAME
+    VERBOSITY_OPT_NAME, VERBOSITY_OPT_LNA,
 ];
 
 pub const RESERVED_OPT_SHORT_NAMES: &[char] = &[
     HELP_OPT_SHORT_NAME, TARGET_OPT_SN, VERBOSITY_OPT_SHORT_NAME
 ];
+
+static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
+static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
+
+pub const VOV_OPT_NAME: &str = "version_or_verbosity";
+
+pub fn add_verbosity_opts<'a>(mut cmd: ClapCommand<'a>, split_v: bool) -> ClapCommand<'a> {
+    if split_v {
+        cmd.arg(
+            ClapArg::new(VERBOSITY_OPT_NAME)
+            .long(VERBOSITY_OPT_NAME)
+            .visible_alias(VERBOSITY_OPT_LNA)
+            .action(CountArgs)
+        )
+        .arg(
+            ClapArg::new(VOV_OPT_NAME)
+            .short(VERBOSITY_OPT_SHORT_NAME)
+            .action(CountArgs)
+        )
+    } else {
+        cmd.arg(
+            ClapArg::new(VERBOSITY_OPT_NAME)
+            .long(VERBOSITY_OPT_NAME)
+            .visible_alias(VERBOSITY_OPT_LNA)
+            .short(VERBOSITY_OPT_SHORT_NAME)
+            .action(CountArgs)
+            .global(true)
+            .help(VERBOSITY_HELP_STR),
+        )
+    }
+    .arg(
+        ClapArg::new(VERBOSITY_KEYWORDS_OPT_NAME)
+        .long(VERBOSITY_KEYWORDS_OPT_NAME)
+        .visible_alias(VERBOSITY_KEYWORDS_OPT_LONG_NAME)
+        .multiple(true)
+        .action(AppendArgs)
+        .global(true)
+        .help(VERBOSITY_KEYWORD_HELP_STR)
+        .number_of_values(1)
+        .use_value_delimiter(true)
+    )
+}
 
 macro_rules! add_mode_opt {
     ($cmd:expr) => {

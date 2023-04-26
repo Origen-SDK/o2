@@ -3,13 +3,6 @@ from . import CmdExtOpt
 from .auxs import aux_cmds_dir
 from types import SimpleNamespace
 
-# FOR_PR refactor without these
-def ext_conflicts_exts(exts):
-    return SimpleNamespace(**dict((e.name, e) for e in filter(lambda e: e.src_name == "ext_conflicts", exts)))
-
-def test_apps_shared_exts(exts):
-    return SimpleNamespace(**dict((e.name, e) for e in filter(lambda e: e.src_name == "test_apps_shared_test_helpers", exts)))
-
 class ExtensionDrivers:
     exts_workout_cfg = aux_cmds_dir.joinpath("exts_workout_cfg.toml")
     exts_workout_toml = aux_cmds_dir.joinpath("exts_workout.toml")
@@ -602,85 +595,81 @@ class ExtensionDrivers:
 
     def init_conflicts(self, plugins, aux):
         ext_conflicts = self.ext_conflicts
+        n = "exts_by_ns"
 
         _cmd_str_ = "plugin.python_plugin.plugin_test_args"
         cmd = plugins.python_plugin.plugin_test_args
-        ext_conflicts[_cmd_str_]["ext_conflicts_exts"] = ext_conflicts_exts(ext_conflicts[_cmd_str_]["exts"])
-        aux_exts = ext_conflicts[_cmd_str_]["ext_conflicts_exts"]
-        ext_conflicts[_cmd_str_]["test_apps_shared_exts"] = test_apps_shared_exts(ext_conflicts[_cmd_str_]["exts"])
-        pl_exts = ext_conflicts[_cmd_str_]["test_apps_shared_exts"]
-
-        aux_exts_displayed = aux_exts.ns_self_conflict.displayed
+        exts = self.partition_exts(ext_conflicts[_cmd_str_]["exts"])
+        ext_conflicts[_cmd_str_][n] = exts
+        ec_displayed = exts.ec.ns_self_conflict.displayed
         ext_conflicts[_cmd_str_]["conflicts_list"] = [
-            ["duplicate", pl_exts.pl_aux_conflict, 0],
-            ["duplicate", aux_exts.ns_self_conflict, 9],
-            ["duplicate", aux_exts.ext_self_conflict, 11],
-            ["self_lna_iln", aux_exts.ext_self_conflict_2],
-            ["reserved_prefix_ln", aux_exts.ext_opt_in_ln, "ext_opt.in_ln"],
-            ["reserved_prefix_lna", aux_exts.ext_opt_in_lna, "ext_opt.in_lna"],
-            ["reserved_prefix_opt_name", "ext_opt.reserved_name", aux_exts_displayed],
-            ["inter_ext_lna_ln", aux_exts.same_ln_and_ln_alias, "same_ln_and_ln_alias"],
-            ["inter_ext_lna_iln", aux_exts.same_iln_and_ln_alias],
-            ["inter_ext_sna_sn", aux_exts.repeated_sn_and_aliases, "g"],
-            ["repeated_sna", aux_exts.repeated_sn_and_aliases, "e", 1], # Purposefully repeated
-            ["repeated_sna", aux_exts.repeated_sn_and_aliases, "e", 1],
-            ["repeated_lna", aux_exts.repeated_sn_and_aliases, "repeated_lna", 0],
-            ["ln", "lna", pl_exts.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "alias"],
-            ["sn", "sn", pl_exts.pl_conflict_ln_and_aliases, cmd.sn_only, "n"],
-            ["lna", "lna", pl_exts.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "opt_alias"],
-            ["sna", "sna", pl_exts.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "a"],
-            ["sna", "sna", pl_exts.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "b"],
-            ["iln", "ln", pl_exts.flag, cmd.flag_opt, "flag"],
-            ["sn", "sn", aux_exts.conflict_sn, cmd.sn_only, "n"],
-            ["iln", "iln", aux_exts.pl_aux_conflict, pl_exts.pl_aux_conflict, "pl_aux_conflict"],
-            ["sn", "sn", aux_exts.pl_aux_sn_conflict_aux, pl_exts.pl_aux_sn_conflict_pl, "s"],
-            ["ln", "lna", aux_exts.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "alias"],
-            ["lna", "lna", aux_exts.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "opt_alias"],
-            ["lna", "lna", aux_exts.aux_conflict_ln_and_aliases, pl_exts.pl_conflict_ln_and_aliases, "other_alias_pl"],
-            ["sna", "sna", aux_exts.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "a"],
-            ["sna", "sna", aux_exts.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "b"],
-            ["sna", "sna", aux_exts.aux_conflict_ln_and_aliases, pl_exts.pl_conflict_ln_and_aliases, "c"],
-            ["iln", "ln", aux_exts.flag, cmd.flag_opt, 'flag'],
-            ["iln", "lna", aux_exts.alias, cmd.opt_with_aliases, 'alias'],
-            ["ln", "iln", aux_exts.ns_self_conflict, aux_exts.subc, "subc"],
-            ["sn", "sna", aux_exts.ns_self_conflict, aux_exts.aux_conflict_ln_and_aliases, "d"],
-            ["ln", "iln", aux_exts.ext_self_conflict, aux_exts.ns_self_conflict, "ns_self_conflict"],
-            ["lna", "iln", aux_exts.ext_self_conflict_2, aux_exts.ext_self_conflict, "ext_self_conflict"],
+            ["duplicate", exts.tas.pl_aux_conflict, 0],
+            ["duplicate", exts.ec.ns_self_conflict, 9],
+            ["duplicate", exts.ec.ext_self_conflict, 11],
+            ["self_lna_iln", exts.ec.ext_self_conflict_2],
+            ["reserved_prefix_ln", exts.ec.ext_opt_in_ln, "ext_opt.in_ln"],
+            ["reserved_prefix_lna", exts.ec.ext_opt_in_lna, "ext_opt.in_lna"],
+            ["reserved_prefix_opt_name", "ext_opt.reserved_name", ec_displayed],
+            ["inter_ext_lna_ln", exts.ec.same_ln_and_ln_alias, "same_ln_and_ln_alias"],
+            ["inter_ext_lna_iln", exts.ec.same_iln_and_ln_alias],
+            ["inter_ext_sna_sn", exts.ec.repeated_sn_and_aliases, "g"],
+            ["repeated_sna", exts.ec.repeated_sn_and_aliases, "e", 1], # Purposefully repeated
+            ["repeated_sna", exts.ec.repeated_sn_and_aliases, "e", 1],
+            ["repeated_lna", exts.ec.repeated_sn_and_aliases, "repeated_lna", 0],
+            ["ln", "lna", exts.tas.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "alias"],
+            ["sn", "sn", exts.tas.pl_conflict_ln_and_aliases, cmd.sn_only, "n"],
+            ["lna", "lna", exts.tas.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "opt_alias"],
+            ["sna", "sna", exts.tas.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "a"],
+            ["sna", "sna", exts.tas.pl_conflict_ln_and_aliases, cmd.opt_with_aliases, "b"],
+            ["iln", "ln", exts.tas.flag, cmd.flag_opt, "flag"],
+            ["sn", "sn", exts.ec.conflict_sn, cmd.sn_only, "n"],
+            ["iln", "iln", exts.ec.pl_aux_conflict, exts.tas.pl_aux_conflict, "pl_aux_conflict"],
+            ["sn", "sn", exts.ec.pl_aux_sn_conflict_aux, exts.tas.pl_aux_sn_conflict_pl, "s"],
+            ["ln", "lna", exts.ec.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "alias"],
+            ["lna", "lna", exts.ec.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "opt_alias"],
+            ["lna", "lna", exts.ec.aux_conflict_ln_and_aliases, exts.tas.pl_conflict_ln_and_aliases, "other_alias_pl"],
+            ["sna", "sna", exts.ec.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "a"],
+            ["sna", "sna", exts.ec.aux_conflict_ln_and_aliases, cmd.opt_with_aliases, "b"],
+            ["sna", "sna", exts.ec.aux_conflict_ln_and_aliases, exts.tas.pl_conflict_ln_and_aliases, "c"],
+            ["iln", "ln", exts.ec.flag, cmd.flag_opt, 'flag'],
+            ["iln", "lna", exts.ec.alias, cmd.opt_with_aliases, 'alias'],
+            ["ln", "iln", exts.ec.ns_self_conflict, exts.ec.subc, "subc"],
+            ["sn", "sna", exts.ec.ns_self_conflict, exts.ec.aux_conflict_ln_and_aliases, "d"],
+            ["ln", "iln", exts.ec.ext_self_conflict, exts.ec.ns_self_conflict, "ns_self_conflict"],
+            ["lna", "iln", exts.ec.ext_self_conflict_2, exts.ec.ext_self_conflict, "ext_self_conflict"],
         ]
 
         _cmd_str_ = "plugin.python_plugin.plugin_test_args.subc"
         cmd = plugins.python_plugin.plugin_test_args.subc
-        ext_conflicts[_cmd_str_]["ext_conflicts_exts"] = ext_conflicts_exts(ext_conflicts[_cmd_str_]["exts"])
-        aux_exts = ext_conflicts[_cmd_str_]["ext_conflicts_exts"]
-        ext_conflicts[_cmd_str_]["test_apps_shared_exts"] = test_apps_shared_exts(ext_conflicts[_cmd_str_]["exts"])
-        pl_exts = ext_conflicts[_cmd_str_]["test_apps_shared_exts"]
+        exts = self.partition_exts(ext_conflicts[_cmd_str_]["exts"])
+        ext_conflicts[_cmd_str_][n] = exts
         ext_conflicts[_cmd_str_]["conflicts_list"] = [
-            ["reserved_prefix_opt_name", "ext_opt.subc_reserved",  pl_exts.subc_pl_aux_conflict.displayed],
-            ["inter_ext_sna_sn", pl_exts.subc_pl_aux_conflict, "c"],
-            ["inter_ext_lna_ln", pl_exts.subc_pl_aux_conflict, "subc_pl_aux"],
-            ["duplicate", pl_exts.subc_pl_aux_conflict, 1],
-            ["reserved_prefix_lna", pl_exts.more_conflicts, "ext_opt.subc_lna"],
+            ["reserved_prefix_opt_name", "ext_opt.subc_reserved",  exts.tas.subc_pl_aux_conflict.displayed],
+            ["inter_ext_sna_sn", exts.tas.subc_pl_aux_conflict, "c"],
+            ["inter_ext_lna_ln", exts.tas.subc_pl_aux_conflict, "subc_pl_aux"],
+            ["duplicate", exts.tas.subc_pl_aux_conflict, 1],
+            ["reserved_prefix_lna", exts.tas.more_conflicts, "ext_opt.subc_lna"],
 
-            ["inter_ext_lna_ln", aux_exts.subc_pl_aux_conflict, "subc_pl_aux"],
-            ["duplicate", aux_exts.subc_pl_aux_conflict, 0],
-            ["inter_ext_lna_iln", aux_exts.more_conflicts],
+            ["inter_ext_lna_ln", exts.ec.subc_pl_aux_conflict, "subc_pl_aux"],
+            ["duplicate", exts.ec.subc_pl_aux_conflict, 0],
+            ["inter_ext_lna_iln", exts.ec.more_conflicts],
 
-            ["sna", "sna", pl_exts.subc_pl_aux_conflict, cmd.subc_opt_with_aliases, "a"],
-            ["iln", "iln", pl_exts.flag_opt, cmd.flag_opt],
-            ["lna", "ln", pl_exts.more_conflicts, pl_exts.subc_pl_aux_conflict, "subc_pl_aux"],
-            ["lna", "ln", pl_exts.more_conflicts, cmd.subc_opt_with_aliases, "subc_opt"],
-            ["lna", "lna", pl_exts.more_conflicts, cmd.subc_opt_with_aliases, "subc_opt_alias"],
-            ["sna", "sn", pl_exts.more_conflicts, cmd.subc_sn_only, "n"],
+            ["sna", "sna", exts.tas.subc_pl_aux_conflict, cmd.subc_opt_with_aliases, "a"],
+            ["iln", "iln", exts.tas.flag_opt, cmd.flag_opt],
+            ["lna", "ln", exts.tas.more_conflicts, exts.tas.subc_pl_aux_conflict, "subc_pl_aux"],
+            ["lna", "ln", exts.tas.more_conflicts, cmd.subc_opt_with_aliases, "subc_opt"],
+            ["lna", "lna", exts.tas.more_conflicts, cmd.subc_opt_with_aliases, "subc_opt_alias"],
+            ["sna", "sn", exts.tas.more_conflicts, cmd.subc_sn_only, "n"],
 
-            ["ln", "ln", aux_exts.subc_pl_aux_conflict, pl_exts.subc_pl_aux_conflict, "subc_pl_aux"],
-            ["lna", "lna", aux_exts.subc_pl_aux_conflict, pl_exts.subc_pl_aux_conflict, "pl0"],
-            ["sna", "sna", aux_exts.subc_pl_aux_conflict, cmd.subc_opt_with_aliases, "a"],
-            ["sna", "sna", aux_exts.subc_pl_aux_conflict, cmd.subc_opt_with_aliases, "b"],
-            ["iln", "iln", aux_exts.flag_opt, cmd.flag_opt],
-            ["iln", "iln", aux_exts.more_conflicts, pl_exts.more_conflicts],
-            ["lna", "ln", aux_exts.more_conflicts, cmd.subc_opt_with_aliases, "subc_opt"],
-            ["sna", "sna", aux_exts.more_conflicts, pl_exts.more_conflicts, "d"],
-            ["sna", "sn", aux_exts.more_conflicts, cmd.subc_sn_only, "n"],
+            ["ln", "ln", exts.ec.subc_pl_aux_conflict, exts.tas.subc_pl_aux_conflict, "subc_pl_aux"],
+            ["lna", "lna", exts.ec.subc_pl_aux_conflict, exts.tas.subc_pl_aux_conflict, "pl0"],
+            ["sna", "sna", exts.ec.subc_pl_aux_conflict, cmd.subc_opt_with_aliases, "a"],
+            ["sna", "sna", exts.ec.subc_pl_aux_conflict, cmd.subc_opt_with_aliases, "b"],
+            ["iln", "iln", exts.ec.flag_opt, cmd.flag_opt],
+            ["iln", "iln", exts.ec.more_conflicts, exts.tas.more_conflicts],
+            ["lna", "ln", exts.ec.more_conflicts, cmd.subc_opt_with_aliases, "subc_opt"],
+            ["sna", "sna", exts.ec.more_conflicts, exts.tas.more_conflicts, "d"],
+            ["sna", "sn", exts.ec.more_conflicts, cmd.subc_sn_only, "n"],
         ]
 
         _cmd_str_ = "origen.eval"
@@ -689,22 +678,20 @@ class ExtensionDrivers:
         ]
 
         _cmd_str_ = "origen.credentials.clear"
-        ext_conflicts[_cmd_str_]["ext_conflicts_exts"] = ext_conflicts_exts(ext_conflicts[_cmd_str_]["exts"])
-        aux_exts = ext_conflicts[_cmd_str_]["ext_conflicts_exts"]
-        ext_conflicts[_cmd_str_]["test_apps_shared_exts"] = test_apps_shared_exts(ext_conflicts[_cmd_str_]["exts"])
-        pl_exts = ext_conflicts[_cmd_str_]["test_apps_shared_exts"]
         cmd = cli.CLI.cmds.creds.clear
+        exts = self.partition_exts(ext_conflicts[_cmd_str_]["exts"])
+        ext_conflicts[_cmd_str_][n] = exts
         ext_conflicts[_cmd_str_]["conflicts_list"] = [
-            ["iln", "ln", pl_exts.all, cmd.all],
-            ["ln", "ln", pl_exts.cmd_conflicts_pl, cmd.all, "all"],
-            ["sn", "sn", pl_exts.cmd_conflicts_pl, cmd.all, "a"],
-            ["lna", "ln", pl_exts.cmd_conflicts_pl, cmd.datasets, "datasets"],
-            ["sna", "sn", pl_exts.cmd_conflicts_pl, cmd.datasets, "d"],
-            ["iln", "ln", aux_exts.all, cmd.all],
-            ["ln", "ln", aux_exts.cmd_conflicts_aux, cmd.all, "all"],
-            ["sn", "sn", aux_exts.cmd_conflicts_aux, cmd.all, "a"],
-            ["lna", "ln", aux_exts.cmd_conflicts_aux, cmd.datasets, "datasets"],
-            ["lna", "lna", aux_exts.cmd_conflicts_aux, pl_exts.cmd_conflicts_pl, "pl_datasets"],
-            ["sna", "sn", aux_exts.cmd_conflicts_aux, cmd.datasets, "d"],
-            ["sna", "sna", aux_exts.cmd_conflicts_aux, pl_exts.cmd_conflicts_pl, "e"],
+            ["iln", "ln", exts.tas.all, cmd.all],
+            ["ln", "ln", exts.tas.cmd_conflicts_pl, cmd.all, "all"],
+            ["sn", "sn", exts.tas.cmd_conflicts_pl, cmd.all, "a"],
+            ["lna", "ln", exts.tas.cmd_conflicts_pl, cmd.datasets, "datasets"],
+            ["sna", "sn", exts.tas.cmd_conflicts_pl, cmd.datasets, "d"],
+            ["iln", "ln", exts.ec.all, cmd.all],
+            ["ln", "ln", exts.ec.cmd_conflicts_aux, cmd.all, "all"],
+            ["sn", "sn", exts.ec.cmd_conflicts_aux, cmd.all, "a"],
+            ["lna", "ln", exts.ec.cmd_conflicts_aux, cmd.datasets, "datasets"],
+            ["lna", "lna", exts.ec.cmd_conflicts_aux, exts.tas.cmd_conflicts_pl, "pl_datasets"],
+            ["sna", "sn", exts.ec.cmd_conflicts_aux, cmd.datasets, "d"],
+            ["sna", "sna", exts.ec.cmd_conflicts_aux, exts.tas.cmd_conflicts_pl, "e"],
         ]

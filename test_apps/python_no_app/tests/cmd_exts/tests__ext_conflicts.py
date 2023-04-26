@@ -1,7 +1,22 @@
+import pytest
 from test_apps_shared_test_helpers.cli import CLIShared
 
+class Common(CLIShared):
+    @pytest.fixture
+    def exts(self):
+        return self.config["exts_by_ns"]
+
+    @pytest.fixture
+    def ec(self, exts):
+        return exts.ec
+
+    @pytest.fixture
+    def tas(self, exts):
+        return exts.tas
+
+
 class T_ExtConflicts(CLIShared):
-    class TestWithPLCmd(CLIShared):
+    class TestWithPLCmd(Common):
         config = CLIShared.exts.ext_conflicts["plugin.python_plugin.plugin_test_args"]
         conflicts = config["conflicts_list"]
         cmd = CLIShared.python_plugin.plugin_test_args.extend(
@@ -9,8 +24,6 @@ class T_ExtConflicts(CLIShared):
             from_configs=[config["cfg"]],
             with_env=config["env"]
         )
-        aux_exts = config["ext_conflicts_exts"]
-        pl_exts = config["test_apps_shared_exts"]
 
         @classmethod
         def setup_class(cls):
@@ -22,40 +35,40 @@ class T_ExtConflicts(CLIShared):
             delattr(cls, "cmd_help")
             delattr(cls, "cmd_conflicts")
 
-        def test_help_msg(self):
+        def test_help_msg(self, ec, tas):
             # Check help message
             cmd = self.cmd
             help = self.cmd_help
 
             help.assert_args(cmd.single_arg, cmd.multi_arg)
             help.assert_opts(
-                self.aux_exts.aux_conflict_ln_and_aliases,
-                self.aux_exts.conflict_sn,
-                self.aux_exts.alias,
-                self.aux_exts.flag,
-                self.aux_exts.pl_aux_conflict,
-                self.pl_exts.flag,
-                self.aux_exts.ext_opt_in_ln,
-                self.aux_exts.ext_opt_in_lna,
-                self.aux_exts.ext_self_conflict,
-                self.aux_exts.ext_self_conflict_2,
+                ec.aux_conflict_ln_and_aliases,
+                ec.conflict_sn,
+                ec.alias,
+                ec.flag,
+                ec.pl_aux_conflict,
+                tas.flag,
+                ec.ext_opt_in_ln,
+                ec.ext_opt_in_lna,
+                ec.ext_self_conflict,
+                ec.ext_self_conflict_2,
                 cmd.flag_opt,
-                self.aux_exts.repeated_sn_and_aliases,
+                ec.repeated_sn_and_aliases,
                 "help",
                 cmd.sn_only,
-                self.aux_exts.ns_self_conflict,
+                ec.ns_self_conflict,
                 cmd.opt_taking_value,
-                self.pl_exts.opt_taking_value,
+                tas.opt_taking_value,
                 cmd.opt_with_aliases,
-                self.aux_exts.opt_taking_value,
-                self.pl_exts.pl_aux_conflict,
-                self.aux_exts.pl_aux_sn_conflict_aux,
-                self.pl_exts.pl_conflict_ln_and_aliases,
-                self.pl_exts.pl_aux_sn_conflict_pl,
-                self.aux_exts.same_iln_and_ln_alias,
-                self.aux_exts.same_ln_and_ln_alias,
-                self.aux_exts.single_arg,
-                self.aux_exts.subc,
+                ec.opt_taking_value,
+                tas.pl_aux_conflict,
+                ec.pl_aux_sn_conflict_aux,
+                tas.pl_conflict_ln_and_aliases,
+                tas.pl_aux_sn_conflict_pl,
+                ec.same_iln_and_ln_alias,
+                ec.same_ln_and_ln_alias,
+                ec.single_arg,
+                ec.subc,
                 "v",
                 "vk",
             )
@@ -72,9 +85,8 @@ class T_ExtConflicts(CLIShared):
         def test_error_messages_checked(self):
             assert len(self.cmd_conflicts) == 0
 
-        def test_ext_conflicts_resolve_correctly(self):
+        def test_ext_conflicts_resolve_correctly(self, tas, ec):
             cmd = self.cmd
-            print(self.cmd_help.text)
             out = cmd.run(
                 "abc", "d", "e",
                 "--opt", "z",
@@ -115,40 +127,38 @@ class T_ExtConflicts(CLIShared):
                 (cmd.opt_taking_value, "z"),
                 (cmd.opt_with_aliases, 3),
 
-                (self.aux_exts.single_arg, 1),
-                (self.aux_exts.opt_taking_value, 1),
-                (self.aux_exts.conflict_sn, 1),
-                (self.aux_exts.pl_aux_conflict, 1),
-                (self.aux_exts.pl_aux_sn_conflict_aux, 1),
-                (self.aux_exts.aux_conflict_ln_and_aliases, 2),
-                (self.aux_exts.flag, 1),
-                (self.aux_exts.alias, 2),
-                (self.aux_exts.subc, 1),
-                (self.aux_exts.ns_self_conflict, 1),
-                (self.aux_exts.ext_self_conflict, 1),
-                (self.aux_exts.ext_self_conflict_2, 2),
-                (self.aux_exts.ext_opt_in_ln, 1),
-                (self.aux_exts.ext_opt_in_lna, 2),
-                (self.aux_exts.same_ln_and_ln_alias, 1),
-                (self.aux_exts.same_iln_and_ln_alias, 1),
-                (self.aux_exts.repeated_sn_and_aliases, 3),
+                (ec.single_arg, 1),
+                (ec.opt_taking_value, 1),
+                (ec.conflict_sn, 1),
+                (ec.pl_aux_conflict, 1),
+                (ec.pl_aux_sn_conflict_aux, 1),
+                (ec.aux_conflict_ln_and_aliases, 2),
+                (ec.flag, 1),
+                (ec.alias, 2),
+                (ec.subc, 1),
+                (ec.ns_self_conflict, 1),
+                (ec.ext_self_conflict, 1),
+                (ec.ext_self_conflict_2, 2),
+                (ec.ext_opt_in_ln, 1),
+                (ec.ext_opt_in_lna, 2),
+                (ec.same_ln_and_ln_alias, 1),
+                (ec.same_iln_and_ln_alias, 1),
+                (ec.repeated_sn_and_aliases, 3),
 
-                (self.pl_exts.pl_aux_conflict, 4),
-                (self.pl_exts.pl_aux_sn_conflict_pl, 2),
-                (self.pl_exts.opt_taking_value, 1),
-                (self.pl_exts.pl_conflict_ln_and_aliases, 3),
-                (self.pl_exts.flag, 2),
+                (tas.pl_aux_conflict, 4),
+                (tas.pl_aux_sn_conflict_pl, 2),
+                (tas.opt_taking_value, 1),
+                (tas.pl_conflict_ln_and_aliases, 3),
+                (tas.flag, 2),
             )
 
-    class TestWithPLSubcmd(CLIShared):
+    class TestWithPLSubcmd(Common):
         config = CLIShared.exts.ext_conflicts["plugin.python_plugin.plugin_test_args.subc"]
         cmd = CLIShared.python_plugin.plugin_test_args.subc.extend(
             config["exts"],
             from_configs=[config["cfg"]],
             with_env=config["env"]
         )
-        aux_exts = config["ext_conflicts_exts"]
-        pl_exts = config["test_apps_shared_exts"]
 
         @classmethod
         def setup_class(cls):
@@ -160,25 +170,23 @@ class T_ExtConflicts(CLIShared):
             delattr(cls, "cmd_help")
             delattr(cls, "cmd_conflicts")
 
-        def test_help_msg(self):
+        def test_help_msg(self, ec, tas):
             cmd = self.cmd
-            pl_exts = self.pl_exts
-            aux_exts = self.aux_exts
             help = self.cmd_help
 
             print(help.text)
             help.assert_args(cmd.single_arg)
             help.assert_opts(
-                pl_exts.subc_pl_aux_conflict,
-                aux_exts.flag_opt,
-                aux_exts.more_conflicts,
-                pl_exts.flag_opt,
+                tas.subc_pl_aux_conflict,
+                ec.flag_opt,
+                ec.more_conflicts,
+                tas.flag_opt,
                 cmd.flag_opt,
                 "help",
-                pl_exts.more_conflicts,
+                tas.more_conflicts,
                 cmd.subc_sn_only,
                 cmd.subc_opt_with_aliases,
-                aux_exts.subc_pl_aux_conflict,
+                ec.subc_pl_aux_conflict,
                 "v",
                 "vk",
             )
@@ -199,11 +207,8 @@ class T_ExtConflicts(CLIShared):
         def test_all_errors_checked(self):
             assert len(self.cmd_conflicts) == 0
 
-        def test_conflicts_resolve_correctly(self):
+        def test_conflicts_resolve_correctly(self, tas, ec):
             cmd = self.cmd
-            pl_exts = self.pl_exts
-            aux_exts = self.aux_exts
-
             out = cmd.run(
                 "argv",
                 "--flag_opt",
@@ -225,13 +230,13 @@ class T_ExtConflicts(CLIShared):
                 (cmd.subc_sn_only, 2),
                 (cmd.subc_opt_with_aliases, 4),
 
-                (pl_exts.subc_pl_aux_conflict, 4),
-                (pl_exts.flag_opt, 2),
-                (pl_exts.more_conflicts, 3),
+                (tas.subc_pl_aux_conflict, 4),
+                (tas.flag_opt, 2),
+                (tas.more_conflicts, 3),
 
-                (aux_exts.subc_pl_aux_conflict, 3),
-                (aux_exts.flag_opt, 3),
-                (aux_exts.more_conflicts, 2),
+                (ec.subc_pl_aux_conflict, 3),
+                (ec.flag_opt, 3),
+                (ec.more_conflicts, 2),
             )
 
     class TestWithCoreCmd(CLIShared):
@@ -300,17 +305,17 @@ class T_ExtConflicts(CLIShared):
         def test_ext_opt_conflicts_with_core_cmd_help_msg(self):
             cmd = self.creds_clear_cmd
             help = self.creds_clear_cmd_help
-            aux_exts = self.creds_clear_config["ext_conflicts_exts"]
-            pl_exts = self.creds_clear_config["test_apps_shared_exts"]
+            ec = self.creds_clear_config["exts_by_ns"].ec
+            tas = self.creds_clear_config["exts_by_ns"].tas
 
             help.assert_args(None)
             help.assert_opts(
                 cmd.all,
-                aux_exts.cmd_conflicts_aux,
-                pl_exts.cmd_conflicts_pl,
+                ec.cmd_conflicts_aux,
+                tas.cmd_conflicts_pl,
                 cmd.datasets,
-                aux_exts.all,
-                pl_exts.all,
+                ec.all,
+                tas.all,
                 "help",
                 "v",
                 "vk",
@@ -330,4 +335,4 @@ class T_ExtConflicts(CLIShared):
             for c in reversed(conflicts):
                 m = self.to_conflict_msg(cmd, c)
                 assert m in self.creds_clear_cmd_conflicts.pop()
-            assert len(self.eval_cmd_conflicts) == 0
+            assert len(self.creds_clear_cmd_conflicts) == 0

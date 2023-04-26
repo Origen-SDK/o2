@@ -4,6 +4,8 @@ use std::fmt;
 use super::extensions::ExtensionSource;
 use origen_metal::indexmap::IndexSet;
 
+pub const NOT_EXTENDABLE_MSG: &'static str = "This command does not support extensions.";
+
 #[derive(Debug)]
 pub struct CmdHelps {
     helps: HashMap<CmdSrc, CmdHelp>
@@ -77,6 +79,14 @@ impl CmdHelps {
     pub fn apply_exts(&mut self, extensions: &Extensions) {
         for (target, exts) in extensions.exts() {
             if let Some(help) = self.helps.get_mut(&target) {
+                if !help.extendable {
+                    log_error!("Command '{}' does not support extensions but an extension was attempted from:", target);
+                    for ext in exts {
+                        log_error!("\t{}", ext.source);
+                    }
+                    continue;
+                }
+
                 let mut extended_from_app = false;
                 let mut pls: IndexSet<&str> = IndexSet::new();
                 let mut nspaces: IndexSet<&str> = IndexSet::new();
@@ -103,30 +113,38 @@ impl CmdHelps {
                         nspaces.iter().map(|n| format!("'{}'", n)).collect::<Vec<String>>().join(", ")
                     );
                 }
-                //  exts.iter().map( |e| e.source.to_string()).collect::<Vec<String>>().join(", ")
                 if let Some(after) = help.after_help.as_ref() {
                     help.after_help = Some(after.to_string() + "\n\n" + &msg);
                 } else {
                     help.after_help = Some(msg);
                 }
             } else {
-                // Suppress any app command errors when in the global context
-                // if !app_present!() && target.is_app_cmd() {
-                    log_error!("Tried to extend unknown command '{}' from:", target);
-                    for ext in exts {
-                        log_error!("\t{}", ext.source);
-                    }
-                // }
+                log_error!("Tried to extend unknown command '{}' from:", target);
+                for ext in exts {
+                    log_error!("\t{}", ext.source);
+                }
             }
         }
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CmdHelp {
     help: Option<String>,
     after_help: Option<String>,
     before_help: Option<String>,
+    extendable: bool,
+}
+
+impl Default for CmdHelp {
+    fn default() -> Self {
+        Self {
+            help: None,
+            after_help: None,
+            before_help: None,
+            extendable: true,
+        }
+    }
 }
 
 impl CmdHelp {
@@ -137,6 +155,16 @@ impl CmdHelp {
 
     pub fn set_optional_help_msg(&mut self, help_msg: Option<String>) -> &mut Self {
         self.help = help_msg;
+        self
+    }
+
+    pub fn set_as_not_extendable(&mut self) -> &mut Self {
+        self.extendable = false;
+        if let Some(h) = self.after_help.as_mut() {
+            self.after_help = Some(format!("{h}\n\n{NOT_EXTENDABLE_MSG}"));
+        } else {
+            self.after_help = Some(NOT_EXTENDABLE_MSG.to_string());
+        }
         self
     }
 }

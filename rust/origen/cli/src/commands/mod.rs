@@ -25,7 +25,6 @@ use std::process::exit;
 use _prelude::{SetArgTrue, CountArgs};
 
 use clap::{App, ArgMatches};
-// use crate::Extensions;
 use crate::framework::extensions::{Extension, ExtensionSource};
 use crate::Plugins;
 use std::collections::HashMap;
@@ -136,7 +135,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
 
     let mut args: Vec<String> = vec!();
 
-    // println!("exts from launch: {:?}", cmd_exts);
     let mut opt_names = HashMap::new();
     let mut ext_args = HashMap::new();
     if let Some(exts) = cmd_exts {
@@ -151,12 +149,10 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             }
         }
     }
-    // println!("ext names: {:?}", opt_names);
 
     let mut targets = None;
 
     for arg in cmd_def.get_arguments() {
-        // println!("Arg: {}", arg.get_id());
         let arg_n= arg.get_id();
         if arg_n == "verbose" || arg_n == "verbosity_keywords" {
             continue;
@@ -217,7 +213,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             }
         }
     }
-    // println!("ext args: {:?}", ext_args);
 
     let mut cmd = format!("from origen.boot import run_cmd; run_cmd('{}'", base_cmd.unwrap_or_else(|| cmd_def.get_name()));
     if let Some(subs) = subcmds.as_ref() {
@@ -229,12 +224,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
     let mut pl_ext_str = "".to_string();
     let mut aux_ext_str = "".to_string();
     if !ext_args.is_empty() {
-        // let mut app_ext_str = "{".to_string();
-        // let mut pl_ext_str = "{".to_string();
-        // let mut aux_ext_str = "{".to_string();
-        // let mut app_ext_args = vec!();
-        // let mut pl_ext_args = vec!();
-        // let mut aux_ext_args = vec!();
         for ext in ext_args {
             match ext.0 {
                 ExtensionSource::App => {
@@ -242,7 +231,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
                 },
                 ExtensionSource::Plugin(ref pl_name) => {
                     pl_ext_str += &format!(", '{}': {{{}}}", pl_name, ext.1.join(", "));
-                    // pl_ext_args.push(format!(""));
                 },
                 ExtensionSource::Aux(ref ns, _) => {
                     aux_ext_str += &format!(", '{}': {{{}}}", ns, ext.1.join(", "));
@@ -255,9 +243,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
         if !aux_ext_str.is_empty() {
             aux_ext_str = aux_ext_str[2..].to_string();
         }
-        // app_ext_str += "}";
-        // pl_ext_str += "}";
-        // aux_ext_str += "}";
     }
     cmd += &format!(
         ", ext_args={{'app': {{{}}}, 'plugin': {{{}}}, 'aux': {{{}}}}}",
@@ -269,7 +254,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
     if let Some(exts) = cmd_exts {
         let mut ext_setups: Vec<String> = vec!();
         for ext in exts {
-            // ext_setup: HashMap<&str, String> = HashMap::new();
             let mut ext_setup = "{".to_string();
             match ext.source {
                 ExtensionSource::App => {
@@ -287,30 +271,20 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
                         "'root': r'{}', 'name': r'{}', 'source': 'aux'",
                         path.display(),
                         ns,
-                        // plugins.unwrap().plugins.get(pl_name).unwrap().root.as_path().join(format!("commands/extensions/{}.py", ext.extends)).display()
                     );
                 }
             }
             ext_setup += "}";
-            // ext_setups.push(ext_setup.iter().map( |n, v| &format!("'{}': '{}'", )).collect::<Vec<&str>>().join(', '))
             ext_setups.push(ext_setup);
         }
         cmd += &format!(", extensions=[{}]", ext_setups.join(", "));
     }
 
     if let Some(pls) = plugins {
-        // let mut pls_config = "{".to_string();
         cmd += &format!(
             ", plugins={{{}}}",
             pls.plugins.iter().map(|(n, pl)| format!("'{}': {{'root': r'{}'}}", n, pl.root.display())).collect::<Vec<String>>().join(", ")
         );
-        // for pl in pls {
-            // pl_config = format!("'{}': {{}}", pl.name, pl.root.display());
-            // cmd +=
-            // pl_config += "}";
-        // }
-        // pls_config += "}";
-        // cmd += &format!(", plugins={}")
     }
 
     if let Some(top_overrides) = overrides {
@@ -333,7 +307,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
     cmd += ");";
 
     log_debug!("Launching Python: '{}'", &cmd);
-    // println!("CMD: {}", cmd);
 
     match python::run(&cmd) {
         Err(e) => {

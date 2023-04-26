@@ -37,29 +37,29 @@ gen_core_cmd_funcs__no_exts__no_app_opts!(
     BASE_CMD,
     "Set/view the default target",
     { |cmd: App<'a>| { cmd.arg(full_paths_opt!()).visible_alias("t") }},
-    core_subcmd__no_app_opts!("add", "Activates the given target(s)", { |cmd: App| {
+    core_subcmd__no_exts__no_app_opts!("add", "Activates the given target(s)", { |cmd: App| {
         cmd.visible_alias("a")
         .arg(targets_arg!("Targets to be activated"))
         .arg(full_paths_opt!())
     }}),
-    core_subcmd__no_app_opts!("clear", "Deactivates any and all current targets", { |cmd: App| {
+    core_subcmd__no_exts__no_app_opts!("clear", "Deactivates any and all current targets", { |cmd: App| {
         cmd.visible_alias("c")
     }}),
-    core_subcmd__no_app_opts!("remove", "Deactivates the given target(s)", { |cmd: App| {
+    core_subcmd__no_exts__no_app_opts!("remove", "Deactivates the given target(s)", { |cmd: App| {
         cmd.visible_alias("r")
         .arg(targets_arg!("Targets to be deactivated"))
         .arg(full_paths_opt!())
     }}),
-    core_subcmd__no_app_opts!("set", "Activates the given target(s) while deactivating all others", { |cmd: App| {
+    core_subcmd__no_exts__no_app_opts!("set", "Activates the given target(s) while deactivating all others", { |cmd: App| {
         cmd.visible_alias("s")
         .arg(targets_arg!("Targets to be set"))
         .arg(full_paths_opt!())
     }}),
-    core_subcmd__no_app_opts!("default", "Activates the default target(s) while deactivating all others", { |cmd: App| {
+    core_subcmd__no_exts__no_app_opts!("default", "Activates the default target(s) while deactivating all others", { |cmd: App| {
         cmd.visible_alias("d")
         .arg(full_paths_opt!())
     }}),
-    core_subcmd__no_app_opts!("view", "Views the currently activated target(s)", { |cmd: App| {
+    core_subcmd__no_exts__no_app_opts!("view", "Views the currently activated target(s)", { |cmd: App| {
         cmd.visible_alias("v")
         .arg(full_paths_opt!())
     }})

@@ -8,6 +8,8 @@ from .cmd_models.auxs import Aux
 from .cmd_models.exts import ExtensionDrivers
 from .cmd_models.plugins import Plugins
 
+from .asertions import AssertionHelpers
+
 def apply_ext_output_args(mod):
     from origen.boot import before_cmd, after_cmd, clean_up
     from .ext_helpers import do_action
@@ -73,7 +75,7 @@ class Configs:
     configs_dir = Path(__file__).parent.joinpath("configs")
     suppress_plugin_collecting_config = configs_dir.joinpath("suppress_plugin_collecting.toml")
 
-class CLIShared(cli.CLI):
+class CLIShared(cli.CLI, AssertionHelpers):
     Cmd = Cmd
     na = "no_action"
 

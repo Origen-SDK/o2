@@ -3,8 +3,8 @@ use origen::Result;
 use super::plugins::Plugin;
 use super::aux_cmds::{AuxCmdNamespace};
 use clap::Command as ClapCommand;
-use super::{ArgTOML, Arg, OptTOML, Opt, CmdSrc, Applies, CmdOptCache};
-use crate::{from_toml_args, from_toml_opts};
+use super::{OptTOML, Opt, CmdSrc, Applies, CmdOptCache};
+use crate::from_toml_opts;
 use std::path::PathBuf;
 use std::fmt;
 

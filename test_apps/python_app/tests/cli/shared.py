@@ -3,12 +3,15 @@ from origen.helpers.regressions import cli
 
 from tests.shared import PythonAppCommon
 from test_apps_shared_test_helpers.cli import CLIShared, CmdOpt, CmdArg, CmdExtOpt
+from test_apps_shared_test_helpers.cli.cmd_models import SrcBase
 
 Cmd = CLIShared.Cmd
 
 class CLICommon(CLIShared, PythonAppCommon):
-    class AppCmds:
+    class AppCmds(SrcBase):
         def __init__(self):
+            self.src_type = cli.SrcTypes.APP
+            self.name = "example"
             self.warmup_cmd = CLIShared.app_sub_cmd(
                 "arg_opt_warmup",
                 help = "Gross test command demonstrating args/opts from app commands",

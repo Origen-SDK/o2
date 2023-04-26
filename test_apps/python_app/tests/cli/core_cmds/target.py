@@ -84,6 +84,7 @@ class T_Target(TargetCLI):
             help.assert_subcmds(cmd.subcmds, help=3)
         else:
             help.assert_subcmds(None)
+        help.assert_not_extendable()
 
     def test_adding_targets(self, clear_targets, eagle, uflex, smt7, smt8):
         add = self.cmd.add

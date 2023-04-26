@@ -1,5 +1,5 @@
 import origen
-from .command import CmdOpt, Cmd, CmdArg, CmdDemo, CmdExtOpt
+from .command import CmdOpt, Cmd, CmdArg, CmdArgOpt, CmdDemo, CmdExtOpt
 
 def help_subcmd():
     return Cmd("help", help="Print this message or the help of the given subcommand(s)")
@@ -12,6 +12,7 @@ class _CommonNames:
     creds = "credentials"
     new = "new"
     eval = "eval"
+    exec = "exec"
     fmt = "fmt"
     i = "interactive"
     v = "-v"
@@ -52,6 +53,19 @@ class _CommonNames:
                     expected_output=["Traceback (most recent call last):", "NameError: name 'missing' is not defined"]
                 )
             ]
+        )
+
+    @classmethod
+    def exec_cmd(cls, add_opts=None):
+        return Cmd(
+            cls.exec,
+            help="Execute a command within your Origen/Python environment (e.g. origen exec pytest)",
+            args=[
+                CmdArg("command", "The command to be run", required=True),
+                CmdArg("args", "Arguments to be passed to the command", multi=True, required=False)
+            ],
+            opts=add_opts,
+            prefix_opts=True,
         )
 
     @classmethod
@@ -149,6 +163,7 @@ class CoreCommands(metaclass=CoreCommandsProperties):
 class GlobalCommands(CoreCommands):
     class Names:
         eval = _CommonNames.eval
+        exec = _CommonNames.exec
         aux_cmds = _CommonNames.aux_cmds
         pls = _CommonNames.pls
         pl = _CommonNames.pl
@@ -162,6 +177,7 @@ class GlobalCommands(CoreCommands):
     names = Names()
 
     eval = _CommonNames.eval_cmd()
+    exec = _CommonNames.exec_cmd()
     aux_cmds = Cmd(names.aux_cmds, help="Interface with auxillary commands")
     pls = Cmd(names.pls)
     pl = Cmd(names.pl)
@@ -174,7 +190,7 @@ class GlobalCommands(CoreCommands):
     v = _CommonNames.v_cmd()
 
     commands = [
-        proj, new, creds, eval, i,
+        proj, new, creds, eval, exec, i,
         pls, pl, aux_cmds, fmt, build
     ]
     cmds = commands
@@ -229,7 +245,7 @@ class InAppCommands(CoreCommands):
         creds = _CommonNames.creds
         env = "env"
         eval = _CommonNames.eval
-        exec = "exec"
+        exec = _CommonNames.exec
         fmt = _CommonNames.fmt
         generate = "generate"
         i = _CommonNames.i
@@ -272,7 +288,7 @@ class InAppCommands(CoreCommands):
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
     env = Cmd(names.env)
     eval = _CommonNames.eval_cmd(add_opts=in_app_opts.all())
-    exec = Cmd(names.exec)
+    exec = _CommonNames.exec_cmd()
     fmt = Cmd(names.fmt)
     generate = Cmd(names.generate)
     i = _CommonNames.interactive_cmd(add_opts=in_app_opts.all())
@@ -340,13 +356,49 @@ class InAppCommands(CoreCommands):
 
 class CoreOpts:
     help = CmdOpt('help', "Print help information", sn="h", ln="help")
-    verbosity = CmdOpt('verbosity', "Terminal verbosity level e.g. -v, -vv, -vvv", ln="verbosity", sn="v")
-    vk= CmdOpt("verbosity_keywords", "Keywords for verbose listeners", value_name= "verbosity_keywords", takes_value=True, multi=True, ln_aliases=["vk"])
+    verbosity = CmdOpt('verbosity', "Terminal verbosity level e.g. -v, -vv, -vvv", ln="verbose", ln_aliases=["verbosity"], sn="v")
+    vk = CmdOpt("verbosity_keywords", "Keywords for verbose listeners", value_name= "verbosity_keywords", takes_value=True, use_delimiter=True, ln_aliases=["vk"])
 
 class CoreErrorMessages:
     @classmethod
-    def too_many_args(cls, val):
+    def _invalid_arg_msg(cls, val):
         return f"Found argument '{val}' which wasn't expected, or isn't valid in this context"
+
+    @classmethod
+    def _missing_arg_val_msg(cls, arg, type, value_name=None):
+        if type == "ln":
+            prefix = '--'
+        elif type == "sn":
+            prefix = '-'
+        elif type == "arg":
+            prefix = ''
+        else:
+            raise RuntimeError(f"Cannot generate missing ar val msg for arg type '{type}")
+        if isinstance(arg, CmdArgOpt):
+            if value_name is None:
+                value_name = arg.to_vn()
+            arg = arg.name
+        return f"The argument '{prefix}{arg} <{value_name or arg}>' requires a value but none was supplied"
+
+    @classmethod
+    def missing_arg_val_msg(cls, arg, value_name=None):
+        return cls._missing_arg_val_msg(arg, "arg", value_name=value_name)
+
+    @classmethod
+    def missing_ln_val_msg(cls, arg, value_name=None):
+        return cls._missing_arg_val_msg(arg, "ln", value_name=value_name)
+
+    @classmethod
+    def missing_sn_val_msg(cls, arg, value_name=None):
+        return cls._missing_arg_val_msg(arg, "sn", value_name=value_name)
+
+    @classmethod
+    def too_many_args(cls, val):
+        return cls._invalid_arg_msg(val)
+
+    @classmethod
+    def unknown_arg_msg(cls, arg):
+        return cls._invalid_arg_msg(arg)
 
     @classmethod
     def unknown_opt_msg(cls, opt, ln=True):
@@ -360,7 +412,7 @@ class CoreErrorMessages:
         else:
             n = f"{prefix}{opt}"
 
-        return f"Found argument '{n}' which wasn't expected, or isn't valid in this context"
+        return cls._invalid_arg_msg(n)
 
     @classmethod
     def missing_required_arg(cls, *vals):
@@ -371,6 +423,10 @@ class CoreErrorMessages:
             else:
                 mapped_vals.append(f"<{v.to_vn()}>")
         return "The following required arguments were not provided:" + "\n    " + "    \n".join(mapped_vals)
+
+    @classmethod
+    def invalid_subc_msg(cls, subc):
+        return f"The subcommand '{subc}' wasn't recognized\n\nUSAGE:\n"
 
     @classmethod
     def cmd_building_err_prefix(cls, cmd):

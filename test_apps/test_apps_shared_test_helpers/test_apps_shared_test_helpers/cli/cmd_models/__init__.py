@@ -1,5 +1,10 @@
 from origen.helpers.regressions import cli
 
+class SrcBase(cli.CLI):
+    @property
+    def displayed(self):
+        return self.src_type.displayed(self.name)
+
 class Cmd(cli.cmd.Cmd):
     def assert_args(self, output, *vals, finalize_ext_args=None):
         ext_args = {}

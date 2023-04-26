@@ -185,3 +185,17 @@ on_env = ["ORIGEN_APP_EXT_NESTED"]
     [[extension.opt]]
         name = "tas_flag_opt_deep"
         help = "Flag opt from TAS"
+
+[[extension]]
+extend = "origen.target"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target"
+
+[[extension]]
+extend = "origen.target.view"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target view"

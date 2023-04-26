@@ -1,8 +1,10 @@
 class HelpMsg:
+    not_extendable_msg = "This command does not support extensions."
+
     def __init__(self, help_str):
         self.text = help_str
         sections = help_str.split("\n\n")
-        if sections[0] == "Origen, The Semiconductor Developer's Kit":
+        if "Origen, The Semiconductor Developer's Kit" in sections[0]:
             self.version_str = sections.pop(1).strip()
             self.root_cmd = True
         else:
@@ -25,7 +27,6 @@ class HelpMsg:
         for sect in sections[2:]:
             subsects = sect.split("\n")
             for (i, s) in enumerate(subsects):
-                print(f"s: {s}")
                 if s == "ARGS:":
                     current = "args"
                     sects[current] = []
@@ -50,12 +51,12 @@ class HelpMsg:
                 else:
                     if (i == len(subsects) - 1) and s == "":
                         next
-                    if not s.startswith(" "):
+                    elif current == "after_help_msg":
+                        self.after_help_msg.append(s)
+                    elif not s.startswith(" "):
                         if current not in ["app_cmd_shortcuts", "pl_cmd_shortcuts", "aux_cmd_shortcuts"]:
                             current = "after_help_msg"
                             self.after_help_msg = [s]
-                    elif current == "after_help_msg":
-                        self.after_help_msg.append(s)
                     else:
                         sects[current].append(s)
 
@@ -82,8 +83,6 @@ class HelpMsg:
         n = None
         if "opts" in sects:
             for line in sects["opts"]:
-                print(f"l {line}")
-
                 l = line.strip()
                 if l[0] == "-":
                     opt = {}
@@ -92,7 +91,6 @@ class HelpMsg:
                     opt['extended_from'] = None
                     opt['ext_type'] = None
 
-                    print(l)
                     s = l.split("    ", 1)
                     if len(s) > 1:
                         opt["help"] = s[1].strip()
@@ -162,7 +160,6 @@ class HelpMsg:
                         opt['ext_type'] = SrcTypes.APP
 
                     if re.search(r"\[aliases: .*\]", opt['help']):
-                        print(f"splitting aliases!!: {opt['help']}")
                         split = opt['help'].split("[aliases: ", 1)
                         if len(split) == 2:
                             if ']' in split[1]:
@@ -180,7 +177,6 @@ class HelpMsg:
         self.subcmds = []
         n = None
         if "subcmds" in sects:
-            print(sects["subcmds"])
             for line in sects["subcmds"]:
                 if line.startswith("     "):
                     self.subcmds[-1]["help"] += f" {line.strip()}"
@@ -419,6 +415,10 @@ class HelpMsg:
     def assert_summary(self, msg):
         assert self.help == msg
         return True
+
+    def assert_not_extendable(self):
+        assert self.after_help_msg is not None
+        assert self.not_extendable_msg == self.after_help_msg.split("\n")[-1]
 
     @property
     def logged_errors(self):

@@ -18,14 +18,16 @@ use std::process::exit;
 use framework::{Extensions, Plugins, AuxCmds, AppCmds, CmdHelps};
 use framework::plugins::{PL_MGR_CMD_NAME, PL_CMD_NAME, run_pl_mgr, run_pl};
 use framework::{
-    VERBOSITY_OPT_NAME, VERBOSITY_OPT_SHORT_NAME,
-    VERBOSITY_KEYWORDS_OPT_NAME, VERBOSITY_KEYWORDS_OPT_LONG_NAME
+    VERBOSITY_OPT_NAME, VERBOSITY_OPT_SHORT_NAME, VERBOSITY_OPT_LNA,
+    VERBOSITY_KEYWORDS_OPT_NAME, VERBOSITY_KEYWORDS_OPT_LONG_NAME,
+    VOV_OPT_NAME,
+    add_verbosity_opts,
 };
 use clap::error::ErrorKind as ClapErrorKind;
 use commands::_prelude::clap_arg_actions::*;
 
-static VERBOSITY_HELP_STR: &str = "Terminal verbosity level e.g. -v, -vv, -vvv";
-static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
+use VERBOSITY_OPT_NAME as V_OPT_NAME;
+use VERBOSITY_KEYWORDS_OPT_NAME as VKS_OPT_NAME;
 
 #[derive(Clone)]
 pub struct CommandHelp {
@@ -41,57 +43,28 @@ pub mod built_info {
 
 // This is the entry point for the Origen CLI tool
 fn main() -> Result<()> {
-    let verbosity_re = regex::Regex::new(r"-([vV]+)").unwrap();
-
-    // Intercept the 'origen exec' command immediately to prevent further parsing of it, this
-    // is so that something like 'origen exec pytest -v' will apply '-v' as an argument to pytest
-    // and not to origen
-    let mut args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 && args[1] == "exec" {
-        args = args.drain(2..).collect();
-        if args.len() > 0 && (args[0] == "-h" || args[0] == "--help" || args[0] == "help") {
-            // Just fall through to display the help in this case
-        } else {
-            // Apply any leading -vvv to origen, any -v later in the args will be applied to the
-            // 3rd party command
-            if args.len() > 0 && verbosity_re.is_match(&args[0]) {
-                let captures = verbosity_re.captures(&args[0]).unwrap();
-                let x = captures.get(1).unwrap().as_str();
-                let verbosity = x.chars().count() as u8;
-                origen::initialize(
-                    Some(verbosity),
-                    vec![],
-                    None,
-                    Some(built_info::PKG_VERSION.to_string()),
-                    None,
-                    None,
-                );
-                args = args.drain(1..).collect();
-            }
-            // Command is not actually available outside an app, so just fall through
-            // to generate the appropriate error
-            if STATUS.is_app_present {
-                if args.len() > 0 {
-                    let cmd = args[0].clone();
-                    args = args.drain(1..).collect();
-                    let cmd_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-                    commands::exec::run(&cmd, cmd_args);
-                } else {
-                    std::process::exit(0);
-                }
-            }
-        }
+    // Create a mini-app to handle verbose and verbosity keyword arguments and run any commands that should be run
+    // earlier in the flow (e.g.: exec). Call this the "pre-phase" app.
+    // Exits if a pre-phase command was handled, otherwise, set verbosity settings and continue with the main flow
+    // Note: pre-phase runs before plugins or extensions are available. By definition, commands executing during pre-phase are not extendable.
+    macro_rules! pre_phase_app {
+        () => {{
+            add_verbosity_opts(Command::new("")
+                .disable_version_flag(true)
+                .allow_external_subcommands(true)
+                .disable_help_flag(true)
+                .allow_hyphen_values(true),
+                true
+            )
+        }}
     }
 
-    // Set the verbosity immediately, this is to allow log statements to work in really
-    // low level stuff, e.g. when building the STATUS
-    let mut verbosity: u8 = 0;
-    for arg in std::env::args() {
-        if let Some(captures) = verbosity_re.captures(&arg) {
-            let x = captures.get(1).unwrap().as_str();
-            verbosity = x.chars().count() as u8;
-        }
-    }
+    let mut pre_phase_app = pre_phase_app!();
+    pre_phase_app = commands::exec::add_prephase_cmds(pre_phase_app);
+
+    let mut print_help = false;
+    let mut verbosity;
+    let mut vks;
     let exe = match std::env::current_exe() {
         Ok(p) => Some(format!("{}", p.display())),
         Err(e) => {
@@ -99,14 +72,150 @@ fn main() -> Result<()> {
             None
         }
     };
-    origen::initialize(
-        Some(verbosity),
-        vec![],
-        exe,
-        Some(built_info::PKG_VERSION.to_string()),
-        None,
-        None,
-    );
+    macro_rules! origen_init {
+        () => {{
+            origen::initialize(
+                Some(verbosity),
+                vks,
+                exe,
+                Some(built_info::PKG_VERSION.to_string()),
+                None,
+                None,
+            )
+        }}
+    }
+
+    match pre_phase_app.try_get_matches() {
+        Ok(m) => {
+            verbosity = *m.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
+            verbosity += m.get_one::<u8>(VOV_OPT_NAME).unwrap_or(&0);
+            vks = match m.get_many::<String>(VKS_OPT_NAME) {
+                Some(vks) => vks.map( |vk| vk.to_owned()).collect::<Vec<String>>(),
+                None => vec!()
+            };
+
+            macro_rules! run_pre_phase_cmd {
+                ($cmd_mod:ident, $subc:expr) => {{
+                    origen_init!();
+                    exit(commands::$cmd_mod::run_pre_phase(&$subc)?);
+                }}
+            }
+
+            match m.subcommand() {
+                Some((commands::exec::BASE_CMD, subc)) => {
+                    run_pre_phase_cmd!(exec, subc);
+                },
+                // "External subcommand" received, which in this case is either a non-pre-prephase or invalid command.
+                // Either way, let the main flow handle it.
+                Some((ext, ext_args)) => {
+                    // Args under "" are external subcommand args
+                    match ext_args.get_many::<String>("") {
+                        Some(args) => {
+                            // Need to repeatedly parse the args to overcome handling of corner cases.
+                            // Use a dummy app that just accepts verbosity and keywords. Parse this until empty.
+                            let mut dummy = pre_phase_app!().no_binary_name(true);
+                            let mut reduced = args.map(|a| a.to_owned()).collect::<Vec<String>>();
+                            while(true) {
+                                match dummy.try_get_matches_from_mut(reduced.clone()) {
+                                    Ok(dm) => {
+                                        verbosity += dm.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
+                                        verbosity += dm.get_one::<u8>(VOV_OPT_NAME).unwrap_or(&0);
+                                        match dm.get_many::<String>(VKS_OPT_NAME) {
+                                            Some(vkws) => vks.append(&mut vkws.map( |vk| vk.to_owned()).collect::<Vec<String>>()),
+                                            None => {}
+                                        };
+
+                                        match dm.subcommand() {
+                                            Some((ext, dm_args)) => {
+                                                match dm_args.get_many::<String>("") {
+                                                    Some(dm_args) => {
+                                                        reduced = dm_args.map(|a| a.to_owned()).collect::<Vec<String>>();
+                                                    }
+                                                    None => {
+                                                        break
+                                                    }
+                                                }
+                                            },
+                                            None => {
+                                                break
+                                            },
+                                        }
+                                    },
+                                    Err(e) => {
+                                        e.exit();
+                                    },
+                                }
+                            }
+                        },
+                        None => {}
+                    }
+                },
+                _ => {
+                    // No subcommand, or options only. Set the verbosity based on previous handling of options.
+                    // The only options here will be verbosity and vks. Knock one of the -v flags off and set
+                    // verbosity according to that. The version printout will be handled later on.
+                    verbosity = *m.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
+                    verbosity += m.get_one::<u8>(VOV_OPT_NAME).unwrap();
+
+                    // version_or_verbosity will default to 0, even if not present on the invocation
+                    match m.value_source(VOV_OPT_NAME) {
+                        Some(clap::parser::ValueSource::DefaultValue) => {
+                            // This would actually fal into a 'origen -v' invocation, but actually want to display help here
+                            // E.g.: origen --verbose --vk blah
+                            //  should display help, not version
+                            print_help = true;
+                        },
+                        _ => {
+                            // All other cases, it was given, so knock off a -v flag off
+                            // origen -vvv => origen (version) -vv
+                            verbosity -= 1;
+                        }
+                    }
+                }
+            }
+            origen_init!();
+        },
+        Err(e) => {
+            // Any mis-use of pre-phase commands or unknown args/subcommands will be handled by the full app.
+            // Fallback to manually discerning the verbosity/keywords for the main phase
+            let mut dummy = pre_phase_app!().no_binary_name(true);
+            let mut reduced: Vec<String> = std::env::args().skip(1).collect();
+            verbosity = 0;
+            vks = vec!();
+            while(true) {
+                match dummy.try_get_matches_from_mut(reduced.clone()) {
+                    Ok(dm) => {
+                        verbosity += dm.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
+                        verbosity += dm.get_one::<u8>(VOV_OPT_NAME).unwrap_or(&0);
+                        match dm.get_many::<String>(VKS_OPT_NAME) {
+                            Some(vkws) => vks.append(&mut vkws.map( |vk| vk.to_owned()).collect::<Vec<String>>()),
+                            None => {}
+                        };
+
+                        match dm.subcommand() {
+                            Some((ext, dm_args)) => {
+                                match dm_args.get_many::<String>("") {
+                                    Some(dm_args) => {
+                                        reduced = dm_args.map(|a| a.to_owned()).collect::<Vec<String>>();
+                                    }
+                                    None => {
+                                        break
+                                    }
+                                }
+                            },
+                            None => {
+                                break
+                            },
+                        }
+                    },
+                    Err(e) => {
+                        e.exit();
+                    },
+                }
+            }
+            origen_init!();
+        }
+    }
 
     let version = match STATUS.is_app_present {
         true => format!("Origen CLI: {}", STATUS.origen_version.to_string()),
@@ -151,25 +260,8 @@ fn main() -> Result<()> {
         .arg_required_else_help(true)
         .disable_version_flag(true)
         .before_help("Origen, The Semiconductor Developer's Kit")
-        .version(&*version)
-        .arg(
-            Arg::new("verbose")
-                .long(VERBOSITY_OPT_NAME)
-                .short(VERBOSITY_OPT_SHORT_NAME)
-                .action(clap::builder::ArgAction::Count)
-                .global(true)
-                .help(VERBOSITY_HELP_STR),
-        )
-        .arg(
-            Arg::new("verbosity_keywords")
-                .long(VERBOSITY_KEYWORDS_OPT_NAME)
-                .visible_alias(VERBOSITY_KEYWORDS_OPT_LONG_NAME)
-                // .short('k')
-                .multiple(true)
-                .action(AppendArgs)
-                .global(true)
-                .help(VERBOSITY_KEYWORD_HELP_STR),
-        );
+        .version(&*version);
+    app = add_verbosity_opts(app, false);
 
     /************************************************************************************/
     /******************** Global only commands ******************************************/
@@ -330,6 +422,7 @@ fn main() -> Result<()> {
     framework::plugins::add_helps(&mut helps, plugins.as_ref());
     framework::aux_cmds::add_helps(&mut helps, &aux_cmds);
     commands::eval::add_helps(&mut helps);
+    commands::exec::add_helps(&mut helps);
     commands::credentials::add_helps(&mut helps);
     commands::interactive::add_helps(&mut helps);
 
@@ -347,6 +440,7 @@ fn main() -> Result<()> {
     // app = mailer::add_commands(app, &mut origen_commands)?;
     app = commands::credentials::add_commands(app, &helps, &extensions)?;
     app = commands::eval::add_commands(app, &helps, &extensions)?;
+    app = commands::exec::add_commands(app, &helps, &extensions)?;
     app = commands::interactive::add_commands(app, &helps, &extensions)?;
     app = framework::plugins::add_commands(app, &helps, plugins.as_ref(), &extensions)?;
     app = framework::aux_cmds::add_commands(app, &helps, &aux_cmds, &extensions)?;
@@ -763,38 +857,6 @@ Examples:
         );
 
         /************************************************************************************/
-        let exec_help = "Execute a command within your application's Origen/Python environment (e.g. origen exec pytest)";
-        origen_commands.push(CommandHelp {
-            name: "exec".to_string(),
-            help: exec_help.to_string(),
-            shortcut: None,
-        });
-        app = app.subcommand(
-            Command::new("exec")
-                .about(exec_help)
-                .arg_required_else_help(true)
-                .allow_hyphen_values(true)
-                .arg(
-                    Arg::new("cmd")
-                        .help("The command to be run")
-                        .action(SetArg)
-                        .required(true)
-                        .value_name("COMMAND"),
-                )
-                .arg(
-                    Arg::new("args")
-                        .help("Arguments to be passed to the command")
-                        .action(AppendArgs)
-                        .allow_hyphen_values(true)
-                        .multiple(true)
-                        .number_of_values(1)
-                        .required(false)
-                        //.last(true)
-                        .value_name("ARGS"),
-                ),
-        );
-
-        /************************************************************************************/
         let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
         origen_commands.push(CommandHelp {
             name: "save_ref".to_string(),
@@ -1039,11 +1101,6 @@ Examples:
 
     let matches = app.get_matches_mut();
 
-    let _ = LOGGER.set_verbosity(*matches.get_one::<u8>("verbose").unwrap());
-    if let Some(keywords) = matches.get_many::<String>("verbosity_keywords") {
-        let _ = LOGGER.set_verbosity_keywords(keywords.map(|k| k.to_string()).collect());
-    }
-
     macro_rules! run_cmd_match_case {
         ($cmd:ident, $cmd_name:ident) => {
             commands::$cmd::run(matches.subcommand_matches(commands::$cmd::$cmd_name).unwrap(), &app, &extensions, plugins.as_ref())?
@@ -1230,6 +1287,12 @@ Examples:
             unreachable!("Uncaught invalid command encountered: '{}'", invalid_cmd);
         }
         None => {
+            if print_help {
+                // No subcommands or "-v" used, but verbose and/or vks used.
+                // This will register as no subcommand, but actually want to display help, not version
+                app.print_help()?;
+                return Ok(())
+            }
             // To get here means the user has typed "origen -v", which officially means
             // verbosity level 1 with no command, but this is what they really mean
             let mut max_len = 0;

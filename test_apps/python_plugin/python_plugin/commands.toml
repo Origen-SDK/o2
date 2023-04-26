@@ -124,6 +124,16 @@ help = "Echos the input"
     long = "repeat"
     short = "r"
 
+[[command]]
+    name = "do_actions"
+    help = "Perform the given actions"
+
+    [[command.arg]]
+    name = "actions"
+    required = true
+    use_delimiter = true
+    help = "Actions to perform"
+
 # Command disabling standard app opts
 [[command]]
 name = "disabling_app_opts_from_pl"
@@ -473,3 +483,17 @@ on_env = ["ORIGEN_APP_EXT_NESTED"]
         help = "Flag opt from PYPL"
         long= "py_f"
         short = "f"
+
+[[extension]]
+extend = "origen.target"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target"
+
+[[extension]]
+extend = "origen.target.view"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target view"

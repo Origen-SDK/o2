@@ -18,7 +18,7 @@ class T_Eval(CLICommon):
         help.assert_args(cmd.code)
         help.assert_bare_opts()
 
-    def test_with_single_statment(self, cmd, no_config_run_opts):
+    def test_with_single_statement(self, cmd, no_config_run_opts):
         d = cmd.demos["multi_statement_single_arg"]
         out = d.run(run_opts=no_config_run_opts)
         d.assert_present(out)
@@ -45,3 +45,8 @@ class T_Eval(CLICommon):
         d.assert_present(out["stderr"])
         print(out["stdout"])
         fail
+
+    def test_clean_eval(self):
+        eval_prefix = "Origen Version From Eval: "
+        out = self.eval("print (f'" + eval_prefix + "{origen.version}' )")
+        assert out == f"{eval_prefix}{origen.version}\n"

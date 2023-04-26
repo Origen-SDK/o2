@@ -93,7 +93,6 @@ def run_cmd(command,
         return wrap_mod_from_file(path)
 
     def call_user_cmd(cmd_type):
-        print(f"dispatch_root: {dispatch_root}")
         m = mod_from_modulized_path(dispatch_root, subcmds)
 
         if isinstance(m, list):
@@ -107,8 +106,6 @@ def run_cmd(command,
             exit_proc(1)
 
         if hasattr(m, 'run'):
-            print("found run")
-            print(m.__file__)
             m.run(**(args or {}))
         else:
             origen.logger.error(f"Could not find 'run' function in module '{m.__file__}'")

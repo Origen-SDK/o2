@@ -2,11 +2,14 @@ use super::{CmdHelps, Extensions};
 use origen::Result;
 use clap::Command;
 
-pub fn add_core_subc_helps(helps: &mut CmdHelps, base_name: &str, cmd: &str, cmd_help: &str, subcmds: &[SubCmd]) {
+pub fn add_core_subc_helps(helps: &mut CmdHelps, base_name: &str, cmd: &str, cmd_help: &str, extendable: bool, subcmds: &[SubCmd]) {
     let n = format!("{}.{}", base_name, cmd);
-    helps.add_core_cmd(&n).set_help_msg(cmd_help);
+    let h = helps.add_core_cmd(&n).set_help_msg(cmd_help);
+    if !extendable {
+        h.set_as_not_extendable();
+    }
     for subc in subcmds {
-        add_core_subc_helps(helps, &n, subc.name, subc.help, subc.subcmds);
+        add_core_subc_helps(helps, &n, subc.name, subc.help, subc.extendable, subc.subcmds);
     }
 }
 
@@ -36,23 +39,25 @@ pub struct SubCmd<'a> {
     pub subcmds: &'a [SubCmd<'a>],
     pub proc: Option<&'a dyn Fn(Command) -> Command>,
     pub include_app_opts: bool,
+    pub extendable: bool,
 }
 #[macro_export]
 macro_rules! core_subcmd {
     ($($args:tt)+) => {{
-        $crate::_core_subcmd!(true, $($args)*)
+        $crate::_core_subcmd!(true, true, $($args)*)
     }}
 }
 
 #[macro_export]
 macro_rules! _core_subcmd {
-    ($include_app_opts:expr, $name:expr, $help:expr, $proc:tt) => {{
+    ($include_app_opts:expr, $extendable:expr, $name:expr, $help:expr, $proc:tt) => {{
         $crate::framework::core_cmds::SubCmd {
             name: $name,
             help: $help,
             subcmds: &[],
             proc: Some(&$proc),
             include_app_opts: $include_app_opts,
+            extendable: $extendable,
         }
     }};
 
@@ -63,6 +68,7 @@ macro_rules! _core_subcmd {
             subcmds: &[$($subcmd),*],
             proc: Some(&$proc),
             include_app_opts: $include_app_opts,
+            extendable: true,
         }
     }};
 
@@ -73,6 +79,7 @@ macro_rules! _core_subcmd {
             subcmds: &[],
             proc: None,
             include_app_opts: $include_app_opts,
+            extendable: true,
         }
     }};
 
@@ -83,14 +90,15 @@ macro_rules! _core_subcmd {
             subcmds: &[$($subcmd),*],
             proc: None,
             include_app_opts: $include_app_opts,
+            extendable: true,
         }
     }};
 }
 
 #[macro_export]
-macro_rules! core_subcmd__no_app_opts {
+macro_rules! core_subcmd__no_exts__no_app_opts {
     ($($args:tt)+) => {{
-        $crate::_core_subcmd!(false, $($args)*)
+        $crate::_core_subcmd!(false, false, $($args)*)
     }}
 }
 
@@ -103,7 +111,7 @@ macro_rules! gen_core_cmd_funcs {
         pub (crate) fn add_helps(helps: &mut $crate::CmdHelps) {
             helps.add_core_cmd($base_name).set_help_msg($cmd_help);
             $(
-                $crate::framework::core_cmds::add_core_subc_helps(helps, $base_name, $subcmd.name, $subcmd.help, $subcmd.subcmds);
+                $crate::framework::core_cmds::add_core_subc_helps(helps, $base_name, $subcmd.name, $subcmd.help, $subcmd.extendable, $subcmd.subcmds);
             )*
         }
 
@@ -124,9 +132,9 @@ macro_rules! gen_core_cmd_funcs {
 macro_rules! gen_core_cmd_funcs__no_exts__no_app_opts {
     ($base_name:expr, $cmd_help:expr, $proc:tt, $($subcmd:expr ), *) => {
         pub (crate) fn add_helps(helps: &mut $crate::CmdHelps) {
-            helps.add_core_cmd($base_name).set_help_msg($cmd_help);
+            helps.add_core_cmd($base_name).set_help_msg($cmd_help).set_as_not_extendable();
             $(
-                $crate::framework::core_cmds::add_core_subc_helps(helps, $base_name, $subcmd.name, $subcmd.help, $subcmd.subcmds);
+                $crate::framework::core_cmds::add_core_subc_helps(helps, $base_name, $subcmd.name, $subcmd.help, $subcmd.extendable, $subcmd.subcmds);
             )*
         }
 
@@ -136,6 +144,18 @@ macro_rules! gen_core_cmd_funcs__no_exts__no_app_opts {
             $(
                 cmd = $crate::framework::core_cmds::add_core_subcs(helps, None, cmd, vec!($base_name), &$subcmd)?;
             )*
+            Ok(app.subcommand(cmd))
+        }
+    };
+
+    ($base_name:expr, $cmd_help:expr, $proc:tt) => {
+        pub (crate) fn add_helps(helps: &mut $crate::CmdHelps) {
+            helps.add_core_cmd($base_name).set_help_msg($cmd_help).set_as_not_extendable();
+        }
+
+        pub (crate) fn add_commands<'a>(app: clap::Command<'a>, helps: &'a $crate::CmdHelps, exts: &'a $crate::Extensions) -> origen::Result<clap::Command<'a>> {
+            let mut cmd = helps.core_cmd($base_name);
+            cmd = $proc(cmd);
             Ok(app.subcommand(cmd))
         }
     };

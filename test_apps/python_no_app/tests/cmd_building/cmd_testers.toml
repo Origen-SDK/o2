@@ -5,10 +5,6 @@ name = "python_no_app_tests"
 help = "Test commands for python-no-app workspace"
 
 [[command]]
-name = "test_current_command"
-help = "Tests origen.current_command"
-
-[[command]]
 name = "test_nested_level_1"
 help = "Tests origen.current_command L1"
 
