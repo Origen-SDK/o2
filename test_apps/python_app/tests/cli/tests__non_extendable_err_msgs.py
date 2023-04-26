@@ -24,6 +24,7 @@ class T_NonExtendableErrMsgs(TargetCLI):
     def assert_non_ext_errors(cls, out):
         errors = "\n".join(cls.extract_logged_errors(out))
         print(errors)
+        print(errors.encode("ascii"))
         cls.assert_ext_non_ext_cmd_msg(errors, cls._cmd.view, cls.err_srcs)
         cls.assert_ext_non_ext_cmd_msg(errors, cls._cmd, cls.err_srcs)
 
