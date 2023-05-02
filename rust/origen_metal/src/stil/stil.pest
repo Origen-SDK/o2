@@ -59,7 +59,7 @@ signal = {
     (name ~ signal_type ~
     ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
 }
-signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo") }
+signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo" | "inout" ) }
 
 termination = {
     "Termination" ~ termination_val ~ EOS
