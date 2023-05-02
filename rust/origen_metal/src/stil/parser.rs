@@ -287,6 +287,58 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
             Rule::pattern_burst => {
                 ast.push(node!(STIL::PatternBurstRef, unquote(inner_strs(pair)[0])))
             }
+            Rule::dcapfilter => {
+                ast.push(node!(STIL::DCapFilterRef, unquote(inner_strs(pair)[0])))
+            }
+            Rule::dcapsetup => {
+                ast.push(node!(STIL::DCapSetupRef, unquote(inner_strs(pair)[0])))
+            }
+            Rule::dcapsetup_block => {
+                let mut p = pair.into_inner();
+                ids.push(ast.push_and_open(node!(
+                    STIL::DCapSetup,
+                    Some(unquote(p.next().unwrap().as_str()))
+                )));
+                pairs.push(p);
+            }
+            Rule::pins => ast.push(node!(STIL::PinsRef, unquote(inner_strs(pair)[0]))),
+            Rule::dcapfilter_block => {
+                let mut p = pair.into_inner();
+                ids.push(ast.push_and_open(node!(
+                    STIL::DCapFilter,
+                    Some(unquote(p.next().unwrap().as_str()))
+                )));
+                pairs.push(p);
+            }
+            Rule::stype => ast.push(node!(STIL::TypeRef, unquote(inner_strs(pair)[0]))),
+            Rule::transfer_mode => ast.push(node!(
+                STIL::TransferModeRef,
+                unquote(inner_strs(pair)[0])
+            )),
+            Rule::frame_count => ast.push(node!(
+                STIL::FrameCountRef,
+                inner_strs(pair)[0].parse().unwrap()
+            )),
+            Rule::vectors_per_frame => ast.push(node!(
+                STIL::VectorsPerFrameRef,
+                inner_strs(pair)[0].parse().unwrap()
+            )),
+            Rule::vectors_per_sample => ast.push(node!(
+                STIL::VectorsPerSampleRef,
+                inner_strs(pair)[0].parse().unwrap()
+            )),
+            Rule::discard_offset => ast.push(node!(
+                STIL::DiscardOffsetRef,
+                inner_strs(pair)[0].parse().unwrap()
+            )),
+            Rule::discard_vectors => ast.push(node!(
+                STIL::DiscardVectorsRef,
+                inner_strs(pair)[0].parse().unwrap()
+            )),
+            Rule::discard_frames => ast.push(node!(
+                STIL::DiscardFramesRef,
+                inner_strs(pair)[0].parse().unwrap()
+            )),
             Rule::pattern_burst_block => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(

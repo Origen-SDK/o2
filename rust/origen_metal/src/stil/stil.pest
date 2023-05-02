@@ -5,7 +5,7 @@ stil_source = { SOI ~ stil_source_items+ ~ EOI }
 stil_source_items = _{
     stil_version | header_block | signals_block | signal_groups_block |
     timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
-    scan_structures_block | pattern_block | include
+    scan_structures_block | pattern_block | include | dcapfilter_block | dcapsetup_block
 }
 
 stil_version = { "STIL" ~ integer ~ "." ~ integer ~ EOS }
@@ -98,12 +98,42 @@ signal_group = {
 //############################################################################
 
 pattern_exec_block = {
-    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ "}"
+    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ dcapfilter* ~ dcapsetup* ~ "}"
 }
 category = { "Category" ~ name ~ EOS }
 selector = { "Selector" ~ name ~ EOS }
 timing = { "Timing" ~ name ~ EOS }
 pattern_burst = { "PatternBurst" ~ name ~ EOS }
+dcapfilter = { "DCapFilter" ~ name ~ EOS}
+dcapsetup  = { "DCapSetup" ~ name ~ EOS }
+
+
+//############################################################################
+//# 16.1 DcapSetup Block
+//############################################################################
+
+dcapsetup_block = {
+    "DCapSetup" ~ name ~ "{" ~ pins*  ~ "}"
+}
+pins = { "Pins" ~ name ~ EOS}
+
+//############################################################################
+//# 16.2 DcapFilter Block
+//############################################################################
+
+dcapfilter_block = {
+    "DCapFilter" ~ name ~ "{" ~ stype* ~ transfer_mode* ~ frame_count* ~ vectors_per_frame* ~ vectors_per_sample* ~ 
+    discard_offset* ~ discard_vectors* ~ discard_frames* ~ "}"
+}
+stype = { "Type" ~ name ~ EOS }
+transfer_mode = { "TransferMode" ~ name ~ EOS }
+frame_count = { "FrameCount" ~ integer ~ EOS }
+vectors_per_frame = { "VectorsPerFrame" ~ integer ~ EOS }
+vectors_per_sample = { "VectorsPerSample" ~ integer ~ EOS }
+discard_offset = { "DiscardOffset" ~ integer ~ EOS }
+discard_vectors = { "DiscardVectors" ~ integer ~ EOS }
+discard_frames = { "DiscardFrames" ~ integer ~ EOS }
+
 
 //############################################################################
 //# 17. PatternBurst Block
