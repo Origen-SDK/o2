@@ -966,7 +966,7 @@ impl User {
         // Important: need to ensure sessions was instantiated prior to grabbing a write-lock to avoid deadlock
         {
             if self.password_cache_option.is_session_store() {
-                let _ = crate::sessions();
+                let _unused = crate::sessions();
             }
         }
         self.for_all_datasets_mut(|d| d.clear_cached_password(self))
@@ -978,7 +978,7 @@ impl User {
         {
             if self.password_cache_option.is_session_store() {
                 // TODO still needed?
-                let _ = crate::sessions();
+                let _unused = crate::sessions();
             }
         }
         self.write_data(dataset)?.clear_cached_password(self)
