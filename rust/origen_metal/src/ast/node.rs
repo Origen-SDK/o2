@@ -24,7 +24,8 @@ pub struct Meta {
 
 impl<T> fmt::Display for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        let string_val = self.to_string();
+        write!(f, "{}", string_val)
     }
 }
 

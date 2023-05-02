@@ -22,8 +22,8 @@ pub fn from_str(stil: &str, root_dir: Option<&str>) -> OrigenResult<Node<STIL>> 
     };
     Ok(ast)
 }
-
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
+#[enumeration(case_insensitive)]
 pub enum SignalType {
     InOut,
     Out,

@@ -891,7 +891,9 @@ impl Git {
         // let cfg = Config::open_default()?;
         let repo = Repository::open(&self.local)?;
         let cfg = repo.config()?;
-        for entry in &cfg.entries(Some("user*"))? {
+        // changed this to be compatiple with newer versions of git2
+        let mut entries = cfg.entries(Some("user*"))?;
+        while let Some(entry) = entries.next() {
             let entry = entry?;
             if let Some(n) = entry.name() {
                 let v = match entry.value() {
