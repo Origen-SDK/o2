@@ -740,7 +740,7 @@ mod tests {
             "../../test_apps/python_app/vendor/stil/example1.stil",
         ))
         .expect("Imported example1");
-        //println!("{:?}", _stil.ast);
+        //println!("{}", _stil);
     }
 
     #[test]
@@ -749,7 +749,7 @@ mod tests {
             "../../test_apps/python_app/vendor/stil/example2.stil",
         ))
         .expect("Imported example2");
-        //println!("{:?}", _stil.ast);
+        //println!("{}", _stil);
     }
 
     #[test]
@@ -758,7 +758,7 @@ mod tests {
             "../../test_apps/python_app/vendor/stil/example3.stil",
         ))
         .expect("Imported example3");
-        //println!("{:?}", _stil.ast);
+        //println!("{}", _stil);
     }
 
     #[test]
@@ -767,7 +767,8 @@ mod tests {
             "../../test_apps/python_app/vendor/stil/example4.stil",
         ))
         .expect("Imported example4");
-        //println!("{:?}", _stil.ast);
+        // Keeping this print for test coverage since this initially caused an un-detected stack overflow
+        println!("{}", _stil);
     }
 
     #[test]
