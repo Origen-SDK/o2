@@ -22,14 +22,14 @@ pub struct Meta {
     pub lineno: Option<usize>,
 }
 
-impl<T> fmt::Display for Node<T> {
+impl<T: Attrs> fmt::Display for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let string_val = self.to_string();
         write!(f, "{}", string_val)
     }
 }
 
-impl<T> fmt::Debug for Node<T> {
+impl<T: Attrs> fmt::Debug for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_string())
     }
