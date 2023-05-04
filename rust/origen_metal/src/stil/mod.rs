@@ -5,7 +5,7 @@ mod parser;
 mod processors;
 use crate::ast::Node;
 use crate::Result as OrigenResult;
-use nodes::STIL;
+pub use nodes::STIL;
 use std::path::Path;
 
 pub fn from_file(path: &Path) -> OrigenResult<Node<STIL>> {
