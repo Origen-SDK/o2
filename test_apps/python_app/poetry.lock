@@ -1274,6 +1274,24 @@ type = "directory"
 url = "../python_plugin"
 
 [[package]]
+name = "python-plugin-no-cmds"
+version = "0.1.0"
+description = "Example Origen Plugin Without Any Commands"
+category = "main"
+optional = false
+python-versions = ">=3.7,<3.11"
+files = []
+develop = true
+
+[package.dependencies]
+origen = {path = "../../python/origen", develop = true}
+origen_metal = {path = "../../python/origen_metal", develop = true}
+
+[package.source]
+type = "directory"
+url = "../python_plugin_no_cmds"
+
+[[package]]
 name = "pytz"
 version = "2022.7"
 description = "World timezone definitions, modern and historical"
@@ -1957,4 +1975,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7,<3.11"
-content-hash = "f1f014490864b5d619ae08b69574f6ed6d2c50121f8c787e03583ec5f12a379e"
+content-hash = "321b436680a0eeca2b6cd2f6818c80b05cf1120111e8e1545d882690ec9d6056"

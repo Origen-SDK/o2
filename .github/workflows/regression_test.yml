@@ -21,7 +21,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: "nightly-2022-04-21"
+            toolchain: "nightly-2022-05-17"
             override: true
             #components: rustfmt, clippy
             
