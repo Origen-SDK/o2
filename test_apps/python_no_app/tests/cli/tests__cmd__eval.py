@@ -4,7 +4,7 @@ from .shared import CLICommon
 class T_Eval(CLICommon):
     _cmd= origen.helpers.regressions.cli.CLI.global_cmds.eval
     _no_config_run_opts = {
-        "with_configs": CLICommon.suppress_plugin_collecting_config,
+        "with_configs": CLICommon.configs.suppress_plugin_collecting_config,
         "bypass_config_lookup": True
     }
 

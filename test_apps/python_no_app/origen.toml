@@ -89,3 +89,6 @@ load = [
 [[auxillary_commands]]
     name = "python_no_app_aux_cmds"
     path = "./tests/dummy_aux_cmds/dummy_aux_cmds.toml"
+
+[[auxillary_commands]]
+    path = "../test_apps_shared_test_helpers/test_apps_shared_test_helpers/aux_cmds/empty_aux_ns.toml"

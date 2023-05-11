@@ -18,3 +18,12 @@ class CLICommon(CLIShared):
         os.remove(self.cli_config)
         os.remove(self.cli_dir.joinpath("aux_cmds_from_cli_dir.toml"))
         shutil.rmtree(dest_dir)
+
+    @property
+    def aux_cmd_ns_subcs(self):
+        return [
+            self.cmd_testers_cmd,
+            self.aux.ns.empty_aux_ns.base_cmd,
+            'help',
+            self.aux.ns.python_no_app_aux_cmds.base_cmd
+        ]

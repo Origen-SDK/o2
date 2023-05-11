@@ -56,7 +56,7 @@ class TestLoadingGlobalPlugins(ConfigCommon):
         # ]
 
     def test_suppressing_plugin_collection(self):
-        c = self.suppress_plugin_collecting_config
+        c = self.configs.suppress_plugin_collecting_config
         retn = in_new_origen_proc(
             mod=config_funcs,
             func_kwargs={'configs': c}

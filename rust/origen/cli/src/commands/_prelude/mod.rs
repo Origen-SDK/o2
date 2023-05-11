@@ -16,5 +16,5 @@ pub use crate::{
     gen_core_cmd_funcs, gen_core_cmd_funcs__no_exts__no_app_opts,
     core_subcmd, core_subcmd__no_exts__no_app_opts,
     gen_simple_run_func,
-    print_subcmds_available_msg,
+    print_subcmds_available_msg, unreachable_invalid_subc,
 };

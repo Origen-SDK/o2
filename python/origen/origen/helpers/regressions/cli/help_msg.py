@@ -420,6 +420,28 @@ class HelpMsg:
         assert self.after_help_msg is not None
         assert self.not_extendable_msg == self.after_help_msg.split("\n")[-1]
 
+    def assert_cmd(self, cmd):
+        self.assert_args(*[cmd.args.values() or None])
+        if cmd.opts:
+            l = list(cmd.opts.values())
+            l.insert(cmd.h_opt_idx, "h")
+            l.insert(cmd.v_opt_idx, "v")
+            l.insert(cmd.vk_opt_idx, "vk")
+            self.assert_opts(*l)
+        else:
+            self.assert_bare_opts()
+        
+        if cmd.subcmds:
+            subcs = list(cmd.subcmds.values())
+            subcs.insert(cmd.help_subc_idx, "help")
+            self.assert_subcmds(*subcs)
+        else:
+            self.assert_subcmds(None)
+
+        if not cmd.extendable:
+            self.assert_not_extendable()
+        self.assert_summary(cmd.help)
+
     @property
     def logged_errors(self):
         return list(filter(lambda l: "[ERROR] (" in l, self.text.split("\n")))

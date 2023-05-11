@@ -11,14 +11,14 @@ class T_ExtendingAppCmds(CLICommon):
         )
 
         config_shallow_subc = CLICommon.app_cmds.exts["app.nested_app_cmds.nested_l1"]
-        shallow_subc = CLICommon.app_cmds.nested_cmds.nested_l1.extend(
+        shallow_subc = CLICommon.app_cmds.nested_app_cmds.nested_l1.extend(
             config_shallow_subc["exts"],
             from_configs=[config_shallow_subc["cfg"]],
             with_env=config_shallow_subc["env"],
         )
 
         config_deep_subc = CLICommon.app_cmds.exts["app.nested_app_cmds.nested_l1.nested_l2_b.nested_l3_a"]
-        deep_subc = CLICommon.app_cmds.nested_cmds.nested_l1.nested_l2_b.nested_l3_a.extend(
+        deep_subc = CLICommon.app_cmds.nested_app_cmds.nested_l1.nested_l2_b.nested_l3_a.extend(
             config_deep_subc["exts"],
             from_configs=[config_deep_subc["cfg"]],
             with_env=config_deep_subc["env"],

@@ -1,10 +1,5 @@
 from origen.helpers.regressions import cli
 
-class SrcBase(cli.CLI):
-    @property
-    def displayed(self):
-        return self.src_type.displayed(self.name)
-
 class Cmd(cli.cmd.Cmd):
     def assert_args(self, output, *vals, finalize_ext_args=None):
         ext_args = {}
@@ -151,3 +146,25 @@ class CmdExtOpt(cli.cmd.CmdExtOpt, CmdArgOpt):
             else:
                 retn.append(f"{preface} (CleanUp Cmd):{CmdArgOpt.to_assert_str(self, cleanup_val).split(':', 2)[2]}")
         return retn
+
+class SrcBase(cli.CLI):
+    Cmd = Cmd
+
+    @property
+    def displayed(self):
+        return self.src_type.displayed(self.name)
+
+    @property
+    def base_cmd(self):
+        if self.src_type == cli.SrcTypes.APP:
+            return self.app_cmds
+        else:
+            return getattr(self, self.name)
+
+    def __getattr__(self, name: str):
+        try:
+            return self.__getattribute__(name)
+        except AttributeError as e:
+            if name in self.base_cmd.subcmds.keys():
+                return self.base_cmd.subcmds[name]
+            raise(e)

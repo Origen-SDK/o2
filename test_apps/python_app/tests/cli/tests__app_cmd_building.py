@@ -2,8 +2,8 @@ import pytest
 from .shared import CLICommon, Cmd, CmdOpt, CmdArg
 
 class T_AppCmdBuilding(CLICommon):
-    warmup_cmd = CLICommon.app_cmds.warmup_cmd
-    nested_cmds = CLICommon.app_cmds.nested_cmds
+    warmup_cmd = CLICommon.app_cmds.arg_opt_warmup
+    nested_cmds = CLICommon.app_cmds.nested_app_cmds
 
     def test_app_command_args_and_opts(self):
         cmd = self.warmup_cmd

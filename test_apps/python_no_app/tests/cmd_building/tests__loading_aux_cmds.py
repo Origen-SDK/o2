@@ -5,23 +5,14 @@ from tests.test_configs import Common as ConfigCommmon
 class T_LoadingAuxCommands(CLICommon, ConfigCommmon):
     def test_aux_commands_are_added(self):
         help = self.global_cmds.aux_cmds.get_help_msg()
-        help.assert_subcmds(
-            self.cmd_testers_cmd,
-            'help',
-            self.aux.ns.python_no_app_aux_cmds.base_cmd
-        )
+        help.assert_subcmds(*self.aux_cmd_ns_subcs)
 
         out = self.cmd_testers_cmd.run("python_no_app_tests")
         assert "Hi from No-App Origen!!" in out
 
     def test_aux_commands_stack(self, with_cli_aux_cmds):
         help = self.global_cmds.aux_cmds.get_help_msg()
-        help.assert_subcmds(
-            self.aux.ns.aux_cmds_from_cli_dir.base_cmd,
-            self.cmd_testers_cmd,
-            'help',
-            self.aux.ns.python_no_app_aux_cmds.base_cmd
-        )
+        help.assert_subcmds(self.aux.ns.aux_cmds_from_cli_dir.base_cmd, *self.aux_cmd_ns_subcs)
 
         out = self.aux.ns.aux_cmds_from_cli_dir.base_cmd.cli_dir_says_hi.run()
         assert "Hi from CLI dir!! " in out
@@ -68,12 +59,7 @@ class T_LoadingAuxCommands(CLICommon, ConfigCommmon):
             conflicting_config = self.aux_cmd_configs_dir.joinpath("conflicting_namespaces_config.toml")
             out = self.global_cmds.aux_cmds.get_help_msg_str(with_configs=[conflicting_config, orig_config])
             help = self.HelpMsg(out)
-            help.assert_subcmds(
-                self.aux.ns.add_aux_cmd.base_cmd,
-                self.cmd_testers_cmd,
-                "help",
-                self.aux.ns.python_no_app_aux_cmds.base_cmd
-            )
+            help.assert_subcmds(self.aux.ns.add_aux_cmd.base_cmd, *self.aux_cmd_ns_subcs)
             assert "Auxillary commands namespaced 'add_aux_cmd' already exists." in out
             assert f"Cannot add namespace from config '{conflicting_config}'" in out
             assert f"Namespace first defined in config '{orig_config}'" in out
@@ -98,12 +84,7 @@ class T_LoadingAuxCommands(CLICommon, ConfigCommmon):
             ''' Should generate a logger error message but not kill the process'''
             out = self.global_cmds.aux_cmds.get_help_msg_str(with_configs=self.aux_cmd_configs_dir.joinpath("invalid_aux_cmd_path_config.toml"))
             help = self.HelpMsg(out)
-            help.assert_subcmds(
-                self.aux.ns.add_aux_cmd.base_cmd,
-                self.cmd_testers_cmd,
-                "help",
-                self.aux.ns.python_no_app_aux_cmds.base_cmd
-            )
+            help.assert_subcmds(self.aux.ns.add_aux_cmd.base_cmd, *self.aux_cmd_ns_subcs)
             assert f"Unable to add auxillary commands at '{self.aux_cmd_configs_dir}{os.sep}./invalid_aux_cmd_path.toml' from config '{self.aux_cmd_configs_dir}{os.sep}invalid_aux_cmd_path_config.toml'. The following error was met" in out
 
         def test_missing_aux_cmd_impl_dir(self):

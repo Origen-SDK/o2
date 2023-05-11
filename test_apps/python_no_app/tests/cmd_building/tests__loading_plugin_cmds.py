@@ -1,29 +1,10 @@
 import pytest
 from .shared import CLICommon
-Cmd = CLICommon.Cmd
 
 class Common(CLICommon):
     pass
 
 class T_LoadingPluginCmds(Common):
-    def test_plugin_cmds_are_added(self):
-        # TODO is ordering off here?
-        help = self.global_cmds.pl.get_help_msg()
-        help.assert_subcmds(
-            "help",
-            self.python_plugin.base_cmd,
-            self.plugins.python_plugin_no_cmds.base_cmd,
-            self.plugins.python_plugin_the_second.base_cmd
-        )
-
-    # FOR_PR
-    @pytest.mark.skip
-    def test_no_cmds_present_only_has_help_subcmd(self):
-        help = self.cmds["python_plugin_no_cmds"].get_help_msg()
-        assert len(help.args) == 0
-        assert len(help.opts) == 0
-        assert list(help.subcmds.keys()) == ["help"]
-
     class Test_PythonPluginCMDs(Common):
         @pytest.fixture
         def root_cmd(self):
@@ -55,6 +36,11 @@ class T_LoadingPluginCmds(Common):
 
             help.assert_args(None)
             help.assert_subcmds(*self.python_plugin.ordered_subcmds)
+            help.assert_not_extendable()
+
+        def test_help_on_no_subcmd_given(self, root_cmd):
+            out = root_cmd.gen_error()
+            assert out == root_cmd.get_help_msg().text
 
         def test_hi_help_cmd(self, hi_cmd):
             help = hi_cmd.get_help_msg()
@@ -109,8 +95,9 @@ class T_LoadingPluginCmds(Common):
         def root_cmd(self):
             return self.plugins.python_plugin_no_cmds.base_cmd
 
-        def test_no_cmds_present_only_has_help_subcmd(self, root_cmd):
+        def test_no_cmds_in_plugin(self, root_cmd):
             help = root_cmd.get_help_msg()
             help.assert_args(None)
             help.assert_bare_opts()
             help.assert_subcmds(None)
+            help.assert_not_extendable()

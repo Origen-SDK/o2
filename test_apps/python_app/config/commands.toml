@@ -15,7 +15,6 @@
     [[command.arg]]
         name = "arg2"
         help = "A required argument accepting multiple values"
-        switch = false
         takes_value = true
         multiple = true
         required = true

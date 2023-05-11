@@ -85,7 +85,7 @@ impl AppCmds {
 }
 
 pub (crate) fn add_helps(helps: &mut CmdHelps, app_cmds: &AppCmds) {
-    helps.add_core_sub_cmd(&APP_COMMANDS).set_help_msg("Interface with commands added by the application");
+    helps.add_core_sub_cmd(&APP_COMMANDS).set_help_msg("Interface with commands added by the application").set_as_not_extendable();
     for (n, c) in app_cmds.commands.iter() {
         helps.add_app_cmd(n).set_help_msg(&c.help);
     }

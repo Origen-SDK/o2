@@ -1,6 +1,6 @@
 '''Regression test helpers for testing/checking Origen CLI integration'''
 
-import re
+import re, abc
 from .command import Cmd, CmdArg, CmdOpt, SrcTypes
 from .help_msg import HelpMsg
 from .origen import _CommonNames, GlobalCommands, InAppCommands, CoreOpts, CoreErrorMessages
@@ -8,7 +8,7 @@ from .... import origen as o
 
 cmd = command
 
-class CLIProperties(type):
+class CLIProperties(abc.ABCMeta, type):
     @property
     def app_sub_cmd_path(cls):
         cmd = cls.in_app_cmds.app

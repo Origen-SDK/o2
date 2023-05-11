@@ -19,7 +19,6 @@ class Common(CLIShared):
     dummy_origen_config = dummy_configs_dir.joinpath("origen.toml")
     empty_config = configs_dir.joinpath("empty.toml")
 
-    suppress_plugin_collecting_config = configs_dir.joinpath("suppress_plugin_collecting.toml")
     python_plugin_and_2nd_only_config = configs_dir.joinpath("python_plugin_and_2nd_only.toml")
 
     aux_cmds_dir = Path(__file__).parent.joinpath("dummy_aux_cmds")

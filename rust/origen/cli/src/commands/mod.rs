@@ -14,6 +14,8 @@ pub mod target;
 pub mod credentials;
 pub mod eval;
 pub mod aux_cmds;
+pub mod plugin;
+pub mod plugins;
 pub mod _prelude;
 
 use crate::python;
@@ -28,6 +30,13 @@ use clap::{App, ArgMatches};
 use crate::framework::extensions::{Extension, ExtensionSource};
 use crate::Plugins;
 use std::collections::HashMap;
+
+#[macro_export]
+macro_rules! unreachable_invalid_subc {
+    ($subcmd:expr) => {{
+        unreachable!("Uncaught Invalid Subcommand {} From {}", $subcmd, module_path!())
+    }}
+}
 
 #[macro_export]
 macro_rules! print_subcmds_available_msg {

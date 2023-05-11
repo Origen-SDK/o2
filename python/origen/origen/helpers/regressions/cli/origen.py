@@ -18,6 +18,10 @@ class _CommonNames:
     v = "-v"
 
     @classmethod
+    def aux_cmds_cmd(cls, add_opts=None):
+        return Cmd(cls.aux_cmds, help="Interface with auxillary commands")
+
+    @classmethod
     def eval_cmd(cls, add_opts=None):
         return Cmd(
             cls.eval,
@@ -131,6 +135,31 @@ class _CommonNames:
         )
 
     @classmethod
+    def pl_cmd(cls, add_opts=None):
+        return Cmd(
+            cls.pl,
+            help="Access added commands from individual plugins",
+            aliases=["pl"],
+            opts=add_opts,
+        )
+
+    @classmethod
+    def pls_cmd(cls, add_opts=None):
+        return Cmd(
+            cls.pls,
+            help="Interface with the Origen plugin manager",
+            aliases=["pls", "plss"],
+            opts=add_opts,
+            subcmds=[
+                Cmd(
+                    "list",
+                    help="List the available plugins",
+                    aliases=["ls"],
+                )
+            ]
+        )
+
+    @classmethod
     def v_cmd(cls):
         return Cmd(cls.v)
 
@@ -178,9 +207,9 @@ class GlobalCommands(CoreCommands):
 
     eval = _CommonNames.eval_cmd()
     exec = _CommonNames.exec_cmd()
-    aux_cmds = Cmd(names.aux_cmds, help="Interface with auxillary commands")
-    pls = Cmd(names.pls)
-    pl = Cmd(names.pl)
+    aux_cmds = _CommonNames.aux_cmds_cmd()
+    pls = _CommonNames.pls_cmd()
+    pl = _CommonNames.pl_cmd()
     proj = Cmd(names.proj)
     new = Cmd(names.new)
     creds = _CommonNames.creds_cmd()
@@ -281,8 +310,44 @@ class InAppCommands(CoreCommands):
                 # use_delimiter=True
             )
 
-    app = Cmd(names.app, subcmds=[Cmd("commands")])
-    aux_cmds = Cmd(names.aux_cmds)
+    app = Cmd(
+        names.app,
+        help="Manage and interface with the application",
+        subcmds=[
+            Cmd(
+                "checkin",
+                help="Check in the given pathspecs",
+            ),
+            Cmd(
+                "commands",
+                help="Interface with commands added by the application",
+                aliases=["cmds"],
+            ),
+            Cmd(
+                "init",
+                help="Initialize the application's revision control",
+            ),
+            Cmd(
+                "package",
+                help="Build the app into publishable package (e.g., a 'python wheel')",
+            ),
+            Cmd(
+                "publish",
+                help="Publish (release) the app",
+            ),
+            Cmd(
+                "run_publish_checks",
+                help="Run production-ready and publish-ready checks",
+            ),
+            Cmd(
+                "status",
+                help="Show any local changes",
+            ),
+        ],
+        help_subc_idx=2,
+        extendable=False,
+    )
+    aux_cmds = _CommonNames.aux_cmds_cmd()
     build = Cmd(names.build)
     compile = Cmd(names.compile)
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
@@ -295,8 +360,8 @@ class InAppCommands(CoreCommands):
     mailer = Cmd(names.mailer)
     mode = Cmd(names.mode)
     new = Cmd(names.new)
-    pl = Cmd(names.pl)
-    pls = Cmd(names.pls)
+    pl = _CommonNames.pl_cmd()
+    pls = _CommonNames.pls_cmd()
     save_ref = Cmd(names.save_ref)
     target = Cmd(
         names.target,

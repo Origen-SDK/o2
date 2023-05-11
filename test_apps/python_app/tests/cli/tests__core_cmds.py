@@ -1,6 +1,10 @@
 import pytest, origen
 from .shared import CLICommon
+from .core_cmds.aux_cmds import T_AuxCmds
 from .core_cmds.target import T_Target
+from .core_cmds.app import T_App
+from .core_cmds.plugin import T_Plugin
+from .core_cmds.plugins import T_Plugins
 
 class T_AppWorkspaceCoreCommands(CLICommon):
     @property
@@ -37,6 +41,12 @@ class T_AppWorkspaceCoreCommands(CLICommon):
         assert len(help.opts) >= 3
         # FOR_PR add check for app opts when applicable
 
+    class TestApp(T_App):
+        pass
+
+    class TestAuxCmds(T_AuxCmds):
+        pass
+
     class TestEval(CLICommon):
         _cmd= origen.helpers.regressions.cli.CLI.in_app_cmds.eval
 
@@ -50,6 +60,12 @@ class T_AppWorkspaceCoreCommands(CLICommon):
             d = cmd.demos["multi_statement_single_arg"]
             out = d.run(run_opts=no_config_run_opts)
             d.assert_present(out)
+
+    class TestPlugin(T_Plugin):
+        pass
+
+    class TestPlugins(T_Plugins):
+        pass
 
     class TestTarget(T_Target):
         pass

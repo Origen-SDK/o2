@@ -1,3 +1,4 @@
+import origen
 from origen.helpers.regressions import cli
 from . import Cmd, CmdArg, CmdOpt, SrcBase
 
@@ -9,160 +10,178 @@ class Plugin(SrcBase):
 class PlExtCmds(Plugin):
     def __init__(self):
         self.name = "pl_ext_cmds"
+        self.pl_ext_cmds = self.pl_cmd(
+            self.name,
+        )
 
 class PythonPlugin(Plugin):
     Cmd = Cmd
 
     def __init__(self):
         self.name = "python_plugin"
+        subcmds = [
+            Cmd(
+                "do_actions",
+                help="Perform the given actions",
+                args=[CmdArg(
+                    name="actions",
+                    help="Actions to perform",
+                    use_delimiter=True,
+                )],
+            ),
+            Cmd(
+                "echo",
+                help="Echos the input",
+                args=[CmdArg(
+                    name="input",
+                    help="Input to echo",
+                    use_delimiter=True,
+                )],
+                opts=[CmdOpt(
+                    name="repeat",
+                    help="Echo again (repeat)",
+                    ln="repeat",
+                    sn="r",
+                )],
+            ),
+            Cmd(
+                "plugin_says_hi",
+                help="Say 'hi' from the python plugin",
+                opts=[
+                    CmdOpt(
+                        name="times",
+                        help="Number of times for the python plugin to say",
+                        value_name="TIMES",
+                        ln="times",
+                        sn="x"
+                    ),
+                    CmdOpt(
+                        name="loudly",
+                        help="LOUDLY say hi",
+                        ln="loudly",
+                        sn="l"
+                    ),
+                    CmdOpt(
+                        name="to",
+                        help="Specify who should be greeted",
+                        multi=True,
+                    )
+                ]
+            ),
+            Cmd(
+                "plugin_test_args",
+                help="Test command for a plugin",
+                args=[
+                    CmdArg(
+                        name="single_arg",
+                        help="Single Arg",
+                    ),
+                    CmdArg(
+                        name="multi_arg",
+                        help="Multi Arg",
+                        multi=True,
+                    ),
+                ],
+                opts=[
+                    CmdOpt(
+                        name="opt_taking_value",
+                        help="Opt taking a single value",
+                        ln="opt",
+                    ),
+                    CmdOpt(
+                        name="flag_opt",
+                        help="Flag Opt",
+                        ln="flag",
+                    ),
+                    CmdOpt(
+                        name="sn_only",
+                        help="Opt with short name only",
+                        sn="n",
+                    ),
+                    CmdOpt(
+                        name="opt_with_aliases",
+                        help="Opt with aliases",
+                        ln_aliases=["alias", "opt_alias"],
+                        sn_aliases=["a", "b"],
+                    )
+                ],
+                subcmds=[
+                    Cmd(
+                        "subc",
+                        help="Test Subcommand for plugin_test_args",
+                        args=[
+                            CmdArg(
+                                name="single_arg",
+                                help="Single Arg For Subcommand",
+                            ),
+                        ],
+                        opts=[
+                            CmdOpt(
+                                name="flag_opt",
+                                help="Flag Opt For Subcommand",
+                            ),
+                            CmdOpt(
+                                name="subc_sn_only",
+                                help="Opt with short name only for subc",
+                                sn="n",
+                            ),
+                            CmdOpt(
+                                name="subc_opt_with_aliases",
+                                help="Opt with aliases for subc",
+                                ln="subc_opt",
+                                ln_aliases=["subc_alias", "subc_opt_alias"],
+                                sn_aliases=["a", "b"]
+                            ),
+                        ]
+                    )
+                ]
+            ),
+            Cmd(
+                "plugin_test_ext_stacking",
+                help="Test ext stacking for plugin command",
+                args=[
+                    CmdArg(
+                        name="single_arg",
+                        help="Single Arg",
+                    ),
+                ],
+                opts=[
+                    CmdOpt(
+                        name="flag_opt",
+                        help="Flag Opt",
+                    ),
+                ],
+                subcmds=[
+                    Cmd(
+                        "subc",
+                        help="Test Subcommand for ext stacking",
+                        args=[
+                            CmdArg(
+                                name="single_arg",
+                                help="Single Arg",
+                            ),
+                        ],
+                        opts=[
+                            CmdOpt(
+                                name="flag_opt",
+                                help="Flag Opt",
+                            ),
+                        ],
+                    )
+                ]
+            )
+        ]
+        if origen.app:
+            subcmds.insert(0, Cmd(
+                "disabling_app_opts_from_pl",
+                help="Test disabling standard app opts from plugin commands"
+            ))
+
         self.python_plugin = self.pl_cmd(
-            self.name
-        )
-        self.echo = self.pl_sub_cmd(
             self.name,
-            "echo",
-            help="Echos the input",
-            args=[CmdArg(
-                name="input",
-                help="Input to echo",
-                use_delimiter=True,
-            )],
-            opts=[CmdOpt(
-                name="repeat",
-                help="Echo again (repeat)",
-                ln="repeat",
-                sn="r",
-            )],
+            subcmds=subcmds
         )
-        self.plugin_says_hi = self.pl_sub_cmd(
-            self.name,
-            "plugin_says_hi",
-            help="Say 'hi' from the python plugin",
-            opts=[
-                CmdOpt(
-                    name="times",
-                    help="Number of times for the python plugin to say",
-                    value_name="TIMES",
-                    ln="times",
-                    sn="x"
-                ),
-                CmdOpt(
-                    name="loudly",
-                    help="LOUDLY say hi",
-                    ln="loudly",
-                    sn="l"
-                ),
-                CmdOpt(
-                    name="to",
-                    help="Specify who should be greeted",
-                    multi=True,
-                )
-            ]
-        )
-        self.plugin_test_args = self.pl_sub_cmd(
-            self.name,
-            "plugin_test_args",
-            help="Test command for a plugin",
-            args=[
-                CmdArg(
-                    name="single_arg",
-                    help="Single Arg",
-                ),
-                CmdArg(
-                    name="multi_arg",
-                    help="Multi Arg",
-                    multi=True,
-                ),
-            ],
-            opts=[
-                CmdOpt(
-                    name="opt_taking_value",
-                    help="Opt taking a single value",
-                    ln="opt",
-                ),
-                CmdOpt(
-                    name="flag_opt",
-                    help="Flag Opt",
-                    ln="flag",
-                ),
-                CmdOpt(
-                    name="sn_only",
-                    help="Opt with short name only",
-                    sn="n",
-                ),
-                CmdOpt(
-                    name="opt_with_aliases",
-                    help="Opt with aliases",
-                    ln_aliases=["alias", "opt_alias"],
-                    sn_aliases=["a", "b"],
-                )
-            ],
-            subcmds=[
-                Cmd(
-                    "subc",
-                    help="Test Subcommand for plugin_test_args",
-                    args=[
-                        CmdArg(
-                            name="single_arg",
-                            help="Single Arg For Subcommand",
-                        ),
-                    ],
-                    opts=[
-                        CmdOpt(
-                            name="flag_opt",
-                            help="Flag Opt For Subcommand",
-                        ),
-                        CmdOpt(
-                            name="subc_sn_only",
-                            help="Opt with short name only for subc",
-                            sn="n",
-                        ),
-                        CmdOpt(
-                            name="subc_opt_with_aliases",
-                            help="Opt with aliases for subc",
-                            ln="subc_opt",
-                            ln_aliases=["subc_alias", "subc_opt_alias"],
-                            sn_aliases=["a", "b"]
-                        ),
-                    ]
-                )
-            ]
-        )
-        self.plugin_test_ext_stacking = self.pl_sub_cmd(
-            self.name,
-            "plugin_test_ext_stacking",
-            help="Test ext stacking for plugin command",
-            args=[
-                CmdArg(
-                    name="single_arg",
-                    help="Single Arg",
-                ),
-            ],
-            opts=[
-                CmdOpt(
-                    name="flag_opt",
-                    help="Flag Opt",
-                ),
-            ],
-            subcmds=[
-                Cmd(
-                    "subc",
-                    help="Test Subcommand for ext stacking",
-                    args=[
-                        CmdArg(
-                            name="single_arg",
-                            help="Single Arg",
-                        ),
-                    ],
-                    opts=[
-                        CmdOpt(
-                            name="flag_opt",
-                            help="Flag Opt",
-                        ),
-                    ],
-                )
-            ]
-        )
+
         self.disabling_app_opts_from_pl = self.pl_sub_cmd(
             self.name,
             "disabling_app_opts_from_pl",
@@ -192,17 +211,7 @@ class PythonPlugin(Plugin):
                         Cmd("override_subc", help="Overrides disable inherited from parent"),
                     ]
                 )
-            ]
-        )
-        self.do_actions = self.pl_sub_cmd(
-            self.name,
-            "do_actions",
-            help="Perform the given actions",
-            args=[CmdArg(
-                name="actions",
-                help="Actions to perform",
-                use_delimiter=True,
-            )],
+            ],
         )
         self.intra_cmd_conflicts = self.pl_sub_cmd(
             self.name,
@@ -411,6 +420,10 @@ class Plugins:
         return self.test_apps_shared_test_helpers
 
     @property
+    def py_pl(self):
+        return self.python_plugin
+
+    @property
     def python_no_app_collected_pl_names(self):
         return list(self.plugins.keys())
 
@@ -426,4 +439,4 @@ class Plugins:
         if name in self.plugins:
             return self.plugins[name]
         else:
-            super
+            return object.__getattribute__(self, name)

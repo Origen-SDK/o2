@@ -7,8 +7,40 @@ use origen::core::config::AuxillaryCommandsTOML;
 use super::extensions::ExtensionTOML;
 use super::{CommandTOML};
 use clap::Command as ClapCommand;
+use super::helps::NOT_EXTENDABLE_MSG;
 
-pub const BASE_CMD: &'static str = "auxillary_commands";
+pub (crate) fn add_aux_ns_helps(helps: &mut CmdHelps, aux_cmds: &AuxCmds) {
+    for (ns, cmds) in aux_cmds.namespaces.iter() {
+        for (n, c) in cmds.commands.iter() {
+            helps.add_aux_cmd(ns, n).set_help_msg(&c.help);
+        }
+    }
+}
+
+pub (crate) fn add_aux_ns_subcmds<'a>(app: &App<'a>, mut aux_sub: App<'a>, helps: &'a CmdHelps, aux_commands: &'a AuxCmds, exts: &'a Extensions) -> Result<App<'a>> {
+    for (ns, cmds) in aux_commands.namespaces.iter() {
+        let mut aux_sub_sub = ClapCommand::new(ns).arg_required_else_help(true).after_help(NOT_EXTENDABLE_MSG);
+        if let Some(h) = cmds.help.as_ref() {
+            aux_sub_sub = aux_sub_sub.about(h.as_str());
+        }
+        for top_cmd_name in cmds.top_commands.iter() {
+            aux_sub_sub = aux_sub_sub.subcommand(build_commands(
+                &cmds.commands.get(top_cmd_name).unwrap(),
+                &|cmd, app, opt_cache| {
+                    exts.apply_to_aux_cmd(&ns, cmd, app, opt_cache)
+                },
+                &|cmd| {
+                    cmds.commands.get(cmd).unwrap()
+                },
+                &|cmd, app| {
+                    helps.apply_helps(&CmdSrc::Aux(ns.to_string(), cmd.to_string()), app)
+                }
+            ));
+        }
+        aux_sub = aux_sub.subcommand(aux_sub_sub);
+    }
+    Ok(aux_sub)
+}
 
 #[derive(Debug, Deserialize)]
 pub (crate) struct CommandsToml {
@@ -147,49 +179,4 @@ impl AuxCmdNamespace {
     pub fn origin(&self) -> PathBuf {
         origen_config_metadata().aux_cmd_sources[self.index].to_path_buf()
     }
-}
-
-pub (crate) fn add_helps(helps: &mut CmdHelps, aux_cmds: &AuxCmds) {
-    helps.add_core_cmd(BASE_CMD).set_help_msg("Interface with auxillary commands");
-    for (ns, cmds) in aux_cmds.namespaces.iter() {
-        for (n, c) in cmds.commands.iter() {
-            helps.add_aux_cmd(ns, n).set_help_msg(&c.help);
-        }
-    }
-}
-
-pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, aux_commands: &'a AuxCmds, exts: &'a Extensions) -> Result<App<'a>> {
-    // let help = "Interface with auxillary commands";
-    // origen_commands.push(CommandHelp {
-    //     name: CMD_NAME.to_string(),
-    //     help: help.to_string(),
-    //     shortcut: None,
-    // });
-
-    let mut aux_sub = helps.core_cmd(BASE_CMD)
-        .visible_alias("aux_cmds")
-        .arg_required_else_help(true);
-
-    for (ns, cmds) in aux_commands.namespaces.iter() {
-        let mut aux_sub_sub = ClapCommand::new(ns).setting(AppSettings::ArgRequiredElseHelp);
-        if let Some(h) = cmds.help.as_ref() {
-            aux_sub_sub = aux_sub_sub.about(h.as_str());
-        }
-        for top_cmd_name in cmds.top_commands.iter() {
-            aux_sub_sub = aux_sub_sub.subcommand(build_commands(
-                &cmds.commands.get(top_cmd_name).unwrap(),
-                &|cmd, app, opt_cache| {
-                    exts.apply_to_aux_cmd(&ns, cmd, app, opt_cache)
-                },
-                &|cmd| {
-                    cmds.commands.get(cmd).unwrap()
-                },
-                &|cmd, app| {
-                    helps.apply_helps(&CmdSrc::Aux(ns.to_string(), cmd.to_string()), app)
-                }
-            ));
-        }
-        aux_sub = aux_sub.subcommand(aux_sub_sub);
-    }
-    Ok(app.subcommand(aux_sub))
 }

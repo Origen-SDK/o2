@@ -8,7 +8,7 @@ use crate::framework::app_cmds::add_helps as add_app_cmd_helps;
 pub const BASE_CMD: &'static str = "app";
 
 pub (crate) fn add_helps(helps: &mut CmdHelps, app_cmds: &AppCmds) {
-    helps.add_core_cmd(BASE_CMD).set_help_msg("Manage and interface with the application");
+    helps.add_core_cmd(BASE_CMD).set_help_msg("Manage and interface with the application").set_as_not_extendable();
     add_app_cmd_helps(helps, app_cmds);
 }
 

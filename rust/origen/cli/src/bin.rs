@@ -16,7 +16,6 @@ use origen_metal as om;
 use std::iter::FromIterator;
 use std::process::exit;
 use framework::{Extensions, Plugins, AuxCmds, AppCmds, CmdHelps};
-use framework::plugins::{PL_MGR_CMD_NAME, PL_CMD_NAME, run_pl_mgr, run_pl};
 use framework::{
     VERBOSITY_OPT_NAME, VERBOSITY_OPT_SHORT_NAME, VERBOSITY_OPT_LNA,
     VERBOSITY_KEYWORDS_OPT_NAME, VERBOSITY_KEYWORDS_OPT_LONG_NAME,
@@ -419,8 +418,9 @@ fn main() -> Result<()> {
         );
     }
 
-    framework::plugins::add_helps(&mut helps, plugins.as_ref());
-    framework::aux_cmds::add_helps(&mut helps, &aux_cmds);
+    commands::plugin::add_helps(&mut helps, plugins.as_ref());
+    commands::plugins::add_helps(&mut helps);
+    commands::aux_cmds::add_helps(&mut helps, &aux_cmds);
     commands::eval::add_helps(&mut helps);
     commands::exec::add_helps(&mut helps);
     commands::credentials::add_helps(&mut helps);
@@ -442,8 +442,9 @@ fn main() -> Result<()> {
     app = commands::eval::add_commands(app, &helps, &extensions)?;
     app = commands::exec::add_commands(app, &helps, &extensions)?;
     app = commands::interactive::add_commands(app, &helps, &extensions)?;
-    app = framework::plugins::add_commands(app, &helps, plugins.as_ref(), &extensions)?;
-    app = framework::aux_cmds::add_commands(app, &helps, &aux_cmds, &extensions)?;
+    app = commands::plugin::add_commands(app, &helps, plugins.as_ref(), &extensions)?;
+    app = commands::plugins::add_commands(app, &helps, &extensions)?;
+    app = commands::aux_cmds::add_commands(app, &helps, &aux_cmds, &extensions)?;
 
     /************************************************************************************/
     /******************** Origen dev commands *******************************************/
@@ -1271,7 +1272,7 @@ Examples:
                 _ => {}
             }
         }
-        Some("credentials") => run_cmd_match_case!(credentials),
+        Some(commands::credentials::BASE_CMD) => run_cmd_match_case!(credentials),
         Some("mode") => {
             let matches = matches.subcommand_matches("mode").unwrap();
             commands::mode::run(matches.get_one::<&str>("mode").map(|s| *s));
@@ -1280,8 +1281,8 @@ Examples:
             let matches = matches.subcommand_matches("save_ref").unwrap();
             commands::save_ref::run(matches);
         }
-        Some(PL_MGR_CMD_NAME) => run_pl_mgr(matches.subcommand_matches(PL_MGR_CMD_NAME).unwrap(), plugins.as_ref())?,
-        Some(PL_CMD_NAME) => run_pl(matches.subcommand_matches(PL_CMD_NAME).unwrap(), &app, &extensions, plugins.as_ref())?,
+        Some(commands::plugin::BASE_CMD) => run_cmd_match_case!(plugin),
+        Some(commands::plugins::BASE_CMD) => commands::plugins::run(matches.subcommand_matches(commands::plugins::BASE_CMD).unwrap(), plugins.as_ref())?,
         Some(invalid_cmd) => {
             // This case shouldn't happen as clap should've previously kicked out on any invalid command
             unreachable!("Uncaught invalid command encountered: '{}'", invalid_cmd);
@@ -1294,7 +1295,7 @@ Examples:
                 return Ok(())
             }
             // To get here means the user has typed "origen -v", which officially means
-            // verbosity level 1 with no command, but this is what they really mean
+            // verbosity level 1 with no command, but really want version with verbosity level 0
             let mut max_len = 0;
             let mut versions: IndexMap<String, (bool, bool, String)> = IndexMap::new();
             if STATUS.is_app_present {

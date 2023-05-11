@@ -105,10 +105,7 @@ pub(crate) fn run(mut invocation: &clap::ArgMatches) -> origen::Result<()> {
                 view!(subcmd)?;
                 return Ok(());
             }
-            _ => {
-                // Shouldn't hit this. Should be caught by clap before getting here
-                backend_fail!("Unknown subcommand in target processor");
-            }
+            _ => unreachable_invalid_subc!(n)
         }
         // Show the effect after running the command
         view!(subcmd)

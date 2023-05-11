@@ -370,47 +370,59 @@ class DummyCmds(AuxNS):
 
     def __init__(self):
         self.name = "dummy_cmds"
-        self.dummy_cmd = self.aux_sub_cmd(
+        self.dummy_cmds = self.aux_cmd(
             self.name,
-            "dummy_cmd",
-            help="Dummy Aux Command",
-            args=[
-                CmdArg(
-                    name="action_arg",
-                    help="Dummy Aux Action",
-                    multi=True,
-                ),
-            ],
-            subcmds=[
+            subcmds = [
                 Cmd(
-                    "subc",
-                    help="Dummy Aux Subcommand",
+                    "dummy_cmd",
+                    help="Dummy Aux Command",
                     args=[
                         CmdArg(
                             name="action_arg",
-                            help="Dummy Aux Subc Action",
+                            help="Dummy Aux Action",
                             multi=True,
                         ),
                     ],
-                    opts=[
-                        CmdOpt(
-                            name="flag_opt",
-                            help="Dummy Aux Subc Flag",
-                        ),
+                    subcmds=[
+                        Cmd(
+                            "subc",
+                            help="Dummy Aux Subcommand",
+                            args=[
+                                CmdArg(
+                                    name="action_arg",
+                                    help="Dummy Aux Subc Action",
+                                    multi=True,
+                                ),
+                            ],
+                            opts=[
+                                CmdOpt(
+                                    name="flag_opt",
+                                    help="Dummy Aux Subc Flag",
+                                ),
+                            ],
+                        )
                     ],
+                    use_configs=[self.cfg_toml]
                 )
-            ],
-            from_config=self.cfg_toml
+            ]
         )
+    
+    @property
+    def dummy_cmd(self):
+        return self.dummy_cmds.dummy_cmd
+
 
 class PythonNoAppAuxCmds(AuxNS):
     Cmd = Cmd
 
     def __init__(self):
         self.name = "python_no_app_aux_cmds"
-        self.python_no_app_aux_cmds = self.aux_sub_cmd(
+        self.python_no_app_aux_cmds = self.aux_cmd(
             self.name,
-            "python_no_app_aux_cmds"
+            subcmds=[
+                Cmd("say_bye", help="Say bye!"),
+                Cmd("say_hi", help="Say hi!"),
+            ]
         )
     
     @property
@@ -462,6 +474,12 @@ class PythonAppAuxCmds(AuxNS):
     def base_cmd(self):
         return self.python_app_aux_cmds
 
+class EmptyAuxNS(AuxNS):
+    def __init__(self):
+        self.name = "empty_aux_ns"
+        self.config_toml = aux_cmds_dir.joinpath(f"{self.name}_cfg.toml")
+        self.empty_aux_ns = self.aux_cmd(self.name, help="Aux namespace without any commands defined")
+
 class AuxNamespaces:
     def __init__(self) -> None:
         self.dummy_cmds = DummyCmds()
@@ -470,6 +488,7 @@ class AuxNamespaces:
         self.python_app_aux_cmds = PythonAppAuxCmds()
         self.aux_cmds_from_cli_dir = AuxCmdsFromCliDir()
         self.add_aux_cmd = AddAuxCmds()
+        self.empty_aux_ns = EmptyAuxNS()
 
 class Aux:
     namespaces = AuxNamespaces()

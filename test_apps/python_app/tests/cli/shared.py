@@ -7,94 +7,115 @@ from test_apps_shared_test_helpers.cli.cmd_models import SrcBase
 
 Cmd = CLIShared.Cmd
 
+class EmptyApp(SrcBase):
+    def __init__(self):
+        self.src_type = cli.SrcTypes.APP
+        self.name = "example"
+        self.app_cmds = CLIShared.in_app_cmds.app.commands.extend(
+            [],
+            with_env = {"origen_app_config_paths": str(PythonAppCommon.to_config_path("empty_app_cmds.toml"))},
+        )
+
 class CLICommon(CLIShared, PythonAppCommon):
     class AppCmds(SrcBase):
         def __init__(self):
             self.src_type = cli.SrcTypes.APP
             self.name = "example"
-            self.warmup_cmd = CLIShared.app_sub_cmd(
-                "arg_opt_warmup",
-                help = "Gross test command demonstrating args/opts from app commands",
-                args=[
-                    CmdArg("first", help="First Argument - Required", required=True),
-                    CmdArg("second", help="Second Multi-Argument - Not Required", use_delimiter=True, multi=True),
-                ],
-                opts=[
-                    CmdOpt("flag_opt", sn="f", help="Flag opt"),
-                    CmdOpt("single_opt", sn_aliases=["s"], takes_value=True, help="Single-value non-required opt"),
-                    CmdOpt("multi_opt", sn_aliases=["m"], ln_aliases=["m_opt"], multi=True, help="Multi-value non-required opt"),
-                    CmdOpt("hidden_flag_opt", hidden=True, ln="hidden", help="Hidden flag opt"),
-                ]
-            )
-            self.nested_cmds = CLIShared.app_sub_cmd(
-                "nested_app_cmds",
-                help="Nested app cmds",
-                subcmds=[
-                    Cmd(
-                        "nested_l1",
-                        help="Nested app cmds level 1",
-                        subcmds=[
-                            Cmd(
-                                "nested_l2_a",
-                                help="Nested app cmds level 2 (A)",
-                                subcmds=[
-                                    Cmd(
-                                        "nested_l3_a",
-                                        help="Nested app cmds level 3 (A-A)"
-                                    ),
-                                    Cmd(
-                                        "nested_l3_b",
-                                        help="Nested app cmds level 3 (A-B)"
-                                    ),
-                                ]
-                            ),
-                            Cmd(
-                                "nested_l2_b",
-                                help="Nested app cmds level 2 (B)",
-                                subcmds=[
-                                    Cmd(
-                                        "nested_l3_a",
-                                        help="Nested app cmds level 3 (B-A)"
-                                    ),
-                                    Cmd(
-                                        "nested_l3_b",
-                                        help="Nested app cmds level 3 (B-B)"
-                                    ),
-                                ]
-                            )
-                        ]
-                    )
-                ]
-            )
-            self.disabling_app_opts = CLIShared.app_sub_cmd(
-                "disabling_app_opts",
-                help="Test disabling standard app opts",
-                subcmds=[
-                    Cmd(
-                        "disable_targets_opt",
-                        help="Disable the targets and no-targets opt",
-                        subcmds=[
-                            Cmd("disable_subc", help="Disables inherited from parent"),
-                            Cmd("override_subc", help="Overrides disable inherited from parent"),
-                        ]
-                    ),
-                    Cmd(
-                        "disable_mode_opt",
-                        help="Disable the mode opt",
-                        subcmds=[
-                            Cmd("disable_subc",help="Disables inherited from parent"),
-                            Cmd("override_subc", help="Overrides disable inherited from parent"),
-                        ]
-                    ),
-                    Cmd(
-                        "disable_app_opts",
-                        help="Disable all app opts",
-                        subcmds=[
-                            Cmd("disable_subc",help="Disables inherited from parent"),
-                            Cmd("override_subc", help="Overrides disable inherited from parent"),
-                        ]
-                    )
-                ]
+            self.app_cmds = CLIShared.in_app_cmds.app.commands.extend([])
+            self.app_cmds.replace_subcmds(
+                Cmd(
+                    "arg_opt_warmup",
+                    help = "Gross test command demonstrating args/opts from app commands",
+                    args=[
+                        CmdArg("first", help="First Argument - Required", required=True),
+                        CmdArg("second", help="Second Multi-Argument - Not Required", use_delimiter=True, multi=True),
+                    ],
+                    opts=[
+                        CmdOpt("flag_opt", sn="f", help="Flag opt"),
+                        CmdOpt("single_opt", sn_aliases=["s"], takes_value=True, help="Single-value non-required opt"),
+                        CmdOpt("multi_opt", sn_aliases=["m"], ln_aliases=["m_opt"], multi=True, help="Multi-value non-required opt"),
+                        CmdOpt("hidden_flag_opt", hidden=True, ln="hidden", help="Hidden flag opt"),
+                    ]
+                ),
+                Cmd(
+                    "disabling_app_opts",
+                    help="Test disabling standard app opts",
+                    subcmds=[
+                        Cmd(
+                            "disable_targets_opt",
+                            help="Disable the targets and no-targets opt",
+                            subcmds=[
+                                Cmd("disable_subc", help="Disables inherited from parent"),
+                                Cmd("override_subc", help="Overrides disable inherited from parent"),
+                            ]
+                        ),
+                        Cmd(
+                            "disable_mode_opt",
+                            help="Disable the mode opt",
+                            subcmds=[
+                                Cmd("disable_subc",help="Disables inherited from parent"),
+                                Cmd("override_subc", help="Overrides disable inherited from parent"),
+                            ]
+                        ),
+                        Cmd(
+                            "disable_app_opts",
+                            help="Disable all app opts",
+                            subcmds=[
+                                Cmd("disable_subc",help="Disables inherited from parent"),
+                                Cmd("override_subc", help="Overrides disable inherited from parent"),
+                            ]
+                        )
+                    ]
+                ),
+                Cmd(
+                    "examples",
+                    help="Run diff-based regression tests of the pattern and program generator",
+                ),
+                Cmd(
+                    "nested_app_cmds",
+                    help="Nested app cmds",
+                    subcmds=[
+                        Cmd(
+                            "nested_l1",
+                            help="Nested app cmds level 1",
+                            subcmds=[
+                                Cmd(
+                                    "nested_l2_a",
+                                    help="Nested app cmds level 2 (A)",
+                                    subcmds=[
+                                        Cmd(
+                                            "nested_l3_a",
+                                            help="Nested app cmds level 3 (A-A)"
+                                        ),
+                                        Cmd(
+                                            "nested_l3_b",
+                                            help="Nested app cmds level 3 (A-B)"
+                                        ),
+                                    ]
+                                ),
+                                Cmd(
+                                    "nested_l2_b",
+                                    help="Nested app cmds level 2 (B)",
+                                    subcmds=[
+                                        Cmd(
+                                            "nested_l3_a",
+                                            help="Nested app cmds level 3 (B-A)"
+                                        ),
+                                        Cmd(
+                                            "nested_l3_b",
+                                            help="Nested app cmds level 3 (B-B)"
+                                        ),
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                ),
+                Cmd(
+                    "playground",
+                    help="This is used to test Origen's app command definition and dispatch",
+                    aliases=["y"],
+                ),
             )
             self.intra_cmd_conflicts = CLIShared.app_sub_cmd(
                 "intra_cmd_conflicts",
@@ -395,11 +416,30 @@ class CLICommon(CLIShared, PythonAppCommon):
 
     app_cmds = AppCmds()
     app_commands = app_cmds
+    empty_app = EmptyApp()
 
     _no_config_run_opts = {
         "with_configs": CLIShared.configs.suppress_plugin_collecting_config,
         "bypass_config_lookup": True
     }
+
+    @classmethod
+    def loaded_plugins_alpha(cls):
+        return [
+            cls.plugins.pl_ext_cmds,
+            cls.plugins.py_pl,
+            cls.plugins.python_plugin_no_cmds,
+            cls.plugins.tas,
+        ]
+
+    @classmethod
+    def loaded_plugins(cls):
+        return [
+            cls.plugins.python_plugin_no_cmds,
+            cls.plugins.pl_ext_cmds,
+            cls.plugins.tas,
+            cls.plugins.py_pl,
+        ]
 
     @pytest.fixture
     def no_config_run_opts(self):

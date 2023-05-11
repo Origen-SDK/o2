@@ -184,6 +184,11 @@ class Cmd:
             aliases=None,
             src_type=None,
             prefix_opts=False,
+            extendable=True,
+            h_opt_idx=None,
+            v_opt_idx=None,
+            vk_opt_idx=None,
+            help_subc_idx=None,
         ):
         self.name = name
         self.cmd_path = cmd_path or []
@@ -217,6 +222,21 @@ class Cmd:
         self.app_demos = dict([[d.name, d] for d in (app_demos or [])])
         for d in self.app_demos.values(): d.parent = self
 
+        self.extendable = extendable
+        self.h_opt_idx = h_opt_idx
+        self.v_opt_idx = v_opt_idx
+        self.vk_opt_idx = vk_opt_idx
+        self.help_subc_idx = help_subc_idx
+
+    def replace_subcmds(self, *subcmds):
+        self.subcmds = dict([[subcmd.name, subcmd] for subcmd in (subcmds or [])])
+        for subcmd in self.subcmds.values():
+            subcmd.parent = self
+            subcmd.cmd_path = self.cmd_path + [self.name]
+
+        if self.parent is None:
+            self.update_subc()
+
     def update_subc(self):
         for subcmd in self.subcmds.values():
             subcmd.cmd_path = self.cmd_path + [self.name]
@@ -243,9 +263,15 @@ class Cmd:
             [d.copy() for d in self.demos.values()],
             [d.copy() for d in self.global_demos.values()],
             [d.copy() for d in self.app_demos.values()],
+            self.parent,
             self.aliases,
             self.src_type,
             self.prefix_opts,
+            self.extendable,
+            self.h_opt_idx,
+            self.v_opt_idx,
+            self.vk_opt_idx,
+            self.help_subc_idx,
         )
         dup.exts = dict(self.exts) if self.exts else {}
         dup.exts.update(dict([[ext.name, ext] for ext in (exts or [])]))

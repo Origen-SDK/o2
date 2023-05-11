@@ -74,6 +74,7 @@ def clean_up_ext_args_str(ext_args, ext_name=None):
 class Configs:
     configs_dir = Path(__file__).parent.joinpath("configs")
     suppress_plugin_collecting_config = configs_dir.joinpath("suppress_plugin_collecting.toml")
+    no_plugins_no_aux_cmds_config = configs_dir.joinpath("no_plugins_no_aux_cmds.toml")
 
 class CLIShared(cli.CLI, AssertionHelpers):
     Cmd = Cmd
@@ -82,6 +83,19 @@ class CLIShared(cli.CLI, AssertionHelpers):
     @pytest.fixture
     def cmd(self):
         return self._cmd
+
+    @pytest.fixture
+    def cached_help(self):
+        return self.get_cached_help()
+
+    def get_cached_help(self):
+        if not hasattr(self, "_cached_help"):
+            self._cached_help = self._cmd.get_help_msg()
+        return self._cached_help
+
+    @classmethod
+    def add_no_pl_aux_cfg(cls, cmd):
+        return cmd.extend([], from_configs=cls.configs.no_plugins_no_aux_cmds_config, with_env={"origen_bypass_config_lookup": "1"})
 
     pln__python_plugin = "python_plugin"
 

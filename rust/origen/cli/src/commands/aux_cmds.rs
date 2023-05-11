@@ -1,7 +1,22 @@
-pub use crate::framework::aux_cmds::BASE_CMD;
 use super::launch_as;
-use crate::framework::build_path;
+use crate::framework::{AuxCmds, build_path};
+use crate::framework::aux_cmds::{add_aux_ns_subcmds, add_aux_ns_helps};
 use indexmap::IndexMap;
+use super::_prelude::*;
+use crate::framework::helps::NOT_EXTENDABLE_MSG;
+
+pub const BASE_CMD: &'static str = "auxillary_commands";
+
+pub (crate) fn add_helps(helps: &mut CmdHelps, aux_cmds: &AuxCmds) {
+    helps.add_core_cmd(BASE_CMD).set_help_msg("Interface with auxillary commands").set_as_not_extendable();
+    add_aux_ns_helps(helps, aux_cmds);
+}
+
+pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, aux_commands: &'a AuxCmds, exts: &'a Extensions) -> Result<App<'a>> {
+    let mut aux_sub = helps.core_cmd(BASE_CMD).visible_alias("aux_cmds").arg_required_else_help(true);
+    aux_sub = add_aux_ns_subcmds(&app, aux_sub, helps, aux_commands, exts)?;
+    Ok(app.subcommand(aux_sub))
+}
 
 pub(crate) fn run(cmd: &clap::ArgMatches, mut app: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>, aux_cmds: &crate::AuxCmds) -> origen::Result<()> {
     if let Some(subc) = cmd.subcommand() {

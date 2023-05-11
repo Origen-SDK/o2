@@ -27,8 +27,6 @@ impl CmdHelps {
     }
 
     pub fn add_core_cmd(&mut self, cmd_name: &str) -> &mut CmdHelp {
-        // self.insert(CmdSrc::Core(cmd_name.to_string()), CmdHelp::new());
-        // self.get()
         self.helps.entry(CmdSrc::Core(cmd_name.to_string())).or_default()
     }
 
@@ -41,9 +39,6 @@ impl CmdHelps {
     }
 
     pub fn add_pl_cmd(&mut self, pl_name: &str, cmd_name: &str) -> &mut CmdHelp {
-        // self.insert(CmdSrc::Core(cmd_name.to_string()), CmdHelp::new());
-        // self.get()
-        // &mut self.entry(CmdSrc::Core(cmd_name.to_string())).and_modify()
         self.helps.entry(CmdSrc::Plugin(pl_name.to_string(), cmd_name.to_string())).or_default()
     }
 

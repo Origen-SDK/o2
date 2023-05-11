@@ -6,45 +6,10 @@ use std::fs;
 use crate::commands::_prelude::*;
 use super::{ClapCommand, Command, CommandsToml, CommandTOML, Extensions, build_path};
 use crate::commands::launch_as;
-
-pub const PL_MGR_CMD_NAME: &'static str = "plugins";
-pub const PL_CMD_NAME: &'static str = "plugin";
-pub const PL_MGR_LIST_CMD: [&'static str; 2] = [PL_MGR_CMD_NAME, "list"];
+use super::helps::NOT_EXTENDABLE_MSG;
 
 
-pub fn run_pl_mgr(cmd: RunInput, plugins: Option<&Plugins>) -> Result<()> {
-    if let Some(subcmd) = cmd.subcommand() {
-        match subcmd.0 {
-            "list" => {
-                if let Some(pls) = plugins {
-                    displayln!("Available plugins:\n");
-                    for (name, _) in pls.plugins.iter() {
-                        displayln!("{}", name);
-                    }
-                } else {
-                    displayln!("No plugins available!");
-                }
-            },
-            _ => unreachable!()
-        }
-    }
-    Ok(())
-}
-
-pub fn run_pl(cmd: RunInput, app: &clap::App, exts: &crate::Extensions, plugins: Option<&Plugins>) -> Result<()> {
-    if let Some(subcmd) = cmd.subcommand() {
-        let sub = subcmd.1;
-        plugins.unwrap().plugins.get(subcmd.0).unwrap().dispatch(sub, app, exts, plugins)
-    } else {
-        Ok(())
-    }
-}
-
-pub (crate) fn add_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) {
-    helps.add_core_cmd(PL_MGR_CMD_NAME).set_help_msg("Interface with the Origen plugin manager");
-    helps.add_core_sub_cmd(&PL_MGR_LIST_CMD).set_help_msg("List the available plugins");
-
-    helps.add_core_cmd(PL_CMD_NAME).set_help_msg("Access added commands from individual plugins");
+pub (crate) fn add_pl_ns_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) {
     if let Some(pls) = plugins {
         for (pl_name, pl) in pls.plugins.iter() {
             for (n, c) in pl.commands.iter() {
@@ -54,116 +19,32 @@ pub (crate) fn add_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) {
     }
 }
 
-// cmd_helps: &'a mut crate::CmdHelps, 
-pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, plugins: Option<&'a Plugins>, exts: &'a Extensions) -> Result<App<'a>> {
-    // let help = "Interface with the Origen plugin manager";
-    // helps.add_core_cmd(PL_MGR_CMD_NAME.to_string()).set_help_msg("Interface with the Origen plugin manager");
-    // origen_commands.push(CommandHelp {
-    //     name: PL_MGR_CMD_NAME.to_string(),
-    //     help: help.to_string(),
-    //     shortcut: None,
-    // });
-    let updated = app.subcommand(
-        helps.apply_core_cmd_helps(
-            PL_MGR_CMD_NAME,
-            ClapCommand::new(PL_MGR_CMD_NAME)
-                // .about(help)
-                .visible_alias("pl_mgr")
-                .visible_alias("pls")
-                .arg_required_else_help(true)
-                .subcommand(
-                    helps.core_subc(&PL_MGR_LIST_CMD)
-                        .visible_alias("ls")
-                    // ClapCommand::new("list")
-                    //     .about("List the available plugins")
-                    //     .visible_alias("ls")
-                        // .arg(
-                        //     Arg::new("all")
-                        //         .help("Set the password for all datasets")
-                        //         .takes_value(false)
-                        //         .required(false)
-                        //         .long("all")
-                        //         .short('a'),
-                        // )
+pub (crate) fn add_pl_ns_subcmds<'a>(mut pl_sub: App<'a>, helps: &'a CmdHelps, plugins: &'a Plugins, exts: &'a Extensions) -> Result<App<'a>> {
+    for (pl_name, pl) in plugins.plugins.iter() {
+        let mut pl_sub_sub = ClapCommand::new(pl_name.as_str()).setting(AppSettings::ArgRequiredElseHelp).after_help(NOT_EXTENDABLE_MSG);
+        for n in pl.top_commands.iter() {
+            pl_sub_sub = pl_sub_sub.subcommand(
+                super::build_commands(
+                    &pl.commands.get(n).unwrap(),
+                    &|cmd, app, opt_cache| {
+                        exts.apply_to_pl_cmd(&pl_name, cmd, app, opt_cache)
+                    },
+                    &|cmd| {
+                        plugins.plugins.get(pl_name).unwrap().commands.get(cmd).unwrap()
+                    },
+                    &|cmd, app| {
+                        helps.apply_helps(&CmdSrc::Plugin(pl_name.to_string(), cmd.to_string()), app)
+                    }
                 )
-        )
-    );
-
-    // let help = "Access added commands from individual plugins";
-    // origen_commands.push(CommandHelp {
-    //     name: PL_CMD_NAME.to_string(),
-    //     help: help.to_string(),
-    //     shortcut: None,
-    // });
-    let mut pl_sub = ClapCommand::new(PL_CMD_NAME)
-        // .about(help)
-        .visible_alias("pl");
-    pl_sub = helps.apply_core_cmd_helps(PL_CMD_NAME, pl_sub);
-
-    if let Some(pls) = plugins {
-        for (pl_name, pl) in pls.plugins.iter() {
-            let mut pl_sub_sub = ClapCommand::new(pl_name.as_str()).setting(AppSettings::ArgRequiredElseHelp);
-            // if let Some(pl_cmds) = pl.commands {
-                // for (n, c) in pl_cmds {
-                // for (n, c) in pl.commands.iter() {
-                for n in pl.top_commands.iter() {
-                        // pl_sub_sub = pl_sub_sub.subcommand(crate::build_pl_commands(&c, &pls));
-                    pl_sub_sub = pl_sub_sub.subcommand(
-                        super::build_commands(
-                            // c, // &cmds.commands.get(top_cmd_name).unwrap(),
-                            &pl.commands.get(n).unwrap(),
-                            // cmd_helps,
-                            &|cmd, app, opt_cache| {
-                                // println!("cmd... {}", cmd);
-                                // println!("pl name.. {}", pl_name);
-                                exts.apply_to_pl_cmd(&pl_name, cmd, app, opt_cache)
-                            },
-                            &|cmd| {
-                                // let split = cmd.split_once('.').unwrap();
-                                // println!("S: {:?}", split);
-                                pls.plugins.get(pl_name).unwrap().commands.get(cmd).unwrap()
-                                // pls.plugins.get(split.0).unwrap().commands.get(split.1).unwrap()
-                            },
-                            &|cmd, app| {
-                                // let split = cmd.split_once('.').unwrap();
-                                helps.apply_helps(&CmdSrc::Plugin(pl_name.to_string(), cmd.to_string()), app)
-                            }
-                        )
-                    );
-//         for c in subcommands {
-//             // let subcmd = build_command(&c);
-//             let split = c.split_once('.').unwrap();
-//             let subcmd = build_pl_commands(plugins.plugins.get(split.0).unwrap().commands.get(split.1).unwrap(), plugins);
-//             cmd = cmd.subcommand(subcmd);
-//         }
-
-                }
-                pl_sub = pl_sub.subcommand(pl_sub_sub);
-            // }
+            );
         }
+        pl_sub = pl_sub.subcommand(pl_sub_sub)
     }
-    let updated = updated.subcommand(pl_sub);
-    // let updated = app.subcommand(
-    //     SubCommand::with_name(PL_CMD_NAME)
-    //         .about(help)
-    //         // .setting(AppSettings::ArgRequiredElseHelp)
-    //         .visible_alias("pl")
-    //         // .arg(
-    //         //     Arg::new("code")
-    //         //         .help("Set the password for all datasets")
-    //         //         .takes_value(true)
-    //         //         .value_name("CODE")
-    //         //         .multiple(true)
-    //         //         .required(true)
-    //         // )
-    // );
-
-    Ok(updated)
+    Ok(pl_sub)
 }
 
 pub struct Plugins {
     pub plugins: IndexMap<String, Plugin>
-    // pub commands: HashMap<String, (Command, CommandHelp)>
 }
 
 impl Plugins {
@@ -205,6 +86,10 @@ impl Plugins {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.plugins.is_empty()
     }
 }
 
