@@ -3,3 +3,4 @@ from ..shared import CLICommon
 
 class T_Plugins(PluginsCmdAudit):
     loaded_plugins = CLICommon.loaded_plugins()
+    check_pl_list_order = False

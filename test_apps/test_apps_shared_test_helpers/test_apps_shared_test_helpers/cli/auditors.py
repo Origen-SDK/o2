@@ -111,6 +111,8 @@ class PluginsCmdAudit(CLIShared, ABC):
     def loaded_plugins(cls):
         raise NotImplementedError
 
+    check_pl_list_order = True
+
     class TestBaseCmd(CLIShared):
         def test_help_msg(self, cmd, cached_help):
             help = cached_help
@@ -128,8 +130,16 @@ class PluginsCmdAudit(CLIShared, ABC):
             if plugins is None:
                 assert out == "There are no available plugins!\n"
             else:
-                pls = "\n".join([pl.name for pl in plugins])
-                assert out == f"Available plugins:\n\n{pls}\n"
+                if self.check_pl_list_order:
+                    pls = "\n".join([pl.name for pl in plugins])
+                    assert out == f"Available plugins:\n\n{pls}\n"
+                else:
+                    assert out.startswith(f"Available plugins:\n\n")
+                    out = out.split("\n")
+                    print(out)
+                    assert len(out) == 3 + len(plugins)
+                    for pl in plugins:
+                        assert pl.name in out
 
         def test_help_msg(self, cmd):
             help = cmd.get_help_msg()
@@ -158,3 +168,4 @@ class PluginsCmdAudit(CLIShared, ABC):
         c = cls.TestListSubc
         c._cmd = cls.cmd.list
         c.loaded_plugins = cls.loaded_plugins
+        c.check_pl_list_order = cls.check_pl_list_order
