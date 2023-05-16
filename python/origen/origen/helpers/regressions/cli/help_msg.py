@@ -421,7 +421,7 @@ class HelpMsg:
         assert self.not_extendable_msg == self.after_help_msg.split("\n")[-1]
 
     def assert_cmd(self, cmd):
-        self.assert_args(*[cmd.args.values() or None])
+        self.assert_args(*(cmd.args.values() or [None]))
         if cmd.opts:
             l = list(cmd.opts.values())
             l.insert(cmd.h_opt_idx, "h")

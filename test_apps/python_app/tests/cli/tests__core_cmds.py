@@ -1,6 +1,8 @@
 import pytest, origen
 from .shared import CLICommon
 from .core_cmds.aux_cmds import T_AuxCmds
+from .core_cmds.env import T_Env
+from .core_cmds.generate import T_Generate
 from .core_cmds.target import T_Target
 from .core_cmds.app import T_App
 from .core_cmds.plugin import T_Plugin
@@ -47,6 +49,9 @@ class T_AppWorkspaceCoreCommands(CLICommon):
     class TestAuxCmds(T_AuxCmds):
         pass
 
+    class TestEnv(T_Env):
+        pass
+
     class TestEval(CLICommon):
         _cmd= origen.helpers.regressions.cli.CLI.in_app_cmds.eval
 
@@ -60,6 +65,9 @@ class T_AppWorkspaceCoreCommands(CLICommon):
             d = cmd.demos["multi_statement_single_arg"]
             out = d.run(run_opts=no_config_run_opts)
             d.assert_present(out)
+
+    class TestGenerate(T_Generate):
+        pass
 
     class TestPlugin(T_Plugin):
         pass

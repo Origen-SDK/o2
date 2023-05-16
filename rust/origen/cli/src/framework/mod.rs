@@ -1057,3 +1057,31 @@ pub fn add_all_app_opts(cmd: ClapCommand) -> ClapCommand {
         cmd
     }
 }
+
+#[macro_export]
+macro_rules! output_dir_opt {
+    () => {{
+        Arg::new("output_dir")
+            .short('o')
+            .long("output-dir")
+            .visible_alias("output_dir")
+            .help("Override the default output directory (<APP ROOT>/output)")
+            .action(SetArg)
+            .value_name("OUTPUT_DIR")
+    }}
+}
+
+pub const REF_DIR_OPT_LNAS: &[&str] = &["reference_dir", "ref_dir", "reference-dir"];
+
+#[macro_export]
+macro_rules! ref_dir_opt {
+    () => {{
+        Arg::new("reference_dir")
+            .short('r')
+            .long("ref-dir")
+            .visible_aliases(&crate::framework::REF_DIR_OPT_LNAS)
+            .help("Override the default reference directory (<APP ROOT>/.ref)")
+            .action(SetArg)
+            .value_name("REFERENCE_DIR")
+    }}
+}

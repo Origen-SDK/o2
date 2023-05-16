@@ -21,9 +21,6 @@ def run_cmd(command,
             verbosity=None,
             verbosity_keywords=None,
             mode=None,
-            files=None,
-            output_dir=None,
-            reference_dir=None,
             debug=False,
             args=None,
             ext_args=None,
@@ -49,6 +46,9 @@ def run_cmd(command,
 
     import origen.application
     import origen.target
+
+    if args is None:
+        args = {}
 
     if command == dispatch_plugin_cmd:
         cmd_src = "plugin"
@@ -127,6 +127,7 @@ def run_cmd(command,
     else:
         origen.set_mode(mode)
 
+    files = args.get("files", None)
     if files is not None:
         _origen.file_handler().init(files)
 
@@ -136,9 +137,11 @@ def run_cmd(command,
     if verbosity_keywords is not None:
         origen_metal.framework.logger.set_verbosity_keywords(verbosity_keywords)
 
+    output_dir = args.get("output_dir", None)
     if output_dir is not None:
         _origen.set_output_dir(output_dir)
 
+    reference_dir = args.get("reference_dir", None)
     if reference_dir is not None:
         _origen.set_reference_dir(reference_dir)
 

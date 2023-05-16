@@ -1,5 +1,6 @@
 import origen
 from .command import CmdOpt, Cmd, CmdArg, CmdArgOpt, CmdDemo, CmdExtOpt
+from ._origen import to_std_opt
 
 def help_subcmd():
     return Cmd("help", help="Print this message or the help of the given subcommand(s)")
@@ -226,30 +227,8 @@ class GlobalCommands(CoreCommands):
 
     origen = Cmd("")
 
+
 class InAppOpts:
-    targets = CmdOpt(
-        "targets",
-        help="Override the targets currently set by the workspace for this command",
-        takes_value=True,
-        multi=True,
-        use_delimiter=True,
-        ln="targets",
-        ln_aliases=["target"],
-        sn="t",
-    )
-    no_targets = CmdOpt(
-        "no_targets",
-        help="Clear any targets currently set by the workspace for this command",
-        takes_value=False,
-        ln_aliases=["no_target"],
-    )
-    mode = CmdOpt(
-        "mode",
-        help="Override the default mode currently set by the workspace for this command",
-        takes_value=True,
-        multi=False,
-        ln="mode",
-    )
 
     @classmethod
     def all(cls):
@@ -258,6 +237,11 @@ class InAppOpts:
     @classmethod
     def standard_opts(self):
         return [CoreOpts.help, self.mode, self.no_targets, self.targets, CoreOpts.verbosity, CoreOpts.vk ]
+
+    mode = to_std_opt("m")
+    no_targets = to_std_opt("nt")
+    targets = to_std_opt("t")
+    to_std_opt = to_std_opt
 
 class InAppCommands(CoreCommands):
     in_app_opts = InAppOpts()
@@ -351,11 +335,34 @@ class InAppCommands(CoreCommands):
     build = Cmd(names.build)
     compile = Cmd(names.compile)
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
-    env = Cmd(names.env)
+    env = Cmd(
+        names.env,
+        help="Manage your application's Origen/Python environment (dependencies, etc.)",
+        subcmds=[
+            Cmd(
+                "setup",
+                help="Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file",
+            ),
+            Cmd(
+                "update",
+                help="Update your application's Python dependencies according to the latest pyproject.toml file",
+            ),
+        ],
+        help_subc_idx=0,
+        extendable=False
+    )
     eval = _CommonNames.eval_cmd(add_opts=in_app_opts.all())
     exec = _CommonNames.exec_cmd()
     fmt = Cmd(names.fmt)
-    generate = Cmd(names.generate)
+    generate = Cmd(
+        names.generate,
+        help="Generate patterns or test programs",
+        args=[CmdArg("files", help="The name of the file(s) to be generated", multi=True, required=True)],
+        opts=["m", "nt", "o", "r", "t"],
+        h_opt_idx=0,
+        vk_opt_idx=7,
+        v_opt_idx=6,
+    )
     i = _CommonNames.interactive_cmd(add_opts=in_app_opts.all())
     mailer = Cmd(names.mailer)
     mode = Cmd(names.mode)

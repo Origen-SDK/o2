@@ -12,6 +12,7 @@ pub mod save_ref;
 pub mod target;
 // pub mod mailer;
 pub mod credentials;
+pub mod generate;
 pub mod eval;
 pub mod aux_cmds;
 pub mod plugin;

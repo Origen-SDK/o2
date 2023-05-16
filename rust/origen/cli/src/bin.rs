@@ -428,6 +428,8 @@ fn main() -> Result<()> {
 
     if STATUS.is_app_present {
         commands::app::add_helps(&mut helps, app_cmds.as_ref().unwrap());
+        commands::env::add_helps(&mut helps);
+        commands::generate::add_helps(&mut helps);
         commands::target::add_helps(&mut helps);
     }
 
@@ -477,6 +479,8 @@ fn main() -> Result<()> {
     /************************************************************************************/
     if STATUS.is_app_present {
         app = commands::app::add_commands(app, &helps, app_cmds.as_ref().unwrap(), &extensions)?;
+        app = commands::env::add_commands(app, &helps, &extensions)?;
+        app = commands::generate::add_commands(app, &helps, &extensions)?;
 
         /************************************************************************************/
         let new_help = "Generate a new block, flow, pattern, etc. for your application";
@@ -551,69 +555,6 @@ Examples:
                         .value_name("PARENT")
                 )
             )
-        );
-
-        /************************************************************************************/
-        let g_help = "Generate patterns or test programs";
-        origen_commands.push(CommandHelp {
-            name: "generate".to_string(),
-            help: g_help.to_string(),
-            shortcut: Some("g".to_string()),
-        });
-        app = app.subcommand(
-            Command::new("generate")
-                .about(g_help)
-                .visible_alias("g")
-                .arg(
-                    Arg::new("files")
-                        .help("The name of the file(s) to be generated")
-                        .action(AppendArgs)
-                        .value_name("FILES")
-                        .multiple(true)
-                        .required(true),
-                )
-                .arg(
-                    Arg::new("target")
-                        .short('t')
-                        .long("target")
-                        .help("Override the default target currently set by the workspace")
-                        .action(AppendArgs)
-                        .use_delimiter(true)
-                        .multiple(true)
-                        .number_of_values(1)
-                        .value_name("TARGET"),
-                )
-                .arg(
-                    Arg::new("mode")
-                        .short('m')
-                        .long("mode")
-                        .help("Override the default execution mode currently set by the workspace")
-                        .action(SetArg)
-                        .value_name("MODE"),
-                )
-                .arg(
-                    Arg::new("output_dir")
-                        .short('o')
-                        .long("output-dir")
-                        .help("Override the default output directory (<APP ROOT>/output)")
-                        .action(SetArg)
-                        .value_name("OUTPUT_DIR"),
-                )
-                .arg(
-                    Arg::new("reference_dir")
-                        .short('r')
-                        .long("reference-dir")
-                        .help("Override the default reference directory (<APP ROOT>/.ref)")
-                        .action(SetArg)
-                        .value_name("REFERENCE_DIR"),
-                )
-                .arg(
-                    Arg::new("debug")
-                        .long("debug")
-                        .short('d')
-                        .help("Enable Python caller tracking for debug (takes longer to execute)")
-                        .action(SetArgTrue),
-                ),
         );
 
         /************************************************************************************/
@@ -831,30 +772,6 @@ Examples:
                         .action(SetArg)
                         .value_name("MODE"),
                 ),
-        );
-
-        /************************************************************************************/
-        let env_help = "Manage your application's Origen/Python environment (dependencies, etc.)";
-        origen_commands.push(CommandHelp {
-            name: "env".to_string(),
-            help: env_help.to_string(),
-            shortcut: None,
-        });
-        app = app.subcommand(Command::new("env").about(env_help)
-            .arg_required_else_help(true)
-            .subcommand(
-                Command::new("setup")
-                    .about("Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file")
-                    .arg(Arg::new("origen")
-                            .long("origen")
-                            .help("The path to a local version of Origen to use (to develop Origen)")
-                            .action(SetArg)
-                        ),
-            )
-            .subcommand(
-                Command::new("update")
-                    .about("Update your application's Python dependencies according to the latest pyproject.toml file"),
-            )
         );
 
         /************************************************************************************/
@@ -1111,33 +1028,26 @@ Examples:
         }
     }
 
+    macro_rules! run_non_ext_cmd_match_case {
+        ($cmd:ident, $cmd_name:ident) => {
+            commands::$cmd::run(matches.subcommand_matches(commands::$cmd::$cmd_name).unwrap())?
+        };
+        ($cmd:ident) => {
+            commands::$cmd::run(matches.subcommand_matches(commands::$cmd::BASE_CMD).unwrap())?
+        }
+    }
+
     match matches.subcommand_name() {
         Some(commands::app::BASE_CMD) => commands::app::run(matches.subcommand_matches(commands::app::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &app_cmds.as_ref().unwrap())?,
-        Some("env") => commands::env::run(matches.subcommand_matches("env").unwrap()),
         Some("fmt") => commands::fmt::run()?,
         Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
         Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap())?,
         Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
+        Some(commands::env::BASE_CMD) => run_non_ext_cmd_match_case!(env),
         Some(commands::eval::BASE_CMD) => run_cmd_match_case!(eval),
         Some(commands::interactive::BASE_CMD) => run_cmd_match_case!(interactive),
         Some(commands::aux_cmds::BASE_CMD) => commands::aux_cmds::run(matches.subcommand_matches(commands::aux_cmds::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &aux_cmds)?,
-        Some("generate") => {
-            let m = matches.subcommand_matches("generate").unwrap();
-            commands::launch(
-                "generate",
-                if let Some(targets) = m.get_many::<String>("target") {
-                    Some(targets.map(|t| t.as_str()).collect())
-                } else {
-                    Option::None
-                },
-                &m.get_one::<&str>("mode").map(|s| *s),
-                Some(m.get_many::<String>("files").unwrap().map(|t| t.as_str()).collect()),
-                m.get_one::<&str>("output_dir").map(|s| *s),
-                m.get_one::<&str>("reference_dir").map(|s| *s),
-                m.contains_id("debug"),
-                None,
-            );
-        }
+        Some(commands::generate::BASE_CMD) => run_cmd_match_case!(generate),
         Some("compile") => {
             let m = matches.subcommand_matches("compile").unwrap();
             commands::launch(
@@ -1155,7 +1065,7 @@ Examples:
                 None,
             );
         }
-        Some(commands::target::BASE_CMD) => commands::target::run(matches.subcommand_matches(commands::target::BASE_CMD).unwrap())?,
+        Some(commands::target::BASE_CMD) => run_non_ext_cmd_match_case!(target),
         Some("web") => {
             let cmd = matches.subcommand_matches("web").unwrap();
             let subcmd = cmd.subcommand().unwrap();

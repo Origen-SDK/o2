@@ -2,6 +2,7 @@ import pytest, pathlib
 from origen.helpers.regressions import cli
 
 from tests.shared import PythonAppCommon
+from tests._shared import tmp_dir
 from test_apps_shared_test_helpers.cli import CLIShared, CmdOpt, CmdArg, CmdExtOpt
 from test_apps_shared_test_helpers.cli.cmd_models import SrcBase
 
@@ -422,6 +423,8 @@ class CLICommon(CLIShared, PythonAppCommon):
         "with_configs": CLIShared.configs.suppress_plugin_collecting_config,
         "bypass_config_lookup": True
     }
+
+    tmp_dir = tmp_dir
 
     @classmethod
     def loaded_plugins_alpha(cls):

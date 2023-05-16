@@ -190,10 +190,12 @@ class Cmd:
             vk_opt_idx=None,
             help_subc_idx=None,
         ):
+        from ._origen import to_std_opt
         self.name = name
         self.cmd_path = cmd_path or []
         self.help = help
         self.args = dict([[arg.name, arg] for arg in (args or [])])
+        opts = [(to_std_opt(o) if isinstance(o, str) else o) for o in (opts or [])]
         self.opts = dict([[opt.name, opt] for opt in (opts or [])])
         self.subcmds = dict([[subcmd.name, subcmd] for subcmd in (subcmds or [])])
         self.aliases = aliases

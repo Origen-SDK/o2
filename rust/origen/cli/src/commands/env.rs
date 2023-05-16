@@ -1,6 +1,6 @@
 //! Some notes on how Origen's Python environment is setup and invoked:
 //!
-
+use super::_prelude::*;
 extern crate time;
 
 use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
@@ -13,11 +13,27 @@ use regex::Regex;
 use semver::VersionReq;
 use std::process::Command;
 
+pub const BASE_CMD: &'static str = "env";
+
 static MINIMUM_PIP_VERSION: &str = "22.0.4";
 static MINIMUM_POETRY_VERSION: &str = "1.3.2";
 
-pub fn run(matches: &ArgMatches) {
-    match matches.subcommand_name() {
+gen_core_cmd_funcs__no_exts__no_app_opts!(
+    BASE_CMD,
+    "Manage your application's Origen/Python environment (dependencies, etc.)",
+    { |cmd: App<'a>| {cmd.arg_required_else_help(true)}},
+    core_subcmd__no_exts__no_app_opts!("setup", "Setup your application's Python environment for the first time in a new workspace, this will install dependencies per the poetry.lock file", { |cmd: App| {
+        cmd.arg(Arg::new("origen")
+                .long("origen")
+                .help("The path to a local version of Origen to use (to develop Origen)")
+                .action(SetArg)
+            )
+    }}),
+    core_subcmd__no_exts__no_app_opts!("update", "Update your application's Python dependencies according to the latest pyproject.toml file", { |cmd: App| {cmd}})
+);
+
+pub fn run(mut invocation: &clap::ArgMatches) -> origen::Result<()> {
+    match invocation.subcommand_name() {
         Some("update") => {
             install_poetry();
             let _ = PYTHON_CONFIG.poetry_command().arg("update").status();
@@ -30,7 +46,7 @@ pub fn run(matches: &ArgMatches) {
             let mut origen_source_changed = false;
             let mut run_origen_build = false;
 
-            let origen_root = match matches
+            let origen_root = match invocation
                 .subcommand_matches("setup")
                 .unwrap()
                 .get_one::<&str>("origen")
@@ -231,6 +247,7 @@ pub fn run(matches: &ArgMatches) {
         None => unreachable!(),
         _ => unreachable!(),
     }
+    Ok(())
 }
 
 fn install_poetry() {

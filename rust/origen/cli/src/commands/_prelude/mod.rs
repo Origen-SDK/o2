@@ -5,8 +5,11 @@ pub use origen::Result;
 pub use super::super::CommandHelp;
 pub use indexmap::IndexMap;
 pub use super::{launch, launch_simple, launch_as};
-pub use crate::framework::{Extensions, Plugins, add_verbosity_opts};
-pub use crate::framework::{CmdHelps, CmdHelp, CmdSrc};
+pub use crate::framework::{
+    Extensions, Plugins, add_verbosity_opts,
+    CmdHelps, CmdHelp, CmdSrc
+};
+pub use crate::{output_dir_opt, ref_dir_opt};
 
 // FOR_PR remove this
 pub type RunInput<'a> = &'a clap::ArgMatches;
