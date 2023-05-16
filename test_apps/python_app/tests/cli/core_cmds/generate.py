@@ -29,11 +29,11 @@ class T_Generate(CLICommon):
     def test_generate_pattern(self, cmd):
         assert not self.toggle_out.exists()
         out = cmd.run(self.pat, run_opts={"targets": self.targets})
-        assert re.match(f"Created: {self.toggle_out} - .*New pattern", out)
+        assert re.match(rf"Created: {self.toggle_out} - .*New pattern", out)
         assert self.toggle_out.exists()
 
     def test_output_dir(self, cmd):
         assert not self.toggle_out_custom.exists()
-        out = cmd.run(self.pat, cmd.output_dir.sn_to_cli(), self.custom_dir, run_opts={"targets": self.targets})
-        assert re.match(f"Created: {self.toggle_out_custom.relative_to(origen.app.root)} - .*New pattern", out)
+        out = cmd.run(self.pat, cmd.output_dir.sn_to_cli(), str(self.custom_dir), run_opts={"targets": self.targets})
+        assert re.match(rf"Created: {self.toggle_out_custom.relative_to(origen.app.root)} - .*New pattern", out)
         assert self.toggle_out_custom.exists()
