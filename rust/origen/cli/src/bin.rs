@@ -9,31 +9,27 @@ mod framework;
 mod commands;
 mod python;
 
-use clap::{Arg, Command};
+use clap::Command;
 use indexmap::map::IndexMap;
-use origen::{Result, LOGGER, STATUS};
-use origen_metal as om;
+use origen::{Result, STATUS};
 use std::iter::FromIterator;
 use std::process::exit;
 use framework::{Extensions, Plugins, AuxCmds, AppCmds, CmdHelps};
 use framework::{
-    VERBOSITY_OPT_NAME, VERBOSITY_OPT_SHORT_NAME, VERBOSITY_OPT_LNA,
-    VERBOSITY_KEYWORDS_OPT_NAME, VERBOSITY_KEYWORDS_OPT_LONG_NAME,
-    VOV_OPT_NAME,
+    VERBOSITY_OPT_NAME, VERBOSITY_KEYWORDS_OPT_NAME, VOV_OPT_NAME,
     add_verbosity_opts,
 };
 use clap::error::ErrorKind as ClapErrorKind;
-use commands::_prelude::clap_arg_actions::*;
 
 use VERBOSITY_OPT_NAME as V_OPT_NAME;
 use VERBOSITY_KEYWORDS_OPT_NAME as VKS_OPT_NAME;
 
-#[derive(Clone)]
-pub struct CommandHelp {
-    name: String,
-    help: String,
-    shortcut: Option<String>,
-}
+// #[derive(Clone)]
+// pub struct CommandHelp {
+//     name: String,
+//     help: String,
+//     shortcut: Option<String>,
+// }
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -114,7 +110,7 @@ fn main() -> Result<()> {
                             // Use a dummy app that just accepts verbosity and keywords. Parse this until empty.
                             let mut dummy = pre_phase_app!().no_binary_name(true);
                             let mut reduced = args.map(|a| a.to_owned()).collect::<Vec<String>>();
-                            while(true) {
+                            loop {
                                 match dummy.try_get_matches_from_mut(reduced.clone()) {
                                     Ok(dm) => {
                                         verbosity += dm.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
@@ -181,7 +177,7 @@ fn main() -> Result<()> {
             let mut reduced: Vec<String> = std::env::args().skip(1).collect();
             verbosity = 0;
             vks = vec!();
-            while(true) {
+            loop {
                 match dummy.try_get_matches_from_mut(reduced.clone()) {
                     Ok(dm) => {
                         verbosity += dm.get_one::<u8>(V_OPT_NAME).unwrap_or(&0);
@@ -224,7 +220,7 @@ fn main() -> Result<()> {
     // The main help message is going to be automatically generated to allow us to handle and clearly
     // separate commands added by the app and plugins.
     // When a command is added below it must also be added to these vectors.
-    let mut origen_commands: Vec<CommandHelp> = vec![];
+    // let mut origen_commands: Vec<CommandHelp> = vec![];
     let mut helps = CmdHelps::new();
     let app_cmds: Option<AppCmds>;
     let mut extensions = Extensions::new();
@@ -265,158 +261,158 @@ fn main() -> Result<()> {
     /************************************************************************************/
     /******************** Global only commands ******************************************/
     /************************************************************************************/
-    if !STATUS.is_app_present {
+    // if !STATUS.is_app_present {
         //************************************************************************************/
-        let proj_help = "Manage multi-repository project areas and workspaces";
-        origen_commands.push(CommandHelp {
-            name: "proj".to_string(),
-            help: proj_help.to_string(),
-            shortcut: None,
-        });
+        // let proj_help = "Manage multi-repository project areas and workspaces";
+        // origen_commands.push(CommandHelp {
+        //     name: "proj".to_string(),
+        //     help: proj_help.to_string(),
+        //     shortcut: None,
+        // });
 
-        app = app
-            .subcommand(
-                Command::new("proj")
-                    .display_order(1)
-                    .about(proj_help)
-                    .arg_required_else_help(true)
-                    .subcommand(Command::new("init")
-                        .display_order(5)
-                        .about("Initialize a new project directory (create an initial project BOM)")
-                        .arg(Arg::new("dir")
-                            .action(SetArg)
-                            .help("The path to the project directory to initialize (PWD will be used by default if not given)")
-                            .value_name("DIR")
-                        )
-                    )
-                    .subcommand(Command::new("packages")
-                        .display_order(7)
-                        .about("Displays the IDs of all packages and package groups defined by the BOM")
-                    )
-                    .subcommand(Command::new("create")
-                        .display_order(10)
-                        .about("Create a new project workspace from the project BOM")
-                        .arg(Arg::new("path")
-                            .help("The path to the new workspace directory")
-                            .action(SetArg)
-                            .value_name("PATH")
-                            .required(true)
-                        )
-                    )
-                    .subcommand(Command::new("update")
-                        .display_order(15)
-                        .about("Update an existing project workspace per its current BOM")
-                        .arg(Arg::new("force")
-                            .short('f')
-                            .long("force")
-                            .required(false)
-                            .action(SetArgTrue)
-                            .help("Force the update and potentially lose any local modifications")
-                        )
-                        .arg(Arg::new("links")
-                            .short('l')
-                            .long("links")
-                            .required(false)
-                            .action(SetArgTrue)
-                            .help("Update the workspace links")
-                        )
-                        .arg(Arg::new("packages")
-                            .value_name("PACKAGES")
-                            .action(AppendArgs)
-                            .multiple(true)
-                            .help("Packages and/or groups to be updated, run 'origen proj packages' to see a list of possible package IDs")
-                            .required_unless("links")
-                            .required(true)
-                        )
-                    )
-                    .subcommand(Command::new("mods")
-                        .display_order(20)
-                        .about("Display a list of modified files within the given package(s)")
-                        .arg(Arg::new("packages")
-                            .help("Package(s) to look for modifications in, use 'all' to see the modification to all packages")
-                            .action(AppendArgs)
-                            .multiple(true)
-                            .value_name("PACKAGES")
-                            .required(true)
-                        )
-                    )
-                    .subcommand(Command::new("clean")
-                        .display_order(20)
-                        .about("Revert all local modifications within the given package(s)")
-                        .arg(Arg::new("packages")
-                            .help("Package(s) to revert local modifications in, use 'all' to clean all packages")
-                            .action(AppendArgs)
-                            .multiple(true)
-                            .value_name("PACKAGES")
-                            .required(true)
-                        )
-                    )
-                    .subcommand(Command::new("tag")
-                        .display_order(20)
-                        .about("Apply the given tag to the current view of the given package(s)")
-                        .arg(Arg::new("name")
-                            .help("Name of the tag to be applied")
-                            .action(SetArg)
-                            .value_name("NAME")
-                            .required(true)
-                        )
-                        .arg(Arg::new("packages")
-                            .help("Package(s) to be tagged, use 'all' to tag all packages")
-                            .multiple(true)
-                            .action(AppendArgs)
-                            .value_name("PACKAGES")
-                            .required(true)
-                        )
-                        .arg(Arg::new("force")
-                            .short('f')
-                            .long("force")
-                            .required(false)
-                            .action(SetArgTrue)
-                            .help("Force the application of the tag even if there are local modifications")
-                        )
-                        .arg(Arg::new("message")
-                            .short('m')
-                            .long("message")
-                            .required(false)
-                            .action(SetArg)
-                            .help("A message to be applied with the tag")
-                        )
-                    )
-                    .subcommand(Command::new("bom")
-                        .display_order(25)
-                        .about("View the active BOM in the current or given directory")
-                        .arg(Arg::new("dir")
-                            .action(SetArg)
-                            .help("The path to a directory (PWD will be used by default if not given)")
-                            .value_name("DIR")
-                        )
-                    )
-            );
+        // app = app
+        //     .subcommand(
+        //         Command::new("proj")
+        //             .display_order(1)
+        //             .about(proj_help)
+        //             .arg_required_else_help(true)
+        //             .subcommand(Command::new("init")
+        //                 .display_order(5)
+        //                 .about("Initialize a new project directory (create an initial project BOM)")
+        //                 .arg(Arg::new("dir")
+        //                     .action(SetArg)
+        //                     .help("The path to the project directory to initialize (PWD will be used by default if not given)")
+        //                     .value_name("DIR")
+        //                 )
+        //             )
+        //             .subcommand(Command::new("packages")
+        //                 .display_order(7)
+        //                 .about("Displays the IDs of all packages and package groups defined by the BOM")
+        //             )
+        //             .subcommand(Command::new("create")
+        //                 .display_order(10)
+        //                 .about("Create a new project workspace from the project BOM")
+        //                 .arg(Arg::new("path")
+        //                     .help("The path to the new workspace directory")
+        //                     .action(SetArg)
+        //                     .value_name("PATH")
+        //                     .required(true)
+        //                 )
+        //             )
+        //             .subcommand(Command::new("update")
+        //                 .display_order(15)
+        //                 .about("Update an existing project workspace per its current BOM")
+        //                 .arg(Arg::new("force")
+        //                     .short('f')
+        //                     .long("force")
+        //                     .required(false)
+        //                     .action(SetArgTrue)
+        //                     .help("Force the update and potentially lose any local modifications")
+        //                 )
+        //                 .arg(Arg::new("links")
+        //                     .short('l')
+        //                     .long("links")
+        //                     .required(false)
+        //                     .action(SetArgTrue)
+        //                     .help("Update the workspace links")
+        //                 )
+        //                 .arg(Arg::new("packages")
+        //                     .value_name("PACKAGES")
+        //                     .action(AppendArgs)
+        //                     .multiple(true)
+        //                     .help("Packages and/or groups to be updated, run 'origen proj packages' to see a list of possible package IDs")
+        //                     .required_unless("links")
+        //                     .required(true)
+        //                 )
+        //             )
+        //             .subcommand(Command::new("mods")
+        //                 .display_order(20)
+        //                 .about("Display a list of modified files within the given package(s)")
+        //                 .arg(Arg::new("packages")
+        //                     .help("Package(s) to look for modifications in, use 'all' to see the modification to all packages")
+        //                     .action(AppendArgs)
+        //                     .multiple(true)
+        //                     .value_name("PACKAGES")
+        //                     .required(true)
+        //                 )
+        //             )
+        //             .subcommand(Command::new("clean")
+        //                 .display_order(20)
+        //                 .about("Revert all local modifications within the given package(s)")
+        //                 .arg(Arg::new("packages")
+        //                     .help("Package(s) to revert local modifications in, use 'all' to clean all packages")
+        //                     .action(AppendArgs)
+        //                     .multiple(true)
+        //                     .value_name("PACKAGES")
+        //                     .required(true)
+        //                 )
+        //             )
+        //             .subcommand(Command::new("tag")
+        //                 .display_order(20)
+        //                 .about("Apply the given tag to the current view of the given package(s)")
+        //                 .arg(Arg::new("name")
+        //                     .help("Name of the tag to be applied")
+        //                     .action(SetArg)
+        //                     .value_name("NAME")
+        //                     .required(true)
+        //                 )
+        //                 .arg(Arg::new("packages")
+        //                     .help("Package(s) to be tagged, use 'all' to tag all packages")
+        //                     .multiple(true)
+        //                     .action(AppendArgs)
+        //                     .value_name("PACKAGES")
+        //                     .required(true)
+        //                 )
+        //                 .arg(Arg::new("force")
+        //                     .short('f')
+        //                     .long("force")
+        //                     .required(false)
+        //                     .action(SetArgTrue)
+        //                     .help("Force the application of the tag even if there are local modifications")
+        //                 )
+        //                 .arg(Arg::new("message")
+        //                     .short('m')
+        //                     .long("message")
+        //                     .required(false)
+        //                     .action(SetArg)
+        //                     .help("A message to be applied with the tag")
+        //                 )
+        //             )
+        //             .subcommand(Command::new("bom")
+        //                 .display_order(25)
+        //                 .about("View the active BOM in the current or given directory")
+        //                 .arg(Arg::new("dir")
+        //                     .action(SetArg)
+        //                     .help("The path to a directory (PWD will be used by default if not given)")
+        //                     .value_name("DIR")
+        //                 )
+        //             )
+        //     );
 
-        //************************************************************************************/
-        let new_help = "Create a new Origen application";
-        origen_commands.push(CommandHelp {
-            name: "new".to_string(),
-            help: new_help.to_string(),
-            shortcut: None,
-        });
-        app = app.subcommand(
-            Command::new("new").about(new_help).arg(
-                Arg::new("name")
-                    .help("The lowercased and underscored name of the new application")
-                    .action(SetArg)
-                    .required(true)
-                    .number_of_values(1)
-                    .value_name("NAME"),
-            )
-            .arg(Arg::new("setup")
-                .help("Don't create the new app's virtual environment after building (need to manually run 'origen env setup' within the new app workspace before using it in that case)")
-                .long("no-setup")
-                .required(false)
-                .action(SetArgTrue)
-            ),
-        );
-    }
+        // //************************************************************************************/
+        // let new_help = "Create a new Origen application";
+        // origen_commands.push(CommandHelp {
+        //     name: "new".to_string(),
+        //     help: new_help.to_string(),
+        //     shortcut: None,
+        // });
+        // app = app.subcommand(
+        //     Command::new("new").about(new_help).arg(
+        //         Arg::new("name")
+        //             .help("The lowercased and underscored name of the new application")
+        //             .action(SetArg)
+        //             .required(true)
+        //             .number_of_values(1)
+        //             .value_name("NAME"),
+        //     )
+        //     .arg(Arg::new("setup")
+        //         .help("Don't create the new app's virtual environment after building (need to manually run 'origen env setup' within the new app workspace before using it in that case)")
+        //         .long("no-setup")
+        //         .required(false)
+        //         .action(SetArgTrue)
+        //     ),
+        // );
+    // }
 
     commands::plugin::add_helps(&mut helps, plugins.as_ref());
     commands::plugins::add_helps(&mut helps);
@@ -451,28 +447,28 @@ fn main() -> Result<()> {
     /************************************************************************************/
     /******************** Origen dev commands *******************************************/
     /************************************************************************************/
-    if STATUS.is_origen_present || STATUS.is_app_present {
-        let fmt_help = match STATUS.is_origen_present {
-            true => "Nicely format all Rust and Python files",
-            false => "Nicely format all of your application's Python files",
-        };
+    // if STATUS.is_origen_present || STATUS.is_app_present {
+    //     let fmt_help = match STATUS.is_origen_present {
+    //         true => "Nicely format all Rust and Python files",
+    //         false => "Nicely format all of your application's Python files",
+    //     };
 
-        origen_commands.push(CommandHelp {
-            name: "fmt".to_string(),
-            help: fmt_help.to_string(),
-            shortcut: None,
-        });
+    //     origen_commands.push(CommandHelp {
+    //         name: "fmt".to_string(),
+    //         help: fmt_help.to_string(),
+    //         shortcut: None,
+    //     });
 
-        app = app
-            //************************************************************************************/
-            .subcommand(Command::new("fmt").about(fmt_help));
-    }
+    //     app = app
+    //         //************************************************************************************/
+    //         .subcommand(Command::new("fmt").about(fmt_help));
+    // }
 
-    if STATUS.is_origen_present || STATUS.is_app_in_origen_dev_mode {
-        let (app_, help) = commands::build::define(app);
-        app = app_;
-        origen_commands.push(help);
-    }
+    // if STATUS.is_origen_present || STATUS.is_app_in_origen_dev_mode {
+    //     let (app_, help) = commands::build::define(app);
+    //     app = app_;
+    //     origen_commands.push(help);
+    // }
 
     /************************************************************************************/
     /******************** In application commands ***************************************/
@@ -482,331 +478,331 @@ fn main() -> Result<()> {
         app = commands::env::add_commands(app, &helps, &extensions)?;
         app = commands::generate::add_commands(app, &helps, &extensions)?;
 
-        /************************************************************************************/
-        let new_help = "Generate a new block, flow, pattern, etc. for your application";
-        origen_commands.push(CommandHelp {
-            name: "new".to_string(),
-            help: new_help.to_string(),
-            shortcut: None,
-        });
-        app = app.subcommand(
-            Command::new("new")
-            .about(new_help)
-            .arg_required_else_help(true)
-            .subcommand(Command::new("dut")
-                .display_order(5)
-                .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
-                .long_about(
-"This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
-reg file, controller, target, timesets, pins, etc.
+//         /************************************************************************************/
+//         let new_help = "Generate a new block, flow, pattern, etc. for your application";
+//         origen_commands.push(CommandHelp {
+//             name: "new".to_string(),
+//             help: new_help.to_string(),
+//             shortcut: None,
+//         });
+//         app = app.subcommand(
+//             Command::new("new")
+//             .about(new_help)
+//             .arg_required_else_help(true)
+//             .subcommand(Command::new("dut")
+//                 .display_order(5)
+//                 .about("Create a new top-level (DUT) block, see 'origen new dut -h' for more info")
+//                 .long_about(
+// "This generator creates a top-level (DUT) block and all of the associated resources for it, e.g. a
+// reg file, controller, target, timesets, pins, etc.
 
-The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
-by a forward slash.
+// The NAME of the DUT should be given in lower case, optionally prefixed by parent DUT name(s) separated
+// by a forward slash.
 
-Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
+// Any parent DUT(s) will be created if they don't exist, but they will not be modified if they do.
 
-Examples:
-  origen new dut                # Creates <app_name>/blocks/dut/...
-  origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
-  origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
-                .arg(Arg::new("name")
-                    .action(SetArg)
-                    .required(false)
-                    .help("The name of the new DUT")
-                    .value_name("NAME")
-                )
-            )
-            .subcommand(Command::new("block")
-                .display_order(5)
-                .about("Create a new block, see 'origen new block -h' for more info")
-                .long_about(
-"This generator creates a block (e.g. to represent RAM, ATD, Flash, DAC, etc.) and all of the associated
-resources for it, e.g. a reg file, controller, timesets, etc.
+// Examples:
+//   origen new dut                # Creates <app_name>/blocks/dut/...
+//   origen new dut falcon         # Creates <app_name>/blocks/dut/derivatives/falcon/...
+//   origen new dut dsp/falcon     # Creates <app_name>/blocks/dut/derivatives/dsp/derivatives/falcon/...")
+//                 .arg(Arg::new("name")
+//                     .action(SetArg)
+//                     .required(false)
+//                     .help("The name of the new DUT")
+//                     .value_name("NAME")
+//                 )
+//             )
+//             .subcommand(Command::new("block")
+//                 .display_order(5)
+//                 .about("Create a new block, see 'origen new block -h' for more info")
+//                 .long_about(
+// "This generator creates a block (e.g. to represent RAM, ATD, Flash, DAC, etc.) and all of the associated
+// resources for it, e.g. a reg file, controller, timesets, etc.
 
-The NAME should be given in lower case (e.g. flash/flash2kb, adc/adc16), optionally with
-additional parent sub-block names after the initial type.
+// The NAME should be given in lower case (e.g. flash/flash2kb, adc/adc16), optionally with
+// additional parent sub-block names after the initial type.
 
-Alternatively, a reference to an existing BLOCK can be added, in which case a nested block will be created
-within that block's 'blocks/' directory, rather than a primary top-level block.
+// Alternatively, a reference to an existing BLOCK can be added, in which case a nested block will be created
+// within that block's 'blocks/' directory, rather than a primary top-level block.
 
-Any parent block(s) will be created if they don't exist, but they will not be modified if they do.
+// Any parent block(s) will be created if they don't exist, but they will not be modified if they do.
 
-Examples:
-  origen new block dac                  # Creates <app_name>/blocks/dac/...
-  origen new block adc/adc8bit          # Creates <app_name>/blocks/adc/derivatives/adc8bit/...
-  origen new block adc/adc16bit         # Creates <app_name>/blocks/adc/derivatives/adc16bit/...
-  origen new block nvm/flash/flash2kb   # Creates <app_name>/blocks/nvm/derivatives/flash/derivatives/flash2kb/...
+// Examples:
+//   origen new block dac                  # Creates <app_name>/blocks/dac/...
+//   origen new block adc/adc8bit          # Creates <app_name>/blocks/adc/derivatives/adc8bit/...
+//   origen new block adc/adc16bit         # Creates <app_name>/blocks/adc/derivatives/adc16bit/...
+//   origen new block nvm/flash/flash2kb   # Creates <app_name>/blocks/nvm/derivatives/flash/derivatives/flash2kb/...
 
-  # Example of creating a nested sub-block
-  origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/blocks/bist/...")
-                .arg(Arg::new("name")
-                    .action(SetArg)
-                    .required(true)
-                    .help("The name of the new block, including its parents if applicable")
-                    .value_name("NAME")
-                )
-                .arg(
-                    Arg::new("parent")
-                        .short('p')
-                        .long("parent")
-                        .help("Create the new block nested within this existing block")
-                        .action(SetArg)
-                        .required(false)
-                        .value_name("PARENT")
-                )
-            )
-        );
+//   # Example of creating a nested sub-block
+//   origen new block bist --parent nvm/flash   # Creates <app_name>/blocks/nvm/derivatives/flash/blocks/bist/...")
+//                 .arg(Arg::new("name")
+//                     .action(SetArg)
+//                     .required(true)
+//                     .help("The name of the new block, including its parents if applicable")
+//                     .value_name("NAME")
+//                 )
+//                 .arg(
+//                     Arg::new("parent")
+//                         .short('p')
+//                         .long("parent")
+//                         .help("Create the new block nested within this existing block")
+//                         .action(SetArg)
+//                         .required(false)
+//                         .value_name("PARENT")
+//                 )
+//             )
+//         );
 
-        /************************************************************************************/
-        let c_help = "Compile templates";
-        origen_commands.push(CommandHelp {
-            name: "compile".to_string(),
-            help: c_help.to_string(),
-            shortcut: Some("c".to_string()),
-        });
-        app = app.subcommand(
-            Command::new("compile")
-                .about(c_help)
-                .visible_alias("c")
-                .arg(
-                    Arg::new("files")
-                        .help("The name of the file(s) to be generated")
-                        .action(AppendArgs)
-                        .value_name("FILES")
-                        .multiple(true)
-                        .required(true),
-                )
-                .arg(
-                    Arg::new("target")
-                        .short('t')
-                        .long("target")
-                        .help("Override the default target currently set by the workspace")
-                        .action(AppendArgs)
-                        .use_delimiter(true)
-                        .multiple(true)
-                        .number_of_values(1)
-                        .value_name("TARGET"),
-                )
-                .arg(
-                    Arg::new("mode")
-                        .short('m')
-                        .long("mode")
-                        .help("Override the default execution mode currently set by the workspace")
-                        .action(SetArg)
-                        .value_name("MODE"),
-                ),
-        );
+//         /************************************************************************************/
+//         let c_help = "Compile templates";
+//         origen_commands.push(CommandHelp {
+//             name: "compile".to_string(),
+//             help: c_help.to_string(),
+//             shortcut: Some("c".to_string()),
+//         });
+//         app = app.subcommand(
+//             Command::new("compile")
+//                 .about(c_help)
+//                 .visible_alias("c")
+//                 .arg(
+//                     Arg::new("files")
+//                         .help("The name of the file(s) to be generated")
+//                         .action(AppendArgs)
+//                         .value_name("FILES")
+//                         .multiple(true)
+//                         .required(true),
+//                 )
+//                 .arg(
+//                     Arg::new("target")
+//                         .short('t')
+//                         .long("target")
+//                         .help("Override the default target currently set by the workspace")
+//                         .action(AppendArgs)
+//                         .use_delimiter(true)
+//                         .multiple(true)
+//                         .number_of_values(1)
+//                         .value_name("TARGET"),
+//                 )
+//                 .arg(
+//                     Arg::new("mode")
+//                         .short('m')
+//                         .long("mode")
+//                         .help("Override the default execution mode currently set by the workspace")
+//                         .action(SetArg)
+//                         .value_name("MODE"),
+//                 ),
+//         );
 
         app = commands::target::add_commands(app, &helps, &extensions)?;
 
-        /************************************************************************************/
-        let t_help = "Create, Build, and View Web Documentation";
-        origen_commands.push(CommandHelp {
-            name: "web".to_string(),
-            help: t_help.to_string(),
-            shortcut: Some("w".to_string()),
-        });
-        app = app.subcommand(
-            Command::new("web")
-                .about(t_help)
-                .arg_required_else_help(true)
-                .visible_alias("w")
-                .subcommand(
-                    Command::new("build") // What I think this command should be called
-                        .about("Builds the web documentation")
-                        .visible_alias("b")
-                        .visible_alias("compile") // If coming from O1
-                        .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
-                        .arg(
-                            Arg::new("view")
-                                .long("view")
-                                .help("Launch your web browser after the build")
-                                .action(SetArgTrue),
-                        )
-                        .arg(
-                            Arg::new("clean")
-                                .long("clean")
-                                .help(
-                                    "Clean up directories from previous builds and force a rebuild",
-                                )
-                                .action(SetArgTrue),
-                        )
-                        .arg(
-                            Arg::new("release")
-                                .long("release")
-                                .short('r')
-                                .help("Release (deploy) the resulting web pages")
-                                .action(SetArgTrue),
-                        )
-                        .arg(
-                            Arg::new("archive")
-                                .long("archive")
-                                .short('a')
-                                .help("Archive the resulting web pages after building")
-                                .action(SetArg)
-                                .multiple(false)
-                                .min_values(0),
-                        )
-                        .arg(
-                            Arg::new("as-release")
-                                .long("as-release")
-                                .help("Build webpages with release checks")
-                                .action(SetArgTrue),
-                        )
-                        .arg(
-                            Arg::new("release-with-warnings")
-                                .long("release-with-warnings")
-                                .help("Release webpages even if warnings persists")
-                                .action(SetArgTrue),
-                        )
-                        .arg(
-                            Arg::new("no-api")
-                                .long("no-api")
-                                .help("Skip building the API")
-                                .action(SetArgTrue),
-                        )
-                        .arg(
-                            Arg::new("sphinx-args")
-                                .long("sphinx-args")
-                                .help(
-                                    "Additional arguments to pass to the 'sphinx-build' command
-  Argument will passed as a single string and appended to the build command
-  E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
-     -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'",
-                                )
-                                .action(SetArg)
-                                .multiple(false)
-                                .allow_hyphen_values(true),
-                        ), // .arg(Arg::new("pdf")
-                           //     .long("pdf")
-                           //     .help("Create a PDF of resulting web pages")
-                           //     .action(SetArgTrue)
-                           // )
-                )
-                .subcommand(
-                    Command::new("view")
-                        .about("Launches your web browser to view previously built documentation")
-                        .visible_alias("v"),
-                )
-                .subcommand(
-                    Command::new("clean")
-                        .about("Cleans the output directory and all cached files"),
-                ),
-        );
+//         /************************************************************************************/
+//         let t_help = "Create, Build, and View Web Documentation";
+//         origen_commands.push(CommandHelp {
+//             name: "web".to_string(),
+//             help: t_help.to_string(),
+//             shortcut: Some("w".to_string()),
+//         });
+//         app = app.subcommand(
+//             Command::new("web")
+//                 .about(t_help)
+//                 .arg_required_else_help(true)
+//                 .visible_alias("w")
+//                 .subcommand(
+//                     Command::new("build") // What I think this command should be called
+//                         .about("Builds the web documentation")
+//                         .visible_alias("b")
+//                         .visible_alias("compile") // If coming from O1
+//                         .visible_alias("html") // If coming from Sphinx and using quickstart's Makefile
+//                         .arg(
+//                             Arg::new("view")
+//                                 .long("view")
+//                                 .help("Launch your web browser after the build")
+//                                 .action(SetArgTrue),
+//                         )
+//                         .arg(
+//                             Arg::new("clean")
+//                                 .long("clean")
+//                                 .help(
+//                                     "Clean up directories from previous builds and force a rebuild",
+//                                 )
+//                                 .action(SetArgTrue),
+//                         )
+//                         .arg(
+//                             Arg::new("release")
+//                                 .long("release")
+//                                 .short('r')
+//                                 .help("Release (deploy) the resulting web pages")
+//                                 .action(SetArgTrue),
+//                         )
+//                         .arg(
+//                             Arg::new("archive")
+//                                 .long("archive")
+//                                 .short('a')
+//                                 .help("Archive the resulting web pages after building")
+//                                 .action(SetArg)
+//                                 .multiple(false)
+//                                 .min_values(0),
+//                         )
+//                         .arg(
+//                             Arg::new("as-release")
+//                                 .long("as-release")
+//                                 .help("Build webpages with release checks")
+//                                 .action(SetArgTrue),
+//                         )
+//                         .arg(
+//                             Arg::new("release-with-warnings")
+//                                 .long("release-with-warnings")
+//                                 .help("Release webpages even if warnings persists")
+//                                 .action(SetArgTrue),
+//                         )
+//                         .arg(
+//                             Arg::new("no-api")
+//                                 .long("no-api")
+//                                 .help("Skip building the API")
+//                                 .action(SetArgTrue),
+//                         )
+//                         .arg(
+//                             Arg::new("sphinx-args")
+//                                 .long("sphinx-args")
+//                                 .help(
+//                                     "Additional arguments to pass to the 'sphinx-build' command
+//   Argument will passed as a single string and appended to the build command
+//   E.g.: 'origen web build --sphinx-args \"-q -D my_config_define=1\"'
+//      -> 'sphinx-build <source_dir> <output_dir> -q -D my_config_define=1'",
+//                                 )
+//                                 .action(SetArg)
+//                                 .multiple(false)
+//                                 .allow_hyphen_values(true),
+//                         ), // .arg(Arg::new("pdf")
+//                            //     .long("pdf")
+//                            //     .help("Create a PDF of resulting web pages")
+//                            //     .action(SetArgTrue)
+//                            // )
+//                 )
+//                 .subcommand(
+//                     Command::new("view")
+//                         .about("Launches your web browser to view previously built documentation")
+//                         .visible_alias("v"),
+//                 )
+//                 .subcommand(
+//                     Command::new("clean")
+//                         .about("Cleans the output directory and all cached files"),
+//                 ),
+//         );
 
-        /************************************************************************************/
-        let mailer_help =
-            "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
-        origen_commands.push(CommandHelp {
-            name: "mailer".to_string(),
-            help: mailer_help.to_string(),
-            shortcut: None,
-        });
-        app = app.subcommand(
-            Command::new("mailer")
-                .about(mailer_help)
-                .arg_required_else_help(true)
-                .subcommand(
-                    Command::new("send")
-                        .about("Quickly send an email")
-                        .arg(
-                            Arg::new("body")
-                                .help("Email message body")
-                                .long("body")
-                                .action(SetArg)
-                                .required(true)
-                                .value_name("BODY")
-                                .index(1),
-                        )
-                        .arg(
-                            Arg::new("subject")
-                                .help("Email subject line")
-                                .long("subject")
-                                .short('s')
-                                .action(SetArg)
-                                .value_name("SUBJECT"),
-                        )
-                        .arg(
-                            Arg::new("to")
-                                .help("Recipient list")
-                                .long("to")
-                                .short('t')
-                                .action(AppendArgs)
-                                .required(true)
-                                .multiple(true)
-                                .value_name("TO"),
-                        ),
-                )
-                .subcommand(
-                    Command::new("test")
-                        .about("Send a test email")
-                        .arg(
-                            Arg::new("to")
-                                .help(
-                                    "Recipient list. If omitted, will be sent to the current user",
-                                )
-                                .long("to")
-                                .short('t')
-                                .action(AppendArgs)
-                                .required(false)
-                                .multiple(true)
-                                .value_name("TO"),
-                        ),
-                ),
-        );
+//         /************************************************************************************/
+//         let mailer_help =
+//             "Command-line-interface to Origen's mailer for quick emailing or shell-scripting";
+//         origen_commands.push(CommandHelp {
+//             name: "mailer".to_string(),
+//             help: mailer_help.to_string(),
+//             shortcut: None,
+//         });
+//         app = app.subcommand(
+//             Command::new("mailer")
+//                 .about(mailer_help)
+//                 .arg_required_else_help(true)
+//                 .subcommand(
+//                     Command::new("send")
+//                         .about("Quickly send an email")
+//                         .arg(
+//                             Arg::new("body")
+//                                 .help("Email message body")
+//                                 .long("body")
+//                                 .action(SetArg)
+//                                 .required(true)
+//                                 .value_name("BODY")
+//                                 .index(1),
+//                         )
+//                         .arg(
+//                             Arg::new("subject")
+//                                 .help("Email subject line")
+//                                 .long("subject")
+//                                 .short('s')
+//                                 .action(SetArg)
+//                                 .value_name("SUBJECT"),
+//                         )
+//                         .arg(
+//                             Arg::new("to")
+//                                 .help("Recipient list")
+//                                 .long("to")
+//                                 .short('t')
+//                                 .action(AppendArgs)
+//                                 .required(true)
+//                                 .multiple(true)
+//                                 .value_name("TO"),
+//                         ),
+//                 )
+//                 .subcommand(
+//                     Command::new("test")
+//                         .about("Send a test email")
+//                         .arg(
+//                             Arg::new("to")
+//                                 .help(
+//                                     "Recipient list. If omitted, will be sent to the current user",
+//                                 )
+//                                 .long("to")
+//                                 .short('t')
+//                                 .action(AppendArgs)
+//                                 .required(false)
+//                                 .multiple(true)
+//                                 .value_name("TO"),
+//                         ),
+//                 ),
+//         );
 
-        /************************************************************************************/
-        let mode_help = "Set/view the default execution mode";
-        origen_commands.push(CommandHelp {
-            name: "mode".to_string(),
-            help: mode_help.to_string(),
-            shortcut: Some("m".to_string()),
-        });
-        app = app.subcommand(
-            Command::new("mode")
-                .about(mode_help)
-                .visible_alias("m")
-                .arg(
-                    Arg::new("mode")
-                        .help("The name of the mode to be set as the default mode")
-                        .action(SetArg)
-                        .value_name("MODE"),
-                ),
-        );
+//         /************************************************************************************/
+//         let mode_help = "Set/view the default execution mode";
+//         origen_commands.push(CommandHelp {
+//             name: "mode".to_string(),
+//             help: mode_help.to_string(),
+//             shortcut: Some("m".to_string()),
+//         });
+//         app = app.subcommand(
+//             Command::new("mode")
+//                 .about(mode_help)
+//                 .visible_alias("m")
+//                 .arg(
+//                     Arg::new("mode")
+//                         .help("The name of the mode to be set as the default mode")
+//                         .action(SetArg)
+//                         .value_name("MODE"),
+//                 ),
+//         );
 
-        /************************************************************************************/
-        let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
-        origen_commands.push(CommandHelp {
-            name: "save_ref".to_string(),
-            help: save_ref_help.to_string(),
-            shortcut: None,
-        });
-        app = app.subcommand(
-            Command::new("save_ref")
-                .about(save_ref_help)
-                .arg(
-                    Arg::new("files")
-                        .help("The name of the file(s) to be saved")
-                        .action(SetArg)
-                        .value_name("FILES")
-                        .multiple(true)
-                        .required_unless_one(&["new", "changed"]),
-                )
-                .arg(
-                    Arg::new("new")
-                        .long("new")
-                        .required(false)
-                        .action(SetArgTrue)
-                        .help("Update all NEW file references from the last generate run"),
-                )
-                .arg(
-                    Arg::new("changed")
-                        .long("changed")
-                        .required(false)
-                        .action(SetArgTrue)
-                        .help("Update all CHANGED file references from the last generate run"),
-                ),
-        );
+//         /************************************************************************************/
+//         let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
+//         origen_commands.push(CommandHelp {
+//             name: "save_ref".to_string(),
+//             help: save_ref_help.to_string(),
+//             shortcut: None,
+//         });
+//         app = app.subcommand(
+//             Command::new("save_ref")
+//                 .about(save_ref_help)
+//                 .arg(
+//                     Arg::new("files")
+//                         .help("The name of the file(s) to be saved")
+//                         .action(SetArg)
+//                         .value_name("FILES")
+//                         .multiple(true)
+//                         .required_unless_one(&["new", "changed"]),
+//                 )
+//                 .arg(
+//                     Arg::new("new")
+//                         .long("new")
+//                         .required(false)
+//                         .action(SetArgTrue)
+//                         .help("Update all NEW file references from the last generate run"),
+//                 )
+//                 .arg(
+//                     Arg::new("changed")
+//                         .long("changed")
+//                         .required(false)
+//                         .action(SetArgTrue)
+//                         .help("Update all CHANGED file references from the last generate run"),
+//                 ),
+//         );
     }
 
     let mut all_cmds_and_aliases = vec![];
@@ -1039,158 +1035,158 @@ Examples:
 
     match matches.subcommand_name() {
         Some(commands::app::BASE_CMD) => commands::app::run(matches.subcommand_matches(commands::app::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &app_cmds.as_ref().unwrap())?,
-        Some("fmt") => commands::fmt::run()?,
-        Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
-        Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap())?,
-        Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
+        // Some("fmt") => commands::fmt::run()?,
+        // Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
+        // Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap())?,
+        // Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some(commands::env::BASE_CMD) => run_non_ext_cmd_match_case!(env),
         Some(commands::eval::BASE_CMD) => run_cmd_match_case!(eval),
         Some(commands::interactive::BASE_CMD) => run_cmd_match_case!(interactive),
         Some(commands::aux_cmds::BASE_CMD) => commands::aux_cmds::run(matches.subcommand_matches(commands::aux_cmds::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &aux_cmds)?,
         Some(commands::generate::BASE_CMD) => run_cmd_match_case!(generate),
-        Some("compile") => {
-            let m = matches.subcommand_matches("compile").unwrap();
-            commands::launch(
-                "compile",
-                if let Some(targets) = m.get_many::<String>("target") {
-                    Some(targets.map(|t| t.as_str()).collect())
-                } else {
-                    Option::None
-                },
-                &m.get_one::<&str>("mode").map(|s| *s),
-                Some(m.get_many::<String>("files").unwrap().map(|t| t.as_str()).collect()),
-                m.get_one::<&str>("output_dir").map(|s| *s),
-                m.get_one::<&str>("reference_dir").map(|s| *s),
-                false,
-                None,
-            );
-        }
+        // Some("compile") => {
+        //     let m = matches.subcommand_matches("compile").unwrap();
+        //     commands::launch(
+        //         "compile",
+        //         if let Some(targets) = m.get_many::<String>("target") {
+        //             Some(targets.map(|t| t.as_str()).collect())
+        //         } else {
+        //             Option::None
+        //         },
+        //         &m.get_one::<&str>("mode").map(|s| *s),
+        //         Some(m.get_many::<String>("files").unwrap().map(|t| t.as_str()).collect()),
+        //         m.get_one::<&str>("output_dir").map(|s| *s),
+        //         m.get_one::<&str>("reference_dir").map(|s| *s),
+        //         false,
+        //         None,
+        //     );
+        // }
         Some(commands::target::BASE_CMD) => run_non_ext_cmd_match_case!(target),
-        Some("web") => {
-            let cmd = matches.subcommand_matches("web").unwrap();
-            let subcmd = cmd.subcommand().unwrap();
-            let sub = subcmd.1;
-            match subcmd.0 {
-                "build" => {
-                    let mut args = IndexMap::new();
-                    if sub.contains_id("view") {
-                        args.insert("view", "True".to_string());
-                    }
-                    if sub.contains_id("clean") {
-                        args.insert("clean", "True".to_string());
-                    }
-                    if sub.contains_id("no-api") {
-                        args.insert("no-api", "True".to_string());
-                    }
-                    if sub.contains_id("as-release") {
-                        args.insert("as-release", "True".to_string());
-                    }
-                    if sub.contains_id("release-with-warnings") {
-                        args.insert("release-with-warnings", "True".to_string());
-                    }
-                    if sub.contains_id("release") {
-                        args.insert("release", "True".to_string());
-                    }
-                    if sub.contains_id("archive") {
-                        if let Some(archive) = sub.get_one::<&str>("archive") {
-                            args.insert("archive", format!("'{}'", archive));
-                        } else {
-                            args.insert("archive", "True".to_string());
-                        }
-                    }
-                    if let Some(s_args) = sub.get_one::<&str>("sphinx-args") {
-                        // Recall that this comes in as a single argument, potentially quoted to mimic multiple,
-                        // but a single argument from the perspective here nonetheless
-                        args.insert("sphinx-args", format!("'{}'", s_args));
-                    }
-                    commands::launch(
-                        "web:build",
-                        if let Some(targets) = cmd.get_many::<String>("target") {
-                            Some(targets.map(|t| t.as_str()).collect())
-                        } else {
-                            Option::None
-                        },
-                        &None,
-                        None,
-                        None,
-                        None,
-                        false,
-                        Some(args),
-                    )
-                }
-                "view" => commands::launch("web:view", None, &None, None, None, None, false, None),
-                "clean" => {
-                    commands::launch("web:clean", None, &None, None, None, None, false, None)
-                }
-                _ => {}
-            }
-        }
-        Some("mailer") => {
-            let cmd = matches.subcommand_matches("mailer").unwrap();
-            let subcmd = cmd.subcommand().unwrap();
-            let sub = subcmd.1;
-            match subcmd.0 {
-                "send" => {
-                    let mut args = IndexMap::new();
-                    if let Some(t) = sub.get_many::<String>("to") {
-                        let r = t.map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
-                        args.insert("to", format!("[{}]", r.join(",")));
-                    }
-                    if let Some(s) = sub.get_one::<&str>("subject") {
-                        args.insert("subject", format!("\"{}\"", s));
-                    }
-                    if let Some(b) = sub.get_one::<&str>("body") {
-                        args.insert("body", format!("\"{}\"", b));
-                    }
+        // Some("web") => {
+        //     let cmd = matches.subcommand_matches("web").unwrap();
+        //     let subcmd = cmd.subcommand().unwrap();
+        //     let sub = subcmd.1;
+        //     match subcmd.0 {
+        //         "build" => {
+        //             let mut args = IndexMap::new();
+        //             if sub.contains_id("view") {
+        //                 args.insert("view", "True".to_string());
+        //             }
+        //             if sub.contains_id("clean") {
+        //                 args.insert("clean", "True".to_string());
+        //             }
+        //             if sub.contains_id("no-api") {
+        //                 args.insert("no-api", "True".to_string());
+        //             }
+        //             if sub.contains_id("as-release") {
+        //                 args.insert("as-release", "True".to_string());
+        //             }
+        //             if sub.contains_id("release-with-warnings") {
+        //                 args.insert("release-with-warnings", "True".to_string());
+        //             }
+        //             if sub.contains_id("release") {
+        //                 args.insert("release", "True".to_string());
+        //             }
+        //             if sub.contains_id("archive") {
+        //                 if let Some(archive) = sub.get_one::<&str>("archive") {
+        //                     args.insert("archive", format!("'{}'", archive));
+        //                 } else {
+        //                     args.insert("archive", "True".to_string());
+        //                 }
+        //             }
+        //             if let Some(s_args) = sub.get_one::<&str>("sphinx-args") {
+        //                 // Recall that this comes in as a single argument, potentially quoted to mimic multiple,
+        //                 // but a single argument from the perspective here nonetheless
+        //                 args.insert("sphinx-args", format!("'{}'", s_args));
+        //             }
+        //             commands::launch(
+        //                 "web:build",
+        //                 if let Some(targets) = cmd.get_many::<String>("target") {
+        //                     Some(targets.map(|t| t.as_str()).collect())
+        //                 } else {
+        //                     Option::None
+        //                 },
+        //                 &None,
+        //                 None,
+        //                 None,
+        //                 None,
+        //                 false,
+        //                 Some(args),
+        //             )
+        //         }
+        //         "view" => commands::launch("web:view", None, &None, None, None, None, false, None),
+        //         "clean" => {
+        //             commands::launch("web:clean", None, &None, None, None, None, false, None)
+        //         }
+        //         _ => {}
+        //     }
+        // }
+        // Some("mailer") => {
+        //     let cmd = matches.subcommand_matches("mailer").unwrap();
+        //     let subcmd = cmd.subcommand().unwrap();
+        //     let sub = subcmd.1;
+        //     match subcmd.0 {
+        //         "send" => {
+        //             let mut args = IndexMap::new();
+        //             if let Some(t) = sub.get_many::<String>("to") {
+        //                 let r = t.map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
+        //                 args.insert("to", format!("[{}]", r.join(",")));
+        //             }
+        //             if let Some(s) = sub.get_one::<&str>("subject") {
+        //                 args.insert("subject", format!("\"{}\"", s));
+        //             }
+        //             if let Some(b) = sub.get_one::<&str>("body") {
+        //                 args.insert("body", format!("\"{}\"", b));
+        //             }
 
-                    commands::launch(
-                        "mailer:send",
-                        if let Some(targets) = cmd.get_many::<String>("target") {
-                            Some(targets.map(|t| t.as_str()).collect())
-                        } else {
-                            Option::None
-                        },
-                        &None,
-                        None,
-                        None,
-                        None,
-                        false,
-                        Some(args),
-                    )
-                }
-                "test" => {
-                    let mut args = IndexMap::new();
-                    if let Some(t) = sub.get_many::<String>("to") {
-                        let r = t.map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
-                        args.insert("to", format!("[{}]", r.join(",")));
-                    }
-                    commands::launch(
-                        "mailer:test",
-                        if let Some(targets) = cmd.get_many::<String>("target") {
-                            Some(targets.map(|t| t.as_str()).collect())
-                        } else {
-                            Option::None
-                        },
-                        &None,
-                        None,
-                        None,
-                        None,
-                        false,
-                        Some(args),
-                    )
-                }
-                _ => {}
-            }
-        }
+        //             commands::launch(
+        //                 "mailer:send",
+        //                 if let Some(targets) = cmd.get_many::<String>("target") {
+        //                     Some(targets.map(|t| t.as_str()).collect())
+        //                 } else {
+        //                     Option::None
+        //                 },
+        //                 &None,
+        //                 None,
+        //                 None,
+        //                 None,
+        //                 false,
+        //                 Some(args),
+        //             )
+        //         }
+        //         "test" => {
+        //             let mut args = IndexMap::new();
+        //             if let Some(t) = sub.get_many::<String>("to") {
+        //                 let r = t.map(|x| format!("\"{}\"", x)).collect::<Vec<String>>();
+        //                 args.insert("to", format!("[{}]", r.join(",")));
+        //             }
+        //             commands::launch(
+        //                 "mailer:test",
+        //                 if let Some(targets) = cmd.get_many::<String>("target") {
+        //                     Some(targets.map(|t| t.as_str()).collect())
+        //                 } else {
+        //                     Option::None
+        //                 },
+        //                 &None,
+        //                 None,
+        //                 None,
+        //                 None,
+        //                 false,
+        //                 Some(args),
+        //             )
+        //         }
+        //         _ => {}
+        //     }
+        // }
         Some(commands::credentials::BASE_CMD) => run_cmd_match_case!(credentials),
-        Some("mode") => {
-            let matches = matches.subcommand_matches("mode").unwrap();
-            commands::mode::run(matches.get_one::<&str>("mode").map(|s| *s));
-        }
-        Some("save_ref") => {
-            let matches = matches.subcommand_matches("save_ref").unwrap();
-            commands::save_ref::run(matches);
-        }
+        // Some("mode") => {
+        //     let matches = matches.subcommand_matches("mode").unwrap();
+        //     commands::mode::run(matches.get_one::<&str>("mode").map(|s| *s));
+        // }
+        // Some("save_ref") => {
+        //     let matches = matches.subcommand_matches("save_ref").unwrap();
+        //     commands::save_ref::run(matches);
+        // }
         Some(commands::plugin::BASE_CMD) => run_cmd_match_case!(plugin),
         Some(commands::plugins::BASE_CMD) => commands::plugins::run(matches.subcommand_matches(commands::plugins::BASE_CMD).unwrap(), plugins.as_ref())?,
         Some(invalid_cmd) => {

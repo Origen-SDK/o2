@@ -3,7 +3,6 @@ use crate::framework::{AuxCmds, build_path};
 use crate::framework::aux_cmds::{add_aux_ns_subcmds, add_aux_ns_helps};
 use indexmap::IndexMap;
 use super::_prelude::*;
-use crate::framework::helps::NOT_EXTENDABLE_MSG;
 
 pub const BASE_CMD: &'static str = "auxillary_commands";
 

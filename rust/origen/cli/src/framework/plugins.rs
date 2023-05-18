@@ -1,5 +1,5 @@
 use origen::{Result, ORIGEN_CONFIG};
-use crate::{python, CommandHelp};
+use crate::python;
 use std::path::PathBuf;
 use indexmap::IndexMap;
 use std::fs;
@@ -160,18 +160,6 @@ impl Plugin {
         }
 
         Ok(slf)
-    }
-
-    pub fn command_helps(&self) -> Vec<CommandHelp> {
-        let mut helps = vec!();
-        for (_, cmd) in self.commands.iter() {
-            helps.push(CommandHelp {
-                name: cmd.name.clone(),
-                help: cmd.help.clone(),
-                shortcut: cmd.alias.clone(),
-            });
-        }
-        helps
     }
 
     pub fn dispatch(&self, cmd: &clap::ArgMatches, mut app: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>) -> Result<()> {

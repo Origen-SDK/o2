@@ -4,7 +4,6 @@ use super::_prelude::*;
 extern crate time;
 
 use crate::python::{poetry_version, MIN_PYTHON_VERSION, PYTHON_CONFIG};
-use clap::ArgMatches;
 use online::online;
 use origen::core::status::search_for;
 use origen::core::term::*;

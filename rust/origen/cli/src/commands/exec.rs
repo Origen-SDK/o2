@@ -1,6 +1,5 @@
 use crate::python::{add_origen_env, PYTHON_CONFIG};
 use super::_prelude::*;
-use std::process::exit;
 use std::borrow::Cow;
 
 pub const BASE_CMD: &'static str = "exec";

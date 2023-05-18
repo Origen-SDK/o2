@@ -1,14 +1,14 @@
 // FOR_PR clean up, specifically launch stuff
 pub mod app;
-pub mod build;
+// pub mod build;
 pub mod env;
 pub mod exec;
-pub mod fmt;
+// pub mod fmt;
 pub mod interactive;
-pub mod mode;
-pub mod new;
-pub mod proj;
-pub mod save_ref;
+// pub mod mode;
+// pub mod new;
+// pub mod proj;
+// pub mod save_ref;
 pub mod target;
 // pub mod mailer;
 pub mod credentials;
@@ -179,8 +179,7 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
                 continue;
             } else if arg_n == "mode" {
                 // FOR_PR
-                todo!();
-                continue;
+                todo!("Mode argument is not currently supported!");
             }
 
             let arg_str: String;

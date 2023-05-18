@@ -21,9 +21,7 @@ class T_Generate(CLICommon):
 
     def test_error_on_no_args(self, cmd):
         out = cmd.gen_error()
-        print(out)
         exp = self.err_msgs.missing_required_arg(cmd.files)
-        print(exp)
         assert exp in out
 
     def test_generate_pattern(self, cmd):

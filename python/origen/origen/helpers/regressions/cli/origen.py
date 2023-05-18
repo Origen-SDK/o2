@@ -211,18 +211,20 @@ class GlobalCommands(CoreCommands):
     aux_cmds = _CommonNames.aux_cmds_cmd()
     pls = _CommonNames.pls_cmd()
     pl = _CommonNames.pl_cmd()
-    proj = Cmd(names.proj)
-    new = Cmd(names.new)
+    # proj = Cmd(names.proj)
+    # new = Cmd(names.new)
     creds = _CommonNames.creds_cmd()
     i = _CommonNames.interactive_cmd()
-    fmt = Cmd(names.fmt)
-    build = Cmd(names.build)
+    # fmt = Cmd(names.fmt)
+    # build = Cmd(names.build)
     v = _CommonNames.v_cmd()
 
     commands = [
-        proj, new, creds, eval, exec, i,
-        pls, pl, aux_cmds, fmt, build
-    ]
+        # proj, new, creds, eval, exec, i,
+        # pls, pl, aux_cmds, fmt, build
+        creds, eval, exec, i,
+        pls, pl, aux_cmds,
+   ]
     cmds = commands
 
     origen = Cmd("")
@@ -253,23 +255,23 @@ class InAppCommands(CoreCommands):
     class Names:
         app = "app"
         aux_cmds = _CommonNames.aux_cmds
-        build = _CommonNames.build
-        compile = "compile"
+        # build = _CommonNames.build
+        # compile = "compile"
         creds = _CommonNames.creds
         env = "env"
         eval = _CommonNames.eval
         exec = _CommonNames.exec
-        fmt = _CommonNames.fmt
+        # fmt = _CommonNames.fmt
         generate = "generate"
         i = _CommonNames.i
-        mailer = "mailer"
-        mode = "mode"
-        new = _CommonNames.new
+        # mailer = "mailer"
+        # mode = "mode"
+        # new = _CommonNames.new
         pl = _CommonNames.pl
         pls = _CommonNames.pls
-        save_ref = "save_ref"
+        # save_ref = "save_ref"
         target = "target"
-        web = "web"
+        # web = "web"
     names = Names()
 
     class _TargetCmd_:
@@ -332,8 +334,8 @@ class InAppCommands(CoreCommands):
         extendable=False,
     )
     aux_cmds = _CommonNames.aux_cmds_cmd()
-    build = Cmd(names.build)
-    compile = Cmd(names.compile)
+    # build = Cmd(names.build)
+    # compile = Cmd(names.compile)
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
     env = Cmd(
         names.env,
@@ -353,7 +355,7 @@ class InAppCommands(CoreCommands):
     )
     eval = _CommonNames.eval_cmd(add_opts=in_app_opts.all())
     exec = _CommonNames.exec_cmd()
-    fmt = Cmd(names.fmt)
+    # fmt = Cmd(names.fmt)
     generate = Cmd(
         names.generate,
         help="Generate patterns or test programs",
@@ -364,12 +366,12 @@ class InAppCommands(CoreCommands):
         v_opt_idx=6,
     )
     i = _CommonNames.interactive_cmd(add_opts=in_app_opts.all())
-    mailer = Cmd(names.mailer)
-    mode = Cmd(names.mode)
-    new = Cmd(names.new)
+    # mailer = Cmd(names.mailer)
+    # mode = Cmd(names.mode)
+    # new = Cmd(names.new)
     pl = _CommonNames.pl_cmd()
     pls = _CommonNames.pls_cmd()
-    save_ref = Cmd(names.save_ref)
+    # save_ref = Cmd(names.save_ref)
     target = Cmd(
         names.target,
         help="Set/view the default target",
@@ -416,11 +418,12 @@ class InAppCommands(CoreCommands):
         ],
         aliases=["w"],
     )
-    web = Cmd(names.web)
+    # web = Cmd(names.web)
     v = _CommonNames.v_cmd()
 
     commands = [
-        app, aux_cmds, build, compile, creds, env, eval, exec, fmt, generate, i, mailer, mode, new, pl, pls, save_ref, target, web
+        # app, aux_cmds, build, compile, creds, env, eval, exec, fmt, generate, i, mailer, mode, new, pl, pls, save_ref, target, web
+        app, aux_cmds, creds, env, eval, exec, generate, i, pl, pls, target
     ]
     cmds = commands
 
