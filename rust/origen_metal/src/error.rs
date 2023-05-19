@@ -28,12 +28,14 @@ impl BaseError for Error {
 
 // To add a conversion from other type of errors
 
+#[cfg(feature = "python")]
 impl std::convert::From<Error> for pyo3::PyErr {
     fn from(err: Error) -> pyo3::PyErr {
         pyo3::exceptions::PyRuntimeError::new_err(err.to_string())
     }
 }
 
+#[cfg(feature = "python")]
 impl std::convert::From<pyo3::PyErr> for Error {
     fn from(err: pyo3::PyErr) -> Self {
         let gil = pyo3::Python::acquire_gil();

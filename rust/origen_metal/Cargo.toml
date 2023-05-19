@@ -13,13 +13,18 @@ categories = ["embedded", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+# Enables the Python API, when not enabled (the default) origen_metal is a pure Rust library that
+# can only be used from Rust
+python = ["dep:pyo3"]
+
 [dependencies]
 lazy_static = "1"
 time = "0.1"
 termcolor = "1"
 regex = "1"
 tempfile = "3"
-pyo3 = {version = "0.16.5", features = ["extension-module"]}
+pyo3 = {version = "0.16.5", features = ["extension-module"], optional = true}
 serde = {version = "1.0", features = ["derive"]}
 toml = "0.5"
 git2 = "0.16.0"
