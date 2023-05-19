@@ -1,8 +1,8 @@
 // This file defines the public API for consuming and generating STIL
 
-mod nodes;
+pub mod nodes;
 mod parser;
-mod processors;
+pub mod processors;
 use crate::ast::Node;
 use crate::Result as OrigenResult;
 pub use nodes::STIL;
