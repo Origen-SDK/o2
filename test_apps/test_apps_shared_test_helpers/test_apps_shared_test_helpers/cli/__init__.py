@@ -10,6 +10,25 @@ from .cmd_models.plugins import Plugins
 
 from .asertions import AssertionHelpers
 
+develop_origen = "develop_origen"
+def develop_origen_cmd():
+    return Cmd(
+        develop_origen,
+        help="Commands to assist with Origen core development",
+        aliases=["origen"],
+        subcmds=[
+            Cmd("build"),
+        ]
+    )
+
+cli.GlobalCommands.Names.develop_origen = develop_origen
+cli.GlobalCommands.develop_origen = develop_origen_cmd()
+cli.GlobalCommands.commands.insert(2, cli.GlobalCommands.develop_origen)
+
+cli.InAppCommands.Names.develop_origen = develop_origen
+cli.InAppCommands.develop_origen = develop_origen_cmd()
+cli.InAppCommands.commands.insert(4, cli.InAppCommands.develop_origen)
+
 def apply_ext_output_args(mod):
     from origen.boot import before_cmd, after_cmd, clean_up
     from .ext_helpers import do_action

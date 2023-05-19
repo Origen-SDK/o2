@@ -429,6 +429,10 @@ fn main() -> Result<()> {
         commands::target::add_helps(&mut helps);
     }
 
+    if STATUS.is_origen_present {
+        commands::develop_origen::add_helps(&mut helps);
+    }
+
     helps.apply_exts(&extensions);
 
     /************************************************************************************/
@@ -447,28 +451,9 @@ fn main() -> Result<()> {
     /************************************************************************************/
     /******************** Origen dev commands *******************************************/
     /************************************************************************************/
-    // if STATUS.is_origen_present || STATUS.is_app_present {
-    //     let fmt_help = match STATUS.is_origen_present {
-    //         true => "Nicely format all Rust and Python files",
-    //         false => "Nicely format all of your application's Python files",
-    //     };
-
-    //     origen_commands.push(CommandHelp {
-    //         name: "fmt".to_string(),
-    //         help: fmt_help.to_string(),
-    //         shortcut: None,
-    //     });
-
-    //     app = app
-    //         //************************************************************************************/
-    //         .subcommand(Command::new("fmt").about(fmt_help));
-    // }
-
-    // if STATUS.is_origen_present || STATUS.is_app_in_origen_dev_mode {
-    //     let (app_, help) = commands::build::define(app);
-    //     app = app_;
-    //     origen_commands.push(help);
-    // }
+    if STATUS.is_origen_present {
+        app = commands::develop_origen::add_commands(app, &helps, &extensions)?;
+    }
 
     /************************************************************************************/
     /******************** In application commands ***************************************/
@@ -1035,12 +1020,11 @@ fn main() -> Result<()> {
 
     match matches.subcommand_name() {
         Some(commands::app::BASE_CMD) => commands::app::run(matches.subcommand_matches(commands::app::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &app_cmds.as_ref().unwrap())?,
-        // Some("fmt") => commands::fmt::run()?,
         // Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
-        // Some("build") => commands::build::run(matches.subcommand_matches("build").unwrap())?,
         // Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some(commands::env::BASE_CMD) => run_non_ext_cmd_match_case!(env),
         Some(commands::eval::BASE_CMD) => run_cmd_match_case!(eval),
+        Some(commands::develop_origen::BASE_CMD) => run_non_ext_cmd_match_case!(develop_origen),
         Some(commands::interactive::BASE_CMD) => run_cmd_match_case!(interactive),
         Some(commands::aux_cmds::BASE_CMD) => commands::aux_cmds::run(matches.subcommand_matches(commands::aux_cmds::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &aux_cmds)?,
         Some(commands::generate::BASE_CMD) => run_cmd_match_case!(generate),

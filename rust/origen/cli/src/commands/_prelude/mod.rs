@@ -6,8 +6,9 @@ pub use indexmap::IndexMap;
 pub use super::{launch, launch_simple, launch_as};
 pub use crate::framework::{
     Extensions, Plugins, add_verbosity_opts,
-    CmdHelps, CmdHelp, CmdSrc
+    CmdHelps, CmdHelp, CmdSrc,
 };
+pub use crate::framework::core_cmds::SubCmd;
 pub use crate::{output_dir_opt, ref_dir_opt};
 
 // FOR_PR remove this

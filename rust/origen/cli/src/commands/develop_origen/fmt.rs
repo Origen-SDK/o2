@@ -9,7 +9,18 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 
-pub fn run() -> Result<()> {
+use crate::commands::_prelude::*;
+pub const BASE_CMD: &'static str = "fmt";
+
+pub (crate) fn fmt_cmd<'a>() -> SubCmd<'a> {
+    core_subcmd__no_exts__no_app_opts!(
+        BASE_CMD,
+        "Nicely format all Rust and Python files",
+        { |cmd| { cmd } }
+    )
+}
+
+pub(crate) fn run() -> Result<()> {
     let orig_dir = env::current_dir().expect("Couldn't read the PWD");
 
     if STATUS.is_origen_present {

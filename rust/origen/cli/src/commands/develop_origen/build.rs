@@ -1,6 +1,4 @@
-use crate::CommandHelp;
 use clap::{App, Arg, ArgMatches};
-use clap::Command as ClapCommand;
 use origen::core::file_handler::File;
 use origen::utility::version::Version;
 use origen::{Result, STATUS};
@@ -10,31 +8,28 @@ use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
-use super::_prelude::clap_arg_actions::*;
 
-pub fn define<'a>(app: App<'a>) -> (App<'a>, CommandHelp) {
-    let help = match STATUS.is_origen_present {
-        true => "Build and publish Origen, builds the pyapi Rust package by default",
-        false => "Build Origen",
-    };
+use crate::commands::_prelude::*;
+pub const BASE_CMD: &'static str = "build";
 
-    let mut cmd = ClapCommand::new("build").about(help).arg(
-        Arg::new("cli")
-            .long("cli")
-            .required(false)
-            .action(SetArgTrue)
-            .display_order(1)
-            .help("Build the CLI (instead of the Python API)"),
-    );
-
-    if STATUS.is_origen_present {
-        cmd = cmd
+pub (crate) fn build_cmd<'a>() -> SubCmd<'a> {
+    core_subcmd__no_exts__no_app_opts!(
+        BASE_CMD,
+        "Build and publish Origen, builds the pyapi Rust package by default",
+        { |mut cmd: App| {
+            cmd.visible_alias("b")
+            .arg(
+                Arg::new("cli")
+                .long("cli")
+                .required(false)
+                .action(SetArgTrue)
+                .help("Build the CLI (instead of the Python API)"),
+            )
             .arg(
                 Arg::new("release")
                     .long("release")
                     .required(false)
                     .action(SetArgTrue)
-                    .display_order(1)
                     .help("Build a release version (applied by default with --publish and only applicable to Rust builds)"),
             )
             .arg(
@@ -42,7 +37,6 @@ pub fn define<'a>(app: App<'a>) -> (App<'a>, CommandHelp) {
                     .long("target")
                     .required(false)
                     .action(SetArg)
-                    .display_order(1)
                     .help("The Rust h/ware target (passed directly to Cargo build)"),
             )
             .arg(
@@ -50,7 +44,6 @@ pub fn define<'a>(app: App<'a>) -> (App<'a>, CommandHelp) {
                     .long("publish")
                     .required(false)
                     .action(SetArgTrue)
-                    .display_order(1)
                     .help("Publish packages (e.g. to PyPI) after building"),
             )
             .arg(
@@ -58,7 +51,6 @@ pub fn define<'a>(app: App<'a>) -> (App<'a>, CommandHelp) {
                     .long("dry-run")
                     .required(false)
                     .action(SetArgTrue)
-                    .display_order(1)
                     .help("Use with --publish to perform a full dry run of the publishable build without actually publishing it"),
             )
             .arg(
@@ -67,29 +59,20 @@ pub fn define<'a>(app: App<'a>) -> (App<'a>, CommandHelp) {
                     .required(false)
                     .action(SetArg)
                     .value_name("VERSION")
-                    .display_order(1)
                     .help("Set the version (of all components) to the given value"),
             )
             .arg(
                 Arg::new("metal")
                     .long("metal")
                     .action(SetArgTrue)
-                    .display_order(1)
                     .help("Build the metal_pyapi"),
-            );
-    }
-
-    let help = CommandHelp {
-        name: "build".to_string(),
-        help: help.to_string(),
-        shortcut: None,
-    };
-
-    (app.subcommand(cmd), help)
+            )
+        }}
+    )
 }
 
-pub fn run(matches: &ArgMatches) -> Result<()> {
-    if let Some(v) = matches.get_one::<&str>("version") {
+pub(crate) fn run(mut invocation: &clap::ArgMatches) -> Result<()> {
+    if let Some(v) = invocation.get_one::<&str>("version") {
         let mut version_bad = false;
         let version;
         match Version::new_semver(v) {
@@ -150,7 +133,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
 
     // Build the latest CLI, this can be requested from an Origen workspace or an app workspace that is
     // locally referencing an Origen workspace
-    if *matches.get_one("cli").unwrap() {
+    if *invocation.get_one("cli").unwrap() {
         cd(&STATUS
             .origen_wksp_root
             .join("rust")
@@ -158,7 +141,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             .join("cli"))?;
         display!("");
         let mut args = vec!["build"];
-        if *matches.get_one("release").unwrap() || *matches.get_one("publish").unwrap() {
+        if *invocation.get_one("release").unwrap() || *invocation.get_one("publish").unwrap() {
             args.push("--release");
         }
         Command::new("cargo")
@@ -168,13 +151,13 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
         display!("");
 
     // Build the metal_pyapi
-    } else if *matches.get_one("metal").unwrap() {
-        build_metal(matches)?;
+    } else if *invocation.get_one("metal").unwrap() {
+        build_metal(invocation)?;
     // Build the PyAPI by default
     } else {
         // A publish build will also build the origen_pyapi Python package and
         // publish it to PyPI, only available within an Origen workspace
-        if *matches.get_one("publish").unwrap() {
+        if *invocation.get_one("publish").unwrap() {
             let wheel_dir = &STATUS
                 .origen_wksp_root
                 .join("rust")
@@ -214,7 +197,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
                 change_pyapi_wheel_version(&wheel_dir, &old, &new);
             }
 
-            if *matches.get_one("publish").unwrap() && !matches.get_one::<bool>("dry_run").unwrap() {
+            if *invocation.get_one("publish").unwrap() && !invocation.get_one::<bool>("dry_run").unwrap() {
                 let pypi_token =
                     std::env::var("ORIGEN_PYPI_TOKEN").expect("ORIGEN_PYPI_TOKEN is not defined");
 
@@ -239,7 +222,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
         // A standard (non-published) build, this can be requested from an Origen workspace or an app workspace that
         // is locally referencing an Origen workspace
         } else {
-            build_metal(matches)?;
+            build_metal(invocation)?;
             let pyapi_dir = STATUS.origen_wksp_root.join("rust").join("pyapi");
             cd(&pyapi_dir)?;
             display!("");
@@ -248,11 +231,11 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
             let mut target = "debug";
             let mut arch_target = None;
 
-            if *matches.get_one("release").unwrap() {
+            if *invocation.get_one("release").unwrap() {
                 args.push("--release");
                 target = "release";
             }
-            if let Some(t) = matches.get_one::<&str>("target") {
+            if let Some(t) = invocation.get_one::<&str>("target") {
                 args.push("--target");
                 args.push(t);
                 arch_target = Some(t);
@@ -313,7 +296,7 @@ pub fn run(matches: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn build_metal(matches: &ArgMatches) -> Result<()> {
+fn build_metal(invocation: &ArgMatches) -> Result<()> {
     let pyapi_dir = &STATUS.origen_wksp_root.join("rust").join("pyapi_metal");
     cd(&pyapi_dir)?;
 
@@ -321,11 +304,11 @@ fn build_metal(matches: &ArgMatches) -> Result<()> {
     let mut target = "debug";
     let mut arch_target = None;
 
-    if *matches.get_one("release").unwrap() {
+    if *invocation.get_one("release").unwrap() {
         args.push("--release");
         target = "release";
     }
-    if let Some(t) = matches.get_one::<&str>("target") {
+    if let Some(t) = invocation.get_one::<&str>("target") {
         args.push("--target");
         args.push(t);
         arch_target = Some(t);

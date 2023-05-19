@@ -1,6 +1,5 @@
 // FOR_PR clean up, specifically launch stuff
 pub mod app;
-// pub mod build;
 pub mod env;
 pub mod exec;
 // pub mod fmt;
@@ -12,6 +11,7 @@ pub mod interactive;
 pub mod target;
 // pub mod mailer;
 pub mod credentials;
+pub mod develop_origen;
 pub mod generate;
 pub mod eval;
 pub mod aux_cmds;

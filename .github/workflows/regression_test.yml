@@ -58,7 +58,7 @@ jobs:
         run: origen -v
 
       - name: Build PyAPI
-        run: origen build
+        run: origen origen build
 
       - name: Setup App Env
         working-directory: test_apps/python_app
@@ -119,7 +119,7 @@ jobs:
         run: cargo test --workspace
 
       - name: Build PyAPI - Metal
-        run: origen build --metal
+        run: origen origen build --metal
 
       - name: Install Poetry
         uses: abatilo/actions-poetry@v2.0.0

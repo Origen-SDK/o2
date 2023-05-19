@@ -334,8 +334,6 @@ class InAppCommands(CoreCommands):
         extendable=False,
     )
     aux_cmds = _CommonNames.aux_cmds_cmd()
-    # build = Cmd(names.build)
-    # compile = Cmd(names.compile)
     creds = _CommonNames.creds_cmd(add_opts=in_app_opts.all())
     env = Cmd(
         names.env,
