@@ -81,7 +81,7 @@ fn view_targets(fp: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn run(mut invocation: &clap::ArgMatches) -> origen::Result<()> {
+pub(crate) fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
     if let Some((n, subcmd)) = invocation.subcommand() {
         match n {
             "add" => {

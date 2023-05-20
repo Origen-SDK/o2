@@ -98,10 +98,6 @@ impl Extensions {
         self.extensions.get(&ExtensionTarget::Core(cmd_path.to_string()))
     }
 
-    pub fn get_core_subc_ext(&self, cmd_path: &[&str]) -> Option<&Vec<Extension>> {
-        self.extensions.get(&ExtensionTarget::Core(cmd_path.join(".")))
-    }
-
     pub fn get_app_ext(&self, cmd_path: &str) -> Option<&Vec<Extension>> {
         self.extensions.get(&ExtensionTarget::App(cmd_path.to_string()))
     }

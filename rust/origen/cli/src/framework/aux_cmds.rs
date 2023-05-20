@@ -17,7 +17,8 @@ pub (crate) fn add_aux_ns_helps(helps: &mut CmdHelps, aux_cmds: &AuxCmds) {
     }
 }
 
-pub (crate) fn add_aux_ns_subcmds<'a>(app: &App<'a>, mut aux_sub: App<'a>, helps: &'a CmdHelps, aux_commands: &'a AuxCmds, exts: &'a Extensions) -> Result<App<'a>> {
+#[inline]
+pub (crate) fn aux_ns_subcmd<'a>(mut aux_sub: App<'a>, helps: &'a CmdHelps, aux_commands: &'a AuxCmds, exts: &'a Extensions) -> Result<App<'a>> {
     for (ns, cmds) in aux_commands.namespaces.iter() {
         let mut aux_sub_sub = ClapCommand::new(ns).arg_required_else_help(true).after_help(NOT_EXTENDABLE_MSG);
         if let Some(h) = cmds.help.as_ref() {

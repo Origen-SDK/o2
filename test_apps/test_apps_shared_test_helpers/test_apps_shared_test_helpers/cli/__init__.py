@@ -18,6 +18,7 @@ def develop_origen_cmd():
         aliases=["origen"],
         subcmds=[
             Cmd("build"),
+            Cmd("fmt"),
         ]
     )
 

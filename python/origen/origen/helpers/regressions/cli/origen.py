@@ -300,35 +300,35 @@ class InAppCommands(CoreCommands):
         names.app,
         help="Manage and interface with the application",
         subcmds=[
-            Cmd(
-                "checkin",
-                help="Check in the given pathspecs",
-            ),
+            # Cmd(
+            #     "checkin",
+            #     help="Check in the given pathspecs",
+            # ),
             Cmd(
                 "commands",
                 help="Interface with commands added by the application",
                 aliases=["cmds"],
             ),
-            Cmd(
-                "init",
-                help="Initialize the application's revision control",
-            ),
-            Cmd(
-                "package",
-                help="Build the app into publishable package (e.g., a 'python wheel')",
-            ),
-            Cmd(
-                "publish",
-                help="Publish (release) the app",
-            ),
-            Cmd(
-                "run_publish_checks",
-                help="Run production-ready and publish-ready checks",
-            ),
-            Cmd(
-                "status",
-                help="Show any local changes",
-            ),
+            # Cmd(
+            #     "init",
+            #     help="Initialize the application's revision control",
+            # ),
+            # Cmd(
+            #     "package",
+            #     help="Build the app into publishable package (e.g., a 'python wheel')",
+            # ),
+            # Cmd(
+            #     "publish",
+            #     help="Publish (release) the app",
+            # ),
+            # Cmd(
+            #     "run_publish_checks",
+            #     help="Run production-ready and publish-ready checks",
+            # ),
+            # Cmd(
+            #     "status",
+            #     help="Show any local changes",
+            # ),
         ],
         help_subc_idx=2,
         extendable=False,

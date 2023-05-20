@@ -23,7 +23,7 @@ use crate::python;
 use crate::{vks_to_cmd, strs_to_cli_arr};
 
 use indexmap::map::IndexMap;
-use origen::{clean_mode, LOGGER, STATUS};
+use origen::{LOGGER, STATUS}; // clean_mode # TODO
 use std::process::exit;
 use _prelude::{SetArgTrue, CountArgs};
 
@@ -50,20 +50,16 @@ macro_rules! print_subcmds_available_msg {
 macro_rules! gen_simple_run_func {
     ($base_cmd: expr) => {
         pub(crate) fn run(mut invocation: &clap::ArgMatches, mut cmd_def: &clap::App, exts: &crate::Extensions, plugins: Option<&crate::Plugins>) -> origen::Result<()> {
-            // let mut matches = cmd;
             let mut path_pieces: Vec<String> = vec!();
-            // let mut overrides = IndexMap::new();
-            // let base_cmd = cmd.name;
             cmd_def = cmd_def.find_subcommand($base_cmd).unwrap();
             if invocation.subcommand_name().is_some() {
                 while invocation.subcommand_name().is_some() {
                     let n = invocation.subcommand_name().unwrap();
                     invocation = invocation.subcommand_matches(&n).unwrap();
                     cmd_def = cmd_def.find_subcommand(n).unwrap();
-                    // path_pieces.push(format!("r'{}'", n));
                     path_pieces.push(n.to_string());
                 }
-                crate::commands::launch3(
+                crate::commands::launch(
                     Some($base_cmd),
                     Some(&path_pieces),
                     invocation,
@@ -71,25 +67,15 @@ macro_rules! gen_simple_run_func {
                     exts.get_core_ext(&format!("{}.{}", $base_cmd, path_pieces.join("."))),
                     plugins,
                     None,
-                    None,
                 );
             } else {
-                crate::commands::launch2(
-                    // CMD_NAME,
+                crate::commands::launch_from_invocation(
                     invocation,
                     cmd_def,
                     exts.get_core_ext($base_cmd),
                     plugins,
                 );
             }
-
-            // crate::commands::launch2(
-            //     // CMD_NAME,
-            //     cmd,
-            //     app.find_subcommand($cmd_name).unwrap(),
-            //     exts.get_core_ext($cmd_name),
-            //     plugins,
-            // );
             Ok(())
         }
     };
@@ -97,17 +83,6 @@ macro_rules! gen_simple_run_func {
         crate::gen_simple_run_func!(BASE_CMD);
     }
 }
-
-// #[macro_export]
-// macro_rules! gen_run_func {
-//     ?
-// }
-
-pub fn launch_simple(command: &str, args: Option<IndexMap<&str, String>>) {
-    launch(command, None, &None, None, None, None, false, args)
-}
-
-// pub fn launch_cmd()
 
 pub fn launch_as(
     cmd: &str,
@@ -117,22 +92,15 @@ pub fn launch_as(
     cmd_exts: Option<&Vec<Extension>>,
     plugins: Option<&Plugins>,
     overrides: Option<IndexMap<String, Option<String>>>,
-    arg_overrides: Option<IndexMap<String, Option<String>>>,
 ) -> ()
 {
-    launch3(Some(cmd), subcmds, invocation, cmd_def, cmd_exts, plugins, overrides, arg_overrides)
+    launch(Some(cmd), subcmds, invocation, cmd_def, cmd_exts, plugins, overrides)
 }
-pub fn launch2(invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Extension>>, plugins: Option<&Plugins>) {
-    // TODO arg overrides
-    launch3(None, None, invocation, cmd_def, cmd_exts, plugins, None, None)
+pub fn launch_from_invocation(invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Extension>>, plugins: Option<&Plugins>) {
+    launch(None, None, invocation, cmd_def, cmd_exts, plugins, None)
 }
 
-// pub fn launch4(invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Extension>>, plugins: Option<&Plugins>, callback: Option<F>) {
-//     // TODO arg overrides
-//     launch3(None, invocation, cmd_def, cmd_exts, plugins, None, None)
-// }
-
-pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Extension>>, plugins: Option<&Plugins>, overrides: Option<IndexMap<String, Option<String>>>, arg_overrides: Option<IndexMap<String, Option<String>>>) {
+pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation: &ArgMatches, cmd_def: &App, cmd_exts: Option<&Vec<Extension>>, plugins: Option<&Plugins>, overrides: Option<IndexMap<String, Option<String>>>) {
     macro_rules! as_name {
         ($arg_name:expr) => {{
             if $arg_name.starts_with(crate::framework::extensions::EXT_BASE_NAME) {
@@ -311,79 +279,6 @@ pub fn launch3(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation
             cmd += &format!(", {}", strs_to_cli_arr!("targets", targs));
         }
     }
-    cmd += &format!(", verbosity={}", LOGGER.verbosity());
-    cmd += &format!(", {}", vks_to_cmd!());
-    cmd += ");";
-
-    log_debug!("Launching Python: '{}'", &cmd);
-
-    match python::run(&cmd) {
-        Err(e) => {
-            log_error!("{}", &e);
-            exit(1);
-        }
-        Ok(exit_status) => {
-            if exit_status.success() {
-                exit(0);
-            } else {
-                exit(exit_status.code().unwrap_or(1));
-            }
-        }
-    }
-}
-
-/// Launch the given command in Python
-pub fn launch(
-    command: &str,
-    targets: Option<Vec<&str>>,
-    mode: &Option<&str>,
-    files: Option<Vec<&str>>,
-    output_dir: Option<&str>,
-    reference_dir: Option<&str>,
-    debug: bool,
-    cmd_args: Option<IndexMap<&str, String>>,
-) {
-    let mut cmd = format!("from origen.boot import run_cmd; run_cmd('{}'", command);
-
-    if let Some(t) = targets {
-        // added r prefix to the string to force python to interpret as a string literal
-        let _t: Vec<String> = t.iter().map(|__t| format!("r'{}'", __t)).collect();
-        cmd += &format!(", targets=[{}]", &_t.join(",")).to_string();
-    }
-
-    if mode.is_some() {
-        let c = clean_mode(mode.unwrap());
-        cmd += &format!(", mode='{}'", c).to_string();
-    }
-
-    if files.is_some() {
-        // added r prefix to the string to force python to interpret as a string literal
-        let f: Vec<String> = files.unwrap().iter().map(|f| format!("r'{}'", f)).collect();
-        cmd += &format!(", files=[{}]", f.join(",")).to_string();
-    }
-
-    if let Some(args) = cmd_args {
-        cmd += ", args={";
-        cmd += &args
-            .iter()
-            .map(|(arg, val)| format!("'{}': {}", arg, val))
-            .collect::<Vec<String>>()
-            .join(",");
-        cmd += "}";
-    }
-
-    if let Some(dir) = output_dir {
-        cmd += &format!(", output_dir='{}'", dir);
-    }
-
-    if let Some(dir) = reference_dir {
-        cmd += &format!(", reference_dir='{}'", dir);
-    }
-
-    if debug {
-        cmd += ", debug=True";
-    }
-
     cmd += &format!(", verbosity={}", LOGGER.verbosity());
     cmd += &format!(", {}", vks_to_cmd!());
     cmd += ");";

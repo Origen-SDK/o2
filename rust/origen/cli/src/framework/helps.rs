@@ -148,11 +148,6 @@ impl CmdHelp {
         self
     }
 
-    pub fn set_optional_help_msg(&mut self, help_msg: Option<String>) -> &mut Self {
-        self.help = help_msg;
-        self
-    }
-
     pub fn set_as_not_extendable(&mut self) -> &mut Self {
         self.extendable = false;
         if let Some(h) = self.after_help.as_mut() {
@@ -188,13 +183,6 @@ impl CmdSrc {
             }
             _ => bail!("Unknown target scope '{}'. Expected 'origen', 'app', 'aux', or 'plugin'", scope)
         })
-    }
-
-    pub fn is_app_cmd(&self) -> bool {
-        match self {
-            Self::App(_) => true,
-            _ => false,
-        }
     }
 }
 

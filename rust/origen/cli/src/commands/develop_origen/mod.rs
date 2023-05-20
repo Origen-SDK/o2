@@ -15,7 +15,7 @@ gen_core_cmd_funcs__no_exts__no_app_opts!(
     fmt::fmt_cmd()
 );
 
-pub(crate) fn run(mut invocation: &clap::ArgMatches) -> Result<()> {
+pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     let (n, subcmd) = invocation.subcommand().unwrap();
     match n {
         build::BASE_CMD => build::run(subcmd),

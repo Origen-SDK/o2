@@ -3,7 +3,7 @@ pub mod clap_arg_actions;
 pub use clap::{App, AppSettings, Arg, Command};
 pub use origen::Result;
 pub use indexmap::IndexMap;
-pub use super::{launch, launch_simple, launch_as};
+pub use super::launch_as;
 pub use crate::framework::{
     Extensions, Plugins, add_verbosity_opts,
     CmdHelps, CmdHelp, CmdSrc,

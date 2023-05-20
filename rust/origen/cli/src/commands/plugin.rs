@@ -8,7 +8,7 @@ pub (crate) fn add_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) {
     add_pl_ns_helps(helps, plugins);
 }
 
-pub (crate) fn add_commands<'a>(mut app: App<'a>, helps: &'a CmdHelps, plugins: Option<&'a Plugins>, exts: &'a Extensions) -> Result<App<'a>> {
+pub (crate) fn add_commands<'a>(app: App<'a>, helps: &'a CmdHelps, plugins: Option<&'a Plugins>, exts: &'a Extensions) -> Result<App<'a>> {
     let mut pl_sub = Command::new(BASE_CMD).visible_alias("pl").arg_required_else_help(true);
     pl_sub = helps.apply_core_cmd_helps(BASE_CMD, pl_sub);
     if let Some(pls) = plugins {

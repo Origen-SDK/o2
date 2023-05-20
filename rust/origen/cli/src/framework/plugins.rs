@@ -5,9 +5,7 @@ use indexmap::IndexMap;
 use std::fs;
 use crate::commands::_prelude::*;
 use super::{ClapCommand, Command, CommandsToml, CommandTOML, Extensions, build_path};
-use crate::commands::launch_as;
 use super::helps::NOT_EXTENDABLE_MSG;
-
 
 pub (crate) fn add_pl_ns_helps(helps: &mut CmdHelps, plugins: Option<&Plugins>) {
     if let Some(pls) = plugins {
@@ -183,7 +181,7 @@ impl Plugin {
                     overrides.insert("dispatch_src".to_string(), Some(format!("r'{}'", &self.name)));
                     overrides
                 }
-            ), None);
+            ));
 
             Ok(())
         } else {

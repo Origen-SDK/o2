@@ -5,7 +5,7 @@ use std::borrow::Cow;
 pub const BASE_CMD: &'static str = "exec";
 pub const EXEC_HELP: &'static str = "Execute a command within your Origen/Python environment (e.g. origen exec pytest)";
 
-pub(crate) fn run_pre_phase(mut invocation: &clap::ArgMatches) -> Result<i32> {
+pub(crate) fn run_pre_phase(invocation: &clap::ArgMatches) -> Result<i32> {
     let mut cmd = PYTHON_CONFIG.poetry_command();
     cmd.arg("run");
     let cmd_name = invocation.get_one::<String>("cmd").unwrap();
@@ -21,11 +21,11 @@ pub(crate) fn run_pre_phase(mut invocation: &clap::ArgMatches) -> Result<i32> {
     Ok(if res.success() { 0 } else { 1 })
 }
 
-pub fn add_prephase_cmds<'a>(mut cmd: App<'a>) -> App<'a> {
+pub fn add_prephase_cmds<'a>(cmd: App<'a>) -> App<'a> {
     cmd.subcommand(add_verbosity_opts(config_exec_cmd(Command::new(BASE_CMD)), false))
 }
 
-pub fn config_exec_cmd<'a>(mut cmd: App<'a>) -> App<'a> {
+pub fn config_exec_cmd<'a>(cmd: App<'a>) -> App<'a> {
     cmd
         .arg(
             Arg::new("cmd")

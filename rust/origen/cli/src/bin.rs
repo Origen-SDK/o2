@@ -102,7 +102,7 @@ fn main() -> Result<()> {
                 },
                 // "External subcommand" received, which in this case is either a non-pre-prephase or invalid command.
                 // Either way, let the main flow handle it.
-                Some((ext, ext_args)) => {
+                Some((_ext, ext_args)) => {
                     // Args under "" are external subcommand args
                     match ext_args.get_many::<String>("") {
                         Some(args) => {
@@ -121,7 +121,7 @@ fn main() -> Result<()> {
                                         };
 
                                         match dm.subcommand() {
-                                            Some((ext, dm_args)) => {
+                                            Some((_ext, dm_args)) => {
                                                 match dm_args.get_many::<String>("") {
                                                     Some(dm_args) => {
                                                         reduced = dm_args.map(|a| a.to_owned()).collect::<Vec<String>>();
@@ -170,7 +170,7 @@ fn main() -> Result<()> {
             }
             origen_init!();
         },
-        Err(e) => {
+        Err(_e) => {
             // Any mis-use of pre-phase commands or unknown args/subcommands will be handled by the full app.
             // Fallback to manually discerning the verbosity/keywords for the main phase
             let mut dummy = pre_phase_app!().no_binary_name(true);
@@ -188,7 +188,7 @@ fn main() -> Result<()> {
                         };
 
                         match dm.subcommand() {
-                            Some((ext, dm_args)) => {
+                            Some((_ext, dm_args)) => {
                                 match dm_args.get_many::<String>("") {
                                     Some(dm_args) => {
                                         reduced = dm_args.map(|a| a.to_owned()).collect::<Vec<String>>();

@@ -390,7 +390,7 @@ macro_rules! cache {
 
 impl CmdOptCache {
     pub fn new(cmd_path: String) -> Self {
-        let mut slf = Self {
+        let slf = Self {
             opt_names: Vec::new(),
             lns: HashMap::new(),
             ilns: HashMap::new(),
@@ -969,7 +969,7 @@ static VERBOSITY_KEYWORD_HELP_STR: &str = "Keywords for verbose listeners";
 
 pub const VOV_OPT_NAME: &str = "version_or_verbosity";
 
-pub fn add_verbosity_opts<'a>(mut cmd: ClapCommand<'a>, split_v: bool) -> ClapCommand<'a> {
+pub fn add_verbosity_opts<'a>(cmd: ClapCommand<'a>, split_v: bool) -> ClapCommand<'a> {
     if split_v {
         cmd.arg(
             ClapArg::new(VERBOSITY_OPT_NAME)

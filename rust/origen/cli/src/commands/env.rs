@@ -31,7 +31,7 @@ gen_core_cmd_funcs__no_exts__no_app_opts!(
     core_subcmd__no_exts__no_app_opts!("update", "Update your application's Python dependencies according to the latest pyproject.toml file", { |cmd: App| {cmd}})
 );
 
-pub fn run(mut invocation: &clap::ArgMatches) -> origen::Result<()> {
+pub fn run(invocation: &clap::ArgMatches) -> origen::Result<()> {
     match invocation.subcommand_name() {
         Some("update") => {
             install_poetry();

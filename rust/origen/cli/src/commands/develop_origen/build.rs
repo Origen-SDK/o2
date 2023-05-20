@@ -16,7 +16,7 @@ pub (crate) fn build_cmd<'a>() -> SubCmd<'a> {
     core_subcmd__no_exts__no_app_opts!(
         BASE_CMD,
         "Build and publish Origen, builds the pyapi Rust package by default",
-        { |mut cmd: App| {
+        { |cmd: App| {
             cmd.visible_alias("b")
             .arg(
                 Arg::new("cli")
@@ -71,7 +71,7 @@ pub (crate) fn build_cmd<'a>() -> SubCmd<'a> {
     )
 }
 
-pub(crate) fn run(mut invocation: &clap::ArgMatches) -> Result<()> {
+pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     if let Some(v) = invocation.get_one::<&str>("version") {
         let mut version_bad = false;
         let version;
