@@ -90,7 +90,6 @@ pub struct AuxCmdNamespace {
     commands: IndexMap<String, Command>,
     pub top_commands: Vec<String>,
     index: usize,
-    // path: PathBuf,
     help: Option<String>,
 }
 

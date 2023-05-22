@@ -124,14 +124,6 @@ on_env=["ORIGEN_EXT_CONFLICTS_PL_TEST_ARGS"]
         name = "ext_self_conflict_2"
         help = "Ilna conflicts within the extension"
         long_aliases = ["ext_self_conflict", "ext_self_conflict_2", "ext_self_conflict_2_1"]
-    # [[extension.opt]]
-    # FOR_PR
-    #     name = "ext_self_conflict_3"
-    #     help = "Sn and ln conflicts within the extension"
-    #     short = "e"
-    #     long = "ext_self_conflict_3_ln"
-    #     short_aliases = ["e"]
-    #     long_aliases = ["ext_self_conflict_3_ln"]
     [[extension.opt]]
         name = "ext_opt_in_ln"
         help = "Reserved prefix in ln"

@@ -1,14 +1,6 @@
-# FOR_PR need to clean up print statemnents
 import pathlib
 from builtins import exit as exit_proc
-
-# TEST_NEEDED
-# Or needed at all?
-def unsupported_command(base_cmd, sub_command=None):
-    if sub_command is None:
-        raise RuntimeError(f"Unsupported command '{base_cmd}'")
-    else:
-        raise RuntimeError(f"Unsupported sub-command '{sub_command}' for '{base_cmd}'")
+from .core.commands import run_core_cmd
 
 dispatch_plugin_cmd = "_plugin_dispatch_"
 dispatch_aux_cmd = "_dispatch_aux_cmd_"
@@ -111,16 +103,6 @@ def run_cmd(command,
             origen.logger.error(f"Could not find 'run' function in module '{m.__file__}'")
             exit_proc(1)
 
-    def is_subcmd(*subcs):
-        return list(subcs) == subcmds
-
-    def unsupported_subcmd(subcmd=None):
-        if subcmd is None:
-            print(f"Unsupported sub-command '{subcmds.join(' -> ')}' for base command '{command}'")
-        else:
-            print(f"Unsupported sub-command '{subcmd}' for '{command}'")
-        exit_proc(1)
-
     if mode == None:
         if _origen.is_app_present():
             origen.set_mode(_origen.app_config()["mode"])
@@ -192,8 +174,6 @@ def run_cmd(command,
         dispatch['run_func'] = func
         return func
     setattr(origen.boot, "run", run)
-
-    # FOR_PR need to test with app subcmds
 
     for ext in extensions:
         current_ext = ext
@@ -271,39 +251,6 @@ def run_cmd(command,
             interactive.prep_shell(origen.__console_history_file__)
             interactive.interact(banner=f"Origen {origen.version}",
                                 context=origen.__interactive_context__())
-
-        elif command == "credentials":
-            _origen.set_operation("credentials")
-            datasets = args.get("datasets", None)
-            all = args.get("all", False)
-            if is_subcmd("set"):
-                if all:
-                    origen.logger.display("Setting passwords for all available datasets...")
-                    for d in origen.current_user.datasets.values():
-                        d.password = None
-                        d.password()
-                    origen.logger.display("Done!")
-                elif datasets is None:
-                    origen.current_user.password = None
-                    origen.current_user.password
-                else:
-                    for d in datasets:
-                        d.password = None
-                        d.password()
-            elif is_subcmd("clear"):
-                if all:
-                    origen.logger.display("Clearing all cached passwords...")
-                    origen.current_user.clear_cached_passwords()
-                elif datasets is None:
-                    origen.logger.display("Clearing cached password for topmost dataset...")
-                    origen.current_user.clear_cached_password()
-                else:
-                    for d in datasets:
-                        origen.logger.display(f"Clearing cached password for dataset '{d}'")
-                        origen.current_user.datasets[d].clear_cached_password()
-                origen.logger.display("Done!")
-            else:
-                unsupported_subcmd()
 
         elif command == "eval":
             for c in args['code']:
@@ -478,8 +425,11 @@ def run_cmd(command,
         elif command == dispatch_aux_cmd:
             call_user_cmd("aux")
 
+        elif run_core_cmd(command, subcmds, args):
+            pass
+
         else:
-            unsupported_command(command)
+            raise RuntimeError(f"Unsupported command '{command}'")
 
         run_ext("after_cmd")
     finally:

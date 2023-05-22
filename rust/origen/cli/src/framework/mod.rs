@@ -1,4 +1,3 @@
-// FOR_PR clean up this and entire directory
 pub mod helps;
 pub mod extensions;
 pub mod plugins;
@@ -106,7 +105,7 @@ macro_rules! from_toml_opts {
                         }
                         current_names.push(None);
                         None
-                    } else if crate::uses_reserved_prefix!(o.name) { // o.name.starts_with(crate::framework::extensions::EXT_BASE_NAME) {
+                    } else if crate::uses_reserved_prefix!(o.name) {
                         if $ext.is_some() {
                             crate::log_err_processing_cmd!(
                                 $cmd_path,
@@ -942,7 +941,6 @@ pub const VERBOSITY_KEYWORDS_OPT_NAME: &str = "verbosity_keywords";
 pub const VERBOSITY_KEYWORDS_OPT_LONG_NAME: &str = "vk";
 pub const VERBOSITY_OPT_NAME: &str = "verbose";
 pub const VERBOSITY_OPT_SHORT_NAME: char = 'v';
-// pub const VERBOSITY_OPT_LONG_NAME: &str = "verbose";
 pub const VERBOSITY_OPT_LNA: &str = "verbosity";
 pub const TARGET_OPT_NAME: &str = "targets";
 pub const TARGET_OPT_ALIAS: &str = "target";

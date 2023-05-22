@@ -8,7 +8,6 @@ use origen::core::application::Application;
 
 use super::{Command, CommandsToml, CommandTOML, Extensions};
 
-// pub const CMD_NAME: &'static str = "commands";
 pub const APP_COMMANDS: [&'static str; 2] = [crate::commands::app::BASE_CMD, "commands"];
 
 pub struct AppCmds {

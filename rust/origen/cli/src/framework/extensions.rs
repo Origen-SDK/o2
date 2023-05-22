@@ -17,13 +17,9 @@ macro_rules! ext_opt {
 pub const EXT_BASE_NAME: &'static str = ext_opt!();
 pub const EXT_BASE_PREFIX: &'static str = concat!(ext_opt!(), ".");
 
-// TODO refactor this
-use super::helps::CmdSrc as ExtensionTarget;
-
-
 #[derive(Debug)]
 pub struct Extensions {
-    extensions: HashMap<ExtensionTarget, Vec<Extension>>,
+    extensions: HashMap<CmdSrc, Vec<Extension>>,
 }
 
 impl Extensions {
@@ -33,7 +29,7 @@ impl Extensions {
         }
     }
 
-    pub fn exts(&self) -> &HashMap<ExtensionTarget, Vec<Extension>> {
+    pub fn exts(&self) -> &HashMap<CmdSrc, Vec<Extension>> {
         &self.extensions
     }
 
@@ -63,51 +59,49 @@ impl Extensions {
     }
 
     pub fn apply_to_core_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>) -> ClapCommand<'a> {
-        let e = ExtensionTarget::Core(cmd.to_string());
+        let e = CmdSrc::Core(cmd.to_string());
         let mut cache = CmdOptCache::unchecked_populated(&app, e.to_string());
         self.apply_to(&e, app, &mut cache)
     }
 
     pub fn apply_to_app_cmd<'a>(&'a self, cmd: &str, app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
-        self.apply_to(&ExtensionTarget::App(cmd.to_string()), app, cache)
+        self.apply_to(&CmdSrc::App(cmd.to_string()), app, cache)
     }
 
     pub fn apply_to_pl_cmd<'a>(&'a self, pl: &str, cmd: &str, app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
-        self.apply_to(&ExtensionTarget::Plugin(pl.to_string(), cmd.to_string()), app, cache)
+        self.apply_to(&CmdSrc::Plugin(pl.to_string(), cmd.to_string()), app, cache)
     }
 
     pub fn apply_to_aux_cmd<'a>(&'a self, ns: &str, cmd: &str, app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
-        self.apply_to(&ExtensionTarget::Aux(ns.to_string(), cmd.to_string()), app, cache)
+        self.apply_to(&CmdSrc::Aux(ns.to_string(), cmd.to_string()), app, cache)
     }
 
-    pub fn apply_to<'a>(&'a self, cmd: &ExtensionTarget, mut app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
+    // Apply any extensions, returning an unaltered command if no extensions are available for this command.
+    pub fn apply_to<'a>(&'a self, cmd: &CmdSrc, mut app: ClapCommand<'a>, cache: &mut CmdOptCache) -> ClapCommand<'a> {
         if let Some(exts) = self.extensions.get(cmd) {
             for ext in exts {
                 if let Some(opts) = ext.opts.as_ref() {
                     app = super::apply_opts(opts, app, cache, Some(ext));
                 }
             }
-        } else {
-            // println!("No extension found for {:?}", cmd);
-            // FOR_PR
         }
         app
     }
 
     pub fn get_core_ext(&self, cmd_path: &str) -> Option<&Vec<Extension>> {
-        self.extensions.get(&ExtensionTarget::Core(cmd_path.to_string()))
+        self.extensions.get(&CmdSrc::Core(cmd_path.to_string()))
     }
 
     pub fn get_app_ext(&self, cmd_path: &str) -> Option<&Vec<Extension>> {
-        self.extensions.get(&ExtensionTarget::App(cmd_path.to_string()))
+        self.extensions.get(&CmdSrc::App(cmd_path.to_string()))
     }
 
     pub fn get_pl_ext(&self, pl: &str, cmd_path: &str) -> Option<&Vec<Extension>> {
-        self.extensions.get(&ExtensionTarget::Plugin(pl.to_string(), cmd_path.to_string()))
+        self.extensions.get(&CmdSrc::Plugin(pl.to_string(), cmd_path.to_string()))
     }
 
     pub fn get_aux_ext(&self, ns: &str, cmd_path: &str) -> Option<&Vec<Extension>> {
-        self.extensions.get(&ExtensionTarget::Aux(ns.to_string(), cmd_path.to_string()))
+        self.extensions.get(&CmdSrc::Aux(ns.to_string(), cmd_path.to_string()))
     }
 }
 
