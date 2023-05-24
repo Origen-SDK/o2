@@ -54,6 +54,7 @@ lettre = {version = "^0.10", features = ["builder"]}
 aes-gcm = "0.8"
 semver = "1.0.1"
 glob = "0.3.0"
+anyhow = "^1"
 
 [build-dependencies]
 built = "0.5.1"
