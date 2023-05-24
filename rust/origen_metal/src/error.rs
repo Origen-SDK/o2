@@ -183,11 +183,11 @@ impl std::convert::From<keyring::Error> for Error {
     }
 }
 
-//impl std::convert::From<anyhow::Error> for Error {
-//    fn from(err: anyhow::Error) -> Self {
-//        Error::new(&err.to_string())
-//    }
-//}
+impl std::convert::From<anyhow::Error> for Error {
+    fn from(err: anyhow::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
 
 // On failure, the original OS string is returned
 // https://doc.rust-lang.org/std/ffi/struct.OsString.html#method.into_string
