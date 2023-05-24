@@ -64,8 +64,6 @@ on_env=["ORIGEN_EXT_CONFLICTS_CORE_CMD_CREDS_CLEAR"]
 
 # FOR_PR conflict with v, vk
 
-# FOR_PR conflict with subcommand
-
 [[extension]]
 extend = "plugin.python_plugin.plugin_test_args"
 help = "Conflict with plugin from aux ext"

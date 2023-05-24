@@ -782,6 +782,7 @@ where
             );
             cmd = cmd.subcommand(subcmd);
         }
+        cmd = cmd.subcommand_negates_reqs(true);
     }
     cmd = exts(&cmd_def.full_name, cmd, &mut cache);
     cmd = apply_helps(&cmd_def.full_name, cmd);
@@ -811,6 +812,7 @@ pub (crate) fn apply_args<'a>(args: &'a Vec<Arg>, mut cmd: App<'a>) -> App<'a> {
 
         if let Some(r) = arg_def.required {
             arg = arg.required(r);
+            // arg = arg.setting(clap::builder::ArgSettings::Required);
         }
 
         // FOR_PR is hidden arg a thing?

@@ -1,4 +1,3 @@
-// FOR_PR clean up, specifically launch stuff
 pub mod app;
 pub mod env;
 pub mod exec;

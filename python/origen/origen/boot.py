@@ -50,6 +50,7 @@ def run_cmd(command,
         cmd_src = "app"
     else:
         cmd_src = "core"
+    dispatch = {}
 
     def wrap_mod_from_file(path):
         try:
@@ -97,7 +98,9 @@ def run_cmd(command,
                     origen.log.error(f"  {msg}")
             exit_proc(1)
 
-        if hasattr(m, 'run'):
+        if "run_func" in dispatch:
+            dispatch["run_func"](**(args or {}))
+        elif hasattr(m, 'run'):
             m.run(**(args or {}))
         else:
             origen.logger.error(f"Could not find 'run' function in module '{m.__file__}'")
@@ -169,7 +172,6 @@ def run_cmd(command,
         return func
     setattr(origen.boot, "on_load", on_load)
 
-    dispatch = {}
     def run(func):
         dispatch['run_func'] = func
         return func

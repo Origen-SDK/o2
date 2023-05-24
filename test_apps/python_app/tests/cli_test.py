@@ -1,4 +1,3 @@
-# FOR_PR convert assert args
 import pytest, pathlib
 import subprocess
 import os
@@ -59,16 +58,6 @@ def test_bad_command():
                                universal_newlines=True)
     assert process.wait() == 2
     assert "error:" in process.stderr.readline()
-
-
-def test_origen_g():
-    os.chdir(origen.root)
-    process = subprocess.Popen([
-        f'{origen_cli}', 'g', r'./example/patterns/toggle.py', '-t',
-        r'./targets/eagle_with_smt7.py'
-    ],
-                               universal_newlines=True)
-    assert process.wait() == 0
 
 @pytest.mark.skip
 class TestAuxCommandsAreAdded:

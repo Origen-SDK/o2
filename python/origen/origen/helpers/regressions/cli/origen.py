@@ -292,8 +292,7 @@ class InAppCommands(CoreCommands):
                 help=help,
                 multi=True,
                 required=True,
-                # FOR_PR
-                # use_delimiter=True
+                use_delimiter=True
             )
 
     app = Cmd(

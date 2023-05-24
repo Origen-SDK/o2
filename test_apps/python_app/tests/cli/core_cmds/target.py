@@ -255,6 +255,21 @@ class T_Target(TargetCLI):
         self.assert_out(out, None, full_paths=True)
         self.check_targets(None)
 
+    def test_delimited_targets(self, eagle, j750, uflex, smt7, smt8):
+        out= self.cmd.set.run(','.join([eagle.name, uflex.name, j750.name]), smt7.name, smt8.name)
+        targets = [eagle, uflex, j750, smt7, smt8]
+        self.assert_out(out, *targets)
+        self.check_targets(*targets)
+
+        out = self.cmd.remove.run(','.join([uflex.name, j750.name]), ','.join([smt7.name, smt8.name]))
+        self.assert_out(out, eagle)
+        self.check_targets(eagle)
+
+        out = self.cmd.add.run(','.join([smt7.name, smt8.name]), ','.join([uflex.name, j750.name]))
+        targets = [eagle, smt7, smt8, uflex, j750]
+        self.assert_out(out, *targets)
+        self.check_targets(*targets)
+
     def test_base_cmd_acts_as_view(self, set_eagle, eagle, j750):
         h = "Run with 'help' or '-h' to see available subcommands"
         b = self.cmd

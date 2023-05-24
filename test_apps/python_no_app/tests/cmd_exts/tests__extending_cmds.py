@@ -106,7 +106,6 @@ class T_ExtendingCmds(CLIShared):
                 self.sv, *self.mv,
                 self.ext_action.ln_to_cli(), *actions
             )
-            print(out)
             self.cmd.assert_args(
                 out,
                 (self.cmd.single_arg, self.sv),
@@ -129,7 +128,6 @@ class T_ExtendingCmds(CLIShared):
                 self.sv, *self.mv,
                 self.ext_action.ln_to_cli(), *actions
             )
-            print(out)
             self.cmd.assert_args(
                 out,
                 (self.cmd.single_arg, self.sv),
@@ -177,7 +175,6 @@ class T_ExtendingCmds(CLIShared):
                 self.ext_flag.ln_to_cli(),
                 self.ext_flag.ln_to_cli(),
             )
-            print(out)
             self.cmd.assert_args(
                 out,
                 (self.cmd.single_arg, self.sv),
@@ -189,17 +186,18 @@ class T_ExtendingCmds(CLIShared):
                 (CmdExtOpt("new_arg", src_name="exts_workout"), "new_arg_for_ext", {"Before": False})
             )
 
-        @pytest.mark.skip
         def test_extending_subcommand(self):
             actions = ["no_action"]
             out = self.subcmd.run(
                 self.sv,
                 self.subcmd.flag_opt.ln_to_cli(),
-                self.subcmd.exts_workout_action.ln_to_cli(), *actions,
+                self.subcmd.exts_workout_action.ln_to_cli(),
+                *actions,
             )
             self.subcmd.assert_args(
                 out,
                 (self.subcmd.single_arg, self.sv),
+                (self.subcmd.flag_opt, 1),
                 (self.subcmd.exts_workout_action, actions),
             )
 

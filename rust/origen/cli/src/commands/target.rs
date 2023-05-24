@@ -24,6 +24,7 @@ macro_rules! targets_arg {
             .value_name("TARGETS")
             .multiple(true)
             .required(true)
+            .use_delimiter(true)
     }
 }
 

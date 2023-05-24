@@ -20,6 +20,23 @@ class T_AppWorkspaceCoreCommands(CLICommon):
             "disabling_app_opts": "disabling_app_opts",
         }
 
+    @property
+    def cmd_shortcuts__pl(self):
+        return {
+            "plugin_says_hi": ("python_plugin", "plugin_says_hi"),
+            "plugin_test_args": ("python_plugin", "plugin_test_args"),
+            "plugin_test_ext_stacking": ("python_plugin", "plugin_test_ext_stacking"),
+            "echo": ("python_plugin", "echo"),
+            "do_actions": ("python_plugin", "do_actions"),
+            "disabling_app_opts_from_pl": ("python_plugin", "disabling_app_opts_from_pl"),
+        }
+
+    @property
+    def cmd_shortcuts__aux(self):
+        return {
+            "dummy_cmd": ("dummy_cmds", "dummy_cmd")
+        }
+
     def test_app_workspace_help_message(self):
         help = self.in_app_cmds.origen.get_help_msg()
         assert help.root_cmd is True
@@ -28,13 +45,8 @@ class T_AppWorkspaceCoreCommands(CLICommon):
 
         assert set(help.subcmd_names) == set(self.in_app_cmds.all_names_add_help)
         assert help.app_cmd_shortcuts == self.cmd_shortcuts__app
-        # FOR_PR plugin commands
-        # assert help.pl_cmd_shortcuts == self.cmd_shortcuts__default_plugins
-        # FOR_PR Aux commands
-        # assert help.pl_cmd_shortcuts == {
-        #     "plugin_says_hi": ("python_plugin", "plugin_says_hi"),
-        #     "echo": ("python_plugin", "echo"),
-        # }
+        assert help.pl_cmd_shortcuts == self.cmd_shortcuts__pl
+        assert help.aux_cmd_shortcuts == self.cmd_shortcuts__aux
 
     @pytest.mark.parametrize("cmd", CLICommon.in_app_cmds.cmds, ids=CLICommon.in_app_cmds.all_names)
     def test_core_commands_are_available(self, cmd):
