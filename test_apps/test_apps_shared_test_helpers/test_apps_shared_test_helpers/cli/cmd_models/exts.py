@@ -154,7 +154,7 @@ class ExtensionDrivers:
                     "exts_workout",
                     cli.cmd.SrcTypes.AUX,
                     CmdExtOpt(
-                        "ext_action",
+                        "exts_workout_action",
                         multi=True,
                         help="Action for the extended opt",
                         ln="action",
@@ -177,12 +177,12 @@ class ExtensionDrivers:
                     "python_plugin_the_second",
                     cli.cmd.SrcTypes.PLUGIN,
                     CmdExtOpt(
-                        "pl_the_2nd_ext_action",
+                        "python_plugin_the_second_action",
                         help="Action from pl_the_2nd plugin",
                         multi=True,
                     ),
                     CmdExtOpt(
-                        "pl_the_2nd_ext_flag",
+                        "python_plugin_the_second_flag",
                         help="Flag from pl_the_2nd plugin",
                     ),
                 )
@@ -194,7 +194,7 @@ class ExtensionDrivers:
                     "exts_workout",
                     cli.cmd.SrcTypes.AUX,
                     CmdExtOpt(
-                        "ext_action_subc",
+                        "exts_workout_action_subc",
                         multi=True,
                         help="Action for the extended opt subc",
                         ln="action",
@@ -217,12 +217,12 @@ class ExtensionDrivers:
                     "python_plugin_the_second",
                     cli.cmd.SrcTypes.PLUGIN,
                     CmdExtOpt(
-                        "pl_the_2nd_ext_action_subc",
+                        "python_plugin_the_second_action_subc",
                         help="Action from pl_the_2nd plugin subc",
                         multi=True,
                     ),
                     CmdExtOpt(
-                        "pl_the_2nd_ext_flag_subc",
+                        "python_plugin_the_second_flag_subc",
                         help="Flag from pl_the_2nd plugin subc",
                     ),
                 ),

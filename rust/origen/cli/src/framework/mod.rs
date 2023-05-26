@@ -78,21 +78,21 @@ macro_rules! from_toml_args {
 
 #[macro_export]
 macro_rules! from_toml_opts {
-    ($toml_opts: expr, $cmd_path: expr, $parent: expr) => {
-        crate::from_toml_opts!($toml_opts, $cmd_path, $parent, None::<&str>)
+    ($toml_opts: expr, $cmd_path: expr) => {
+        crate::from_toml_opts!($toml_opts, $cmd_path, None::<&str>)
     };
-    ($toml_opts: expr, $cmd_path: expr, $parent: expr, $ext: expr) => {{
+    ($toml_opts: expr, $cmd_path: expr, $ext_from: expr) => {{
         let mut current_names: Vec<Option<&str>> = vec!();
         $toml_opts.as_ref()
             .map(|opts| opts.iter()
                 .filter_map( |o| {
                     if let Some(i) = current_names.iter().position( |n| *n == Some(&o.name)) {
-                        if $ext.is_some() {
+                        if let Some(ext) = $ext_from {
                             crate::log_err_processing_cmd!(
                                 $cmd_path,
                                 "Option '{}' extended from {} is already present. Subsequent occurrences will be skipped (first occurrence at index {})",
                                 &o.name,
-                                $parent,
+                                ext,
                                 i
                             );
                         } else {
@@ -106,12 +106,12 @@ macro_rules! from_toml_opts {
                         current_names.push(None);
                         None
                     } else if crate::uses_reserved_prefix!(o.name) {
-                        if $ext.is_some() {
+                        if let Some(ext) = $ext_from {
                             crate::log_err_processing_cmd!(
                                 $cmd_path,
                                 "Option '{}' extended from {} uses reserved prefix '{}'. This option will not be available",
                                 &o.name,
-                                $parent,
+                                ext,
                                 crate::framework::extensions::EXT_BASE_NAME
                             );
                         } else {
@@ -126,7 +126,7 @@ macro_rules! from_toml_opts {
                         None
                     } else {
                         current_names.push(Some(&o.name));
-                        Some(crate::framework::Opt::from_toml(o, $cmd_path, $parent, $ext))
+                        Some(crate::framework::Opt::from_toml(o, $cmd_path, $ext_from))
                     }
                 })
                 .collect::<Vec<crate::framework::Opt>>())
@@ -219,19 +219,16 @@ pub struct Command {
     pub args: Option<Vec<Arg>>,
     pub opts: Option<Vec<Opt>>,
     pub subcommands: Option<Vec<String>>,
-    // Name offset from the command type (e.g., cmd.subc, instead of origen.cmd.subc, or plugin.pl.cmd.subc)
-    pub full_name: String,
     pub add_mode_opt: Option<bool>,
     pub add_target_opt: Option<bool>,
-    // FOR_PR seems src not parent
-    pub parent: CmdSrc,
+    pub cmd_path: CmdSrc,
     pub in_global_context: Option<bool>,
     pub in_app_context: Option<bool>,
     pub on_env: Option<Vec<String>>,
 }
 
 impl Command {
-    pub fn from_toml_cmd(cmd: &CommandTOML, cmd_path: &str, parent: CmdSrc, parent_cmd: Option<&Self>) -> Result<Option<Self>> {
+    pub fn from_toml_cmd(cmd: &CommandTOML, cmd_path: CmdSrc, parent_cmd: Option<&Self>) -> Result<Option<Self>> {
         let mut slf = Self {
             name: cmd.name.to_owned(),
             help: cmd.help.to_owned(),
@@ -239,7 +236,6 @@ impl Command {
             args: None,
             opts: None,
             subcommands: None,
-            full_name: cmd_path.to_string(),
             add_mode_opt: cmd.add_mode_opt.or_else(|| {
                 if let Some(p) = parent_cmd {
                     p.add_mode_opt.to_owned()
@@ -254,7 +250,7 @@ impl Command {
                     None
                 }
             }),
-            parent: parent,
+            cmd_path: cmd_path,
             in_global_context: cmd.in_global_context,
             in_app_context: cmd.in_app_context,
             on_env: cmd.on_env.to_owned(),
@@ -262,9 +258,9 @@ impl Command {
         if !slf.applies()? {
             return Ok(None)
         }
-        let fp = slf.parent.to_string();
+        let fp = slf.cmd_path.to_string();
         slf.args = from_toml_args!(cmd.arg, &fp);
-        slf.opts = from_toml_opts!(cmd.opt, &fp, &slf.parent);
+        slf.opts = from_toml_opts!(cmd.opt, &fp);
         if let Some(args) = slf.args.as_ref() {
             if let Some(opts) = slf.opts.as_mut() {
                 opts.retain(|o| {
@@ -283,7 +279,7 @@ impl Command {
             }
         }
         slf.subcommands = cmd.subcommand.as_ref().map(|sub_cmds| 
-            sub_cmds.iter().map(|c| format!("{}.{}", cmd_path, &c.name.to_string())).collect::<Vec<String>>()
+            sub_cmds.iter().map(|c| format!("{}.{}", &slf.offset_path(), &c.name.to_string())).collect::<Vec<String>>()
         );
         Ok(Some(slf))
     }
@@ -294,6 +290,10 @@ impl Command {
 
     pub fn add_target_opt(&self) -> bool {
         self.add_target_opt.unwrap_or(true)
+    }
+
+    pub fn offset_path(&self) -> &str {
+        self.cmd_path.offset_path()
     }
 }
 
@@ -311,7 +311,7 @@ impl Applies for Command {
     }
 
     fn on_env_error_msg(&self, e: &String) -> String {
-        format!("Failed to parse 'on_env' '{}', for command {}", e, self.full_name)
+        format!("Failed to parse 'on_env' '{}', for command {}", e, self.offset_path())
     }
 }
 
@@ -610,14 +610,12 @@ pub struct Opt {
     pub full_name: Option<String>,
 }
 
-use core::fmt::Display;
 impl Opt {
-    // FOR_PR is cmd_path/parent the same here?
-    fn from_toml(opt: &OptTOML, cmd_path: &str, parent: &dyn Display, ext: Option<&str>) -> Self {
+    fn from_toml(opt: &OptTOML, cmd_path: &str, ext_from: Option<&str>) -> Self {
         macro_rules! gen_err {
             ($msg:tt $(,)? $($arg:expr),*) => {{
-                if ext.is_some() {
-                    log_err_processing_cmd!(cmd_path, concat!("Option '{}' extended from {} ", $msg), opt.name, parent, $($arg),*);
+                if let Some(ext) = ext_from {
+                    log_err_processing_cmd!(cmd_path, concat!("Option '{}' extended from {} ", $msg), opt.name, ext, $($arg),*);
                 } else {
                     log_err_processing_cmd!(cmd_path, concat!("Option '{}' ", $msg), opt.name, $($arg),*);
                 }
@@ -767,7 +765,7 @@ where
         cmd = apply_args(args, cmd);
     }
 
-    let mut cache = CmdOptCache::new(cmd_def.parent.to_string());
+    let mut cache = CmdOptCache::new(cmd_def.cmd_path.to_string());
     if let Some(opts) = cmd_def.opts.as_ref() {
         cmd = apply_opts(opts, cmd, &mut cache, None);
     }
@@ -784,8 +782,8 @@ where
         }
         cmd = cmd.subcommand_negates_reqs(true);
     }
-    cmd = exts(&cmd_def.full_name, cmd, &mut cache);
-    cmd = apply_helps(&cmd_def.full_name, cmd);
+    cmd = exts(&cmd_def.offset_path(), cmd, &mut cache);
+    cmd = apply_helps(&cmd_def.offset_path(), cmd);
 
     cmd
 }
@@ -812,13 +810,7 @@ pub (crate) fn apply_args<'a>(args: &'a Vec<Arg>, mut cmd: App<'a>) -> App<'a> {
 
         if let Some(r) = arg_def.required {
             arg = arg.required(r);
-            // arg = arg.setting(clap::builder::ArgSettings::Required);
         }
-
-        // FOR_PR is hidden arg a thing?
-        // if arg_def.hidden.is_some() {
-        //     arg = arg.hidden(arg_def.hidden.unwrap())
-        // }
         cmd = cmd.arg(arg);
     }
     cmd

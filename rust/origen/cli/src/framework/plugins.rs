@@ -101,7 +101,7 @@ pub struct Plugin {
 
 impl Plugin {
     fn _add_cmd(slf: &mut Self, current_path: String, current_cmd: &mut CommandTOML, parent_cmd: Option<&Command>) -> Result<bool> {
-        if let Some(c) = Command::from_toml_cmd(current_cmd, &current_path, CmdSrc::Plugin(slf.name.to_owned(), current_path.to_string()), parent_cmd)? {
+        if let Some(c) = Command::from_toml_cmd(current_cmd, CmdSrc::Plugin(slf.name.to_owned(), current_path.to_string()), parent_cmd)? {
             if let Some(ref mut sub_cmds) = current_cmd.subcommand {
                 for mut sub in sub_cmds {
                     Self::_add_cmd(slf, format!("{}.{}", current_path, &sub.name), &mut sub, Some(&c))?;

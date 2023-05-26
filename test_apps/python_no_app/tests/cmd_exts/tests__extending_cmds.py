@@ -246,13 +246,13 @@ class T_ExtendingCmds(CLIShared):
             help = cmd.get_help_msg()
             help.assert_args(cmd.single_arg)
             help.assert_opts(
-                cmd.ext_action,
+                cmd.exts_workout_action,
                 cmd.flag_opt,
                 "help",
                 cmd.pl_ext_stacking_from_aux_action,
                 cmd.pl_ext_stacking_from_aux_flag,
-                cmd.pl_the_2nd_ext_action,
-                cmd.pl_the_2nd_ext_flag,
+                cmd.python_plugin_the_second_action,
+                cmd.python_plugin_the_second_flag,
                 "v",
                 "vk",
             )
@@ -268,40 +268,44 @@ class T_ExtendingCmds(CLIShared):
             out = cmd.run(
                 self.sv,
                 cmd.flag_opt.ln_to_cli(),
-                cmd.ext_action.ln_to_cli(), *actions,
+                cmd.exts_workout_action.ln_to_cli(), *actions,
                 cmd.pl_ext_stacking_from_aux_action.ln_to_cli(), *actions,
                 cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(), cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(),
-                cmd.pl_the_2nd_ext_action.ln_to_cli(), *actions,
-                cmd.pl_the_2nd_ext_flag.ln_to_cli(),
+                cmd.python_plugin_the_second_action.ln_to_cli(), *actions,
+                cmd.python_plugin_the_second_flag.ln_to_cli(),
             )
             cmd.assert_args(
                 out,
                 (cmd.single_arg, self.sv),
                 (cmd.flag_opt, 1),
-                (cmd.ext_action, actions),
+                (cmd.exts_workout_action, actions),
                 (cmd.pl_ext_stacking_from_aux_action, actions),
                 (cmd.pl_ext_stacking_from_aux_flag, 2),
-                (cmd.pl_the_2nd_ext_action, actions),
-                (cmd.pl_the_2nd_ext_flag, 1),
+                (cmd.python_plugin_the_second_action, actions),
+                (cmd.python_plugin_the_second_flag, 1),
             )
 
         def test_manipulating_other_ext_args(self):
             cmd = self.cmd
-            actions = ["update_flag_opts"]
+            actions = [
+                "inc_flag__cmd__flag_opt",
+                "inc_flag__aux_ext__pl_ext_stacking_from_aux_flag",
+                "inc_flag__plugin_ext__python_plugin_the_second_flag"
+            ]
             out = cmd.run(
                 self.sv,
                 cmd.flag_opt.ln_to_cli(),
-                cmd.ext_action.ln_to_cli(), *actions,
+                cmd.exts_workout_action.ln_to_cli(), *actions,
                 cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(), cmd.pl_ext_stacking_from_aux_flag.ln_to_cli(),
-                cmd.pl_the_2nd_ext_flag.ln_to_cli(),
+                cmd.python_plugin_the_second_flag.ln_to_cli(),
             )
             cmd.assert_args(
                 out,
                 (cmd.single_arg, self.sv),
                 (cmd.flag_opt, 2),
-                (cmd.ext_action, actions),
+                (cmd.exts_workout_action, actions),
                 (cmd.pl_ext_stacking_from_aux_flag, 3, {"Before": 2}),
-                (cmd.pl_the_2nd_ext_flag, 2, {"Before": 1}),
+                (cmd.python_plugin_the_second_flag, 2, {"Before": 1}),
             )
 
         def test_subc_ext_stacking_help_msg(self):
@@ -309,13 +313,13 @@ class T_ExtendingCmds(CLIShared):
             help = subc.get_help_msg()
             help.assert_args(subc.single_arg)
             help.assert_opts(
-                subc.ext_action_subc,
+                subc.exts_workout_action_subc,
                 subc.flag_opt,
                 "help",
                 subc.pl_ext_stacking_from_aux_action_subc,
                 subc.pl_ext_stacking_from_aux_flag_subc,
-                subc.pl_the_2nd_ext_action_subc,
-                subc.pl_the_2nd_ext_flag_subc,
+                subc.python_plugin_the_second_action_subc,
+                subc.python_plugin_the_second_flag_subc,
                 "v",
                 "vk",
             )
@@ -331,17 +335,17 @@ class T_ExtendingCmds(CLIShared):
             out = subc.run(
                 self.sv,
                 subc.flag_opt.ln_to_cli(),
-                subc.ext_action_subc.ln_to_cli(), *actions,
+                subc.exts_workout_action_subc.ln_to_cli(), *actions,
                 subc.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(), subc.pl_ext_stacking_from_aux_flag_subc.ln_to_cli(),
-                subc.pl_the_2nd_ext_flag_subc.ln_to_cli(),
+                subc.python_plugin_the_second_flag_subc.ln_to_cli(),
             )
             subc.assert_args(
                 out,
                 (subc.single_arg, self.sv),
                 (subc.flag_opt, 1),
-                (subc.ext_action_subc, actions),
+                (subc.exts_workout_action_subc, actions),
                 (subc.pl_ext_stacking_from_aux_flag_subc, 2),
-                (subc.pl_the_2nd_ext_flag_subc, 1),
+                (subc.python_plugin_the_second_flag_subc, 1),
             )
         
     class TestExtendingAuxCmds(Common):

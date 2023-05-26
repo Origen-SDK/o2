@@ -41,8 +41,6 @@ def do_action(actions, phase):
                     if is_cmd == "cmd":
                         args = origen.current_command.args
                     else:
-                        print("Exts:")
-                        print(origen.current_command.exts.keys())
                         ext = f.rsplit("_flag", 1)[0]
                         t = is_cmd.split("_")[0]
                         args = origen.current_command.exts[f"{t}.{ext}"].args

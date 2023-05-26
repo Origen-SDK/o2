@@ -54,7 +54,7 @@ help = "Extend plugin command's subcommand from aux command"
 extend = "plugin.python_plugin.plugin_test_ext_stacking"
 
     [[extension.opt]]
-        name = "ext_action"
+        name = "exts_workout_action"
         long = "action"
         multiple = true
         help = "Action for the extended opt"
@@ -63,7 +63,7 @@ extend = "plugin.python_plugin.plugin_test_ext_stacking"
 extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
 
     [[extension.opt]]
-        name = "ext_action_subc"
+        name = "exts_workout_action_subc"
         long = "action"
         multiple = true
         help = "Action for the extended opt subc"

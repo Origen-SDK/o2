@@ -150,7 +150,7 @@ impl fmt::Display for ExtensionSource {
 
 #[derive(Debug)]
 pub struct Extension {
-    pub extends: String,
+    pub extends: CmdSrc,
     pub in_global_context: Option<bool>,
     pub in_app_context: Option<bool>,
     pub on_env: Option<Vec<String>>,
@@ -167,12 +167,12 @@ impl Extension {
             on_env: ext.on_env,
             opts: None,
             source: ext_source,
-            extends: ext.extend,
+            extends: CmdSrc::new(&ext.extend)?,
         };
         if !slf.applies()? {
             return Ok(None)
         }
-        slf.opts = from_toml_opts!(ext.opt, &slf.extends, &slf.source, Some(&slf.extends));
+        slf.opts = from_toml_opts!(ext.opt, &slf.extends.to_string(), Some(&slf.source.to_string()));
         if let Some(opts) = slf.opts.as_mut() {
             for opt in opts {
                 opt.help += &format!(" [Extended from {}]",

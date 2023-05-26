@@ -11,8 +11,17 @@ def in_new_origen_proc(func=None, mod=None, *, func_kwargs=None, with_configs=No
         func = getattr(mod, inspect.stack()[1].function)
     return in_new_proc(func, mod, func_kwargs=func_kwargs, expect_fail=expect_fail)
 
-# TODO support options
-def run_cli_cmd(cmd, *, with_env=None, with_configs=None, bypass_config_lookup=False, input=None, expect_fail=False, return_details=False, shell=None, targets=None):
+def run_cli_cmd(cmd, *,
+    with_env=None,
+    with_configs=None,
+    bypass_config_lookup=False,
+    input=None,
+    expect_fail=False,
+    return_details=False,
+    shell=None,
+    targets=None,
+    check=True,
+):
     if isinstance(cmd, str):
         cmd = ["origen", cmd]
     else:
@@ -46,8 +55,7 @@ def run_cli_cmd(cmd, *, with_env=None, with_configs=None, bypass_config_lookup=F
             cmd = ' '.join(cmd)
             raise RuntimeError(f"Expected cmd '{cmd}' to fail but received return code 0")
     else:
-        # FOR_PR make check an option
-        result = subprocess.run(cmd, shell=shell, check=False, capture_output=True, text=True, input=input, env=subp_env)
+        result = subprocess.run(cmd, shell=shell, check=check, capture_output=True, text=True, input=input, env=subp_env)
         # FOR_PR take these out
         print(result.stdout)
         print(result.stderr)

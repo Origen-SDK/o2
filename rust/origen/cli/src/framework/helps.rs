@@ -184,6 +184,13 @@ impl CmdSrc {
             _ => bail!("Unknown target scope '{}'. Expected 'origen', 'app', 'aux', or 'plugin'", scope)
         })
     }
+
+    pub fn offset_path(&self) -> &str {
+        match self {
+            Self::Core(cmd) | Self::App(cmd) => &cmd,
+            Self::Plugin(_, cmd) | Self::Aux(_, cmd) => &cmd
+        }
+    }
 }
 
 impl fmt::Display for CmdSrc {
