@@ -339,3 +339,12 @@ macro_rules! hashmap {
         h
     }};
 }
+
+/// Create a new pathbuf, rebuilt from components to resolve OS path differences
+/// when displaying paths possibly built from "/", "\", or "\\" used interchangeably
+#[macro_export]
+macro_rules! scrub_path {
+    ($path:expr) => {{
+        std::path::PathBuf::from_iter($path.components())
+    }}
+}

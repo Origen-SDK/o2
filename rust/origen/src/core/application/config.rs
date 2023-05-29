@@ -1,6 +1,6 @@
 use crate::utility::location::Location;
 use crate::exit_on_bad_config;
-use origen_metal::config;
+use origen_metal::{config, scrub_path};
 use origen_metal::config::{Environment, File};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -233,7 +233,7 @@ impl Config {
                 if ct.exists() {
                     retn.push(ct.to_owned());
                 } else {
-                    log_error!("Can not locate app commands file '{}'", ct.display())
+                    log_error!("Can not locate app commands file '{}'", scrub_path!(ct).display())
                 }
             }
         } else {
