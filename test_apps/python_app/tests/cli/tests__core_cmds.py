@@ -9,34 +9,6 @@ from .core_cmds.plugin import T_Plugin
 from .core_cmds.plugins import T_Plugins
 
 class T_AppWorkspaceCoreCommands(CLICommon):
-    @property
-    def cmd_shortcuts__app(self):
-        return {
-            'arg_opt_warmup': 'arg_opt_warmup',
-            "examples": "examples",
-            "playground": "playground",
-            "y": "playground",
-            "nested_app_cmds": "nested_app_cmds",
-            "disabling_app_opts": "disabling_app_opts",
-        }
-
-    @property
-    def cmd_shortcuts__pl(self):
-        return {
-            "plugin_says_hi": ("python_plugin", "plugin_says_hi"),
-            "plugin_test_args": ("python_plugin", "plugin_test_args"),
-            "plugin_test_ext_stacking": ("python_plugin", "plugin_test_ext_stacking"),
-            "echo": ("python_plugin", "echo"),
-            "do_actions": ("python_plugin", "do_actions"),
-            "disabling_app_opts_from_pl": ("python_plugin", "disabling_app_opts_from_pl"),
-        }
-
-    @property
-    def cmd_shortcuts__aux(self):
-        return {
-            "dummy_cmd": ("dummy_cmds", "dummy_cmd")
-        }
-
     def test_app_workspace_help_message(self):
         help = self.in_app_cmds.origen.get_help_msg()
         assert help.root_cmd is True
@@ -44,9 +16,9 @@ class T_AppWorkspaceCoreCommands(CLICommon):
         help.assert_bare_opts()
 
         assert set(help.subcmd_names) == set(self.in_app_cmds.all_names_add_help)
-        assert help.app_cmd_shortcuts == self.cmd_shortcuts__app
-        assert help.pl_cmd_shortcuts == self.cmd_shortcuts__pl
-        assert help.aux_cmd_shortcuts == self.cmd_shortcuts__aux
+        assert help.app_cmd_shortcuts == self.cmd_shortcuts.app
+        assert help.pl_cmd_shortcuts == self.cmd_shortcuts.pl
+        assert help.aux_cmd_shortcuts == self.cmd_shortcuts.aux
 
     @pytest.mark.parametrize("cmd", CLICommon.in_app_cmds.cmds, ids=CLICommon.in_app_cmds.all_names)
     def test_core_commands_are_available(self, cmd):

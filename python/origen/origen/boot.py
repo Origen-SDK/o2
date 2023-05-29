@@ -65,8 +65,8 @@ def run_cmd(command,
         path = pathlib.Path(f"{root.joinpath('.'.join(sub_parts))}.py")
         if not path.exists():
             paths = [path]
-            modulized_path = pathlib.Path(root)
             if len(sub_parts) > 1:
+                modulized_path = pathlib.Path(root)
                 for i, sub in enumerate(sub_parts[:-1]):
                     modulized_path = modulized_path.joinpath(sub)
                     if modulized_path.exists():
@@ -79,10 +79,7 @@ def run_cmd(command,
                         return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
                 return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
             else:
-                path = pathlib.Path(f"{modulized_path}/{sub_parts[-1]}.py")
-                if not path.exists():
-                    paths.append(path)
-                    return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
+                return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
         return wrap_mod_from_file(path)
 
     def call_user_cmd(cmd_type):

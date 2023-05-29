@@ -79,6 +79,20 @@ class Base(_origen.application.PyApplication):
         ''' An alias for app_dir '''
         return self._app_dir
 
+    # TEST_NEEDED app.config_dir
+    @property
+    def config_dir(self):
+        return self.root.joinpath("config")
+
+    # TEST_NEEDED app.commands_dir
+    @property
+    def commands_dir(self):
+        d = self.app_dir.joinpath("commands")
+        if d.exists():
+            return d
+        else:
+            return None
+
     @property
     def session(self):
         ''' Return this app's session store'''

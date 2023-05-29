@@ -49,11 +49,17 @@ impl AppCmds {
             let command_config: CommandsToml = match toml::from_str(&content) {
                 Ok(x) => x,
                 Err(e) => {
-                    bail!("Malformed commands.toml: {}", e);
+                    log_error!("Malformed Commands TOML '{}': {}", &commands_toml.display(), e);
+                    continue;
                 }
             };
-            // FOR_PR error on help given?
+            // FEATURE: help on cmd nspace (app) error on help given?
             // slf.help = command_config.help.to_owned();
+            // Help for the app-cmd namespace is not supported. Origen provides the help message.
+            // Display a warning saying this will have not effect
+            // if command_config.help.is_some() {
+            //     log_warning!("Custom help messages from app commands are not supported and will be ignored (from '{}')", commands_toml.display())
+            // }
 
             if let Some(commands) = command_config.command {
                 for mut cmd in commands {

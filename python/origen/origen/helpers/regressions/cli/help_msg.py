@@ -444,4 +444,5 @@ class HelpMsg:
 
     @property
     def logged_errors(self):
-        return list(filter(lambda l: "[ERROR] (" in l, self.text.split("\n")))
+        from . import CLI
+        return CLI.extract_logged_errors(self.text)

@@ -1,4 +1,4 @@
-import pytest, pathlib
+import pytest, pathlib, origen
 from origen.helpers.regressions import cli
 
 from tests.shared import PythonAppCommon
@@ -415,9 +415,85 @@ class CLICommon(CLIShared, PythonAppCommon):
         def arg_opt_warmup(self):
             return self.warmup_cmd
 
+    class CmdTOMLs(SrcBase):
+        root = origen.app.root.joinpath("config/cmd_tomls")
+        invalid_toml = root.joinpath("invalid.toml")
+        invalid2_toml = root.joinpath("invalid2.toml")
+        simple_toml = root.joinpath("simple.toml")
+        simple2_toml = root.joinpath("simple2.toml")
+
+        def __init__(self):
+            self.src_type = cli.SrcTypes.APP
+            self.name = "example"
+            self.app_cmds = CLIShared.in_app_cmds.app.commands.extend([])
+            self.app_cmds.replace_subcmds(
+                Cmd(
+                    "simple",
+                    help = "Simple App CMD",
+                ),
+                Cmd(
+                    "simple_with_arg",
+                    help = "Simple App CMD with Arg",
+                    args=[
+                        CmdArg("arg", help="Simple arg"),
+                    ]
+                ),
+                Cmd(
+                    "simple2",
+                    help = "Simple App CMD - 2",
+                ),
+                Cmd(
+                    "simple2_with_arg",
+                    help = "Simple App CMD with Arg - 2",
+                    args=[
+                        CmdArg("arg", help="Simple arg"),
+                    ]
+                )
+            )
+
     app_cmds = AppCmds()
     app_commands = app_cmds
     empty_app = EmptyApp()
+    cmd_tomls = CmdTOMLs()
+
+    class CmdShortcuts():
+        @property
+        def app(self):
+            return {
+                'arg_opt_warmup': 'arg_opt_warmup',
+                "examples": "examples",
+                "playground": "playground",
+                "y": "playground",
+                "nested_app_cmds": "nested_app_cmds",
+                "disabling_app_opts": "disabling_app_opts",
+            }
+
+        @property
+        def pl(self):
+            return {
+                "plugin_says_hi": ("python_plugin", "plugin_says_hi"),
+                "plugin_test_args": ("python_plugin", "plugin_test_args"),
+                "plugin_test_ext_stacking": ("python_plugin", "plugin_test_ext_stacking"),
+                "echo": ("python_plugin", "echo"),
+                "do_actions": ("python_plugin", "do_actions"),
+                "disabling_app_opts_from_pl": ("python_plugin", "disabling_app_opts_from_pl"),
+            }
+
+        @property
+        def aux(self):
+            return {
+                "dummy_cmd": ("dummy_cmds", "dummy_cmd")
+            }
+        
+        @property
+        def simple_cmd_tomls(self):
+            return {
+                "simple": "simple",
+                "simple_with_arg": "simple_with_arg",
+                "simple2": "simple2",
+                "simple2_with_arg": "simple2_with_arg",
+            }
+    cmd_shortcuts = CmdShortcuts()
 
     _no_config_run_opts = {
         "with_configs": CLIShared.configs.suppress_plugin_collecting_config,

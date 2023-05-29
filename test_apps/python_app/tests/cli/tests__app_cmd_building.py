@@ -1,4 +1,4 @@
-import pytest
+import pytest, origen
 from .shared import CLICommon, Cmd, CmdOpt, CmdArg
 
 class T_AppCmdBuilding(CLICommon):
@@ -85,16 +85,65 @@ class T_AppCmdBuilding(CLICommon):
         out = cmd.run()
         assert f"Hi from 'nested_app_cmds' level {lvl}{ ' (' + sublvl + ')' if sublvl else ''}!" in out
 
-    class TestErrorCases(CLICommon):
-        @pytest.mark.skip
-        def test_invalid_cmd_toml(self):
-            # FOR_PR need to make app specific
-            out = self.in_app_cmds.origen.run(with_env={"ORIGEN_APP_COMMANDS": "test_case_cmds/invalid.toml,test_case_cmds/error_cases.toml"}) # run_cli_cmd(["-h"]) #.split("\n\n")
-            print(out)
-            help = self.HelpMsg(out)
-            assert list(help.subcmds.keys()) == ["add_aux_cmd", "cmd_testers", "help", "python_no_app_aux_cmds"]
-            assert f"Unable to add auxillary commands at '{self.aux_cmd_configs_dir}{os.sep}./invalid_aux_cmd_path.toml' from config '{self.aux_cmd_configs_dir}{os.sep}invalid_aux_cmd_path_config.toml'. The following error was met" in out
+    def test_enumerated_tomls(self):
+        enum_envs = {"with_env": {"ORIGEN_APP_COMMANDS": ",".join([
+            str(self.cmd_tomls.simple_toml.relative_to(origen.app.config_dir)),
+            str(self.cmd_tomls.simple2_toml),
+        ])}}
 
-        @pytest.mark.skip
-        def test_error_global_and_in_app_setting_used(self):
-            fail
+        help = self.in_app_cmds.origen.get_help_msg(run_opts=enum_envs)
+        assert help.app_cmd_shortcuts == self.cmd_shortcuts.simple_cmd_tomls
+
+        help = self.in_app_cmds.app.commands.get_help_msg(run_opts=enum_envs)
+        help.assert_subcmds(
+            "help",
+            self.cmd_tomls.simple,
+            self.cmd_tomls.simple2,
+            self.cmd_tomls.simple2_with_arg,
+            self.cmd_tomls.simple_with_arg,
+        )
+
+        cmd = self.cmd_tomls.simple_with_arg
+        out = cmd.run("hi", run_opts=enum_envs)
+        cmd.assert_args(
+            out,
+            (cmd.arg, "hi"),
+        )
+
+        cmd = self.cmd_tomls.simple2_with_arg
+        out = cmd.run("hi", run_opts=enum_envs)
+        cmd.assert_args(
+            out,
+            (cmd.arg, "hi"),
+        )
+
+    class TestErrorCases(CLICommon):
+        def test_invalid_cmd_toml(self):
+            missing = "missing_cmd_toml.toml"
+            env = {"with_env": {"ORIGEN_APP_COMMANDS": ",".join([
+                str(self.cmd_tomls.invalid_toml.relative_to(origen.app.config_dir)),
+                str(self.cmd_tomls.simple_toml.relative_to(origen.app.config_dir)),
+                str(self.cmd_tomls.invalid2_toml),
+                str(f"cmd_tomls/{missing}"), # Since not absolute, should compute relative to config/ directory, but not from cmd_tomls
+                str(self.cmd_tomls.simple2_toml),
+            ])}}
+            help = self.in_app_cmds.origen.get_help_msg(run_opts=env)
+            assert help.app_cmd_shortcuts == self.cmd_shortcuts.simple_cmd_tomls
+            assert help.pl_cmd_shortcuts == self.cmd_shortcuts.pl
+            assert help.aux_cmd_shortcuts == self.cmd_shortcuts.aux
+            errs = help.logged_errors
+            assert f"Malformed Commands TOML '{self.cmd_tomls.invalid2_toml}'" in errs.pop()
+            assert f"Malformed Commands TOML '{self.cmd_tomls.invalid_toml}'" in errs.pop()
+            assert f"Can not locate app commands file '{self.cmd_tomls.root.joinpath(missing)}'" in errs.pop()
+            assert len(errs) == 0
+
+        def test_missing_app_cmd_implementation(self):
+            env = {"with_env": {"ORIGEN_APP_COMMANDS": ",".join([
+                str(self.cmd_tomls.simple_toml.relative_to(origen.app.config_dir)),
+            ])}}
+            out = self.cmd_tomls.simple.gen_error(run_opts=env, return_full=True)
+            errs = self.extract_logged_errors(out["stdout"])
+            assert "  simple.py" == errs.pop()
+            assert f"  From root '{origen.app.commands_dir}', searched:" == errs.pop()
+            assert "Could not find implementation for app command 'simple'" == errs.pop()
+            assert len(errs) == 0

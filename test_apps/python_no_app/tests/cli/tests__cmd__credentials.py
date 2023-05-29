@@ -1,4 +1,3 @@
-# FOR_PR clean up
 import pytest, origen, origen_metal
 from .shared import CLICommon
 
@@ -70,19 +69,8 @@ class T_Credentials(CLICommon):
         assert u.datasets["dummy_ldap_ds"].password == "dummy_ldap_ds_pw"
         assert u.datasets["test2"].password == "test2_pw"
         assert u.datasets["git"].password == "git_pw"
-        # import time
-        # time.sleep(5)
 
-        # Should only clear the 'test' pw
-        # TODO need to clear all hierarchy
-        # origen_metal.users.unload()
-        # origen_metal.sessions.unload()
-        # origen_metal.frontend.reset()
         out = self.global_cmds.creds.run("clear")
-        # import os
-        # os.remove(r"C:\Users\nxa13790\Documents\origen\o2_2nd\test_apps\python_no_app\.o2\.session\__user__nxa13790__\__user__")
-        # import time
-        # time.sleep(5)
         assert "Clearing cached password for topmost dataset..." in out
         origen_metal.sessions.unload()
         origen_metal.users.unload()
@@ -90,13 +78,7 @@ class T_Credentials(CLICommon):
         u.datasets["dummy_ldap_ds"].should_validate_password = False
         u = origen.current_user
         u.prompt_for_passwords = False
-        # origen.boot_users()
-        # origen.users.remove(u.id)
-        # origen.users.lookup_current_id(update_current=True)
-        # u.session.refresh()
-        # print(u.password)
 
-        # TODO update this with "prompt=False" option or something better than expecting an error
         prompt_err = f"Cannot prompt for passwords for user '{u.id}'. Passwords must be loaded by the config or set directly."
         with pytest.raises(RuntimeError, match=prompt_err):
             assert u.password is None

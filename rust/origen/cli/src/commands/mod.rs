@@ -145,7 +145,7 @@ pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation:
                 }
                 continue;
             } else if arg_n == "mode" {
-                // FOR_PR
+                // O1_MODE_SUPPORT
                 todo!("Mode argument is not currently supported!");
             }
 
