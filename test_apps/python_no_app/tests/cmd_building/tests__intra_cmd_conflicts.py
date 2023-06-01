@@ -38,7 +38,7 @@ class T_IntraCmdConflicts(CLIShared):
     def test_conflicts_during_cmd_building(self):
         for c in reversed(self.conflicts):
             m = self.cmd_conflicts.pop()
-            assert self.to_conflict_msg(self.cmd, c) in m
+            assert self.err_msgs.to_conflict_msg(self.cmd, c) in m
 
     def test_all_error_messages_checked(self):
         assert len(self.cmd_conflicts) == 0

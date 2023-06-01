@@ -22,7 +22,7 @@ use crate::python;
 use crate::{vks_to_cmd, strs_to_cli_arr};
 
 use indexmap::map::IndexMap;
-use origen::{LOGGER, STATUS}; // clean_mode # TODO
+use origen::{LOGGER, STATUS}; // clean_mode # O1_MODE_SUPPORT clean_mode function available, or remove
 use std::process::exit;
 use _prelude::{SetArgTrue, CountArgs};
 

@@ -286,7 +286,7 @@ class T_ExtendingAppCmds(CLICommon):
             ]
             for c in reversed(conflicts):
                 m = self.cmd_conflicts.pop()
-                assert self.to_conflict_msg(self.cmd, c) in m
+                assert self.err_msgs.to_conflict_msg(self.cmd, c) in m
             assert len(self.cmd_conflicts) == 0
         
         def test_conflicts_resolve_correctly(self, exts):

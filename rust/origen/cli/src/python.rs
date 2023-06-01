@@ -14,7 +14,7 @@ const PYTHONS: &[&str] = &[
     "python3.8",
     "python3.7",
 ];
-pub const MIN_PYTHON_VERSION: &str = "3.6.0";
+pub const MIN_PYTHON_VERSION: &str = "3.7.0";
 
 // FOR_PR use more generic macro below
 #[macro_export]

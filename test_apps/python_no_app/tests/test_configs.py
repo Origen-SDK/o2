@@ -3,21 +3,18 @@ from pathlib import Path
 from origen.helpers.env import in_new_origen_proc, run_cli_cmd
 from tests import configs as config_funcs
 
-from test_apps_shared_test_helpers.cli import CLIShared, CmdOpt, CmdArg
+from test_apps_shared_test_helpers.cli import CLIShared
 
 class Common(CLIShared):
-    # FOR_PR see how many of these are needed and what can be moved to test apps shared
     tests_root = Path(__file__).parent
     working_dir = Path(__file__).parent.parent
     working_dir_config = working_dir.joinpath("origen.toml")
-    cli_dir = working_dir.joinpath("../../rust/origen/target/debug").resolve()
-    cli_config = cli_dir.joinpath("origen.toml")
+    cli_config = CLIShared.cli_dir.joinpath("origen.toml")
 
     configs_dir = Path(__file__).parent.joinpath("configs")
     dummy_config = configs_dir.joinpath("dummy_config.toml")
     dummy_configs_dir = configs_dir.joinpath("dummy_dir")
     dummy_origen_config = dummy_configs_dir.joinpath("origen.toml")
-    empty_config = configs_dir.joinpath("empty.toml")
 
     python_plugin_and_2nd_only_config = configs_dir.joinpath("python_plugin_and_2nd_only.toml")
 
@@ -28,6 +25,7 @@ class Common(CLIShared):
     cmd_testers_root = tests_root.joinpath("cmd_building/cmd_testers")
     aux_cmd_configs_dir = configs_dir.joinpath("aux_cmds")
 
+    # Test relative paths, so leave these as relative to python_no_app root
     python_plugin_config_dir_str = "../python_plugin/config"
     python_plugin_config_toml = Path(python_plugin_config_dir_str).joinpath("origen.toml")
 
@@ -46,7 +44,7 @@ class TestConfig(Common):
 
     def test_config_from_cli_source_is_added(self, existing_configs):
         assert self.cli_config not in existing_configs
-        shutil.copy(self.empty_config, self.cli_config)
+        shutil.copy(self.configs.empty_config, self.cli_config)
         try:
             out = run_cli_cmd(["eval", "print( origen.__config_metadata__['files'] )"])
             print(out.split("\n")[-2])
@@ -61,7 +59,7 @@ class TestConfig(Common):
 
     def test_config_dir_from_env_is_added(self, existing_configs):
         # Add directory
-        retn = in_new_origen_proc(mod=config_funcs, func_kwargs={'config_dir': self.dummy_configs_dir}) #, with_configs=self.dummy_configs_dir)
+        retn = in_new_origen_proc(mod=config_funcs, func_kwargs={'config_dir': self.dummy_configs_dir})
         assert retn['files'] == [
             self.dummy_origen_config,
             *existing_configs,
@@ -69,7 +67,7 @@ class TestConfig(Common):
 
     def test_direct_config_from_env_is_added(self, existing_configs):
         # Add direct toml source
-        retn = in_new_origen_proc(mod=config_funcs, func_kwargs={'config_toml': self.dummy_config}) # , with_configs=self.dummy_origen_config)
+        retn = in_new_origen_proc(mod=config_funcs, func_kwargs={'config_toml': self.dummy_config})
         assert retn['files'] == [
             self.dummy_config,
             *existing_configs
@@ -84,7 +82,7 @@ class TestConfig(Common):
         ]
 
     def test_relative_config_from_env_is_added(self, existing_configs):
-        retn = in_new_origen_proc(mod=config_funcs, func_kwargs={'configs': self.python_plugin_config_dir_str}) #, with_configs="../python_no_app/tests/configs/")
+        retn = in_new_origen_proc(mod=config_funcs, func_kwargs={'configs': self.python_plugin_config_dir_str})
         assert retn['files'] == [
             self.python_plugin_config_toml,
             *existing_configs

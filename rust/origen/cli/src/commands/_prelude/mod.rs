@@ -11,7 +11,7 @@ pub use crate::framework::{
 pub use crate::framework::core_cmds::SubCmd;
 pub use crate::{output_dir_opt, ref_dir_opt};
 
-// FOR_PR remove this
+// TODO clap4.0 remove after update to next clap version
 pub type RunInput<'a> = &'a clap::ArgMatches;
 
 pub use clap_arg_actions::*;

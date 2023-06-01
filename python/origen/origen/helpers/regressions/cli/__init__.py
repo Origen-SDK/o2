@@ -76,9 +76,11 @@ class CLI(metaclass=CLIProperties):
     else:
         cmds = global_cmds
 
-
     error_messages = CoreErrorMessages()
-    err_msgs = error_messages
+
+    @property
+    def err_msgs(self):
+        return self.error_messages
 
     @classmethod
     def extract_logged_errors(cls, text):

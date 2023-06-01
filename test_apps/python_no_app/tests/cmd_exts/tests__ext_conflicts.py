@@ -80,7 +80,7 @@ class T_ExtConflicts(CLIShared):
 
         def test_conflict_messages(self):
             for c in reversed(self.conflicts):
-                assert self.to_conflict_msg(self.cmd, c) in self.cmd_conflicts.pop()
+                assert self.err_msgs.to_conflict_msg(self.cmd, c) in self.cmd_conflicts.pop()
 
         def test_error_messages_checked(self):
             assert len(self.cmd_conflicts) == 0
@@ -201,7 +201,7 @@ class T_ExtConflicts(CLIShared):
             conflicts = self.config["conflicts_list"]
 
             for c in reversed(conflicts):
-                m = self.to_conflict_msg(cmd, c)
+                m = self.err_msgs.to_conflict_msg(cmd, c)
                 assert m in self.cmd_conflicts.pop()
 
         def test_all_errors_checked(self):
@@ -297,7 +297,7 @@ class T_ExtConflicts(CLIShared):
 
             conflicts = self.eval_config["conflicts_list"]
             for c in reversed(conflicts):
-                m = self.to_conflict_msg(cmd, c)
+                m = self.err_msgs.to_conflict_msg(cmd, c)
                 assert m in self.eval_cmd_conflicts.pop()
             assert len(self.eval_cmd_conflicts) == 0
 
@@ -333,6 +333,6 @@ class T_ExtConflicts(CLIShared):
 
             conflicts = self.creds_clear_config["conflicts_list"]
             for c in reversed(conflicts):
-                m = self.to_conflict_msg(cmd, c)
+                m = self.err_msgs.to_conflict_msg(cmd, c)
                 assert m in self.creds_clear_cmd_conflicts.pop()
             assert len(self.creds_clear_cmd_conflicts) == 0

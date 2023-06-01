@@ -25,8 +25,7 @@ on_env=["ORIGEN_EXT_CONFLICTS_CORE_CMD_CREDS_CLEAR"]
     long_aliases = ["datasets", "pl_datasets"]
     short_aliases = ["d", "e", "f"]
 
-# FOR_PR
-# # Conflict with help opt
+# TESTS_NEEDED CLI Conflict with help opt
 # [[extension]]
 # extend = "origen.eval"
 # help = "Conflict with help arg"
@@ -62,7 +61,7 @@ on_env=["ORIGEN_EXT_CONFLICTS_CORE_CMD_CREDS_CLEAR"]
 #         long_aliases = ["help2", "help"]
 #         short_aliases = ["h", "i"]
 
-# FOR_PR conflict with v, vk
+# TESTS_NEEDED CLI Opt conflict with v, vk
 
 [[extension]]
 extend = "plugin.python_plugin.plugin_test_args"

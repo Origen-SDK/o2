@@ -405,7 +405,7 @@ class T_ExtendingFromAppCmds(CLICommon):
             for c in reversed(conflicts):
                 m = cmd_conflicts.pop()
                 print(m)
-                assert self.to_conflict_msg(cmd, c) in m
+                assert self.err_msgs.to_conflict_msg(cmd, c) in m
 
         def test_exts(self, exts):
             cmd = self.cmd

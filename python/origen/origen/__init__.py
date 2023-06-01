@@ -38,6 +38,8 @@ def __getattr__(name: str):
         return users.current_user
     elif name == "initial_user":
         return users.initial_user
+    elif name == "is_app_present":
+        return status["is_app_present"]
     elif name in ["command", "current_command", "cmd", "current_cmd"]:
         return _origen._current_command_
     elif name == "core_app":

@@ -104,7 +104,7 @@ def run_cmd(command,
             exit_proc(1)
 
     if mode == None:
-        if _origen.is_app_present():
+        if origen.is_app_present:
             origen.set_mode(_origen.app_config()["mode"])
     else:
         origen.set_mode(mode)
@@ -133,7 +133,7 @@ def run_cmd(command,
     from origen.core.plugins import from_origen_cli
     from_origen_cli(plugins)
 
-    if _origen.is_app_present():
+    if origen.is_app_present:
         origen.target.setup(targets=([] if targets is False else targets))
 
     if args is None:
@@ -241,7 +241,7 @@ def run_cmd(command,
         elif command == "interactive":
             _origen.set_operation("interactive")
             origen.logger.trace("Starting interactive session (on Python side)")
-            if _origen.is_app_present:
+            if origen.is_app_present:
                 origen.target.load()
 
             from origen_metal._helpers import interactive

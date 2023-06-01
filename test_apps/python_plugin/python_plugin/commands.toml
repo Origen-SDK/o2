@@ -316,20 +316,6 @@ on_env=["ORIGEN_PL_INTRA_CMD_CONFLICTS"]
         name = "intra_subc_conflicts"
         help = "Duplicate Opt"
 
-# TODO add this and test
-# FOR_PR
-# [[extension]]
-#     # Extend generate command
-#     # (only available in application context)
-#     extend = "origen.generate"
-#     in_global_context = false
-
-#     [[extension.opt]]
-#         name = "say_hi_in_pattern"
-#         short = "s"
-#         help = "Have the plugin say hi in the pattern"
-#         takes_value = false
-
 [[extension]]
     # Extend eval command only in global context
     extend = "origen.eval"

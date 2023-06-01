@@ -134,7 +134,7 @@ class Base(_origen.application.PyApplication):
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()
-        if (origen.app is None) & _origen.is_app_present():
+        if (origen.app is None) and origen.is_app_present:
             self._plugin = False
             self._root = origen.root
             self._name = _origen.app_config()["name"]
