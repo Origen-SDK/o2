@@ -12,7 +12,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{RwLock, RwLockReadGuard};
-use crate::TypedValueMap;
 
 // Trait for extending std::path::PathBuf
 use path_slash::PathBufExt;
@@ -55,12 +54,14 @@ impl FromStr for Operation {
     }
 }
 
-#[derive(Debug)]
-pub struct CurrentCommand {
-    pub top_cmd: String,
-    pub subcmds: Vec<String>,
-    pub args: TypedValueMap,
-}
+// FEATURE Backend Current Command. Either store some basics here, or use a frontend wrapper
+// use crate::TypedValueMap;
+// #[derive(Debug)]
+// pub struct CurrentCommand {
+//     pub top_cmd: String,
+//     pub subcmds: Vec<String>,
+//     pub args: TypedValueMap,
+// }
 
 /// Exposes some status information about the runtime environment, e.g. whether an
 /// application workspace is present
@@ -113,7 +114,7 @@ pub struct Status {
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
     _operation: RwLock<Operation>,
-    command: RwLock<Option<CurrentCommand>>,
+    // command: RwLock<Option<CurrentCommand>>, // FEATURE Backend Current Command
 }
 
 impl Default for Status {
@@ -206,7 +207,7 @@ impl Default for Status {
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
             _operation: RwLock::new(Operation::None),
-            command: RwLock::new(None),
+            // command: RwLock::new(None), // FEATURE Backend Current Command
         };
         log_trace!("Status built successfully");
         s
@@ -342,23 +343,24 @@ impl Status {
         *self.debug_enabled.read().unwrap()
     }
 
-    pub fn set_command(&self, top_cmd: String, subcommands: Vec<String>, args: TypedValueMap) {
-        let mut cmd = self.command.write().unwrap();
-        *cmd = Some(CurrentCommand {
-            top_cmd: top_cmd,
-            subcmds: subcommands,
-            args: args
-        });
-    }
+    // FEATURE Backend Current Command
+    // pub fn set_command(&self, top_cmd: String, subcommands: Vec<String>, args: TypedValueMap) {
+    //     let mut cmd = self.command.write().unwrap();
+    //     *cmd = Some(CurrentCommand {
+    //         top_cmd: top_cmd,
+    //         subcmds: subcommands,
+    //         args: args
+    //     });
+    // }
 
-    pub fn clear_command(&self) {
-        let mut cmd = self.command.write().unwrap();
-        *cmd = None;
-    }
+    // pub fn clear_command(&self) {
+    //     let mut cmd = self.command.write().unwrap();
+    //     *cmd = None;
+    // }
 
-    pub fn command(&self) -> RwLockReadGuard<Option<CurrentCommand>> {
-        self.command.read().unwrap()
-    }
+    // pub fn command(&self) -> RwLockReadGuard<Option<CurrentCommand>> {
+    //     self.command.read().unwrap()
+    // }
 
     pub fn set_operation(&self, val: Operation) {
         let mut operation = self._operation.write().unwrap();
