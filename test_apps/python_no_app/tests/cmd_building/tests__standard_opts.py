@@ -1,5 +1,6 @@
 from .shared import CLICommon
 
+# Uses custom format output from ./cmd_building/cmd_testers/test_arguments/display_verbosity_opts.py
 class T_StandardOpts(CLICommon):
     def test_empty_verbosity_is_accessible(self):
         out = self.cmd_testers.display_v.run()

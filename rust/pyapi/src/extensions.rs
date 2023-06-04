@@ -16,7 +16,7 @@ pub struct Extension {
     name: String,
     args: Py<PyDict>,
     source: String,
-    // m: , // FOR_PR store mod here?
+    ext_mod: Option<Py<PyModule>>,
 }
 
 #[pymethods]
@@ -31,10 +31,19 @@ impl Extension {
         Ok(self.args.as_ref(py))
     }
 
-    // TODO return path?
     #[getter]
-    pub fn source(&self) -> PyResult<&str> {
-        Ok(&self.source)
+    pub fn source(&self, py: Python) -> PyResult<PyObject> {
+        Ok(pyapi_metal::pypath!(py, &self.source))
+    }
+
+    #[getter]
+    pub fn r#mod(&self) -> PyResult<Option<&Py<PyModule>>> {
+        Ok(self.ext_mod.as_ref())
+    }
+
+    #[getter]
+    pub fn module(&self) -> PyResult<Option<&Py<PyModule>>> {
+        Ok(self.ext_mod.as_ref())
     }
 }
 
@@ -148,6 +157,14 @@ impl Extensions {
                 },
                 name: ext_name,
                 source: ext_path.clone(),
+                ext_mod: {
+                    let m = PyAny::get_item(ext_cfg, "mod")?;
+                    if m.is_none() {
+                        None
+                    } else {
+                        Some(m.extract::<&PyModule>()?.into_py(py))
+                    }
+                }
             };
             slf.exts.insert(ext_path, Py::new(py, py_ext)?);
         }

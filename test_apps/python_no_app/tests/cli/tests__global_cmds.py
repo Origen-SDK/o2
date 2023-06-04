@@ -9,5 +9,5 @@ class T_GlobalCmds(CLICommon):
         ''' Just testing that "-h" (or help <cmd> for some commands) doesn't crash for all core commands '''
         help = cmd.get_help_msg()
         assert len(help.opts) >= 3
-        # FOR_PR
+        # TESTS_NEEDED CLI better opt check
         # help.assert_bare_opts_present()

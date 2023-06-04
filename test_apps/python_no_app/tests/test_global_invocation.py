@@ -20,4 +20,5 @@ class TestGlobalFEIntegration:
     
     @pytest.mark.skip
     def test_datastores_are_available(self):
+        # TEST_NEEDED Datastores in global invocation
         assert origen.datastores.keys() == ['ldaps']

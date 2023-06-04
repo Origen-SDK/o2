@@ -37,15 +37,6 @@ class T_Eval(CLICommon):
         out = d.gen_error(run_opts=no_config_run_opts)
         d.assert_present(out)
 
-    # FOR_PR
-    @pytest.mark.skip
-    def test_error_in_statements_still_runs_cleanup(self, cmd, no_config_run_opts):
-        d = cmd.demos["gen_name_error"]
-        out = d.gen_error(return_full=True)
-        d.assert_present(out["stderr"])
-        print(out["stdout"])
-        fail
-
     def test_clean_eval(self):
         eval_prefix = "Origen Version From Eval: "
         out = self.eval("print (f'" + eval_prefix + "{origen.version}' )")

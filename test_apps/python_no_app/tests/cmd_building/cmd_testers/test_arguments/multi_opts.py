@@ -1,4 +1,1 @@
-import sys, pathlib
-sys.path.append(str(pathlib.Path(__file__).parent.parent))
-
-from test_arguments import run
+from test_apps_shared_test_helpers.aux_cmds import run

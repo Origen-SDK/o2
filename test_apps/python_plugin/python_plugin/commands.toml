@@ -332,23 +332,22 @@ on_env=["ORIGEN_PL_INTRA_CMD_CONFLICTS"]
         short = "a"
         help = "Have the plugin say hi after evaluating (global)"
 
-# FOR_PR swap these for actions?
-# Or is this even used?
-[[extension]]
-   # Extend eval command only in an application context
-   extend = "origen.eval"
-   in_global_context = false
-   in_app_context = true
+# TESTS_NEEDED CLI explicit global vs. app case. Have global, need app
+# [[extension]]
+#    # Extend eval command only in an application context
+#    extend = "origen.eval"
+#    in_global_context = false
+#    in_app_context = true
 
-    [[extension.opt]]
-        name = "say_hi_before_eval"
-        short = "y"
-        help = "Have the plugin say hi before evaluating (app)"
+#     [[extension.opt]]
+#         name = "say_hi_before_eval"
+#         short = "y"
+#         help = "Have the plugin say hi before evaluating (app)"
 
-    [[extension.opt]]
-        name = "say_hi_after_eval"
-        short = "z"
-        help = "Have the plugin say hi after evaluating (app)"
+#     [[extension.opt]]
+#         name = "say_hi_after_eval"
+#         short = "z"
+#         help = "Have the plugin say hi after evaluating (app)"
 
 [[extension]]
     # Extend eval command in both contexts
@@ -385,22 +384,6 @@ on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
     [[extension.opt]]
         name = "python_plugin_flag_subc"
         help = "Flag from python_plugin subc"
-
-# FOR_PR
-# [[extension]]
-#     # Extend eval command only in global context
-#     extend = "origen.eval"
-#     in_global_context = true
-#     in_app_context = false
-
-#     [[extension.opt]]
-#         name = "python_plugin_ext_action"
-#         help = "Simple extension action from python plugin"
-#         multiple=true
-
-#     [[extension.opt]]
-#         name = "python_plugin_ext_flag"
-#         help = "Simple extension flag from python plugin"
 
 [[extension]]
 extend = "app.arg_opt_warmup"

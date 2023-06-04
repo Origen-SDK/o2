@@ -16,17 +16,6 @@ const PYTHONS: &[&str] = &[
 ];
 pub const MIN_PYTHON_VERSION: &str = "3.7.0";
 
-// FOR_PR use more generic macro below
-#[macro_export]
-macro_rules! vks_to_cmd {
-    () => {
-        format!(
-            "verbosity_keywords=[{}]",
-            origen::LOGGER.data().keywords.iter().map(|k| format!("r'{}'", k)).collect::<Vec<String>>().join(", ")
-        )
-    }
-}
-
 #[macro_export]
 macro_rules! strs_to_cli_arr {
     ($name:expr, $strs:expr) => {{

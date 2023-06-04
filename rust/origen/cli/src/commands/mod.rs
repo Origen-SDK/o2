@@ -19,7 +19,7 @@ pub mod plugins;
 pub mod _prelude;
 
 use crate::python;
-use crate::{vks_to_cmd, strs_to_cli_arr};
+use crate::strs_to_cli_arr;
 
 use indexmap::map::IndexMap;
 use origen::{LOGGER, STATUS}; // clean_mode # O1_MODE_SUPPORT clean_mode function available, or remove
@@ -279,7 +279,7 @@ pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation:
         }
     }
     cmd += &format!(", verbosity={}", LOGGER.verbosity());
-    cmd += &format!(", {}", vks_to_cmd!());
+    cmd += &format!(", {}", strs_to_cli_arr!("verbosity_keywords", origen::LOGGER.data().keywords.iter()));
     cmd += ");";
 
     log_debug!("Launching Python: '{}'", &cmd);

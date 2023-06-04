@@ -313,21 +313,26 @@ class T_ExtendingFromAppCmds(CLICommon):
         assert f"plugin.python_plugin.plugin_says_hi.py" in out
         assert f"plugin{os.sep}python_plugin.plugin_says_hi.py" in out
         assert f"plugin{os.sep}python_plugin{os.sep}plugin_says_hi.py" in out
+        # TEST_NEEDED CLI check mod is None in error cases
 
     @pytest.mark.skip
     def error_msg_on_extending_unknown_cmd(self):
+        # TEST_NEEDED CLI error handling from app context
         fail
 
     @pytest.mark.skip
     def test_error_in_before(self):
+        # TEST_NEEDED CLI error handling from app context
         fail
 
     @pytest.mark.skip
     def test_error_in_after(self):
+        # TEST_NEEDED CLI error handling from app context
         fail
 
     @pytest.mark.skip
     def test_error_in_cleanup(self):
+        # TEST_NEEDED CLI error handling from app context
         fail
 
     class TestAppExtConflicts(CLICommon):

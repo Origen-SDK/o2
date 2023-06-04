@@ -4,6 +4,7 @@ from .shared import CLICommon
 class T_Credentials(CLICommon):
     @pytest.mark.skip
     def test_help_msg(self):
+        # TEST_NEEDED CLI credentials help message
         fail
 
     @pytest.mark.skip

@@ -220,11 +220,6 @@ class T_ExtendingCmds(CLIShared):
             assert help.pl_exts == None
             assert help.app_exts == False
 
-    @pytest.mark.skip
-    def test_basic_extending_from_pl(self):
-        help = self.global_cmds.eval.get_help_msg()
-        assert help.pl_exts == []
-
     class TestExtensionStacking(Common):
         cmd = CLIShared.python_plugin.plugin_test_ext_stacking.extend(
             CLIShared.exts.exts["plugin.python_plugin.plugin_test_ext_stacking"]["exts"],
@@ -511,7 +506,38 @@ class T_ExtendingCmds(CLIShared):
             )
 
     @pytest.mark.skip
+    def test_extending_origen_cmd_from_global_context_only(self):
+        # TEST_NEEDED CLI explicit test for global only exts
+        fail
+
+    @pytest.mark.skip
     def test_hidden_exts_full_name(self):
+        # TEST_NEEDED CLI hidden exts full name
+        fail
+
+    @pytest.mark.skip
+    def test_ext_mods_are_accessible(self):
+        # TEST_NEEDED CLI test extension keys
+        # (what's provided in origen.current_command.exts['ext'])
+        fail
+
+    @pytest.mark.skip
+    def test_ext_mods_are_accessible(self):
+        # TEST_NEEDED CLI test extension mods are available
+        cmd = CLIShared.aux.ns.dummy_cmds.dummy_cmd.extend(
+            CLIShared.exts.exts["aux.dummy_cmds.dummy_cmd"]["exts"],
+            from_configs=[
+                CLIShared.exts.exts_workout_cfg,
+                CLIShared.exts.pl_ext_stacking_from_aux_cfg
+            ],
+            with_env=CLIShared.exts.exts["aux.dummy_cmds.dummy_cmd"]["env"]
+        )
+        out = cmd.run(
+            cmd.exts_workout_action.ln_to_cli(), "show_ext_mods",
+        )
+        print(out)
+        # actions = [
+        #     "inc_flag__cmd__flag_opt",
         fail
 
     def test_extending_origen_cmd_from_plugin(self):
@@ -545,3 +571,86 @@ class T_ExtendingCmds(CLIShared):
         d.assert_present(out)
         cmd.core_cmd_exts_generic_core_ext.assert_present(1, out)
         cmd.pl_ext_cmds_generic_ext.assert_present(2, out)
+
+    @pytest.mark.skip
+    class TestErrorConditions():
+        def test_exception_in_before_cmd(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            actions = ["before_cmd_exception"]
+            out = self.cmd.gen_error(
+                self.sv,
+                self.ext_action.ln_to_cli(), *actions,
+                return_full=True,
+            )
+            stderr = out["stderr"]
+            stdout = out["stdout"]
+            action_strs = self.ext_action.to_assert_str(actions)
+            sv_str = self.cmd.single_arg.to_assert_str(self.sv)
+            print(stdout)
+            assert "RuntimeError: 'before_cmd_exception' encountered!" in stderr
+            assert action_strs[0] in stdout
+            assert action_strs[1] not in stdout
+            assert action_strs[2] in stdout
+            assert sv_str not in stdout
+            fail
+
+        def test_exception_in_after_cmd(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+
+        def test_exception_in_cmd(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            # Maybe move this to cmd building. Or do an with-exts/without-exts version
+            actions = [self.na]
+            out = self.cmd.gen_error(
+                "gen_error",
+                self.ext_action.ln_to_cli(), *actions,
+                return_full=True,
+            )
+            fail
+
+        def test_exception_in_clean_up(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+        
+        def test_exceptions_in_multiple_clean_ups(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+        
+        def test_exceptions_in_before_and_cleanups(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+        
+        def test_missing_ext_plugin_mod(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+
+        def test_missing_ext_plugin_mod(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+
+        def test_missing_ext_aux_mod(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+
+        def test_missing_multiple_ext_mods(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+        
+        def test_exception_in_on_load(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+        
+        def test_exception_during_mod_load(self):
+            # TEST_NEEDED CLI Ext/Cmds Error cases in global context
+            fail
+
+    @pytest.mark.skip
+    class TestNonExtendableCommands(CLIShared):
+        def test_help_msg(self):
+            # TEST_NEEDED CLI Ext/Cmds Non-extendable commands
+            cmd = self.cmds.develop_origen
+        
+        def test_error_msg_when_extended(self):
+            # TEST_NEEDED CLI Ext/Cmds Non-extendable commands
+            fail

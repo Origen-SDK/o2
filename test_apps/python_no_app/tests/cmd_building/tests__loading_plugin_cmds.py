@@ -88,6 +88,7 @@ class T_LoadingPluginCmds(Common):
 
         @pytest.mark.skip
         def test_nested_cmds(self):
+            # TEST_NEEDED CLI test nested command from global invocation side
             fail
 
     class Test_PythonPluginNoCMDs(Common):

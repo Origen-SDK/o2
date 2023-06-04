@@ -14,7 +14,6 @@ class Common(CLIShared):
     def tas(self, exts):
         return exts.tas
 
-
 class T_ExtConflicts(CLIShared):
     class TestWithPLCmd(Common):
         config = CLIShared.exts.ext_conflicts["plugin.python_plugin.plugin_test_args"]
@@ -174,7 +173,6 @@ class T_ExtConflicts(CLIShared):
             cmd = self.cmd
             help = self.cmd_help
 
-            print(help.text)
             help.assert_args(cmd.single_arg)
             help.assert_opts(
                 tas.subc_pl_aux_conflict,

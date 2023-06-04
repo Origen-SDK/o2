@@ -47,10 +47,8 @@ class TestConfig(Common):
         shutil.copy(self.configs.empty_config, self.cli_config)
         try:
             out = run_cli_cmd(["eval", "print( origen.__config_metadata__['files'] )"])
-            print(out.split("\n")[-2])
             from pathlib import WindowsPath, PosixPath
             configs = eval(out.split("\n")[-2])
-            # retn = in_new_origen_proc(mod=config_funcs)
         finally:
             os.remove(self.cli_config)
 
@@ -88,8 +86,9 @@ class TestConfig(Common):
             *existing_configs
         ]
 
-    @pytest.mark.xfail
+    @pytest.mark.skip
     def test_error_on_non_toml_config_in_env(self, existing_configs):
+        # TEST_NEEDED CLI
         retn = in_new_origen_proc(mod=config_funcs, func_kwargs={'configs': self.dummy_configs_dir.parent.joinpath("__init__.py")})
         assert retn['files'] == [
             self.python_plugin_config_toml,
@@ -98,18 +97,22 @@ class TestConfig(Common):
 
     @pytest.mark.skip
     def test_error_on_missing_config_dir_in_env(self):
+        # TEST_NEEDED CLI
         fail
 
     @pytest.mark.skip
     def test_error_on_missing_toml_config_in_env(self):
+        # TEST_NEEDED CLI
         fail
 
     @pytest.mark.skip
     def test_config_locations_can_stack(self):
+        # TEST_NEEDED CLI
         fail
     
-    @pytest.mark.xfail
-    def test_bypassing_config_lookups(self):
+    @pytest.mark.skip
+    def test_bypassing_default_config_lookups(self):
+        # TEST_NEEDED CLI
         # No configs
         retn = in_new_origen_proc(mod=config_funcs, bypass_config_lookup=True)
         assert retn['files'] == []
@@ -117,11 +120,3 @@ class TestConfig(Common):
         # Configs from the env are added though
         retn = in_new_origen_proc(func=config_funcs.test_bypassing_config_lookup_with_env, bypass_config_lookup=True, with_config=[...])
         assert retn['files'] == []
-
-    @pytest.mark.skip
-    def test_user_config_is_added(self):
-        fail
-
-    @pytest.mark.skip
-    def test_default_config_lookup_can_be_suppressed(self):
-        fail

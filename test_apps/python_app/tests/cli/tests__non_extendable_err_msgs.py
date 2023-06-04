@@ -9,7 +9,7 @@ class T_NonExtendableErrMsgs(TargetCLI):
         with_env=with_env,
         from_configs=["config/enumerated_plugins.toml"],
     )
-    # TODO have with_env extension apply to subcommands?
+    # TODO CLI have with_env extension apply to subcommands?
     view_cmd = CLICommon.in_app_commands.target.view.extend(
         [],
         with_env=with_env,

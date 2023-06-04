@@ -320,17 +320,21 @@ class T_ExtendingAppCmds(CLICommon):
 
         @pytest.mark.skip
         def test_subc_help_msg(self):
+            # TEST_NEEDED CLI subc conflicts from app context
             fail
         
         @pytest.mark.skip
         def test_subc_conflict_msgs(self):
+            # TEST_NEEDED CLI subc conflicts from app context
             fail
 
         @pytest.mark.skip
         def test_subc_exts(self):
+            # TEST_NEEDED CLI subc conflicts from app context
             fail
 
         @pytest.mark.skip
         def test_app_cmd_ext_conflicts(self):
             ''' This is likely a mistake case but should resolve nonetheless '''
+            # TEST_NEEDED CLI subc conflicts from app context
             fail

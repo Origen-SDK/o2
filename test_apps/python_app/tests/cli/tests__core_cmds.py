@@ -25,7 +25,7 @@ class T_AppWorkspaceCoreCommands(CLICommon):
         ''' Just testing that "-h" doesn't crash for all core commands '''
         help = cmd.get_help_msg()
         assert len(help.opts) >= 3
-        # FOR_PR add check for app opts when applicable
+        # TESTS_NEEDED CLI add check for app opts when applicable
 
     class TestApp(T_App):
         pass
@@ -73,7 +73,7 @@ class T_AppWorkspaceCoreCommands(CLICommon):
 
         @pytest.mark.skip
         def test_interactive(self, cmd, no_config_run_opts):
-            # TODO try to get an interactive test that just starts/stops
+            # TEST_NEEDED CLI try to get an interactive test that just starts/stops
             proc = subprocess.Popen(["poetry", "run", "origen", "i"], universal_newlines=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
                 proc.stdin.flush()
@@ -114,4 +114,4 @@ class T_AppWorkspaceCoreCommands(CLICommon):
 
     # class TestCredentials(CLICommon):
     #     def test_credentials(self):
-    #         ?
+    #         # TEST_NEEDED CLI credentials from app context

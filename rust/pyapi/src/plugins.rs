@@ -1,11 +1,9 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
-use pyapi_metal::{pypath, key_error, key_exception};
+use pyapi_metal::key_exception;
 use origen::ORIGEN_CONFIG;
-use origen_metal::indexmap::IndexMap;
 use std::path::PathBuf;
-use pyo3::exceptions::PyKeyError;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "plugins")?;

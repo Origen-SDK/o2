@@ -19,6 +19,7 @@ class T_LoadingAuxCommands(CLICommon, ConfigCommmon):
 
     @pytest.mark.xfail
     def test_aux_command_tree_view(self):
+        # FEATURE CLI aux/plugin/app command tree view
         fail
 
     class TestNestedCommands(CLICommon):

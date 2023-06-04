@@ -8,7 +8,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "current_command")?;
     subm.add_wrapped(wrap_pyfunction!(get_command))?;
     subm.add_wrapped(wrap_pyfunction!(set_command))?;
-    subm.add_wrapped(wrap_pyfunction!(clear_command))?;
+    // subm.add_wrapped(wrap_pyfunction!(clear_command))?; FEATURE CLI Clearing Current Command
     subm.add_class::<CurrentCommand>()?;
     m.add_submodule(subm)?;
     Ok(())
@@ -30,14 +30,11 @@ fn set_command(py: Python, base_cmd: String, subcmds: Vec<String>, args: Py<PyDi
     _origen!(py).setattr(ATTR_NAME, Py::new(py, cmd)?)
 }
 
-#[pyfunction]
-fn clear_command() -> PyResult<()> {
-    // Ok(STATUS.clear_command())
-    // FOR_PR
-    // TEST_NEEDED also
-    todo!()
-    // _origen!(py).setattr(ATTR_NAME, Py::new(py, cmd)?)
-}
+// FEATURE CLI Clearing Current Command
+// #[pyfunction]
+// fn clear_command() -> PyResult<()> {
+//     todo!()
+// }
 
 #[pyclass]
 pub struct CurrentCommand {

@@ -82,6 +82,10 @@ def do_action(actions, phase):
                 print(f"Sub Cmds: {cc.subcmds}")
                 print(f"Args: {cc.args}")
                 print(f"Exts: {dict(cc.exts)}")
+            elif action == "show_ext_mods":
+                # TEST_NEEDED CLI check for extension mods
+                for n, e in origen.current_command.exts.items():
+                    print(f"{n}: {e.mod}")
             elif action == "no_action":
                 pass
             else:
