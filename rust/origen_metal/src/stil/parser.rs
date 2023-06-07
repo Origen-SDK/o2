@@ -52,6 +52,10 @@ fn unquote(text: &str) -> String {
     }
 }
 
+fn unwrap_tag(text: &str) -> String {
+    text[1..text.len() - 1].to_string()
+}
+
 fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
     let mut pairs = pair.into_inner();
     let p2 = pairs.next().unwrap();
@@ -287,12 +291,8 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
             Rule::pattern_burst => {
                 ast.push(node!(STIL::PatternBurstRef, unquote(inner_strs(pair)[0])))
             }
-            Rule::dcapfilter => {
-                ast.push(node!(STIL::DCapFilterRef, unquote(inner_strs(pair)[0])))
-            }
-            Rule::dcapsetup => {
-                ast.push(node!(STIL::DCapSetupRef, unquote(inner_strs(pair)[0])))
-            }
+            Rule::dcapfilter => ast.push(node!(STIL::DCapFilterRef, unquote(inner_strs(pair)[0]))),
+            Rule::dcapsetup => ast.push(node!(STIL::DCapSetupRef, unquote(inner_strs(pair)[0]))),
             Rule::dcapsetup_block => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(
@@ -311,10 +311,9 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
                 pairs.push(p);
             }
             Rule::stype => ast.push(node!(STIL::TypeRef, unquote(inner_strs(pair)[0]))),
-            Rule::transfer_mode => ast.push(node!(
-                STIL::TransferModeRef,
-                unquote(inner_strs(pair)[0])
-            )),
+            Rule::transfer_mode => {
+                ast.push(node!(STIL::TransferModeRef, unquote(inner_strs(pair)[0])))
+            }
             Rule::frame_count => ast.push(node!(
                 STIL::FrameCountRef,
                 inner_strs(pair)[0].parse().unwrap()
@@ -409,6 +408,14 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
                 ids.push(ast.push_and_open(node!(STIL::Period)));
                 pairs.push(pair.into_inner());
             }
+            Rule::tagged_period => {
+                let mut p = pair.into_inner();
+                ids.push(ast.push_and_open(node!(
+                    STIL::TaggedPeriod,
+                    unwrap_tag(p.next().unwrap().as_str())
+                )));
+                pairs.push(p);
+            }
             Rule::inherit_waveform_table | Rule::inherit_waveform | Rule::inherit_waveform_wfc => {
                 ast.push(node!(STIL::Inherit, inner_strs(pair)[0].parse().unwrap()))
             }
@@ -433,6 +440,15 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
                 ids.push(
                     ast.push_and_open(node!(STIL::WFChar, p.next().unwrap().as_str().to_string())),
                 );
+                pairs.push(p);
+            }
+            Rule::tagged_wfc_definition => {
+                let mut p = pair.into_inner();
+                ids.push(ast.push_and_open(node!(
+                    STIL::TaggedWFChar,
+                    unwrap_tag(p.next().unwrap().as_str()),
+                    p.next().unwrap().as_str().to_string()
+                )));
                 pairs.push(p);
             }
             Rule::event => {

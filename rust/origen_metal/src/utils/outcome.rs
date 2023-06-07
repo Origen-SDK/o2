@@ -203,22 +203,32 @@ impl Outcome {
         self
     }
 
-    pub fn insert_keyword_result(&mut self, kw: impl AsRef<str>, r: impl Into<TypedValue>) -> &mut Self{
+    pub fn insert_keyword_result(
+        &mut self,
+        kw: impl AsRef<str>,
+        r: impl Into<TypedValue>,
+    ) -> &mut Self {
         if self.keyword_results.is_none() {
             self.keyword_results = Some(TypedValueMap::new());
         }
 
-        self.keyword_results.as_mut().unwrap().insert(kw.as_ref(), r);
+        self.keyword_results
+            .as_mut()
+            .unwrap()
+            .insert(kw.as_ref(), r);
         self
     }
 
-    pub fn require_keyword_result(&self, kw: impl AsRef<str>) -> Result<&TypedValue>{
+    pub fn require_keyword_result(&self, kw: impl AsRef<str>) -> Result<&TypedValue> {
         if let Some(kw_results) = self.keyword_results.as_ref() {
             if let Some(r) = kw_results.get(kw.as_ref()) {
-                return Ok(r)
+                return Ok(r);
             }
         }
-        bail!("Required that outcome has keyword result '{}' but no such result was provided", kw.as_ref())
+        bail!(
+            "Required that outcome has keyword result '{}' but no such result was provided",
+            kw.as_ref()
+        )
     }
 
     pub fn gist(&self) {
