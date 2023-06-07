@@ -1,13 +1,13 @@
 use crate::Result;
 use indexmap::IndexMap as IM;
 use num_bigint::{BigInt, BigUint};
-use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
-use toml::Value;
-use std::iter::FromIterator;
 use num_traits::cast::ToPrimitive;
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
+use std::iter::FromIterator;
 use std::path::PathBuf;
+use std::str::FromStr;
+use toml::Value;
 
 const DATA: &str = "data";
 const CLASS: &str = "__origen_encoded_class__";
@@ -175,7 +175,7 @@ impl TypedValue {
     pub fn as_map(&self) -> Result<&Map> {
         match self {
             Self::Map(m) => Ok(&m),
-            _ => bail!(&self.conversion_error_msg("map"))
+            _ => bail!(&self.conversion_error_msg("map")),
         }
     }
 
@@ -191,14 +191,14 @@ impl TypedValue {
         let big_val = self.as_bigint()?;
         match big_val.to_i32() {
             Some(i) => Ok(i),
-            None => bail!("Cannot represent value {} as i32", big_val)
+            None => bail!("Cannot represent value {} as i32", big_val),
         }
     }
 
     pub fn as_option(&self) -> Option<&Self> {
         match self {
             Self::None => None,
-            _ => Some(&self)
+            _ => Some(&self),
         }
     }
 }
@@ -293,7 +293,8 @@ impl From<i32> for TypedValue {
     }
 }
 
-impl <'a, V>From<&'a HashMap<String, V>> for TypedValue where
+impl<'a, V> From<&'a HashMap<String, V>> for TypedValue
+where
     TypedValue: From<&'a V>,
 {
     fn from(map: &'a HashMap<String, V>) -> Self {
@@ -366,7 +367,10 @@ impl TryFrom<&TypedValue> for Vec<String> {
 
     fn try_from(value: &TypedValue) -> std::result::Result<Vec<String>, Self::Error> {
         let strs = value.as_vec()?;
-        Ok(strs.iter().map(|s| s.as_string()).collect::<Result<Vec<String>>>()?)
+        Ok(strs
+            .iter()
+            .map(|s| s.as_string())
+            .collect::<Result<Vec<String>>>()?)
     }
 }
 

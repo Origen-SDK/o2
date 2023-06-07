@@ -7,8 +7,8 @@ use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 use crate::_utility::validate_input_list;
 use crate::prelude::session_store::*;
 use crate::utils::encryption;
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 lazy_static! {
     pub static ref DEFAULT_DATASET_KEY: &'static str = "__origen__default__";
@@ -409,7 +409,8 @@ impl Users {
         }
     }
 
-    pub fn try_lookup_and_set_current_user() -> Result<(String, Option<Option<PopulateUserReturn>>)> {
+    pub fn try_lookup_and_set_current_user() -> Result<(String, Option<Option<PopulateUserReturn>>)>
+    {
         let id = Self::try_lookup_current_user()?;
         let need_to_add = with_users(|users| Ok(!users.users.contains_key(&id)))?;
 
@@ -428,15 +429,18 @@ impl Users {
         if self.users.contains_key(id) {
             bail!("User '{}' has already been added", id)
         } else {
-            self.users
-                .insert(id.to_string(), User::new(
+            self.users.insert(
+                id.to_string(),
+                User::new(
                     id,
                     &self,
                     // TODO support password cache option
                     None,
                     self.uid_cnt,
-                    auto_populate.map_or_else(|| self.default_auto_populate.to_owned(), |ap| Some(ap))
-                )?);
+                    auto_populate
+                        .map_or_else(|| self.default_auto_populate.to_owned(), |ap| Some(ap)),
+                )?,
+            );
             self.uid_cnt += 1;
             Ok(())
         }
@@ -445,7 +449,7 @@ impl Users {
     pub fn add_user(id: &str, auto_populate: Option<bool>) -> Result<Option<PopulateUserReturn>> {
         log_trace!("Adding user '{}'", id);
 
-        let mut roles: Vec<String> = vec!();
+        let mut roles: Vec<String> = vec![];
         with_users_mut(|users| {
             roles = users.default_roles.to_owned();
             users.add(id, auto_populate)
@@ -513,7 +517,7 @@ impl Users {
         self.default_session_config = SessionConfig::new();
         self.default_auto_populate = None;
         self.default_should_validate_passwords = None;
-        self.default_roles = vec!();
+        self.default_roles = vec![];
         self.password_encryption_key__byte_str =
             encryption::default_encryption_key__byte_str().to_string();
         self.password_encryption_nonce__byte_str =
@@ -702,24 +706,33 @@ impl Users {
     }
 
     pub fn set_default_roles<S: AsRef<str>>(&mut self, roles: &Vec<S>) -> Result<()> {
-        let rls = roles.iter().map( |r| r.as_ref().to_string()).collect::<Vec<String>>();
+        let rls = roles
+            .iter()
+            .map(|r| r.as_ref().to_string())
+            .collect::<Vec<String>>();
         validate_input_list(&rls, None::<&Vec<String>>, false, None, None)?;
         self.default_roles = rls;
         Ok(())
     }
 
     pub fn clear_default_roles(&mut self) -> Result<()> {
-        self.default_roles = vec!();
+        self.default_roles = vec![];
         Ok(())
     }
 
     /// Return all roles
     pub fn roles(&self) -> Result<Vec<String>> {
-        Ok(self.users_by_role(None)?.keys().map( |r| r.to_owned()).collect::<Vec<String>>())
+        Ok(self
+            .users_by_role(None)?
+            .keys()
+            .map(|r| r.to_owned())
+            .collect::<Vec<String>>())
     }
 
-    pub fn users_by_role(&self, filter: Option<&dyn Fn(&User, &String) -> bool>,) -> Result<HashMap<String, Vec<String>>>
-    {
+    pub fn users_by_role(
+        &self,
+        filter: Option<&dyn Fn(&User, &String) -> bool>,
+    ) -> Result<HashMap<String, Vec<String>>> {
         let mut roles: HashMap<String, Vec<String>> = HashMap::new();
         for (n, u) in &self.users {
             for user_role in u.roles()?.iter() {
@@ -727,7 +740,7 @@ impl Users {
                     if let Some(r) = roles.get_mut(user_role) {
                         r.push(n.to_owned());
                     } else {
-                        roles.insert(user_role.to_owned(), vec!(n.to_owned()));
+                        roles.insert(user_role.to_owned(), vec![n.to_owned()]);
                     }
                 }
             }
@@ -748,7 +761,7 @@ impl Default for Users {
             default_session_config: SessionConfig::new(),
             default_auto_populate: None,
             default_should_validate_passwords: None,
-            default_roles: vec!(),
+            default_roles: vec![],
             uid_cnt: 0,
             password_encryption_key__byte_str: encryption::default_encryption_key__byte_str()
                 .to_string(),

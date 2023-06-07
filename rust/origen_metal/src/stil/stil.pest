@@ -165,16 +165,18 @@ pat_list_item = {
 
 timing_block = { "Timing" ~ name? ~ "{" ~ signal_groups* ~ waveform_table* ~ "}" }
 waveform_table = {
-    "WaveformTable" ~ name ~ "{" ~ period? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
+    "WaveformTable" ~ name ~ "{" ~ (tagged_period | period)? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
 }
 period = { "Period" ~ time_expr ~ EOS }
+tagged_period = { tag ~ "Period" ~ time_expr ~ EOS }
 inherit_waveform_table = { "InheritWaveformTable" ~ name ~ EOS }
 sub_waveforms = { "SubWaveforms" ~ "{" ~ sub_waveform* ~ "}" }
 sub_waveform = { label? ~ "Duration" ~ time_expr ~ "{" ~ event* ~ "}" }
 waveforms = { "Waveforms" ~ "{" ~ waveform* ~ "}" }
-waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ wfc_definition* ~ "}" }
+waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ (tagged_wfc_definition | wfc_definition)* ~ "}" }
 inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
 wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
+tagged_wfc_definition = { tag ~ wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
 wfc_list = @{ wfc_char+ }
 wfc_char = { ASCII_ALPHANUMERIC }
 inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
@@ -288,6 +290,7 @@ special_character = {
     "<" | "." | ">" | "/" | "?" | "\\"
 }
 whitespace_character = { " " | "\t" | "\n" }
+tag = { "<" ~ (string | name) ~ ">" }
 
 //#############################################################################
 //# Numbers
