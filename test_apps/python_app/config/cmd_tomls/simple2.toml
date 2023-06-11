@@ -1,0 +1,11 @@
+[[command]]
+    name = "simple2"
+    help = "Simple App CMD - 2"
+
+[[command]]
+    name = "simple2_with_arg"
+    help = "Simple App CMD with Arg - 2"
+
+    [[command.arg]]
+    name = "arg"
+    help = "Simple arg"

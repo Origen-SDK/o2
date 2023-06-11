@@ -13,9 +13,19 @@ const PYTHONS: &[&str] = &[
     "python3.9",
     "python3.8",
     "python3.7",
-    "python3.6",
 ];
-pub const MIN_PYTHON_VERSION: &str = "3.6.0";
+pub const MIN_PYTHON_VERSION: &str = "3.7.0";
+
+#[macro_export]
+macro_rules! strs_to_cli_arr {
+    ($name:expr, $strs:expr) => {{
+        format!(
+            "{}=[{}]",
+            $name,
+            $strs.map(|t| format!("r'{}'", t)).collect::<Vec<String>>().join(", ")
+        )
+    }}
+}
 
 lazy_static! {
     pub static ref PYTHON_CONFIG: Config = Config::default();
@@ -158,12 +168,6 @@ pub fn run(code: &str) -> Result<ExitStatus> {
     cmd.arg(&PYTHON_CONFIG.command);
     cmd.arg("-c");
     cmd.arg(&code);
-    cmd.arg("-");
-    cmd.arg(&format!("verbosity={}", origen::LOGGER.verbosity()));
-    cmd.arg(&format!(
-        "verbosity_keywords={}",
-        origen::LOGGER.keywords_to_cmd()
-    ));
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {

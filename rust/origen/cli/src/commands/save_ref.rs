@@ -4,9 +4,9 @@ use std::path::Path;
 pub fn run(matches: &clap::ArgMatches) {
     let mut exit_code = 0;
 
-    let new = matches.is_present("new");
-    let changed = matches.is_present("changed");
-    let files = matches.values_of("files");
+    let new = matches.contains_id("new");
+    let changed = matches.contains_id("changed");
+    let files = matches.get_many::<String>("files");
 
     if new {
         if let Err(e) = reference_files::apply_all_new_refs() {

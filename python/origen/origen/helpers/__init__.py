@@ -1,4 +1,4 @@
-import importlib.util, pathlib
+import importlib.util, pathlib, inspect
 import origen
 import origen.helpers.num
 
@@ -11,6 +11,8 @@ def try_method(obj, m, args):
 def has_method(obj, m):
     return hasattr(obj, m) and callable(getattr(obj, m))
 
+def calling_filename(frame=1):
+    return pathlib.Path(inspect.stack()[frame].filename)
 
 # Import a module from a file, as described here: https://stackoverflow.com/questions/67631/how-to-import-a-module-given-the-full-path
 # The name can be whatever. If no name is given, then the file name is used

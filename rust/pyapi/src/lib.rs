@@ -6,7 +6,12 @@ extern crate origen_metal;
 
 use pyapi_metal;
 
+#[macro_use]
+mod macros;
+
+mod current_command;
 mod dut;
+mod extensions;
 mod file_handler;
 mod meta;
 mod model;
@@ -26,13 +31,14 @@ mod tester;
 mod tester_apis;
 #[macro_use]
 mod utility;
+mod plugins;
 
 use crate::registers::bit_collection::BitCollection;
 use num_bigint::BigUint;
 use om::lazy_static::lazy_static;
-use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST};
+use origen::{Dut, Error, Operation, Result, Value, FLOW, ORIGEN_CONFIG, STATUS, TEST, clean_target};
 use origen_metal as om;
-use pyapi_metal::pypath;
+use pyapi_metal::{runtime_error, pypath};
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
@@ -63,12 +69,14 @@ pub mod built_info {
 
 #[pymodule]
 /// This is the top-level _origen module which can be imported by Python
-fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(initialize))?;
     m.add_wrapped(wrap_pyfunction!(status))?;
     m.add_wrapped(wrap_pyfunction!(version))?;
     m.add_wrapped(wrap_pyfunction!(config))?;
+    m.add_wrapped(wrap_pyfunction!(config_metadata))?;
     m.add_wrapped(wrap_pyfunction!(app_config))?;
+    m.add_wrapped(wrap_pyfunction!(is_app_present))?;
     m.add_wrapped(wrap_pyfunction!(clean_mode))?;
     m.add_wrapped(wrap_pyfunction!(target_file))?;
     m.add_wrapped(wrap_pyfunction!(test))?;
@@ -101,10 +109,14 @@ fn _origen(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pymodule!(prog_gen))?;
 
     file_handler::define(m)?;
+    plugins::define(py, m)?;
+    extensions::define(py, m)?;
+    current_command::define(py, m)?;
 
     // Compile the _origen_metal library along with this one
     // to allow re-use from that library
     m.add_wrapped(wrap_pymodule!(_origen_metal))?;
+    m.setattr(current_command::ATTR_NAME, py.None())?;
     Ok(())
 }
 
@@ -365,8 +377,10 @@ fn initialize(
     verbosity_keywords: Vec<String>,
     cli_location: Option<String>,
     cli_version: Option<String>,
+    fe_pkg_loc: Option<PathBuf>,
+    fe_exe_loc: Option<PathBuf>,
 ) -> PyResult<()> {
-    origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version);
+    origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version, fe_pkg_loc, fe_exe_loc);
     origen::STATUS.update_other_build_info("pyapi_version", built_info::PKG_VERSION)?;
     origen::FRONTEND
         .write()
@@ -532,41 +546,58 @@ fn config(py: Python) -> PyResult<PyObject> {
     Ok(ret.into())
 }
 
+#[pyfunction]
+fn config_metadata<'py>(py: Python<'py>) -> PyResult<&'py PyDict> {
+    let m = origen::origen_config_metadata();
+    let retn = PyDict::new(py);
+    retn.set_item("files", m.files.iter().map( |p| Ok(pypath!(py, p.display()))).collect::<PyResult<Vec<PyObject>>>()?)?;
+    Ok(retn)
+}
+
+#[pyfunction]
+fn is_app_present() -> PyResult<bool> {
+    Ok(STATUS.is_app_present)
+}
+
 /// Returns the Origen application configuration (as defined in application.toml)
 #[pyfunction]
-fn app_config(py: Python) -> PyResult<PyObject> {
-    let ret = PyDict::new(py);
-    let _ = origen::app().unwrap().with_config(|config| {
-        let _ = ret.set_item("name", &config.name);
-        let _ = ret.set_item("target", &config.target);
-        let _ = ret.set_item("mode", &config.mode);
-        let _ = ret.set_item("__output_directory__", &config.output_directory);
-        let _ = ret.set_item(
-            "__website_output_directory__",
-            &config.website_output_directory,
-        );
-        let _ = ret.set_item(
-            "__website_source_directory__",
-            &config.website_source_directory,
-        );
-        let _ = ret.set_item(
-            "website_release_location",
-            match &config.website_release_location {
-                Some(loc) => Py::new(
-                    py,
-                    Location {
-                        location: (*loc).clone(),
-                    },
-                )
-                .unwrap()
-                .to_object(py),
-                None => py.None(),
-            },
-        );
-        let _ = ret.set_item("website_release_name", &config.website_release_name);
-        Ok(())
-    });
-    Ok(ret.into())
+fn app_config(py: Python) -> PyResult<Option<PyObject>> {
+    if let Some(app) = origen::app() {
+        let ret = PyDict::new(py);
+        let _ = app.with_config(|config| {
+            let _ = ret.set_item("name", &config.name);
+            let _ = ret.set_item("target", &config.target);
+            let _ = ret.set_item("mode", &config.mode);
+            let _ = ret.set_item("__output_directory__", &config.output_directory);
+            let _ = ret.set_item(
+                "__website_output_directory__",
+                &config.website_output_directory,
+            );
+            let _ = ret.set_item(
+                "__website_source_directory__",
+                &config.website_source_directory,
+            );
+            let _ = ret.set_item(
+                "website_release_location",
+                match &config.website_release_location {
+                    Some(loc) => Py::new(
+                        py,
+                        Location {
+                            location: (*loc).clone(),
+                        },
+                    )
+                    .unwrap()
+                    .to_object(py),
+                    None => py.None(),
+                },
+            );
+            let _ = ret.set_item("website_release_name", &config.website_release_name);
+            Ok(())
+        });
+        Ok(Some(ret.into()))
+    } else {
+        Ok(None)
+    }
 }
 
 /// clean_mode(name)
@@ -582,7 +613,7 @@ fn clean_mode(name: &str) -> PyResult<String> {
 /// Sanitizes the given target/env name and returns the matching file, but will exit the process
 /// if it does not uniquely identify a single target/env file.
 fn target_file(name: &str, dir: &str) -> PyResult<String> {
-    let c = origen::core::application::target::clean_name(name, dir, true);
+    let c = clean_target!(name, dir, true);
     Ok(c)
 }
 
@@ -616,13 +647,6 @@ fn prepare_for_target_load() -> PyResult<()> {
 fn start_new_test(name: Option<String>) -> PyResult<()> {
     origen::start_new_test(name);
     Ok(())
-}
-
-#[macro_export]
-macro_rules! runtime_error {
-    ($message:expr) => {{
-        Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>($message))
-    }};
 }
 
 pub fn pickle(py: Python, object: &impl AsPyPointer) -> PyResult<Vec<u8>> {
@@ -676,6 +700,16 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     }
 
     let users = pyapi_metal::framework::users::users()?;
+
+    if let Some(pw_cache_option) = &crate::ORIGEN_CONFIG.user__password_cache_option {
+        match users.set_default_password_cache_option(Some(pw_cache_option)) {
+            Ok(_) => {},
+            Err(e) => {
+                om::log_error!("{}: Error encountered updating default password cache option", *BASE_MSG);
+                om::log_error!("{}", e);
+            }
+        }
+    }
 
     if let Some(dsets) = &crate::ORIGEN_CONFIG.user__datasets {
         let mut replace_default = true;
@@ -841,9 +875,34 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     // Initialize the current user
     if ORIGEN_CONFIG.initial_user.as_ref().map_or(true, |u| u.initialize.unwrap_or(true)) {
         match users.lookup_current_id(true) {
-            Ok(_) => {}
+            Ok(_) => {
+                if ORIGEN_CONFIG.initial_user.as_ref().map_or(true, |u| u.init_home_dir.unwrap_or(true)) {
+                    match users.current_user() {
+                        Ok(usr) => {
+                            match usr {
+                                Some(u) => {
+                                    match u.set_home_dir(None) {
+                                        Ok(_) => {},
+                                        Err(e) => {
+                                            log_error!("{}: Failed to lookup current user's home directory", *BASE_MSG);
+                                            log_error!("{}", e);
+                                        }
+                                    }
+                                },
+                                None => {
+                                    log_error!("{}: Failed to lookup current user", *BASE_MSG);
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            log_error!("{}: Failed to lookup current user", *BASE_MSG);
+                            log_error!("{}", e);
+                        }
+                    }
+                }
+            },
             Err(e) => {
-                om::log_error!("{}: Failed to lookup current user", *BASE_MSG);
+                log_error!("{}: Failed to lookup current user", *BASE_MSG);
                 log_error!("{}", e);
             }
         }

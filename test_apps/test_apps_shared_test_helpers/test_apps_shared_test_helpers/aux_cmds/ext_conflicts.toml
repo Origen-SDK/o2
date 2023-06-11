@@ -1,0 +1,204 @@
+# Conflict with core cmd arg name
+[[extension]]
+extend = "origen.eval"
+help = "Conflict with core cmd arg"
+on_env=["ORIGEN_EXT_CONFLICTS_CORE_CMD_EVAL"]
+
+    [[extension.opt]]
+    name = "code"
+    help = "Conflict with core cmd arg name from AUX"
+
+[[extension]]
+extend = "origen.credentials.clear"
+help = "Conflict with core cmd opt from AUX"
+on_env=["ORIGEN_EXT_CONFLICTS_CORE_CMD_CREDS_CLEAR"]
+
+    [[extension.opt]]
+    name = "all"
+    help = "Conflict with core cmd opt name. Uses full name"
+
+    [[extension.opt]]
+    name = "cmd_conflicts_aux"
+    help = "Conflict with core cmd opt from AUX"
+    long = "all"
+    short = "a"
+    long_aliases = ["datasets", "pl_datasets"]
+    short_aliases = ["d", "e", "f"]
+
+# TESTS_NEEDED CLI Conflict with help opt
+# [[extension]]
+# extend = "origen.eval"
+# help = "Conflict with help arg"
+#     [[extension.opt]]
+#         name = "help"
+#         help = "Conflict with help arg"
+
+# [[extension]]
+# extend = "origen.eval"
+# help = "Conflict with help arg"
+#     [[extension.opt]]
+#         name = "conflict_sn_help"
+#         help = "Conflict with help arg"
+#         short = "h"
+
+# [[extension]]
+# extend = "origen.eval"
+# help = "Conflict with help arg"
+#     [[extension.opt]]
+#         name = "conflict_help"
+#         help = "Conflict with help arg"
+#         short = "g"
+#         long = "help"
+
+# [[extension]]
+# extend = "origen.eval"
+# help = "Conflict with help arg"
+#     [[extension.opt]]
+#         name = "conflict_help"
+#         help = "Conflict with help arg"
+#         short = "g"
+#         long = "help1"
+#         long_aliases = ["help2", "help"]
+#         short_aliases = ["h", "i"]
+
+# TESTS_NEEDED CLI Opt conflict with v, vk
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+help = "Conflict with plugin from aux ext"
+on_env=["ORIGEN_EXT_CONFLICTS_PL_TEST_ARGS"]
+    [[extension.opt]]
+        name = "single_arg"
+        help = "Conflict with cmd arg"
+    [[extension.opt]]
+        name = "opt_taking_value"
+        help = "Conflict with cmd opt name but long name okay"
+        long = "otv"
+    [[extension.opt]]
+        name = "conflict_sn"
+        help = "Conflict with cmd opt sn"
+        short = "n"
+    [[extension.opt]]
+        name = "pl_aux_conflict"
+        help = "plugin-aux conflict (Aux)"
+    [[extension.opt]]
+        name = "pl_aux_sn_conflict_aux"
+        help = "plugin-aux conflict (sn) (Aux)"
+        short = "s"
+    [[extension.opt]]
+        name = "aux_conflict_ln_and_aliases"
+        help = "Conflict with cmd opt ln and some aliases (Aux)"
+        long = "alias"
+        long_aliases = ["opt_alias", "other_alias_pl", "other_alias_aux"]
+        short_aliases = ["a", "b", "c", "d"]
+    [[extension.opt]]
+        name = "flag"
+        help = "Conflict with inferred long name (Aux)"
+    [[extension.opt]]
+        name = "alias"
+        help = "Conflict with inferred long name with aliases (Aux)"
+        long_aliases = ["alias_aux"]
+    [[extension.opt]]
+        name = "subc"
+        help = "Conflict with plugin subcommand"
+    [[extension.opt]]
+        name = "ns_self_conflict"
+        help = "Conflict within the namespace"
+        long = "subc"
+        short = "d"
+    [[extension.opt]]
+        name = "ns_self_conflict"
+        help = "Conflict within the namespace"
+        long = "another_self_conflict"
+    [[extension.opt]]
+        name = "ext_self_conflict"
+        help = "Ln conflict within the extension"
+        long = "ns_self_conflict"
+    [[extension.opt]]
+        name = "ext_self_conflict"
+        help = "Ln conflict within the extension"
+    [[extension.opt]]
+        name = "ext_self_conflict_2"
+        help = "Ilna conflicts within the extension"
+        long_aliases = ["ext_self_conflict", "ext_self_conflict_2", "ext_self_conflict_2_1"]
+    [[extension.opt]]
+        name = "ext_opt_in_ln"
+        help = "Reserved prefix in ln"
+        long = "ext_opt.in_ln"
+    [[extension.opt]]
+        name = "ext_opt_in_lna"
+        help = "Reserved prefix in lna"
+        long_aliases = ["ext_opt_in_lna_2", "ext_opt.in_lna"]
+    [[extension.opt]]
+        name = "ext_opt.reserved_name"
+        help = "Conflict with reserved name"
+        long = "reserved_name"
+    [[extension.opt]]
+        name = "same_ln_and_ln_alias"
+        help = "Same ln and lna"
+        long = "same_ln_and_ln_alias"
+        long_aliases = ["same_ln_and_ln_alias"]
+    [[extension.opt]]
+        name = "same_iln_and_ln_alias"
+        help = "Same inferred ln and lna"
+        long_aliases = ["same_iln_and_ln_alias"]
+    [[extension.opt]]
+        name = "repeated_sn_and_aliases"
+        help = "Repeated sna and lna, with sn conflict"
+        short = "g"
+        long_aliases = ["repeated_lna", "repeated_lna", "repeated_lna_2"]
+        short_aliases = ["g", "e", "e", "e"]
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args.subc"
+on_env=["ORIGEN_EXT_CONFLICTS_PL_TEST_ARGS_SUBC"]
+    [[extension.opt]]
+        name = "subc_pl_aux_conflict"
+        help = "plugin-aux conflict (AUX)"
+        long = "subc_pl_aux"
+        sn = "c"
+        long_aliases = ["pl0", "aux0", "subc_pl_aux"]
+        short_aliases = ["a", "e", "b"]
+    [[extension.opt]]
+        name = "subc_pl_aux_conflict"
+        help = "plugin-aux conflict"
+    [[extension.opt]]
+        name = "flag_opt"
+        help = "Conflict with inferred long name (AUX)"
+    [[extension.opt]]
+        name = "more_conflicts"
+        help = "More conflicts (AUX)"
+        long_aliases = ["more_conflicts", "subc_opt"]
+        short_aliases = ["d", "n"]
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+on_env = ["ORIGEN_APP_PL_CMD_CONFLICTS"]
+
+    [[extension.opt]]
+        name = "ec_opt"
+        help = "Opt from EC"
+        long = "ec"
+        short = "e"
+        long_aliases = ["e_opt"]
+        short_aliases = ["a", "b", "c", "d"]
+
+    [[extension.opt]]
+        name = "tas_iln"
+        short = "n"
+        long_aliases = ["t_opt"]
+        help = "More conflicts"
+
+[[extension]]
+extend = "app.arg_opt_warmup"
+on_env = ["ORIGEN_APP_EXT_CONFLICTS_ARG_OPT_WARMUP"]
+
+    [[extension.opt]]
+        name = "flag_opt"
+        help = "Conflict with flag opt from ext_conflicts AUX"
+
+    [[extension.opt]]
+        name = "conflicts_from_ext_conflicts"
+        help = "Some conflicts from ext_conflicts AUX"
+        long_aliases=["python_plugin_conflicts", "TAS", "EX_Conflicts", "hidden"]
+        short_aliases=["a", "b", "c"]

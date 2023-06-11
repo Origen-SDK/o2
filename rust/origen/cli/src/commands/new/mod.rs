@@ -29,8 +29,8 @@ pub fn run(matches: &ArgMatches) {
         new_resource::run(matches);
         return;
     }
-    let name = matches.value_of("name").unwrap();
-    if name.to_lowercase() != name {
+    let name = matches.get_one::<&str>("name").unwrap();
+    if &name.to_lowercase() != name {
         display_red!("ERROR: ");
         displayln!("The application name must be lowercased");
         std::process::exit(1);
@@ -80,7 +80,7 @@ pub fn run(matches: &ArgMatches) {
 
     new_app.apply_template(&PY_APP, &context);
 
-    if !matches.is_present("no-setup") {
+    if !matches.contains_id("no-setup") {
         new_app.setup();
     }
 }

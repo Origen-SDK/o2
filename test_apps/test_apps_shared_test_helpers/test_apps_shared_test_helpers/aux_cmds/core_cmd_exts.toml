@@ -1,0 +1,14 @@
+[[extension]]
+extend = "origen.app"
+global = false
+
+    [[extension.opt]]
+    name = "generic_ext_core_from_aux"
+    help = "Generic Extension From Aux Commands"
+
+[[extension]]
+extend = "origen.eval"
+
+    [[extension.opt]]
+    name = "core_cmd_exts_generic_core_ext"
+    help = "Generic core ext from aux commands"

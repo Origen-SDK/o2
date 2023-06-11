@@ -115,6 +115,12 @@ impl std::convert::From<std::string::String> for Error {
     }
 }
 
+impl std::convert::From<&str> for Error {
+    fn from(err: &str) -> Self {
+        Error::new(err)
+    }
+}
+
 impl std::convert::From<lettre::address::AddressError> for Error {
     fn from(err: lettre::address::AddressError) -> Self {
         Error::new(&err.to_string())

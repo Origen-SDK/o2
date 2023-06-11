@@ -1,0 +1,9 @@
+[[auxillary_commands]]
+path = "./ext_conflicts.toml"
+
+[plugins]
+collect = false
+load = [
+    { name = "python_plugin" },
+    { name = "test_apps_shared_test_helpers"}
+]

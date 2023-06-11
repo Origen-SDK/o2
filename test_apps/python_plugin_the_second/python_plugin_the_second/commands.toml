@@ -1,0 +1,49 @@
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking"
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_action"
+        multiple = true
+        help = "Action from pl_the_2nd plugin"
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_flag"
+        help = "Flag from pl_the_2nd plugin"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_action_subc"
+        multiple = true
+        help = "Action from pl_the_2nd plugin subc"
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_flag_subc"
+        help = "Flag from pl_the_2nd plugin subc"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_action"
+        multiple = true
+        help = "Action from pl_the_2nd plugin"
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_flag"
+        help = "Flag from pl_the_2nd plugin"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd.subc"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_action_subc"
+        multiple = true
+        help = "Action from pl_the_2nd plugin subc"
+
+    [[extension.opt]]
+        name = "python_plugin_the_second_flag_subc"
+        help = "Flag from pl_the_2nd plugin subc"

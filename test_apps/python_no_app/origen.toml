@@ -1,0 +1,94 @@
+# Use this to define your application-specific Origen configuration
+# Do not delete it even if you don't use it since it is also used by the Origen
+# command line interface to determine when it is in an Origen application workspace
+
+# Specify what command should be used to invoke python, if not specified
+# Origen will try python, python3, python3.8, etc. until one is found that
+# satisfies the minimum Python version requirement
+#python_cmd = "mypython"
+
+# If your company has an internal package server enter it here:
+#pkg_server = "https://pkgs.company.net:9292"
+# or here, if you need to use different urls for push and pull (write and read):
+#pkg_server_push = "https://pkgs.company.net:9292"
+#pkg_server_pull = "https://pkgs.company.net:9292"
+
+session__user_root = "./"
+
+### Users Setup ###
+# Various items to customize user data
+#
+# If any datasets are available, selects which is the default
+user__data_lookup_hierarchy = ["test", "backup"]
+user__password_cache_option = "session"
+# Allows passwords to be stored in the user's session store
+#
+# User datasets allow for single user to be "registered" in multiple systems
+[user__datasets]
+[user__datasets.test]
+[user__datasets.test2]
+[user__datasets.backup]
+[user__datasets.dummy_ldap_ds]
+category = "ldaps"
+data_store = "dummy_ldap" # Corresponds to LDAP name
+data_id = "uid"
+data_service_user = "dummy_ldap_read_only"
+should_validate_password = true
+auto_populate = false
+[user__datasets.git]
+data_store = "git"
+auto_populate = false
+
+# When a password is requested for the given reason, will select the appropriate dataset
+[user__dataset_motives]
+"rc" = "git"
+"just because" = "test2"
+
+[user__dataset_mappings]
+[user__dataset_mappings.dummy_ldap_ds]
+email = "mail"
+last_name = "sn"
+uid = "uid"
+full_name = "cn"
+
+# LDAP configuration
+[ldaps]
+[ldaps.dummy_ldap]
+server = "ldap://ldap.jumpcloud.com:389"
+base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+[ldaps.dummy_ldap.auth]
+scheme = "simple_bind"
+username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+password = "KrabbyPatties#1"
+
+# Service/functional accounts
+[default_users]
+[default_users.dummy_ldap_read_only]
+username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+password = "KrabbyPatties#1"
+
+[mailer]
+server = "smtp.origen.org"
+port = 25
+auth_method = "None"
+domain = "origen.org"
+user = "dummy_ldap_read_only"
+timeout = 120
+
+[plugins]
+collect = false
+load = [
+    { name = "python_plugin" },
+    { name = "python_plugin_the_second" },
+    { name = "python_plugin_no_cmds" },
+]
+
+[[auxillary_commands]]
+    path = "./tests/cmd_building/cmd_testers"
+
+[[auxillary_commands]]
+    name = "python_no_app_aux_cmds"
+    path = "./tests/dummy_aux_cmds/dummy_aux_cmds.toml"
+
+[[auxillary_commands]]
+    path = "../test_apps_shared_test_helpers/test_apps_shared_test_helpers/aux_cmds/empty_aux_ns.toml"

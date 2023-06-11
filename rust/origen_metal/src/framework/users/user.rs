@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use crate::{log_error};
 use crate::frontend::FeatureReturn;
+use std::env;
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
 pub const DEFAULT_USER_SESSION_PATH_OFFSET: &str = "./.o2/.session";
@@ -245,6 +246,101 @@ impl PopulateUserReturn {
     }
 }
 
+pub fn try_default_home_dir(user: Option<&str>, dataset: Option<&str>) -> Result<Option<PathBuf>> {
+    let u_id: String;
+    let is_current;
+    match user {
+        Some(id) => {
+            if let Some(cid) = super::users::get_current_user_id()? {
+                is_current = cid == id;
+            } else {
+                is_current = false;
+            }
+            u_id = id.to_owned();
+        },
+        None => {
+            if let Some(id) = super::users::get_current_user_id()? {
+                u_id = id;
+                is_current = true;
+            } else {
+                bail!("Cannot attempt to lookup home directory when no current user has been set!")
+            }
+        }
+    }
+
+    // TODO see about wrapping function calls like this (optional frontend functions)
+    let fe_res = crate::with_optional_frontend(|f| {
+        if let Some(fe) = f {
+            if let Some(result) = fe.lookup_home_dir(&u_id, dataset, is_current) {
+                return Ok(Some(result?))
+            }
+        }
+        Ok(None)
+    })?;
+
+    if let Some(r) = fe_res {
+        Ok(r)
+    } else {
+        let hd: PathBuf;
+        if cfg!(windows) {
+            match env::var("USERPROFILE") {
+                Ok(path) => hd = PathBuf::from(path),
+                Err(e) => {
+                    match e {
+                        env::VarError::NotPresent => bail!("Please set environment variable USERPROFILE to point to your home directory, then try again"),
+                        _ => bail!(&e.to_string())
+                    }
+                }
+            }
+        } else {
+            match env::var("HOME") {
+                Ok(path) => hd = PathBuf::from(path),
+                Err(e) => {
+                    match e {
+                        env::VarError::NotPresent => bail!("Please set environment variable HOME to point to your home directory, then try again"),
+                        _ => bail!(&e.to_string())
+                    }
+                }
+            }
+        }
+
+        if !hd.ends_with(&u_id) {
+            bail!("Home directory '{}' is not appropriate for current user with id '{}'", hd.display(), &u_id)
+        } else {
+            Ok(Some(hd))
+        }
+        // try_default_home_dir_lookup() // super::whoami()
+    }
+}
+
+// pub fn try_default_home_dir_lookup() -> Result<PathBuf> {
+//     let hd;
+//     if cfg!(windows) {
+//         match env::var("USERPROFILE") {
+//             Some(path) => hd = PathBuf::from(path),
+//             None => bail!("Please set environment variable USERPROFILE to point to your home directory, then try again")
+//         }
+//     } else {
+//         match env::var("HOME") {
+//             Some(path) => hd = PathBuf::from(path),
+//             None => bail!("Please set environment variable HOME to point to your home directory, then try again")
+//         }
+//     }
+
+//     // Confirm that this directory is suitable for the current user
+//     super::users::with_current_user( |user| { // get_current_user_id
+//         if let Some(u) = user {
+//             if !hd.ends_with(u.id) {
+//                 bail!("Home directory '{}' is not appropriate for current user with id '{}'", hd.display(), u.id)
+//             }
+//         } else {
+//             bail!("Cannot attempt to lookup home directory when no current user has been set!")
+//         }
+//         Ok(hd)
+//     })
+// }
+
+
 #[derive(Debug, Default)]
 struct PopulateStatus {
     populating: RwLock<bool>,
@@ -351,6 +447,7 @@ pub struct User {
     // User-level overrides for dataset configuration
     auto_populate: Option<bool>,
     should_validate_passwords: Option<bool>,
+    prompt_for_passwords: Option<bool>,
 }
 
 impl User {
@@ -515,6 +612,9 @@ impl User {
             roles: RwLock::new(HashSet::new()),
             auto_populate: auto_populate,
             should_validate_passwords: users.default_should_validate_passwords().to_owned(),
+
+            // TODO add a users option to inherit from?
+            prompt_for_passwords: None,
         };
 
         for (ds, config) in users.default_datasets().iter() {
@@ -703,9 +803,19 @@ impl User {
     }
 
     pub fn set_home_dir(&self, new_dir: Option<PathBuf>) -> Result<()> {
-        let mut data = self.write_data(None).unwrap();
-        data.home_dir = new_dir;
+        if new_dir.is_some() {
+            let mut data = self.write_data(None)?;
+            data.home_dir = new_dir;
+        } else {
+            self.for_datasets_in_hierarchy_mut( |d| { d.home_dir = None; Ok(()) })?;
+        }
         Ok(())
+    }
+
+    pub fn dot_origen_dir(&self) -> Result<PathBuf> {
+        let mut dot = self.require_home_dir()?;
+        dot.push(".origen");
+        Ok(dot)
     }
 
     pub fn _cache_password(&self, password: &str, dataset: &str) -> Result<bool> {
@@ -714,6 +824,9 @@ impl User {
     }
 
     pub fn _password_dialog(&self, dataset: &str, motive: Option<&str>) -> Result<String> {
+        if !self.prompt_for_passwords() {
+            bail!("Cannot prompt for passwords for user '{}'. Passwords must be loaded by the config or set directly.", &self.id);
+        }
         // TODO add attempts back in
         // for _attempt in 0..ORIGEN_CONFIG.user__password_auth_attempts {
         let msg;
@@ -728,11 +841,15 @@ impl User {
                 None => format!("\nPlease enter your password ({}): ", dataset),
             };
         }
-        let pass = rpassword::read_password_from_tty(Some(&msg)).unwrap();
+        let pass = match rpassword::read_password_from_tty(Some(&msg)) {
+            Ok(pw) => pw,
+            Err(e) => bail!("Error encountered prompting for password: {}", e)
+        };
         let attempt = self._try_password(&pass, Some(dataset))?;
+
         if attempt.0 {
             self._cache_password(&pass, dataset)?;
-            let mut data = self.write_data(Some(dataset)).unwrap();
+            let mut data = self.write_data(Some(dataset))?;
             data.password = Some(pass.clone());
             return Ok(pass);
         } else {
@@ -865,6 +982,18 @@ impl User {
         self.should_validate_passwords = new;
     }
 
+    pub fn prompt_for_passwords(&self) -> bool {
+        self.prompt_for_passwords.unwrap_or(true)
+    }
+
+    pub fn prompt_for_passwords_value(&self) -> &Option<bool> {
+        &self.prompt_for_passwords
+    }
+
+    pub fn set_prompt_for_passwords(&mut self, new: Option<bool>) -> () {
+        self.prompt_for_passwords = new;
+    }
+
     pub fn password(
         &self,
         motive_or_dataset: Option<&str>,
@@ -981,7 +1110,11 @@ impl User {
                 let _unused = crate::sessions();
             }
         }
-        self.write_data(dataset)?.clear_cached_password(self)
+        if dataset.is_some() {
+            self.write_data(dataset)?.clear_cached_password(self)
+        } else {
+            self.for_datasets_in_hierarchy_mut(|d| d.clear_cached_password(self))
+        }
     }
 
     pub fn should_auto_populate(&self) -> bool {
@@ -1178,6 +1311,30 @@ impl User {
         for (_n, d) in self.data.iter() {
             func(&mut d.write().unwrap())?;
         }
+        Ok(())
+    }
+
+    pub fn for_datasets_in_hierarchy<T, F>(&self, mut func: F) -> Result<()>
+    where
+        F: FnMut(&Data) -> Result<T>,
+    {
+        for n in self.data_lookup_hierarchy.iter() {
+            self.with_dataset(&n, |d| {
+                func(d)
+            })?;
+        };
+        Ok(())
+    }
+
+    pub fn for_datasets_in_hierarchy_mut<T, F>(&self, mut func: F) -> Result<()>
+    where
+        F: FnMut(&mut Data) -> Result<T>,
+    {
+        for n in self.data_lookup_hierarchy.iter() {
+            self.with_dataset_mut(&n, |d| {
+                func(d)
+            })?;
+        };
         Ok(())
     }
 }

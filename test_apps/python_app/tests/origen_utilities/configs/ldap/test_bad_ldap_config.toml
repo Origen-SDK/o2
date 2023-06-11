@@ -1,5 +1,5 @@
 [ldaps]
 [ldaps.bad]
-server = "ldap://zflexldap.com:389"
-base = "dc=zflexsoftware,dc=com"
+server = "ldap://ldap.jumpcloud.com:389"
+base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
 timeout = "hi"

@@ -1,18 +1,13 @@
-use origen::app;
-use std::fs;
+use crate::commands::_prelude::*;
 
-pub fn run(targets: Option<Vec<&str>>, mode: &Option<&str>) {
-    let dot_origen_dir = app().unwrap().root.join(".origen");
-    if !dot_origen_dir.exists() {
-        let _ = fs::create_dir(&dot_origen_dir);
-    }
-    let history_file = dot_origen_dir.join("console_history");
-    if !history_file.exists() {
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(&history_file);
-    }
+pub const BASE_CMD: &'static str = "interactive";
 
-    super::launch("interactive", targets, mode, None, None, None, false, None);
-}
+gen_core_cmd_funcs!(
+    BASE_CMD,
+    "Start an Origen console to interact with the DUT",
+    { |cmd: App<'a>| {
+        cmd.visible_alias("i")
+    }}
+);
+
+gen_simple_run_func!();

@@ -1,0 +1,47 @@
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_action"
+        multiple = true
+        help = "Action from pl_ext_stacking aux cmds"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_flag"
+        help = "Flag from pl_ext_stacking aux cmds"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_action_subc"
+        multiple = true
+        help = "Action from pl_ext_stacking aux cmds subc"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_flag_subc"
+        help = "Flag from pl_ext_stacking aux cmds subc"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_action"
+        multiple = true
+        help = "Action from pl_ext_stacking aux cmds"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_flag"
+        help = "Flag from pl_ext_stacking aux cmds"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd.subc"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_action_subc"
+        multiple = true
+        help = "Action from pl_ext_stacking aux cmds subc"
+
+    [[extension.opt]]
+        name = "pl_ext_stacking_from_aux_flag_subc"
+        help = "Flag from pl_ext_stacking aux cmds subc"

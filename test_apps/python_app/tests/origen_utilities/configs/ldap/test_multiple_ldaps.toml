@@ -7,5 +7,5 @@ base = "dc=duke,dc=edu"
 server = "ldap://db.debian.org:389"
 base = "dc=debian,dc=org"
 [ldaps.l3]
-server = "ldap://zflexldap.com:389"
-base = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
+server = "ldap://ldap.jumpcloud.com:389"
+base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"

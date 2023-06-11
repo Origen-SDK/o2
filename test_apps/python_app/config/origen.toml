@@ -52,18 +52,18 @@ full_name = "cn"
 # LDAP configuration
 [ldaps]
 [ldaps.dummy_ldap]
-server = "ldap://zflexldap.com:389"
-base = "dc=zflexsoftware,dc=com"
+server = "ldap://ldap.jumpcloud.com:389"
+base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
 [ldaps.dummy_ldap.auth]
 scheme = "simple_bind"
-username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
-password = "zflexpass"
+username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+password = "KrabbyPatties#1"
 
 # Service/functional accounts
 [default_users]
 [default_users.dummy_ldap_read_only]
-username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
-password = "zflexpass"
+username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+password = "KrabbyPatties#1"
 
 [mailer]
 server = "smtp.origen.org"
@@ -72,3 +72,9 @@ auth_method = "None"
 domain = "origen.org"
 user = "dummy_ldap_read_only"
 timeout = 120
+
+[[auxillary_commands]]
+    path = "../../test_apps_shared_test_helpers/test_apps_shared_test_helpers/aux_cmds/dummy_cmds.toml"
+
+[[auxillary_commands]]
+    path = "../../test_apps_shared_test_helpers/test_apps_shared_test_helpers/aux_cmds/empty_aux_ns.toml"

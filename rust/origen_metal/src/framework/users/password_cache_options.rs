@@ -5,6 +5,7 @@ use crate::_utility::{str_from_byte_array, bytes_from_str_of_bytes};
 use crate::utils::encryption::{decrypt_with, encrypt_with};
 #[cfg(feature = "password-cache")]
 use keyring::Keyring;
+use std::fmt;
 
 pub const PASSWORD_KEY: &str = "user_password__";
 
@@ -12,7 +13,7 @@ fn to_session_password<'a>(dataset: &str) -> String {
     format!("{}{}", PASSWORD_KEY, dataset)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PasswordCacheOptions {
     Session,
     Keyring,
@@ -136,6 +137,48 @@ impl PasswordCacheOptions {
         match self {
             Self::None => true,
             _ => false,
+        }
+    }
+}
+
+impl fmt::Display for PasswordCacheOptions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Self::Session => "session",
+            Self::Keyring => "keyring",
+            Self::None => "none",
+        })
+    }
+}
+
+impl From<&PasswordCacheOptions> for Option<String> {
+    fn from(value: &PasswordCacheOptions) -> Option<String> {
+        match value {
+            PasswordCacheOptions::None => None,
+            _ => Some(value.to_string())
+        }
+    }
+}
+
+impl From<PasswordCacheOptions> for Option<String> {
+    fn from(value: PasswordCacheOptions) -> Option<String> {
+        PasswordCacheOptions::into(value)
+    }
+}
+
+impl TryFrom<Option<&str>> for PasswordCacheOptions {
+    type Error = crate::Error;
+
+    fn try_from(value: Option<&str>) -> Result<PasswordCacheOptions> {
+        if let Some(v) = value {
+            Ok(match v.to_lowercase().as_str() {
+                "session" | "session_store" => PasswordCacheOptions::Session,
+                "keyring" => PasswordCacheOptions::Keyring,
+                "none" => PasswordCacheOptions::None,
+                _ => bail!("Invalid password cache option: '{}'", v)
+            })
+        } else {
+            Ok(PasswordCacheOptions::None)
         }
     }
 }

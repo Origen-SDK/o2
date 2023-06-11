@@ -12,6 +12,8 @@ use origen_metal::Result as OMResult;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
 use std::collections::HashMap;
+use std::path::PathBuf;
+use crate::framework::users::{User, UserDataset};
 
 use crate::_helpers::typed_value;
 
@@ -119,6 +121,45 @@ impl origen_metal::frontend::FrontendAPI for Frontend {
                         Some(None)
                     } else {
                         Some(Some(result.extract::<String>(py)?))
+                    }
+                }
+                None => None,
+            })
+        });
+        match fe_result {
+            Ok(r) => match r {
+                Some(res) => return Some(Ok(res)),
+                None => None,
+            },
+            Err(e) => Some(Err(e.into())),
+        }
+    }
+
+    fn lookup_home_dir(&self, user_id: &str, dataset: Option<&str>, is_current: bool) -> Option<OMResult<Option<PathBuf>>> {
+        let fe_result = with_py_frontend(|py, fe| {
+            Ok(match fe._users_.get(*super::LOOKUP_HOME_DIR_FUNC_KEY) {
+                Some(f) => {
+                    let args = (
+                        User::new(user_id)?,
+                        if let Some(d) = dataset {
+                            Py::new(py, UserDataset::new(user_id, d))?.to_object(py)
+                        } else {
+                            py.None()
+                        },
+                        is_current,
+                    );
+
+                    let result = f.call1(py, args)?;
+                    if result.is_none(py) {
+                        Some(None)
+                    } else if let Ok(b) = result.extract::<bool>(py) {
+                        if b {
+                            return runtime_error!("'True' is not a valid return value when looking up a user's home directory")
+                        } else {
+                            None
+                        }
+                    } else {
+                        Some(Some(result.extract::<PathBuf>(py)?))
                     }
                 }
                 None => None,

@@ -1,0 +1,7 @@
+[[command]]
+name = "invalid2"
+test = "invalid toml format"
+
+[[command]]
+name = "invalid2"
+test = "invalid toml format

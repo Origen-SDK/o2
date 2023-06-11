@@ -1,36 +1,44 @@
-# see the following docs
-# https://docs.python.org/3/library/subprocess.html#subprocess.Popen
-# https://docs.python.org/3/library/subprocess.html#subprocess.call
-# https://docs.python.org/3/library/subprocess.html#subprocess.run
-
-# Makes a lot of sense to run tests that require a Python workspace here
-# rather than as Rust cli tests (Rust tests would need to ensure a working app
-# is available before running).
-#
-# Global commands could go here if the working dir is changed first.
-# Otherwise Rust cli tests can be used. See the rust/origen/cli/test directory
-#
-# an interactive command test write to stdin like this:
-#   process = subprocess.Popen(['origen', '-v']),
-#                stdin=subprocess.PIPE,
-#                stdout=subprocess.PIPE,
-#                stderr=subprocess.PIPE,
-#                universal_newlines=True,
-#                bufsize=0)
-#  process.stdin.write("yes\n")
-#  process.stdin.close()
-#  read output, etc
-
 import pytest, pathlib
 import subprocess
 import os
 import origen
 
+from cli.tests__app_cmd_building import T_AppCmdBuilding
+from cli.tests__core_cmds import T_AppWorkspaceCoreCommands
+from cli.tests__cmd_exts_from_app import T_ExtendingFromAppCmds
+from cli.tests__reserved_opts import T_ReservedOpts
+from cli.tests__cmd_integration import T_CommandIntegration
+from cli.tests__intra_cmd_conflicts import T_IntraCmdConflicts
+from cli.tests__extending_app_cmds import T_ExtendingAppCmds
+from cli.tests__non_extendable_err_msgs import T_NonExtendableErrMsgs
+
+class TestAppCmdBuilding(T_AppCmdBuilding):
+    pass
+
+class TestExtendingAppCmds(T_ExtendingAppCmds):
+    pass
+
+class TestIntraCmdConflicts(T_IntraCmdConflicts):
+    pass
+
+class TestExtendingFromAppCommands(T_ExtendingFromAppCmds):
+    pass
+
+class TestAppWorkspaceCoreCommands(T_AppWorkspaceCoreCommands):
+    pass
+
+class TestReservedOpts(T_ReservedOpts):
+    pass
+
+class TestCommandIntegration(T_CommandIntegration):
+    pass
+
+class TestNonExtendableErrMsgs(T_NonExtendableErrMsgs):
+    pass
+
 origen_cli = os.getenv('TRAVIS_ORIGEN_CLI') or 'origen'
 
-
 def test_origen_v():
-    #import pdb; pdb.set_trace()
     process = subprocess.Popen([f'{origen_cli}', '-v'],
                                stdout=subprocess.PIPE,
                                universal_newlines=True)
@@ -48,71 +56,14 @@ def test_bad_command():
     process = subprocess.Popen([f'{origen_cli}', 'thisisnotacommand'],
                                stderr=subprocess.PIPE,
                                universal_newlines=True)
-    assert process.wait() == 1
+    assert process.wait() == 2
     assert "error:" in process.stderr.readline()
 
+@pytest.mark.skip
+class TestAuxCommandsAreAdded:
+    ...
 
-def test_origen_g():
-    os.chdir(origen.root)
-    process = subprocess.Popen([
-        f'{origen_cli}', 'g', r'./example/patterns/toggle.py', '-t',
-        r'./targets/eagle_with_smt7.py'
-    ],
-                               universal_newlines=True)
-    assert process.wait() == 0
-
-class TestBadConfigs:
-    @property
-    def bad_config_env(self):
-        return {
-            **os.environ,
-            "origen_bypass_config_lookup": "1",
-            "origen_config_paths": str(
-                pathlib.Path(__file__).parent.joinpath("origen_utilities/configs/ldap/test_bad_ldap_config.toml").absolute()
-            )
-        }
-
-    def test_origen_v(self):
-        r = subprocess.run(
-            [origen_cli, '-v'],
-            capture_output=True,
-            env=self.bad_config_env
-        )
-        assert r.returncode == 1
-        out = r.stdout.decode("utf-8").strip()
-        err = r.stderr.decode("utf-8").strip()
-        p = pathlib.Path("tests/origen_utilities/configs/ldap/test_bad_ldap_config.toml")
-        assert "Couldn't boot app to determine the in-application Origen version" in out
-        assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
-        assert err == ""
-
-    def test_origen_cmd(self):
-        r = subprocess.run(
-            [origen_cli, 'g', r'./example/patterns/toggle.py', '-t', r'./targets/eagle_with_smt7.py'],
-            capture_output=True,
-            env=self.bad_config_env
-        )
-        assert r.returncode == 1
-        out = r.stdout.decode("utf-8").strip()
-        err = r.stderr.decode("utf-8").strip()
-        p = pathlib.Path("tests/origen_utilities/configs/ldap/test_bad_ldap_config.toml")
-        assert f"invalid type: string \"hi\", expected an integer for key `ldaps.bad.timeout` in {str(p)}" in out
-        assert err == ""
-
-    def test_bad_config_path(self):
-        r = subprocess.run(
-            [origen_cli, '-v'],
-            capture_output=True,
-            env={
-                **self.bad_config_env,
-                **{
-                    "origen_config_paths": str(pathlib.Path(__file__).parent.joinpath("missing.toml").absolute())
-                }
-            }
-        )
-        assert r.returncode == 1
-        out = r.stdout.decode("utf-8").strip()
-        err = r.stderr.decode("utf-8").strip()
-        assert "Couldn't boot app to determine the in-application Origen version" in out
-        assert "missing.toml either does not exists or is not accessible" in out
-        assert err == ""
+@pytest.mark.skip
+class TestModeOpts():
+    def test_():
+        fail
