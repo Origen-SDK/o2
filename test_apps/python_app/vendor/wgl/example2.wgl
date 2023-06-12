@@ -1,0 +1,45 @@
+waveform patternload
+	pmode[dont_care];
+	signal
+		sig1 :bidir;
+		sig2 :input;
+		sig3 :output;
+		SC_IN : input;
+		SC_OUT : output;
+		SC_IN2 : input;
+		SC_OUT2 : output;
+	end
+	scanCell
+		a; b; c; d; e; f; g; h; i; j; k; l; m; n; oo; p; q; r; s; t; u; v; w; x;
+		a1; b1; c1; d1; e1; f1; g1; h1; i1; j1; k1; l1; m1; n1; o1;
+	end
+	scanChain
+		ch1 [SC_IN, a, b, c, d, e, f, g, h, ii, j, k, l, m, n, oo, p, q, r, s, t, u, v, w, x, SC_OUT];
+		ch2 [SC_IN2, a1, b1, c1, d1, e1, f1, g1, h1, i1, j1, k1, l1, m1, n1, o1, SC_OUT2];
+	end
+	scanState
+		TDS_state0 := ch1(110011100001001000110100) ch2(110011100001001);
+		TDS_state1 := ch1(11X01X10000100X000110X00);
+		TDS_stateX := ;
+	end
+	timeplate tp1 period 200ns
+		sig1 := bidir[0ps:D, 75ns:S, 95ns:D, 100ns:X, 120ns:Q, 175ns:X];
+		sig2 := input[0ps:S];
+		sig3 := output[0ps:X, 75ns:Q, 95ns:X];
+		SC_IN, SC_IN2:= input[0pS:D];
+		SC_OUT, SC_OUT2 := output[0pS:X];
+	end
+	timeplate scanPlate period 500nS
+		SC_IN2, SC_IN := input[0pS:P, 100nS:S];
+		SC_OUT2, SC_OUT:= output[0pS:X, 300nS:Q, 400nS:X];
+		sig1 := input[0pS:S];
+		sig2 := input[0pS:D];
+		sig3 := output[0pS:X];
+	end
+	pattern pattern0 (sig1:I, sig1:O, sig2, sig3, SC_IN, SC_OUT, SC_IN2, SC_OUT2)
+		vector (0, 0pS, tp1) := [ 0 1 X Z - - - - ];
+		scan(scanPlate) := [1 - - - - - - - ],
+		input[ch1:TDS_state0], output[ch1:TDS_state1],
+		input[ch2:TDS_state0], output[ch2:TDS_stateX];
+	end
+end
