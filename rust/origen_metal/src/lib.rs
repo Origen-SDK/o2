@@ -22,6 +22,7 @@ mod error;
 pub mod framework;
 pub mod frontend;
 pub mod stil;
+pub mod wgl;
 pub mod utils;
 use std::fmt::Display;
 use std::sync::Mutex;
