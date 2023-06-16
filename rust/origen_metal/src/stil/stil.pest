@@ -181,7 +181,7 @@ wfc_list = @{ wfc_char+ }
 wfc_char = { ASCII_ALPHANUMERIC }
 inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
 name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
-event = { label? ~ time_expr? ~ event_list? ~ EOS }
+event = { label? ~ time_expr ~ event_list ~ EOS? }
 event_list = { event_char ~ ("/" ~ event_char)* }
 event_char = {
     "D" | "U" | "Z" | "P" | "L" | "H" | "X" | "x" | "T" | "V" | "l" | "h" | "t" | "v" | "R" | "G" |
