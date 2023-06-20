@@ -3,6 +3,7 @@ use crate::stil;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum STIL {
     Root,
+    SourceFile(String),
     Integer(i64),
     Float(f64),
     String(String),

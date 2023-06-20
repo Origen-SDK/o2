@@ -211,7 +211,7 @@ mod tests {
         let e = &format!("'{}'", expr);
         //println!("{:?}", STILParser::parse(Rule::time_expr, e));
         let mut p = STILParser::parse(Rule::time_expr, e).unwrap();
-        to_ast(p.next().unwrap()).unwrap().unwrap()
+        to_ast(p.next().unwrap(), None).unwrap().unwrap()
     }
 
     #[test]
