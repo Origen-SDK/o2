@@ -13,7 +13,10 @@ pub struct STILParser;
 
 pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
     if path.exists() {
-        match parse_str(&fs::read_to_string(path)?) {
+        match parse_str(
+            &fs::read_to_string(path)?,
+            Some(&path.display().to_string()),
+        ) {
             Ok(n) => Ok(n),
             Err(e) => Err(Error::new(&format!(
                 "Error parsing file {}:\n{}",
@@ -29,10 +32,10 @@ pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
     }
 }
 
-pub fn parse_str(stil: &str) -> Result<Node<STIL>> {
+pub fn parse_str(stil: &str, source_file: Option<&str>) -> Result<Node<STIL>> {
     match STILParser::parse(Rule::stil_source, stil) {
         Err(e) => Err(Error::new(&format!("{}", e))),
-        Ok(mut stil) => Ok(to_ast(stil.next().unwrap())?.unwrap()),
+        Ok(mut stil) => Ok(to_ast(stil.next().unwrap(), source_file)?.unwrap()),
     }
 }
 
@@ -59,14 +62,14 @@ fn unwrap_tag(text: &str) -> String {
 fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
     let mut pairs = pair.into_inner();
     let p2 = pairs.next().unwrap();
-    let mut term = to_ast(p2)?.unwrap();
+    let mut term = to_ast(p2, None)?.unwrap();
     let mut done = false;
     while !done {
         if let Some(next) = pairs.peek() {
             match next.as_rule() {
                 Rule::add => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STIL::Add);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -74,7 +77,7 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
                 }
                 Rule::subtract => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STIL::Subtract);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -91,14 +94,14 @@ fn build_expression(pair: Pair<Rule>) -> Result<Node<STIL>> {
 
 fn build_term(pair: Pair<Rule>) -> Result<Node<STIL>> {
     let mut pairs = pair.into_inner();
-    let mut term = to_ast(pairs.next().unwrap())?.unwrap();
+    let mut term = to_ast(pairs.next().unwrap(), None)?.unwrap();
     let mut done = false;
     while !done {
         if let Some(next) = pairs.peek() {
             match next.as_rule() {
                 Rule::multiply => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STIL::Multiply);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -106,7 +109,7 @@ fn build_term(pair: Pair<Rule>) -> Result<Node<STIL>> {
                 }
                 Rule::divide => {
                     pairs.next();
-                    let next_term = to_ast(pairs.next().unwrap())?.unwrap();
+                    let next_term = to_ast(pairs.next().unwrap(), None)?.unwrap();
                     let mut n = node!(STIL::Divide);
                     n.add_child(term);
                     n.add_child(next_term);
@@ -122,7 +125,7 @@ fn build_term(pair: Pair<Rule>) -> Result<Node<STIL>> {
 }
 
 // This is the main function responsible for transforming the parsed strings into an AST
-pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
+pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STIL>> {
     let mut ast = AST::new();
     let mut ids: Vec<usize> = vec![];
     let mut pairs: Vec<Pairs<Rule>> = vec![];
@@ -131,6 +134,9 @@ pub fn to_ast(mut pair: Pair<Rule>) -> Result<AST<STIL>> {
         match pair.as_rule() {
             Rule::stil_source => {
                 ids.push(ast.push_and_open(node!(STIL::Root)));
+                if let Some(f) = source_file {
+                    ast.push(node!(STIL::SourceFile, f.to_string()));
+                }
                 pairs.push(pair.into_inner());
             }
             Rule::stil_version => {

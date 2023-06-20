@@ -6,28 +6,47 @@ pub mod processors;
 use crate::ast::Node;
 use crate::Result as OrigenResult;
 pub use nodes::STIL;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub fn from_file(path: &Path) -> OrigenResult<Node<STIL>> {
     let ast = parser::parse_file(path)?;
     let load_path = vec![Path::new(path).parent().unwrap().to_path_buf()];
 
-    let ast = processors::includer::Includer::run(&ast, load_path)?;
+    let ast = processors::includer::Includer::run(&ast, load_path, HashMap::new())?;
     Ok(ast)
 }
 
-pub fn from_file_with_load_path(path: &Path, load_path: &Vec<PathBuf>) -> OrigenResult<Node<STIL>> {
+/// Parse the given STIL file, using the given load path to resolve any include statements
+/// that are encountered.
+/// Include files can optionally be renamed using the `rename` argument, which
+/// is a map of the original include file name to the new name.
+pub fn from_file_with_options(
+    path: &Path,
+    load_path: &Vec<PathBuf>,
+    rename: Option<&HashMap<&str, &str>>,
+) -> OrigenResult<Node<STIL>> {
     let ast = parser::parse_file(path)?;
     let mut load_path_with_current = vec![Path::new(path).parent().unwrap().to_path_buf()];
     for p in load_path {
         load_path_with_current.push(p.clone());
     }
-    let ast = processors::includer::Includer::run(&ast, load_path_with_current)?;
+    let rename = match rename {
+        Some(r) => {
+            let mut rename = HashMap::new();
+            for (orig, new) in r {
+                rename.insert(orig.to_string(), new.to_string());
+            }
+            rename
+        }
+        None => HashMap::new(),
+    };
+    let ast = processors::includer::Includer::run(&ast, load_path_with_current, rename)?;
     Ok(ast)
 }
 
 pub fn from_str(stil: &str, root_dir: Option<&str>) -> OrigenResult<Node<STIL>> {
-    let ast = parser::parse_str(stil)?;
+    let ast = parser::parse_str(stil, None)?;
     let load_path = {
         if let Some(p) = root_dir {
             vec![Path::new(p).to_path_buf()]
@@ -35,7 +54,7 @@ pub fn from_str(stil: &str, root_dir: Option<&str>) -> OrigenResult<Node<STIL>> 
             vec![]
         }
     };
-    let ast = processors::includer::Includer::run(&ast, load_path)?;
+    let ast = processors::includer::Includer::run(&ast, load_path, HashMap::new())?;
     Ok(ast)
 }
 #[derive(Clone, Debug, PartialEq, Serialize, enum_utils::FromStr)]
