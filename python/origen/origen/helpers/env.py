@@ -21,11 +21,16 @@ def run_cli_cmd(cmd, *,
     shell=None,
     targets=None,
     check=True,
+    poetry_run=False,
+    origen_exe=None
 ):
     if isinstance(cmd, str):
-        cmd = ["origen", cmd]
-    else:
-        cmd = ["origen", *cmd]
+        cmd = [cmd]
+    if (origen_exe is None) or isinstance(origen_exe, str):
+        origen_exe = [origen_exe or 'origen']
+    if poetry_run:
+        origen_exe = ["poetry", "run", *origen_exe]
+    cmd = [*origen_exe, *cmd]
 
     subp_env = os.environ.copy()
     if isinstance(with_configs, str) or isinstance(with_configs, pathlib.Path):

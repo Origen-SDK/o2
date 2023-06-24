@@ -1,7 +1,10 @@
-import pytest, pathlib
+import pytest, pathlib, sys
 import subprocess
 import os
 import origen
+
+sys.path.insert(-1, str(pathlib.Path(__file__).parent.parent.parent.joinpath("no_workspace")))
+from t_invocation_env import T_InvocationBaseTests
 
 from cli.tests__app_cmd_building import T_AppCmdBuilding
 from cli.tests__core_cmds import T_AppWorkspaceCoreCommands
@@ -67,3 +70,10 @@ class TestAuxCommandsAreAdded:
 class TestModeOpts():
     def test_():
         fail
+
+class TestAppInvocation(T_InvocationBaseTests):
+    @classmethod
+    def set_params(cls):
+        cls.invocation = cls.PyProjectSrc.App
+        cls.cli_location = cls.debug_cli_loc
+        cls.target_pyproj_dir = pathlib.Path(__file__).parent.parent

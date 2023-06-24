@@ -6,6 +6,7 @@ authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
 python = ">=3.7,<3.11"
+pytest = ">=7.2.1"
 origen = { path = "../../python/origen", develop = true }
 pl_ext_cmds = { path = "../pl_ext_cmds", develop = true }
 

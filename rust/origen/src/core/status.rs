@@ -54,6 +54,57 @@ impl FromStr for Operation {
     }
 }
 
+#[derive(Debug, Display)]
+pub enum DependencySrc {
+    // Dependencies resolve from... 
+    App(PathBuf), // the application
+    Workspace(PathBuf), // current directory tree (in workspace)
+    UserGlobal(PathBuf), // explicitly given by user, no workspace
+    Global(PathBuf), // the origen CLI installation directory, no workspace
+    None, // None available. Use whatever is available in the same install environment as Origen itself
+}
+
+impl DependencySrc {
+    pub fn src_available(&self) -> bool {
+        match self {
+            Self::None => false,
+            _ => true,
+        }
+    }
+
+    pub fn src_file(&self) -> Option<&PathBuf> {
+        match self {
+            Self::App(path) | Self::Workspace(path) | Self::UserGlobal(path) | Self::Global(path) => Some(path),
+            Self::None => None,
+        }
+    }
+}
+
+impl<S> TryFrom<(S, Option<PathBuf>)> for DependencySrc
+where S: AsRef<str> {
+    type Error = crate::Error;
+
+    fn try_from(value: (S, Option<PathBuf>)) -> Result<Self, Self::Error> {
+        macro_rules! gen_case {
+            ($t: ident) => {
+                if let Some(path) = value.1 {
+                    Self::$t(path)
+                } else {
+                    bail!(concat!("A path is required with dependency src type '", stringify!($t), "'"));
+                }
+            }
+        }
+        Ok(match value.0.as_ref() {
+            "App" => gen_case!(App),
+            "Workspace" => gen_case!(Workspace),
+            "UserGlobal" => gen_case!(UserGlobal),
+            "Global" => gen_case!(Global),
+            "None" => Self::None,
+            _ => bail!("Cannot convert value '{}' to dependency src type", value.0.as_ref())
+        })
+    }
+}
+
 // FEATURE Backend Current Command. Either store some basics here, or use a frontend wrapper
 // use crate::TypedValueMap;
 // #[derive(Debug)]
@@ -114,6 +165,7 @@ pub struct Status {
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
     _operation: RwLock<Operation>,
+    dependency_src: RwLock<Option<DependencySrc>>,
     // command: RwLock<Option<CurrentCommand>>, // FEATURE Backend Current Command
 }
 
@@ -207,6 +259,7 @@ impl Default for Status {
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
             _operation: RwLock::new(Operation::None),
+            dependency_src: RwLock::new(None),
             // command: RwLock::new(None), // FEATURE Backend Current Command
         };
         log_trace!("Status built successfully");
@@ -442,6 +495,15 @@ impl Status {
     pub fn set_in_origen_core_app(&self, stat: bool) {
         let mut s = self.in_origen_core_app.write().unwrap();
         *s = stat;
+    }
+
+    pub fn set_dependency_src(&self, src: Option<DependencySrc>) {
+        let mut dependency_src = self.dependency_src.write().unwrap();
+        *dependency_src = src;
+    }
+
+    pub fn dependency_src(&self) -> RwLockReadGuard<Option<DependencySrc>> {
+        self.dependency_src.read().unwrap()
     }
 
     /// This is the main method to get the current output directory, accounting for all

@@ -139,3 +139,24 @@ jobs:
         working-directory: rust/origen_metal
         run: cargo test
 
+      # Use a global pytest install for invocation tests
+      - name: Install Pytest
+        run: pip install pytest==7.2.1
+
+      - name: Get Pytest Version (Check Install)
+        run: pytest --version
+
+      - name: Run User-Global Invocation Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_user_install.py -vv
+
+      # TODO eventually want to move this into a poetry build step
+      # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
+      #   'mv' command should be be fine for both linux & powershell
+      # - name: Move Origen executable (Linux)
+      #   if: matrix.os == 'ubuntu-latest'
+      #   run: mv rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+
+      # - name: Move Origen executable (Windows)
+      #   if: matrix.os == 'windows-latest'
+      #   run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
