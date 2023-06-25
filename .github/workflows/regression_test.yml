@@ -141,7 +141,7 @@ jobs:
 
       # Use a global pytest install for invocation tests
       - name: Install Pytest
-        run: pip install pytest==7.2.1
+        run: pip install pytest==7.2.1 jinja2=3.1.2
 
       - name: Get Pytest Version (Check Install)
         run: pytest --version
