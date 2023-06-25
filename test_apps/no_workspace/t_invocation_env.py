@@ -81,6 +81,7 @@ class T_InvocationEnv(T_InvocationBaseTests):
             target = cls.target_pyproj_dir.joinpath(toml)
             print(f"Moving pyproject {cls._pyproj_src_file} to {target}")
             shutil.copy(cls._pyproj_src_file, target)
+        subprocess.run(["poetry", "--version"], check=True, cwd=cls.target_pyproj_dir)
         subprocess.run(["poetry", "install"], check=True, cwd=cls.target_pyproj_dir)
 
     @classmethod
