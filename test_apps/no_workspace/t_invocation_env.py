@@ -127,6 +127,6 @@ class T_InvocationEnv(T_InvocationBaseTests):
         pls = self.eval_and_parse(code)
         if self.has_pls:
             # TODO consistent plugin loading
-            assert set(pls) == {'python_plugin_the_second', 'pl_ext_cmds', 'test_apps_shared_test_helpers', 'python_plugin'}
+            assert set(pls) == {'pl_ext_cmds', 'test_apps_shared_test_helpers', 'python_plugin'}
         else:
             assert pls == []
