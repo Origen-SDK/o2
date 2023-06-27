@@ -95,12 +95,10 @@ impl VectorBased for SMT7 {
             _ => None,
         }
     }
-}
 
-impl Interceptor for SMT7 {}
-
-impl TesterAPI for SMT7 {
     fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
         crate::prog_gen::advantest::smt7::render_test_program(&self)
     }
 }
+
+impl Interceptor for SMT7 {}
