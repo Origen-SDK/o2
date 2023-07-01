@@ -30,7 +30,21 @@ class _CommonNames:
             args=[
                 CmdArg("code", "Statements to evaluate", multi=True, required=True)
             ],
-            opts=add_opts,
+            opts=(add_opts or []) + [
+                CmdOpt(
+                    "scripts",
+                    help="Evaluate from script files",
+                    ln="scripts",
+                    sn="s",
+                    ln_aliases=["files"],
+                    sn_aliases=["f"],
+                    multi=True,
+                    required=False,
+                )
+            ],
+            h_opt_idx=0,
+            v_opt_idx=2,
+            vk_opt_idx=3,
             demos=[
                 CmdDemo(
                     "minimal",

@@ -15,7 +15,9 @@ def run_cmd(command,
             mode=None,
             debug=False,
             args=None,
+            arg_indices=None,
             ext_args=None,
+            ext_arg_indices=None,
             extensions=None,
             dispatch_root=None,
             dispatch_src=None,
@@ -202,7 +204,7 @@ def run_cmd(command,
             if "on_load" in ext:
                 getattr((ext["mod"]), ext["on_load"])(ext["mod"])
     current_ext = None
-    _origen.current_command.set_command(command, subcmds, args, ext_args, extensions)
+    _origen.current_command.set_command(command, subcmds, args, ext_args, arg_indices, ext_arg_indices, extensions)
 
     def run_ext(phase, continue_on_fail=False):
         for ext in extensions:
@@ -250,10 +252,6 @@ def run_cmd(command,
             interactive.prep_shell(origen.__console_history_file__)
             interactive.interact(banner=f"Origen {origen.version}",
                                 context=origen.__interactive_context__())
-
-        elif command == "eval":
-            for c in args['code']:
-                exec(c)
 
         elif command == "web:build":
             _origen.set_operation("web")

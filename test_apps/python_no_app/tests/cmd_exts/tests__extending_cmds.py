@@ -554,6 +554,7 @@ class T_ExtendingCmds(CLIShared):
             cmd.core_cmd_exts_generic_core_ext,
             "help",
             cmd.pl_ext_cmds_generic_ext,
+            cmd.scripts,
             "v",
             "vk",
         )

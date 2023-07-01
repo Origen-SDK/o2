@@ -13,7 +13,20 @@ gen_core_cmd_funcs!(
                 .action(AppendArgs)
                 .value_name("CODE")
                 .multiple(true)
-                .required(true)
+                .required_unless_present("scripts")
+        )
+        .arg(
+            Arg::new("scripts")
+                .help("Evaluate from script files")
+                .long("scripts")
+                .short('s')
+                .visible_alias("files")
+                .visible_short_alias('f')
+                .action(AppendArgs)
+                .value_name("SCRIPTS")
+                .multiple(true)
+                .use_value_delimiter(true)
+                .require_value_delimiter(true)
         )
     }}
 );
