@@ -86,8 +86,23 @@ def do_action(actions, phase):
                 # TEST_NEEDED CLI check for extension mods
                 for n, e in origen.current_command.exts.items():
                     print(f"{n}: {e.mod}")
+            elif action == "show_arg_indices":
+                print(origen.current_command.arg_indices)
+            elif action == "show_ext_arg_indices":
+                print({ n: v.arg_indices for n, v in origen.current_command.exts.items() })
             elif action == "no_action":
                 pass
             else:
                 raise RuntimeError(f"No action '{action}' is known!")
             print(f"End Action {p_out} CMD: {action}")
+
+def get_action_results(output, actions):
+    retn = {}
+    for action in actions:
+        a = {}
+        r = output.split(f"Start Action Before CMD: {action}")[1].strip()
+        a["Before"], r = r.split(f"End Action Before CMD: {action}")
+        r = output.split(f"Start Action After CMD: {action}")[1].strip()
+        a["After"], r = r.split(f"End Action After CMD: {action}")
+        retn[action] = a
+    return retn

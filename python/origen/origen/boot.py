@@ -43,6 +43,8 @@ def run_cmd(command,
 
     if args is None:
         args = {}
+    if arg_indices is None:
+        arg_indices = {}
 
     if command == dispatch_plugin_cmd:
         cmd_src = "plugin"
@@ -144,6 +146,8 @@ def run_cmd(command,
         subcmds = []
     if ext_args is None:
         ext_args = {}
+    if ext_arg_indices is None:
+        ext_arg_indices = {}
     if extensions is None:
         extensions = []
     current_ext = None

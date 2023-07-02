@@ -9,7 +9,7 @@ from .cmd_models.exts import ExtensionDrivers
 from .cmd_models.plugins import Plugins
 from .error_cases import ErrorCases
 
-from .asertions import AssertionHelpers
+from .assertions import AssertionHelpers
 
 develop_origen = "develop_origen"
 def develop_origen_cmd():
@@ -102,6 +102,10 @@ class CLIShared(cli.CLI, AssertionHelpers):
     Cmd = Cmd
     error_messages = ErrorCases()
     na = "no_action"
+
+    def get_action_results(self, *args):
+        from .ext_helpers import get_action_results as get_action_results_wrap
+        return get_action_results_wrap(*args)
 
     @pytest.fixture
     def cmd(self):
