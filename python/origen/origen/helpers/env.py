@@ -26,6 +26,14 @@ def run_cli_cmd(cmd, *,
 ):
     if isinstance(cmd, str):
         cmd = [cmd]
+    else:
+        def to_cmd(c):
+            if isinstance(c, pathlib.Path):
+                return str(c)
+            else:
+                return c
+        cmd = list(map(to_cmd, cmd))
+
     if (origen_exe is None) or isinstance(origen_exe, str):
         origen_exe = [origen_exe or 'origen']
     if poetry_run:
