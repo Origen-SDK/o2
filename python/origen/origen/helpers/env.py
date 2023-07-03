@@ -29,7 +29,7 @@ def run_cli_cmd(cmd, *,
     else:
         def to_cmd(c):
             if isinstance(c, pathlib.Path):
-                return str(c)
+                return c.as_posix()
             else:
                 return c
         cmd = list(map(to_cmd, cmd))
@@ -68,7 +68,9 @@ def run_cli_cmd(cmd, *,
             cmd = ' '.join(cmd)
             raise RuntimeError(f"Expected cmd '{cmd}' to fail but received return code 0")
     else:
-        result = subprocess.run(cmd, shell=shell, check=check, capture_output=True, text=True, input=input, env=subp_env)
+        result = subprocess.run(cmd, shell=shell, check=False, capture_output=True, text=True, input=input, env=subp_env)
+    print(result.stderr)
+    print(result.stdout)
     if return_details:
         return {
             "stderr": result.stderr,
