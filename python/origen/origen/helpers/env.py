@@ -68,9 +68,7 @@ def run_cli_cmd(cmd, *,
             cmd = ' '.join(cmd)
             raise RuntimeError(f"Expected cmd '{cmd}' to fail but received return code 0")
     else:
-        result = subprocess.run(cmd, shell=shell, check=False, capture_output=True, text=True, input=input, env=subp_env)
-    print(result.stderr)
-    print(result.stdout)
+        result = subprocess.run(cmd, shell=shell, check=check, capture_output=True, text=True, input=input, env=subp_env)
     if return_details:
         return {
             "stderr": result.stderr,
