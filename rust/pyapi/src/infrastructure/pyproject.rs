@@ -31,7 +31,7 @@ pub enum PyProjectSrc {
     Workspace,
     UserGlobal,
     Global,
-    None,
+    NoneFound,
 }
 
 impl PyProjectSrc {
@@ -47,7 +47,7 @@ impl From<&DependencySrc> for PyProjectSrc {
             DependencySrc::Workspace(_) => Self::Workspace,
             DependencySrc::UserGlobal(_) => Self::UserGlobal,
             DependencySrc::Global(_) => Self::Global,
-            DependencySrc::None => Self::None,
+            DependencySrc::NoneFound => Self::NoneFound,
         }
     }
 }

@@ -124,7 +124,7 @@ jobs:
       # - name: Install Poetry
       #   uses: abatilo/actions-poetry@v2.0.0
       #   with:
-      #     poetry-version: 1.3.2
+      #     poetry-version: 1.1.14
 
       - name: Setup Python Env - Metal
         working-directory: python/origen_metal
@@ -153,10 +153,34 @@ jobs:
       # TODO eventually want to move this into a poetry build step
       # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
       #   'mv' command should be be fine for both linux & powershell
-      # - name: Move Origen executable (Linux)
-      #   if: matrix.os == 'ubuntu-latest'
-      #   run: mv rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+      - name: Move Origen executable (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: mv rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+      - name: Move Origen executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
-      # - name: Move Origen executable (Windows)
-      #   if: matrix.os == 'windows-latest'
-      #   run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
+      - name: Install Origen Packages
+        run:
+          pip install python/origen
+          pip install python/origen_metal
+
+      - name: Show Origen Binary Location (Linux)
+        run: which origen
+      - name: Show Origen Binary Location (Windows)
+        run: where.exe origen
+
+      # Should be no pyprojects in the root so far. Start with no-workspace tests
+      - name: Run No-Workspace-No-Plugins Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_no_workspace.py::TestNoWorkspaceNoPlugins -vv
+      
+      - name: Install Plugins
+        run:
+          pip install test_apps/test_apps_shared_test_helpers
+          pip install test_apps/python_plugin
+          pip install python/origen_metal
+
+      - name: Run No-Workspace-With-Plugins Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_no_workspace.py::TestNoWorkspaceWithPlugins -vv

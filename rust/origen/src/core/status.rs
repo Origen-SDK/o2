@@ -61,13 +61,13 @@ pub enum DependencySrc {
     Workspace(PathBuf), // current directory tree (in workspace)
     UserGlobal(PathBuf), // explicitly given by user, no workspace
     Global(PathBuf), // the origen CLI installation directory, no workspace
-    None, // None available. Use whatever is available in the same install environment as Origen itself
+    NoneFound, // None available. Use whatever is available in the same install environment as Origen itself
 }
 
 impl DependencySrc {
     pub fn src_available(&self) -> bool {
         match self {
-            Self::None => false,
+            Self::NoneFound => false,
             _ => true,
         }
     }
@@ -75,7 +75,7 @@ impl DependencySrc {
     pub fn src_file(&self) -> Option<&PathBuf> {
         match self {
             Self::App(path) | Self::Workspace(path) | Self::UserGlobal(path) | Self::Global(path) => Some(path),
-            Self::None => None,
+            Self::NoneFound => None,
         }
     }
 }
@@ -99,7 +99,7 @@ where S: AsRef<str> {
             "Workspace" => gen_case!(Workspace),
             "UserGlobal" => gen_case!(UserGlobal),
             "Global" => gen_case!(Global),
-            "None" => Self::None,
+            "None" => Self::NoneFound,
             _ => bail!("Cannot convert value '{}' to dependency src type", value.0.as_ref())
         })
     }

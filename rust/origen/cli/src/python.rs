@@ -105,7 +105,7 @@ pub fn resolve_pyproject() -> Result<DependencySrc> {
     }
 
     log_trace!("No pyproject found. Skipping Poetry invocations...");
-    Ok(DependencySrc::None)
+    Ok(DependencySrc::NoneFound)
 }
 
 impl Config {
@@ -125,7 +125,7 @@ impl Config {
                     c.arg("-C");
                     c.arg(path);
                 }
-                DependencySrc::None => {}
+                DependencySrc::NoneFound => {}
             }
         } else {
             log_error!("Dependency source has not been set - defaulting to global Python installation");
