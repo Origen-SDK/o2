@@ -55,13 +55,6 @@ jobs:
           echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           $env:Path = "${{ github.workspace }}/rust/origen/target/debug;$env:Path"
 
-      - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: which origen
-      - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
-        run: where.exe origen
-
       - name: Display Python Version
         run: python -c "import sys; print(sys.version)"
 
@@ -89,7 +82,43 @@ jobs:
       - name: Display Poetry Version
         working-directory: test_apps/python_app
         run: poetry --version
-      
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_app
+        run: |
+          where.exe origen
+          poetry run where.exe origen
+
+      # TODO need to see why this is the case and come up with a better solution
+      - name: Remove Poetry's Origen Wrapper (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_app
+        run: poetry run which origen | rm -f
+      - name: Remove Poetry's Origen Wrapper (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_app
+        run: poetry run where.exe origen | rm -f
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_app
+        run: |
+          where.exe origen
+          poetry run where.exe origen
+
       - name: Run Python-App Unit Tests
         working-directory: test_apps/python_app
         run: origen exec pytest -vv
