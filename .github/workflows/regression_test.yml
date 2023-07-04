@@ -45,12 +45,21 @@ jobs:
           
       - name: Add Origen to PATH (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
+        run: 
+          echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/rust/origen/target/debug" >> $PATH
 
       - name: Add Origen to PATH (Windows)
         if: matrix.os == 'windows-latest'
-        run: echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
- 
+        run:
+          echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:PATH -Encoding utf8 -Append
+
+      - name: Show Origen Binary Location (Linux)
+        run: which origen
+      - name: Show Origen Binary Location (Windows)
+        run: where.exe origen
+
       - name: Display Python Version
         run: python -c "import sys; print(sys.version)"
 
@@ -67,7 +76,12 @@ jobs:
       - name: Display Origen App Version
         working-directory: test_apps/python_app
         run: origen -v
-      
+
+      - name: Show Origen Binary Location (Linux)
+        run: which origen
+      - name: Show Origen Binary Location (Windows)
+        run: where.exe origen
+
       - name: Display Poetry Version
         working-directory: test_apps/python_app
         run: poetry --version
