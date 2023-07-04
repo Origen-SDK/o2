@@ -45,13 +45,13 @@ jobs:
           
       - name: Add Origen to PATH (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: 
+        run: |
           echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
           echo "${{ github.workspace }}/rust/origen/target/debug" >> $PATH
 
       - name: Add Origen to PATH (Windows)
         if: matrix.os == 'windows-latest'
-        run:
+        run: |
           echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:PATH -Encoding utf8 -Append
 
@@ -175,7 +175,7 @@ jobs:
         run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
       - name: Install Origen Packages
-        run:
+        run: |
           pip install python/origen
           pip install python/origen_metal
 
@@ -190,7 +190,7 @@ jobs:
         run: pytest test_no_workspace.py::TestNoWorkspaceNoPlugins -vv
       
       - name: Install Plugins
-        run:
+        run: |
           pip install test_apps/test_apps_shared_test_helpers
           pip install test_apps/python_plugin
           pip install python/origen_metal
