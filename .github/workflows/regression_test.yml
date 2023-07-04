@@ -56,8 +56,10 @@ jobs:
           $env:Path = "${{ github.workspace }}/rust/origen/target/debug;$env:Path"
 
       - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: which origen
       - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
         run: where.exe origen
 
       - name: Display Python Version
@@ -78,8 +80,10 @@ jobs:
         run: origen -v
 
       - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: which origen
       - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
         run: where.exe origen
 
       - name: Display Poetry Version
@@ -180,8 +184,10 @@ jobs:
           pip install python/origen_metal
 
       - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: which origen
       - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
         run: where.exe origen
 
       # Should be no pyprojects in the root so far. Start with no-workspace tests
