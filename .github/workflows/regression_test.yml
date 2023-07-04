@@ -47,13 +47,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
-          echo "${{ github.workspace }}/rust/origen/target/debug" >> $PATH
+          export PATH="${{ github.workspace }}/rust/origen/target/debug:$PATH"
 
       - name: Add Origen to PATH (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:PATH -Encoding utf8 -Append
+          $env:Path = "${{ github.workspace }}/rust/origen/target/debug;$env:Path"
 
       - name: Show Origen Binary Location (Linux)
         run: which origen
