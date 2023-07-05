@@ -17,7 +17,7 @@ toml = "pyproject.toml"
 lockfile = "poetry.lock"
 no_workspace_test_dir = pathlib.Path(__file__).parent
 o2_root = no_workspace_test_dir.parent.parent
-debug_cli_loc = o2_root.joinpath(f"rust/origen/target/debug/origen{'.exe' if origen.running_on_windows else ''}")
+debug_cli_dir = o2_root.joinpath(f"rust/origen/target/debug")
 eval_scripts_dir = no_workspace_test_dir.joinpath("eval_scripts")
 status_eval_script = eval_scripts_dir.joinpath("print_status.py")
 pl_names_eval_script = eval_scripts_dir.joinpath("print_pl_names.py")
@@ -28,7 +28,7 @@ site_packages_dir =  pathlib.Path(pip.__file__).parent.parent
 class T_InvocationBaseTests(CLI):
     templates_dir = no_workspace_test_dir.joinpath("templates")
     templates_out_dir = templates_dir.joinpath("output")
-    debug_cli_loc = debug_cli_loc
+    debug_cli_dir = debug_cli_dir
     PyProjectSrc = PyProjectSrc
 
     @classmethod

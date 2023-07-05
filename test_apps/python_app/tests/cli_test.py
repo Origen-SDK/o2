@@ -75,5 +75,5 @@ class TestAppInvocation(T_InvocationBaseTests):
     @classmethod
     def set_params(cls):
         cls.invocation = cls.PyProjectSrc.App
-        cls.cli_location = cls.debug_cli_loc
+        cls.cli_dir = cls.debug_cli_dir
         cls.target_pyproj_dir = pathlib.Path(__file__).parent.parent

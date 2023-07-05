@@ -19,7 +19,7 @@ class TestWorkspaceInvocation(T_InvocationBaseTests):
     @classmethod
     def set_params(cls):
         cls.invocation = cls.PyProjectSrc.Workspace
-        cls.cli_location = cls.debug_cli_loc
+        cls.cli_dir = cls.debug_cli_dir
         cls.target_pyproj_dir = working_dir
 
 class TestGlobalFEIntegration:

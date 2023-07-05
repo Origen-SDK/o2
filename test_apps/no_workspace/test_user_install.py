@@ -29,7 +29,7 @@ class TestUserInstall(T_InvocationEnv):
         cls.target_pyproj_dir = cls.user_install_dir
         cls.move_pyproject = False
         cls.invocation = PyProjectSrc.UserGlobal
-        cls.cli_location = cls.debug_cli_loc
+        cls.cli_dir = cls.debug_cli_dir
 
     @classmethod
     def setup_method(cls):
