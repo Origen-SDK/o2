@@ -97,7 +97,7 @@ jobs:
           echo ""
           poetry run where.exe origen
 
-      # TODO need to see why this is the case and come up with a better solution
+      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
       - name: Remove Poetry's Origen Wrapper (Linux)
         if: matrix.os == 'ubuntu-latest'
         working-directory: test_apps/python_app
@@ -172,7 +172,7 @@ jobs:
           echo ""
           poetry run where.exe origen
 
-      # TODO need to see why this is the case and come up with a better solution
+      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
       - name: Remove Poetry's Origen Wrapper (Linux)
         if: matrix.os == 'ubuntu-latest'
         working-directory: test_apps/python_no_app
@@ -237,7 +237,7 @@ jobs:
         working-directory: test_apps/no_workspace
         run: pytest test_user_install.py -vv
 
-      # TODO eventually want to move this into a poetry build step
+      # TODO GA: Regressions: eventually want to move this into a poetry build step
       # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
       #   'mv' command should be be fine for both linux & powershell
       - name: Move Origen executable (Linux)
@@ -247,10 +247,17 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
-      # TODO not sure why, but the tmp directory in origen_metal causes some issues
+      # TODO GA: Regressions: not sure why, but the tmp directory in origen_metal causes some issues
       # For now, just removing it.
       - name: Remove origen_metal tmp Directory
         run: rm python/origen_metal/tmp -r
+
+      # TODO GA: Regressions: Need to better handle this
+      # Issue being that working on a newer Python version than what's released will not resolve
+      # Workaround by removing origen_metal package from origen dependencies and installing separately
+      - name: Hack origen pyproject
+        working-directory: python/origen
+        run: poetry remove origen_metal
 
       - name: Install Origen Packages
         run: |
