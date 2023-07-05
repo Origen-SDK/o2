@@ -33,7 +33,7 @@ class TestUserInstall(T_InvocationEnv):
 
     @classmethod
     def setup_method(cls):
-        super().setup()
+        super().setup_method()
         os.environ["ORIGEN_PYPROJECT"] = str(cls.user_install_dir)
 
     @classmethod
