@@ -158,6 +158,44 @@ jobs:
         working-directory: test_apps/python_no_app
         run: poetry run origen -vvv
 
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          where.exe origen
+          echo ""
+          poetry run where.exe origen
+
+      # TODO need to see why this is the case and come up with a better solution
+      - name: Remove Poetry's Origen Wrapper (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_no_app
+        run: poetry run which origen | xargs rm
+      - name: Remove Poetry's Origen Wrapper (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_no_app
+        run: poetry run where.exe origen | select -first 1 | rm
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          where.exe origen
+          echo ""
+          poetry run where.exe origen
+
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
         run: poetry run pytest -vv
