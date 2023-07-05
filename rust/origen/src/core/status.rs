@@ -99,7 +99,7 @@ where S: AsRef<str> {
             "Workspace" => gen_case!(Workspace),
             "UserGlobal" => gen_case!(UserGlobal),
             "Global" => gen_case!(Global),
-            "None" => Self::NoneFound,
+            "NoneFound" => Self::NoneFound,
             _ => bail!("Cannot convert value '{}' to dependency src type", value.0.as_ref())
         })
     }
