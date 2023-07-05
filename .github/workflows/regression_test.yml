@@ -247,6 +247,11 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
+      # TODO not sure why, but the tmp directory in origen_metal causes some issues
+      # For now, just removing it.
+      - name: Remove origen_metal tmp Directory
+        run: rm python/origen_metal/tmp -r
+
       - name: Install Origen Packages
         run: |
           pip install python/origen
