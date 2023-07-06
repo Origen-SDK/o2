@@ -13,12 +13,12 @@ origen_metal = { path = "{{ o2_root }}/python/origen_metal", develop = true }
 origen = ">= 0.0.0"
 origen_metal = ">= 0.0.0"
 {% endif %}
-{% if include_plugins %}
+{% if has_pls %}
     {% if local_origen %}
-pl_ext_cmds = { path = "{{ o2_root }}/test_apps/pl_ext_cmds", develop = true }
+python_plugin = { path = "{{ o2_root }}/test_apps/python_plugin", develop = true }
 test_apps_shared_test_helpers = { path = "{{ o2_root }}/test_apps/test_apps_shared_test_helpers", develop = true }
     {% else %}
-pl_ext_cmds = ">= 0.0.0"
+python_plugin = ">= 0.0.0"
 test_apps_shared_test_helpers = ">= 0.0.0"
     {% endif %}
 {% endif %}

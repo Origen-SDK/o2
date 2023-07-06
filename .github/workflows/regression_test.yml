@@ -285,3 +285,16 @@ jobs:
       - name: Run No-Workspace-With-Plugins Tests
         working-directory: test_apps/no_workspace
         run: pytest test_no_workspace.py::TestNoWorkspaceWithPlugins -vv
+
+      # Leave the no-workspace setup. The global setup should override
+      - name: Run Global No-Plugins One Above Site-Packages Dir
+        working-directory: test_apps/no_workspace
+        run: pytest test_global_install.py::TestGlobalInstallNoPlugins -vv
+
+      - name: Run Global With Plugins At Site-Packages Dir
+        working-directory: test_apps/no_workspace
+        run: pytest test_global_install.py::TestGlobalInstallWithPlugins -vv
+
+      - name: Run Global No-Plugins At CLI Dir
+        working-directory: test_apps/no_workspace
+        run: pytest test_global_install.py::TestGlobalInstallAtCliDir -vv

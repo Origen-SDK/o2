@@ -24,8 +24,11 @@ pl_names_eval_script = eval_scripts_dir.joinpath("print_pl_names.py")
 
 # Assume pip is installed in 'site-packages'
 site_packages_dir =  pathlib.Path(pip.__file__).parent.parent
+site_cli_dir = site_packages_dir.joinpath("origen/__bin__/bin")
 
 class T_InvocationBaseTests(CLI):
+    site_packages_dir = site_packages_dir
+    site_cli_dir = site_cli_dir
     templates_dir = no_workspace_test_dir.joinpath("templates")
     templates_out_dir = templates_dir.joinpath("output")
     debug_cli_dir = debug_cli_dir
@@ -129,7 +132,12 @@ class T_InvocationEnv(T_InvocationBaseTests):
         cls.templates_out_dir.mkdir(exist_ok=True)
         pyproj = cls.templates_out_dir.joinpath(f"{cls.__name__}.{toml}")
         with open(pyproj, "w") as f:
-            f.write(t.render(local_origen=cls.local_origen, name=cls.__name__, o2_root=o2_root))
+            f.write(t.render(
+                local_origen=cls.local_origen,
+                name=cls.__name__,
+                o2_root=o2_root,
+                has_pls=cls.has_pls,
+            ))
         return pyproj
 
     # TEST_NEEDED invocation origen/metal package locations
