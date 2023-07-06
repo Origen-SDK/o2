@@ -7,16 +7,16 @@ authors = ["Origen-SDK"]
 [tool.poetry.dependencies]
 python = ">=3.7,<3.11"
 {% if local_origen %}
-origen = { path = "{{ o2_root }}/python/origen", develop = true }
-origen_metal = { path = "{{ o2_root }}/python/origen_metal", develop = true }
+origen = { path = "{{ o2_root.joinpath("python/origen").as_posix() }}", develop = true }
+origen_metal = { path = "{{ o2_root.joinpath("python/origen_metal").as_posix() }}", develop = true }
 {% else %}
 origen = ">= 0.0.0"
 origen_metal = ">= 0.0.0"
 {% endif %}
 {% if has_pls %}
     {% if local_origen %}
-python_plugin = { path = "{{ o2_root }}/test_apps/python_plugin", develop = true }
-test_apps_shared_test_helpers = { path = "{{ o2_root }}/test_apps/test_apps_shared_test_helpers", develop = true }
+python_plugin = { path = "{{ o2_root.joinpath("test_apps/python_plugin").as_posix() }}", develop = true }
+test_apps_shared_test_helpers = { path = "{{ o2_root.joinpath("test_apps/test_apps_shared_test_helpers").as_posix() }}", develop = true }
     {% else %}
 python_plugin = ">= 0.0.0"
 test_apps_shared_test_helpers = ">= 0.0.0"
