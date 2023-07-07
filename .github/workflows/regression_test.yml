@@ -28,7 +28,7 @@ jobs:
       - name: Pre-Python Install Setup (Windows-Only)
         if: matrix.os == 'windows-latest'
         run: |
-          $env:RUNNER_TOOL_CACHE = ${{ github.workspace }} | Split-Path | Join-Path -ChildPath o2_GA_tools
+          $env:RUNNER_TOOL_CACHE = '${{ github.workspace }}' | Split-Path | Join-Path -ChildPath o2_GA_tools
           mkdir $env:RUNNER_TOOL_CACHE
 
       - name: Setup Python ${{ matrix.python-version }}
