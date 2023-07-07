@@ -33,9 +33,17 @@ jobs:
           mkdir $env:RUNNER_TOOL_CACHE
 
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Check Python Install
+        run: |
+          echo $AGENT_TOOLSDIRECTORY
+          echo $RUNNER_TOOL_CACHE
+          ls $AGENT_TOOLSDIRECTORY
+          python -c "import os; [print(f'{v}: {k}') for v,k in os.environ.items()];"
+          python -c "import os, sys; print(os.path.dirname(sys.executable))"
 
       # Needed to compile keyring library
       # Install taken from keyring library:
