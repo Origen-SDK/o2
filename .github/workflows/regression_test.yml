@@ -31,17 +31,23 @@ jobs:
           $env:RUNNER_TOOL_CACHE = '${{ github.workspace }}' | Split-Path | Join-Path -ChildPath o2_GA_tools
           $env:AGENT_TOOLSDIRECTORY = $env:RUNNER_TOOL_CACHE
           mkdir $env:RUNNER_TOOL_CACHE
+          echo $env:AGENT_TOOLSDIRECTORY
+          echo $env:RUNNER_TOOL_CACHE
+          ls $env:AGENT_TOOLSDIRECTORY
+          echo "RUNNER_TOOL_CACHE=$env:RUNNER_TOOL_CACHE" >> $GITHUB_ENV
+          echo "AGENT_TOOLSDIRECTORY=$env:AGENT_TOOLSDIRECTORY" >> $GITHUB_ENV
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Check Python Install
+      - name: Check Python Install (Windows-Only)
+        if: matrix.os == 'windows-latest'
         run: |
-          echo $AGENT_TOOLSDIRECTORY
-          echo $RUNNER_TOOL_CACHE
-          ls $AGENT_TOOLSDIRECTORY
+          echo $env:AGENT_TOOLSDIRECTORY
+          echo $env:RUNNER_TOOL_CACHE
+          ls $env:AGENT_TOOLSDIRECTORY
           python -c "import os; [print(f'{v}: {k}') for v,k in os.environ.items()];"
           python -c "import os, sys; print(os.path.dirname(sys.executable))"
 
