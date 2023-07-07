@@ -34,11 +34,23 @@ jobs:
           echo $env:AGENT_TOOLSDIRECTORY
           echo $env:RUNNER_TOOL_CACHE
           ls $env:AGENT_TOOLSDIRECTORY
+          echo "RUNNER_TOOL_CACHE=$env:RUNNER_TOOL_CACHE"
+          echo "AGENT_TOOLSDIRECTORY=$env:AGENT_TOOLSDIRECTORY"
           echo "RUNNER_TOOL_CACHE=$env:RUNNER_TOOL_CACHE" >> $GITHUB_ENV
           echo "AGENT_TOOLSDIRECTORY=$env:AGENT_TOOLSDIRECTORY" >> $GITHUB_ENV
 
+      - name: Check ENV Variables (Windows-Only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo $env:AGENT_TOOLSDIRECTORY
+          echo $env:RUNNER_TOOL_CACHE
+ 
+
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
+        env:
+          RUNNER_TOOL_CACHE: D:\a\o2\o2_GA_tools
+          AGENT_TOOLSDIRECTORY: D:\a\o2\o2_GA_tools
         with:
           python-version: ${{ matrix.python-version }}
 
