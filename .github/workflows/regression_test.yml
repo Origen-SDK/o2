@@ -24,7 +24,13 @@ jobs:
             toolchain: "nightly-2022-05-17"
             override: true
             #components: rustfmt, clippy
-            
+
+      - name: Pre-Python Install Setup (Windows-Only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          $env:RUNNER_TOOL_CACHE = ${{ github.workspace }} | Split-Path | Join-Path -ChildPath o2_GA_tools
+          mkdir $env:RUNNER_TOOL_CACHE
+
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
