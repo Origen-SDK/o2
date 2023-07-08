@@ -44,19 +44,29 @@ jobs:
         run: |
           echo $env:AGENT_TOOLSDIRECTORY
           echo $env:RUNNER_TOOL_CACHE
- 
+          echo ${{ env.RUNNER_TOOL_CACHE }}
+          echo ${{ env.AGENT_TOOLSDIRECTORY }}
 
       - name: Setup Python ${{ matrix.python-version }}
+        if: matrix.os != 'windows-latest'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup Python ${{ matrix.python-version }}
+        if: matrix.os == 'windows-latest'
         uses: actions/setup-python@v4
         env:
-          RUNNER_TOOL_CACHE: D:\a\o2\o2_GA_tools
-          AGENT_TOOLSDIRECTORY: D:\a\o2\o2_GA_tools
+          RUNNER_TOOL_CACHE: ${{ env.RUNNER_TOOL_CACHE }}
+          AGENT_TOOLSDIRECTORY:  ${{ env.AGENT_TOOLSDIRECTORY }}
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Check Python Install (Windows-Only)
         if: matrix.os == 'windows-latest'
         run: |
+          echo ${{ env.RUNNER_TOOL_CACHE }}
+          echo ${{ env.AGENT_TOOLSDIRECTORY }}
           echo $env:AGENT_TOOLSDIRECTORY
           echo $env:RUNNER_TOOL_CACHE
           ls $env:AGENT_TOOLSDIRECTORY
