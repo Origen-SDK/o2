@@ -57,8 +57,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: actions/setup-python@v4
         env:
-          RUNNER_TOOL_CACHE: ${{ env.RUNNER_TOOL_CACHE }}
-          AGENT_TOOLSDIRECTORY:  ${{ env.AGENT_TOOLSDIRECTORY }}
+          RUNNER_TOOL_CACHE: D:\a\o2\o2_GA_tools
+          AGENT_TOOLSDIRECTORY:  D:\a\o2\o2_GA_tools
         with:
           python-version: ${{ matrix.python-version }}
 
