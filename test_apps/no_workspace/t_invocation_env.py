@@ -1,5 +1,5 @@
 # FOR_PR clean up
-# Use the dev version but actual tests should be done through 'eval'.
+# Use the local origen/origen_metal - actual tests should be done through 'eval', which will use the installed packages.
 import sys, pathlib
 p = pathlib.Path(__file__).parent.parent.parent.joinpath("python/origen")
 sys.path.append(str(p))
@@ -53,13 +53,9 @@ class T_InvocationBaseTests(CLI):
         return "--Origen Eval--"
 
     def eval_and_parse(self, code):
-        # out = CLI.global_cmds.eval.run(code, "-vv", run_opts={"return_details": True})
         if isinstance(code, str):
             code = [code]
-        print(code)
-        # out = CLI.global_cmds.eval.run(*code, run_opts={"return_details": True, "check": False})
         out = CLI.global_cmds.eval.run(*code)
-        print(out)
         out = out.split("\n")
         idx = out.index(self.header)
         return eval(out[idx+1])
@@ -75,16 +71,12 @@ class T_InvocationBaseTests(CLI):
         assert origen.status["invocation"] is None
 
     def test_pyproject_and_invocation_set(self):
-        # code = f"print('{self.header}'); print(origen.status)"
-        # code = r"print\(\\\"Origen\ Status:\\\"\) print\(origen.status\)"
         status = self.get_status()
         print(status)
         assert status["pyproject"] == self.target_pyproj_toml
         assert status["invocation"] == self.invocation
 
     def test_cli_location(self):
-        # code = f"print('{self.header}'); print(origen.status)"
-        # status = self.eval_and_parse(code)
         status = self.get_status()
         assert status['cli_location'] == self.cli_location
 
@@ -113,6 +105,7 @@ class T_InvocationEnv(T_InvocationBaseTests):
             print(f"Moving pyproject {cls._pyproj_src_file} to {target}")
             shutil.copy(cls._pyproj_src_file, target)
         if cls.target_pyproj_dir:
+            subprocess.run(["pip", "--version"], check=True, cwd=cls.target_pyproj_dir)
             subprocess.run(["poetry", "--version"], check=True, cwd=cls.target_pyproj_dir)
             subprocess.run(["poetry", "install"], check=True, cwd=cls.target_pyproj_dir)
 
@@ -140,7 +133,7 @@ class T_InvocationEnv(T_InvocationBaseTests):
             ))
         return pyproj
 
-    # TEST_NEEDED invocation origen/metal package locations
+    # TEST_NEEDED Invocations: origen/metal package locations
     # class TestBareEnv(CLI):
     # @pytest.mark.parameterize(
     #         [origen, origen._origen, origen_metal, origen._origen_metal],
@@ -161,14 +154,13 @@ class T_InvocationEnv(T_InvocationBaseTests):
         else:
             return self.eval_and_parse(f"print('{self.header}'); print(list(origen.plugins.keys()))")
 
+    # TEST_NEEDED Invocations: check 'origen -h' in various contexts?
     @pytest.mark.skip
     def test_origen_h(self):
         fail
 
     def test_plugins(self):
-        # code = f"print('{self.header}'); print(list(origen.plugins.keys()))"
         pls = self.get_plugin_names()
-        # pls = self.eval_and_parse(code)
         if self.has_pls:
             # TODO consistent plugin loading
             assert set(pls) == {'pl_ext_cmds', 'test_apps_shared_test_helpers', 'python_plugin'}

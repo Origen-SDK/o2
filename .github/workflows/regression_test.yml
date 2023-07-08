@@ -25,6 +25,11 @@ jobs:
             override: true
             #components: rustfmt, clippy
 
+      # TODO Invocations: Currently some problem with poetry/pip on Windows where dependencies on drives/mounts separate
+      # from where the pyproject is located cannot be built. Can workaround this in Windows by updating the
+      # AGENT_TOOLSDIRECTORY/RUNNER_TOOL_CACHE environment variables, but I'm unable to get these to stick across steps
+      # in GA. Next few steps are all messiness to debug/work around that.
+      # Not an issue in Linux, so Windows only will be moved. linux will maintained across different drives.
       - name: Pre-Python Install Setup (Windows-Only)
         if: matrix.os == 'windows-latest'
         run: |
