@@ -1,4 +1,3 @@
-# FOR_PR clean up
 # Use the local origen/origen_metal - actual tests should be done through 'eval', which will use the installed packages.
 import sys, pathlib
 p = pathlib.Path(__file__).parent.parent.parent.joinpath("python/origen")

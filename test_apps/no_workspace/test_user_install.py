@@ -1,24 +1,6 @@
 import os
 from .t_invocation_env import T_InvocationEnv, no_workspace_test_dir, PyProjectSrc
 
-# class TestGlobalNoPlugins(T_InvocationEnv):
-#     @classmethod
-#     def set_params(cls):
-#         cls.local_origen = True
-#         cls.has_pls = False
-#         cls.target_pyproj_dir = cls.site_packages_dir
-#         cls.invocation = PyProjectSrc.Global
-
-# class TestGlobalWithPluginsHigherLevel(T_InvocationEnv):
-#     @classmethod
-#     def set_params(cls):
-#         cls.local_origen = True
-#         cls.has_pls = False
-#         cls.target_pyproj_dir = cls.site_packages_dir.parent
-
-# class TestGlobalWithPlugins(T_InvocationEnv):
-#     ...
-
 class TestUserInstall(T_InvocationEnv):
     user_install_dir = no_workspace_test_dir.joinpath("user_install")
 
@@ -45,12 +27,8 @@ class TestUserInstall(T_InvocationEnv):
         assert "Hi from python-plugin during 'eval'!" in out
         assert "Hi again from python-plugin during 'eval'!" in out
 
-# class TestGlobalInstall(T_InvocationEnv):
-#     ...
 
-# class TestGlobalInstallWithPlugins(T_InvocationEnv):
-#     ...
-
+# TEST_NEEDED User Invocations: Error Cases
 # @pytest.mark.skip
 # class TestErrorCases(T_InvocationEnv):
 #     def test_origen_pkg_not_installed(self):
