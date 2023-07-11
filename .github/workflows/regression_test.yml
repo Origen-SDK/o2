@@ -346,3 +346,8 @@ jobs:
       - name: Run Global No-Plugins At CLI Dir
         working-directory: test_apps/no_workspace
         run: pytest test_global_install.py::TestGlobalInstallAtCliDir -vv
+
+      # With global origen available, test user install errors which fall back to the global install
+      - name: Run User Install Errors - Falling Back To Global Install
+        working-directory: test_apps/no_workspace
+        run: pytest test_user_install.py::TestErrorCasesWithFallback -vv

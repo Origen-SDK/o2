@@ -45,6 +45,10 @@ class T_InvocationBaseTests(CLI):
 
         if not hasattr(cls, "file_based_evals"):
             cls.file_based_evals = False
+        if not hasattr(cls, "error_case"):
+            cls.error_case = False
+            cls.error_case_global_fallback = False
+
         cls.cli_location = cls.cli_dir.joinpath(f"origen{'.exe' if origen.running_on_windows else ''}")
 
     @property
@@ -71,7 +75,6 @@ class T_InvocationBaseTests(CLI):
 
     def test_pyproject_and_invocation_set(self):
         status = self.get_status()
-        print(status)
         assert status["pyproject"] == self.target_pyproj_toml
         assert status["invocation"] == self.invocation
 
