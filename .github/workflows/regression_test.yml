@@ -283,7 +283,7 @@ jobs:
 
       - name: Run User-Global Invocation Tests
         working-directory: test_apps/no_workspace
-        run: pytest test_user_install.py -vv
+        run: pytest test_user_install.py::TestUserInstall -vv
 
       # TODO GA: Regressions: eventually want to move this into a poetry build step
       # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
