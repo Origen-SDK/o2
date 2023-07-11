@@ -58,7 +58,7 @@ class TestErrorCasesWithFallback():
         def test_error_message(self):
             out = self.global_cmds.eval.run("1==1")
             errors = self.extract_logged_errors(out)
-            assert errors[0] == f"Errors encountered resolving pyproject: ORIGEN_PYPROJECT '{self.invalid_install_dir.as_posix()}' does not exists!"
+            assert errors[0] == f"Errors encountered resolving pyproject: ORIGEN_PYPROJECT '{self.invalid_install_dir}' does not exists!"
             assert errors[1] == "Dependency source has not been set - defaulting to global Python installation"
             assert errors[2] == "Dependency source has not been set - defaulting to global Python installation"
             assert len(errors) == 3
@@ -72,7 +72,7 @@ class TestErrorCasesWithFallback():
             cls.has_pls = True
             cls.move_pyproject = False
             cls.file_based_evals = True
-            cls.error_case = f"Errors encountered resolving pyproject: Could not locate pyproject.toml from ORIGEN_PYPROJECT {cls.missing_pyproject.joinpath('pyproject.toml').as_posix()}"
+            cls.error_case = f"Errors encountered resolving pyproject: Could not locate pyproject.toml from ORIGEN_PYPROJECT {cls.missing_pyproject.joinpath('pyproject.toml')}"
             cls.error_case_global_fallback = True
 
             cls.invocation = None
@@ -92,7 +92,7 @@ class TestErrorCasesWithFallback():
             out = self.global_cmds.eval.run("1==1")
             errors = self.extract_logged_errors(out)
             print(out)
-            assert errors[0] == f"Errors encountered resolving pyproject: Could not locate pyproject.toml from ORIGEN_PYPROJECT {self.missing_pyproject.joinpath('pyproject.toml').as_posix()}"
+            assert errors[0] == f"Errors encountered resolving pyproject: Could not locate pyproject.toml from ORIGEN_PYPROJECT {self.missing_pyproject.joinpath('pyproject.toml')}"
             assert errors[1] == "Dependency source has not been set - defaulting to global Python installation"
             assert errors[2] == "Dependency source has not been set - defaulting to global Python installation"
             assert len(errors) == 3
