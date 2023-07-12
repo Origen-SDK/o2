@@ -5,7 +5,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(vars.SUPPORTED_OS) }}
         python-version: ${{ fromJSON(vars.PYTHON_VERSIONS) }}
 
     runs-on: ${{ matrix.os }}
@@ -21,7 +21,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: "nightly-2022-05-17"
+            toolchain: ${{ fromJSON(vars.RUST_VERSION) }}
             override: true
             #components: rustfmt, clippy
 
