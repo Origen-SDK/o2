@@ -22,7 +22,14 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
             toolchain: ${{ fromJSON(vars.RUST_VERSION) }}
-      - run: rustup override set ${{ fromJSON(vars.RUST_VERSION) }}
+      
+      - name: Override Project Rust Version
+        run: rustup override set ${{ fromJSON(vars.RUST_VERSION) }}
+
+      - name: Check Rust Version
+        run: |
+          rustc --version
+          cargo --version
 
       # TODO Invocations: Currently some problem with poetry/pip on Windows where dependencies on drives/mounts separate
       # from where the pyproject is located cannot be built. Can workaround this in Windows by updating the
