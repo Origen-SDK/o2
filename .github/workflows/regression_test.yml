@@ -12,7 +12,7 @@ jobs:
     env:
       RUST_BACKTRACE: full
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Show Git Version
         run : |
@@ -22,6 +22,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
             toolchain: ${{ fromJSON(vars.RUST_VERSION) }}
+            rustflags:
       
       - name: Override Project Rust Version
         run: rustup override set ${{ fromJSON(vars.RUST_VERSION) }}
