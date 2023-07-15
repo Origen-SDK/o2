@@ -16,7 +16,9 @@ log/
 /test_apps/**/.session
 /python/origen/dist
 /python/origen_metal/dist
+/python/origen_metal/build
 rls/
+.pytest_cache
 
 # pyenv
 .python-version
@@ -35,9 +37,10 @@ rls/
 
 # Output files from regressions
 python/origen/templates/dut_info.txt
+test_apps/no_workspace/templates/output/
 
 # Bin directory for packaging
-python/origen/__bin__/bin/*
-!python/origen/__bin__/bin/.keep
+python/origen/origen/__bin__/bin/*
+!python/origen/origen/__bin__/bin/.keep
 python/origen_metal/__bin__/bin/*
 !python/origen_metal/__bin__/bin/.keep

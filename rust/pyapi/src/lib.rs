@@ -13,6 +13,7 @@ mod current_command;
 mod dut;
 mod extensions;
 mod file_handler;
+mod infrastructure;
 mod meta;
 mod model;
 #[macro_use]
@@ -48,6 +49,7 @@ use std::str::FromStr;
 use std::sync::MutexGuard;
 use utility::location::Location;
 use paste::paste;
+use origen::core::status::DependencySrc;
 
 use crate::dut::__PYO3_PYMODULE_DEF_DUT;
 use crate::tester::__PYO3_PYMODULE_DEF_TESTER;
@@ -112,6 +114,7 @@ fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
     plugins::define(py, m)?;
     extensions::define(py, m)?;
     current_command::define(py, m)?;
+    infrastructure::define(py, m)?;
 
     // Compile the _origen_metal library along with this one
     // to allow re-use from that library
@@ -379,9 +382,16 @@ fn initialize(
     cli_version: Option<String>,
     fe_pkg_loc: Option<PathBuf>,
     fe_exe_loc: Option<PathBuf>,
+    invocation: Option<(String, Option<PathBuf>)>,
 ) -> PyResult<()> {
     origen::initialize(log_verbosity, verbosity_keywords, cli_location, cli_version, fe_pkg_loc, fe_exe_loc);
     origen::STATUS.update_other_build_info("pyapi_version", built_info::PKG_VERSION)?;
+    if let Some(invoc) = invocation {
+        match DependencySrc::try_from(invoc) {
+            Ok(d) => origen::STATUS.set_dependency_src(Some(d)),
+            Err(e) => log_error!("{}", e.to_string())
+        }
+    }
     origen::FRONTEND
         .write()
         .unwrap()
@@ -517,10 +527,20 @@ fn status(py: Python) -> PyResult<PyObject> {
         },
     )?;
     ret.set_item(
+        "cli_location",
+        match STATUS.cli_location() {
+            Some(path) => pypath!(py, path.display()),
+            None => py.None(),
+        },
+    )?;
+    ret.set_item(
         "is_app_in_origen_dev_mode",
         STATUS.is_app_in_origen_dev_mode,
     )?;
     ret.set_item("in_origen_core_app", STATUS.in_origen_core_app())?;
+
+    // Invocation details
+    infrastructure::pyproject::populate_status(py, ret)?;
     Ok(ret.into())
 }
 

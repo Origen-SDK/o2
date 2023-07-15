@@ -1,4 +1,5 @@
 import pytest, origen, shutil, os
+from .shared import tests_root, working_dir, working_dir_config
 from pathlib import Path
 from origen.helpers.env import in_new_origen_proc, run_cli_cmd
 from tests import configs as config_funcs
@@ -6,9 +7,9 @@ from tests import configs as config_funcs
 from test_apps_shared_test_helpers.cli import CLIShared
 
 class Common(CLIShared):
-    tests_root = Path(__file__).parent
-    working_dir = Path(__file__).parent.parent
-    working_dir_config = working_dir.joinpath("origen.toml")
+    tests_root = tests_root
+    working_dir = working_dir
+    working_dir_config = working_dir_config
     cli_config = CLIShared.cli_dir.joinpath("origen.toml")
 
     configs_dir = Path(__file__).parent.joinpath("configs")

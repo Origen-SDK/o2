@@ -6,18 +6,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 use wait_timeout::ChildExt;
 
-/// Executes the given command/args, returning all captured stdout and stderr lines and
-/// the exit code of the process.
-pub fn exec_and_capture(
-    cmd: &str,
-    args: Option<Vec<&str>>,
-) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
-    let mut command = Command::new(cmd);
-    if let Some(args) = args {
-        for arg in args {
-            command.arg(arg);
-        }
-    }
+pub fn exec_and_capture_cmd(mut command: Command) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
     let mut process = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -37,6 +26,21 @@ pub fn exec_and_capture(
     );
     let exit_code = process.wait()?;
     Ok((exit_code, stdout_lines, stderr_lines))
+}
+
+/// Executes the given command/args, returning all captured stdout and stderr lines and
+/// the exit code of the process.
+pub fn exec_and_capture(
+    cmd: &str,
+    args: Option<Vec<&str>>,
+) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
+    let mut command = Command::new(cmd);
+    if let Some(args) = args {
+        for arg in args {
+            command.arg(arg);
+        }
+    }
+    exec_and_capture_cmd(command)
 }
 
 /// Log both stdout and stderr to the debug and error logs respectively, optionally

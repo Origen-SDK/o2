@@ -5,30 +5,85 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9, 3.10.5]
+        os: ${{ fromJSON(vars.SUPPORTED_OS) }}
+        python-version: ${{ fromJSON(vars.PYTHON_VERSIONS) }}
 
     runs-on: ${{ matrix.os }}
     env:
       RUST_BACKTRACE: full
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Show Git Version
         run : |
           git --version
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-            toolchain: "nightly-2022-05-17"
-            override: true
-            #components: rustfmt, clippy
-            
+            toolchain: ${{ fromJSON(vars.RUST_VERSION) }}
+            rustflags:
+      
+      - name: Override Project Rust Version
+        run: rustup override set ${{ fromJSON(vars.RUST_VERSION) }}
+
+      - name: Check Rust Version
+        run: |
+          rustc --version
+          cargo --version
+
+      # TODO Invocations: Currently some problem with poetry/pip on Windows where dependencies on drives/mounts separate
+      # from where the pyproject is located cannot be built. Can workaround this in Windows by updating the
+      # AGENT_TOOLSDIRECTORY/RUNNER_TOOL_CACHE environment variables, but I'm unable to get these to stick across steps
+      # in GA. Next few steps are all messiness to debug/work around that.
+      # Not an issue in Linux, so Windows only will be moved. linux will maintained across different drives.
+      - name: Pre-Python Install Setup (Windows-Only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          $env:RUNNER_TOOL_CACHE = '${{ github.workspace }}' | Split-Path | Join-Path -ChildPath o2_GA_tools
+          $env:AGENT_TOOLSDIRECTORY = $env:RUNNER_TOOL_CACHE
+          mkdir $env:RUNNER_TOOL_CACHE
+          echo $env:AGENT_TOOLSDIRECTORY
+          echo $env:RUNNER_TOOL_CACHE
+          ls $env:AGENT_TOOLSDIRECTORY
+          echo "RUNNER_TOOL_CACHE=$env:RUNNER_TOOL_CACHE"
+          echo "AGENT_TOOLSDIRECTORY=$env:AGENT_TOOLSDIRECTORY"
+          echo "RUNNER_TOOL_CACHE=$env:RUNNER_TOOL_CACHE" >> $GITHUB_ENV
+          echo "AGENT_TOOLSDIRECTORY=$env:AGENT_TOOLSDIRECTORY" >> $GITHUB_ENV
+
+      - name: Check ENV Variables (Windows-Only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo $env:AGENT_TOOLSDIRECTORY
+          echo $env:RUNNER_TOOL_CACHE
+          echo $RUNNER_TOOL_CACHE
+          echo $AGENT_TOOLSDIRECTORY
+
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        if: matrix.os != 'windows-latest'
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Setup Python ${{ matrix.python-version }}
+        if: matrix.os == 'windows-latest'
+        uses: actions/setup-python@v4
+        env:
+          RUNNER_TOOL_CACHE: D:\a\o2\o2_GA_tools
+          AGENT_TOOLSDIRECTORY:  D:\a\o2\o2_GA_tools
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Check Python Install (Windows-Only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo $RUNNER_TOOL_CACHE
+          echo $AGENT_TOOLSDIRECTORY
+          echo $env:AGENT_TOOLSDIRECTORY
+          echo $env:RUNNER_TOOL_CACHE
+          ls $env:AGENT_TOOLSDIRECTORY
+          python -c "import os; [print(f'{v}: {k}') for v,k in os.environ.items()];"
+          python -c "import os, sys; print(os.path.dirname(sys.executable))"
 
       # Needed to compile keyring library
       # Install taken from keyring library:
@@ -45,12 +100,16 @@ jobs:
           
       - name: Add Origen to PATH (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
+        run: |
+          echo "${{ github.workspace }}/rust/origen/target/debug" >> $GITHUB_PATH
+          export PATH="${{ github.workspace }}/rust/origen/target/debug:$PATH"
 
       - name: Add Origen to PATH (Windows)
         if: matrix.os == 'windows-latest'
-        run: echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
- 
+        run: |
+          echo "${{ github.workspace }}/rust/origen/target/debug" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:Path = "${{ github.workspace }}/rust/origen/target/debug;$env:Path"
+
       - name: Display Python Version
         run: python -c "import sys; print(sys.version)"
 
@@ -67,11 +126,56 @@ jobs:
       - name: Display Origen App Version
         working-directory: test_apps/python_app
         run: origen -v
-      
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        run: where.exe origen
+
       - name: Display Poetry Version
         working-directory: test_apps/python_app
         run: poetry --version
-      
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_app
+        run: |
+          where.exe origen
+          echo ""
+          poetry run where.exe origen
+
+      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
+      - name: Remove Poetry's Origen Wrapper (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_app
+        run: poetry run which origen | xargs rm
+      - name: Remove Poetry's Origen Wrapper (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_app
+        run: poetry run where.exe origen | select -first 1 | rm
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_app
+        run: |
+          where.exe origen
+          echo ""
+          poetry run where.exe origen
+
       - name: Run Python-App Unit Tests
         working-directory: test_apps/python_app
         run: origen exec pytest -vv
@@ -109,6 +213,44 @@ jobs:
         working-directory: test_apps/python_no_app
         run: poetry run origen -vvv
 
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          where.exe origen
+          echo ""
+          poetry run where.exe origen
+
+      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
+      - name: Remove Poetry's Origen Wrapper (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_no_app
+        run: poetry run which origen | xargs rm
+      - name: Remove Poetry's Origen Wrapper (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_no_app
+        run: poetry run where.exe origen | select -first 1 | rm
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          where.exe origen
+          echo ""
+          poetry run where.exe origen
+
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
         run: poetry run pytest -vv
@@ -121,10 +263,10 @@ jobs:
       - name: Build PyAPI - Metal
         run: origen origen build --metal
 
-      - name: Install Poetry
-        uses: abatilo/actions-poetry@v2.0.0
-        with:
-          poetry-version: 1.1.14
+      # - name: Install Poetry
+      #   uses: abatilo/actions-poetry@v2.0.0
+      #   with:
+      #     poetry-version: 1.1.14
 
       - name: Setup Python Env - Metal
         working-directory: python/origen_metal
@@ -139,3 +281,80 @@ jobs:
         working-directory: rust/origen_metal
         run: cargo test
 
+      # Use a global pytest install for invocation tests
+      - name: Install Pytest
+        run: pip install pytest==7.2.1 jinja2==3.1.2
+
+      - name: Get Pytest Version (Check Install)
+        run: pytest --version
+
+      - name: Run User-Global Invocation Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_user_install.py::TestUserInstall -vv
+
+      # TODO GA: Regressions: eventually want to move this into a poetry build step
+      # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
+      #   'mv' command should be be fine for both linux & powershell
+      - name: Move Origen executable (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: mv rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+      - name: Move Origen executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
+
+      # TODO GA: Regressions: not sure why, but the tmp directory in origen_metal causes some issues
+      # For now, just removing it.
+      - name: Remove origen_metal tmp Directory
+        run: rm python/origen_metal/tmp -r
+
+      # TODO GA: Regressions: Need to better handle this
+      # Issue being that working on a newer Python version than what's released will not resolve
+      # Workaround by removing origen_metal package from origen dependencies and installing separately
+      - name: Hack origen pyproject
+        working-directory: python/origen
+        run: poetry remove origen_metal
+
+      - name: Install Origen Packages
+        run: |
+          pip install python/origen
+          pip install python/origen_metal
+
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        run: where.exe origen
+
+      # Should be no pyprojects in the root so far. Start with no-workspace tests
+      - name: Run No-Workspace-No-Plugins Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_no_workspace.py::TestNoWorkspaceNoPlugins -vv
+      
+      - name: Install Plugins
+        run: |
+          pip install test_apps/test_apps_shared_test_helpers
+          pip install test_apps/python_plugin
+          pip install python/origen_metal
+
+      - name: Run No-Workspace-With-Plugins Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_no_workspace.py::TestNoWorkspaceWithPlugins -vv
+
+      # Leave the no-workspace setup. The global setup should override
+      - name: Run Global No-Plugins One Above Site-Packages Dir
+        working-directory: test_apps/no_workspace
+        run: pytest test_global_install.py::TestGlobalInstallNoPlugins -vv
+
+      - name: Run Global With Plugins At Site-Packages Dir
+        working-directory: test_apps/no_workspace
+        run: pytest test_global_install.py::TestGlobalInstallWithPlugins -vv
+
+      - name: Run Global No-Plugins At CLI Dir
+        working-directory: test_apps/no_workspace
+        run: pytest test_global_install.py::TestGlobalInstallAtCliDir -vv
+
+      # With global origen available, test user install errors which fall back to the global install
+      - name: Run User Install Errors - Falling Back To Global Install
+        working-directory: test_apps/no_workspace
+        run: pytest test_user_install.py::TestErrorCasesWithFallback -vv

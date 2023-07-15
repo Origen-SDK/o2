@@ -111,9 +111,11 @@ pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation:
     }
 
     let mut args: Vec<String> = vec!();
+    let mut arg_indices: Vec<String> = vec!();
 
     let mut opt_names = HashMap::new();
-    let mut ext_args = HashMap::new();
+    let mut ext_args: HashMap<&ExtensionSource, Vec<String>> = HashMap::new();
+    let mut ext_arg_indices: HashMap<&ExtensionSource, Vec<String>> = HashMap::new();
     if let Some(exts) = cmd_exts {
         for ext in exts {
             if let Some(opts) = ext.opts.as_ref() {
@@ -121,6 +123,7 @@ pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation:
                     opt_names.insert(opt.full_name.as_ref().unwrap().as_str(), &ext.source);
                     if !ext_args.contains_key(&ext.source) {
                         ext_args.insert(&ext.source, vec!());
+                        ext_arg_indices.insert(&ext.source, vec!());
                     }
                 }
             }
@@ -182,10 +185,17 @@ pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation:
                     }
                 }
             }
+            let indices_str = format!(
+                "r'{}': [{}]",
+                as_name!(arg_n),
+                invocation.indices_of(arg_n).unwrap().map(|i| i.to_string()).collect::<Vec<String>>().join(", ")
+            );
             if let Some(ext_src) = opt_names.get(arg_n) {
                 ext_args.get_mut(ext_src).unwrap().push(arg_str);
+                ext_arg_indices.get_mut(ext_src).unwrap().push(indices_str);
             } else {
                 args.push(arg_str);
+                arg_indices.push(indices_str);
             }
         }
     }
@@ -194,37 +204,51 @@ pub fn launch(base_cmd: Option<&str>, subcmds: Option<&Vec<String>>, invocation:
     if let Some(subs) = subcmds.as_ref() {
         cmd += &format!(", subcmds=[{}]", subs.iter().map( |s| format!("r'{}'", s) ).collect::<Vec<String>>().join(", "));
     }
-    cmd += &format!(", args={{{}}}", args.join(", "));
+    cmd += &format!(", args={{{}}}, arg_indices={{{}}}", args.join(", "), arg_indices.join(", "));
 
     let mut app_ext_str = "".to_string();
     let mut pl_ext_str = "".to_string();
     let mut aux_ext_str = "".to_string();
+    let mut app_ext_indices_str = "".to_string();
+    let mut pl_ext_indices_str = "".to_string();
+    let mut aux_ext_indices_str = "".to_string();
     if !ext_args.is_empty() {
         for ext in ext_args {
             match ext.0 {
                 ExtensionSource::App => {
                     app_ext_str = ext.1.join(", ");
+                    app_ext_indices_str = ext_arg_indices[ext.0].join(", ");
                 },
                 ExtensionSource::Plugin(ref pl_name) => {
                     pl_ext_str += &format!(", '{}': {{{}}}", pl_name, ext.1.join(", "));
+                    pl_ext_indices_str += &format!(", '{}': {{{}}}", pl_name, ext_arg_indices[ext.0].join(", "));
                 },
                 ExtensionSource::Aux(ref ns, _) => {
                     aux_ext_str += &format!(", '{}': {{{}}}", ns, ext.1.join(", "));
+                    aux_ext_indices_str += &format!(", '{}': {{{}}}", ns, ext_arg_indices[ext.0].join(", "));
                 },
             }
         }
         if !pl_ext_str.is_empty() {
             pl_ext_str = pl_ext_str[2..].to_string();
+            pl_ext_indices_str = pl_ext_indices_str[2..].to_string();
         }
         if !aux_ext_str.is_empty() {
             aux_ext_str = aux_ext_str[2..].to_string();
+            aux_ext_indices_str = aux_ext_indices_str[2..].to_string();
         }
     }
     cmd += &format!(
-        ", ext_args={{'app': {{{}}}, 'plugin': {{{}}}, 'aux': {{{}}}}}",
+        concat!(
+            ", ext_args={{'app': {{{}}}, 'plugin': {{{}}}, 'aux': {{{}}}}}",
+            ", ext_arg_indices={{'app': {{{}}}, 'plugin': {{{}}}, 'aux': {{{}}}}}"
+        ),
         app_ext_str,
         pl_ext_str,
         aux_ext_str,
+        app_ext_indices_str,
+        pl_ext_indices_str,
+        aux_ext_indices_str,
     );
 
     if let Some(exts) = cmd_exts {

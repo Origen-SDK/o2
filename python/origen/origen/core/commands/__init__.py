@@ -1,6 +1,7 @@
 import importlib, origen
 
 creds = "credentials"
+eval = "eval"
 
 _subcmds = None
 _base_cmd = None
@@ -24,6 +25,8 @@ def run_core_cmd(base_cmd, sub_cmds, args):
     try:
         if base_cmd == creds:
             import_cmd(creds).run(args)
+        elif base_cmd == eval:
+            import_cmd(eval).run(args)
         else:
             return False
         return True

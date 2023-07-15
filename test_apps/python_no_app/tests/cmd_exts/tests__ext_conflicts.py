@@ -279,6 +279,7 @@ class T_ExtConflicts(CLIShared):
                 pl_code_opt,
                 aux_code_opt,
                 "help",
+                cmd.scripts,
                 cmd.say_hi_during_cleanup,
                 "v",
                 "vk",

@@ -20,12 +20,22 @@ pub fn get_command(py: Python) -> PyResult<PyRef<CurrentCommand>> {
 }
 
 #[pyfunction]
-fn set_command(py: Python, base_cmd: String, subcmds: Vec<String>, args: Py<PyDict>, ext_args: Py<PyDict>, exts: &PyList) -> PyResult<()> {
+fn set_command(
+    py: Python,
+    base_cmd: String,
+    subcmds: Vec<String>,
+    args: Py<PyDict>,
+    ext_args: Py<PyDict>,
+    arg_indices: Py<PyDict>,
+    ext_arg_indices: Py<PyDict>,
+    exts: &PyList
+) -> PyResult<()> {
     let cmd = CurrentCommand {
         base: base_cmd,
         subcmds: subcmds,
         args: args,
-        exts: Py::new(py, Extensions::new(py, exts, ext_args)?)?,
+        arg_indices: arg_indices,
+        exts: Py::new(py, Extensions::new(py, exts, ext_args, ext_arg_indices)?)?,
     };
     _origen!(py).setattr(ATTR_NAME, Py::new(py, cmd)?)
 }
@@ -41,6 +51,7 @@ pub struct CurrentCommand {
     base: String,
     subcmds: Vec<String>,
     args: Py<PyDict>,
+    arg_indices: Py<PyDict>,
     exts: Py<Extensions>,
 }
 
@@ -73,5 +84,10 @@ impl CurrentCommand {
     #[getter]
     pub fn args<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyDict> {
         Ok(self.args.as_ref(py))
+    }
+
+    #[getter]
+    pub fn arg_indices<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        Ok(self.arg_indices.as_ref(py))
     }
 }
