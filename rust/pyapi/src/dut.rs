@@ -6,10 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
 use pyo3::wrap_pymodule;
 
-use crate::pins::__PYO3_PYMODULE_DEF_PINS;
-use crate::registers::__PYO3_PYMODULE_DEF_REGISTERS;
-use crate::timesets::__PYO3_PYMODULE_DEF_TIMESETS;
-
+//TODO is this needed/used?
 #[allow(dead_code)]
 pub fn get_pydut(py: Python) -> PyResult<&PyAny> {
     let locals = PyDict::new(py);
@@ -17,14 +14,13 @@ pub fn get_pydut(py: Python) -> PyResult<&PyAny> {
     Ok(py.eval("origen.dut", Some(locals), None)?)
 }
 
-/// Implements the module _origen.dut in Python which exposes all
-/// DUT-related APIs
-#[pymodule]
-pub fn dut(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyDUT>()?;
-    m.add_wrapped(wrap_pymodule!(pins))?;
-    m.add_wrapped(wrap_pymodule!(registers))?;
-    m.add_wrapped(wrap_pymodule!(timesets))?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "dut")?;
+    subm.add_class::<PyDUT>()?;
+    crate::pins::define(py, subm)?;
+    crate::registers::define(py, subm)?;
+    crate::timesets::define(py, subm)?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

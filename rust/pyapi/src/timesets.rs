@@ -24,19 +24,20 @@ use timeset_container::{
     EventContainer, TimesetContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
 };
 
-#[pymodule]
-pub fn timesets(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<TimesetContainer>()?;
-    m.add_class::<WavetableContainer>()?;
-    m.add_class::<WaveGroupContainer>()?;
-    m.add_class::<WaveContainer>()?;
-    m.add_class::<EventContainer>()?;
-    m.add_class::<Timeset>()?;
-    m.add_class::<Wavetable>()?;
-    m.add_class::<WaveGroup>()?;
-    m.add_class::<Wave>()?;
-    m.add_class::<Event>()?;
-    m.add_class::<SymbolMap>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "timesets")?;
+    subm.add_class::<TimesetContainer>()?;
+    subm.add_class::<WavetableContainer>()?;
+    subm.add_class::<WaveGroupContainer>()?;
+    subm.add_class::<WaveContainer>()?;
+    subm.add_class::<EventContainer>()?;
+    subm.add_class::<Timeset>()?;
+    subm.add_class::<Wavetable>()?;
+    subm.add_class::<WaveGroup>()?;
+    subm.add_class::<Wave>()?;
+    subm.add_class::<Event>()?;
+    subm.add_class::<SymbolMap>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

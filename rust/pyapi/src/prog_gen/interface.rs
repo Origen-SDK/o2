@@ -12,9 +12,10 @@ use regex::Regex;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-#[pymodule]
-pub fn interface(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyInterface>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "interface")?;
+    subm.add_class::<PyInterface>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

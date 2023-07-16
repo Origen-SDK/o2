@@ -12,15 +12,13 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple, PyType};
 use pyo3::ToPyObject;
 
-#[pymodule]
-/// Implements the module _origen.standard_sub_blocks in Python and ties together
-/// the PyAPI with the Rust backend.
-/// Put another way, this is the Python-side controller for the backend-side model/controller.
-pub fn arm_debug(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<ArmDebug>()?;
-    m.add_class::<DP>()?;
-    m.add_class::<JtagDP>()?;
-    m.add_class::<MemAP>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "arm_debug")?;
+    subm.add_class::<ArmDebug>()?;
+    subm.add_class::<DP>()?;
+    subm.add_class::<JtagDP>()?;
+    subm.add_class::<MemAP>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

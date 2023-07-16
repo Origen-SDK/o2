@@ -6,9 +6,10 @@ use origen::{om, with_app_session, with_app_session_group};
 use pyapi_metal::framework::sessions::{SessionGroup, SessionStore, Sessions};
 use pyo3::prelude::*;
 
-#[pymodule]
-pub fn sessions(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<OrigenSessions>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "sessions")?;
+    subm.add_class::<OrigenSessions>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

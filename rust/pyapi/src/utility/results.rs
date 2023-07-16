@@ -14,11 +14,12 @@ macro_rules! incomplete_result_error {
     }};
 }
 
-#[pymodule]
-pub fn results(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<BuildResult>()?;
-    m.add_class::<UploadResult>()?;
-    m.add_class::<ExecResult>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "results")?;
+    subm.add_class::<BuildResult>()?;
+    subm.add_class::<UploadResult>()?;
+    subm.add_class::<ExecResult>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

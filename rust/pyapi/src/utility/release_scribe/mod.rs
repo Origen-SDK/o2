@@ -10,6 +10,14 @@ use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "release_scribe")?;
+    subm.add_class::<ReleaseScribe>()?;
+    subm.add_wrapped(wrap_pyfunction!(app_release_scribe))?;
+    m.add_submodule(subm)?;
+    Ok(())
+}
+
 #[pymodule]
 pub fn release_scribe(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ReleaseScribe>()?;

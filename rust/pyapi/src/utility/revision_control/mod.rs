@@ -9,9 +9,10 @@ use origen_metal::utils::revision_control::SupportedSystems;
 
 use crate::runtime_error;
 
-#[pymodule]
-pub fn revision_control(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(app_rc))?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "revision_control")?;
+    subm.add_wrapped(wrap_pyfunction!(app_rc))?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

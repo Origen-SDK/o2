@@ -32,7 +32,7 @@ curl-sys = { version = "0.4.34", features = ["static-curl"] }
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]
-version = "0.16.5"
+version = "0.17.3"
 features = ["extension-module", "num-bigint", "multiple-pymethods", "auto-initialize"]
 
 [build-dependencies]

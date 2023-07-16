@@ -6,9 +6,10 @@ use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-#[pymodule]
-pub fn publisher(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(app_publisher))?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "publisher")?;
+    subm.add_wrapped(wrap_pyfunction!(app_publisher))?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

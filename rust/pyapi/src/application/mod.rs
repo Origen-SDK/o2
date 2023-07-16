@@ -9,9 +9,10 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use std::path::{Path, PathBuf};
 
-#[pymodule]
-pub fn application(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyApplication>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "application")?;
+    subm.add_class::<PyApplication>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

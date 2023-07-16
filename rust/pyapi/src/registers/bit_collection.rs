@@ -1155,7 +1155,7 @@ impl BitCollection {
             if mp == "dut" {
                 dut_checked = true;
             }
-            if ops.iter().all(|op| m.hasattr(op).unwrap()) {
+            if ops.iter().all(|op| m.hasattr(op.as_str()).unwrap()) {
                 // Found the controller. Return this.
                 return Ok(Some(m.to_object(py)));
             } else {

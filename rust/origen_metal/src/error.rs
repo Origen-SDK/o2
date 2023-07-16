@@ -36,28 +36,28 @@ impl std::convert::From<Error> for pyo3::PyErr {
 
 impl std::convert::From<pyo3::PyErr> for Error {
     fn from(err: pyo3::PyErr) -> Self {
-        let gil = pyo3::Python::acquire_gil();
-        let py = gil.python();
-        Error::new(&format!(
-            "Encountered Exception '{}' with message: {}{}",
-            err.get_type(py).name().unwrap(),
-            {
-                let r = err.value(py).call_method0("__str__").unwrap();
-                r.extract::<String>().unwrap()
-            },
-            {
-                let tb = err.traceback(py);
-                let m = py.import("traceback").unwrap();
-                let temp = pyo3::types::PyTuple::new(py, &[tb]);
-                let et = m.call_method1("extract_tb", temp).unwrap();
+        pyo3::Python::with_gil(|py| {
+            Error::new(&format!(
+                "Encountered Exception '{}' with message: {}{}",
+                err.get_type(py).name().unwrap(),
+                {
+                    let r = err.value(py).call_method0("__str__").unwrap();
+                    r.extract::<String>().unwrap()
+                },
+                {
+                    let tb = err.traceback(py);
+                    let m = py.import("traceback").unwrap();
+                    let temp = pyo3::types::PyTuple::new(py, &[tb]);
+                    let et = m.call_method1("extract_tb", temp).unwrap();
 
-                let temp = pyo3::types::PyTuple::new(py, &[et]);
-                let text_list = m.call_method1("format_list", temp).unwrap();
-                let text = text_list.extract::<Vec<String>>().unwrap();
+                    let temp = pyo3::types::PyTuple::new(py, &[et]);
+                    let text_list = m.call_method1("format_list", temp).unwrap();
+                    let text = text_list.extract::<Vec<String>>().unwrap();
 
-                format!("\nWith traceback:\n{}", text.join(""))
-            }
-        ))
+                    format!("\nWith traceback:\n{}", text.join(""))
+                }
+            ))
+        })
     }
 }
 

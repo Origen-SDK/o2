@@ -28,16 +28,19 @@ use pin_header::{PinHeader, PinHeaderContainer};
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PyTuple};
 
-#[pymodule]
-/// Implements the module _origen.pins in Python
-pub fn pins(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<Pin>()?;
-    m.add_class::<PinContainer>()?;
-    m.add_class::<PinGroup>()?;
-    m.add_class::<PinCollection>()?;
-    m.add_class::<PinHeader>()?;
-    m.add_class::<PinHeaderContainer>()?;
-    m.add_class::<PinActions>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "pins")?;
+    subm.add_class::<Pin>()?;
+    subm.add_class::<PinContainer>()?;
+    subm.add_class::<PinGroup>()?;
+    subm.add_class::<PinCollection>()?;
+    subm.add_class::<PinHeader>()?;
+    subm.add_class::<PinHeaderContainer>()?;
+    subm.add_class::<PinActions>()?;
+
+    pyapi_metal::alias_method_apply_to_set!(subm, "PinGroup", "actions");
+    pyapi_metal::alias_method_apply_to_set!(subm, "PinCollection", "actions");
+    m.add_submodule(subm)?;
     Ok(())
 }
 

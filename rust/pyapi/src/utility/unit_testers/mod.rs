@@ -9,10 +9,11 @@ use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 use origen_metal::{Outcome, OutcomeSubtypes};
 
-#[pymodule]
-pub fn unit_testers(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<RunResult>()?;
-    m.add_wrapped(wrap_pyfunction!(app_unit_tester))?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "unit_testers")?;
+    subm.add_class::<RunResult>()?;
+    subm.add_wrapped(wrap_pyfunction!(app_unit_tester))?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

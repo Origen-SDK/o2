@@ -46,6 +46,7 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
 
     let users_class = subm.getattr("Users")?;
     users_class.setattr("current_user_as", wrap_instance_method(py, "current_user_as", Some(vec!("new_current")), None)?)?;
+    crate::alias_method_apply_to_set!(subm, "Users", "data_lookup_hierarchy");
     Ok(())
 }
 
@@ -346,10 +347,10 @@ impl Users {
 
     #[setter]
     fn data_lookup_hierarchy(&self, new_hierarchy: Vec<String>) -> PyResult<()> {
-        self.set_data_lookup_hierarchy(new_hierarchy)
+        self.apply_data_lookup_hierarchy(new_hierarchy)
     }
 
-    pub fn set_data_lookup_hierarchy(&self, new_hierarchy: Vec<String>) -> PyResult<()> {
+    pub fn apply_data_lookup_hierarchy(&self, new_hierarchy: Vec<String>) -> PyResult<()> {
         let mut users = om::users_mut();
         Ok(users.set_default_data_lookup_hierarchy(new_hierarchy)?)
     }

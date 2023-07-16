@@ -46,12 +46,12 @@ impl PinCollection {
 impl PinCollection {
     #[setter]
     fn actions(slf: PyRefMut<Self>, actions: &PyAny) -> PyResult<()> {
-        Self::set_actions(slf, actions, None)?;
+        Self::apply_actions(slf, actions, None)?;
         Ok(())
     }
 
     #[args(kwargs = "**")]
-    fn set_actions(
+    fn apply_actions(
         slf: PyRefMut<Self>,
         actions: &PyAny,
         kwargs: Option<&PyDict>,

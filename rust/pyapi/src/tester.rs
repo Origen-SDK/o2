@@ -9,9 +9,13 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use std::collections::HashMap;
 
-#[pymodule]
-pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyTester>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "tester")?;
+    subm.add_class::<PyTester>()?;
+    pyapi_metal::alias_method_apply_to_set!(subm, "PyTester", "timeset");
+    pyapi_metal::alias_method_apply_to_set!(subm, "PyTester", "pin_header");
+
+    m.add_submodule(subm)?;
     Ok(())
 }
 
@@ -27,7 +31,7 @@ pub struct PyTester {
 #[pymethods]
 impl PyTester {
     #[new]
-    fn new() -> PyResult<Self> {
+    fn new(py: Python) -> PyResult<Self> {
         origen::tester().init()?;
         Ok(PyTester {
             python_testers: HashMap::new(),
@@ -216,7 +220,7 @@ impl PyTester {
     /// * :meth:`timeset`
     /// * :class:`_origen.dut.timesets.Timeset`
     /// * :ref:`Timing <guides/testers/timing:Timing>`
-    fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
+    fn apply_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
         self.timeset(timeset)?;
         self.get_timeset()
     }
@@ -277,7 +281,7 @@ impl PyTester {
         Ok(())
     }
 
-    fn set_pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
+    fn apply_pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
         self.pin_header(pin_header)?;
         self.get_pin_header()
     }

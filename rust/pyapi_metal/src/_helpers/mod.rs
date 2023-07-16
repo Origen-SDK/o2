@@ -9,6 +9,9 @@ pub mod config;
 #[macro_use]
 pub mod errors;
 
+#[macro_use]
+pub mod macros;
+
 use crate::{pypath, runtime_error};
 use indexmap::IndexMap;
 use pyo3::conversion::ToPyObject;
@@ -53,9 +56,7 @@ pub fn new_py_obj<'p>(
     )
 }
 
-pub fn to_py_paths<T: std::fmt::Display>(paths: &Vec<T>) -> PyResult<Vec<PyObject>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
+pub fn to_py_paths<T: std::fmt::Display>(py: Python, paths: &Vec<T>) -> PyResult<Vec<PyObject>> {
     let mut retn: Vec<PyObject> = vec![];
     for p in paths {
         retn.push(pypath!(py, format!("{}", p)));
@@ -142,7 +143,7 @@ pub fn get_qualified_attr(s: &str) -> PyResult<Py<PyAny>> {
         for component in remaining {
             current_str.push_str(".");
             current_str.push_str(component);
-            match PyModule::import(py, &current_str) {
+            match PyModule::import(py, &*current_str) {
                 Ok(py_mod) => {
                     current = py_mod.to_object(py);
                 },
