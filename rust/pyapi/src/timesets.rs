@@ -46,6 +46,7 @@ impl PyDUT {
     #[args(kwargs = "**")]
     fn add_timeset(
         &self,
+        py: Python,
         model_id: usize,
         name: &str,
         period: &PyAny,
@@ -89,23 +90,17 @@ impl PyDUT {
             },
         )?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let model = dut.get_mut_model(model_id)?;
         Ok(pytimeset!(py, model, model_id, name)?)
     }
 
-    fn timeset(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
+    fn timeset(&self, py: Python, model_id: usize, name: &str) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(model_id)?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(pytimeset_or_pynone!(py, model, model_id, name))
     }
 
-    fn timesets(&self, model_id: usize) -> PyResult<Py<TimesetContainer>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn timesets(&self, py: Python, model_id: usize) -> PyResult<Py<TimesetContainer>> {
         Ok(pytimeset_container!(py, model_id))
     }
 }

@@ -16,7 +16,7 @@ pub mod website;
 
 use location::Location;
 use pyo3::prelude::*;
-use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::wrap_pyfunction;
 use transaction::Transaction;
 use version::Version;
 
@@ -124,9 +124,6 @@ fn app_utility(
     default: Option<&str>,
     use_by_default: bool,
 ) -> PyResult<Option<PyObject>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
     let system: &str;
     let conf_t: HashMap<String, String>;
     let conf_;
@@ -167,8 +164,10 @@ fn app_utility(
     let split = system.rsplitn(2, ".");
     if split.count() == 2 {
         // Have a class (hopefully) of the form 'a.b.Class'
-        let py_conf = pyapi_metal::_helpers::map_to_pydict(py, &mut conf_.iter())?;
-        Ok(Some(new_obj(py, system, py_conf.as_ref(py))?))
+        Python::with_gil(|py| {
+            let py_conf = pyapi_metal::_helpers::map_to_pydict(py, &mut conf_.iter())?;
+            Ok(Some(new_obj(py, system, py_conf.as_ref(py))?))
+        })
     } else {
         // fall back to some enumerated systems
         if &system.to_lowercase() == "none" {

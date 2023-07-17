@@ -65,11 +65,8 @@ impl PinCollection {
     }
 
     #[getter]
-    fn get_actions(&self) -> PyResult<PyObject> {
+    fn get_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
         let pin_actions = self.pin_collection.get_actions(&dut)?;
         Ok(PinActions {
             actions: pin_actions,
@@ -147,10 +144,8 @@ impl PinCollection {
     }
 
     #[getter]
-    fn get_reset_actions(&self) -> PyResult<PyObject> {
+    fn get_reset_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let pin_actions = self.pin_collection.get_reset_actions(&dut)?;
         Ok(PinActions {
             actions: pin_actions,
@@ -169,10 +164,7 @@ impl PinCollection {
     }
 
     #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
@@ -185,10 +177,7 @@ impl PinCollection {
         Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn repeat(slf: PyRef<Self>, py: Python, count: usize) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         py.eval(
@@ -271,15 +260,15 @@ impl ListLikeAPI for PinCollection {
                 }
             }
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(
-            py,
-            PinCollection {
-                pin_collection: OrigenPinCollection::new(ids, None),
-            },
-        )?
-        .to_object(py))
+        Python::with_gil(|py| {
+            Ok(Py::new(
+                py,
+                PinCollection {
+                    pin_collection: OrigenPinCollection::new(ids, None),
+                },
+            )?
+            .to_object(py))
+        })
     }
 }
 

@@ -147,12 +147,12 @@ pub fn pins_to_backend_lookup_fields(
 }
 
 pub fn vec_to_ppin_ids(dut: &origen::Dut, pins: Vec<&PyAny>) -> PyResult<Vec<usize>> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let t = PyTuple::new(py, pins);
-    let pin_lookups = pins_to_backend_lookup_fields(py, t)?;
-    let flat_pins = dut._resolve_to_flattened_pins(&pin_lookups)?;
-    Ok(flat_pins.iter().map(|p| p.id).collect::<Vec<usize>>())
+    Python::with_gil(|py| {
+        let t = PyTuple::new(py, pins);
+        let pin_lookups = pins_to_backend_lookup_fields(py, t)?;
+        let flat_pins = dut._resolve_to_flattened_pins(&pin_lookups)?;
+        Ok(flat_pins.iter().map(|p| p.id).collect::<Vec<usize>>())
+    })
 }
 
 // /// Similar to pins_to_backend_lookup_fields (and actually uses that) but goes
@@ -171,7 +171,7 @@ pub fn vec_to_ppin_ids(dut: &origen::Dut, pins: Vec<&PyAny>) -> PyResult<Vec<usi
 #[pymethods]
 impl PyDUT {
     #[args(kwargs = "**")]
-    fn add_pin(&self, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn add_pin(&self, py: Python, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let (mut reset_action, mut width, mut offset, mut endianness): (
             Option<Vec<origen::core::model::pins::pin::PinAction>>,
@@ -202,8 +202,6 @@ impl PyDUT {
         }
         dut.add_pin(model_id, name, width, offset, reset_action, endianness)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match dut.get_pin_group(model_id, name) {
             Some(_p) => Ok(Py::new(
                 py,
@@ -218,11 +216,8 @@ impl PyDUT {
         }
     }
 
-    fn pin(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
+    fn pin(&self, py: Python, model_id: usize, name: &str) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match dut.get_pin_group(model_id, name) {
             Some(_p) => Ok(Py::new(
                 py,
@@ -247,15 +242,14 @@ impl PyDUT {
         Ok(())
     }
 
-    fn pins(&self, model_id: usize) -> PyResult<Py<PinContainer>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn pins(&self, py: Python, model_id: usize) -> PyResult<Py<PinContainer>> {
         Ok(Py::new(py, PinContainer { model_id: model_id }).unwrap())
     }
 
     #[args(pins = "*", options = "**")]
     fn group_pins(
         &self,
+        py: Python,
         model_id: usize,
         name: &str,
         pins: &PyTuple,
@@ -288,8 +282,6 @@ impl PyDUT {
         let mut dut = DUT.lock().unwrap();
         dut.group_pins_by_name(model_id, name, name_strs, endianness)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(Py::new(
             py,
             PinGroup {
@@ -301,17 +293,12 @@ impl PyDUT {
         .to_object(py))
     }
 
-    fn physical_pins(&self, model_id: usize) -> PyResult<Py<PhysicalPinContainer>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn physical_pins(&self, py: Python, model_id: usize) -> PyResult<Py<PhysicalPinContainer>> {
         Ok(Py::new(py, PhysicalPinContainer { model_id: model_id }).unwrap())
     }
 
-    fn physical_pin(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
+    fn physical_pin(&self, py: Python, model_id: usize, name: &str) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match dut.get_pin(model_id, name) {
             Some(_p) => Ok(Py::new(
                 py,
@@ -329,6 +316,7 @@ impl PyDUT {
     #[args(pins = "*")]
     fn add_pin_header(
         &self,
+        py: Python,
         model_id: usize,
         name: &str,
         pins: &PyTuple,
@@ -336,8 +324,6 @@ impl PyDUT {
         let mut dut = DUT.lock().unwrap();
         dut.create_pin_header(model_id, name, pins.extract::<Vec<String>>()?)?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(Py::new(
             py,
             PinHeader {
@@ -348,17 +334,12 @@ impl PyDUT {
         .unwrap())
     }
 
-    fn pin_headers(&self, model_id: usize) -> PyResult<Py<PinHeaderContainer>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn pin_headers(&self, py: Python, model_id: usize) -> PyResult<Py<PinHeaderContainer>> {
         Ok(Py::new(py, PinHeaderContainer { model_id: model_id }).unwrap())
     }
 
-    fn pin_header(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
+    fn pin_header(&self, py: Python, model_id: usize, name: &str) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         match dut.get_pin_header(model_id, name) {
             Some(_p) => Ok(Py::new(
                 py,

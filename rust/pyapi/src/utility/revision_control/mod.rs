@@ -18,7 +18,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 
 /// Creates a RC driver from the application's ``config.toml``
 #[pyfunction]
-fn app_rc() -> PyResult<Option<PyObject>> {
+fn app_rc(py: Python) -> PyResult<Option<PyObject>> {
     // Raise an error if we aren't in an application instance
     let app;
     match &STATUS.app {
@@ -47,8 +47,6 @@ fn app_rc() -> PyResult<Option<PyObject>> {
             }
 
             // fall back to Rust's lookup parameters
-            let gil = Python::acquire_gil();
-            let py = gil.python();
             let locals = PyDict::new(py);
             let py_rc_config = PyDict::new(py);
             for (k, v) in rc_config.iter() {

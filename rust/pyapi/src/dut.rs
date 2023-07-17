@@ -4,7 +4,6 @@ use origen::Error;
 use pyo3::prelude::*;
 #[allow(unused_imports)]
 use pyo3::types::{PyAny, PyBytes, PyDict, PyIterator, PyList, PySlice, PyTuple};
-use pyo3::wrap_pymodule;
 
 //TODO is this needed/used?
 #[allow(dead_code)]
@@ -59,17 +58,12 @@ impl PyDUT {
 
     /// push_metadata(self, item)
     /// Pushes metadata object onto the current DUT
-    pub fn push_metadata(&mut self, item: &PyAny) -> usize {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    pub fn push_metadata(&mut self, py: Python, item: &PyAny) -> usize {
         self.metadata.push(item.to_object(py));
         self.metadata.len() - 1
     }
 
-    pub fn override_metadata_at(&mut self, idx: usize, item: &PyAny) -> PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    pub fn override_metadata_at(&mut self, py: Python, idx: usize, item: &PyAny) -> PyResult<()> {
         if self.metadata.len() > idx {
             self.metadata[idx] = item.to_object(py);
             Ok(())
@@ -96,11 +90,11 @@ impl PyDUT {
 
 impl PyDUT {
     pub fn ensure_pins(model_path: &str) -> PyResult<()> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let locals = PyDict::new(py);
-        locals.set_item("origen", py.import("origen")?.to_object(py))?;
-        py.eval(&format!("origen.{}.pins", model_path), Some(locals), None)?;
-        Ok(())
+        Python::with_gil(|py| {
+            let locals = PyDict::new(py);
+            locals.set_item("origen", py.import("origen")?.to_object(py))?;
+            py.eval(&format!("origen.{}.pins", model_path), Some(locals), None)?;
+            Ok(())
+        })
     }
 }

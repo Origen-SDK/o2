@@ -31,11 +31,11 @@ impl App {
 
 impl origen::core::frontend::App for App {
     fn check_production_status(&self) -> origen::Result<bool> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let pyapp = get_pyapp(py)?;
-        let app = pyapp.borrow(py);
-        Ok(app.check_production_status()?)
+        Python::with_gil(|py| {
+            let pyapp = get_pyapp(py)?;
+            let app = pyapp.borrow(py);
+            Ok(app.check_production_status()?)
+        })
     }
 
     fn publish(&self) -> origen::Result<()> {

@@ -33,11 +33,8 @@ impl PinGroup {
     }
 
     #[getter]
-    fn get_actions(&self) -> PyResult<PyObject> {
+    fn get_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         let pin_actions = grp.get_actions(&dut)?;
         Ok(PinActions {
@@ -109,10 +106,8 @@ impl PinGroup {
     }
 
     #[getter]
-    fn get_reset_actions(&self) -> PyResult<PyObject> {
+    fn get_reset_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         let pin_actions = grp.get_reset_actions(&dut)?;
         Ok(PinActions {
@@ -135,10 +130,7 @@ impl PinGroup {
     }
 
     #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
@@ -151,10 +143,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn repeat(slf: PyRef<Self>, py: Python, count: usize) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         py.eval(
@@ -276,8 +265,8 @@ impl ListLikeAPI for PinGroup {
                 }
             }
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(py, PinCollection::from_ids_unchecked(ids, None))?.to_object(py))
+        Python::with_gil(|py| {
+            Ok(Py::new(py, PinCollection::from_ids_unchecked(ids, None))?.to_object(py))
+        })
     }
 }

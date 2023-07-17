@@ -43,7 +43,7 @@ use pyapi_metal::{runtime_error, pypath};
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
-use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::wrap_pyfunction;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
@@ -343,19 +343,19 @@ fn exit_pass() -> PyResult<()> {
 }
 
 fn origen_mod_path() -> PyResult<PathBuf> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let locals = PyDict::new(py);
-    locals.set_item("importlib", py.import("importlib")?)?;
-    let p = PathBuf::from(
-        py.eval(
-            "importlib.util.find_spec('_origen').origin",
-            None,
-            Some(&locals),
-        )?
-        .extract::<String>()?,
-    );
-    Ok(p.parent().unwrap().to_path_buf())
+    Python::with_gil(|py| {
+        let locals = PyDict::new(py);
+        locals.set_item("importlib", py.import("importlib")?)?;
+        let p = PathBuf::from(
+            py.eval(
+                "importlib.util.find_spec('_origen').origin",
+                None,
+                Some(&locals),
+            )?
+            .extract::<String>()?,
+        );
+        Ok(p.parent().unwrap().to_path_buf())
+    })
 }
 
 /// Called automatically when Origen is first loaded
@@ -673,11 +673,10 @@ pub fn with_pycallbacks<T, F>(mut func: F) -> PyResult<T>
 where
     F: FnMut(Python, &PyAny) -> PyResult<T>,
 {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let pycallbacks = py.import("origen.callbacks")?;
-    func(py, pycallbacks)
+    Python::with_gil(|py| {
+        let pycallbacks = py.import("origen.callbacks")?;
+        func(py, pycallbacks)
+    })
 }
 
 pub fn get_full_class_name(obj: &PyAny) -> PyResult<String> {

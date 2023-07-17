@@ -9,13 +9,17 @@ def run(**kwargs):
     origen.boot.exit = False
 
     run_cmd("generate",
-            files=["example/patterns"],
-            reference_dir="approved",
+            args={
+                "files": ["example/patterns"],
+                "reference_dir": "approved",
+            },
             targets=["dut/eagle", "tester/v93k_smt7", "tester/j750"])
 
     run_cmd("generate",
-            files=["example/flows/o1_testcases/prb1.py"],
-            reference_dir="approved",
+            args={
+                "files": ["example/flows/o1_testcases/prb1.py"],
+                "reference_dir": "approved",
+            },
             targets=["dut/o1_dut", "tester/v93k_smt7"])
 
     stats = origen.tester.stats()

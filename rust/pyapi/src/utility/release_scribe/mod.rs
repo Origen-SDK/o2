@@ -67,9 +67,7 @@ impl ReleaseScribe {
     }
 
     #[getter]
-    fn release_note_file(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn release_note_file(&self, py: Python) -> PyResult<PyObject> {
         Ok(crate::pypath!(
             py,
             format!("{}", self.rs.release_file.display())
@@ -89,9 +87,7 @@ impl ReleaseScribe {
     }
 
     #[getter]
-    fn history_tracking_file(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn history_tracking_file(&self, py: Python) -> PyResult<PyObject> {
         Ok(crate::pypath!(
             py,
             format!("{}", self.rs.history_toml.display())

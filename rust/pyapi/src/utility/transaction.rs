@@ -63,10 +63,7 @@ impl Transaction {
     }
 
     #[getter]
-    fn address(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn address(&self, py: Python) -> PyResult<PyObject> {
         if let Some(a) = &self.transaction.address {
             Ok(a.to_object(py))
         } else {
@@ -75,8 +72,8 @@ impl Transaction {
     }
 
     #[getter]
-    fn addr(&self) -> PyResult<PyObject> {
-        self.address()
+    fn addr(&self, py: Python) -> PyResult<PyObject> {
+        self.address(py)
     }
 
     #[getter]
@@ -85,10 +82,7 @@ impl Transaction {
     }
 
     #[getter]
-    fn address_width(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn address_width(&self, py: Python) -> PyResult<PyObject> {
         if let Some(a) = self.transaction.address_width {
             Ok(a.to_object(py))
         } else {
@@ -97,16 +91,13 @@ impl Transaction {
     }
 
     #[getter]
-    fn addr_width(&self) -> PyResult<PyObject> {
-        self.address_width()
+    fn addr_width(&self, py: Python) -> PyResult<PyObject> {
+        self.address_width(py)
     }
 
     #[getter]
-    fn register(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn register(&self, py: Python) -> PyResult<PyObject> {
         let dut = origen::dut();
-
         if let Some(id) = self.transaction.reg_id {
             Ok(crate::registers::bit_collection::BitCollection::from_reg_id(id, &dut).into_py(py))
         } else {
@@ -115,7 +106,7 @@ impl Transaction {
     }
 
     #[getter]
-    fn reg(&self) -> PyResult<PyObject> {
-        self.register()
+    fn reg(&self, py: Python) -> PyResult<PyObject> {
+        self.register(py)
     }
 }

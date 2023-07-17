@@ -235,18 +235,18 @@ pub fn get_pyapp<'py>(py: Python<'py>) -> PyResult<Py<PyApplication>> {
 /// Note: this could have several methods overridden. Just check that the aforementioned
 /// class is one of the object's ancestors
 pub fn is_base_app(query: &PyAny) -> PyResult<bool> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let locals = PyDict::new(py);
-    locals.set_item("origen", py.import("origen")?.to_object(py))?;
-    locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
-    locals.set_item("query", query.to_object(py))?;
-    let result = py.eval(
-        "builtins.isinstance(query, origen.application.Base)",
-        Some(locals),
-        None,
-    )?;
-    Ok(result.extract::<bool>()?)
+    Python::with_gil(|py| {
+        let locals = PyDict::new(py);
+        locals.set_item("origen", py.import("origen")?.to_object(py))?;
+        locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
+        locals.set_item("query", query.to_object(py))?;
+        let result = py.eval(
+            "builtins.isinstance(query, origen.application.Base)",
+            Some(locals),
+            None,
+        )?;
+        Ok(result.extract::<bool>()?)
+    })
 }
 
 /// Return the name of the given app. Equivalent to `app.name` in Python
