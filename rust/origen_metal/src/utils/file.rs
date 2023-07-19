@@ -60,6 +60,24 @@ pub fn search_backwards_for(files: Vec<&str>, base: &Path) -> (bool, PathBuf) {
     }
 }
 
+/// Similar to search_backwards_for but takes a func returning Result<Some<T>> if found, None otherwise.
+/// Returns Ok(Some<T>) for the first result and ceases running. If no results are found, returns Ok(None)
+pub fn search_backwards_for_first<T, F>(mut start_path: PathBuf, mut func: F) -> Result<Option<T>>
+where
+    F: FnMut(&Path) -> Result<Option<T>>
+{
+    if let Some(res) = func(&start_path)? {
+        return Ok(Some(res));
+    }
+
+    while start_path.pop() {
+        if let Some(res) = func(&start_path)? {
+            return Ok(Some(res));
+        }
+    }
+    Ok(None)
+}
+
 /// Change the current directory to the given one
 pub fn cd(dir: &Path) -> Result<()> {
     env::set_current_dir(&dir).context(&format!("When cd'ing to '{}'", dir.display()))?;

@@ -1,8 +1,10 @@
 // Responsible for managing Python execution
-
 use crate::built_info;
-use origen::Result;
+use origen::{Result, STATUS};
+use origen::core::status::DependencySrc;
+use origen_metal::utils::file::search_backwards_for_first;
 use semver::Version;
+use std::env;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
 
@@ -31,6 +33,16 @@ lazy_static! {
     pub static ref PYTHON_CONFIG: Config = Config::default();
 }
 
+macro_rules! pyproject_str {
+    () => { "pyproject.toml" }
+}
+macro_rules! user_env_str {
+    () => { "ORIGEN_PYPROJECT" }
+}
+
+const PYPROJECT: &'static str = pyproject_str!();
+const USER_ENV: &'static str = user_env_str!();
+
 pub struct Config {
     pub available: bool,
     pub command: String,
@@ -38,18 +50,170 @@ pub struct Config {
     pub error: String,
 }
 
+pub fn resolve_pyproject() -> Result<DependencySrc> {
+    // TODO allow a .origen offset when looking for pyprojects?
+    // let offset = ".origen";
+    if let Some(app) = STATUS.app.as_ref() {
+        let path = app.root.join(PYPROJECT);
+        log_trace!("Found app pyproject: {}", path.display());
+        return Ok(DependencySrc::App(path));
+    }
+
+    if let Some(p) = search_backwards_for_first(env::current_dir()?, |p| {
+        let f = p.join(PYPROJECT);
+        log_trace!("Searching for workspace project from {}", p.display());
+        if f.exists() {
+            log_trace!("Found workspace pyproject: {}", f.display());
+            Ok(Some(f))
+        } else {
+            Ok(None)
+        }
+    })? {
+        return Ok(DependencySrc::Workspace(p.to_path_buf()))
+    }
+
+    if let Some(p) = env::var_os(USER_ENV) {
+        log_trace!("Attempting to find user-given pyproject: {}", p.to_string_lossy());
+        let mut f = PathBuf::from(p);
+        if f.exists() {
+            f = f.join(PYPROJECT);
+            if f.exists() {
+                log_trace!("Found user-given pyproject: {}", f.display());
+                return Ok(DependencySrc::UserGlobal(f));
+            } else {
+                bail!(concat!("Could not locate ", pyproject_str!(), " from ", user_env_str!(), " {}"), f.display());
+            }
+        } else {
+            bail!(concat!(user_env_str!(), " '{}' does not exists!"), f.display());
+        }
+    }
+
+    // Try the python package installation directory
+    let path = std::env::current_exe()?;
+    log_trace!("Searching CLI installation directories for pyproject: {}", path.display());
+    if let Some(p) = search_backwards_for_first(path, |p| {
+        let f = p.join(PYPROJECT);
+        log_trace!("Searching for workspace project from {}", p.display());
+        if f.exists() {
+            log_trace!("Found workspace pyproject: {}", f.display());
+            Ok(Some(f))
+        } else {
+            Ok(None)
+        }
+    })? {
+        return Ok(DependencySrc::Global(p.to_path_buf()))
+    }
+
+    log_trace!("No pyproject found. Skipping Poetry invocations...");
+    Ok(DependencySrc::NoneFound)
+}
+
 impl Config {
+    pub fn base_cmd(&self) -> Command {
+        let dep_src = STATUS.dependency_src();
+        let mut c = Command::new(&self.command);
+
+        if let Some(dep_src) = dep_src.as_ref() {
+            match dep_src {
+                DependencySrc::App(_path) | DependencySrc::Workspace(_path) => {
+                    c.arg("-m");
+                    c.arg("poetry");
+                },
+                DependencySrc::UserGlobal(path) | DependencySrc::Global(path) => {
+                    c.arg("-m");
+                    c.arg("poetry");
+                    c.arg("-C");
+                    c.arg(path);
+                }
+                DependencySrc::NoneFound => {}
+            }
+        } else {
+            log_error!("Dependency source has not been set - defaulting to global Python installation");
+        }
+        c
+    }
+
+    pub fn run_cmd(&self, code: &str) -> Command {
+        let mut c = self.base_cmd();
+        if let Some(d) = STATUS.dependency_src().as_ref() {
+            if d.src_available() {
+                c.arg("run");
+                c.arg(&self.command);
+            }
+        }
+        c.arg("-c");
+        c.arg(code);
+        if let Some(d) = STATUS.dependency_src().as_ref() {
+            c.arg(format!("invocation={}", d));
+            if let Some(path) = d.src_file() {
+                c.arg(format!("pyproject_src={}", path.display()));
+            }
+        }
+        c
+    }
+
     pub fn poetry_command(&self) -> Command {
         let mut c = Command::new(&self.command);
         c.arg("-m");
         c.arg("poetry");
+        if let Some(d) = STATUS.dependency_src().as_ref() {
+            if let Some(path) = d.src_file() {
+                c.arg("-C");
+                c.arg(path);
+            }
+        }
         c
     }
+
+    // TODO Invocation see if these are needed or can be cleaned up
+    // fn get_origen_pkg_path(&self) -> Result<PathBuf> {
+    //     let mut c = Command::new("pip");
+    //     c.arg("show");
+    //     c.arg("origen");
+    //     let output = exec_and_capture_cmd(c)?;
+    //     if let Some(loc) = output.1.iter().find_map( |line| line.strip_prefix("Location: ")) {
+    //         Ok(PathBuf::from(loc))
+    //     } else {
+    //         bail!(
+    //             "Error locating origen package information from pip.\nReceived stdout:\n{}\nReceived stderr:\n{}",
+    //             output.1.join("\n"),
+    //             output.2.join("\n")
+    //         );
+    //     }
+    // }
+
+    // fn in_workspace(&self) -> Result<bool> {
+    //     let mut c = Command::new(&self.command);
+    //     c.arg("-m");
+    //     c.arg("poetry");
+    //     c.arg("env");
+    //     c.arg("info");
+    //     let output = exec_and_capture_cmd(c)?;
+    //     if !output.0.success() {
+    //         if let Some(l) = output.2.last() {
+    //             if l.starts_with("Poetry could not find a pyproject.toml file in ") {
+    //                 return Ok(false);
+    //             }
+    //         }
+    //         bail!(
+    //             "Unexpected response when querying poetry environment:\nReceived stdout:\n{}Received stderr:\n{}",
+    //             output.1.join("\n"),
+    //             output.2.join("\n")
+    //         );
+    //     }
+    //     Ok(true)
+    // }
 }
 
 impl Default for Config {
     fn default() -> Config {
         let mut available = false;
+        match resolve_pyproject() {
+            Ok(deps) => {
+                STATUS.set_dependency_src(Some(deps))
+            },
+            Err(e) => log_error!("Errors encountered resolving pyproject: {}", e)
+        }
         for cmd in PYTHONS.iter() {
             match get_version(cmd) {
                 Some(version) => {
@@ -163,11 +327,7 @@ fn extract_version(text: &str) -> Option<Version> {
 
 /// Execute the given Python code
 pub fn run(code: &str) -> Result<ExitStatus> {
-    let mut cmd = PYTHON_CONFIG.poetry_command();
-    cmd.arg("run");
-    cmd.arg(&PYTHON_CONFIG.command);
-    cmd.arg("-c");
-    cmd.arg(&code);
+    let mut cmd = PYTHON_CONFIG.run_cmd(code);
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {
@@ -190,15 +350,7 @@ pub fn run_with_callbacks(
 ) -> Result<()> {
     use origen::utility::command_helpers::log_stdout_and_stderr;
 
-    let mut cmd = PYTHON_CONFIG.poetry_command();
-    cmd.arg("run");
-    cmd.arg(&PYTHON_CONFIG.command);
-    cmd.arg("-c");
-    cmd.arg(&code);
-    cmd.arg("-");
-    // Force logger to be silent, use case for this is parsing output data so keep
-    // noise to a minimum
-    cmd.arg("verbosity=0");
+    let mut cmd = PYTHON_CONFIG.run_cmd(code);
     // current_exe returns the Python process once it gets underway, so pass in the CLI
     // location for Origen to use (used to resolve Origen config files)
     if let Ok(p) = std::env::current_exe() {

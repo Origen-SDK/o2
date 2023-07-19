@@ -83,10 +83,12 @@ class T_ExtendingFromAppCmds(CLICommon):
         cmd = self.core_cmd
         help = cmd.get_help_msg()
         help.assert_args(cmd.code)
+        opts = list(self.in_app_cmds.standard_opts())
+        opts.insert(3, cmd.scripts)
         help.assert_opts(
             cmd.generic_app_ext_action,
             cmd.generic_app_ext_flag,
-            *self.in_app_cmds.standard_opts()
+            *opts
         )
 
         assert help.aux_exts == None
@@ -113,6 +115,7 @@ class T_ExtendingFromAppCmds(CLICommon):
             cmd.generic_app_ext_flag,
             "help", "mode", "no_targets",
             cmd.pl_ext_cmds_generic_ext,
+            cmd.scripts,
             "targets", "v", 'vk'
         )
         assert help.aux_exts == ['core_cmd_exts']

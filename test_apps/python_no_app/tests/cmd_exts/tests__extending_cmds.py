@@ -35,17 +35,6 @@ class T_ExtendingCmds(CLIShared):
         ext_mvd = ["mvd0", "mvd1"]
         ext_rv = ["no_action"]
 
-        def get_action_results(self, output, actions):
-            retn = {}
-            for action in actions:
-                a = {}
-                r = output.split(f"Start Action Before CMD: {action}")[1].strip()
-                a["Before"], r = r.split(f"End Action Before CMD: {action}")
-                r = output.split(f"Start Action After CMD: {action}")[1].strip()
-                a["After"], r = r.split(f"End Action After CMD: {action}")
-                retn[action] = a
-            return retn
-
         def test_help_msg(self):
             help = self.cmd.get_help_msg()
             help.assert_args(self.sa, self.ma)
@@ -554,6 +543,7 @@ class T_ExtendingCmds(CLIShared):
             cmd.core_cmd_exts_generic_core_ext,
             "help",
             cmd.pl_ext_cmds_generic_ext,
+            cmd.scripts,
             "v",
             "vk",
         )

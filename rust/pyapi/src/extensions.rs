@@ -15,6 +15,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 pub struct Extension {
     name: String,
     args: Py<PyDict>,
+    arg_indices: Py<PyDict>,
     source: String,
     ext_mod: Option<Py<PyModule>>,
 }
@@ -29,6 +30,11 @@ impl Extension {
     #[getter]
     pub fn args<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyDict> {
         Ok(self.args.as_ref(py))
+    }
+
+    #[getter]
+    pub fn arg_indices<'py>(&'py self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        Ok(self.arg_indices.as_ref(py))
     }
 
     #[getter]
@@ -128,7 +134,7 @@ impl ExtensionsIter {
 }
 
 impl Extensions {
-    pub fn new<'py>(py: Python<'py>, exts: &PyList, ext_args: Py<PyDict>) -> PyResult<Self> {
+    pub fn new<'py>(py: Python<'py>, exts: &PyList, ext_args: Py<PyDict>, ext_arg_indices: Py<PyDict>) -> PyResult<Self> {
         let mut slf = Self {
             exts: IndexMap::new(),
         };
@@ -146,6 +152,7 @@ impl Extensions {
                 ext_path = format!("{}.{}", source, ext_name);
             }
             let src_ext_args = PyAny::get_item(ext_args.as_ref(py), &source)?.extract::<&PyDict>()?;
+            let src_ext_args_indices = PyAny::get_item(ext_arg_indices.as_ref(py), &source)?.extract::<&PyDict>()?;
 
             let py_ext = Extension {
                 args: {
@@ -153,6 +160,13 @@ impl Extensions {
                         src_ext_args.into()
                     } else {
                         PyAny::get_item(src_ext_args, &ext_name)?.extract::<Py<PyDict>>()?
+                    }
+                },
+                arg_indices: {
+                    if source == "app" {
+                        src_ext_args_indices.into()
+                    } else {
+                        PyAny::get_item(src_ext_args_indices, &ext_name)?.extract::<Py<PyDict>>()?
                     }
                 },
                 name: ext_name,

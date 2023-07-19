@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "{{ name }}"
+version = "0.1.0"
+description = "Origen Installation Test"
+authors = ["Origen-SDK"]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<3.11"
+{% if local_origen %}
+origen = { path = "{{ o2_root.joinpath("python/origen").as_posix() }}", develop = true }
+origen_metal = { path = "{{ o2_root.joinpath("python/origen_metal").as_posix() }}", develop = true }
+{% else %}
+origen = ">= 0.0.0"
+origen_metal = ">= 0.0.0"
+{% endif %}
+{% if has_pls %}
+    {% if local_origen %}
+python_plugin = { path = "{{ o2_root.joinpath("test_apps/python_plugin").as_posix() }}", develop = true }
+test_apps_shared_test_helpers = { path = "{{ o2_root.joinpath("test_apps/test_apps_shared_test_helpers").as_posix() }}", develop = true }
+    {% else %}
+python_plugin = ">= 0.0.0"
+test_apps_shared_test_helpers = ">= 0.0.0"
+    {% endif %}
+{% endif %}

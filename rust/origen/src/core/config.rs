@@ -404,11 +404,19 @@ impl Default for Config {
                 }
             } else {
                 match std::env::current_dir() {
-                    Ok(path) => {
+                    Ok(mut path) => {
                         let f = path.join("origen.toml");
                         log_trace!("Looking for Origen config file in current working directory at '{}'", f.display());
                         if f.exists() {
                             files.push(f);
+                        }
+
+                        while path.pop() {
+                            let f = path.join("origen.toml");
+                            log_trace!("Looking for Origen config file at '{}'", f.display());
+                            if f.exists() {
+                                files.push(f);
+                            }
                         }
                     }
                     Err(e) => {

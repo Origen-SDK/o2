@@ -41,6 +41,44 @@ class TestCurrentCommand(CLIShared):
             {}
         )
 
+    def test_arg_indices(self):
+        cmd = CLIShared.python_plugin.plugin_test_args.extend(
+            CLIShared.exts.exts["plugin.python_plugin.plugin_test_args"]["exts"],
+            from_configs=CLIShared.exts.exts_workout_cfg
+        )
+
+        ext_flag = cmd.flag_extension
+        ext_ha = cmd.hidden_opt
+        ext_action = cmd.exts_workout_action
+
+        args = "show_arg_indices"
+        exts = "show_ext_arg_indices"
+        # Index 0 is the command name
+        # NOTE: per the clap API, when flags (options not accepting values) are used, only the last index is given
+        out = cmd.run(
+            "sv", "m0", "m1", "m2", # indices 1, 2-4
+            ext_flag.ln_to_cli(), # 5
+            cmd.opt_taking_value.ln_to_cli(), "opt_val", # 6 (opt name), 7 (value)
+            ext_flag.sn_to_cli(), # 8
+            ext_ha.ln_to_cli(), # 9
+            ext_action.ln_to_cli(), args, exts, # 10 (opt name), 11, 12 (values)
+            cmd.multi_val_delim_opt.ln_to_cli(), "d0,d1,d2"
+        )
+        parsed = self.get_action_results(out, [args, exts])
+        assert eval(parsed[args]["Before"]) == {
+            cmd.single_arg.name: [1],
+            cmd.multi_arg.name: [2, 3, 4],
+            cmd.opt_taking_value.name: [7]
+        }
+        assert eval(parsed[exts]["Before"]) == {
+            "aux.exts_workout": {
+                ext_flag.name: [8],
+                ext_ha.name: [9],
+                ext_action.name: [11, 12],
+                cmd.multi_val_delim_opt.name: [14, 15, 16],
+            }
+        }
+
     @pytest.mark.skip
     def test_current_command_from_aux_cmd(self):
         # TEST_NEEDED Current Command core case

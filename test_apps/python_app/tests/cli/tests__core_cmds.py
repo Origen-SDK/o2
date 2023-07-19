@@ -43,7 +43,9 @@ class T_AppWorkspaceCoreCommands(CLICommon):
             help = cmd.get_help_msg(run_opts=no_config_run_opts)
             help.assert_summary(cmd.help)
             help.assert_args(cmd.code)
-            help.assert_bare_app_opts()
+            opts = list(self.in_app_cmds.standard_opts())
+            opts.insert(3, cmd.scripts)
+            help.assert_opts(*opts)
 
         def test_basic_eval(self, cmd, no_config_run_opts):
             d = cmd.demos["multi_statement_single_arg"]
