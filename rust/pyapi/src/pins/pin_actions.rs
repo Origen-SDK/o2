@@ -143,7 +143,7 @@ impl PinActions {
     }
 
     #[new]
-    #[args(actions = "*", _kwargs = "**")]
+    #[pyo3(signature=(*actions, **_kwargs))]
     fn new(actions: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Self> {
         let mut temp: Vec<OrigenPinAction> = vec![];
         // if let Some(actions_) = actions {

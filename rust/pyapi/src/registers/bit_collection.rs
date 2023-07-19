@@ -99,7 +99,7 @@ impl BitCollection {
     }
 
     /// Returns a bit collection containing the given bit indices
-    #[args(args = "*")]
+    #[pyo3(signature=(*args))]
     fn subset(&self, args: &PyTuple) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         let mut bit_ids: Vec<usize> = Vec::new();
@@ -250,13 +250,13 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    #[args(shift_in = "0")]
+    #[pyo3(signature=(shift_in=0))]
     fn shift_left(&self, shift_in: u8) -> PyResult<u8> {
         let dut = origen::dut();
         Ok(self.materialize(&dut)?.shift_left(shift_in)?)
     }
 
-    #[args(shift_in = "0")]
+    #[pyo3(signature=(shift_in=0))]
     fn shift_right(&self, shift_in: u8) -> PyResult<u8> {
         let dut = origen::dut();
         Ok(self.materialize(&dut)?.shift_right(shift_in)?)
@@ -296,7 +296,7 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    #[args(label = "None", symbol = "None", mask = "None")]
+    #[pyo3(signature=(label=None, symbol=None, mask=None))]
     fn set_overlay(
         &self,
         label: Option<String>,
@@ -315,7 +315,6 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    // #[args(kwargs = "**")]
     fn set_capture(&self) -> PyResult<BitCollection> {
         self.materialize(&origen::dut())?.capture();
         Ok(self.clone())
@@ -359,7 +358,7 @@ impl BitCollection {
         }
     }
 
-    #[args(enable = "None", preset = "false")]
+    #[pyo3(signature=(enable=None, preset=false))]
     /// Trigger a verify transaction on the register
     pub fn _internal_verify(
         &self,
@@ -381,7 +380,7 @@ impl BitCollection {
         Ok(())
     }
 
-    #[args(enable = "None")]
+    #[pyo3(signature=(enable=None))]
     /// Equivalent to calling verify() but without invoking a register transaction at the end,
     /// i.e. it will set the verify flag on the bits and optionally apply an enable mask when
     /// deciding what bit flags to set.
@@ -539,7 +538,7 @@ impl BitCollection {
         }
     }
 
-    #[args(args = "*")]
+    #[pyo3(signature=(*args))]
     fn try_fields(&self, args: &PyTuple) -> PyResult<BitCollection> {
         let dut = origen::dut();
 
@@ -713,7 +712,7 @@ impl BitCollection {
         }
     }
 
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(data=None, **_kwargs))]
     fn write(
         slf: &PyCell<Self>,
         py: Python,
@@ -743,7 +742,7 @@ impl BitCollection {
         Ok(slf.into())
     }
 
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(data=None, **_kwargs))]
     fn verify(
         slf: &PyCell<Self>,
         py: Python,
@@ -774,7 +773,7 @@ impl BitCollection {
         Ok(slf.into())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(**kwargs))]
     fn capture(slf: &PyCell<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         // let bc = slf.extract::<PyRef<Self>>()?;
         // bc.capture();
@@ -966,7 +965,7 @@ impl BitCollection {
             Some(x) => Some(x.to_string()),
             None => None,
         };
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
+        if let Ok(slice) = idx.downcast::<PySlice>() {
             // Indices requires (what I think is) a max size. Should be plenty.
             let indices = slice.indices(8192)?;
             // TODO: Should this support step size?
@@ -991,7 +990,7 @@ impl BitCollection {
             let mut bc = self.smart_clone(bit_ids);
             bc.field = field;
             Ok(bc)
-        } else if let Ok(_int) = idx.cast_as::<PyInt>() {
+        } else if let Ok(_int) = idx.downcast::<PyInt>() {
             let i = idx.extract::<usize>().unwrap();
             if i < self.bit_ids.len() {
                 let mut bit_ids: Vec<usize> = Vec::new();
@@ -1008,7 +1007,7 @@ impl BitCollection {
                     "The given bit index is out of range",
                 ))
             }
-        } else if let Ok(_name) = idx.cast_as::<PyString>() {
+        } else if let Ok(_name) = idx.downcast::<PyString>() {
             if self.whole_reg {
                 let name = idx.extract::<&str>().unwrap();
                 self.field(name)

@@ -23,7 +23,8 @@ pub struct PyApplication {}
 #[pymethods]
 impl PyApplication {
     #[new]
-    fn new() -> Self {
+    #[pyo3(signature=(**_kwargs))]
+    fn new(_kwargs: Option<&PyDict>) -> Self {
         PyApplication {}
     }
 
@@ -41,7 +42,7 @@ impl PyApplication {
         Ok(r.passed())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(**kwargs))]
     fn __publish__(&self, kwargs: Option<&PyDict>) -> PyResult<PyOutcome> {
         let mut dry_run = false;
         let mut rn: Option<&str> = None;
@@ -83,6 +84,7 @@ impl PyApplication {
         Ok(Status::from_origen(origen::app().unwrap().rc_status()?))
     }
 
+    #[pyo3(signature=(pathspecs, msg, dry_run))]
     fn __rc_checkin__(
         &self,
         pathspecs: Option<Vec<String>>,
@@ -107,14 +109,14 @@ impl PyApplication {
         )?))
     }
 
-    #[args(_args = "*")]
+    #[pyo3(signature=(*_args))]
     fn __build_package__(&self, _args: &PyTuple) -> PyResult<BuildResult> {
         Ok(BuildResult {
             build_result: Some(origen::app().unwrap().build_package()?),
         })
     }
 
-    #[args(_args = "*")]
+    #[pyo3(signature=(*_args))]
     fn __run_publish_checks__(&self, _args: &PyTuple) -> PyResult<bool> {
         let r = origen::app().unwrap().run_publish_checks(false)?;
         Ok(r.passed())

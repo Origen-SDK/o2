@@ -38,54 +38,63 @@ macro_rules! pytuple_to_vector_str {
     };
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn debug(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.debug_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn deprecated(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.deprecated_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn error(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.error_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn info(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.info_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn success(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.success_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn warning(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.warning_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn display(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.display_block(&pytuple_to_vector_str!(messages));
     Ok(())
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn log(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     display(_py, messages, _kwargs)
 }
 
-#[pyfunction(messages = "*", _kwargs = "**")]
+#[pyfunction]
+#[pyo3(signature=(*messages, **_kwargs))]
 fn trace(_py: Python, messages: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<()> {
     LOGGER.trace_block(&pytuple_to_vector_str!(messages));
     Ok(())
@@ -130,47 +139,47 @@ impl Logger {
         Self {}
     }
 
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn debug(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         debug(py, messages, kwargs)
     }
     
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn deprecated(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         deprecated(py, messages, kwargs)
     }
     
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn error(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         error(py, messages, kwargs)
     }
     
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn info(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         info(py, messages, kwargs)
     }
     
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn success(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         success(py, messages, kwargs)
     }
     
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn warning(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         warning(py, messages, kwargs)
     }
     
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn display(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         display(py, messages, kwargs)
     }
     
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn log(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         log(py, messages, kwargs)
     }
 
-    #[args(messages = "*", kwargs = "**")]
+    #[pyo3(signature=(*messages, **kwargs))]
     fn trace(&self, py: Python, messages: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<()> {
         trace(py, messages, kwargs)
     }

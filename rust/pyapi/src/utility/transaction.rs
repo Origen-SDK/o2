@@ -13,7 +13,7 @@ pub struct Transaction {
 #[pymethods]
 impl Transaction {
     #[new]
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bc_or_val, **kwargs))]
     fn new(bc_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         Ok(Self {
@@ -22,7 +22,7 @@ impl Transaction {
     }
 
     #[classmethod]
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bc_or_val, **kwargs))]
     fn new_write(_cls: &PyType, bc_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         Ok(Self {
@@ -36,7 +36,7 @@ impl Transaction {
     }
 
     #[classmethod]
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bc_or_val, **kwargs))]
     fn new_verify(_cls: &PyType, bc_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         Ok(Self {

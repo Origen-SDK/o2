@@ -16,7 +16,7 @@ pub struct Maillists {
 #[pymethods]
 impl Maillists {
     #[new]
-    #[args(dirs="*", continue_on_error="false")]
+    #[pyo3(signature=(n, *dirs, continue_on_error=false))]
     fn new(n: String, dirs: &PyTuple, continue_on_error: bool) -> PyResult<Self> {
         Ok(Self {
             om_mls: OrigenMLS::new(

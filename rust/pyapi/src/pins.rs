@@ -170,7 +170,7 @@ pub fn vec_to_ppin_ids(dut: &origen::Dut, pins: Vec<&PyAny>) -> PyResult<Vec<usi
 
 #[pymethods]
 impl PyDUT {
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(model_id, name, **kwargs))]
     fn add_pin(&self, py: Python, model_id: usize, name: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let (mut reset_action, mut width, mut offset, mut endianness): (
@@ -232,7 +232,7 @@ impl PyDUT {
         }
     }
 
-    #[args(aliases = "*")]
+    #[pyo3(signature=(model_id, name, *aliases))]
     fn add_pin_alias(&self, model_id: usize, name: &str, aliases: &PyTuple) -> PyResult<()> {
         let mut dut = DUT.lock().unwrap();
         for alias in aliases {
@@ -246,7 +246,7 @@ impl PyDUT {
         Ok(Py::new(py, PinContainer { model_id: model_id }).unwrap())
     }
 
-    #[args(pins = "*", options = "**")]
+    #[pyo3(signature=(model_id, name, *pins, **options))]
     fn group_pins(
         &self,
         py: Python,
@@ -313,7 +313,7 @@ impl PyDUT {
         }
     }
 
-    #[args(pins = "*")]
+    #[pyo3(signature=(model_id, name, *pins))]
     fn add_pin_header(
         &self,
         py: Python,

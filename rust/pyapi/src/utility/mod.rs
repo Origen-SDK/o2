@@ -55,14 +55,8 @@ pub fn reverse_bits(_py: Python, num: BigUint, width: Option<u64>) -> PyResult<B
     Ok(num.reverse(width.unwrap_or(num.bits()) as usize)?)
 }
 
-#[pyfunction(
-    capture = "true",
-    timeout = "None",
-    cd = "None",
-    add_env = "None",
-    remove_env = "None",
-    clear_env = "false"
-)]
+#[pyfunction]
+#[pyo3(signature=(cmd, capture=true, timeout=None, cd=None, add_env=None, remove_env=None, clear_env=false))]
 pub fn exec(
     _py: Python,
     cmd: Vec<String>,
@@ -179,7 +173,8 @@ fn app_utility(
     }
 }
 
-#[pyfunction(inputs = "None")]
+#[pyfunction]
+#[pyo3(signature=(owner, repo, workflow, git_ref, inputs=None))]
 pub fn dispatch_workflow(
     owner: &str,
     repo: &str,

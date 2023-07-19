@@ -51,7 +51,7 @@ impl JTAG {
         Ok(())
     }
 
-    #[args(width = "None", kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, width=None, **kwargs))]
     fn write_dr(
         &self,
         bits_or_val: &PyAny,
@@ -70,7 +70,7 @@ impl JTAG {
         Ok(self.clone())
     }
 
-    #[args(width = "None", kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, width=None, **kwargs))]
     fn verify_dr(
         &self,
         bits_or_val: &PyAny,
@@ -89,7 +89,7 @@ impl JTAG {
         Ok(self.clone())
     }
 
-    #[args(width = "None", kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, width=None, **kwargs))]
     fn write_ir(
         &self,
         bits_or_val: &PyAny,
@@ -108,7 +108,7 @@ impl JTAG {
         Ok(self.clone())
     }
 
-    #[args(width = "None", kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, width=None, **kwargs))]
     fn verify_ir(
         &self,
         bits_or_val: &PyAny,

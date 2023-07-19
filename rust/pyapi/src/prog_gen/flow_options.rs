@@ -228,7 +228,7 @@ pub fn on_fail(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
             if cont {
                 flow_api::continue_on_fail(None)?;
             }
-            if let Ok(on_fail) = on_fail.cast_as::<PyDict>() {
+            if let Ok(on_fail) = on_fail.downcast::<PyDict>() {
                 for (k, v) in on_fail {
                     if let Ok(k) = k.extract::<String>() {
                         match k.as_str() {
@@ -273,7 +273,7 @@ pub fn on_pass(fid: &FlowID, kwargs: Option<&PyDict>) -> Result<()> {
     if let Some(kwargs) = kwargs {
         if let Some(on_pass) = kwargs.get_item("on_pass") {
             let ref_id = flow_api::start_on_failed(fid.to_owned(), None)?;
-            if let Ok(on_pass) = on_pass.cast_as::<PyDict>() {
+            if let Ok(on_pass) = on_pass.downcast::<PyDict>() {
                 for (k, v) in on_pass {
                     if let Ok(k) = k.extract::<String>() {
                         match k.as_str() {

@@ -43,7 +43,7 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pymethods]
 impl PyDUT {
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(model_id, name, period, **kwargs))]
     fn add_timeset(
         &self,
         py: Python,

@@ -8,7 +8,7 @@ pub trait ListLikeAPI {
     fn __iter__(&self) -> PyResult<ListLikeIter>;
 
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
+        if let Ok(slice) = idx.downcast::<PySlice>() {
             self.___getslice__(slice)
         } else {
             let i = idx.extract::<isize>()?;
@@ -109,7 +109,7 @@ pub trait GeneralizedListLikeAPI {
     // fn __iter__(&self) -> PyResult<GeneralizedListLikeIter>;
 
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
+        if let Ok(slice) = idx.downcast::<PySlice>() {
             self.___getslice__(slice)
         } else {
             let i = idx.extract::<isize>()?;

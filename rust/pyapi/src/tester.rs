@@ -364,7 +364,7 @@ impl PyTester {
     }
 
     /// cycle(**kwargs) -> self
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(**kwargs))]
     fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         {
             let mut tester = origen::tester();
@@ -387,13 +387,13 @@ impl PyTester {
         Self::cycle(slf, py, Some(&kwargs))
     }
 
-    #[args(
-        label = "None",
-        symbol = "None",
-        cycles = "None",
-        mask = "None",
-        pins = "None"
-    )]
+    #[pyo3(signature=(
+        label = None,
+        symbol = None,
+        pins = None,
+        cycles = None,
+        mask = None,
+    ))]
     fn overlay(
         slf: PyRef<Self>,
         py: Python,
@@ -421,7 +421,7 @@ impl PyTester {
         Ok(slf.into())
     }
 
-    #[args(symbol = "None", cycles = "None", mask = "None", pins = "None")]
+    #[pyo3(signature=(symbol=None, cycles=None, mask=None, pins=None))]
     fn capture(
         slf: PyRef<Self>,
         py: Python,
@@ -463,7 +463,7 @@ impl PyTester {
         Ok(())
     }
 
-    #[args(testers = "*")]
+    #[pyo3(signature=(*testers))]
     fn target(&mut self, py: Python, testers: &PyTuple) -> PyResult<Vec<String>> {
         if testers.len() > 0 {
             let mut tester = origen::tester();
@@ -506,7 +506,7 @@ impl PyTester {
     /// in case they are useful in future.
     /// Continue on fail means that any errors will be logged but Origen will continue, if false
     /// it will blow up and immediately return an error to Python.
-    #[args(continue_on_fail = false)]
+    #[pyo3(signature=(continue_on_fail=false))]
     fn render_pattern(&self, py: Python, continue_on_fail: bool) -> PyResult<Vec<String>> {
         if origen::LOGGER.has_keyword("show_unprocessed_ast") {
             origen::LOGGER.info("Showing Unprocessed AST");

@@ -226,7 +226,7 @@ impl Timeset {
         Ok(pywavetable_container!(py, self.model_id, t_id, &self.name))
     }
 
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(name, **_kwargs))]
     fn add_wavetable(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let t_id;
@@ -318,7 +318,7 @@ pub struct Wavetable {
 
 #[pymethods]
 impl Wavetable {
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(name, **_kwargs))]
     fn add_waves(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let w_id;
@@ -331,7 +331,7 @@ impl Wavetable {
         Ok(pywave_group!(py, wt, name)?)
     }
 
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(name, **_kwargs))]
     fn add_wave(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         self.add_waves(py, name, _kwargs)
     }
@@ -382,7 +382,7 @@ impl Wavetable {
     }
 
     /// Same as :meth:`applied_waves` but supports internal filtering of the return values.
-    #[args(pins = "*")]
+    #[pyo3(signature=(*pins, indicators))]
     fn applied_waves_for(
         &self,
         py: Python,
@@ -491,7 +491,7 @@ pub struct WaveGroup {
 
 #[pymethods]
 impl WaveGroup {
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(name, **_kwargs))]
     fn add_wave(&self, py: Python, name: &str, _kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let wgrp_id;
@@ -589,7 +589,7 @@ impl Wave {
         ))
     }
 
-    #[args(event = "**")]
+    #[pyo3(signature=(**event))]
     fn push_event(&self, py: Python, event: Option<&PyDict>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let (w_id, e_index);
@@ -703,7 +703,7 @@ impl Wave {
         Ok(pins)
     }
 
-    #[args(pins = "*")]
+    #[pyo3(signature=(*pins))]
     fn apply_to(&self, py: Python, pins: Vec<String>) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let wid;

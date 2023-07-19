@@ -23,6 +23,20 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
 
 /// Create a new register, returning its ID
 #[pyfunction]
+#[pyo3(signature=(
+    address_block_id,
+    register_file_id,
+    name,
+    offset,
+    size,
+    bit_order,
+    fields,
+    filename=None,
+    lineno=None,
+    description=None,
+    resets=None,
+    access=None,
+))]
 fn create(
     address_block_id: usize,
     register_file_id: Option<usize>,

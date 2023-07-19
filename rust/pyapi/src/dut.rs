@@ -41,6 +41,7 @@ impl PyDUT {
     }
 
     /// Creates a new model at the given path
+    #[pyo3(signature=(parent_id, name, offset=None))]
     fn create_model(
         &self,
         parent_id: Option<usize>,

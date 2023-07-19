@@ -245,7 +245,7 @@ impl DP {
     }
 
     #[classmethod]
-    #[args(_block_options = "**")]
+    #[pyo3(signature=(instance, block_options=None))]
     fn model_init(_cls: &PyType, py: Python, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
@@ -284,7 +284,7 @@ impl DP {
         Ok(())
     }
 
-    #[args(write_opts = "**")]
+    #[pyo3(signature=(bits, **_write_opts))]
     fn write_register(&self, bits: &PyAny, _write_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
@@ -294,7 +294,7 @@ impl DP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
+    #[pyo3(signature=(bits, **_verify_opts))]
     fn verify_register(&self, bits: &PyAny, _verify_opts: Option<&PyDict>) -> PyResult<()> {
         let bc = bits.extract::<PyRef<BitCollection>>()?;
         let dut = origen::dut();
@@ -347,7 +347,7 @@ impl JtagDP {
     }
 
     #[classmethod]
-    #[args(_block_options = "**")]
+    #[pyo3(signature=(instance, block_options=None))]
     fn model_init(_cls: &PyType, py: Python, instance: &PyAny, block_options: Option<&PyDict>) -> PyResult<()> {
         // Require an ArmDebug ID to tie this DP to an ArmDebug instance
         let arm_debug_id;
@@ -357,17 +357,17 @@ impl JtagDP {
                     arm_debug_id = id;
                 } else {
                     return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                        "Subblock arm_debug.dp was given an arm_debug _id block option but could not extract it as an integer"
+                        "Subblock jtagdp was given an arm_debug _id block option but could not extract it as an integer"
                     ));
                 }
             } else {
                 return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                    "Subblock arm_debug.dp was not given required block option 'arm_debug_id'",
+                    "Subblock jtagdp was not given required block option 'arm_debug_id'",
                 ));
             }
         } else {
             return Err(PyErr::new::<exceptions::PyRuntimeError, _>(
-                "Subblock arm_debug.dp requires an arm_debug_id block option, but no block options were given."
+                "Subblock jtagdp requires an arm_debug_id block option, but no block options were given."
             ));
         }
 
@@ -459,7 +459,7 @@ impl JtagDP {
         Ok(())
     }
 
-    #[args(write_opts = "**")]
+    #[pyo3(signature=(bits, **write_opts))]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -472,7 +472,7 @@ impl JtagDP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
+    #[pyo3(signature=(bits, **verify_opts))]
     fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -559,7 +559,7 @@ impl MemAP {
     /// a BitCollection).
     /// Assumes that all posturing has been completed - that is, the bits' data, overlay
     /// status, etc. is current.
-    #[args(write_opts = "**")]
+    #[pyo3(signature=(bits, **write_opts))]
     fn write_register(&self, bits: &PyAny, write_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -574,7 +574,7 @@ impl MemAP {
         Ok(())
     }
 
-    #[args(verify_opts = "**")]
+    #[pyo3(signature=(bits, **verify_opts))]
     fn verify_register(&self, bits: &PyAny, verify_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();
@@ -589,7 +589,7 @@ impl MemAP {
         Ok(())
     }
 
-    #[args(capture_opts = "**")]
+    #[pyo3(signature=(bits, **capture_opts))]
     fn capture_register(&self, bits: &PyAny, capture_opts: Option<&PyDict>) -> PyResult<()> {
         let dut = origen::dut();
         let services = origen::services();

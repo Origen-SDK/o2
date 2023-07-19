@@ -360,6 +360,7 @@ fn origen_mod_path() -> PyResult<PathBuf> {
 
 /// Called automatically when Origen is first loaded
 #[pyfunction]
+#[pyo3(signature=(log_verbosity, verbosity_keywords, cli_location, cli_version, fe_pkg_loc, fe_exe_loc, invocation))]
 fn initialize(
     py: Python,
     log_verbosity: Option<u8>,

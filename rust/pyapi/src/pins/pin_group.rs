@@ -43,7 +43,7 @@ impl PinGroup {
         .into_py(py))
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(data, **kwargs))]
     fn drive(slf: PyRef<Self>, data: BigUint, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
@@ -53,7 +53,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(data, **kwargs))]
     fn verify(slf: PyRef<Self>, data: BigUint, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
@@ -76,7 +76,7 @@ impl PinGroup {
         Ok(())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(actions, **kwargs))]
     fn apply_actions(
         slf: PyRef<Self>,
         actions: &PyAny,
@@ -129,7 +129,7 @@ impl PinGroup {
         Ok(grp.is_little_endian())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(**kwargs))]
     fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
@@ -154,7 +154,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(label=None, symbol=None, cycles=None, mask=None))]
     fn overlay(
         slf: PyRef<Self>,
         label: Option<String>,
@@ -170,7 +170,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    #[args(symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(symbol=None, cycles=None, mask=None))]
     fn capture(
         slf: PyRef<Self>,
         symbol: Option<String>,

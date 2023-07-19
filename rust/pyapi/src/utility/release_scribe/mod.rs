@@ -53,7 +53,7 @@ pub struct ReleaseScribe {
 #[pymethods]
 impl ReleaseScribe {
     #[new]
-    #[args(config = "**")]
+    #[pyo3(signature=(**config))]
     fn new(config: Option<&PyDict>) -> PyResult<Self> {
         let mut c: HashMap<String, String> = HashMap::new();
         if let Some(cfg) = config {
@@ -94,7 +94,7 @@ impl ReleaseScribe {
         ))
     }
 
-    #[args(release = "None", title = "None", dry_run = "false")]
+    #[pyo3(signature=(body, title=None, release=None, dry_run=false))]
     fn append_history(
         &mut self,
         body: String,

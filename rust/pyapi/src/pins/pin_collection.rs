@@ -50,7 +50,7 @@ impl PinCollection {
         Ok(())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(actions, **kwargs))]
     fn apply_actions(
         slf: PyRefMut<Self>,
         actions: &PyAny,
@@ -99,7 +99,7 @@ impl PinCollection {
         Ok(())
     }
 
-    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(label=None, symbol=None, cycles=None, mask=None))]
     fn overlay(
         slf: PyRef<Self>,
         label: Option<String>,
@@ -114,7 +114,7 @@ impl PinCollection {
         Ok(slf.into())
     }
 
-    #[args(symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(symbol=None, cycles=None, mask=None))]
     fn capture(
         slf: PyRef<Self>,
         symbol: Option<String>,
@@ -163,7 +163,7 @@ impl PinCollection {
         Ok(self.pin_collection.is_little_endian())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(**kwargs))]
     fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;

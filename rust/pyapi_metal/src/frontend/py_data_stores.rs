@@ -182,7 +182,7 @@ impl PyDataStoreCategory {
     }
 
     // Note: This will shallow-copy ``init_args`` and ``init_kwargs``, if given.
-    #[args(func_kwargs = "**")]
+    #[pyo3(signature=(name, cls, init_args=None, init_kwargs=None, **func_kwargs))]
     pub fn add(
         &mut self,
         py: Python,

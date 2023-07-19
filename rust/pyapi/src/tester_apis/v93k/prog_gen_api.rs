@@ -6,7 +6,7 @@ use pyo3::types::PyDict;
 
 #[pymethods]
 impl V93K {
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(name, library, **kwargs))]
     fn new_test_method(
         &mut self,
         name: String,
@@ -17,7 +17,7 @@ impl V93K {
         Ok(t)
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(name, **kwargs))]
     fn new_test_suite(
         &mut self,
         name: String,

@@ -33,7 +33,7 @@ pub struct BuildResult {
 #[pymethods]
 impl BuildResult {
     #[classmethod]
-    #[args(build_contents = "None", message = "None", metadata = "None")]
+    #[pyo3(signature=(instance, succeeded, build_contents=None, message=None, metadata=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
@@ -115,7 +115,7 @@ pub struct UploadResult {
 #[pymethods]
 impl UploadResult {
     #[classmethod]
-    #[args(message = "None", metadata = "None")]
+    #[pyo3(signature=(instance, succeeded, message=None, metadata=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
@@ -157,7 +157,7 @@ pub struct ExecResult {
 #[pymethods]
 impl ExecResult {
     #[classmethod]
-    #[args(stdout = "None", stderr = "None")]
+    #[pyo3(signature=(instance, exit_code, stdout=None, stderr=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,

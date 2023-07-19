@@ -23,7 +23,7 @@ impl OrigenSessions {
         Ok((OrigenSessions {}, Sessions {}))
     }
 
-    #[args(session = "None")]
+    #[pyo3(signature=(session=None))]
     fn user_session(&self, session: Option<&PyAny>) -> PyResult<SessionStore> {
         // Can accept:
         //  None -> Top app's session
@@ -53,7 +53,7 @@ impl OrigenSessions {
         })?)
     }
 
-    #[args(session = "None")]
+    #[pyo3(signature=(session=None))]
     fn app_session(&self, session: Option<&PyAny>) -> PyResult<SessionStore> {
         let t;
         if let Some(s) = session {
