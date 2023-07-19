@@ -220,7 +220,6 @@ impl ArmDebug {
 }
 
 #[pyclass(subclass)]
-#[pyo3(text_signature = "()")]
 #[allow(dead_code)] // Suppress the false dead-code warning for the "clone" derive
 #[derive(Clone)]
 struct DP {
@@ -322,7 +321,6 @@ impl DP {
 }
 
 #[pyclass(subclass)]
-#[pyo3(text_signature = "()")]
 #[allow(dead_code)] // Suppress the false dead-code warning for the "clone" derive
 #[derive(Clone)]
 struct JtagDP {

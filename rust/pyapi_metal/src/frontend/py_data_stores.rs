@@ -205,7 +205,7 @@ impl PyDataStoreCategory {
             let mut category_idx: Option<usize> = None;
             if let Some(fa) = func_kwargs {
                 if let Some(pn) = fa.get_item("provide_name") {
-                    if pn.is_instance_of::<PyBool>()? {
+                    if pn.is_instance_of::<PyBool>() {
                         provide_name = pn.extract::<bool>()?;
                     } else {
                         if let Ok(i) = pn.extract::<usize>() {
@@ -219,7 +219,7 @@ impl PyDataStoreCategory {
                     }
                 }
                 if let Some(pc) = fa.get_item("provide_category") {
-                    if pc.is_instance_of::<PyBool>()? {
+                    if pc.is_instance_of::<PyBool>() {
                         provide_category = pc.extract::<bool>()?;
                     } else {
                         if let Ok(i) = pc.extract::<usize>() {
