@@ -5,7 +5,7 @@ description = "Example Origen Plugin"
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.11"
+python = ">=3.7.0,<=3.12"
 origen = { path = "../../python/origen", develop = true }
 
 [tool.poetry.dev-dependencies]

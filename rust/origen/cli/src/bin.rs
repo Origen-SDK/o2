@@ -8,6 +8,7 @@ extern crate origen_metal;
 mod framework;
 mod commands;
 mod python;
+mod _generated;
 
 use clap::Command;
 use indexmap::map::IndexMap;
