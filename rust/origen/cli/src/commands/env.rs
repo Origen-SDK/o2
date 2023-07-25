@@ -14,7 +14,7 @@ use std::process::Command;
 
 pub const BASE_CMD: &'static str = "env";
 
-static MINIMUM_PIP_VERSION: &str = "22.0.4";
+static MINIMUM_PIP_VERSION: &str = "23.1.2";
 static MINIMUM_POETRY_VERSION: &str = "1.3.2";
 
 gen_core_cmd_funcs__no_exts__no_app_opts!(
