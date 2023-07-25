@@ -1,4 +1,4 @@
-import origen, pytest, pathlib
+import origen, pytest, pathlib, sys
 from .shared import CLICommon
 
 class T_Eval(CLICommon):
@@ -84,7 +84,11 @@ class T_Eval(CLICommon):
         stderr = out["stderr"].split("\n")
         assert "Traceback" in stderr[0]
         assert "line 2" in stderr[1]
-        assert stderr[2] == "NameError: name 'hello' is not defined"
+        err = "NameError: name 'hello' is not defined"
+        if sys.version_info.minor >= 12:
+            assert stderr[2] == f"{err}. Did you mean: 'help'?"
+        else:
+            assert stderr[2] == err
         assert stdout[3] == ''
         assert len(stderr) == 4
 
