@@ -23,7 +23,7 @@ pub struct Base {}
 #[pymethods]
 impl Base {
     #[new]
-    #[args(_args = "*", _config = "**")]
+    #[pyo3(signature=(*_args, **_config))]
     fn new(_args: &PyTuple, _config: Option<&PyDict>) -> PyResult<Self> {
         Ok(Self {})
     }

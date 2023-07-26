@@ -9,15 +9,16 @@ use origen_metal::utils::revision_control::SupportedSystems;
 
 use crate::runtime_error;
 
-#[pymodule]
-pub fn revision_control(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(app_rc))?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "revision_control")?;
+    subm.add_wrapped(wrap_pyfunction!(app_rc))?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
 /// Creates a RC driver from the application's ``config.toml``
 #[pyfunction]
-fn app_rc() -> PyResult<Option<PyObject>> {
+fn app_rc(py: Python) -> PyResult<Option<PyObject>> {
     // Raise an error if we aren't in an application instance
     let app;
     match &STATUS.app {
@@ -46,8 +47,6 @@ fn app_rc() -> PyResult<Option<PyObject>> {
             }
 
             // fall back to Rust's lookup parameters
-            let gil = Python::acquire_gil();
-            let py = gil.python();
             let locals = PyDict::new(py);
             let py_rc_config = PyDict::new(py);
             for (k, v) in rc_config.iter() {

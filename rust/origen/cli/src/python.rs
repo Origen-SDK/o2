@@ -7,16 +7,8 @@ use semver::Version;
 use std::env;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-
-const PYTHONS: &[&str] = &[
-    "python",
-    "python3",
-    "python3.10",
-    "python3.9",
-    "python3.8",
-    "python3.7",
-];
-pub const MIN_PYTHON_VERSION: &str = "3.7.0";
+use crate::_generated::python::PYTHONS;
+pub use crate::_generated::python::MIN_PYTHON_VERSION;
 
 #[macro_export]
 macro_rules! strs_to_cli_arr {

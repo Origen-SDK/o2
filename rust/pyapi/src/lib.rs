@@ -28,7 +28,7 @@ mod application;
 mod producer;
 mod prog_gen;
 mod standard_sub_blocks;
-mod tester;
+pub mod tester;
 mod tester_apis;
 #[macro_use]
 mod utility;
@@ -43,26 +43,13 @@ use pyapi_metal::{runtime_error, pypath};
 use pyo3::conversion::AsPyPointer;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBytes, PyDict};
-use pyo3::{wrap_pyfunction, wrap_pymodule};
+use pyo3::wrap_pyfunction;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::MutexGuard;
 use utility::location::Location;
 use paste::paste;
 use origen::core::status::DependencySrc;
-
-use crate::dut::__PYO3_PYMODULE_DEF_DUT;
-use crate::tester::__PYO3_PYMODULE_DEF_TESTER;
-use crate::tester_apis::__PYO3_PYMODULE_DEF_TESTER_APIS;
-use crate::application::__PYO3_PYMODULE_DEF_APPLICATION;
-use crate::prog_gen::interface::__PYO3_PYMODULE_DEF_INTERFACE;
-use crate::producer::__PYO3_PYMODULE_DEF_PRODUCER;
-use crate::services::__PYO3_PYMODULE_DEF_SERVICES;
-use crate::utility::__PYO3_PYMODULE_DEF_UTILITY;
-use crate::standard_sub_blocks::__PYO3_PYMODULE_DEF_STANDARD_SUB_BLOCKS;
-use crate::prog_gen::__PYO3_PYMODULE_DEF_PROG_GEN;
-
-use pyapi_metal::__PYO3_PYMODULE_DEF__ORIGEN_METAL;
 
 pub mod built_info {
     // The file has been placed there by the build script.
@@ -99,18 +86,17 @@ fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(set_operation))?;
     m.add_wrapped(wrap_pyfunction!(boot_users))?;
 
-    m.add_wrapped(wrap_pymodule!(dut))?;
-    m.add_wrapped(wrap_pymodule!(tester))?;
-    m.add_wrapped(wrap_pymodule!(application))?;
-    m.add_wrapped(wrap_pymodule!(interface))?;
-    m.add_wrapped(wrap_pymodule!(producer))?;
-    m.add_wrapped(wrap_pymodule!(services))?;
-    m.add_wrapped(wrap_pymodule!(utility))?;
-    m.add_wrapped(wrap_pymodule!(tester_apis))?;
-    m.add_wrapped(wrap_pymodule!(standard_sub_blocks))?;
-    m.add_wrapped(wrap_pymodule!(prog_gen))?;
-
-    file_handler::define(m)?;
+    dut::define(py, m)?;
+    tester::define(py, m)?;
+    application::define(py, m)?;
+    prog_gen::interface::define(py, m)?;
+    producer::define(py, m)?;
+    services::define(py, m)?;
+    utility::define(py, m)?;
+    tester_apis::define(py, m)?;
+    standard_sub_blocks::define(py, m)?;
+    prog_gen::define(py, m)?;
+    file_handler::define(py, m)?;
     plugins::define(py, m)?;
     extensions::define(py, m)?;
     current_command::define(py, m)?;
@@ -118,7 +104,7 @@ fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
 
     // Compile the _origen_metal library along with this one
     // to allow re-use from that library
-    m.add_wrapped(wrap_pymodule!(_origen_metal))?;
+    pyapi_metal::define(py, m)?;
     m.setattr(current_command::ATTR_NAME, py.None())?;
     Ok(())
 }
@@ -357,23 +343,24 @@ fn exit_pass() -> PyResult<()> {
 }
 
 fn origen_mod_path() -> PyResult<PathBuf> {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let locals = PyDict::new(py);
-    locals.set_item("importlib", py.import("importlib")?)?;
-    let p = PathBuf::from(
-        py.eval(
-            "importlib.util.find_spec('_origen').origin",
-            None,
-            Some(&locals),
-        )?
-        .extract::<String>()?,
-    );
-    Ok(p.parent().unwrap().to_path_buf())
+    Python::with_gil(|py| {
+        let locals = PyDict::new(py);
+        locals.set_item("importlib", py.import("importlib")?)?;
+        let p = PathBuf::from(
+            py.eval(
+                "importlib.util.find_spec('_origen').origin",
+                None,
+                Some(&locals),
+            )?
+            .extract::<String>()?,
+        );
+        Ok(p.parent().unwrap().to_path_buf())
+    })
 }
 
 /// Called automatically when Origen is first loaded
 #[pyfunction]
+#[pyo3(signature=(log_verbosity, verbosity_keywords, cli_location, cli_version, fe_pkg_loc, fe_exe_loc, invocation))]
 fn initialize(
     py: Python,
     log_verbosity: Option<u8>,
@@ -687,11 +674,10 @@ pub fn with_pycallbacks<T, F>(mut func: F) -> PyResult<T>
 where
     F: FnMut(Python, &PyAny) -> PyResult<T>,
 {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-
-    let pycallbacks = py.import("origen.callbacks")?;
-    func(py, pycallbacks)
+    Python::with_gil(|py| {
+        let pycallbacks = py.import("origen.callbacks")?;
+        func(py, pycallbacks)
+    })
 }
 
 pub fn get_full_class_name(obj: &PyAny) -> PyResult<String> {
@@ -802,7 +788,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
 
     // Set the data lookup hierarchy
     if let Some(hierarchy) = &crate::ORIGEN_CONFIG.user__data_lookup_hierarchy {
-        match users.set_data_lookup_hierarchy(hierarchy.to_owned()) {
+        match users.apply_data_lookup_hierarchy(hierarchy.to_owned()) {
             Ok(_) => {}
             Err(e) => {
                 om::log_error!(
@@ -811,7 +797,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
                 );
                 om::log_error!("{}", e);
                 om::log_error!("Forcing empty dataset lookup hierarchy...");
-                users.set_data_lookup_hierarchy(vec![])?;
+                users.apply_data_lookup_hierarchy(vec![])?;
             }
         }
     } else {
@@ -820,7 +806,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
         {
             // The config can only be read as an unordered hashmap. If multiple datasets are given,
             // clear the hierarchy if not explicitly given, otherwise will get non-deterministic behavior
-            users.set_data_lookup_hierarchy(vec![])?;
+            users.apply_data_lookup_hierarchy(vec![])?;
         }
     }
 

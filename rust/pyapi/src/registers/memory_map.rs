@@ -220,9 +220,7 @@ pub struct MemoryMap {
 #[pymethods]
 impl MemoryMap {
 
-    fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn __getattr__(&self, py: Python, query: &str) -> PyResult<PyObject> {
         let dut = origen::dut();
 
         // Calling .regs on an individual memory map returns the regs in its default

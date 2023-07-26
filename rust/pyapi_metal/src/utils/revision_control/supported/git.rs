@@ -39,7 +39,7 @@ impl Git {
     }
 
     #[new]
-    #[args(args = "*", config = "**")]
+    #[pyo3(signature=(*args, **config))]
     fn new(args: &PyTuple, config: Option<&PyDict>) -> PyResult<(Self, Base)> {
         let mut c: HashMap<String, String> = HashMap::new();
         if let Some(cfg) = config {
@@ -54,6 +54,7 @@ impl Git {
         Ok(self.rc()?.populate(version)?)
     }
 
+    #[pyo3(signature=(force, path, version))]
     fn checkout(&self, force: bool, path: Option<&str>, version: &str) -> PyResult<bool> {
         let rusty_path;
         if let Some(p) = path {
@@ -81,7 +82,7 @@ impl Git {
         })
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(tagname, **kwargs))]
     fn tag(&self, tagname: &str, kwargs: Option<&PyDict>) -> PyResult<()> {
         let msg: Option<&str>;
         Ok(self.rc()?.tag(
@@ -116,7 +117,7 @@ impl Git {
         Ok(self.rc()?.is_initialized()?)
     }
 
-    #[args(paths = "*", kwargs = "**")]
+    #[pyo3(signature=(*paths, **kwargs))]
     fn checkin(&self, paths: &PyTuple, kwargs: Option<&PyDict>) -> PyResult<PyOutcome> {
         let msg;
         let dry_run;
@@ -149,7 +150,7 @@ impl Git {
         )?))
     }
 
-    #[args(dry_run = "false")]
+    #[pyo3(signature=(msg, dry_run=false))]
     fn checkin_all(&self, msg: &str, dry_run: bool) -> PyResult<PyOutcome> {
         Ok(PyOutcome::from_origen(
             self.rc()?.checkin(None, msg, dry_run)?,

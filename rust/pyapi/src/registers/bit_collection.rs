@@ -99,7 +99,7 @@ impl BitCollection {
     }
 
     /// Returns a bit collection containing the given bit indices
-    #[args(args = "*")]
+    #[pyo3(signature=(*args))]
     fn subset(&self, args: &PyTuple) -> PyResult<BitCollection> {
         let mut bc = self.clone();
         let mut bit_ids: Vec<usize> = Vec::new();
@@ -250,13 +250,13 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    #[args(shift_in = "0")]
+    #[pyo3(signature=(shift_in=0))]
     fn shift_left(&self, shift_in: u8) -> PyResult<u8> {
         let dut = origen::dut();
         Ok(self.materialize(&dut)?.shift_left(shift_in)?)
     }
 
-    #[args(shift_in = "0")]
+    #[pyo3(signature=(shift_in=0))]
     fn shift_right(&self, shift_in: u8) -> PyResult<u8> {
         let dut = origen::dut();
         Ok(self.materialize(&dut)?.shift_right(shift_in)?)
@@ -296,7 +296,7 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    #[args(label = "None", symbol = "None", mask = "None")]
+    #[pyo3(signature=(label=None, symbol=None, mask=None))]
     fn set_overlay(
         &self,
         label: Option<String>,
@@ -315,7 +315,6 @@ impl BitCollection {
         Ok(self.clone())
     }
 
-    // #[args(kwargs = "**")]
     fn set_capture(&self) -> PyResult<BitCollection> {
         self.materialize(&origen::dut())?.capture();
         Ok(self.clone())
@@ -359,7 +358,7 @@ impl BitCollection {
         }
     }
 
-    #[args(enable = "None", preset = "false")]
+    #[pyo3(signature=(enable=None, preset=false))]
     /// Trigger a verify transaction on the register
     pub fn _internal_verify(
         &self,
@@ -381,7 +380,7 @@ impl BitCollection {
         Ok(())
     }
 
-    #[args(enable = "None")]
+    #[pyo3(signature=(enable=None))]
     /// Equivalent to calling verify() but without invoking a register transaction at the end,
     /// i.e. it will set the verify flag on the bits and optionally apply an enable mask when
     /// deciding what bit flags to set.
@@ -539,7 +538,7 @@ impl BitCollection {
         }
     }
 
-    #[args(args = "*")]
+    #[pyo3(signature=(*args))]
     fn try_fields(&self, args: &PyTuple) -> PyResult<BitCollection> {
         let dut = origen::dut();
 
@@ -703,21 +702,20 @@ impl BitCollection {
     /// Locates the "closest" controller to this bitcollection.
     /// "Closest" being defined as the first subblock (or the DUT) which implements a "verify/write_register"
     /// that owns the memory map -> address block -> register -> bit collection <- self
-    fn controller_for(slf: &PyCell<Self>, operation: Option<&str>) -> PyResult<PyObject> {
+    fn controller_for(slf: &PyCell<Self>, py: Python, operation: Option<&str>) -> PyResult<PyObject> {
         let bc = slf.extract::<PyRef<Self>>()?;
-        match bc._controller_for(operation)? {
+        match bc._controller_for(py, operation)? {
             Some(c) => Ok(c),
             None => {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
                 Ok(py.None())
             }
         }
     }
 
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(data=None, **_kwargs))]
     fn write(
         slf: &PyCell<Self>,
+        py: Python,
         data: Option<BigUint>,
         _kwargs: Option<&PyDict>,
     ) -> PyResult<Py<Self>> {
@@ -730,11 +728,9 @@ impl BitCollection {
         }
 
         // Attempt to find a controller which implements "write_register"
-        match bc._controller_for(Some("write_register"))? {
+        match bc._controller_for(py, Some("write_register"))? {
             Some(c) => {
                 // If we've found a matching controller, write the register
-                let gil = Python::acquire_gil();
-                let py = gil.python();
                 let args = PyTuple::new(py, &[slf.to_object(py)]);
                 c.call_method(py, "write_register", args, None)?;
             },
@@ -746,9 +742,10 @@ impl BitCollection {
         Ok(slf.into())
     }
 
-    #[args(_kwargs = "**")]
+    #[pyo3(signature=(data=None, **_kwargs))]
     fn verify(
         slf: &PyCell<Self>,
+        py: Python,
         data: Option<BigUint>,
         _kwargs: Option<&PyDict>,
     ) -> PyResult<Py<Self>> {
@@ -762,11 +759,9 @@ impl BitCollection {
         bc.set_verify_flag(None)?;
 
         // Attempt to find a controller which implements "verify_register"
-        match bc._controller_for(Some("verify_register"))? {
+        match bc._controller_for(py, Some("verify_register"))? {
             Some(c) => {
                 // If we've found a matching controller, verify the register
-                let gil = Python::acquire_gil();
-                let py = gil.python();
                 let args = PyTuple::new(py, &[slf.to_object(py)]);
                 c.call_method(py, "verify_register", args, None)?;
             },
@@ -778,8 +773,8 @@ impl BitCollection {
         Ok(slf.into())
     }
 
-    #[args(kwargs = "**")]
-    fn capture(slf: &PyCell<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    #[pyo3(signature=(**kwargs))]
+    fn capture(slf: &PyCell<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         // let bc = slf.extract::<PyRef<Self>>()?;
         // bc.capture();
         //slf.materialize(&origen::dut())?.capture();
@@ -790,11 +785,9 @@ impl BitCollection {
         let bc = slf.extract::<PyRef<Self>>()?;
 
         // Attempt to find a controller which implements "capture_register"
-        match bc._controller_for(Some("capture_register"))? {
+        match bc._controller_for(py, Some("capture_register"))? {
             Some(c) => {
                 // If we've found a matching controller, capture the register
-                let gil = Python::acquire_gil();
-                let py = gil.python();
                 let args = PyTuple::new(py, &[slf.to_object(py)]);
                 c.call_method(py, "capture_register", args, kwargs)?;
             }
@@ -802,10 +795,8 @@ impl BitCollection {
                 // No controller specifies a "capture_register" method, so fall back to
                 // using verify with the capture bits set and no additional arguments which
                 // may change its state.
-                match bc._controller_for(Some("verify_register"))? {
+                match bc._controller_for(py, Some("verify_register"))? {
                     Some(c) => {
-                        let gil = Python::acquire_gil();
-                        let py = gil.python();
                         let args = PyTuple::new(py, &[slf.to_object(py)]);
                         c.call_method(py, "verify_register", args, None)?;
                     }
@@ -816,30 +807,6 @@ impl BitCollection {
                         )));
                     }
                 }
-                // match Self::verify(slf, None, None) {
-                //     Ok(c) => {},
-                //     Err(e) => {
-                //         let err = &e.pvalue;
-                //         match err {
-                //             pyo3::PyErrValue::Value(obj) =>{
-                //                 let gil = Python::acquire_gil();
-                //                 let py = gil.python();
-                //                 let message = obj.extract::<String>(py)?;
-                //                 if message.contains("No controller in the path") && message.contains("implements a 'verify_register'. Cannot verify this register.") {
-                //                     // Change the error message slightly as "capture_register" is also applicable
-                //                     return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
-                //                         "No controller in the path {} implements a 'capture_register' or a 'verify_register'. Cannot capture this register.",
-                //                         bc.model_path()?
-                //                     )));
-                //                 } else {
-                //                     // Some other error
-                //                     return Err(e);
-                //                 }
-                //             },
-                //             _ => return Err(e)
-                //         }
-                //     }
-                // }
             }
         }
 
@@ -939,9 +906,7 @@ impl BitCollection {
         }
     }
 
-    fn __getattr__(&self, query: &str) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn __getattr__(&self, py: Python, query: &str) -> PyResult<PyObject> {
         let dut = origen::dut();
         // .bits returns a Python list containing individual bit objects wrapped in BCs
         if query == "bits" {
@@ -1000,7 +965,7 @@ impl BitCollection {
             Some(x) => Some(x.to_string()),
             None => None,
         };
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
+        if let Ok(slice) = idx.downcast::<PySlice>() {
             // Indices requires (what I think is) a max size. Should be plenty.
             let indices = slice.indices(8192)?;
             // TODO: Should this support step size?
@@ -1025,7 +990,7 @@ impl BitCollection {
             let mut bc = self.smart_clone(bit_ids);
             bc.field = field;
             Ok(bc)
-        } else if let Ok(_int) = idx.cast_as::<PyInt>() {
+        } else if let Ok(_int) = idx.downcast::<PyInt>() {
             let i = idx.extract::<usize>().unwrap();
             if i < self.bit_ids.len() {
                 let mut bit_ids: Vec<usize> = Vec::new();
@@ -1042,7 +1007,7 @@ impl BitCollection {
                     "The given bit index is out of range",
                 ))
             }
-        } else if let Ok(_name) = idx.cast_as::<PyString>() {
+        } else if let Ok(_name) = idx.downcast::<PyString>() {
             if self.whole_reg {
                 let name = idx.extract::<&str>().unwrap();
                 self.field(name)
@@ -1134,7 +1099,7 @@ impl BitCollection {
         }
     }
 
-    fn _controller_for(&self, operation: Option<&str>) -> PyResult<Option<PyObject>> {
+    fn _controller_for(&self, py: Python, operation: Option<&str>) -> PyResult<Option<PyObject>> {
         let mut ops: Vec<String> = vec![];
         if let Some(s) = operation {
             ops.push(s.to_string());
@@ -1143,8 +1108,6 @@ impl BitCollection {
             ops.push("read_register".to_string());
         }
         let mut mp = self.model_path()?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?.to_object(py))?;
         locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
@@ -1155,7 +1118,7 @@ impl BitCollection {
             if mp == "dut" {
                 dut_checked = true;
             }
-            if ops.iter().all(|op| m.hasattr(op).unwrap()) {
+            if ops.iter().all(|op| m.hasattr(op.as_str()).unwrap()) {
                 // Found the controller. Return this.
                 return Ok(Some(m.to_object(py)));
             } else {

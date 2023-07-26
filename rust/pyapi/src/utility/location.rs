@@ -26,9 +26,7 @@ impl Location {
     ///     str: URL as a ``str``, if the Location points to a URL
     ///     None: Otherwise
     #[getter]
-    fn url(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn url(&self, py: Python) -> PyResult<PyObject> {
         Ok(match self.location.url() {
             Some(url) => url.to_object(py),
             None => py.None(),
@@ -45,9 +43,7 @@ impl Location {
     ///     str: Repo URL as a ``str``, if the Location points to a Git repo
     ///     None: Otherwise
     #[getter]
-    fn git(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn git(&self, py: Python) -> PyResult<PyObject> {
         Ok(match self.location.git() {
             Some(git) => git.to_object(py),
             None => py.None(),
@@ -60,9 +56,7 @@ impl Location {
     ///     str: Repo URL as a ``str``, if the Location points to a Git repo via HTTPS
     ///     None: Otherwise
     #[getter]
-    fn git_https(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn git_https(&self, py: Python) -> PyResult<PyObject> {
         Ok(match self.location.git_https() {
             Some(git) => git.to_object(py),
             None => py.None(),
@@ -75,9 +69,7 @@ impl Location {
     ///     str: Repo URL as a ``str``, if the Location points to a Git repo via SSH
     ///     None: Otherwise
     #[getter]
-    fn git_ssh(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn git_ssh(&self, py: Python) -> PyResult<PyObject> {
         Ok(match self.location.git_ssh() {
             Some(git) => git.to_object(py),
             None => py.None(),
@@ -90,9 +82,7 @@ impl Location {
     ///     pathlib.Path: Repo URL as a |pathlib.Path| object, if the Location points to a local path.
     ///     None: Otherwise
     #[getter]
-    fn path(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn path(&self, py: Python) -> PyResult<PyObject> {
         Ok(match self.location.path() {
             Some(_path) => pypath!(py, self.location.location),
             None => py.None(),

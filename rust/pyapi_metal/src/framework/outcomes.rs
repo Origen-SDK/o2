@@ -53,7 +53,7 @@ impl Outcome {
     /// Provide an __init__ for typical Python subclass initialization.
     /// Otherwise, ``new`` will initialize.
     #[classmethod]
-    #[args(message = "None", metadata = "None", use_pass_fail = "false")]
+    #[pyo3(signature=(instance, succeeded, message = None, positional_results = None, keyword_results = None, use_pass_fail = false, metadata = None))]
     fn __init__(
         _cls: &PyType,
         mut instance: PyRefMut<Self>,
@@ -76,7 +76,7 @@ impl Outcome {
     }
 
     #[new]
-    #[args(message = "None", metadata = "None", use_pass_fail = "false")]
+    #[pyo3(signature=(succeeded, message = None, positional_results = None, keyword_results = None, use_pass_fail = false, metadata = None))]
     fn new(
         succeeded: &PyAny,
         message: Option<String>,

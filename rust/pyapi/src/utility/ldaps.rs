@@ -4,7 +4,7 @@ use pyapi_metal::utils::ldap::import_frontend_ldap;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-pub fn define(m: &PyModule) -> PyResult<()> {
+pub fn define(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(ldaps))?;
     m.add_wrapped(wrap_pyfunction!(boot_ldaps))?;
     Ok(())

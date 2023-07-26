@@ -12,9 +12,10 @@ use regex::Regex;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-#[pymodule]
-pub fn interface(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyInterface>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "interface")?;
+    subm.add_class::<PyInterface>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
@@ -76,7 +77,7 @@ impl PyInterface {
     }
 
     /// Add a test to the flow
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(test_obj, **kwargs))]
     fn add_test(&self, test_obj: &PyAny, kwargs: Option<&PyDict>) -> PyResult<()> {
         let id = flow_options::get_flow_id(kwargs)?;
         let bin = flow_options::get_bin(kwargs)?;
@@ -126,7 +127,7 @@ impl PyInterface {
     }
 
     /// Add a cz test to the flow
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(test_obj, cz_setup, **kwargs))]
     fn add_cz_test(
         &self,
         test_obj: &PyAny,
@@ -159,7 +160,7 @@ impl PyInterface {
         Ok(())
     }
 
-    #[args(id = "None", kwargs = "**")]
+    #[pyo3(signature=(name, **kwargs))]
     fn group(&mut self, name: String, kwargs: Option<&PyDict>) -> PyResult<Group> {
         let id = flow_options::get_flow_id(kwargs)?;
         let (mut g, ref_ids) = flow_options::wrap_in_conditions(kwargs, true, || {
@@ -175,7 +176,7 @@ impl PyInterface {
         Ok(r)
     }
 
-    #[args(jobs = "*", _kwargs = "**")]
+    #[pyo3(signature=(*jobs, **_kwargs))]
     fn if_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfJob(v))),
@@ -183,7 +184,7 @@ impl PyInterface {
         }
     }
 
-    #[args(jobs = "*", _kwargs = "**")]
+    #[pyo3(signature=(*jobs, **_kwargs))]
     fn unless_job(&mut self, jobs: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(jobs) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessJob(v))),
@@ -191,7 +192,7 @@ impl PyInterface {
         }
     }
 
-    #[args(flags = "*", _kwargs = "**")]
+    #[pyo3(signature=(*flags, **_kwargs))]
     fn if_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
@@ -199,7 +200,7 @@ impl PyInterface {
         }
     }
 
-    #[args(flags = "*", _kwargs = "**")]
+    #[pyo3(signature=(*flags, **_kwargs))]
     fn unless_enable(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
@@ -207,7 +208,7 @@ impl PyInterface {
         }
     }
 
-    #[args(flags = "*", _kwargs = "**")]
+    #[pyo3(signature=(*flags, **_kwargs))]
     fn if_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfEnable(v))),
@@ -215,7 +216,7 @@ impl PyInterface {
         }
     }
 
-    #[args(flags = "*", _kwargs = "**")]
+    #[pyo3(signature=(*flags, **_kwargs))]
     fn unless_enabled(&mut self, flags: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(flags) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessEnable(v))),
@@ -223,7 +224,7 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", _kwargs = "**")]
+    #[pyo3(signature=(*ids, **_kwargs))]
     fn if_passed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
@@ -233,7 +234,7 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", _kwargs = "**")]
+    #[pyo3(signature=(*ids, **_kwargs))]
     fn unless_passed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
@@ -243,7 +244,7 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", _kwargs = "**")]
+    #[pyo3(signature=(*ids, **_kwargs))]
     fn if_failed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfFailed(
@@ -253,7 +254,7 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", _kwargs = "**")]
+    #[pyo3(signature=(*ids, **_kwargs))]
     fn unless_failed(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfPassed(
@@ -263,7 +264,7 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", _kwargs = "**")]
+    #[pyo3(signature=(*ids, **_kwargs))]
     fn if_ran(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::IfRan(
@@ -273,7 +274,7 @@ impl PyInterface {
         }
     }
 
-    #[args(ids = "*", _kwargs = "**")]
+    #[pyo3(signature=(*ids, **_kwargs))]
     fn unless_ran(&mut self, ids: &PyTuple, _kwargs: Option<&PyDict>) -> PyResult<Condition> {
         match extract_to_string_vec(ids) {
             Ok(v) => Ok(Condition::new(FlowCondition::UnlessRan(
@@ -284,7 +285,7 @@ impl PyInterface {
     }
 
     /// Bin out
-    #[args(soft_bin = "None", softbin = "None", good = "false", kwargs = "**")]
+    #[pyo3(signature=(hard_bin, soft_bin=None, softbin=None, good=false, description=None, priority=None, **kwargs))]
     fn bin(
         &self,
         hard_bin: usize,
@@ -326,7 +327,7 @@ impl PyInterface {
         .0)
     }
 
-    #[args(soft_bin = "None", softbin = "None", kwargs = "**")]
+    #[pyo3(signature=(hard_bin, soft_bin=None, softbin=None, description=None, priority=None, **kwargs))]
     fn good_die(
         &self,
         hard_bin: usize,
@@ -347,7 +348,7 @@ impl PyInterface {
         )
     }
 
-    #[args(soft_bin = "None", softbin = "None", kwargs = "**")]
+    #[pyo3(signature=(hard_bin, soft_bin=None, softbin=None, description=None, priority=None, **kwargs))]
     fn bad_die(
         &self,
         hard_bin: usize,

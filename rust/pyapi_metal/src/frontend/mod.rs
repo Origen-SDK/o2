@@ -227,7 +227,8 @@ pub(crate) fn backend_get_category(
 }
 
 #[cfg(debug_assertions)]
-#[pyfunction(opts = "**")]
+#[pyfunction]
+#[pyo3(signature=(category, data_store, **opts))]
 pub(crate) fn backend_get_class(
     _py: Python,
     category: &str,

@@ -37,12 +37,7 @@ impl LDAP {}
 #[pymethods]
 impl LDAP {
     #[new]
-    #[args(
-        username = "None",
-        password = "None",
-        populate_user_config = "None",
-        timeout = "None"
-    )]
+    #[pyo3(signature=(name, server, base, auth=None, continuous_bind=None, populate_user_config=None, timeout=None))]
     fn new(
         name: &str,
         server: &str,

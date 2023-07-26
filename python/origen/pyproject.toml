@@ -21,7 +21,7 @@ generate-setup-file = false
 origen = 'origen.__bin__:run_origen'
 
 [tool.poetry.dependencies]
-python =  ">=3.7,<3.11"
+python = ">=3.7.0,<=3.12"
 origen_metal = "= 0.4.0"
 termcolor = ">= 1.1.0"
 colorama = "^0.4"

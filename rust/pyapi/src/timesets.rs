@@ -24,27 +24,29 @@ use timeset_container::{
     EventContainer, TimesetContainer, WaveContainer, WaveGroupContainer, WavetableContainer,
 };
 
-#[pymodule]
-pub fn timesets(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<TimesetContainer>()?;
-    m.add_class::<WavetableContainer>()?;
-    m.add_class::<WaveGroupContainer>()?;
-    m.add_class::<WaveContainer>()?;
-    m.add_class::<EventContainer>()?;
-    m.add_class::<Timeset>()?;
-    m.add_class::<Wavetable>()?;
-    m.add_class::<WaveGroup>()?;
-    m.add_class::<Wave>()?;
-    m.add_class::<Event>()?;
-    m.add_class::<SymbolMap>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "timesets")?;
+    subm.add_class::<TimesetContainer>()?;
+    subm.add_class::<WavetableContainer>()?;
+    subm.add_class::<WaveGroupContainer>()?;
+    subm.add_class::<WaveContainer>()?;
+    subm.add_class::<EventContainer>()?;
+    subm.add_class::<Timeset>()?;
+    subm.add_class::<Wavetable>()?;
+    subm.add_class::<WaveGroup>()?;
+    subm.add_class::<Wave>()?;
+    subm.add_class::<Event>()?;
+    subm.add_class::<SymbolMap>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
 #[pymethods]
 impl PyDUT {
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(model_id, name, period, **kwargs))]
     fn add_timeset(
         &self,
+        py: Python,
         model_id: usize,
         name: &str,
         period: &PyAny,
@@ -88,23 +90,17 @@ impl PyDUT {
             },
         )?;
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let model = dut.get_mut_model(model_id)?;
         Ok(pytimeset!(py, model, model_id, name)?)
     }
 
-    fn timeset(&self, model_id: usize, name: &str) -> PyResult<PyObject> {
+    fn timeset(&self, py: Python, model_id: usize, name: &str) -> PyResult<PyObject> {
         let mut dut = DUT.lock().unwrap();
         let model = dut.get_mut_model(model_id)?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         Ok(pytimeset_or_pynone!(py, model, model_id, name))
     }
 
-    fn timesets(&self, model_id: usize) -> PyResult<Py<TimesetContainer>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn timesets(&self, py: Python, model_id: usize) -> PyResult<Py<TimesetContainer>> {
         Ok(pytimeset_container!(py, model_id))
     }
 }

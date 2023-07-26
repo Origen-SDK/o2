@@ -8,7 +8,7 @@ pub trait ListLikeAPI {
     fn __iter__(&self) -> PyResult<ListLikeIter>;
 
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
+        if let Ok(slice) = idx.downcast::<PySlice>() {
             self.___getslice__(slice)
         } else {
             let i = idx.extract::<isize>()?;
@@ -42,9 +42,9 @@ pub trait ListLikeAPI {
             _idx = ((item_ids.len() as isize) + idx) as usize;
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(self.new_pyitem(py, _idx)?)
+        Python::with_gil(|py| {
+            Ok(self.new_pyitem(py, _idx)?)
+        })
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
@@ -55,22 +55,22 @@ pub trait ListLikeAPI {
             indices = slice.indices((item_ids.len() as i32).into())?;
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut rtn: Vec<PyObject> = vec![];
-        let mut i = indices.start;
-        if indices.step > 0 {
-            while i < indices.stop {
-                rtn.push(self.new_pyitem(py, i as usize)?);
-                i += indices.step;
+        Python::with_gil(|py| {
+            let mut rtn: Vec<PyObject> = vec![];
+            let mut i = indices.start;
+            if indices.step > 0 {
+                while i < indices.stop {
+                    rtn.push(self.new_pyitem(py, i as usize)?);
+                    i += indices.step;
+                }
+            } else if indices.step < 0 {
+                while i > indices.stop {
+                    rtn.push(self.new_pyitem(py, i as usize)?);
+                    i += indices.step;
+                }
             }
-        } else if indices.step < 0 {
-            while i > indices.stop {
-                rtn.push(self.new_pyitem(py, i as usize)?);
-                i += indices.step;
-            }
-        }
-        Ok(rtn.to_object(py))
+            Ok(rtn.to_object(py))
+        })
     }
 
     fn __len__(&self) -> PyResult<usize> {
@@ -109,7 +109,7 @@ pub trait GeneralizedListLikeAPI {
     // fn __iter__(&self) -> PyResult<GeneralizedListLikeIter>;
 
     fn __getitem__(&self, idx: &PyAny) -> PyResult<PyObject> {
-        if let Ok(slice) = idx.cast_as::<PySlice>() {
+        if let Ok(slice) = idx.downcast::<PySlice>() {
             self.___getslice__(slice)
         } else {
             let i = idx.extract::<isize>()?;
@@ -138,29 +138,29 @@ pub trait GeneralizedListLikeAPI {
             _idx = ((self.items().len() as isize) + idx) as usize;
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(self.new_pyitem(py, &self.items()[_idx], _idx)?)
+        Python::with_gil(|py| {
+            Ok(self.new_pyitem(py, &self.items()[_idx], _idx)?)
+        })
     }
 
     fn ___getslice__(&self, slice: &PySlice) -> PyResult<PyObject> {
         let indices = slice.indices((self.items().len() as i32).into())?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut rtn: Vec<PyObject> = vec![];
-        let mut i = indices.start;
-        if indices.step > 0 {
-            while i < indices.stop {
-                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
-                i += indices.step;
+        Python::with_gil(|py| {
+            let mut rtn: Vec<PyObject> = vec![];
+            let mut i = indices.start;
+            if indices.step > 0 {
+                while i < indices.stop {
+                    rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+                    i += indices.step;
+                }
+            } else if indices.step < 0 {
+                while i > indices.stop {
+                    rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
+                    i += indices.step;
+                }
             }
-        } else if indices.step < 0 {
-            while i > indices.stop {
-                rtn.push(self.new_pyitem(py, &self.items()[i as usize], i as usize)?);
-                i += indices.step;
-            }
-        }
-        Ok(rtn.to_object(py))
+            Ok(rtn.to_object(py))
+        })
     }
 
     fn __len__(&self) -> PyResult<usize> {

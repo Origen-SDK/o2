@@ -11,20 +11,32 @@ use register::{Field, FieldEnum, ResetVal};
 use origen::core::model::registers::register::Register;
 pub use register_collection::RegisterCollection;
 
-#[pymodule]
-/// Implements the module _origen.registers in Python
-pub fn registers(_py: Python, m: &PyModule) -> PyResult<()> {
-    // Used to pass register field info from Python to Rust when defining regs
-    m.add_class::<Field>()?;
-    m.add_class::<FieldEnum>()?;
-    m.add_class::<ResetVal>()?;
-
-    m.add_wrapped(wrap_pyfunction!(create))?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "registers")?;
+    subm.add_class::<Field>()?;
+    subm.add_class::<FieldEnum>()?;
+    subm.add_class::<ResetVal>()?;
+    subm.add_wrapped(wrap_pyfunction!(create))?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
 /// Create a new register, returning its ID
 #[pyfunction]
+#[pyo3(signature=(
+    address_block_id,
+    register_file_id,
+    name,
+    offset,
+    size,
+    bit_order,
+    fields,
+    filename=None,
+    lineno=None,
+    description=None,
+    resets=None,
+    access=None,
+))]
 fn create(
     address_block_id: usize,
     register_file_id: Option<usize>,

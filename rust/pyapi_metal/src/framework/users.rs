@@ -46,6 +46,7 @@ pub(crate) fn define(py: Python, m: &PyModule) -> PyResult<()> {
 
     let users_class = subm.getattr("Users")?;
     users_class.setattr("current_user_as", wrap_instance_method(py, "current_user_as", Some(vec!("new_current")), None)?)?;
+    crate::alias_method_apply_to_set!(subm, "Users", "data_lookup_hierarchy");
     Ok(())
 }
 
@@ -200,6 +201,7 @@ impl Users {
     }
 
     #[allow(non_snake_case)]
+    #[pyo3(signature=(_yield_retn, _yield_context, old_user))]
     pub fn __exit__current_user_as(&self, _py: Python, _yield_retn: Option<&PyAny>, _yield_context: Option<PyRef<User>>, old_user: &PyAny) -> PyResult<()> {
         self.set_current_user(old_user)?;
         Ok(())
@@ -211,7 +213,7 @@ impl Users {
         Ok(DATA_FIELDS)
     }
 
-    #[args(update_current = "false")]
+    #[pyo3(signature=(update_current = false))]
     pub fn lookup_current_id(&self, update_current: bool) -> PyResult<String> {
         if update_current {
             let r = om::try_lookup_and_set_current_user()?;
@@ -308,14 +310,14 @@ impl Users {
         }
     }
 
-    #[args(config = "None")]
+    #[pyo3(signature=(name, config = None))]
     fn register_dataset(&self, name: &str, config: Option<&PyAny>) -> PyResult<()> {
         let mut users = om::users_mut();
         users.register_default_dataset(name, UserDatasetConfig::into_om(config)?)?;
         Ok(())
     }
 
-    #[args(config = "None", as_topmost = "true")]
+    #[pyo3(signature=(name, config = None, as_topmost = true))]
     pub fn add_dataset(
         &self,
         name: &str,
@@ -327,7 +329,7 @@ impl Users {
         Ok(())
     }
 
-    #[args(config = "None")]
+    #[pyo3(signature=(name, config = None))]
     pub fn override_default_dataset(&self, name: &str, config: Option<&PyAny>) -> PyResult<()> {
         let mut users = om::users_mut();
         users.override_default_dataset(name, UserDatasetConfig::into_om(config)?)?;
@@ -346,10 +348,10 @@ impl Users {
 
     #[setter]
     fn data_lookup_hierarchy(&self, new_hierarchy: Vec<String>) -> PyResult<()> {
-        self.set_data_lookup_hierarchy(new_hierarchy)
+        self.apply_data_lookup_hierarchy(new_hierarchy)
     }
 
-    pub fn set_data_lookup_hierarchy(&self, new_hierarchy: Vec<String>) -> PyResult<()> {
+    pub fn apply_data_lookup_hierarchy(&self, new_hierarchy: Vec<String>) -> PyResult<()> {
         let mut users = om::users_mut();
         Ok(users.set_default_data_lookup_hierarchy(new_hierarchy)?)
     }
@@ -360,7 +362,7 @@ impl Users {
         Ok(map_to_pydict(py, &mut users.motive_mapping().iter())?)
     }
 
-    #[args(replace_existing = "false")]
+    #[pyo3(signature=(motive, dataset, replace_existing = false))]
     pub fn add_motive(
         &self,
         motive: &str,
@@ -376,11 +378,11 @@ impl Users {
         Ok(users.dataset_for(motive)?.cloned())
     }
 
-    #[args(
-        repopulate = "false",
-        continue_on_error = "false",
-        stop_on_failure = "false"
-    )]
+    #[pyo3(signature=(
+        repopulate = false,
+        continue_on_error = false,
+        stop_on_failure = false
+    ))]
     pub fn populate(
         &self,
         repopulate: bool,
@@ -461,7 +463,7 @@ impl Users {
         Ok(retn)
     }
 
-    #[args(exclusive="false", required="false")]
+    #[pyo3(signature=(role, exclusive = false, required = false))]
     pub fn for_role(&self, role: &str, exclusive: bool, required: bool) -> PyResult<Vec<User>> {
         let users = om::users();
         let r = users.users_by_role(Some( &|_u, rn| rn == role ))?;
@@ -488,7 +490,7 @@ impl Users {
         }
     }
 
-    #[args(required="false")]
+    #[pyo3(signature=(role, required = false))]
     pub fn for_exclusive_role(&self, role: &str, required: bool) -> PyResult<Option<User>> {
         Ok(self.for_role(role, true, required)?.pop())
     }
@@ -875,11 +877,11 @@ impl UserDataset {
         self.data_store()
     }
 
-    #[args(
-        repopulate = "false",
-        continue_on_error = "false",
-        stop_on_failure = "false"
-    )]
+    #[pyo3(signature=(
+        repopulate = false,
+        continue_on_error = false,
+        stop_on_failure = false
+    ))]
     pub fn populate(
         &self,
         repopulate: bool,
@@ -1076,7 +1078,7 @@ impl UserDatasetConfig {
 
     // TODO rename to new?
     #[new]
-    #[args(category = "None", data_store = "None", auto_populate = "None")]
+    #[pyo3(signature=(category = None, data_store = None, auto_populate = None, should_validate_password = None))]
     fn py_new(
         category: Option<String>,
         data_store: Option<String>,
@@ -1466,7 +1468,7 @@ impl User {
     // We can't get a optional None value (as least as far as I know...)
     // Passing in None on the Python side makes this look like the argument given, so can't
     // get a nested None.
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(motive, **kwargs))]
     fn password_for(&self, motive: &str, kwargs: Option<&PyDict>) -> PyResult<String> {
         let default: Option<Option<String>>;
         if let Some(opts) = kwargs {
@@ -1499,7 +1501,7 @@ impl User {
         })?)
     }
 
-    #[args(replace_existing = "false")]
+    #[pyo3(signature=(motive, dataset, replace_existing = false))]
     fn add_motive(
         &self,
         motive: &str,
@@ -1609,7 +1611,7 @@ impl User {
         })?)
     }
 
-    #[args(config = "None", replace_existing = "None", as_topmost = "true")]
+    #[pyo3(signature=(name, config = None, replace_existing = None, as_topmost = true))]
     pub fn add_dataset(
         &self,
         name: &str,
@@ -1627,7 +1629,7 @@ impl User {
         Ok(UserDataset::new(&self.user_id, name))
     }
 
-    #[args(config = "None", replace_existing = "None")]
+    #[pyo3(signature=(name, config = None, replace_existing = None))]
     pub fn register_dataset(
         &self,
         name: &str,
@@ -1685,11 +1687,11 @@ impl User {
         self.data_store()
     }
 
-    #[args(
-        repopulate = "false",
-        continue_on_error = "false",
-        stop_on_failure = "false"
-    )]
+    #[pyo3(signature=(
+        repopulate = false,
+        continue_on_error = false,
+        stop_on_failure = false
+    ))]
     pub fn populate(
         &self,
         repopulate: bool,
@@ -1808,7 +1810,7 @@ impl User {
         })?)
     }
 
-    #[args(roles="*")]
+    #[pyo3(signature=(*roles))]
     pub fn add_roles(&self, roles: &PyAny) -> PyResult<Vec<bool>> {
         let v: Vec<String>;
         if let Ok(r) = roles.extract::<String>() {
@@ -1824,7 +1826,7 @@ impl User {
         })?)
     }
 
-    #[args(roles="*")]
+    #[pyo3(signature=(*roles))]
     pub fn remove_roles(&self, roles: &PyAny) -> PyResult<Vec<bool>> {
         let v: Vec<String>;
         if let Ok(r) = roles.extract::<String>() {
