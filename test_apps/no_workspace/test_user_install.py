@@ -48,7 +48,7 @@ class TestErrorCasesWithFallback():
 
         @classmethod
         def setup_method(cls):
-            super().setup()
+            super().setup_method()
             os.environ["ORIGEN_PYPROJECT"] = str(cls.invalid_install_dir)
 
         @classmethod
@@ -81,7 +81,7 @@ class TestErrorCasesWithFallback():
 
         @classmethod
         def setup_method(cls):
-            super().setup()
+            super().setup_method()
             os.environ["ORIGEN_PYPROJECT"] = str(cls.missing_pyproject)
 
         @classmethod

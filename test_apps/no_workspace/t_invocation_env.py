@@ -34,7 +34,7 @@ class T_InvocationBaseTests(CLI):
     PyProjectSrc = PyProjectSrc
 
     @classmethod
-    def setup(cls):
+    def setup_method(cls):
         cls.set_params()
         if cls.target_pyproj_dir:
             cls.target_pyproj_toml = cls.target_pyproj_dir.joinpath(toml)
@@ -85,7 +85,7 @@ class T_InvocationBaseTests(CLI):
 class T_InvocationEnv(T_InvocationBaseTests):
     @classmethod
     def setup_method(cls):
-        super().setup()
+        super().setup_method()
         # cls.set_params()
         if cls.target_pyproj_dir:
             cls._pyproj_src_file = cls.gen_pyproj()

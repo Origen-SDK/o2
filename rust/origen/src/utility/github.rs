@@ -1,5 +1,4 @@
-use origen_metal::{Result, Outcome};
-use octocrab;
+use origen_metal::{Result, Outcome, octocrab};
 use std::collections::HashMap;
 
 pub fn lookup_pat() -> Result<String> {
@@ -36,30 +35,32 @@ pub fn dispatch_workflow(
     git_ref: &str,
     inputs: Option<HashMap<String, String>>,
 ) -> Result<Outcome> {
-    let o = octocrab::OctocrabBuilder::new()
-        .personal_token(lookup_pat()?)
-        .add_header(
-            reqwest::header::ACCEPT,
-            "application/vnd.github.v3+json".to_string(),
-        )
-        .build()?;
-    let r = tokio::runtime::Runtime::new().unwrap();
-    let _guard = r.enter();
+    // FOR_PR
+    todo!();
+    // let o = octocrab::OctocrabBuilder::new()
+    //     .personal_token(lookup_pat()?)
+    //     .add_header(
+    //         reqwest::header::ACCEPT,
+    //         "application/vnd.github.v3+json".to_string(),
+    //     )
+    //     .build()?;
+    // let r = tokio::runtime::Runtime::new().unwrap();
+    // let _guard = r.enter();
 
-    let response = futures::executor::block_on(o._post(
-        format!(
-            "https://api.github.com/repos/{}/{}/actions/workflows/{}/dispatches",
-            owner, repo, workflow
-        ),
-        Some(&DispatchWorkflowRequest::new(git_ref, inputs)),
-    ))?;
-    let headers = response.headers().clone();
-    let status = response.status().as_u16() as usize;
-    let body = futures::executor::block_on(response.text())?;
+    // let response = futures::executor::block_on(o._post(
+    //     format!(
+    //         "https://api.github.com/repos/{}/{}/actions/workflows/{}/dispatches",
+    //         owner, repo, workflow
+    //     ),
+    //     Some(&DispatchWorkflowRequest::new(git_ref, inputs)),
+    // ))?;
+    // let headers = response.headers().clone();
+    // let status = response.status().as_u16() as usize;
+    // let body = futures::executor::block_on(response.body())?;
 
-    let mut res = Outcome::new_success_or_fail(body.is_empty());
-    res.set_msg(body);
-    res.add_metadata("header", format!("{:?}", headers));
-    res.add_metadata("status", status);
-    Ok(res)
+    // let mut res = Outcome::new_success_or_fail(body.is_empty());
+    // res.set_msg(body);
+    // res.add_metadata("header", format!("{:?}", headers));
+    // res.add_metadata("status", status);
+    // Ok(res)
 }

@@ -36,4 +36,4 @@ version = "0.19.1"
 features = ["extension-module", "num-bigint", "multiple-pymethods", "auto-initialize"]
 
 [build-dependencies]
-built = "0.5.1"
+built = "0.5.2"

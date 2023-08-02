@@ -166,11 +166,9 @@ impl Mailer {
 
     pub fn html_singlepart(body: &str) -> Result<SinglePart> {
         Ok(SinglePart::builder()
-            .header(header::ContentType(
-                "text/html; charset=utf8".parse().unwrap(),
-            ))
+            .header(header::ContentType::TEXT_HTML)
             .header(header::ContentTransferEncoding::QuotedPrintable)
-            .body(body))
+            .body(body.to_string()))
     }
 
     pub fn compose(

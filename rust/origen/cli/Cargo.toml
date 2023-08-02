@@ -35,4 +35,4 @@ phf = { version = "0.8.0", features = ["macros"] }
 
 [build-dependencies]
 walkdir = "2"
-built = "0.5.1"
+built = "0.5.2"

@@ -127,6 +127,12 @@ impl std::convert::From<lettre::address::AddressError> for Error {
     }
 }
 
+impl std::convert::From<email_address::Error> for Error {
+    fn from(err: email_address::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}
+
 impl std::convert::From<toml::de::Error> for Error {
     fn from(err: toml::de::Error) -> Self {
         Error::new(&err.to_string())
