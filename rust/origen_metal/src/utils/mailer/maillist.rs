@@ -232,7 +232,7 @@ impl Maillist {
                 }
             }
             use std::str::FromStr;
-            let em = email_address::EmailAddress::from_str(&email_str)?;
+            let _em = email_address::EmailAddress::from_str(&email_str)?;
             retn.push(email_str.parse()?);
         }
         Ok(retn)
