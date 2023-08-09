@@ -27,7 +27,7 @@ version = "0.19.1"
 features = ["extension-module", "num-bigint"]
 
 [build-dependencies]
-built = "0.5.1"
+built = "0.5.2"
 
 [package.metadata.maturin]
 name = "origen_metal._origen_metal"

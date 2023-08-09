@@ -1,4 +1,3 @@
-#![feature(specialization)]
 #![allow(incomplete_features)]
 #[macro_use]
 extern crate lazy_static;

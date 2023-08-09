@@ -673,7 +673,7 @@ impl Register {
             lineno: lineno,
         };
         if self.fields.contains_key(name) {
-            let mut orig = self.fields.get_mut(name).unwrap();
+            let orig = self.fields.get_mut(name).unwrap();
             orig.related_fields += 1;
             let key = format!("{}{}", name, orig.related_fields);
             self.fields.insert(key.clone(), f);

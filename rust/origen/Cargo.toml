@@ -63,13 +63,12 @@ normpath = "0.2.0"
 cfg-if = "1"
 dialoguer = "0.8.0"
 wait-timeout = "0.2.0"
-octocrab = "0.9.1"
 futures = {version = "0.3.15", features = ["executor"]}
-tokio = {version = "1.7", features = ["full"] }
+tokio = {version = "1.29", features = ["full"] }
 reqwest = {version = "0.11.3", features = ["blocking", "json"]}
 
 [build-dependencies]
-built = "0.5.1"
+built = "0.5.2"
 walkdir = "2"
 
 # Additional items required to build a full self-contained origen CLI binary for Linux

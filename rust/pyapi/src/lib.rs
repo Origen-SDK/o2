@@ -701,7 +701,7 @@ pub fn boot_users(py: Python) -> PyResult<pyapi_metal::framework::users::Users> 
     if let Some(r) = &ORIGEN_CONFIG.session__user_root {
         log_trace!("Setting user session root to {}", r);
         let mut users = om::users_mut();
-        let mut sc = users.default_session_config_mut();
+        let sc = users.default_session_config_mut();
         sc.root = Some(PathBuf::from(r));
     }
 

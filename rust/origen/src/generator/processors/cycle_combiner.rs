@@ -225,7 +225,7 @@ impl Processor<PAT> for UnpackCaptures {
                         let mut finished_overlays: Vec<(Option<usize>, Option<String>)> = vec![];
 
                         // Decrease the cycle count for all captures
-                        for (pin_id, mut cap) in self.capturing.iter_mut() {
+                        for (pin_id, cap) in self.capturing.iter_mut() {
                             if cap.0 <= this_repeat {
                                 // This capture will be exhausted by the end of this node
                                 // Remove it from the list to capture
@@ -242,7 +242,7 @@ impl Processor<PAT> for UnpackCaptures {
                         }
 
                         // Do the same for overlays
-                        for (pin_id, mut ovl) in self.overlaying.iter_mut() {
+                        for (pin_id, ovl) in self.overlaying.iter_mut() {
                             if ovl.0 <= this_repeat {
                                 // This overlay will be exhausted by the end of this node
                                 // Remove it from the list to overlay
