@@ -29,8 +29,11 @@ impl<T: Attrs> Processor<T> for ToString<T> {
         self.output += &" ".repeat(self.indent);
         self.output += &format!("{}\n", node.attrs);
         self.indent += 4;
-        node.process_children(self)?;
+        Ok(Return::ProcessChildren)
+    }
+
+    fn on_processed_node(&mut self, _node: &Node<T>) -> Result<Return<T>> {
         self.indent -= 4;
-        Ok(Return::Unmodified)
+        Ok(Return::None)
     }
 }

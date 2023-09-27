@@ -7,7 +7,7 @@ use crate::Result;
 use std::collections::HashMap;
 
 pub struct TimeExpr {
-    process_children: bool,
+    time_expr_depth: usize,
     params: Option<HashMap<String, Node<STIL>>>,
 }
 
@@ -18,177 +18,175 @@ impl TimeExpr {
         params: Option<HashMap<String, Node<STIL>>>,
     ) -> Result<Node<STIL>> {
         let mut p = TimeExpr {
-            process_children: false,
+            time_expr_depth: 0,
             params: params,
         };
         Ok(node.process(&mut p)?.unwrap())
     }
+
+    fn processing_enabled(&self) -> bool {
+        self.time_expr_depth > 0
+    }
 }
 
 impl Processor<STIL> for TimeExpr {
+    fn on_processed_node(&mut self, node: &Node<STIL>) -> Result<Return<STIL>> {
+        let result = match &node.attrs {
+            STIL::TimeExpr => Return::Unwrap,
+            STIL::Parens => Return::Unwrap,
+            STIL::Add => Return::Replace(match &node.children[0].attrs {
+                STIL::Integer(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Integer, lhs + rhs),
+                    STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 + rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::Float(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Float, lhs + *rhs as f64),
+                    STIL::Float(rhs) => node!(STIL::Float, lhs + rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::String(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
+                    STIL::Float(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                _ => unreachable!("{:?}", node.children[0]),
+            }),
+            STIL::Subtract => Return::Replace(match &node.children[0].attrs {
+                STIL::Integer(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Integer, lhs - rhs),
+                    STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 - rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::Float(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Float, lhs - *rhs as f64),
+                    STIL::Float(rhs) => node!(STIL::Float, lhs - rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::String(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
+                    STIL::Float(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                _ => unreachable!("{:?}", node.children[0]),
+            }),
+            STIL::Multiply => Return::Replace(match &node.children[0].attrs {
+                STIL::Integer(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Integer, lhs * rhs),
+                    STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 * rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::Float(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Float, lhs * *rhs as f64),
+                    STIL::Float(rhs) => node!(STIL::Float, lhs * rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::String(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
+                    STIL::Float(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                _ => unreachable!("{:?}", node.children[0]),
+            }),
+            STIL::Divide => Return::Replace(match &node.children[0].attrs {
+                STIL::Integer(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Integer, lhs / rhs),
+                    STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 / rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::Float(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::Float, lhs / *rhs as f64),
+                    STIL::Float(rhs) => node!(STIL::Float, lhs / rhs),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::String(lhs) => match &node.children[1].attrs {
+                    STIL::Integer(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
+                    STIL::Float(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
+                    STIL::String(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                _ => unreachable!("{:?}", node.children[0]),
+            }),
+            STIL::NumberWithUnit => Return::Replace(match &node.children[0].attrs {
+                STIL::Integer(val) => match &node.children[1].attrs {
+                    STIL::EngPrefix(p) => match p.as_str() {
+                        "E" => node!(STIL::Float, *val as f64 * 1_000_000_000_000_000_000_f64),
+                        "P" => node!(STIL::Float, *val as f64 * 1_000_000_000_000_000_f64),
+                        "T" => node!(STIL::Float, *val as f64 * 1_000_000_000_000_f64),
+                        "G" => node!(STIL::Float, *val as f64 * 1_000_000_000_f64),
+                        "M" => node!(STIL::Float, *val as f64 * 1_000_000_f64),
+                        "k" => node!(STIL::Float, *val as f64 * 1_000_f64),
+                        "m" => node!(STIL::Float, *val as f64 / 1_000_f64),
+                        "u" => node!(STIL::Float, *val as f64 / 1_000_000_f64),
+                        "n" => node!(STIL::Float, *val as f64 / 1_000_000_000_f64),
+                        "p" => node!(STIL::Float, *val as f64 / 1_000_000_000_000_f64),
+                        "f" => node!(STIL::Float, *val as f64 / 1_000_000_000_000_000_f64),
+                        "a" => node!(STIL::Float, *val as f64 / 1_000_000_000_000_000_000_f64),
+                        _ => unreachable!("Unknown eng prefix '{}'", p),
+                    },
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                STIL::Float(val) => match &node.children[1].attrs {
+                    STIL::EngPrefix(p) => match p.as_str() {
+                        "E" => node!(STIL::Float, val * 1_000_000_000_000_000_000_f64),
+                        "P" => node!(STIL::Float, val * 1_000_000_000_000_000_f64),
+                        "T" => node!(STIL::Float, val * 1_000_000_000_000_f64),
+                        "G" => node!(STIL::Float, val * 1_000_000_000_f64),
+                        "M" => node!(STIL::Float, val * 1_000_000_f64),
+                        "k" => node!(STIL::Float, val * 1_000_f64),
+                        "m" => node!(STIL::Float, val / 1_000_f64),
+                        "u" => node!(STIL::Float, val / 1_000_000_f64),
+                        "n" => node!(STIL::Float, val / 1_000_000_000_f64),
+                        "p" => node!(STIL::Float, val / 1_000_000_000_000_f64),
+                        "f" => node!(STIL::Float, val / 1_000_000_000_000_000_f64),
+                        "a" => node!(STIL::Float, val / 1_000_000_000_000_000_000_f64),
+                        _ => unreachable!("Unknown eng prefix '{}'", p),
+                    },
+                    _ => unreachable!("{:?}", node.children[1]),
+                },
+                _ => unreachable!("{:?}", node.children[0]),
+            }),
+            _ => Return::Unmodified,
+        };
+        Ok(result)
+    }
+
     fn on_node(&mut self, node: &Node<STIL>) -> Result<Return<STIL>> {
         let result = match &node.attrs {
             STIL::TimeExpr => {
-                self.process_children = true;
-                let mut nodes = node.process_children(self)?;
-                self.process_children = false;
-                Return::Replace(nodes.pop().unwrap())
+                self.time_expr_depth += 1;
+                Return::ProcessChildren
             }
-            STIL::Parens => {
-                let mut nodes = node.process_children(self)?;
-                Return::Replace(nodes.pop().unwrap())
-            }
-            STIL::String(val) => match &self.params {
-                None => Return::Unmodified,
-                Some(params) => {
-                    if params.contains_key(val) {
-                        Return::Replace(params[val].clone())
-                    } else {
-                        Return::Unmodified
+            STIL::String(val) => {
+                if self.processing_enabled() {
+                    match &self.params {
+                        None => Return::Unmodified,
+                        Some(params) => {
+                            if params.contains_key(val) {
+                                Return::Replace(params[val].clone())
+                            } else {
+                                Return::Unmodified
+                            }
+                        }
                     }
+                } else {
+                    Return::Unmodified
                 }
-            },
-            STIL::Add => {
-                let nodes = node.process_children(self)?;
-                Return::Replace(match &nodes[0].attrs {
-                    STIL::Integer(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Integer, lhs + rhs),
-                        STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 + rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::Float(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Float, lhs + *rhs as f64),
-                        STIL::Float(rhs) => node!(STIL::Float, lhs + rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::String(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
-                        STIL::Float(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}+{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    _ => unreachable!("{:?}", nodes[0]),
-                })
             }
-            STIL::Subtract => {
-                let nodes = node.process_children(self)?;
-                Return::Replace(match &nodes[0].attrs {
-                    STIL::Integer(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Integer, lhs - rhs),
-                        STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 - rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::Float(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Float, lhs - *rhs as f64),
-                        STIL::Float(rhs) => node!(STIL::Float, lhs - rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::String(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
-                        STIL::Float(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}-{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    _ => unreachable!("{:?}", nodes[0]),
-                })
-            }
-            STIL::Multiply => {
-                let nodes = node.process_children(self)?;
-                Return::Replace(match &nodes[0].attrs {
-                    STIL::Integer(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Integer, lhs * rhs),
-                        STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 * rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::Float(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Float, lhs * *rhs as f64),
-                        STIL::Float(rhs) => node!(STIL::Float, lhs * rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::String(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
-                        STIL::Float(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}*{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    _ => unreachable!("{:?}", nodes[0]),
-                })
-            }
-            STIL::Divide => {
-                let nodes = node.process_children(self)?;
-                Return::Replace(match &nodes[0].attrs {
-                    STIL::Integer(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Integer, lhs / rhs),
-                        STIL::Float(rhs) => node!(STIL::Float, *lhs as f64 / rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::Float(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::Float, lhs / *rhs as f64),
-                        STIL::Float(rhs) => node!(STIL::Float, lhs / rhs),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::String(lhs) => match &nodes[1].attrs {
-                        STIL::Integer(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
-                        STIL::Float(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
-                        STIL::String(rhs) => node!(STIL::String, format!("{}/{}", lhs, rhs)),
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    _ => unreachable!("{:?}", nodes[0]),
-                })
-            }
-            STIL::NumberWithUnit => {
-                let nodes = node.process_children(self)?;
-                Return::Replace(match nodes[0].attrs {
-                    STIL::Integer(val) => match &nodes[1].attrs {
-                        STIL::EngPrefix(p) => match p.as_str() {
-                            "E" => node!(STIL::Float, val as f64 * 1_000_000_000_000_000_000_f64),
-                            "P" => node!(STIL::Float, val as f64 * 1_000_000_000_000_000_f64),
-                            "T" => node!(STIL::Float, val as f64 * 1_000_000_000_000_f64),
-                            "G" => node!(STIL::Float, val as f64 * 1_000_000_000_f64),
-                            "M" => node!(STIL::Float, val as f64 * 1_000_000_f64),
-                            "k" => node!(STIL::Float, val as f64 * 1_000_f64),
-                            "m" => node!(STIL::Float, val as f64 / 1_000_f64),
-                            "u" => node!(STIL::Float, val as f64 / 1_000_000_f64),
-                            "n" => node!(STIL::Float, val as f64 / 1_000_000_000_f64),
-                            "p" => node!(STIL::Float, val as f64 / 1_000_000_000_000_f64),
-                            "f" => node!(STIL::Float, val as f64 / 1_000_000_000_000_000_f64),
-                            "a" => node!(STIL::Float, val as f64 / 1_000_000_000_000_000_000_f64),
-                            _ => unreachable!("Unknown eng prefix '{}'", p),
-                        },
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    STIL::Float(val) => match &nodes[1].attrs {
-                        STIL::EngPrefix(p) => match p.as_str() {
-                            "E" => node!(STIL::Float, val * 1_000_000_000_000_000_000_f64),
-                            "P" => node!(STIL::Float, val * 1_000_000_000_000_000_f64),
-                            "T" => node!(STIL::Float, val * 1_000_000_000_000_f64),
-                            "G" => node!(STIL::Float, val * 1_000_000_000_f64),
-                            "M" => node!(STIL::Float, val * 1_000_000_f64),
-                            "k" => node!(STIL::Float, val * 1_000_f64),
-                            "m" => node!(STIL::Float, val / 1_000_f64),
-                            "u" => node!(STIL::Float, val / 1_000_000_f64),
-                            "n" => node!(STIL::Float, val / 1_000_000_000_f64),
-                            "p" => node!(STIL::Float, val / 1_000_000_000_000_f64),
-                            "f" => node!(STIL::Float, val / 1_000_000_000_000_000_f64),
-                            "a" => node!(STIL::Float, val / 1_000_000_000_000_000_000_f64),
-                            _ => unreachable!("Unknown eng prefix '{}'", p),
-                        },
-                        _ => unreachable!("{:?}", nodes[1]),
-                    },
-                    _ => unreachable!("{:?}", nodes[0]),
-                })
-            }
-            // Only recurse inside time expression nodes
             _ => {
-                if self.process_children {
+                // Only process inside time expression nodes
+                if self.processing_enabled() {
                     Return::ProcessChildren
                 } else {
                     Return::Unmodified
@@ -215,12 +213,10 @@ mod tests {
     }
 
     #[test]
-    fn it_works() {
+    fn it_works() -> Result<()> {
         let expr = "1+2+3+4";
-        assert_eq!(
-            TimeExpr::run(&parse(expr), None).unwrap(),
-            node!(STIL::Integer, 10)
-        );
+        let p = TimeExpr::run(&parse(expr), None)?;
+        assert_eq!(p, node!(STIL::Integer, 10));
         let expr = "1+2+3-3+4";
         assert_eq!(
             TimeExpr::run(&parse(expr), None).unwrap(),
@@ -275,5 +271,6 @@ mod tests {
         } else {
             assert_eq!(true, false);
         }
+        Ok(())
     }
 }

@@ -49,4 +49,8 @@ pub trait Processor<T> {
     fn on_end_of_block(&mut self, _node: &Node<T>) -> Result<Return<T>> {
         Ok(Return::None)
     }
+
+    fn on_processed_node(&mut self, _node: &Node<T>) -> Result<Return<T>> {
+        Ok(Return::Unmodified)
+    }
 }
