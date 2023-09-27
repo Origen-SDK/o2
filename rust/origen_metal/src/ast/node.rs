@@ -11,7 +11,7 @@ impl<T: Clone + std::cmp::PartialEq + serde::Serialize + Display + Debug> Attrs 
 #[derive(Clone, PartialEq, Serialize, Debug)]
 pub struct Node<T> {
     pub attrs: T,
-    pub inline: bool,
+    info: Info,
     pub meta: Option<Meta>,
     pub children: Vec<Box<Node<T>>>,
 }
@@ -46,11 +46,17 @@ enum Handler {
     OnProcessedNode,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Copy)]
+enum Info {
+    None,
+    Inline,
+}
+
 impl<T: Attrs> Node<T> {
     pub fn new(attrs: T) -> Node<T> {
         Node {
             attrs: attrs,
-            inline: false,
+            info: Info::None,
             children: Vec::new(),
             meta: None,
         }
@@ -59,7 +65,7 @@ impl<T: Attrs> Node<T> {
     pub fn new_with_meta(attrs: T, meta: Option<Meta>) -> Node<T> {
         Node {
             attrs: attrs,
-            inline: false,
+            info: Info::None,
             children: Vec::new(),
             meta: meta,
         }
@@ -68,7 +74,7 @@ impl<T: Attrs> Node<T> {
     pub fn new_with_children(attrs: T, children: Vec<Node<T>>) -> Node<T> {
         Node {
             attrs: attrs,
-            inline: false,
+            info: Info::None,
             children: children.into_iter().map(|n| Box::new(n)).collect(),
             meta: None,
         }
@@ -143,16 +149,17 @@ impl<T: Attrs> Node<T> {
                 // this and remove the wrapper to inline the contained nodes.
                 Return::Unwrap => {
                     open_nodes.push((
-                        Node::inline(node.children.clone(), node.attrs.clone()),
+                        Node::info(node.children.clone(), node.attrs.clone(), Info::Inline),
                         PostProcessAction::None,
                     ));
                     to_be_processed.push(vec![]);
                 }
                 Return::Inline(nodes) => {
                     open_nodes.push((
-                        Node::inline(
+                        Node::info(
                             nodes.into_iter().map(|n| Box::new(n)).collect(),
                             node.attrs.clone(),
+                            Info::Inline,
                         ),
                         PostProcessAction::None,
                     ));
@@ -160,7 +167,7 @@ impl<T: Attrs> Node<T> {
                 }
                 Return::InlineBoxed(nodes) => {
                     open_nodes.push((
-                        Node::inline(nodes, node.attrs.clone()),
+                        Node::info(nodes, node.attrs.clone(), Info::Inline),
                         PostProcessAction::None,
                     ));
                     to_be_processed.push(vec![]);
@@ -196,9 +203,10 @@ impl<T: Attrs> Node<T> {
 
                 Return::InlineWithProcessedChildren(nodes) => {
                     open_nodes.push((
-                        Node::inline(
+                        Node::info(
                             nodes.into_iter().map(|n| Box::new(n)).collect(),
                             node.attrs.clone(),
+                            Info::Inline,
                         ),
                         PostProcessAction::None,
                     ));
@@ -224,23 +232,28 @@ impl<T: Attrs> Node<T> {
                     match action {
                         PostProcessAction::None => {}
                         PostProcessAction::Unwrap => {
-                            node = Node::inline(node.children, node.attrs);
+                            node = Node::info(node.children, node.attrs, Info::Inline);
                         }
                     }
 
-                    // Call the end of block handler, giving the processor a chance to do any
-                    // internal clean up or inject some more nodes at the end
-                    //if let Some(n) = self.process_(processor, Handler::OnEndOfBlock)? {
-                    //    if n.inline {
-                    //        for c in n.children {
-                    //            node.add_child(*c);
-                    //        }
-                    //    } else {
-                    //        node.add_child(n);
-                    //    }
-                    //}
-
                     if matches!(handler, Handler::OnNode) {
+                        // Call the end of block handler, giving the processor a chance to do any
+                        // internal clean up or inject some more nodes at the end
+                        //
+                        // This is being kept around for legacy compatibility, the on_processed_node handler
+                        // is the preferred way to do this now.
+                        if let Some(n) = self.process_(processor, Handler::OnEndOfBlock)? {
+                            if matches!(n.info, Info::Inline) {
+                                for c in n.children {
+                                    node.add_child(*c);
+                                }
+                            } else {
+                                node.add_child(n);
+                            }
+                        }
+
+                        // Call the on_processed_node handler, giving the processor a chance to work on this
+                        // node now that its children have been processed
                         if let Some(n) = node.process_(processor, Handler::OnProcessedNode)? {
                             node = n;
                         } else {
@@ -249,14 +262,14 @@ impl<T: Attrs> Node<T> {
                     }
 
                     if open_nodes.is_empty() {
-                        if node.inline && node.children.len() == 1 {
+                        if matches!(node.info, Info::Inline) && node.children.len() == 1 {
                             return Ok(Some(*node.children[0].clone()));
                         } else {
                             return Ok(Some(node));
                         }
                     } else {
                         let (parent, _) = open_nodes.last_mut().unwrap();
-                        if node.inline {
+                        if matches!(node.info, Info::Inline) {
                             for c in node.children {
                                 parent.add_child(*c);
                             }
@@ -279,14 +292,16 @@ impl<T: Attrs> Node<T> {
         }
     }
 
-    fn inline(nodes: Vec<Box<Node<T>>>, example_attrs: T) -> Node<T> {
+    /// Creates a new node which is used to pass information back to a caller, this is a hack to pass
+    /// flow control information back when the return type is a Result<Option<Node<T>>>
+    fn info(nodes: Vec<Box<Node<T>>>, example_attrs: T, info: Info) -> Node<T> {
         Node {
             // This example_attrs argument requirement is ugly, but required without significant
             // upstream changes. The attrs will be ignored downstream whenever inline = true and this
             // is purely to support this working with any type of Node.
             // Also this is an internal function and so we can live with it.
             attrs: example_attrs,
-            inline: true,
+            info: info,
             meta: None,
             children: nodes,
         }
@@ -420,7 +435,7 @@ impl<T: Attrs> Node<T> {
         let mut nodes: Vec<Box<Node<T>>> = Vec::new();
         for child in &self.children {
             if let Some(node) = child.process(processor)? {
-                if node.inline {
+                if matches!(node.info, Info::Inline) {
                     for c in node.children {
                         nodes.push(c);
                     }
@@ -432,7 +447,7 @@ impl<T: Attrs> Node<T> {
         // Call the end of block handler, giving the processor a chance to do any
         // internal clean up or inject some more nodes at the end
         if let Some(node) = self.process_(processor, Handler::OnEndOfBlock)? {
-            if node.inline {
+            if matches!(node.info, Info::Inline) {
                 for c in node.children {
                     nodes.push(c);
                 }
@@ -448,7 +463,7 @@ impl<T: Attrs> Node<T> {
         let mut nodes: Vec<Node<T>> = Vec::new();
         for child in &self.children {
             if let Some(node) = child.process(processor)? {
-                if node.inline {
+                if matches!(node.info, Info::Inline) {
                     for c in node.children {
                         nodes.push(*c);
                     }
@@ -460,7 +475,7 @@ impl<T: Attrs> Node<T> {
         // Call the end of block handler, giving the processor a chance to do any
         // internal clean up or inject some more nodes at the end
         if let Some(node) = self.process_(processor, Handler::OnEndOfBlock)? {
-            if node.inline {
+            if matches!(node.info, Info::Inline) {
                 for c in node.children {
                     nodes.push(*c);
                 }
@@ -481,7 +496,7 @@ impl<T: Attrs> Node<T> {
     pub fn replace_children(&self, nodes: Vec<Box<Node<T>>>) -> Node<T> {
         let new_node = Node {
             attrs: self.attrs.clone(),
-            inline: self.inline,
+            info: self.info,
             meta: self.meta.clone(),
             children: nodes,
         };
@@ -493,7 +508,7 @@ impl<T: Attrs> Node<T> {
     pub fn replace_unboxed_children(&self, nodes: Vec<Node<T>>) -> Node<T> {
         let new_node = Node {
             attrs: self.attrs.clone(),
-            inline: self.inline,
+            info: self.info,
             meta: self.meta.clone(),
             children: nodes.into_iter().map(|n| Box::new(n)).collect(),
         };
@@ -505,7 +520,7 @@ impl<T: Attrs> Node<T> {
     pub fn replace_attrs(&self, attrs: T) -> Node<T> {
         let new_node = Node {
             attrs: attrs,
-            inline: self.inline,
+            info: self.info,
             meta: self.meta.clone(),
             children: self.children.clone(),
         };
@@ -533,7 +548,7 @@ impl<T: Attrs> Node<T> {
                 Some(x) => x,
                 None => self.attrs.clone(),
             },
-            inline: self.inline,
+            info: self.info,
             children: match children {
                 Some(x) => x,
                 None => self.children.clone(),
