@@ -1,6 +1,6 @@
 use crate::stil;
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, PartialEq, Serialize, Debug)]
 pub enum STIL {
     Root,
     SourceFile(String),
