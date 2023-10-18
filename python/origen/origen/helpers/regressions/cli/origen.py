@@ -226,7 +226,10 @@ class GlobalCommands(CoreCommands):
     pls = _CommonNames.pls_cmd()
     pl = _CommonNames.pl_cmd()
     # proj = Cmd(names.proj)
-    # new = Cmd(names.new)
+    new = Cmd(
+        names.new,
+        help="Create a new origen environment (e.g., app, workspace)",
+    )
     creds = _CommonNames.creds_cmd()
     i = _CommonNames.interactive_cmd()
     # fmt = Cmd(names.fmt)
@@ -234,9 +237,8 @@ class GlobalCommands(CoreCommands):
     v = _CommonNames.v_cmd()
 
     commands = [
-        # proj, new, creds, eval, exec, i,
-        # pls, pl, aux_cmds, fmt, build
-        creds, eval, exec, i,
+        # proj, fmt, build
+        creds, eval, exec, i, new,
         pls, pl, aux_cmds,
    ]
     cmds = commands

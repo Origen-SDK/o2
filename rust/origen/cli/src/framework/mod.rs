@@ -4,6 +4,7 @@ pub mod plugins;
 pub mod aux_cmds;
 pub mod app_cmds;
 pub mod core_cmds;
+pub mod cmd_gen_helpers;
 
 use std::collections::HashMap;
 use origen_metal::indexmap::IndexMap;

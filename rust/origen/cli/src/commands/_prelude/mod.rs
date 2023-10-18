@@ -10,6 +10,7 @@ pub use crate::framework::{
 };
 pub use crate::framework::core_cmds::SubCmd;
 pub use crate::{output_dir_opt, ref_dir_opt};
+pub use crate::{req_sv_arg, sv_opt};
 
 // TODO clap4.0 remove after update to next clap version
 pub type RunInput<'a> = &'a clap::ArgMatches;

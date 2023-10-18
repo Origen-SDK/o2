@@ -94,6 +94,19 @@ pub fn log_stderr(process: &mut std::process::Child, mut callback: Option<&mut d
         });
 }
 
+#[macro_export]
+macro_rules! new_cmd {
+    ($base_cmd:expr) => {{
+        if cfg!(windows) {
+            let mut c = Command::new("cmd");
+            c.arg(r"/c").arg($base_cmd);
+            c
+        } else {
+            Command::new($base_cmd)
+        }
+    }};
+}
+
 pub fn exec<S: Into<String> + Clone>(
     cmd: Vec<S>,
     capture: bool,

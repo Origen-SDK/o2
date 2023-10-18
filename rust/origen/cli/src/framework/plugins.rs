@@ -64,21 +64,22 @@ impl Plugins {
                                             slf.plugins.insert(name.to_string(), pl);
                                         },
                                         Err(e) => {
-                                            log_error!("{}", e);
-                                            log_error!("Unable to collect plugin {}", path);
+                                            log_trace!("Error collecting plugins: Unable to collect plugin {}: {}", path, e);
                                         }
                                     }
                                 } else {
-                                    log_error!("Malformed output when collecting plugin roots (post status): {}", result)
+                                    log_trace!("Error collecting plugins: Malformed output when collecting plugin roots (post status): {}", result)
                                 }
                             },
-                            _ => log_error!("Unknown status when collecting plugin roots: {}", status)
+                            _ => log_trace!("Error collecting plugins: Unknown status when collecting plugin roots: {}", status)
                         }
                     } else {
-                        log_error!("Malformed output encountered when collecting plugin roots: {}", line);
+                        log_trace!("Error collecting plugins: Malformed output encountered when collecting plugin roots: {}", line);
                     }
                 }),
-                None,
+                Some(&mut |line| {
+                    log_trace!("Error when collecting plugins: {}", line);
+                }),
             )?;
             Ok(Some(slf))
         } else {

@@ -50,6 +50,7 @@ aes-gcm = "0.8"
 semver = "1.0.1"
 glob = "0.3.0"
 email_address = "0.2.4"
+tera = "1"
 
 [build-dependencies]
 built = "0.5.2"

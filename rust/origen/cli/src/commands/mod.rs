@@ -4,7 +4,7 @@ pub mod exec;
 // pub mod fmt;
 pub mod interactive;
 // pub mod mode;
-// pub mod new;
+pub mod new;
 // pub mod proj;
 // pub mod save_ref;
 pub mod target;
