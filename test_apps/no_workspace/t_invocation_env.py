@@ -60,7 +60,7 @@ class T_InvocationBaseTests(CLI):
             code = [code]
         out = CLI.global_cmds.eval.run(*code)
         out = out.split("\n")
-        idx = out.index(self.header)
+        idx = next(i for i, l in enumerate(out) if l.endswith(self.header))
         return eval(out[idx+1])
 
     def get_status(self):

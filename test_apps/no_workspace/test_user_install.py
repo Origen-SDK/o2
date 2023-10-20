@@ -126,5 +126,5 @@ class TestErrorCasesWithFallback():
             out = T_InvocationBaseTests.global_cmds.eval.run("1==1", run_opts={"return_details": True})
             err = f"Invalid TOML file {self.malformed_pyproject.joinpath('pyproject.toml').as_posix()}"
             assert err in out["stderr"]
-            errors = T_InvocationBaseTests.extract_logged_errors(out["stdout"])
-            assert err in errors[1]
+            assert out["stdout"] == ''
+
