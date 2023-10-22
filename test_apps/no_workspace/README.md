@@ -41,7 +41,7 @@ pip install python/origen_metal
 pip install pytest==7.2.1
 ~~~
 
-### Run Som Tests
+### Run Some Tests
 ~~~
 pytest test_no_workspace.py::TestNoWorkspaceNoPlugins -vv
 ~~~
