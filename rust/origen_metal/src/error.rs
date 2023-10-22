@@ -233,3 +233,9 @@ impl std::convert::From<std::str::ParseBoolError> for Error {
         Error::new(&err.to_string())
     }
 }
+
+impl std::convert::From<tera::Error> for Error {
+    fn from(err: tera::Error) -> Self {
+        Error::new(&err.to_string())
+    }
+}

@@ -228,8 +228,17 @@ fn main() -> Result<()> {
     let plugins = match Plugins::new(&mut extensions) {
         Ok(pl) => pl,
         Err(e) => {
-            log_error!("Failed to collect plugins. Encountered error: {}", e);
-            None
+            if python::is_backend_origen_mod_missing_err(&e) {
+                // _origen is available but plugins failed to load
+                log_error!("Failed to collect plugins. Encountered error: {}", e);
+                None
+            } else {
+                // _origen isn't available. This could be an error is retrieving plugins.
+                // Print a warning instead of error, while logging the error
+                log_trace!("Failed to collect plugins. Encountered error: {}", e);
+                log_warning!("Failed to collect plugins: _origen module missing");
+                None
+            }
         }
     };
     let aux_cmds = AuxCmds::new(&mut extensions)?;
@@ -428,6 +437,8 @@ fn main() -> Result<()> {
         commands::env::add_helps(&mut helps);
         commands::generate::add_helps(&mut helps);
         commands::target::add_helps(&mut helps);
+    } else {
+        commands::new::add_helps(&mut helps);
     }
 
     if STATUS.is_origen_present {
@@ -789,6 +800,8 @@ fn main() -> Result<()> {
 //                         .help("Update all CHANGED file references from the last generate run"),
 //                 ),
 //         );
+    } else {
+        app = commands::new::add_commands(app, &helps, &extensions)?;
     }
 
     let mut all_cmds_and_aliases = vec![];
@@ -1021,7 +1034,7 @@ fn main() -> Result<()> {
 
     match matches.subcommand_name() {
         Some(commands::app::BASE_CMD) => commands::app::run(matches.subcommand_matches(commands::app::BASE_CMD).unwrap(), &app, &extensions, plugins.as_ref(), &app_cmds.as_ref().unwrap())?,
-        // Some("new") => commands::new::run(matches.subcommand_matches("new").unwrap()),
+        Some(commands::new::BASE_CMD) => run_non_ext_cmd_match_case!(new),
         // Some("proj") => commands::proj::run(matches.subcommand_matches("proj").unwrap()),
         Some(commands::env::BASE_CMD) => run_non_ext_cmd_match_case!(env),
         Some(commands::eval::BASE_CMD) => run_cmd_match_case!(eval),

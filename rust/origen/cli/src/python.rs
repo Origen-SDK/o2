@@ -3,6 +3,7 @@ use crate::built_info;
 use origen::{Result, STATUS};
 use origen::core::status::DependencySrc;
 use origen_metal::utils::file::search_backwards_for_first;
+use origen_metal::new_cmd;
 use semver::Version;
 use std::env;
 use std::path::PathBuf;
@@ -103,7 +104,7 @@ pub fn resolve_pyproject() -> Result<DependencySrc> {
 impl Config {
     pub fn base_cmd(&self) -> Command {
         let dep_src = STATUS.dependency_src();
-        let mut c = Command::new(&self.command);
+        let mut c = new_cmd!(&self.command);
 
         if let Some(dep_src) = dep_src.as_ref() {
             match dep_src {
@@ -207,10 +208,12 @@ impl Default for Config {
             Err(e) => log_error!("Errors encountered resolving pyproject: {}", e)
         }
         for cmd in PYTHONS.iter() {
+            log_trace!("Searching for installed python at '{}'", cmd);
             match get_version(cmd) {
                 Some(version) => {
                     available = true;
                     if version >= Version::parse(MIN_PYTHON_VERSION).unwrap() {
+                        log_trace!("Found python version '{}'", cmd);
                         return Config {
                             available: true,
                             command: cmd.to_string(),
@@ -228,7 +231,7 @@ impl Default for Config {
         }
         Config {
             available: false,
-            command: String::new(),
+            command: String::from("python"),
             version: Version::parse("0.0.0").unwrap(),
             error: msg,
         }
@@ -258,7 +261,7 @@ pub fn virtual_env() -> Result<PathBuf> {
 
 /// Get the Python version from the given command
 fn get_version(command: &str) -> Option<Version> {
-    match Command::new(command).arg("--version").output() {
+    match new_cmd!(command).arg("--version").output() {
         Ok(output) => return extract_version(std::str::from_utf8(&output.stdout).unwrap()),
         Err(_e) => return None,
     }
@@ -266,8 +269,6 @@ fn get_version(command: &str) -> Option<Version> {
 
 /// Returns the version of poetry (obtained from running "poetry --version")
 pub fn poetry_version() -> Option<Version> {
-    //log_trace!("Executing command: {} --version", &PYTHON_CONFIG.poetry_command);
-    //match Command::new(&PYTHON_CONFIG.poetry_command)
     match &PYTHON_CONFIG.poetry_command().arg("--version").output() {
         Ok(output) => {
             let text = std::str::from_utf8(&output.stdout).unwrap();
@@ -386,6 +387,10 @@ pub fn add_origen_env(cmd: &mut Command) {
             ),
         );
     }
+}
+
+pub fn is_backend_origen_mod_missing_err(err: &origen::Error) -> bool {
+    err.to_string().contains("ModuleNotFoundError: No module named '_origen'")
 }
 
 #[cfg(test)]
