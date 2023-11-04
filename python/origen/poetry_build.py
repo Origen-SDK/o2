@@ -1,54 +1,39 @@
-import pathlib, shutil, os
+import pathlib, shutil, os, platform
+from build_helpers import windows, compile_rust
 
 if __name__ == '__main__':
-    # Not needed during regression testing
-    if os.getenv("GITHUB_WORKFLOW", "") == "publish":
-        current = pathlib.Path(__file__).parent.absolute()
-        rust_build_target = os.getenv("ORIGEN__BUILD_TARGET", "release")
-        copy_build_target = os.getenv("ORIGEN__COPY_BUILD_TARGET", True)
-        if copy_build_target == "0":
-            copy_build_target = False
+    # if os.getenv("GITHUB_WORKFLOW", "") == "publish":
+    origen_pkg_root = pathlib.Path(__file__).parent.absolute()
+    origen_pkg_lib = origen_pkg_root.joinpath(f"_origen.{'pyd' if windows else 'so'}")
 
-        # Package the CLI
-        cli_src = current.joinpath(f"../rust/origen/target/{rust_build_target}")
-        if cli_src.joinpath("origen.exe").exists():
-            # Windows
-            cli_src = cli_src.joinpath("origen.exe")
-        elif cli_src.joinpath("origen").exists():
-            cli_src = cli_src.joinpath("origen")
-        else:
-            raise RuntimeError(f"Could not locate built CLI in {cli_src}")
-        cli_pkg_dir = current.joinpath("origen/__bin__/bin")
-        cli_pkg_dir.mkdir(parents=True, exist_ok=True)
+    rust_build_target = os.getenv("ORIGEN__BUILD_TARGET", "release")
+    build_lib = os.getenv("ORIGEN__BUILD_LIB", True)
+    copy_lib = os.getenv("ORIGEN__COPY_LIB", True)
+    if copy_lib == "0":
+        copy_lib = False
+    origen_lib_src = origen_pkg_root.joinpath("../../rust/pyapi")
+    origen_lib_target = origen_lib_src.joinpath(f"target/{rust_build_target}/_origen.{'dll' if windows else 'so'}")
+    build_cli = os.getenv("ORIGEN__BUILD_CLI", True)
+    copy_cli = os.getenv("ORIGEN__COPY_CLI", True)
+    if copy_cli == "0":
+        copy_cli = False
+    origen_cli_src = origen_pkg_root.joinpath("../../rust/origen")
+    origen_cli_target = origen_cli_src.joinpath(f"target/{rust_build_target}/origen{'.exe' if windows else ''}")
+    origen_cli_pkg_dir = origen_pkg_root.joinpath("origen/__bin__/bin")
 
-        print(f"Copying CLI for packaging ({cli_src} to {cli_pkg_dir})")
-        shutil.copy2(cli_src, cli_pkg_dir)
+    # Build and copy Origen CLI
+    if build_cli:
+        compile_rust(origen_cli_src, rust_build_target, True)
+    if copy_cli:
+        print(f"Copying CLI for packaging from ({origen_cli_target} to {origen_cli_pkg_dir})")
+        shutil.copy2(origen_cli_target, origen_cli_pkg_dir)
 
-        # Package the _origen compiled library
-        # For debugging the process locally, especially when we just want to make sure
-        # the process is more or less working, we can't override the running library
-        # with the target one. So, just assume all is well when running for debugging reasons,
-        # or run the poetry build command manually to build the package.
-        if copy_build_target:
-            _origen_src = current.joinpath(
-                f"../rust/pyapi/target/{rust_build_target}")
-            if _origen_src.joinpath("_origen.dll").exists():
-                # Windows
-                _origen_pkg = current.joinpath("_origen.pyd")
-                _origen_src = _origen_src.joinpath("_origen.dll")
-            elif _origen_src.joinpath("lib_origen.so").exists():
-                _origen_pkg = current.joinpath("_origen.so")
-                _origen_src = _origen_src.joinpath("lib_origen.so")
-            else:
-                raise RuntimeError(
-                    f"Could not locate compiled library in {_origen_src}")
-            print(
-                f"Copying _origen library for packaging ({_origen_src} to {_origen_pkg})"
-            )
-            shutil.copy2(_origen_src, _origen_pkg)
-        else:
-            print("Skipping copy of built library")
-
+    # Build and copy Origen library
+    if build_lib:
+        compile_rust(origen_lib_src, rust_build_target, False)
+    if copy_lib:
+        print(f"Copying CLI for packaging ({origen_lib_target} to {origen_pkg_lib})")
+        shutil.copy2(origen_lib_target, origen_pkg_lib)
 
 def build(arg):
     # This method is called during install. Very important this is defined and

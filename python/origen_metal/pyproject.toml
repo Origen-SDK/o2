@@ -3,6 +3,10 @@ name = "origen_metal"
 version = "0.4.0"
 description = "Bare metal APIs for the Origen SDK"
 authors = ["Origen-SDK"]
+include = [
+    "origen_metal/_origen_metal.pyd", # Windows
+    "origen_metal/_origen_metal.so", # Linux
+]
 
 [tool.poetry.dependencies]
 python = ">=3.7.0,<=3.12"
@@ -22,3 +26,7 @@ markers = [
     "online: marks tests as requiring an internet connection",
     "ldap: marks tests requiring/using the external ldap",
 ]
+
+[tool.poetry.build]
+script = "poetry_build.py"
+generate-setup-file = false

@@ -14,9 +14,6 @@ log/
 .vscode
 /test_apps/python_app/example/templates/dut_info.txt
 /test_apps/**/.session
-/python/origen/dist
-/python/origen_metal/dist
-/python/origen_metal/build
 rls/
 .pytest_cache
 
@@ -38,6 +35,12 @@ rls/
 # Output files from regressions
 python/origen/templates/dut_info.txt
 test_apps/no_workspace/templates/output/
+
+# Packaging artifacts
+/python/origen/dist
+/python/origen/1.0.0
+/python/origen_metal/dist
+/python/origen_metal/build
 
 # Bin directory for packaging
 python/origen/origen/__bin__/bin/*

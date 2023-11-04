@@ -2255,6 +2255,7 @@ dependencies = [
  "serde_json",
  "shellexpand",
  "tempfile",
+ "tera",
  "termcolor",
  "time 0.1.44",
  "toml",
