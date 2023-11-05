@@ -13,7 +13,7 @@ if __name__ == '__main__':
         if copy_lib == "0":
             copy_lib = False
         origen_lib_src = origen_pkg_root.joinpath("../../rust/pyapi")
-        origen_lib_target = origen_lib_src.joinpath(f"target/{rust_build_target}/_origen.{'dll' if windows else 'so'}")
+        origen_lib_target = origen_lib_src.joinpath(f"target/{rust_build_target}/{'' if windows else 'lib'}_origen.{'dll' if windows else 'so'}")
         build_cli = os.getenv("ORIGEN__BUILD_CLI", True)
         copy_cli = os.getenv("ORIGEN__COPY_CLI", True)
         if copy_cli == "0":

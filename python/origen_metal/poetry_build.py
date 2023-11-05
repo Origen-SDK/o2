@@ -1,6 +1,7 @@
 import pathlib, shutil, os, sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.joinpath("origen")))
+import build_helpers
 from build_helpers import windows, compile_rust, publish_step, ls_dir
 
 if __name__ == '__main__':
@@ -15,7 +16,7 @@ if __name__ == '__main__':
             copy_build_target = False
         om_lib_src = om_pkg_root.joinpath("../../rust/pyapi_metal")
         om_lib_target = om_lib_src.joinpath(f"target/{rust_build_target}")
-        om_lib_target = om_lib_target.joinpath(f"origen_metal.{'dll' if windows else 'so'}")
+        om_lib_target = om_lib_target.joinpath(f"{'' if windows else 'lib'}origen_metal.{'dll' if windows else 'so'}")
         compile_lib = os.getenv("ORIGEN_METAL__COMPILE_LIB", True)
 
         if compile_lib:
