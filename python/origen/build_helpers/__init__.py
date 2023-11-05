@@ -8,7 +8,7 @@ elif origen_publish_step_env == 1 :
     publish_step = True
 else:
     publish_step = \
-        os.getenv("GITHUB_WORKFLOW", "") == "publish"
+        os.getenv("GITHUB_WORKFLOW", "") == "Publish Packages"
         # or "PEP517_BUILD_BACKEND" not in os.environ
 
 def compile_rust(dir, target=None, workspace=False):
