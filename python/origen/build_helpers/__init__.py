@@ -8,8 +8,8 @@ elif origen_publish_step_env == 1 :
     publish_step = True
 else:
     publish_step = \
-        os.getenv("GITHUB_WORKFLOW", "") == "publish" \
-        or "PEP517_BUILD_BACKEND" not in os.environ
+        os.getenv("GITHUB_WORKFLOW", "") == "publish"
+        # or "PEP517_BUILD_BACKEND" not in os.environ
 
 def compile_rust(dir, target=None, workspace=False):
     cmd = ['cargo', 'build']
@@ -28,3 +28,13 @@ def compile_rust(dir, target=None, workspace=False):
     if compile_result.returncode != 0:
         print(f"Failed to build target from {dir}. Received return code {compile_result.returncode}")
         exit(1)
+
+def ls_dir(dir):
+    print(f"Showing directory: {dir}")
+    subprocess.run(
+        ["dir" if windows else "ls"],
+        stderr=sys.stderr,
+        stdout=sys.stdout,
+        cwd=dir,
+        shell=windows,
+    )

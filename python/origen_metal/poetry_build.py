@@ -1,7 +1,7 @@
 import pathlib, shutil, os, sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.joinpath("origen")))
-from build_helpers import windows, compile_rust, publish_step
+from build_helpers import windows, compile_rust, publish_step, ls_dir
 
 if __name__ == '__main__':
     if publish_step:
@@ -22,6 +22,7 @@ if __name__ == '__main__':
             compile_rust(om_lib_src, rust_build_target, False)
         if copy_build_target:
             print(f"Copying compiled library '{om_lib_target}' to '{om_lib}'")
+            ls_dir(om_lib_target.parent)
             shutil.copy2(om_lib_target, om_lib)
 
         # Final check that compiled library is present

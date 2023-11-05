@@ -1,5 +1,5 @@
 import pathlib, shutil, os
-from build_helpers import windows, compile_rust, publish_step
+from build_helpers import windows, compile_rust, publish_step, ls_dir
 
 if __name__ == '__main__':
     if publish_step:
@@ -27,6 +27,7 @@ if __name__ == '__main__':
             compile_rust(origen_cli_src, rust_build_target, True)
         if copy_cli:
             print(f"Copying CLI for packaging from ({origen_cli_target} to {origen_cli_pkg_dir})")
+            ls_dir(origen_cli_target.parent)
             shutil.copy2(origen_cli_target, origen_cli_pkg_dir)
 
         # Build and copy Origen library
@@ -34,6 +35,7 @@ if __name__ == '__main__':
             compile_rust(origen_lib_src, rust_build_target, False)
         if copy_lib:
             print(f"Copying CLI for packaging ({origen_lib_target} to {origen_pkg_lib})")
+            ls_dir(origen_lib_target.parent)
             shutil.copy2(origen_lib_target, origen_pkg_lib)
         print("Libraries built!")
     else:
