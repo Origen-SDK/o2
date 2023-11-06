@@ -1,6 +1,7 @@
 import pathlib, shutil, os, sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.joinpath("origen")))
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.joinpath("origen").joinpath("build_helpers")))
 import build_helpers
 from build_helpers import windows, compile_rust, publish_step, ls_dir
 
