@@ -152,6 +152,14 @@ jobs:
           echo ""
           poetry run where.exe origen
 
+      # TODO GA: Add to build script?
+      - name: Move Origen executable (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cp rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+      - name: Move Origen executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cp rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
+
       # # TODO GA: Regressions: need to see why this is the case and come up with a better solution
       # - name: Remove Poetry's Origen Wrapper (Linux)
       #   if: matrix.os == 'ubuntu-latest'
