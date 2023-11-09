@@ -152,15 +152,15 @@ jobs:
           echo ""
           poetry run where.exe origen
 
-      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
-      - name: Remove Poetry's Origen Wrapper (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_app
-        run: poetry run which origen | xargs rm
-      - name: Remove Poetry's Origen Wrapper (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_app
-        run: poetry run where.exe origen | select -first 1 | rm
+      # # TODO GA: Regressions: need to see why this is the case and come up with a better solution
+      # - name: Remove Poetry's Origen Wrapper (Linux)
+      #   if: matrix.os == 'ubuntu-latest'
+      #   working-directory: test_apps/python_app
+      #   run: poetry run which origen | xargs rm
+      # - name: Remove Poetry's Origen Wrapper (Windows)
+      #   if: matrix.os == 'windows-latest'
+      #   working-directory: test_apps/python_app
+      #   run: poetry run where.exe origen | select -first 1 | rm
 
       - name: Show Origen Binary Location (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -223,15 +223,15 @@ jobs:
           echo ""
           poetry run where.exe origen
 
-      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
-      - name: Remove Poetry's Origen Wrapper (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_no_app
-        run: poetry run which origen | xargs rm
-      - name: Remove Poetry's Origen Wrapper (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_no_app
-        run: poetry run where.exe origen | select -first 1 | rm
+      # # TODO GA: Regressions: need to see why this is the case and come up with a better solution
+      # - name: Remove Poetry's Origen Wrapper (Linux)
+      #   if: matrix.os == 'ubuntu-latest'
+      #   working-directory: test_apps/python_no_app
+      #   run: poetry run which origen | xargs rm
+      # - name: Remove Poetry's Origen Wrapper (Windows)
+      #   if: matrix.os == 'windows-latest'
+      #   working-directory: test_apps/python_no_app
+      #   run: poetry run where.exe origen | select -first 1 | rm
 
       - name: Show Origen Binary Location (Linux)
         if: matrix.os == 'ubuntu-latest'
