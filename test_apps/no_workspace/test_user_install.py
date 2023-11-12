@@ -11,7 +11,6 @@ class TestUserInstall(T_InvocationEnv):
         cls.target_pyproj_dir = cls.user_install_dir
         cls.move_pyproject = False
         cls.invocation = PyProjectSrc.UserGlobal
-        cls.cli_dir = cls.debug_cli_dir
         cls.file_based_evals = True
 
     @classmethod
