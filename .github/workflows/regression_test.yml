@@ -296,9 +296,9 @@ jobs:
       - name: Get Pytest Version (Check Install)
         run: pytest --version
 
-      - name: Run User-Global Invocation Tests
-        working-directory: test_apps/no_workspace
-        run: pytest test_user_install.py::TestUserInstall -vv
+      # - name: Run User-Global Invocation Tests
+      #   working-directory: test_apps/no_workspace
+      #   run: pytest test_user_install.py::TestUserInstall -vv
 
       # TODO GA: Regressions: eventually want to move this into a poetry build step
       # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
@@ -309,6 +309,10 @@ jobs:
       - name: Move Origen executable (Windows)
         if: matrix.os == 'windows-latest'
         run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
+
+      - name: Run User-Global Invocation Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_user_install.py::TestUserInstall -vv
 
       # TODO GA: Regressions: not sure why, but the tmp directory in origen_metal causes some issues
       # For now, just removing it.
