@@ -176,7 +176,7 @@ jobs:
           run: ls -al ./wheels
 
         - name: Generate Github Release
-          if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+          if: ${{ github.event.inputs.publish_github_release == 'true' }}
           uses: ncipollo/release-action@v1
           with:
             artifacts: ./wheels
