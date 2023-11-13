@@ -310,10 +310,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
-      - name: Run User-Global Invocation Tests
-        working-directory: test_apps/no_workspace
-        run: pytest test_user_install.py::TestUserInstall -vv
-
       # TODO GA: Regressions: not sure why, but the tmp directory in origen_metal causes some issues
       # For now, just removing it.
       - name: Remove origen_metal tmp Directory
@@ -337,6 +333,10 @@ jobs:
       - name: Show Origen Binary Location (Windows)
         if: matrix.os == 'windows-latest'
         run: where.exe origen
+
+      - name: Run User-Global Invocation Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_user_install.py::TestUserInstall -vv
 
       # Should be no pyprojects in the root so far. Start with no-workspace tests
       - name: Run No-Workspace-No-Plugins Tests

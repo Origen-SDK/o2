@@ -12,6 +12,7 @@ class TestUserInstall(T_InvocationEnv):
         cls.move_pyproject = False
         cls.invocation = PyProjectSrc.UserGlobal
         cls.file_based_evals = True
+        cls.cli_dir = cls.site_cli_dir
 
     @classmethod
     def setup_method(cls):
