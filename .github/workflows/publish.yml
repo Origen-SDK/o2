@@ -20,10 +20,14 @@ on:
         description: Publish To PyPI Test Server
         required: true
         default: "false"
-    #   publish_github_release:
-    #     description: Publish built packages to Github Release page
-    #     required: true
-    #     default: false
+      publish_github_release:
+        description: Publish built packages to Github Release page
+        required: true
+        default: "false"
+      prerelease:
+        description: Indicate that any release is a pre/dev release
+        required: true
+        default: "true"
 jobs:
   build:
     strategy:
@@ -83,7 +87,7 @@ jobs:
       - name: Upload Origen Metal Python Package Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: origen-metal-wheels
+          name: wheels
           path: python/origen_metal/dist/origen_metal*
 
       # - name: Build Origen CLI
@@ -124,7 +128,7 @@ jobs:
       - name: Upload Origen Python Package Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: origen-wheels
+          name: wheels
           path: python/origen/dist/origen*
 
       # - name: "Publish To PyPi"
@@ -159,3 +163,22 @@ jobs:
       #   run: |
       #     echo "Publishing to Github Releases"
       #   # ...
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/download-artifact@v3
+          with:
+            name: wheels
+            path: wheels
+
+        - name: Check wheels directory
+          run: ls -al ./wheels
+
+        - name: Generate Github Release
+          if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+          uses: ncipollo/release-action@v1
+          with:
+            artifacts: ./wheels
+            artifactErrorsFailBuild: true
+            prerelease: ${{ github.event.inputs.prerelease == 'true' }}
