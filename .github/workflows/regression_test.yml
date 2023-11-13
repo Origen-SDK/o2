@@ -306,10 +306,12 @@ jobs:
       # Update: remove binary since it is being copied earlier.
       - name: Remove Origen executable (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: rm rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+        run: rm rust/origen/target/debug/origen
+#        run: rm rust/origen/target/debug/origen python/origen/origen/__bin__/bin
       - name: Remove Origen executable (Windows)
         if: matrix.os == 'windows-latest'
-        run: rm rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
+        run: rm rust/origen/target/debug/origen.exe
+#        run: rm rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
       # TODO GA: Regressions: not sure why, but the tmp directory in origen_metal causes some issues
       # For now, just removing it.
