@@ -185,3 +185,4 @@ jobs:
             artifactErrorsFailBuild: true
             prerelease: ${{ github.event.inputs.prerelease == 'true' }}
             commit: ${{ github.sha }}
+            tag: $(git rev-parse --short HEAD)
