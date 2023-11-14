@@ -174,8 +174,13 @@ jobs:
             name: wheels
             path: wheels
 
-        - name: Check wheels directory
-          run: ls -al ./wheels
+
+        - name: Figure Out Tag
+          run: |
+            echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+        - name: Display Tag
+          run: echo ${{ env.tag }}
 
         - name: Generate Github Release
           if: ${{ github.event.inputs.publish_github_release == 'true' }}
@@ -185,4 +190,4 @@ jobs:
             artifactErrorsFailBuild: true
             prerelease: ${{ github.event.inputs.prerelease == 'true' }}
             commit: ${{ github.sha }}
-            tag: $(git rev-parse --short HEAD)
+            tag: ${{ env.tag }}
