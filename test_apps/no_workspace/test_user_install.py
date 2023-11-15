@@ -11,8 +11,8 @@ class TestUserInstall(T_InvocationEnv):
         cls.target_pyproj_dir = cls.user_install_dir
         cls.move_pyproject = False
         cls.invocation = PyProjectSrc.UserGlobal
-        cls.cli_dir = cls.debug_cli_dir
         cls.file_based_evals = True
+        cls.cli_dir = cls.site_cli_dir
 
     @classmethod
     def setup_method(cls):
@@ -123,7 +123,7 @@ class TestErrorCasesWithFallback():
         def test_error_message(self):
             # Pyproject found but malformed should print the poetry errors as it tries to run.
             # Should not fall back to global install, even if its available. Pyproject should be fixed.
-            out = T_InvocationBaseTests.global_cmds.eval.run("1==1", run_opts={"return_details": True})
+            out = T_InvocationBaseTests.global_cmds.eval.gen_error("1==1", run_opts={"return_details": True}, return_full=True)
             err = f"Invalid TOML file {self.malformed_pyproject.joinpath('pyproject.toml').as_posix()}"
             assert err in out["stderr"]
             assert out["stdout"] == ''
