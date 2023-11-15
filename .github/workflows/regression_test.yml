@@ -160,16 +160,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: cp rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
-      # # TODO GA: Regressions: need to see why this is the case and come up with a better solution
-      # - name: Remove Poetry's Origen Wrapper (Linux)
-      #   if: matrix.os == 'ubuntu-latest'
-      #   working-directory: test_apps/python_app
-      #   run: poetry run which origen | xargs rm
-      # - name: Remove Poetry's Origen Wrapper (Windows)
-      #   if: matrix.os == 'windows-latest'
-      #   working-directory: test_apps/python_app
-      #   run: poetry run where.exe origen | select -first 1 | rm
-
       - name: Show Origen Binary Location (Linux)
         if: matrix.os == 'ubuntu-latest'
         working-directory: test_apps/python_app
@@ -231,30 +221,6 @@ jobs:
           echo ""
           poetry run where.exe origen
 
-      # # TODO GA: Regressions: need to see why this is the case and come up with a better solution
-      # - name: Remove Poetry's Origen Wrapper (Linux)
-      #   if: matrix.os == 'ubuntu-latest'
-      #   working-directory: test_apps/python_no_app
-      #   run: poetry run which origen | xargs rm
-      # - name: Remove Poetry's Origen Wrapper (Windows)
-      #   if: matrix.os == 'windows-latest'
-      #   working-directory: test_apps/python_no_app
-      #   run: poetry run where.exe origen | select -first 1 | rm
-
-      - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_no_app
-        run: |
-          which origen
-          poetry run which origen
-      - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_no_app
-        run: |
-          where.exe origen
-          echo ""
-          poetry run where.exe origen
-
       - name: Display Origen No-App Version
         working-directory: test_apps/python_no_app
         run: poetry run origen -vvv
@@ -271,11 +237,6 @@ jobs:
       - name: Build PyAPI - Metal
         run: origen origen build --metal
 
-      # - name: Install Poetry
-      #   uses: abatilo/actions-poetry@v2.0.0
-      #   with:
-      #     poetry-version: 1.1.14
-
       - name: Setup Python Env - Metal
         working-directory: python/origen_metal
         run: poetry install
@@ -285,7 +246,6 @@ jobs:
         run: poetry run pytest -vv
 
       - name: Run Rust Tests - Metal
-        if: matrix.python-version == 3.8
         working-directory: rust/origen_metal
         run: cargo test
 
