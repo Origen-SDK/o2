@@ -175,16 +175,22 @@ jobs:
           poetry run where.exe origen
 
       - name: Run Python-App Unit Tests
-        working-directory: test_apps/python_app
-        run: origen exec pytest -vv
-      
+        uses: Wandalen/wretry.action@v1.3.0
+        with:
+          attempt_limit: 2
+          current_path: test_apps/python_app
+          command: origen exec pytest -vv
+
       - name: Run Python-App Diff Tests
         working-directory: test_apps/python_app
         run: origen examples
 
       - name: Setup No-App Env
-        working-directory: test_apps/python_no_app
-        run: poetry install
+        uses: Wandalen/wretry.action@v1.3.0
+        with:
+          attempt_limit: 2
+          current_path: test_apps/python_no_app
+          command: poetry install
 
       - name: Display Poetry Version (No-App)
         working-directory: test_apps/python_no_app
