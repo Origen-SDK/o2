@@ -85,7 +85,7 @@ jobs:
         run: ls
 
       - name: Upload Origen Metal Python Package Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: python/origen_metal/dist/origen_metal*
@@ -126,7 +126,7 @@ jobs:
         run: ls
 
       - name: Upload Origen Python Package Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: python/origen/dist/origen*
@@ -188,7 +188,7 @@ jobs:
             echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
         - name: Display Tag
-          run: echo ${{ env.tag }}
+          run: echo commit-${{ env.tag }}
 
         - name: Generate Github Release
           if: ${{ github.event.inputs.publish_github_release == 'true' }}
