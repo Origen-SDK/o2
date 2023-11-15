@@ -5,9 +5,17 @@ on:
       origen_metal_python_package:
         description: Publish the Origen Metal python package
         default: "false"
+        type: choice
+        options:
+          - true
+          - false
       origen_python_package:
         description: Publish the Origen python package
         default: "false"
+        type: choice
+        options:
+          - true
+          - false
       # build_for_debug_target:
       #   description: If 'true', does not use the '--release' switch when building Rust libraries
       #   required: false
@@ -20,14 +28,26 @@ on:
         description: Publish To PyPI Test Server
         required: true
         default: "false"
+        type: choice
+        options:
+          - true
+          - false
       publish_github_release:
         description: Publish built packages to Github Release page
         required: true
         default: "false"
+        type: choice
+        options:
+          - true
+          - false
       prerelease:
         description: Indicate that any release is a pre/dev release
         required: true
         default: "true"
+        type: choice
+        options:
+          - true
+          - false
 jobs:
   build:
     strategy:
@@ -185,10 +205,10 @@ jobs:
 
         - name: Figure Out Tag
           run: |
-            echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+            echo "tag=commit-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
         - name: Display Tag
-          run: echo commit-${{ env.tag }}
+          run: echo ${{ env.tag }}
 
         - name: Generate Github Release
           if: ${{ github.event.inputs.publish_github_release == 'true' }}
