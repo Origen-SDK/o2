@@ -11,12 +11,13 @@ from origen.helpers.regressions.cli import CLI
 from types import ModuleType
 from pathlib import Path, PosixPath, WindowsPath
 
+sys.path.append(str(pathlib.Path(__file__).parent.parent.joinpath("test_apps_shared_test_helpers/test_apps_shared_test_helpers/cli")))
+from dirs import o2_root, cli_dir
+
 PyProjectSrc = _origen.infrastructure.pyproject.PyProjectSrc
 toml = "pyproject.toml"
 lockfile = "poetry.lock"
 no_workspace_test_dir = pathlib.Path(__file__).parent
-o2_root = no_workspace_test_dir.parent.parent
-debug_cli_dir = o2_root.joinpath(f"rust/origen/target/debug")
 eval_scripts_dir = no_workspace_test_dir.joinpath("eval_scripts")
 status_eval_script = eval_scripts_dir.joinpath("print_status.py")
 pl_names_eval_script = eval_scripts_dir.joinpath("print_pl_names.py")
@@ -30,7 +31,7 @@ class T_InvocationBaseTests(CLI):
     site_cli_dir = site_cli_dir
     templates_dir = no_workspace_test_dir.joinpath("templates")
     templates_out_dir = templates_dir.joinpath("output")
-    debug_cli_dir = debug_cli_dir
+    cli_dir = cli_dir
     PyProjectSrc = PyProjectSrc
 
     @classmethod
@@ -159,7 +160,7 @@ class T_InvocationEnv(T_InvocationBaseTests):
     # TEST_NEEDED Invocations: check 'origen -h' in various contexts?
     @pytest.mark.skip
     def test_origen_h(self):
-        fail
+        raise NotImplementedError
 
     def test_plugins(self):
         pls = self.get_plugin_names()

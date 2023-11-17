@@ -3,6 +3,8 @@ import subprocess
 import os
 import origen
 
+pytest.register_assert_rewrite("t_invocation_env")
+
 sys.path.insert(-1, str(pathlib.Path(__file__).parent.parent.parent.joinpath("no_workspace")))
 from t_invocation_env import T_InvocationBaseTests
 
@@ -75,5 +77,4 @@ class TestAppInvocation(T_InvocationBaseTests):
     @classmethod
     def set_params(cls):
         cls.invocation = cls.PyProjectSrc.App
-        cls.cli_dir = cls.debug_cli_dir
         cls.target_pyproj_dir = pathlib.Path(__file__).parent.parent

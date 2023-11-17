@@ -8,6 +8,7 @@ from .cmd_models.auxs import Aux
 from .cmd_models.exts import ExtensionDrivers
 from .cmd_models.plugins import Plugins
 from .error_cases import ErrorCases
+from . import dirs
 
 from .assertions import AssertionHelpers
 
@@ -142,7 +143,8 @@ class CLIShared(cli.CLI, AssertionHelpers):
 
     configs = Configs()
 
-    project_dir = Path(__file__).parent.parent.parent.parent.parent
-    cli_dir = project_dir.joinpath("rust/origen/target/debug")
-    test_apps_dir = project_dir.joinpath("test_apps")
-    plugins_dir = test_apps_dir # Currently the same but may change if test_apps dir is re-organized
+    project_dir = dirs.project_dir
+    cli_dir = dirs.cli_dir
+    rust_build_cli_dir = dirs.rust_build_cli_dir
+    test_apps_dir = dirs.test_apps_dir
+    plugins_dir = dirs.plugins_dir

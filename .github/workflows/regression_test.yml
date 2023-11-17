@@ -152,15 +152,13 @@ jobs:
           echo ""
           poetry run where.exe origen
 
-      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
-      - name: Remove Poetry's Origen Wrapper (Linux)
+      # TODO GA: Add to build script?
+      - name: Move Origen executable (Linux)
         if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_app
-        run: poetry run which origen | xargs rm
-      - name: Remove Poetry's Origen Wrapper (Windows)
+        run: cp rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+      - name: Move Origen executable (Windows)
         if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_app
-        run: poetry run where.exe origen | select -first 1 | rm
+        run: cp rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
       - name: Show Origen Binary Location (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -177,29 +175,35 @@ jobs:
           poetry run where.exe origen
 
       - name: Run Python-App Unit Tests
-        working-directory: test_apps/python_app
-        run: origen exec pytest -vv
-      
+        uses: Wandalen/wretry.action@v1.3.0
+        with:
+          attempt_limit: 2
+          current_path: test_apps/python_app
+          command: origen exec pytest -vv
+
       - name: Run Python-App Diff Tests
         working-directory: test_apps/python_app
         run: origen examples
 
       - name: Setup No-App Env
-        working-directory: test_apps/python_no_app
-        run: poetry install
+        uses: Wandalen/wretry.action@v1.3.0
+        with:
+          attempt_limit: 2
+          current_path: test_apps/python_no_app
+          command: poetry install
 
       - name: Display Poetry Version (No-App)
         working-directory: test_apps/python_no_app
         run: poetry --version
 
       # Copy _origen
-      - name: Copy Origen Metal (Windows)
+      - name: Copy Origen Library (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: .\rust\pyapi\
         run: cp .\target\debug\_origen.dll ..\..\python\origen\_origen.pyd
 
       # Copy _origen
-      - name: Copy Origen Metal (Linux)
+      - name: Copy Origen Library (Linux)
         if: matrix.os == 'ubuntu-latest'
         working-directory: rust/pyapi
         run: cp target/debug/lib_origen.so ../../python/origen/_origen.so
@@ -209,47 +213,23 @@ jobs:
         working-directory: test_apps/python_no_app
         run: ls ../../python/origen
 
+      - name: Show Origen Binary Location (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          which origen
+          poetry run which origen
+      - name: Show Origen Binary Location (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_no_app
+        run: |
+          where.exe origen
+          echo ""
+          poetry run where.exe origen
+
       - name: Display Origen No-App Version
         working-directory: test_apps/python_no_app
         run: poetry run origen -vvv
-
-      - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_no_app
-        run: |
-          which origen
-          poetry run which origen
-      - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_no_app
-        run: |
-          where.exe origen
-          echo ""
-          poetry run where.exe origen
-
-      # TODO GA: Regressions: need to see why this is the case and come up with a better solution
-      - name: Remove Poetry's Origen Wrapper (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_no_app
-        run: poetry run which origen | xargs rm
-      - name: Remove Poetry's Origen Wrapper (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_no_app
-        run: poetry run where.exe origen | select -first 1 | rm
-
-      - name: Show Origen Binary Location (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_no_app
-        run: |
-          which origen
-          poetry run which origen
-      - name: Show Origen Binary Location (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_no_app
-        run: |
-          where.exe origen
-          echo ""
-          poetry run where.exe origen
 
       - name: Run Python-No-App Unit Tests
         working-directory: test_apps/python_no_app
@@ -263,11 +243,6 @@ jobs:
       - name: Build PyAPI - Metal
         run: origen origen build --metal
 
-      # - name: Install Poetry
-      #   uses: abatilo/actions-poetry@v2.0.0
-      #   with:
-      #     poetry-version: 1.1.14
-
       - name: Setup Python Env - Metal
         working-directory: python/origen_metal
         run: poetry install
@@ -277,7 +252,6 @@ jobs:
         run: poetry run pytest -vv
 
       - name: Run Rust Tests - Metal
-        if: matrix.python-version == 3.8
         working-directory: rust/origen_metal
         run: cargo test
 
@@ -288,19 +262,22 @@ jobs:
       - name: Get Pytest Version (Check Install)
         run: pytest --version
 
-      - name: Run User-Global Invocation Tests
-        working-directory: test_apps/no_workspace
-        run: pytest test_user_install.py::TestUserInstall -vv
+      # - name: Run User-Global Invocation Tests
+      #   working-directory: test_apps/no_workspace
+      #   run: pytest test_user_install.py::TestUserInstall -vv
 
       # TODO GA: Regressions: eventually want to move this into a poetry build step
       # For now, manually move the binary. Also keeps us from having to mess with the path across OSs
       #   'mv' command should be be fine for both linux & powershell
-      - name: Move Origen executable (Linux)
+      # Update: remove binary since it is being copied earlier.
+      - name: Remove Origen executable (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: mv rust/origen/target/debug/origen python/origen/origen/__bin__/bin
-      - name: Move Origen executable (Windows)
+        run: rm rust/origen/target/debug/origen
+#        run: rm rust/origen/target/debug/origen python/origen/origen/__bin__/bin
+      - name: Remove Origen executable (Windows)
         if: matrix.os == 'windows-latest'
-        run: mv rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
+        run: rm rust/origen/target/debug/origen.exe
+#        run: rm rust/origen/target/debug/origen.exe python/origen/origen/__bin__/bin
 
       # TODO GA: Regressions: not sure why, but the tmp directory in origen_metal causes some issues
       # For now, just removing it.
@@ -325,6 +302,10 @@ jobs:
       - name: Show Origen Binary Location (Windows)
         if: matrix.os == 'windows-latest'
         run: where.exe origen
+
+      - name: Run User-Global Invocation Tests
+        working-directory: test_apps/no_workspace
+        run: pytest test_user_install.py::TestUserInstall -vv
 
       # Should be no pyprojects in the root so far. Start with no-workspace tests
       - name: Run No-Workspace-No-Plugins Tests
