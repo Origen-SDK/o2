@@ -107,8 +107,18 @@ jobs:
       - name: Upload Origen Metal Python Package Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: wheels
+          name: om_wheels
           path: python/origen_metal/dist/origen_metal*
+
+      - name: Get OM Python Package Version
+        working-directory: python/origen_metal
+        run: poetry version -s > om_version.txt
+
+      - name: Upload OM Python Package Version
+        uses: actions/upload-artifact@v3
+        with:
+          name: om_version
+          path: python/origen_metal/om_version.txt
 
       # - name: Build Origen CLI
       #   working-directory: rust/origen/cli
@@ -148,9 +158,19 @@ jobs:
       - name: Upload Origen Python Package Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: wheels
+          name: origen_wheels
           path: python/origen/dist/origen*
 
+      - name: Get Origen Python Package Version
+        working-directory: python/origen
+        run: poetry version -s > origen_version.txt
+  
+      - name: Upload Origen Python Package Version
+        uses: actions/upload-artifact@v3
+        with:
+          name: origen_version
+          path: python/origen/origen_version.txt
+  
       # - name: "Publish To PyPi"
       #   if: ${{ github.event.inputs.publish_pypi }} == true
       #   working_directory: python
@@ -158,14 +178,14 @@ jobs:
       #     echo "Publishing to PyPi"
       #   # poetry publish ...
 
-      - name: "Publish To PyPi Test Server"
-        if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
-        working-directory: python
-        run: |
-          echo "Publishing to PyPi Test Server"
-          poetry config repositories.pypi-test https://test.pypi.org/legacy/
-          poetry config pypi-token.pypi-test ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
-          poetry publish -r pypi-test
+      # - name: "Publish To PyPi Test Server"
+      #   if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+      #   working-directory: python
+      #   run: |
+      #     echo "Publishing to PyPi Test Server"
+      #     poetry config repositories.pypi-test https://test.pypi.org/legacy/
+      #     poetry config pypi-token.pypi-test ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+      #     poetry publish -r pypi-test
 
       # - name: pypi-publish
       #   if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
@@ -183,25 +203,90 @@ jobs:
       #   run: |
       #     echo "Publishing to Github Releases"
       #   # ...
+
+  puublish_to_pypi_test:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
+    steps:
+      - name: Retrieve Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: om_wheels
+          path: om_wheels
+
+      - name: List OM Wheels
+        run: ls -al ./om_wheels
+  
+      - name: Push To PyPi Test Server
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          packages-dir: om_wheels
+          # user: __token__
+          password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Push To PyPi Test Server
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          packages-dir: origen_wheels
+          # user: __token__
+          password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+ 
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.publish_github_release == 'true' }}
     steps:
         - uses: actions/checkout@v2
 
         - uses: actions/download-artifact@v3
           with:
-            name: wheels
-            path: wheels
+            name: om_wheels
+            path: origen_metal
 
-        - name: Check wheels directory
-          run: ls -al ./wheels
+        - uses: actions/download-artifact@v3
+          with:
+            name: origen_wheels
+            path: origen
+
+        - name: Check wheels directories
+          run: |
+            ls -al ./origen_metal
+            ls -al ./oigen
+
+        - uses: actions/download-artifact@v3
+          with:
+            name: om_version
+            path: ./
+
+        - uses: actions/download-artifact@v3
+          with:
+            name: origen_version
+            path: ./
 
         - uses: vimtor/action-zip@v1.1
           with:
-            files: wheels
-            dest: wheels.zip
+            files: om_wheels
+            dest: om_wheels.zip
 
+        - uses: vimtor/action-zip@v1.1
+          with:
+            files: origen_wheels
+            dest: origen_wheels.zip
+
+        - name: Get OM/Origen Versions
+          run: |
+            echo cat ./om_version
+            echo cat ./origen_version
+            echo "om_version=$(cat ./om_version)" >> $GITHUB_ENV
+            echo "origen_version=$(cat ./origen_version)" >> $GITHUB_ENV
+
+        - name: Show Versions
+          run: |
+            run: echo ${{ env.om_version }}
+            run: echo ${{ env.origen_version }}
 
         - name: Figure Out Tag
           run: |
@@ -211,11 +296,16 @@ jobs:
           run: echo ${{ env.tag }}
 
         - name: Generate Github Release
-          if: ${{ github.event.inputs.publish_github_release == 'true' }}
           uses: ncipollo/release-action@v1
           with:
-            artifacts: ./wheels.zip
+            artifacts: ./om_wheels.zip, ./origen_wheels.zip
             artifactErrorsFailBuild: true
             prerelease: ${{ github.event.inputs.prerelease == 'true' }}
             commit: ${{ github.sha }}
             tag: ${{ env.tag }}
+  cleanup:
+    needs: [build, puublish_to_pypi_test, release]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - run: echo Begin Clean Up...
