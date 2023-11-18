@@ -225,6 +225,7 @@ jobs:
           # user: __token__
           password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
+          verify_metadata: false
 
       - name: Push To PyPi Test Server
         uses: pypa/gh-action-pypi-publish@v1.8.10
@@ -233,6 +234,7 @@ jobs:
           # user: __token__
           password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
+          verify_metadata: false
  
   release:
     needs: build
@@ -254,7 +256,7 @@ jobs:
         - name: Check wheels directories
           run: |
             ls -al ./origen_metal
-            ls -al ./oigen
+            ls -al ./origen
 
         - uses: actions/download-artifact@v3
           with:
