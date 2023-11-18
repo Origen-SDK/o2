@@ -48,6 +48,9 @@ on:
         options:
           - true
           - false
+env:
+  om_ver_file: om_version
+  origen_ver_file: origen_version
 jobs:
   build:
     strategy:
@@ -112,13 +115,13 @@ jobs:
 
       - name: Get OM Python Package Version
         working-directory: python/origen_metal
-        run: poetry version -s > om_version.txt
+        run: poetry version -s > ${{ env.om_ver_file }}
 
       - name: Upload OM Python Package Version
         uses: actions/upload-artifact@v3
         with:
-          name: om_version
-          path: python/origen_metal/om_version.txt
+          name: ${{ env.om_ver_file }}
+          path: python/origen_metal/${{ env.om_ver_file }}
 
       # - name: Build Origen CLI
       #   working-directory: rust/origen/cli
@@ -163,13 +166,13 @@ jobs:
 
       - name: Get Origen Python Package Version
         working-directory: python/origen
-        run: poetry version -s > origen_version.txt
+        run: poetry version -s > ${{ env.origen_ver_file }}
   
       - name: Upload Origen Python Package Version
         uses: actions/upload-artifact@v3
         with:
-          name: origen_version
-          path: python/origen/origen_version.txt
+          name: ${{ env.origen_ver_file }}
+          path: python/origen/${{ env.origen_ver_file }}
   
       # - name: "Publish To PyPi"
       #   if: ${{ github.event.inputs.publish_pypi }} == true
@@ -227,6 +230,15 @@ jobs:
       #     repository-url: https://test.pypi.org/legacy/
       #     verify_metadata: false
 
+      - name: Retrieve Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: origen_wheels
+          path: origen_wheels
+
+      - name: List Origen Wheels
+        run: ls -al ./origen_wheels
+
       - name: Push To PyPi Test Server
         uses: pypa/gh-action-pypi-publish@v1.8.10
         with:
@@ -234,7 +246,7 @@ jobs:
           # user: __token__
           password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
-          verify_metadata: false
+          verify-metadata: false
  
   release:
     needs: build
@@ -260,11 +272,11 @@ jobs:
 
         - uses: actions/download-artifact@v3
           with:
-            name: om_version
+            name: ${{ env.om_ver_file }}
 
         - uses: actions/download-artifact@v3
           with:
-            name: origen_version
+            name: ${{ env.origen_ver_file }}
 
         - uses: vimtor/action-zip@v1.1
           with:
@@ -279,10 +291,10 @@ jobs:
         - name: Get OM/Origen Versions
           run: |
             ls -al
-            cat ./om_version.txt
-            cat ./origen_version.txt
-            echo "om_version=$(cat ./om_version)" >> $GITHUB_ENV
-            echo "origen_version=$(cat ./origen_version)" >> $GITHUB_ENV
+            cat ./${{ env.om_ver_file }}
+            cat ./${{ env.origen_ver_file }}
+            echo "om_version=$(cat ./${{ env.om_ver_file }})" >> $GITHUB_ENV
+            echo "origen_version=$(cat ./${{ env.origen_ver_file }})" >> $GITHUB_ENV
 
         - name: Show Versions
           run: |
