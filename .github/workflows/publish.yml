@@ -223,7 +223,7 @@ jobs:
         with:
           packages-dir: om_wheels
           # user: __token__
-          password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN }}
+          password: ${{ secrets.PYPI_ORIGEN_METAL }}
           repository-url: https://test.pypi.org/legacy/
           verify_metadata: false
 
@@ -280,15 +280,15 @@ jobs:
 
         - name: Get OM/Origen Versions
           run: |
-            echo cat ./om_version
-            echo cat ./origen_version
+            cat ./om_version.txt
+            cat ./origen_version.txt
             echo "om_version=$(cat ./om_version)" >> $GITHUB_ENV
             echo "origen_version=$(cat ./origen_version)" >> $GITHUB_ENV
 
         - name: Show Versions
           run: |
-            run: echo ${{ env.om_version }}
-            run: echo ${{ env.origen_version }}
+            echo ${{ env.om_version }}
+            echo ${{ env.origen_version }}
 
         - name: Figure Out Tag
           run: |
