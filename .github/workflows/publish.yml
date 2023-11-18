@@ -218,14 +218,14 @@ jobs:
       - name: List OM Wheels
         run: ls -al ./om_wheels
   
-      - name: Push To PyPi Test Server
-        uses: pypa/gh-action-pypi-publish@v1.8.10
-        with:
-          packages-dir: om_wheels
-          # user: __token__
-          password: ${{ secrets.PYPI_ORIGEN_METAL }}
-          repository-url: https://test.pypi.org/legacy/
-          verify_metadata: false
+      # - name: Push To PyPi Test Server
+      #   uses: pypa/gh-action-pypi-publish@v1.8.10
+      #   with:
+      #     packages-dir: om_wheels
+      #     # user: __token__
+      #     password: ${{ secrets.PYPI_ORIGEN_METAL }}
+      #     repository-url: https://test.pypi.org/legacy/
+      #     verify_metadata: false
 
       - name: Push To PyPi Test Server
         uses: pypa/gh-action-pypi-publish@v1.8.10
@@ -261,12 +261,10 @@ jobs:
         - uses: actions/download-artifact@v3
           with:
             name: om_version
-            path: ./
 
         - uses: actions/download-artifact@v3
           with:
             name: origen_version
-            path: ./
 
         - uses: vimtor/action-zip@v1.1
           with:
@@ -280,6 +278,7 @@ jobs:
 
         - name: Get OM/Origen Versions
           run: |
+            ls -al
             cat ./om_version.txt
             cat ./origen_version.txt
             echo "om_version=$(cat ./om_version)" >> $GITHUB_ENV
@@ -297,14 +296,14 @@ jobs:
         - name: Display Tag
           run: echo ${{ env.tag }}
 
-        - name: Generate Github Release
-          uses: ncipollo/release-action@v1
-          with:
-            artifacts: ./om_wheels.zip, ./origen_wheels.zip
-            artifactErrorsFailBuild: true
-            prerelease: ${{ github.event.inputs.prerelease == 'true' }}
-            commit: ${{ github.sha }}
-            tag: ${{ env.tag }}
+        # - name: Generate Github Release
+        #   uses: ncipollo/release-action@v1
+        #   with:
+        #     artifacts: ./om_wheels.zip, ./origen_wheels.zip
+        #     artifactErrorsFailBuild: true
+        #     prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+        #     commit: ${{ github.sha }}
+        #     tag: ${{ env.tag }}
   cleanup:
     needs: [build, puublish_to_pypi_test, release]
     runs-on: ubuntu-latest
