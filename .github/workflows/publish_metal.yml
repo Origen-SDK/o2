@@ -56,18 +56,18 @@ jobs:
           verify_metadata: false
           verbose: true
 
-  publish_rust:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  #publish_rust:
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - uses: actions/checkout@v2
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: "1.54.0"
-            override: true
-            #components: rustfmt, clippy
+  #    - name: Install Rust
+  #      uses: actions-rs/toolchain@v1
+  #      with:
+  #          toolchain: "1.54.0"
+  #          override: true
+  #          #components: rustfmt, clippy
 
-      - name: "Publish origen_metal"
-        working-directory: rust/origen_metal
-        run: cargo publish --token ${{ secrets.CARGO_ORIGEN_METAL }}
+  #    - name: "Publish origen_metal"
+  #      working-directory: rust/origen_metal
+  #      run: cargo publish --token ${{ secrets.CARGO_ORIGEN_METAL }}
