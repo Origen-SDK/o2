@@ -5,7 +5,14 @@ use crate::Result;
 use regex::Regex;
 use semver;
 use std::fmt;
+use std::fs;
 use std::path::PathBuf;
+use origen_metal::{toml_edit, dialoguer};
+use origen_metal::toml_edit::Document;
+
+lazy_static! {
+    static ref PYPROJECT_PATH: [&'static str; 3] = ["tool", "poetry", "version"];
+}
 
 const BETA: &str = "beta";
 const ALPHA: &str = "alpha";
@@ -298,6 +305,20 @@ impl Version {
         Ok(self)
     }
 
+    pub fn increment(&self, release_type: &ReleaseType) -> Result<Self> {
+        Ok(match release_type {
+            ReleaseType::Major => self.next_major(),
+            ReleaseType::Minor => self.next_minor(),
+            ReleaseType::Patch => self.next_patch(),
+            ReleaseType::Beta => self.next_beta()?,
+            ReleaseType::Alpha => self.next_alpha()?,
+            ReleaseType::Dev => self.next_dev()?,
+            ReleaseType::DevCustom | ReleaseType::AlphaCustom | ReleaseType::BetaCustom => {
+                return Err("Error: Cannot use custom release: dialogue unavailable".into())
+            }
+        })
+    }
+
     pub fn update_dialogue(&self) -> Result<Self> {
         let release_type = ReleaseType::from_idx(
             dialoguer::Select::new()
@@ -350,11 +371,14 @@ impl Version {
                 .interact()?,
         ))
     }
+
+    pub fn from_pyproject_with_toml_handle(pyproject: PathBuf) -> Result<VersionWithTOML> {
+        VersionWithTOML::new(pyproject, &*PYPROJECT_PATH)
+    }
 }
 
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Customize so only `x` and `y` are denoted.
         match self.spec {
             VersionSpec::Semver => self.semver.fmt(f),
             VersionSpec::Pep440 => {
@@ -443,6 +467,123 @@ impl ReleaseType {
 
     pub fn from_idx(idx: usize) -> Self {
         Self::to_vec()[idx].clone()
+    }
+}
+
+impl fmt::Display for ReleaseType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl TryFrom<&str> for ReleaseType {
+    type Error = String;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        Ok(match value.to_lowercase().as_str() {
+            "major" => Self::Major,
+            "minor" => Self::Minor,
+            "patch" => Self::Patch,
+            "beta" => Self::Beta,
+            "alpha" => Self::Alpha,
+            "dev" => Self::Dev,
+            // Self::BetaCustom => "Beta (Custom)",
+            // Self::AlphaCustom => "Alpha (Custom)",
+            // Self::DevCustom => "Dev (Custom)",
+            _ => return Err(format!("Unrecognized Release Type '{}'", value))
+        })
+    }
+}
+
+pub struct VersionWithTOML {
+    toml: Document,
+    source: PathBuf,
+    orig_version: Version,
+    new_version: Option<Version>,
+    rel_type: Option<ReleaseType>,
+    written: bool,
+    version_path: &'static [&'static str],
+}
+
+impl VersionWithTOML {
+    pub fn new(source: PathBuf, version_path: &'static [&'static str]) -> Result<Self> {
+        if version_path.is_empty() {
+            bail!("Version path should not be empty!");
+        }
+
+        let content = std::fs::read_to_string(&source)?;
+        let toml = content.parse::<Document>().unwrap();
+        let mut i: &toml_edit::Item = &toml[version_path[0]];
+        for p in version_path[1..].iter() {
+            i = &i[p];
+        }
+        let current = Version::new_pep440({
+            match i.as_str() {
+                Some(v) => v,
+                None => bail!("Failed to parse version from TOML '{}'. 'version' not found or could not be parsed as a string", source.display())
+            }
+        })?;
+
+        Ok(Self {
+            orig_version: current,
+            toml: toml,
+            source: source,
+            new_version: None,
+            rel_type: None,
+            written: false,
+            version_path: version_path,
+        })
+    }
+
+    pub fn increment(&mut self, increment: ReleaseType) -> Result<()> {
+        self.new_version = Some(self.orig_version.increment(&increment)?);
+        self.rel_type = Some(increment);
+        Ok(())
+    }
+
+    pub fn was_version_updated(&self) -> bool {
+        self.new_version.is_some()
+    }
+
+    pub fn orig_version(&self) -> &Version {
+        &self.orig_version
+    }
+
+    pub fn new_version(&self) -> Option<&Version> {
+        self.new_version.as_ref()
+    }
+
+    pub fn rel_type(&self) -> Option<&ReleaseType> {
+        self.rel_type.as_ref()
+    }
+
+    pub fn source(&self) -> &PathBuf {
+        &self.source
+    }
+
+    pub fn version(&self) -> &Version {
+        if let Some(v) = self.new_version.as_ref() {
+            v
+        } else {
+            &self.orig_version
+        }
+    }
+
+    pub fn write(&mut self) -> Result<()> {
+        if let Some(v) = self.new_version() {
+            let ver = v.to_string();
+            let mut i: &mut toml_edit::Item = &mut self.toml[self.version_path[0]];
+            for p in self.version_path[1..].iter() {
+                i = &mut i[p];
+            }
+
+            *i = toml_edit::value(ver);
+            fs::write(&self.source, self.toml.to_string())?;
+            self.written = true;
+            Ok(())
+        } else {
+            bail!("Version has not been updated! Nothing to update!");
+        }
     }
 }
 

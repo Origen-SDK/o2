@@ -3,6 +3,9 @@
 
 use std::io::Write;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use std::process::exit;
+use crate::Result;
+use dialoguer::Select;
 
 pub fn green(msg: &str) {
     print(msg, Color::Green);
@@ -89,4 +92,29 @@ fn print(msg: &str, color: Color) {
     }
     let _ = stdout.reset();
     print!("{}", msg);
+}
+
+pub fn confirm_with_user<S>(prompt: Option<S>) -> Result<bool>
+where S: Into<String>
+{
+    let mut dialogue = Select::new(); 
+    dialogue.item("Yes").item("No").default(1);
+    if let Some(p) = prompt {
+        dialogue.with_prompt(p);
+    }
+    Ok(dialogue.interact()? == 0)
+}
+
+pub fn confirm_or_exit<S, D>(prompt: Option<S>, exit_dialogue: Option<D>, exit_code: Option<i32>) -> Result<()>
+where
+    S: Into<String>,
+    D: std::fmt::Display
+{
+    if !confirm_with_user(prompt)? {
+        if let Some(d) = exit_dialogue {
+            println!("{}", d);
+        }
+        exit(exit_code.unwrap_or(0));
+    }
+    Ok(())
 }

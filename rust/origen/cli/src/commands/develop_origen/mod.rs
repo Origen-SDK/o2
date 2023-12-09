@@ -1,6 +1,7 @@
 mod build;
 mod fmt;
 mod update_supported_python;
+mod publish;
 
 use origen::Result;
 use super::_prelude::*;
@@ -14,7 +15,8 @@ gen_core_cmd_funcs__no_exts__no_app_opts!(
     }},
     build::build_cmd(),
     fmt::fmt_cmd(),
-    update_supported_python::update_supported_python_cmd()
+    update_supported_python::update_supported_python_cmd(),
+    publish::publish_cmd()
 );
 
 pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
@@ -23,6 +25,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         build::BASE_CMD => build::run(subcmd),
         fmt::BASE_CMD => fmt::run(),
         update_supported_python::BASE_CMD => update_supported_python::run(subcmd),
+        publish::BASE_CMD => publish::run(subcmd),
         _ => unreachable_invalid_subc!(n)
     }
 }

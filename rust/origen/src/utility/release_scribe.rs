@@ -1,6 +1,6 @@
 use crate::utility::version::Version;
 use crate::{Result, STATUS};
-use dialoguer::{Input, Select};
+use origen_metal::dialoguer::{Input, Select};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;

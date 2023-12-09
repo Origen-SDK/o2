@@ -5,6 +5,8 @@ pub extern crate indexmap;
 pub extern crate glob;
 pub extern crate octocrab;
 pub extern crate tera;
+pub extern crate toml_edit;
+pub extern crate dialoguer;
 #[macro_use]
 extern crate serde;
 #[macro_use]
