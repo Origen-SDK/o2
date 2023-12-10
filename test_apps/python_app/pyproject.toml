@@ -5,7 +5,7 @@ description = ""
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.7.0,<=3.12.*"
+python = ">=3.7.0,<3.13"
 origen = "= 2.0.0.dev5"
 python_plugin = { path = "../python_plugin", develop = true }
 test_apps_shared_test_helpers = { path = "../test_apps_shared_test_helpers", develop = true }

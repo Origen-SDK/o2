@@ -9,7 +9,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7.0,<=3.12.*"
+python = ">=3.7.0,<3.13"
 pyreadline3 = { version="^3.3", platform="win32" }
 termcolor = ">= 1.1.0"
 colorama = ">= 0.4.4" # Note: colorama is usually installed on the system already, but it isn't actually required (e.g. WSL won't have this by default)

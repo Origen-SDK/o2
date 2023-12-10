@@ -5,7 +5,7 @@ description = "Origen Installation Test"
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.7.0,<=3.12.*"
+python = ">=3.7.0,<3.13"
 
 origen = { path = "../../../python/origen", develop = true }
 origen_metal = { path = "../../../python/origen_metal", develop = true }

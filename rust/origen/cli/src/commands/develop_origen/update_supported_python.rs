@@ -14,7 +14,7 @@ pub (crate) fn update_supported_python_cmd<'a>() -> SubCmd<'a> {
                 .takes_value(true)
                 .required(true)
             )
-            .arg(Arg::new("max_version")
+            .arg(Arg::new("non_inclusive_max_version")
                 .takes_value(true)
                 .required(true)
             )
@@ -24,10 +24,16 @@ pub (crate) fn update_supported_python_cmd<'a>() -> SubCmd<'a> {
 
 pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     let min = invocation.get_one::<String>("min_version").unwrap();
-    let max = invocation.get_one::<String>("max_version").unwrap();
-    let version_str = format!("python = \">={min},<={max}\"");
+    let max = invocation.get_one::<String>("non_inclusive_max_version").unwrap();
+    let version_str = format!("python = \">={min},<{max}\"");
     let mv_min = min.split('.').collect::<Vec<&str>>()[1].parse::<u8>()?;
-    let mv_max = max.split('.').collect::<Vec<&str>>()[1].parse::<u8>()?;
+    let max_parts = max.split('.').collect::<Vec<&str>>();
+    let mv_max;
+    if max_parts.len() == 2 {
+        mv_max = max_parts[1].parse::<u8>()? - 1;
+    } else {
+        mv_max = max_parts[1].parse::<u8>()?;
+    }
 
     // Update pyprojects
     // origen/metal pyproject

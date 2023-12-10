@@ -5,7 +5,7 @@ description = "Origen Installation Test"
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = ">=3.7.0,<=3.12.*"
+python = ">=3.7.0,<3.13"
 {% if local_origen %}
 origen = { path = "{{ o2_root.joinpath("python/origen").as_posix() }}", develop = true }
 origen_metal = { path = "{{ o2_root.joinpath("python/origen_metal").as_posix() }}", develop = true }
