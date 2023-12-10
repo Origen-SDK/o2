@@ -230,7 +230,7 @@ jobs:
         with:
           packages-dir: om_wheels
           # user: __token__
-          password: ${{ secrets.PYPI_ORIGEN_METAL }}
+          password: ${{ secrets.PYPI_TEST_SERVER_API_TOKEN_OM }}
           repository-url: https://test.pypi.org/legacy/
           verify-metadata: false
 
