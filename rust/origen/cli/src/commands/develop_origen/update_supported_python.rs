@@ -70,6 +70,8 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     }
     f.write(b"];\n")?;
 
+    // TODO O2DevScripts Need to add running 'poetry lock --no-update' in python_app, python_no_app, no_workspace/user_install to update Python versions in lock files.
+
     Ok(())
 }
 

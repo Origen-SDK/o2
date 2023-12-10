@@ -892,7 +892,7 @@ version = "2.0.0.dev5"
 description = "Semiconductor Developer's Kit"
 category = "main"
 optional = false
-python-versions = ">=3.7.0,<=3.12"
+python-versions = ">=3.7.0,<3.13"
 files = []
 develop = true
 
@@ -937,7 +937,7 @@ version = "0.4.0"
 description = "Bare metal APIs for the Origen SDK"
 category = "main"
 optional = false
-python-versions = ">=3.7.0,<=3.12"
+python-versions = ">=3.7.0,<3.13"
 files = []
 develop = true
 
@@ -1010,7 +1010,7 @@ version = "0.1.0"
 description = "Plugin Extending Cmds"
 category = "main"
 optional = false
-python-versions = ">=3.7.0,<=3.12"
+python-versions = ">=3.7.0,<3.13"
 files = []
 develop = true
 
@@ -1252,7 +1252,7 @@ version = "0.1.0"
 description = "Example Origen Plugin"
 category = "main"
 optional = false
-python-versions = ">=3.7.0,<=3.12"
+python-versions = ">=3.7.0,<3.13"
 files = []
 develop = true
 
@@ -1269,7 +1269,7 @@ version = "0.1.0"
 description = "Example Origen Plugin Without Any Commands"
 category = "main"
 optional = false
-python-versions = ">=3.7.0,<=3.12"
+python-versions = ">=3.7.0,<3.13"
 files = []
 develop = true
 
@@ -1705,7 +1705,7 @@ version = "0.1.0"
 description = "Shared Regression Test Helpers for Test Apps"
 category = "main"
 optional = false
-python-versions = ">=3.7.0,<=3.12"
+python-versions = ">=3.7.0,<3.13"
 files = []
 develop = true
 
@@ -1953,5 +1953,5 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.7.0,<=3.12"
-content-hash = "be00203c85f7dc3c6161189133d21ba3a91ce2fc13811a4bbdae08e32e94383a"
+python-versions = ">=3.7.0,<3.13"
+content-hash = "e2d100b8756a96e46645a55813391a59072b82534807b640a0805a18664fecd3"
