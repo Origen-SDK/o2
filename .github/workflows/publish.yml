@@ -20,10 +20,14 @@ on:
       #   description: If 'true', does not use the '--release' switch when building Rust libraries
       #   required: false
       #   default: "false"
-    #   publish_pypi:
-    #     description: Publish built packages to PyPi
-    #     required: true
-    #     default: false
+      publish_pypi:
+        description: Publish built packages to PyPi
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - true
+          - false
       publish_pypi_test:
         description: Publish To PyPI Test Server
         required: true
@@ -220,15 +224,15 @@ jobs:
 
       - name: List OM Wheels
         run: ls -al ./om_wheels
-  
-      # - name: Push To PyPi Test Server
-      #   uses: pypa/gh-action-pypi-publish@v1.8.10
-      #   with:
-      #     packages-dir: om_wheels
-      #     # user: __token__
-      #     password: ${{ secrets.PYPI_ORIGEN_METAL }}
-      #     repository-url: https://test.pypi.org/legacy/
-      #     verify_metadata: false
+
+      - name: Push To PyPi Test Server
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          packages-dir: om_wheels
+          # user: __token__
+          password: ${{ secrets.PYPI_ORIGEN_METAL }}
+          repository-url: https://test.pypi.org/legacy/
+          verify-metadata: false
 
       - name: Retrieve Wheels
         uses: actions/download-artifact@v3
