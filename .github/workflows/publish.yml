@@ -211,7 +211,7 @@ jobs:
       #     echo "Publishing to Github Releases"
       #   # ...
 
-  puublish_to_pypi_test:
+  publish_to_pypi_test:
     needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
@@ -254,7 +254,7 @@ jobs:
           verify-metadata: false
           verbose: true
 
-  puublish_to_pypi:
+  publish_to_pypi:
     needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_pypi == 'true' }}
@@ -268,7 +268,7 @@ jobs:
       - name: List OM Wheels
         run: ls -al ./om_wheels
 
-      - name: Push To PyPi Test Server
+      - name: Push To PyPi Server
         if: ${{ github.event.inputs.origen_metal_python_package == 'true' }}
         uses: pypa/gh-action-pypi-publish@v1.8.10
         with:
@@ -286,7 +286,7 @@ jobs:
       - name: List Origen Wheels
         run: ls -al ./origen_wheels
 
-      - name: Push To PyPi Test Server
+      - name: Push To PyPi Server
         if: ${{ github.event.inputs.origen_python_package == 'true' }}
         uses: pypa/gh-action-pypi-publish@v1.8.10
         with:
@@ -364,7 +364,7 @@ jobs:
             commit: ${{ github.sha }}
             tag: ${{ env.tag }}
   cleanup:
-    needs: [build, puublish_to_pypi_test, puublish_to_pypi, release]
+    needs: [build, publish_to_pypi_test, publish_to_pypi, release]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
