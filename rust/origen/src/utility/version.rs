@@ -496,7 +496,7 @@ impl TryFrom<&str> for ReleaseType {
 }
 
 pub struct VersionWithTOML {
-    toml: Document,
+    pub toml: Document,
     source: PathBuf,
     orig_version: Version,
     new_version: Option<Version>,

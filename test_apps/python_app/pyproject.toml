@@ -6,15 +6,14 @@ authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
 python = ">=3.7.0,<3.13"
-origen = "= 2.0.0.dev5"
+origen = { path = "../../python/origen", develop = true }
+origen_metal = { path = "../../python/origen_metal", develop = true }
 python_plugin = { path = "../python_plugin", develop = true }
 test_apps_shared_test_helpers = { path = "../test_apps_shared_test_helpers", develop = true }
 python_plugin_no_cmds = { path = "../python_plugin_no_cmds", develop = true }
 
 [tool.poetry.dev-dependencies]
 pytest = ">= 6.0"
-origen = { path = "../../python/origen", develop = true }
-origen_metal = { path = "../../python/origen_metal", develop = true }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

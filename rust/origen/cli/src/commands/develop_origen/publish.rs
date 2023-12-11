@@ -46,6 +46,13 @@ pub (crate) fn publish_cmd<'a>() -> SubCmd<'a> {
                 .action(SetArgTrue)
                 .help("Create a GitHub release (https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)")
             )
+            .arg(
+                Arg::new("bump_origen_om_req")
+                .long("bump_origen_om_req")
+                .visible_alias("bump_o_req")
+                .action(SetArgTrue)
+                .help("Set Origen's OM requirement to this OM version")
+            )
         }}
     )
 }
@@ -85,6 +92,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     // TODO PublishO2 Ensure a regression test passed with this commit
 
     // Get current versions
+    // TODO PublishO2 Cleanup - move paths to shared location
     let om_pyproject_path = STATUS.origen_wksp_root.join("python").join("origen_metal").join("pyproject.toml");
     let origen_pyproject_path = STATUS.origen_wksp_root.join("python").join("origen").join("pyproject.toml");
     let mut py_om_ver = Version::from_pyproject_with_toml_handle(om_pyproject_path)?;
@@ -145,6 +153,12 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
     }
     displayln!("Updating versions in TOML files...");
     update_toml(update_om_package, &mut py_om_ver)?;
+    if *invocation.get_one::<bool>("bump_origen_om_req").unwrap() {
+        // TODO PublishingO2 this should be automatically set on an OM + Origen release
+        let prev_ver = py_origen_ver.toml["tool"]["poetry"]["dependencies"]["origen_metal"].to_string();
+        displayln!("Bumping Origen's 'origen_metal' requirement from {} to {}", prev_ver, py_om_ver.version());
+        py_origen_ver.toml["tool"]["poetry"]["dependencies"]["origen_metal"] = origen_metal::toml_edit::value(py_om_ver.version().to_string());
+    }
     update_toml(update_origen_package, &mut py_origen_ver)?;
 
     // TODO PublishO2 Check in updated files

@@ -888,7 +888,7 @@ files = [
 
 [[package]]
 name = "origen"
-version = "2.0.0.dev5"
+version = "2.0.0.dev6"
 description = "Semiconductor Developer's Kit"
 category = "main"
 optional = false
@@ -904,7 +904,7 @@ importlib-metadata = ">= 1.7.0"
 Jinja2 = "^3"
 mako = "1.1.0"
 origen_autoapi = "2.0.1"
-origen_metal = "= 0.4.0"
+origen_metal = "0.4.1.dev0"
 poetry = "^1.1.14"
 recommonmark = ">= 0"
 sphinx = "3.0.2"
@@ -933,7 +933,7 @@ sphinx = "*"
 
 [[package]]
 name = "origen-metal"
-version = "0.4.0"
+version = "0.4.1.dev0"
 description = "Bare metal APIs for the Origen SDK"
 category = "main"
 optional = false
@@ -1954,4 +1954,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7.0,<3.13"
-content-hash = "e2d100b8756a96e46645a55813391a59072b82534807b640a0805a18664fecd3"
+content-hash = "1bff1af9ab1d51fced868030f3c5390423dde811e48e184ff50aa5a636049601"
