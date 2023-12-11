@@ -364,7 +364,7 @@ jobs:
             commit: ${{ github.sha }}
             tag: ${{ env.tag }}
   cleanup:
-    needs: [build, puublish_to_pypi_test, release]
+    needs: [build, puublish_to_pypi_test, puublish_to_pypi, release]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
