@@ -56,12 +56,50 @@ env:
   om_ver_file: om_version
   origen_ver_file: origen_version
 jobs:
+  precheck:
+    # Need to make sure that only one publish action is running at a time to avoid releases stepping on each other.
+    # GA's concurrency only allows for this job replacing previous jobs, but we want the opposite, otherwise we might end up
+    # with imcomplete or duplicate releases.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Concurrency
+        id: query-concurrency
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: 'always'
+      - name: Check Concurrency
+        uses: actions/github-script@v7
+        if: ${{ steps.query-concurrency.outputs.should_skip == 'true' }}
+        with:
+          script: |
+            core.setFailed('Found existing publish workflow: ${{ steps.query-concurrency.outputs.skipped_by.htmlUrl }}')
+
+  lock_master:
+    needs: [precheck]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Master Lock Status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = await octokit.rest.repos.getBranchProtection({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: master
+            })
+            console.log(result)
+            console.log(result.lock_branch.enabled)
+            if (result.lock_branch.enabled) {
+              core.setFailed('Master branch is unexpectedly locked!')
+            }
+
   build:
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(vars.SUPPORTED_OS) }}
         python-version: ${{ fromJSON(vars.PYTHON_VERSIONS) }}
+    needs: [lock_master]
 
     runs-on: ${{ matrix.os }}
     steps:
