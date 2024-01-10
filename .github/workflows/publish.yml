@@ -67,6 +67,7 @@ jobs:
         uses: fkirc/skip-duplicate-actions@v5
         with:
           concurrent_skipping: 'always'
+          do_not_skip: '[]'
       - name: Check Concurrency
         uses: actions/github-script@v7
         if: ${{ steps.query-concurrency.outputs.should_skip == 'true' }}
@@ -82,7 +83,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const result = await octokit.rest.repos.getBranchProtection({
+            const result = await github.rest.repos.getBranchProtection({
               owner: context.repo.owner,
               repo: context.repo.repo,
               branch: master
