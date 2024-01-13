@@ -82,6 +82,9 @@ jobs:
   lock_master:
     needs: [precheck]
     runs-on: ubuntu-latest
+    steps:
+      - name: no-op
+        run: echo "hi"
     # steps:
     #   - name: Check Master Lock Status
     #     uses: actions/github-script@v7
