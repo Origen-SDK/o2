@@ -121,6 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: quay.io/pypa/manylinux2010_x86_64
+      options: --user root
     steps:
       - uses: actions/checkout@v2
 
