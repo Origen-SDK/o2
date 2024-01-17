@@ -128,7 +128,7 @@ jobs:
       - name: Install Rust
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y
-          source "$HOME/.cargo/env"
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           rustup install ${{ fromJSON(vars.RUST_VERSION) }}
           rustup default ${{ fromJSON(vars.RUST_VERSION) }}
 
@@ -140,17 +140,21 @@ jobs:
       # TODO: For now use pre-installed python version.
       # In future, will probably want to download latest version
       - name: Set Python Version (3.7 Path)
-        if: ${{ fromJSON(matrix.python-version) == 3.7 }}
+        if: ${{ matrix.python-version == 3.7 }}
         run: |
-          PYVER=$(echo $VER | sed -e "s/\.//g")
+          PYVER=$(echo ${{ matrix.python-version }} | sed -e "s/\.//g")
+          echo $PYVER
           PATH_TO_PY=/opt/python/cp$PYVER-cp$PYVER\m/bin
-          export PATH=$PATH_TO_PY:$PATH
+          echo $PATH_TO_PY
+          echo "$PATH_TO_PY" >> $GITHUB_PATH
       - name: Set Python Version
-        if: ${{ fromJSON(matrix.python-version) != 3.7 }}
+        if: ${{ matrix.python-version != 3.7 }}
         run: |
-          PYVER=$(echo $VER | sed -e "s/\.//g")
+          PYVER=$(echo ${{ matrix.python-version }} | sed -e "s/\.//g")
+          echo $PYVER
           PATH_TO_PY=/opt/python/cp$PYVER-cp$PYVER/bin
-          export PATH=$PATH_TO_PY:$PATH
+          echo $PATH_TO_PY
+          echo "$PATH_TO_PY" >> $GITHUB_PATH
 
       - name: Display Python Version
         run:
@@ -381,6 +385,28 @@ jobs:
       #     echo "Publishing to Github Releases"
       #   # ...
 
+  show_wheels:
+    needs: [build_manylinux, build_windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve OM Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: om_wheels
+          path: om_wheels
+
+      - name: List OM Wheels
+        run: ls -al ./om_wheels
+
+      - name: Retrieve Origen Wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: origen_wheels
+          path: origen_wheels
+
+      - name: List Origen Wheels
+        run: ls -al ./origen_wheels
+
   publish_to_pypi_test:
     needs: [build_manylinux, build_windows]
     runs-on: ubuntu-latest
@@ -534,7 +560,7 @@ jobs:
             commit: ${{ github.sha }}
             tag: ${{ env.tag }}
   cleanup:
-    needs: [lock_master, build_manylinux, build_windows, publish_to_pypi_test, publish_to_pypi, release]
+    needs: [lock_master, build_manylinux, build_windows, publish_to_pypi_test, publish_to_pypi, release, show_wheels]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
