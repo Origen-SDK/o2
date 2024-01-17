@@ -129,6 +129,9 @@ jobs:
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Set Rust Version
+        run: |
           rustup install ${{ fromJSON(vars.RUST_VERSION) }}
           rustup default ${{ fromJSON(vars.RUST_VERSION) }}
 
