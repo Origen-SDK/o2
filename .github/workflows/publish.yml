@@ -142,9 +142,10 @@ jobs:
 
       - name: Install Newer OpenSSL
         run: |
-          curl -O https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-          tar zxf openssl-1.1.1l.tar.gz
-          cd openssl-1.1.1l
+          curl -O https://www.openssl.org/source/openssl-1.1.1w.tar.gz
+          ls -al openssl-1.1.1w.tar.gz
+          tar zxf openssl-1.1.1w.tar.gz
+          cd openssl-1.1.1w
           ./config
           make
           make install
@@ -154,7 +155,7 @@ jobs:
           curl -O https://www.python.org/ftp/python/${{ matrix.python-version }}/Python-$PY_VER.tgz
           tar zxf Python-${{ matrix.python-version }}.tgz
           cd Python-${{ matrix.python-version }}
-          ./configure --with-openssl=/openssl-1.1.1l --prefix=/root/python --enable-optimizations --enable-shared
+          ./configure --with-openssl=/openssl-1.1.1w --prefix=/root/python --enable-optimizations --enable-shared
           make altinstall
 
       - name: Update LD_LIBRARY_PATH
@@ -288,7 +289,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJSON(vars.PYTHON_VERSIONS_FOR_RELEASE) }}
+        python-version: ${{ fromJSON(vars.PYTHON_VERSIONS) }}
     needs: [lock_master]
 
     runs-on: windows-latest
