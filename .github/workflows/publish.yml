@@ -152,7 +152,7 @@ jobs:
 
       - name: Install Python
         run: |
-          curl -O https://www.python.org/ftp/python/${{ matrix.python-version }}/Python-$PY_VER.tgz
+          curl -O https://www.python.org/ftp/python/${{ matrix.python-version }}/Python-${{ matrix.python-version }}.tgz
           tar zxf Python-${{ matrix.python-version }}.tgz
           cd Python-${{ matrix.python-version }}
           ./configure --with-openssl=/openssl-1.1.1w --prefix=/root/python --enable-optimizations --enable-shared
