@@ -164,7 +164,7 @@ jobs:
 
       - name: Install Python
         run: |
-          ls /ROOT_DIR/openssl-1.1.1w
+          ls $ROOT_DIR/openssl-1.1.1w
           curl -O https://www.python.org/ftp/python/${{ matrix.python-version }}/Python-${{ matrix.python-version }}.tgz
           tar zxf Python-${{ matrix.python-version }}.tgz
           cd Python-${{ matrix.python-version }}
