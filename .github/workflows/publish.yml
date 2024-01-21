@@ -162,6 +162,12 @@ jobs:
           echo $M_VER
           echo "PY_M_VER=$M_VER" >> $GITHUB_ENV
 
+      - name: Install libffi for Python 3.12+
+        if: ${{ fromJSON(env.PY_M_VER) >= 3.12 }}
+        run: |
+          yum install libffi-devel -y
+          ldconfig
+
       - name: Install Python
         run: |
           ls $ROOT_DIR/openssl-1.1.1w
@@ -291,7 +297,7 @@ jobs:
           auditwheel show dist/*
           auditwheel repair dist/*
 
-      - name: Display OM Wheelhouse Directory
+      - name: Display Origen Wheelhouse Directory
         working-directory: python/origen
         run: ls wheelhouse
 
