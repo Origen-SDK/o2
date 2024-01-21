@@ -123,10 +123,12 @@ jobs:
       image: quay.io/pypa/manylinux2014_x86_64
       options: --user root
     steps:
-      - name: Show Path
+      - name: Show Env
         run: |
           pwd
           echo "ROOT_DIR=$PWD" >> $GITHUB_ENV
+          env
+          echo "HOME=/root" >> $GITHUB_ENV
 
       - uses: actions/checkout@v2
 
@@ -246,6 +248,7 @@ jobs:
 
       - name: Install Auditwheel
         run: |
+          pip install setuptools
           pip install auditwheel
           auditwheel --version
 
