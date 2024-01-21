@@ -165,16 +165,19 @@ jobs:
           ./configure --with-openssl=/openssl-1.1.1w --prefix=/root/python --enable-optimizations --enable-shared
           make altinstall
 
-
       - name: Copy Python Shared Library (Python 3.7)
         if: ${{ matrix.python-version == '3.7.17' }}
         run: |
           echo $PY_M_VER
-          cp libpython$PY_M_VERm.so.1.0 /usr/local/lib64/
+          cd Python-${{ matrix.python-version }}
+          ls
+          cp libpython$PY_M_VER\m.so.1.0 /usr/local/lib64/
       - name: Copy Python Shared Library (Python 3.8+ Versions)
         if: ${{ matrix.python-version != '3.7.17' }}
         run: |
           echo $PY_M_VER
+          cd Python-${{ matrix.python-version }}
+          ls
           cp libpython$PY_M_VER.so.1.0 /usr/local/lib64/
   
       # - name: Update LD_LIBRARY_PATH
