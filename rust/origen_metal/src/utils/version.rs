@@ -1,17 +1,16 @@
 //! Utility functions for dealing with app/Origen version numbers
 
-use crate::utility::file_actions as fa;
 use crate::Result;
-use regex::Regex;
 use semver;
 use std::fmt;
 use std::fs;
 use std::path::PathBuf;
-use origen_metal::{toml_edit, dialoguer};
-use origen_metal::toml_edit::Document;
+use crate::{toml_edit, dialoguer};
+use crate::toml_edit::Document;
 
 lazy_static! {
     static ref PYPROJECT_PATH: [&'static str; 3] = ["tool", "poetry", "version"];
+    static ref CARGO_PATH: [&'static str; 2] = ["package", "version"];
 }
 
 const BETA: &str = "beta";
@@ -375,6 +374,10 @@ impl Version {
     pub fn from_pyproject_with_toml_handle(pyproject: PathBuf) -> Result<VersionWithTOML> {
         VersionWithTOML::new(pyproject, &*PYPROJECT_PATH)
     }
+
+    pub fn from_cargo_with_toml_handle(cargo_toml: PathBuf) -> Result<VersionWithTOML> {
+        VersionWithTOML::new(cargo_toml, &*CARGO_PATH)
+    }
 }
 
 impl fmt::Display for Version {
@@ -569,6 +572,11 @@ impl VersionWithTOML {
         }
     }
 
+    pub fn set_new_version(&mut self, new: Version) -> Result<()> {
+        self.new_version = Some(new);
+        Ok(())
+    }
+
     pub fn write(&mut self) -> Result<()> {
         if let Some(v) = self.new_version() {
             let ver = v.to_string();
@@ -585,16 +593,6 @@ impl VersionWithTOML {
             bail!("Version has not been updated! Nothing to update!");
         }
     }
-}
-
-pub fn set_version_in_toml(toml_file: &PathBuf, version: &Version) -> Result<()> {
-    let r = Regex::new(r#"^\s*version\s*=\s*['"]"#).unwrap();
-    fa::remove_line(&toml_file, &r)?;
-
-    let r = Regex::new(r#"^\s*name\s*=\s+['"].*$"#).unwrap();
-    let line = format!("\nversion = \"{}\"", version.to_string());
-    fa::insert_after(&toml_file, &r, &line)?;
-    Ok(())
 }
 
 #[cfg(test)]

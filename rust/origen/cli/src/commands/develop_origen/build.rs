@@ -1,6 +1,6 @@
 use clap::{App, Arg, ArgMatches};
 use origen::core::file_handler::File;
-use origen::utility::version::Version;
+use origen_metal::utils::version::Version;
 use origen::{Result, STATUS};
 use origen_metal::utils::file::with_dir;
 use origen_metal::utils::file::{cd, symlink};

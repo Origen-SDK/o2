@@ -1,6 +1,6 @@
 use crate::commands::_prelude::*;
 use crate::STATUS;
-use origen::utility::version::{Version, ReleaseType, VersionWithTOML};
+use origen_metal::utils::version::{Version, ReleaseType, VersionWithTOML};
 use origen::utility::github::{dispatch_workflow, get_latest_workflow_dispatch};
 use origen_metal::utils::terminal::confirm_or_exit;
 use origen_metal::utils::revision_control::RevisionControlAPI;

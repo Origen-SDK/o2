@@ -58,3 +58,13 @@ macro_rules! not_implemented_error {
         )))
     };
 }
+
+#[macro_export]
+macro_rules! value_error {
+    ($message:expr) => {
+        Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "{}",
+            $message
+        )))
+    };
+}

@@ -2,7 +2,7 @@ extern crate time;
 use crate::built_info;
 use crate::core::application::Application;
 use crate::testers::SupportedTester;
-use crate::utility::version::Version;
+use origen_metal::utils::version::Version;
 use crate::Result as OrigenResult;
 use origen_metal::utils::file::with_dir;
 use regex::Regex;

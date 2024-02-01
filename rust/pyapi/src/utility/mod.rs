@@ -11,14 +11,12 @@ pub mod revision_control;
 pub mod sessions;
 pub mod transaction;
 pub mod unit_testers;
-pub mod version;
 pub mod website;
 
 use location::Location;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use transaction::Transaction;
-use version::Version;
 
 use crate::runtime_error;
 use num_bigint::BigUint;
@@ -32,7 +30,6 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "utility")?;
     subm.add_class::<Location>()?;
     subm.add_class::<Transaction>()?;
-    subm.add_class::<Version>()?;
     subm.add_wrapped(wrap_pyfunction!(reverse_bits))?;
     subm.add_wrapped(wrap_pyfunction!(exec))?;
     subm.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;

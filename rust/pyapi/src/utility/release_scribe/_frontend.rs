@@ -1,5 +1,5 @@
 use crate::application::{get_pyapp, PyApplication};
-use origen::utility::version::Version as OVersion;
+use origen_metal::utils::version::Version as OVersion;
 use origen::Result as OResult;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;

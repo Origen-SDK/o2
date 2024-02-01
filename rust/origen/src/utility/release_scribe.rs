@@ -1,4 +1,4 @@
-use crate::utility::version::Version;
+use origen_metal::utils::version::Version;
 use crate::{Result, STATUS};
 use origen_metal::dialoguer::{Input, Select};
 use std::collections::HashMap;

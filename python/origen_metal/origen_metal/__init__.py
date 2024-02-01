@@ -21,5 +21,11 @@ running_on_linux = _origen_metal.running_on_linux
 def __getattr__(name):
     if name == "current_user":
         return users.current_user
+    elif name == "version":
+        from origen_metal.utils.version import Version
+        return Version(__getattr__("__version__"))
+    elif name == "__version__":
+        import importlib_metadata
+        return importlib_metadata.version(__name__)
     else:
         raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

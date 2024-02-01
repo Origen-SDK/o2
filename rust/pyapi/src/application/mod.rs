@@ -2,7 +2,7 @@ pub mod _frontend;
 
 use crate::runtime_error;
 use crate::utility::results::{BuildResult};
-use origen::utility::version::Version as OVersion;
+use origen_metal::utils::version::Version as OVersion;
 use pyapi_metal::prelude::*;
 use pyapi_metal::utils::revision_control::status::Status;
 use pyo3::prelude::*;
@@ -33,7 +33,7 @@ impl PyApplication {
         let v = origen::app().unwrap().version()?.to_string();
         Ok(format!(
             "{}",
-            origen::utility::version::Version::new_pep440(&v)?.to_string()
+            OVersion::new_pep440(&v)?.to_string()
         ))
     }
 

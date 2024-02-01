@@ -535,7 +535,7 @@ fn status(py: Python) -> PyResult<PyObject> {
 #[pyfunction]
 fn version() -> PyResult<String> {
     Ok(
-        origen::utility::version::Version::new_pep440(&STATUS.origen_version.to_string())?
+        origen_metal::utils::version::Version::new_pep440(&STATUS.origen_version.to_string())?
             .to_string(),
     )
 }

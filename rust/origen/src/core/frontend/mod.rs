@@ -1,7 +1,7 @@
 use crate::Result;
 
 pub mod callbacks;
-use crate::utility::version::Version;
+use origen_metal::utils::version::Version;
 use std::path::PathBuf;
 use origen_metal::{Outcome, TypedValueVec, TypedValueMap};
 

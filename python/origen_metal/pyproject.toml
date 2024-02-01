@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "origen_metal"
-version = "0.4.1.dev0"
+version = "0.4.1.dev1"
 description = "Bare metal APIs for the Origen SDK"
 authors = ["Origen-SDK"]
 include = [
@@ -13,6 +13,7 @@ python = ">=3.7.0,<3.13"
 pyreadline3 = { version="^3.3", platform="win32" }
 termcolor = ">= 1.1.0"
 colorama = ">= 0.4.4" # Note: colorama is usually installed on the system already, but it isn't actually required (e.g. WSL won't have this by default)
+importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"

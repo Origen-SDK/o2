@@ -3,7 +3,7 @@ pub mod _frontend;
 use super::app_utility;
 use crate::runtime_error;
 use origen::utility::release_scribe::ReleaseScribe as OrigenRS;
-use origen::utility::version::Version as OVersion;
+use origen_metal::utils::version::Version as OVersion;
 use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
