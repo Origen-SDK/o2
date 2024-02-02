@@ -448,7 +448,7 @@ impl ProductionStatus {
 #[cfg(test)]
 mod tests {
     use crate::core::application::Application;
-    use crate::utility::version::Version;
+    use origen_metal::utils::version::Version;
     use crate::STATUS;
 
     #[test]

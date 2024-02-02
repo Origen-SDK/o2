@@ -513,6 +513,9 @@ impl VersionWithTOML {
         if version_path.is_empty() {
             bail!("Version path should not be empty!");
         }
+        if !source.is_file() {
+            bail!("Source file '{}' does not exist!", source.display());
+        }
 
         let content = std::fs::read_to_string(&source)?;
         let toml = content.parse::<Document>().unwrap();

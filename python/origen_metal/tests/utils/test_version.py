@@ -35,8 +35,9 @@ class TestVersion:
         assert str(v) == current_version()
 
     def test_invalid_pyproject_path(self):
-        with pytest.raises(RuntimeError, match=r"The system cannot find the path specified"):
-            version.from_pyproject("path/to/nowhere/pyproject.toml")
+        f = "path/to/nowhere/pyproject.toml"
+        with pytest.raises(RuntimeError, match=f"Source file '{f}' does not exist!"):
+            version.from_pyproject(f)
 
     def test_version_from_cargo(self):
         print(self.cargo_path)
@@ -49,8 +50,9 @@ class TestVersion:
         assert str(v) == origen_metal._origen_metal.__version__
 
     def test_invalid_cargo_path(self):
-        with pytest.raises(RuntimeError, match=r"The system cannot find the path specified"):
-            version.from_cargo("path/to/nowhere/cargo.toml")
+        f = "path/to/nowhere/cargo.toml"
+        with pytest.raises(RuntimeError, match=f"Source file '{f}' does not exist!"):
+            version.from_cargo(f)
 
 _current_version = None
 def current_version():
