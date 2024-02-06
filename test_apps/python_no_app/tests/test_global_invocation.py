@@ -1,11 +1,12 @@
 import origen, origen_metal, _origen, getpass, pytest, pathlib, sys
 from .shared import working_dir
+from python_app_tests.version_test import TestOrigenVersion as T_OrigenVersion
 
 sys.path.insert(-1, str(pathlib.Path(__file__).parent.parent.parent.joinpath("no_workspace")))
 from t_invocation_env import T_InvocationBaseTests
 
 def test_import():
-    assert "2." in origen.version
+    assert "2." in str(origen.version)
 
 def test_app_is_none():
     assert origen.app is None
@@ -32,3 +33,6 @@ class TestGlobalFEIntegration:
     def test_datastores_are_available(self):
         # TEST_NEEDED Datastores in global invocation
         assert origen.datastores.keys() == ['ldaps']
+
+class TestVersion(T_OrigenVersion):
+    pass

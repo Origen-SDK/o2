@@ -1,6 +1,8 @@
 import sys
 import re
 import os, pathlib
+import importlib_metadata
+
 init_verbosity = 0
 cli_path = None
 cli_ver = None
@@ -96,6 +98,7 @@ from typing import List, Dict
 
 from origen.tester import Tester, DummyTester
 from origen.producer import Producer
+from origen_metal.utils.version import Version
 
 import origen.target
 targets = origen.target
@@ -149,11 +152,21 @@ __in_origen_core_app = status["in_origen_core_app"]
         bool
 '''
 
-version = _origen.version()
-''' Returns the version of the Origen executable.
+__version__ = importlib_metadata.version(__name__)
+''' Returns the version of Origen.
 
     Returns:
         str: Origen executable version
+
+    >>> __origen__.version
+    '{{ origen_version }}'
+'''
+
+version = Version(__version__)
+''' Returns the version of Origen.
+
+    Returns:
+        origen_metal.utils.version.Version: Origen version
 
     >>> origen.version
     '{{ origen_version }}'

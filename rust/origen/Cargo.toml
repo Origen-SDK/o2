@@ -1,6 +1,6 @@
 [package]
 name = "origen"
-version = "2.0.0-dev.5"
+version = "2.0.0-dev7"
 authors = ["Origen-SDK"]
 license = "MIT"
 edition = "2021"

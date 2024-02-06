@@ -1,6 +1,6 @@
 [package]
 name = "cli"
-version = "2.0.0-dev.5"
+version = "2.0.0-dev.7"
 authors = ["Origen-SDK"]
 edition = "2021"
 workspace = ".."

@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "cli"
-version = "2.0.0-dev.5"
+version = "2.0.0-dev.7"
 dependencies = [
  "base64-url",
  "built",
@@ -2557,7 +2557,7 @@ dependencies = [
 
 [[package]]
 name = "origen"
-version = "2.0.0-dev.5"
+version = "2.0.0-dev7"
 dependencies = [
  "built",
  "cargo-expand",

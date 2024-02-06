@@ -888,7 +888,7 @@ files = [
 
 [[package]]
 name = "origen"
-version = "2.0.0.dev6"
+version = "2.0.0.dev7"
 description = "Semiconductor Developer's Kit"
 category = "main"
 optional = false
