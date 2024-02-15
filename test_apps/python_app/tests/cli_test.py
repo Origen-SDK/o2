@@ -52,10 +52,10 @@ def test_origen_v():
     # Process is done
     # Read std out
     first_stdout_line = process.stdout.readline()
-    assert "App:" in first_stdout_line
+    assert "Origen" in first_stdout_line
+    assert " 2." in first_stdout_line
     second_stdout_line = process.stdout.readline()
-    assert "Origen" in second_stdout_line
-    assert " 2." in second_stdout_line
+    assert "App:" in second_stdout_line
 
 def test_bad_command():
     process = subprocess.Popen([f'{origen_cli}', 'thisisnotacommand'],

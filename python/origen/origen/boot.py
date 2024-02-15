@@ -331,14 +331,6 @@ def run_cmd(command,
             def tabify(message):
                 return "\n".join([f"\t{l}" for l in message.split("\n")])
 
-            try:
-                if origen.app:
-                    print(f"App\nSuccess\n{tabify(origen.app.version)}")
-            except Exception as e:
-                print("App")
-                print("Error")
-                print(tabify(repr(e)))
-
             if origen.__in_origen_core_app:
                 origen.logger.info("Running in Origen core application")
             else:
@@ -349,6 +341,14 @@ def run_cmd(command,
                 except Exception as e:
                     print("Error")
                     print(tabify(repr(e)))
+
+            try:
+                if origen.app:
+                    print(f"App\nSuccess\n{tabify(origen.app.version)}")
+            except Exception as e:
+                print("App")
+                print("Error")
+                print(tabify(repr(e)))
 
             print("_ CLI")
             try:

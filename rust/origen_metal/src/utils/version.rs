@@ -378,6 +378,10 @@ impl Version {
     pub fn from_cargo_with_toml_handle(cargo_toml: PathBuf) -> Result<VersionWithTOML> {
         VersionWithTOML::new(cargo_toml, &*CARGO_PATH)
     }
+
+    pub fn to_pep440(&self) -> Result<Self> {
+        Self::new_pep440(&self.to_string())
+    }
 }
 
 impl fmt::Display for Version {
@@ -578,6 +582,24 @@ impl VersionWithTOML {
     pub fn set_new_version(&mut self, new: Version) -> Result<()> {
         self.new_version = Some(new);
         Ok(())
+    }
+
+    pub fn get_other(&self, path: &'static [&'static str]) -> Result<&toml_edit::Item> {
+        let mut i: &toml_edit::Item = &self.toml[path[0]];
+        for p in path[1..].iter() {
+            i = &i[p];
+        }
+        Ok(i)
+    }
+
+    pub fn set_other(&mut self, path: &'static [&'static str], value: impl Into<toml_edit::Value>) -> Result<toml_edit::Item> {
+        let mut i: &mut toml_edit::Item = &mut self.toml[path[0]];
+        for p in path[1..].iter() {
+            i = &mut i[p];
+        }
+        let retn = i.clone();
+        *i = toml_edit::value(value);
+        Ok(retn)
     }
 
     pub fn write(&mut self) -> Result<()> {

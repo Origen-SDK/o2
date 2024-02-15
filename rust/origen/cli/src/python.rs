@@ -36,6 +36,10 @@ macro_rules! user_env_str {
 const PYPROJECT: &'static str = pyproject_str!();
 const USER_ENV: &'static str = user_env_str!();
 
+lazy_static! {
+    pub static ref NO_ORIGEN_BOOT_MODULE_ERROR: &'static str = "ModuleNotFoundError: No module named 'origen.boot'";
+}
+
 pub struct Config {
     pub available: bool,
     pub command: String,

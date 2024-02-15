@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "origen"
-version = "2.0.0.dev7"
+version = "2.0.0.dev8"
 description = "Semiconductor Developer's Kit"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"
@@ -22,7 +22,7 @@ origen = 'origen.__bin__:run_origen'
 
 [tool.poetry.dependencies]
 python = ">=3.7.0,<3.13"
-origen_metal = "0.4.1.dev0"
+origen_metal = "~0.4.1.dev1"
 termcolor = ">= 1.1.0"
 colorama = "^0.4"
 bs4 = "0.0.1"

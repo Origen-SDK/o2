@@ -1,5 +1,7 @@
 import re
+from .dirs import rust_cli_toml
 from origen.helpers.regressions.cli.origen import CoreErrorMessages as Errs
+from origen_metal.utils.version import from_cargo
 
 class AssertionHelpers:
     @classmethod
@@ -54,9 +56,9 @@ class AssertionHelpers:
         assert Errs.unknown_opt_msg(offender, False) in out
 
     @classmethod
-    def assert_origen_v(cls, out, version=None, version_only=True, app=None):
+    def assert_origen_v(cls, out, version=None, version_only=True, app=None, cli_version=None):
         import origen
-        v = version or origen.status["origen_version"]
+        v = version or origen.__version__
         if app:
             if app is True:
                 a = origen.app.version
@@ -68,9 +70,11 @@ class AssertionHelpers:
                 ''
             ])
         else:
+            cli_ver = from_cargo(rust_cli_toml)
+
             s = "\n".join([
                 f"Origen: {v}",
-                f"CLI:    {v}",
+                f"CLI:    {cli_ver}",
                 ''
             ])
         if version_only:

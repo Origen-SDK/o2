@@ -1200,126 +1200,158 @@ fn main() -> Result<()> {
             }
             // To get here means the user has typed "origen -v", which officially means
             // verbosity level 1 with no command, but really want version with verbosity level 0
-            let mut max_len = 0;
+            let mut max_len = 6; //'Origen' by default
             let mut versions: IndexMap<String, (bool, bool, String)> = IndexMap::new();
-            if STATUS.is_app_present {
-                let cmd = "from origen.boot import run_cmd; run_cmd('_version_');";
-                let mut output_lines = "".to_string();
 
-                let res = python::run_with_callbacks(
-                    cmd,
-                    Some(&mut |line| {
-                        output_lines += &format!("{}\n", line);
-                    }),
-                    None,
-                );
-                output_lines.pop();
+            let cmd = "from origen.boot import run_cmd; run_cmd('_version_');";
+            let mut output_lines = "".to_string();
+            let mut error_lines = "".to_string();
 
-                match res {
-                    Ok(_) => {
-                        let lines = output_lines.split("\n").collect::<Vec<&str>>();
-                        if lines.len() == 0 || lines.len() == 1 {
-                            log_error!(
-                                "Unable to parse in-application version output. Expected newlines:"
-                            );
-                            log_error!("{}", output_lines);
-                        } else {
-                            let mut phase = 0;
-                            let mut current = "".to_string();
-                            let mut is_private = false;
-                            let mut is_okay = false;
-                            let mut ver_or_message = "".to_string();
-                            for l in lines {
-                                if phase == 0 {
-                                    let ver = parse_version_token(l);
-                                    current = ver.0;
-                                    is_private = ver.1;
-                                    if !is_private && current.len() > max_len {
-                                        max_len = current.len();
-                                    }
-                                    phase += 1;
-                                } else if phase == 1 {
-                                    match origen::utility::status_to_bool(l) {
-                                        Ok(stat) => is_okay = stat,
-                                        Err(e) => {
-                                            log_error!("{}", e.msg);
-                                            log_error!("Unable to parse version information");
-                                            break;
-                                        }
-                                    }
-                                    phase += 1;
-                                } else if phase == 2 {
-                                    match l.chars().next() {
-                                        Some(t) => {
-                                            if t == '\t' {
-                                                ver_or_message += &l[1..];
-                                            } else {
-                                                versions.insert(
-                                                    current.to_string(),
-                                                    (
-                                                        is_okay,
-                                                        is_private,
-                                                        ver_or_message.to_string(),
-                                                    ),
-                                                );
-                                                let ver = parse_version_token(l);
-                                                current = ver.0;
-                                                is_private = ver.1;
-                                                if !is_private && current.len() > max_len {
-                                                    max_len = current.len();
-                                                }
-                                                ver_or_message = "".to_string();
-                                                phase = 1;
-                                            }
-                                        }
-                                        None => {
-                                            log_error!("Unable to parse in-application version output - unexpected empty line:");
-                                            log_error!("{}", output_lines);
-                                        }
-                                    }
-                                } else {
-                                    log_error!("Unable to parse in-application version output:");
-                                    log_error!("{}", output_lines);
+            let res = python::run_with_callbacks(
+                cmd,
+                Some(&mut |line| {
+                    output_lines += &format!("{}\n", line);
+                }),
+                Some(&mut |line| {
+                    error_lines += &format!("{}\n", line);
+                }),
+            );
+            output_lines.pop();
+            match res {
+                Ok(_) => {
+                    let lines = output_lines.split("\n").collect::<Vec<&str>>();
+                    if lines.len() == 0 || lines.len() == 1 {
+                        log_error!(
+                            "Unable to parse in-application version output. Expected newlines:"
+                        );
+                        log_error!("{}", output_lines);
+                    } else {
+                        let mut phase = 0;
+                        let mut current = "".to_string();
+                        let mut is_private = false;
+                        let mut is_okay = false;
+                        let mut ver_or_message = "".to_string();
+                        for l in lines {
+                            if phase == 0 {
+                                let ver = parse_version_token(l);
+                                current = ver.0;
+                                is_private = ver.1;
+                                if !is_private && current.len() > max_len {
+                                    max_len = current.len();
                                 }
-                            }
-
-                            if phase == 2 {
-                                versions.insert(
-                                    current.clone(),
-                                    (is_okay, is_private, ver_or_message.clone()),
-                                );
+                                phase += 1;
+                            } else if phase == 1 {
+                                match origen::utility::status_to_bool(l) {
+                                    Ok(stat) => is_okay = stat,
+                                    Err(e) => {
+                                        log_error!("{}", e.msg);
+                                        log_error!("Unable to parse version information");
+                                        break;
+                                    }
+                                }
+                                phase += 1;
+                            } else if phase == 2 {
+                                match l.chars().next() {
+                                    Some(t) => {
+                                        if t == '\t' {
+                                            ver_or_message += &l[1..];
+                                        } else {
+                                            versions.insert(
+                                                current.to_string(),
+                                                (
+                                                    is_okay,
+                                                    is_private,
+                                                    ver_or_message.to_string(),
+                                                ),
+                                            );
+                                            let ver = parse_version_token(l);
+                                            current = ver.0;
+                                            is_private = ver.1;
+                                            if !is_private && current.len() > max_len {
+                                                max_len = current.len();
+                                            }
+                                            ver_or_message = "".to_string();
+                                            phase = 1;
+                                        }
+                                    }
+                                    None => {
+                                        log_error!("Unable to parse in-application version output - unexpected empty line:");
+                                        log_error!("{}", output_lines);
+                                    }
+                                }
                             } else {
-                                log_error!("Unable to parse in-application version output - unexpected format:");
+                                log_error!("Unable to parse in-application version output:");
                                 log_error!("{}", output_lines);
                             }
                         }
-                    }
-                    Err(e) => {
-                        log_error!(
-                            "Couldn't boot app to determine the in-application Origen version"
-                        );
-                        log_error!("Received Error:");
-                        log_error!("");
-                        log_error!("{}", e);
-                        if output_lines != "" {
-                            log_error!("");
-                            log_error!("The following was also captured:");
-                            log_error!("");
+
+                        if phase == 2 {
+                            versions.insert(
+                                current.clone(),
+                                (is_okay, is_private, ver_or_message.clone()),
+                            );
+                        } else {
+                            log_error!("Unable to parse in-application version output - unexpected format:");
                             log_error!("{}", output_lines);
                         }
-                        exit(1);
                     }
+                    versions.insert(
+                        "CLI".to_string(),
+                        (true, STATUS.is_app_present, STATUS.cli_version().unwrap().to_pep440()?.to_string()),
+                    );
                 }
-            } else {
-                versions.insert(
-                    "Origen".to_string(),
-                    (true, false, STATUS.origen_version.to_string()),
-                );
-                versions.insert(
-                    "CLI".to_string(),
-                    (true, false, built_info::PKG_VERSION.to_string()),
-                );
-                max_len = 6; // 'Origen'
+                Err(e) => {
+                    if error_lines.contains(*python::NO_ORIGEN_BOOT_MODULE_ERROR) {
+                        // Module not found error
+                        if STATUS.is_app_present {
+                            // Inside an app. This is problematic - origen should be available here
+                            for err in error_lines.lines() {
+                                log_error!("{}", err);
+                            }
+
+                            versions.insert(
+                                "Origen".to_string(),
+                                (true, false, "No Origen Module Available".to_string()),
+                            );
+                            versions.insert(
+                                "App".to_string(),
+                                (true, false, "Unable To Parse Version Information".to_string()),
+                            );
+                        } else {
+                            // Outside of an app
+                            // If the CLI only is used, this will be expected.
+                            // In this case, treat it as info, not an error.
+                            // Log the error for verbose output though.
+                            for err in error_lines.lines() {
+                                log_debug!("{}", err);
+                            }
+
+                            versions.insert(
+                                "Origen".to_string(),
+                                (true, false, "No Origen Module Available".to_string()),
+                            );
+                        }
+                    } else {
+                        // Unrecognized error
+                        for err in error_lines.lines() {
+                            log_error!("{}", err);
+                        }
+                        versions.insert(
+                            "Origen".to_string(),
+                            (true, false, "Errors Encountered Retrieving Origen Version Info".to_string()),
+                        );
+                        if STATUS.is_app_present {
+                            versions.insert(
+                                "App".to_string(),
+                                (true, false, "Unable To Parse Version Information".to_string()),
+                            );
+                        }
+                    }
+                    versions.insert(
+                        "CLI".to_string(),
+                        (true, STATUS.is_app_present, STATUS.cli_version().unwrap().to_pep440()?.to_string()),
+                    );
+                }
             }
 
             for (n, v) in versions.iter() {
