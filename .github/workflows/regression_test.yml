@@ -138,6 +138,13 @@ jobs:
         working-directory: test_apps/python_app
         run: poetry --version
 
+      - name: Cache Poetry Version
+        working-directory: test_apps/python_app
+        run:
+          $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))""
+          echo $POETRY_VER
+          echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
+
       - name: Show Origen Binary Location (Linux)
         if: matrix.os == 'ubuntu-latest'
         working-directory: test_apps/python_app
@@ -293,6 +300,8 @@ jobs:
 
       - name: Install Origen Packages
         run: |
+          pip --version
+          poetry --version
           pip install python/origen
           pip install python/origen_metal
 
@@ -305,8 +314,9 @@ jobs:
 
       - name: Reinstall Poetry Version
         run:
+          echo ${{ env.poetry_version }}
           poetry --version
-          pip install poetry==1.3.2
+          pip install poetry==${{ env.poetry_version }}
           poetry --version
 
       - name: Run User-Global Invocation Tests
