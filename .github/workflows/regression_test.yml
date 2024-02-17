@@ -141,7 +141,7 @@ jobs:
       - name: Cache Poetry Version
         working-directory: test_apps/python_app
         run:
-          $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))""
+          $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))"
           echo $POETRY_VER
           echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
 
