@@ -138,9 +138,20 @@ jobs:
         working-directory: test_apps/python_app
         run: poetry --version
 
-      - name: Cache Poetry Version
+      - name: Install importlib_metadata (Python 3.12)
+        run: pip install importlib_metadata
+
+      - name: Cache Poetry Version (Linux)
+        if: matrix.os == 'ubuntu-latest'
         working-directory: test_apps/python_app
-        run:
+        run: |
+          POETRY_VER=$(python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))")
+          echo $POETRY_VER
+          echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
+      - name: Cache Poetry Version (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: test_apps/python_app
+        run: |
           $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))"
           echo $POETRY_VER
           echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
@@ -313,7 +324,7 @@ jobs:
         run: where.exe origen
 
       - name: Reinstall Poetry Version
-        run:
+        run: |
           echo ${{ env.poetry_version }}
           poetry --version
           pip install poetry==${{ env.poetry_version }}
