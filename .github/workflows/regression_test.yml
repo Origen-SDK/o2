@@ -111,7 +111,9 @@ jobs:
           $env:Path = "${{ github.workspace }}/rust/origen/target/debug;$env:Path"
 
       - name: Display Python Version
-        run: python -c "import sys; print(sys.version)"
+        run: |
+          python -c "import sys; print(sys.version)"
+          pip --version
 
       - name: Display Origen CLI Version
         run: origen -v
@@ -138,23 +140,23 @@ jobs:
         working-directory: test_apps/python_app
         run: poetry --version
 
-      - name: Install importlib_metadata (Python 3.12)
-        run: pip install importlib_metadata
+      # - name: Install importlib_metadata (Python 3.12)
+      #   run: pip install importlib_metadata
 
-      - name: Cache Poetry Version (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: test_apps/python_app
-        run: |
-          POETRY_VER=$(python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))")
-          echo $POETRY_VER
-          echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
-      - name: Cache Poetry Version (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: test_apps/python_app
-        run: |
-          $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))"
-          echo $POETRY_VER
-          echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
+      # - name: Cache Poetry Version (Linux)
+      #   if: matrix.os == 'ubuntu-latest'
+      #   working-directory: test_apps/python_app
+      #   run: |
+      #     POETRY_VER=$(python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))")
+      #     echo $POETRY_VER
+      #     echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
+      # - name: Cache Poetry Version (Windows)
+      #   if: matrix.os == 'windows-latest'
+      #   working-directory: test_apps/python_app
+      #   run: |
+      #     $POETRY_VER = python -c "import importlib_metadata; print(importlib_metadata.version('poetry'))"
+      #     echo $POETRY_VER
+      #     echo "poetry_version=$POETRY_VER" >> $GITHUB_ENV
 
       - name: Show Origen Binary Location (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -323,12 +325,12 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: where.exe origen
 
-      - name: Reinstall Poetry Version
-        run: |
-          echo ${{ env.poetry_version }}
-          poetry --version
-          pip install poetry==${{ env.poetry_version }}
-          poetry --version
+      # - name: Reinstall Poetry Version
+      #   run: |
+      #     echo ${{ env.poetry_version }}
+      #     poetry --version
+      #     pip install poetry==${{ env.poetry_version }}
+      #     poetry --version
 
       - name: Run User-Global Invocation Tests
         working-directory: test_apps/no_workspace
