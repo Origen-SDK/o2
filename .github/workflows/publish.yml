@@ -320,6 +320,12 @@ jobs:
           name: ${{ env.origen_ver_file }}
           path: python/origen/${{ env.origen_ver_file }}
 
+      - name: Upload CLI as a standalone entity
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli
+          path: python\origen\origen\__bin__\bin\origen
+
   build_windows:
     strategy:
       fail-fast: false
@@ -488,6 +494,12 @@ jobs:
       - name: List Origen Wheels
         run: ls -al ./origen_wheels
 
+      - name: Upload CLI as a standalone entity
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli
+          path: python\origen\origen\__bin__\bin\origen.exe
+
   publish_to_pypi_test:
     needs: [build_manylinux, build_windows]
     runs-on: ubuntu-latest
@@ -596,6 +608,17 @@ jobs:
 
         - uses: actions/download-artifact@v3
           with:
+            name: cli
+            path: cli
+
+        - name: Show downloaded artifact directories
+          run: |
+            ls -al ./origen_metal
+            ls -al ./origen
+            ls -al ./cli
+
+        - uses: actions/download-artifact@v3
+          with:
             name: ${{ env.om_ver_file }}
 
         - uses: actions/download-artifact@v3
@@ -611,6 +634,11 @@ jobs:
           with:
             files: origen
             dest: origen.zip
+
+        - uses: vimtor/action-zip@v1.1
+          with:
+            files: cli
+            dest: cli.zip
 
         - name: Get OM/Origen Versions
           run: |
@@ -635,7 +663,7 @@ jobs:
         - name: Generate Github Release
           uses: ncipollo/release-action@v1
           with:
-            artifacts: ./origen_metal.zip, ./origen.zip
+            artifacts: ./origen_metal.zip, ./origen.zip, cli.zip
             artifactErrorsFailBuild: true
             prerelease: ${{ github.event.inputs.prerelease == 'true' }}
             commit: ${{ github.sha }}
