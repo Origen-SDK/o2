@@ -3,11 +3,11 @@ on:
   push:
     paths-ignore:
       # Ignore updates to just the publish action
-      - '.github\workflows\publish.yml'
+      - '.github/workflows/publish.yml'
       # Ignore updates to just version files for Origen/OM/CLI
-      - 'rust\origen\cli\Cargo.toml'
-      - 'python\origen\pyproject.toml'
-      - 'python\origen_metal\pyproject.toml'
+      - 'rust/origen/cli/Cargo.toml'
+      - 'python/origen/pyproject.toml'
+      - 'python/origen_metal/pyproject.toml'
   workflow_dispatch:
 jobs:
   build:
