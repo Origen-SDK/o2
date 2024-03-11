@@ -7,6 +7,14 @@ use origen::Result;
 use super::_prelude::*;
 pub const BASE_CMD: &'static str = "develop_origen";
 
+lazy_static! {
+    static ref GH_OWNER: &'static str = "Origen-SDK";
+    static ref GH_REPO: &'static str = "o2";
+    static ref PUBLISH_BRANCH: &'static str = "master";
+    static ref PUBLISH_WORKFLOW: &'static str = "publish.yml";
+    static ref ORIGEN_OM_REQ_PATH: [&'static str; 4] = ["tool", "poetry", "dependencies", "origen_metal"];
+}
+
 gen_core_cmd_funcs__no_exts__no_app_opts!(
     BASE_CMD,
     "Commands to assist with Origen core development",

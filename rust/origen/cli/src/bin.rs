@@ -1300,7 +1300,7 @@ fn main() -> Result<()> {
                         (true, STATUS.is_app_present, STATUS.cli_version().unwrap().to_pep440()?.to_string()),
                     );
                 }
-                Err(e) => {
+                Err(_e) => {
                     if error_lines.contains(*python::NO_ORIGEN_BOOT_MODULE_ERROR) {
                         // Module not found error
                         if STATUS.is_app_present {

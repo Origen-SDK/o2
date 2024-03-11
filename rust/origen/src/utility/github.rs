@@ -18,7 +18,15 @@ macro_rules! block_on {
 
 pub fn lookup_pat() -> Result<String> {
     // TODO Publishing Tie this back to the user object at some point.
-    Ok(std::env::var("github_pat")?)
+    match std::env::var("github_pat") {
+        Ok(v) => Ok(v),
+        Err(e) => match e {
+            std::env::VarError::NotPresent => {
+                bail!("Environment variable 'github_pat' was not found")
+            },
+            _ => return Err(e.into())
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -51,7 +59,7 @@ pub struct WorkflowRun {
     pub head_branch: String,
     pub head_sha: String,
     pub status: String,
-    pub conclusion: String,
+    pub conclusion: Option<String>,
     pub url: String,
     pub html_url: String,
     pub run_attempt: u8,
@@ -68,7 +76,7 @@ pub struct WorkflowRun {
 
 impl WorkflowRun {
     pub fn was_cancelled(&self) -> bool {
-        self.conclusion == "cancelled"
+        self.conclusion.as_ref().map_or( false, |c| c == "cancelled")
     }
 
     pub fn cancel(&self) -> Result<()> {
@@ -82,6 +90,30 @@ impl WorkflowRun {
 
     pub fn refresh(&self) -> Result<Self> {
         Ok(serde_json::from_str(&send_get_request(|| new_crab(None), &self.url)?)?)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Enabled {
+    pub enabled: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BranchProtections {
+    pub url: String,
+    // pub required_signatures: ?,
+    // pub enforce_admins
+    pub required_linear_history: Enabled,
+    pub allow_force_pushes: Enabled,
+    pub allow_deletions: Enabled,
+    pub required_conversation_resolution: Enabled,
+    pub lock_branch: Enabled,
+    pub allow_fork_syncing: Enabled,
+}
+
+impl BranchProtections {
+    pub fn is_locked(&self) -> bool {
+        self.lock_branch.enabled
     }
 }
 
@@ -108,6 +140,21 @@ where
         let c = crab()?;
         log_trace!("Sending POST request to GA: {}", uri);
         let response = block_on!(c._post(uri, inputs.as_ref()))?;
+        let body = block_on!(c.body_to_string(response))?;
+        log_trace!("Received pre-processed body:\n{}", body);
+        Ok(body)
+    })
+}
+
+pub fn send_put_request<F, H>(crab: F, uri: &str, inputs: Option<H>) -> Result<String>
+where
+    F: Fn() -> Result<octocrab::Octocrab>,
+    H: serde::Serialize + Sized
+{
+    with_blocking_calls( || {
+        let c = crab()?;
+        log_trace!("Sending POST request to GA: {}", uri);
+        let response = block_on!(c._put(uri, inputs.as_ref()))?;
         let body = block_on!(c.body_to_string(response))?;
         log_trace!("Received pre-processed body:\n{}", body);
         Ok(body)
@@ -148,13 +195,16 @@ pub fn get_workflow_run_by_id(owner: &str, repo: &str, run_id: u64) -> Result<Wo
     )?)?)
 }
 
-pub fn dispatch_workflow(
+pub fn dispatch_workflow<H>(
     owner: &str,
     repo: &str,
     workflow: &str,
     git_ref: &str,
-    inputs: Option<HashMap<String, String>>,
-) -> Result<Outcome> {
+    inputs: Option<H>,
+) -> Result<Outcome>
+where
+    H: serde::Serialize + Sized
+{
     with_blocking_calls(|| {
         let crab = new_crab(Some(GithubAuth::PersonalAccessToken))?;
         let actions = crab.actions();
@@ -168,4 +218,71 @@ pub fn dispatch_workflow(
     })?;
     let res = Outcome::new_success();
     Ok(res)
+}
+
+pub fn get_branch_protections(owner: &str, repo: &str, branch: &str) -> Result<BranchProtections> {
+    let resp = &send_get_request(
+        || new_crab(Some(GithubAuth::PersonalAccessToken)),
+        &format!("https://api.github.com/repos/{owner}/{repo}/branches/{branch}/protection")
+    )?;
+    match serde_json::from_str(resp) {
+        Ok(retn) => Ok(retn),
+        Err(e) => {
+            bail!("Error building branch protection struct: {}\nUnexpected response:\n{}", e, resp);
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct UpdateBranchProtectionRule {
+    pub lock_branch: bool,
+    pub enforce_admins: bool,
+    pub required_pull_request_reviews: Option<HashMap<String, String>>,
+    pub required_status_checks: Option<HashMap<String, String>>,
+    pub restrictions: Option<HashMap<String, String>>,
+}
+
+impl UpdateBranchProtectionRule {
+    pub fn lock_branch() -> Self {
+        Self {
+            lock_branch: true,
+            enforce_admins: true,
+            required_pull_request_reviews: None,
+            required_status_checks: None,
+            restrictions: None,
+        }
+    }
+
+    pub fn unlock_branch() -> Self {
+        Self {
+            lock_branch: false,
+            enforce_admins: false,
+            required_pull_request_reviews: None,
+            required_status_checks: None,
+            restrictions: None,
+        }
+    }
+}
+
+pub fn update_branch_protection(owner: &str, repo: &str, branch: &str, new_protections: UpdateBranchProtectionRule) -> Result<BranchProtections> {
+    let url = format!("https://api.github.com/repos/{owner}/{repo}/branches/{branch}/protection");
+    let res = send_put_request(
+        || new_crab(Some(GithubAuth::PersonalAccessToken)),
+        &url,
+        Some(new_protections),
+    )?;
+    match serde_json::from_str(&res) {
+        Ok(retn) => Ok(retn),
+        Err(e) => {
+            bail!("Error building branch protection struct: {}\nUnexpected response:\n{}", e, res);
+        }
+    }
+}
+
+pub fn lock_branch(owner: &str, repo: &str, branch: &str) -> Result<BranchProtections> {
+    update_branch_protection(owner, repo, branch, UpdateBranchProtectionRule::lock_branch())
+}
+
+pub fn unlock_branch(owner: &str, repo: &str, branch: &str) -> Result<BranchProtections> {
+    update_branch_protection(owner, repo, branch, UpdateBranchProtectionRule::unlock_branch())
 }

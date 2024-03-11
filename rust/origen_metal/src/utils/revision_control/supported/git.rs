@@ -394,6 +394,7 @@ impl RevisionControlAPI for Git {
         cb.credentials(|url, username_from_url, allowed_types| {
             self.credentials_callback(url, username_from_url, allowed_types)
         });
+        self.reset_temps();
         log_trace!("Cleaning up after push...");
         repo.checkout_index(None, None)?;
         Ok(Outcome::new_success_with_msg(commit_id))
@@ -441,6 +442,7 @@ impl Git {
         }
 
         self.checkout(true, None, version)?;
+        self.reset_temps();
 
         Ok(())
     }
@@ -868,6 +870,7 @@ impl Git {
 
         // Disconnect the underlying connection to prevent from idling.
         remote.disconnect()?;
+        self.reset_temps();
 
         // Update the references in the remote's namespace to point to the right
         // commits. This may be needed even if there was no packfile to download,
@@ -938,20 +941,37 @@ impl Git {
         }
     }
 
-    // TODO Publishing
-    // pub fn list_refs(&self, remote_name: Option<&str>) -> Result<String> {
-    //     let mut repo = Repository::open(&self.local)?;
-    //     // println!("remotes")
-    //     let mut remote = repo.find_remote(remote_name.unwrap_or("origin"))?;
-    //     let mut cb = RemoteCallbacks::new();
-    //     cb.credentials(|url, username_from_url, allowed_types| {
-    //         self.credentials_callback(url, username_from_url, allowed_types)
-    //     });
-    //     remote.connect_auth(Direction::Fetch, Some(cb), None)?;
+    pub fn list_refs(&self, remote_name: Option<&str>) -> Result<Vec<[String; 2]>> {
+        let repo = Repository::open(&self.local)?;
+        let mut remote = repo.find_remote(remote_name.unwrap_or("origin"))?;
+        let mut cb = RemoteCallbacks::new();
+        cb.credentials(|url, username_from_url, allowed_types| {
+            self.credentials_callback(url, username_from_url, allowed_types)
+        });
+        remote.connect_auth(Direction::Fetch, Some(cb), None)?;
+        self.reset_temps();
+        Ok(remote.list()?.iter().map( |r| [r.name().to_string(), r.oid().to_string()]).collect::<Vec<[String; 2]>>())
+    }
 
-    //     println!("{:?}", remote.list()?.iter().map( |r| [r.name().to_string(), r.oid().to_string()]).collect::<Vec<[String; 2]>>());
-    //     todo!();
-    // }
+    pub fn confirm_latest_ref(&self, branch: &str) -> Result<(bool, [String; 2])> {
+        let refs = self.list_refs(None)?;
+        let b;
+        if branch.starts_with("refs/") {
+            b = branch.to_string();
+        } else {
+            b = format!("refs/heads/{}", branch);
+        }
+        if let Some(latest) = refs.iter().find( |r| { r[0] == b }) {
+            // first ref should be HEAD, but double check
+            if refs[0][0] == "HEAD" {
+                Ok((refs[0][1] == latest[1], [refs[0][1].to_string(), latest[1].to_string()]))
+            } else {
+                bail!("Expected HEAD ref to be first in list. Found: {}", refs[0][0]);
+            }
+        } else {
+            bail!("Could not find Git ref: {}", b);
+        }
+    }
 }
 
 fn ssh_keys() -> Vec<PathBuf> {

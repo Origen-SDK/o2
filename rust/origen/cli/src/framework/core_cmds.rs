@@ -61,6 +61,17 @@ macro_rules! _core_subcmd {
         }
     }};
 
+    ($include_app_opts:expr, $extendable:expr, $name:expr, $help:expr, $proc:tt, $($subcmd:expr ), *) => {{
+        $crate::framework::core_cmds::SubCmd {
+            name: $name,
+            help: $help,
+            subcmds: &[$($subcmd),*],
+            proc: Some(&$proc),
+            include_app_opts: $include_app_opts,
+            extendable: $extendable,
+        }
+    }};
+
     ($name:expr, $help:expr, $proc:tt, $($subcmd:expr ), *) => {{
         $crate::framework::core_cmds::SubCmd {
             name: $name,
