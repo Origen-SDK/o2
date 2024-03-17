@@ -1,4 +1,4 @@
-use origen_metal::{Result, Outcome, octocrab};
+use origen_metal::{Result, Outcome, octocrab, futures};
 use std::collections::HashMap;
 
 pub fn with_blocking_calls<F, V>(mut f: F) -> Result<V>

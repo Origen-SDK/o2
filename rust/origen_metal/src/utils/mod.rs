@@ -11,3 +11,4 @@ pub mod revision_control;
 pub mod terminal;
 pub mod mailer;
 pub mod version;
+pub mod pypi;

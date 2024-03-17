@@ -69,6 +69,16 @@ impl Version {
         Self::new(ver, VersionSpec::Pep440)
     }
 
+    // TODO: Tests
+    pub fn convert_to_pep440(&mut self) {
+        self.spec = VersionSpec::Pep440;
+    }
+
+    // TODO: Tests
+    pub fn convert_to_semver(&mut self) {
+        self.spec = VersionSpec::Semver;
+    }
+
     fn split_prerelease(pre: &str) -> Result<(&str, usize)> {
         match pre.find(|c: char| c.is_digit(10)) {
             Some(i) => {
@@ -376,7 +386,9 @@ impl Version {
     }
 
     pub fn from_cargo_with_toml_handle(cargo_toml: PathBuf) -> Result<VersionWithTOML> {
-        VersionWithTOML::new(cargo_toml, &*CARGO_PATH)
+        let mut ver = VersionWithTOML::new(cargo_toml, &*CARGO_PATH)?;
+        ver.convert_to_semver();
+        Ok(ver)
     }
 
     pub fn to_pep440(&self) -> Result<Self> {
@@ -569,6 +581,22 @@ impl VersionWithTOML {
 
     pub fn source(&self) -> &PathBuf {
         &self.source
+    }
+
+    // TODO: Tests
+    pub fn convert_to_pep440(&mut self) {
+        self.orig_version.convert_to_pep440();
+        if let Some(v) = &mut self.new_version {
+            v.convert_to_pep440();
+        }
+    }
+
+    // TODO: Tests
+    pub fn convert_to_semver(&mut self) {
+        self.orig_version.convert_to_semver();
+        if let Some(v) = &mut self.new_version {
+            v.convert_to_semver();
+        }
     }
 
     pub fn version(&self) -> &Version {

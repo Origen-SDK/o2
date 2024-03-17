@@ -7,6 +7,9 @@ pub extern crate octocrab;
 pub extern crate tera;
 pub extern crate toml_edit;
 pub extern crate dialoguer;
+pub extern crate reqwest;
+pub extern crate futures;
+pub extern crate serde_json;
 #[macro_use]
 extern crate serde;
 #[macro_use]

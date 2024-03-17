@@ -5,9 +5,11 @@ use origen::utility::github::{dispatch_workflow, get_latest_workflow_dispatch, g
 use origen_metal::utils::terminal::confirm_with_user;
 use origen_metal::utils::revision_control::RevisionControlAPI;
 use std::process::exit;
-use origen_metal::utils::terminal::{redln, greenln};
+use origen_metal::utils::terminal::{redln, greenln, yellowln};
 use std::thread;
 use std::time::Duration;
+use super::{OM_PYPI_PKG_NAME, ORIGEN_PYPI_PKG_NAME};
+use origen_metal::utils::pypi::{is_package_version_available, is_package_version_available_on_test_server};
 
 pub const BASE_CMD: &'static str = "publish";
 
@@ -58,7 +60,7 @@ pub (crate) fn publish_cmd<'a>() -> SubCmd<'a> {
             .arg(
                 Arg::new("no_pypi_release")
                 .long("no_pypi_release")
-                .action(SetArgFalse)
+                .action(SetArgTrue)
                 .help("Do NOT release to pypi, even if Origen or OM versions are updated")
             )
             .arg(
@@ -80,12 +82,21 @@ pub (crate) fn publish_cmd<'a>() -> SubCmd<'a> {
             .arg(
                 Arg::new("version_update_only")
                 .long("version_update_only")
+                .visible_alias("version-update-only")
                 .visible_alias("versions_only")
+                .visible_alias("versions-only")
                 .action(SetArgTrue)
                 .help("Only updates the version files. Does not check in or launch publishing action.")
                 .conflicts_with("release_to_pypi_test")
                 .conflicts_with("no_pypi_release")
                 .conflicts_with("github_release")
+            )
+            .arg(
+                Arg::new("allow_local_changes")
+                .long("allow_local_changes")
+                .alias("allow-local-changes")
+                .action(SetArgTrue)
+                .help("Allow publishing even with local changes")
             )
         }},
         core_subcmd__no_exts__no_app_opts!(
@@ -151,13 +162,16 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             greenln("On master branch with attached HEAD");
         }
 
-        // TODO PublishO2
         // Ensure no local changes
         let status = git.status(None)?;
-        if status.is_modified() {
-            status.summarize();
-            redln("Changes found in workspace. Please check in your changes or stash them before rerunning");
-            break 'checks Ok(false);
+        status.summarize();
+        if *invocation.get_one::<bool>("allow_local_changes").unwrap() {
+            yellowln("Allowing releases with local changes...");
+        } else {
+            if status.is_modified() {
+                redln("Changes found in workspace. Please check in your changes or stash them before rerunning");
+                break 'checks Ok(false);
+            }
         }
 
         // Ensure up-to-date with remote
@@ -171,13 +185,9 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         // TODO PublishO2 Ensure a regression test passed with this commit
 
         // Get current versions
-        // TODO PublishO2 Cleanup - move paths to shared location
-        let om_pyproject_path = STATUS.origen_wksp_root.join("python").join("origen_metal").join("pyproject.toml");
-        let origen_pyproject_path = STATUS.origen_wksp_root.join("python").join("origen").join("pyproject.toml");
-        let cli_toml_loc = STATUS.origen_wksp_root.join("rust").join("origen").join("cli").join("cargo.toml");
-        let mut py_om_ver = Version::from_pyproject_with_toml_handle(om_pyproject_path)?;
-        let mut py_origen_ver = Version::from_pyproject_with_toml_handle(origen_pyproject_path)?;
-        let mut cli_ver = Version::from_cargo_with_toml_handle(cli_toml_loc)?;
+        let mut py_om_ver = Version::from_pyproject_with_toml_handle(super::OM_PYPROJECT_PATH.clone())?;
+        let mut py_origen_ver = Version::from_pyproject_with_toml_handle(super::ORIGEN_PYPROJECT_PATH.clone())?;
+        let mut cli_ver = Version::from_cargo_with_toml_handle(super::CLI_TOML_LOC.clone())?;
 
         // Extract release types
         fn extract_release(invoc: &clap::ArgMatches, cli_name: &str, ver: &mut VersionWithTOML) -> Result<bool> {
@@ -233,12 +243,82 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
         if let Some(new) = new_req.as_ref() {
             let old_req = py_origen_ver.get_other(&*super::ORIGEN_OM_REQ_PATH)?.to_string();
             displayln!("Origen's OM requirement: Updating to '{}' (from '{}')", new, old_req);
+
+            // A new Origen version would be pushed, but no Origen version increment was found.
+            if !release_py_origen {
+                yellowln("Origen's OM version requirement would be updated but no Origen release was indicated");
+                if !confirm_with_user(Some("Proceed without an Origen release?"))? {
+                    displayln!("Exiting without sending release request...");
+                    break 'checks Ok(false);
+                }
+            }
         } else {
             displayln!("Origen's OM requirement: No update to Origen's OM minimum version");
         }
+
+        // Check if the CLI was updated, but no Origen version update.
+        if !release_py_origen && update_cli {
+            yellowln("The CLI was updated but no Origen release was indicated");
+            if !confirm_with_user(Some("Proceed without an Origen release?"))? {
+                displayln!("Exiting without sending release request...");
+                break 'checks Ok(false);
+            }
+        }
+
         if !confirm_with_user(Some("Proceed with release?"))? {
             displayln!("Exiting without sending release request...");
             break 'checks Ok(false);
+        }
+
+        // Ensure the proposed versions are available to release
+        // let release_to_pypi = (!invocation.get_one::<bool>("no_pypi_release").unwrap() || invocation.get_one::<bool>("force_pypi_release").unwrap()) && (update_origen_package || update_om_package);
+        let release_to_pypi = (!invocation.get_one::<bool>("no_pypi_release").unwrap()) && (release_py_origen || release_py_om);
+        let release_to_pypi_test = *invocation.get_one::<bool>("release_to_pypi_test").unwrap() && (release_py_origen || release_py_om);
+        if release_to_pypi && release_py_om {
+            displayln!("Checking that OM version '{}' is available...", py_om_ver.version());
+            if !is_package_version_available(*OM_PYPI_PKG_NAME, py_om_ver.version().to_string())? {
+                redln(&format!(
+                    "Version '{}' is already in use for PyPi package '{}'. Cannot release duplicate version.",
+                    py_om_ver.version(),
+                    *OM_PYPI_PKG_NAME
+                ));
+                break 'checks Ok(false);
+            }
+            greenln(&format!("Version '{}' is available!", py_om_ver.version()));
+        }
+        if release_to_pypi_test && release_py_om {
+            displayln!("Checking that OM version '{}' is available on the test server...", py_om_ver.version());
+            if !is_package_version_available_on_test_server(*OM_PYPI_PKG_NAME, py_om_ver.version().to_string())? {
+                redln(&format!(
+                    "Version '{}' is already in use for PyPi test server package '{}'. Cannot release duplicate version.",
+                    py_om_ver.version(),
+                    *OM_PYPI_PKG_NAME
+                ));
+            }
+            greenln(&format!("Version '{}' is available on the test server!", py_om_ver.version()));
+        }
+        if release_to_pypi && release_py_origen {
+            displayln!("Checking that Origen version '{}' is available...", py_origen_ver.version());
+            if !is_package_version_available(*ORIGEN_PYPI_PKG_NAME, py_origen_ver.version().to_string())? {
+                redln(&format!(
+                    "Version '{}' is already in use for PyPi package '{}'. Cannot release duplicate version.",
+                    py_origen_ver.version(),
+                    *ORIGEN_PYPI_PKG_NAME
+                ));
+                break 'checks Ok(false);
+            }
+            greenln(&format!("Version '{}' is available!", py_origen_ver.version()));
+        }
+        if release_to_pypi_test && release_py_origen {
+            displayln!("Checking that Origen version '{}' is available on the test server...", py_origen_ver.version());
+            if !is_package_version_available_on_test_server(*ORIGEN_PYPI_PKG_NAME, py_origen_ver.version().to_string())? {
+                redln(&format!(
+                    "Version '{}' is already in use for PyPi test server package '{}'. Cannot release duplicate version.",
+                    py_origen_ver.version(),
+                    *ORIGEN_PYPI_PKG_NAME
+                ));
+            }
+            greenln(&format!("Version '{}' is available on the test server!", py_origen_ver.version()));
         }
 
         // Update the TOMLs
@@ -256,6 +336,7 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
             py_origen_ver.set_other(&*super::ORIGEN_OM_REQ_PATH, new)?;
         }
         update_toml(update_origen_package, &mut py_origen_ver)?;
+        update_toml(update_cli, &mut cli_ver)?;
 
         if *invocation.get_one::<bool>("version_update_only").unwrap() {
             displayln!("Stopping release after version update...");
@@ -286,22 +367,24 @@ pub(crate) fn run(invocation: &clap::ArgMatches) -> Result<()> {
 
         // Send Github actions request to build and release
         let mut inputs = indexmap::IndexMap::new();
-        inputs.insert("origen_metal_python_package", update_om_package.to_string());
-        inputs.insert("origen_python_package", update_origen_package.to_string());
-        inputs.insert("publish_pypi", (!invocation.get_one::<bool>("no_pypi_release").unwrap() && (update_origen_package || update_om_package)).to_string());
+        inputs.insert("origen_metal_python_package", release_py_om.to_string());
+        inputs.insert("origen_python_package", release_py_origen.to_string());
+        inputs.insert("publish_pypi", release_to_pypi.to_string());
         inputs.insert("publish_pypi_test", invocation.get_one::<bool>("release_to_pypi_test").unwrap().to_string());
         inputs.insert("publish_github_release", invocation.get_one::<bool>("github_release").unwrap().to_string());
-        displayln!("Sending request to GitHub Actions to build and release...");
+        displayln!("Request GitHub Actions to build and release with...");
         for (k, v) in &inputs {
             displayln!("  {}: {}", k, v);
+        }
+        if !confirm_with_user(Some("Send publish workflow request?"))? {
+            displayln!("Exiting without sending release request...");
+            break 'checks Ok(false);
         }
         dispatch_workflow(*super::GH_OWNER, *super::GH_REPO, *super::PUBLISH_WORKFLOW, *super::PUBLISH_BRANCH, Some(inputs))?;
 
         Ok::<bool, origen_metal::Error>(true)
     } {
         Ok(publishing) => {
-            redln("Automation is incomplete");
-
             // Unlock branch
             unlock_publish_branch(true)?;
             if publishing {
