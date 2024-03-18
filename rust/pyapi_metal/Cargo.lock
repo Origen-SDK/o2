@@ -1728,6 +1728,7 @@ dependencies = [
  "email_address",
  "enum-display-derive",
  "enum-utils",
+ "futures",
  "git2",
  "glob",
  "indexmap 1.8.1",

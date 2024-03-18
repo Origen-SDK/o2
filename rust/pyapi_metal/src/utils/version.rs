@@ -46,7 +46,35 @@ impl Version {
         })
     }
 
+    #[classmethod]
+    fn pep440(_cls: &PyType, ver: &str) -> PyResult<Self> {
+        Ok( Self {
+            _origen_version: {
+                Self::coerce_error_type(OMVersion::new_pep440(ver))?
+            }
+        })
+    }
+
+    #[classmethod]
+    fn semver(_cls: &PyType, ver: &str) -> PyResult<Self> {
+        Ok( Self {
+            _origen_version: {
+                Self::coerce_error_type(OMVersion::new_semver(ver))?
+            }
+        })
+    }
+
     fn __str__(&self) -> PyResult<String> {
         Ok(self._origen_version.to_string())
+    }
+
+    #[getter]
+    fn pep440_str(&self) -> PyResult<String> {
+        Ok(self._origen_version.to_pep440_string())
+    }
+
+    #[getter]
+    fn semver_str(&self) -> PyResult<String> {
+        Ok(self._origen_version.to_semver_string())
     }
 }

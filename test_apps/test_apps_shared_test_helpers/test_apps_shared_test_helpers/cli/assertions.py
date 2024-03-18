@@ -70,7 +70,7 @@ class AssertionHelpers:
                 ''
             ])
         else:
-            cli_ver = from_cargo(rust_cli_toml)
+            cli_ver = from_cargo(rust_cli_toml).pep440_str
 
             s = "\n".join([
                 f"Origen: {v}",

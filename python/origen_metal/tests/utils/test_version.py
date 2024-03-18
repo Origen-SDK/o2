@@ -2,7 +2,7 @@ import origen_metal
 import pytest
 from origen_metal._helpers import pip_show
 from origen_metal.utils import version
-from origen_metal.utils.version import Version
+from origen_metal.utils.version import Version, semver, pep440
 from pathlib import Path
 from tests import test_dir
 
@@ -14,12 +14,29 @@ class TestVersion:
 
     pyproject_path = test_dir.parent.joinpath("pyproject.toml")
     cargo_path = test_dir.parent.parent.parent.joinpath("rust/pyapi_metal/Cargo.toml")
+    pep440_str = "1.2.3.dev4"
+    semver_str = "1.2.3-dev.4"
 
     def test_version_form_string(self):
-        v = "1.2.3.dev4"
-        ver = Version(v)
+        ver = Version(self.pep440_str)
         assert isinstance(ver, Version)
-        assert str(ver) == v
+        assert str(ver) == self.pep440_str
+
+    def test_version_as_pep440_is_default(self):
+        ver = Version(self.semver_str)
+        assert str(ver) == self.pep440_str
+
+    def test_pep440_from_string(self):
+        ver = pep440(self.pep440_str)
+        assert str(ver) == self.pep440_str
+        ver = pep440(self.semver_str)
+        assert str(ver) == self.pep440_str
+
+    def test_semver_from_string(self):
+        ver = semver(self.pep440_str)
+        assert str(ver) == self.semver_str
+        ver = semver(self.semver_str)
+        assert str(ver) == self.semver_str
 
     def test_invalid_version_from_string(self):
         with pytest.raises(ValueError, match=r"unexpected character 'b' while parsing minor version number"):
@@ -53,6 +70,16 @@ class TestVersion:
         f = "path/to/nowhere/cargo.toml"
         with pytest.raises(RuntimeError, match=f"Source file '{f}' does not exist!"):
             version.from_cargo(f)
+    
+    def test_to_semver_string(self):
+        ver = Version(self.pep440_str)
+        assert(str(ver)) == self.pep440_str
+        assert(ver.semver_str) == self.semver_str
+
+    def test_to_pep440_string(self):
+        ver = semver(self.semver_str)
+        assert(str(ver)) == self.semver_str
+        assert(ver.pep440_str) == self.pep440_str
 
 _current_version = None
 def current_version():

@@ -394,27 +394,32 @@ impl Version {
     pub fn to_pep440(&self) -> Result<Self> {
         Self::new_pep440(&self.to_string())
     }
+
+    pub fn to_pep440_string(&self) -> String {
+        let v = &self.semver;
+        if v.pre.is_empty() {
+            format!("{}.{}.{}", v.major, v.minor, v.patch)
+        } else {
+            format!(
+                "{}.{}.{}.{}",
+                v.major,
+                v.minor,
+                v.patch,
+                v.pre.replace(".", "")
+            )
+        }
+    }
+
+    pub fn to_semver_string(&self) -> String {
+        self.semver.to_string()
+    }
 }
 
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.spec {
-            VersionSpec::Semver => self.semver.fmt(f),
-            VersionSpec::Pep440 => {
-                let v = &self.semver;
-                if v.pre.is_empty() {
-                    write!(f, "{}.{}.{}", v.major, v.minor, v.patch)
-                } else {
-                    write!(
-                        f,
-                        "{}.{}.{}.{}",
-                        v.major,
-                        v.minor,
-                        v.patch,
-                        v.pre.replace(".", "")
-                    )
-                }
-            }
+            VersionSpec::Semver => write!(f, "{}", self.to_semver_string()),
+            VersionSpec::Pep440 => write!(f, "{}", self.to_pep440_string()),
         }
     }
 }
