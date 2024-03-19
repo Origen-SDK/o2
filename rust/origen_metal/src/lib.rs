@@ -109,7 +109,7 @@ where
 mod tests {
     #[cfg(all(test, not(origen_skip_frontend_tests)))]
     pub fn run_python(code: &str) -> crate::Result<()> {
-        let mut c = std::process::Command::new("poetry");
+        let mut c = crate::new_cmd!("poetry");
         c.arg("run");
         c.arg("python");
         c.arg("-c");
