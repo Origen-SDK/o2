@@ -69,14 +69,24 @@ impl Version {
         Self::new(ver, VersionSpec::Pep440)
     }
 
-    // TODO: Tests
-    pub fn convert_to_pep440(&mut self) {
-        self.spec = VersionSpec::Pep440;
+    pub fn is_pep440(&self) -> bool {
+        self.spec == VersionSpec::Pep440
     }
 
-    // TODO: Tests
-    pub fn convert_to_semver(&mut self) {
+    pub fn is_semver(&self) -> bool {
+        self.spec == VersionSpec::Semver
+    }
+
+    pub fn convert_to_pep440(&mut self) -> bool {
+        let retn = !(self.spec == VersionSpec::Pep440);
+        self.spec = VersionSpec::Pep440;
+        retn
+    }
+
+    pub fn convert_to_semver(&mut self) -> bool {
+        let retn = !(self.spec == VersionSpec::Semver);
         self.spec = VersionSpec::Semver;
+        retn
     }
 
     fn split_prerelease(pre: &str) -> Result<(&str, usize)> {
@@ -588,20 +598,26 @@ impl VersionWithTOML {
         &self.source
     }
 
-    // TODO: Tests
-    pub fn convert_to_pep440(&mut self) {
-        self.orig_version.convert_to_pep440();
+    pub fn is_pep440(&self) -> bool {
+        self.orig_version.is_pep440()
+    }
+
+    pub fn is_semver(&self) -> bool {
+        self.orig_version.is_semver()
+    }
+
+    pub fn convert_to_pep440(&mut self) -> bool {
         if let Some(v) = &mut self.new_version {
             v.convert_to_pep440();
         }
+        self.orig_version.convert_to_pep440()
     }
 
-    // TODO: Tests
-    pub fn convert_to_semver(&mut self) {
-        self.orig_version.convert_to_semver();
+    pub fn convert_to_semver(&mut self) -> bool {
         if let Some(v) = &mut self.new_version {
             v.convert_to_semver();
         }
+        self.orig_version.convert_to_semver()
     }
 
     pub fn version(&self) -> &Version {

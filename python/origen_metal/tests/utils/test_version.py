@@ -81,6 +81,34 @@ class TestVersion:
         assert(str(ver)) == self.semver_str
         assert(ver.pep440_str) == self.pep440_str
 
+    def test_switching_from_pep400_to_semver(self):
+        ver = pep440(self.pep440_str)
+        assert ver.is_pep440 is True
+        assert ver.is_semver is False
+        assert(str(ver)) == self.pep440_str
+
+        assert ver.convert_to_pep440() is False
+        assert(str(ver)) == self.pep440_str
+
+        assert ver.convert_to_semver() is True
+        assert ver.is_pep440 is False
+        assert ver.is_semver is True
+        assert(str(ver)) == self.semver_str
+
+    def test_switching_from_semver_to_pep440(self):
+        ver = semver(self.semver_str)
+        assert ver.is_semver is True
+        assert ver.is_pep440 is False
+        assert(str(ver)) == self.semver_str
+
+        assert ver.convert_to_semver() is False
+        assert(str(ver)) == self.semver_str
+
+        assert ver.convert_to_pep440() is True
+        assert ver.is_semver is False
+        assert ver.is_pep440 is True
+        assert(str(ver)) == self.pep440_str
+
 _current_version = None
 def current_version():
     global _current_version

@@ -68,6 +68,24 @@ impl Version {
         Ok(self._origen_version.to_string())
     }
 
+    fn convert_to_pep440(&mut self) -> PyResult<bool> {
+        Ok(self._origen_version.convert_to_pep440())
+    }
+
+    fn convert_to_semver(&mut self) -> PyResult<bool> {
+        Ok(self._origen_version.convert_to_semver())
+    }
+
+    #[getter]
+    fn is_pep440(&self) -> PyResult<bool> {
+        Ok(self._origen_version.is_pep440())
+    }
+
+    #[getter]
+    fn is_semver(&self) -> PyResult<bool> {
+        Ok(self._origen_version.is_semver())
+    }
+
     #[getter]
     fn pep440_str(&self) -> PyResult<String> {
         Ok(self._origen_version.to_pep440_string())
