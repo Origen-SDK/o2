@@ -8,12 +8,14 @@ import pytest, origen, pathlib
 from tests.shared import in_new_origen_proc
 from tests import om_shared
 from configs import ldap as ldap_configs
+from flaky import flaky
 
 # Grab the dummy RC from origen_metal's tests
 with om_shared():
     from om_tests import test_frontend  # type:ignore
     from om_tests.utils.test_ldap import Common as LdapCommon  # type:ignore
 
+@flaky(max_runs=3, rerun_filter=LdapCommon.rerun_ldap)
 @pytest.mark.ldap
 class TestLDAPs(LdapCommon, test_frontend.Common):
     def test_ldaps_are_accessible(self, dummy_config):

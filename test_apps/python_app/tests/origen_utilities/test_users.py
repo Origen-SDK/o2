@@ -2,6 +2,7 @@ import origen, pytest
 from tests.shared import in_new_origen_proc
 from configs import users as user_configs
 from tests import om_shared
+from flaky import flaky
 
 with om_shared():
     from om_tests.framework.users.shared import Base as UsersBase  # type:ignore
@@ -65,6 +66,7 @@ class TestUsers(UsersBase):
         assert origen.current_user.id == self.logged_in_id
 
     # TODO decouple this from ldap
+    @flaky(max_runs=3, rerun_filter=LdapCommon.rerun_ldap)
     @pytest.mark.ldap
     def test_autopopulated_user(self):
         in_new_origen_proc(mod=user_configs, options={"user": ldap_config.users[0].fields})
@@ -76,6 +78,7 @@ class TestUsers(UsersBase):
         assert retn["initial_user"] is None
 
     # TODO decouple this from ldap
+    @flaky(max_runs=3, rerun_filter=LdapCommon.rerun_ldap)
     @pytest.mark.ldap
     def test_loading_default_users(self):
         ldap_u1 = ldap_config.users[0]
@@ -92,8 +95,7 @@ class TestUsers(UsersBase):
         assert u["last_name"] == None
         assert u["__auto_populate__"] == False
         assert u["__should_validate_passwords__"] == None
-        # TODO
-        # roles
+        # TEST_NEEDED Test user roles
 
         u = retn["full user"]
         assert u["dataset_names"] == {'autopop_ldap', 'other'}
@@ -174,6 +176,7 @@ class TestUserConfigSetups(UsersBase):
         assert "Forcing empty dataset lookup hierarchy..." in stdout
 
     # TODO decouple this from ldap
+    @flaky(max_runs=3, rerun_filter=LdapCommon.rerun_ldap)
     @pytest.mark.ldap
     def test_error_adding_default_users(q, capfd):
         retn = in_new_origen_proc(mod=user_configs)

@@ -20,6 +20,7 @@ importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
+flaky = "^3.8.1"
 pdoc = "^7"
 
 [tool.pytest.ini_options]

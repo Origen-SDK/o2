@@ -1,6 +1,7 @@
 # TODO need to clean this up
 
-import pytest, copy
+import pytest
+from flaky import flaky
 import origen_metal as om
 from origen_metal.utils.ldap import LDAP
 from origen_metal.frontend import DataStoreView
@@ -285,6 +286,15 @@ class Common:
     def u2(self, dummy_config):
         return dummy_config.u2
 
+    @staticmethod
+    def rerun_ldap(err, *args):
+        if "deadline has elapsed" not in str(err[1]):
+            return False
+        import time
+        time.sleep(1)
+        return True
+
+@flaky(max_runs=3, rerun_filter=Common.rerun_ldap)
 @pytest.mark.ldap
 class TestStandaloneLDAP(Common):
     def test_ldap_parameters(self, dummy_config):
@@ -451,6 +461,7 @@ class TestStandaloneLDAP(Common):
         ldap.timeout = None
         assert ldap.timeout is None
 
+@flaky(max_runs=3, rerun_filter=Common.rerun_ldap)
 @pytest.mark.ldap
 class TestLdapAsDataStore(DataStoreView):
     ''' The LDAP's only data store feature is populating users'''
@@ -478,6 +489,7 @@ class TestLdapAsDataStore(DataStoreView):
         }, {})
 
 
+@flaky(max_runs=3, rerun_filter=Common.rerun_ldap)
 @pytest.mark.ldap
 class TestAuthSetups:
     class TestSimpleBind:

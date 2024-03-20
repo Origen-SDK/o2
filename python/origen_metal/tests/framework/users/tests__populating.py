@@ -1,9 +1,11 @@
 from __future__ import nested_scopes
-import pytest, copy
+import pytest
 import origen_metal as om
 from .shared import Base
 from origen_metal.frontend.data_store_api import DataStoreAPI
 from tests.test_frontend import Common as FECommon
+from flaky import flaky
+from tests.utils.test_ldap import Common as LdapCommon
 
 
 class T_PopulatingUsers(Base, FECommon):
@@ -1009,6 +1011,7 @@ class T_PopulatingUsers(Base, FECommon):
         u.add_dataset("r1", dset)
         assert list(u.datasets.keys()) == [ddk, "n0", "r0", "n1", "r1"]
 
+    @flaky(max_runs=3, rerun_filter=LdapCommon.rerun_ldap)
     @pytest.mark.ldap
     def test_populating_an_ldap_dataset(self, unload_users, users, cat,
                                         cat_name):

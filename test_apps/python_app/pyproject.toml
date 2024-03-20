@@ -14,6 +14,7 @@ python_plugin_no_cmds = { path = "../python_plugin_no_cmds", develop = true }
 
 [tool.poetry.dev-dependencies]
 pytest = ">= 6.0"
+flaky = "^3.8.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
