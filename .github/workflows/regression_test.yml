@@ -21,7 +21,7 @@ jobs:
     env:
       RUST_BACKTRACE: full
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Show Git Version
         run : |
@@ -70,13 +70,13 @@ jobs:
 
       - name: Setup Python ${{ matrix.python-version }}
         if: matrix.os != 'windows-latest'
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Setup Python ${{ matrix.python-version }}
         if: matrix.os == 'windows-latest'
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         env:
           RUNNER_TOOL_CACHE: D:\a\o2\o2_GA_tools
           AGENT_TOOLSDIRECTORY:  D:\a\o2\o2_GA_tools
@@ -204,7 +204,7 @@ jobs:
           poetry run where.exe origen
 
       - name: Run Python-App Unit Tests
-        uses: Wandalen/wretry.action@v1.3.0
+        uses: Wandalen/wretry.action@v1.4.10
         with:
           attempt_limit: 2
           current_path: test_apps/python_app
@@ -215,7 +215,7 @@ jobs:
         run: origen examples
 
       - name: Setup No-App Env
-        uses: Wandalen/wretry.action@v1.3.0
+        uses: Wandalen/wretry.action@v1.4.10
         with:
           attempt_limit: 2
           current_path: test_apps/python_no_app
