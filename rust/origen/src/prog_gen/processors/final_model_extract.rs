@@ -129,7 +129,7 @@ impl Processor<PGM> for ExtractToModel {
                     };
                     collection.insert(*number, b);
                 } else {
-                    let mut b = collection.get_mut(number).unwrap();
+                    let b = collection.get_mut(number).unwrap();
                     if let Some(d) = description {
                         b.description = Some(d.to_owned());
                     }

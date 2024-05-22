@@ -88,8 +88,8 @@ impl Test {
             constraints: IndexMap::new(),
             tester: tester,
             class_name: None,
-            /// If the test is modelling an invocation then this will reflect the ID of the
-            /// test being invoked
+            // If the test is modelling an invocation then this will reflect the ID of the
+            // test being invoked
             test_id: None,
             sub_tests: vec![],
             number: None,
