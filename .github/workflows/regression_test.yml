@@ -19,10 +19,10 @@ jobs:
           git --version
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
             toolchain: "nightly"
-            override: true
+            #override: true
             #components: rustfmt, clippy
             
       - name: Setup Python ${{ matrix.python-version }}
