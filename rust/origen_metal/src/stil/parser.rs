@@ -147,6 +147,18 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                     vals[1].parse().unwrap()
                 ));
             }
+            Rule::ext_block => {
+                ids.push(ast.push_and_open(node!(STIL::ExtBlock)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::extension => {
+                let vals = inner_strs(pair);
+                ast.push(node!(
+                    STIL::Extension,
+                    vals[0].to_string(),
+                    vals[1].to_string()
+                ));
+            }
             Rule::label => ast.push(node!(STIL::Label, unquote(inner_strs(pair)[0]))),
             Rule::header_block => {
                 ids.push(ast.push_and_open(node!(STIL::Header)));
@@ -160,6 +172,200 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 pairs.push(pair.into_inner());
             }
             Rule::annotation => ast.push(node!(STIL::Annotation, inner_strs(pair)[0].to_string())),
+            Rule::env_block => {
+                let mut p = pair.into_inner();
+                let n;
+                if let Some(nxt) = p.peek() {
+                    n = match nxt.as_rule() {
+                        Rule::name => node!(
+                            STIL::Environment,
+                            Some(p.next().unwrap().as_str().to_string())
+                        ),
+                        _ => node!(STIL::Environment, None),
+                    };
+                } else {
+                    n = node!(STIL::Environment, None);
+                }
+                ids.push(ast.push_and_open(n));
+                pairs.push(p);
+            }
+            Rule::inherit_env => ast.push(node!(STIL::InheritEnv, inner_strs(pair)[0].to_string())),
+            Rule::name_maps => {
+                let mut p = pair.into_inner();
+                let n;
+                if let Some(nxt) = p.peek() {
+                    n = match nxt.as_rule() {
+                        Rule::name => node!(
+                            STIL::NameMaps,
+                            Some(p.next().unwrap().as_str().to_string())
+                        ),
+                        _ => node!(STIL::NameMaps, None),
+                    };
+                } else {
+                    n = node!(STIL::NameMaps, None);
+                }
+                ids.push(ast.push_and_open(n));
+                pairs.push(p);
+            }
+            Rule::nm_inherit_simple => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::NameMapsInherit, None, None)
+                } else if vals.len() == 1 {
+                    node!(
+                        STIL::NameMapsInherit, 
+                        Some(vals[0].to_string()), 
+                        None)
+                } else {
+                    node!(
+                        STIL::NameMapsInherit, 
+                        Some(vals[0].to_string()),
+                        Some(vals[1].to_string()))
+                })
+            }
+            Rule::nm_inherit_block => {
+                let mut p = pair.into_inner();
+                let n;
+                if let Some(nxt) = p.peek() {
+                    n = match nxt.as_rule() {
+                        Rule::name => {
+                            let opt1 = Some(p.next().unwrap().as_str().to_string());
+                            if let Some(nxt_nxt) = p.peek() {
+                                match nxt_nxt.as_rule() {
+                                    Rule::name => node!(
+                                            STIL::NameMapsInherit,
+                                            opt1,
+                                            Some(p.next().unwrap().as_str().to_string())
+                                    ),
+                                    _ => node!(STIL::NameMapsInherit, opt1, None),
+                                }
+                            } else {
+                                node!(STIL::NameMapsInherit, opt1, None)
+                            }
+                        }
+                        _ => node!(STIL::NameMapsInherit, None, None),
+                    };
+                } else {
+                    n = node!(STIL::NameMapsInherit, None, None);
+                }
+                ids.push(ast.push_and_open(n));
+                pairs.push(p);
+            }
+            Rule::nm_prefix => ast.push(node!(STIL::NameMapsPrefix, inner_strs(pair)[0].to_string())),
+            Rule::nm_separator => ast.push(node!(STIL::NameMapsSeparator, inner_strs(pair)[0].to_string())),
+            Rule::nm_scan_cells => {
+                ids.push(ast.push_and_open(node!(STIL::NameMapsScanCells)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::nm_scan_cell => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::NameMapsScanCell, None, None)
+                } else if vals.len() == 1 {
+                    node!(
+                        STIL::NameMapsScanCell, 
+                        Some(vals[0].to_string()), 
+                        None)
+                } else {
+                    node!(
+                        STIL::NameMapsScanCell, 
+                        Some(vals[0].to_string()),
+                        Some(vals[1].to_string()))
+                })
+            }
+            Rule::nm_signals => {
+                ids.push(ast.push_and_open(node!(STIL::NameMapsSignals)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::nm_signal => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::NameMapsSignal, None, None)
+                } else if vals.len() == 1 {
+                    node!(
+                        STIL::NameMapsSignal, 
+                        Some(vals[0].to_string()), 
+                        None)
+                } else {
+                    node!(
+                        STIL::NameMapsSignal, 
+                        Some(vals[0].to_string()),
+                        Some(vals[1].to_string()))
+                })
+            }
+            Rule::nm_signal_groups => {
+                let mut p = pair.into_inner();
+                let n;
+                if let Some(nxt) = p.peek() {
+                    n = match nxt.as_rule() {
+                        Rule::name => node!(
+                            STIL::NameMapsSignalGroups,
+                            Some(p.next().unwrap().as_str().to_string())
+                        ),
+                        _ => node!(STIL::NameMapsSignalGroups, None),
+                    };
+                } else {
+                    n = node!(STIL::NameMapsSignalGroups, None);
+                }
+                ids.push(ast.push_and_open(n));
+                pairs.push(p);
+            }
+            Rule::nm_signal_group => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::NameMapsSignalGroup, None, None)
+                } else if vals.len() == 1 {
+                    node!(
+                        STIL::NameMapsSignalGroup, 
+                        Some(vals[0].to_string()), 
+                        None)
+                } else {
+                    node!(
+                        STIL::NameMapsSignalGroup, 
+                        Some(vals[0].to_string()),
+                        Some(vals[1].to_string()))
+                })
+            }
+            Rule::nm_variables => {
+                ids.push(ast.push_and_open(node!(STIL::NameMapsVariables)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::nm_variable => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::NameMapsVariable, None, None)
+                } else if vals.len() == 1 {
+                    node!(
+                        STIL::NameMapsVariable, 
+                        Some(vals[0].to_string()), 
+                        None)
+                } else {
+                    node!(
+                        STIL::NameMapsVariable, 
+                        Some(vals[0].to_string()),
+                        Some(vals[1].to_string()))
+                })
+            }
+            Rule::nm_all_names => {
+                ids.push(ast.push_and_open(node!(STIL::NameMapsNames)));
+                pairs.push(pair.into_inner());
+            }
+            Rule::nm_name => {
+                let vals = inner_strs(pair);
+                ast.push(if vals.len() == 0 {
+                    node!(STIL::NameMapsName, None, None)
+                } else if vals.len() == 1 {
+                    node!(
+                        STIL::NameMapsName, 
+                        Some(vals[0].to_string()), 
+                        None)
+                } else {
+                    node!(
+                        STIL::NameMapsName, 
+                        Some(vals[0].to_string()),
+                        Some(vals[1].to_string()))
+                })
+            }
             Rule::include => {
                 let vals = inner_strs(pair);
                 if vals.len() == 1 {
@@ -794,6 +1000,26 @@ mod tests {
     }
 
     #[test]
+    fn test_example5_to_ast() {
+        let _stil = from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example5.stil",
+        ))
+        .expect("Imported example5");
+        // Keeping this print for test coverage since this initially caused an un-detected stack overflow
+        println!("{}", _stil);
+    }
+
+    #[test]
+    fn test_example6_to_ast() {
+        let _stil = from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example6.stil",
+        ))
+        .expect("Imported example5");
+        // Keeping this print for test coverage since this initially caused an un-detected stack overflow
+        println!("{}", _stil);
+    }
+
+    #[test]
     fn test_example1_can_parse() {
         let txt = read("example1");
         match STILParser::parse(Rule::stil_source, &txt) {
@@ -820,6 +1046,42 @@ mod tests {
     #[test]
     fn test_example3_can_parse() {
         let txt = read("example3");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example4_can_parse() {
+        let txt = read("example4");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example5_can_parse() {
+        let txt = read("example5");
+        match STILParser::parse(Rule::stil_source, &txt) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e);
+                assert_eq!(1, 0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_example6_can_parse() {
+        let txt = read("example6");
         match STILParser::parse(Rule::stil_source, &txt) {
             Ok(_) => {}
             Err(e) => {
