@@ -197,7 +197,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                     n = match nxt.as_rule() {
                         Rule::name => node!(
                             STIL::NameMaps,
-                            Some(p.next().unwrap().as_str().to_string())
+                            Some(unquote(p.next().unwrap().as_str()))
                         ),
                         _ => node!(STIL::NameMaps, None),
                     };
@@ -214,13 +214,13 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 } else if vals.len() == 1 {
                     node!(
                         STIL::NameMapsInherit, 
-                        Some(vals[0].to_string()), 
+                        Some(unquote(vals[0])), 
                         None)
                 } else {
                     node!(
                         STIL::NameMapsInherit, 
-                        Some(vals[0].to_string()),
-                        Some(vals[1].to_string()))
+                        Some(unquote(vals[0])),
+                        Some(unquote(vals[1])))
                 })
             }
             Rule::nm_inherit_block => {
@@ -264,13 +264,13 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 } else if vals.len() == 1 {
                     node!(
                         STIL::NameMapsScanCell, 
-                        Some(vals[0].to_string()), 
+                        Some(unquote(vals[0])), 
                         None)
                 } else {
                     node!(
                         STIL::NameMapsScanCell, 
-                        Some(vals[0].to_string()),
-                        Some(vals[1].to_string()))
+                        Some(unquote(vals[0])),
+                        Some(unquote(vals[1])))
                 })
             }
             Rule::nm_signals => {
@@ -284,13 +284,13 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 } else if vals.len() == 1 {
                     node!(
                         STIL::NameMapsSignal, 
-                        Some(vals[0].to_string()), 
+                        Some(unquote(vals[0])), 
                         None)
                 } else {
                     node!(
                         STIL::NameMapsSignal, 
-                        Some(vals[0].to_string()),
-                        Some(vals[1].to_string()))
+                        Some(unquote(vals[0])),
+                        Some(unquote(vals[1])))
                 })
             }
             Rule::nm_signal_groups => {
@@ -317,13 +317,13 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 } else if vals.len() == 1 {
                     node!(
                         STIL::NameMapsSignalGroup, 
-                        Some(vals[0].to_string()), 
+                        Some(unquote(vals[0])), 
                         None)
                 } else {
                     node!(
                         STIL::NameMapsSignalGroup, 
-                        Some(vals[0].to_string()),
-                        Some(vals[1].to_string()))
+                        Some(unquote(vals[0])),
+                        Some(unquote(vals[1])))
                 })
             }
             Rule::nm_variables => {
@@ -337,13 +337,13 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 } else if vals.len() == 1 {
                     node!(
                         STIL::NameMapsVariable, 
-                        Some(vals[0].to_string()), 
+                        Some(unquote(vals[0])), 
                         None)
                 } else {
                     node!(
                         STIL::NameMapsVariable, 
-                        Some(vals[0].to_string()),
-                        Some(vals[1].to_string()))
+                        Some(unquote(vals[0])),
+                        Some(unquote(vals[1])))
                 })
             }
             Rule::nm_all_names => {
