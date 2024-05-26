@@ -11,11 +11,11 @@ initialize = false
 
 [ldaps]
 [ldaps.dummy_autopop]
-server = "ldap://zflexldap.com:389"
-base = "dc=zflexsoftware,dc=com"
+server = "ldap://ldap.jumpcloud.com:389"
+base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
 [ldaps.dummy_autopop.auth]
-username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
-password = "zflexpass"
+username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+password = "KrabbyPatties#1"
 [ldaps.dummy_autopop.populate_user_config]
 [ldaps.dummy_autopop.populate_user_config.mapping]
 email = "mail"
@@ -35,10 +35,10 @@ last_name = "USER"
 # full_name = "TEST FULL USER"
 auto_populate = false
 should_validate_passwords = false
-[default_users.guest1]
+[default_users.p-star]
 auto_populate = true
 should_validate_passwords = false
-[default_users.guest2]
+[default_users.squidy]
 auto_populate = true
 should_validate_passwords = false
 email = "guest2@origen.org"

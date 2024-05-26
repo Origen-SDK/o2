@@ -1,7 +1,7 @@
 [ldaps]
 [ldaps.full]
-server = "ldap://zflexldap.com:389"
-base = "dc=zflexsoftware,dc=com"
+server = "ldap://ldap.jumpcloud.com:389"
+base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
 timeout = 45
 continuous_bind = true
 [ldaps.full.auth]

@@ -8,11 +8,11 @@ data_store = "dummy_autopop_ldap"
 
 [ldaps]
 [ldaps.dummy_autopop_ldap]
-server = "ldap://zflexldap.com:389"
-base = "dc=zflexsoftware,dc=com"
+server = "ldap://ldap.jumpcloud.com:389"
+base = "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
 [ldaps.dummy_autopop_ldap.auth]
-username = "cn=ro_admin,ou=sysadmins,dc=zflexsoftware,dc=com"
-password = "zflexpass"
+username = "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com"
+password = "KrabbyPatties#1"
 [ldaps.dummy_autopop_ldap.populate_user_config]
 [ldaps.dummy_autopop_ldap.populate_user_config.mapping]
 email = "mail"
