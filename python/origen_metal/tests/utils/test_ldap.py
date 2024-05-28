@@ -104,6 +104,50 @@ ZFLEX = {
     }
 }
 
+JUMPCLOUD = {
+    "name": "jump_cloud",
+    "server": "ldap://ldap.jumpcloud.com:389",
+    "base": "ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com",
+    "auth_config": {
+        "scheme": "simple_bind",
+        "username": "uid=sponge,ou=Users,o=63a333b92aef93fc947e34f7,dc=jumpcloud,dc=com",
+        "password": "KrabbyPatties#1",
+    },
+    "dn_prefix": None,
+    "populate_user_config": {
+        "data_id": "uid",
+        "mapping": {
+            "email": "mail",
+            "last_name": "sn",
+            "full_name": "cn"
+        }
+    },
+    "users": {
+        "p-star": {
+            "fields": {
+                'mail': ['patrick.star@bikini.bottom'],
+                'cn': ['Patrick Star'],
+                'objectClass': ['top', 'person', 'organizationalPerson', 'inetOrgPerson', 'shadowAccount', 'posixAccount', 'jumpcloudUser'],
+                'givenName': ['Patrick'],
+                'uid': ['p-star'],
+                'uidNumber': ['5002'],
+                'gidNumber': ['5002'],
+                'sn': ['Star'],
+                'homeDirectory': ['/home/p-star'],
+                'loginShell': ['/bin/bash'],
+            },
+            "password": "Jellyfishing!",
+        },
+        "squidy": {
+            "fields": {
+                'mail': ['squidward.tentacles@bikini.bottom'],
+                'sn': ['Tentacles'],
+                'cn': ['Squidward Tentacles'],
+            }
+        }
+    }
+}
+
 class Common:
     def dummy_ldap(self, name=None, timeout=5, continuous_bind=False, populate_user_config=False):
         if populate_user_config is True:
@@ -221,7 +265,7 @@ class Common:
 
     @classmethod
     def get_dummy_config(cls):
-        return cls.DummyLDAPConfig(ZFLEX)
+        return cls.DummyLDAPConfig(JUMPCLOUD)
 
     @property
     def config(self):
