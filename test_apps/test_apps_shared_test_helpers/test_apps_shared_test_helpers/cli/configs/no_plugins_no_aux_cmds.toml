@@ -1,0 +1,5 @@
+auxillary_commands = []
+
+[plugins]
+collect = false
+load = []

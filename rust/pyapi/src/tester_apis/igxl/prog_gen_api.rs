@@ -17,7 +17,7 @@ pub struct Patset {
 
 #[pymethods]
 impl IGXL {
-    #[args(library = "None", kwargs = "**")]
+    #[pyo3(signature=(name, template, library=None, **kwargs))]
     fn new_test_instance(
         &mut self,
         name: String,
@@ -43,13 +43,13 @@ impl IGXL {
         Ok(t)
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(**kwargs))]
     pub fn new_flow_line(&mut self, kwargs: Option<&PyDict>) -> PyResult<TestInvocation> {
         let t = TestInvocation::new("_".to_owned(), self.tester.to_owned(), kwargs)?;
         Ok(t)
     }
 
-    #[args(pattern = "None", patterns = "None")]
+    #[pyo3(signature=(name, pattern=None, patterns=None))]
     fn new_patset(
         &mut self,
         name: String,
@@ -71,7 +71,7 @@ impl IGXL {
     }
 
     // Set the cpu wait flags for the given test instance
-    #[args(flags = "*")]
+    #[pyo3(signature=(test_instance, *flags))]
     fn set_wait_flags(&mut self, test_instance: &Test, flags: &PyTuple) -> PyResult<()> {
         let mut clean_flags: Vec<String> = vec![];
         for fl in flags {

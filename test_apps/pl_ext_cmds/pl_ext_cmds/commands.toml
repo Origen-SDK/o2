@@ -1,0 +1,6 @@
+[[extension]]
+extend = "origen.eval"
+
+    [[extension.opt]]
+    name = "pl_ext_cmds_generic_ext"
+    help = "Generic ext from pl_ext_cmds plugin"

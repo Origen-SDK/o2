@@ -2,7 +2,7 @@ extern crate time;
 use crate::built_info;
 use crate::core::application::Application;
 use crate::testers::SupportedTester;
-use crate::utility::version::Version;
+use origen_metal::utils::version::Version;
 use crate::Result as OrigenResult;
 use origen_metal::utils::file::with_dir;
 use regex::Regex;
@@ -11,7 +11,7 @@ use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard};
 
 // Trait for extending std::path::PathBuf
 use path_slash::PathBufExt;
@@ -26,6 +26,7 @@ pub enum Operation {
     Compile,
     Interactive,
     Web,
+    Credentials,
     App,
     AppCommand,
 }
@@ -45,12 +46,73 @@ impl FromStr for Operation {
             "compile" => Ok(Operation::Compile),
             "interactive" => Ok(Operation::Interactive),
             "web" => Ok(Operation::Web),
+            "credentials" => Ok(Operation::Credentials),
             "app" => Ok(Operation::App),
             "appcommand" => Ok(Operation::AppCommand),
             _ => Err(format!("Unknown Operation: '{}'", &s)),
         }
     }
 }
+
+#[derive(Debug, Display)]
+pub enum DependencySrc {
+    // Dependencies resolve from... 
+    App(PathBuf), // the application
+    Workspace(PathBuf), // current directory tree (in workspace)
+    UserGlobal(PathBuf), // explicitly given by user, no workspace
+    Global(PathBuf), // the origen CLI installation directory, no workspace
+    NoneFound, // None available. Use whatever is available in the same install environment as Origen itself
+}
+
+impl DependencySrc {
+    pub fn src_available(&self) -> bool {
+        match self {
+            Self::NoneFound => false,
+            _ => true,
+        }
+    }
+
+    pub fn src_file(&self) -> Option<&PathBuf> {
+        match self {
+            Self::App(path) | Self::Workspace(path) | Self::UserGlobal(path) | Self::Global(path) => Some(path),
+            Self::NoneFound => None,
+        }
+    }
+}
+
+impl<S> TryFrom<(S, Option<PathBuf>)> for DependencySrc
+where S: AsRef<str> {
+    type Error = crate::Error;
+
+    fn try_from(value: (S, Option<PathBuf>)) -> Result<Self, Self::Error> {
+        macro_rules! gen_case {
+            ($t: ident) => {
+                if let Some(path) = value.1 {
+                    Self::$t(path)
+                } else {
+                    bail!(concat!("A path is required with dependency src type '", stringify!($t), "'"));
+                }
+            }
+        }
+        Ok(match value.0.as_ref() {
+            "App" => gen_case!(App),
+            "Workspace" => gen_case!(Workspace),
+            "UserGlobal" => gen_case!(UserGlobal),
+            "Global" => gen_case!(Global),
+            "NoneFound" => Self::NoneFound,
+            _ => bail!("Cannot convert value '{}' to dependency src type", value.0.as_ref())
+        })
+    }
+}
+
+// FEATURE Backend Current Command. Either store some basics here, or use a frontend wrapper
+// use crate::TypedValueMap;
+// #[derive(Debug)]
+// pub struct CurrentCommand {
+//     pub top_cmd: String,
+//     pub subcmds: Vec<String>,
+//     pub args: TypedValueMap,
+// }
 
 /// Exposes some status information about the runtime environment, e.g. whether an
 /// application workspace is present
@@ -92,6 +154,8 @@ pub struct Status {
     reference_dir: RwLock<Option<PathBuf>>,
     cli_location: RwLock<Option<PathBuf>>,
     cli_version: RwLock<Option<Version>>,
+    fe_pkg_loc: RwLock<Option<PathBuf>>,
+    fe_exe_loc: RwLock<Option<PathBuf>>,
     pub origen_core_support_version: Version,
     pub origen_metal_backend_version: Version,
     other_build_info: RwLock<HashMap<String, String>>,
@@ -101,6 +165,8 @@ pub struct Status {
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
     _operation: RwLock<Operation>,
+    dependency_src: RwLock<Option<DependencySrc>>,
+    // command: RwLock<Option<CurrentCommand>>, // FEATURE Backend Current Command
 }
 
 impl Default for Status {
@@ -167,6 +233,8 @@ impl Default for Status {
             reference_dir: RwLock::new(None),
             cli_location: RwLock::new(None),
             cli_version: RwLock::new(None),
+            fe_pkg_loc: RwLock::new(None),
+            fe_exe_loc: RwLock::new(None),
             origen_core_support_version: Version::new_semver({
                 let mut v: &str = "";
                 for d in built_info::DEPENDENCIES.iter() {
@@ -191,6 +259,8 @@ impl Default for Status {
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
             _operation: RwLock::new(Operation::None),
+            dependency_src: RwLock::new(None),
+            // command: RwLock::new(None), // FEATURE Backend Current Command
         };
         log_trace!("Status built successfully");
         s
@@ -326,6 +396,25 @@ impl Status {
         *self.debug_enabled.read().unwrap()
     }
 
+    // FEATURE Backend Current Command
+    // pub fn set_command(&self, top_cmd: String, subcommands: Vec<String>, args: TypedValueMap) {
+    //     let mut cmd = self.command.write().unwrap();
+    //     *cmd = Some(CurrentCommand {
+    //         top_cmd: top_cmd,
+    //         subcmds: subcommands,
+    //         args: args
+    //     });
+    // }
+
+    // pub fn clear_command(&self) {
+    //     let mut cmd = self.command.write().unwrap();
+    //     *cmd = None;
+    // }
+
+    // pub fn command(&self) -> RwLockReadGuard<Option<CurrentCommand>> {
+    //     self.command.read().unwrap()
+    // }
+
     pub fn set_operation(&self, val: Operation) {
         let mut operation = self._operation.write().unwrap();
         *operation = val;
@@ -355,6 +444,24 @@ impl Status {
 
     pub fn cli_version(&self) -> Option<Version> {
         self.cli_version.read().unwrap().to_owned()
+    }
+
+    pub fn set_fe_pkg_loc(&self, loc: Option<PathBuf>) {
+        let mut fe_pkg_loc = self.fe_pkg_loc.write().unwrap();
+        *fe_pkg_loc = loc;
+    }
+
+    pub fn fe_pkg_loc(&self) -> RwLockReadGuard<Option<PathBuf>> {
+        self.fe_pkg_loc.read().unwrap()
+    }
+
+    pub fn set_fe_exe_loc(&self, loc: Option<PathBuf>) {
+        let mut fe_exe_loc = self.fe_exe_loc.write().unwrap();
+        *fe_exe_loc = loc;
+    }
+
+    pub fn fe_exe_loc(&self) -> RwLockReadGuard<Option<PathBuf>> {
+        self.fe_exe_loc.read().unwrap()
     }
 
     pub fn update_other_build_info(&self, key: &str, item: &str) -> OrigenResult<()> {
@@ -388,6 +495,15 @@ impl Status {
     pub fn set_in_origen_core_app(&self, stat: bool) {
         let mut s = self.in_origen_core_app.write().unwrap();
         *s = stat;
+    }
+
+    pub fn set_dependency_src(&self, src: Option<DependencySrc>) {
+        let mut dependency_src = self.dependency_src.write().unwrap();
+        *dependency_src = src;
+    }
+
+    pub fn dependency_src(&self) -> RwLockReadGuard<Option<DependencySrc>> {
+        self.dependency_src.read().unwrap()
     }
 
     /// This is the main method to get the current output directory, accounting for all
@@ -476,10 +592,6 @@ impl Status {
             f(dir.as_ref())
         }
     }
-
-    // pub fn current_user(&self) -> &User {
-    //     &self._current_user.read().unwrap()
-    // }
 }
 
 pub fn search_for_from_pwd(paths: Vec<&str>, searching_for_app: bool) -> (bool, PathBuf) {
@@ -548,4 +660,16 @@ fn clean_path(path: &Path) -> PathBuf {
         clean_path = path.to_path_buf();
     }
     clean_path
+}
+
+pub fn app_present() -> bool {
+    crate::STATUS.is_app_present
+}
+
+pub fn in_app_invocation() -> bool {
+    app_present()
+}
+
+pub fn in_global_invocation() -> bool {
+    !app_present()
 }

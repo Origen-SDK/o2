@@ -2,16 +2,6 @@ import origen
 import pytest
 from tests.shared import *
 
-#@pytest.fixture(autouse=True)
-#def run_around_tests():
-#    global dut
-#    # Code that will run before each test
-#    instantiate_dut("dut.falcon")
-#    dut = origen.dut
-#    yield
-#    # Code that will run after each test
-
-
 def test_dut_from_a_plugin():
     origen.target.load("dut/hawk")
     assert "python_plugin.blocks.dut.derivatives.hawk.controller.Controller" in str(

@@ -3,11 +3,8 @@ use origen_metal::utils::differ::{ASCIIDiffer, Differ};
 use pyo3::prelude::*;
 use std::path::Path;
 
-#[pyfunction(
-    ignore_comments = "None",
-    ignore_blocks = "None",
-    ignore_blank_lines = "true"
-)]
+#[pyfunction]
+#[pyo3(signature=(file_a, file_b, ignore_comments = None, ignore_blocks = None, ignore_blank_lines = true))]
 pub fn has_diffs(
     file_a: &str,
     file_b: &str,

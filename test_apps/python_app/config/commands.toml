@@ -15,7 +15,6 @@
     [[command.arg]]
         name = "arg2"
         help = "A required argument accepting multiple values"
-        switch = false
         takes_value = true
         multiple = true
         required = true
@@ -46,3 +45,536 @@
     [[command.subcommand]]
         name = "stop"
         help = "Stop playing"
+
+[[command]]
+    name = "arg_opt_warmup"
+    aliases = ["w", "w-out"]
+    help = "Gross test command demonstrating args/opts from app commands"
+
+    [[command.arg]]
+    name = "first"
+    required = true
+    help = "First Argument - Required"
+
+    [[command.arg]]
+    name = "second"
+    help = "Second Multi-Argument - Not Required"
+    multiple = true
+    use_delimiter = true
+
+    [[command.opt]]
+    name = "flag_opt"
+    help = "Flag opt"
+    short = "f"
+
+    [[command.opt]]
+    name = "single_opt"
+    help = "Single-value non-required opt"
+    short_aliases = ["s"]
+    takes_value = true
+
+    [[command.opt]]
+    name = "multi_opt"
+    help = "Multi-value non-required opt"
+    long_aliases = ["m_opt"]
+    short_aliases = ["m"]
+    multiple = true
+
+    [[command.opt]]
+    name = "hidden_flag_opt"
+    help = "Hidden flag opt"
+    long = "hidden"
+    hidden = true
+
+[[command]]
+name = "nested_app_cmds"
+help = "Nested app cmds"
+
+    [[command.subcommand]]
+    name = "nested_l1"
+    help = "Nested app cmds level 1"
+
+        [[command.subcommand.subcommand]]
+        name = "nested_l2_a"
+        help = "Nested app cmds level 2 (A)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_a"
+            help = "Nested app cmds level 3 (A-A)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_b"
+            help = "Nested app cmds level 3 (A-B)"
+
+        [[command.subcommand.subcommand]]
+        name = "nested_l2_b"
+        help = "Nested app cmds level 2 (B)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_a"
+            help = "Nested app cmds level 3 (B-A)"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "nested_l3_b"
+            help = "Nested app cmds level 3 (B-B)"
+
+# Command disabling standard app opts
+[[command]]
+name = "disabling_app_opts"
+help = "Test disabling standard app opts"
+
+    [[command.subcommand]]
+    name = "disable_targets_opt"
+    help = "Disable the targets and no-targets opt"
+    add_target_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
+
+    [[command.subcommand]]
+    name = "disable_mode_opt"
+    help = "Disable the mode opt"
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_mode_opt = true
+
+    [[command.subcommand]]
+    name = "disable_app_opts"
+    help = "Disable all app opts"
+    add_target_opt = false
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
+        add_mode_opt = true
+
+[[command]]
+name = "reserved_opt_error_gen"
+help = "Generate error messages when reserved opts are used"
+on_env = ["ORIGEN_APP_TEST_RESERVED_OPT_ERRORS"]
+
+    [[command.opt]]
+    name = "conflicting_help"
+    short = "h"
+    help = "Conflicting Opt"
+
+    [[command.opt]]
+    name = "conflicting_target"
+    short = "t"
+    long = "target"
+    help = "Conflicting Opt"
+
+    [[command.opt]]
+    name = "non_conflicting"
+    long = "non_conflicting"
+    short = "n"
+    help = "Non-Conflicting Opt"
+
+    [[command.subcommand]]
+    name = "single_conflicting_opt"
+    help = "Generate error messages for reserved opts"
+
+        [[command.subcommand.opt]]
+        name = "non_conflicting"
+        long = "non_conflicting"
+        help = "Non-Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_target"
+        long = "target"
+        help = "Conflicting Opt"
+
+    [[command.subcommand]]
+    name = "multiple_conflicting_opts"
+    help = "Generate error messages for reserved opts"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_target"
+        short = "t"
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_mode"
+        long_aliases = ["mode"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "not_conflicting"
+        short = "n"
+        help = "Non-Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_no_targets"
+        long_aliases = ["no_targets", "no_target"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_target_again"
+        long = "target"
+        long_aliases = ["targets"]
+        short = "t"
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_v"
+        short = "v"
+        long = "verbosity"
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_vk"
+        long = "vk"
+        long_aliases = ["verbosity_keywords"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.opt]]
+        name = "conflicting_help"
+        short = "h"
+        long = "help"
+        short_aliases = ["g", "i"]
+        long_aliases = ["help_alias"]
+        help = "Conflicting Opt"
+
+        [[command.subcommand.subcommand]]
+        name = "subc"
+        help = "Generate error messages for reserved opts - subc"
+
+            [[command.subcommand.subcommand.opt]]
+            name = "conflicting_help"
+            short = "h"
+            help = "Conflicting Opt"
+
+            [[command.subcommand.subcommand.subcommand]]
+            name = "subc"
+            help = "Generate error messages for reserved opts - subc - subc"
+
+                [[command.subcommand.subcommand.subcommand.opt]]
+                name = "conflicting_help"
+                long_aliases = ["help", "help2", "help3"]
+                help = "Conflicting Opt"
+
+                [[command.subcommand.subcommand.subcommand.opt]]
+                name = "conflicting_v"
+                short = "c"
+                short_aliases = ["v"]
+                long = "verbosity"
+                help = "Conflicting Opt"
+
+[[command]]
+name = "intra_cmd_conflicts"
+help = "App cmd with conflicting args and opts within the cmd"
+on_env=["ORIGEN_APP_INTRA_CMD_CONFLICTS"]
+
+    [[command.arg]]
+    name = "arg0"
+    help = "Arg 0"
+
+    [[command.arg]]
+    name = "arg0"
+    help = "Duplicate: Arg 0"
+
+    [[command.arg]]
+    name = "arg1"
+    help = "Arg 1"
+
+    [[command.arg]]
+    name = "arg2"
+    help = "Arg 2"
+
+    [[command.arg]]
+    name = "arg1"
+    help = "Duplicate: Arg 1"
+
+    [[command.arg]]
+    name = "ext_opt.arg"
+    help = "Arg with reserved prefix"
+
+    [[command.opt]]
+    name = "opt"
+    help = "Opt 0"
+    long_aliases=["opt0"]
+
+    [[command.opt]]
+    name = "opt"
+    help = "Duplicate: Opt 0"
+
+    [[command.opt]]
+    name = "ext_opt.opt"
+    help = "Reserved Prefix"
+
+    [[command.opt]]
+    name = "arg0"
+    help = "Arg-Opt clash"
+
+    [[command.opt]]
+    name = "arg_clash"
+    help = "Arg-Opt clash in ln/lna (okay)"
+    long = "arg0"
+    long_aliases = ["arg1"]
+
+    [[command.opt]]
+    name= "reserved_prefix_in_ln_lna"
+    help = "Reserved prefix in ln and lna"
+    long = "ext_opt.ln"
+    long_aliases = ["ext_opt.lna", "ext_opt_lna"]
+
+    [[command.opt]]
+    name= "intra_opt_conflicts"
+    help = "Various intra-opt conflicts"
+    long = "intra_opt_cons"
+    short = "c"
+    long_aliases = ["intra_opt_conflicts", "intra_opt_cons", "intra_opt_cons2", "intra_opt_cons2"]
+    short_aliases = ["a", "b", "c", "b", "c", "e", "e"]
+
+    [[command.opt]]
+    name= "inter_opt_conflicts"
+    help = "Various inter-opt conflicts"
+    long = "intra_opt_conflicts"
+    short = "a"
+    long_aliases = ["intra_opt_cons", "ext_opt_lna", "reserved_prefix_in_ln_lna"]
+    short_aliases = ["b", "c", "d"]
+
+    [[command.opt]]
+    name = "opt0"
+    help = "Inferred long name clash"
+
+    [[command.subcommand]]
+    name = "conflicts_subc"
+    help = "Subcommand with conflicts"
+
+        [[command.subcommand.arg]]
+        name = "arg0"
+        help = "Arg 0"
+
+        [[command.subcommand.arg]]
+        name = "sub_arg_1"
+        help = "Subc Arg 1"
+
+        [[command.subcommand.arg]]
+        name = "sub_arg_1"
+        help = "Duplicate"
+
+        [[command.subcommand.arg]]
+        name = "ext_opt.subc_arg"
+        help = "Arg with reserved prefix"
+
+        [[command.subcommand.opt]]
+        name = "ext_opt.subc_opt"
+        help = "Reserved opt prefix"
+        short = "r"
+
+        [[command.subcommand.opt]]
+        name = "opt"
+        help = "Opt 0"
+        long_aliases=["subc_opt", "ext_opt.subc_opt_lna"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_conflicts"
+        help = "Intra-opt conflicts for subc"
+        long = "intra_subc_conflicts"
+        short = "r"
+        long_aliases=["intra_subc_conflicts"]
+        short_aliases=["r"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_lna_iln_conflict"
+        help = "Intra-opt iln conflict"
+        long_aliases=["intra_subc_lna_iln_conflict"]
+
+        [[command.subcommand.opt]]
+        name = "inter_subc_conflicts"
+        help = "Inter-opt conflicts for subc"
+        long = "opt"
+        long_aliases=["intra_subc_conflicts"]
+        short_aliases=["r"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_conflicts"
+        help = "Duplicate Opt"
+
+# Extend core command
+[[extension]]
+extend = "origen.eval"
+on_env = ["ORIGEN_APP_EXTEND_CORE_CMDS"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_says_hi"
+on_env = ["ORIGEN_APP_PL_CMD_MISSING_EXT_IMPL"]
+
+    [[extension.opt]]
+        name = "app_ext_missing_impl"
+        help = "App extension missing the implementation"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_args"
+on_env = ["ORIGEN_APP_PL_CMD_CONFLICTS"]
+
+    [[extension.opt]]
+        name = "app_opt"
+        help = "Conflict with cmd/aux/plugin opts"
+        long = "app"
+        short = "a"
+        long_aliases=["app_opt", "tas", "flag", "app_flag", "ext_opt.res"]
+        short_aliases=["c", "d", "g", "g"]
+
+    [[extension.opt]]
+        name = "tas_iln"
+        help = "Conflict iln from App"
+
+    [[extension.opt]]
+        name = "app_opt"
+        help = "App opt repeat"
+
+    [[extension.opt]]
+        name = "ext_opt.res_app_opt"
+        long = "res_opt_opt"
+        help = "App opt reserved name"
+
+
+# Extend plugin command
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking"
+on_env = ["ORIGEN_APP_EXT_PL_TEST_EXT_STACKING"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+[[extension]]
+extend = "plugin.python_plugin.plugin_test_ext_stacking.subc"
+on_env = ["ORIGEN_APP_EXT_PL_TEST_EXT_STACKING"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+# Extend aux command
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd.subc"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "generic_app_ext_action"
+        multiple = true
+        help = "Action from the app"
+
+    [[extension.opt]]
+        name = "generic_app_ext_flag"
+        help = "Flag ext from the app"
+
+# Missing extension
+[[extension]]
+extend = "origen.eval"
+on_env = ["ORIGEN_APP_MISSING_CORE_EXT"]
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+on_env = ["ORIGEN_APP_MISSING_AUX_EXT"]
+
+[[extension]]
+extend = "origen.eval"
+on_env = ["ORIGEN_APP_EXT_TEST_RESERVED_OPT_ERRORS"]
+
+    [[extension.opt]]
+        name = "conflicting_target"
+        help = "Conflicting Core Extension"
+        long = "target"
+        short = "t"
+
+    [[extension.opt]]
+        name = "conflicting_no_target"
+        help = "Conflicting Core Extension"
+        long_aliases=["no_target", "no_targets"]
+        short="n"
+
+    [[extension.opt]]
+        name = "conflicting_mode"
+        help = "Conflicting Core Extension"
+        long="mode_conflict"
+        short_aliases=["m"]
+        long_aliases=["mode"]
+
+    [[extension.opt]]
+        name = "conflicting_help"
+        help = "Conflicting Core Extension"
+        short = "h"
+        long = "help_conflict"
+        long_aliases=["help", "help1"]
+
+    [[extension.opt]]
+        name = "conflicting_v"
+        help = "Conflicting Core Extension"
+        short="v"
+        short_aliases=["w"]
+        long="verbosity"
+
+    [[extension.opt]]
+        name = "conflicting_vk"
+        help = "Conflicting Core Extension"
+        long_aliases=["verbosity_keywords", "vk"]
+
+# Try to extend non-extenable commands
+[[extension]]
+extend = "origen.target"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target"
+
+[[extension]]
+extend = "origen.target.view"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target view"

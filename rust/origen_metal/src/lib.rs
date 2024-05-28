@@ -1,6 +1,15 @@
 #[macro_use]
 pub extern crate lazy_static;
 pub extern crate config;
+pub extern crate indexmap;
+pub extern crate glob;
+pub extern crate octocrab;
+pub extern crate tera;
+pub extern crate toml_edit;
+pub extern crate dialoguer;
+pub extern crate reqwest;
+pub extern crate futures;
+pub extern crate serde_json;
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -38,13 +47,12 @@ pub use framework::users::users::{
     get_current_user_id, get_initial_user_id, require_current_user_email,
     require_current_user_home_dir, require_current_user_id, set_current_user,
     try_lookup_and_set_current_user, try_lookup_current_user, users, users_mut, with_current_user,
-    with_current_user_session, with_user, with_user_mut, with_user_or_current, with_users,
-    with_users_mut,
+    with_current_user_session, with_user, with_user_mut, with_users, with_users_mut, with_user_or_current,
 };
 // TODO and this?
 pub use framework::users::user::{
     add_dataset_to_user, register_dataset_with_user, with_user_dataset, with_user_dataset_mut,
-    with_user_hierarchy, with_user_motive_or_default,
+    with_user_hierarchy, with_user_motive_or_default
 };
 pub use framework::users::users::unload as unload_users;
 pub use utils::os::on_linux as running_on_linux;
@@ -101,7 +109,7 @@ where
 mod tests {
     #[cfg(all(test, not(origen_skip_frontend_tests)))]
     pub fn run_python(code: &str) -> crate::Result<()> {
-        let mut c = std::process::Command::new("poetry");
+        let mut c = crate::new_cmd!("poetry");
         c.arg("run");
         c.arg("python");
         c.arg("-c");

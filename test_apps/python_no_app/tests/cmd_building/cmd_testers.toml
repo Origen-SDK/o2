@@ -1,0 +1,337 @@
+help = "Commands to assist in testing aux commands when no app is present"
+
+[[command]]
+name = "python_no_app_tests"
+help = "Test commands for python-no-app workspace"
+
+[[command]]
+name = "test_nested_level_1"
+help = "Tests origen.current_command L1"
+
+    [[command.subcommand]]
+    name = "test_nested_level_2"
+    help = "Tests origen.current_command L2"
+
+        [[command.subcommand.subcommand]]
+        name = "test_nested_level_3_a"
+        help = "Tests origen.current_command L3a"
+
+        [[command.subcommand.subcommand]]
+        name = "test_nested_level_3_b"
+        help = "Tests origen.current_command L3b"
+
+[[command]]
+name = "test_arguments"
+help = "Test various argument and option schemes from commands"
+
+    [[command.subcommand]]
+    name = "display_verbosity_opts"
+    help = "Displays the verbosity and keywords from the current command"
+
+    [[command.subcommand]]
+    name = "no_args_or_opts"
+    help = "Command taking no arguments or options"
+
+    [[command.subcommand]]
+    name = "optional_arg"
+    help = "Command taking a single, optional argument"
+
+        [[command.subcommand.arg]]
+        name = "single_val"
+        help = "Single value"
+
+    [[command.subcommand]]
+    name = "required_arg"
+    help = "Command taking a required and optional arg"
+
+        [[command.subcommand.arg]]
+        name = "required_val"
+        required = true
+        help = "Single required value"
+
+        [[command.subcommand.arg]]
+        name = "optional_val"
+        help = "Single optional value"
+
+    [[command.subcommand]]
+    name = "multi_arg"
+    help = "Command taking a multi-arg"
+
+        [[command.subcommand.arg]]
+        name = "multi_arg"
+        multiple = true
+        help = "Multi-arg value"
+
+    [[command.subcommand]]
+    name = "delim_multi_arg"
+    help = "Command taking a delimited multi-arg"
+
+        [[command.subcommand.arg]]
+        name = "delim_m_arg"
+        use_delimiter = true
+        help = "Delimited Multi-arg value ('multiple' implied)"
+
+    [[command.subcommand]]
+    name = "single_and_multi_arg"
+    help = "Command taking a single and multi-arg"
+
+        [[command.subcommand.arg]]
+        name = "single_val"
+        help = "Single value"
+
+        [[command.subcommand.arg]]
+        name = "multi_arg"
+        multiple = true
+        help = "Multi-arg value"
+
+    [[command.subcommand]]
+    name = "args_with_value_names"
+    help = "Single and multi arg with value custom value names"
+
+        [[command.subcommand.arg]]
+        name = "s_arg"
+        value_name = "Single Arg Val"
+        help = "Single value arg with custom value name"
+
+        [[command.subcommand.arg]]
+        name = "m_arg"
+        multiple = true
+        value_name = "Multi Arg Val"
+        help = "Multi value arg with custom value name"
+
+    # Very simple subcommands that only support a small piece of the options at a time
+    [[command.subcommand]]
+    name = "single_value_optional_opt"
+    help = "Command taking optional, single option"
+
+        # Default setting for an arg is not required
+        [[command.subcommand.opt]]
+        name = "implicit_single_val"
+        takes_value = true
+        help = "Implicit non-required single value"
+
+        [[command.subcommand.opt]]
+        name = "explicit_single_val"
+        takes_value = true
+        required = false
+        help = "Explicit non-required single value"
+
+    [[command.subcommand]]
+    name = "single_value_required_opt"
+    help = "Command with single-value optional and required options"
+
+        # Default setting is arg is not required
+        [[command.subcommand.opt]]
+        name = "non_req_val"
+        takes_value = true
+        help = "Non-required single value"
+
+        [[command.subcommand.opt]]
+        name = "req_val"
+        takes_value = true
+        required = true
+        help = "Required single value"
+
+    [[command.subcommand]]
+    name = "multi_opts"
+    help = "Command with multi-value optional and required options"
+
+        [[command.subcommand.opt]]
+        name = "m_opt"
+        takes_value = true
+        multiple = true
+        help = "Opt with multiple values"
+
+        # Takes value should be implied with multiple
+        [[command.subcommand.opt]]
+        name = "im_m_opt"
+        multiple = true
+        help = "Opt accepting multiple values were 'takes value' is implied"
+
+        [[command.subcommand.opt]]
+        name = "req_m_opt"
+        multiple = true
+        required = true
+        help = "Required opt accepting multiple values"
+
+        [[command.subcommand.opt]]
+        name = "d_m_opt"
+        multiple = true
+        use_delimiter = true
+        help = "Delimited multi opt"
+
+        [[command.subcommand.opt]]
+        name = "d_im_m_opt"
+        use_delimiter = true
+        help = "Delimited opt where 'multi' and 'takes value' is implied"
+
+    [[command.subcommand]]
+    name = "flag_opts"
+    help = "Command with flag-style options only"
+
+        [[command.subcommand.opt]]
+        name = "im_f_opt"
+        help = "Stackable flag opt with 'takes value=false' implied"
+
+        [[command.subcommand.opt]]
+        name = "ex_f_opt"
+        takes_value = false
+        help = "Stackable flag opt with 'takes value=false' set"
+
+    [[command.subcommand]]
+    name = "opts_with_value_names"
+    help = "Command with single/multi-opts with custom value names"
+
+        [[command.subcommand.opt]]
+        name = "s_opt_nv_im_tv"
+        value_name = "s_val_impl"
+        help = "Single opt with value name, implying 'takes_value'=true"
+
+        [[command.subcommand.opt]]
+        name = "s_opt_nv_ex_tv"
+        value_name = "s_val_expl"
+        takes_value = true
+        help = "Single opt with value name and explicit 'takes_value'=true"
+
+        [[command.subcommand.opt]]
+        name = "m_opt_named_val"
+        value_name = "m_val"
+        multiple = true
+        help = "Multi-opt with value name"
+
+        [[command.subcommand.opt]]
+        name = "s_opt_ln_nv"
+        value_name = "ln_nv"
+        help = "Single opt with long name and value name"
+
+    [[command.subcommand]]
+    name = "opts_with_aliases"
+    help = "Command with option aliasing, custom long, and short names"
+
+        [[command.subcommand.opt]]
+        name = "single_opt"
+        takes_value = true
+        long = "s_opt"
+        short = "s"
+        help = "Single opt with long/short name"
+
+        [[command.subcommand.opt]]
+        name = "multi_opt"
+        takes_value = true
+        multiple = true
+        long = "m_opt"
+        short = "m"
+        help = "Multi-opt with long/short name"
+
+        [[command.subcommand.opt]]
+        name = "occurrence_counter"
+        long = "cnt"
+        short = "o"
+        help = "Flag opt with long/short name"
+
+        [[command.subcommand.opt]]
+        name = "flag_opt_short_name"
+        short = "f"
+        help = "Flag opt with short name only"
+
+        [[command.subcommand.opt]]
+        name = "flag_opt_long_name"
+        long = "ln_f_opt"
+        help = "Flag opt with long name only"
+
+        [[command.subcommand.opt]]
+        name = "flag_opt_dupl_ln_sn"
+        long = "f"
+        help = "Flag opt with ln matching another's sn"
+
+        [[command.subcommand.opt]]
+        name = "fo_sn_aliases"
+        short_aliases = ['a', 'b']
+        help = "Flag opt with short aliases"
+
+        [[command.subcommand.opt]]
+        name = "fo_sn_and_aliases"
+        short = "c"
+        short_aliases = ['d', 'e']
+        help = "Flag opt with short name and short aliases"
+
+        [[command.subcommand.opt]]
+        name = "fo_ln_aliases"
+        long_aliases = ['fa', 'fb']
+        help = "Flag opt with long aliases"
+
+        [[command.subcommand.opt]]
+        name = "fo_ln_and_aliases"
+        long = "fc"
+        long_aliases = ['fd', 'fe']
+        help = "Flag opt with long name and long aliases"
+
+        [[command.subcommand.opt]]
+        name = "fo_sn_ln_aliases"
+        long_aliases = ['sn_ln_1', 'sn_ln_2']
+        short_aliases = ['z']
+        help = "Flag opt with long and short aliases"
+
+    [[command.subcommand]]
+    name = "hidden_opt"
+    help = "Command with a hidden opt"
+
+        [[command.subcommand.opt]]
+        name = "hidden_opt"
+        hidden = true
+        help = "Hidden opt"
+
+        [[command.subcommand.opt]]
+        name = "visible_opt"
+        hidden = false
+        help = "Visible, non-hidden, opt"
+
+    [[command.subcommand]]
+    name = "single_arg_single_opt"
+    help = "Command with a single arg and single opt"
+
+        [[command.subcommand.arg]]
+        name = "single_arg_val"
+        help = "Single value arg"
+
+        [[command.subcommand.opt]]
+        name = "single_opt_val"
+        takes_value = true
+        help = "Single value opt"
+
+    [[command.subcommand]]
+    name = "multi_arg_multi_opt"
+    help = "Command with a multi-arg and multi-opt"
+
+        [[command.subcommand.arg]]
+        name = "multi_arg"
+        help = "Multi value arg"
+
+        [[command.subcommand.opt]]
+        name = "multi_opt"
+        takes_value = true
+        help = "Multi value opt"
+
+[[command]]
+name = "error_cases"
+help = "Commands to test error messages and improper command configuration"
+
+    [[command.subcommand]]
+    name = "missing_impl_dir"
+    help = "Parent to test missing implementation directory"
+
+        [[command.subcommand.subcommand]]
+        name = "missing_impl_dir_subc"
+        help = "Generate error for missing implementation directory"
+
+    [[command.subcommand]]
+    name = "missing_impl_file"
+    help = "Generate error for implementation module file"
+
+    [[command.subcommand]]
+    name = "test_missing_run_function"
+    help = "Generate error for a missing run function"
+
+    [[command.subcommand]]
+    name = "test_exception_in_run"
+    help = "Generate error for an exception during execution"

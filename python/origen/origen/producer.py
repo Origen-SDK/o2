@@ -62,17 +62,18 @@ class Producer(_origen.producer.PyProducer):
             'changed_program_files'] > 0
         new_files = stats['new_pattern_files'] > 0 or stats[
             'new_program_files'] > 0
-        if changes or new_files:
-            print("")
-            if changes:
-                print("To save all changed files run:")
-                print("  origen save_ref --changed")
-            if new_files:
-                print("To save all new files run:")
-                print("  origen save_ref --new")
-            if changes and new_files:
-                print("To save both run:")
-                print("  origen save_ref --new --changed")
+        # TODO add this back in when save_ref is re-added
+        # if changes or new_files:
+        #     print("")
+        #     if changes:
+        #         print("To save all changed files run:")
+        #         print("  origen save_ref --changed")
+        #     if new_files:
+        #         print("To save all new files run:")
+        #         print("  origen save_ref --new")
+        #     if changes and new_files:
+        #         print("To save both run:")
+        #         print("  origen save_ref --new --changed")
 
     @contextmanager
     def Pattern(self, **kwargs):

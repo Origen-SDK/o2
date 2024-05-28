@@ -2,6 +2,10 @@ static MOD_PATH: &'static str = "origen_metal._origen_metal";
 static MOD: &'static str = "frontend";
 static PY_FRONTEND: &'static str = "__py_frontend__";
 
+crate::lazy_static! {
+    pub static ref LOOKUP_HOME_DIR_FUNC_KEY: &'static str = "lookup_default_home_dir_function";
+}
+
 #[macro_export]
 macro_rules! frontend_mod {
     ($py:expr) => {{
@@ -223,7 +227,8 @@ pub(crate) fn backend_get_category(
 }
 
 #[cfg(debug_assertions)]
-#[pyfunction(opts = "**")]
+#[pyfunction]
+#[pyo3(signature=(category, data_store, **opts))]
 pub(crate) fn backend_get_class(
     _py: Python,
     category: &str,

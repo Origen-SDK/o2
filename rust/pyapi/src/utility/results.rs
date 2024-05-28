@@ -14,11 +14,12 @@ macro_rules! incomplete_result_error {
     }};
 }
 
-#[pymodule]
-pub fn results(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<BuildResult>()?;
-    m.add_class::<UploadResult>()?;
-    m.add_class::<ExecResult>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "results")?;
+    subm.add_class::<BuildResult>()?;
+    subm.add_class::<UploadResult>()?;
+    subm.add_class::<ExecResult>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 
@@ -32,7 +33,7 @@ pub struct BuildResult {
 #[pymethods]
 impl BuildResult {
     #[classmethod]
-    #[args(build_contents = "None", message = "None", metadata = "None")]
+    #[pyo3(signature=(instance, succeeded, build_contents=None, message=None, metadata=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
@@ -114,7 +115,7 @@ pub struct UploadResult {
 #[pymethods]
 impl UploadResult {
     #[classmethod]
-    #[args(message = "None", metadata = "None")]
+    #[pyo3(signature=(instance, succeeded, message=None, metadata=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,
@@ -156,7 +157,7 @@ pub struct ExecResult {
 #[pymethods]
 impl ExecResult {
     #[classmethod]
-    #[args(stdout = "None", stderr = "None")]
+    #[pyo3(signature=(instance, exit_code, stdout=None, stderr=None))]
     fn __init__(
         _cls: &PyType,
         instance: &PyAny,

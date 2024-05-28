@@ -1,0 +1,6 @@
+[plugins]
+collect = false
+load = [
+    { name = "test_apps_shared_test_helpers" },
+    { name = "python_plugin" },
+]

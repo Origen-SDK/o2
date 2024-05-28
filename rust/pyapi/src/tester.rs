@@ -9,9 +9,13 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
 use std::collections::HashMap;
 
-#[pymodule]
-pub fn tester(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyTester>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "tester")?;
+    subm.add_class::<PyTester>()?;
+    pyapi_metal::alias_method_apply_to_set!(subm, "PyTester", "timeset");
+    pyapi_metal::alias_method_apply_to_set!(subm, "PyTester", "pin_header");
+
+    m.add_submodule(subm)?;
     Ok(())
 }
 
@@ -138,11 +142,9 @@ impl PyTester {
     /// * :meth:`set_timeset`
     /// * :class:`_origen.dut.timesets.Timeset`
     /// * :ref:`Timing <guides/testers/timing:Timing>`
-    fn get_timeset(&self) -> PyResult<PyObject> {
+    fn get_timeset(&self, py: Python) -> PyResult<PyObject> {
         let tester = origen::tester();
         let dut = origen::dut();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         if let Some(t) = tester.get_timeset(&dut) {
             Ok(Py::new(
                 py,
@@ -160,7 +162,7 @@ impl PyTester {
 
     #[setter]
     // Note - do not add doc strings here. Add to get_timeset above.
-    fn timeset(&self, timeset: &PyAny) -> PyResult<()> {
+    fn timeset(&self, py: Python, timeset: &PyAny) -> PyResult<()> {
         let (model_id, timeset_name);
 
         // If the timeset is a string, assume its a timeset name on the DUT.
@@ -175,11 +177,9 @@ impl PyTester {
                     let mut tester = origen::TESTER.lock().unwrap();
                     tester.clear_timeset()?;
                 }
-                self.issue_callbacks("clear_timeset")?;
+                self.issue_callbacks(py, "clear_timeset")?;
                 return Ok(());
             } else if timeset.get_type().name()?.to_string() == "Timeset" {
-                let gil = Python::acquire_gil();
-                let py = gil.python();
                 let obj = timeset.to_object(py);
                 model_id = obj
                     .getattr(py, "__origen__model_id__")?
@@ -196,7 +196,7 @@ impl PyTester {
                 let dut = origen::DUT.lock().unwrap();
                 tester.set_timeset(&dut, model_id, &timeset_name)?;
             }
-            self.issue_callbacks("set_timeset")?;
+            self.issue_callbacks(py, "set_timeset")?;
         }
         Ok(())
     }
@@ -216,17 +216,15 @@ impl PyTester {
     /// * :meth:`timeset`
     /// * :class:`_origen.dut.timesets.Timeset`
     /// * :ref:`Timing <guides/testers/timing:Timing>`
-    fn set_timeset(&self, timeset: &PyAny) -> PyResult<PyObject> {
-        self.timeset(timeset)?;
-        self.get_timeset()
+    fn apply_timeset(&self, py: Python, timeset: &PyAny) -> PyResult<PyObject> {
+        self.timeset(py, timeset)?;
+        self.get_timeset(py)
     }
 
     #[getter]
-    fn get_pin_header(&self) -> PyResult<PyObject> {
+    fn get_pin_header(&self, py: Python) -> PyResult<PyObject> {
         let tester = origen::tester();
         let dut = origen::dut();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
 
         if let Some(header) = tester.get_pin_header(&dut) {
             Ok(Py::new(
@@ -244,7 +242,7 @@ impl PyTester {
     }
 
     #[setter]
-    fn pin_header(&self, pin_header: &PyAny) -> PyResult<()> {
+    fn pin_header(&self, py: Python, pin_header: &PyAny) -> PyResult<()> {
         let (model_id, pin_header_name);
 
         if pin_header.get_type().name()?.to_string() == "NoneType" {
@@ -252,11 +250,9 @@ impl PyTester {
                 let mut tester = origen::TESTER.lock().unwrap();
                 tester.clear_pin_header()?;
             }
-            self.issue_callbacks("clear_pin_header")?;
+            self.issue_callbacks(py, "clear_pin_header")?;
             return Ok(());
         } else if pin_header.get_type().name()?.to_string() == "PinHeader" {
-            let gil = Python::acquire_gil();
-            let py = gil.python();
             let obj = pin_header.to_object(py);
             model_id = obj
                 .getattr(py, "__origen__model_id__")?
@@ -272,14 +268,14 @@ impl PyTester {
                 let dut = origen::DUT.lock().unwrap();
                 tester.set_pin_header(&dut, model_id, &pin_header_name)?;
             }
-            self.issue_callbacks("set_pin_header")?;
+            self.issue_callbacks(py, "set_pin_header")?;
         }
         Ok(())
     }
 
-    fn set_pin_header(&self, pin_header: &PyAny) -> PyResult<PyObject> {
-        self.pin_header(pin_header)?;
-        self.get_pin_header()
+    fn apply_pin_header(&self, py: Python, pin_header: &PyAny) -> PyResult<PyObject> {
+        self.pin_header(py, pin_header)?;
+        self.get_pin_header(py)
     }
 
     /// cc(comment: str) -> self
@@ -295,12 +291,12 @@ impl PyTester {
     /// --------
     /// * {{ link_to('prog-gen:comments', 'Commenting pattern source') }}
     /// * {{ link_to('pat-gen:comments', 'Commenting program source') }}
-    fn cc(slf: PyRef<Self>, comment: &str) -> PyResult<Py<Self>> {
+    fn cc(slf: PyRef<Self>, py: Python, comment: &str) -> PyResult<Py<Self>> {
         {
             let mut tester = origen::tester();
             tester.cc(&comment)?;
         }
-        slf.issue_callbacks("cc")?;
+        slf.issue_callbacks(py, "cc")?;
         Ok(slf.into())
     }
 
@@ -324,7 +320,7 @@ impl PyTester {
         Ok(tester.end_pattern()?)
     }
 
-    fn issue_callbacks(&self, func: &str) -> PyResult<()> {
+    fn issue_callbacks(&self, py: Python, func: &str) -> PyResult<()> {
         // Get the current targeted testers
         let targets;
         {
@@ -341,8 +337,6 @@ impl PyTester {
                         Some(inst) => {
                             // The tester here is a PyObject - a handle on the class itself.
                             // Instantiate it and call its render method with the AST.
-                            let gil = Python::acquire_gil();
-                            let py = gil.python();
                             let last_node = TEST.get(0).unwrap().to_pickle();
                             let args =
                                 PyTuple::new(py, &[func.to_object(py), last_node.to_object(py)]);
@@ -370,8 +364,8 @@ impl PyTester {
     }
 
     /// cycle(**kwargs) -> self
-    #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
+    #[pyo3(signature=(**kwargs))]
+    fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         {
             let mut tester = origen::tester();
             let mut repeat = None;
@@ -382,28 +376,27 @@ impl PyTester {
             }
             tester.cycle(repeat)?;
         }
-        slf.issue_callbacks("cycle")?;
+        slf.issue_callbacks(py, "cycle")?;
 
         Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn repeat(slf: PyRef<Self>, py: Python, count: usize) -> PyResult<Py<Self>> {
         let kwargs = PyDict::new(py);
         kwargs.set_item("repeat", count)?;
-        Self::cycle(slf, Some(&kwargs))
+        Self::cycle(slf, py, Some(&kwargs))
     }
 
-    #[args(
-        label = "None",
-        symbol = "None",
-        cycles = "None",
-        mask = "None",
-        pins = "None"
-    )]
+    #[pyo3(signature=(
+        label = None,
+        symbol = None,
+        pins = None,
+        cycles = None,
+        mask = None,
+    ))]
     fn overlay(
         slf: PyRef<Self>,
+        py: Python,
         label: Option<String>,
         symbol: Option<String>,
         pins: Option<Vec<&PyAny>>,
@@ -424,13 +417,14 @@ impl PyTester {
             let tester = origen::tester();
             tester.overlay(&origen::Overlay::new(label, symbol, cycles, mask, pin_ids)?)?;
         }
-        slf.issue_callbacks("overlay")?;
+        slf.issue_callbacks(py, "overlay")?;
         Ok(slf.into())
     }
 
-    #[args(symbol = "None", cycles = "None", mask = "None", pins = "None")]
+    #[pyo3(signature=(symbol=None, cycles=None, mask=None, pins=None))]
     fn capture(
         slf: PyRef<Self>,
+        py: Python,
         symbol: Option<String>,
         cycles: Option<usize>,
         mask: Option<num_bigint::BigUint>,
@@ -450,14 +444,12 @@ impl PyTester {
             let tester = origen::tester();
             tester.capture(&origen::Capture::new(symbol, cycles, mask, pin_ids)?)?;
         }
-        slf.issue_callbacks("capture")?;
+        slf.issue_callbacks(py, "capture")?;
         Ok(slf.into())
     }
 
-    fn register_tester(&mut self, g: &PyAny) -> PyResult<()> {
+    fn register_tester(&mut self, py: Python, g: &PyAny) -> PyResult<()> {
         let mut tester = origen::tester();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
 
         let obj = g.to_object(py);
         let mut n = obj.getattr(py, "__module__")?.extract::<String>(py)?;
@@ -471,8 +463,8 @@ impl PyTester {
         Ok(())
     }
 
-    #[args(testers = "*")]
-    fn target(&mut self, testers: &PyTuple) -> PyResult<Vec<String>> {
+    #[pyo3(signature=(*testers))]
+    fn target(&mut self, py: Python, testers: &PyTuple) -> PyResult<Vec<String>> {
         if testers.len() > 0 {
             let mut tester = origen::tester();
             for g in testers.iter() {
@@ -480,9 +472,6 @@ impl PyTester {
                 if let Ok(name) = g.extract::<String>() {
                     tester.target(SupportedTester::new(&name)?)?;
                 } else {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
-
                     let obj = g.to_object(py);
                     let mut n = obj.getattr(py, "__module__")?.extract::<String>(py)?;
                     n.push_str(&format!(
@@ -517,8 +506,8 @@ impl PyTester {
     /// in case they are useful in future.
     /// Continue on fail means that any errors will be logged but Origen will continue, if false
     /// it will blow up and immediately return an error to Python.
-    #[args(continue_on_fail = false)]
-    fn render_pattern(&self, continue_on_fail: bool) -> PyResult<Vec<String>> {
+    #[pyo3(signature=(continue_on_fail=false))]
+    fn render_pattern(&self, py: Python, continue_on_fail: bool) -> PyResult<Vec<String>> {
         if origen::LOGGER.has_keyword("show_unprocessed_ast") {
             origen::LOGGER.info("Showing Unprocessed AST");
             origen::LOGGER.info(&format!("{:?}", origen::TEST));
@@ -537,8 +526,6 @@ impl PyTester {
                         Some(inst) => {
                             // The tester here is a PyObject - a handle on the class itself.
                             // Instantiate it and call its render method with the AST.
-                            let gil = Python::acquire_gil();
-                            let py = gil.python();
                             let _pat = inst.call_method0(py, "render_pattern")?;
                             // TODO - How do we convert this to a path to do the diffing?
                         }

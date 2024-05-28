@@ -241,6 +241,8 @@ impl Maillist {
                     email_str = r.to_string();
                 }
             }
+            use std::str::FromStr;
+            let _em = email_address::EmailAddress::from_str(&email_str)?;
             retn.push(email_str.parse()?);
         }
         Ok(retn)

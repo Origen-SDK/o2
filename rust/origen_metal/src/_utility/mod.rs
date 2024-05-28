@@ -4,8 +4,8 @@ pub mod file_utils;
 /// (directly) wrapped by any frontend utility.
 use crate::Result;
 use std::collections::HashSet;
-use std::ffi::OsStr;
 use std::iter::FromIterator;
+use std::ffi::OsStr;
 
 /// Checks the given values of a vector against an enumerated set of accepted values.
 /// Optionally, check for duplicate items as well.

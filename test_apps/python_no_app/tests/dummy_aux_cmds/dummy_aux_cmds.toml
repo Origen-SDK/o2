@@ -1,0 +1,7 @@
+[[command]]
+    name = "say_hi"
+    help = "Say hi!"
+
+[[command]]
+    name = "say_bye"
+    help = "Say bye!"

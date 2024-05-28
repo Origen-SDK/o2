@@ -1,0 +1,468 @@
+[[command]]
+    name = "plugin_says_hi"
+    help = "Say 'hi' from the python plugin"
+
+    [[command.opt]]
+        name = "times"
+        takes_value = true
+        short = "x"
+        long = "times"
+        help = "Number of times for the python plugin to say"
+        value_name = "TIMES"
+        multiple = false
+
+    [[command.opt]]
+        name = "loudly"
+        takes_value = false
+        short = "l"
+        long = "loudly"
+        help = "LOUDLY say hi"
+
+    [[command.opt]]
+        name = "to"
+        help = "Specify who should be greeted"
+        takes_value = true
+        multiple = true
+        use_delimiter = true
+
+[[command]]
+name = "plugin_test_args"
+help = "Test command for a plugin"
+
+    [[command.arg]]
+    name = "single_arg"
+    help = "Single Arg"
+
+    [[command.arg]]
+    name = "multi_arg"
+    multiple = true
+    help = "Multi Arg"
+
+    [[command.opt]]
+    name = "opt_taking_value"
+    takes_value = true
+    help = "Opt taking a single value"
+    long = "opt"
+
+    [[command.opt]]
+    name = "flag_opt"
+    help = "Flag Opt"
+    long = "flag"
+
+    [[command.opt]]
+    name = "sn_only"
+    help = "Opt with short name only"
+    short = "n"
+
+    [[command.opt]]
+    name = "opt_with_aliases"
+    help = "Opt with aliases"
+    long_aliases = ["alias", "opt_alias"]
+    short_aliases = ["a", "b"]
+
+    [[command.subcommand]]
+    name = "subc"
+    help = "Test Subcommand for plugin_test_args"
+
+        [[command.subcommand.arg]]
+        name = "single_arg"
+        help = "Single Arg For Subcommand"
+
+        [[command.subcommand.opt]]
+        name = "flag_opt"
+        help = "Flag Opt For Subcommand"
+
+        [[command.subcommand.opt]]
+        name = "subc_sn_only"
+        help = "Opt with short name only for subc"
+        short = "n"
+
+        [[command.subcommand.opt]]
+        name = "subc_opt_with_aliases"
+        help = "Opt with aliases for subc"
+        long = "subc_opt"
+        long_aliases = ["subc_alias", "subc_opt_alias"]
+        short_aliases = ["a", "b"]
+
+[[command]]
+name = "plugin_test_ext_stacking"
+help = "Test ext stacking for plugin command"
+
+    [[command.arg]]
+    name = "single_arg"
+    help = "Single Arg"
+
+    [[command.opt]]
+    name = "flag_opt"
+    help = "Flag Opt"
+
+    [[command.subcommand]]
+    name = "subc"
+    help = "Test Subcommand for ext stacking"
+
+        [[command.subcommand.arg]]
+        name = "single_arg"
+        help = "Single Arg"
+
+        [[command.subcommand.opt]]
+        name = "flag_opt"
+        help = "Flag Opt"
+
+[[command]]
+name = "echo"
+help = "Echos the input"
+
+    [[command.arg]]
+    name = "input"
+    use_delimiter = true
+    help = "Input to echo"
+    required = true
+
+    [[command.opt]]
+    name = "repeat"
+    help = "Echo again (repeat)"
+    long = "repeat"
+    short = "r"
+
+[[command]]
+    name = "do_actions"
+    help = "Perform the given actions"
+
+    [[command.arg]]
+    name = "actions"
+    required = true
+    use_delimiter = true
+    help = "Actions to perform"
+
+# Command disabling standard app opts
+[[command]]
+name = "disabling_app_opts_from_pl"
+help = "Test disabling standard app opts from plugin commands"
+in_global_context = false
+
+    [[command.subcommand]]
+    name = "disable_targets_opt"
+    help = "Disable the targets and no-targets opt"
+    add_target_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
+
+    [[command.subcommand]]
+    name = "disable_mode_opt"
+    help = "Disable the mode opt"
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_mode_opt = true
+
+    [[command.subcommand]]
+    name = "disable_app_opts"
+    help = "Disable all app opts"
+    add_target_opt = false
+    add_mode_opt = false
+
+        [[command.subcommand.subcommand]]
+        name = "disable_subc"
+        help = "Disables inherited from parent"
+
+        [[command.subcommand.subcommand]]
+        name = "override_subc"
+        help = "Overrides disable inherited from parent"
+        add_target_opt = true
+        add_mode_opt = true
+
+[[command]]
+name = "intra_cmd_conflicts"
+help = "PL cmd with conflicting args and opts within the cmd"
+on_env=["ORIGEN_PL_INTRA_CMD_CONFLICTS"]
+
+    [[command.arg]]
+    name = "arg0"
+    help = "Arg 0"
+
+    [[command.arg]]
+    name = "arg0"
+    help = "Duplicate: Arg 0"
+
+    [[command.arg]]
+    name = "arg1"
+    help = "Arg 1"
+
+    [[command.arg]]
+    name = "arg2"
+    help = "Arg 2"
+
+    [[command.arg]]
+    name = "arg1"
+    help = "Duplicate: Arg 1"
+
+    [[command.arg]]
+    name = "ext_opt.arg"
+    help = "Arg with reserved prefix"
+
+    [[command.opt]]
+    name = "opt"
+    help = "Opt 0"
+    long_aliases=["opt0"]
+
+    [[command.opt]]
+    name = "opt"
+    help = "Duplicate: Opt 0"
+
+    [[command.opt]]
+    name = "ext_opt.opt"
+    help = "Reserved Prefix"
+
+    [[command.opt]]
+    name = "arg0"
+    help = "Arg-Opt clash"
+
+    [[command.opt]]
+    name = "arg_clash"
+    help = "Arg-Opt clash in ln/lna (okay)"
+    long = "arg0"
+    long_aliases = ["arg1"]
+
+    [[command.opt]]
+    name= "reserved_prefix_in_ln_lna"
+    help = "Reserved prefix in ln and lna"
+    long = "ext_opt.ln"
+    long_aliases = ["ext_opt.lna", "ext_opt_lna"]
+
+    [[command.opt]]
+    name= "intra_opt_conflicts"
+    help = "Various intra-opt conflicts"
+    long = "intra_opt_cons"
+    short = "c"
+    long_aliases = ["intra_opt_conflicts", "intra_opt_cons", "intra_opt_cons2", "intra_opt_cons2"]
+    short_aliases = ["a", "b", "c", "b", "c", "e", "e"]
+
+    [[command.opt]]
+    name= "inter_opt_conflicts"
+    help = "Various inter-opt conflicts"
+    long = "intra_opt_conflicts"
+    short = "a"
+    long_aliases = ["intra_opt_cons", "ext_opt_lna", "reserved_prefix_in_ln_lna"]
+    short_aliases = ["b", "c", "d"]
+
+    [[command.opt]]
+    name = "opt0"
+    help = "Inferred long name clash"
+
+    [[command.subcommand]]
+    name = "conflicts_subc"
+    help = "Subcommand with conflicts"
+
+        [[command.subcommand.arg]]
+        name = "arg0"
+        help = "Arg 0"
+
+        [[command.subcommand.arg]]
+        name = "sub_arg_1"
+        help = "Subc Arg 1"
+
+        [[command.subcommand.arg]]
+        name = "sub_arg_1"
+        help = "Duplicate"
+
+        [[command.subcommand.arg]]
+        name = "ext_opt.subc_arg"
+        help = "Arg with reserved prefix"
+
+        [[command.subcommand.opt]]
+        name = "ext_opt.subc_opt"
+        help = "Reserved opt prefix"
+        short = "r"
+
+        [[command.subcommand.opt]]
+        name = "opt"
+        help = "Opt 0"
+        long_aliases=["subc_opt", "ext_opt.subc_opt_lna"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_conflicts"
+        help = "Intra-opt conflicts for subc"
+        long = "intra_subc_conflicts"
+        short = "r"
+        long_aliases=["intra_subc_conflicts"]
+        short_aliases=["r"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_lna_iln_conflict"
+        help = "Intra-opt iln conflict"
+        long_aliases=["intra_subc_lna_iln_conflict"]
+
+        [[command.subcommand.opt]]
+        name = "inter_subc_conflicts"
+        help = "Inter-opt conflicts for subc"
+        long = "opt"
+        long_aliases=["intra_subc_conflicts"]
+        short_aliases=["r"]
+
+        [[command.subcommand.opt]]
+        name = "intra_subc_conflicts"
+        help = "Duplicate Opt"
+
+[[extension]]
+    # Extend eval command only in global context
+    extend = "origen.eval"
+    in_global_context = true
+    in_app_context = false
+
+    [[extension.opt]]
+        name = "say_hi_before_eval"
+        short = "b"
+        help = "Have the plugin say hi before evaluating (global)"
+
+    [[extension.opt]]
+        name = "say_hi_after_eval"
+        short = "a"
+        help = "Have the plugin say hi after evaluating (global)"
+
+# TESTS_NEEDED CLI explicit global vs. app case. Have global, need app
+# [[extension]]
+#    # Extend eval command only in an application context
+#    extend = "origen.eval"
+#    in_global_context = false
+#    in_app_context = true
+
+#     [[extension.opt]]
+#         name = "say_hi_before_eval"
+#         short = "y"
+#         help = "Have the plugin say hi before evaluating (app)"
+
+#     [[extension.opt]]
+#         name = "say_hi_after_eval"
+#         short = "z"
+#         help = "Have the plugin say hi after evaluating (app)"
+
+[[extension]]
+    # Extend eval command in both contexts
+    extend = "origen.eval"
+    in_global_context = true
+    in_app_context = true
+
+    [[extension.opt]]
+        name = "say_hi_during_cleanup"
+        help = "Have the plugin say hi during cleanup"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "python_plugin_action"
+        multiple = true
+        help = "Action from python_plugin"
+
+    [[extension.opt]]
+        name = "python_plugin_flag"
+        help = "Flag from python_plugin"
+
+[[extension]]
+extend = "aux.dummy_cmds.dummy_cmd.subc"
+on_env = ["ORIGEN_DUMMY_AUX_CMDS"]
+
+    [[extension.opt]]
+        name = "python_plugin_action_subc"
+        multiple = true
+        help = "Action from python_plugin subc"
+
+    [[extension.opt]]
+        name = "python_plugin_flag_subc"
+        help = "Flag from python_plugin subc"
+
+[[extension]]
+extend = "app.arg_opt_warmup"
+on_env = ["ORIGEN_APP_EXT_ARG_OPT_WARMUP"]
+
+    [[extension.opt]]
+        name = "pypl_single_opt"
+        help = "Single opt from PYPL"
+        takes_value = true
+
+    [[extension.opt]]
+        name = "pypl_multi_opt"
+        help = "Multi opt from PYPL"
+        multiple = true
+        long_aliases=["PYPL"]
+
+    [[extension.opt]]
+        name = "pypl_hidden"
+        help = "Hidden opt from PYPL"
+        long="pypl_h_opt"
+        short = "p"
+        hidden = true
+
+[[extension]]
+extend = "app.arg_opt_warmup"
+on_env = ["ORIGEN_APP_EXT_CONFLICTS_ARG_OPT_WARMUP"]
+
+    [[extension.opt]]
+        name = "flag_opt"
+        help = "Flag opt from Python Plugin"
+
+    [[extension.opt]]
+        name = "conflicts_from_python_plugin"
+        help = "Some conflicts from Python Plugin"
+        long = "single_opt"
+        short = "m"
+        long_aliases=["m_opt", "python_plugin_conflicts"]
+        short_aliases=["a"]
+
+[[extension]]
+extend = "app.nested_app_cmds.nested_l1"
+on_env = ["ORIGEN_APP_EXT_NESTED"]
+
+    [[extension.opt]]
+        name = "pypl_single_opt_shallow"
+        help = "Single opt from PYPL"
+        short = "p"
+        takes_value = true
+
+    [[extension.opt]]
+        name = "pypl_flag_opt_shallow"
+        help = "Flag opt from PYPL"
+
+[[extension]]
+extend = "app.nested_app_cmds.nested_l1.nested_l2_b.nested_l3_a"
+on_env = ["ORIGEN_APP_EXT_NESTED"]
+
+    [[extension.opt]]
+        name = "pypl_single_opt_deep"
+        help = "Single opt from PYPL"
+        short = "q"
+        takes_value = true
+
+    [[extension.opt]]
+        name = "pypl_flag_opt_deep"
+        help = "Flag opt from PYPL"
+        long= "py_f"
+        short = "f"
+
+[[extension]]
+extend = "origen.target"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target"
+
+[[extension]]
+extend = "origen.target.view"
+on_env = ["ORIGEN_EXT_TARGET_CMD"]
+    [[extension.opt]]
+        name = "test_ext"
+        help = "Test target view"

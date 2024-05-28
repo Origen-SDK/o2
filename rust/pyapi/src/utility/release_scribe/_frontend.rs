@@ -1,5 +1,5 @@
 use crate::application::{get_pyapp, PyApplication};
-use origen::utility::version::Version as OVersion;
+use origen_metal::utils::version::Version as OVersion;
 use origen::Result as OResult;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -80,10 +80,10 @@ impl ReleaseScribe {
     where
         F: FnMut(Python, PyObject) -> PyResult<T>,
     {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let pyapp = get_pyapp(py)?;
-        let rs = PyApplication::_get_release_scribe(pyapp, py)?;
-        func(py, rs)
+        Python::with_gil(|py| {
+            let pyapp = get_pyapp(py)?;
+            let rs = PyApplication::_get_release_scribe(pyapp, py)?;
+            func(py, rs)
+        })
     }
 }

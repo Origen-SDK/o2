@@ -25,12 +25,12 @@ use std::thread;
 pub use test::Test;
 pub use test_invocation::TestInvocation;
 
-#[pymodule]
-/// Implements the module _origen.prog_gen in Python
-pub fn prog_gen(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(start_new_flow))?;
-    m.add_wrapped(wrap_pyfunction!(end_flow))?;
-    m.add_wrapped(wrap_pyfunction!(render))?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "prog_gen")?;
+    subm.add_wrapped(wrap_pyfunction!(start_new_flow))?;
+    subm.add_wrapped(wrap_pyfunction!(end_flow))?;
+    subm.add_wrapped(wrap_pyfunction!(render))?;
+    m.add_submodule(subm)?;
     Ok(())
 }
 

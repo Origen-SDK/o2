@@ -2,7 +2,7 @@ use origen::core::file_handler::FileHandler as CoreFileHandler;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
-pub fn define(m: &PyModule) -> PyResult<()> {
+pub fn define(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(file_handler))?;
     Ok(())
 }

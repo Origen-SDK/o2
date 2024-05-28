@@ -11,7 +11,7 @@ name = "origen_metal"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-origen_metal = { path = "../origen_metal", features = ["python"] }
+origen_metal = { path = "../origen_metal" }
 indexmap = "1.3.0"
 num-bigint = "0.4.0"
 
@@ -23,11 +23,11 @@ curl-sys = { version = "0.4.34", features = ["static-curl"] }
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]
-version = "0.16.5"
+version = "0.19.1"
 features = ["extension-module", "num-bigint"]
 
 [build-dependencies]
-built = "0.5.1"
+built = "0.5.2"
 
 [package.metadata.maturin]
 name = "origen_metal._origen_metal"

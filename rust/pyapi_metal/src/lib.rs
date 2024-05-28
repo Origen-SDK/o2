@@ -1,3 +1,4 @@
+#[macro_use]
 pub mod _helpers;
 pub mod framework;
 pub mod frontend;
@@ -21,8 +22,14 @@ pub mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
-#[pymodule]
-pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "_origen_metal")?;
+    _define(py, subm)?;
+    m.add_submodule(subm)?;
+    Ok(())
+}
+
+pub fn _define(py: Python, m: &PyModule) -> PyResult<()> {
     framework::define(py, m)?;
     utils::define(py, m)?;
     frontend::define(py, m)?;
@@ -43,8 +50,12 @@ pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
         _helpers::define_tests(py, test_sm)?;
         m.add_submodule(test_sm)?;
     }
-
     Ok(())
+}
+
+#[pymodule]
+pub fn _origen_metal(py: Python, m: &PyModule) -> PyResult<()> {
+    _define(py, m)
 }
 
 fn py_submodule<F>(py: Python, parent: &PyModule, path: &str, func: F) -> PyResult<()>

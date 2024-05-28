@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "python_plugin_the_second"
+version = "0.1.0"
+description = "Another Example Origen Plugin"
+authors = ["Origen-SDK"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.0,<3.13"
+origen = { path = "../../python/origen", develop = true }
+origen_metal = { path = "../../python/origen_metal", develop = true }
+
+[tool.poetry.dev-dependencies]
+pytest = "^3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

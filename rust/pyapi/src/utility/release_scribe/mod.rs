@@ -3,12 +3,20 @@ pub mod _frontend;
 use super::app_utility;
 use crate::runtime_error;
 use origen::utility::release_scribe::ReleaseScribe as OrigenRS;
-use origen::utility::version::Version as OVersion;
+use origen_metal::utils::version::Version as OVersion;
 use origen::STATUS;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
+
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "release_scribe")?;
+    subm.add_class::<ReleaseScribe>()?;
+    subm.add_wrapped(wrap_pyfunction!(app_release_scribe))?;
+    m.add_submodule(subm)?;
+    Ok(())
+}
 
 #[pymodule]
 pub fn release_scribe(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -45,7 +53,7 @@ pub struct ReleaseScribe {
 #[pymethods]
 impl ReleaseScribe {
     #[new]
-    #[args(config = "**")]
+    #[pyo3(signature=(**config))]
     fn new(config: Option<&PyDict>) -> PyResult<Self> {
         let mut c: HashMap<String, String> = HashMap::new();
         if let Some(cfg) = config {
@@ -59,9 +67,7 @@ impl ReleaseScribe {
     }
 
     #[getter]
-    fn release_note_file(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn release_note_file(&self, py: Python) -> PyResult<PyObject> {
         Ok(crate::pypath!(
             py,
             format!("{}", self.rs.release_file.display())
@@ -81,16 +87,14 @@ impl ReleaseScribe {
     }
 
     #[getter]
-    fn history_tracking_file(&self) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn history_tracking_file(&self, py: Python) -> PyResult<PyObject> {
         Ok(crate::pypath!(
             py,
             format!("{}", self.rs.history_toml.display())
         ))
     }
 
-    #[args(release = "None", title = "None", dry_run = "false")]
+    #[pyo3(signature=(body, title=None, release=None, dry_run=false))]
     fn append_history(
         &mut self,
         body: String,

@@ -32,7 +32,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn write_ap(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -52,7 +52,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn verify_ap(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -75,7 +75,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn write_dp(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();
@@ -95,7 +95,7 @@ impl SWD {
         Ok(self.clone())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(bits_or_val, **kwargs))]
     fn verify_dp(&self, bits_or_val: &PyAny, kwargs: Option<&PyDict>) -> PyResult<Self> {
         let dut = origen::dut();
         let mut services = origen::services();

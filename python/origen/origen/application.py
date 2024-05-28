@@ -9,6 +9,7 @@ from origen.compiler import Compiler
 from origen.errors import *
 from origen.callbacks import _callbacks
 from types import ModuleType
+from pathlib import Path
 import origen_metal
 
 
@@ -78,6 +79,20 @@ class Base(_origen.application.PyApplication):
         ''' An alias for app_dir '''
         return self._app_dir
 
+    # TEST_NEEDED app.config_dir
+    @property
+    def config_dir(self):
+        return self.root.joinpath("config")
+
+    # TEST_NEEDED app.commands_dir
+    @property
+    def commands_dir(self):
+        d = self.app_dir.joinpath("commands")
+        if d.exists():
+            return d
+        else:
+            return None
+
     @property
     def session(self):
         ''' Return this app's session store'''
@@ -112,10 +127,14 @@ class Base(_origen.application.PyApplication):
     def mailer(self):
         return origen.mailer
 
+    @property
+    def is_plugin(self):
+        return self._plugin
+
     def __init__(self, *args, **options):
         self._compiler = Compiler()
         self._translator = Translator()
-        if origen.app is None:
+        if (origen.app is None) and origen.is_app_present:
             self._plugin = False
             self._root = origen.root
             self._name = _origen.app_config()["name"]
@@ -252,26 +271,36 @@ class Base(_origen.application.PyApplication):
             if r[0]:
                 block_dir = r[1]
 
+        app_dir = None
         if block_dir is None:
             r = self.block_path_to_dir(path)
             if not r[0]:
                 paths = path.split(".")
-                if len(paths) > 1 and origen.has_plugin(paths[0]):
-                    return origen.plugin(paths[0]).instantiate_block(
-                        ".".join(paths[1:]),
-                        None,
-                        class_name=class_name,
-                        sb_options=sb_options)
+                if paths[0] == "origen":
+                    return origen.core_app.instantiate_block(
+                            ".".join(paths[1:]),
+                            None,
+                            class_name=class_name,
+                            sb_options=sb_options)
+                elif path[0] == "origen_metal":
+                    raise RuntimeError("origen_metal is not available as controller or application")
                 else:
-                    raise RuntimeError(
-                        f"No block was found at path '{orig_path}'")
+                    if len(paths) > 1 and origen.has_plugin(paths[0]):
+                        return origen.plugin(paths[0]).instantiate_block(
+                            ".".join(paths[1:]),
+                            None,
+                            class_name=class_name,
+                            sb_options=sb_options)
+                    else:
+                        raise RuntimeError(
+                            f"No block was found at path '{orig_path}'")
             else:
                 block_dir = r[1]
 
         # If no controller class is defined then look up the nearest available parent
         controller_dir = block_dir
         controller_file = None
-        blocks_dir = self.app_dir.joinpath("blocks")
+        blocks_dir = app_dir or self.app_dir.joinpath("blocks")
         p = f"{path.split('.')[-1]}.py"
         if controller_dir.joinpath(p).exists():
             controller_file = controller_dir.joinpath(p)

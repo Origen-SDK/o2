@@ -2,7 +2,7 @@ pub mod config;
 pub mod target;
 
 use super::application::config::Config;
-use crate::utility::version::{set_version_in_toml, Version};
+use origen_metal::utils::version::Version;
 use crate::Result;
 use indexmap::IndexMap;
 use origen_metal::framework::reference_files;
@@ -75,7 +75,10 @@ impl Application {
             "Updating version file: '{}'",
             self.version_file().into_os_string().into_string()?
         );
-        set_version_in_toml(&self.version_file(), version)
+        let mut v = Version::from_pyproject_with_toml_handle(self.version_file())?;
+        v.set_new_version(version.clone())?;
+        v.write()?;
+        Ok(())
     }
 
     /// Execute the given function with a reference to the application config.
@@ -445,7 +448,7 @@ impl ProductionStatus {
 #[cfg(test)]
 mod tests {
     use crate::core::application::Application;
-    use crate::utility::version::Version;
+    use origen_metal::utils::version::Version;
     use crate::STATUS;
 
     #[test]

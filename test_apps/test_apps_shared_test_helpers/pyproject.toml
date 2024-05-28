@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "test_apps_shared_test_helpers"
+version = "0.1.0"
+description = "Shared Regression Test Helpers for Test Apps"
+authors = ["Origen-SDK"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.0,<3.13"
+pytest = ">=7.2.1"
+origen = { path = "../../python/origen", develop = true }
+pl_ext_cmds = { path = "../pl_ext_cmds", develop = true }
+
+[tool.poetry.dev-dependencies]
+pytest = "^3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

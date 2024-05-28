@@ -1,6 +1,6 @@
 [package]
 name = "origen_pyapi"
-version = "2.0.0-dev.5"
+version = "2.0.0-dev7"
 authors = ["Origen-SDK"]
 edition = "2021"
 
@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 origen = { path = "../origen" }
-origen_metal = { path = "../origen_metal", features = ["python"] }
+origen_metal = { path = "../origen_metal" }
 pyapi_metal = { path = "../pyapi_metal", package = "pyapi_metal" }
 num-bigint = "0.4.0"
 num-traits = "0.2.0"
@@ -32,8 +32,8 @@ curl-sys = { version = "0.4.34", features = ["static-curl"] }
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dependencies.pyo3]
-version = "0.16.5"
+version = "0.19.1"
 features = ["extension-module", "num-bigint", "multiple-pymethods", "auto-initialize"]
 
 [build-dependencies]
-built = "0.5.1"
+built = "0.5.2"

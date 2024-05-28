@@ -33,11 +33,8 @@ impl PinGroup {
     }
 
     #[getter]
-    fn get_actions(&self) -> PyResult<PyObject> {
+    fn get_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         let pin_actions = grp.get_actions(&dut)?;
         Ok(PinActions {
@@ -46,7 +43,7 @@ impl PinGroup {
         .into_py(py))
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(data, **kwargs))]
     fn drive(slf: PyRef<Self>, data: BigUint, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
@@ -56,7 +53,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    #[args(kwargs = "**")]
+    #[pyo3(signature=(data, **kwargs))]
     fn verify(slf: PyRef<Self>, data: BigUint, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let dut = DUT.lock().unwrap();
         let grp = dut._get_pin_group(slf.model_id, &slf.name)?;
@@ -75,12 +72,12 @@ impl PinGroup {
 
     #[setter]
     fn actions(slf: PyRef<Self>, actions: &PyAny) -> PyResult<()> {
-        Self::set_actions(slf, actions, None)?;
+        Self::apply_actions(slf, actions, None)?;
         Ok(())
     }
 
-    #[args(kwargs = "**")]
-    fn set_actions(
+    #[pyo3(signature=(actions, **kwargs))]
+    fn apply_actions(
         slf: PyRef<Self>,
         actions: &PyAny,
         kwargs: Option<&PyDict>,
@@ -109,10 +106,8 @@ impl PinGroup {
     }
 
     #[getter]
-    fn get_reset_actions(&self) -> PyResult<PyObject> {
+    fn get_reset_actions(&self, py: Python) -> PyResult<PyObject> {
         let dut = DUT.lock().unwrap();
-        let gil = Python::acquire_gil();
-        let py = gil.python();
         let grp = dut._get_pin_group(self.model_id, &self.name)?;
         let pin_actions = grp.get_reset_actions(&dut)?;
         Ok(PinActions {
@@ -134,11 +129,8 @@ impl PinGroup {
         Ok(grp.is_little_endian())
     }
 
-    #[args(kwargs = "**")]
-    fn cycle(slf: PyRef<Self>, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    #[pyo3(signature=(**kwargs))]
+    fn cycle(slf: PyRef<Self>, py: Python, kwargs: Option<&PyDict>) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         locals.set_item("kwargs", kwargs.to_object(py))?;
@@ -151,10 +143,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    fn repeat(slf: PyRef<Self>, count: usize) -> PyResult<Py<Self>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
+    fn repeat(slf: PyRef<Self>, py: Python, count: usize) -> PyResult<Py<Self>> {
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?)?;
         py.eval(
@@ -165,7 +154,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    #[args(label = "None", symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(label=None, symbol=None, cycles=None, mask=None))]
     fn overlay(
         slf: PyRef<Self>,
         label: Option<String>,
@@ -181,7 +170,7 @@ impl PinGroup {
         Ok(slf.into())
     }
 
-    #[args(symbol = "None", cycles = "None", mask = "None")]
+    #[pyo3(signature=(symbol=None, cycles=None, mask=None))]
     fn capture(
         slf: PyRef<Self>,
         symbol: Option<String>,
@@ -276,8 +265,8 @@ impl ListLikeAPI for PinGroup {
                 }
             }
         }
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        Ok(Py::new(py, PinCollection::from_ids_unchecked(ids, None))?.to_object(py))
+        Python::with_gil(|py| {
+            Ok(Py::new(py, PinCollection::from_ids_unchecked(ids, None))?.to_object(py))
+        })
     }
 }

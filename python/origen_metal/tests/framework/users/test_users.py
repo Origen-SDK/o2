@@ -1,6 +1,4 @@
-from typing import Dict
-import pytest, pathlib
-from pathlib import Path
+import pytest
 import origen_metal as om
 from .shared import Base
 
@@ -9,10 +7,10 @@ from .tests__initial_and_current_user import T_InitialAndCurrentUser
 from .tests__datasets import T_Datasets
 from .tests__user_motives import T_UserMotives
 from .tests__populating import T_PopulatingUsers
-from .tests__datasets import Base as DSBase
 from .tests__user_sessions import T_UserSessions
 from .tests__validating_passwords import T_ValidatingPasswords
 from .tests__user_roles import T_UserRoles
+from .tests__home_dir import T_UserHomeDirectory
 
 class TestUsers(T_Users):
     pass
@@ -57,131 +55,34 @@ class TestValidatingPasswords(T_ValidatingPasswords):
 class TestUserRoles(T_UserRoles):
     pass
 
-class TestUserHomeDirectory(DSBase):
-    @pytest.fixture
-    def hd(self):
-        return Path("test/home/dir")
+class TestUserHomeDirectory(T_UserHomeDirectory):
+    pass
 
-    @pytest.fixture
-    def hd1(self, hd):
-        return hd.joinpath("1")
+class TestDisablingPasswordPrompt(Base):
+    @property
+    def prompt_error_msg(self):
+        return f"Cannot prompt for passwords for user '{self.get_users.current_user.id}'. Passwords must be loaded by the config or set directly."
 
-    @pytest.fixture
-    def hd2(self, hd):
-        return hd.joinpath("2")
+    def test_password_prompt_enabled_by_default(self, fresh_frontend, unload_users, cu):
+        assert cu.prompt_for_passwords == True
+        assert cu.__prompt_for_passwords__ == None
 
-    @pytest.fixture
-    def hd3(self, hd):
-        return hd.joinpath("3")
+    def test_setting_password_prompt(self, cu):
+        assert cu.prompt_for_passwords == True
+        assert cu.__prompt_for_passwords__ == None
 
-    def test_home_dir_starts_as_none(self, unload_users, u, ddk):
-        assert u.home_dir is None
-        assert u.datasets[ddk].home_dir is None
+        cu.prompt_for_passwords = True
+        assert cu.prompt_for_passwords == True
+        assert cu.__prompt_for_passwords__ == True
 
-    def test_home_dir_can_be_set(self, u, d, hd):
-        u.home_dir = hd
-        assert u.home_dir == hd
-        assert d.home_dir == hd
+    def test_disabling_password_prmopt(self, cu):
+        cu.prompt_for_passwords = False
+        assert cu.prompt_for_passwords == False
+        assert cu.__prompt_for_passwords__ == False
 
-        hd_str = "home/dir/str"
-        u.home_dir = hd_str
-        assert u.home_dir == Path(hd_str)
-        assert d.home_dir == Path(hd_str)
+        with pytest.raises(RuntimeError, match=self.prompt_error_msg):
+            cu.password
 
-    def test_home_dir_can_be_set_and_retrieved_per_dataset(
-            self, unload_users, u, d, d2, hd, hd2, hd3):
-        assert u.home_dir is None
-        assert d.home_dir is None
-        assert d2.home_dir is None
-
-        u.home_dir = hd
-        assert u.home_dir == hd
-        assert d.home_dir == hd
-        assert d2.home_dir is None
-
-        d2.home_dir = hd2
-        assert u.home_dir == hd
-        assert d.home_dir == hd
-        assert d2.home_dir == hd2
-
-        d.home_dir = hd3
-        assert u.home_dir == hd3
-        assert d.home_dir == hd3
-        assert d2.home_dir == hd2
-
-        hd_str = "home/dir/str"
-        d.home_dir = hd_str
-        assert u.home_dir == Path(hd_str)
-        assert d.home_dir == Path(hd_str)
-        assert d2.home_dir == hd2
-
-    def test_home_dir_obeys_hierarchy(self, unload_users, u, d, d2, ddk,
-                                      d2_name, hd1, hd2):
-        assert u.data_lookup_hierarchy == [ddk, d2_name]
-        assert u.home_dir is None
-
-        d.home_dir = hd1
-        d2.home_dir = hd2
-
-        assert u.home_dir == hd1
-
-        u.data_lookup_hierarchy = [d2_name, ddk]
-        assert u.home_dir == hd2
-
-        u.data_lookup_hierarchy = []
-        with pytest.raises(
-                RuntimeError,
-                match=
-                "Dataset hierarchy is empty! Data lookups must explicitly name the dataset to query"
-        ):
-            u.home_dir
-
-    def test_home_dir_iterates_through_hierarchy(self, unload_users, u, d, d2,
-                                                 ddk, d2_name, hd1, hd2):
-        assert u.data_lookup_hierarchy == [ddk, d2_name]
-        assert u.home_dir is None
-
-        d.home_dir is None
-        d2.home_dir = hd2
-        assert u.home_dir == hd2
-
-        d.home_dir = hd1
-        assert u.home_dir == hd1
-
-    def test_requiring_a_home_dir_is_set(self, unload_users, u, hd1):
-        assert u.home_dir is None
-        with pytest.raises(
-                RuntimeError,
-                match=
-                f"Required a home directory for user '{u.id}' but none has been set"
-        ):
-            u.require_home_dir
-
-        u.home_dir = hd1
-        assert u.require_home_dir == hd1
-
-    def test_requiring_a_home_dir_is_set_per_dataset(self, unload_users, u, d,
-                                                     d2, ddk, hd1, hd2):
-        assert u.home_dir is None
-        d2.home_dir = hd2
-        assert u.home_dir == hd2
-
-        with pytest.raises(
-                RuntimeError,
-                match=
-                f"Required a home directory for user '{u.id}' and dataset '{ddk}', but none has been set"
-        ):
-            d.require_home_dir
-
-        d.home_dir = hd1
-        assert d.require_home_dir == hd1
-
-    # TEST_NEEDED
-    @pytest.mark.skip
-    def test_auto_setting_home_dir(self):
-        raise NotImplementedError()
-
-    # TEST_NEEDED
-    @pytest.mark.skip
-    def test_setting_home_dir_from_frontend(self):
-        raise NotImplementedError()
+        cu.add_dataset("test")
+        with pytest.raises(RuntimeError, match=self.prompt_error_msg):
+            cu.datasets['test'].password

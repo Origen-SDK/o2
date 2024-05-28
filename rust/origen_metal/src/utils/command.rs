@@ -6,18 +6,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 use wait_timeout::ChildExt;
 
-/// Executes the given command/args, returning all captured stdout and stderr lines and
-/// the exit code of the process.
-pub fn exec_and_capture(
-    cmd: &str,
-    args: Option<Vec<&str>>,
-) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
-    let mut command = Command::new(cmd);
-    if let Some(args) = args {
-        for arg in args {
-            command.arg(arg);
-        }
-    }
+pub fn exec_and_capture_cmd(mut command: Command) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
     let mut process = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -37,6 +26,21 @@ pub fn exec_and_capture(
     );
     let exit_code = process.wait()?;
     Ok((exit_code, stdout_lines, stderr_lines))
+}
+
+/// Executes the given command/args, returning all captured stdout and stderr lines and
+/// the exit code of the process.
+pub fn exec_and_capture(
+    cmd: &str,
+    args: Option<Vec<&str>>,
+) -> Result<(std::process::ExitStatus, Vec<String>, Vec<String>)> {
+    let mut command = Command::new(cmd);
+    if let Some(args) = args {
+        for arg in args {
+            command.arg(arg);
+        }
+    }
+    exec_and_capture_cmd(command)
 }
 
 /// Log both stdout and stderr to the debug and error logs respectively, optionally
@@ -88,6 +92,19 @@ pub fn log_stderr(process: &mut std::process::Child, mut callback: Option<&mut d
                 log_error!("{}", line);
             }
         });
+}
+
+#[macro_export]
+macro_rules! new_cmd {
+    ($base_cmd:expr) => {{
+        if cfg!(windows) {
+            let mut c = std::process::Command::new("cmd");
+            c.arg(r"/c").arg($base_cmd);
+            c
+        } else {
+            std::process::Command::new($base_cmd)
+        }
+    }};
 }
 
 pub fn exec<S: Into<String> + Clone>(

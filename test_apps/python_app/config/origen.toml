@@ -72,3 +72,9 @@ auth_method = "None"
 domain = "origen.org"
 user = "dummy_ldap_read_only"
 timeout = 120
+
+[[auxillary_commands]]
+    path = "../../test_apps_shared_test_helpers/test_apps_shared_test_helpers/aux_cmds/dummy_cmds.toml"
+
+[[auxillary_commands]]
+    path = "../../test_apps_shared_test_helpers/test_apps_shared_test_helpers/aux_cmds/empty_aux_ns.toml"

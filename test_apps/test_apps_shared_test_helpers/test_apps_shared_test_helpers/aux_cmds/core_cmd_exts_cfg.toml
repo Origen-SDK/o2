@@ -1,0 +1,8 @@
+[[auxillary_commands]]
+path = "./core_cmd_exts.toml"
+
+[plugins]
+collect = false
+load = [
+    { name = "pl_ext_cmds" },
+]

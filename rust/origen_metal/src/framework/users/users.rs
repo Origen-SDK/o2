@@ -1,5 +1,6 @@
 use super::data::DatasetConfig;
 use super::user::{PopulateUserReturn, SessionConfig, User};
+use super::password_cache_options::PasswordCacheOptions;
 use crate::{Outcome, Result, USERS};
 use indexmap::IndexMap;
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
@@ -7,8 +8,8 @@ use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 use crate::_utility::validate_input_list;
 use crate::prelude::session_store::*;
 use crate::utils::encryption;
-use std::collections::HashMap;
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 lazy_static! {
     pub static ref DEFAULT_DATASET_KEY: &'static str = "__origen__default__";
@@ -271,6 +272,7 @@ pub struct Users {
     default_session_config: SessionConfig,
     default_auto_populate: Option<bool>,
     default_should_validate_passwords: Option<bool>,
+    default_password_cache_option: Option<PasswordCacheOptions>,
     default_roles: Vec<String>,
     uid_cnt: usize,
     password_encryption_key__byte_str: String,
@@ -435,7 +437,7 @@ impl Users {
                     id,
                     &self,
                     // TODO support password cache option
-                    None,
+                    self.default_password_cache_option.clone(),
                     self.uid_cnt,
                     auto_populate
                         .map_or_else(|| self.default_auto_populate.to_owned(), |ap| Some(ap)),
@@ -517,7 +519,8 @@ impl Users {
         self.default_session_config = SessionConfig::new();
         self.default_auto_populate = None;
         self.default_should_validate_passwords = None;
-        self.default_roles = vec![];
+        self.default_password_cache_option = None;
+        self.default_roles = vec!();
         self.password_encryption_key__byte_str =
             encryption::default_encryption_key__byte_str().to_string();
         self.password_encryption_nonce__byte_str =
@@ -701,6 +704,20 @@ impl Users {
         self.default_should_validate_passwords = set_to;
     }
 
+    pub fn default_password_cache_option(&self) -> &Option<PasswordCacheOptions> {
+        &self.default_password_cache_option
+    }
+
+    // pub fn set_default_password_cache_option(&mut self, set_to: Option<&str>) -> Result<()> {
+    //     self.default_password_cache_option = Some(set_to.try_into()?);
+    //     Ok(())
+    // }
+
+    pub fn set_default_password_cache_option<P: TryInto<PasswordCacheOptions, Error=crate::Error>>(&mut self, set_to: P) -> Result<()> {
+        self.default_password_cache_option = Some(set_to.try_into()?);
+        Ok(())
+    }
+
     pub fn default_roles(&self) -> Result<&Vec<String>> {
         Ok(&self.default_roles)
     }
@@ -761,7 +778,8 @@ impl Default for Users {
             default_session_config: SessionConfig::new(),
             default_auto_populate: None,
             default_should_validate_passwords: None,
-            default_roles: vec![],
+            default_password_cache_option: None,
+            default_roles: vec!(),
             uid_cnt: 0,
             password_encryption_key__byte_str: encryption::default_encryption_key__byte_str()
                 .to_string(),

@@ -7,9 +7,10 @@ pub use v93k::V93K;
 
 use pyo3::prelude::*;
 
-#[pymodule]
-pub fn tester_apis(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<v93k::V93K>()?;
-    m.add_class::<igxl::IGXL>()?;
+pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
+    let subm = PyModule::new(py, "tester_apis")?;
+    subm.add_class::<v93k::V93K>()?;
+    subm.add_class::<igxl::IGXL>()?;
+    m.add_submodule(subm)?;
     Ok(())
 }

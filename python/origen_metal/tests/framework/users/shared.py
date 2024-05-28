@@ -100,6 +100,12 @@ class Base:
     def to_user_id(self, id):
         return f"{self.user_id_root}_{id}"
 
+    @pytest.fixture
+    def cu(self, users, u):
+        if users.current_user is None:
+            users.current_user = u
+        return users.current_user
+
     @property
     def users_class(self):
         return om._origen_metal.framework.users.Users

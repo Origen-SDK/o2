@@ -65,13 +65,13 @@ pub trait DictLikeAPI {
             items = self.lookup_table(&dut);
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut v: Vec<PyObject> = Vec::new();
-        for (n, _item) in items {
-            v.push(self.new_pyitem(py, &n, self.model_id())?);
-        }
-        Ok(v)
+        Python::with_gil(|py| {
+            let mut v: Vec<PyObject> = Vec::new();
+            for (n, _item) in items {
+                v.push(self.new_pyitem(py, &n, self.model_id())?);
+            }
+            Ok(v)
+        })
     }
 
     fn items(&self) -> PyResult<Vec<(String, PyObject)>> {
@@ -81,43 +81,43 @@ pub trait DictLikeAPI {
             items = self.lookup_table(&dut);
         }
 
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut _items: Vec<(String, PyObject)> = Vec::new();
-        for (n, _item) in items.iter() {
-            _items.push((n.clone(), self.new_pyitem(py, &n, self.model_id())?));
-        }
-        Ok(_items)
+        Python::with_gil(|py| {
+            let mut _items: Vec<(String, PyObject)> = Vec::new();
+            for (n, _item) in items.iter() {
+                _items.push((n.clone(), self.new_pyitem(py, &n, self.model_id())?));
+            }
+            Ok(_items)
+        })
     }
 
     fn get(&self, name: &str) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        {
-            let dut = DUT.lock().unwrap();
-            let items = self.lookup_table(&dut);
-            if items.get(name).is_none() {
-                return Ok(py.None());
+        Python::with_gil(|py| {
+            {
+                let dut = DUT.lock().unwrap();
+                let items = self.lookup_table(&dut);
+                if items.get(name).is_none() {
+                    return Ok(py.None());
+                }
             }
-        }
-        Ok(self.new_pyitem(py, name, self.model_id())?)
+            Ok(self.new_pyitem(py, name, self.model_id())?)
+        })
     }
 
     // Functions for PyMappingProtocol
     fn __getitem__(&self, name: &str) -> PyResult<PyObject> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        {
-            let dut = DUT.lock().unwrap();
-            let items = self.lookup_table(&dut);
-            if items.get(name).is_none() {
-                return Err(pyo3::exceptions::PyKeyError::new_err(format!(
-                    "No item found for {}",
-                    name
-                )));
+        Python::with_gil(|py| {
+            {
+                let dut = DUT.lock().unwrap();
+                let items = self.lookup_table(&dut);
+                if items.get(name).is_none() {
+                    return Err(pyo3::exceptions::PyKeyError::new_err(format!(
+                        "No item found for {}",
+                        name
+                    )));
+                }
             }
-        }
-        Ok(self.new_pyitem(py, name, self.model_id())?)
+            Ok(self.new_pyitem(py, name, self.model_id())?)
+        })
     }
 
     fn __len__(&self) -> PyResult<usize> {

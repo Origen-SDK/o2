@@ -11,9 +11,7 @@ pub struct Status {
 #[pymethods]
 impl Status {
     #[getter]
-    fn added(&self) -> PyResult<Vec<PyObject>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    fn added(&self, py: Python) -> PyResult<Vec<PyObject>> {
         let mut retn: Vec<PyObject> = vec![];
         for added in self.stat.added.iter() {
             retn.push(pypath!(py, added.display()));
@@ -22,18 +20,18 @@ impl Status {
     }
 
     #[getter]
-    fn removed(&self) -> PyResult<Vec<PyObject>> {
-        to_py_paths(&self.stat.removed.iter().map(|p| p.display()).collect())
+    fn removed(&self, py: Python) -> PyResult<Vec<PyObject>> {
+        to_py_paths(py, &self.stat.removed.iter().map(|p| p.display()).collect())
     }
 
     #[getter]
-    fn conflicted(&self) -> PyResult<Vec<PyObject>> {
-        to_py_paths(&self.stat.conflicted.iter().map(|p| p.display()).collect())
+    fn conflicted(&self, py: Python) -> PyResult<Vec<PyObject>> {
+        to_py_paths(py, &self.stat.conflicted.iter().map(|p| p.display()).collect())
     }
 
     #[getter]
-    fn changed(&self) -> PyResult<Vec<PyObject>> {
-        to_py_paths(&self.stat.changed.iter().map(|p| p.display()).collect())
+    fn changed(&self, py: Python) -> PyResult<Vec<PyObject>> {
+        to_py_paths(py, &self.stat.changed.iter().map(|p| p.display()).collect())
     }
 
     #[getter]

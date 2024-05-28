@@ -28,11 +28,13 @@ pub use origen_metal::Error;
 
 use self::core::application::Application;
 use self::core::config::Config as OrigenConfig;
+use self::core::config::ConfigMetadata as OrigenConfigMetadata;
 pub use self::core::dut::Dut;
 use self::core::frontend::Handle;
 use self::core::model::registers::BitCollection;
 pub use self::core::producer::Producer;
 use self::core::status::Status;
+pub use self::core::status::{app_present, in_app_invocation, in_global_invocation};
 pub use self::core::tester::{Capture, Overlay, Tester};
 pub use self::services::Services;
 pub use self::utility::sessions::{setup_sessions, with_app_session, with_app_session_group};
@@ -41,8 +43,9 @@ pub use om::prelude::frontend::*;
 pub use om::{TypedValue, LOGGER};
 pub use origen_metal as om;
 use std::fmt;
+use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard};
 
 use generator::PAT;
 use origen_metal::ast::{Attrs, Node, AST};
@@ -72,6 +75,7 @@ lazy_static! {
     /// Provides configuration information derived from origen.toml files found in the Origen
     /// installation and application file system paths
     pub static ref ORIGEN_CONFIG: OrigenConfig = OrigenConfig::default();
+    pub static ref ORIGEN_CONFIG_METADATA: RwLock<OrigenConfigMetadata> = RwLock::new(OrigenConfigMetadata::default());
     /// The current device model, containing all metadata about hierarchy, regs, pins, specs,
     /// timing, etc. and responsible for maintaining the current state of the DUT (regs, pins,
     /// etc.)
@@ -154,6 +158,8 @@ pub fn initialize(
     verbosity_keywords: Vec<String>,
     cli_location: Option<String>,
     cli_version: Option<String>,
+    fe_pkg_loc: Option<PathBuf>,
+    fe_exe_loc: Option<PathBuf>,
 ) {
     if let Some(v) = verbosity {
         let _ = LOGGER.set_verbosity(v);
@@ -161,6 +167,8 @@ pub fn initialize(
     }
     STATUS.set_cli_location(cli_location);
     STATUS.set_cli_version(cli_version);
+    STATUS.set_fe_pkg_loc(fe_pkg_loc);
+    STATUS.set_fe_exe_loc(fe_exe_loc);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
 }
 
@@ -206,6 +214,15 @@ where
 
 pub fn services() -> MutexGuard<'static, Services> {
     SERVICES.lock().unwrap()
+}
+
+pub fn origen_config_metadata<'a>() -> RwLockReadGuard<'a, OrigenConfigMetadata> {
+    ORIGEN_CONFIG_METADATA.read().unwrap()
+}
+
+pub (crate) fn set_origen_config_metadata(new: OrigenConfigMetadata) {
+    let mut m = ORIGEN_CONFIG_METADATA.write().unwrap();
+    *m = new;
 }
 
 /// Sanitizes the given mode string and returns it, but will exit the process if it is invalid

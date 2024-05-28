@@ -1,0 +1,14 @@
+# Use this to define your application-specific Origen configuration
+# Do not delete it even if you don't use it since it is also used by the Origen
+# command line interface to determine when it is in an Origen application workspace
+
+# Specify what command should be used to invoke python, if not specified
+# Origen will try python, python3, python3.8, etc. until one is found that
+# satisfies the minimum Python version requirement
+#python_cmd = "mypython"
+
+# If your company has an internal package server enter it here:
+#pkg_server = "https://pkgs.company.net:9292"
+# or here, if you need to use different urls for push and pull (write and read):
+#pkg_server_push = "https://pkgs.company.net:9292"
+#pkg_server_pull = "https://pkgs.company.net:9292"

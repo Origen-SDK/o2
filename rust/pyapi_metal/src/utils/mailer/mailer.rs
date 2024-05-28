@@ -18,7 +18,7 @@ pub struct Mailer {
 #[pymethods]
 impl Mailer {
     #[new]
-    #[args(timeout="60")]
+    #[pyo3(signature=(server, port=None, domain=None, auth_method=None, timeout=60, user=None))]
     pub fn new(server: String, port: Option<u16>, domain: Option<String>, auth_method: Option<&str>, timeout: Option<u64>, user: Option<String>) -> PyResult<Self> {
         Ok(Self {
             mailer: OMailer::new(server, port, domain, auth_method, timeout, user)?

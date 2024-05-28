@@ -1,10 +1,20 @@
 [tool.poetry]
 name = "python_no_app"
 version = "0.1.0"
-description = ""
+description = "O2 workspace without an application"
 authors = ["Origen-SDK"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = ">=3.7.0,<3.13"
 origen = { path = "../../python/origen", develop = true }
-pytest = "^3.0"
+origen_metal = { path = "../../python/origen_metal", develop = true }
+python_plugin = { path = "../python_plugin", develop = true }
+python_plugin_the_second = { path = "../python_plugin_the_second", develop = true }
+python_plugin_no_cmds = { path = "../python_plugin_no_cmds", develop = true }
+test_apps_shared_test_helpers = { path = "../test_apps_shared_test_helpers", develop = true }
+
+[tool.poetry.dev-dependencies]
+pytest = ">=6.0"
+
+[tool.pytest.ini_options]
+addopts = "--ignore=tests/cmd_building/cmd_testers"

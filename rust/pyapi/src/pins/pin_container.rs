@@ -35,10 +35,8 @@ impl PinContainer {
         self.keys()
     }
 
-    #[args(names = "*", options = "**")]
-    fn collect(&self, names: &PyTuple, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+    #[pyo3(signature=(*names, **options))]
+    fn collect(&self, py: Python, names: &PyTuple, options: Option<&PyDict>) -> PyResult<Py<PinCollection>> {
         let mut endianness = Option::None;
         match options {
             Some(options) => {

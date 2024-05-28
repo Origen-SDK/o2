@@ -1,0 +1,5 @@
+help = "Aux Commands from the Origen CLI directory"
+
+[[command]]
+name = "cli_dir_says_hi"
+help = "Say 'hi' from the CLI dir"
