@@ -10,8 +10,6 @@ use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use crate::{log_error};
-use crate::frontend::FeatureReturn;
 use std::env;
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
