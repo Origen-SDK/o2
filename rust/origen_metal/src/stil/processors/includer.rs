@@ -8,7 +8,7 @@ use crate::Result;
 use shellexpand;
 use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct Includer {
     load_path: Vec<PathBuf>,
