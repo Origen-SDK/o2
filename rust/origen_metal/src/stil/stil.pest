@@ -386,4 +386,4 @@ N = _{ NEWLINE }
 
 // For Pest implicit whitespace insertion
 WHITESPACE = _{ space | NEWLINE }
-COMMENT = _{ block_comment | one_line_comment }
+COMMENT = { block_comment | one_line_comment }
