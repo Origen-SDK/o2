@@ -140,6 +140,7 @@ pub enum STIL {
     BreakPoint,
     IDDQ,
     StopStatement,
+    Comment(String),
 }
 
 impl std::fmt::Display for STIL {

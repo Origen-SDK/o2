@@ -172,6 +172,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 pairs.push(pair.into_inner());
             }
             Rule::annotation => ast.push(node!(STIL::Annotation, inner_strs(pair)[0].to_string())),
+            Rule::COMMENT => ast.push(node!(STIL::Comment, pair.as_str().to_string())),
             Rule::env_block => {
                 let mut p = pair.into_inner();
                 let n;
