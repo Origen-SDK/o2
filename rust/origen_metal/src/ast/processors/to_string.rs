@@ -40,7 +40,7 @@ impl<T: Attrs> Processor<T> for ToString<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::ast::AST;
 
     #[derive(Clone, PartialEq, Serialize, Debug)]
     pub enum STRTEST {
