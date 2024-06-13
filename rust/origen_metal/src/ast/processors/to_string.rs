@@ -37,3 +37,47 @@ impl<T: Attrs> Processor<T> for ToString<T> {
         Ok(Return::None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Clone, PartialEq, Serialize, Debug)]
+    pub enum STRTEST {
+        Root,
+        Integer(i64),
+        Float(f64),
+        String(String),
+    }
+
+    impl std::fmt::Display for STRTEST {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match &self {
+                _ => write!(f, "{}", format!("{:?}", self)),
+            }
+        }
+    }
+
+    #[test]
+    fn test_process_children() {
+        let mut ast: AST<STRTEST> = AST::new();
+        let mut ids: Vec<usize> = vec![];
+        ids.push(ast.push_and_open(node!(STRTEST::Root)));
+        ast.push(node!(STRTEST::String, "Hello World!".to_string()));
+        ast.push(node!(STRTEST::Integer, 2001));
+        ids.push(ast.push_and_open(node!(STRTEST::Float, 97.1)));
+        ast.push(node!(STRTEST::String, "Test Indent".to_string()));
+        let _ = ast.close(ids.pop().unwrap());
+        ast.push(node!(STRTEST::String, "Pop back".to_string()));
+        let _ = ast.close(ids.pop().unwrap());
+
+        let expect = "Root
+    String(\"Hello World!\")
+    Integer(2001)
+    Float(97.1)
+        String(\"Test Indent\")
+    String(\"Pop back\")\n".to_string();
+
+        assert_eq!(ast.to_string(), expect);
+    }
+}
