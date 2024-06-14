@@ -15,7 +15,6 @@ extern crate strum_macros;
 pub mod core;
 pub mod generator;
 pub mod precludes;
-pub mod prog_gen;
 pub mod services;
 pub mod standards;
 pub mod testers;
@@ -89,9 +88,6 @@ lazy_static! {
     pub static ref SERVICES: Mutex<Services> = Mutex::new(Services::new());
     /// Storage for the current test (pattern)
     pub static ref TEST: generator::TestManager = generator::TestManager::new();
-    /// This is analogous to the TEST for test program duration, it provides a similar API for
-    /// pushing nodes to the current flow, FLOW.push(my_node), etc.
-    pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
     pub static ref FRONTEND: RwLock<Handle> = RwLock::new(Handle::new());
 }
 

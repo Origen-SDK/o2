@@ -9,7 +9,6 @@ use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::Message;
 use lettre::Transport;
-use std::fmt::Display;
 
 pub const PASSWORD_MOTIVE: &str = "mailer";
 

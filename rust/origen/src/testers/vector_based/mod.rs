@@ -4,7 +4,7 @@ pub mod pattern_renderer;
 use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::PAT;
-use crate::prog_gen::Model;
+use origen_metal::prog_gen::Model;
 use crate::{Overlay, Result};
 use origen_metal::ast::{Node, Return};
 use origen_metal::utils::differ::{ASCIIDiffer, Differ};
