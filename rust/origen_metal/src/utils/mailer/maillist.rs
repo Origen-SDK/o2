@@ -1,7 +1,7 @@
-use crate::{Result, TypedValueMap};
-use std::path::PathBuf;
 use crate::_utility::resolve_os_str;
-use lettre::message::{Mailbox};
+use crate::{Result, TypedValueMap};
+use lettre::message::Mailbox;
+use std::path::PathBuf;
 
 #[derive(Deserialize)]
 pub struct MaillistConfig {
@@ -32,16 +32,22 @@ impl MaillistConfig {
 
 #[derive(Default, Clone, Debug)]
 pub struct Maillist {
-    pub (super) recipients: Vec<String>,
-    pub (super) file: Option<PathBuf>,
-    pub (super) audience: Option<String>,
-    pub (super) signature: Option<String>,
-    pub (super) domain: Option<String>,
+    pub(super) recipients: Vec<String>,
+    pub(super) file: Option<PathBuf>,
+    pub(super) audience: Option<String>,
+    pub(super) signature: Option<String>,
+    pub(super) domain: Option<String>,
     pub name: String,
 }
 
 impl Maillist {
-    pub fn new(name: String, recipients: Vec<String>, signature: Option<String>, audience: Option<String>, domain: Option<String>) -> Result<Self> {
+    pub fn new(
+        name: String,
+        recipients: Vec<String>,
+        signature: Option<String>,
+        audience: Option<String>,
+        domain: Option<String>,
+    ) -> Result<Self> {
         Ok(Self {
             file: None,
             recipients,
@@ -72,10 +78,8 @@ impl Maillist {
                         }
                     }
                     mapped.or(audience)
-                },
-                None => {
-                    Self::map_audience(&name)
-                },
+                }
+                None => Self::map_audience(&name),
             },
             domain,
             name,
@@ -113,9 +117,11 @@ impl Maillist {
                 match std::fs::File::open(f) {
                     Ok(f) => file = f,
                     Err(e) => match e.kind() {
-                        std::io::ErrorKind::NotFound => bail!("Unable to find maillist at: '{}'", f.display()),
-                        _ => return Err(e.into())
-                    }
+                        std::io::ErrorKind::NotFound => {
+                            bail!("Unable to find maillist at: '{}'", f.display())
+                        }
+                        _ => return Err(e.into()),
+                    },
                 }
                 let reader = std::io::BufReader::new(file);
                 let mut recipients: Vec<String> = vec![];
@@ -177,7 +183,7 @@ impl Maillist {
         }
     }
 
-    pub (super) fn map_audience(s: &str) -> Option<String> {
+    pub(super) fn map_audience(s: &str) -> Option<String> {
         match s.to_ascii_lowercase().as_str() {
             "dev" | "develop" | "development" => Some("development".to_string()),
             "release" | "prod" | "production" => Some("production".to_string()),
@@ -185,12 +191,16 @@ impl Maillist {
         }
     }
 
-    pub fn is_development(&self)-> bool {
-        self.audience.as_ref().map_or(false, |aud| aud == "development")
+    pub fn is_development(&self) -> bool {
+        self.audience
+            .as_ref()
+            .map_or(false, |aud| aud == "development")
     }
 
-    pub fn is_production(&self)-> bool {
-        self.audience.as_ref().map_or(false, |aud| aud == "production")
+    pub fn is_production(&self) -> bool {
+        self.audience
+            .as_ref()
+            .map_or(false, |aud| aud == "production")
     }
 
     pub fn recipients(&self) -> &Vec<String> {

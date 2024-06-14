@@ -1,0 +1,86 @@
+STIL 1.0 { Design 2005; }
+Header {
+    Source "STD 1450.1-2005";
+    Ann {* sub-clause 18.4 *}
+}
+
+Signals { "A" In; "B1" In; "C1" In; "D11" In; }
+SignalGroups { _PI = ’ "A" + "B1" + "C1" + "D11" ’; }
+
+Environment MY_VERILOG_TESTBENCH {
+    NameMaps VECTOR_ASSOCIATIONS {
+        Signals {
+            "A" "top_test.PI[0]";
+            "B1" "top_test.PI[1]";
+            "C1" "top_test.PI[2]";
+            "D11" "top_test.PI[3]";
+        }
+        SignalGroups {
+            _PI "top_test.PI";
+            _PO "top_test.PO";
+        }
+        Variables { _PATCOUNT "PATTERN"; }
+    } // end NameMaps
+
+    NameMaps WIRE_ASSOCIATIONS {
+        Signals {
+            "A" "top_test.A";
+            "B1" "top_test.B1";
+            "C1" "top_test.C1";
+            "D11" "top_test.D11";
+        }
+        SignalGroups {
+            _PI "top_test.PI";
+            _PO "top_test.PO";
+        }
+        Variables { _PATCOUNT "PATTERN"; }
+    } // end NameMaps
+} // end Environment
+
+Environment HIERARCHICAL {
+    // A hierarchical NameMap for scan cells
+    // See the FLAT example below to see the expanded net names
+    NameMaps C {
+        ScanCells {"CELL1"; "CELL2";} // Only the MAP_STRING portion of the map
+    }
+    NameMaps D {
+        InheritNameMap C {
+            Prefix "C3"; // String to prepend to MAP_STRINGS in inherited NameMap
+            Separator "/";
+        }
+        ScanCells {"CELL3";}
+    }
+    NameMaps TOP {
+        Separator "/";
+        InheritNameMap C {
+            Prefix "C1";
+            ScanCells {C[0..1];} // Only the SCAN_CELL_NAME portion of the map
+        }
+        InheritNameMap C {
+            Prefix "C2";
+            ScanCells {C[2..3];}
+        }
+        InheritNameMap D {
+            Prefix "D1";
+            ScanCells {C[5..7];}
+        }
+        ScanCells {C[4] "FOO";}
+    }
+}
+
+Environment FLAT {
+// This is a flat representation of NameMap for scan cells
+// This mapping corresponds to the above HIERARCHICAL mapping
+    NameMaps {
+        ScanCells {
+            C[0] "C1/CELL1";
+            C[1] "C1/CELL2";
+            C[2] "C2/CELL1";
+            C[3] "C2/CELL2";
+            C[4] "FOO";
+            C[5] "D1/C3/CELL1";
+            C[6] "D1/C3/CELL2";
+            C[7] "D1/CELL3";
+        }
+    }
+}

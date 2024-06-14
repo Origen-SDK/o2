@@ -1,8 +1,8 @@
-use crate::{Result};
-use std::path::PathBuf;
-use indexmap::IndexMap;
 use super::Maillist;
+use crate::Result;
 use crate::_utility::file_utils::resolve_relative_paths_to_strings;
+use indexmap::IndexMap;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct MaillistsTOMLConfig {
@@ -30,7 +30,7 @@ impl MaillistsTOMLConfig {
                 directories.clone()
             }
         } else {
-            vec!()
+            vec![]
         }
     }
 
@@ -51,7 +51,11 @@ pub struct Maillists {
 }
 
 impl Maillists {
-    pub fn new(name: String, directories: Option<Vec<PathBuf>>, continue_on_error: bool) -> Result<Self> {
+    pub fn new(
+        name: String,
+        directories: Option<Vec<PathBuf>>,
+        continue_on_error: bool,
+    ) -> Result<Self> {
         let mut m = Self {
             name: name,
             directories: Vec::new(),
@@ -133,7 +137,11 @@ impl Maillists {
                         match entry {
                             Ok(e) => self.add_ml_from_file(e, continue_on_error)?,
                             Err(err) => {
-                                let err_msg = format!("Error accessing maillist at '{}': {}", err.path().display(), err);
+                                let err_msg = format!(
+                                    "Error accessing maillist at '{}': {}",
+                                    err.path().display(),
+                                    err
+                                );
                                 if continue_on_error {
                                     log_error!("{}", err_msg);
                                 } else {
@@ -144,7 +152,11 @@ impl Maillists {
                     }
                 }
                 Err(err) => {
-                    let err_msg = format!("Error processing glob for '{}': {}", path.display(), err.msg);
+                    let err_msg = format!(
+                        "Error processing glob for '{}': {}",
+                        path.display(),
+                        err.msg
+                    );
                     if continue_on_error {
                         log_error!("{}", err_msg);
                     } else {

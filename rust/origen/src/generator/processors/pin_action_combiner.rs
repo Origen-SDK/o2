@@ -82,7 +82,7 @@ impl Processor<PAT> for PinActionCombiner {
         }
     }
 
-    fn on_end_of_block(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
+    fn on_processed_node(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
         match &node.attrs {
             PAT::PinGroupAction(_grp_id, _actions, _metadata) => {
                 if self.first_pass {
@@ -90,11 +90,11 @@ impl Processor<PAT> for PinActionCombiner {
                         self.indices_to_delete.push(self.i);
                     }
                     self.delete_current_index = false;
+                    self.i += 1;
                 }
-                self.i += 1;
-                Ok(Return::None)
+                Ok(Return::Unmodified)
             }
-            _ => Ok(Return::None),
+            _ => Ok(Return::Unmodified)
         }
     }
 }

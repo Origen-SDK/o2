@@ -39,24 +39,22 @@ impl Processor<PAT> for CycleCombiner {
                 }
             }
             // For all other nodes except for cycles
-            _ => {
-                if self.cycle_count == 0 {
-                    Ok(Return::ProcessChildren)
-                } else {
-                    let cyc = self.consume_cycles();
-                    let new_node = node.process_and_update_children(self)?;
-                    Ok(Return::Inline(vec![cyc, new_node]))
-                }
-            }
+            _ => Ok(Return::ProcessChildren)
         }
     }
-
-    // Don't let it leave an open block with cycles pending
-    fn on_end_of_block(&mut self, _node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
+    
+    fn on_processed_node(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
         if self.cycle_count > 0 {
-            Ok(Return::Replace(self.consume_cycles()))
+            let cyc = self.consume_cycles();
+            if node.children.len() > 0 {
+                let mut new_node = node.clone();
+                new_node.add_child(cyc);
+                Ok(Return::Replace(new_node))
+            } else {
+                Ok(Return::Inline(vec![cyc, node.clone()]))
+            }
         } else {
-            Ok(Return::None)
+            Ok(Return::Unmodified)
         }
     }
 }
@@ -282,5 +280,75 @@ impl Processor<PAT> for UnpackCaptures {
             }
             _ => Ok(Return::ProcessChildren),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::generator::nodes::PAT;
+    use origen_metal::ast::AST;
+
+    fn reg_write_node() -> Node<PAT> {
+        let mut trans = crate::Transaction::new_write(0x12345678_u32.into(), 32).unwrap();
+        trans.reg_id = Some(10);
+        node!(PAT::RegWrite, trans)
+    }
+
+    #[test]
+    fn it_works() {
+        let mut ast = AST::new();
+        ast.push(node!(PAT::Test, "cycle_combiner".to_string()));
+        ast.push(node!(PAT::Comment, 1, "HELLO".to_string()));
+        let id = ast.push_and_open(reg_write_node());
+        ast.push(node!(PAT::Comment, 1, "SHOULD BE INSIDE REG TRANSACTION".to_string()));
+        ast.push(node!(PAT::Cycle, 1, false));
+        ast.push(node!(PAT::Cycle, 1, true));
+        ast.push(node!(PAT::Cycle, 1, true));
+        ast.push(node!(PAT::Cycle, 1, true));
+        ast.push(node!(PAT::Cycle, 1, true));
+        ast.push(node!(PAT::Cycle, 1, true));
+        let _ = ast.close(id);
+        ast.push(node!(PAT::Comment, 1, "SHOULD BE OUTSIDE REG TRANSACTION".to_string()));
+
+        let combined = CycleCombiner::run(&ast.to_node()).expect("Cycles combined");
+
+        let mut expect = AST::new();
+        expect.push(node!(PAT::Test, "cycle_combiner".to_string()));
+        expect.push(node!(PAT::Comment, 1, "HELLO".to_string()));
+        let id = expect.push_and_open(reg_write_node());
+        expect.push(node!(PAT::Comment, 1, "SHOULD BE INSIDE REG TRANSACTION".to_string()));
+        expect.push(node!(PAT::Cycle, 1, false));
+        expect.push(node!(PAT::Cycle, 5, true));
+        let _ = expect.close(id);
+        expect.push(node!(PAT::Comment, 1, "SHOULD BE OUTSIDE REG TRANSACTION".to_string()));
+
+        assert_eq!(combined, expect.to_node());
+    }
+
+    #[test]
+    fn it_leaves_something_behind() {
+        let mut ast = AST::new();
+        ast.push(node!(PAT::Test, "all_compressable".to_string()));
+        ast.push(node!(PAT::SetTimeset, 0));
+        ast.push(node!(PAT::SetPinHeader, 10));
+        ast.push(node!(PAT::Cycle, 100, true));
+        ast.push(node!(PAT::Comment, 1, "Producing Pattern".to_string()));
+        ast.push(node!(PAT::Cycle, 10, true));
+        ast.push(node!(PAT::Cycle, 10, true));
+        ast.push(node!(PAT::PatternEnd));
+
+        let combined = CycleCombiner::run(&ast.to_node()).expect("Cycles combined");
+
+        let mut expect = AST::new();
+        expect.push(node!(PAT::Test, "all_compressable".to_string()));
+        expect.push(node!(PAT::SetTimeset, 0));
+        expect.push(node!(PAT::SetPinHeader, 10));
+        expect.push(node!(PAT::Cycle, 100, true));
+        expect.push(node!(PAT::Comment, 1, "Producing Pattern".to_string()));
+        expect.push(node!(PAT::Cycle, 20, true));
+        expect.push(node!(PAT::PatternEnd));
+
+        assert_eq!(combined, expect.to_node());
     }
 }

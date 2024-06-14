@@ -3,12 +3,15 @@ field = { (ASCII_DIGIT | "." | "-")+ }
 stil_source = { SOI ~ stil_source_items+ ~ EOI }
 
 stil_source_items = _{
-    stil_version | header_block | signals_block | signal_groups_block |
+    stil_version | header_block | env_block | signals_block | signal_groups_block |
     timing_block | pattern_exec_block | pattern_burst_block | spec_block | selector_block |
-    scan_structures_block | pattern_block | include
+    scan_structures_block | pattern_block | include | dcapfilter_block | dcapsetup_block
 }
 
-stil_version = { "STIL" ~ integer ~ "." ~ integer ~ EOS }
+stil_version = { "STIL" ~ integer ~ "." ~ integer ~ (ext_block | EOS) }
+ext_block = { "{" ~ extension+ ~ "}" }
+extension = { name ~ (name | integer) ~ EOS }
+
 major = { ASCII_DIGIT }
 minor = { ASCII_DIGIT }
 
@@ -41,13 +44,55 @@ engineering_prefix = { "E" | "P" | "T" | "G" | "M" | "k" | "m" | "u" | "n" | "p"
 //# 9. Header Block
 //############################################################################
 
-header_block = { "Header" ~ "{" ~ title? ~ date? ~ source? ~ history? ~ "}" }
+header_block = { "Header" ~ "{" ~ title? ~ date? ~ source? ~ history? ~ annotation? ~ "}" }
 title = { "Title" ~ string ~ EOS }
 date = { "Date" ~ string ~ EOS }
 source = { "Source" ~ string ~ EOS }
 history = { "History" ~ "{" ~ annotation* ~ "}" }
 annotation = { "Ann" ~ "{*" ~ annotation_inner ~ "*}" }
 annotation_inner = { (!"*}" ~ ANY)* }
+
+//############################################################################
+//# 1450.1-2005 Extension - Environment Block
+//############################################################################
+
+env_block = { "Environment" ~ name? ~ "{" ~ env_item* ~ "}" }
+env_item = _{ inherit_env | name_maps | file_reference }
+inherit_env = { "InheritEnvironment" ~ name ~ EOS }
+name_maps = { "NameMaps" ~ (name | string)? ~ "{" ~ name_maps_item* ~ "}" }
+name_maps_item = _{
+    nm_inherit |
+    nm_prefix |
+    nm_separator |
+    nm_scan_cells |
+    nm_signals |
+    nm_signal_groups |
+    nm_variables |
+    nm_all_names
+}
+nm_inherit = _{ nm_inherit_simple | nm_inherit_block }
+nm_inherit_simple = { "InheritNameMap" ~ (name ~ "::")? ~ name? ~ EOS }
+nm_inherit_block = { "InheritNameMap" ~ (name ~ "::")? ~ name? ~ "{" ~ nm_prefix? ~ nm_separator? ~ nm_scan_cells* ~ "}" }
+nm_env_namespace = { name ~ "::"}
+nm_prefix = { "Prefix" ~ string ~ EOS }
+nm_separator = { "Separator" ~ string ~ EOS }
+nm_scan_cells = { "ScanCells" ~ "{" ~ nm_scan_cell* ~ "}" }
+nm_scan_cell = { signal_name? ~ string? ~ EOS }
+nm_signals = { "Signals" ~ "{" ~ nm_signal* ~ "}" }
+nm_signal = { signal_name ~ string ~ EOS }
+nm_signal_groups = { "SignalGroups" ~ name? ~ "{" ~ nm_signal_group* ~ "}" }
+nm_signal_group = { name ~ string ~ EOS }
+nm_variables = { "Variables" ~ "{" ~ nm_variable* ~ "}" }
+nm_variable = { name ~ string ~ EOS }
+nm_all_names = { "AllNames" ~ "{" ~ nm_name* ~ "}" }
+nm_name = { name ~ string ~ EOS }
+file_reference = _{ file_reference_simple | file_reference_block }
+file_reference_simple = { "FileReference" ~ string ~ EOS }
+file_reference_block = { "FileReference" ~ string ~ "{" ~ file_type ~ file_format ~ file_version ~ "}" } 
+file_type = { "Type" ~ name ~ EOS }
+file_format = { "Format" ~ name ~ EOS}
+file_version = { "Version" ~ string ~ EOS}
+
 
 //############################################################################
 //# 14. Signals Block
@@ -59,7 +104,7 @@ signal = {
     (name ~ signal_type ~
     ("{" ~ termination? ~ default_state? ~ base? ~ alignment? ~ scan_in? ~ scan_out? ~ data_bit_count? ~ "}" ))
 }
-signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo") }
+signal_type = { ("InOut" | "Out" | "In" | "Supply" | "Pseudo" | "inout" | "out" | "in" | "supply" | "pseudo" ) }
 
 termination = {
     "Termination" ~ termination_val ~ EOS
@@ -98,12 +143,42 @@ signal_group = {
 //############################################################################
 
 pattern_exec_block = {
-    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ "}"
+    "PatternExec" ~ name? ~ "{" ~ category* ~ selector* ~ timing? ~ pattern_burst? ~ dcapfilter* ~ dcapsetup* ~ "}"
 }
 category = { "Category" ~ name ~ EOS }
 selector = { "Selector" ~ name ~ EOS }
 timing = { "Timing" ~ name ~ EOS }
 pattern_burst = { "PatternBurst" ~ name ~ EOS }
+dcapfilter = { "DCapFilter" ~ name ~ EOS}
+dcapsetup  = { "DCapSetup" ~ name ~ EOS }
+
+
+//############################################################################
+//# 16.1 DcapSetup Block
+//############################################################################
+
+dcapsetup_block = {
+    "DCapSetup" ~ name ~ "{" ~ pins*  ~ "}"
+}
+pins = { "Pins" ~ name ~ EOS}
+
+//############################################################################
+//# 16.2 DcapFilter Block
+//############################################################################
+
+dcapfilter_block = {
+    "DCapFilter" ~ name ~ "{" ~ stype* ~ transfer_mode* ~ frame_count* ~ vectors_per_frame* ~ vectors_per_sample* ~ 
+    discard_offset* ~ discard_vectors* ~ discard_frames* ~ "}"
+}
+stype = { "Type" ~ name ~ EOS }
+transfer_mode = { "TransferMode" ~ name ~ EOS }
+frame_count = { "FrameCount" ~ integer ~ EOS }
+vectors_per_frame = { "VectorsPerFrame" ~ integer ~ EOS }
+vectors_per_sample = { "VectorsPerSample" ~ integer ~ EOS }
+discard_offset = { "DiscardOffset" ~ integer ~ EOS }
+discard_vectors = { "DiscardVectors" ~ integer ~ EOS }
+discard_frames = { "DiscardFrames" ~ integer ~ EOS }
+
 
 //############################################################################
 //# 17. PatternBurst Block
@@ -135,16 +210,18 @@ pat_list_item = {
 
 timing_block = { "Timing" ~ name? ~ "{" ~ signal_groups* ~ waveform_table* ~ "}" }
 waveform_table = {
-    "WaveformTable" ~ name ~ "{" ~ period? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
+    "WaveformTable" ~ name ~ "{" ~ (tagged_period | period)? ~ inherit_waveform_table* ~ sub_waveforms? ~ waveforms ~ "}"
 }
 period = { "Period" ~ time_expr ~ EOS }
+tagged_period = { tag ~ "Period" ~ time_expr ~ EOS }
 inherit_waveform_table = { "InheritWaveformTable" ~ name ~ EOS }
 sub_waveforms = { "SubWaveforms" ~ "{" ~ sub_waveform* ~ "}" }
 sub_waveform = { label? ~ "Duration" ~ time_expr ~ "{" ~ event* ~ "}" }
 waveforms = { "Waveforms" ~ "{" ~ waveform* ~ "}" }
-waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ wfc_definition* ~ "}" }
+waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ (tagged_wfc_definition | wfc_definition)* ~ "}" }
 inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
 wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
+tagged_wfc_definition = { tag ~ wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
 wfc_list = @{ wfc_char+ }
 wfc_char = { ASCII_ALPHANUMERIC }
 inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
@@ -243,9 +320,13 @@ scan_chain_statement = { "ScanChain" ~ name ~ EOS }
 
 string = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 name = @{ ((name_segment ~ ".")+ ~ name_segment) | name_segment }
+signal_name = @{ ((signal_name_segment ~ ".")+ ~ signal_name_segment) | signal_name_segment }
 name_segment = { simple_identifier | escaped_identifier }
+signal_name_segment = { signal_identifier | simple_identifier | escaped_identifier }
 simple_identifier = @{ (letter | underline) ~ simple_character* }
+signal_identifier = @{ (letter | underline) ~ signal_character* }
 simple_character = { letter | digit | underline }
+signal_character = { letter | digit | underline | "[" | "]" | ".." }
 letter = { upper_case_letter | lower_case_letter }
 upper_case_letter = { ASCII_ALPHA_UPPER }
 lower_case_letter = { ASCII_ALPHA_LOWER }
@@ -258,6 +339,7 @@ special_character = {
     "<" | "." | ">" | "/" | "?" | "\\"
 }
 whitespace_character = { " " | "\t" | "\n" }
+tag = { "<" ~ (string | name) ~ ">" }
 
 //#############################################################################
 //# Numbers
@@ -304,4 +386,4 @@ N = _{ NEWLINE }
 
 // For Pest implicit whitespace insertion
 WHITESPACE = _{ space | NEWLINE }
-COMMENT = _{ block_comment | one_line_comment }
+COMMENT = { block_comment | one_line_comment }
