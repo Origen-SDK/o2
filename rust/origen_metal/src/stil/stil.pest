@@ -220,13 +220,16 @@ sub_waveform = { label? ~ "Duration" ~ time_expr ~ "{" ~ event* ~ "}" }
 waveforms = { "Waveforms" ~ "{" ~ waveform* ~ "}" }
 waveform = { sigref_expr ~ "{" ~ inherit_waveform* ~ (tagged_wfc_definition | wfc_definition)* ~ "}" }
 inherit_waveform = { "InheritWaveform" ~ name ~ EOS }
-wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
-tagged_wfc_definition = { tag ~ wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ "}" }
+// Allow the final event to optionally have no semicolon at the end, for compatibility with historical AMD
+// waveform defs which don't have a semicolon for waveforms that only contain a single event
+wfc_definition = { wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ event_with_no_semicolon? ~ "}" }
+tagged_wfc_definition = { tag ~ wfc_list ~ "{" ~ inherit_waveform_wfc* ~ event* ~ event_with_no_semicolon? ~ "}" }
 wfc_list = @{ wfc_char+ }
 wfc_char = { ASCII_ALPHANUMERIC }
 inherit_waveform_wfc = { "InheritWaveform" ~ name_wfc ~ EOS }
 name_wfc = { ((name_segment ~ ".")+ ~ wfc_list) | wfc_list }
 event = { label? ~ time_expr? ~ event_list? ~ EOS }
+event_with_no_semicolon = { label? ~ time_expr? ~ event_list? }
 event_list = { event_char ~ ("/" ~ event_char)* }
 event_char = {
     "D" | "U" | "Z" | "P" | "L" | "H" | "X" | "x" | "T" | "V" | "l" | "h" | "t" | "v" | "R" | "G" |
