@@ -36,7 +36,17 @@ SignalGroups quality {
 Timing {
   WaveformTable defaults {
     Waveforms {
-      allpins { xX { TMARK: 't_anchor' Z } }
+      allpins { 
+        xX { TMARK: 't_anchor' Z } 
+        <tag1> 0  {'0ns' D; }
+        <tag1> 1  {'0ns' U }
+        L  {'0ns' L; }
+        H  {'0ns' H }
+        <tag2> p  {'0ns' U; '5ns' D; }
+        <tag3> P  {'0ns' D; '5ns' U }
+        t  {'0ns' U; '5ns' D; }
+        T  {'0ns' D; '5ns' U }
+      }
     }
   }
   WaveformTable wft1 {
