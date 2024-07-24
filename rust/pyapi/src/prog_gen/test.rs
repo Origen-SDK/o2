@@ -1,8 +1,7 @@
 use super::to_param_value;
 use crate::prog_gen::flow_options;
 use crate::utility::caller::src_caller_meta;
-use origen::prog_gen::{flow_api, Limit, LimitSelector, ParamValue};
-use origen::testers::SupportedTester;
+use origen_metal::prog_gen::{flow_api, Limit, LimitSelector, ParamValue, SupportedTester};
 use origen::Result;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -71,7 +70,7 @@ impl Test {
         let value = match to_param_value(value)? {
             None => None,
             Some(x) => Some(Limit {
-                kind: origen::prog_gen::LimitType::GTE,
+                kind: origen_metal::prog_gen::LimitType::GTE,
                 value: x,
                 unit: None,
             }),
@@ -91,7 +90,7 @@ impl Test {
         let value = match to_param_value(value)? {
             None => None,
             Some(x) => Some(Limit {
-                kind: origen::prog_gen::LimitType::LTE,
+                kind: origen_metal::prog_gen::LimitType::LTE,
                 value: x,
                 unit: None,
             }),

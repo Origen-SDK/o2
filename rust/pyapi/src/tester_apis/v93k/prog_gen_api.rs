@@ -1,6 +1,6 @@
 use super::V93K;
 use crate::prog_gen::{Test, TestInvocation};
-use origen::prog_gen::ParamValue;
+use origen_metal::prog_gen::ParamValue;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 

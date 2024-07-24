@@ -1,5 +1,5 @@
 use crate::utility::caller::src_caller_meta;
-use origen::prog_gen::{flow_api, FlowCondition};
+use origen_metal::prog_gen::{flow_api, FlowCondition};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyType};
 

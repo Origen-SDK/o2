@@ -1,8 +1,7 @@
 use super::IGXL;
 use crate::prog_gen::{Group, PatternGroup, Test, TestInvocation};
 use crate::utility::caller::src_caller_meta;
-use origen::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType};
-use origen::testers::SupportedTester;
+use origen_metal::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType, SupportedTester};
 use origen::{Error, Result};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
@@ -32,7 +31,7 @@ impl IGXL {
 
         let t = Test::new(
             name.clone(),
-            self.tester.to_owned(),
+            self.tester.prog_gen_supported_tester()?,
             library,
             template,
             kwargs,
@@ -45,7 +44,7 @@ impl IGXL {
 
     #[pyo3(signature=(**kwargs))]
     pub fn new_flow_line(&mut self, kwargs: Option<&PyDict>) -> PyResult<TestInvocation> {
-        let t = TestInvocation::new("_".to_owned(), self.tester.to_owned(), kwargs)?;
+        let t = TestInvocation::new("_".to_owned(), self.tester.prog_gen_supported_tester()?, kwargs)?;
         Ok(t)
     }
 
@@ -56,7 +55,7 @@ impl IGXL {
         pattern: Option<&PyAny>,
         patterns: Option<&PyAny>,
     ) -> PyResult<PatternGroup> {
-        let pg = PatternGroup::new(name, self.tester.clone(), Some(PatternGroupType::Patset))?;
+        let pg = PatternGroup::new(name, self.tester.prog_gen_supported_tester()?, Some(PatternGroupType::Patset))?;
         if let Some(p) = pattern {
             for pat in extract_vec_string("pattern", p)? {
                 pg.append(pat, None)?;
@@ -97,7 +96,7 @@ impl IGXL {
     }
 
     fn test_instance_group(&mut self, name: String) -> PyResult<Group> {
-        let g = Group::new(name, Some(self.tester.to_owned()), GroupType::Test, None);
+        let g = Group::new(name, Some(self.tester.prog_gen_supported_tester()?), GroupType::Test, None);
         Ok(g)
     }
 }

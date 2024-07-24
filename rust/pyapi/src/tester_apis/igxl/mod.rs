@@ -16,7 +16,7 @@ impl IGXL {
     #[new]
     pub fn new(tester: Option<String>) -> PyResult<Self> {
         Ok(IGXL {
-            tester: match tester {
+            tester: match &tester {
                 None => SupportedTester::IGXL,
                 Some(t) => {
                     let t = t.to_uppercase().replace("_", "");

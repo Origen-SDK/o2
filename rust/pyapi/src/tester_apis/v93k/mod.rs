@@ -1,6 +1,6 @@
 mod prog_gen_api;
 
-use origen::testers::SupportedTester;
+use origen_metal::prog_gen::SupportedTester;
 use pyo3::exceptions;
 use pyo3::prelude::*;
 

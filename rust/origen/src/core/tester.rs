@@ -170,10 +170,12 @@ impl Tester {
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
         if FLOW.is_open() {
-            // MUSTDO: Handle this for prog gen
-            //let n = node!(PGM::TesterEq, testers.clone());
-            //prog_ref_id = FLOW.push_and_open(n)?;
-            prog_ref_id = 0;
+            let mut prog_gen_testers = vec![];
+            for t in &testers {
+                prog_gen_testers.push(t.prog_gen_supported_tester()?);
+            }
+            let n = node!(PGM::TesterEq, prog_gen_testers);
+            prog_ref_id = FLOW.push_and_open(n)?;
         } else {
             prog_ref_id = 0;
         }
@@ -201,10 +203,12 @@ impl Tester {
         let pat_ref_id = TEST.push_and_open(n.clone());
         let prog_ref_id;
         if FLOW.is_open() {
-            // MUSTDO: Handle this for prog gen
-            //let n = node!(PGM::TesterNeq, testers.clone());
-            //prog_ref_id = FLOW.push_and_open(n)?;
-            prog_ref_id = 0;
+            let mut prog_gen_testers = vec![];
+            for t in &testers {
+                prog_gen_testers.push(t.prog_gen_supported_tester()?);
+            }
+            let n = node!(PGM::TesterNeq, prog_gen_testers);
+            prog_ref_id = FLOW.push_and_open(n)?;
         } else {
             prog_ref_id = 0;
         }

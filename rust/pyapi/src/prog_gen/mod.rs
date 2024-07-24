@@ -12,9 +12,10 @@ mod test_invocation;
 pub use condition::Condition;
 pub use group::Group;
 use origen::core::tester::TesterSource;
-use origen::prog_gen::{flow_api, FlowCondition, Model, ParamType, ParamValue};
-use origen::testers::SupportedTester;
-use origen::{Error, Result, FLOW};
+use origen_metal::prog_gen::{flow_api, FlowCondition, Model, ParamType, ParamValue};
+use origen_metal::FLOW;
+use origen_metal::prog_gen::SupportedTester;
+use origen::{Error, Result};
 pub use pattern_group::PatternGroup;
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
@@ -104,8 +105,8 @@ fn render(py: Python) -> PyResult<Vec<String>> {
             thread::spawn(move || {
                 match t {
                     TesterSource::External(g) => {
-                        log_error!("Python based tester targets are not supported for program generation yet, no action taken for target: {}", g);
-                        Ok((vec![], Model::new(g)))
+                        bail!("Python based tester targets are not supported for program generation yet, no action taken for target: {}", g);
+                        //Ok((vec![], Model::new(g)))
                     }
                     TesterSource::Internal(t) => {
                         let mut tester = origen::tester();
@@ -116,7 +117,7 @@ fn render(py: Python) -> PyResult<Vec<String>> {
                                 if continue_on_fail {
                                     origen::STATUS.inc_unhandled_error_count();
                                     log_error!("{}", &msg);
-                                    Ok((vec![], Model::new(t.id())))
+                                    Ok((vec![], Model::new(t.id_prog_gen())))
                                 } else {
                                     Err(e)
                                 }
