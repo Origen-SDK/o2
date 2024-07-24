@@ -68,7 +68,7 @@ pub trait VectorBased:
 
     fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
         log_debug!("Tester '{}' does not implement render_program", &self.id());
-        Ok((vec![], Model::new(self.id())))
+        Ok((vec![], Model::new(self.id_prog_gen())))
     }
 }
 

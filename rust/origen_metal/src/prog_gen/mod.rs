@@ -30,6 +30,7 @@ pub use model::Variable;
 pub use model::VariableOperation;
 pub use model::VariableType;
 pub use nodes::PGM;
+pub use supported_testers::SupportedTester;
 
 use crate::ast::{Attrs, Node};
 
