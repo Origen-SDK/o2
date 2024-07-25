@@ -862,7 +862,7 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
     fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
-        origen_metal::prog_gen::render_program(self.id_prog_gen(), &self.output_dir()?)
+        origen_metal::prog_gen::render_program(self.id_prog_gen(), &self.output_dir()?.join("test_program"))
     }
 
     /// The tester should implement this to return a differ instance which is configured

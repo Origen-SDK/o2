@@ -99,6 +99,6 @@ pub fn trace_error<T: Attrs>(node: &Node<T>, error: crate::Error) -> crate::Resu
 pub fn render_program(tester: SupportedTester, output_dir: &Path) -> crate::Result<(Vec<PathBuf>, Model)> {
     match tester {
         SupportedTester::V93KSMT7 => advantest::smt7::render(output_dir),
-        _ => unimplemented!("Tester {:?} is not yet supported for render_program", tester),
+        _ => Ok((vec![], Model::new(tester))),
     }
 }
