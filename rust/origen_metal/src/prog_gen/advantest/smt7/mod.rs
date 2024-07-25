@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Main entry point to render the current test program, paths to all files generated are returned
-pub fn render_test_program(output_dir: &Path) -> Result<(Vec<PathBuf>, Model)> {
+pub fn render(output_dir: &Path) -> Result<(Vec<PathBuf>, Model)> {
     let mut files = vec![];
 
     let testflow_dir = output_dir.join("testflow");

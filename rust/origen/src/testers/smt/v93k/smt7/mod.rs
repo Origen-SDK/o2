@@ -1,13 +1,11 @@
-use crate::core::tester::{Interceptor, TesterAPI, TesterID};
+use crate::core::tester::{Interceptor, TesterID};
 use crate::generator::PAT;
-use origen_metal::prog_gen::Model;
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
 use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 use crate::{Result, DUT};
 use origen_metal::ast::{Node, Return};
-use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct SMT7 {}
@@ -99,10 +97,6 @@ impl VectorBased for SMT7 {
             }
             _ => None,
         }
-    }
-
-    fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
-        origen_metal::prog_gen::advantest::smt7::render_test_program(&self.output_dir()?)
     }
 }
 

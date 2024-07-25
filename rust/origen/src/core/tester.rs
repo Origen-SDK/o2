@@ -853,7 +853,7 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// and not patgen and vice versa, in that case they will return an empty vector.
     fn render_pattern(&mut self, ast: &Node<PAT>) -> crate::Result<Vec<PathBuf>> {
         let _ = ast;
-        log_debug!("Tester '{}' does not implement render_pattern", &self.id());
+        log_error!("Tester '{}' does not implement render_pattern", &self.id());
         Ok(vec![])
     }
 
@@ -862,8 +862,7 @@ pub trait TesterAPI: std::fmt::Debug + Interceptor + TesterID + TesterAPIClone {
     /// A default implementation is given since some testers may only support prog gen
     /// and not patgen and vice versa, in that case they will return an empty vector.
     fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
-        log_debug!("Tester '{}' does not implement render_program", &self.id());
-        Ok((vec![], Model::new(self.id_prog_gen())))
+        origen_metal::prog_gen::render_program(self.id_prog_gen(), &self.output_dir()?)
     }
 
     /// The tester should implement this to return a differ instance which is configured
