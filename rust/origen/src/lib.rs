@@ -169,6 +169,7 @@ pub fn initialize(
     if let Some(app) = app() {
         origen_metal::PROG_GEN_CONFIG.set_app_name(app.name());
     }
+    origen_metal::PROG_GEN_CONFIG.set_debug_enabled(crate::STATUS.is_debug_enabled());
 }
 
 pub fn app() -> Option<&'static Application> {

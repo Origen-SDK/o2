@@ -285,7 +285,7 @@ class InAppCommands(CoreCommands):
         # new = _CommonNames.new
         pl = _CommonNames.pl
         pls = _CommonNames.pls
-        # save_ref = "save_ref"
+        save_ref = "save_ref"
         target = "target"
         # web = "web"
     names = Names()
@@ -384,7 +384,7 @@ class InAppCommands(CoreCommands):
     # new = Cmd(names.new)
     pl = _CommonNames.pl_cmd()
     pls = _CommonNames.pls_cmd()
-    # save_ref = Cmd(names.save_ref)
+    save_ref = Cmd(names.save_ref)
     target = Cmd(
         names.target,
         help="Set/view the default target",
@@ -436,7 +436,7 @@ class InAppCommands(CoreCommands):
 
     commands = [
         # app, aux_cmds, build, compile, creds, env, eval, exec, fmt, generate, i, mailer, mode, new, pl, pls, save_ref, target, web
-        app, aux_cmds, creds, env, eval, exec, generate, i, pl, pls, target
+        app, aux_cmds, creds, env, eval, exec, generate, i, pl, pls, save_ref, target
     ]
     cmds = commands
 
