@@ -1,4 +1,3 @@
-//! This module implements classes which expose ATE-specific APIs for use in both pattern and program generation.
 mod igxl;
 mod v93k;
 
@@ -9,8 +8,8 @@ use pyo3::prelude::*;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "tester_apis")?;
-    subm.add_class::<v93k::V93K>()?;
-    subm.add_class::<igxl::IGXL>()?;
+    subm.add_class::<V93K>()?;
+    subm.add_class::<IGXL>()?;
     m.add_submodule(subm)?;
     Ok(())
 }

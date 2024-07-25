@@ -1,10 +1,9 @@
-use super::IGXL;
 use crate::prog_gen::{Group, PatternGroup, Test, TestInvocation};
-use crate::utility::caller::src_caller_meta;
+use super::super::src_caller_meta;
 use origen_metal::prog_gen::{flow_api, GroupType, ParamValue, PatternGroupType, SupportedTester};
-use origen::{Error, Result};
-use pyo3::prelude::*;
+use pyo3::{exceptions, prelude::*};
 use pyo3::types::{PyDict, PyTuple};
+use origen_metal::{Error, Result};
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -14,8 +13,37 @@ pub struct Patset {
     pub id: usize,
 }
 
+#[pyclass(subclass)]
+#[derive(Debug)]
+pub struct IGXL {
+    tester: SupportedTester,
+}
+
 #[pymethods]
 impl IGXL {
+    #[new]
+    pub fn new(tester: Option<String>) -> PyResult<Self> {
+        Ok(IGXL {
+            tester: match &tester {
+                None => SupportedTester::IGXL,
+                Some(t) => {
+                    let t = t.to_uppercase().replace("_", "");
+                    match t.as_str() {
+                        "IGXL" => SupportedTester::IGXL,
+                        "J750" => SupportedTester::J750,
+                        "ULTRAFLEX" => SupportedTester::ULTRAFLEX,
+                        _ => {
+                            return Err(PyErr::new::<exceptions::PyRuntimeError, _>(format!(
+                                "IGXL tester must be 'J750' or 'ULTRAFLEX', '{}' is not supported",
+                                t
+                            )))
+                        }
+                    }
+                }
+            },
+        })
+    }
+
     #[pyo3(signature=(name, template, library=None, **kwargs))]
     fn new_test_instance(
         &mut self,
@@ -31,7 +59,7 @@ impl IGXL {
 
         let t = Test::new(
             name.clone(),
-            self.tester.prog_gen_supported_tester()?,
+            self.tester,
             library,
             template,
             kwargs,
@@ -44,7 +72,7 @@ impl IGXL {
 
     #[pyo3(signature=(**kwargs))]
     pub fn new_flow_line(&mut self, kwargs: Option<&PyDict>) -> PyResult<TestInvocation> {
-        let t = TestInvocation::new("_".to_owned(), self.tester.prog_gen_supported_tester()?, kwargs)?;
+        let t = TestInvocation::new("_".to_owned(), self.tester, kwargs)?;
         Ok(t)
     }
 
@@ -55,7 +83,7 @@ impl IGXL {
         pattern: Option<&PyAny>,
         patterns: Option<&PyAny>,
     ) -> PyResult<PatternGroup> {
-        let pg = PatternGroup::new(name, self.tester.prog_gen_supported_tester()?, Some(PatternGroupType::Patset))?;
+        let pg = PatternGroup::new(name, self.tester, Some(PatternGroupType::Patset))?;
         if let Some(p) = pattern {
             for pat in extract_vec_string("pattern", p)? {
                 pg.append(pat, None)?;
@@ -96,7 +124,7 @@ impl IGXL {
     }
 
     fn test_instance_group(&mut self, name: String) -> PyResult<Group> {
-        let g = Group::new(name, Some(self.tester.prog_gen_supported_tester()?), GroupType::Test, None);
+        let g = Group::new(name, Some(self.tester), GroupType::Test, None);
         Ok(g)
     }
 }

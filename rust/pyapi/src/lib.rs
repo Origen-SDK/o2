@@ -29,7 +29,6 @@ mod producer;
 mod prog_gen;
 mod standard_sub_blocks;
 pub mod tester;
-mod tester_apis;
 #[macro_use]
 mod utility;
 mod plugins;
@@ -90,11 +89,9 @@ fn _origen(py: Python, m: &PyModule) -> PyResult<()> {
     dut::define(py, m)?;
     tester::define(py, m)?;
     application::define(py, m)?;
-    prog_gen::interface::define(py, m)?;
     producer::define(py, m)?;
     services::define(py, m)?;
     utility::define(py, m)?;
-    tester_apis::define(py, m)?;
     standard_sub_blocks::define(py, m)?;
     prog_gen::define(py, m)?;
     file_handler::define(py, m)?;

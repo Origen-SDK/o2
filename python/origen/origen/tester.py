@@ -2,6 +2,7 @@ import origen
 import _origen
 import pickle
 from contextlib import contextmanager, ContextDecorator
+from origen_metal import _origen_metal
 
 
 class Tester(_origen.tester.PyTester):
@@ -95,9 +96,9 @@ class DummyTester:
             print(f"Python Generator: Node: {i}: {n}")
 
 
-class V93K(_origen.tester_apis.V93K):
+class V93K(_origen_metal.tester_apis.V93K):
     pass
 
 
-class IGXL(_origen.tester_apis.IGXL):
+class IGXL(_origen_metal.tester_apis.IGXL):
     pass

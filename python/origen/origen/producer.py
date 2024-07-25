@@ -1,4 +1,5 @@
 import _origen
+from origen_metal import _origen_metal
 from contextlib import contextmanager, ContextDecorator
 import origen.producer
 import origen.helpers
@@ -139,7 +140,7 @@ class Producer(_origen.producer.PyProducer):
             top_level = False
             origen.logger.debug(
                 f"Producing sub-flow '{flow.name}' in job '{job.id}'")
-            flow_refs = _origen.prog_gen.start_new_flow(flow.name,
+            flow_refs = _origen_metal.prog_gen.start_new_flow(flow.name,
                                                         sub_flow=True)
         else:
             origen.logger.debug(
@@ -155,7 +156,7 @@ class Producer(_origen.producer.PyProducer):
                 options["add_flow_enable"] = kwargs["add_flow_enable"]
             else:
                 options["add_flow_enable"] = origen.interface.add_flow_enable
-            flow_refs = _origen.prog_gen.start_new_flow(flow.name, **options)
+            flow_refs = _origen_metal.prog_gen.start_new_flow(flow.name, **options)
             origen.interface.top_level_options = kwargs
 
         #origen.tester.reset()
@@ -170,7 +171,7 @@ class Producer(_origen.producer.PyProducer):
         if top_level:
             top_level_flow_open = False
 
-        _origen.prog_gen.end_flow(flow_refs)
+        _origen_metal.prog_gen.end_flow(flow_refs)
 
         #origen.tester.end_pattern()
         #origen.tester.render()

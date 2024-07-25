@@ -1,6 +1,6 @@
-use crate::utility::caller::src_caller_meta;
+use super::src_caller_meta;
 use origen_metal::prog_gen::{flow_api, PatternGroupType, SupportedTester};
-use origen::Result;
+use origen_metal::Result;
 use pyo3::prelude::*;
 
 #[pyclass]

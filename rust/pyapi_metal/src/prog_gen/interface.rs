@@ -1,14 +1,12 @@
 use super::flow_options;
-use crate::prog_gen::{Condition, Group, Resources, Test, TestInvocation};
-use crate::tester_apis::IGXL;
-use crate::utility::caller::src_caller_meta;
+use super::{Condition, Group, Resources, Test, TestInvocation};
+use super::tester_apis::IGXL;
+use super::src_caller_meta;
 use origen_metal::prog_gen::{flow_api, BinType, FlowCondition, FlowID, GroupType, ResourcesType, SupportedTester};
-use origen::Result;
+use origen_metal::Result;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyTuple};
-use regex::Regex;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
@@ -31,17 +29,6 @@ impl PyInterface {
     #[new]
     fn new() -> Self {
         PyInterface {}
-    }
-
-    fn resolve_file_reference(&self, path: &str) -> PyResult<String> {
-        let file = origen::with_current_job(|job| {
-            let mut pt = PathBuf::from_str(".").unwrap();
-            for p in Regex::new(r"(\\|/)").unwrap().split(path) {
-                pt.push(p);
-            }
-            job.resolve_file_reference(&pt, Some(vec!["py"]))
-        })?;
-        Ok(file.to_str().unwrap().to_string())
     }
 
     #[setter]

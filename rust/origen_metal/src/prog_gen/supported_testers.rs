@@ -2,7 +2,7 @@ use crate::Result as OrigenResult;
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize, Copy)]
 pub enum SupportedTester {
     /// Generally, the absence of an optional SupportedTester value means all testers, but
     /// this can also be used to indicate that whenever a SupportedTester value is required

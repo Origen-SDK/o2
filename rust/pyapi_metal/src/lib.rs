@@ -4,6 +4,7 @@ pub mod framework;
 pub mod frontend;
 pub mod prelude;
 pub mod utils;
+pub mod prog_gen;
 
 #[macro_use]
 pub extern crate origen_metal;
@@ -33,6 +34,9 @@ pub fn _define(py: Python, m: &PyModule) -> PyResult<()> {
     framework::define(py, m)?;
     utils::define(py, m)?;
     frontend::define(py, m)?;
+    prog_gen::interface::define(py, m)?;
+    prog_gen::define(py, m)?;
+    prog_gen::tester_apis::define(py, m)?;
     m.setattr("__version__", built_info::PKG_VERSION)?;
     m.setattr(
         "__origen_metal_backend_version__",
