@@ -166,6 +166,9 @@ pub fn initialize(
     STATUS.set_fe_pkg_loc(fe_pkg_loc);
     STATUS.set_fe_exe_loc(fe_exe_loc);
     log_debug!("Initialized Origen {}", STATUS.origen_version);
+    if let Some(app) = app() {
+        origen_metal::PROG_GEN_CONFIG.set_app_name(app.name());
+    }
 }
 
 pub fn app() -> Option<&'static Application> {
