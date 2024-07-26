@@ -8,6 +8,9 @@ mod condition;
 mod resources;
 pub mod interface;
 
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+
 use test_invocation::TestInvocation;
 use test::Test;
 use group::Group;
@@ -18,15 +21,74 @@ use resources::Resources;
 use origen_metal::ast::Meta;
 use pyo3::types::PyAny;
 use origen_metal::{Result, Error, FLOW};
-use origen_metal::prog_gen::{ParamType, ParamValue};
+use origen_metal::prog_gen::{PGM, ParamType, ParamValue};
 use pyo3::prelude::*;
-use origen_metal::prog_gen::{flow_api, FlowCondition};
+use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
     subm.add_wrapped(wrap_pyfunction!(start_new_flow))?;
     subm.add_wrapped(wrap_pyfunction!(end_flow))?;
+    subm.add_wrapped(wrap_pyfunction!(render_program_for))?;
+    subm.add_wrapped(wrap_pyfunction!(start_eq_block))?;
+    subm.add_wrapped(wrap_pyfunction!(end_eq_block))?;
+    subm.add_wrapped(wrap_pyfunction!(start_neq_block))?;
+    subm.add_wrapped(wrap_pyfunction!(end_neq_block))?;
     m.add_submodule(subm)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn render_program_for(tester: &str, output_dir: &str) -> PyResult<Vec<PathBuf>> {
+    let t = match origen_metal::prog_gen::SupportedTester::from_str(tester) {
+        Ok(t) => t,
+        Err(e) => {
+            return Err(PyErr::from(Error::new(&format!(
+                "Failed to identify a supported tester type from '{}': {}",
+                tester, e
+            ))))
+        }
+    };
+    let output_dir = Path::new(output_dir).to_path_buf();
+    let r = origen_metal::prog_gen::render_program(t, &output_dir)?;
+    Ok(r.0)
+}
+
+#[pyfunction]
+fn start_eq_block(testers: Vec<&str>) -> PyResult<(usize, Vec<String>)> {
+    let mut ts: Vec<SupportedTester> = vec![];
+    let mut clean_testers: Vec<String> = vec![];
+    for t in testers {
+        let st = SupportedTester::new(t)?;
+        clean_testers.push(st.to_string());
+        ts.push(st);
+    }
+    let n = node!(PGM::TesterEq, ts);
+    let ref_id = FLOW.push_and_open(n)?;
+    Ok((ref_id, clean_testers))
+}
+
+#[pyfunction]
+fn end_eq_block(ref_id: usize) -> PyResult<()> {
+    FLOW.close(ref_id)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn start_neq_block(testers: Vec<&str>) -> PyResult<usize> {
+    let mut ts: Vec<SupportedTester> = vec![];
+    for t in testers {
+        let st = SupportedTester::new(t)?;
+        ts.push(st);
+    }
+    let n = node!(PGM::TesterNeq, ts);
+    let ref_id = FLOW.push_and_open(n)?;
+    Ok(ref_id)
+}
+
+#[pyfunction]
+fn end_neq_block(ref_id: usize) -> PyResult<()> {
+    FLOW.close(ref_id)?;
     Ok(())
 }
 
