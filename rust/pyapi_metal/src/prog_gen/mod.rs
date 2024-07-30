@@ -24,6 +24,36 @@ use origen_metal::{Result, Error, FLOW};
 use origen_metal::prog_gen::{PGM, ParamType, ParamValue};
 use pyo3::prelude::*;
 use origen_metal::prog_gen::{flow_api, FlowCondition, SupportedTester};
+use std::result::Result as StdResult;
+
+#[derive(Debug)]
+pub struct FrameInfo {
+    filename: String,
+    lineno: usize,
+    #[allow(dead_code)]
+    function: String,
+    #[allow(dead_code)]
+    code_context: Option<Vec<String>>,
+    #[allow(dead_code)]
+    index: Option<usize>,
+}
+
+impl FrameInfo {
+    /// Turns the frame into an AST meta object, consuming self in the process
+    pub fn to_meta(self) -> Meta {
+        Meta {
+            filename: Some(self.filename),
+            lineno: Some(self.lineno),
+        }
+    }
+}
+
+enum Filter<'a> {
+    None,
+    #[allow(dead_code)]
+    StartsWith(&'a str),
+    Contains(&'a str),
+}
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "prog_gen")?;
@@ -34,7 +64,18 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(end_eq_block))?;
     subm.add_wrapped(wrap_pyfunction!(start_neq_block))?;
     subm.add_wrapped(wrap_pyfunction!(end_neq_block))?;
+    subm.add_wrapped(wrap_pyfunction!(set_debugging))?;
+    subm.add_wrapped(wrap_pyfunction!(start_src_file))?;
+    subm.add_wrapped(wrap_pyfunction!(end_src_file))?;
+    subm.add_wrapped(wrap_pyfunction!(ast))?;
+    subm.add_wrapped(wrap_pyfunction!(ast_str))?;
     m.add_submodule(subm)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn set_debugging(value: bool) -> PyResult<()> {
+    origen_metal::PROG_GEN_CONFIG.set_debug_enabled(value);
     Ok(())
 }
 
@@ -148,8 +189,106 @@ fn end_flow(ref_ids: Vec<usize>) -> PyResult<()> {
     Ok(())
 }
 
+/// Returns the AST for the current flow in Python
+#[pyfunction]
+fn ast() -> PyResult<Vec<u8>> {
+    Ok(FLOW.to_pickle())
+}
+
+#[pyfunction]
+fn ast_str() -> PyResult<String> {
+    Ok(origen_metal::ast::to_string(&FLOW.to_node()))
+}
+
+#[pyfunction]
+fn start_src_file(file: PathBuf) -> PyResult<()> {
+    origen_metal::PROG_GEN_CONFIG.start_src_file(file)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn end_src_file() -> PyResult<()> {
+    origen_metal::PROG_GEN_CONFIG.end_src_file();
+    Ok(())
+}
+
+/// Returns the last caller that was a test program flow
+pub fn src_caller() -> Option<FrameInfo> {
+    if let Some(f) = origen_metal::PROG_GEN_CONFIG.current_src_file() {
+        caller_containing(&format!("{}", f.display()))
+    } else {
+        None
+    }
+}
+
+/// Same as src_caller() but returns an AST metadata
 pub fn src_caller_meta() -> Option<Meta> {
-    None
+    if origen_metal::PROG_GEN_CONFIG.debug_enabled() {
+        let c = src_caller();
+        let m = match c {
+            Some(m) => Some(m.to_meta()),
+            None => None,
+        };
+        m
+    } else {
+        None
+    }
+}
+
+/// Returns the last caller where the filename contains the given text
+pub fn caller_containing(text: &str) -> Option<FrameInfo> {
+    let mut stack = match _get_stack(Some(1), Filter::Contains(text)) {
+        Err(_e) => return None,
+        Ok(x) => x,
+    };
+    stack.pop()
+}
+
+/// Returns the full Python stack, including calls from app code, plugin code and Origen core
+/// Returns None if an error occurred extracting the stack info.
+pub fn stack() -> Option<Vec<FrameInfo>> {
+    match _get_stack(None, Filter::None) {
+        Err(_e) => {
+            //log_debug!("{:?}", e);
+            //let gil = Python::acquire_gil();
+            //let py = gil.python();
+            //e.print(py);
+            None
+        }
+        Ok(x) => Some(x),
+    }
+}
+
+fn _get_stack(max_depth: Option<usize>, filter: Filter) -> StdResult<Vec<FrameInfo>, PyErr> {
+    Python::with_gil(|py| {
+        let inspect = PyModule::import(py, "inspect")?;
+        let stack: Vec<Vec<&PyAny>> = inspect.getattr("stack")?.call0()?.extract()?;
+        let mut frames: Vec<FrameInfo> = vec![];
+        for f in stack {
+            let filename: String = f[1].extract()?;
+            let include = match filter {
+                Filter::None => true,
+                Filter::StartsWith(s) => filename.starts_with(s),
+                Filter::Contains(s) => filename.contains(s),
+            };
+            if include {
+                frames.push(FrameInfo {
+                    filename: filename,
+                    lineno: f[2].extract()?,
+                    function: f[3].extract()?,
+                    code_context: f[4].extract()?,
+                    index: f[5].extract()?,
+                });
+
+                if let Some(x) = max_depth {
+                    if x == frames.len() {
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(frames)
+    })
 }
 
 pub fn to_param_value(value: &PyAny) -> Result<Option<ParamValue>> {

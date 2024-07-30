@@ -28,7 +28,7 @@ fn check_for_swd(py: Python) -> PyResult<Option<usize>> {
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
     locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
-    locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
+    locals.set_item("dut", py.eval("origen.dut", Some(locals), None)?)?;
     let m = py.eval("builtins.hasattr(dut, \"swd\")", Some(locals), None)?;
 
     if m.extract::<bool>()? {
@@ -47,7 +47,7 @@ fn check_for_jtag(py: Python) -> PyResult<Option<usize>> {
     let locals = PyDict::new(py);
     locals.set_item("origen", py.import("origen")?.to_object(py))?;
     locals.set_item("builtins", py.import("builtins")?.to_object(py))?;
-    locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
+    locals.set_item("dut", py.eval("origen.dut", Some(locals), None)?)?;
     let m = py.eval("builtins.hasattr(dut, \"jtag\")", Some(locals), None)?;
 
     if m.extract::<bool>()? {

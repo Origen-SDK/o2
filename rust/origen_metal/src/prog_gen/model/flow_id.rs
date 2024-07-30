@@ -25,9 +25,10 @@ impl FlowID {
         }
     }
 
-    /// Generate a new unique ID
+    /// Generate a new unique ID, this will have the format "_t{unique_id}_" which should
+    /// avoid collisions with user-defined IDs
     pub fn new() -> FlowID {
-        FlowID::from_int(crate::PROG_GEN_CONFIG.generate_unique_id())
+        FlowID::from_str(&format!("_t{}_", crate::PROG_GEN_CONFIG.generate_unique_id()))
     }
 
     /// Returns true if the ID refers to a test external to this flow, currently defined by the ID

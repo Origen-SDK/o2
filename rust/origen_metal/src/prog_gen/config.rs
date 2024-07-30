@@ -1,4 +1,4 @@
-use std::sync::RwLock;
+use std::{path::PathBuf, sync::RwLock};
 
 /// Configuration for the program generator, an singleton is instantiated as
 /// `PROG_GEN_CONFIG` in `lib.rs`
@@ -7,6 +7,7 @@ pub struct Config {
     app_name: RwLock<Option<String>>,
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
+    src_files: RwLock<Vec<PathBuf>>,
 }
 
 impl Default for Config {
@@ -15,6 +16,7 @@ impl Default for Config {
             app_name: RwLock::new(None),
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
+            src_files: RwLock::new(vec![]),
         }
     }
 }
@@ -42,5 +44,21 @@ impl Config {
         let mut unique_id = self.unique_id.write().unwrap();
         *unique_id += 1;
         *unique_id
+    }
+
+    pub fn start_src_file(&self, file: PathBuf) -> crate::Result<()> {
+        let mut src_files = self.src_files.write().unwrap();
+        src_files.push(file);
+        Ok(())
+    }
+
+    pub fn end_src_file(&self) {
+        let mut src_files = self.src_files.write().unwrap();
+        src_files.pop();
+    }
+
+    pub fn current_src_file(&self) -> Option<PathBuf> {
+        let src_files = self.src_files.read().unwrap();
+        src_files.last().cloned()
     }
 }
