@@ -74,8 +74,8 @@ impl Processor<PGM> for ExtractToModel {
                     self.model.set_resources_filename(name.to_owned(), kind);
                     Return::Unmodified
                 }
-                PGM::SetAttr(id, name, value) => {
-                    trace!(self.model.set_test_attr(*id, name, value.to_owned()), node);
+                PGM::SetAttr(id, name, value, allow_missing) => {
+                    trace!(self.model.set_test_attr(*id, name, value.to_owned(), *allow_missing), node);
                     Return::None
                 }
                 _ => Return::ProcessChildren,

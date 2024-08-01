@@ -44,12 +44,13 @@ impl IGXL {
         })
     }
 
-    #[pyo3(signature=(name, template, library=None, **kwargs))]
+    #[pyo3(signature=(name, template, library=None, allow_missing=false, **kwargs))]
     fn new_test_instance(
         &mut self,
         name: String,
         template: String,
         library: Option<String>,
+        allow_missing: bool,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Test> {
         let library = match library {
@@ -62,17 +63,18 @@ impl IGXL {
             self.tester,
             library,
             template,
+            allow_missing,
             kwargs,
         )?;
 
-        t.set_attr("test_name", Some(ParamValue::String(name)))?;
+        t._set_attr("test_name", Some(ParamValue::String(name)), allow_missing)?;
 
         Ok(t)
     }
 
-    #[pyo3(signature=(**kwargs))]
-    pub fn new_flow_line(&mut self, kwargs: Option<&PyDict>) -> PyResult<TestInvocation> {
-        let t = TestInvocation::new("_".to_owned(), self.tester, kwargs)?;
+    #[pyo3(signature=(allow_missing=false, **kwargs))]
+    pub fn new_flow_line(&mut self, allow_missing:bool, kwargs: Option<&PyDict>) -> PyResult<TestInvocation> {
+        let t = TestInvocation::new("_".to_owned(), self.tester, allow_missing, kwargs)?;
         Ok(t)
     }
 

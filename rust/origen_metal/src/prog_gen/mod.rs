@@ -34,6 +34,7 @@ pub use model::VariableOperation;
 pub use model::VariableType;
 pub use nodes::PGM;
 pub use supported_testers::SupportedTester;
+pub use model::{TestTemplate, TestTemplateParameter};
 
 use crate::ast::{Attrs, Node};
 

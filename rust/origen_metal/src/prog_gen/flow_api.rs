@@ -53,9 +53,10 @@ pub fn set_test_attr(
     id: usize,
     name: &str,
     value: Option<ParamValue>,
+    allow_missing: bool,
     meta: Option<Meta>,
 ) -> Result<()> {
-    let n = node!(PGM::SetAttr, id, name.to_owned(), value; meta);
+    let n = node!(PGM::SetAttr, id, name.to_owned(), value, allow_missing; meta);
     FLOW.push(n)?;
     Ok(())
 }

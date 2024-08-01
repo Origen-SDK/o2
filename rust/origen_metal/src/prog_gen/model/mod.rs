@@ -29,6 +29,7 @@ pub use test::Test;
 pub use variable::Variable;
 pub use variable::VariableOperation;
 pub use variable::VariableType;
+pub use template_loader::{TestTemplate, TestTemplateParameter};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum PatternGroupType {
@@ -136,7 +137,7 @@ impl fmt::Display for ParamValue {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Display)]
 pub enum ParamType {
     String,
     Int,

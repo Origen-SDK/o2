@@ -82,7 +82,7 @@ impl TestInvocation {
             let test = value.extract::<Test>()?;
             return self.set_test_obj(test);
         }
-        self.set_attr(name, to_param_value(value)?)?;
+        self.set_attr(name, to_param_value(value)?, false)?;
         Ok(())
     }
 }
@@ -91,6 +91,7 @@ impl TestInvocation {
     pub fn new(
         name: String,
         tester: SupportedTester,
+        allow_missing: bool,
         kwargs: Option<&PyDict>,
     ) -> Result<TestInvocation> {
         let id = flow_api::define_test_invocation(&name, &tester, src_caller_meta())?;
@@ -110,7 +111,7 @@ impl TestInvocation {
                         } else if name == "hi_limit" {
                             t.set_hi_limit(v)?;
                         } else {
-                            t.set_attr(&name, to_param_value(v)?)?;
+                            t.set_attr(&name, to_param_value(v)?, allow_missing)?;
                         }
                     }
                 } else {
@@ -121,8 +122,8 @@ impl TestInvocation {
         Ok(t)
     }
 
-    pub fn set_attr(&self, name: &str, value: Option<ParamValue>) -> Result<()> {
-        flow_api::set_test_attr(self.id, name, value, src_caller_meta())?;
+    pub fn set_attr(&self, name: &str, value: Option<ParamValue>, allow_missing: bool) -> Result<()> {
+        flow_api::set_test_attr(self.id, name, value, allow_missing, src_caller_meta())?;
         Ok(())
     }
 }

@@ -380,6 +380,7 @@ impl Model {
         id: usize,
         name: &str,
         value: Option<ParamValue>,
+        allow_missing: bool
     ) -> Result<()> {
         if self.test_invocations.contains_key(&id) {
             let inv = self.test_invocations.get_mut(&id).unwrap();
@@ -398,7 +399,7 @@ impl Model {
         }
         if self.tests.contains_key(&id) {
             let test = self.tests.get_mut(&id).unwrap();
-            test.set(name, value, true)?;
+            test.set(name, value, allow_missing)?;
             return Ok(());
         }
         bail!(

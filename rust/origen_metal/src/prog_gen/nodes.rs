@@ -34,7 +34,7 @@ pub enum PGM {
     ///                 InvID  TestID
     AssignTestToInv(usize, usize),
     /// Set the attribute with the given name within the given test (ID), to the given value
-    SetAttr(usize, String, Option<ParamValue>),
+    SetAttr(usize, String, Option<ParamValue>, bool),
     /// Set the limit of the given test or invocation, (test_id, inv_id, hi/lo, value). Note that either test_id
     /// or inv_id must be present, but not both.
     SetLimit(Option<usize>, Option<usize>, LimitSelector, Option<Limit>),

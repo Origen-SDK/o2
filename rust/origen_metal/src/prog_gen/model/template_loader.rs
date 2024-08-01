@@ -3,7 +3,8 @@
 use crate::prog_gen::supported_testers::SupportedTester;
 use crate::Result;
 use phf::phf_map;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::RwLock;
 
 // This includes a map of all test template files, it is built by build.rs at compile time.
 // All files in each sub-directory of prog_gen/test_templates are accessible via a map with the
@@ -23,8 +24,12 @@ use std::collections::HashMap;
 // automatically be picked up and included in the new build.
 include!(concat!(env!("OUT_DIR"), "/test_templates.rs"));
 
+lazy_static! {
+    static ref LOADED_TESTS: RwLock<HashMap<String, TestTemplate>> = RwLock::new(HashMap::new());
+}
+
 /// Test template definitions from json files are read into this structure
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct TestTemplate {
     pub parameter_list: Option<HashMap<String, String>>,
     pub aliases: Option<HashMap<String, String>>,
@@ -34,7 +39,7 @@ pub struct TestTemplate {
     pub accepted_values: Option<HashMap<String, Vec<serde_json::Value>>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct TestTemplateParameter {
     #[serde(rename(deserialize = "type"))]
     pub kind: Option<String>,
@@ -57,21 +62,61 @@ pub fn load_test_from_lib(
         tester
     );
     let tester_name = tester.to_string().to_lowercase();
-
-    // TODO: look for templates in an app-defined load path here, see:
-    // https://github.com/Origen-SDK/o2/pull/126#issuecomment-717939430
+    
+    let key = format!("{}_{}_{}", &tester_name, lib_name, test_name);
+    
+    if let Some(t) = LOADED_TESTS.read().unwrap().get(&key) {
+        return Ok(t.clone());
+    }
+    
+    let mut available_tests: HashSet<String> = HashSet::new();
+    
+    // Look for an app-defined library/test first
+    for path in crate::PROG_GEN_CONFIG.test_template_load_path() {
+        let path = path.join(format!("{}/{}/{}.json", tester_name, lib_name, test_name));
+        if path.exists() {
+            // Get the file contents
+            let contents = std::fs::read_to_string(&path)?;
+            let t: TestTemplate = serde_json::from_str(&contents)?;
+            LOADED_TESTS.write().unwrap().insert(key, t.clone());
+            return Ok(t);
+        }
+        if path.parent().unwrap().exists() {
+            for entry in std::fs::read_dir(path.parent().unwrap())? {
+                let entry = entry?;
+                if entry.path().is_file() {
+                    let file_name = entry.file_name().to_string_lossy().to_string();
+                    if file_name.ends_with(".json") {
+                        available_tests.insert(file_name);
+                    }
+                }
+            }
+        }
+    }
 
     match import_test_template(&format!("{}/{}/{}.json", tester_name, lib_name, test_name)) {
-        Ok(t) => return Ok(t),
+        Ok(t) => {
+            LOADED_TESTS.write().unwrap().insert(key, t.clone());
+            return Ok(t);
+        }
         Err(e) => {
             if e.to_string().contains("No test template found at path") {
                 log_debug!("{}", e);
-                bail!(
+                let mut msg = format!(
                     "No test method named '{}' found in library '{}' (for {})",
                     test_name,
                     lib_name,
                     tester
                 );
+                if available_tests.len() > 0 {
+                    let mut available_tests: Vec<String> = available_tests.into_iter().collect();
+                    available_tests.sort();
+                    msg.push_str("\n\nThe following test methods are available in this library:");
+                    for t in available_tests {
+                        msg.push_str(&format!("\n  - {}", t));
+                    }
+                }
+                bail!("{}", msg);
             } else {
                 bail!("{}", e);
             }

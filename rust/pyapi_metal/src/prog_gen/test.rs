@@ -20,6 +20,7 @@ impl Test {
         tester: SupportedTester,
         library_name: String,
         template_name: String,
+        allow_missing: bool,
         kwargs: Option<&PyDict>,
     ) -> Result<Test> {
         let id = flow_api::define_test(
@@ -45,7 +46,7 @@ impl Test {
                         } else if name == "hi_limit" {
                             t.set_hi_limit(v)?;
                         } else {
-                            t.set_attr(&name, to_param_value(v)?)?;
+                            t._set_attr(&name, to_param_value(v)?, allow_missing)?;
                         }
                     }
                 } else {
@@ -57,8 +58,8 @@ impl Test {
         Ok(t)
     }
 
-    pub fn set_attr(&self, name: &str, value: Option<ParamValue>) -> Result<()> {
-        flow_api::set_test_attr(self.id, name, value, src_caller_meta())?;
+    pub fn _set_attr(&self, name: &str, value: Option<ParamValue>, allow_missing: bool) -> Result<()> {
+        flow_api::set_test_attr(self.id, name, value, allow_missing, src_caller_meta())?;
         Ok(())
     }
 }
@@ -105,8 +106,18 @@ impl Test {
         Ok(())
     }
 
+    #[pyo3(signature=(name, value, allow_missing=false))]
+    pub fn set_attr(&self, name: &str, value: Option<&PyAny>, allow_missing: bool) -> Result<()> {
+        let value = match value {
+            Some(x) => to_param_value(x)?,
+            None => None,
+        };
+        flow_api::set_test_attr(self.id, name, value, allow_missing, src_caller_meta())?;
+        Ok(())
+    }
+
     fn __setattr__(&mut self, name: &str, value: &PyAny) -> PyResult<()> {
-        self.set_attr(name, to_param_value(value)?)?;
+        self._set_attr(name, to_param_value(value)?, false)?;
         Ok(())
     }
 }

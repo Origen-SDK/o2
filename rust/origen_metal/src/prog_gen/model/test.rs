@@ -403,11 +403,18 @@ impl Test {
             if self.aliases.contains_key(&n) {
                 Ok(&self.aliases[&n])
             } else {
-                bail!(
-                    "Test '{}' does not have a parameter named '{}'",
+                let available_attributes = self.params.keys().collect::<Vec<&String>>();
+                let mut msg = format!(
+                    "Test '{}' does not have an attribute named '{}'",
                     self.name,
                     name
-                )
+                );
+                msg += "\nThe available attributes are:";
+                for attr in available_attributes {
+                    let attr_type: &ParamType = &self.params[attr];
+                    msg += &format!("\n  - {} ({})", attr, attr_type);
+                }
+                bail!(&msg);
             }
         }
     }
@@ -446,5 +453,5 @@ impl Test {
 }
 
 fn clean(name: &str) -> String {
-    name.to_lowercase().replace("_", "")
+    name.to_lowercase().replace("_", "").replace(".", "")
 }

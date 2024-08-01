@@ -8,6 +8,7 @@ pub struct Config {
     unique_id: RwLock<usize>,
     debug_enabled: RwLock<bool>,
     src_files: RwLock<Vec<PathBuf>>,
+    test_template_load_path: RwLock<Vec<PathBuf>>,
 }
 
 impl Default for Config {
@@ -17,6 +18,7 @@ impl Default for Config {
             unique_id: RwLock::new(0),
             debug_enabled: RwLock::new(false),
             src_files: RwLock::new(vec![]),
+            test_template_load_path: RwLock::new(vec![]),
         }
     }
 }
@@ -60,5 +62,14 @@ impl Config {
     pub fn current_src_file(&self) -> Option<PathBuf> {
         let src_files = self.src_files.read().unwrap();
         src_files.last().cloned()
+    }
+    
+    pub fn set_test_template_load_path(&self, paths: Vec<PathBuf>) {
+        let mut lp = self.test_template_load_path.write().unwrap();
+        *lp = paths;
+    }
+    
+    pub fn test_template_load_path(&self) -> Vec<PathBuf> {
+        self.test_template_load_path.read().unwrap().clone()
     }
 }

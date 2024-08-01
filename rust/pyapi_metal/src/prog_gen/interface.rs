@@ -63,8 +63,8 @@ impl PyInterface {
     }
 
     /// Add a test to the flow
-    #[pyo3(signature=(test_obj, **kwargs))]
-    fn add_test(&self, test_obj: &PyAny, kwargs: Option<&PyDict>) -> PyResult<()> {
+    #[pyo3(signature=(test_obj, allow_missing=false, **kwargs))]
+    fn add_test(&self, test_obj: &PyAny, allow_missing: bool, kwargs: Option<&PyDict>) -> PyResult<()> {
         let id = flow_options::get_flow_id(kwargs)?;
         let bin = flow_options::get_bin(kwargs)?;
         let softbin = flow_options::get_softbin(kwargs)?;
@@ -76,7 +76,7 @@ impl PyInterface {
                 match t.tester {
                     SupportedTester::IGXL | SupportedTester::J750 | SupportedTester::ULTRAFLEX => {
                         let mut flow_line =
-                            IGXL::new(Some(t.tester.to_string()))?.new_flow_line(kwargs)?;
+                            IGXL::new(Some(t.tester.to_string()))?.new_flow_line(allow_missing, kwargs)?;
                         flow_line.set_test_obj(t)?;
                         flow_api::execute_test(flow_line.id, id.clone(), src_caller_meta())?;
                     }

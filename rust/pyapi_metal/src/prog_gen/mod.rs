@@ -69,7 +69,14 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_wrapped(wrap_pyfunction!(end_src_file))?;
     subm.add_wrapped(wrap_pyfunction!(ast))?;
     subm.add_wrapped(wrap_pyfunction!(ast_str))?;
+    subm.add_wrapped(wrap_pyfunction!(set_test_template_load_path))?;
     m.add_submodule(subm)?;
+    Ok(())
+}
+
+#[pyfunction]
+fn set_test_template_load_path(load_path: Vec<PathBuf>) -> PyResult<()> {
+    origen_metal::PROG_GEN_CONFIG.set_test_template_load_path(load_path);
     Ok(())
 }
 

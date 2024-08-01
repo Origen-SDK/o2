@@ -29,25 +29,27 @@ impl V93K {
         })
     }
 
-    #[pyo3(signature=(name, library, **kwargs))]
+    #[pyo3(signature=(name, library, allow_missing=false, **kwargs))]
     fn new_test_method(
         &mut self,
         name: String,
         library: String,
+        allow_missing: bool,
         kwargs: Option<&PyDict>,
     ) -> PyResult<Test> {
-        let t = Test::new(name.clone(), self.tester.to_owned(), library, name, kwargs)?;
+        let t = Test::new(name.clone(), self.tester.to_owned(), library, name, allow_missing, kwargs)?;
         Ok(t)
     }
 
-    #[pyo3(signature=(name, **kwargs))]
+    #[pyo3(signature=(name, allow_missing=false, **kwargs))]
     fn new_test_suite(
         &mut self,
         name: String,
+        allow_missing: bool,
         kwargs: Option<&PyDict>,
     ) -> PyResult<TestInvocation> {
-        let t = TestInvocation::new(name.clone(), self.tester.to_owned(), kwargs)?;
-        t.set_attr("name", Some(ParamValue::String(name.to_owned())))?;
+        let t = TestInvocation::new(name.clone(), self.tester.to_owned(), allow_missing, kwargs)?;
+        t.set_attr("name", Some(ParamValue::String(name.to_owned())), allow_missing)?;
         Ok(t)
     }
 }

@@ -2,6 +2,11 @@
     name = "examples"
     help = "Run diff-based regression tests of the pattern and program generator"
 
+    [[command.opt]]
+        name = "debug"
+        long = "debug"
+        help = "Passes the --debug option to origen g"
+
 [[command]]
     name = "playground"
     alias = "y"
