@@ -219,6 +219,10 @@ jobs:
           pip install auditwheel
           auditwheel --version
 
+      - name: Install Perl dep for ssl build
+        run: |
+          yum install perl-IPC-Cmd
+
       - name: Build Origen Metal Python Package
         working-directory: python/origen_metal
         run: poetry build --format wheel
