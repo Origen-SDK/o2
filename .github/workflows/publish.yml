@@ -97,7 +97,7 @@ jobs:
           env
           echo "HOME=/root" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install Rust
         run: |
@@ -302,7 +302,7 @@ jobs:
 
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -556,7 +556,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_github_release == 'true' }}
     steps:
-        - uses: actions/checkout@v2
+        - uses: actions/checkout@v3
 
         - uses: actions/download-artifact@v3
           with:
