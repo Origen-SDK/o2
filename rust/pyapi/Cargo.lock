@@ -2604,7 +2604,6 @@ dependencies = [
  "num-bigint 0.4.5",
  "num-traits",
  "octocrab",
- "openssl",
  "pest",
  "pest_derive",
  "phf 0.8.0",
