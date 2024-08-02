@@ -120,10 +120,8 @@ jobs:
           ls -al openssl-1.1.1w.tar.gz
           tar zxf openssl-1.1.1w.tar.gz
           cd openssl-1.1.1w
-          ./config --openssldir=/usr/local/ssl --prefix=/usr/local/ssl
           make
           make install
-          echo "OPENSSL_DIR=/usr/local/ssl" >> $GITHUB_ENV
 
       - name: Save Minor Python Version
         run: |
