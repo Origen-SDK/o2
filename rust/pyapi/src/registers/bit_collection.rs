@@ -1110,7 +1110,7 @@ impl BitCollection {
         let mut mp = self.model_path()?;
         let locals = PyDict::new(py);
         locals.set_item("origen", py.import("origen")?.to_object(py))?;
-        locals.set_item("dut", py.eval("origen.dut", Some(locals.clone()), None)?)?;
+        locals.set_item("dut", py.eval("origen.dut", Some(locals), None)?)?;
         let mut dut_checked = false;
         while !dut_checked {
             // Grab the subblock from the Python heap and see if it implements read/write register

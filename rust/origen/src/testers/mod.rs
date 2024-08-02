@@ -11,6 +11,7 @@ use crate::{dut, Result};
 use origen_metal::ast::{Node, Processor, Return};
 use std::path::PathBuf;
 pub use supported_testers::SupportedTester;
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 
 pub fn instantiate_tester(g: &SupportedTester) -> Result<Box<dyn TesterAPI + std::marker::Send>> {
     match g {
@@ -50,6 +51,10 @@ impl Interceptor for DummyRenderer {}
 impl TesterID for DummyRenderer {
     fn id(&self) -> SupportedTester {
         SupportedTester::DUMMYRENDERER
+    }
+    
+    fn id_prog_gen(&self) -> ProgGenSupportedTester {
+        ProgGenSupportedTester::ALL
     }
 }
 
@@ -106,6 +111,10 @@ impl DummyRendererWithInterceptors {}
 impl TesterID for DummyRendererWithInterceptors {
     fn id(&self) -> SupportedTester {
         SupportedTester::DUMMYRENDERERWITHINTERCEPTORS
+    }
+    
+    fn id_prog_gen(&self) -> ProgGenSupportedTester {
+        ProgGenSupportedTester::ALL
     }
 }
 

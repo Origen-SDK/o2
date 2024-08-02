@@ -2,6 +2,7 @@ use crate::core::tester::{Interceptor, TesterID};
 use crate::testers::vector_based::pattern_renderer::Renderer;
 use crate::testers::vector_based::VectorBased;
 use crate::testers::SupportedTester;
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 use crate::{Result, DUT};
 
 use crate::core::model::pins::pin::{PinAction, Resolver};
@@ -25,6 +26,10 @@ impl std::default::Default for J750 {
 impl TesterID for J750 {
     fn id(&self) -> SupportedTester {
         SupportedTester::J750
+    }
+    
+    fn id_prog_gen(&self) -> ProgGenSupportedTester {
+        ProgGenSupportedTester::J750
     }
 }
 

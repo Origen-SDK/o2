@@ -60,6 +60,11 @@ glob = "0.3.0"
 email_address = "0.2.4"
 tera = "1"
 anyhow = "^1"
+md-5 = "0.9"
+strum_macros = "0.20"
+strum = { version = "0.20", features = ["derive"] }
+phf = { version = "0.8.0", features = ["macros"] }
 
 [build-dependencies]
 built = "0.5.2"
+walkdir = "2"

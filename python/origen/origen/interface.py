@@ -1,9 +1,10 @@
 import origen
 import _origen
+from origen_metal import _origen_metal
 
 
 # Base class for all test program flow interfaces
-class BaseInterface(_origen.interface.PyInterface):
+class BaseInterface(_origen_metal.interface.PyInterface):
     def __init__(self):
         self._options = []
         self.bypass_sub_flows = False
@@ -12,7 +13,7 @@ class BaseInterface(_origen.interface.PyInterface):
 
     def include(self, path, **kwargs):
         origen.log.trace(f"Resolving include reference '{path}'")
-        file = self.resolve_file_reference(path)
+        file = _origen.prog_gen.resolve_file_reference(path)
         origen.log.trace(f"Found include file '{file}'")
         origen.producer.current_job.add_file(file)
         context = origen.producer.api()

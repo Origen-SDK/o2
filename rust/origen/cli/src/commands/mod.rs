@@ -6,7 +6,7 @@ pub mod interactive;
 // pub mod mode;
 pub mod new;
 // pub mod proj;
-// pub mod save_ref;
+pub mod save_ref;
 pub mod target;
 // pub mod mailer;
 pub mod credentials;

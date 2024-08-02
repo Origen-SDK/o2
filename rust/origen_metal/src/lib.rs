@@ -18,8 +18,10 @@ extern crate pest_derive;
 pub mod macros;
 #[macro_use]
 pub extern crate cfg_if;
+//#[macro_use]
+//extern crate enum_display_derive;
 #[macro_use]
-extern crate enum_display_derive;
+extern crate strum_macros;
 pub mod _utility;
 
 pub mod prelude;
@@ -30,6 +32,7 @@ pub mod framework;
 pub mod frontend;
 pub mod stil;
 pub mod utils;
+pub mod prog_gen;
 use std::fmt::Display;
 use std::sync::Mutex;
 
@@ -71,11 +74,15 @@ pub mod built_info {
 }
 
 lazy_static! {
+    pub static ref PROG_GEN_CONFIG: prog_gen::config::Config = prog_gen::config::Config::default();
     pub static ref LOGGER: framework::logger::Logger = framework::logger::Logger::default();
     pub static ref VERSION: &'static str = built_info::PKG_VERSION;
     pub static ref FRONTEND: RwLock<Frontend> = RwLock::new(Frontend::new());
     pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
+    /// This is analogous to the TEST for test program duration, it provides a similar API for
+    /// pushing nodes to the current flow, FLOW.push(my_node), etc.
+    pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
 }
 
 pub fn unload() -> Result<()> {

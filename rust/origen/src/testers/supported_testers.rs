@@ -1,6 +1,7 @@
 use crate::Result as OrigenResult;
 use std::fmt;
 use std::str::FromStr;
+use origen_metal::prog_gen::SupportedTester as ProgGenSupportedTester;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash, Serialize)]
 pub enum SupportedTester {
@@ -47,6 +48,20 @@ impl SupportedTester {
             s.push(format!("CUSTOM::{}", id));
         }
         s
+    }
+    
+    pub fn prog_gen_supported_tester(&self) -> OrigenResult<ProgGenSupportedTester> {
+        match self {
+            SupportedTester::ALL => Ok(ProgGenSupportedTester::ALL),
+            SupportedTester::V93K => Ok(ProgGenSupportedTester::V93K),
+            SupportedTester::V93KSMT7 => Ok(ProgGenSupportedTester::V93KSMT7),
+            SupportedTester::V93KSMT8 => Ok(ProgGenSupportedTester::V93KSMT8),
+            SupportedTester::IGXL => Ok(ProgGenSupportedTester::IGXL),
+            SupportedTester::J750 => Ok(ProgGenSupportedTester::J750),
+            SupportedTester::ULTRAFLEX => Ok(ProgGenSupportedTester::ULTRAFLEX),
+            SupportedTester::SIMULATOR => Ok(ProgGenSupportedTester::SIMULATOR),
+            _ => bail!("No equivalent prog gen tester exists for {:?}", self),
+        }
     }
 
     pub fn new(name: &str) -> OrigenResult<Self> {
