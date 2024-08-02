@@ -221,7 +221,7 @@ jobs:
 
       - name: Install Perl dep for ssl build
         run: |
-          yum install perl-IPC-Cmd
+          yum install perl-IPC-Cmd -y
 
       - name: Build Origen Metal Python Package
         working-directory: python/origen_metal
