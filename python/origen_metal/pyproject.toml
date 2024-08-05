@@ -21,6 +21,7 @@ importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
 pdoc = "^7"
+maturin = "1.7.0"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers"
@@ -35,6 +36,6 @@ markers = [
 script = "poetry_build.py"
 generate-setup-file = false
 
-# [build-system]
-# requires = ["setuptools", "poetry-core>=1.0.0"]
-# build-backend = "poetry.core.masonry.api"
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"

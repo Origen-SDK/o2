@@ -79,223 +79,267 @@ jobs:
           script: |
             core.setFailed('Found existing publish workflow: ${{ steps.query-concurrency.outputs.skipped_by.htmlUrl }}')
 
-  build_manylinux:
+  build_om_linux:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJSON(vars.PYTHON_VERSIONS_FOR_RELEASE) }}
+        python-version: [3.7, 3.8, 3.9, 3.10, 3.11, 3.12]
     needs: [precheck]
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux2014_x86_64
-      options: --user root
     steps:
-      - name: Show Env
-        run: |
-          pwd
-          echo "ROOT_DIR=$PWD" >> $GITHUB_ENV
-          env
-          echo "HOME=/root" >> $GITHUB_ENV
-
-      - uses: actions/checkout@v1
-
-      - name: Install Rust
-        run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Set Rust Version
-        run: |
-          rustup install ${{ fromJSON(vars.RUST_VERSION) }}
-          rustup default ${{ fromJSON(vars.RUST_VERSION) }}
-
-      - name: Check Rust Version
-        run: |
-          rustc --version
-          cargo --version
-
-      - name: Install Newer OpenSSL
-        run: |
-          curl -O -L https://www.openssl.org/source/openssl-1.1.1w.tar.gz
-          ls -al openssl-1.1.1w.tar.gz
-          tar zxf openssl-1.1.1w.tar.gz
-          cd openssl-1.1.1w
-          ./config
-          make
-          make install
-
-      - name: Save Minor Python Version
-        run: |
-          IFS='.' read -r -a SPLIT_VER <<< ${{ matrix.python-version }}
-          M_VER=${SPLIT_VER[0]}.${SPLIT_VER[1]}
-          echo $M_VER
-          echo "PY_M_VER=$M_VER" >> $GITHUB_ENV
-
-      - name: Install libffi for Python 3.12+
-        if: ${{ fromJSON(env.PY_M_VER) >= 3.12 }}
-        run: |
-          yum install libffi-devel -y
-          ldconfig
-
-      - name: Install Python
-        run: |
-          ls $ROOT_DIR/openssl-1.1.1w
-          curl -O https://www.python.org/ftp/python/${{ matrix.python-version }}/Python-${{ matrix.python-version }}.tgz
-          tar zxf Python-${{ matrix.python-version }}.tgz
-          cd Python-${{ matrix.python-version }}
-          ./configure --with-openssl=$ROOT_DIR/openssl-1.1.1w --prefix=/root/python --enable-optimizations --enable-shared
-          make altinstall
-
-      - name: Copy Python Shared Library (Python 3.7)
-        if: ${{ matrix.python-version == '3.7.17' }}
-        run: |
-          echo $PY_M_VER
-          cd Python-${{ matrix.python-version }}
-          ls
-          cp libpython$PY_M_VER\m.so.1.0 /usr/local/lib64/
-      - name: Copy Python Shared Library (Python 3.8+ Versions)
-        if: ${{ matrix.python-version != '3.7.17' }}
-        run: |
-          echo $PY_M_VER
-          cd Python-${{ matrix.python-version }}
-          ls
-          cp libpython$PY_M_VER.so.1.0 /usr/local/lib64/
-  
-      # - name: Update LD_LIBRARY_PATH
-      #   run: |
-      #     echo $LD_LIBRARY_PATH
-      #     echo "LD_LIBRARY_PATH=/Python-${{ matrix.python-version }}:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
-      - name: Check LD_LIBRARY_PATH
-        run: |
-          echo $LD_LIBRARY_PATH
-
-      - name: Alias Python and Pip binaries
-        run: |
-          echo $PY_M_VER
-          ls /root/python/bin
-          ln -s /root/python/bin/python$PY_M_VER /root/python/bin/python
-          ln -s /root/python/bin/pip$PY_M_VER /root/python/bin/pip
-          ls /root/python/bin
-
-      - name: Update $PATH
-        run: |
-          echo /root/python/bin >> $GITHUB_PATH
-
-      # # TODO: For now use pre-installed python version.
-      # # In future, will probably want to download latest version
-      # - name: Set Python Version (3.7 Path)
-      #   if: ${{ matrix.python-version == 3.7 }}
-      #   run: |
-      #     PYVER=$(echo ${{ matrix.python-version }} | sed -e "s/\.//g")
-      #     echo $PYVER
-      #     PATH_TO_PY=/opt/python/cp$PYVER-cp$PYVER\m/bin
-      #     echo $PATH_TO_PY
-      #     echo "$PATH_TO_PY" >> $GITHUB_PATH
-      # - name: Set Python Version
-      #   if: ${{ matrix.python-version != 3.7 }}
-      #   run: |
-      #     PYVER=$(echo ${{ matrix.python-version }} | sed -e "s/\.//g")
-      #     echo $PYVER
-      #     PATH_TO_PY=/opt/python/cp$PYVER-cp$PYVER/bin
-      #     echo $PATH_TO_PY
-      #     echo "$PATH_TO_PY" >> $GITHUB_PATH
-
-      - name: Display Python Version
-        run: |
-          which python
-          which pip
-          python --version
-          pip --version
-
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+          architecture: x64
       - name: Install Poetry
         run: |
           pip install poetry==1.3.2
           poetry --version
-
-      - name: Install Auditwheel
-        run: |
-          pip install setuptools
-          pip install auditwheel
-          auditwheel --version
-
-      - name: Install Perl dep for ssl build
-        run: |
-          yum install perl-IPC-Cmd -y
-
-      - name: Build Origen Metal Python Package
+      - name: Install Deps
         working-directory: python/origen_metal
-        run: poetry build --format wheel
-
-      - name: Display OM Dist Directory
-        working-directory: python/origen_metal
-        run: ls dist
-
-      - name: Repair OM Wheel
-        working-directory: python/origen_metal
-        run: |
-          auditwheel show dist/*
-          auditwheel repair dist/*
-
-      - name: Display OM Wheelhouse Directory
-        working-directory: python/origen_metal
-        run: ls wheelhouse
-
-      - name: Upload Origen Metal Python Package Artifact
-        uses: actions/upload-artifact@v1
+        run: poetry install
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
         with:
-          name: om_wheels
-          path: /__w/o2/o2/python/origen_metal/wheelhouse/*
-
+          working-directory: python/origen_metal
+          target: x86_64
+          manylinux: auto
+          args: --release --strip --out dist --manifest-path ../../rust/pyapi_metal/Cargo.toml --interpreter python${{ matrix.python-version }}
       - name: Get OM Python Package Version
         working-directory: python/origen_metal
         run: poetry version -s > ${{ env.om_ver_file }}
-
-      - name: Upload OM Python Package Version
-        uses: actions/upload-artifact@v1
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.om_ver_file }}
-          path: /__w/o2/o2/python/origen_metal/${{ env.om_ver_file }}
+          name: om_wheels
+          path: python/origen_metal/dist/*
 
-      - name: Build Origen Python Package
-        working-directory: python/origen
-        run: poetry build --format wheel
+  # SMcG - Couldn't get this to work with the manylinux2014_x86_64 container, I think the approach of running everything
+  # inside the manylinux container is wrong since many current Github action packages will not run in it.
+  # I've downgraded what I can and it gets far enough to build the wheels, but the actions/upload-artifact step needs v1
+  # to run in the container but this doesn't support the current Github actions workspace path
+  # 
+  # I've switched the OM build to use the Maturin action instead and I would recommend that the Origen job does similar
+  # in the future, it should be possible to include extra files like the origen binary in the wheel with Maturin.
 
-      - name: Display Origen Dist Directory
-        working-directory: python/origen
-        run: ls dist
+  #build_manylinux:
+  #  strategy:
+  #    fail-fast: false
+  #    matrix:
+  #      python-version: ${{ fromJSON(vars.PYTHON_VERSIONS_FOR_RELEASE) }}
+  #  needs: [precheck]
+  #  runs-on: ubuntu-latest
+  #  container:
+  #    image: quay.io/pypa/manylinux2014_x86_64
+  #    options: --user root
+  #  steps:
+  #    - name: Show Env
+  #      run: |
+  #        pwd
+  #        echo "ROOT_DIR=$PWD" >> $GITHUB_ENV
+  #        env
+  #        echo "HOME=/root" >> $GITHUB_ENV
 
-      - name: Repair Origen Wheel
-        working-directory: python/origen
-        run: |
-          auditwheel show dist/*
-          auditwheel repair dist/*
+  #    - uses: actions/checkout@v1
 
-      - name: Display Origen Wheelhouse Directory
-        working-directory: python/origen
-        run: ls wheelhouse
+  #    - name: Install Rust
+  #      run: |
+  #        curl https://sh.rustup.rs -sSf | sh -s -- -y
+  #        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: Upload Origen Python Package Artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: origen_wheels
-          path: /__w/o2/o2/python/origen/wheelhouse/*
+  #    - name: Set Rust Version
+  #      run: |
+  #        rustup install ${{ fromJSON(vars.RUST_VERSION) }}
+  #        rustup default ${{ fromJSON(vars.RUST_VERSION) }}
 
-      - name: Get Origen Python Package Version
-        working-directory: python/origen
-        run: poetry version -s > ${{ env.origen_ver_file }}
-  
-      - name: Upload Origen Python Package Version
-        uses: /__w/o2/o2/actions/upload-artifact@v1
-        with:
-          name: ${{ env.origen_ver_file }}
-          path: python/origen/${{ env.origen_ver_file }}
+  #    - name: Check Rust Version
+  #      run: |
+  #        rustc --version
+  #        cargo --version
 
-      - name: Upload CLI as a standalone entity
-        uses: actions/upload-artifact@v1
-        with:
-          name: cli
-          path: /__w/o2/o2/python\origen\origen\__bin__\bin\origen
+  #    - name: Install Newer OpenSSL
+  #      run: |
+  #        curl -O -L https://www.openssl.org/source/openssl-1.1.1w.tar.gz
+  #        ls -al openssl-1.1.1w.tar.gz
+  #        tar zxf openssl-1.1.1w.tar.gz
+  #        cd openssl-1.1.1w
+  #        ./config
+  #        make
+  #        make install
+
+  #    - name: Save Minor Python Version
+  #      run: |
+  #        IFS='.' read -r -a SPLIT_VER <<< ${{ matrix.python-version }}
+  #        M_VER=${SPLIT_VER[0]}.${SPLIT_VER[1]}
+  #        echo $M_VER
+  #        echo "PY_M_VER=$M_VER" >> $GITHUB_ENV
+
+  #    - name: Install libffi for Python 3.12+
+  #      if: ${{ fromJSON(env.PY_M_VER) >= 3.12 }}
+  #      run: |
+  #        yum install libffi-devel -y
+  #        ldconfig
+
+  #    - name: Install Python
+  #      run: |
+  #        ls $ROOT_DIR/openssl-1.1.1w
+  #        curl -O https://www.python.org/ftp/python/${{ matrix.python-version }}/Python-${{ matrix.python-version }}.tgz
+  #        tar zxf Python-${{ matrix.python-version }}.tgz
+  #        cd Python-${{ matrix.python-version }}
+  #        ./configure --with-openssl=$ROOT_DIR/openssl-1.1.1w --prefix=/root/python --enable-optimizations --enable-shared
+  #        make altinstall
+
+  #    - name: Copy Python Shared Library (Python 3.7)
+  #      if: ${{ matrix.python-version == '3.7.17' }}
+  #      run: |
+  #        echo $PY_M_VER
+  #        cd Python-${{ matrix.python-version }}
+  #        ls
+  #        cp libpython$PY_M_VER\m.so.1.0 /usr/local/lib64/
+  #    - name: Copy Python Shared Library (Python 3.8+ Versions)
+  #      if: ${{ matrix.python-version != '3.7.17' }}
+  #      run: |
+  #        echo $PY_M_VER
+  #        cd Python-${{ matrix.python-version }}
+  #        ls
+  #        cp libpython$PY_M_VER.so.1.0 /usr/local/lib64/
+  #
+  #    # - name: Update LD_LIBRARY_PATH
+  #    #   run: |
+  #    #     echo $LD_LIBRARY_PATH
+  #    #     echo "LD_LIBRARY_PATH=/Python-${{ matrix.python-version }}:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+  #    - name: Check LD_LIBRARY_PATH
+  #      run: |
+  #        echo $LD_LIBRARY_PATH
+
+  #    - name: Alias Python and Pip binaries
+  #      run: |
+  #        echo $PY_M_VER
+  #        ls /root/python/bin
+  #        ln -s /root/python/bin/python$PY_M_VER /root/python/bin/python
+  #        ln -s /root/python/bin/pip$PY_M_VER /root/python/bin/pip
+  #        ls /root/python/bin
+
+  #    - name: Update $PATH
+  #      run: |
+  #        echo /root/python/bin >> $GITHUB_PATH
+
+  #    # # TODO: For now use pre-installed python version.
+  #    # # In future, will probably want to download latest version
+  #    # - name: Set Python Version (3.7 Path)
+  #    #   if: ${{ matrix.python-version == 3.7 }}
+  #    #   run: |
+  #    #     PYVER=$(echo ${{ matrix.python-version }} | sed -e "s/\.//g")
+  #    #     echo $PYVER
+  #    #     PATH_TO_PY=/opt/python/cp$PYVER-cp$PYVER\m/bin
+  #    #     echo $PATH_TO_PY
+  #    #     echo "$PATH_TO_PY" >> $GITHUB_PATH
+  #    # - name: Set Python Version
+  #    #   if: ${{ matrix.python-version != 3.7 }}
+  #    #   run: |
+  #    #     PYVER=$(echo ${{ matrix.python-version }} | sed -e "s/\.//g")
+  #    #     echo $PYVER
+  #    #     PATH_TO_PY=/opt/python/cp$PYVER-cp$PYVER/bin
+  #    #     echo $PATH_TO_PY
+  #    #     echo "$PATH_TO_PY" >> $GITHUB_PATH
+
+  #    - name: Display Python Version
+  #      run: |
+  #        which python
+  #        which pip
+  #        python --version
+  #        pip --version
+
+  #    - name: Install Poetry
+  #      run: |
+  #        pip install poetry==1.3.2
+  #        poetry --version
+
+  #    - name: Install Auditwheel
+  #      run: |
+  #        pip install setuptools
+  #        pip install auditwheel
+  #        auditwheel --version
+
+  #    - name: Install Perl dep for ssl build
+  #      run: |
+  #        yum install perl-IPC-Cmd -y
+
+  #    - name: Build Origen Metal Python Package
+  #      working-directory: python/origen_metal
+  #      run: poetry build --format wheel
+
+  #    - name: Display OM Dist Directory
+  #      working-directory: python/origen_metal
+  #      run: ls dist
+
+  #    - name: Repair OM Wheel
+  #      working-directory: python/origen_metal
+  #      run: |
+  #        auditwheel show dist/*
+  #        auditwheel repair dist/*
+
+  #    - name: Display OM Wheelhouse Directory
+  #      working-directory: python/origen_metal
+  #      run: ls wheelhouse
+
+  #    - name: Upload Origen Metal Python Package Artifact
+  #      uses: actions/upload-artifact@v1
+  #      with:
+  #        name: om_wheels
+  #        path: python/origen_metal/wheelhouse/*
+
+  #    - name: Get OM Python Package Version
+  #      working-directory: python/origen_metal
+  #      run: poetry version -s > ${{ env.om_ver_file }}
+
+  #    - name: Upload OM Python Package Version
+  #      uses: actions/upload-artifact@v1
+  #      with:
+  #        name: ${{ env.om_ver_file }}
+  #        path: python/origen_metal/${{ env.om_ver_file }}
+
+  #    - name: Build Origen Python Package
+  #      working-directory: python/origen
+  #      run: poetry build --format wheel
+
+  #    - name: Display Origen Dist Directory
+  #      working-directory: python/origen
+  #      run: ls dist
+
+  #    - name: Repair Origen Wheel
+  #      working-directory: python/origen
+  #      run: |
+  #        auditwheel show dist/*
+  #        auditwheel repair dist/*
+
+  #    - name: Display Origen Wheelhouse Directory
+  #      working-directory: python/origen
+  #      run: ls wheelhouse
+
+  #    - name: Upload Origen Python Package Artifact
+  #      uses: actions/upload-artifact@v1
+  #      with:
+  #        name: origen_wheels
+  #        path: python/origen/wheelhouse/*
+
+  #    - name: Get Origen Python Package Version
+  #      working-directory: python/origen
+  #      run: poetry version -s > ${{ env.origen_ver_file }}
+  #
+  #    - name: Upload Origen Python Package Version
+  #      uses: actions/upload-artifact@v1
+  #      with:
+  #        name: ${{ env.origen_ver_file }}
+  #        path: python/origen/${{ env.origen_ver_file }}
+
+  #    - name: Upload CLI as a standalone entity
+  #      uses: actions/upload-artifact@v1
+  #      with:
+  #        name: cli
+  #        path: python\origen\origen\__bin__\bin\origen
 
   build_windows:
     strategy:
@@ -444,7 +488,7 @@ jobs:
       #   # ...
 
   show_wheels:
-    needs: [build_manylinux, build_windows]
+    needs: [build_om_linux, build_windows]
     runs-on: ubuntu-latest
     steps:
       - name: Retrieve OM Wheels
@@ -472,7 +516,7 @@ jobs:
           path: python\origen\origen\__bin__\bin\origen.exe
 
   publish_to_pypi_test:
-    needs: [build_manylinux, build_windows]
+    needs: [build_om_linux, build_windows]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_pypi_test == 'true' }}
     steps:
@@ -515,7 +559,7 @@ jobs:
           verbose: true
 
   publish_to_pypi:
-    needs: [build_manylinux, build_windows]
+    needs: [build_om_linux, build_windows]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_pypi == 'true' }}
     steps:
@@ -556,7 +600,7 @@ jobs:
           verbose: true
 
   publish_github_release:
-    needs: [build_manylinux, build_windows]
+    needs: [build_om_linux, build_windows]
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.publish_github_release == 'true' }}
     steps:
@@ -640,7 +684,7 @@ jobs:
             commit: ${{ github.sha }}
             tag: ${{ env.tag }}
   cleanup:
-    needs: [precheck, build_manylinux, build_windows, publish_to_pypi_test, publish_to_pypi, publish_github_release, show_wheels]
+    needs: [precheck, build_om_linux, build_windows, publish_to_pypi_test, publish_to_pypi, publish_github_release, show_wheels]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
