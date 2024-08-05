@@ -115,7 +115,7 @@ jobs:
         working-directory: python/origen_metal
         run: poetry version -s > ${{ env.om_ver_file }}
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: om_wheels
           path: python/origen_metal/dist/*
