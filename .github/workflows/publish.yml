@@ -96,7 +96,7 @@ jobs:
         working-directory: python/origen_metal
         run: |
           echo "[build-system]" >> pyproject.toml
-          echo "requires = [\"maturin\>=1.0,<2.0"]" >> pyproject.toml
+          echo "requires = [\"maturin\>=1.0,<2.0\"]" >> pyproject.toml
           echo "build-backend = \"maturin\"" >> pyproject.toml
       - name: Build wheels
         uses: PyO3/maturin-action@v1
