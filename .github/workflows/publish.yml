@@ -245,7 +245,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: om_wheels
-          path: python/origen_metal/wheelhouse/*
+          path: /__w/o2/o2/python/origen_metal/wheelhouse/*
 
       - name: Get OM Python Package Version
         working-directory: python/origen_metal
@@ -255,7 +255,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: ${{ env.om_ver_file }}
-          path: python/origen_metal/${{ env.om_ver_file }}
+          path: /__w/o2/o2/python/origen_metal/${{ env.om_ver_file }}
 
       - name: Build Origen Python Package
         working-directory: python/origen
@@ -279,14 +279,14 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: origen_wheels
-          path: python/origen/wheelhouse/*
+          path: /__w/o2/o2/python/origen/wheelhouse/*
 
       - name: Get Origen Python Package Version
         working-directory: python/origen
         run: poetry version -s > ${{ env.origen_ver_file }}
   
       - name: Upload Origen Python Package Version
-        uses: actions/upload-artifact@v1
+        uses: /__w/o2/o2/actions/upload-artifact@v1
         with:
           name: ${{ env.origen_ver_file }}
           path: python/origen/${{ env.origen_ver_file }}
@@ -295,7 +295,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: cli
-          path: python\origen\origen\__bin__\bin\origen
+          path: /__w/o2/o2/python\origen\origen\__bin__\bin\origen
 
   build_windows:
     strategy:
