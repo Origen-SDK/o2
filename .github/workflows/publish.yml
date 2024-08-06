@@ -504,20 +504,20 @@ jobs:
       - name: List OM Wheels
         run: ls -al ./om_wheels
 
-      - name: Retrieve Origen Wheels
-        uses: actions/download-artifact@v3
-        with:
-          name: origen_wheels
-          path: origen_wheels
+      #- name: Retrieve Origen Wheels
+      #  uses: actions/download-artifact@v3
+      #  with:
+      #    name: origen_wheels
+      #    path: origen_wheels
 
-      - name: List Origen Wheels
-        run: ls -al ./origen_wheels
+      #- name: List Origen Wheels
+      #  run: ls -al ./origen_wheels
 
-      - name: Upload CLI as a standalone entity
-        uses: actions/upload-artifact@v3
-        with:
-          name: cli
-          path: python\origen\origen\__bin__\bin\origen.exe
+      #- name: Upload CLI as a standalone entity
+      #  uses: actions/upload-artifact@v3
+      #  with:
+      #    name: cli
+      #    path: python\origen\origen\__bin__\bin\origen.exe
 
   publish_to_pypi_test:
     needs: [build_om_linux] #, build_windows]
@@ -585,23 +585,23 @@ jobs:
           verify-metadata: false
           verbose: true
 
-      - name: Retrieve Wheels
-        uses: actions/download-artifact@v3
-        with:
-          name: origen_wheels
-          path: origen_wheels
+      #- name: Retrieve Wheels
+      #  uses: actions/download-artifact@v3
+      #  with:
+      #    name: origen_wheels
+      #    path: origen_wheels
 
-      - name: List Origen Wheels
-        run: ls -al ./origen_wheels
+      #- name: List Origen Wheels
+      #  run: ls -al ./origen_wheels
 
-      - name: Push To PyPi Server
-        if: ${{ github.event.inputs.origen_python_package == 'true' }}
-        uses: pypa/gh-action-pypi-publish@v1.9.0
-        with:
-          packages-dir: origen_wheels
-          password: ${{ secrets.PYPI_ORIGEN_API_TOKEN }}
-          verify-metadata: false
-          verbose: true
+      #- name: Push To PyPi Server
+      #  if: ${{ github.event.inputs.origen_python_package == 'true' }}
+      #  uses: pypa/gh-action-pypi-publish@v1.9.0
+      #  with:
+      #    packages-dir: origen_wheels
+      #    password: ${{ secrets.PYPI_ORIGEN_API_TOKEN }}
+      #    verify-metadata: false
+      #    verbose: true
 
   publish_github_release:
     needs: [build_om_linux] #, build_windows]
