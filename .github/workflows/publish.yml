@@ -579,7 +579,7 @@ jobs:
 
       - name: Push To PyPi Server
         if: ${{ github.event.inputs.origen_metal_python_package == 'true' }}
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@v1.9.0
         with:
           packages-dir: om_wheels
           password: ${{ secrets.PYPI_OM_API_TOKEN }}
@@ -597,7 +597,7 @@ jobs:
 
       - name: Push To PyPi Server
         if: ${{ github.event.inputs.origen_python_package == 'true' }}
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@v1.9.0
         with:
           packages-dir: origen_wheels
           password: ${{ secrets.PYPI_ORIGEN_API_TOKEN }}
