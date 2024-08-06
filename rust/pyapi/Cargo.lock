@@ -2579,7 +2579,7 @@ dependencies = [
 
 [[package]]
 name = "origen-metal"
-version = "0.4.0"
+version = "0.4.1-dev3"
 dependencies = [
  "built",
  "curl-sys",
@@ -3080,6 +3080,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "076c73d0bc438f7a4ef6fdd0c3bb4732149136abd952b110ac93e4edb13a6ba5"
 dependencies = [
  "once_cell",
+ "python3-dll-a",
  "target-lexicon",
 ]
 
@@ -3114,6 +3115,15 @@ dependencies = [
  "proc-macro2 1.0.85",
  "quote 1.0.36",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "python3-dll-a"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd0b78171a90d808b319acfad166c4790d9e9759bbc14ac8273fe133673dd41b"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

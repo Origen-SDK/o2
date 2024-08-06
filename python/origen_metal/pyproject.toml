@@ -1,15 +1,11 @@
 [tool.poetry]
 name = "origen_metal"
-version = "0.4.1-dev2"
+version = "0.4.1-dev3"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"
 readme = "README.md"
 authors = ["Origen-SDK"]
-#include = [
-#    "origen_metal/_origen_metal.pyd", # Windows
-#    "origen_metal/_origen_metal.so", # Linux
-#]
 
 [tool.poetry.dependencies]
 python = ">=3.7.0,<3.13"
@@ -32,9 +28,13 @@ markers = [
     "ldap: marks tests requiring/using the external ldap",
 ]
 
-[tool.poetry.build]
-script = "poetry_build.py"
-generate-setup-file = false
+# SMcG - Commented out, breaks regression (setting up test/python_app env)
+#[tool.poetry.build]
+#script = "poetry_build.py"
+#generate-setup-file = false
+
+[tool.maturin]
+module-name = "origen_metal._origen_metal"
 
 # This needs to be present to build for Linux, but does not work
 # for the current Windows build flow
