@@ -813,9 +813,15 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 ids.push(ast.push_and_open(node!(STIL::TimeUnit)));
                 pairs.push(pair.into_inner());
             }
-            Rule::vector => {
+            Rule::vector | Rule::vector_with_comment => {
                 ids.push(ast.push_and_open(node!(STIL::Vector)));
                 pairs.push(pair.into_inner());
+            }
+            Rule::vector_comment => {
+                let cmt = pair.as_str().to_string();
+                let cmt = cmt.trim();
+                let cmt = cmt.replace("\n", "");
+                ast.push(node!(STIL::Comment, cmt))
             }
             Rule::cyclized_data => {
                 ids.push(ast.push_and_open(node!(STIL::CyclizedData)));
