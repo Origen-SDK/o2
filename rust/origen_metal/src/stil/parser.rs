@@ -977,6 +977,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
 mod tests {
     use super::super::from_file;
     use super::*;
+    use std::fs;
     use std::path::Path;
 
     fn read(example: &str) -> String {
