@@ -4,8 +4,10 @@ use crate::ast::AST;
 use crate::{Error, Result};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
-use std::fs;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::Path;
+use flate2::read::GzDecoder;
 
 #[derive(Parser)]
 #[grammar = "stil/stil.pest"]
@@ -13,8 +15,24 @@ pub struct STILParser;
 
 pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
     if path.exists() {
+        let gzip = match path.extension() {
+            Some(ext) => ext == "gz",
+            None => false,
+        };
+
+        let mut reader: Box<dyn Read> = if gzip {
+            let f = File::open(path)?;
+            Box::new(GzDecoder::new(BufReader::new(f)))
+        } else {
+            let f = File::open(path)?;
+            Box::new(BufReader::new(f))
+        };
+
+        let mut contents = String::new();
+        reader.read_to_string(&mut contents)?;
+
         match parse_str(
-            &fs::read_to_string(path)?,
+            &contents,
             Some(&path.display().to_string()),
         ) {
             Ok(n) => Ok(n),
