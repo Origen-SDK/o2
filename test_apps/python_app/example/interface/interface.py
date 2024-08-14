@@ -83,6 +83,7 @@ class Interface(BaseInterface):
                         number += i
                     tm = v93k.new_test_method("functional_test",
                                               library="ac_tml",
+                                              allow_missing=True,
                                               **kwargs)
                     ts = v93k.new_test_suite(name, **kwargs)
                     ts.test_method = tm
@@ -226,6 +227,7 @@ class Interface(BaseInterface):
         with tester().eq("v93k") as v93k:
             tm = v93k.new_test_method("general_pmu",
                                       library="dc_tml",
+                                      allow_missing=True,
                                       **options)
             ts = v93k.new_test_suite(name, **options)
             ts.test_method = tm

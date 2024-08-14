@@ -1,8 +1,11 @@
-use std::path::PathBuf;
 use std::fmt::Display;
+use std::path::PathBuf;
 
-pub fn resolve_relative_paths_to_strings<D: Display>(paths: &Vec<D>, relative_to: &PathBuf) -> Vec<String> {
-    let mut retn: Vec<String> = vec!();
+pub fn resolve_relative_paths_to_strings<D: Display>(
+    paths: &Vec<D>,
+    relative_to: &PathBuf,
+) -> Vec<String> {
+    let mut retn: Vec<String> = vec![];
     for p in paths.iter() {
         retn.push(to_abs_path(p, relative_to).display().to_string());
     }

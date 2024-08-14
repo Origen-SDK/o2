@@ -40,6 +40,7 @@ use pyo3::prelude::*;
 
 pub trait DictLikeAPI {
     fn model_id(&self) -> usize;
+    #[allow(dead_code)]
     fn lookup_key(&self) -> &str;
     fn lookup_table(
         &self,

@@ -78,7 +78,7 @@ impl PyTester {
     #[getter]
     fn ast(&self) -> PyResult<()> {
         if Operation::GenerateFlow == STATUS.operation() {
-            println!("{}", origen::FLOW.to_string());
+            println!("{}", origen_metal::FLOW.to_string());
         } else {
             println!("{}", origen::TEST.to_string());
         }
@@ -89,7 +89,7 @@ impl PyTester {
     fn ast_to_file(&self, file: &str) -> PyResult<()> {
         let contents = {
             if Operation::GenerateFlow == STATUS.operation() {
-                origen::FLOW.to_string()
+                origen_metal::FLOW.to_string()
             } else {
                 origen::TEST.to_string()
             }

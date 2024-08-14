@@ -1,12 +1,14 @@
-use lettre;
-use crate::{Outcome, TypedValueMap, Result, require_current_user_email, with_user_motive_or_default, with_user_or_current};
 use crate::framework::users::User;
+use crate::{
+    require_current_user_email, with_user_motive_or_default, with_user_or_current, Outcome, Result,
+    TypedValueMap,
+};
+use lettre;
 use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
 use lettre::transport::smtp::SmtpTransport;
 use lettre::Message;
 use lettre::Transport;
-use std::fmt::Display;
 
 pub const PASSWORD_MOTIVE: &str = "mailer";
 
@@ -19,7 +21,7 @@ pub struct MailerTOMLConfig {
     pub user: Option<String>,
     pub timeout: Option<u64>,
 
-    pub class: Option<String>
+    pub class: Option<String>,
 }
 
 impl std::convert::From<MailerTOMLConfig> for config::ValueKind {
@@ -82,7 +84,14 @@ pub struct Mailer {
 }
 
 impl Mailer {
-    pub fn new(server: String, port: Option<u16>, domain: Option<String>, auth_method: Option<&str>, timeout: Option<u64>, user: Option<String>) -> Result<Self> {
+    pub fn new(
+        server: String,
+        port: Option<u16>,
+        domain: Option<String>,
+        auth_method: Option<&str>,
+        timeout: Option<u64>,
+        user: Option<String>,
+    ) -> Result<Self> {
         Ok(Self {
             server: server,
             port: port,
@@ -95,7 +104,7 @@ impl Mailer {
                 }
             },
             timeout_seconds: timeout.unwrap_or(*DEFAULT_TIMEOUT),
-            user: user
+            user: user,
         })
     }
 
@@ -110,32 +119,23 @@ impl Mailer {
         Ok(retn)
     }
 
-
-
     pub fn with_user<T, F>(&self, apply_motive: bool, func: F) -> Result<T>
     where
         F: Fn(&User) -> Result<T>,
     {
         if apply_motive {
-            with_user_motive_or_default(self.user.as_ref(), PASSWORD_MOTIVE, |u| {
-                func(u)
-            })
+            with_user_motive_or_default(self.user.as_ref(), PASSWORD_MOTIVE, |u| func(u))
         } else {
-            with_user_or_current(self.user.as_ref(), |u| {
-                func(u)
-            })
+            with_user_or_current(self.user.as_ref(), |u| func(u))
         }
     }
-
 
     pub fn user(&self) -> Result<Option<&String>> {
         Ok(self.user.as_ref())
     }
 
     pub fn username(&self) -> Result<String> {
-        self.with_user(true, |u| {
-            u.username()
-        })
+        self.with_user(true, |u| u.username())
     }
 
     pub fn password(&self) -> Result<String> {
@@ -145,9 +145,7 @@ impl Mailer {
     }
 
     pub fn sender(&self) -> Result<String> {
-        self.with_user(true, |u| {
-            u.require_email()
-        })
+        self.with_user(true, |u| u.require_email())
     }
 
     pub fn dataset(&self) -> Result<Option<String>> {

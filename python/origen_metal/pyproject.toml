@@ -1,26 +1,40 @@
 [tool.poetry]
 name = "origen_metal"
-version = "0.4.1.dev1"
+#*****************************************************
+# Also update the version in  the [project] section below!!!!!
+#*****************************************************
+version = "0.4.1-dev4"
 description = "Bare metal APIs for the Origen SDK"
 homepage = "https://origen-sdk.org/o2"
 license = "MIT"
 readme = "README.md"
 authors = ["Origen-SDK"]
-include = [
-    "origen_metal/_origen_metal.pyd", # Windows
-    "origen_metal/_origen_metal.so", # Linux
-]
 
 [tool.poetry.dependencies]
 python = ">=3.7.0,<3.13"
+#*****************************************************
+# Any changes here must be mirrored in the [project] section below!!!!!
+#*****************************************************
 pyreadline3 = { version="^3.3", platform="win32" }
 termcolor = ">= 1.1.0"
 colorama = ">= 0.4.4" # Note: colorama is usually installed on the system already, but it isn't actually required (e.g. WSL won't have this by default)
 importlib-metadata = ">= 6.7.0" # For use with Python pre-3.8
 
+[project]
+name = "origen-metal"
+version = "0.4.1-dev4"
+requires-python = ">=3.7.0,<3.13"
+dependencies = [
+    "colorama (>=0.4.4)",
+    "importlib-metadata (>=6.7.0)",
+    "pyreadline3 (>=3.3,<4.0) ; sys_platform == 'win32'",
+    "termcolor (>=1.1.0)"
+]
+
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
 pdoc = "^7"
+maturin = "1.7.0"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers"
@@ -31,10 +45,17 @@ markers = [
     "ldap: marks tests requiring/using the external ldap",
 ]
 
-[tool.poetry.build]
-script = "poetry_build.py"
-generate-setup-file = false
+# SMcG - Commented out, breaks regression (setting up test/python_app env)
+#[tool.poetry.build]
+#script = "poetry_build.py"
+#generate-setup-file = false
 
-# [build-system]
-# requires = ["setuptools", "poetry-core>=1.0.0"]
-# build-backend = "poetry.core.masonry.api"
+[tool.maturin]
+module-name = "origen_metal._origen_metal"
+
+# This needs to be present to build for Linux, but does not work
+# for the current Windows build flow
+# This is currently added back in by the Linux Github actions job
+#[build-system]
+#requires = ["maturin>=1.0,<2.0"]
+#build-backend = "maturin"

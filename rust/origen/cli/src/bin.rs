@@ -437,6 +437,7 @@ fn main() -> Result<()> {
         commands::env::add_helps(&mut helps);
         commands::generate::add_helps(&mut helps);
         commands::target::add_helps(&mut helps);
+        commands::save_ref::add_helps(&mut helps);
     } else {
         commands::new::add_helps(&mut helps);
     }
@@ -474,6 +475,7 @@ fn main() -> Result<()> {
         app = commands::app::add_commands(app, &helps, app_cmds.as_ref().unwrap(), &extensions)?;
         app = commands::env::add_commands(app, &helps, &extensions)?;
         app = commands::generate::add_commands(app, &helps, &extensions)?;
+        app = commands::save_ref::add_commands(app, &helps, &extensions)?;
 
 //         /************************************************************************************/
 //         let new_help = "Generate a new block, flow, pattern, etc. for your application";
@@ -764,40 +766,6 @@ fn main() -> Result<()> {
 //                         .help("The name of the mode to be set as the default mode")
 //                         .action(SetArg)
 //                         .value_name("MODE"),
-//                 ),
-//         );
-
-//         /************************************************************************************/
-//         let save_ref_help = "Save a reference version of the given file, this will be automatically checked for differences the next time it is generated";
-//         origen_commands.push(CommandHelp {
-//             name: "save_ref".to_string(),
-//             help: save_ref_help.to_string(),
-//             shortcut: None,
-//         });
-//         app = app.subcommand(
-//             Command::new("save_ref")
-//                 .about(save_ref_help)
-//                 .arg(
-//                     Arg::new("files")
-//                         .help("The name of the file(s) to be saved")
-//                         .action(SetArg)
-//                         .value_name("FILES")
-//                         .multiple(true)
-//                         .required_unless_one(&["new", "changed"]),
-//                 )
-//                 .arg(
-//                     Arg::new("new")
-//                         .long("new")
-//                         .required(false)
-//                         .action(SetArgTrue)
-//                         .help("Update all NEW file references from the last generate run"),
-//                 )
-//                 .arg(
-//                     Arg::new("changed")
-//                         .long("changed")
-//                         .required(false)
-//                         .action(SetArgTrue)
-//                         .help("Update all CHANGED file references from the last generate run"),
 //                 ),
 //         );
     } else {
@@ -1181,10 +1149,10 @@ fn main() -> Result<()> {
         //     let matches = matches.subcommand_matches("mode").unwrap();
         //     commands::mode::run(matches.get_one::<&str>("mode").map(|s| *s));
         // }
-        // Some("save_ref") => {
-        //     let matches = matches.subcommand_matches("save_ref").unwrap();
-        //     commands::save_ref::run(matches);
-        // }
+        Some(commands::save_ref::BASE_CMD) => {
+            let matches = matches.subcommand_matches(commands::save_ref::BASE_CMD).unwrap();
+            commands::save_ref::run(matches)?;
+        }
         Some(commands::plugin::BASE_CMD) => run_cmd_match_case!(plugin),
         Some(commands::plugins::BASE_CMD) => commands::plugins::run(matches.subcommand_matches(commands::plugins::BASE_CMD).unwrap(), plugins.as_ref())?,
         Some(invalid_cmd) => {

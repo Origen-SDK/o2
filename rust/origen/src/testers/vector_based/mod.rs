@@ -4,7 +4,6 @@ pub mod pattern_renderer;
 use crate::core::model::pins::pin::Resolver;
 use crate::core::tester::{TesterAPI, TesterID};
 use crate::generator::PAT;
-use crate::prog_gen::Model;
 use crate::{Overlay, Result};
 use origen_metal::ast::{Node, Return};
 use origen_metal::utils::differ::{ASCIIDiffer, Differ};
@@ -64,11 +63,6 @@ pub trait VectorBased:
             "End Overlay: {}",
             label.as_ref().unwrap_or(&"".to_string())
         )))
-    }
-
-    fn render_program(&mut self) -> crate::Result<(Vec<PathBuf>, Model)> {
-        log_debug!("Tester '{}' does not implement render_program", &self.id());
-        Ok((vec![], Model::new(self.id())))
     }
 }
 

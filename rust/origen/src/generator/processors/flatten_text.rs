@@ -165,7 +165,7 @@ impl Processor<PAT> for FlattenText {
         }
     }
 
-    fn on_end_of_block(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
+    fn on_processed_node(&mut self, node: &Node<PAT>) -> origen_metal::Result<Return<PAT>> {
         match node.attrs {
             PAT::TextLine => {
                 let n = self.current_line_to_text();
@@ -178,10 +178,73 @@ impl Processor<PAT> for FlattenText {
                 if lvl.is_some() && lvl.unwrap() == 0 {
                     Ok(Return::Inline(vec![self.section_boundary()]))
                 } else {
-                    Ok(Return::None)
+                    Ok(Return::Unmodified)
                 }
             }
-            _ => Ok(Return::None),
+            _ => Ok(Return::Unmodified) 
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::generator::nodes::PAT;
+
+    #[test]
+    fn it_works() {
+        let mut header = node!(PAT::PatternHeader);
+        header.add_child(node!(PAT::TextBoundaryLine));
+        let mut section = node!(PAT::TextSection, Some("Generated".to_string()), None);
+        let mut text_lines = vec![];
+        let mut text_line = node!(PAT::TextLine);
+        text_line.add_child(node!(PAT::Text, "By: user".to_string()));
+        text_lines.push(text_line);
+        let mut text_line = node!(PAT::TextLine);
+        text_line.add_child(node!(PAT::Text, "Command: origen generate pattern".to_string()));
+        text_lines.push(text_line);
+        section.add_children(text_lines);
+        header.add_child(section);
+        header.add_child(node!(PAT::TextBoundaryLine));
+        let mut section = node!(PAT::TextSection, Some("Workspace".to_string()), None);
+        let mut sub_section = node!(PAT::TextSection, Some("Environment".to_string()), None);
+        let mut text_lines = vec![];
+        let mut text_line = node!(PAT::TextLine);
+        text_line.add_child(node!(PAT::Text, "Mode: development".to_string()));
+        text_lines.push(text_line);
+        sub_section.add_children(text_lines);
+        section.add_child(sub_section);
+        let mut sub_section = node!(PAT::TextSection, Some("Origen Core".to_string()), None);
+        let mut text_lines = vec![];
+        let mut text_line = node!(PAT::TextLine);
+        text_line.add_child(node!(PAT::Text, "Version: 2.something".to_string()));
+        text_lines.push(text_line);
+        let mut text_line = node!(PAT::TextLine);
+        text_line.add_child(node!(PAT::Text, "Executable Path: /path/to/python/python.exe".to_string()));
+        text_lines.push(text_line);
+        sub_section.add_children(text_lines);
+        section.add_child(sub_section);
+        header.add_child(section);
+        header.add_child(node!(PAT::TextBoundaryLine));
+ 
+        let header_flat = FlattenText::run(&header).expect("Text flattened");
+
+        let mut expect = node!(PAT::PatternHeader);
+        expect.add_children(vec![
+            node!(PAT::Text, "******************************************************************************************".to_string()),
+            node!(PAT::Text, "Generated".to_string()),
+            node!(PAT::Text, "  By: user".to_string()),
+            node!(PAT::Text, "  Command: origen generate pattern".to_string()),
+            node!(PAT::Text, "******************************************************************************************".to_string()),
+            node!(PAT::Text, "Workspace".to_string()),
+            node!(PAT::Text, "  Environment".to_string()),
+            node!(PAT::Text, "    Mode: development".to_string()),
+            node!(PAT::Text, "  Origen Core".to_string()),
+            node!(PAT::Text, "    Version: 2.something".to_string()),
+            node!(PAT::Text, "    Executable Path: /path/to/python/python.exe".to_string()),
+            node!(PAT::Text, "******************************************************************************************".to_string()),
+        ]);
+
+        assert_eq!(header_flat, expect);
     }
 }

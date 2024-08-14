@@ -10,13 +10,13 @@ use std::collections::HashMap;
 use origen_metal::indexmap::IndexMap;
 
 pub use extensions::{Extensions, ExtensionTOML, Extension};
-pub use plugins::{Plugins, Plugin};
+pub use plugins::Plugins;
 pub use aux_cmds::AuxCmds;
 pub use app_cmds::AppCmds;
 pub use helps::{CmdHelps, CmdHelp, CmdSrc};
-use std::{env};
+use std::env;
 
-use clap::{App};
+use clap::App;
 use clap::Command as ClapCommand;
 use clap::Arg as ClapArg;
 use origen::{Result, in_app_invocation};

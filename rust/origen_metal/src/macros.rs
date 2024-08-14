@@ -65,7 +65,7 @@ macro_rules! bail {
 #[macro_export]
 macro_rules! trace {
     ( $e:expr , $n:expr ) => {{
-        $e.or_else(|e| return crate::trace_error($n, e))?
+        $e.or_else(|e| return crate::prog_gen::trace_error($n, e))?
     }};
 }
 

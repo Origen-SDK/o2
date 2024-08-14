@@ -1,6 +1,8 @@
 use super::data::{Data, DatasetConfig};
 use super::password_cache_options::PasswordCacheOptions;
 use crate::_utility::{unsorted_dedup, validate_input_list};
+use crate::frontend::FeatureReturn;
+use crate::log_error;
 use crate::prelude::session_store::*;
 use crate::utils::file::FilePermissions;
 use crate::{Outcome, OutcomeState, Result};
@@ -8,8 +10,6 @@ use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use crate::{log_error};
-use crate::frontend::FeatureReturn;
 use std::env;
 
 pub const DEFAULT_DATASET_KEY: &str = "__origen__default__";
@@ -120,11 +120,11 @@ where
         if let Some(d) = u.motive_for(motive.as_ref()) {
             ds = d.to_string()
         } else {
-            return func(u)
+            return func(u);
         }
     }
 
-    with_user_hierarchy(user, &vec!(ds), func)
+    with_user_hierarchy(user, &vec![ds], func)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -226,13 +226,24 @@ impl PopulateUserReturn {
 
     pub fn log(&self, uid: &str) -> Result<Option<String>> {
         if self.succeeded() {
-            log_info!("Successfully populated datasets {} for user '{}'", self.outcomes.keys().map( |k| k.as_str()).collect::<Vec<&str>>().join(","), uid);
+            log_info!(
+                "Successfully populated datasets {} for user '{}'",
+                self.outcomes
+                    .keys()
+                    .map(|k| k.as_str())
+                    .collect::<Vec<&str>>()
+                    .join(","),
+                uid
+            );
             Ok(None)
         } else {
             let mut retn = format!("Could not fully populate user '{}'.", uid);
             log_error!("Could not fully populate user '{}'", uid);
             if !&self.failed_datasets.is_empty() {
-                retn += &format!(" Failures occurred populating these datasets: {}", &self.failed_datasets.join(","));
+                retn += &format!(
+                    " Failures occurred populating these datasets: {}",
+                    &self.failed_datasets.join(",")
+                );
                 log_error!("");
                 log_error!("Failures occurred populating these datasets:");
                 for (n, outcome) in &self.failed_outcomes() {
@@ -897,13 +908,17 @@ impl User {
                     } else {
                         Ok((true, true, Some(o.to_owned())))
                     }
-                }
+                };
             }
         }
         Ok((true, false, None))
     }
 
-    pub fn validate_password(&self, password: &str, dataset_name: Option<&str>) -> Result<FeatureReturn> {
+    pub fn validate_password(
+        &self,
+        password: &str,
+        dataset_name: Option<&str>,
+    ) -> Result<FeatureReturn> {
         let ds = self.read_data(dataset_name)?;
         self._validate_password(password, &ds)
     }
@@ -912,7 +927,14 @@ impl User {
         let lookup = ds.require_data_source_for("password validation", &self.id)?;
         let f = crate::frontend::require()?;
         f.with_data_store(lookup.0, lookup.1, |dstore| {
-            dstore.validate_password(&ds.username.as_ref().map_or_else(|| self.id.as_str(), |u| &u.as_str()), password, &self.id, &ds.dataset_name)
+            dstore.validate_password(
+                &ds.username
+                    .as_ref()
+                    .map_or_else(|| self.id.as_str(), |u| &u.as_str()),
+                password,
+                &self.id,
+                &ds.dataset_name,
+            )
         })
     }
 
@@ -1243,12 +1265,18 @@ impl User {
 
     pub fn add_roles<S: AsRef<str>>(&self, roles: &Vec<S>) -> Result<Vec<bool>> {
         let mut rls = self.roles_mut()?;
-        Ok(roles.iter().map( |r| rls.insert(r.as_ref().to_string())).collect::<Vec<bool>>())
+        Ok(roles
+            .iter()
+            .map(|r| rls.insert(r.as_ref().to_string()))
+            .collect::<Vec<bool>>())
     }
 
     pub fn remove_roles<S: AsRef<str>>(&self, roles: &Vec<S>) -> Result<Vec<bool>> {
         let mut rls = self.roles_mut()?;
-        Ok(roles.iter().map( |r| rls.remove(r.as_ref())).collect::<Vec<bool>>())
+        Ok(roles
+            .iter()
+            .map(|r| rls.remove(r.as_ref()))
+            .collect::<Vec<bool>>())
     }
 
     pub fn with_session_group<T, F>(&self, mut func: F) -> Result<T>

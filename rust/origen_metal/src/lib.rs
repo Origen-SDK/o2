@@ -18,8 +18,10 @@ extern crate pest_derive;
 pub mod macros;
 #[macro_use]
 pub extern crate cfg_if;
+//#[macro_use]
+//extern crate enum_display_derive;
 #[macro_use]
-extern crate enum_display_derive;
+extern crate strum_macros;
 pub mod _utility;
 
 pub mod prelude;
@@ -30,6 +32,7 @@ pub mod framework;
 pub mod frontend;
 pub mod stil;
 pub mod utils;
+pub mod prog_gen;
 use std::fmt::Display;
 use std::sync::Mutex;
 
@@ -47,12 +50,13 @@ pub use framework::users::users::{
     get_current_user_id, get_initial_user_id, require_current_user_email,
     require_current_user_home_dir, require_current_user_id, set_current_user,
     try_lookup_and_set_current_user, try_lookup_current_user, users, users_mut, with_current_user,
-    with_current_user_session, with_user, with_user_mut, with_users, with_users_mut, with_user_or_current,
+    with_current_user_session, with_user, with_user_mut, with_user_or_current, with_users,
+    with_users_mut,
 };
 // TODO and this?
 pub use framework::users::user::{
     add_dataset_to_user, register_dataset_with_user, with_user_dataset, with_user_dataset_mut,
-    with_user_hierarchy, with_user_motive_or_default
+    with_user_hierarchy, with_user_motive_or_default,
 };
 pub use framework::users::users::unload as unload_users;
 pub use utils::os::on_linux as running_on_linux;
@@ -70,11 +74,15 @@ pub mod built_info {
 }
 
 lazy_static! {
+    pub static ref PROG_GEN_CONFIG: prog_gen::config::Config = prog_gen::config::Config::default();
     pub static ref LOGGER: framework::logger::Logger = framework::logger::Logger::default();
     pub static ref VERSION: &'static str = built_info::PKG_VERSION;
     pub static ref FRONTEND: RwLock<Frontend> = RwLock::new(Frontend::new());
     pub static ref SESSIONS: Mutex<Sessions> = Mutex::new(Sessions::new());
     pub static ref USERS: RwLock<Users> = RwLock::new(Users::default());
+    /// This is analogous to the TEST for test program duration, it provides a similar API for
+    /// pushing nodes to the current flow, FLOW.push(my_node), etc.
+    pub static ref FLOW: prog_gen::FlowManager = prog_gen::FlowManager::new();
 }
 
 pub fn unload() -> Result<()> {
