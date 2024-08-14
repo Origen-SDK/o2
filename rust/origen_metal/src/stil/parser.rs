@@ -1040,7 +1040,17 @@ mod tests {
         let _stil = from_file(Path::new(
             "../../test_apps/python_app/vendor/stil/example6.stil",
         ))
-        .expect("Imported example5");
+        .expect("Imported example6");
+        // Keeping this print for test coverage since this initially caused an un-detected stack overflow
+        println!("{}", _stil);
+    }
+
+    #[test]
+    fn test_example7_gz_to_ast() {
+        let _stil = from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example7.stil.gz",
+        ))
+        .expect("Imported example7");
         // Keeping this print for test coverage since this initially caused an un-detected stack overflow
         println!("{}", _stil);
     }
