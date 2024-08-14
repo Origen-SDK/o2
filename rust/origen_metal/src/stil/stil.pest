@@ -274,10 +274,12 @@ scan_inversion_val = { ("0" | "1") }
 pattern_block = { "Pattern" ~ name ~ "{" ~ (label? ~ time_unit)? ~ pattern_statement* ~ "}" }
 label = { (string | name) ~ ":" }
 time_unit = { "TimeUnit" ~ time_expr ~ EOS }
-pattern_statement = { label | vector | waveform_statement | condition | call | macro_statement | loop_statement |
+pattern_statement = { label | vector_with_comment | vector | waveform_statement | condition | call | macro_statement | loop_statement |
                       match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation }
 
 vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
+vector_with_comment = ${ "V" ~ "ector"? ~ (space | N)* ~ "{" ~ ((space | N)* ~ (cyclized_data | non_cyclized_data))* ~ (space | N)* ~ "}" ~ vector_comment }
+vector_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
 cyclized_data = { (sigref_expr ~ "=" ~ vec_data+ ~ EOS) | (sigref_expr ~ "{" ~ (vec_data ~ EOS)+ ~ "}") }
 vec_data = { repeat | waveform_format | hex_format | dec_format | data_string }
 repeat = @{ "\\r" ~ integer }
