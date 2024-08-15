@@ -4,8 +4,10 @@ use crate::ast::AST;
 use crate::{Error, Result};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
-use std::fs;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::Path;
+use flate2::read::GzDecoder;
 
 #[derive(Parser)]
 #[grammar = "stil/stil.pest"]
@@ -13,8 +15,24 @@ pub struct STILParser;
 
 pub fn parse_file(path: &Path) -> Result<Node<STIL>> {
     if path.exists() {
+        let gzip = match path.extension() {
+            Some(ext) => ext == "gz",
+            None => false,
+        };
+
+        let mut reader: Box<dyn Read> = if gzip {
+            let f = File::open(path)?;
+            Box::new(GzDecoder::new(BufReader::new(f)))
+        } else {
+            let f = File::open(path)?;
+            Box::new(BufReader::new(f))
+        };
+
+        let mut contents = String::new();
+        reader.read_to_string(&mut contents)?;
+
         match parse_str(
-            &fs::read_to_string(path)?,
+            &contents,
             Some(&path.display().to_string()),
         ) {
             Ok(n) => Ok(n),
@@ -813,9 +831,15 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 ids.push(ast.push_and_open(node!(STIL::TimeUnit)));
                 pairs.push(pair.into_inner());
             }
-            Rule::vector => {
+            Rule::vector | Rule::vector_with_comment => {
                 ids.push(ast.push_and_open(node!(STIL::Vector)));
                 pairs.push(pair.into_inner());
+            }
+            Rule::vector_comment => {
+                let cmt = pair.as_str().to_string();
+                let cmt = cmt.trim();
+                let cmt = cmt.replace("\n", "");
+                ast.push(node!(STIL::Comment, cmt))
             }
             Rule::cyclized_data => {
                 ids.push(ast.push_and_open(node!(STIL::CyclizedData)));
@@ -953,6 +977,7 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
 mod tests {
     use super::super::from_file;
     use super::*;
+    use std::fs;
     use std::path::Path;
 
     fn read(example: &str) -> String {
@@ -1015,7 +1040,17 @@ mod tests {
         let _stil = from_file(Path::new(
             "../../test_apps/python_app/vendor/stil/example6.stil",
         ))
-        .expect("Imported example5");
+        .expect("Imported example6");
+        // Keeping this print for test coverage since this initially caused an un-detected stack overflow
+        println!("{}", _stil);
+    }
+
+    #[test]
+    fn test_example7_gz_to_ast() {
+        let _stil = from_file(Path::new(
+            "../../test_apps/python_app/vendor/stil/example7.stil.gz",
+        ))
+        .expect("Imported example7");
         // Keeping this print for test coverage since this initially caused an un-detected stack overflow
         println!("{}", _stil);
     }
