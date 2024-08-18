@@ -200,7 +200,7 @@ impl CurrentCommand {
     }
 
     #[getter]
-    pub fn command_source<'py>(&'py self, py: Python<'py>) -> PyResult<&Py<CommandSource>> {
+    pub fn command_source<'py>(&'py self, _py: Python<'py>) -> PyResult<&Py<CommandSource>> {
         Ok(&self.source)
     }
 

@@ -1,6 +1,10 @@
 use origen_metal::{Result, Outcome, octocrab, futures};
 use std::collections::HashMap;
 
+lazy_static! {
+    static ref GH_ENV: &'static str = "GITHUB_WORKFLOW";
+}
+
 pub fn with_blocking_calls<F, V>(mut f: F) -> Result<V>
 where
     F: FnMut() -> Result<V>,
@@ -23,6 +27,18 @@ pub fn lookup_pat() -> Result<String> {
         Err(e) => match e {
             std::env::VarError::NotPresent => {
                 bail!("Environment variable 'github_pat' was not found")
+            },
+            _ => return Err(e.into())
+        }
+    }
+}
+
+pub fn get_current_workflow_name() -> Result<Option<String>> {
+    match std::env::var(*GH_ENV) {
+        Ok(v) => Ok(Some(v)),
+        Err(e) => match e {
+            std::env::VarError::NotPresent => {
+                return Ok(None)
             },
             _ => return Err(e.into())
         }

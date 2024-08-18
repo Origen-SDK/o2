@@ -1,5 +1,7 @@
 # Use the local origen/origen_metal - actual tests should be done through 'eval', which will use the installed packages.
 import sys, pathlib
+
+import origen.helpers
 p = pathlib.Path(__file__).parent.parent.parent.joinpath("python/origen")
 sys.path.append(str(p))
 sys.path.append(str(p.parent.joinpath("origen_metal")))
@@ -10,6 +12,8 @@ import pytest, pip, jinja2, shutil, subprocess
 from origen.helpers.regressions.cli import CLI
 from types import ModuleType
 from pathlib import Path, PosixPath, WindowsPath
+
+ta_helpers = origen.helpers.mod_from_file(str(pathlib.Path(__file__).parent.parent.joinpath("test_apps_shared_test_helpers/test_apps_shared_test_helpers/__init__.py")), "ta_helpers")
 
 sys.path.append(str(pathlib.Path(__file__).parent.parent.joinpath("test_apps_shared_test_helpers/test_apps_shared_test_helpers/cli")))
 from dirs import o2_root, cli_dir
@@ -110,7 +114,19 @@ class T_InvocationEnv(T_InvocationBaseTests):
         if cls.target_pyproj_dir:
             subprocess.run(["pip", "--version"], check=True, cwd=cls.target_pyproj_dir)
             subprocess.run(["poetry", "--version"], check=True, cwd=cls.target_pyproj_dir)
-            subprocess.run(["poetry", "install"], check=True, cwd=cls.target_pyproj_dir)
+            install_tries = 0
+            while True:
+                try:
+                    subprocess.run(["poetry", "install"], check=True, cwd=cls.target_pyproj_dir)
+                    break
+                except subprocess.CalledProcessError as e:
+                    if ta_helpers.is_gh_regressions:
+                        install_tries += 1
+                        print(f"Failed install attempt #{install_tries} for GH actions")
+                        if install_tries == 3:
+                            raise e
+                    else:
+                        raise e
 
     @classmethod
     def teardown_method(cls):
