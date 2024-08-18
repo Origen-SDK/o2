@@ -116,17 +116,18 @@ class T_InvocationEnv(T_InvocationBaseTests):
             subprocess.run(["poetry", "--version"], check=True, cwd=cls.target_pyproj_dir)
             install_tries = 0
             while True:
+                print(ta_helpers.is_gh_regressions)
                 try:
                     subprocess.run(["poetry", "install"], check=True, cwd=cls.target_pyproj_dir)
                     break
                 except subprocess.CalledProcessError as e:
-                    if ta_helpers.is_gh_regressions:
+                    # if ta_helpers.is_gh_regressions:
                         install_tries += 1
                         print(f"Failed install attempt #{install_tries} for GH actions")
                         if install_tries == 3:
                             raise e
-                    else:
-                        raise e
+                    # else:
+                    #     raise e
 
     @classmethod
     def teardown_method(cls):
