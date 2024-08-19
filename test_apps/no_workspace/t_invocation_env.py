@@ -117,7 +117,7 @@ class T_InvocationEnv(T_InvocationBaseTests):
             install_tries = 0
             while True:
                 print(ta_helpers.is_gh_regressions)
-                print(_origen.utility.revision_control.github.get_current_workflow_name)
+                print(_origen.utility.revision_control.github.get_current_workflow_name())
                 try:
                     subprocess.run(["poetry", "install"], check=True, cwd=cls.target_pyproj_dir)
                     break
