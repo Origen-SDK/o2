@@ -105,7 +105,7 @@ jobs:
         #   target: x86_64
           manylinux: auto
           # This is required to fix an SSL build error
-          # before-script-linux: yum install perl-IPC-Cmd -y
+          before-script-linux: yum install perl-IPC-Cmd -y
           args: --release --strip --out om_dist --manifest-path rust/pyapi_metal/Cargo.toml --interpreter python${{ matrix.python-version }}
       # - name: Install Poetry
       #   run: |
