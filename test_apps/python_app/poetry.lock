@@ -948,7 +948,7 @@ importlib-metadata = ">= 1.7.0"
 Jinja2 = "^3"
 mako = "1.1.0"
 origen_autoapi = "2.0.1"
-origen_metal = "~0.4.1.dev1"
+origen_metal = "~0.4.1.dev2"
 poetry = "^1.1.14"
 recommonmark = ">= 0"
 sphinx = "3.0.2"
@@ -977,7 +977,7 @@ sphinx = "*"
 
 [[package]]
 name = "origen-metal"
-version = "0.4.1.dev1"
+version = "0.4.1-dev4"
 description = "Bare metal APIs for the Origen SDK"
 category = "main"
 optional = false
@@ -1305,6 +1305,23 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 
 [package.extras]
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
+
+[[package]]
+name = "pytest-rerunfailures"
+version = "13.0"
+description = "pytest plugin to re-run tests to eliminate flaky failures"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pytest-rerunfailures-13.0.tar.gz", hash = "sha256:e132dbe420bc476f544b96e7036edd0a69707574209b6677263c950d19b09199"},
+    {file = "pytest_rerunfailures-13.0-py3-none-any.whl", hash = "sha256:34919cb3fcb1f8e5d4b940aa75ccdea9661bade925091873b7c6fa5548333069"},
+]
+
+[package.dependencies]
+importlib-metadata = {version = ">=1", markers = "python_version < \"3.8\""}
+packaging = ">=17.1"
+pytest = ">=7"
 
 [[package]]
 name = "python-plugin"
@@ -1773,6 +1790,7 @@ develop = true
 origen = {path = "../../python/origen", develop = true}
 pl_ext_cmds = {path = "../pl_ext_cmds", develop = true}
 pytest = ">=7.2.1"
+pytest-rerunfailures = "13.0"
 
 [package.source]
 type = "directory"
