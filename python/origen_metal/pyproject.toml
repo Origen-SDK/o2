@@ -32,7 +32,8 @@ dependencies = [
 ]
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.2.4"
+pytest = "^7"
+pytest-rerunfailures = "13.0" # Last version that supports Python 3.7
 pdoc = "^7"
 maturin = "1.7.0"
 
