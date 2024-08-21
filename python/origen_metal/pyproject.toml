@@ -46,10 +46,9 @@ markers = [
     "ldap: marks tests requiring/using the external ldap",
 ]
 
-# SMcG - Commented out, breaks regression (setting up test/python_app env)
-#[tool.poetry.build]
-#script = "poetry_build.py"
-#generate-setup-file = false
+[tool.poetry.build]
+script = "poetry_build.py"
+generate-setup-file = false
 
 [tool.maturin]
 module-name = "origen_metal._origen_metal"
