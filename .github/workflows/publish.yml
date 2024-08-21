@@ -242,7 +242,7 @@ jobs:
         run: ls wheelhouse
 
       - name: Upload Origen Metal Python Package Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v1
         with:
           name: om_wheels
           path: python/origen_metal/wheelhouse/*
@@ -252,7 +252,7 @@ jobs:
         run: poetry version -s > ${{ env.om_ver_file }}
 
       - name: Upload OM Python Package Version
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v1
         with:
           name: ${{ env.om_ver_file }}
           path: python/origen_metal/${{ env.om_ver_file }}
@@ -276,7 +276,7 @@ jobs:
         run: ls wheelhouse
 
       - name: Upload Origen Python Package Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v1
         with:
           name: origen_wheels
           path: python/origen/wheelhouse/*
@@ -286,13 +286,13 @@ jobs:
         run: poetry version -s > ${{ env.origen_ver_file }}
   
       - name: Upload Origen Python Package Version
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v1
         with:
           name: ${{ env.origen_ver_file }}
           path: python/origen/${{ env.origen_ver_file }}
 
       - name: Upload CLI as a standalone entity
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v1
         with:
           name: cli
           path: python\origen\origen\__bin__\bin\origen
