@@ -137,6 +137,10 @@ jobs:
           yum install libffi-devel -y
           ldconfig
 
+      - name: Install Perl-IPC-cmd
+        run : |
+          yum install perl-IPC-Cmd -y
+
       - name: Install Python
         run: |
           ls $ROOT_DIR/openssl-1.1.1w
