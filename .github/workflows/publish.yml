@@ -283,6 +283,8 @@ jobs:
         run: |
           ls wheelhouse
           echo "origen_wheel=$( ls wheelhouse | head -1 )" >> $GITHUB_OUTPUT
+          ls -al python/origen/origen/__bin__/bin
+          ls -al rust/pyapi/target/release
 
       - name: Upload Origen Python Package Artifact
         uses: actions/upload-artifact@v1
@@ -305,7 +307,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: cli
-          path: python\origen\origen\__bin__\bin\origen
+          path: python/origen/origen/__bin__/bin/origen
 
   build_windows:
     strategy:
