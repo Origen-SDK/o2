@@ -241,14 +241,18 @@ jobs:
         working-directory: python/origen_metal
         run: |
           ls wheelhouse
-          echo "om_wheel=$( ls wheelhouse | head -1 )" >> $GITHUB_OUTPUT
+          echo "OM_WHEEL=$( ls wheelhouse | head -1 )" >> $GITHUB_ENV
+
+      - name: Display OM Wheel Name
+        run: |
+          echo ${{ env.OM_WHEEL }}
 
       - name: Upload Origen Metal Python Package Artifact
         uses: actions/upload-artifact@v1
         with:
           name: om_wheels
           # path: python/origen_metal/wheelhouse/*
-          path: python/origen_metal/wheelhouse/${{ steps.vars.outputs.om_wheel }}
+          path: python/origen_metal/wheelhouse/${{ env.OM_WHEEL }}
 
       - name: Get OM Python Package Version
         working-directory: python/origen_metal
