@@ -274,8 +274,8 @@ scan_inversion_val = { ("0" | "1") }
 pattern_block = { "Pattern" ~ name ~ "{" ~ (label? ~ time_unit)? ~ pattern_statement* ~ "}" }
 label = { (string | name) ~ ":" }
 time_unit = { "TimeUnit" ~ time_expr ~ EOS }
-pattern_statement = { label | vector_with_comment | vector | waveform_statement | condition | call | macro_statement | loop_statement |
-                      match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation }
+pattern_statement = { label | vector_with_comment | vector | waveform_statement | condition | call | macro_statement |loop_statement_with_comment | 
+                      loop_statement | match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation }
 
 vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
 vector_with_comment = ${ "V" ~ "ector"? ~ (space | N)* ~ "{" ~ ((space | N)* ~ (cyclized_data | non_cyclized_data))* ~ (space | N)* ~ "}" ~ vector_comment }
@@ -302,6 +302,8 @@ call = { ("Call" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("
 macro_statement = { ("Macro" ~ name ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}") | ("Macro" ~ name ~ EOS) }
 
 loop_statement = { "Loop" ~ integer ~ "{" ~ pattern_statement* ~ "}" }
+loop_statement_with_comment = ${ "Loop" ~ (space | N)* ~ integer ~ (space | N)* ~ "{" ~ ((space | N)* ~ pattern_statement)* ~ (space | N)* ~ "}" ~ loop_comment }
+loop_comment = @{ space* ~ "//" ~ (!N ~ ANY)* ~ N }
 
 match_loop = { "MatchLoop" ~ (integer | infinite) ~ "{" ~ pattern_statement+ ~ "}" }
 infinite = { "Infinite" }
