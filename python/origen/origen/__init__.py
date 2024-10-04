@@ -68,6 +68,8 @@ def __getattr__(name: str):
             return origen._plugins
         else:
             return _plugins
+    elif name == "output_directory" or name == "output_dir":
+        return _origen.output_directory()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # Replace origen_metal's native _origen_metal built library

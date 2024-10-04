@@ -24,7 +24,6 @@ use origen::utility::big_uint_helpers::BigUintHelpers;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use pyapi_metal::PyOutcome;
 
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "utility")?;
@@ -32,7 +31,6 @@ pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     subm.add_class::<Transaction>()?;
     subm.add_wrapped(wrap_pyfunction!(reverse_bits))?;
     subm.add_wrapped(wrap_pyfunction!(exec))?;
-    subm.add_wrapped(wrap_pyfunction!(dispatch_workflow))?;
     sessions::define(py, subm)?;
     revision_control::define(py, subm)?;
     unit_testers::define(py, subm)?;
@@ -170,15 +168,3 @@ fn app_utility(
     }
 }
 
-#[pyfunction]
-#[pyo3(signature=(owner, repo, workflow, git_ref, inputs=None))]
-pub fn dispatch_workflow(
-    owner: &str,
-    repo: &str,
-    workflow: &str,
-    git_ref: &str,
-    inputs: Option<HashMap<String, String>>,
-) -> PyResult<PyOutcome> {
-    let res = origen::utility::github::dispatch_workflow(owner, repo, workflow, git_ref, inputs)?;
-    Ok(PyOutcome::from_origen(res))
-}
