@@ -274,7 +274,7 @@ scan_inversion_val = { ("0" | "1") }
 pattern_block = { "Pattern" ~ name ~ "{" ~ (label? ~ time_unit)? ~ pattern_statement* ~ "}" }
 label = { (string | name) ~ ":" }
 time_unit = { "TimeUnit" ~ time_expr ~ EOS }
-pattern_statement = { label | vector_with_comment | vector | waveform_statement | condition | call | macro_statement |loop_statement_with_comment | 
+pattern_statement = !{ label | vector_with_comment | vector | waveform_statement | condition | call | macro_statement |loop_statement_with_comment | 
                       loop_statement | match_loop | goto | breakpoint | iddq | stop_statement | scan_chain_statement | annotation }
 
 vector = { "V" ~ "ector"? ~ "{" ~ (cyclized_data | non_cyclized_data)* ~ "}" }
