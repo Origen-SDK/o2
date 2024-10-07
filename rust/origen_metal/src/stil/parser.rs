@@ -900,13 +900,19 @@ pub fn to_ast(mut pair: Pair<Rule>, source_file: Option<&str>) -> Result<AST<STI
                 );
                 pairs.push(p);
             }
-            Rule::loop_statement => {
+            Rule::loop_statement | Rule::loop_statement_with_comment => {
                 let mut p = pair.into_inner();
                 ids.push(ast.push_and_open(node!(
                     STIL::Loop,
                     p.next().unwrap().as_str().parse().unwrap()
                 )));
                 pairs.push(p);
+            }
+            Rule::loop_comment => {
+                let cmt = pair.as_str().to_string();
+                let cmt = cmt.trim();
+                let cmt = cmt.replace("\n", "");
+                ast.push(node!(STIL::Comment, cmt))
             }
             Rule::match_loop => {
                 let mut p = pair.into_inner();

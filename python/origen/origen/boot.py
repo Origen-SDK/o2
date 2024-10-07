@@ -33,7 +33,6 @@ def run_cmd(command,
         --------
         * :link-to:`Example Application Commands <src_code:example_commands>`
     '''
-
     import origen
     import _origen
     import origen_metal
@@ -47,13 +46,13 @@ def run_cmd(command,
         arg_indices = {}
 
     if command == dispatch_plugin_cmd:
-        cmd_src = "plugin"
+        cmd_src = _origen.current_command.SourceType.Plugin
     elif command == dispatch_aux_cmd:
-        cmd_src = "aux_ns"
+        cmd_src = _origen.current_command.SourceType.Aux
     elif command == dispatch_app_cmd:
-        cmd_src = "app"
+        cmd_src = _origen.current_command.SourceType.App
     else:
-        cmd_src = "core"
+        cmd_src = _origen.current_command.SourceType.Core
     dispatch = {}
 
     def wrap_mod_from_file(path):
@@ -62,7 +61,7 @@ def run_cmd(command,
         except Exception as e:
             return [path, e]
 
-    def mod_from_modulized_path(root, sub_parts):
+    def find_mod(root, sub_parts):
         root = pathlib.Path(root)
         if not root.exists():
             return [f"Root directory '{root}' does not exists or is not accessible"]
@@ -76,7 +75,7 @@ def run_cmd(command,
                     if modulized_path.exists():
                         path = pathlib.Path(f"{modulized_path}/{'.'.join(sub_parts[(i+1):])}.py")
                         if path.exists():
-                            return wrap_mod_from_file(path)
+                            return path
                         else:
                             paths.append(path)
                     else:
@@ -84,7 +83,13 @@ def run_cmd(command,
                 return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
             else:
                 return [f"From root '{root}', searched:", *[p.relative_to(root) for p in paths]]
-        return wrap_mod_from_file(path)
+        return path
+
+    def mod_from_modulized_path(root, sub_parts):
+        m = find_mod(root, sub_parts)
+        if isinstance(m, list):
+            return m
+        return wrap_mod_from_file(m)
 
     def call_user_cmd(cmd_type):
         m = mod_from_modulized_path(dispatch_root, subcmds)
@@ -92,7 +97,8 @@ def run_cmd(command,
         if isinstance(m, list):
             if isinstance(m[1], Exception):
                 origen.log.error(f"Could not load {cmd_type} command implementation from '{('.').join(subcmds)}' ({m[0]})")
-                origen.log.error(f"Received exception:\n{m[1]}")
+                import traceback
+                origen.log.error(f"Received exception:\n{''.join(traceback.format_exception(m[1]))}")
             else:
                 origen.log.error(f"Could not find implementation for {cmd_type} command '{('.').join(subcmds)}'")
                 for msg in m:
@@ -182,13 +188,13 @@ def run_cmd(command,
 
     for ext in extensions:
         current_ext = ext
-        if cmd_src == "core":
+        if cmd_src.is_core_cmd:
             _dispatch_src = [command]
-        elif cmd_src == "app":
+        elif cmd_src.is_app_cmd:
             _dispatch_src = []
         else:
             _dispatch_src = [dispatch_src]
-        m = mod_from_modulized_path(ext['root'], [cmd_src, *_dispatch_src, *subcmds])
+        m = mod_from_modulized_path(ext['root'], [cmd_src.root_name, *_dispatch_src, *subcmds])
         if isinstance(m, list):
             if len(m) == 2 and isinstance(m[1], Exception):
                 origen.log.error(f"Could not load {ext['source']} extension implementation from '{ext['name']}' ({m[0]})")
@@ -208,7 +214,20 @@ def run_cmd(command,
             if "on_load" in ext:
                 getattr((ext["mod"]), ext["on_load"])(ext["mod"])
     current_ext = None
-    _origen.current_command.set_command(command, subcmds, args, ext_args, arg_indices, ext_arg_indices, extensions)
+    if cmd_src.is_core_cmd:
+        _origen.current_command.set_command(command, subcmds, args, ext_args, arg_indices, ext_arg_indices, extensions, cmd_src, None, None)
+    else:
+        path = find_mod(dispatch_root, subcmds)
+        if isinstance(path, list):
+            if isinstance(path[1], Exception):
+                origen.log.error(f"Could not load {cmd_src} command implementation from '{('.').join(subcmds)}' ({path[0]})")
+                origen.log.error(f"Received exception:\n{path[1]}")
+            else:
+                origen.log.error(f"Could not find implementation for {cmd_src} command '{('.').join(subcmds)}'")
+                for msg in path:
+                    origen.log.error(f"  {msg}")
+            exit_proc(1)
+        _origen.current_command.set_command(command, subcmds, args, ext_args, arg_indices, ext_arg_indices, extensions, cmd_src, path, dispatch_src)
 
     def run_ext(phase, continue_on_fail=False):
         for ext in extensions:
@@ -415,7 +434,6 @@ def run_cmd(command,
             except Exception as e:
                 print("Error")
                 print(tabify(repr(e)))
-
 
         elif command == dispatch_app_cmd:
             call_user_cmd("app")

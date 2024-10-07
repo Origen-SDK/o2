@@ -7,11 +7,11 @@ authors = ["Origen-SDK"]
 [tool.poetry.dependencies]
 python = ">=3.7.0,<3.13"
 pytest = ">=7.2.1"
+pytest-rerunfailures = "13.0" # Last version that supports Python 3.7
 origen = { path = "../../python/origen", develop = true }
 pl_ext_cmds = { path = "../pl_ext_cmds", develop = true }
 
 [tool.poetry.dev-dependencies]
-pytest = "^3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

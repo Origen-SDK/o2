@@ -1,3 +1,5 @@
+pub mod github;
+
 use pyapi_metal::utils::revision_control::supported::git::PY_GIT_MOD_PATH;
 
 use pyo3::prelude::*;
@@ -12,6 +14,7 @@ use crate::runtime_error;
 pub fn define(py: Python, m: &PyModule) -> PyResult<()> {
     let subm = PyModule::new(py, "revision_control")?;
     subm.add_wrapped(wrap_pyfunction!(app_rc))?;
+    github::define(py, subm)?;
     m.add_submodule(subm)?;
     Ok(())
 }

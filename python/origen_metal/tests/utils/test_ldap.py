@@ -286,6 +286,7 @@ class Common:
         return dummy_config.u2
 
 @pytest.mark.ldap
+@pytest.mark.flaky(reruns=3, reruns_delay=5) # Allow for 3 retries on failed LDAP tests with 5 seconds between tries
 class TestStandaloneLDAP(Common):
     def test_ldap_parameters(self, dummy_config):
         ldap = self.dummy_ldap()
@@ -452,6 +453,7 @@ class TestStandaloneLDAP(Common):
         assert ldap.timeout is None
 
 @pytest.mark.ldap
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 class TestLdapAsDataStore(DataStoreView):
     ''' The LDAP's only data store feature is populating users'''
     def parameterize(self):
@@ -479,6 +481,7 @@ class TestLdapAsDataStore(DataStoreView):
 
 
 @pytest.mark.ldap
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
 class TestAuthSetups:
     class TestSimpleBind:
         @pytest.fixture

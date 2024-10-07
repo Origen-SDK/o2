@@ -19,6 +19,9 @@ def from_origen_cli(plugins):
     origen._plugins = pls
     return origen._plugins
 
+class Plugin:
+    pass
+
 class Plugins(UserDict):
     def __init__(self):
         UserDict.__init__(self)
@@ -33,7 +36,8 @@ class Plugins(UserDict):
 
     def register(self, name):
         a = importlib.import_module(f'{name}.application')
-        app = a.Application(root=Path(os.path.abspath(
+        a_pl = type("Application", (Plugin, a.Application), {})
+        app = a_pl(root=Path(os.path.abspath(
             a.__file__)).parent.parent,
                             name=name)
         self.data[name] = app

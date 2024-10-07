@@ -94,7 +94,7 @@ class Base(_origen.application.PyApplication):
             return None
 
     @property
-    def session(self):
+    def app_session(self):
         ''' Return this app's session store'''
         return origen.sessions.app_session(self)
 
@@ -102,6 +102,14 @@ class Base(_origen.application.PyApplication):
     def user_session(self):
         ''' Return this app's user session store'''
         return origen.sessions.user_session(self)
+
+    @property
+    def session(self):
+        ''' If in an application workspace, return the this app's app session, otherwise this app's user session'''
+        if origen.app:
+            return self.app_session
+        else:
+            return self.user_session
 
     @property
     def rc(self):

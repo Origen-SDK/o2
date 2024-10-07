@@ -32,7 +32,8 @@ dependencies = [
 ]
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.2.4"
+pytest = "^7"
+pytest-rerunfailures = "13.0" # Last version that supports Python 3.7
 pdoc = "^7"
 maturin = "1.7.0"
 
@@ -45,10 +46,9 @@ markers = [
     "ldap: marks tests requiring/using the external ldap",
 ]
 
-# SMcG - Commented out, breaks regression (setting up test/python_app env)
-#[tool.poetry.build]
-#script = "poetry_build.py"
-#generate-setup-file = false
+[tool.poetry.build]
+script = "poetry_build.py"
+generate-setup-file = false
 
 [tool.maturin]
 module-name = "origen_metal._origen_metal"
