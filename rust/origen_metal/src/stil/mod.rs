@@ -17,6 +17,11 @@ pub fn from_file(path: &Path) -> OrigenResult<Node<STIL>> {
     Ok(ast)
 }
 
+pub fn from_file_ignore_includes(path: &Path) -> OrigenResult<Node<STIL>> {
+    let ast = parser::parse_file(path)?;
+    Ok(ast)
+}
+
 /// Parse the given STIL file, using the given load path to resolve any include statements
 /// that are encountered.
 /// Include files can optionally be renamed using the `rename` argument, which
