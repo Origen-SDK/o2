@@ -43,6 +43,7 @@ class TestLoadingGlobalPlugins(ConfigCommon):
         assert pls.names == self.plugins.python_no_app_config_pl_names
         # TODO
         assert isinstance(pl, origen.application.Base)
+        assert isinstance(pl, origen.core.plugins.Plugin)
         # assert isinstance(pl, _origen.plugins.Plugin)
         # TODO
         assert pl.is_plugin == True
